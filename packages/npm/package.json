@@ -1,0 +1,45 @@
+{
+  "name": "@mufthakherul/cosmicsec-agent-cli",
+  "version": "0.1.0",
+  "description": "Official npm launcher for CosmicSec Agent CLI (Python-powered)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mufthakherul/CosmicSec.git",
+    "directory": "cli/agent/npm"
+  },
+  "homepage": "https://github.com/mufthakherul/CosmicSec/tree/main/cli/agent/npm",
+  "bugs": {
+    "url": "https://github.com/mufthakherul/CosmicSec/issues"
+  },
+  "keywords": [
+    "cosmicsec",
+    "security",
+    "cybersecurity",
+    "cli",
+    "agent",
+    "npm"
+  ],
+  "type": "commonjs",
+  "bin": {
+    "cosmicsec-agent": "bin/cosmicsec-agent.js",
+    "cosmicsec": "bin/cosmicsec-agent.js",
+    "cosmicsec-agent-install": "bin/cosmicsec-agent-install.js"
+  },
+  "scripts": {
+    "test": "node --check bin/cosmicsec-agent.js && node --check bin/cosmicsec-agent-install.js && node --check lib/installer.js",
+    "pack:check": "npm pack --dry-run"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "README.md"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  }
+}

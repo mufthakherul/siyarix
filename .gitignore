@@ -1,0 +1,74 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Testing / Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.pyre/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Build / Rust
+target/
+Cargo.lock
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Security scan artifacts
+bandit-*.json
+safety-report.json
+analysis-reports/
+quality-report.md
+
+# CI counters
+.fix-counter.txt
+.enhancement-counter.txt
+enhancements.json
+.github_desabled/

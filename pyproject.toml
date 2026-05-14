@@ -1,0 +1,51 @@
+[project]
+name = "nexsec"
+version = "0.3.0"
+description = "NexSec by CosmicSec — A security agent with AI-powered hybrid execution, dynamic planning, and intelligent tool orchestration"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["cybersecurity", "agent", "nmap", "scanner", "ai", "hybrid", "security"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Security",
+  "Typing :: Typed",
+]
+dependencies = [
+  "typer>=0.12",
+  "rich>=13",
+  "websockets>=12",
+  "httpx>=0.27",
+  "pydantic>=2.5",
+  "aiofiles>=23.0",
+  "keyring>=25.0",
+  "cryptography>=42.0",
+]
+
+[project.optional-dependencies]
+ai = [
+  "openai>=2.31.0",
+]
+fast = [
+  "maturin>=1.7",
+]
+all = [
+  "openai>=2.31.0",
+  "pyyaml>=6.0",
+  "maturin>=1.7",
+]
+
+[project.scripts]
+nexsec = "cosmicsec_agent.main:app"
+cosmicsec-agent = "cosmicsec_agent.main:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cosmicsec_agent"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

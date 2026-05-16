@@ -1,0 +1,222 @@
+name: Coverage
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - '**.py'
+      - 'tests/**'
+      - 'pyproject.toml'
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: Coverage Analysis
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e .[dev]
+          pip install pytest pytest-cov coverage lxml
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ \
+            --cov=src \
+            --cov-report=term-missing:skip-covered \
+            --cov-report=html \
+            --cov-branch \
+            --cov-fail-under=80 \
+            -v \
+            --tb=short \
+            -m "not integration"
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: matrix.python-version == '3.12'
+        with:
+          name: coverage-report
+          path: |
+            htmlcov/
+            coverage.xml
+          retention-days: 30
+
+  coverage-comment:
+    name: Comment Coverage Results
+    runs-on: ubuntu-latest
+    needs: coverage
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+
+      - name: Generate comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Try to parse coverage
+            try {
+              const xml = fs.readFileSync('coverage.xml', 'utf8');
+              const totalMatch = xml.match(/line-rate="([0-9.]+)"/);
+              const branchMatch = xml.match(/branch-rate="([0-9.]+)"/);
+
+              const lineRate = totalMatch ? parseFloat(totalMatch[1]) * 100 : 0;
+              const branchRate = branchMatch ? parseFloat(branchMatch[1]) * 100 : 0;
+
+              // Determine emoji based on coverage
+              const emoji = lineRate >= 80 ? '✅' : lineRate >= 60 ? '⚠️' : '❌';
+
+              const comment = `${emoji} **Coverage Report**
+
+              | Metric | Coverage |
+              |--------|----------|
+              | Line Coverage | ${lineRate.toFixed(1)}% |
+              | Branch Coverage | ${branchRate.toFixed(1)}% |
+
+              ${lineRate < 80 ? '⚠️ Coverage is below 80% threshold' : '✅ Coverage meets threshold'}
+
+              ---
+              *Coverage report generated for Python 3.12*`;
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: comment
+              });
+            } catch (e) {
+              console.log('Could not generate coverage comment:', e.message);
+            }
+
+  codecov-upload:
+    name: Upload to Codecov
+    runs-on: ubuntu-latest
+    needs: coverage
+    if: matrix.python-version == '3.12'
+    steps:
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: siyarix
+          fail_ci_if_error: false
+          verbose: true
+
+  coverage-badge:
+    name: Update Coverage Badge
+    runs-on: ubuntu-latest
+    needs: coverage
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+
+      - name: Create badge data
+        run: |
+          # Generate badge data
+          echo "Coverage status" > coverage-status.txt
+          ls -la
+
+      - name: Create branch coverage report
+        run: |
+          echo "# Branch Coverage Report" > branch-coverage.md
+          ls htmlcov/ | head -20
+
+  diff-coverage:
+    name: PR Coverage Diff
+    runs-on: ubuntu-latest
+    needs: coverage
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+
+      - name: Generate diff coverage
+        run: |
+          git diff --name-only origin/main...HEAD > changed_files.txt || true
+          cat changed_files.txt
+
+      - name: Comment on uncovered files
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const changed = fs.readFileSync('changed_files.txt', 'utf8').split('\n').filter(Boolean);
+
+            if (changed.length > 0) {
+              let comment = '### Files Changed in This PR\n\n';
+              changed.slice(0, 10).forEach(file => {
+                comment += `- \`${file}\`\n`;
+              });
+
+              if (changed.length > 10) {
+                comment += `\n*...and ${changed.length - 10} more files*\n`;
+              }
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: comment
+              });
+            }
+
+  coverage-summary:
+    name: Coverage Summary
+    runs-on: ubuntu-latest
+    needs: coverage
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Python Version | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 3.11 | ${{ needs.coverage.outputs.result_3_11 }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 3.12 | ${{ needs.coverage.outputs.result_3_12 }} |" >> $GITHUB_STEP_SUMMARY

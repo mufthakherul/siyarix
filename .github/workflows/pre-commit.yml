@@ -1,0 +1,135 @@
+name: Pre-Commit
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  pre-commit:
+    name: Pre-Commit Hooks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: 'pip'
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Cache pre-commit hooks
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            pre-commit-
+
+      - name: Run pre-commit on all files
+        run: pre-commit run --all-files --show-diff-on-failure
+
+      - name: Run pre-commit on staged files
+        if: github.event_name == 'push'
+        run: |
+          # For push events, check against parent commit
+          pre-commit run --from-ref HEAD~1 --to-ref HEAD --show-diff-on-failure
+
+      - name: Fail if changes detected
+        if: github.event_name == 'pull_request'
+        run: |
+          git status --porcelain
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::Pre-commit hooks made changes. Please commit them locally."
+            exit 1
+          fi
+
+  pre-commit-config-verify:
+    name: Verify Pre-Commit Config
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pre-commit-hooks
+        run: pip install pre-commit pyyaml
+
+      - name: Validate .pre-commit-config.yaml
+        run: |
+          python -c "import yaml; yaml.safe_load(open('.pre-commit-config.yaml'))"
+          echo "✓ Pre-commit config is valid YAML"
+
+      - name: Check for required hooks
+        run: |
+          echo "Checking for essential pre-commit hooks..."
+          cat .pre-commit-config.yaml | grep -E "(black|ruff|isort|mypy|pytest)" || echo "Warning: Some common hooks not found"
+
+  pre-commit-autofix:
+    name: Auto-Fix Issues (Optional)
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Auto-fix fixable issues
+        run: |
+          pre-commit run --all-files || true
+
+      - name: Commit fixes
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "style: auto-fix pre-commit issues" || echo "No changes to commit"
+            git push || echo "Could not auto-push"
+          fi
+        continue-on-error: true
+
+  pre-commit-stats:
+    name: Pre-Commit Statistics
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate stats
+        run: |
+          echo "## Pre-Commit Hook Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Hook | Status |" >> $GITHUB_STEP_SUMMARY
+
+          echo "Checking hook execution..."
+          echo "✅ Run complete"

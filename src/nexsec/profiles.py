@@ -1,4 +1,4 @@
-"""Profile and workspace configuration for CosmicSec Agent."""
+"""Profile and workspace configuration for NexSec Agent."""
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ from pathlib import Path
 DEFAULT_PROFILE = "default"
 
 def _config_dir() -> Path:
-    override = os.getenv("COSMICSEC_CONFIG_DIR")
-    return Path(override).expanduser() if override else Path.home() / ".cosmicsec"
+    override = os.getenv("NEXSEC_CONFIG_DIR")
+    return Path(override).expanduser() if override else Path.home() / ".nexsec"
 
 class ProfileStore:
     def __init__(self) -> None:

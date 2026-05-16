@@ -121,7 +121,7 @@ fn parse_gobuster_txt(py: Python<'_>, txt_output: &str) -> PyResult<Vec<Py<PyDic
 }
 
 #[pymodule]
-fn cosmicsec_rust_parsers(_py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
+fn nexsec_rust_parsers(_py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(parse_nmap_xml, module)?)?;
     module.add_function(wrap_pyfunction!(parse_nuclei_json, module)?)?;
     module.add_function(wrap_pyfunction!(parse_nikto_txt, module)?)?;

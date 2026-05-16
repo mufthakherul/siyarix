@@ -8,7 +8,7 @@ import sqlite3
 from datetime import UTC
 from pathlib import Path
 
-_DB_DIR = Path.home() / ".cosmicsec"
+_DB_DIR = Path.home() / ".nexsec"
 _DB_PATH = _DB_DIR / "offline.db"
 
 _CREATE_SCANS = """
@@ -48,7 +48,7 @@ _CREATE_INDEXES = [
 class OfflineStore:
     """SQLite-backed store for offline scan data and findings.
 
-    The database lives at ``~/.cosmicsec/offline.db``.
+    The database lives at ``~/.nexsec/offline.db``.
     """
 
     def __init__(self, db_path: Path | None = None) -> None:

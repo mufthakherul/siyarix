@@ -13,7 +13,7 @@ from pathlib import Path
 from types import ModuleType
 
 _NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{1,63}$")
-_DEFAULT_ROOT = Path(os.getenv("COSMICSEC_PLUGINS_DIR", str(Path.home() / ".cosmicsec" / "plugins")))
+_DEFAULT_ROOT = Path(os.getenv("NEXSEC_PLUGINS_DIR", str(Path.home() / ".nexsec" / "plugins")))
 
 @dataclass
 class PluginMetadata:
@@ -129,7 +129,7 @@ class PluginManager:
                 name=name,
                 version="0.1.0",
                 author=author,
-                description="Custom CosmicSec plugin",
+                description="Custom NexSec plugin",
                 path=str(plugin_dir),
             ),
         )
@@ -227,7 +227,7 @@ class PluginManager:
             module_file = Path(plugin.path) / "commands.py"
             if not module_file.exists():
                 continue
-            module = self._load_module(module_file, f"cosmicsec_plugin_{plugin.name}_commands")
+            module = self._load_module(module_file, f"nexsec_plugin_{plugin.name}_commands")
             register = getattr(module, "register", None)
             if callable(register):
                 register(app)
@@ -243,7 +243,7 @@ class PluginManager:
             module_file = Path(plugin.path) / "parser.py"
             if not module_file.exists():
                 continue
-            module = self._load_module(module_file, f"cosmicsec_plugin_{plugin.name}_parser")
+            module = self._load_module(module_file, f"nexsec_plugin_{plugin.name}_parser")
             parser_fn = getattr(module, "parse_tool_output", None)
             if callable(parser_fn):
                 parsers[plugin.name] = parser_fn

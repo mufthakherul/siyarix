@@ -1,12 +1,16 @@
 # Installation
 
-Install from PyPI (recommended):
+### Standard Installation
+
+Install the core package from PyPI:
 
 ```bash
 pip install nexsec
 ```
 
-Install from source (developer):
+### Installation from Source
+
+For development or testing the latest features:
 
 ```bash
 git clone https://github.com/CosmicSec-Lab/nexsec.git
@@ -14,10 +18,14 @@ cd nexsec
 pip install -e .
 ```
 
-Entry points installed:
-- `nexsec` (primary)
-- `cosmicsec-agent` (brand alias)
+### CLI Entry Points
 
-System notes:
-- Requires Python >= 3.11
-- Optional extras: `nexsec[ai]` for OpenAI/Anthropic integrations
+The following commands are registered upon installation:
+- **`nexsec`**: The primary command-line interface.
+- **`nexsec-agent`**: Enterprise-branded alias.
+
+### Requirements & Extras
+
+- **Python Version**: Requires Python >= 3.11.
+- **Autonomous Features**: Install `nexsec[autonomous]` for model provider integrations (e.g., OpenAI).
+- **External Tools**: Ensure security tools like `nmap`, `nuclei`, or `ffuf` are in your system PATH for full functionality.

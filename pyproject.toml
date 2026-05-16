@@ -1,14 +1,14 @@
 [project]
 name = "nexsec"
 version = "0.3.0"
-description = "NexSec by CosmicSec — A security agent with AI-powered hybrid execution, dynamic planning, and intelligent tool orchestration"
+description = "NexSec by NexSec — A security agent with autonomous execution engine, dynamic planning, and intelligent tool orchestration"
 description-content-type = "text/markdown"
 readme = "README.md"
 authors = [ { name = "MD MUFTHAKHERUL ISLAM MIRAZ", email = "130831166+mufthakherul@users.noreply.github.com" } ]
 requires-python = ">=3.11"
 urls = { "Homepage" = "https://github.com/CosmicSec-Lab/nexsec", "Repository" = "https://github.com/CosmicSec-Lab/nexsec" }
 license = { text = "MIT" }
-keywords = ["cybersecurity", "agent", "nmap", "scanner", "ai", "hybrid", "security"]
+keywords = ["cybersecurity", "agent", "nmap", "scanner", "autonomous", "integrated", "security"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "License :: OSI Approved :: MIT License",
@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-ai = [
+autonomous = [
   "openai>=2.31.0",
 ]
 fast = [
@@ -41,7 +41,7 @@ all = [
 
 [project.scripts]
 nexsec = "nexsec.main:app"
-cosmicsec-agent = "nexsec.main:app"
+nexsec-agent = "nexsec.main:app"
 
 [build-system]
 requires = ["hatchling"]

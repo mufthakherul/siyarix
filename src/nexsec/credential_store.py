@@ -94,7 +94,7 @@ class Credential:
 class CredentialStore:
     """Enterprise credential vault"""
 
-    _CONFIG_DIR = Path(os.getenv("COSMICSEC_CONFIG_DIR", str(Path.home() / ".cosmicsec")))
+    _CONFIG_DIR = Path(os.getenv("NEXSEC_CONFIG_DIR", str(Path.home() / ".nexsec")))
     _CREDS_FILE = _CONFIG_DIR / "credentials.enc"
     _KEY_FILE = _CONFIG_DIR / ".vault_key"
 
@@ -137,7 +137,7 @@ class CredentialStore:
         if not CRYPTO_AVAILABLE:
             return
 
-        password = password or os.getenv("COSMICSEC_MASTER_PASSWORD")
+        password = password or os.getenv("NEXSEC_MASTER_PASSWORD")
 
         # Load or generate key
         if self._KEY_FILE.exists():

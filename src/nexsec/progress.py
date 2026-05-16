@@ -1,4 +1,4 @@
-"""CosmicSec CLI — CA-2.2 Real-Time Scan Progress.
+"""NexSec CLI — CA-2.2 Real-Time Scan Progress.
 
 Provides Rich Live-based progress display for concurrent tool execution.
 Supports per-tool spinners, overall progress bars, live findings counter,
@@ -180,7 +180,7 @@ class ScanProgressDisplay:
         elapsed = self._state.elapsed
         m, s = divmod(int(elapsed), 60)
         header = Text(
-            f"CosmicSec Scan  ⏱ {m:02d}:{s:02d}  Findings: {self._state.total_findings}",
+            f"NexSec Scan  ⏱ {m:02d}:{s:02d}  Findings: {self._state.total_findings}",
             style="bold",
         )
         items = [
@@ -219,7 +219,7 @@ class ScanProgressDisplay:
         if total == 0:
             lines.append("[green]✅ No findings — target looks clean.[/green]")
         else:
-            lines.append("[dim]cosmicsec-agent history list  — view full results[/dim]")
+            lines.append("[dim]nexsec-agent history list  — view full results[/dim]")
 
         self._console.print(Panel("\n".join(lines), border_style="green", expand=False))
 

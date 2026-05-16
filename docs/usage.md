@@ -1,36 +1,43 @@
 # Usage — Quick Reference
 
-Common workflows:
+### Common Workflows
 
-- Scan a subnet quickly (default scan set):
+- **Scan a subnet quickly** (uses default tool set):
 
 ```bash
 siyarix scan 192.168.1.0/24
 ```
 
-- Run an AI-assisted threat hunt over a target:
+- **Run an autonomous-assisted threat hunt**:
 
 ```bash
-siyarix threat hunt --target example.com --ai
+siyarix threat hunt --target example.com --assist
 ```
 
-- Create and execute a hybrid plan (AI selects tools and order):
+- **Create and execute an integrated plan** (planner selects optimal tools and sequence):
 
 ```bash
-siyarix plan create --target my-app.com --ai-assist
-siyarix plan run <PLAN_ID>
+siyarix planner create --target my-app.com
+siyarix planner run <PLAN_ID>
 ```
 
-- Manage incidents:
+- **Execute an autonomous instruction**:
+
+```bash
+siyarix run "scan 10.0.0.1 with nmap then generate report"
+```
+
+- **Manage incidents**:
 
 ```bash
 siyarix incident list
 siyarix incident show INC-001
-siyarix incident resolve INC-001 --comment "False positive"
+siyarix incident resolve INC-001 --comment "Resolved via patch"
 ```
 
-Output formats:
-- `--format json` for CI pipelines
-- `--format yaml` for human-readable machine-parseable reports
+### Output Formatting
 
-Examples and advanced usage are available in `docs/cli-reference.md`.
+- Use `--format json` for structured output suitable for CI/CD pipelines.
+- Use `--format table` (default) for rich console output in interactive sessions.
+
+Advanced usage examples are available in `docs/cli-reference.md`.

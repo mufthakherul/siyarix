@@ -129,7 +129,7 @@ class PluginManager:
                 name=name,
                 version="0.1.0",
                 author=author,
-                description="Custom CosmicSec plugin",
+                description="Custom NexSec plugin",
                 path=str(plugin_dir),
             ),
         )

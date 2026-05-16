@@ -1,11 +1,11 @@
-# @mufthakherul/siyarix-agent-cli
+# @mufthakherul/siyarix-agent
 
-Official npm launcher for the CosmicSec Python CLI agent.
+Official npm launcher for the NexSec Python CLI agent.
 
 ## Install
 
 ```bash
-npm install -g @mufthakherul/siyarix-agent-cli
+npm install -g @mufthakherul/siyarix-agent
 ```
 
 ## Usage

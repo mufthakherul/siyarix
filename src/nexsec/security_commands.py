@@ -1,5 +1,5 @@
 """
-CosmicSec CLI — Security Operations Commands
+NexSec CLI — Security Operations Commands
 Incident, vulnerability, and threat hunting CLI commands.
 """
 

@@ -1,16 +1,16 @@
 {
-  "name": "@mufthakherul/siyarix-agent-cli",
+  "name": "@mufthakherul/siyarix-agent",
   "version": "0.1.0",
-  "description": "Official npm launcher for CosmicSec Agent CLI (Python-powered)",
+  "description": "Official npm launcher for NexSec Agent CLI (Python-powered)",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mufthakherul/CosmicSec.git",
+    "url": "https://github.com/mufthakherul/NexSec.git",
     "directory": "cli/agent/npm"
   },
-  "homepage": "https://github.com/mufthakherul/CosmicSec/tree/main/cli/agent/npm",
+  "homepage": "https://github.com/mufthakherul/NexSec/tree/main/cli/agent/npm",
   "bugs": {
-    "url": "https://github.com/mufthakherul/CosmicSec/issues"
+    "url": "https://github.com/mufthakherul/NexSec/issues"
   },
   "keywords": [
     "siyarix",

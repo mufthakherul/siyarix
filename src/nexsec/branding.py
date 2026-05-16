@@ -100,7 +100,7 @@ def severity_label(theme: str, severity: str) -> str:
         return f"{icon} [{style}]{text}[/{style}]"
     return f"{icon} {text}"
 
-def print_banner(console: Console, theme: str, subtitle: str = "Universal Cybersecurity Intelligence Platform") -> None:
+def print_banner(console: Console, theme: str, subtitle: str = "Enterprise Security Operations Platform") -> None:
     safe_theme = resolve_theme(theme)
     color = "cyan"
     accent = "bright_white"

@@ -3,10 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from cosmicsec_agent.audit_log import AuditLogger
-from cosmicsec_agent.auth import AuthManager
-from cosmicsec_agent.credential_store import CredentialStore
-from cosmicsec_agent.profiles import ProfileStore
+from nexsec.audit_log import AuditLogger
+from nexsec.auth import AuthManager
+from nexsec.credential_store import CredentialStore
+from nexsec.profiles import ProfileStore
 
 class _Resp:
     def __init__(self, status_code: int, payload: dict | None = None) -> None:

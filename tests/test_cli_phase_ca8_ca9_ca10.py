@@ -5,8 +5,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from cosmicsec_agent.offline_store import OfflineStore
-from cosmicsec_agent.plugins import PluginManager
+from nexsec.offline_store import OfflineStore
+from nexsec.plugins import PluginManager
 
 def test_plugin_scaffold_and_list(tmp_path: Path) -> None:
     manager = PluginManager(root=tmp_path / "plugins")

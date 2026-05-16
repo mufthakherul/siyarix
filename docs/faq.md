@@ -7,4 +7,4 @@ Q: Is NexSec safe to run in production?
 A: Use appropriate credentials and sandboxing. Some scanning tools may produce noisy traffic; obtain permission before scanning external networks.
 
 Q: How do I add new tools?
-A: Implement a parser adapter under `src/cosmicsec_agent/parsers` and register it in `tool_registry.py`.
+A: Implement a parser adapter under `src/nexsec/parsers` and register it in `tool_registry.py`.

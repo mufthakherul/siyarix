@@ -13,7 +13,7 @@ pytest -q
 
 Conventions:
 - Use Black and Ruff for formatting/linting.
-- Keep public APIs stable; add new parser adapters under `src/cosmicsec_agent/parsers`.
+- Keep public APIs stable; add new parser adapters under `src/nexsec/parsers`.
 - Tests live under `tests/` and use pytest with asyncio support.
 
 Packaging:

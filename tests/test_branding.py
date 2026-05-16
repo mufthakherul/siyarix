@@ -1,4 +1,4 @@
-from cosmicsec_agent.branding import (
+from nexsec.branding import (
     available_themes,
     canonical_theme,
     resolve_theme,

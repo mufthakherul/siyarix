@@ -4,19 +4,19 @@ from __future__ import annotations
 
 import asyncio
 
-from cosmicsec_agent.ai_planner import (
+from nexsec.ai_planner import (
     AITaskPlanner,
     ExecutionPlan,
     ExecutionStep,
     StepType,
 )
-from cosmicsec_agent.dynamic_resolver import DynamicResolver
-from cosmicsec_agent.hybrid_engine import (
+from nexsec.dynamic_resolver import DynamicResolver
+from nexsec.hybrid_engine import (
     EngineResult,
     ExecutionMode,
     HybridEngine,
 )
-from cosmicsec_agent.intent_parser import (
+from nexsec.intent_parser import (
     IntentCategory,
     LocalIntentParser,
 )

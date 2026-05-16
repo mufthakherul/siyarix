@@ -1,8 +1,9 @@
-"""Intent parser — classifies natural language commands into structured intents.
+"""Command interpreter — classifies natural language instructions into structured tasks.
 
-Provides local (rule-based) and AI-powered intent classification for the
-hybrid execution engine. The local parser handles common security patterns
-without needing an LLM, while the AI parser handles arbitrary natural language.
+Provides heuristic-based rule interpretation for the execution engine.
+The interpreter handles common security patterns without requiring a 
+language model, while also supporting task classification for 
+autonomous execution.
 """
 
 from __future__ import annotations
@@ -12,8 +13,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
-class IntentCategory(StrEnum):
-    """High-level categories for user intents."""
+class TaskCategory(StrEnum):
+    """High-level categories for interpreted tasks."""
 
     SCAN = "scan"
     RECON = "recon"
@@ -29,20 +30,20 @@ class IntentCategory(StrEnum):
     UNKNOWN = "unknown"
 
 @dataclass
-class ParsedIntent:
-    """Structured representation of a user's natural language intent."""
+class InterpretedTask:
+    """Structured representation of an interpreted user instruction."""
 
-    category: IntentCategory
+    category: TaskCategory
     action: str
     targets: list[str] = field(default_factory=list)
     tools: list[str] = field(default_factory=list)
     flags: dict[str, Any] = field(default_factory=dict)
     raw_text: str = ""
     confidence: float = 0.0
-    sub_intents: list[ParsedIntent] = field(default_factory=list)
+    sub_tasks: list[InterpretedTask] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize to dictionary for JSON output or AI context."""
+        """Serialize to dictionary for JSON output or processing context."""
         return {
             "category": self.category.value,
             "action": self.action,
@@ -51,11 +52,11 @@ class ParsedIntent:
             "flags": self.flags,
             "raw_text": self.raw_text,
             "confidence": self.confidence,
-            "sub_intents": [s.to_dict() for s in self.sub_intents],
+            "sub_tasks": [s.to_dict() for s in self.sub_tasks],
         }
 
 # ---------------------------------------------------------------------------
-# Pattern definitions for rule-based parsing
+# Pattern definitions for heuristic-based interpretation
 # ---------------------------------------------------------------------------
 
 _TARGET_PATTERN = re.compile(
@@ -232,60 +233,60 @@ _INTENSITY_PATTERNS: dict[str, dict[str, Any]] = {
     "quiet": {"depth": "stealth", "timing": "slow"},
 }
 
-class LocalIntentParser:
-    """Rule-based intent parser for common security command patterns.
+class RuleInterpreter:
+    """Heuristic interpreter for common security command patterns.
 
-    This is the **static** component of the hybrid engine — fast, deterministic,
-    and works completely offline without any AI/LLM dependency.
+    This component provides fast, deterministic command interpretation
+    and works completely offline without any model dependencies.
     """
 
-    def parse(self, text: str) -> ParsedIntent:
-        """Parse natural language *text* into a structured :class:`ParsedIntent`."""
+    def interpret(self, text: str) -> InterpretedTask:
+        """Interpret natural language *text* into a structured :class:`InterpretedTask`."""
         text_lower = text.lower().strip()
 
         # Check for multi-step workflows (contains "then", "and then", etc.)
         if self._is_workflow(text_lower):
-            return self._parse_workflow(text, text_lower)
+            return self._interpret_workflow(text, text_lower)
 
-        # Single intent
-        return self._parse_single(text, text_lower)
+        # Single task
+        return self._interpret_single(text, text_lower)
 
     def _is_workflow(self, text_lower: str) -> bool:
         """Detect if the text describes a multi-step workflow."""
         workflow_connectors = [" then ", " and then ", " after that ", " followed by ", " next "]
         return any(conn in text_lower for conn in workflow_connectors)
 
-    def _parse_workflow(self, raw: str, text_lower: str) -> ParsedIntent:
-        """Split a multi-step command into sub-intents."""
+    def _interpret_workflow(self, raw: str, text_lower: str) -> InterpretedTask:
+        """Split a multi-step instruction into sub-tasks."""
         # Split on workflow connectors
         parts = re.split(
             r"\s+(?:then|and then|after that|followed by|next|finally)\s+",
             text_lower,
         )
-        sub_intents = [self._parse_single(part.strip(), part.strip().lower()) for part in parts]
+        sub_tasks = [self._interpret_single(part.strip(), part.strip().lower()) for part in parts]
 
-        return ParsedIntent(
-            category=IntentCategory.WORKFLOW,
+        return InterpretedTask(
+            category=TaskCategory.WORKFLOW,
             action="multi_step",
-            targets=list({t for si in sub_intents for t in si.targets}),
-            tools=list({t for si in sub_intents for t in si.tools}),
+            targets=list({t for si in sub_tasks for t in si.targets}),
+            tools=list({t for si in sub_tasks for t in si.tools}),
             raw_text=raw,
-            confidence=min(si.confidence for si in sub_intents) if sub_intents else 0.0,
-            sub_intents=sub_intents,
+            confidence=min(si.confidence for si in sub_tasks) if sub_tasks else 0.0,
+            sub_tasks=sub_tasks,
         )
 
-    def _parse_single(self, raw: str, text_lower: str) -> ParsedIntent:
-        """Parse a single intent from text."""
+    def _interpret_single(self, raw: str, text_lower: str) -> InterpretedTask:
+        """Interpret a single instruction from text."""
         category = self._classify_category(text_lower)
         targets = self._extract_targets(raw)
         tools = self._extract_tools(text_lower)
         flags = self._extract_flags(text_lower)
         action = self._infer_action(text_lower, category, tools)
 
-        # Calculate confidence based on how much we could parse
+        # Calculate confidence based on how much we could interpret
         confidence = self._calculate_confidence(category, targets, tools, flags)
 
-        return ParsedIntent(
+        return InterpretedTask(
             category=category,
             action=action,
             targets=targets,
@@ -295,35 +296,35 @@ class LocalIntentParser:
             confidence=confidence,
         )
 
-    def _classify_category(self, text_lower: str) -> IntentCategory:
-        """Classify the text into a high-level intent category."""
+    def _classify_category(self, text_lower: str) -> TaskCategory:
+        """Classify the instruction into a high-level task category."""
         words = set(text_lower.split())
 
         # Check in priority order
         if words & _WORKFLOW_KEYWORDS:
-            return IntentCategory.WORKFLOW
+            return TaskCategory.WORKFLOW
         if words & _EXPLOIT_KEYWORDS:
-            return IntentCategory.EXPLOIT
+            return TaskCategory.EXPLOIT
         if words & _ANALYZE_KEYWORDS:
-            return IntentCategory.ANALYZE
+            return TaskCategory.ANALYZE
         if words & _REPORT_KEYWORDS:
-            return IntentCategory.REPORT
+            return TaskCategory.REPORT
         if words & _MONITOR_KEYWORDS:
-            return IntentCategory.MONITOR
+            return TaskCategory.MONITOR
         if words & _RECON_KEYWORDS:
-            return IntentCategory.RECON
+            return TaskCategory.RECON
         if words & _SCAN_KEYWORDS:
-            return IntentCategory.SCAN
+            return TaskCategory.SCAN
 
         # Check for tool names that imply scanning
         for alias in _TOOL_ALIASES:
             if alias in text_lower:
-                return IntentCategory.SCAN
+                return TaskCategory.SCAN
 
-        return IntentCategory.UNKNOWN
+        return TaskCategory.UNKNOWN
 
     def _extract_targets(self, text: str) -> list[str]:
-        """Extract target hosts/IPs/URLs from the text."""
+        """Extract target hosts/IPs/URLs from the instruction."""
         matches = _TARGET_PATTERN.findall(text)
         # Deduplicate while preserving order
         seen: set[str] = set()
@@ -335,7 +336,7 @@ class LocalIntentParser:
         return targets
 
     def _extract_tools(self, text_lower: str) -> list[str]:
-        """Extract tool names from text using alias mapping."""
+        """Extract tool names from instruction using alias mapping."""
         found: list[str] = []
         seen: set[str] = set()
 
@@ -349,7 +350,7 @@ class LocalIntentParser:
         return found
 
     def _extract_flags(self, text_lower: str) -> dict[str, Any]:
-        """Extract scan flags and intensity modifiers."""
+        """Extract instruction flags and intensity modifiers."""
         flags: dict[str, Any] = {}
 
         for keyword, settings in _INTENSITY_PATTERNS.items():
@@ -368,35 +369,35 @@ class LocalIntentParser:
 
         return flags
 
-    def _infer_action(self, text_lower: str, category: IntentCategory, tools: list[str]) -> str:
+    def _infer_action(self, text_lower: str, category: TaskCategory, tools: list[str]) -> str:
         """Infer a specific action verb."""
-        if category == IntentCategory.SCAN:
+        if category == TaskCategory.SCAN:
             if tools:
                 return f"run_{tools[0]}"
             return "scan_target"
-        if category == IntentCategory.RECON:
+        if category == TaskCategory.RECON:
             return "reconnaissance"
-        if category == IntentCategory.EXPLOIT:
+        if category == TaskCategory.EXPLOIT:
             return "exploit_target"
-        if category == IntentCategory.ANALYZE:
+        if category == TaskCategory.ANALYZE:
             return "analyze_findings"
-        if category == IntentCategory.REPORT:
+        if category == TaskCategory.REPORT:
             return "generate_report"
-        if category == IntentCategory.MONITOR:
+        if category == TaskCategory.MONITOR:
             return "monitor_target"
         return "execute"
 
     def _calculate_confidence(
         self,
-        category: IntentCategory,
+        category: TaskCategory,
         targets: list[str],
         tools: list[str],
         flags: dict[str, Any],
     ) -> float:
-        """Estimate parsing confidence (0.0–1.0)."""
+        """Estimate interpretation confidence (0.0–1.0)."""
         score = 0.0
 
-        if category != IntentCategory.UNKNOWN:
+        if category != TaskCategory.UNKNOWN:
             score += 0.3
         if targets:
             score += 0.3

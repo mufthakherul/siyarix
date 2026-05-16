@@ -1,11 +1,11 @@
-"""CosmicSec CLI — Premium Enterprise Entry Point.
+"""NexSec CLI — Premium Enterprise Entry Point.
 
 Features:
   • Multi-level command routing with nested Typer apps
   • Premium Rich console with themes, panels, banners
-  • Smart mode detection (static/dynamic/hybrid)
+  • Smart mode detection (registry/autonomous/integrated)
   • Plugin ecosystem with auto-discovery
-  • AI-powered command planner & natural language
+  • Autonomous task planner & natural language
   • Enterprise audit logging & compliance
   • Bulk operations & watch mode
   • Multi-environment & profile support
@@ -34,7 +34,7 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn
 from rich.prompt import Confirm
 from rich.table import Table
 
-from .ai_planner import ai_planner
+from .planner import planner
 from .audit_log import AuditLogger
 from .branding import (
     available_themes,
@@ -62,30 +62,30 @@ executor = None
 # Main Typer app — Premium structure
 # ---------------------------------------------------------------------------
 app = typer.Typer(
-    name="cosmicsec",
+    name="nexsec",
     help=f"""
-[bold cyan]CosmicSec CLI — Enterprise Security Command Center[/bold cyan]
+[bold cyan]NexSec CLI — Enterprise Security Command Center[/bold cyan]
 
 [dim]Version: {__version__} | Platform: {platform.system()} | Python: {platform.python_version()}[/dim]
 
 [bold]Quick Start:[/bold]
-  [green]cosmicsec scan 192.168.1.0/24[/green]        — Quick Nmap scan
-  [green]cosmicsec threat-hunt run q_001[/green] — Run threat hunt
-  [green]cosmicsec incidents list[/green]        — List open incidents
-  [green]cosmicsec ai "scan my network"[/green] — Natural language AI mode
+  [green]nexsec scan 192.168.1.0/24[/green]        — Quick Nmap scan
+  [green]nexsec threat-hunt run q_001[/green] — Run threat hunt
+  [green]nexsec incidents list[/green]        — List open incidents
+  [green]nexsec run "scan my network"[/green] — Autonomous command mode
 
 [bold]Modes:[/bold]
-  [yellow]--mode static[/yellow]    — Registry-only (fast, offline)
-  [yellow]--mode dynamic[/yellow]   — AI-powered planning
-  [yellow]--mode hybrid[/yellow]   — AI + static fallback (default)
+  [yellow]--mode registry[/yellow]    — Registry-only (fast, offline)
+  [yellow]--mode autonomous[/yellow]  — Model-driven planning
+  [yellow]--mode integrated[/yellow]  — Model + registry fallback (default)
 
 [bold]Premium Features:[/bold]
-  • [magenta]cosmicsec dashboard[/magenta]     — Live security dashboard
-  • [magenta]cosmicsec bulk[/magenta]          — Bulk operations
-  • [magenta]cosmicsec watch[/magenta]          — Watch mode (live monitoring)
-  • [magenta]cosmicsec workflow[/magenta]      — Workflow orchestration
-  • [magenta]cosmicsec team[/magenta]           — Team & org management
-  • [magenta]cosmicsec compliance[/magenta]     — Compliance reporting
+  • [magenta]nexsec dashboard[/magenta]     — Live security dashboard
+  • [magenta]nexsec bulk[/magenta]          — Bulk operations
+  • [magenta]nexsec watch[/magenta]          — Watch mode (live monitoring)
+  • [magenta]nexsec workflow[/magenta]      — Workflow orchestration
+  • [magenta]nexsec team[/magenta]           — Team & org management
+  • [magenta]nexsec compliance[/magenta]     — Compliance reporting
     """,
     add_completion=False,
     rich_markup_mode="rich",
@@ -122,8 +122,8 @@ app.add_typer(config_app, name="config")
 completions_app = typer.Typer(help="🏁 Shell completions")
 app.add_typer(completions_app, name="completions")
 
-ai_app = typer.Typer(help="🤖 AI provider & local models")
-app.add_typer(ai_app, name="ai")
+planner_app = typer.Typer(help="🤖 Model provider & autonomous planning")
+app.add_typer(planner_app, name="planner")
 
 sync_app = typer.Typer(help="🔄 Offline sync & reconciliation")
 app.add_typer(sync_app, name="sync")
@@ -180,7 +180,7 @@ def scan(
     targets: list[str] = typer.Argument(help="Target(s): IP, CIDR, URL, or hostname"),
     tool: str = typer.Option("", "--tool", "-t", help="Specific tool to use"),
     mode: str = typer.Option(
-        "hybrid", "--mode", "-m", help="Execution mode: static|dynamic|hybrid"
+        "integrated", "--mode", "-m", help="Execution mode: registry|autonomous|integrated"
     ),
     output: str = typer.Option("table", "--output", "-o", help="Output: table|json|yaml|csv"),
     parallel: int = typer.Option(3, "--parallel", "-p", help="Parallel workers"),
@@ -194,9 +194,9 @@ def scan(
     print_banner(console, _active_theme)
 
     # Premium: Show execution plan
-    if mode in ("dynamic", "hybrid"):
-        with console.status("[bold green]Planning execution with AI...[/]"):
-            plan = asyncio.run(ai_planner.plan("scan", targets, tool=tool, timeout=timeout))
+    if mode in ("autonomous", "integrated"):
+        with console.status("[bold green]Planning execution...[/]"):
+            plan = asyncio.run(planner.plan("scan", targets, tool=tool, timeout=timeout))
 
         table = Table(title="Execution Plan", show_header=True, header_style="bold magenta")
         table.add_column("Step", style="cyan", no_wrap=True)
@@ -257,15 +257,15 @@ def discover(
 def run(
     command: str = typer.Argument(help="Natural language command or tool name"),
     target: str = typer.Option("", "--target", "-t", help="Target for the command"),
-    mode: str = typer.Option("hybrid", "--mode", "-m", help="Execution mode"),
+    mode: str = typer.Option("integrated", "--mode", "-m", help="Execution mode"),
 ):
-    """Run a tool or natural language command (AI-powered)."""
+    """Run a tool or natural language command."""
     print_banner(console, _active_theme)
 
-    if mode in ("dynamic", "hybrid"):
-        console.print("[dim]Interpreting with AI...[/dim]")
-        # AI interpretation
-        result = asyncio.run(ai_planner.interpret(command, target))
+    if mode in ("autonomous", "integrated"):
+        console.print("[dim]Interpreting command...[/dim]")
+        # Autonomous interpretation
+        result = asyncio.run(planner.interpret(command, target))
         console.print(f"[green]Interpreted:[/green] {result}")
     else:
         # Static execution
@@ -604,7 +604,7 @@ def plugin_list():
 
     plugins_data = [
         ("darkweb_crawler", "2.1.0", "✓ Active", "Dark web intelligence"),
-        ("ai_analyzer", "1.5.0", "✓ Active", "AI-powered analysis"),
+        ("autonomous_analyzer", "1.5.0", "✓ Active", "Autonomous analysis"),
         ("compliance_checker", "1.0.0", "○ Disabled", "Compliance reporting"),
     ]
 

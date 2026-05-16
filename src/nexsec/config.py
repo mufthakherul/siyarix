@@ -1,6 +1,6 @@
-"""CosmicSec CLI — CA-2.4 Configuration Management.
+"""NexSec CLI — CA-2.4 Configuration Management.
 
-Settings stored in ~/.cosmicsec/settings.toml — human-editable TOML format.
+Settings stored in ~/.nexsec/settings.toml — human-editable TOML format.
 Provides a type-safe settings store with get/set/reset/list/edit support.
 """
 
@@ -11,7 +11,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-_CONFIG_DIR = Path(os.getenv("COSMICSEC_CONFIG_DIR", str(Path.home() / ".cosmicsec")))
+_CONFIG_DIR = Path(os.getenv("NEXSEC_CONFIG_DIR", str(Path.home() / ".nexsec")))
 _SETTINGS_FILE = _CONFIG_DIR / "settings.toml"
 
 # ---------------------------------------------------------------------------
@@ -34,7 +34,7 @@ DEFAULTS: dict[str, Any] = {
     "client_profile": "desktop_chrome",
     "tls_verify": True,
     "history_retention_days": 90,
-    "ai_provider": "auto",
+    "model_provider": "auto",
     "notifications_enabled": True,
 }
 
@@ -55,7 +55,7 @@ DESCRIPTIONS: dict[str, str] = {
     "client_profile": "Preferred profile: desktop_chrome | desktop_firefox | android_mobile | ios_safari",
     "tls_verify": "Verify TLS certificates on HTTPS requests",
     "history_retention_days": "Days to keep scan history (0 = forever)",
-    "ai_provider": "Preferred LLM provider: auto | openai | ollama",
+    "model_provider": "Preferred model provider: auto | openai | ollama",
     "notifications_enabled": "Show Rich panel notifications for key events",
 }
 
@@ -101,7 +101,7 @@ def _try_load_toml(path: Path) -> dict[str, Any]:
 def _write_toml(path: Path, data: dict[str, Any]) -> None:
     """Write dict as TOML (simple key = value format)."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    lines = ["# CosmicSec Agent Settings\n# Edit directly or use: cosmicsec-agent config set <key> <value>\n"]
+    lines = ["# NexSec Agent Settings\n# Edit directly or use: nexsec-agent config set <key> <value>\n"]
     for key, value in sorted(data.items()):
         desc = DESCRIPTIONS.get(key, "")
         if desc:
@@ -116,7 +116,7 @@ def _write_toml(path: Path, data: dict[str, Any]) -> None:
     path.write_text("\n".join(lines))
 
 class SettingsStore:
-    """TOML-backed settings manager for the CosmicSec CLI.
+    """TOML-backed settings manager for the NexSec CLI.
 
     All reads fall back to DEFAULTS when a key is not set.
     """

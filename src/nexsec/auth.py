@@ -1,4 +1,4 @@
-"""Authentication helpers for CosmicSec Agent CLI."""
+"""Authentication helpers for NexSec Agent CLI."""
 
 from __future__ import annotations
 
@@ -147,7 +147,7 @@ class AuthManager:
     def require_auth_headers(self, profile: str, auto_refresh: bool = True) -> dict[str, str]:
         headers = self.auth_headers(profile, auto_refresh=auto_refresh)
         if not headers:
-            raise ValueError(f"Profile '{profile}' has no stored credentials. Run 'cosmicsec-agent auth login'.")
+            raise ValueError(f"Profile '{profile}' has no stored credentials. Run 'nexsec auth login'.")
         return headers
 
     def _health(self, server_url: str, profile: str) -> dict:

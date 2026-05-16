@@ -1,10 +1,10 @@
 """Dynamic tool/command resolver with safety validation.
 
-Resolves AI-suggested tool names and shell commands to safe, executable
+Resolves autonomous task suggestions and shell commands to safe, executable
 commands. Enforces an allowlist and blocks dangerous patterns to prevent
 command injection or destructive operations.
 
-This module acts as the security gate between the AI planner and the
+This module acts as the security gate between the task planner and the
 actual subprocess executor.
 """
 
@@ -148,7 +148,7 @@ class ResolvedCommand:
 class DynamicResolver:
     """Resolves tool names and commands to safe executables.
 
-    This is the security boundary between AI-suggested actions and
+    This is the security boundary between autonomous actions and
     actual system execution. All commands pass through safety validation.
     """
 

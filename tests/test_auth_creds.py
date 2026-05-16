@@ -1,3 +1,5 @@
+"""Tests for authentication, credential management, and audit logging."""
+
 from __future__ import annotations
 
 import json
@@ -8,6 +10,7 @@ from nexsec.auth import AuthManager
 from nexsec.credential_store import CredentialStore
 from nexsec.profiles import ProfileStore
 
+
 class _Resp:
     def __init__(self, status_code: int, payload: dict | None = None) -> None:
         self.status_code = status_code
@@ -16,9 +19,10 @@ class _Resp:
     def json(self) -> dict:
         return self._payload
 
+
 def test_credential_store_migration_and_roundtrip(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("COSMICSEC_CONFIG_DIR", str(tmp_path))
-    monkeypatch.setenv("COSMICSEC_MASTER_PASSWORD", "test-password")
+    monkeypatch.setenv("NEXSEC_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setenv("NEXSEC_MASTER_PASSWORD", "test-password")
     store = CredentialStore()
 
     legacy = tmp_path / "config.json"
@@ -37,13 +41,14 @@ def test_credential_store_migration_and_roundtrip(monkeypatch, tmp_path: Path) -
     assert store.retrieve("default", "api_key") == "secret-key"
     assert store.retrieve("default", "server_url") == "http://localhost:8000"
 
+
 def test_auth_profile_and_audit_flow(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("COSMICSEC_CONFIG_DIR", str(tmp_path))
-    monkeypatch.setenv("COSMICSEC_MASTER_PASSWORD", "test-password")
-    
+    monkeypatch.setenv("NEXSEC_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setenv("NEXSEC_MASTER_PASSWORD", "test-password")
+
     def fake_get(url: str, headers: dict | None = None, timeout: float | None = None) -> _Resp:
         if url.endswith("/api/auth/me"):
-            return _Resp(200, {"email": "agent@cosmicsec.dev", "org": "demo"})
+            return _Resp(200, {"email": "agent@nexsec.dev", "org": "demo"})
         return _Resp(200, {"ok": True})
 
     monkeypatch.setattr("httpx.get", fake_get)
@@ -70,10 +75,10 @@ def test_auth_profile_and_audit_flow(monkeypatch, tmp_path: Path) -> None:
     audit.log(
         event_type="login",
         severity="info",
-        user="agent@cosmicsec.dev",
+        user="agent@nexsec.dev",
         action="login",
         result="success",
-        details={"profile": "staging"}
+        details={"profile": "staging"},
     )
     rows = audit.get_events(limit=5)
     assert rows

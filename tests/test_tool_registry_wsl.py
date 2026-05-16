@@ -4,8 +4,9 @@ import subprocess
 
 from nexsec.tool_registry import ToolRegistry
 
+
 def test_discover_uses_wsl_fallback_on_windows(monkeypatch):
-    monkeypatch.setenv("COSMICSEC_ENABLE_WSL_DISCOVERY", "1")
+    monkeypatch.setenv("NEXSEC_ENABLE_WSL_DISCOVERY", "1")
 
     def fake_which(name: str):
         if name == "wsl":
@@ -33,8 +34,9 @@ def test_discover_uses_wsl_fallback_on_windows(monkeypatch):
     assert nmap.default_args[:2] == ["-e", "nmap"]
     assert nmap.version.startswith("Nmap")
 
+
 def test_discover_prefers_local_binary_over_wsl(monkeypatch):
-    monkeypatch.setenv("COSMICSEC_ENABLE_WSL_DISCOVERY", "1")
+    monkeypatch.setenv("NEXSEC_ENABLE_WSL_DISCOVERY", "1")
 
     def fake_which(name: str):
         if name == "wsl":

@@ -1,11 +1,11 @@
-"""AI-powered task planner — converts natural language to structured execution plans.
+"""Task planner — converts natural language instructions into structured execution plans.
 
-This is the **dynamic** component of the hybrid engine. It uses an LLM provider
-(OpenAI, Ollama, or CosmicSec cloud) to interpret arbitrary user instructions
-and produce a structured execution plan that the hybrid engine can run.
+This component provides dynamic planning capabilities by using language 
+models (OpenAI, Ollama, or Cloud-based) to interpret complex instructions 
+and produce structured execution plans.
 
-When no AI provider is available, it falls back to the local intent parser
-(static/rule-based) automatically.
+When no model provider is available, it automatically falls back to 
+the local heuristic-based interpreter.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 
-from .intent_parser import IntentCategory, LocalIntentParser, ParsedIntent
+from .interpreter import RuleInterpreter, TaskCategory, InterpretedTask
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class StepType(StrEnum):
 
     TOOL_RUN = "tool_run"  # Run a registered security tool
     SHELL_CMD = "shell_cmd"  # Run an arbitrary (safe) shell command
-    AI_ANALYSIS = "ai_analysis"  # AI-driven analysis of results
+    ANALYSIS = "analysis"  # Model-driven analysis of results
     CONDITIONAL = "conditional"  # Conditional step based on previous output
     PARALLEL_GROUP = "parallel_group"  # Group of steps to run in parallel
     REPORT = "report"  # Generate a report
@@ -72,38 +72,38 @@ class ExecutionPlan:
     """A structured plan of steps to execute for a user request."""
 
     steps: list[ExecutionStep] = field(default_factory=list)
-    source: str = "static"  # "static" | "dynamic" | "hybrid"
+    source: str = "registry"  # "registry" | "autonomous" | "integrated"
     confidence: float = 0.0
-    raw_intent: str = ""
-    parsed_intent: ParsedIntent | None = None
+    raw_instruction: str = ""
+    interpreted_task: InterpretedTask | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "steps": [s.to_dict() for s in self.steps],
             "source": self.source,
             "confidence": self.confidence,
-            "raw_intent": self.raw_intent,
-            "parsed_intent": self.parsed_intent.to_dict() if self.parsed_intent else None,
+            "raw_instruction": self.raw_instruction,
+            "interpreted_task": self.interpreted_task.to_dict() if self.interpreted_task else None,
         }
 
 # ---------------------------------------------------------------------------
-# LLM Provider protocol
+# Model Provider protocol
 # ---------------------------------------------------------------------------
 
 @runtime_checkable
-class LLMProvider(Protocol):
-    """Protocol for LLM providers used by the AI planner."""
+class ModelProvider(Protocol):
+    """Protocol for model providers used by the task planner."""
 
     async def plan(self, prompt: str, context: dict[str, Any]) -> dict[str, Any]:
-        """Send a planning prompt to the LLM and return structured plan JSON."""
+        """Send a planning prompt to the model and return structured plan JSON."""
         ...
 
 # ---------------------------------------------------------------------------
-# OpenAI Provider
+# OpenAI Model Provider
 # ---------------------------------------------------------------------------
 
-class OpenAIProvider:
-    """LLM provider using OpenAI API (GPT-4o, etc.)."""
+class OpenAIModel:
+    """Model provider using OpenAI API (GPT-4o, etc.)."""
 
     def __init__(self, api_key: str | None = None, model: str = "gpt-4o") -> None:
         self._api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
@@ -118,7 +118,7 @@ class OpenAIProvider:
         try:
             import openai
         except ImportError:
-            logger.warning("openai package not installed; AI planning unavailable")
+            logger.warning("openai package not installed; autonomous planning unavailable")
             return {}
 
         if not self._api_key:
@@ -145,11 +145,11 @@ class OpenAIProvider:
             return {}
 
 # ---------------------------------------------------------------------------
-# Ollama Provider (local LLM)
+# Ollama Model Provider (local)
 # ---------------------------------------------------------------------------
 
-class OllamaProvider:
-    """LLM provider using local Ollama instance."""
+class OllamaModel:
+    """Model provider using local Ollama instance."""
 
     def __init__(
         self,
@@ -161,7 +161,7 @@ class OllamaProvider:
 
     @property
     def available(self) -> bool:
-        """Check if Ollama is reachable (synchronous quick check)."""
+        """Check if Ollama is reachable."""
         try:
             import httpx
 
@@ -203,11 +203,11 @@ class OllamaProvider:
         return {}
 
 # ---------------------------------------------------------------------------
-# CosmicSec Cloud Provider
+# Cloud Model Provider
 # ---------------------------------------------------------------------------
 
-class CloudProvider:
-    """LLM provider using CosmicSec cloud AI service."""
+class CloudModel:
+    """Model provider using cloud service."""
 
     def __init__(self, server_url: str = "", api_key: str = "") -> None:
         self._server_url = server_url.rstrip("/")
@@ -218,7 +218,7 @@ class CloudProvider:
         return bool(self._server_url and self._api_key)
 
     async def plan(self, prompt: str, context: dict[str, Any]) -> dict[str, Any]:
-        """Generate an execution plan via CosmicSec cloud AI."""
+        """Generate an execution plan via cloud service."""
         if not self.available:
             return {}
 
@@ -230,7 +230,7 @@ class CloudProvider:
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(
-                    f"{self._server_url}/api/ai/plan",
+                    f"{self._server_url}/api/planner/plan",
                     json={"prompt": prompt, "context": context},
                     headers={
                         "Authorization": f"Bearer {self._api_key}",
@@ -240,7 +240,7 @@ class CloudProvider:
                 if resp.status_code == 200:
                     return resp.json()
         except Exception as exc:
-            logger.warning("Cloud AI planning failed: %s", exc)
+            logger.warning("Cloud planning failed: %s", exc)
 
         return {}
 
@@ -249,24 +249,24 @@ class CloudProvider:
 # ---------------------------------------------------------------------------
 
 def _build_system_prompt(context: dict[str, Any]) -> str:
-    """Build the system prompt for AI planning with tool context."""
+    """Build the system prompt for task planning with tool context."""
     available_tools = context.get("available_tools", [])
     tool_list = "\n".join(f"  - {t['name']}: {', '.join(t.get('capabilities', []))}" for t in available_tools)
 
-    return f"""You are CosmicSec Helix AI, an expert cybersecurity task planner.
+    return f"""You are an expert cybersecurity task planner.
 
-Your job is to convert natural language security instructions into a structured
+Your job is to convert natural language instructions into a structured
 JSON execution plan. You have access to the following locally installed security tools:
 
 {tool_list or "  (no tools discovered yet)"}
 
 IMPORTANT RULES:
 1. Only suggest tools from the available list above, or common system commands.
-2. Never suggest destructive commands (rm -rf, format, etc.).
+2. Never suggest destructive commands.
 3. For each step, specify: id, step_type, tool/command, args, target, description.
-4. step_type must be one of: tool_run, shell_cmd, ai_analysis, conditional,
+4. step_type must be one of: tool_run, shell_cmd, analysis, conditional,
    parallel_group, report, notify.
-5. Order steps logically — reconnaissance before exploitation, scanning before analysis.
+5. Order steps logically.
 6. If a step depends on a previous step, specify depends_on with the step id(s).
 7. Always include a timeout (seconds) for each step.
 
@@ -291,25 +291,24 @@ Respond with ONLY a JSON object in this format:
 }}"""
 
 # ---------------------------------------------------------------------------
-# AI Task Planner — the main orchestrator
+# Task Planner — the main orchestrator
 # ---------------------------------------------------------------------------
 
-class AITaskPlanner:
+class TaskPlanner:
     """Converts natural language instructions into executable plans.
 
-    Uses AI providers when available, falls back to local intent parsing.
-    This is the brain of the hybrid execution engine.
+    Uses model providers when available, falls back to heuristic interpretation.
     """
 
     def __init__(
         self,
-        providers: list[LLMProvider] | None = None,
+        providers: list[ModelProvider] | None = None,
     ) -> None:
         self._providers = providers or []
-        self._local_parser = LocalIntentParser()
+        self._interpreter = RuleInterpreter()
 
-    def add_provider(self, provider: LLMProvider) -> None:
-        """Register an LLM provider for dynamic planning."""
+    def add_provider(self, provider: ModelProvider) -> None:
+        """Register a model provider for dynamic planning."""
         self._providers.append(provider)
 
     async def plan(
@@ -328,8 +327,8 @@ class AITaskPlanner:
         context:
             Runtime context (available tools, scan history, etc.).
         force_mode:
-            If "static", skip AI. If "dynamic", skip local parser.
-            If None or "hybrid", try AI first then fall back to local.
+            If "static", skip autonomous models. If "autonomous", skip interpreter.
+            If None or "integrated", try models first then fall back to interpreter.
         **kwargs:
             Additional parameters merged into context.
         """
@@ -339,78 +338,81 @@ class AITaskPlanner:
 
         # --- Static-only mode ---
         if force_mode == "static":
-            return self._plan_from_intent(instruction)
+            return self._plan_from_interpretation(instruction)
 
-        # --- Dynamic-only mode ---
-        if force_mode == "dynamic":
-            plan = await self._plan_from_ai(instruction, ctx)
+        # --- Autonomous-only mode ---
+        if force_mode == "autonomous":
+            plan = await self._plan_from_model(instruction, ctx)
             if plan and plan.steps:
                 return plan
-            # Even in dynamic mode, don't leave user with nothing
-            logger.warning("Dynamic planning failed; no AI providers available")
+            logger.warning("Autonomous planning failed; no model providers available")
             return ExecutionPlan(
-                raw_intent=instruction,
-                source="dynamic",
+                raw_instruction=instruction,
+                source="autonomous",
                 confidence=0.0,
             )
 
-        # --- Hybrid mode (default) ---
-        # 1) Try local parser first for quick classification
-        local_intent = self._local_parser.parse(instruction)
+        # --- Integrated mode (default) ---
+        # 1) Try interpreter first for quick classification
+        interpreted_task = self._interpreter.interpret(instruction)
 
-        # 2) If local parser is highly confident, use static plan
-        if local_intent.confidence >= 0.8:
-            static_plan = self._build_plan_from_intent(local_intent, instruction)
-            static_plan.source = "hybrid-static"
+        # 2) If interpreter is highly confident, use static plan
+        if interpreted_task.confidence >= 0.8:
+            static_plan = self._build_plan_from_task(interpreted_task, instruction)
+            static_plan.source = "integrated-registry"
             return static_plan
 
-        # 3) Try AI planning for complex/ambiguous instructions
-        ai_plan = await self._plan_from_ai(instruction, ctx)
-        if ai_plan and ai_plan.steps:
-            ai_plan.source = "hybrid-dynamic"
-            ai_plan.parsed_intent = local_intent
-            return ai_plan
+        # 3) Try model planning for complex/ambiguous instructions
+        model_plan = await self._plan_from_model(instruction, ctx)
+        if model_plan and model_plan.steps:
+            model_plan.source = "integrated-autonomous"
+            model_plan.interpreted_task = interpreted_task
+            return model_plan
 
-        # 4) Fall back to static plan from whatever the local parser got
-        fallback_plan = self._build_plan_from_intent(local_intent, instruction)
-        fallback_plan.source = "hybrid-fallback"
+        # 4) Fall back to static plan from whatever the interpreter got
+        fallback_plan = self._build_plan_from_task(interpreted_task, instruction)
+        fallback_plan.source = "integrated-fallback"
         return fallback_plan
 
     async def interpret(self, instruction: str, target: str | None = None) -> str:
         """Briefly interpret a command and return a summary string."""
         plan = await self.plan(instruction, context={"targets": [target] if target else []})
         if not plan.steps:
-            return f"Unknown intent for: {instruction}"
+            return f"Unknown instruction: {instruction}"
 
         steps_desc = [s.description or (s.tool or s.command or "step") for s in plan.steps]
         return f"Plan: {' -> '.join(steps_desc)}"
 
-    def _plan_from_intent(self, instruction: str) -> ExecutionPlan:
-        """Create a plan purely from the local intent parser (static mode)."""
-        intent = self._local_parser.parse(instruction)
-        return self._build_plan_from_intent(intent, instruction)
+    def _plan_from_interpretation(self, instruction: str) -> ExecutionPlan:
+        """Create a plan purely from the heuristic interpreter."""
+        task = self._interpreter.interpret(instruction)
+        return self._build_plan_from_task(task, instruction)
 
-    async def _plan_from_ai(self, instruction: str, context: dict[str, Any]) -> ExecutionPlan | None:
-        """Try each AI provider in order; return the first successful plan."""
+    async def _plan_from_model(self, instruction: str, context: dict[str, Any]) -> ExecutionPlan | None:
+        """Try each model provider in order; return the first successful plan."""
         for provider in self._providers:
             if hasattr(provider, "available") and not provider.available:
                 continue
             try:
                 raw = await provider.plan(instruction, context)
                 if raw and raw.get("steps"):
-                    return self._parse_ai_response(raw, instruction)
+                    return self._parse_model_response(raw, instruction)
             except Exception as exc:
-                logger.warning("AI provider %s failed: %s", type(provider).__name__, exc)
+                logger.warning("Model provider %s failed: %s", type(provider).__name__, exc)
 
         return None
 
-    def _parse_ai_response(self, raw: dict[str, Any], instruction: str) -> ExecutionPlan:
-        """Parse the raw AI JSON response into an ExecutionPlan."""
+    def _parse_model_response(self, raw: dict[str, Any], instruction: str) -> ExecutionPlan:
+        """Parse the raw model JSON response into an ExecutionPlan."""
         steps: list[ExecutionStep] = []
         for s in raw.get("steps", []):
             step_type_str = s.get("step_type", "shell_cmd")
             try:
-                step_type = StepType(step_type_str)
+                # Support legacy name mapping if needed, but here we expect the new name
+                if step_type_str == "ai_analysis":
+                    step_type = StepType.ANALYSIS
+                else:
+                    step_type = StepType(step_type_str)
             except ValueError:
                 step_type = StepType.SHELL_CMD
 
@@ -432,44 +434,44 @@ class AITaskPlanner:
 
         return ExecutionPlan(
             steps=steps,
-            source="dynamic",
+            source="autonomous",
             confidence=raw.get("confidence", 0.5),
-            raw_intent=instruction,
+            raw_instruction=instruction,
         )
 
-    def _build_plan_from_intent(self, intent: ParsedIntent, instruction: str) -> ExecutionPlan:
-        """Convert a ParsedIntent into an ExecutionPlan with concrete steps."""
+    def _build_plan_from_task(self, task: InterpretedTask, instruction: str) -> ExecutionPlan:
+        """Convert an InterpretedTask into an ExecutionPlan with concrete steps."""
         steps: list[ExecutionStep] = []
         step_counter = 0
 
         # Handle multi-step workflows
-        if intent.sub_intents:
+        if task.sub_tasks:
             prev_ids: list[str] = []
-            for sub in intent.sub_intents:
-                sub_steps = self._intent_to_steps(sub, step_counter, prev_ids)
+            for sub in task.sub_tasks:
+                sub_steps = self._task_to_steps(sub, step_counter, prev_ids)
                 steps.extend(sub_steps)
                 prev_ids = [s.id for s in sub_steps]
                 step_counter += len(sub_steps)
         else:
-            steps = self._intent_to_steps(intent, 0, [])
+            steps = self._task_to_steps(task, 0, [])
 
         return ExecutionPlan(
             steps=steps,
-            source="static",
-            confidence=intent.confidence,
-            raw_intent=instruction,
-            parsed_intent=intent,
+            source="registry",
+            confidence=task.confidence,
+            raw_instruction=instruction,
+            interpreted_task=task,
         )
 
-    def _intent_to_steps(self, intent: ParsedIntent, offset: int, depends_on: list[str]) -> list[ExecutionStep]:
-        """Convert a single intent into execution steps."""
+    def _task_to_steps(self, task: InterpretedTask, offset: int, depends_on: list[str]) -> list[ExecutionStep]:
+        """Convert a single task into execution steps."""
         steps: list[ExecutionStep] = []
-        targets = intent.targets or [""]
+        targets = task.targets or [""]
         primary_target = targets[0] if targets else None
 
-        if intent.category in (IntentCategory.SCAN, IntentCategory.RECON):
-            if intent.tools:
-                for i, tool in enumerate(intent.tools):
+        if task.category in (TaskCategory.SCAN, TaskCategory.RECON):
+            if task.tools:
+                for i, tool in enumerate(task.tools):
                     step_id = f"step_{offset + i + 1}"
                     steps.append(
                         ExecutionStep(
@@ -478,11 +480,11 @@ class AITaskPlanner:
                             tool=tool,
                             target=primary_target,
                             depends_on=depends_on if i == 0 else [],
-                            timeout=intent.flags.get("timeout", 300),
+                            timeout=task.flags.get("timeout", 300),
                             description=f"Run {tool} scan",
                         )
                     )
-            elif intent.flags.get("all_tools"):
+            elif task.flags.get("all_tools"):
                 steps.append(
                     ExecutionStep(
                         id=f"step_{offset + 1}",
@@ -490,7 +492,7 @@ class AITaskPlanner:
                         tool="__all__",
                         target=primary_target,
                         depends_on=depends_on,
-                        timeout=intent.flags.get("timeout", 600),
+                        timeout=task.flags.get("timeout", 600),
                         description="Run all available tools",
                     )
                 )
@@ -508,18 +510,18 @@ class AITaskPlanner:
                     )
                 )
 
-        elif intent.category == IntentCategory.ANALYZE:
+        elif task.category == TaskCategory.ANALYZE:
             steps.append(
                 ExecutionStep(
                     id=f"step_{offset + 1}",
-                    step_type=StepType.AI_ANALYSIS,
-                    description="AI-powered analysis of findings",
+                    step_type=StepType.ANALYSIS,
+                    description="Analysis of findings",
                     depends_on=depends_on,
                 )
             )
 
-        elif intent.category == IntentCategory.REPORT:
-            fmt = intent.flags.get("output_format", "html")
+        elif task.category == TaskCategory.REPORT:
+            fmt = task.flags.get("output_format", "html")
             steps.append(
                 ExecutionStep(
                     id=f"step_{offset + 1}",
@@ -530,12 +532,12 @@ class AITaskPlanner:
                 )
             )
 
-        elif intent.category == IntentCategory.CUSTOM:
+        elif task.category == TaskCategory.CUSTOM:
             steps.append(
                 ExecutionStep(
                     id=f"step_{offset + 1}",
                     step_type=StepType.SHELL_CMD,
-                    command=intent.raw_text,
+                    command=task.raw_text,
                     description="Custom command execution",
                     depends_on=depends_on,
                 )
@@ -547,7 +549,7 @@ class AITaskPlanner:
                 ExecutionStep(
                     id=f"step_{offset + 1}",
                     step_type=StepType.SHELL_CMD,
-                    description=f"Execute: {intent.raw_text}",
+                    description=f"Execute: {task.raw_text}",
                     depends_on=depends_on,
                 )
             )
@@ -555,4 +557,4 @@ class AITaskPlanner:
         return steps
 
 # Instantiate the global planner singleton
-ai_planner = AITaskPlanner()
+planner = TaskPlanner()

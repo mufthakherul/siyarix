@@ -1,7 +1,7 @@
 """Tool registry — discovers locally installed security tools and probes their versions.
 
-Supports both static (built-in) and dynamic (plugin/AI-registered) tool registration.
-The registry provides capability-based lookup for the hybrid execution engine.
+Supports both static (built-in) and autonomous (plugin/registry-registered) tool registration.
+The registry provides capability-based lookup for the execution engine.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import subprocess
 from dataclasses import dataclass, field
 
 # ---------------------------------------------------------------------------
-# Known tools registry — the STATIC component
+# Known tools registry — the REGISTRY component
 # ---------------------------------------------------------------------------
 
 _KNOWN_TOOLS: dict[str, dict] = {
@@ -163,7 +163,7 @@ class ToolRegistry:
     """Discovers locally installed security tools and probes their versions.
 
     Supports both static (built-in _KNOWN_TOOLS) and dynamic tool registration.
-    The registry is the foundation of the hybrid execution engine.
+    The registry is the foundation of the execution engine.
     """
 
     def __init__(self) -> None:
@@ -207,10 +207,10 @@ class ToolRegistry:
         description: str = "",
         default_args: list[str] | None = None,
     ) -> None:
-        """Register a tool dynamically (e.g., from AI discovery or plugins).
+        """Register a tool dynamically (e.g., from discovery or plugins).
 
         Dynamic tools supplement the built-in registry and are available
-        to the hybrid execution engine.
+        to the execution engine.
         """
         self._dynamic_tools[binary] = {
             "version_cmd": [binary, "--version"],
@@ -347,8 +347,8 @@ class ToolRegistry:
             ]
         }
 
-    def to_ai_context(self) -> list[dict]:
-        """Return tool information formatted for AI planner context."""
+    def to_planner_context(self) -> list[dict]:
+        """Return tool information formatted for task planner context."""
         return [
             {
                 "name": t.name,

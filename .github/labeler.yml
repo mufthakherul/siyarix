@@ -1,0 +1,129 @@
+# Labeler configuration
+# Add to .github/labeler.yml
+
+# CI/CD changes
+ci/cd:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/workflows/**'
+          - '.github/**'
+          - '*.yml'
+          - '*.yaml'
+          - 'Dockerfile'
+          - '.dockerignore'
+          - '.gitlab-ci.yml'
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'Makefile'
+          - 'tox.ini'
+          - 'noxfile.py'
+          - '.pre-commit-config.yaml'
+
+# Documentation
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - '*.md'
+          - '*.rst'
+          - '*.txt'
+  - any-glob-to-any-file:
+      - 'examples/**/*.md'
+
+# Tests
+testing:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'tests/**'
+          - 'test_*.py'
+          - '*_test.py'
+          - '**/conftest.py'
+          - '**/pytest.ini'
+          - '**/setup.cfg'
+
+# Code changes
+source:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/**/*.py'
+          - 'nexsec/**/*.py'
+          - '!**/__pycache__/**'
+          - '!**/*.pyc'
+
+# Build/Package
+build:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'pyproject.toml'
+          - 'setup.py'
+          - 'setup.cfg'
+          - 'requirements*.txt'
+          - 'poetry.lock'
+          - 'Pipfile*'
+          - '*.toml'
+
+# Config files
+config:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.editorconfig'
+          - '.gitignore'
+          - '.ruff*'
+          - '.flake8'
+          - 'mypy.ini'
+          - 'pytest.ini'
+          - '.bandit'
+
+# Security related
+security:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/workflows/security.yml'
+          - '**/security*'
+          - 'SECURITY.md'
+
+# Scripts
+scripts:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'scripts/**'
+          - 'bin/**'
+          - 'tools/**'
+          - '*.sh'
+          - '*.bash'
+
+# Examples
+examples:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'examples/**'
+          - 'sample*'
+
+# Package scripts
+packaging:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'packages/**'
+          - 'homebrew/**'
+          - 'npm/**'
+
+# Parsers
+parsers:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/nexsec/parsers/**'
+          - '**/parser*.py'
+
+# Engine
+engine:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/nexsec/engine.py'
+          - 'src/nexsec/engine/**'
+
+# CLI
+cli:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/nexsec/main.py'
+          - 'src/nexsec/cli/**'

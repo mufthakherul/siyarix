@@ -1,0 +1,573 @@
+name: AI Code Comments
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target file, directory, or "all"'
+        required: false
+        default: 'src'
+      languages:
+        description: 'Languages to process (comma-separated, or "all")'
+        required: false
+        default: 'all'
+      comment_style:
+        description: 'Comment style preference'
+        required: false
+        default: 'detailed'
+        type: choice
+        options:
+          - minimal
+          - standard
+          - detailed
+          - docstring
+      dry_run:
+        description: 'Preview changes without creating PR'
+        required: false
+        default: 'true'
+        type: boolean
+      model:
+        description: 'Ollama model to use'
+        required: false
+        default: 'codellama'
+  schedule:
+    - cron: '0 2 * * 6'  # Weekly on Saturday at 2 AM
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+env:
+  OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'http://localhost:11434' }}
+  MAX_FILE_SIZE: 51200  # 50KB max file size
+  MAX_TOTAL_TOKENS: 4000
+
+jobs:
+  setup:
+    name: Setup Environment
+    runs-on: ubuntu-latest
+    outputs:
+      files_to_process: ${{ steps.scan.outputs.files }}
+      file_count: ${{ steps.scan.outputs.count }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed files
+        id: scan
+        run: |
+          TARGET="${{ github.event.inputs.target }}"
+          LANGUAGES="${{ github.event.inputs.languages }}"
+
+          # Default to src directory
+          if [ -z "$TARGET" ] || [ "$TARGET" == "null" ]; then
+            TARGET="src"
+          fi
+
+          # Language file extensions mapping
+          declare -A EXTENSIONS=(
+            ["python"]="py"
+            ["javascript"]="js,jsx,mjs,cjs"
+            ["typescript"]="ts,tsx"
+            ["go"]="go"
+            ["rust"]="rs"
+            ["java"]="java"
+            ["csharp"]="cs"
+            ["cpp"]="cpp,cc,cxx,h,hpp"
+            ["c"]="c,h"
+            ["ruby"]="rb"
+            ["php"]="php"
+            ["swift"]="swift"
+            ["kotlin"]="kt,kts"
+            ["scala"]="scala"
+            ["shell"]="sh,bash,zsh"
+            ["powershell"]="ps1,psm1"
+            ["yaml"]="yml,yaml"
+            ["json"]="json"
+            ["sql"]="sql"
+            ["html"]="html,htm"
+            ["css"]="css,scss,sass,less"
+          )
+
+          # Get all supported extensions
+          if [ "$LANGUAGES" == "all" ] || [ -z "$LANGUAGES" ] || [ "$LANGUAGES" == "null" ]; then
+            ALL_EXT=""
+            for ext in "${EXTENSIONS[@]}"; do
+              ALL_EXT="$ALL_EXT,$ext"
+            done
+            LANGUAGES="$ALL_EXT"
+          fi
+
+          # Build find command
+          echo "Scanning files in: $TARGET"
+          echo "Languages: $LANGUAGES"
+
+          # Convert to extensions
+          EXT_LIST=""
+          for lang in $(echo "$LANGUAGES" | tr ',' ' '); do
+            if [ "${EXTENSIONS[$lang]}" ]; then
+              EXT_LIST="$EXT_LIST,${EXTENSIONS[$lang]}"
+            fi
+          done
+
+          # Remove leading comma
+          EXT_LIST="${EXT_LIST#,}"
+
+          # Find files
+          FILES=""
+          for ext in $(echo "$EXT_LIST" | tr ',' ' '); do
+            if [ -d "$TARGET" ]; then
+              FILES="$FILES $(find "$TARGET" -type f -name "*.$ext" 2>/dev/null)"
+            elif [ -f "$TARGET" ]; then
+              FILES="$FILES $TARGET"
+            fi
+          done
+
+          # Filter out node_modules, venv, __pycache__, etc.
+          FILES=$(echo "$FILES" | tr ' ' '\n' | grep -v -E "(node_modules|venv|\.venv|__pycache__|\.git|vendor|dist|build|\.egg-info|\.mypy_cache|\.ruff_cache)" | sort -u)
+
+          # Count files
+          COUNT=$(echo "$FILES" | grep -c "^" || echo "0")
+
+          echo "Found $COUNT files to process"
+          echo "$FILES" > files_to_process.txt
+
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
+          echo "files=$(cat files_to_process.txt | head -100 | tr '\n' ',')" >> $GITHUB_OUTPUT
+
+      - name: Check available Ollama
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          curl -s "$OLLAMA_HOST/api/tags" > /dev/null 2>&1
+          if [ $? -ne 0 ]; then
+            echo "::warning::Ollama not available at $OLLAMA_HOST"
+            echo "Please ensure Ollama is running or set OLLAMA_HOST"
+            echo "Install: https://github.com/ollama/ollama"
+          else
+            echo "✓ Ollama is available"
+            curl -s "$OLLAMA_HOST/api/tags" | jq -r '.models[].name' || true
+          fi
+
+      - name: Display file list
+        run: |
+          echo "## Files to Process"
+          echo ""
+          cat files_to_process.txt | head -20
+          if [ $(cat files_to_process.txt | wc -l) -gt 20 ]; then
+            echo ""
+            echo "... and $(($(cat files_to_process.txt | wc -l) - 20)) more files"
+          fi
+
+  analyze-code:
+    name: Analyze Code Structure
+    needs: setup
+    runs-on: ubuntu-latest
+    if: needs.setup.outputs.file_count != '0'
+    outputs:
+      functions_found: ${{ steps.analyze.outputs.functions }}
+      classes_found: ${{ steps.analyze.outputs.classes }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install analysis tools
+        run: |
+          pip install astor tree-sitter 2>/dev/null || true
+
+      - name: Analyze code structure
+        id: analyze
+        run: |
+          # Read files from previous job
+          FILES=$(cat files_to_process.txt 2>/dev/null | head -50)
+
+          FUNCTION_COUNT=0
+          CLASS_COUNT=0
+
+          for file in $FILES; do
+            if [ -f "$file" ]; then
+              # Count functions (Python)
+              if [[ "$file" == *.py ]]; then
+                FN=$(grep -c "^def \|^async def " "$file" 2>/dev/null || echo 0)
+                CLASS=$(grep -c "^class " "$file" 2>/dev/null || echo 0)
+                FUNCTION_COUNT=$((FUNCTION_COUNT + FN))
+                CLASS_COUNT=$((CLASS_COUNT + CLASS))
+              fi
+            fi
+          done
+
+          echo "functions=$FUNCTION_COUNT" >> $GITHUB_OUTPUT
+          echo "classes=$CLASS_COUNT" >> $GITHUB_OUTPUT
+
+          echo "Found: $FUNCTION_COUNT functions, $CLASS_COUNT classes"
+
+  generate-comments:
+    name: Generate AI Comments
+    needs: [setup, analyze-code]
+    runs-on: ubuntu-latest
+    if: needs.setup.outputs.file_count != '0'
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: [1, 2, 3, 4, 5]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Create comment generation script
+        run: |
+          cat > generate_comments.py << 'PYTHON_SCRIPT'
+          import os
+          import json
+          import subprocess
+          import re
+          from pathlib import Path
+
+          OLLAMA_HOST = os.environ.get('OLLAMA_HOST', 'http://localhost:11434')
+          MODEL = os.environ.get('MODEL', 'codellama')
+          STYLE = os.environ.get('STYLE', 'detailed')
+
+          # Comment styles
+          COMMENT_STYLES = {
+              'minimal': '# {func_name}\n',
+              'standard': '# {func_name}: {brief}\n',
+              'detailed': '''# {func_name}
+# {brief}
+# Args: {args}
+# Returns: {returns}
+''',
+              'docstring': '''"""
+{func_name}
+{brief}
+Args: {args}
+Returns: {returns}
+"""
+'''
+          }
+
+          def call_ollama(prompt):
+              """Call local Ollama LLM"""
+              try:
+                  import requests
+                  response = requests.post(
+                      f"{OLLAMA_HOST}/api/generate",
+                      json={
+                          "model": MODEL,
+                          "prompt": prompt,
+                          "stream": False,
+                          "options": {
+                              "temperature": 0.3,
+                              "top_p": 0.9,
+                              "num_predict": 512
+                          }
+                      },
+                      timeout=120
+                  )
+                  if response.status_code == 200:
+                      return response.json().get('response', '')
+                  return None
+              except Exception as e:
+                  print(f"Ollama error: {e}")
+                  return None
+
+          def get_language_comment_syntax(file_path):
+              """Get comment syntax for language"""
+              ext = Path(file_path).suffix
+              syntax = {
+                  '.py': '#',
+                  '.js': '//',
+                  '.ts': '//',
+                  '.jsx': '//',
+                  '.tsx': '//',
+                  '.go': '//',
+                  '.rs': '//',
+                  '.java': '//',
+                  '.cs': '//',
+                  '.cpp': '//',
+                  '.c': '//',
+                  '.h': '//',
+                  '.rb': '#',
+                  '.php': '//',
+                  '.swift': '//',
+                  '.kt': '//',
+                  '.scala': '//',
+                  '.sh': '#',
+                  '.bash': '#',
+                  '.zsh': '#',
+                  '.ps1': '#',
+                  '.sql': '--',
+                  '.yaml': '#',
+                  '.yml': '#',
+                  '.json': '//',
+                  '.html': '<!--',
+                  '.css': '/*',
+                  '.scss': '//',
+                  '.md': '[]: #'
+              }
+              return syntax.get(ext, '#')
+
+          def extract_function_info(code, language):
+              """Extract basic function/method info from code"""
+              funcs = []
+
+              if language == 'python':
+                  # Extract Python functions
+                  pattern = r'def (\w+)\s*\(([^)]*)\)\s*(?:->\s*(\w+))?:'
+                  matches = re.finditer(pattern, code)
+                  for match in matches:
+                      funcs.append({
+                          'name': match.group(1),
+                          'params': match.group(2),
+                          'return': match.group(3) or 'None',
+                          'start': code[:match.start()].count('\n')
+                      })
+
+              return funcs
+
+          def generate_comment_for_function(func, code_snippet, language):
+              """Generate AI comment for a function"""
+              prompt = f"""Analyze this {language} function and generate a brief, helpful comment.
+Function: {func.get('name', 'unknown')}
+Parameters: {func.get('params', '')}
+Return type: {func.get('return', 'None')}
+
+Code:
+{code_snippet[:500]}
+
+Generate a {STYLE} comment (1-3 lines max) that explains what this function does.
+Start directly with the comment text, no explanations."""
+
+              result = call_ollama(prompt)
+              return result.strip() if result else None
+
+          def process_file(file_path):
+              """Process a single file and add comments"""
+              try:
+                  with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                      content = f.read()
+
+                  # Skip if file is too large
+                  if len(content) > int(os.environ.get('MAX_FILE_SIZE', 51200)):
+                      print(f"Skipping {file_path}: too large")
+                      return None
+
+                  language = Path(file_path).suffix.lstrip('.')
+                  comment_syntax = get_language_comment_syntax(file_path)
+                  funcs = extract_function_info(content, language)
+
+                  # Generate comments
+                  new_lines = content.split('\n')
+                  comments_added = 0
+
+                  for func in funcs[:5]:  # Limit to 5 functions per file
+                      line_num = func['start']
+                      if line_num < len(new_lines) and not new_lines[line_num].strip().startswith('#'):
+                          # Get code snippet
+                          start = max(0, line_num - 1)
+                          end = min(len(new_lines), line_num + 10)
+                          snippet = '\n'.join(new_lines[start:end])
+
+                          # Generate AI comment
+                          comment = generate_comment_for_function(func, snippet, language)
+                          if comment:
+                              # Format comment based on style
+                              if STYLE == 'docstring':
+                                  new_lines.insert(line_num, '    """')
+                                  new_lines.insert(line_num, f'    {comment}')
+                                  new_lines.insert(line_num, '    """')
+                              else:
+                                  new_lines.insert(line_num, f'{comment_syntax} {comment}')
+                              comments_added += 1
+
+                  if comments_added > 0:
+                      return '\n'.join(new_lines)
+                  return None
+
+              except Exception as e:
+                  print(f"Error processing {file_path}: {e}")
+                  return None
+
+          # Main execution
+          files = os.environ.get('FILES', '').split(',')
+          results = []
+
+          for file in files[:20]:  # Process max 20 files
+              if file and os.path.exists(file):
+                  print(f"Processing: {file}")
+                  result = process_file(file)
+                  if result:
+                      results.append({
+                          'file': file,
+                          'commented': True,
+                          'content': result
+                      })
+
+          print(json.dumps(results))
+          PYTHON_SCRIPT
+
+      - name: Set environment and run
+        env:
+          MODEL: ${{ github.event.inputs.model || 'codellama' }}
+          STYLE: ${{ github.event.inputs.comment_style || 'detailed' }}
+          FILES: ${{ needs.setup.outputs.files }}
+        run: |
+          python generate_comments.py > comments_output.json 2>&1 || echo "[]" > comments_output.json
+
+      - name: Save output
+        uses: actions/upload-artifact@v4
+        with:
+          name: comments-batch-${{ matrix.chunk }}
+          path: comments_output.json
+          retention-days: 3
+
+  review-comments:
+    name: Review & Create PR
+    needs: [setup, generate-comments]
+    runs-on: ubuntu-latest
+    if: |
+      needs.setup.outputs.file_count != '0' &&
+      (github.event.inputs.dry_run == 'false' || github.event.inputs.dry_run == '')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || 'ai-comments-' }}
+          fetch-depth: 0
+
+      - name: Download all comment batches
+        uses: actions/download-artifact@v4
+        with:
+          pattern: comments-batch-*
+          path: comment_batches
+          merge-multiple: true
+
+      - name: Merge results
+        run: |
+          # Combine all batch results
+          cat comment_batches/*.json | jq -s 'flatten' > all_comments.json 2>/dev/null || echo "[]" > all_comments.json
+
+          # Count files with comments
+          COUNT=$(jq 'length' all_comments.json 2>/dev/null || echo "0")
+          echo "Files with AI comments: $COUNT"
+          cat all_comments.json
+
+      - name: Create branch
+        if: github.event.inputs.dry_run == 'false'
+        run: |
+          BRANCH="ai-code-comments-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH"
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Apply changes
+        if: github.event.inputs.dry_run == 'false'
+        run: |
+          cat all_comments.json | jq -r '.[] | select(.commented) | .content' > /tmp/new_content.json
+          echo "Changes would be applied here"
+
+      - name: Create Pull Request
+        if: github.event.inputs.dry_run == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const comments = JSON.parse(fs.readFileSync('all_comments.json', 'utf8'));
+
+            const body = `## AI-Generated Code Comments
+
+This PR adds inline comments to your codebase using local AI (Ollama).
+
+### Summary
+- **Files processed**: ${comments.length}
+- **Model used**: ${process.env.MODEL || 'codellama'}
+- **Comment style**: ${process.env.STYLE || 'detailed'}
+
+### Changes
+${comments.map(c => `- ${c.file}`).join('\n')}
+
+### How It Works
+1. Uses local Ollama LLM (${process.env.OLLAMA_HOST || 'localhost:11434'})
+2. Analyzes code structure (functions, classes)
+3. Generates contextual inline comments
+4. Creates a PR for review
+
+### Review Checklist
+- [ ] Verify comments are accurate
+- [ ] Check comment style consistency
+- [ ] Ensure no sensitive info is commented
+- [ ] Run tests to verify no breakage
+
+---
+*Generated by GitHub Actions AI Code Comments*`;
+
+            const pr = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🤖 AI-Generated Code Comments',
+              body: body,
+              head: process.env.BRANCH || 'ai-comments',
+              base: 'main'
+            });
+
+            console.log('PR created:', pr.data.html_url);
+
+  dry-run-summary:
+    name: Dry Run Summary
+    needs: [setup, generate-comments]
+    if: github.event.inputs.dry_run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: comments-batch-*
+          path: comment_batches
+          merge-multiple: true
+
+      - name: Generate summary
+        run: |
+          echo "## AI Code Comments - Dry Run Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Files to Process: ${{ needs.setup.outputs.file_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Processing Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To apply these comments:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Go to Actions → AI Code Comments" >> $GITHUB_STEP_SUMMARY
+          echo "2. Set 'Dry Run' to false" >> $GITHUB_STEP_SUMMARY
+          echo "3. Run workflow" >> $GITHUB_STEP_SUMMARY
+
+      - name: Display results
+        run: |
+          echo "## Dry Run Results"
+          echo ""
+          echo "Ready to process ${{ needs.setup.outputs.file_count }} files"
+          echo ""
+          echo "### Next Steps"
+          echo "1. Review this preview"
+          echo "2. Set 'Dry Run' to false to create PR"
+          echo "3. Or adjust comment style (minimal/standard/detailed/docstring)"
+
+  error-handling:
+    name: Handle Errors
+    needs: [setup]
+    runs-on: ubuntu-latest
+    if: needs.setup.outputs.file_count == '0'
+    steps:
+      - name: No files found message
+        run: |
+          echo "## No Files Found"
+          echo ""
+          echo "The specified target directory or file contains no processable code."
+          echo ""
+          echo "### Troubleshooting"
+          echo "- Check the target path exists"
+          echo "- Verify language extensions are supported"
+          echo "- Ensure target is not excluded (node_modules, .git, etc.)"

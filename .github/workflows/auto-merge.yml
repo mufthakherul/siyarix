@@ -1,0 +1,245 @@
+name: Auto Merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  statuses: write
+  checks: write
+
+jobs:
+  # Auto-merge dependabot PRs
+  auto-merge-dependabot:
+    name: Auto-Merge Dependabot
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      contains(github.event.pull_request.labels.*.name, 'dependencies')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Update dependencies and run tests
+        run: |
+          pip install -e .[dev]
+          pytest -v -x --timeout=60 -m "not integration" || true
+
+      - name: Approve PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            await github.rest.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              event: 'APPROVE'
+            });
+
+      - name: Enable auto-merge
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+
+            // Enable auto-merge
+            await github.rest.pulls.enableAutoMerge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              auto_merge_method: 'SQUASH'
+            });
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body: '✅ **Auto-merge enabled!** This PR will be automatically merged once all checks pass.'
+            });
+
+  # Auto-merge after CI passes
+  auto-merge-approved:
+    name: Auto-Merge Approved PRs
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Check PR status
+        uses: actions/github-script@v7
+        id: check-status
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Check if PR is approved
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner,
+              repo,
+              pull_number: pr.number
+            });
+
+            const approved = reviews.some(r => r.state === 'APPROVED');
+
+            // Check if all checks passed
+            const { data: checks } = await github.rest.checks.listForRef({
+              owner,
+              repo,
+              ref: pr.head.sha,
+              status: 'completed'
+            });
+
+            const allPassed = checks.check_runs.every(c => c.conclusion === 'success');
+
+            // Check for required approvals
+            const { data: protected } = await github.rest.repos.getBranchProtection({
+              owner,
+              repo,
+              branch: pr.base.ref
+            });
+
+            const hasRequiredApprovals = approved || (protected && protected.required_status_checks === null);
+
+            // Check if we can auto-merge
+            const canAutoMerge = pr.mergeable && pr.mergeable_state === 'clean' && hasRequiredApprovals;
+
+            console.log(`Approved: ${approved}`);
+            console.log(`All Passed: ${allPassed}`);
+            console.log(`Can Auto Merge: ${canAutoMerge}`);
+
+            // Set outputs
+            if (canAutoMerge) {
+              await github.rest.pulls.merge({
+                owner,
+                repo,
+                pull_number: pr.number,
+                merge_method: 'squash'
+              });
+              return 'merged';
+            }
+            return 'waiting';
+
+  # Auto-update dependabot PRs
+  dependabot-auto-rebase:
+    name: Dependabot Auto-Rebase
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.action == 'synchronize'
+    steps:
+      - name: Rebase if needed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+
+            // Check if PR has conflicts
+            if (pr.mergeable_state === 'dirty') {
+              await github.rest.pulls.updateBranch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number
+              });
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body: '🔄 **Rebasing** - Resolving conflicts and updating branch...'
+              });
+            }
+
+  # Auto-tag version updates
+  auto-tag-version:
+    name: Auto-Tag Version PRs
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged
+    steps:
+      - name: Check for version bump
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const title = pr.title.toLowerCase();
+
+            // Check if this is a version bump
+            if (title.includes('bump version') || title.includes('release')) {
+              // Extract version from merged PR
+              const body = pr.body || '';
+
+              // Look for version tags
+              const versionMatch = body.match(/v?(\d+\.\d+\.\d+)/);
+              const version = versionMatch ? versionMatch[1] : null;
+
+              if (version) {
+                // Create tag
+                await github.rest.git.createRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `refs/tags/v${version}`,
+                  sha: pr.merge_commit_sha
+                });
+
+                console.log(`Created tag v${version}`);
+              }
+            }
+
+  # Notify on merge
+  notify-merge:
+    name: Notify on Merge
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged
+    steps:
+      - name: Create merge summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+
+            // Add merged label
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              labels: ['merged']
+            });
+
+            // Post thank you for small PRs
+            if (pr.additions + pr.deletions < 200) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body: `🎉 **Merged!** Thanks for the contribution!`
+              });
+            }

@@ -1,0 +1,156 @@
+name: Stale Issues & PRs
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Daily at midnight
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale-issues:
+    name: Stale Issues
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark stale issues
+        uses: actions/stale@v9
+        with:
+          operations-per-run: 100
+          stale-issue-label: stale
+          stale-issue-message: |
+            This issue has been automatically marked as stale because it has not had recent activity. It will be closed if no further activity occurs within 30 days.
+
+            If this issue is still relevant, please add a comment to keep it open.
+            Consider adding one of the following labels:
+            - `priority: high`
+            - `priority: medium`
+            - `priority: low`
+            - `help wanted`
+            - `good first issue`
+
+            Thank you for your contribution!
+
+          close-issue-message: |
+            This issue has been automatically closed due to inactivity. If you still need help, please open a new issue with a description of the problem.
+
+          days-before-stale: 60
+          days-before-close: 30
+          remove-stale-when-updated: true
+          ascending: true
+          start-date: '2024-01-01'
+          exempt-issue-labels: |
+            pinned
+            security
+            priority: critical
+            keep-open
+            blocked
+
+  stale-prs:
+    name: Stale PRs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark stale PRs
+        uses: actions/stale@v9
+        with:
+          operations-per-run: 50
+          stale-pr-label: stale
+          stale-pr-message: |
+            This pull request has been automatically marked as stale because it has not had recent activity.
+
+            It will be closed if no further activity occurs within 14 days.
+            If you need to continue work on this PR, please add a comment to keep it active.
+
+          close-pr-message: |
+            This pull request has been automatically closed due to inactivity.
+
+          days-before-stale: 45
+          days-before-close: 14
+          remove-stale-when-updated: true
+          ascending: true
+          start-date: '2024-01-01'
+          exempt-pr-labels: |
+            pinned
+            work-in-progress
+            do-not-merge
+            blocked
+
+  clean-labels:
+    name: Clean Stale Labels
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Remove stale labels from updated issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const staleLabel = 'stale';
+
+            // Get issues with stale label
+            const staleIssues = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              labels: staleLabel,
+              state: 'open',
+              per_page: 100
+            });
+
+            // Remove label from issues updated in last 7 days
+            for (const issue of staleIssues.data) {
+              const updated = new Date(issue.updated_at);
+              const sevenDaysAgo = new Date();
+              sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+              if (updated > sevenDaysAgo) {
+                await github.rest.issues.removeLabel({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  name: staleLabel
+                });
+                console.log(`Removed stale label from issue #${issue.number}`);
+              }
+            }
+
+  weekly-report:
+    name: Weekly Report
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Generate stale report
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+
+            // Get stale issues
+            const staleIssues = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              labels: 'stale',
+              state: 'open',
+              per_page: 50
+            });
+
+            console.log(`Found ${staleIssues.data.length} stale issues`);
+
+            // Get stale PRs
+            const stalePRs = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              per_page: 50
+            });
+
+            const stalePRsCount = stalePRs.data.filter(pr =>
+              pr.labels.some(l => l.name === 'stale')
+            ).length;
+
+            console.log(`Found ${stalePRsCount} stale PRs`);
+
+            // Summary
+            console.log('---');
+            console.log(`Stale Issues: ${staleIssues.data.length}`);
+            console.log(`Stale PRs: ${stalePRsCount}`);

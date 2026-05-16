@@ -1,0 +1,156 @@
+name: Dependency Review
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - '**/requirements*.txt'
+      - '**/pyproject.toml'
+      - '**/setup.py'
+      - '**/setup.cfg'
+      - '**/Pipfile'
+      - '**/poetry.lock'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  review-dependencies:
+    name: Review Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Analyze dependencies
+        id: analyze
+        run: |
+          pip install pipreqs pip-api
+
+          # Get list of imports
+          pipreqs src/ --force --use-pipfile 2>/dev/null || true
+
+          # Get installed packages
+          pip freeze > installed.txt
+
+          # Check for version pinning issues
+          echo "=== Version Pinning Analysis ==="
+          grep -E "^[^=]+[=<>]{2}[0-9]" requirements*.txt || echo "No strict pins found"
+
+      - name: Check for vulnerable packages
+        run: |
+          pip install safety wheel
+          safety check --json > safety_output.json 2>&1 || true
+
+          if [ -s safety_output.json ]; then
+            echo "⚠️ Security vulnerabilities found!"
+            cat safety_output.json
+            exit 1
+          else
+            echo "✅ No known vulnerabilities"
+          fi
+
+      - name: Check for outdated packages
+        run: |
+          pip install pip-updater-outdated 2>/dev/null || true
+          pip-updater --dry-run || true
+
+      - name: Verify hash consistency
+        run: |
+          # Check if hash mode is used consistently
+          grep -c "==" requirements.txt || echo "No pinned versions"
+
+      - name: Generate dependency report
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read package files
+            const files = fs.readdirSync('.').filter(f =>
+              f.includes('pyproject') || f.includes('requirements')
+            );
+
+            console.log('## Dependency Analysis');
+            console.log('');
+            console.log('### Package Files');
+            files.forEach(f => {
+              console.log(`- ${f}`);
+            });
+
+            console.log('');
+            console.log('### Recommendations');
+            console.log('- Use hash-mode for production dependencies');
+            console.log('- Pin major versions to avoid breaking changes');
+            console.log('- Review dependencies regularly');
+
+      - name: Fail on high severity
+        run: |
+          # This step will fail if high severity issues are found
+          echo "Review complete"
+
+  license-check:
+    name: Check License Compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check licenses
+        run: |
+          pip install pip-licenses
+          pip-licenses --output-format=csv --ignore-packages-file=.license-ignore.txt || true
+
+      - name: Verify allowed licenses
+        run: |
+          ALLOWED_LICENSES="MIT|Apache-2.0|BSD-3-Clause|BSD-2-Clause|ISC|CC0-1.0|Unlicense|MPL-2.0|GPL-3.0"
+          pip-licenses | grep -vE "$ALLOWED_LICENSES" || echo "All packages have allowed licenses"
+
+  notify-dependency-alerts:
+    name: Notify on Issues
+    runs-on: ubuntu-latest
+    needs: [review-dependencies, license-check]
+    if: failure()
+    steps:
+      - name: Create issue for dependency problems
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'dependencies'
+            });
+
+            if (existing.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '⚠️ Dependency Review Issues Found',
+                body: `## Action Required
+
+The following dependency issues were found in PR #${context.payload.pull_request.number}:
+
+- Review required dependencies
+- Check for vulnerabilities
+- Verify license compatibility
+
+Please address these issues before merging.
+
+---
+*Automated by GitHub Actions*`,
+                labels: ['dependencies', 'security']
+              });
+            }

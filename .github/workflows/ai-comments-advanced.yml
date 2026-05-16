@@ -1,0 +1,551 @@
+name: AI Code Comments Advanced
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Operation mode'
+        required: true
+        type: choice
+        options:
+          - comment     # Add new comments
+          - review      # Review existing comments
+          - improve     # Improve existing comments
+          - translate   # Translate comments to another language
+          - document    # Generate documentation from code
+      target:
+        description: 'Target (file, dir, or "all")'
+        required: false
+        default: 'src'
+      scope:
+        description: 'Scope of changes'
+        required: false
+        type: choice
+        options:
+          - functions
+          - classes
+          - modules
+          - all
+      style:
+        description: 'Comment style'
+        required: false
+        type: choice
+        options:
+          - minimal      # Just function name
+          - standard     # Brief description
+          - detailed     # Full explanation with params/returns
+          - docstring    # Docstring format
+          - google       # Google style docstring
+          - numpy        # NumPy style docstring
+      language:
+        description: 'Output language for comments (en/es/fr/de/ja/zh)'
+        required: false
+        default: 'en'
+      model:
+        description: 'LLM model'
+        required: false
+        default: 'codellama:7b'
+      create_pr:
+        description: 'Create Pull Request'
+        required: false
+        type: boolean
+        default: true
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - '**.py'
+      - '**.js'
+      - '**.ts'
+      - '**.go'
+      - '**.rs'
+      - '**.java'
+  schedule:
+    - cron: '0 3 * * 0'  # Weekly on Sunday at 3 AM
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+env:
+  OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'http://localhost:11434' }}
+  MAX_TOKENS: 4096
+  TEMPERATURE: 0.2
+  TOP_P: 0.95
+
+jobs:
+  preflight:
+    name: Pre-flight Checks
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+      files: ${{ steps.scan.outputs.files }}
+      count: ${{ steps.scan.outputs.count }}
+      ollama_models: ${{ steps.ollama.outputs.models }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Check Ollama availability
+        id: ollama
+        run: |
+          echo "Checking Ollama at: $OLLAMA_HOST"
+          RESPONSE=$(curl -s -w "%{http_code}" "$OLLAMA_HOST/api/tags" --max-time 10)
+          HTTP_CODE="${RESPONSE: -3}"
+
+          if [ "$HTTP_CODE" == "200" ]; then
+            echo "✓ Ollama is available"
+            MODELS=$(curl -s "$OLLAMA_HOST/api/tags" | jq -r '.models[].name' 2>/dev/null || echo "codellama")
+            echo "models=$MODELS" >> $GITHUB_OUTPUT
+            echo "ready=true" >> $GITHUB_OUTPUT
+          else
+            echo "::warning::Ollama not available (HTTP $HTTP_CODE)"
+            echo "ready=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Scan files
+        id: scan
+        run: |
+          TARGET="${{ github.event.inputs.target || 'src' }}"
+          MODE="${{ github.event.inputs.mode || 'comment' }}"
+
+          # Language mappings
+          declare -A EXT_MAP=(
+            ["py"]="python"
+            ["js"]="javascript"
+            ["ts"]="typescript"
+            ["jsx"]="javascript"
+            ["tsx"]="typescript"
+            ["go"]="go"
+            ["rs"]="rust"
+            ["java"]="java"
+            ["cs"]="csharp"
+            ["cpp"]="cpp"
+            ["c"]="c"
+            ["h"]="c"
+            ["rb"]="ruby"
+            ["php"]="php"
+            ["swift"]="swift"
+            ["kt"]="kotlin"
+          )
+
+          # Find files
+          if [ -d "$TARGET" ]; then
+            FILES=$(find "$TARGET" -type f \( -name "*.py" -o -name "*.js" -o -name "*.ts" -o -name "*.go" -o -name "*.rs" -o -name "*.java" \) | grep -v -E "(test_|__pycache__|node_modules|venv|\.git)" | head -50)
+          elif [ -f "$TARGET" ]; then
+            FILES="$TARGET"
+          else
+            FILES=""
+          fi
+
+          COUNT=$(echo "$FILES" | grep -c "^" 2>/dev/null || echo 0)
+
+          echo "Found $COUNT files to process"
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
+
+  process-files:
+    name: Process Code Files
+    needs: preflight
+    if: needs.preflight.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        file: ${{ fromJson('[' + join(fromJson(needs.preflight.outputs.files), ',') + ']') }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Create processing script
+        run: |
+          cat > process_code.py << 'SCRIPT'
+          import os
+          import sys
+          import json
+          import re
+          import subprocess
+          from pathlib import Path
+          from typing import Dict, List, Optional
+
+          # Configuration
+          OLLAMA_HOST = os.environ.get('OLLAMA_HOST', 'http://localhost:11434')
+          MODEL = os.environ.get('MODEL', 'codellama:7b')
+          MODE = os.environ.get('MODE', 'comment')
+          STYLE = os.environ.get('STYLE', 'standard')
+          OUTPUT_LANG = os.environ.get('LANGUAGE', 'en')
+          SCOPE = os.environ.get('SCOPE', 'functions')
+
+          # Comment templates
+          COMMENT_TEMPLATES = {
+              'minimal': '# {name}\n',
+              'standard': '# {name}: {description}\n',
+              'detailed': '''# {name}
+# {description}
+# Args: {args}
+# Returns: {returns}
+# Raises: {raises}
+''',
+              'google': '''"""{name}: {description}
+
+Args:
+    {args}
+
+Returns:
+    {returns}
+
+Raises:
+    {raises}
+"""
+''',
+              'numpy': '''"{name}: {description}
+
+Parameters
+----------
+{args}
+
+Returns
+-------
+{returns}
+"""
+''',
+              'docstring': '''"""
+{name}
+
+{description}
+
+Args:
+    {args}
+
+Returns:
+    {returns}
+"""
+'''
+          }
+
+          # Supported languages and their comment syntax
+          COMMENT_SYNTAX = {
+              'python': '#',
+              'javascript': '//',
+              'typescript': '//',
+              'go': '//',
+              'rust': '//',
+              'java': '//',
+              'csharp': '//',
+              'cpp': '//',
+              'c': '//',
+              'ruby': '#',
+              'php': '//',
+              'swift': '//',
+              'kotlin': '//',
+              'shell': '#',
+              'powershell': '#',
+              'sql': '--',
+              'yaml': '#',
+              'html': '<!--',
+              'css': '/*',
+          }
+
+          def get_language(path: str) -> str:
+              """Detect language from file extension"""
+              ext = Path(path).suffix.lstrip('.')
+              lang_map = {
+                  'py': 'python', 'js': 'javascript', 'ts': 'typescript',
+                  'jsx': 'javascript', 'tsx': 'typescript', 'go': 'go',
+                  'rs': 'rust', 'java': 'java', 'cs': 'csharp',
+                  'cpp': 'cpp', 'cc': 'cpp', 'c': 'c', 'h': 'c',
+                  'rb': 'ruby', 'php': 'php', 'swift': 'swift',
+                  'kt': 'kotlin', 'sh': 'shell', 'bash': 'shell',
+                  'ps1': 'powershell', 'sql': 'sql', 'yml': 'yaml',
+                  'yaml': 'yaml', 'html': 'html', 'htm': 'html',
+                  'css': 'css', 'scss': 'css'
+              }
+              return lang_map.get(ext, 'python')
+
+          def call_llm(prompt: str) -> Optional[str]:
+              """Call Ollama API"""
+              try:
+                  import requests
+                  response = requests.post(
+                      f"{OLLAMA_HOST}/api/generate",
+                      json={
+                          "model": MODEL,
+                          "prompt": prompt,
+                          "stream": False,
+                          "options": {
+                              "temperature": float(os.environ.get('TEMPERATURE', 0.2)),
+                              "top_p": float(os.environ.get('TOP_P', 0.95)),
+                              "num_predict": int(os.environ.get('MAX_TOKENS', 4096))
+                          }
+                      },
+                      timeout=180
+                  )
+                  if response.status_code == 200:
+                      return response.json().get('response', '').strip()
+              except Exception as e:
+                  print(f"LLM call failed: {e}", file=sys.stderr)
+              return None
+
+          def extract_code_elements(code: str, lang: str) -> List[Dict]:
+              """Extract functions, classes, etc from code"""
+              elements = []
+
+              if lang == 'python':
+                  # Functions
+                  for match in re.finditer(r'(?:^async\s+)?def\s+(\w+)\s*\(([^)]*)\)\s*(?:->\s*(\w+))?:', code, re.MULTILINE):
+                      elements.append({
+                          'type': 'function',
+                          'name': match.group(1),
+                          'params': match.group(2),
+                          'return': match.group(3) or 'None',
+                          'line': code[:match.start()].count('\n') + 1,
+                          'snippet': code[max(0, match.start()-50):match.end()+200]
+                      })
+                  # Classes
+                  for match in re.finditer(r'^class\s+(\w+)(?:\(([^)]+)\))?:', code, re.MULTILINE):
+                      elements.append({
+                          'type': 'class',
+                          'name': match.group(1),
+                          'bases': match.group(2) or '',
+                          'line': code[:match.start()].count('\n') + 1,
+                          'snippet': code[max(0, match.start()-50):match.end()+300]
+                      })
+              elif lang in ['javascript', 'typescript']:
+                  # Functions
+                  for match in re.finditer(r'(?:async\s+)?function\s+(\w+)\s*\(', code):
+                      elements.append({
+                          'type': 'function',
+                          'name': match.group(1),
+                          'line': code[:match.start()].count('\n') + 1
+                      })
+                  # Arrow functions (const/let)
+                  for match in re.finditer(r'(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>', code):
+                      elements.append({
+                          'type': 'arrow_function',
+                          'name': match.group(1),
+                          'line': code[:match.start()].count('\n') + 1
+                      })
+              # Add more language parsers as needed
+
+              return elements
+
+          def generate_comment(element: Dict, lang: str, full_code: str) -> Optional[str]:
+              """Generate AI comment for code element"""
+              prompt = f"""You are an expert code documentation assistant. {lang.upper()} code:
+
+```python
+{full_code[:800]}
+```
+
+{MODE.replace('_', ' ').title()} the following {element['type']}:
+- Name: {element['name']}
+- Parameters: {element.get('params', 'N/A')}
+- Return type: {element.get('return', 'N/A')}
+- Snippet: {element.get('snippet', '')[:200]}
+
+Generate a {STYLE} comment (1-4 lines). Start directly with comment text.
+Output ONLY the comment, no explanations. Language: {OUTPUT_LANG}."""
+
+              return call_llm(prompt)
+
+          def process_file(filepath: str) -> Optional[str]:
+              """Process a single file"""
+              try:
+                  with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                      original = f.read()
+
+                  if len(original) > 60000:
+                      return None  # Skip too large files
+
+                  lang = get_language(filepath)
+                  elements = extract_code_elements(original, lang)
+
+                  if not elements:
+                      return None
+
+                  # Filter by scope
+                  if SCOPE != 'all':
+                      elements = [e for e in elements if e['type'] == SCOPE]
+
+                  lines = original.split('\n')
+                  new_lines = lines.copy()
+                  offset = 0
+
+                  for elem in elements[:10]:  # Limit to 10 elements
+                      line_num = elem['line'] - 1 + offset
+                      if line_num >= len(new_lines):
+                          continue
+
+                      # Skip if line already has comment
+                      if new_lines[line_num].strip().startswith(COMMENT_SYNTAX.get(lang, '#')):
+                          continue
+
+                      comment = generate_comment(elem, lang, original)
+                      if comment:
+                          syntax = COMMENT_SYNTAX.get(lang, '#')
+                          comment_lines = [f"{syntax} {line}" for line in comment.split('\n') if line.strip()]
+                          new_lines.insert(line_num, '\n'.join(comment_lines))
+                          offset += len(comment_lines)
+
+                  return '\n'.join(new_lines)
+
+              except Exception as e:
+                  print(f"Error: {filepath}: {e}", file=sys.stderr)
+                  return None
+
+          def main():
+              file = os.environ.get('FILE', '')
+              if not file or not os.path.exists(file):
+                  print("{}", file=sys.stderr)
+                  return
+
+              result = process_file(file)
+
+              output = {
+                  'file': file,
+                  'processed': result is not None,
+                  'modified': result is not None and result != open(file).read(),
+                  'content': result
+              }
+              print(json.dumps(output))
+
+          if __name__ == '__main__':
+              main()
+          SCRIPT
+
+      - name: Process file
+        env:
+          MODE: ${{ github.event.inputs.mode || 'comment' }}
+          STYLE: ${{ github.event.inputs.style || 'standard' }}
+          LANGUAGE: ${{ github.event.inputs.language || 'en' }}
+          SCOPE: ${{ github.event.inputs.scope || 'functions' }}
+          MODEL: ${{ github.event.inputs.model || 'codellama:7b' }}
+          FILE: ${{ matrix.file }}
+        run: |
+          python process_code.py > result_${{ hashFiles(matrix.file) }}.json 2>&1
+
+      - name: Save result
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-${{ hashFiles(matrix.file) }}
+          path: result_*.json
+          retention-days: 1
+
+  create-pr:
+    name: Create Pull Request
+    needs: [preflight, process-files]
+    if: |
+      needs.preflight.outputs.ready == 'true' &&
+      github.event.inputs.create_pr == 'true' &&
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Collect results
+        run: |
+          echo "Collecting processing results..."
+
+      - name: Create PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: 'ai-comments'
+            });
+
+            const body = `## 🤖 AI Code Comments
+
+### Summary
+- **Mode**: ${process.env.MODE || 'comment'}
+- **Style**: ${process.env.STYLE || 'standard'}
+- **Scope**: ${process.env.SCOPE || 'functions'}
+- **Language**: ${process.env.LANGUAGE || 'en'}
+- **Model**: ${process.env.MODEL || 'codellama:7b'}
+
+### Processing Complete
+This PR adds AI-generated inline comments to your code.
+
+### How to Use
+1. Review the changes
+2. Run tests to ensure nothing broke
+3. Merge when satisfied
+4. Or adjust settings and re-run
+
+---
+*Generated by AI Code Comments Workflow*`;
+
+            if (prs.length === 0) {
+              await github.rest.pulls.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '🤖 AI Code Comments',
+                body: body,
+                head: 'ai-comments',
+                base: 'main'
+              });
+              console.log('PR created');
+            } else {
+              console.log('PR already exists');
+            }
+
+  no-ollama:
+    name: No Ollama Warning
+    needs: preflight
+    if: needs.preflight.outputs.ready == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show setup instructions
+        run: |
+          echo "## ⚠️ Ollama Not Available"
+          echo ""
+          echo "To use this workflow, you need Ollama running locally."
+          echo ""
+          echo "### Quick Setup"
+          echo "```bash"
+          echo "# Install Ollama"
+          echo "curl -fsSL https://ollama.com/install.sh | sh"
+          echo ""
+          echo "# Start Ollama"
+          echo "ollama serve &"
+          echo ""
+          echo "# Pull a coding model"
+          echo "ollama pull codellama"
+          echo "```"
+          echo ""
+          echo "### Configuration"
+          echo "1. Go to Settings → Variables"
+          echo "2. Add `OLLAMA_HOST` = `http://localhost:11434`"
+          echo ""
+          echo "### Supported Models"
+          echo "- codellama (recommended for code)"
+          echo "- mistral (fast, good quality)"
+          echo "- llama3 (general purpose)"
+          echo "- mixtral (excellent for code)"
+
+  summary:
+    name: Workflow Summary
+    needs: [preflight, process-files, create-pr]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## AI Code Comments - Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Step | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Pre-flight | ${{ needs.preflight.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Process Files | ${{ needs.process-files.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Create PR | ${{ needs.create-pr.result }} |" >> $GITHUB_STEP_SUMMARY

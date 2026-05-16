@@ -1,3 +1,5 @@
+"""Tests for authentication, credential management, and audit logging."""
+
 from __future__ import annotations
 
 import json
@@ -8,6 +10,7 @@ from siyarix.auth import AuthManager
 from siyarix.credential_store import CredentialStore
 from siyarix.profiles import ProfileStore
 
+
 class _Resp:
     def __init__(self, status_code: int, payload: dict | None = None) -> None:
         self.status_code = status_code
@@ -15,6 +18,7 @@ class _Resp:
 
     def json(self) -> dict:
         return self._payload
+
 
 def test_credential_store_migration_and_roundtrip(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("SIYARIX_CONFIG_DIR", str(tmp_path))
@@ -37,10 +41,11 @@ def test_credential_store_migration_and_roundtrip(monkeypatch, tmp_path: Path) -
     assert store.retrieve("default", "api_key") == "secret-key"
     assert store.retrieve("default", "server_url") == "http://localhost:8000"
 
+
 def test_auth_profile_and_audit_flow(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("SIYARIX_CONFIG_DIR", str(tmp_path))
     monkeypatch.setenv("SIYARIX_MASTER_PASSWORD", "test-password")
-    
+
     def fake_get(url: str, headers: dict | None = None, timeout: float | None = None) -> _Resp:
         if url.endswith("/api/auth/me"):
             return _Resp(200, {"email": "agent@siyarix.dev", "org": "demo"})
@@ -73,7 +78,7 @@ def test_auth_profile_and_audit_flow(monkeypatch, tmp_path: Path) -> None:
         user="agent@siyarix.dev",
         action="login",
         result="success",
-        details={"profile": "staging"}
+        details={"profile": "staging"},
     )
     rows = audit.get_events(limit=5)
     assert rows

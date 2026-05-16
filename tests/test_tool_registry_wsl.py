@@ -4,6 +4,7 @@ import subprocess
 
 from siyarix.tool_registry import ToolRegistry
 
+
 def test_discover_uses_wsl_fallback_on_windows(monkeypatch):
     monkeypatch.setenv("SIYARIX_ENABLE_WSL_DISCOVERY", "1")
 
@@ -32,6 +33,7 @@ def test_discover_uses_wsl_fallback_on_windows(monkeypatch):
     assert nmap.path == "C:/Windows/System32/wsl.exe"
     assert nmap.default_args[:2] == ["-e", "nmap"]
     assert nmap.version.startswith("Nmap")
+
 
 def test_discover_prefers_local_binary_over_wsl(monkeypatch):
     monkeypatch.setenv("SIYARIX_ENABLE_WSL_DISCOVERY", "1")

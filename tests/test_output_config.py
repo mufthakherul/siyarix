@@ -1,4 +1,4 @@
-"""Tests for CA-2 modules: OutputFormatter, SettingsStore, OfflineStore history extensions."""
+"""Tests for OutputFormatter, SettingsStore, and OfflineStore history extensions."""
 
 from __future__ import annotations
 
@@ -9,8 +9,9 @@ from types import SimpleNamespace
 import pytest
 
 # ---------------------------------------------------------------------------
-# CA-2.1 — OutputFormatter
+# OutputFormatter tests
 # ---------------------------------------------------------------------------
+
 
 class TestOutputFormatter:
     def test_formatter_json(self, capsys):
@@ -43,7 +44,7 @@ class TestOutputFormatter:
         """If pyyaml is not installed, should fall back to JSON without crashing."""
         import unittest.mock as mock
 
-        from siyarix_agent.output import OutputFormatter
+        from siyarix.output import OutputFormatter
 
         fmt = OutputFormatter(fmt="yaml")
         with mock.patch.dict("sys.modules", {"yaml": None}):
@@ -73,9 +74,11 @@ class TestOutputFormatter:
         assert EXIT_ERROR == 1
         assert EXIT_AUTH_ERROR == 2
 
+
 # ---------------------------------------------------------------------------
-# CA-2.4 — SettingsStore
+# SettingsStore tests
 # ---------------------------------------------------------------------------
+
 
 class TestSettingsStore:
     def _make_store(self, tmp_path: Path):
@@ -146,9 +149,11 @@ class TestSettingsStore:
         s2 = SettingsStore(path=path)
         assert s2.get("default_parallel") == 7
 
+
 # ---------------------------------------------------------------------------
-# CA-2.3 — OfflineStore history extensions
+# OfflineStore history extensions tests
 # ---------------------------------------------------------------------------
+
 
 class TestOfflineStoreHistory:
     def _make_store(self, tmp_path: Path):
@@ -158,8 +163,12 @@ class TestOfflineStoreHistory:
 
     def _seed(self, store):
         store.save_scan("scan-001", "192.168.1.1", "nmap", "complete")
-        store.save_finding({"title": "Open SSH port", "severity": "low", "tool": "nmap"}, "scan-001")
-        store.save_finding({"title": "SQL Injection", "severity": "critical", "tool": "nmap"}, "scan-001")
+        store.save_finding(
+            {"title": "Open SSH port", "severity": "low", "tool": "nmap"}, "scan-001"
+        )
+        store.save_finding(
+            {"title": "SQL Injection", "severity": "critical", "tool": "nmap"}, "scan-001"
+        )
         store.save_scan("scan-002", "10.0.0.1", "nuclei", "complete")
         store.save_finding({"title": "XSS Found", "severity": "high", "tool": "nuclei"}, "scan-002")
 
@@ -247,6 +256,7 @@ class TestOfflineStoreHistory:
         nmap_scan = next(s for s in scans if s["tool"] == "nmap")
         assert nmap_scan["total_findings"] == 2
         assert nmap_scan["finding_counts"].get("critical") == 1
+
 
 class TestProgressRunner:
     def test_run_tools_with_progress_returns_per_tool_results(self, monkeypatch):

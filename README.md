@@ -1,13 +1,13 @@
 <div align="center">
-  <img src="assets/logo.png" alt="Cosmic Security Agent Logo" width="160" />
+  <img src="assets/logo.png" alt="NexSec Logo" width="160" />
   <h1>🚀 NexSec</h1>
   <p><strong>A security agent by CosmicSec-Lab — AI-powered hybrid execution for DevOps, penetration testing & threat hunting.</strong></p>
   
   <p>
-    <a href="https://github.com/CosmicSec-Lab/cosmicsec-cli/actions"><img src="https://img.shields.io/github/actions/workflow/status/CosmicSec-Lab/cosmicsec-cli/build.yml?logo=github&style=flat-square" alt="Build Status"></a>
-    <a href="https://github.com/CosmicSec-Lab/cosmicsec-cli/issues"><img src="https://img.shields.io/github/issues/CosmicSec-Lab/cosmicsec-cli?style=flat-square" alt="Issues"></a>
-    <a href="https://github.com/CosmicSec-Lab/cosmicsec-cli/pulls"><img src="https://img.shields.io/github/issues-pr/CosmicSec-Lab/cosmicsec-cli?style=flat-square" alt="Pull Requests"></a>
-    <a href="https://github.com/CosmicSec-Lab/cosmicsec-cli/blob/main/LICENSE"><img src="https://img.shields.io/github/license/CosmicSec-Lab/cosmicsec-cli?style=flat-square" alt="License"></a>
+    <a href="https://github.com/CosmicSec-Lab/nexsec/actions"><img src="https://img.shields.io/github/actions/workflow/status/CosmicSec-Lab/nexsec/build.yml?logo=github&style=flat-square" alt="Build Status"></a>
+    <a href="https://github.com/CosmicSec-Lab/nexsec/issues"><img src="https://img.shields.io/github/issues/CosmicSec-Lab/nexsec?style=flat-square" alt="Issues"></a>
+    <a href="https://github.com/CosmicSec-Lab/nexsec/pulls"><img src="https://img.shields.io/github/issues-pr/CosmicSec-Lab/nexsec?style=flat-square" alt="Pull Requests"></a>
+    <a href="https://github.com/CosmicSec-Lab/nexsec/blob/main/LICENSE"><img src="https://img.shields.io/github/license/CosmicSec-Lab/nexsec?style=flat-square" alt="License"></a>
   </p>
 </div>
 
@@ -18,6 +18,7 @@
 - [Architecture & Domain](#-architecture--domain)
 - [Technical Specifications](#-technical-specifications)
 - [Getting Started](#-getting-started)
+- [Documentation](#-documentation)
 - [Contributing](#-contributing)
 - [License & Security](#-license--security)
 
@@ -29,15 +30,15 @@
 ## 🏗️ Architecture & Domain
 - **Terminal UI (TUI):** A rich, highly interactive terminal experience for executing scans, monitoring progress bars, and viewing immediate, color-coded results.
 - **Headless Automation:** Scriptable execution modes specifically designed for triggering platform workflows and outputting strictly typed JSON/YAML results for downstream CI/CD parsers.
-- **Extensibility:** Support for custom plugins and configuration files (`.cosmicsec.yml`).
+- **Extensibility:** Support for custom plugins and configuration files (`.nexsec.yml`).
 
 ## 🛠 Technical Specifications
-- **Language:** Python 3.10+ / Go
-- **Framework:** Typer / Click / Cobra
-- **Distribution:** PyPI, Homebrew, Apt
+- **Language:** Python 3.11+
+- **Framework:** Typer
+- **Distribution:** PyPI (package name: `nexsec`), Homebrew, Apt
 
 ## 🚀 Getting Started
-\`\`\`bash
+```bash
 # Install NexSec globally
 pip install nexsec
 
@@ -55,7 +56,20 @@ nexsec incident resolve INC-001
 nexsec plan create --target my-app.com --ai-assist
 ```
 
-**Entry points:** \`nexsec\` (primary) or \`cosmicsec-agent\` (CosmicSec branding) — both work!
+**Entry points:** `nexsec` (primary) or `cosmicsec-agent` (CosmicSec branding) — both work!
+
+## 📚 Documentation
+Full documentation is included in the `docs/` directory (also viewable on the project site):
+
+- `docs/overview.md` — product summary and capabilities
+- `docs/installation.md` — install and packaging notes
+- `docs/usage.md` — quick usage and examples
+- `docs/cli-reference.md` — command reference and flags
+- `docs/architecture.md` — internal design and modules
+- `docs/development.md` — how to develop and run tests
+- `docs/contributing.md` — contribution guidelines
+- `docs/faq.md` — frequently asked questions
+- `docs/troubleshooting.md` — common issues and fixes
 
 ## 🛡️ License & Security
 All rights reserved by **CosmicSec-Lab**.

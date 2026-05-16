@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 try:
-    import cosmicsec_rust_parsers as _rust
+    import nexsec_rust_parsers as _rust
 except Exception:
     _rust = None
 

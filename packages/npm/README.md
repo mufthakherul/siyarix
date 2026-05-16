@@ -1,30 +1,30 @@
-# @mufthakherul/cosmicsec-agent-cli
+# @mufthakherul/nexsec-agent
 
-Official npm launcher for the CosmicSec Python CLI agent.
+Official npm launcher for the NexSec Python CLI agent.
 
 ## Install
 
 ```bash
-npm install -g @mufthakherul/cosmicsec-agent-cli
+npm install -g @mufthakherul/nexsec-agent
 ```
 
 ## Usage
 
 ```bash
 # Auto-installs Python package when needed and runs the CLI
-cosmicsec-agent --help
+nexsec-agent --help
 
 # Alias
-cosmicsec --version
+nexsec --version
 
 # Explicit installer command
-cosmicsec-agent-install
+nexsec-agent-install
 ```
 
 ## How it works
 
 - Detects Python 3.11+.
-- Installs `cosmicsec-agent` via `pipx` (preferred) or `pip --user`.
+- Installs `nexsec-agent` via `pipx` (preferred) or `pip --user`.
 - Runs `python -m nexsec.main` with your CLI arguments.
 
 ## Requirements

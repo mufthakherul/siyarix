@@ -140,7 +140,7 @@ class AuditSession:
 class AuditLogger:
     """Enterprise audit logging system"""
 
-    _CONFIG_DIR = Path(os.getenv("COSMICSEC_CONFIG_DIR", str(Path.home() / ".cosmicsec")))
+    _CONFIG_DIR = Path(os.getenv("NEXSEC_CONFIG_DIR", str(Path.home() / ".nexsec")))
     _AUDIT_LOG = _CONFIG_DIR / "audit.log"
     _AUDIT_DB = _CONFIG_DIR / "audit.json"
     _RETENTION_DAYS = 365

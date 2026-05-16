@@ -1,22 +1,28 @@
 # CLI Reference
 
-This document lists primary subcommands and flags. The CLI is implemented with Typer; use `nexsec --help` for live help.
+This document lists primary subcommands and flags. The CLI is implemented with Typer; use `nexsec --help` for real-time usage information.
 
-Top-level commands (examples):
+### Core Commands
 
-- `scan` — run preconfigured scanning workflows (nmap, nuclei, ffuf)
-  - `--profile <name>`: use a saved profile
-  - `--format json|yaml`: output format
+- **`scan`**: Execute security scanning workflows using registered tools.
+  - `--profile <name>`: specify a saved configuration profile.
+  - `--format json|table|csv`: set the primary output format.
+  - `--mode registry|autonomous|integrated`: execution engine strategy.
 
-- `threat hunt` — AI-assisted hunting
-  - `--target <target>`: domain, IP range, or CIDR
-  - `--ai`: enable AI enrichment
+- **`threat hunt`**: Structured threat hunting and result analysis.
+  - `--target <target>`: domain, IP range, or CIDR block.
+  - `--assist`: enable autonomous assistance for finding correlation.
 
-- `plan` — create/run hybrid plans
-  - `create`, `list`, `run`, `show` subcommands
+- **`run`**: Execute a natural language or direct tool instruction.
+  - `nexsec run "scan my network"`
 
-- `incident` — incident lifecycle
-  - `list`, `show`, `resolve`, `annotate`
+- **`planner`**: Manage and execute multi-step security plans.
+  - `create`, `list`, `run`, `show` subcommands.
 
-Configuration files:
-- `~/.nexsec/config.yaml` or project `.nexsec.yml` — stores API keys and defaults.
+- **`incident`**: Management of security incidents and findings.
+  - `list`, `show`, `resolve`, `annotate`.
+
+### Configuration
+
+- **`~/.nexsec/settings.toml`**: Global agent settings, API keys, and model provider configuration.
+- **`~/.nexsec/audit.json`**: Local enterprise audit trail for compliance verification.

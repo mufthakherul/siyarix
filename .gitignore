@@ -44,6 +44,8 @@ Cargo.lock
 # IDE / Editor
 .vscode/
 .idea/
+.claude/
+graphify-out/
 *.swp
 *.swo
 *~

@@ -209,6 +209,56 @@ _KNOWN_TOOLS: dict[str, dict] = {
         "description": "Azure CLI",
         "default_args": [],
     },
+    "gcloud": {
+        "version_cmd": ["gcloud", "--version"],
+        "capabilities": ["cloud_enum", "gcp_recon"],
+        "category": "cloud",
+        "description": "Google Cloud CLI",
+        "default_args": [],
+    },
+    # ── Containers / Infra ───────────────────────────────────────────────
+    "docker": {
+        "version_cmd": ["docker", "--version"],
+        "capabilities": ["container_runtime", "image_manage"],
+        "category": "infra",
+        "description": "Docker CLI",
+        "default_args": [],
+    },
+    "podman": {
+        "version_cmd": ["podman", "--version"],
+        "capabilities": ["container_runtime", "image_manage"],
+        "category": "infra",
+        "description": "Podman container engine",
+        "default_args": [],
+    },
+    "kubectl": {
+        "version_cmd": ["kubectl", "version", "--client", "--short"],
+        "capabilities": ["k8s_manage", "cluster_recon"],
+        "category": "infra",
+        "description": "Kubernetes CLI",
+        "default_args": [],
+    },
+    "helm": {
+        "version_cmd": ["helm", "version"],
+        "capabilities": ["k8s_package", "cluster_recon"],
+        "category": "infra",
+        "description": "Helm package manager for Kubernetes",
+        "default_args": [],
+    },
+    "terraform": {
+        "version_cmd": ["terraform", "version"],
+        "capabilities": ["iac_plan", "infra_manage"],
+        "category": "infra",
+        "description": "Terraform IaC CLI",
+        "default_args": [],
+    },
+    "ansible": {
+        "version_cmd": ["ansible", "--version"],
+        "capabilities": ["automation", "config_manage"],
+        "category": "infra",
+        "description": "Ansible automation tool",
+        "default_args": [],
+    },
 }
 
 # Human-friendly name aliases (human name → binary name)
@@ -244,6 +294,18 @@ CAPABILITY_CATEGORIES: dict[str, str] = {
     "exploitation": "exploit",
     "secret_scan": "recon",
     "cloud_enum": "cloud",
+    "azure_recon": "cloud",
+    "aws_recon": "cloud",
+    "gcp_recon": "cloud",
+    "container_runtime": "infra",
+    "image_manage": "infra",
+    "k8s_manage": "infra",
+    "k8s_package": "infra",
+    "cluster_recon": "infra",
+    "iac_plan": "infra",
+    "infra_manage": "infra",
+    "automation": "infra",
+    "config_manage": "infra",
 }
 
 # Cache TTL for tool discovery (seconds)

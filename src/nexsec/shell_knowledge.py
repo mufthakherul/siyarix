@@ -17,8 +17,11 @@ from __future__ import annotations
 
 import os
 import platform
+import getpass
+import socket
 import shutil
 import subprocess  # nosec B404
+from pathlib import Path
 from enum import StrEnum
 from typing import Any, Mapping
 
@@ -718,6 +721,64 @@ def detect_terminal_type() -> str:
     return terminal_type_from_env()
 
 
+def _safe_read(path: str, max_bytes: int = 2048) -> str:
+    """Read a small text file safely and return an empty string on failure."""
+    try:
+        return Path(path).read_text(encoding="utf-8", errors="ignore")[:max_bytes]
+    except Exception:  # nosec B110
+        return ""
+
+
+def _linux_pretty_name() -> str:
+    """Return PRETTY_NAME from /etc/os-release when available."""
+    data = _safe_read("/etc/os-release")
+    if not data:
+        return ""
+    for line in data.splitlines():
+        if line.startswith("PRETTY_NAME="):
+            value = line.split("=", 1)[1].strip().strip('"')
+            return value
+    return ""
+
+
+def _safe_loadavg() -> tuple[float, float, float] | None:
+    """Return load average where available."""
+    try:
+        return os.getloadavg()
+    except Exception:  # nosec B110
+        return None
+
+
+def _linux_memory_total_mb() -> int | None:
+    """Parse MemTotal from /proc/meminfo when present."""
+    meminfo = _safe_read("/proc/meminfo")
+    if not meminfo:
+        return None
+    for line in meminfo.splitlines():
+        if line.startswith("MemTotal:"):
+            parts = line.split()
+            if len(parts) >= 2 and parts[1].isdigit():
+                return int(int(parts[1]) / 1024)
+    return None
+
+
+def _detect_container(env: Mapping[str, str]) -> tuple[bool, str]:
+    """Detect common container runtimes and return (is_container, runtime)."""
+    if Path("/.dockerenv").exists():
+        return True, "docker"
+    cgroup = _safe_read("/proc/1/cgroup")
+    lower = cgroup.lower()
+    if "docker" in lower:
+        return True, "docker"
+    if "kubepods" in lower or env.get("KUBERNETES_SERVICE_HOST"):
+        return True, "kubernetes"
+    if "containerd" in lower:
+        return True, "containerd"
+    if env.get("CONTAINER"):
+        return True, env.get("CONTAINER", "container")
+    return False, "none"
+
+
 def get_shell_platform() -> str:
     """Return a human-friendly platform string."""
     sys_name = platform.system().lower()
@@ -773,27 +834,72 @@ def get_security_commands(shell: ShellType | None = None) -> dict[str, str]:
 
 def build_platform_context() -> dict[str, Any]:
     """Build a context dict describing the current execution environment."""
+    env = os.environ
     shell = detect_shell()
     sys_name = platform.system()
     device_type = detect_device_type(sys_name)
     terminal_type = detect_terminal_type()
+    normalized_shell = normalize_shell(shell)
+    host = socket.gethostname()
+    fqdn = socket.getfqdn()
+    is_container, container_runtime = _detect_container(env)
+    shell_env = env.get("SHELL", "")
+    shell_executable = shell_env or shutil.which(normalized_shell.value) or ""
+    load_avg = _safe_loadavg()
+    linux_pretty = _linux_pretty_name() if sys_name.lower() == "linux" else ""
+    memory_total_mb = _linux_memory_total_mb() if sys_name.lower() == "linux" else None
+    cpu_count = os.cpu_count() or 0
+    username = getpass.getuser()
+    cwd = str(Path.cwd())
+    home_dir = str(Path.home())
+
     return {
         "platform": sys_name,
         "platform_lower": sys_name.lower(),
+        "platform_release": platform.release(),
+        "platform_version": platform.version(),
+        "platform_full": platform.platform(),
+        "platform_pretty": linux_pretty or f"{sys_name} {platform.release()}",
         "device_type": device_type,
         "arch": platform.machine(),
+        "processor": platform.processor() or "unknown",
+        "hostname": host,
+        "fqdn": fqdn,
+        "username": username,
+        "cwd": cwd,
+        "home_dir": home_dir,
+        "pid": os.getpid(),
+        "ppid": os.getppid(),
         "python_version": platform.python_version(),
         "shell": shell.value,
         "shell_key": shell_key(shell),
+        "shell_normalized": normalized_shell.value,
+        "shell_executable": shell_executable,
         "shell_family": "windows" if sys_name.lower() == "windows" else "unix",
         "shell_platform": get_shell_platform(),
         "terminal_type": terminal_type,
+        "term": env.get("TERM", ""),
+        "colorterm": env.get("COLORTERM", ""),
+        "term_program": env.get("TERM_PROGRAM", ""),
+        "terminal_program_version": env.get("TERM_PROGRAM_VERSION", ""),
+        "vscode_integrated_terminal": bool(env.get("VSCODE_PID")),
         "is_terminal_ssh": terminal_type == "ssh",
         "is_terminal_wsl": terminal_type == "wsl",
         "is_terminal_cloud": terminal_type in ("cloud-shell", "codespaces"),
+        "is_codespaces": bool(env.get("CODESPACES")),
+        "codespaces_name": env.get("CODESPACE_NAME", ""),
+        "is_ci": bool(env.get("CI")),
+        "is_container": is_container,
+        "container_runtime": container_runtime,
         "is_windows": sys_name.lower() == "windows",
         "is_linux": sys_name.lower() == "linux",
         "is_macos": sys_name.lower() == "darwin",
         "has_wsl": shutil.which("wsl") is not None,
+        "cpu_count": cpu_count,
+        "memory_total_mb": memory_total_mb,
+        "load_avg_1m": load_avg[0] if load_avg else None,
+        "load_avg_5m": load_avg[1] if load_avg else None,
+        "load_avg_15m": load_avg[2] if load_avg else None,
+        "available_tools_count": len(CROSS_PLATFORM_COMMANDS),
         "available_intents": list(CROSS_PLATFORM_COMMANDS.keys()),
     }

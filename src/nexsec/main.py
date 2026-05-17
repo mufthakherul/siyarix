@@ -21,42 +21,71 @@ Features:
 from __future__ import annotations
 
 import asyncio
+import os
 import platform
 import sys
+import time
 from datetime import datetime
+from pathlib import Path
 
 import typer
-
-__version__ = "1.2.0"
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 from rich.prompt import Confirm
 from rich.table import Table
 
-from .planner import planner
-from .audit_log import AuditLogger
-from .branding import (
-    available_themes,
-    print_banner,
-)
+__version__ = "1.2.0"
+
+from .audit_log import AuditEventType, AuditSeverity, audit
+from .branding import available_themes, print_banner
+from .chat import start_chat
 from .config import SettingsStore
 from .credential_store import CredentialStore
+from .engine import ExecutionEngine, ExecutionMode
+from .planner import CloudModel, OllamaModel, OpenAIModel, TaskPlanner, planner
 from .plugins import PluginManager
 from .security_commands import security_app
+from .shell_knowledge import (
+    build_platform_context,
+    detect_shell,
+    get_security_commands,
+    get_shell_platform,
+    CROSS_PLATFORM_COMMANDS,
+    normalize_shell,
+)
 from .tool_registry import ToolRegistry
 
 # ---------------------------------------------------------------------------
 # Initialize core systems
 # ---------------------------------------------------------------------------
+
+# Detect non-interactive / CI environments for banner suppression
+_IS_TTY = sys.stdout.isatty()
+_CI_MODE = os.getenv("CI", "") or os.getenv("NEXSEC_NO_BANNER", "") or not _IS_TTY
+
 console = Console()
 registry = ToolRegistry()
-ConfigManager = SettingsStore
-config = ConfigManager()
-audit = AuditLogger()
+config = SettingsStore()
 plugins = PluginManager()
 creds = CredentialStore()
-executor = None
+_plugins_loaded = False
+
+
+def _get_engine(mode: str = "integrated") -> ExecutionEngine:
+    """Build an ExecutionEngine with API keys from config/credentials."""
+    from .config import DEFAULTS  # local import to avoid circular on module level
+    engine_config: dict = {}
+    openai_key = os.environ.get("OPENAI_API_KEY", "") or creds.get_password("openai", "api_key") or ""
+    if openai_key:
+        engine_config["openai_api_key"] = openai_key
+    engine_config["ollama_url"] = config.get("ollama_url")
+    engine_config["ollama_model"] = config.get("ollama_model")
+    try:
+        exec_mode = ExecutionMode(mode)
+    except ValueError:
+        exec_mode = ExecutionMode.INTEGRATED
+    return ExecutionEngine(mode=exec_mode, registry=registry, config=engine_config)
 
 # ---------------------------------------------------------------------------
 # Main Typer app — Premium structure
@@ -64,32 +93,44 @@ executor = None
 app = typer.Typer(
     name="nexsec",
     help=f"""
-[bold cyan]NexSec CLI — Enterprise Security Command Center[/bold cyan]
+[bold cyan]NexSec CLI — Enterprise Cybersecurity Command Center[/bold cyan]
 
 [dim]Version: {__version__} | Platform: {platform.system()} | Python: {platform.python_version()}[/dim]
 
 [bold]Quick Start:[/bold]
-  [green]nexsec scan 192.168.1.0/24[/green]        — Quick Nmap scan
-  [green]nexsec threat-hunt run q_001[/green] — Run threat hunt
-  [green]nexsec incidents list[/green]        — List open incidents
-  [green]nexsec run "scan my network"[/green] — Autonomous command mode
+  [green]nexsec[/green]                          — Interactive chat mode (AI assistant)
+  [green]nexsec chat[/green]                     — Interactive AI cybersecurity REPL
+  [green]nexsec scan 192.168.1.0/24[/green]      — Network/port scan
+  [green]nexsec run "scan my network"[/green]    — Natural language command
+  [green]nexsec discover example.com[/green]     — Asset & service discovery
+  [green]nexsec tool-registry list[/green]       — Show installed security tools
 
-[bold]Modes:[/bold]
-  [yellow]--mode registry[/yellow]    — Registry-only (fast, offline)
-  [yellow]--mode autonomous[/yellow]  — Model-driven planning
-  [yellow]--mode integrated[/yellow]  — Model + registry fallback (default)
+[bold]Execution Modes:[/bold]
+  [yellow]--mode registry[/yellow]    — Fast, offline (tool registry only)
+  [yellow]--mode autonomous[/yellow]  — AI model-driven planning
+  [yellow]--mode integrated[/yellow]  — AI + registry fallback (default)
 
 [bold]Premium Features:[/bold]
+  • [magenta]nexsec chat[/magenta]          — AI conversational REPL with session history
+  • [magenta]nexsec shell[/magenta]         — Cross-platform shell command helper
   • [magenta]nexsec dashboard[/magenta]     — Live security dashboard
-  • [magenta]nexsec bulk[/magenta]          — Bulk operations
-  • [magenta]nexsec watch[/magenta]          — Watch mode (live monitoring)
+  • [magenta]nexsec bulk scan[/magenta]     — Bulk target scanning
   • [magenta]nexsec workflow[/magenta]      — Workflow orchestration
-  • [magenta]nexsec team[/magenta]           — Team & org management
-  • [magenta]nexsec compliance[/magenta]     — Compliance reporting
+  • [magenta]nexsec compliance[/magenta]    — Compliance reporting
+  • [magenta]nexsec auth set-key[/magenta]  — Configure AI model API keys
     """,
     add_completion=False,
     rich_markup_mode="rich",
+    invoke_without_command=True,  # launch chat when called with no subcommand
 )
+
+
+@app.callback(invoke_without_command=True)
+def main_callback(ctx: typer.Context) -> None:
+    """Launch interactive chat mode when nexsec is invoked with no subcommand."""
+    if ctx.invoked_subcommand is None and _IS_TTY:
+        # No subcommand and running interactively — launch chat
+        start_chat()
 
 # Register security command group into the main CLI.
 app.add_typer(security_app, name="security")
@@ -164,18 +205,201 @@ app.add_typer(watch_app, name="watch")
 dashboard_app = typer.Typer(help="📊 Live security dashboard")
 app.add_typer(dashboard_app, name="dashboard")
 
+tool_registry_app = typer.Typer(help="🛠 Tool discovery & registry")
+app.add_typer(tool_registry_app, name="tool-registry")
+
+shell_app = typer.Typer(help="🖥 Cross-platform shell command helper")
+app.add_typer(shell_app, name="shell")
+
 # ---------------------------------------------------------------------------
 # State
 # ---------------------------------------------------------------------------
 _active_profile: str | None = None
 _active_theme: str = "default"
-_plugins_loaded = False
+
+
+# ---------------------------------------------------------------------------
+# Chat command — Interactive AI cybersecurity REPL
+# ---------------------------------------------------------------------------
+@app.command()
+def chat(
+    mode: str = typer.Option("integrated", "--mode", "-m", help="Execution mode: registry|autonomous|integrated"),
+    target: str = typer.Option("", "--target", "-t", help="Set initial target for the session"),
+    session: str = typer.Option("", "--session", "-s", help="Resume a previous session by ID"),
+    resume: bool = typer.Option(False, "--resume", "-r", help="Resume the most recent session"),
+):
+    """Start an interactive AI cybersecurity REPL (chat mode).
+
+    NexSec chat gives you a conversational interface to run security tools,
+    get cross-platform command help, and manage sessions with history.
+
+    Examples:
+      nexsec chat
+      nexsec chat --target 192.168.1.1
+      nexsec chat --mode autonomous
+      nexsec chat --session abc123 --resume
+    """
+    session_id = session or None
+    start_chat(mode=mode, target=target, session_id=session_id, resume=resume)
+
+
+# ---------------------------------------------------------------------------
+# Shell sub-commands — Cross-platform terminal command helper
+# ---------------------------------------------------------------------------
+
+@shell_app.command("platform")
+def shell_platform():
+    """Show current platform and detected shell information."""
+    ctx = build_platform_context()
+    console.print(Panel.fit(
+        f"[bold]Platform:[/bold]    {ctx['platform']} {platform.release()}\n"
+        f"[bold]Shell:[/bold]       {ctx['shell']} ({ctx['shell_platform']})\n"
+        f"[bold]Architecture:[/bold] {ctx['arch']}\n"
+        f"[bold]Python:[/bold]      {ctx['python_version']}\n"
+        f"[bold]WSL:[/bold]         {'[green]✓ Available[/green]' if ctx['has_wsl'] else '[red]✗ Not found[/red]'}\n"
+        f"[bold]Windows:[/bold]     {ctx['is_windows']}\n"
+        f"[bold]Linux:[/bold]       {ctx['is_linux']}\n"
+        f"[bold]macOS:[/bold]       {ctx['is_macos']}",
+        title="[bold]Platform & Shell Info[/bold]",
+        border_style="cyan",
+    ))
+
+
+@shell_app.command("translate")
+def shell_translate(
+    intent: str = typer.Argument(help="Command intent (e.g. list_files, network_connections, ping)"),
+    target: str = typer.Option("", "--target", help="Target for commands that need one (e.g. IP/hostname)"),
+):
+    """Translate a command intent to all supported shells.
+
+    Examples:
+      nexsec shell translate list_files
+      nexsec shell translate ping --target 192.168.1.1
+      nexsec shell translate network_connections
+    """
+    entry = CROSS_PLATFORM_COMMANDS.get(intent)
+    if not entry:
+        # Fuzzy search
+        matches = [k for k in CROSS_PLATFORM_COMMANDS if any(w in k for w in intent.split("_"))]
+        if matches:
+            console.print(f"[yellow]Intent '{intent}' not found. Did you mean:[/yellow]")
+            for m in matches[:5]:
+                console.print(f"  [cyan]{m}[/cyan]")
+        else:
+            console.print(f"[red]Unknown intent: {intent}[/red]")
+            console.print("[dim]Run 'nexsec shell list-intents' to see all available intents.[/dim]")
+        raise typer.Exit(1)
+
+    table = Table(
+        title=f"Command: [bold]{intent}[/bold]",
+        show_header=True,
+        header_style="bold cyan",
+    )
+    table.add_column("Shell", style="cyan", width=14)
+    table.add_column("Command", style="green")
+
+    current_shell = normalize_shell(detect_shell()).value
+    for shell_key, cmd in entry.items():
+        if target:
+            cmd = cmd.replace("{target}", target)
+        marker = " ◄ current" if shell_key == current_shell else ""
+        style = "bold" if shell_key == current_shell else ""
+        table.add_row(f"[{style}]{shell_key}[/{style}]{marker}", cmd)
+
+    console.print(table)
+
+
+@shell_app.command("list-intents")
+def shell_list_intents(
+    filter_str: str = typer.Option("", "--filter", "-f", help="Filter intents by keyword"),
+):
+    """List all available command intents for translation.
+
+    Example:
+      nexsec shell list-intents
+      nexsec shell list-intents --filter network
+    """
+    intents = list(CROSS_PLATFORM_COMMANDS.keys())
+    if filter_str:
+        intents = [i for i in intents if filter_str.lower() in i.lower()]
+
+    table = Table(title=f"Available Command Intents ({len(intents)})", header_style="bold cyan")
+    table.add_column("Intent", style="cyan")
+    table.add_column("Description", style="white")
+
+    descriptions = {
+        "list_files": "List directory contents",
+        "list_processes": "Show running processes",
+        "network_connections": "Show active network connections",
+        "open_ports": "Show listening ports",
+        "routing_table": "Show routing table",
+        "arp_table": "Show ARP cache",
+        "dns_lookup": "DNS lookup for a target",
+        "whoami": "Current user and privileges",
+        "environment_vars": "Show environment variables",
+        "firewall_rules": "Show firewall rules",
+        "scheduled_tasks": "Show scheduled tasks/cron jobs",
+        "services": "Show running services",
+        "users": "List user accounts",
+        "groups": "List groups",
+        "installed_software": "Show installed packages/software",
+        "system_info": "System information",
+        "disk_usage": "Disk usage",
+        "file_hash": "Compute file hash (SHA256)",
+        "find_suid": "Find SUID/privileged executables",
+        "registry_autoruns": "Check startup registry keys (Windows)",
+        "host_file": "Show hosts file",
+        "ping": "Ping a target",
+        "traceroute": "Trace route to target",
+    }
+
+    for intent in sorted(intents):
+        table.add_row(intent, descriptions.get(intent, "—"))
+
+    console.print(table)
+
+
+@shell_app.command("security-cmds")
+def shell_security_cmds(
+    shell_name: str = typer.Option("", "--shell", "-s", help="Override shell: bash|powershell|cmd"),
+):
+    """Show security-relevant commands for the current or specified shell.
+
+    Examples:
+      nexsec shell security-cmds
+      nexsec shell security-cmds --shell powershell
+      nexsec shell security-cmds --shell bash
+    """
+    from .shell_knowledge import ShellType
+
+    if shell_name:
+        try:
+            shell = ShellType(shell_name.lower())
+        except ValueError:
+            console.print(f"[red]Unknown shell: {shell_name}[/red]")
+            raise typer.Exit(1)
+    else:
+        shell = detect_shell()
+
+    cmds = get_security_commands(shell)
+    title = f"Security Commands for {normalize_shell(shell).value} ({get_shell_platform()})"
+
+    table = Table(title=title, header_style="bold red", show_lines=True)
+    table.add_column("Purpose", style="cyan", no_wrap=True, width=35)
+    table.add_column("Command", style="green")
+
+    for purpose, cmd in cmds.items():
+        table.add_row(purpose, cmd)
+
+    console.print(table)
+    console.print(f"\n[dim]Use [cyan]nexsec shell translate <intent>[/cyan] for cross-platform equivalents.[/dim]")
 
 
 # ---------------------------------------------------------------------------
 # Premium: Main entry with enhanced output
 # ---------------------------------------------------------------------------
 @app.command()
+
 def scan(
     targets: list[str] = typer.Argument(help="Target(s): IP, CIDR, URL, or hostname"),
     tool: str = typer.Option("", "--tool", "-t", help="Specific tool to use"),
@@ -187,56 +411,49 @@ def scan(
     timeout: int = typer.Option(300, "--timeout", help="Timeout per tool (seconds)"),
     save: bool = typer.Option(False, "--save", "-s", help="Save results to database"),
     notify: bool = typer.Option(False, "--notify", "-n", help="Send notification on completion"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
+    no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
     profile: str = typer.Option("", "--profile", help="Use specific profile"),
-    env: str = typer.Option("", "--env", help="Environment: dev|staging|prod"),
 ):
-    """Run security scans against target(s)."""
-    print_banner(console, _active_theme)
+    """Run security scans against target(s) using the execution engine.
 
-    # Premium: Show execution plan
-    if mode in ("autonomous", "integrated"):
-        with console.status("[bold green]Planning execution...[/]"):
-            plan = asyncio.run(planner.plan("scan", targets, tool=tool, timeout=timeout))
+    Examples:
+      nexsec scan 192.168.1.1
+      nexsec scan 10.0.0.0/24 --tool nmap --mode registry
+      nexsec scan example.com --dry-run
+    """
+    if not no_banner and not _CI_MODE:
+        print_banner(console, _active_theme)
 
-        table = Table(title="Execution Plan", show_header=True, header_style="bold magenta")
-        table.add_column("Step", style="cyan", no_wrap=True)
-        table.add_column("Tool/Command", style="green")
-        table.add_column("Target", style="yellow")
-        table.add_column("Timeout", justify="right")
+    instruction = f"scan {' '.join(targets)}"
+    if tool:
+        instruction += f" with {tool}"
 
-        for i, step in enumerate(plan.steps, 1):
-            table.add_row(
-                str(i), step.tool or step.command or "N/A", step.target or "N/A", str(step.timeout)
-            )
+    audit.log(
+        event_type=AuditEventType.SCAN_START,
+        severity=AuditSeverity.INFO,
+        user=os.getenv("USER", os.getenv("USERNAME", "cli")),
+        action="scan",
+        result="started",
+        target=",".join(targets),
+        details={"tool": tool, "mode": mode, "targets": targets},
+    )
 
-        console.print(table)
+    engine = _get_engine(mode)
+    result = asyncio.run(engine.execute(instruction, interactive=True, dry_run=dry_run))
 
-        if not Confirm.ask("Proceed with execution?", default=True):
-            raise typer.Abort()
+    if dry_run:
+        console.print("[yellow]Dry run complete — no commands executed.[/yellow]")
+        return
 
-    # Execute
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TaskProgressColumn(),
-        console=console,
-    ) as progress:
-        task = progress.add_task("[green]Scanning...", total=len(targets))
-
-        for target in targets:
-            progress.update(task, description=f"Scanning {target}...")
-            # Execute scan logic here
-            audit.log("scan", {"target": target, "tool": tool, "mode": mode})
-            progress.advance(task)
-
-    console.print(
-        Panel.fit(
-            f"[bold green]✓ Scan complete![/bold green]\n"
-            f"Targets: {len(targets)} | Mode: {mode} | Saved: {save}",
-            title="Results",
-            border_style="green",
-        )
+    audit.log(
+        event_type=AuditEventType.SCAN_COMPLETE,
+        severity=AuditSeverity.INFO,
+        user=os.getenv("USER", os.getenv("USERNAME", "cli")),
+        action="scan",
+        result="success" if result.success else "failed",
+        target=",".join(targets),
+        details={"summary": result.summary, "findings": len(result.all_findings)},
     )
 
 
@@ -245,12 +462,29 @@ def discover(
     target: str = typer.Argument(help="Target network or host"),
     deep: bool = typer.Option(False, "--deep", "-d", help="Deep discovery (OS, services, vulns)"),
     export: str = typer.Option("", "--export", "-e", help="Export to file (JSON/YAML)"),
+    no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
 ):
-    """Discover assets, services, and vulnerabilities."""
-    print_banner(console, _active_theme)
-    console.print(f"[bold]Discovering:[/bold] {target} (deep={deep})")
-    # Discovery logic...
-    console.print("[green]✓ Discovery complete![/green]")
+    """Discover assets, services, and vulnerabilities on a target.
+
+    Examples:
+      nexsec discover 192.168.1.0/24
+      nexsec discover example.com --deep
+      nexsec discover 10.0.0.0/8 --export results.json
+    """
+    if not no_banner and not _CI_MODE:
+        print_banner(console, _active_theme)
+
+    instruction = f"scan and discover all services on {target}"
+    if deep:
+        instruction += " with deep OS and vulnerability detection"
+
+    engine = _get_engine("integrated")
+    result = asyncio.run(engine.execute(instruction, interactive=True))
+
+    if export and result.all_findings:
+        import json
+        Path(export).write_text(json.dumps(result.all_findings, indent=2))
+        console.print(f"[dim]Findings exported to {export}[/dim]")
 
 
 @app.command()
@@ -258,18 +492,25 @@ def run(
     command: str = typer.Argument(help="Natural language command or tool name"),
     target: str = typer.Option("", "--target", "-t", help="Target for the command"),
     mode: str = typer.Option("integrated", "--mode", "-m", help="Execution mode"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
+    no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
 ):
-    """Run a tool or natural language command."""
-    print_banner(console, _active_theme)
+    """Run a natural language command through the autonomous execution engine.
 
-    if mode in ("autonomous", "integrated"):
-        console.print("[dim]Interpreting command...[/dim]")
-        # Autonomous interpretation
-        result = asyncio.run(planner.interpret(command, target))
-        console.print(f"[green]Interpreted:[/green] {result}")
-    else:
-        # Static execution
-        console.print(f"[yellow]Running:[/yellow] {command}")
+    Examples:
+      nexsec run "scan example.com with nmap and nuclei then generate report"
+      nexsec run "enumerate subdomains of target.com" --mode autonomous
+      nexsec run "check for sql injection on http://site.com/login" --dry-run
+    """
+    if not no_banner and not _CI_MODE:
+        print_banner(console, _active_theme)
+
+    instruction = command
+    if target:
+        instruction += f" on {target}"
+
+    engine = _get_engine(mode)
+    asyncio.run(engine.execute(instruction, interactive=True, dry_run=dry_run))
 
 
 # ---------------------------------------------------------------------------
@@ -321,11 +562,12 @@ def bulk_scan_cmd(
     """Bulk scan multiple targets from file."""
     print_banner(console, _active_theme)
 
-    if not Path(targets_file).exists():
+    target_path = Path(targets_file)
+    if not target_path.exists():
         console.print(f"[red]Error: File not found: {targets_file}[/red]")
         raise typer.Exit(1)
 
-    targets = Path(targets_file).read_text().splitlines()
+    targets = [t.strip() for t in target_path.read_text().splitlines() if t.strip()]
     console.print(
         f"[bold]Bulk Scan:[/bold] {len(targets)} targets | Tool: {tool} | Batch: {batch_size}"
     )
@@ -366,9 +608,6 @@ def start(
         while True:
             # Check for changes...
             console.print(f"[dim]{datetime.now().strftime('%H:%M:%S')} — Checking...[/dim]")
-            # Placeholder for actual check
-            import time
-
             time.sleep(interval)
     except KeyboardInterrupt:
         console.print("\n[yellow]Watch mode stopped.[/yellow]")
@@ -591,25 +830,228 @@ def org_stats():
 
 
 # ---------------------------------------------------------------------------
-# Plugin management (premium)
+# Tool registry commands (real implementation)
+# ---------------------------------------------------------------------------
+@tool_registry_app.command("list")
+def tool_registry_list(
+    category: str = typer.Option("", "--category", "-c", help="Filter by category"),
+    refresh: bool = typer.Option(False, "--refresh", "-r", help="Force re-discovery"),
+):
+    """List all discovered security tools on this system.
+
+    Examples:
+      nexsec tool-registry list
+      nexsec tool-registry list --category recon
+      nexsec tool-registry list --refresh
+    """
+    tools = registry.discover(force_refresh=refresh)
+    if category:
+        tools = [t for t in tools if t.category == category]
+
+    if not tools:
+        console.print("[yellow]No tools found. Install security tools and run again.[/yellow]")
+        return
+
+    table = Table(title=f"Security Tools ({len(tools)} found)", show_header=True, header_style="bold cyan")
+    table.add_column("Name", style="cyan", no_wrap=True)
+    table.add_column("Binary", style="dim")
+    table.add_column("Category", style="magenta")
+    table.add_column("Version", style="yellow")
+    table.add_column("Capabilities", style="white")
+
+    for t in sorted(tools, key=lambda x: x.category):
+        caps = ", ".join(t.capabilities[:3])
+        if len(t.capabilities) > 3:
+            caps += f" +{len(t.capabilities) - 3}"
+        table.add_row(t.name, t.binary, t.category, t.version[:30], caps)
+
+    console.print(table)
+
+
+@tool_registry_app.command("show")
+def tool_registry_show(name: str = typer.Argument(help="Tool name or binary")):
+    """Show detailed info about a specific tool."""
+    tools = registry.discover()
+    tool = next((t for t in tools if t.name == name or t.binary == name), None)
+    if not tool:
+        console.print(f"[red]Tool not found: {name}[/red]")
+        raise typer.Exit(1)
+
+    console.print(Panel.fit(
+        f"[bold]{tool.name}[/bold] ({tool.binary})\n"
+        f"[dim]Category:[/dim]     {tool.category}\n"
+        f"[dim]Version:[/dim]      {tool.version}\n"
+        f"[dim]Path:[/dim]         {tool.path}\n"
+        f"[dim]Capabilities:[/dim] {', '.join(tool.capabilities)}\n"
+        f"[dim]Description:[/dim]  {tool.description}",
+        title="Tool Info",
+        border_style="cyan",
+    ))
+
+
+# ---------------------------------------------------------------------------
+# Auth commands — wire API keys to the engine
+# ---------------------------------------------------------------------------
+@auth_app.command("set-key")
+def auth_set_key(
+    provider: str = typer.Argument(help="Provider: openai | anthropic | custom"),
+    api_key: str = typer.Option(..., "--key", "-k", help="API key value", hide_input=True),
+):
+    """Store an API key for a model provider.
+
+    Examples:
+      nexsec auth set-key openai --key sk-...
+      nexsec auth set-key anthropic --key sk-ant-...
+    """
+    creds.set_password(provider, "api_key", api_key)
+    console.print(f"[green]✓ API key stored for provider: {provider}[/green]")
+    console.print("[dim]Key is stored securely in the system keyring.[/dim]")
+
+
+@auth_app.command("show")
+def auth_show():
+    """Show configured API key providers."""
+    providers = ["openai", "anthropic"]
+    table = Table(title="Configured API Keys", show_header=True, header_style="bold green")
+    table.add_column("Provider", style="cyan")
+    table.add_column("Status", justify="center")
+    table.add_column("Source")
+
+    for prov in providers:
+        from_env = bool(os.getenv(f"{prov.upper()}_API_KEY"))
+        from_creds = bool(creds.get_password(prov, "api_key"))
+        if from_env:
+            status, source = "✓ Set", "Environment variable"
+        elif from_creds:
+            status, source = "✓ Set", "Keyring"
+        else:
+            status, source = "✗ Not set", "—"
+        table.add_row(prov, status, source)
+
+    console.print(table)
+
+
+# ---------------------------------------------------------------------------
+# Shell completions
+# ---------------------------------------------------------------------------
+@completions_app.command("install")
+def completions_install(
+    shell: str = typer.Argument(default="", help="Shell: bash | zsh | fish | powershell"),
+):
+    """Install shell completions for NexSec.
+
+    Examples:
+      nexsec completions install bash
+      nexsec completions install powershell
+    """
+    import subprocess as _sp
+
+    if not shell:
+        shell = os.getenv("SHELL", "bash").split("/")[-1]
+        if platform.system().lower() == "windows":
+            shell = "powershell"
+
+    shell = shell.lower()
+    completions_map = {
+        "bash": ("~/.bashrc", "_NEXSEC_COMPLETE=bash_source nexsec >> ~/.nexsec/complete.bash\necho 'source ~/.nexsec/complete.bash' >> ~/.bashrc"),
+        "zsh": ("~/.zshrc", "_NEXSEC_COMPLETE=zsh_source nexsec >> ~/.nexsec/complete.zsh\necho 'source ~/.nexsec/complete.zsh' >> ~/.zshrc"),
+        "fish": ("~/.config/fish/completions/nexsec.fish", "_NEXSEC_COMPLETE=fish_source nexsec > ~/.config/fish/completions/nexsec.fish"),
+        "powershell": ("$PROFILE", "$env:_NEXSEC_COMPLETE='powershell_source'; nexsec | Out-String | Invoke-Expression"),
+    }
+
+    if shell not in completions_map:
+        console.print(f"[red]Unsupported shell: {shell}. Choose: bash, zsh, fish, powershell[/red]")
+        raise typer.Exit(1)
+
+    target, instructions = completions_map[shell]
+    console.print(Panel(
+        f"[bold]To install {shell} completions, run:[/bold]\n\n"
+        f"[green]{instructions}[/green]\n\n"
+        f"[dim]Then restart your shell or source {target}[/dim]",
+        title=f"Shell Completions ({shell})",
+        border_style="green",
+    ))
+
+
+# ---------------------------------------------------------------------------
+# Config commands — wired to real SettingsStore
+# ---------------------------------------------------------------------------
+@config_app.command("list")
+def config_list():
+    """List all configuration settings."""
+    rows = config.list_all()
+    table = Table(title="NexSec Configuration", show_header=True, header_style="bold cyan")
+    table.add_column("Key", style="cyan", no_wrap=True)
+    table.add_column("Value", style="green")
+    table.add_column("Default", style="dim")
+    table.add_column("Description", style="white")
+
+    for row in rows:
+        modified = "[bold]" if row["modified"] else ""
+        table.add_row(
+            f"{modified}{row['key']}", row["value"], row["default"], row["description"][:50]
+        )
+    console.print(table)
+
+
+@config_app.command("set")
+def config_set(
+    key: str = typer.Argument(help="Setting key"),
+    value: str = typer.Argument(help="New value"),
+):
+    """Set a configuration value.\n\nExample: nexsec config set log_level debug"""
+    try:
+        new_val = config.set(key, value)
+        console.print(f"[green]✓ {key} = {new_val}[/green]")
+    except (KeyError, ValueError) as exc:
+        console.print(f"[red]Error: {exc}[/red]")
+        raise typer.Exit(1)
+
+
+@config_app.command("get")
+def config_get(key: str = typer.Argument(help="Setting key")):
+    """Get a configuration value."""
+    try:
+        val = config.get(key)
+        console.print(f"[cyan]{key}[/cyan] = [green]{val}[/green]")
+    except KeyError as exc:
+        console.print(f"[red]Error: {exc}[/red]")
+        raise typer.Exit(1)
+
+
+@config_app.command("reset")
+def config_reset(key: str = typer.Argument(default="", help="Key to reset (empty = all)")):
+    """Reset a setting (or all settings) to defaults."""
+    try:
+        config.reset(key or None)
+        target = key if key else "all settings"
+        console.print(f"[green]✓ Reset {target} to defaults.[/green]")
+    except KeyError as exc:
+        console.print(f"[red]Error: {exc}[/red]")
+        raise typer.Exit(1)
+
+
+# ---------------------------------------------------------------------------
+# Plugin management (wired to real PluginManager)
 # ---------------------------------------------------------------------------
 @plugin_app.command("list")
 def plugin_list():
-    """List all plugins."""
+    """List all installed plugins."""
+    real_plugins = plugins.list_plugins()
     table = Table(title="Plugin Ecosystem", show_header=True, header_style="bold magenta")
     table.add_column("Name", style="cyan")
     table.add_column("Version", style="yellow")
     table.add_column("Status", justify="center")
+    table.add_column("Author", style="dim")
     table.add_column("Description", style="white")
 
-    plugins_data = [
-        ("darkweb_crawler", "2.1.0", "✓ Active", "Dark web intelligence"),
-        ("autonomous_analyzer", "1.5.0", "✓ Active", "Autonomous analysis"),
-        ("compliance_checker", "1.0.0", "○ Disabled", "Compliance reporting"),
-    ]
+    if not real_plugins:
+        console.print("[dim]No plugins installed. Use 'nexsec plugin install <name>' to add plugins.[/dim]")
+        return
 
-    for name, ver, status, desc in plugins_data:
-        table.add_row(name, ver, status, desc)
+    for p in real_plugins:
+        status = "[green]✓ Active[/green]" if p.enabled else "[dim]○ Disabled[/dim]"
+        table.add_row(p.name, p.version, status, p.author, p.description[:40])
 
     console.print(table)
 
@@ -667,15 +1109,40 @@ def theme_set(
 
 
 # ---------------------------------------------------------------------------
+# Version command
+# ---------------------------------------------------------------------------
+@app.command()
+def version():
+    """Show NexSec version information."""
+    tools = registry.discover()
+    console.print(Panel.fit(
+        f"[bold cyan]NexSec[/bold cyan] [green]v{__version__}[/green]\n"
+        f"[dim]Platform:[/dim] {platform.system()} {platform.release()}\n"
+        f"[dim]Python:[/dim]   {platform.python_version()}\n"
+        f"[dim]Tools found:[/dim] {len(tools)}",
+        title="Version",
+        border_style="cyan",
+    ))
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
+def _load_plugins_once() -> None:
+    """Load plugins exactly once, safely."""
+    global _plugins_loaded
+    if not _plugins_loaded:
+        try:
+            plugins.load_command_plugins(app)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("Plugin load error: %s", exc)
+        _plugins_loaded = True
+
+
 if __name__ == "__main__":
     try:
-        # Load plugins on first run
-        if not _plugins_loaded:
-            plugins.discover()
-            _plugins_loaded = True
-
+        _load_plugins_once()
         app()
     except KeyboardInterrupt:
         console.print("\n[yellow]Interrupted by user[/yellow]")

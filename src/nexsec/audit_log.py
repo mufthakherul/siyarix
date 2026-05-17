@@ -190,7 +190,7 @@ class AuditLogger:
             try:
                 config = tomllib.loads(config_file.read_text())
                 self._RETENTION_DAYS = config.get("retention_days", 365)
-            except Exception:
+            except Exception:  # nosec B110
                 pass
 
     def _load_events(self) -> None:

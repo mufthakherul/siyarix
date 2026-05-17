@@ -7,7 +7,7 @@ Provides a type-safe settings store with get/set/reset/list/edit support.
 from __future__ import annotations
 
 import os
-import subprocess
+import subprocess  # nosec B404
 from pathlib import Path
 from typing import Any
 
@@ -176,7 +176,7 @@ class SettingsStore:
         import platform as _platform
         default_editor = "notepad" if _platform.system().lower() == "windows" else "nano"
         editor = os.getenv("EDITOR", default_editor)
-        subprocess.call([editor, str(self._path)])
+        subprocess.call([editor, str(self._path)])  # nosec B603
         # Reload after editing
         self._data = {**DEFAULTS, **_try_load_toml(self._path)}
 

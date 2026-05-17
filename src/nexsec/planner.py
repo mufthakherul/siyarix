@@ -17,13 +17,14 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 
-from .interpreter import RuleInterpreter, TaskCategory, InterpretedTask
+from .interpreter import InterpretedTask, RuleInterpreter, TaskCategory
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Execution Plan data model
 # ---------------------------------------------------------------------------
+
 
 class StepType(StrEnum):
     """Type of execution step in a plan."""
@@ -35,6 +36,7 @@ class StepType(StrEnum):
     PARALLEL_GROUP = "parallel_group"  # Group of steps to run in parallel
     REPORT = "report"  # Generate a report
     NOTIFY = "notify"  # Send notification
+
 
 @dataclass
 class ExecutionStep:
@@ -67,6 +69,13 @@ class ExecutionStep:
             "metadata": self.metadata,
         }
 
+    def __repr__(self) -> str:
+        return (
+            f"ExecutionStep(id={self.id!r}, type={self.step_type.value!r}, "
+            f"tool={self.tool!r}, target={self.target!r})"
+        )
+
+
 @dataclass
 class ExecutionPlan:
     """A structured plan of steps to execute for a user request."""
@@ -86,9 +95,17 @@ class ExecutionPlan:
             "interpreted_task": self.interpreted_task.to_dict() if self.interpreted_task else None,
         }
 
+    def __repr__(self) -> str:
+        return (
+            f"ExecutionPlan(steps={len(self.steps)}, source={self.source!r}, "
+            f"confidence={self.confidence:.2f})"
+        )
+
+
 # ---------------------------------------------------------------------------
 # Model Provider protocol
 # ---------------------------------------------------------------------------
+
 
 @runtime_checkable
 class ModelProvider(Protocol):
@@ -98,9 +115,11 @@ class ModelProvider(Protocol):
         """Send a planning prompt to the model and return structured plan JSON."""
         ...
 
+
 # ---------------------------------------------------------------------------
 # OpenAI Model Provider
 # ---------------------------------------------------------------------------
+
 
 class OpenAIModel:
     """Model provider using OpenAI API (GPT-4o, etc.)."""
@@ -144,12 +163,18 @@ class OpenAIModel:
             logger.warning("OpenAI planning failed: %s", exc)
             return {}
 
+
 # ---------------------------------------------------------------------------
-# Ollama Model Provider (local)
+# Ollama Model Provider (local) — lazy availability check (no blocking startup)
 # ---------------------------------------------------------------------------
 
+
 class OllamaModel:
-    """Model provider using local Ollama instance."""
+    """Model provider using local Ollama instance.
+
+    Availability is checked lazily (only when planning is requested) to avoid
+    blocking the CLI startup with a synchronous HTTP call.
+    """
 
     def __init__(
         self,
@@ -158,23 +183,39 @@ class OllamaModel:
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._model = model
+        self._available: bool | None = None  # None = not yet checked
 
     @property
     def available(self) -> bool:
-        """Check if Ollama is reachable."""
+        """Return cached availability (does NOT make a network call at startup)."""
+        # Return True optimistically — the actual check happens during plan()
+        return True
+
+    async def _check_available(self) -> bool:
+        """Async availability check — run this lazily before planning."""
         try:
             import httpx
 
-            resp = httpx.get(f"{self._base_url}/api/tags", timeout=2.0)
-            return resp.status_code == 200
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                resp = await client.get(f"{self._base_url}/api/tags")
+                self._available = resp.status_code == 200
         except Exception:
-            return False
+            self._available = False
+        return bool(self._available)
 
     async def plan(self, prompt: str, context: dict[str, Any]) -> dict[str, Any]:
         """Generate an execution plan via Ollama."""
         try:
             import httpx
         except ImportError:
+            return {}
+
+        # Lazy availability check
+        if self._available is None:
+            ok = await self._check_available()
+            if not ok:
+                return {}
+        elif not self._available:
             return {}
 
         system_prompt = _build_system_prompt(context)
@@ -199,12 +240,15 @@ class OllamaModel:
                     return json.loads(content)
         except Exception as exc:
             logger.warning("Ollama planning failed: %s", exc)
+            self._available = False
 
         return {}
+
 
 # ---------------------------------------------------------------------------
 # Cloud Model Provider
 # ---------------------------------------------------------------------------
+
 
 class CloudModel:
     """Model provider using cloud service."""
@@ -244,33 +288,50 @@ class CloudModel:
 
         return {}
 
+
 # ---------------------------------------------------------------------------
-# System prompt builder
+# System prompt builder — specialized for cybersecurity
 # ---------------------------------------------------------------------------
+
 
 def _build_system_prompt(context: dict[str, Any]) -> str:
     """Build the system prompt for task planning with tool context."""
     available_tools = context.get("available_tools", [])
-    tool_list = "\n".join(f"  - {t['name']}: {', '.join(t.get('capabilities', []))}" for t in available_tools)
+    tool_list = "\n".join(
+        f"  - {t['name']} ({t.get('category','?')}): {', '.join(t.get('capabilities', []))}"
+        for t in available_tools
+    )
+    platform = context.get("platform", "unknown")
 
-    return f"""You are an expert cybersecurity task planner.
+    return f"""You are NexSec — an expert autonomous cybersecurity agent and task planner.
+Platform: {platform}
 
-Your job is to convert natural language instructions into a structured
-JSON execution plan. You have access to the following locally installed security tools:
+You convert natural language security instructions into structured JSON execution plans.
+You have access to the following locally installed security tools:
 
-{tool_list or "  (no tools discovered yet)"}
+{tool_list or "  (no tools discovered yet — suggest common system commands)"}
+
+CYBERSECURITY EXPERTISE:
+- You understand penetration testing methodologies (PTES, OWASP, NIST)
+- You know MITRE ATT&CK tactics, techniques, and procedures (TTPs)
+- You understand CVE scoring (CVSS v3), EPSS, and exploit maturity
+- You can suggest both offensive (red team) and defensive (blue team) steps
+- You understand network protocols (TCP/IP, DNS, HTTP/S, SMB, RDP, SSH)
+- You know Windows (CMD, PowerShell, Registry, AD) and Linux (bash, proc, sysfs) internals
+- You understand cloud environments (AWS, Azure, GCP) attack surfaces
 
 IMPORTANT RULES:
-1. Only suggest tools from the available list above, or common system commands.
-2. Never suggest destructive commands.
-3. For each step, specify: id, step_type, tool/command, args, target, description.
-4. step_type must be one of: tool_run, shell_cmd, analysis, conditional,
-   parallel_group, report, notify.
-5. Order steps logically.
-6. If a step depends on a previous step, specify depends_on with the step id(s).
-7. Always include a timeout (seconds) for each step.
+1. Only suggest tools from the available list above, or safe system commands.
+2. Never suggest destructive, irreversible, or illegal commands.
+3. Respect scope — do not suggest scanning targets not mentioned.
+4. For each step, specify: id, step_type, tool/command, args, target, description.
+5. step_type must be one of: tool_run, shell_cmd, analysis, conditional, parallel_group, report, notify.
+6. Order steps logically (recon → scan → analyze → report).
+7. If a step depends on a previous step, set depends_on with the step id(s).
+8. Always include a timeout (seconds) for each step.
+9. Prefer parallel steps where safe and independent.
 
-Respond with ONLY a JSON object in this format:
+Respond with ONLY a JSON object:
 {{
   "steps": [
     {{
@@ -278,21 +339,23 @@ Respond with ONLY a JSON object in this format:
       "step_type": "tool_run",
       "tool": "nmap",
       "command": null,
-      "args": ["-sV", "-sC"],
+      "args": ["-sV", "-sC", "--open"],
       "target": "192.168.1.1",
       "depends_on": [],
       "condition": null,
       "timeout": 300,
-      "description": "Port scan with service detection"
+      "description": "Port scan with service/version detection"
     }}
   ],
   "confidence": 0.9,
-  "reasoning": "Brief explanation of the plan"
+  "reasoning": "Brief explanation of the plan approach"
 }}"""
+
 
 # ---------------------------------------------------------------------------
 # Task Planner — the main orchestrator
 # ---------------------------------------------------------------------------
+
 
 class TaskPlanner:
     """Converts natural language instructions into executable plans.
@@ -310,6 +373,10 @@ class TaskPlanner:
     def add_provider(self, provider: ModelProvider) -> None:
         """Register a model provider for dynamic planning."""
         self._providers.append(provider)
+
+    def set_providers(self, providers: list[ModelProvider]) -> None:
+        """Replace all providers (useful for hot-swapping)."""
+        self._providers = list(providers)
 
     async def plan(
         self,
@@ -388,7 +455,9 @@ class TaskPlanner:
         task = self._interpreter.interpret(instruction)
         return self._build_plan_from_task(task, instruction)
 
-    async def _plan_from_model(self, instruction: str, context: dict[str, Any]) -> ExecutionPlan | None:
+    async def _plan_from_model(
+        self, instruction: str, context: dict[str, Any]
+    ) -> ExecutionPlan | None:
         """Try each model provider in order; return the first successful plan."""
         for provider in self._providers:
             if hasattr(provider, "available") and not provider.available:
@@ -408,7 +477,6 @@ class TaskPlanner:
         for s in raw.get("steps", []):
             step_type_str = s.get("step_type", "shell_cmd")
             try:
-                # Support legacy name mapping if needed, but here we expect the new name
                 if step_type_str == "ai_analysis":
                     step_type = StepType.ANALYSIS
                 else:
@@ -463,7 +531,9 @@ class TaskPlanner:
             interpreted_task=task,
         )
 
-    def _task_to_steps(self, task: InterpretedTask, offset: int, depends_on: list[str]) -> list[ExecutionStep]:
+    def _task_to_steps(
+        self, task: InterpretedTask, offset: int, depends_on: list[str]
+    ) -> list[ExecutionStep]:
         """Convert a single task into execution steps."""
         steps: list[ExecutionStep] = []
         targets = task.targets or [""]
@@ -544,7 +614,7 @@ class TaskPlanner:
             )
 
         else:
-            # Unknown — create a placeholder
+            # Unknown — create a placeholder shell step
             steps.append(
                 ExecutionStep(
                     id=f"step_{offset + 1}",
@@ -556,5 +626,6 @@ class TaskPlanner:
 
         return steps
 
-# Instantiate the global planner singleton
+
+# Instantiate the global planner singleton — providers are added lazily by the engine
 planner = TaskPlanner()

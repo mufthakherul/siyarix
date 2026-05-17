@@ -2,6 +2,7 @@
 
 Supports both static (built-in) and autonomous (plugin/registry-registered) tool registration.
 The registry provides capability-based lookup for the execution engine.
+Includes caching to avoid repeated subprocess calls on every command.
 """
 
 from __future__ import annotations
@@ -10,6 +11,7 @@ import os
 import platform
 import shutil
 import subprocess
+import time
 from dataclasses import dataclass, field
 
 # ---------------------------------------------------------------------------
@@ -17,6 +19,7 @@ from dataclasses import dataclass, field
 # ---------------------------------------------------------------------------
 
 _KNOWN_TOOLS: dict[str, dict] = {
+    # ── Recon / Network ──────────────────────────────────────────────────
     "nmap": {
         "version_cmd": ["nmap", "--version"],
         "capabilities": ["port_scan", "service_detect", "os_detect", "network_recon"],
@@ -24,19 +27,63 @@ _KNOWN_TOOLS: dict[str, dict] = {
         "description": "Network exploration and port scanning",
         "default_args": ["-sV"],
     },
+    "masscan": {
+        "version_cmd": ["masscan", "--version"],
+        "capabilities": ["fast_port_scan", "network_recon"],
+        "category": "recon",
+        "description": "Internet-scale port scanner",
+        "default_args": [],
+    },
+    "rustscan": {
+        "version_cmd": ["rustscan", "--version"],
+        "capabilities": ["fast_port_scan", "network_recon"],
+        "category": "recon",
+        "description": "Fast port scanner (Rust)",
+        "default_args": [],
+    },
+    # ── DNS / OSINT ────────────────────────────────────────────────────────
+    "amass": {
+        "version_cmd": ["amass", "-version"],
+        "capabilities": ["subdomain_enum", "dns_recon", "osint"],
+        "category": "recon",
+        "description": "In-depth attack surface mapping",
+        "default_args": [],
+    },
+    "subfinder": {
+        "version_cmd": ["subfinder", "-version"],
+        "capabilities": ["subdomain_enum", "passive_recon"],
+        "category": "recon",
+        "description": "Subdomain discovery tool",
+        "default_args": [],
+    },
+    "dnsx": {
+        "version_cmd": ["dnsx", "-version"],
+        "capabilities": ["dns_brute", "dns_recon"],
+        "category": "recon",
+        "description": "Fast DNS toolkit",
+        "default_args": [],
+    },
+    "theHarvester": {
+        "version_cmd": ["theHarvester", "--version"],
+        "capabilities": ["email_harvest", "domain_recon", "osint"],
+        "category": "recon",
+        "description": "OSINT email & domain intelligence",
+        "default_args": [],
+    },
+    "whois": {
+        "version_cmd": ["whois", "--version"],
+        "capabilities": ["domain_recon", "osint"],
+        "category": "recon",
+        "description": "Domain WHOIS lookup",
+        "default_args": [],
+    },
+    # ── Web / HTTP ──────────────────────────────────────────────────────────
     "nikto": {
         "version_cmd": ["nikto", "-Version"],
         "capabilities": ["web_scan", "vuln_detect", "server_audit"],
         "category": "web",
         "description": "Web server vulnerability scanner",
         "default_args": [],
-    },
-    "sqlmap": {
-        "version_cmd": ["sqlmap", "--version"],
-        "capabilities": ["sqli", "db_enum", "web_scan"],
-        "category": "web",
-        "description": "Automatic SQL injection and database takeover",
-        "default_args": ["--batch"],
     },
     "gobuster": {
         "version_cmd": ["gobuster", "version"],
@@ -49,14 +96,21 @@ _KNOWN_TOOLS: dict[str, dict] = {
         "version_cmd": ["ffuf", "-V"],
         "capabilities": ["fuzzing", "dir_enum", "parameter_fuzzing"],
         "category": "recon",
-        "description": "Fast web fuzzer",
+        "description": "Fast web fuzzer written in Go",
         "default_args": [],
     },
-    "masscan": {
-        "version_cmd": ["masscan", "--version"],
-        "capabilities": ["fast_port_scan", "network_recon"],
+    "feroxbuster": {
+        "version_cmd": ["feroxbuster", "--version"],
+        "capabilities": ["dir_enum", "fuzzing"],
         "category": "recon",
-        "description": "Internet-scale port scanner",
+        "description": "Fast, recursive content discovery (Rust)",
+        "default_args": [],
+    },
+    "httpx": {
+        "version_cmd": ["httpx", "-version"],
+        "capabilities": ["http_probe", "tech_detect", "status_check"],
+        "category": "recon",
+        "description": "Fast HTTP toolkit (Project Discovery)",
         "default_args": [],
     },
     "wpscan": {
@@ -66,18 +120,27 @@ _KNOWN_TOOLS: dict[str, dict] = {
         "description": "WordPress security scanner",
         "default_args": [],
     },
+    "sqlmap": {
+        "version_cmd": ["sqlmap", "--version"],
+        "capabilities": ["sqli", "db_enum", "web_scan"],
+        "category": "web",
+        "description": "Automatic SQL injection and database takeover",
+        "default_args": ["--batch"],
+    },
+    # ── Vulnerability Scanning ───────────────────────────────────────────
     "nuclei": {
         "version_cmd": ["nuclei", "-version"],
         "capabilities": ["template_scan", "vuln_detect", "cve_scan"],
         "category": "vuln",
-        "description": "Template-based vulnerability scanner",
+        "description": "Template-based vulnerability scanner (Project Discovery)",
         "default_args": [],
     },
+    # ── Exploitation ────────────────────────────────────────────────────────
     "hydra": {
         "version_cmd": ["hydra", "-V"],
         "capabilities": ["brute_force", "password_attack", "credential_test"],
         "category": "exploit",
-        "description": "Network logon cracker",
+        "description": "Network logon cracker (supports 50+ protocols)",
         "default_args": [],
     },
     "john": {
@@ -91,7 +154,7 @@ _KNOWN_TOOLS: dict[str, dict] = {
         "version_cmd": ["hashcat", "--version"],
         "capabilities": ["password_crack", "hash_crack", "gpu_crack"],
         "category": "exploit",
-        "description": "Advanced password recovery (GPU-accelerated)",
+        "description": "Advanced GPU-accelerated password recovery",
         "default_args": [],
     },
     "msfconsole": {
@@ -101,18 +164,49 @@ _KNOWN_TOOLS: dict[str, dict] = {
         "description": "Metasploit Framework console",
         "default_args": [],
     },
+    # ── Web Proxies / DAST ──────────────────────────────────────────────────
     "zap.sh": {
         "version_cmd": ["zap.sh", "-version"],
-        "capabilities": ["web_scan", "proxy", "api_scan"],
+        "capabilities": ["web_scan", "proxy", "api_scan", "dast"],
         "category": "web",
-        "description": "OWASP Zed Attack Proxy",
+        "description": "OWASP Zed Attack Proxy (DAST)",
         "default_args": [],
     },
     "burpsuite": {
         "version_cmd": ["burpsuite", "--version"],
-        "capabilities": ["web_proxy", "web_scan", "intruder"],
+        "capabilities": ["web_proxy", "web_scan", "intruder", "dast"],
         "category": "web",
-        "description": "Burp Suite web security testing",
+        "description": "Burp Suite web security testing platform",
+        "default_args": [],
+    },
+    # ── Secret / Code Scanning ──────────────────────────────────────────────
+    "trufflehog": {
+        "version_cmd": ["trufflehog", "--version"],
+        "capabilities": ["secret_scan", "git_scan", "credentials_detect"],
+        "category": "recon",
+        "description": "Find credentials in code/history",
+        "default_args": [],
+    },
+    "gitleaks": {
+        "version_cmd": ["gitleaks", "version"],
+        "capabilities": ["secret_scan", "git_scan"],
+        "category": "recon",
+        "description": "Detect hardcoded secrets in git repos",
+        "default_args": [],
+    },
+    # ── Cloud ───────────────────────────────────────────────────────────────
+    "aws": {
+        "version_cmd": ["aws", "--version"],
+        "capabilities": ["cloud_enum", "aws_recon"],
+        "category": "cloud",
+        "description": "AWS CLI (cloud reconnaissance)",
+        "default_args": [],
+    },
+    "az": {
+        "version_cmd": ["az", "--version"],
+        "capabilities": ["cloud_enum", "azure_recon"],
+        "category": "cloud",
+        "description": "Azure CLI",
         "default_args": [],
     },
 }
@@ -121,6 +215,8 @@ _KNOWN_TOOLS: dict[str, dict] = {
 _TOOL_NAME_ALIASES: dict[str, str] = {
     "metasploit": "msfconsole",
     "zaproxy": "zap.sh",
+    "burp": "burpsuite",
+    "theharvester": "theHarvester",
 }
 
 # Reverse alias map: binary name → human-friendly name used in manifests
@@ -132,18 +228,27 @@ CAPABILITY_CATEGORIES: dict[str, str] = {
     "service_detect": "recon",
     "os_detect": "recon",
     "network_recon": "recon",
+    "subdomain_enum": "recon",
+    "dns_recon": "recon",
+    "fast_port_scan": "recon",
+    "dir_enum": "recon",
+    "fuzzing": "recon",
+    "osint": "recon",
     "web_scan": "web",
     "vuln_detect": "vuln",
     "sqli": "web",
-    "dir_enum": "recon",
-    "fuzzing": "recon",
-    "fast_port_scan": "recon",
     "template_scan": "vuln",
     "cve_scan": "vuln",
     "brute_force": "exploit",
     "password_crack": "exploit",
     "exploitation": "exploit",
+    "secret_scan": "recon",
+    "cloud_enum": "cloud",
 }
+
+# Cache TTL for tool discovery (seconds)
+_DISCOVERY_CACHE_TTL = 300.0  # 5 minutes
+
 
 @dataclass
 class ToolInfo:
@@ -159,16 +264,23 @@ class ToolInfo:
     default_args: list[str] = field(default_factory=list)
     is_dynamic: bool = False  # True if registered dynamically (not from _KNOWN_TOOLS)
 
+    def __repr__(self) -> str:
+        return f"ToolInfo(name={self.name!r}, version={self.version!r}, path={self.path!r})"
+
+
 class ToolRegistry:
     """Discovers locally installed security tools and probes their versions.
 
     Supports both static (built-in _KNOWN_TOOLS) and dynamic tool registration.
-    The registry is the foundation of the execution engine.
+    Discovery results are cached for _DISCOVERY_CACHE_TTL seconds to avoid
+    repeated subprocess invocations on every command.
     """
 
     def __init__(self) -> None:
         self._dynamic_tools: dict[str, dict] = {}
         self._wsl_binary = shutil.which("wsl")
+        self._cache: list[ToolInfo] | None = None
+        self._cache_time: float = 0.0
 
     def _wsl_discovery_enabled(self) -> bool:
         raw = os.getenv("NEXSEC_ENABLE_WSL_DISCOVERY", "1").strip().lower()
@@ -180,7 +292,11 @@ class ToolRegistry:
         if local_path:
             return local_path, False
 
-        if platform.system().lower() != "windows" or not self._wsl_discovery_enabled() or not self._wsl_binary:
+        if (
+            platform.system().lower() != "windows"
+            or not self._wsl_discovery_enabled()
+            or not self._wsl_binary
+        ):
             return None, False
 
         try:
@@ -220,12 +336,23 @@ class ToolRegistry:
             "default_args": default_args or [],
             "display_name": name,
         }
+        # Invalidate cache
+        self._cache = None
 
-    def discover(self) -> list[ToolInfo]:
+    def discover(self, force_refresh: bool = False) -> list[ToolInfo]:
         """Return a list of :class:`ToolInfo` for every tool found on PATH.
 
-        Combines static (built-in) and dynamically registered tools.
+        Results are cached for _DISCOVERY_CACHE_TTL seconds. Pass
+        ``force_refresh=True`` to bypass the cache.
         """
+        now = time.monotonic()
+        if (
+            not force_refresh
+            and self._cache is not None
+            and (now - self._cache_time) < _DISCOVERY_CACHE_TTL
+        ):
+            return self._cache
+
         found: list[ToolInfo] = []
 
         # Static tools
@@ -272,6 +399,8 @@ class ToolRegistry:
                 )
             )
 
+        self._cache = found
+        self._cache_time = now
         return found
 
     def find_by_capability(self, capability: str) -> list[ToolInfo]:

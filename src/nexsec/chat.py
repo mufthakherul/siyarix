@@ -49,6 +49,7 @@ from .shell_knowledge import (
 
 console = Console()
 
+
 # ---------------------------------------------------------------------------
 # Chat session data model
 # ---------------------------------------------------------------------------
@@ -337,10 +338,14 @@ class NexSecChat:
         ctx = self._platform_ctx
         console.print(Panel.fit(
             f"[bold]Platform:[/bold]    {ctx['platform']} {platform.release()}\n"
+            f"[bold]Device:[/bold]      {ctx['device_type']}\n"
+            f"[bold]Terminal:[/bold]    {ctx['terminal_type']}\n"
             f"[bold]Shell:[/bold]       {ctx['shell']} ({ctx['shell_platform']})\n"
             f"[bold]Architecture:[/bold] {ctx['arch']}\n"
             f"[bold]Python:[/bold]      {ctx['python_version']}\n"
             f"[bold]WSL:[/bold]         {'✓ Available' if ctx['has_wsl'] else '✗ Not found'}\n"
+            f"[bold]SSH:[/bold]         {'✓ Remote' if ctx['is_terminal_ssh'] else 'local'}\n"
+            f"[bold]Cloud:[/bold]       {'✓ Cloud' if ctx['is_terminal_cloud'] else 'local'}\n"
             f"[bold]Windows:[/bold]     {ctx['is_windows']}",
             title="Platform Info",
             border_style="cyan",
@@ -461,7 +466,7 @@ class NexSecChat:
         show_plan: bool = False,
     ) -> None:
         """Execute an instruction through the engine with live feedback."""
-        from .engine import ExecutionEngine, ExecutionMode, StepStatus
+        from .engine import ExecutionEngine, ExecutionMode
         from .tool_registry import ToolRegistry
 
         try:
@@ -610,7 +615,6 @@ class NexSecChat:
     def _print_results(self, result: "Any", elapsed: float) -> None:  # EngineResult
         from .engine import StepStatus
         success_count = sum(1 for r in result.step_results if r.status == StepStatus.SUCCESS)
-        fail_count = sum(1 for r in result.step_results if r.status == StepStatus.FAILED)
         color = "green" if result.success else "red"
 
         # Print any step outputs

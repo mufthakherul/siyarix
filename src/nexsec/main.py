@@ -31,8 +31,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
-from rich.prompt import Confirm
+from rich.progress import Progress
 from rich.table import Table
 
 __version__ = "1.2.0"
@@ -43,7 +42,6 @@ from .chat import start_chat
 from .config import SettingsStore
 from .credential_store import CredentialStore
 from .engine import ExecutionEngine, ExecutionMode
-from .planner import CloudModel, OllamaModel, OpenAIModel, TaskPlanner, planner
 from .plugins import PluginManager
 from .security_commands import security_app
 from .shell_knowledge import (
@@ -53,6 +51,8 @@ from .shell_knowledge import (
     get_shell_platform,
     CROSS_PLATFORM_COMMANDS,
     normalize_shell,
+    INTENT_METADATA,
+    list_supported_shells,
 )
 from .tool_registry import ToolRegistry
 
@@ -74,7 +74,6 @@ _plugins_loaded = False
 
 def _get_engine(mode: str = "integrated") -> ExecutionEngine:
     """Build an ExecutionEngine with API keys from config/credentials."""
-    from .config import DEFAULTS  # local import to avoid circular on module level
     engine_config: dict = {}
     openai_key = os.environ.get("OPENAI_API_KEY", "") or creds.get_password("openai", "api_key") or ""
     if openai_key:
@@ -86,6 +85,7 @@ def _get_engine(mode: str = "integrated") -> ExecutionEngine:
     except ValueError:
         exec_mode = ExecutionMode.INTEGRATED
     return ExecutionEngine(mode=exec_mode, registry=registry, config=engine_config)
+
 
 # ---------------------------------------------------------------------------
 # Main Typer app — Premium structure
@@ -131,6 +131,7 @@ def main_callback(ctx: typer.Context) -> None:
     if ctx.invoked_subcommand is None and _IS_TTY:
         # No subcommand and running interactively — launch chat
         start_chat()
+
 
 # Register security command group into the main CLI.
 app.add_typer(security_app, name="security")
@@ -253,10 +254,14 @@ def shell_platform():
     ctx = build_platform_context()
     console.print(Panel.fit(
         f"[bold]Platform:[/bold]    {ctx['platform']} {platform.release()}\n"
+        f"[bold]Device:[/bold]      {ctx['device_type']}\n"
+        f"[bold]Terminal:[/bold]    {ctx['terminal_type']}\n"
         f"[bold]Shell:[/bold]       {ctx['shell']} ({ctx['shell_platform']})\n"
         f"[bold]Architecture:[/bold] {ctx['arch']}\n"
         f"[bold]Python:[/bold]      {ctx['python_version']}\n"
         f"[bold]WSL:[/bold]         {'[green]✓ Available[/green]' if ctx['has_wsl'] else '[red]✗ Not found[/red]'}\n"
+        f"[bold]SSH:[/bold]         {'[green]✓ Remote[/green]' if ctx['is_terminal_ssh'] else '[dim]local[/dim]'}\n"
+        f"[bold]Cloud:[/bold]       {'[green]✓ Cloud[/green]' if ctx['is_terminal_cloud'] else '[dim]local[/dim]'}\n"
         f"[bold]Windows:[/bold]     {ctx['is_windows']}\n"
         f"[bold]Linux:[/bold]       {ctx['is_linux']}\n"
         f"[bold]macOS:[/bold]       {ctx['is_macos']}",
@@ -269,6 +274,9 @@ def shell_platform():
 def shell_translate(
     intent: str = typer.Argument(help="Command intent (e.g. list_files, network_connections, ping)"),
     target: str = typer.Option("", "--target", help="Target for commands that need one (e.g. IP/hostname)"),
+    user: str = typer.Option("", "--user", help="User for SSH/SCP intents"),
+    path: str = typer.Option("", "--path", help="Path for file transfer intents"),
+    file: str = typer.Option("", "--file", help="File path for file_hash intents"),
 ):
     """Translate a command intent to all supported shells.
 
@@ -302,6 +310,12 @@ def shell_translate(
     for shell_key, cmd in entry.items():
         if target:
             cmd = cmd.replace("{target}", target)
+        if user:
+            cmd = cmd.replace("{user}", user)
+        if path:
+            cmd = cmd.replace("{path}", path)
+        if file:
+            cmd = cmd.replace("{file}", file)
         marker = " ◄ current" if shell_key == current_shell else ""
         style = "bold" if shell_key == current_shell else ""
         table.add_row(f"[{style}]{shell_key}[/{style}]{marker}", cmd)
@@ -325,37 +339,31 @@ def shell_list_intents(
 
     table = Table(title=f"Available Command Intents ({len(intents)})", header_style="bold cyan")
     table.add_column("Intent", style="cyan")
+    table.add_column("Category", style="magenta", no_wrap=True)
     table.add_column("Description", style="white")
-
-    descriptions = {
-        "list_files": "List directory contents",
-        "list_processes": "Show running processes",
-        "network_connections": "Show active network connections",
-        "open_ports": "Show listening ports",
-        "routing_table": "Show routing table",
-        "arp_table": "Show ARP cache",
-        "dns_lookup": "DNS lookup for a target",
-        "whoami": "Current user and privileges",
-        "environment_vars": "Show environment variables",
-        "firewall_rules": "Show firewall rules",
-        "scheduled_tasks": "Show scheduled tasks/cron jobs",
-        "services": "Show running services",
-        "users": "List user accounts",
-        "groups": "List groups",
-        "installed_software": "Show installed packages/software",
-        "system_info": "System information",
-        "disk_usage": "Disk usage",
-        "file_hash": "Compute file hash (SHA256)",
-        "find_suid": "Find SUID/privileged executables",
-        "registry_autoruns": "Check startup registry keys (Windows)",
-        "host_file": "Show hosts file",
-        "ping": "Ping a target",
-        "traceroute": "Trace route to target",
-    }
+    table.add_column("Args", style="dim", no_wrap=True)
 
     for intent in sorted(intents):
-        table.add_row(intent, descriptions.get(intent, "—"))
+        meta = INTENT_METADATA.get(intent, {})
+        placeholders = ",".join(meta.get("placeholders", [])) or "—"
+        table.add_row(
+            intent,
+            meta.get("category", "—"),
+            meta.get("description", "—"),
+            placeholders,
+        )
 
+    console.print(table)
+
+
+@shell_app.command("list-shells")
+def shell_list_shells() -> None:
+    """List supported shells and their support tiers."""
+    table = Table(title="Supported Shells", header_style="bold cyan")
+    table.add_column("Shell", style="cyan")
+    table.add_column("Tier", style="magenta")
+    for name, tier in list_supported_shells():
+        table.add_row(name, tier)
     console.print(table)
 
 
@@ -392,14 +400,13 @@ def shell_security_cmds(
         table.add_row(purpose, cmd)
 
     console.print(table)
-    console.print(f"\n[dim]Use [cyan]siyarix shell translate <intent>[/cyan] for cross-platform equivalents.[/dim]")
+    console.print("\n[dim]Use [cyan]siyarix shell translate <intent>[/cyan] for cross-platform equivalents.[/dim]")
 
 
 # ---------------------------------------------------------------------------
 # Premium: Main entry with enhanced output
 # ---------------------------------------------------------------------------
 @app.command()
-
 def scan(
     targets: list[str] = typer.Argument(help="Target(s): IP, CIDR, URL, or hostname"),
     tool: str = typer.Option("", "--tool", "-t", help="Specific tool to use"),
@@ -944,8 +951,6 @@ def completions_install(
       siyarix completions install bash
       siyarix completions install powershell
     """
-    import subprocess as _sp
-
     if not shell:
         shell = os.getenv("SHELL", "bash").split("/")[-1]
         if platform.system().lower() == "windows":

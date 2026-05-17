@@ -45,6 +45,13 @@ Cargo.lock
 .vscode/
 .idea/
 .claude/
+.opencode/
+.copilot/
+.agents/
+.gemini/
+.github/copilot-instructions.md
+GEMINI.md
+uv.lock
 graphify-out/
 *.swp
 *.swo
@@ -74,3 +81,4 @@ quality-report.md
 .enhancement-counter.txt
 enhancements.json
 .github_desabled/
+

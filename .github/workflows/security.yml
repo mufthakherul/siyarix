@@ -100,7 +100,7 @@ jobs:
           pip install -e . > /dev/null 2>&1 || true
 
       - name: Run OSV Scanner
-        uses: osv-scanner/action@v2
+        uses: google/osv-scanner-action/github-action@v2
         with:
           lockfile: 'requirements.lock'
           results-file-name: 'osv-sarif-results.sarif'

@@ -100,16 +100,9 @@ jobs:
           pip install -e . > /dev/null 2>&1 || true
 
       - name: Run OSV Scanner
-        run: |
-          pip install osv-scanner
-          osv-scanner --lockfile=requirements.lock --format=sarif --output=osv-sarif-results.sarif || true
-
-      - name: Upload SARIF results
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: google/osv-scanner-action@v2
         with:
-          sarif_file: osv-sarif-results.sarif
-          category: osv-scanner
+          lockfile: 'requirements.lock'
 
   secrets-scanning:
     name: Secrets Detection

@@ -21,6 +21,8 @@ Features:
 from __future__ import annotations
 
 import asyncio
+import csv
+import json
 import os
 import platform
 import sys
@@ -42,6 +44,11 @@ from .chat import start_chat
 from .config import SettingsStore
 from .credential_store import CredentialStore
 from .engine import ExecutionEngine, ExecutionMode
+from .exceptions import ValidationError
+from .health import get_health
+from .metrics import get_metrics
+from .offline_store import OfflineStore
+from .validators import validate_target
 from .plugins import PluginManager
 from .security_commands import security_app
 from .shell_knowledge import (
@@ -75,6 +82,8 @@ _plugins_loaded = False
 def _get_engine(mode: str = "integrated") -> ExecutionEngine:
     """Build an ExecutionEngine with API keys from config/credentials."""
     engine_config: dict = {}
+    if os.getenv("SIYARIX_FAST_DISCOVERY", "0") == "1":
+        engine_config["fast_discovery"] = True
     openai_key = os.environ.get("OPENAI_API_KEY", "") or creds.get_password("openai", "api_key") or ""
     if openai_key:
         engine_config["openai_api_key"] = openai_key
@@ -432,6 +441,13 @@ def scan(
     if not no_banner and not _CI_MODE:
         print_banner(console, _active_theme)
 
+    for target in targets:
+        try:
+            validate_target(target)
+        except ValidationError as exc:
+            console.print(f"[red]Invalid target '{target}': {exc}[/red]")
+            raise typer.Exit(1)
+
     instruction = f"scan {' '.join(targets)}"
     if tool:
         instruction += f" with {tool}"
@@ -447,7 +463,7 @@ def scan(
     )
 
     engine = _get_engine(mode)
-    result = asyncio.run(engine.execute(instruction, interactive=True, dry_run=dry_run))
+    result = asyncio.run(engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save))
 
     if dry_run:
         console.print("[yellow]Dry run complete — no commands executed.[/yellow]")
@@ -481,6 +497,12 @@ def discover(
     if not no_banner and not _CI_MODE:
         print_banner(console, _active_theme)
 
+    try:
+        validate_target(target)
+    except ValidationError as exc:
+        console.print(f"[red]Invalid target '{target}': {exc}[/red]")
+        raise typer.Exit(1)
+
     instruction = f"scan and discover all services on {target}"
     if deep:
         instruction += " with deep OS and vulnerability detection"
@@ -500,6 +522,7 @@ def run(
     target: str = typer.Option("", "--target", "-t", help="Target for the command"),
     mode: str = typer.Option("integrated", "--mode", "-m", help="Execution mode"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
+    save: bool = typer.Option(False, "--save", "-s", help="Persist workflow execution"),
     no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
 ):
     """Run a natural language command through the autonomous execution engine.
@@ -514,10 +537,197 @@ def run(
 
     instruction = command
     if target:
+        try:
+            validate_target(target)
+        except ValidationError as exc:
+            console.print(f"[red]Invalid target '{target}': {exc}[/red]")
+            raise typer.Exit(1)
         instruction += f" on {target}"
 
     engine = _get_engine(mode)
-    asyncio.run(engine.execute(instruction, interactive=True, dry_run=dry_run))
+    asyncio.run(engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save))
+
+
+# ---------------------------------------------------------------------------
+# Workflow commands — persistence and resume
+# ---------------------------------------------------------------------------
+
+
+@workflow_app.command("list")
+def workflow_list(
+    limit: int = typer.Option(20, "--limit", "-l", help="Max plans to list"),
+    status: str = typer.Option("", "--status", help="Filter by status"),
+):
+    """List persisted execution plans."""
+    store = OfflineStore()
+    plans = store.list_plans(limit=limit, status=status or None)
+    if not plans:
+        console.print("[yellow]No plans found.[/yellow]")
+        return
+
+    table = Table(title=f"Execution Plans (showing {len(plans)})", header_style="bold cyan")
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Status", style="magenta", no_wrap=True)
+    table.add_column("Created", style="green", no_wrap=True)
+    table.add_column("Updated", style="green", no_wrap=True)
+    table.add_column("Instruction", style="white")
+
+    for p in plans:
+        table.add_row(
+            p.get("id", ""),
+            p.get("status", ""),
+            p.get("created_at", ""),
+            p.get("updated_at", ""),
+            (p.get("instruction", "") or "")[:80],
+        )
+
+    console.print(table)
+
+
+@workflow_app.command("show")
+def workflow_show(
+    plan_id: str = typer.Argument(help="Plan ID to display"),
+):
+    """Show a persisted execution plan with steps."""
+    store = OfflineStore()
+    plan = store.get_plan(plan_id)
+    if not plan:
+        console.print(f"[red]Plan not found: {plan_id}[/red]")
+        raise typer.Exit(1)
+
+    header = (
+        f"[bold]ID:[/bold] {plan.get('id')}\n"
+        f"[bold]Status:[/bold] {plan.get('status')}\n"
+        f"[bold]Created:[/bold] {plan.get('created_at')}\n"
+        f"[bold]Updated:[/bold] {plan.get('updated_at')}\n"
+        f"[bold]Instruction:[/bold] {plan.get('instruction')}"
+    )
+    console.print(Panel.fit(header, title="Execution Plan", border_style="cyan"))
+
+    steps = plan.get("steps", [])
+    if not steps:
+        console.print("[yellow]No step executions recorded.[/yellow]")
+        return
+
+    table = Table(title=f"Steps ({len(steps)})", header_style="bold magenta")
+    table.add_column("Step ID", style="cyan", no_wrap=True)
+    table.add_column("Status", style="magenta", no_wrap=True)
+    table.add_column("Duration (ms)", style="green", no_wrap=True)
+    table.add_column("Retries", style="yellow", no_wrap=True)
+    table.add_column("Exit", style="white", no_wrap=True)
+    table.add_column("Output", style="white")
+
+    for s in steps:
+        table.add_row(
+            s.get("step_id", ""),
+            s.get("status", ""),
+            str(int(s.get("duration_ms") or 0)),
+            str(int(s.get("retry_count") or 0)),
+            str(s.get("exit_code") or ""),
+            (s.get("output", "") or "")[:80],
+        )
+
+    console.print(table)
+
+
+@workflow_app.command("resume")
+def workflow_resume(
+    plan_id: str = typer.Option("", "--id", help="Plan ID to resume"),
+    latest: bool = typer.Option(False, "--latest", help="Resume the most recent plan"),
+    mode: str = typer.Option("integrated", "--mode", "-m", help="Execution mode"),
+    no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
+):
+    """Resume a previously persisted execution plan."""
+    if not no_banner and not _CI_MODE:
+        print_banner(console, _active_theme)
+
+    store = OfflineStore()
+    resolved_id = plan_id
+    if latest:
+        resolved_id = store.get_latest_plan_id() or ""
+
+    if not resolved_id:
+        console.print("[red]No plan ID provided and no recent plan found.[/red]")
+        raise typer.Exit(1)
+
+    engine = _get_engine(mode)
+    asyncio.run(engine.resume(resolved_id, interactive=True))
+
+
+# ---------------------------------------------------------------------------
+# Health & Metrics
+# ---------------------------------------------------------------------------
+
+
+@app.command("health")
+def health_check(
+    output: str = typer.Option("table", "--output", "-o", help="Output: table|json"),
+):
+    """Run system health checks."""
+    status = asyncio.run(get_health().check_all())
+    if output == "json":
+        import json
+
+        console.print(json.dumps(status.to_dict(), indent=2))
+        return
+
+    table = Table(title="NexSec Health", header_style="bold cyan")
+    table.add_column("Component", style="cyan", no_wrap=True)
+    table.add_column("State", style="magenta", no_wrap=True)
+    table.add_column("Latency (ms)", style="green", no_wrap=True)
+    table.add_column("Message", style="white")
+
+    for comp in status.components:
+        table.add_row(
+            comp.name,
+            comp.state.value,
+            f"{comp.latency_ms:.1f}",
+            comp.message,
+        )
+
+    console.print(table)
+
+
+@app.command("metrics")
+def metrics_show(
+    output: str = typer.Option("table", "--output", "-o", help="Output: table|json|prometheus"),
+    export: str = typer.Option("", "--export", "-e", help="Export metrics to file"),
+):
+    """Show metrics from the current session."""
+    metrics = get_metrics()
+
+    if output == "prometheus":
+        data = metrics.to_prometheus()
+    elif output == "json":
+        import json
+
+        data = json.dumps(metrics.to_dict(), indent=2)
+    else:
+        data = None
+
+    if data:
+        console.print(data)
+        if export:
+            Path(export).write_text(data)
+        return
+
+    # Table output
+    table = Table(title="NexSec Metrics", header_style="bold cyan")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green", justify="right")
+
+    m = metrics.to_dict()
+    table.add_row("Uptime (s)", f"{m['uptime_seconds']:.1f}")
+    table.add_row("Total Scans", str(m["execution"]["total_scans"]))
+    table.add_row("Successful Scans", str(m["execution"]["successful_scans"]))
+    table.add_row("Failed Scans", str(m["execution"]["failed_scans"]))
+    table.add_row("Total Findings", str(m["execution"]["total_findings"]))
+    table.add_row("Avg Duration (s)", f"{m['execution']['avg_duration_seconds']:.2f}")
+    table.add_row("Plans Generated", str(m["planner"]["plans_generated"]))
+    table.add_row("Model Calls", str(m["planner"]["model_calls"]))
+    table.add_row("Model Errors", str(m["planner"]["model_errors"]))
+
+    console.print(table)
 
 
 # ---------------------------------------------------------------------------
@@ -531,28 +741,42 @@ def show(
     """Show live security dashboard."""
     print_banner(console, _active_theme)
 
+    store = OfflineStore()
+    metrics = get_metrics().to_dict()
+    scans = store.list_scans(limit=20)
+    plans = store.list_plans(limit=20)
+
+    total_findings = sum(s.get("total_findings", 0) for s in scans)
+    latest_scan = scans[0]["created_at"] if scans else "—"
+
     table = Table(title="Security Operations Dashboard", show_header=True, header_style="bold cyan")
     table.add_column("Metric", style="white")
     table.add_column("Value", style="bold green", justify="right")
     table.add_column("Trend", justify="center")
     table.add_column("Status", justify="center")
 
-    # Mock data — replace with API calls
-    metrics = [
-        ("Security Score", "78.5", "↑", "🟢 Good"),
-        ("Open Incidents", "5", "↓", "🟡 Warning"),
-        ("Critical Vulns", "12", "↑", "🔴 Critical"),
-        ("Threat Hunts", "3", "→", "🟢 Active"),
-        ("MFA Coverage", "89%", "↑", "🟢 Good"),
-        ("Patch Rate", "76%", "↓", "🟡 Warning"),
+    rows = [
+        ("Total Scans", str(metrics["execution"]["total_scans"]), "→", "🟢 Active"),
+        ("Successful Scans", str(metrics["execution"]["successful_scans"]), "→", "🟢 Good"),
+        ("Failed Scans", str(metrics["execution"]["failed_scans"]), "→", "🟡 Warning"),
+        ("Total Findings", str(total_findings), "→", "🟢 Active"),
+        ("Plans Tracked", str(len(plans)), "→", "🟢 Active"),
+        ("Latest Scan", latest_scan, "→", "🟢 Good"),
     ]
 
-    for name, value, trend, status in metrics:
+    for name, value, trend, status in rows:
         table.add_row(name, value, trend, status)
 
     console.print(table)
 
     if export:
+        snapshot = {
+            "metrics": metrics,
+            "total_findings": total_findings,
+            "latest_scan": latest_scan,
+            "plans_count": len(plans),
+        }
+        Path(export).write_text(json.dumps(snapshot, indent=2))
         console.print(f"[dim]Exported to {export}[/dim]")
 
 
@@ -565,6 +789,9 @@ def bulk_scan_cmd(
     tool: str = typer.Option("nmap", "--tool", "-t", help="Tool to use"),
     batch_size: int = typer.Option(10, "--batch", "-b", help="Batch size"),
     output_dir: str = typer.Option("./results", "--output-dir", "-o", help="Output directory"),
+    mode: str = typer.Option("integrated", "--mode", "-m", help="Execution mode"),
+    save: bool = typer.Option(True, "--save/--no-save", help="Persist workflow execution"),
+    parallel: int = typer.Option(3, "--parallel", "-p", help="Concurrent executions"),
 ):
     """Bulk scan multiple targets from file."""
     print_banner(console, _active_theme)
@@ -579,12 +806,38 @@ def bulk_scan_cmd(
         f"[bold]Bulk Scan:[/bold] {len(targets)} targets | Tool: {tool} | Batch: {batch_size}"
     )
 
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    engine = _get_engine(mode)
+
+    async def _run_bulk() -> None:
+        semaphore = asyncio.Semaphore(max(parallel, 1))
+
+        async def run_target(target: str) -> None:
+            async with semaphore:
+                try:
+                    validate_target(target)
+                except ValidationError as exc:
+                    console.print(f"[red]Invalid target '{target}': {exc}[/red]")
+                    progress.advance(task, 1)
+                    return
+
+                instruction = f"scan {target} with {tool}"
+                result = await engine.execute(
+                    instruction, interactive=False, dry_run=False, persist=save
+                )
+
+                safe_name = target.replace("/", "_").replace(":", "_")
+                out_file = output_path / f"{safe_name}.json"
+                out_file.write_text(json.dumps(result.to_dict(), indent=2))
+                progress.advance(task, 1)
+
+        tasks = [run_target(t) for t in targets]
+        await asyncio.gather(*tasks)
+
     with Progress() as progress:
         task = progress.add_task("[green]Scanning...", total=len(targets))
-        for i in range(0, len(targets), batch_size):
-            batch = targets[i : i + batch_size]
-            # Process batch...
-            progress.advance(task, len(batch))
+        asyncio.run(_run_bulk())
 
     console.print(f"[green]✓ Bulk scan complete! Results in: {output_dir}[/green]")
 
@@ -606,18 +859,232 @@ def start(
     query: str = typer.Argument(help="Watch query (e.g., 'incidents severity:critical')"),
     interval: int = typer.Option(30, "--interval", "-i", help="Check interval (seconds)"),
     notify: bool = typer.Option(True, "--notify/--no-notify", help="Send notifications"),
+    severity: str = typer.Option("", "--severity", "-s", help="Filter findings by severity"),
+    limit: int = typer.Option(10, "--limit", "-l", help="Max findings to show"),
 ):
     """Start watch mode — monitor for changes."""
     print_banner(console, _active_theme)
     console.print(f"[bold]Watch Mode Started[/bold]\nQuery: {query}\nInterval: {interval}s\n")
+    store = OfflineStore()
+    last_count = 0
 
     try:
         while True:
-            # Check for changes...
-            console.print(f"[dim]{datetime.now().strftime('%H:%M:%S')} — Checking...[/dim]")
+            findings = store.search_findings(severity=severity or None, limit=limit)
+            current_count = len(findings)
+            ts = datetime.now().strftime('%H:%M:%S')
+            if current_count != last_count:
+                console.print(f"[dim]{ts} — Updates detected ({current_count} findings)[/dim]")
+                table = Table(title="Recent Findings", header_style="bold cyan")
+                table.add_column("Title", style="white")
+                table.add_column("Severity", style="magenta", no_wrap=True)
+                table.add_column("Tool", style="cyan", no_wrap=True)
+                table.add_column("Target", style="green")
+                for f in findings:
+                    table.add_row(
+                        f.get("title", "")[:50],
+                        f.get("severity", ""),
+                        f.get("tool", ""),
+                        f.get("target", "")[:30],
+                    )
+                console.print(table)
+                if notify:
+                    console.print("[green]Notification: findings updated.[/green]")
+                last_count = current_count
+            else:
+                console.print(f"[dim]{ts} — No changes[/dim]")
             time.sleep(interval)
     except KeyboardInterrupt:
         console.print("\n[yellow]Watch mode stopped.[/yellow]")
+
+
+# ---------------------------------------------------------------------------
+# Findings commands
+# ---------------------------------------------------------------------------
+
+
+@findings_app.command("list")
+def findings_list(
+    severity: str = typer.Option("", "--severity", "-s", help="Filter by severity"),
+    tool: str = typer.Option("", "--tool", "-t", help="Filter by tool"),
+    search: str = typer.Option("", "--search", help="Text search"),
+    limit: int = typer.Option(50, "--limit", "-n", help="Max results"),
+):
+    """List findings from the offline store."""
+    store = OfflineStore()
+    findings = store.search_findings(
+        severity=severity or None,
+        tool=tool or None,
+        search=search or None,
+        limit=limit,
+    )
+    if not findings:
+        console.print("[yellow]No findings found.[/yellow]")
+        return
+
+    table = Table(title=f"Findings ({len(findings)})", header_style="bold magenta")
+    table.add_column("Title", style="white")
+    table.add_column("Severity", style="magenta", no_wrap=True)
+    table.add_column("Tool", style="cyan", no_wrap=True)
+    table.add_column("Target", style="green")
+    table.add_column("Timestamp", style="dim", no_wrap=True)
+
+    for f in findings:
+        table.add_row(
+            f.get("title", "")[:60],
+            f.get("severity", ""),
+            f.get("tool", ""),
+            f.get("target", "")[:30],
+            f.get("timestamp", ""),
+        )
+
+    console.print(table)
+
+
+@findings_app.command("export")
+def findings_export(
+    output: str = typer.Argument(help="Output file (.json or .csv)"),
+    severity: str = typer.Option("", "--severity", "-s", help="Filter by severity"),
+    tool: str = typer.Option("", "--tool", "-t", help="Filter by tool"),
+    search: str = typer.Option("", "--search", help="Text search"),
+):
+    """Export findings to JSON or CSV."""
+    store = OfflineStore()
+    ext = Path(output).suffix.lower()
+    if not ext:
+        console.print("[red]Output file must include extension (.json or .csv).[/red]")
+        raise typer.Exit(1)
+
+    if severity or tool or search:
+        findings = store.search_findings(
+            severity=severity or None,
+            tool=tool or None,
+            search=search or None,
+            limit=10000,
+        )
+        if ext == ".json":
+            Path(output).write_text(json.dumps(findings, indent=2))
+        elif ext == ".csv":
+            if not findings:
+                Path(output).write_text("")
+            else:
+                fieldnames = list(findings[0].keys())
+                with open(output, "w", newline="", encoding="utf-8") as fh:
+                    writer = csv.DictWriter(fh, fieldnames=fieldnames)
+                    writer.writeheader()
+                    for row in findings:
+                        writer.writerow(row)
+        else:
+            console.print("[red]Unsupported extension. Use .json or .csv.[/red]")
+            raise typer.Exit(1)
+    else:
+        if ext == ".json":
+            store.export_json(output)
+        elif ext == ".csv":
+            store.export_csv(output)
+        else:
+            console.print("[red]Unsupported extension. Use .json or .csv.[/red]")
+            raise typer.Exit(1)
+
+    console.print(f"[green]✓ Exported findings to {output}[/green]")
+
+
+# ---------------------------------------------------------------------------
+# Report commands
+# ---------------------------------------------------------------------------
+
+
+@report_app.command("generate")
+def report_generate(
+    output: str = typer.Argument(help="Output report file (.md, .json, .csv)"),
+    limit: int = typer.Option(10000, "--limit", "-n", help="Max findings to include"),
+):
+    """Generate a basic findings report."""
+    store = OfflineStore()
+    findings = store.search_findings(limit=limit)
+
+    ext = Path(output).suffix.lower()
+    if ext == ".json":
+        Path(output).write_text(json.dumps(findings, indent=2))
+        console.print(f"[green]✓ Report generated: {output}[/green]")
+        return
+
+    if ext == ".csv":
+        if not findings:
+            Path(output).write_text("")
+        else:
+            fieldnames = list(findings[0].keys())
+            with open(output, "w", newline="", encoding="utf-8") as fh:
+                writer = csv.DictWriter(fh, fieldnames=fieldnames)
+                writer.writeheader()
+                for row in findings:
+                    writer.writerow(row)
+        console.print(f"[green]✓ Report generated: {output}[/green]")
+        return
+
+    if ext != ".md":
+        console.print("[red]Unsupported report format. Use .md, .json, or .csv.[/red]")
+        raise typer.Exit(1)
+
+    severity_counts: dict[str, int] = {}
+    tool_counts: dict[str, int] = {}
+    for f in findings:
+        severity_counts[f.get("severity", "info")] = severity_counts.get(f.get("severity", "info"), 0) + 1
+        tool_counts[f.get("tool", "unknown")] = tool_counts.get(f.get("tool", "unknown"), 0) + 1
+
+    lines = [
+        "# NexSec Findings Report",
+        "",
+        f"Generated: {datetime.now().isoformat()}",
+        "",
+        f"Total findings: {len(findings)}",
+        "",
+        "## By Severity",
+    ]
+    for sev, count in sorted(severity_counts.items(), key=lambda x: x[0]):
+        lines.append(f"- {sev}: {count}")
+
+    lines.append("")
+    lines.append("## By Tool")
+    for tool, count in sorted(tool_counts.items(), key=lambda x: x[0]):
+        lines.append(f"- {tool}: {count}")
+
+    lines.append("")
+    lines.append("## Findings (truncated)")
+    for f in findings[:50]:
+        lines.append(f"- [{f.get('severity', 'info')}] {f.get('title', '')} ({f.get('tool', '')})")
+
+    Path(output).write_text("\n".join(lines))
+    console.print(f"[green]✓ Report generated: {output}[/green]")
+
+
+# ---------------------------------------------------------------------------
+# CI/CD & policy gates
+# ---------------------------------------------------------------------------
+
+
+@ci_app.command("gate")
+def ci_gate(
+    allow_degraded: bool = typer.Option(False, "--allow-degraded", help="Allow degraded health state"),
+):
+    """Fail if health is unhealthy or critical findings exist."""
+    store = OfflineStore()
+    health = asyncio.run(get_health().check_all())
+    critical = store.search_findings(severity="critical", limit=1)
+
+    if health.state.value == "unhealthy":
+        console.print("[red]Health check failed: UNHEALTHY[/red]")
+        raise typer.Exit(2)
+
+    if health.state.value == "degraded" and not allow_degraded:
+        console.print("[yellow]Health check is DEGRADED (use --allow-degraded to pass).[/yellow]")
+        raise typer.Exit(2)
+
+    if critical:
+        console.print("[red]Critical findings detected. Failing gate.[/red]")
+        raise typer.Exit(3)
+
+    console.print("[green]✓ CI gate passed[/green]")
 
 
 # ---------------------------------------------------------------------------
@@ -640,24 +1107,27 @@ def workflow_run_cmd(
     console.print("[green]✓ Workflow complete![/green]")
 
 
-@workflow_app.command()
-def list():
-    """List available workflows."""
-    table = Table(title="Available Workflows", show_header=True, header_style="bold magenta")
+@workflow_app.command("catalog")
+def workflow_catalog(
+    path: str = typer.Option("./workflows", "--path", help="Workflow directory"),
+):
+    """List workflow files from a directory."""
+    root = Path(path)
+    if not root.exists():
+        console.print(f"[yellow]No workflow directory found at {path}[/yellow]")
+        return
+
+    files = sorted(root.glob("*.yml")) + sorted(root.glob("*.yaml")) + sorted(root.glob("*.json"))
+    if not files:
+        console.print(f"[yellow]No workflow files found in {path}[/yellow]")
+        return
+
+    table = Table(title="Workflow Catalog", show_header=True, header_style="bold magenta")
     table.add_column("Name", style="cyan")
-    table.add_column("Description", style="white")
-    table.add_column("Steps", justify="right", style="yellow")
-    table.add_column("Last Run", style="dim")
+    table.add_column("Path", style="white")
 
-    workflows = [
-        ("daily-scan", "Daily network scan + report", "5", "2h ago"),
-        ("incident-response", "Full incident response playbook", "12", "1d ago"),
-        ("compliance-check", "SOC2 + ISO27001 compliance", "8", "7d ago"),
-        ("threat-hunt", "Run all threat hunt queries", "15", "3d ago"),
-    ]
-
-    for name, desc, steps, last_run in workflows:
-        table.add_row(name, desc, steps, last_run)
+    for f in files:
+        table.add_row(f.stem, str(f))
 
     console.print(table)
 
@@ -668,13 +1138,54 @@ def list():
 @audit_app.command()
 def report(
     framework: str = typer.Argument(help="Framework: soc2|iso27001|nist"),
-    output: str = typer.Option("report.pdf", "--output", "-o", help="Output file"),
+    output: str = typer.Option("report.md", "--output", "-o", help="Output file"),
     detailed: bool = typer.Option(False, "--detailed", "-d", help="Include evidence"),
+    days: int = typer.Option(30, "--days", help="Number of days to include"),
 ):
     """Generate compliance report."""
     print_banner(console, _active_theme)
     console.print(f"[bold]Compliance Report:[/bold] {framework}")
-    # Report generation...
+
+    ext = Path(output).suffix.lower()
+    if ext in {".json", ".csv"}:
+        fmt = ext.lstrip(".")
+        audit.export(format=fmt, filepath=output, days=days)
+        console.print(f"[green]✓ Report generated: {output}[/green]")
+        return
+
+    if ext not in {".md", ".txt"}:
+        console.print("[red]Unsupported format. Use .md, .txt, .json, or .csv.[/red]")
+        raise typer.Exit(1)
+
+    stats = audit.get_statistics()
+    chain = audit.verify_chain()
+    events = audit.get_events(limit=100)
+
+    lines = [
+        f"# NexSec Compliance Report ({framework.upper()})",
+        "",
+        f"Generated: {datetime.now().isoformat()}",
+        f"Retention days: {stats.get('retention_days')}",
+        "",
+        "## Audit Summary",
+        f"- Total events: {stats.get('total_events')}",
+        f"- Total sessions: {stats.get('total_sessions')}",
+        f"- Chain integrity: {chain.get('chain_integrity')}",
+        "",
+        "## Recent Events",
+    ]
+    for evt in events[-50:]:
+        lines.append(
+            f"- {evt.get('timestamp')} | {evt.get('user')} | {evt.get('event_type')} | {evt.get('target')}"
+        )
+
+    if detailed and events:
+        lines.append("")
+        lines.append("## Event Details")
+        for evt in events[-20:]:
+            lines.append(json.dumps(evt, indent=2))
+
+    Path(output).write_text("\n".join(lines))
     console.print(f"[green]✓ Report generated: {output}[/green]")
 
 
@@ -684,123 +1195,60 @@ def logs(
     user: str = typer.Option("", "--user", "-u", help="Filter by user"),
     limit: int = typer.Option(50, "--limit", "-n", help="Max records"),
     output: str = typer.Option("", "--output", "-o", help="Export to file"),
+    severity: str = typer.Option("", "--severity", help="Filter by severity"),
+    days: int = typer.Option(30, "--days", help="Number of days to include"),
 ):
     """View audit logs."""
     print_banner(console, _active_theme)
+    if output:
+        ext = Path(output).suffix.lower()
+        if ext not in {".json", ".csv"}:
+            console.print("[red]Unsupported export format. Use .json or .csv.[/red]")
+            raise typer.Exit(1)
+        audit.export(format=ext.lstrip("."), filepath=output, days=days)
+        console.print(f"[green]✓ Audit log exported to {output}[/green]")
+        return
+
+    events = audit.get_events(
+        event_type=event_type or None,
+        user=user or None,
+        severity=severity or None,
+        limit=limit,
+    )
+    if not events:
+        console.print("[yellow]No audit events found.[/yellow]")
+        return
 
     table = Table(title="Audit Trail", show_header=True, header_style="bold yellow")
     table.add_column("Timestamp", style="dim", no_wrap=True)
     table.add_column("User", style="cyan")
     table.add_column("Event", style="white")
     table.add_column("Target", style="yellow")
-    table.add_column("Status", justify="center")
+    table.add_column("Result", justify="center")
 
-    # Mock audit data
-    logs = [
-        ("2026-05-05 12:00:00", "admin", "scan", "192.168.1.0/24", "✓"),
-        ("2026-05-05 11:45:00", "john", "incident_create", "INC-001", "✓"),
-        ("2026-05-05 11:30:00", "sarah", "vuln_update", "CVE-2024-0001", "✓"),
-    ]
-
-    for ts, user, event, target, status in logs[:limit]:
-        table.add_row(ts, user, event, target, status)
-
-    console.print(table)
-
-
-# ---------------------------------------------------------------------------
-# Security sub-commands (premium)
-# ---------------------------------------------------------------------------
-@security_app.command("incidents")
-def security_incidents(
-    status: str = typer.Option("", "--status", "-s", help="Filter by status"),
-    severity: str = typer.Option("", "--severity", "-sv", help="Filter by severity"),
-    limit: int = typer.Option(10, "--limit", "-n", help="Max results"),
-    output: str = typer.Option("table", "--output", "-o", help="Output format"),
-):
-    """List security incidents."""
-    print_banner(console, _active_theme)
-    console.print(f"[bold]Incidents[/bold] (status={status}, severity={severity})")
-
-    table = Table(show_header=True, header_style="bold red")
-    table.add_column("ID", style="cyan", no_wrap=True)
-    table.add_column("Title", style="white")
-    table.add_column("Severity", style="yellow", justify="center")
-    table.add_column("Status", style="green", justify="center")
-
-    incidents = [
-        ("INC-001", "Ransomware Detected", "critical", "open"),
-        ("INC-002", "Phishing Campaign", "high", "investigating"),
-        ("INC-003", "Data Exfiltration", "critical", "contained"),
-    ]
-
-    for id, title, sev, incident_status in incidents:
-        if status and incident_status != status:
-            continue
-        if severity and severity != sev:
-            continue
-        table.add_row(id, title, sev.upper(), incident_status)
+    for evt in events:
+        table.add_row(
+            evt.get("timestamp", ""),
+            evt.get("user", ""),
+            evt.get("event_type", ""),
+            evt.get("target", ""),
+            evt.get("result", ""),
+        )
 
     console.print(table)
 
 
-@security_app.command("vulns")
-def security_vulns(
-    severity: str = typer.Option("", "--severity", "-s", help="Filter by severity"),
-    status: str = typer.Option("open", "--status", help="Filter by status"),
-    export: str = typer.Option("", "--export", "-e", help="Export to file"),
-):
-    """List vulnerabilities."""
-    print_banner(console, _active_theme)
-
-    table = Table(title="Vulnerabilities", show_header=True, header_style="bold magenta")
-    table.add_column("CVE", style="cyan", no_wrap=True)
-    table.add_column("Title", style="white")
-    table.add_column("CVSS", justify="right", style="yellow")
-    table.add_column("EPSS", justify="right", style="purple")
-    table.add_column("Status", justify="center")
-
-    vulns = [
-        ("CVE-2024-0001", "RCE in Apache Struts", "9.8", "0.92", "open"),
-        ("CVE-2024-0002", "SQL Injection", "8.5", "0.45", "patched"),
-        ("CVE-2024-0003", "XSS in Profile", "6.1", "0.12", "open"),
-    ]
-
-    for cve, title, cvss, epss, st in vulns:
-        table.add_row(cve, title, cvss, epss, st)
-
-    console.print(table)
+@audit_app.command("verify")
+def audit_verify() -> None:
+    """Verify audit log chain integrity."""
+    result = audit.verify_chain()
+    if result.get("valid"):
+        console.print("[green]✓ Audit chain integrity verified[/green]")
+    else:
+        console.print(f"[red]Chain integrity failed at {result.get('broken_at')}[/red]")
 
 
-@security_app.command("threat-hunt")
-def security_threat_hunt(
-    action: str = typer.Argument(help="Action: list|run|campaigns"),
-    query_id: str = typer.Argument(default="", help="Query ID (for 'run')"),
-):
-    """Threat hunting operations."""
-    print_banner(console, _active_theme)
-
-    if action == "list":
-        table = Table(title="Threat Hunting Queries", show_header=True, header_style="bold blue")
-        table.add_column("ID", style="cyan")
-        table.add_column("Name", style="white")
-        table.add_column("MITRE Tactic", style="purple")
-        table.add_column("Severity", justify="center")
-
-        queries = [
-            ("q_001", "PowerShell Suspicious", "execution", "high"),
-            ("q_002", "RDP Brute Force", "credential_access", "critical"),
-            ("q_003", "DNS Tunneling", "command_and_control", "critical"),
-        ]
-
-        for id, name, tactic, sev in queries:
-            table.add_row(id, name, tactic, sev.upper())
-
-        console.print(table)
-
-    elif action == "run" and query_id:
-        console.print(f"[bold]Running hunt query:[/bold] {query_id}")
-        console.print("[green]✓ Hunt complete — 3 findings[/green]")
+# Security sub-commands are defined in security_commands.py.
 
 
 # ---------------------------------------------------------------------------
@@ -843,6 +1291,7 @@ def org_stats():
 def tool_registry_list(
     category: str = typer.Option("", "--category", "-c", help="Filter by category"),
     refresh: bool = typer.Option(False, "--refresh", "-r", help="Force re-discovery"),
+    fast: bool = typer.Option(False, "--fast", help="Skip version probes for speed"),
 ):
     """List all discovered security tools on this system.
 
@@ -851,7 +1300,7 @@ def tool_registry_list(
       siyarix tool-registry list --category recon
       siyarix tool-registry list --refresh
     """
-    tools = registry.discover(force_refresh=refresh)
+    tools = registry.discover(force_refresh=refresh, fast=fast)
     if category:
         tools = [t for t in tools if t.category == category]
 

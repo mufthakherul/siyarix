@@ -401,7 +401,7 @@ class ToolRegistry:
         # Invalidate cache
         self._cache = None
 
-    def discover(self, force_refresh: bool = False) -> list[ToolInfo]:
+    def discover(self, force_refresh: bool = False, fast: bool = False) -> list[ToolInfo]:
         """Return a list of :class:`ToolInfo` for every tool found on PATH.
 
         Results are cached for _DISCOVERY_CACHE_TTL seconds. Pass
@@ -416,13 +416,16 @@ class ToolRegistry:
             return self._cache
 
         found: list[ToolInfo] = []
+        fast_mode = fast or os.getenv("SIYARIX_FAST_DISCOVERY", "0") == "1"
 
         # Static tools
         for tool_name, meta in _KNOWN_TOOLS.items():
             path, discovered_via_wsl = self._resolve_tool_path(tool_name)
             if path is None:
                 continue
-            version = self.probe_version(tool_name, path, via_wsl=discovered_via_wsl)
+            version = "unknown" if fast_mode else self.probe_version(
+                tool_name, path, via_wsl=discovered_via_wsl
+            )
             friendly_name = _BINARY_TO_ALIAS.get(tool_name, tool_name)
             default_args = list(meta.get("default_args", []))
             if discovered_via_wsl:
@@ -446,7 +449,7 @@ class ToolRegistry:
             path = shutil.which(tool_name)
             if path is None:
                 continue
-            version = self._probe_dynamic_version(tool_name, path)
+            version = "unknown" if fast_mode else self._probe_dynamic_version(tool_name, path)
             found.append(
                 ToolInfo(
                     name=meta.get("display_name", tool_name),
@@ -549,5 +552,5 @@ class ToolRegistry:
                 "description": t.description,
                 "default_args": t.default_args,
             }
-            for t in self.discover()
+            for t in self.discover(fast=True)
         ]

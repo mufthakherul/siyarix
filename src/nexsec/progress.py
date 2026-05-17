@@ -35,6 +35,7 @@ _SEVERITY_STYLES = {
     "info": ("⚪", "dim"),
 }
 
+
 @dataclass
 class ScanProgressState:
     """Mutable state shared between the progress display and the async executor."""
@@ -59,6 +60,7 @@ class ScanProgressState:
     def add_finding(self, severity: str) -> None:
         key = severity.lower()
         self.finding_counts[key] = self.finding_counts.get(key, 0) + 1
+
 
 class ScanProgressDisplay:
     """Rich Live UI for real-time scan progress.
@@ -227,6 +229,7 @@ class ScanProgressDisplay:
 # Graceful cancellation (Ctrl+C two-stage)
 # ---------------------------------------------------------------------------
 
+
 class CancellationToken:
     """Shared token for two-stage Ctrl+C cancellation."""
 
@@ -261,6 +264,7 @@ class CancellationToken:
 # ---------------------------------------------------------------------------
 # Concurrent scanner executor
 # ---------------------------------------------------------------------------
+
 
 async def run_tools_with_progress(
     tools: list[dict],  # list of {"name": str, "path": str, "args": list[str]}

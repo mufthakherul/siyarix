@@ -1,10 +1,10 @@
 """Task planner — converts natural language instructions into structured execution plans.
 
-This component provides dynamic planning capabilities by using language 
-models (OpenAI, Ollama, or Cloud-based) to interpret complex instructions 
+This component provides dynamic planning capabilities by using language
+models (OpenAI, Ollama, or Cloud-based) to interpret complex instructions
 and produce structured execution plans.
 
-When no model provider is available, it automatically falls back to 
+When no model provider is available, it automatically falls back to
 the local heuristic-based interpreter.
 """
 
@@ -298,7 +298,7 @@ def _build_system_prompt(context: dict[str, Any]) -> str:
     """Build the system prompt for task planning with tool context."""
     available_tools = context.get("available_tools", [])
     tool_list = "\n".join(
-        f"  - {t['name']} ({t.get('category','?')}): {', '.join(t.get('capabilities', []))}"
+        f"  - {t['name']} ({t.get('category', '?')}): {', '.join(t.get('capabilities', []))}"
         for t in available_tools
     )
     platform = context.get("platform", "unknown")

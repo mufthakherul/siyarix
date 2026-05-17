@@ -9,6 +9,7 @@ import httpx
 from .credential_store import CredentialStore
 from .profiles import ProfileStore
 
+
 class AuthManager:
     def __init__(self, credentials: CredentialStore | None = None, profiles: ProfileStore | None = None) -> None:
         self.credentials = credentials or CredentialStore()

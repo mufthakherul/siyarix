@@ -45,6 +45,7 @@ _CREATE_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_scans_tool ON scans(tool)",
 ]
 
+
 class OfflineStore:
     """SQLite-backed store for offline scan data and findings.
 

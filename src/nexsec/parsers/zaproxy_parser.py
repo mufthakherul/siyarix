@@ -8,8 +8,10 @@ from datetime import UTC, datetime
 _ALERT_RE = re.compile(r"(?i)\b(alert|risk|vulnerab|xss|sqli|injection|csrf)\b")
 _TARGET_RE = re.compile(r"(?i)\bhttps?://\S+")
 
+
 def _now_iso() -> str:
     return datetime.now(tz=UTC).isoformat()
+
 
 class ZaproxyParser:
     """Parse ZAP output into normalized finding dictionaries."""

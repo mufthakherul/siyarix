@@ -24,11 +24,14 @@ _STATUS_SEVERITY: dict[int, str] = {
 # e.g. "/admin (Status: 200) [Size: 1234]"
 _LINE_RE = re.compile(r"^(/\S*)\s+\(Status:\s+(\d+)\)(?:\s+\[Size:\s+(\d+)\])?")
 
+
 def _severity_for_status(status: int) -> str:
     return _STATUS_SEVERITY.get(status, "info")
 
+
 def _now_iso() -> str:
     return datetime.now(tz=UTC).isoformat()
+
 
 class GobusterParser:
     """Parses gobuster text output lines into finding dicts."""

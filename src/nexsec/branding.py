@@ -66,12 +66,14 @@ _BANNER = r"""
                              🆂 🅴 🅲 🆄 🆁 🅸 🆃 🆈   🅰 🅶 🅴 🅽 🆃   🅲 🅻 🅸
 """
 
+
 def resolve_theme(theme_name: str | None) -> str:
     if not theme_name:
         return "default"
     raw = theme_name.strip().lower()
     mapped = _THEME_ALIASES.get(raw, raw)
     return mapped if mapped in _SEVERITY_STYLES else "default"
+
 
 def canonical_theme(theme_name: str | None) -> str | None:
     """Resolve theme aliases and return canonical theme name, else None."""
@@ -81,12 +83,15 @@ def canonical_theme(theme_name: str | None) -> str | None:
     mapped = _THEME_ALIASES.get(raw, raw)
     return mapped if mapped in _SEVERITY_STYLES else None
 
+
 def available_themes() -> list[str]:
     return sorted(_SEVERITY_STYLES.keys())
+
 
 def severity_style(theme: str, severity: str) -> str:
     safe_theme = resolve_theme(theme)
     return _SEVERITY_STYLES[safe_theme].get(severity.lower(), "")
+
 
 def severity_label(theme: str, severity: str) -> str:
     sev = severity.lower()
@@ -99,6 +104,7 @@ def severity_label(theme: str, severity: str) -> str:
     if style:
         return f"{icon} [{style}]{text}[/{style}]"
     return f"{icon} {text}"
+
 
 def print_banner(console: Console, theme: str, subtitle: str = "Enterprise Security Operations Platform") -> None:
     safe_theme = resolve_theme(theme)

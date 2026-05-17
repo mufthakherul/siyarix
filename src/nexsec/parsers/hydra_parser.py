@@ -10,8 +10,10 @@ _CRED_RE = re.compile(
     re.IGNORECASE,
 )
 
+
 def _now_iso() -> str:
     return datetime.now(tz=UTC).isoformat()
+
 
 class HydraParser:
     """Parse hydra output into normalized credential finding dictionaries."""

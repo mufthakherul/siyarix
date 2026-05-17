@@ -38,7 +38,6 @@ except ImportError:
 
 try:
     from rich.console import Console
-    from rich.table import Table
 
     RICH_AVAILABLE = True
 except ImportError:

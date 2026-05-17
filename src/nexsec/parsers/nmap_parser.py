@@ -42,11 +42,14 @@ _PORT_SEVERITY: dict[int, str] = {
     27017: "high",  # MongoDB
 }
 
+
 def _severity_for_port(port: int) -> str:
     return _PORT_SEVERITY.get(port, "info")
 
+
 def _now_iso() -> str:
     return datetime.now(tz=UTC).isoformat()
+
 
 class NmapParser:
     """Parses nmap XML (preferred) or plain-text output into normalised finding dicts."""

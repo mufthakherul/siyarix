@@ -14,8 +14,10 @@ _SEVERITY_MAP: dict[str, str] = {
     "unknown": "info",
 }
 
+
 def _now_iso() -> str:
     return datetime.now(tz=UTC).isoformat()
+
 
 class NucleiParser:
     """Parses nuclei JSONL output (one JSON object per line) into finding dicts."""

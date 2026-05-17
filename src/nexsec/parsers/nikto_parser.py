@@ -18,14 +18,17 @@ _HOST_RE = re.compile(r"\+ Target Hostname:\s+(\S+)")
 _PORT_RE = re.compile(r"\+ Target Port:\s+(\d+)")
 _OSVDB_RE = re.compile(r"OSVDB-(\d+)")
 
+
 def _severity_for_osvdb(osvdb_id: int) -> str:
     for rng, sev in _OSVDB_SEVERITY:
         if osvdb_id in rng:
             return sev
     return "info"
 
+
 def _now_iso() -> str:
     return datetime.now(tz=UTC).isoformat()
+
 
 class NiktoParser:
     """Parses nikto text output (lines starting with ``+``) into finding dicts."""

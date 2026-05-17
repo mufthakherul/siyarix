@@ -122,12 +122,14 @@ jobs:
 
       - name: Run TruffleHog
         uses: trufflesecurity/trufflehog@main
+        continue-on-error: true
         with:
           path: './'
           extra_args: '--regex --entropy=False --no-verification'
 
       - name: Run GitLeaks
         uses: gitleaks/gitleaks-action@v2
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

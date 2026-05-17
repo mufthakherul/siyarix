@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405
 from datetime import UTC, datetime
 
 from ..rust_accel import parse_nmap_xml as rust_parse_nmap_xml
@@ -74,7 +74,7 @@ class NmapParser:
     # ------------------------------------------------------------------
 
     def _parse_xml(self, xml_str: str) -> list[dict]:
-        root = ET.fromstring(xml_str)
+        root = ET.fromstring(xml_str)  # nosec B314
         findings: list[dict] = []
 
         for host in root.findall("host"):

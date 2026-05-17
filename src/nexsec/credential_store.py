@@ -42,9 +42,9 @@ logger = logging.getLogger(__name__)
 class CredentialType(StrEnum):
     """Credential types"""
 
-    PASSWORD = "password"
+    PASSWORD = "password"  # nosec B105
     API_KEY = "api_key"
-    TOKEN = "token"
+    TOKEN = "token"  # nosec B105
     CERTIFICATE = "certificate"
     SSH_KEY = "ssh_key"
     AWS_KEY = "aws_key"

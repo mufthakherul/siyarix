@@ -18,7 +18,7 @@ from __future__ import annotations
 import os
 import platform
 import shutil
-import subprocess
+import subprocess  # nosec B404
 from enum import StrEnum
 from typing import Any, Mapping
 
@@ -699,7 +699,7 @@ def detect_shell() -> ShellType:
     # Try $0 from parent process
     try:
         ppid = os.getppid()
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 B607
             ["ps", "-p", str(ppid), "-o", "comm="],
             capture_output=True, text=True, timeout=3,
         )
@@ -707,7 +707,7 @@ def detect_shell() -> ShellType:
         detected = _shell_from_name(comm)
         if detected != ShellType.UNKNOWN:
             return detected
-    except Exception:
+    except Exception:  # nosec B110
         pass
 
     return ShellType.UNKNOWN

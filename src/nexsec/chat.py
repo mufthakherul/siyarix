@@ -16,6 +16,7 @@ Features:
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import platform
 import time
@@ -46,6 +47,13 @@ from .shell_knowledge import (
     get_shell_platform,
     CROSS_PLATFORM_COMMANDS,
 )
+from .command_profiles import CommandProfileStore, CommandProfile
+try:
+    from prompt_toolkit import prompt as ptk_prompt
+    from prompt_toolkit.completion import WordCompleter
+    PTK_AVAILABLE = True
+except Exception:
+    PTK_AVAILABLE = False
 
 console = Console()
 
@@ -139,12 +147,29 @@ class ChatSession:
 
 _SLASH_HELP = {
     "/help": "Show available slash commands",
+    "/?": "Alias for /help",
     "/exit": "Exit chat mode",
     "/quit": "Exit chat mode",
+    "/bye": "Exit chat mode",
     "/clear": "Clear the screen and conversation history",
+    "/new": "Start a clean conversation but keep target/mode",
     "/history": "Show recent conversation history",
+    "/history <n>": "Show the last n messages",
     "/tools": "List discovered security tools",
     "/platform": "Show platform and shell information",
+    "/status": "Show session and runtime status",
+    "/session": "Show detailed session metadata",
+    "/uptime": "Show chat session uptime",
+    "/env": "Show safe terminal environment summary",
+    "/intents [filter]": "List cross-platform command intents",
+    "/shells": "List supported shells",
+    "/search <text>": "Search chat history for a keyword",
+    "/examples": "Show practical prompt examples",
+    "/reset": "Reset mode and target to defaults",
+    "/palette": "Open an interactive command palette to pick an intent",
+    "/savecmd <name> <command>": "Save a reusable command profile",
+    "/cmds": "List saved command profiles",
+    "/cmd <name>": "Show or run a saved command profile",
     "/target <host>": "Set the current target for commands",
     "/mode <mode>": "Switch execution mode (registry|autonomous|integrated)",
     "/save": "Save current session to ~/.nexsec/sessions/",
@@ -259,12 +284,28 @@ class NexSecChat:
 
         handlers = {
             "/help": self._cmd_help,
+            "/?": self._cmd_help,
             "/exit": self._cmd_exit,
             "/quit": self._cmd_exit,
+            "/bye": self._cmd_exit,
             "/clear": self._cmd_clear,
+            "/new": self._cmd_new,
             "/history": self._cmd_history,
             "/tools": self._cmd_tools,
             "/platform": self._cmd_platform,
+            "/status": self._cmd_status,
+            "/session": self._cmd_session,
+            "/uptime": self._cmd_uptime,
+            "/env": self._cmd_env,
+            "/intents": self._cmd_intents,
+            "/shells": self._cmd_shells,
+            "/search": self._cmd_search,
+            "/examples": self._cmd_examples,
+            "/reset": self._cmd_reset,
+            "/palette": self._cmd_palette,
+            "/savecmd": self._cmd_savecmd,
+            "/cmds": self._cmd_cmds,
+            "/cmd": self._cmd_cmd,
             "/target": self._cmd_target,
             "/mode": self._cmd_mode,
             "/save": self._cmd_save,
@@ -284,7 +325,11 @@ class NexSecChat:
             else:
                 handler(args)
         else:
-            console.print(f"[red]Unknown command: {command}[/red] — type [cyan]/help[/cyan]")
+            suggestions = [c for c in _SLASH_HELP if c.startswith(command[:3])][:3]
+            hint = ""
+            if suggestions:
+                hint = f"  Did you mean: {', '.join(suggestions)}"
+            console.print(f"[red]Unknown command: {command}[/red] — type [cyan]/help[/cyan]{hint}")
 
     def _cmd_help(self, _: str) -> None:
         table = Table(title="NexSec Chat Commands", show_header=True, header_style="bold cyan")
@@ -302,12 +347,141 @@ class NexSecChat:
         self._session.messages.clear()
         self._print_welcome()
 
-    def _cmd_history(self, _: str) -> None:
-        msgs = self._session.last_n(20)
+    def _cmd_new(self, _: str) -> None:
+        self._session.messages.clear()
+        self._session.context.clear()
+        console.print("[green]✓ Started a new conversation context.[/green]")
+
+    def _cmd_palette(self, _: str) -> None:
+        """Interactive command palette to select an intent or saved command."""
+        store = CommandProfileStore()
+        intents = sorted(CROSS_PLATFORM_COMMANDS.keys())
+        options = [f"intent: {i}" for i in intents]
+        # include saved commands at the end
+        saved = store.list()
+        options += [f"saved: {p.name} -> {p.command}" for p in saved]
+
+        console.print("[dim]Type a search term to filter. Press Enter to show full list.[/dim]")
+        query = ""
+        try:
+            if PTK_AVAILABLE:
+                completer = WordCompleter(options, ignore_case=True)
+                query = ptk_prompt("Search: ", completer=completer).strip().lower()
+            else:
+                query = Prompt.ask("Search", default="").strip().lower()
+        except Exception:
+            query = Prompt.ask("Search", default="").strip().lower()
+
+        filtered = [o for o in options if query in o.lower()] if query else options
+        if not filtered:
+            console.print("[dim]No items found.[/dim]")
+            return
+
+        table = Table(title="Command Palette", header_style="bold cyan")
+        table.add_column("#", style="dim", width=4)
+        table.add_column("Type", style="magenta")
+        table.add_column("Entry", style="cyan")
+        for i, entry in enumerate(filtered[:200], 1):
+            t, rest = entry.split(":", 1)
+            table.add_row(str(i), t.strip(), rest.strip())
+        console.print(table)
+
+        sel = Prompt.ask("Select # to insert/execute (blank to cancel)", default="").strip()
+        if not sel:
+            return
+        try:
+            idx = int(sel) - 1
+            choice = filtered[idx]
+        except Exception:
+            console.print("[red]Invalid selection[/red]")
+            return
+
+        if choice.startswith("intent:"):
+            intent = choice.split(":", 1)[1].strip()
+            cmd = CROSS_PLATFORM_COMMANDS.get(intent, {}).get(normalize_shell(self._shell).value, "")
+            console.print(f"[green]Inserted command:[/green] {cmd}")
+            run = Prompt.ask("Run this command? (y/N)", default="N")
+            if run.lower().startswith("y"):
+                asyncio.run(self._execute_instruction(cmd))
+        else:
+            # saved command
+            name = choice.split(":", 1)[1].split("->", 1)[0].strip()
+            profile = store.get(name)
+            if not profile:
+                console.print("[red]Saved profile missing[/red]")
+                return
+
+            # detect placeholders and prompt for values
+            cps = CommandProfileStore()
+            placeholders = cps.extract_placeholders(profile.command)
+            params: dict[str, str] = {}
+            for ph in placeholders:
+                val = Prompt.ask(f"Value for '{ph}'", default="")
+                params[ph] = val
+
+            rendered = cps.render(profile.command, params)
+            console.print(f"[green]Rendered command:[/green] {rendered}")
+            run = Prompt.ask("Run this command? (y/N)", default="N")
+            if run.lower().startswith("y"):
+                asyncio.run(self._execute_instruction(rendered))
+
+    def _cmd_savecmd(self, args: str) -> None:
+        if not args:
+            console.print("[yellow]Usage: /savecmd <name> <command>[/yellow]")
+            return
+        parts = args.split(maxsplit=1)
+        if len(parts) < 2:
+            console.print("[yellow]Provide both a name and command.[/yellow]")
+            return
+        name, command = parts[0], parts[1]
+        store = CommandProfileStore()
+        profile = CommandProfile(name=name, command=command, description=None)
+        store.save(profile)
+        console.print(f"[green]✓ Saved command profile: {name}[/green]")
+
+    def _cmd_cmds(self, _: str) -> None:
+        store = CommandProfileStore()
+        rows = store.list()
+        if not rows:
+            console.print("[dim]No saved command profiles.[/dim]")
+            return
+        table = Table(title="Saved Command Profiles", header_style="bold cyan")
+        table.add_column("Name", style="cyan")
+        table.add_column("Command", style="white")
+        table.add_column("Created", style="dim")
+        for p in rows:
+            table.add_row(p.name, p.command, p.created_at or "")
+        console.print(table)
+
+    def _cmd_cmd(self, args: str) -> None:
+        if not args:
+            console.print("[yellow]Usage: /cmd <name>[/yellow]")
+            return
+        name = args.strip()
+        store = CommandProfileStore()
+        p = store.get(name)
+        if not p:
+            console.print(f"[red]Profile not found: {name}[/red]")
+            return
+        console.print(Panel.fit(p.command, title=f"Profile: {p.name}", border_style="cyan"))
+        run = Prompt.ask("Run this command? (y/N)", default="N")
+        if run.lower().startswith("y"):
+            asyncio.run(self._execute_instruction(p.command))
+
+    def _cmd_history(self, args: str) -> None:
+        limit = 20
+        if args:
+            try:
+                limit = max(1, min(int(args), 200))
+            except ValueError:
+                console.print("[yellow]Usage: /history [n][/yellow]")
+                return
+
+        msgs = self._session.last_n(limit)
         if not msgs:
             console.print("[dim]No conversation history yet.[/dim]")
             return
-        console.print(Rule("[bold]Conversation History[/bold]"))
+        console.print(Rule(f"[bold]Conversation History (last {len(msgs)})[/bold]"))
         for msg in msgs:
             role_color = "cyan" if msg.role == "user" else "green"
             ts = msg.timestamp.strftime("%H:%M:%S")
@@ -336,20 +510,156 @@ class NexSecChat:
 
     def _cmd_platform(self, _: str) -> None:
         ctx = self._platform_ctx
+        table = Table(title="Platform & Runtime Diagnostics", header_style="bold cyan")
+        table.add_column("Category", style="magenta", no_wrap=True)
+        table.add_column("Key", style="cyan", no_wrap=True)
+        table.add_column("Value", style="white")
+
+        rows = [
+            ("OS", "platform", ctx.get("platform_pretty", "")),
+            ("OS", "kernel_release", ctx.get("platform_release", "")),
+            ("OS", "architecture", ctx.get("arch", "")),
+            ("OS", "processor", ctx.get("processor", "")),
+            ("Device", "hostname", ctx.get("hostname", "")),
+            ("Device", "username", ctx.get("username", "")),
+            ("Device", "cwd", ctx.get("cwd", "")),
+            ("Terminal", "type", ctx.get("terminal_type", "")),
+            ("Terminal", "program", ctx.get("term_program", "") or "unknown"),
+            ("Terminal", "term", ctx.get("term", "") or "unknown"),
+            ("Terminal", "shell", f"{ctx.get('shell', '')} ({ctx.get('shell_platform', '')})"),
+            ("Terminal", "shell_executable", ctx.get("shell_executable", "") or "unknown"),
+            ("Runtime", "python", ctx.get("python_version", "")),
+            ("Runtime", "cpu_count", str(ctx.get("cpu_count", ""))),
+            ("Runtime", "memory_total_mb", str(ctx.get("memory_total_mb", "unknown"))),
+            ("Runtime", "load_avg", f"{ctx.get('load_avg_1m', 'n/a')} / {ctx.get('load_avg_5m', 'n/a')} / {ctx.get('load_avg_15m', 'n/a')}"),
+            ("Flags", "container", f"{ctx.get('is_container', False)} ({ctx.get('container_runtime', 'none')})"),
+            ("Flags", "codespaces", str(ctx.get("is_codespaces", False))),
+            ("Flags", "ssh", str(ctx.get("is_terminal_ssh", False))),
+            ("Flags", "cloud", str(ctx.get("is_terminal_cloud", False))),
+            ("Flags", "wsl_available", str(ctx.get("has_wsl", False))),
+            ("NexSec", "available_intents", str(ctx.get("available_tools_count", 0))),
+        ]
+        for category, key, value in rows:
+            table.add_row(category, key, str(value))
+        console.print(table)
+
+    def _cmd_status(self, _: str) -> None:
+        counts = {
+            "messages": len(self._session.messages),
+            "user_messages": len([m for m in self._session.messages if m.role == "user"]),
+            "assistant_messages": len([m for m in self._session.messages if m.role == "assistant"]),
+        }
         console.print(Panel.fit(
-            f"[bold]Platform:[/bold]    {ctx['platform']} {platform.release()}\n"
-            f"[bold]Device:[/bold]      {ctx['device_type']}\n"
-            f"[bold]Terminal:[/bold]    {ctx['terminal_type']}\n"
-            f"[bold]Shell:[/bold]       {ctx['shell']} ({ctx['shell_platform']})\n"
-            f"[bold]Architecture:[/bold] {ctx['arch']}\n"
-            f"[bold]Python:[/bold]      {ctx['python_version']}\n"
-            f"[bold]WSL:[/bold]         {'✓ Available' if ctx['has_wsl'] else '✗ Not found'}\n"
-            f"[bold]SSH:[/bold]         {'✓ Remote' if ctx['is_terminal_ssh'] else 'local'}\n"
-            f"[bold]Cloud:[/bold]       {'✓ Cloud' if ctx['is_terminal_cloud'] else 'local'}\n"
-            f"[bold]Windows:[/bold]     {ctx['is_windows']}",
-            title="Platform Info",
+            f"[bold]Mode:[/bold] {self._mode}\n"
+            f"[bold]Target:[/bold] {self._session.target or '[dim]not set[/dim]'}\n"
+            f"[bold]Session:[/bold] {self._session.session_id}\n"
+            f"[bold]Messages:[/bold] {counts['messages']} (you: {counts['user_messages']}, agent: {counts['assistant_messages']})\n"
+            f"[bold]Shell:[/bold] {self._platform_ctx.get('shell_platform', 'unknown')}\n"
+            f"[bold]Intents:[/bold] {self._platform_ctx.get('available_tools_count', 0)}",
+            title="Chat Status",
             border_style="cyan",
         ))
+
+    def _cmd_session(self, _: str) -> None:
+        payload = {
+            "session_id": self._session.session_id,
+            "created_at": self._session.created_at.isoformat(),
+            "last_active": self._session.last_active.isoformat(),
+            "mode": self._session.mode,
+            "target": self._session.target,
+            "messages": len(self._session.messages),
+            "context_keys": sorted(self._session.context.keys()),
+        }
+        console.print(Panel(Syntax(json.dumps(payload, indent=2), "json"), title="Session Metadata", border_style="cyan"))
+
+    def _cmd_uptime(self, _: str) -> None:
+        delta = datetime.now() - self._session.created_at
+        seconds = int(delta.total_seconds())
+        hours, rem = divmod(seconds, 3600)
+        minutes, secs = divmod(rem, 60)
+        console.print(f"Session uptime: [cyan]{hours:02d}:{minutes:02d}:{secs:02d}[/cyan]")
+
+    def _cmd_env(self, _: str) -> None:
+        keys = [
+            "SHELL", "TERM", "COLORTERM", "TERM_PROGRAM", "TERM_PROGRAM_VERSION", "VSCODE_PID",
+            "CODESPACES", "CODESPACE_NAME", "SSH_CONNECTION", "CI", "PYTHONPATH",
+        ]
+        table = Table(title="Environment Summary (safe keys)", header_style="bold cyan")
+        table.add_column("Key", style="cyan")
+        table.add_column("Value", style="white")
+        for k in keys:
+            v = os.environ.get(k, "")
+            table.add_row(k, v if v else "[dim]not set[/dim]")
+        console.print(table)
+
+    def _cmd_intents(self, args: str) -> None:
+        filter_str = args.strip().lower()
+        intents = sorted(CROSS_PLATFORM_COMMANDS.keys())
+        if filter_str:
+            intents = [i for i in intents if filter_str in i.lower()]
+        table = Table(title=f"Command Intents ({len(intents)})", header_style="bold cyan")
+        table.add_column("Intent", style="cyan")
+        table.add_column("Shell Example", style="green")
+        current_shell = normalize_shell(self._shell).value
+        for intent in intents[:120]:
+            cmd = CROSS_PLATFORM_COMMANDS[intent].get(current_shell, CROSS_PLATFORM_COMMANDS[intent].get("bash", ""))
+            table.add_row(intent, cmd)
+        console.print(table)
+        if len(intents) > 120:
+            console.print(f"[dim]Showing 120/{len(intents)} intents. Narrow with /intents <filter>.[/dim]")
+
+    def _cmd_shells(self, _: str) -> None:
+        from .shell_knowledge import list_supported_shells
+
+        table = Table(title="Supported Shells", header_style="bold cyan")
+        table.add_column("Shell", style="cyan")
+        table.add_column("Tier", style="magenta")
+        for shell_name, tier in list_supported_shells():
+            table.add_row(shell_name, tier)
+        console.print(table)
+
+    def _cmd_search(self, args: str) -> None:
+        needle = args.strip().lower()
+        if not needle:
+            console.print("[yellow]Usage: /search <keyword>[/yellow]")
+            return
+
+        results = []
+        for msg in self._session.messages:
+            if needle in msg.content.lower():
+                results.append(msg)
+
+        if not results:
+            console.print(f"[dim]No matches for '{needle}'.[/dim]")
+            return
+
+        console.print(Rule(f"[bold]Search results for '{needle}' ({len(results)})[/bold]"))
+        for msg in results[-15:]:
+            ts = msg.timestamp.strftime("%H:%M:%S")
+            role_color = "cyan" if msg.role == "user" else "green"
+            label = "You" if msg.role == "user" else "NexSec"
+            console.print(f"[dim]{ts}[/dim] [{role_color}]{label}:[/{role_color}] {msg.content[:160]}")
+
+    def _cmd_examples(self, _: str) -> None:
+        examples = [
+            "scan 10.10.10.10 with nmap and summarize open ports",
+            "enumerate subdomains for example.com and check alive hosts",
+            "run nuclei on https://example.com with severity high,critical",
+            "find weak ssh credentials on 10.0.0.5 safely in dry-run mode",
+            "collect network connections and suspicious processes",
+        ]
+        table = Table(title="Prompt Examples", header_style="bold cyan")
+        table.add_column("#", style="dim", width=3)
+        table.add_column("Example", style="white")
+        for idx, text in enumerate(examples, 1):
+            table.add_row(str(idx), text)
+        console.print(table)
+
+    def _cmd_reset(self, _: str) -> None:
+        self._mode = "integrated"
+        self._session.mode = "integrated"
+        self._session.target = ""
+        console.print("[green]✓ Reset mode to integrated and cleared target.[/green]")
 
     def _cmd_target(self, args: str) -> None:
         if not args:

@@ -23,6 +23,7 @@ console = Console()
 # Incident Management
 # ---------------------------------------------------------------------------
 
+
 @security_app.command(name="incidents")
 def list_incidents(
     status: str | None = typer.Option(None, "--status", help="Filter: open|closed|investigating"),
@@ -90,18 +91,21 @@ def list_incidents(
 @security_app.command(name="incident")
 def get_incident(incident_id: str = typer.Argument(help="Incident ID (e.g. INC-001)")):
     """Show detailed information about a specific incident."""
+    incident_details = (
+        "[bold]Incident:[/bold]    INC-001\n"
+        "[bold]Title:[/bold]       Ransomware detected on server-01\n"
+        "[bold]Severity:[/bold]    [red]CRITICAL[/red]\n"
+        "[bold]Status:[/bold]      [yellow]Investigating[/yellow]\n"
+        "[bold]Created:[/bold]     2026-05-17 08:32:11\n"
+        "[bold]Assignee:[/bold]    IR Team\n\n"
+        "[bold]Description:[/bold]\n"
+        "Ransomware encryption activity detected on server-01. LSASS dumping\n"
+        "and lateral movement via SMB observed. C2 callback to 185.x.x.x.\n\n"
+        "[bold]Affected Assets:[/bold] server-01, file-share-02\n"
+        "[bold]MITRE TTPs:[/bold]  T1486 (Data Encrypted), T1059 (Script Interpreter)"
+    )
     console.print(Panel.fit(
-        f"[bold]Incident:[/bold]    INC-001\n"
-        f"[bold]Title:[/bold]       Ransomware detected on server-01\n"
-        f"[bold]Severity:[/bold]    [red]CRITICAL[/red]\n"
-        f"[bold]Status:[/bold]      [yellow]Investigating[/yellow]\n"
-        f"[bold]Created:[/bold]     2026-05-17 08:32:11\n"
-        f"[bold]Assignee:[/bold]    IR Team\n\n"
-        f"[bold]Description:[/bold]\n"
-        f"Ransomware encryption activity detected on server-01. LSASS dumping\n"
-        f"and lateral movement via SMB observed. C2 callback to 185.x.x.x.\n\n"
-        f"[bold]Affected Assets:[/bold] server-01, file-share-02\n"
-        f"[bold]MITRE TTPs:[/bold]  T1486 (Data Encrypted), T1059 (Script Interpreter)",
+        incident_details,
         title=f"[bold red]Incident {incident_id}[/bold red]",
         border_style="red",
     ))
@@ -121,12 +125,15 @@ def create_incident(
     """
     sev_colors = {"critical": "red", "high": "orange1", "medium": "yellow", "low": "cyan"}
     sc = sev_colors.get(severity, "white")
-    console.print(Panel.fit(
+    incident_summary = (
         f"[bold]Title:[/bold]    {title}\n"
         f"[bold]Category:[/bold] {category}\n"
         f"[bold]Severity:[/bold] [{sc}]{severity.upper()}[/{sc}]\n"
         f"[bold]Status:[/bold]   [yellow]open[/yellow]\n"
-        f"[bold]Created:[/bold]  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"[bold]Created:[/bold]  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    )
+    console.print(Panel.fit(
+        incident_summary,
         title="[green]✓ Incident Created[/green]",
         border_style="green",
     ))
@@ -227,11 +234,14 @@ def run_hunt(
     target: str = typer.Option("", "--target", "-t", help="Override target"),
 ):
     """Execute a threat hunt query against the environment."""
-    console.print(Panel(
+    hunt_summary = (
         f"[bold]Query ID:[/bold]  {query_id}\n"
         f"[bold]Target:[/bold]    {target or 'all endpoints'}\n"
         f"[bold]Status:[/bold]    [yellow]Running...[/yellow]\n"
-        f"[dim]Checking MITRE ATT&CK patterns...[/dim]",
+        "[dim]Checking MITRE ATT&CK patterns...[/dim]"
+    )
+    console.print(Panel(
+        hunt_summary,
         title="🎯 Threat Hunt",
         border_style="yellow",
     ))

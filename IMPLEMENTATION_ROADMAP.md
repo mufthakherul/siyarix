@@ -552,3 +552,16 @@ Start with retry logic this week. Measure. Deploy. Iterate.
 
 Good luck! 🚀
 
+--
+
+## TECHNICAL AUDIT ADDENDUM (Automated)
+
+**Generated:** 2026-05-17 — brief, high-impact findings and immediate priorities from an automated deep-audit.
+
+- **Top blockers:** missing PTY/interactive execution, no sandboxed tool runtime, plugin code runs in-process (no isolation), no vector DB or long-term memory store, no distributed task queue/agent comms.
+- **Immediate priorities (Critical):** implement PTY-backed executor, containerized/sandboxed execution for untrusted tools/plugins, remove insecure credential fallback, add circuit-breaker for model providers, and integrate a persistent vector store for memory.
+- **Short-term wins (High):** add pybreaker, tenacity or use existing retry logic uniformly, harden `PluginManager` to load plugins in subprocess or container, add audit logging for plugin loads and tool executions, redact secrets in logs.
+- **Tests & CI:** add integration tests that exercise resume, parallel groups, model fallback, and sandboxed execution; run on CI with resource limits.
+
+For full audit details and prioritized roadmap, see the repository and the attached automated audit report delivered by the developer assistant.
+

@@ -98,11 +98,12 @@ class Credential:
 class CredentialStore:
     """Enterprise credential vault"""
 
-    _CONFIG_DIR = Path(os.getenv("NEXSEC_CONFIG_DIR", str(Path.home() / ".nexsec")))
-    _CREDS_FILE = _CONFIG_DIR / "credentials.enc"
-    _KEY_FILE = _CONFIG_DIR / ".vault_key"
+    _DEFAULT_CONFIG_DIR = Path.home() / ".nexsec"
 
     def __init__(self, master_password: str | None = None):
+        self._config_dir = Path(os.getenv("NEXSEC_CONFIG_DIR", str(self._DEFAULT_CONFIG_DIR)))
+        self._creds_file = self._config_dir / "credentials.enc"
+        self._key_file = self._config_dir / ".vault_key"
         self._credentials: dict[str, Credential] = {}
         self._master_key: bytes | None = None
         self._fernet: Fernet | None = None
@@ -143,28 +144,52 @@ class CredentialStore:
 
         password = password or os.getenv("NEXSEC_MASTER_PASSWORD")
 
-        # Load or generate key
-        if self._KEY_FILE.exists():
-            self._master_key = self._KEY_FILE.read_bytes()
+        # Load or generate key.
+        if self._key_file.exists():
+            key_material = self._key_file.read_bytes()
+            try:
+                key = self._normalize_fernet_key(key_material)
+            except ValueError:
+                logger.warning("Invalid vault key detected; regenerating a new key")
+                key = self._generate_fernet_key(password)
         else:
-            if not password:
-                # Fallback for testing: in a real environment this should indeed raise.
-                self._master_key = b"insecure_fallback_key_123456789012"
-            else:
-                # Derive key from password
-                salt = os.urandom(16)
-                kdf = PBKDF2HMAC(
-                    algorithm=hashes.SHA256(),
-                    length=32,
-                    salt=salt,
-                    iterations=100000,
-                )
-                self._master_key = kdf.derive(password.encode())
-                self._CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-                self._KEY_FILE.write_bytes(self._master_key)
+            key = self._generate_fernet_key(password)
 
-        key = base64.urlsafe_b64encode(self._master_key)
         self._fernet = Fernet(key)
+
+    def _generate_fernet_key(self, password: str | None) -> bytes:
+        """Create a valid Fernet key and persist the raw material."""
+        if password:
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=os.urandom(16),
+                iterations=100000,
+            )
+            raw_key = kdf.derive(password.encode())
+        else:
+            # Keep startup working in local/dev environments when no password is configured.
+            raw_key = os.urandom(32)
+
+        self._config_dir.mkdir(parents=True, exist_ok=True)
+        self._key_file.write_bytes(raw_key)
+        return base64.urlsafe_b64encode(raw_key)
+
+    @staticmethod
+    def _normalize_fernet_key(key_material: bytes) -> bytes:
+        """Accept either raw 32-byte key material or a stored Fernet key."""
+        if len(key_material) == 32:
+            return base64.urlsafe_b64encode(key_material)
+
+        try:
+            decoded = base64.urlsafe_b64decode(key_material)
+        except Exception as exc:
+            raise ValueError("unsupported key format") from exc
+
+        if len(decoded) == 32:
+            return key_material
+
+        raise ValueError("unsupported key length")
 
     def _encrypt(self, data: str) -> str:
         """Encrypt data"""
@@ -180,11 +205,11 @@ class CredentialStore:
 
     def _load(self):
         """Load credentials from disk"""
-        if not self._CREDS_FILE.exists():
+        if not self._creds_file.exists():
             return
 
         try:
-            encrypted_data = self._CREDS_FILE.read_text()
+            encrypted_data = self._creds_file.read_text()
             if not encrypted_data.strip():
                 return
             decrypted = self._decrypt(encrypted_data)
@@ -213,7 +238,7 @@ class CredentialStore:
         """Save credentials to disk"""
         data = [c.to_dict() for c in self._credentials.values()]
         encrypted = self._encrypt(json.dumps(data))
-        self._CREDS_FILE.write_text(encrypted)
+        self._creds_file.write_text(encrypted)
 
     def store(
         self,

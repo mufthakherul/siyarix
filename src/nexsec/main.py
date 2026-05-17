@@ -25,6 +25,7 @@ import csv
 import json
 import os
 import platform
+import shutil
 import sys
 import time
 from datetime import datetime
@@ -62,6 +63,7 @@ from .shell_knowledge import (
     list_supported_shells,
 )
 from .tool_registry import ToolRegistry
+from .command_profiles import CommandProfileStore, CommandProfile
 
 # ---------------------------------------------------------------------------
 # Initialize core systems
@@ -161,6 +163,106 @@ app.add_typer(auth_app, name="auth")
 profile_app = typer.Typer(help="👤 Profile & workspace management")
 app.add_typer(profile_app, name="profile")
 
+
+@app.command()
+def palette():
+    """Open an interactive command palette (uses prompt_toolkit if installed)."""
+    try:
+        from prompt_toolkit import prompt as ptk_prompt
+        from prompt_toolkit.completion import WordCompleter
+        PTK = True
+    except Exception:
+        PTK = False
+
+    store = CommandProfileStore()
+    intents = sorted(CROSS_PLATFORM_COMMANDS.keys())
+    options = [f"intent: {i}" for i in intents]
+    saved = store.list()
+    options += [f"saved: {p.name} -> {p.command}" for p in saved]
+
+    if PTK:
+        completer = WordCompleter(options, ignore_case=True)
+        choice = ptk_prompt("Select or search: ", completer=completer).strip()
+    else:
+        for i, o in enumerate(options[:200], 1):
+            console.print(f"{i}. {o}")
+        sel = Prompt.ask("Select # or type text to filter", default="").strip()
+        if sel.isdigit():
+            idx = int(sel) - 1
+            if 0 <= idx < len(options):
+                choice = options[idx]
+            else:
+                console.print("[red]Invalid selection[/red]")
+                return
+        else:
+            # simple filter
+            matches = [o for o in options if sel.lower() in o.lower()]
+            if not matches:
+                console.print("[dim]No matches[/dim]")
+                return
+            choice = matches[0]
+
+    console.print(f"Selected: {choice}")
+
+
+@app.command()
+def render_cmd(name: str = typer.Argument(..., help="Saved command profile name"), kv: list[str] = typer.Argument(None)) -> None:
+    """Render a saved command profile using provided key=value pairs.
+
+    Example: nexsec render-cmd quick-nmap target=10.0.0.1 flags='-Pn'
+    """
+    store = CommandProfileStore()
+    p = store.get(name)
+    if not p:
+        console.print(f"[red]Profile not found: {name}[/red]")
+        raise typer.Exit(1)
+
+    params: dict[str, str] = {}
+    for item in kv or []:
+        if "=" in item:
+            k, v = item.split("=", 1)
+            params[k] = v
+
+    rendered = store.render(p.command, params)
+    console.print(Panel.fit(rendered, title=f"Rendered: {name}", border_style="cyan"))
+
+
+@profile_app.command("save-cmd")
+def profile_save_cmd(name: str = typer.Argument(..., help="Profile name"), command: str = typer.Argument(..., help="Command to save")) -> None:
+    """Save a reusable command profile."""
+    store = CommandProfileStore()
+    p = CommandProfile(name=name, command=command)
+    store.save(p)
+    console.print(f"[green]✓ Saved command profile: {name}[/green]")
+
+
+@profile_app.command("list-cmds")
+def profile_list_cmds() -> None:
+    """List saved command profiles."""
+    store = CommandProfileStore()
+    rows = store.list()
+    if not rows:
+        console.print("[dim]No saved command profiles.[/dim]")
+        return
+    table = Table(title="Saved Command Profiles", header_style="bold cyan")
+    table.add_column("Name", style="cyan")
+    table.add_column("Command", style="white")
+    table.add_column("Created", style="dim")
+    for p in rows:
+        table.add_row(p.name, p.command, p.created_at or "")
+    console.print(table)
+
+
+@profile_app.command("rm-cmd")
+def profile_rm_cmd(name: str = typer.Argument(..., help="Profile name to remove")) -> None:
+    """Remove a saved command profile."""
+    store = CommandProfileStore()
+    ok = store.delete(name)
+    if ok:
+        console.print(f"[green]✓ Removed {name}[/green]")
+    else:
+        console.print(f"[red]Profile not found: {name}[/red]")
+
 audit_app = typer.Typer(help="📋 Audit trail & compliance logs")
 app.add_typer(audit_app, name="audit")
 
@@ -184,6 +286,29 @@ app.add_typer(plugin_app, name="plugin")
 
 theme_app = typer.Typer(help="🎨 Theme customization")
 app.add_typer(theme_app, name="theme")
+
+
+@theme_app.command("list")
+def theme_list() -> None:
+    """List available color themes."""
+    themes = available_themes()
+    table = Table(title="Available Themes", header_style="bold cyan")
+    table.add_column("Theme", style="cyan")
+    for t in themes:
+        table.add_row(t)
+    console.print(table)
+
+
+@theme_app.command("set")
+def theme_set(name: str = typer.Argument(..., help="Theme name to set")) -> None:
+    """Set the default color theme in configuration."""
+    cname = print_banner and name
+    try:
+        # Use config store
+        config.set("color_theme", name)
+        console.print(f"[green]✓ Theme set to: {name}[/green]")
+    except Exception as exc:
+        console.print(f"[red]Failed to set theme: {exc}[/red]")
 
 workflow_app = typer.Typer(help="⚙️ Workflow orchestration")
 app.add_typer(workflow_app, name="workflow")
@@ -258,25 +383,141 @@ def chat(
 # ---------------------------------------------------------------------------
 
 @shell_app.command("platform")
-def shell_platform():
-    """Show current platform and detected shell information."""
+def shell_platform(
+    as_json: bool = typer.Option(False, "--json", help="Print raw platform context as JSON"),
+    compact: bool = typer.Option(False, "--compact", help="Show compact summary output"),
+):
+    """Show current platform, device, runtime, and terminal diagnostics."""
     ctx = build_platform_context()
-    console.print(Panel.fit(
-        f"[bold]Platform:[/bold]    {ctx['platform']} {platform.release()}\n"
-        f"[bold]Device:[/bold]      {ctx['device_type']}\n"
-        f"[bold]Terminal:[/bold]    {ctx['terminal_type']}\n"
-        f"[bold]Shell:[/bold]       {ctx['shell']} ({ctx['shell_platform']})\n"
-        f"[bold]Architecture:[/bold] {ctx['arch']}\n"
-        f"[bold]Python:[/bold]      {ctx['python_version']}\n"
-        f"[bold]WSL:[/bold]         {'[green]✓ Available[/green]' if ctx['has_wsl'] else '[red]✗ Not found[/red]'}\n"
-        f"[bold]SSH:[/bold]         {'[green]✓ Remote[/green]' if ctx['is_terminal_ssh'] else '[dim]local[/dim]'}\n"
-        f"[bold]Cloud:[/bold]       {'[green]✓ Cloud[/green]' if ctx['is_terminal_cloud'] else '[dim]local[/dim]'}\n"
-        f"[bold]Windows:[/bold]     {ctx['is_windows']}\n"
-        f"[bold]Linux:[/bold]       {ctx['is_linux']}\n"
-        f"[bold]macOS:[/bold]       {ctx['is_macos']}",
-        title="[bold]Platform & Shell Info[/bold]",
-        border_style="cyan",
-    ))
+
+    if as_json:
+        console.print(json.dumps(ctx, indent=2))
+        return
+
+    if compact:
+        console.print(Panel.fit(
+            f"[bold]Platform:[/bold] {ctx.get('platform_pretty', '')}\n"
+            f"[bold]Terminal:[/bold] {ctx.get('terminal_type', '')} | [bold]Shell:[/bold] {ctx.get('shell_platform', '')}\n"
+            f"[bold]Python:[/bold] {ctx.get('python_version', '')} | [bold]CPU:[/bold] {ctx.get('cpu_count', '')}\n"
+            f"[bold]Container:[/bold] {ctx.get('is_container', False)} ({ctx.get('container_runtime', 'none')})",
+            title="[bold]Platform Summary[/bold]",
+            border_style="cyan",
+        ))
+        return
+
+    table = Table(title="Platform & Runtime Diagnostics", header_style="bold cyan")
+    table.add_column("Category", style="magenta", no_wrap=True)
+    table.add_column("Key", style="cyan", no_wrap=True)
+    table.add_column("Value", style="white")
+
+    rows = [
+        ("OS", "platform", ctx.get("platform_pretty", "")),
+        ("OS", "kernel_release", ctx.get("platform_release", "")),
+        ("OS", "platform_full", ctx.get("platform_full", "")),
+        ("OS", "architecture", ctx.get("arch", "")),
+        ("Device", "hostname", ctx.get("hostname", "")),
+        ("Device", "username", ctx.get("username", "")),
+        ("Device", "cwd", ctx.get("cwd", "")),
+        ("Terminal", "type", ctx.get("terminal_type", "")),
+        ("Terminal", "program", ctx.get("term_program", "") or "unknown"),
+        ("Terminal", "term", ctx.get("term", "") or "unknown"),
+        ("Terminal", "shell", f"{ctx.get('shell', '')} ({ctx.get('shell_platform', '')})"),
+        ("Terminal", "shell_executable", ctx.get("shell_executable", "") or "unknown"),
+        ("Runtime", "python", ctx.get("python_version", "")),
+        ("Runtime", "cpu_count", str(ctx.get("cpu_count", ""))),
+        ("Runtime", "memory_total_mb", str(ctx.get("memory_total_mb", "unknown"))),
+        (
+            "Runtime",
+            "load_avg",
+            f"{ctx.get('load_avg_1m', 'n/a')} / {ctx.get('load_avg_5m', 'n/a')} / {ctx.get('load_avg_15m', 'n/a')}",
+        ),
+        ("Flags", "container", f"{ctx.get('is_container', False)} ({ctx.get('container_runtime', 'none')})"),
+        ("Flags", "codespaces", str(ctx.get("is_codespaces", False))),
+        ("Flags", "ssh", str(ctx.get("is_terminal_ssh", False))),
+        ("Flags", "cloud", str(ctx.get("is_terminal_cloud", False))),
+        ("Flags", "wsl_available", str(ctx.get("has_wsl", False))),
+        ("NexSec", "available_intents", str(ctx.get("available_tools_count", 0))),
+    ]
+
+    for category, key, value in rows:
+        table.add_row(category, key, str(value))
+    console.print(table)
+
+
+@shell_app.command("doctor")
+def shell_doctor() -> None:
+    """Run shell environment diagnostics for a quick readiness report."""
+    ctx = build_platform_context()
+    checks = [
+        ("Python", "python", shutil.which("python") or shutil.which("python3")),
+        ("Git", "git", shutil.which("git")),
+        ("Nmap", "nmap", shutil.which("nmap")),
+        ("Nuclei", "nuclei", shutil.which("nuclei")),
+        ("Docker", "docker", shutil.which("docker")),
+        ("Kubectl", "kubectl", shutil.which("kubectl")),
+    ]
+
+    table = Table(title="Shell Doctor", header_style="bold cyan")
+    table.add_column("Check", style="cyan", no_wrap=True)
+    table.add_column("Status", style="white", no_wrap=True)
+    table.add_column("Detail", style="dim")
+
+    for label, command, path in checks:
+        status = "[green]OK[/green]" if path else "[yellow]Missing[/yellow]"
+        table.add_row(label, status, path or f"{command} not found in PATH")
+
+    console.print(table)
+    console.print(
+        f"[dim]Platform: {ctx.get('platform_pretty', '')} | Shell: {ctx.get('shell_platform', '')} | Terminal: {ctx.get('terminal_type', '')}[/dim]"
+    )
+
+
+@shell_app.command("report")
+def shell_report(
+    output: str = typer.Option("table", "--output", "-o", help="Output format: table|json"),
+) -> None:
+    """Generate a shell capability report (intents, shell support, and platform)."""
+    intents_total = len(CROSS_PLATFORM_COMMANDS)
+    shells_total = len(list_supported_shells())
+    platform_ctx = build_platform_context()
+    categories: dict[str, int] = {}
+    for meta in INTENT_METADATA.values():
+        category = meta.get("category", "other")
+        categories[category] = categories.get(category, 0) + 1
+
+    payload = {
+        "intents_total": intents_total,
+        "shells_total": shells_total,
+        "categories": dict(sorted(categories.items())),
+        "platform": {
+            "platform": platform_ctx.get("platform_pretty"),
+            "shell": platform_ctx.get("shell_platform"),
+            "terminal_type": platform_ctx.get("terminal_type"),
+            "python_version": platform_ctx.get("python_version"),
+        },
+    }
+
+    if output == "json":
+        console.print(json.dumps(payload, indent=2))
+        return
+
+    table = Table(title="Shell Capability Report", header_style="bold cyan")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="white")
+    table.add_row("Intents", str(payload["intents_total"]))
+    table.add_row("Supported Shells", str(payload["shells_total"]))
+    table.add_row("Platform", str(payload["platform"]["platform"]))
+    table.add_row("Shell", str(payload["platform"]["shell"]))
+    table.add_row("Terminal Type", str(payload["platform"]["terminal_type"]))
+    table.add_row("Python", str(payload["platform"]["python_version"]))
+    console.print(table)
+
+    ctable = Table(title="Intent Categories", header_style="bold magenta")
+    ctable.add_column("Category", style="magenta")
+    ctable.add_column("Intents", style="cyan")
+    for category, count in payload["categories"].items():
+        ctable.add_row(category, str(count))
+    console.print(ctable)
 
 
 @shell_app.command("translate")

@@ -194,11 +194,11 @@ jobs:
           persist-credentials: false
 
       - name: Run Scorecard analysis
-        uses: ossf/scorecard-action@v2.4.0
+        uses: ossf/scorecard-action@v2.4.3
         with:
-          results-file: scorecard-results.json
-          results-format: json
-          publish-results: true
+          results_file: scorecard-results.json
+          results_format: json
+          publish_results: true
 
       - name: Upload scorecard results
         uses: actions/upload-artifact@v4
@@ -207,10 +207,10 @@ jobs:
           path: scorecard-results.json
 
       - name: Publish Scorecard badge
-        uses: ossf/scorecard-action@v2.4.0
+        uses: ossf/scorecard-action@v2.4.3
         with:
-          results-file: scorecard-results.json
-          publish-results: true
+          results_file: scorecard-results.json
+          publish_results: true
 
   dependency-updates-check:
     name: Check for Dependency Updates

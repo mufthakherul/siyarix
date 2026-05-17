@@ -6,7 +6,7 @@ description-content-type = "text/markdown"
 readme = "README.md"
 authors = [ { name = "MD MUFTHAKHERUL ISLAM MIRAZ", email = "130831166+mufthakherul@users.noreply.github.com" } ]
 requires-python = ">=3.11"
-urls = { "Homepage" = "https://github.com/CosmicSec-Lab/siyarix", "Repository" = "https://github.com/CosmicSec-Lab/siyarix" }
+urls = { "Homepage" = "https://github.com/mufthakherul/siyarix", "Repository" = "https://github.com/mufthakherul/siyarix.git" }
 license = { text = "MIT" }
 keywords = ["cybersecurity", "agent", "nmap", "scanner", "autonomous", "integrated", "security"]
 classifiers = [
@@ -39,6 +39,10 @@ all = [
   "openai>=2.31.0",
   "pyyaml>=6.0",
   "maturin>=1.7",
+]
+cli = [
+  "prompt_toolkit>=3.0",
+  "jinja2>=3.0",
 ]
 
 [project.scripts]

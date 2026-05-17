@@ -1,0 +1,89 @@
+# .graphifyignore
+# Exclude folders and files from being scanned/ingested by Graphify.
+# Syntactically identical to a standard .gitignore.
+
+# --- Dependencies & Build Output ---
+node_modules/
+dist/
+build/
+develop-eggs/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+*.egg
+MANIFEST
+target/
+Cargo.lock
+
+# --- Virtual Environments ---
+.venv/
+venv/
+env/
+
+# --- Testing, Coverage & Cache ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.pyre/
+.ruff_cache/
+
+# --- Generated Code ---
+*.generated.py
+
+# --- IDE & Editor Metadata ---
+.vscode/
+.idea/
+.claude/
+.opencode/
+.copilot/
+.agents/
+.gemini/
+.github/copilot-instructions.md
+GEMINI.md
+uv.lock
+
+# --- Graphify Internal Output ---
+graphify-out/
+
+# --- OS Specific Files ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# --- Secrets & Configurations ---
+.env
+.env.*
+!.env.example
+
+# --- Logs & Performance ---
+*.log
+logs/
+
+# --- Security Scan & Quality Artifacts ---
+bandit-*.json
+safety-report.json
+analysis-reports/
+quality-report.md
+
+# --- Miscellaneous ---
+.fix-counter.txt
+.enhancement-counter.txt
+enhancements.json
+.github_disabled/

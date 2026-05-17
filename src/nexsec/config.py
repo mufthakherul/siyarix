@@ -35,6 +35,8 @@ DEFAULTS: dict[str, Any] = {
     "tls_verify": True,
     "history_retention_days": 90,
     "model_provider": "auto",
+    "ollama_url": "http://localhost:11434",
+    "ollama_model": "llama3.1",
     "notifications_enabled": True,
 }
 
@@ -56,6 +58,8 @@ DESCRIPTIONS: dict[str, str] = {
     "tls_verify": "Verify TLS certificates on HTTPS requests",
     "history_retention_days": "Days to keep scan history (0 = forever)",
     "model_provider": "Preferred model provider: auto | openai | ollama",
+    "ollama_url": "Ollama server URL (default: http://localhost:11434)",
+    "ollama_model": "Ollama model name (default: llama3.1)",
     "notifications_enabled": "Show Rich panel notifications for key events",
 }
 
@@ -174,7 +178,9 @@ class SettingsStore:
     def edit(self) -> None:
         """Open settings file in $EDITOR."""
         self._save()  # ensure file exists
-        editor = os.getenv("EDITOR", "nano")
+        import platform as _platform
+        default_editor = "notepad" if _platform.system().lower() == "windows" else "nano"
+        editor = os.getenv("EDITOR", default_editor)
         subprocess.call([editor, str(self._path)])
         # Reload after editing
         self._data = {**DEFAULTS, **_try_load_toml(self._path)}

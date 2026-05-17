@@ -81,7 +81,29 @@ jobs:
 
   dependency-scanning:
     name: Dependency Vulnerability Scan
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v1
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Create requirements files for scanning
+        run: |
+          pip freeze > requirements.lock
+          pip install -e . > /dev/null 2>&1 || true
+
+      - name: Run OSV Scanner
+        uses: google/osv-scanner-action@v2.3.8
+        with:
+          scan-args: |
+            --lockfile=requirements.lock
 
   secrets-scanning:
     name: Secrets Detection

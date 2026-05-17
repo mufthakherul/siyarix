@@ -53,6 +53,7 @@ Cargo.lock
 GEMINI.md
 uv.lock
 graphify-out/
+.graphifyignore
 *.swp
 *.swo
 *~
@@ -82,3 +83,47 @@ quality-report.md
 enhancements.json
 .github_desabled/
 
+# Other
+out/
+test-results/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Miscellaneous
+*.bak
+*.orig
+.cache/
+.npm/
+.yarn/
+.pnp.*
+.pnp.js
+
+# Node.js / JavaScript
+.node_modules/
+node_modules/
+dist/
+build/
+coverage/
+.next/
+.nuxt/
+.svelte-kit/
+.vite/
+
+# Rust
+target/
+Cargo.lock
+Cargo.toml
+
+# Go
+bin/
+pkg/
+
+# Java / Kotlin / Scala
+out/
+build/
+.gradle/
+.kotlin/
+.scala/

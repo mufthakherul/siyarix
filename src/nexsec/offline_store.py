@@ -36,6 +36,35 @@ CREATE TABLE IF NOT EXISTS findings (
 )
 """
 
+_CREATE_EXECUTION_PLANS = """
+CREATE TABLE IF NOT EXISTS execution_plans (
+    id TEXT PRIMARY KEY,
+    instruction TEXT NOT NULL,
+    plan_json TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    completed_at TEXT
+)
+"""
+
+_CREATE_STEP_EXECUTIONS = """
+CREATE TABLE IF NOT EXISTS step_executions (
+    plan_id TEXT NOT NULL REFERENCES execution_plans(id),
+    step_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    output TEXT,
+    error TEXT,
+    findings_json TEXT,
+    duration_ms REAL,
+    retry_count INTEGER DEFAULT 0,
+    exit_code INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (plan_id, step_id)
+)
+"""
+
 _CREATE_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_findings_synced ON findings(synced)",
     "CREATE INDEX IF NOT EXISTS idx_findings_scan_id ON findings(scan_id)",
@@ -43,6 +72,10 @@ _CREATE_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_findings_tool ON findings(tool)",
     "CREATE INDEX IF NOT EXISTS idx_scans_created_at ON scans(created_at)",
     "CREATE INDEX IF NOT EXISTS idx_scans_tool ON scans(tool)",
+    "CREATE INDEX IF NOT EXISTS idx_execution_plans_status ON execution_plans(status)",
+    "CREATE INDEX IF NOT EXISTS idx_execution_plans_created_at ON execution_plans(created_at)",
+    "CREATE INDEX IF NOT EXISTS idx_step_exec_plan_id ON step_executions(plan_id)",
+    "CREATE INDEX IF NOT EXISTS idx_step_exec_status ON step_executions(status)",
 ]
 
 
@@ -77,6 +110,8 @@ class OfflineStore:
             conn.execute("PRAGMA synchronous=NORMAL")
             conn.execute(_CREATE_SCANS)
             conn.execute(_CREATE_FINDINGS)
+            conn.execute(_CREATE_EXECUTION_PLANS)
+            conn.execute(_CREATE_STEP_EXECUTIONS)
             for statement in _CREATE_INDEXES:
                 conn.execute(statement)
             conn.commit()
@@ -168,6 +203,126 @@ class OfflineStore:
             writer.writeheader()
             for row in rows:
                 writer.writerow(dict(row))
+
+    # ------------------------------------------------------------------
+    # Workflow persistence (execution plans and steps)
+    # ------------------------------------------------------------------
+
+    def save_plan(self, plan_id: str, instruction: str, plan_json: str, status: str = "planned") -> None:
+        """Persist a new execution plan."""
+        from datetime import datetime
+
+        now = datetime.now(tz=UTC).isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                (
+                    "INSERT INTO execution_plans (id, instruction, plan_json, status, created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?) "
+                    "ON CONFLICT(id) DO UPDATE SET "
+                    "instruction=excluded.instruction, plan_json=excluded.plan_json, "
+                    "status=excluded.status, updated_at=excluded.updated_at"
+                ),
+                (plan_id, instruction, plan_json, status, now, now),
+            )
+            conn.commit()
+
+    def update_plan_status(self, plan_id: str, status: str, completed: bool = False) -> None:
+        """Update plan status and completion timestamp."""
+        from datetime import datetime
+
+        now = datetime.now(tz=UTC).isoformat()
+        completed_at = now if completed else None
+        with self._connect() as conn:
+            conn.execute(
+                (
+                    "UPDATE execution_plans SET status=?, updated_at=?, completed_at=? "
+                    "WHERE id=?"
+                ),
+                (status, now, completed_at, plan_id),
+            )
+            conn.commit()
+
+    def upsert_step_execution(
+        self,
+        plan_id: str,
+        step_id: str,
+        status: str,
+        output: str = "",
+        error: str = "",
+        findings: list[dict] | None = None,
+        duration_ms: float | None = None,
+        retry_count: int = 0,
+        exit_code: int | None = None,
+    ) -> None:
+        """Insert or update a step execution record."""
+        from datetime import datetime
+
+        now = datetime.now(tz=UTC).isoformat()
+        findings_json = json.dumps(findings or [])
+        with self._connect() as conn:
+            conn.execute(
+                (
+                    "INSERT INTO step_executions "
+                    "(plan_id, step_id, status, output, error, findings_json, duration_ms, retry_count, exit_code, "
+                    "created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                    "ON CONFLICT(plan_id, step_id) DO UPDATE SET "
+                    "status=excluded.status, output=excluded.output, error=excluded.error, "
+                    "findings_json=excluded.findings_json, duration_ms=excluded.duration_ms, "
+                    "retry_count=excluded.retry_count, exit_code=excluded.exit_code, updated_at=excluded.updated_at"
+                ),
+                (
+                    plan_id,
+                    step_id,
+                    status,
+                    output,
+                    error,
+                    findings_json,
+                    duration_ms,
+                    retry_count,
+                    exit_code,
+                    now,
+                    now,
+                ),
+            )
+            conn.commit()
+
+    def get_plan(self, plan_id: str) -> dict | None:
+        """Fetch a plan and its steps by ID."""
+        with self._connect() as conn:
+            plan_row = conn.execute(
+                "SELECT * FROM execution_plans WHERE id=?", (plan_id,)
+            ).fetchone()
+            if not plan_row:
+                return None
+            step_rows = conn.execute(
+                "SELECT * FROM step_executions WHERE plan_id=? ORDER BY step_id", (plan_id,)
+            ).fetchall()
+
+        plan = dict(plan_row)
+        plan["steps"] = [dict(r) for r in step_rows]
+        return plan
+
+    def list_plans(self, limit: int = 20, status: str | None = None) -> list[dict]:
+        """List recent plans with optional status filter."""
+        params: list = []
+        where = ""
+        if status:
+            where = "WHERE status = ?"
+            params.append(status)
+        params.append(limit)
+        sql = f"SELECT * FROM execution_plans {where} ORDER BY created_at DESC LIMIT ?"  # nosec B608
+        with self._connect() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_latest_plan_id(self) -> str | None:
+        """Return the most recent plan ID or None."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM execution_plans ORDER BY created_at DESC LIMIT 1"
+            ).fetchone()
+        return row["id"] if row else None
 
     # ------------------------------------------------------------------
     # CA-2.3 — History & search extensions

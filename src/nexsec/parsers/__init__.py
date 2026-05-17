@@ -1,14 +1,31 @@
-from .burpsuite_parser import BurpsuiteParser
-from .ffuf_parser import FfufParser
-from .gobuster_parser import GobusterParser
-from .hashcat_parser import HashcatParser
-from .hydra_parser import HydraParser
-from .john_parser import JohnParser
-from .masscan_parser import MasscanParser
-from .metasploit_parser import MetasploitParser
-from .nikto_parser import NiktoParser
-from .nmap_parser import NmapParser
-from .nuclei_parser import NucleiParser
-from .sqlmap_parser import SqlmapParser
-from .wpscan_parser import WpscanParser
-from .zaproxy_parser import ZaproxyParser
+from .burpsuite_parser import BurpsuiteParser  # noqa: F401
+from .ffuf_parser import FfufParser  # noqa: F401
+from .gobuster_parser import GobusterParser  # noqa: F401
+from .hashcat_parser import HashcatParser  # noqa: F401
+from .hydra_parser import HydraParser  # noqa: F401
+from .john_parser import JohnParser  # noqa: F401
+from .masscan_parser import MasscanParser  # noqa: F401
+from .metasploit_parser import MetasploitParser  # noqa: F401
+from .nikto_parser import NiktoParser  # noqa: F401
+from .nmap_parser import NmapParser  # noqa: F401
+from .nuclei_parser import NucleiParser  # noqa: F401
+from .sqlmap_parser import SqlmapParser  # noqa: F401
+from .wpscan_parser import WpscanParser  # noqa: F401
+from .zaproxy_parser import ZaproxyParser  # noqa: F401
+
+__all__ = [
+    "BurpsuiteParser",
+    "FfufParser",
+    "GobusterParser",
+    "HashcatParser",
+    "HydraParser",
+    "JohnParser",
+    "MasscanParser",
+    "MetasploitParser",
+    "NiktoParser",
+    "NmapParser",
+    "NucleiParser",
+    "SqlmapParser",
+    "WpscanParser",
+    "ZaproxyParser",
+]

@@ -75,8 +75,8 @@ jobs:
           fail-on-severity: high
           allow-licenses: Apache-2.0, MIT, BSD-3-Clause, BSD-2-Clause, ISC, CC0-1.0, Unlicense
           deny-packages: |
-            pytest-timeout>2.0.0
-            cryptography<42.0.0
+            pkg:pypi/pytest-timeout
+            pkg:pypi/cryptography
 
   dependency-scanning:
     name: Dependency Vulnerability Scan
@@ -99,7 +99,7 @@ jobs:
           pip install -e . > /dev/null 2>&1 || true
 
       - name: Run OSV Scanner
-        uses: osv-scanner/action@v2
+        uses: google/osv-scanner-action/github-action@v2
         with:
           lockfile: 'requirements.lock'
           output: sarif
@@ -123,21 +123,13 @@ jobs:
       - name: Run TruffleHog
         uses: trufflesecurity/trufflehog@main
         with:
-          args: 'file://./ --regex --entropy=False --no-verification'
+          path: './'
+          extra_args: '--regex --entropy=False --no-verification'
 
       - name: Run GitLeaks
         uses: gitleaks/gitleaks-action@v2
-        with:
-          config-path: .gitleaks.toml
-          report-format: json
-          output: gitleaks-report.json
-
-      - name: Upload secrets report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: secrets-report
-          path: gitleaks-report.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   bandit-scan:
     name: Bandit Security Scan
@@ -220,7 +212,7 @@ jobs:
           path: scorecard-results.json
 
       - name: Publish Scorecard badge
-        uses: oscossf/scorecard-action@v2
+        uses: ossf/scorecard-action@v2
         with:
           results-file: scorecard-results.json
           publish-results: true

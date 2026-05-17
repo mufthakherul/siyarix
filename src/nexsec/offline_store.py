@@ -141,7 +141,7 @@ class OfflineStore:
         placeholders = ",".join("?" for _ in finding_ids)
         with self._connect() as conn:
             conn.execute(
-                f"UPDATE findings SET synced = 1 WHERE id IN ({placeholders})",
+                f"UPDATE findings SET synced = 1 WHERE id IN ({placeholders})",  # nosec B608
                 finding_ids,
             )
             conn.commit()
@@ -193,7 +193,7 @@ class OfflineStore:
             conditions.append("target LIKE ?")
             params.append(f"%{target}%")
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-        sql = f"SELECT * FROM scans {where} ORDER BY created_at DESC LIMIT ?"
+        sql = f"SELECT * FROM scans {where} ORDER BY created_at DESC LIMIT ?"  # nosec B608
         params.append(limit)
         with self._connect() as conn:
             rows = conn.execute(sql, params).fetchall()
@@ -204,7 +204,7 @@ class OfflineStore:
             counts_rows = conn.execute(
                 (
                     "SELECT scan_id, severity, COUNT(*) AS cnt FROM findings "
-                    f"WHERE scan_id IN ({placeholders}) GROUP BY scan_id, severity"
+                    f"WHERE scan_id IN ({placeholders}) GROUP BY scan_id, severity"  # nosec B608
                 ),
                 scan_ids,
             ).fetchall()
@@ -254,7 +254,7 @@ class OfflineStore:
             conditions.append("(title LIKE ? OR description LIKE ? OR evidence LIKE ?)")
             params.extend([f"%{search}%", f"%{search}%", f"%{search}%"])
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-        sql = f"SELECT * FROM findings {where} ORDER BY timestamp DESC LIMIT ?"
+        sql = f"SELECT * FROM findings {where} ORDER BY timestamp DESC LIMIT ?"  # nosec B608
         params.append(limit)
         with self._connect() as conn:
             rows = conn.execute(sql, params).fetchall()

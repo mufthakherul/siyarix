@@ -1,8 +1,8 @@
 """Command interpreter — classifies natural language instructions into structured tasks.
 
 Provides heuristic-based rule interpretation for the execution engine.
-The interpreter handles common security patterns without requiring a 
-language model, while also supporting task classification for 
+The interpreter handles common security patterns without requiring a
+language model, while also supporting task classification for
 autonomous execution.
 """
 
@@ -12,6 +12,7 @@ import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
+
 
 class TaskCategory(StrEnum):
     """High-level categories for interpreted tasks."""
@@ -28,6 +29,7 @@ class TaskCategory(StrEnum):
     WORKFLOW = "workflow"
     CUSTOM = "custom"
     UNKNOWN = "unknown"
+
 
 @dataclass
 class InterpretedTask:
@@ -58,6 +60,7 @@ class InterpretedTask:
 # ---------------------------------------------------------------------------
 # Pattern definitions for heuristic-based interpretation
 # ---------------------------------------------------------------------------
+
 
 _TARGET_PATTERN = re.compile(
     r"""
@@ -142,6 +145,18 @@ _TOOL_ALIASES: dict[str, str] = {
     "browser test": "playwright",
     "pytest": "pytest",
     "unit test": "pytest",
+    # Infra / Cloud
+    "kubectl": "kubectl",
+    "kubernetes": "kubectl",
+    "helm": "helm",
+    "terraform": "terraform",
+    "ansible": "ansible",
+    "docker": "docker",
+    "podman": "podman",
+    "aws": "aws",
+    "azure": "az",
+    "az": "az",
+    "gcloud": "gcloud",
 }
 
 _SCAN_KEYWORDS = {
@@ -220,6 +235,35 @@ _MONITOR_KEYWORDS = {
     "real-time",
 }
 
+_CLOUD_KEYWORDS = {
+    "cloud",
+    "aws",
+    "azure",
+    "gcp",
+    "kubernetes",
+    "cluster",
+    "terraform",
+    "ansible",
+    "helm",
+}
+
+_COMPLIANCE_KEYWORDS = {
+    "compliance",
+    "audit",
+    "policy",
+    "baseline",
+    "cis",
+    "nist",
+}
+
+_CONFIG_KEYWORDS = {
+    "configure",
+    "config",
+    "setup",
+    "install",
+    "update",
+}
+
 _WORKFLOW_KEYWORDS = {
     "workflow",
     "pipeline",
@@ -245,6 +289,7 @@ _INTENSITY_PATTERNS: dict[str, dict[str, Any]] = {
     "stealth": {"depth": "stealth", "timing": "slow"},
     "quiet": {"depth": "stealth", "timing": "slow"},
 }
+
 
 class RuleInterpreter:
     """Heuristic interpreter for common security command patterns.
@@ -324,6 +369,12 @@ class RuleInterpreter:
             return TaskCategory.REPORT
         if words & _MONITOR_KEYWORDS:
             return TaskCategory.MONITOR
+        if words & _COMPLIANCE_KEYWORDS:
+            return TaskCategory.COMPLIANCE
+        if words & _CLOUD_KEYWORDS:
+            return TaskCategory.CLOUD
+        if words & _CONFIG_KEYWORDS:
+            return TaskCategory.CONFIG
         if words & _RECON_KEYWORDS:
             return TaskCategory.RECON
         if words & _SCAN_KEYWORDS:

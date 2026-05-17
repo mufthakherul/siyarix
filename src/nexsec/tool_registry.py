@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 import platform
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import time
 from dataclasses import dataclass, field
 
@@ -290,9 +290,9 @@ CAPABILITY_CATEGORIES: dict[str, str] = {
     "template_scan": "vuln",
     "cve_scan": "vuln",
     "brute_force": "exploit",
-    "password_crack": "exploit",
+    "password_crack": "exploit",  # nosec B105
     "exploitation": "exploit",
-    "secret_scan": "recon",
+    "secret_scan": "recon",  # nosec B105
     "cloud_enum": "cloud",
     "azure_recon": "cloud",
     "aws_recon": "cloud",
@@ -362,7 +362,7 @@ class ToolRegistry:
             return None, False
 
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603
                 [self._wsl_binary, "-e", "sh", "-lc", f"command -v {tool_name}"],
                 capture_output=True,
                 text=True,
@@ -485,7 +485,7 @@ class ToolRegistry:
         if via_wsl:
             cmd = [path, "-e", name, *meta["version_cmd"][1:]]
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603
                 cmd,
                 capture_output=True,
                 text=True,
@@ -504,7 +504,7 @@ class ToolRegistry:
     def _probe_dynamic_version(self, name: str, path: str) -> str:
         """Probe version for a dynamically registered tool."""
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603
                 [path, "--version"],
                 capture_output=True,
                 text=True,

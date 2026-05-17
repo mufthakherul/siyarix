@@ -81,7 +81,7 @@ jobs:
 
   dependency-scanning:
     name: Dependency Vulnerability Scan
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v1.8.2
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v1
 
   secrets-scanning:
     name: Secrets Detection

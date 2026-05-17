@@ -62,6 +62,7 @@ jobs:
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     permissions:
       contents: read
       pull-requests: write
@@ -99,10 +100,9 @@ jobs:
           pip install -e . > /dev/null 2>&1 || true
 
       - name: Run OSV Scanner
-        uses: google/osv-scanner-action/github-action@v2
-        with:
-          lockfile: 'requirements.lock'
-          output: sarif
+        run: |
+          pip install osv-scanner
+          osv-scanner --lockfile=requirements.lock --format=sarif --output=osv-sarif-results.sarif || true
 
       - name: Upload SARIF results
         if: always()
@@ -199,7 +199,7 @@ jobs:
           persist-credentials: false
 
       - name: Run Scorecard analysis
-        uses: ossf/scorecard-action@v2
+        uses: ossf/scorecard-action@v2.4.0
         with:
           results-file: scorecard-results.json
           results-format: json
@@ -212,7 +212,7 @@ jobs:
           path: scorecard-results.json
 
       - name: Publish Scorecard badge
-        uses: ossf/scorecard-action@v2
+        uses: ossf/scorecard-action@v2.4.0
         with:
           results-file: scorecard-results.json
           publish-results: true

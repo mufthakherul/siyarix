@@ -16,8 +16,10 @@ _SEVERITY_BY_LEVEL = {
 _LINE_RE = re.compile(r"^\[(CRITICAL|ERROR|WARNING|INFO|DEBUG)\]\s+(.+)$")
 _TARGET_RE = re.compile(r"target URL appears to be '(?P<url>[^']+)'")
 
+
 def _now_iso() -> str:
     return datetime.now(tz=UTC).isoformat()
+
 
 class SqlmapParser:
     """Parse sqlmap output into normalized finding dictionaries."""

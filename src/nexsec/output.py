@@ -29,10 +29,7 @@ except ImportError:
 
 try:
     from rich.align import Align
-    from rich.color import Color
-    from rich.console import Console, Group
-    from rich.layout import Layout
-    from rich.live import Live
+    from rich.console import Console
     from rich.panel import Panel
     from rich.progress import (
         BarColumn,
@@ -44,8 +41,6 @@ try:
         TransferSpeedColumn,
     )
     from rich.prompt import Confirm, Prompt
-    from rich.rule import Rule
-    from rich.style import Style
     from rich.syntax import Syntax
     from rich.table import Table
     from rich.text import Text
@@ -53,6 +48,7 @@ try:
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
+
 
 class OutputFormat(StrEnum):
     """Output formats"""
@@ -66,6 +62,7 @@ class OutputFormat(StrEnum):
     RAW = "raw"
     QUIET = "quiet"
 
+
 class OutputTheme(StrEnum):
     """Output themes"""
 
@@ -74,6 +71,7 @@ class OutputTheme(StrEnum):
     LIGHT = "light"
     NEON = "neon"
     MINIMAL = "minimal"
+
 
 # Premium color schemes
 THEMES = {
@@ -115,6 +113,7 @@ THEMES = {
     },
 }
 
+
 class OutputEngine:
     """Premium output engine"""
 
@@ -137,11 +136,11 @@ class OutputEngine:
             )
             self.console.print(panel)
         else:
-            print(f"\n{'='*30}")
+            print(f"\n{'=' * 30}")
             print(f"  {title}")
             if subtitle:
                 print(f"  {subtitle}")
-            print(f"{'='*30}\n")
+            print(f"{'=' * 30}\n")
 
     def print_table(self, data: list[dict], title: str = "", columns: list[str] | None = None):
         """Print rich table"""
@@ -332,10 +331,12 @@ class OutputEngine:
         else:
             print(f"Exported to {filepath}")
 
+
 # Global output engine instance
 output = OutputEngine()
 
 _formatter_args = {"no_color": False, "verbose": 0}
+
 
 class OutputFormatter:
     def __init__(self, fmt: str = "table", no_color: bool = False, verbose: int = 0):
@@ -357,9 +358,11 @@ class OutputFormatter:
         if key and key in data:
             print(data[key])
 
+
 EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_AUTH_ERROR = 2
+
 
 def get_formatter(format: str = "table") -> OutputFormatter:
     return OutputFormatter(fmt=format, **_formatter_args)

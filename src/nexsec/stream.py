@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 _MAX_BACKOFF = 60.0
 
+
 class AgentStreamClient:
     """Maintains a WebSocket connection to the NexSec server.
 

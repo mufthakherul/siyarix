@@ -38,6 +38,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+
 class CredentialType(StrEnum):
     """Credential types"""
 
@@ -50,6 +51,7 @@ class CredentialType(StrEnum):
     AZURE_SP = "azure_sp"
     GCP_SA = "gcp_sa"
 
+
 class Environment(StrEnum):
     """Environments"""
 
@@ -57,6 +59,7 @@ class Environment(StrEnum):
     STAGING = "staging"
     PRODUCTION = "production"
     ALL = "all"
+
 
 @dataclass
 class Credential:
@@ -91,6 +94,7 @@ class Credential:
             "shared_with": self.shared_with,
         }
 
+
 class CredentialStore:
     """Enterprise credential vault"""
 
@@ -112,19 +116,19 @@ class CredentialStore:
         """Migrate legacy JSON config to the new vault format."""
         if not filepath.exists():
             return False
-        
+
         data = json.loads(filepath.read_text())
         # Reorder to ensure api_key is stored first for retrieve default
         if "api_key" in data:
             self.store(name="default", value=str(data["api_key"]), cred_type="api_key")
-        
+
         for key, value in data.items():
             if key not in ["api_key", "name"]:
                 if key == "server_url":
                     self.store(name="default", value=str(value), cred_type="server_url")
                 else:
                     self.store(name=key, value=str(value))
-        
+
         new_path = filepath.with_name(filepath.name + ".bak")
         filepath.rename(new_path)
         return True
@@ -388,7 +392,9 @@ class CredentialStore:
             "encrypted": CRYPTO_AVAILABLE,
         }
 
+
 _creds_instance: CredentialStore | None = None
+
 
 def get_creds() -> CredentialStore:
     global _creds_instance
@@ -396,9 +402,11 @@ def get_creds() -> CredentialStore:
         _creds_instance = CredentialStore()
     return _creds_instance
 
+
 def get_credential(name: str, environment: str | None = None) -> str | None:
     """Convenience function"""
     return get_creds().get_by_name(name, environment)
+
 
 def store_credential(name: str, value: str, cred_type: str = "api_key") -> Credential:
     """Convenience function"""

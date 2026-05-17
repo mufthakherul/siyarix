@@ -1,11 +1,11 @@
-"""Execution engine — combines autonomous task planning with registry-based 
+"""Execution engine — combines autonomous task planning with registry-based
 tool execution.
 
 This is the core of the execution architecture:
 
 - **Registry mode**: Uses the tool registry directly for known tools.
 - **Autonomous mode**: Model-driven planning and execution.
-- **Integrated mode** (default): Model-driven planning for complex tasks with 
+- **Integrated mode** (default): Model-driven planning for complex tasks with
   registry-based execution for known tools and intelligent fallback.
 
 The engine provides a unified execution interface regardless of whether the
@@ -44,12 +44,14 @@ console = Console()
 # Maximum characters of output to include in model analysis context per step
 _MAX_CONTEXT_OUTPUT_LENGTH = 2000
 
+
 class ExecutionMode(StrEnum):
     """Execution mode for the engine."""
 
     REGISTRY = "registry"  # Registry-only (no model-driven planning)
     AUTONOMOUS = "autonomous"  # Model-driven planning and execution
     INTEGRATED = "integrated"  # Model-driven planning with registry fallback
+
 
 class StepStatus(StrEnum):
     """Status of an execution step."""
@@ -60,6 +62,7 @@ class StepStatus(StrEnum):
     FAILED = "failed"
     SKIPPED = "skipped"
     BLOCKED = "blocked"
+
 
 @dataclass
 class StepResult:
@@ -72,6 +75,7 @@ class StepResult:
     duration_ms: float = 0.0
     findings: list[dict[str, Any]] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class EngineResult:
@@ -93,6 +97,7 @@ class EngineResult:
         for r in self.step_results:
             counts[r.status.value] = counts.get(r.status.value, 0) + 1
         return counts
+
 
 class ExecutionEngine:
     """The core execution engine.

@@ -7,6 +7,7 @@ import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 
+
 @dataclass
 class ExecutionResult:
     """Result of a completed tool execution."""
@@ -15,6 +16,7 @@ class ExecutionResult:
     stdout: str
     stderr: str
     duration_ms: float
+
 
 async def run_tool(
     tool_path: str,
@@ -57,6 +59,7 @@ async def run_tool(
         if proc.returncode is None:
             proc.kill()
             await proc.wait()
+
 
 async def run_tool_complete(
     tool_path: str,

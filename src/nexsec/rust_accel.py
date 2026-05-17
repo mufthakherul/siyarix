@@ -13,8 +13,10 @@ try:
 except Exception:
     _rust = None
 
+
 def rust_available() -> bool:
     return _rust is not None
+
 
 def parse_nmap_xml(xml_output: str) -> list[dict[str, Any]] | None:
     if _rust is None:

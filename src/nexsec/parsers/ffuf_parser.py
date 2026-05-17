@@ -25,8 +25,10 @@ _ROW_RE = re.compile(
 )
 _URL_RE = re.compile(r"^::\s*URL:\s*(?P<url>\S+)")
 
+
 def _now_iso() -> str:
     return datetime.now(tz=UTC).isoformat()
+
 
 class FfufParser:
     """Parse ffuf output into normalized finding dictionaries."""

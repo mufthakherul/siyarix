@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+
 def _now_iso() -> str:
     return datetime.now(tz=UTC).isoformat()
+
 
 class JohnParser:
     """Parse john --show style lines into normalized findings."""

@@ -15,6 +15,7 @@ from types import ModuleType
 _NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{1,63}$")
 _DEFAULT_ROOT = Path(os.getenv("NEXSEC_PLUGINS_DIR", str(Path.home() / ".nexsec" / "plugins")))
 
+
 @dataclass
 class PluginMetadata:
     name: str
@@ -27,9 +28,11 @@ class PluginMetadata:
     homepage: str = ""
     tags: str = ""
 
+
 def _validate_plugin_name(name: str) -> None:
     if not _NAME_RE.match(name):
         raise ValueError("Invalid plugin name. Use 2-64 chars: letters, numbers, dash or underscore.")
+
 
 def _parse_simple_yaml(path: Path) -> dict[str, str]:
     if not path.exists():
@@ -43,12 +46,14 @@ def _parse_simple_yaml(path: Path) -> dict[str, str]:
         result[key.strip()] = value.strip().strip('"').strip("'")
     return result
 
+
 def _to_bool(value: str | bool | None, default: bool = True) -> bool:
     if isinstance(value, bool):
         return value
     if value is None:
         return default
     return str(value).strip().lower() not in {"0", "false", "no", "off"}
+
 
 def _write_plugin_yaml(path: Path, metadata: PluginMetadata) -> None:
     path.write_text(
@@ -67,6 +72,7 @@ def _write_plugin_yaml(path: Path, metadata: PluginMetadata) -> None:
         ),
         encoding="utf-8",
     )
+
 
 class PluginManager:
     def __init__(self, root: Path | None = None) -> None:

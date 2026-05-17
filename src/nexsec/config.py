@@ -63,6 +63,7 @@ DESCRIPTIONS: dict[str, str] = {
     "notifications_enabled": "Show Rich panel notifications for key events",
 }
 
+
 def _try_load_toml(path: Path) -> dict[str, Any]:
     """Load TOML file; returns empty dict on any error."""
     if not path.exists():
@@ -102,6 +103,7 @@ def _try_load_toml(path: Path) -> dict[str, Any]:
     except Exception:
         return {}
 
+
 def _write_toml(path: Path, data: dict[str, Any]) -> None:
     """Write dict as TOML (simple key = value format)."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -118,6 +120,7 @@ def _write_toml(path: Path, data: dict[str, Any]) -> None:
             lines.append(f"{key} = {value}")
         lines.append("")
     path.write_text("\n".join(lines))
+
 
 class SettingsStore:
     """TOML-backed settings manager for the NexSec CLI.

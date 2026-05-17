@@ -11,7 +11,7 @@ nexsec scan 192.168.1.0/24
 - **Run an autonomous-assisted threat hunt**:
 
 ```bash
-nexsec threat hunt --target example.com --assist
+nexsec security hunt --target example.com
 ```
 
 - **Create and execute an integrated plan** (planner selects optimal tools and sequence):
@@ -30,9 +30,17 @@ nexsec run "scan 10.0.0.1 with nmap then generate report"
 - **Manage incidents**:
 
 ```bash
-nexsec incident list
-nexsec incident show INC-001
-nexsec incident resolve INC-001 --comment "Resolved via patch"
+nexsec security incidents
+nexsec security incident INC-001
+nexsec security incident-create --title "SQLi on login" --description "Blind SQLi" --category intrusion --severity high
+```
+
+- **Cross-platform shell translation**:
+
+```bash
+nexsec shell list-intents
+nexsec shell translate dns_lookup --target example.com
+nexsec shell list-shells
 ```
 
 ### Output Formatting

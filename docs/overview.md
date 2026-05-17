@@ -13,3 +13,5 @@ Primary capabilities:
 - Threat hunting and enrichment (Autonomous assistance)
 - Incident management and enterprise audit trail
 - Integrated plans combining multiple security tools
+- Cross-platform shell intelligence (bash/zsh/sh, PowerShell/CMD, fish, nushell, xonsh)
+- Infra-aware tooling (Docker, Kubernetes, Terraform, cloud CLIs)

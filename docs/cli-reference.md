@@ -6,21 +6,23 @@ This document lists primary subcommands and flags. The CLI is implemented with T
 
 - **`scan`**: Execute security scanning workflows using registered tools.
   - `--profile <name>`: specify a saved configuration profile.
-  - `--format json|table|csv`: set the primary output format.
+  - `--output table|json|yaml|csv`: set the primary output format.
   - `--mode registry|autonomous|integrated`: execution engine strategy.
 
-- **`threat hunt`**: Structured threat hunting and result analysis.
-  - `--target <target>`: domain, IP range, or CIDR block.
-  - `--assist`: enable autonomous assistance for finding correlation.
+- **`chat`**: Interactive cybersecurity REPL with natural-language execution.
+  - `--mode registry|autonomous|integrated`
+  - `--target <target>`
 
 - **`run`**: Execute a natural language or direct tool instruction.
   - `nexsec run "scan my network"`
 
-- **`planner`**: Manage and execute multi-step security plans.
-  - `create`, `list`, `run`, `show` subcommands.
+- **`shell`**: Cross-platform shell command helper.
+  - `platform`, `translate`, `list-intents`, `list-shells`, `security-cmds`
 
-- **`incident`**: Management of security incidents and findings.
-  - `list`, `show`, `resolve`, `annotate`.
+- **`security`**: Security operations console.
+  - `incidents`, `incident`, `incident-create`
+  - `vulnerabilities`, `remediation-plan`
+  - `hunt`, `queries`, `mitre-coverage`, `dashboard`, `playbooks`
 
 ### Configuration
 

@@ -92,8 +92,36 @@ _SAFE_COMMANDS: frozenset[str] = frozenset(
         # Docker
         "docker",
         "docker-compose",
+        "podman",
         # Git
         "git",
+        "gh",
+        "gitlab",
+        # Cloud & IaC
+        "kubectl",
+        "helm",
+        "terraform",
+        "ansible",
+        "aws",
+        "gcloud",
+        "az",
+        "cloudflared",
+        # Remote
+        "ssh",
+        "scp",
+        "rsync",
+        "mosh",
+        # Databases
+        "psql",
+        "mysql",
+        "sqlite3",
+        "redis-cli",
+        # Node/Python package managers
+        "pnpm",
+        "yarn",
+        "bun",
+        "uv",
+        "poetry",
         # Package managers (install only, not uninstall)
         "pip",
         "pip3",
@@ -126,6 +154,7 @@ _SECRET_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\$\{?(?:PASSWORD|SECRET|TOKEN|API_KEY|PRIVATE_KEY)\}?", re.IGNORECASE),
 ]
 
+
 @dataclass
 class ResolvedCommand:
     """A validated, safe command ready for execution."""
@@ -144,6 +173,7 @@ class ResolvedCommand:
     @property
     def full_command(self) -> list[str]:
         return [self.path, *self.args]
+
 
 class DynamicResolver:
     """Resolves tool names and commands to safe executables.

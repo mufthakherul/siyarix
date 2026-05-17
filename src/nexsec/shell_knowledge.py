@@ -34,6 +34,42 @@ class ShellType(StrEnum):
     UNKNOWN = "unknown"
 
 
+SHELL_ALIASES: dict[str, ShellType] = {
+    "pwsh": ShellType.POWERSHELL,
+    "powershell": ShellType.POWERSHELL,
+    "sh": ShellType.BASH,
+    "dash": ShellType.BASH,
+    "ksh": ShellType.BASH,
+}
+
+
+def _shell_from_name(name: str) -> ShellType:
+    alias = SHELL_ALIASES.get(name.lower())
+    if alias is not None:
+        return alias
+    try:
+        return ShellType(name.lower())
+    except ValueError:
+        return ShellType.UNKNOWN
+
+
+def normalize_shell(shell: ShellType | str | None) -> ShellType:
+    """Normalize shell aliases to the canonical shell used by command maps."""
+    if shell is None:
+        return ShellType.UNKNOWN
+    if isinstance(shell, ShellType):
+        return SHELL_ALIASES.get(shell.value, shell)
+    return _shell_from_name(shell)
+
+
+def shell_key(shell: ShellType | str | None) -> str:
+    """Return the command-map key for a shell or shell-like string."""
+    normalized = normalize_shell(shell)
+    if normalized == ShellType.UNKNOWN:
+        return "bash"
+    return normalized.value
+
+
 # ---------------------------------------------------------------------------
 # Cross-platform equivalent command map
 # command intent -> {shell: command}
@@ -257,10 +293,9 @@ def detect_shell() -> ShellType:
     shell_env = os.getenv("SHELL", "")
     if shell_env:
         name = shell_env.split("/")[-1].lower()
-        try:
-            return ShellType(name)
-        except ValueError:
-            pass
+        detected = _shell_from_name(name)
+        if detected != ShellType.UNKNOWN:
+            return detected
 
     # Windows detection
     if platform.system().lower() == "windows":
@@ -281,10 +316,9 @@ def detect_shell() -> ShellType:
             capture_output=True, text=True, timeout=3,
         )
         comm = result.stdout.strip().lstrip("-")
-        try:
-            return ShellType(comm)
-        except ValueError:
-            pass
+        detected = _shell_from_name(comm)
+        if detected != ShellType.UNKNOWN:
+            return detected
     except Exception:
         pass
 
@@ -300,8 +334,14 @@ def get_shell_platform() -> str:
             return "Windows PowerShell"
         return "Windows CMD"
     elif sys_name == "darwin":
+        shell = detect_shell()
+        if shell in (ShellType.BASH, ShellType.ZSH, ShellType.SH, ShellType.FISH):
+            return f"macOS ({shell.value})"
         return "macOS (zsh/bash)"
     else:
+        shell = detect_shell()
+        if shell in (ShellType.BASH, ShellType.ZSH, ShellType.SH, ShellType.FISH):
+            return f"Linux ({shell.value})"
         return "Linux (bash)"
 
 
@@ -317,8 +357,9 @@ def translate_command(intent: str, target_shell: ShellType | None = None) -> str
     """
     if target_shell is None:
         detected = detect_shell()
-        # Normalize pwsh to powershell for lookup
-        target_shell = ShellType.POWERSHELL if detected == ShellType.PWSH else detected
+        target_shell = normalize_shell(detected)
+    else:
+        target_shell = normalize_shell(target_shell)
 
     shell_key = target_shell.value if target_shell != ShellType.UNKNOWN else "bash"
     entry = CROSS_PLATFORM_COMMANDS.get(intent, {})
@@ -329,6 +370,8 @@ def get_security_commands(shell: ShellType | None = None) -> dict[str, str]:
     """Return security-relevant commands for the given/detected shell."""
     if shell is None:
         shell = detect_shell()
+
+    shell = normalize_shell(shell)
 
     if shell in (ShellType.POWERSHELL, ShellType.PWSH, ShellType.CMD):
         return POWERSHELL_SECURITY_COMMANDS
@@ -345,6 +388,8 @@ def build_platform_context() -> dict[str, Any]:
         "arch": platform.machine(),
         "python_version": platform.python_version(),
         "shell": shell.value,
+        "shell_key": shell_key(shell),
+        "shell_family": "windows" if sys_name.lower() == "windows" else "unix",
         "shell_platform": get_shell_platform(),
         "is_windows": sys_name.lower() == "windows",
         "is_linux": sys_name.lower() == "linux",

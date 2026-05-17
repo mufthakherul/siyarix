@@ -18,7 +18,6 @@ from __future__ import annotations
 import asyncio
 import os
 import platform
-import sys
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -27,30 +26,25 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from rich.columns import Columns
     from rich.console import Console
-    from rich.live import Live
     from rich.markdown import Markdown
     from rich.panel import Panel
     from rich.prompt import Prompt
     from rich.rule import Rule
-    from rich.spinner import Spinner
-    from rich.style import Style
     from rich.syntax import Syntax
     from rich.table import Table
-    from rich.text import Text
 
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
 
 from .shell_knowledge import (
-    ShellType,
     build_platform_context,
     detect_shell,
+    normalize_shell,
     get_security_commands,
     get_shell_platform,
-    translate_command,
+    CROSS_PLATFORM_COMMANDS,
 )
 
 console = Console()
@@ -380,9 +374,8 @@ class NexSecChat:
     def _cmd_translate(self, args: str) -> None:
         if not args:
             console.print("[yellow]Usage: /translate <intent>[/yellow]")
-            console.print(f"Available intents: {', '.join(list(translate_command.__globals__['CROSS_PLATFORM_COMMANDS'].keys())[:10])}...")
+            console.print(f"Available intents: {', '.join(list(CROSS_PLATFORM_COMMANDS.keys())[:10])}...")
             return
-        from .shell_knowledge import CROSS_PLATFORM_COMMANDS
         entry = CROSS_PLATFORM_COMMANDS.get(args)
         if not entry:
             console.print(f"[red]Unknown intent: {args}[/red]")
@@ -532,10 +525,9 @@ class NexSecChat:
         # Platform-specific help
         if any(kw in lower for kw in ("how to", "what is", "explain", "what command", "which command")):
             # Try to suggest a relevant cross-platform command
-            from .shell_knowledge import CROSS_PLATFORM_COMMANDS
             for intent, shells in CROSS_PLATFORM_COMMANDS.items():
                 if any(word in lower for word in intent.split("_")):
-                    shell_key = self._shell.value
+                    shell_key = normalize_shell(self._shell).value
                     cmd = shells.get(shell_key, shells.get("bash", ""))
                     if cmd:
                         return (

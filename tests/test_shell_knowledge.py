@@ -10,6 +10,7 @@ from nexsec.shell_knowledge import (
     INTENT_METADATA,
     detect_device_type,
     terminal_type_from_env,
+    build_platform_context,
 )
 
 
@@ -60,3 +61,25 @@ def test_terminal_type_from_env_prefers_wsl() -> None:
 def test_terminal_type_from_env_detects_vscode() -> None:
     env = {"VSCODE_PID": "1234"}
     assert terminal_type_from_env(env=env, sys_name="Linux") == "vscode"
+
+
+def test_build_platform_context_exposes_enriched_runtime_fields() -> None:
+    ctx = build_platform_context()
+    required_keys = [
+        "platform_pretty",
+        "platform_release",
+        "hostname",
+        "username",
+        "cwd",
+        "shell_executable",
+        "terminal_type",
+        "cpu_count",
+        "available_tools_count",
+        "is_container",
+        "container_runtime",
+    ]
+    for key in required_keys:
+        assert key in ctx
+
+    assert isinstance(ctx["available_tools_count"], int)
+    assert isinstance(ctx["is_container"], bool)

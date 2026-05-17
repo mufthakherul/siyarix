@@ -118,11 +118,17 @@ def print_banner(console: Console, theme: str, subtitle: str = "Enterprise Secur
         color = "white"
         accent = "white"
 
+    try:
+        from importlib.metadata import version as _pkg_version
+        _ver = _pkg_version("siyarix")
+    except Exception:
+        _ver = "1.2.0"
+
     console.print(
         Panel.fit(
             f"[{color}]{_BANNER}[/{color}]\n[bold {accent}]{subtitle}[/bold {accent}]",
             title="[bold]SIYARIX[/bold]",
-            subtitle="[dim]v1.0.0-alpha[/dim]",
+            subtitle=f"[dim]v{_ver}[/dim]",
             border_style=color,
             padding=(1, 4),
         )

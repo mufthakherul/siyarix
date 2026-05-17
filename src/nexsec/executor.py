@@ -32,7 +32,8 @@ async def run_tool(
         stderr=asyncio.subprocess.PIPE,
     )
 
-    assert proc.stdout is not None  # guaranteed by PIPE
+    if proc.stdout is None:  # guaranteed by PIPE, but guard for type safety
+        raise RuntimeError("subprocess stdout is None despite PIPE — this should never happen")
 
     deadline = time.monotonic() + timeout
 

@@ -15,7 +15,7 @@ def test_audit_chain_tamper_detection(tmp_path, monkeypatch):
         action="start",
         result="ok",
     )
-    e2 = logger.log(
+    logger.log(
         event_type=AuditEventType.SCAN_START,
         severity=AuditSeverity.INFO,
         user="alice",

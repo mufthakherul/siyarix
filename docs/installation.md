@@ -28,4 +28,5 @@ The following commands are registered upon installation:
 
 - **Python Version**: Requires Python >= 3.11.
 - **Autonomous Features**: Install `nexsec[autonomous]` for model provider integrations (e.g., OpenAI).
+- **Interactive Enhancements**: Install `prompt_toolkit` for an improved experience in the command palette and chat mode.
 - **External Tools**: Ensure security tools like `nmap`, `nuclei`, or `ffuf` are in your system PATH for full functionality.

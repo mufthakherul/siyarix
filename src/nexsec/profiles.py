@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import logging
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -31,7 +32,8 @@ class ProfileStore:
             if "active_profile" not in data:
                 data["active_profile"] = DEFAULT_PROFILE
             return data
-        except Exception:
+        except Exception as exc:
+            logging.getLogger(__name__).exception("Failed to load profiles: %s", exc)
             return {"active_profile": DEFAULT_PROFILE, "profiles": {}}
 
     def save(self, data: dict) -> None:

@@ -13,6 +13,11 @@ import shutil
 import subprocess  # nosec B404
 import time
 from dataclasses import dataclass, field
+import logging
+
+from siyarix.executor import safe_run_sync
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Known tools registry — the REGISTRY component
@@ -362,13 +367,15 @@ class ToolRegistry:
             return None, False
 
         try:
-            result = subprocess.run(  # nosec B603
-                [self._wsl_binary, "-e", "sh", "-lc", f"command -v {tool_name}"],
-                capture_output=True,
-                text=True,
-                timeout=5,
+            # Only allow simple tool names (alphanumeric, dash, underscore) to avoid shell injection
+            if not all(c.isalnum() or c in "-_" for c in tool_name):
+                return None, False
+            # Use safe_run_sync to avoid accidental shell=True patterns
+            result = safe_run_sync(
+                [self._wsl_binary, "-e", "sh", "-lc", f"command -v {tool_name}"], timeout=5
             )
-        except (subprocess.TimeoutExpired, OSError):
+        except Exception as exc:
+            logger.exception("WSL tool path resolution failed for %s: %s", tool_name, exc)
             return None, False
 
         if result.returncode != 0 or not (result.stdout or "").strip():
@@ -423,8 +430,10 @@ class ToolRegistry:
             path, discovered_via_wsl = self._resolve_tool_path(tool_name)
             if path is None:
                 continue
-            version = "unknown" if fast_mode else self.probe_version(
-                tool_name, path, via_wsl=discovered_via_wsl
+            version = (
+                "unknown"
+                if fast_mode
+                else self.probe_version(tool_name, path, via_wsl=discovered_via_wsl)
             )
             friendly_name = _BINARY_TO_ALIAS.get(tool_name, tool_name)
             default_args = list(meta.get("default_args", []))
@@ -488,12 +497,7 @@ class ToolRegistry:
         if via_wsl:
             cmd = [path, "-e", name, *meta["version_cmd"][1:]]
         try:
-            result = subprocess.run(  # nosec B603
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
+            result = safe_run_sync(cmd, timeout=10)
             output = (result.stdout or result.stderr or "").strip()
             # Return first non-empty line
             for line in output.splitlines():
@@ -501,25 +505,22 @@ class ToolRegistry:
                 if line:
                     return line
             return "unknown"
-        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
+            logger.debug("probe_version failed for %s: %s", name, exc)
             return "unknown"
 
     def _probe_dynamic_version(self, name: str, path: str) -> str:
         """Probe version for a dynamically registered tool."""
         try:
-            result = subprocess.run(  # nosec B603
-                [path, "--version"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
+            result = safe_run_sync([path, "--version"], timeout=10)
             output = (result.stdout or result.stderr or "").strip()
             for line in output.splitlines():
                 line = line.strip()
                 if line:
                     return line
             return "unknown"
-        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        except Exception as exc:
+            logger.exception("Failed to probe dynamic tool version for %s: %s", name, exc)
             return "unknown"
 
     def to_manifest(self) -> dict:

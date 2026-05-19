@@ -9,11 +9,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 try:
     from jinja2 import Template
+
     JINJA_AVAILABLE = True
-except Exception:
+except Exception as exc:
+    logger = logging.getLogger(__name__)
+    logger.debug("Jinja2 not available: %s", exc)
     JINJA_AVAILABLE = False
 
 
@@ -41,30 +47,52 @@ class CommandProfileStore:
             return {}
         try:
             return json.loads(self._file.read_text(encoding="utf-8"))
-        except Exception:
+        except Exception as exc:
+            logger.exception("Failed to load command profiles: %s", exc)
             return {}
 
     def _save(self, data: dict[str, Any]) -> None:
         self._file.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
-    def list(self) -> list[CommandProfile]:
+    def list_profiles(self) -> list[CommandProfile]:
         data = self._load()
-        rows = []
+        rows: list[CommandProfile] = []
         for name, entry in data.items():
-            rows.append(CommandProfile(name=name, command=entry.get("command", ""), description=entry.get("description"), created_at=entry.get("created_at")))
+            rows.append(
+                CommandProfile(
+                    name=name,
+                    command=entry.get("command", ""),
+                    description=entry.get("description"),
+                    created_at=entry.get("created_at"),
+                )
+            )
         return rows
+
+    # Backwards-compatible alias used by CLI
+    def list_credentials(self) -> list[CommandProfile]:
+        # Backwards-compatible alias for CLI callers
+        return self.list_profiles()
 
     def get(self, name: str) -> CommandProfile | None:
         data = self._load()
         entry = data.get(name)
         if not entry:
             return None
-        return CommandProfile(name=name, command=entry.get("command", ""), description=entry.get("description"), created_at=entry.get("created_at"))
+        return CommandProfile(
+            name=name,
+            command=entry.get("command", ""),
+            description=entry.get("description"),
+            created_at=entry.get("created_at"),
+        )
 
     def save(self, profile: CommandProfile) -> CommandProfile:
         data = self._load()
         profile.created_at = profile.created_at or datetime.utcnow().isoformat()
-        data[profile.name] = {"command": profile.command, "description": profile.description, "created_at": profile.created_at}
+        data[profile.name] = {
+            "command": profile.command,
+            "description": profile.description,
+            "created_at": profile.created_at,
+        }
         self._save(data)
         return profile
 
@@ -101,11 +129,13 @@ class CommandProfileStore:
             try:
                 tpl = Template(command)
                 return tpl.render(**params)
-            except Exception:
+            except Exception as exc:
+                logger.exception("Jinja render failed: %s", exc)
                 # Fall back to simple format
                 pass
         try:
             return command.format(**params)
-        except Exception:
+        except Exception as exc:
+            logger.exception("Format render failed for command: %s (%s)", command, exc)
             # Last resort: return original string
             return command

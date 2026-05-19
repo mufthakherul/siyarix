@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import shutil
@@ -31,7 +32,9 @@ class PluginMetadata:
 
 def _validate_plugin_name(name: str) -> None:
     if not _NAME_RE.match(name):
-        raise ValueError("Invalid plugin name. Use 2-64 chars: letters, numbers, dash or underscore.")
+        raise ValueError(
+            "Invalid plugin name. Use 2-64 chars: letters, numbers, dash or underscore."
+        )
 
 
 def _parse_simple_yaml(path: Path) -> dict[str, str]:
@@ -224,7 +227,7 @@ class PluginManager:
         spec.loader.exec_module(module)
         return module
 
-    def load_command_plugins(self, app) -> list[str]:
+    def load_command_plugins(self, app: object | None) -> list[str]:
         """Load and register enabled command plugins."""
         loaded: list[str] = []
         for plugin in self.list_plugins():
@@ -233,11 +236,26 @@ class PluginManager:
             module_file = Path(plugin.path) / "commands.py"
             if not module_file.exists():
                 continue
-            module = self._load_module(module_file, f"siyarix_plugin_{plugin.name}_commands")
+            try:
+                module = self._load_module(module_file, f"siyarix_plugin_{plugin.name}_commands")
+            except Exception:
+                # Plugin module failed to import — skip and continue, do not crash the host app
+                logging.getLogger(__name__).exception(
+                    "Failed to load command plugin module for %s; skipping", plugin.name
+                )
+                continue
+
             register = getattr(module, "register", None)
             if callable(register):
-                register(app)
-                loaded.append(plugin.name)
+                try:
+                    register(app)
+                    loaded.append(plugin.name)
+                except Exception:
+                    # Plugin register handler raised — isolate and continue
+                    logging.getLogger(__name__).exception(
+                        "Plugin %s register() raised an exception; skipping", plugin.name
+                    )
+                    continue
         return loaded
 
     def load_parser_plugins(self) -> dict[str, Callable[[str], list[dict]]]:
@@ -249,8 +267,22 @@ class PluginManager:
             module_file = Path(plugin.path) / "parser.py"
             if not module_file.exists():
                 continue
-            module = self._load_module(module_file, f"siyarix_plugin_{plugin.name}_parser")
+            try:
+                module = self._load_module(module_file, f"siyarix_plugin_{plugin.name}_parser")
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "Failed to load parser plugin module for %s; skipping", plugin.name
+                )
+                continue
+
             parser_fn = getattr(module, "parse_tool_output", None)
             if callable(parser_fn):
-                parsers[plugin.name] = parser_fn
+                try:
+                    parsers[plugin.name] = parser_fn
+                except Exception:
+                    logging.getLogger(__name__).exception(
+                        "Parser function for plugin %s raised at registration; skipping",
+                        plugin.name,
+                    )
+                    continue
         return parsers

@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
+import logging
+
+logger = logging.getLogger(__name__)
 
 _THEME_ALIASES = {
     "monokai": "neon",
@@ -11,6 +15,13 @@ _THEME_ALIASES = {
 }
 
 _SEVERITY_STYLES: dict[str, dict[str, str]] = {
+    "system": {
+        "critical": "bold red",
+        "high": "red",
+        "medium": "yellow",
+        "low": "blue",
+        "info": "dim",
+    },
     "default": {
         "critical": "bold red",
         "high": "red",
@@ -88,6 +99,12 @@ def available_themes() -> list[str]:
     return sorted(_SEVERITY_STYLES.keys())
 
 
+def _sample_command(theme: str) -> str:
+    if resolve_theme(theme) == "minimal":
+        return "siyarix scan 10.0.0.5 --mode registry"
+    return "siyarix scan 10.0.0.5 --mode integrated"
+
+
 def severity_style(theme: str, severity: str) -> str:
     safe_theme = resolve_theme(theme)
     return _SEVERITY_STYLES[safe_theme].get(severity.lower(), "")
@@ -106,7 +123,9 @@ def severity_label(theme: str, severity: str) -> str:
     return f"{icon} {text}"
 
 
-def print_banner(console: Console, theme: str, subtitle: str = "Enterprise Security Operations Platform") -> None:
+def print_banner(
+    console: Console, theme: str, subtitle: str = "Enterprise Security Operations Platform"
+) -> None:
     safe_theme = resolve_theme(theme)
     color = "cyan"
     accent = "bright_white"
@@ -126,8 +145,10 @@ def print_banner(console: Console, theme: str, subtitle: str = "Enterprise Secur
 
     try:
         from importlib.metadata import version as _pkg_version
+
         _ver = _pkg_version("siyarix")
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to resolve package version: %s", exc)
         _ver = "1.2.0"
 
     console.print(
@@ -139,3 +160,32 @@ def print_banner(console: Console, theme: str, subtitle: str = "Enterprise Secur
             padding=(1, 4),
         )
     )
+
+
+def print_theme_preview(console: Console, theme: str) -> None:
+    """Render a compact appearance preview for the selected theme."""
+    safe_theme = resolve_theme(theme)
+    console.print(
+        Panel.fit(
+            f"[bold]Theme:[/bold] {safe_theme}\n"
+            f"[bold]Title:[/bold] [cyan]NexSec[/cyan]\n"
+            f"[bold]Text:[/bold] This is a sample paragraph to evaluate readability.\n"
+            f"[bold]Shell:[/bold] [green]{_sample_command(safe_theme)}[/green]\n"
+            f"[bold]Status:[/bold] {severity_label(safe_theme, 'info')} {severity_label(safe_theme, 'low')} "
+            f"{severity_label(safe_theme, 'medium')} {severity_label(safe_theme, 'high')} {severity_label(safe_theme, 'critical')}",
+            title="Appearance Preview",
+            border_style="cyan" if safe_theme != "minimal" else "white",
+        )
+    )
+
+    table = Table(title="UI Surface Samples", header_style="bold cyan")
+    table.add_column("Surface", style="cyan")
+    table.add_column("Example", style="white")
+    table.add_row("Banner", "SIYARIX CLI")
+    table.add_row("Prompt", "siyarix> scan 10.0.0.5")
+    table.add_row("Command", _sample_command(safe_theme))
+    table.add_row("Info", severity_label(safe_theme, "info"))
+    table.add_row("Warning", severity_label(safe_theme, "medium"))
+    table.add_row("Error", severity_label(safe_theme, "critical"))
+    table.add_row("Markdown", "# Heading\n\n- bullet\n- list")
+    console.print(table)

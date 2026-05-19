@@ -10,7 +10,11 @@ from typing import Any
 
 try:
     import siyarix_rust_parsers as _rust
-except Exception:
+except Exception as exc:
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.debug("Rust extension not available: %s", exc)
     _rust = None
 
 
@@ -23,7 +27,11 @@ def parse_nmap_xml(xml_output: str) -> list[dict[str, Any]] | None:
         return None
     try:
         parsed = _rust.parse_nmap_xml(xml_output)
-    except Exception:
+    except Exception as exc:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.exception("Rust parser failed: %s", exc)
         return None
     if isinstance(parsed, list):
         normalized: list[dict[str, Any]] = []

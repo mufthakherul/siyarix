@@ -8,6 +8,7 @@ and graceful Ctrl+C cancellation (two-stage: cancel-tool then cancel-all).
 from __future__ import annotations
 
 import asyncio
+import types
 import signal
 import time
 from dataclasses import dataclass, field
@@ -102,7 +103,9 @@ class ScanProgressDisplay:
     # ------------------------------------------------------------------
 
     def __enter__(self) -> ScanProgressDisplay:
-        self._overall_task = self._overall_progress.add_task("Scanning…", total=self._state.tools_total)
+        self._overall_task = self._overall_progress.add_task(
+            "Scanning…", total=self._state.tools_total
+        )
         self._live = Live(
             self._render(),
             console=self._console,
@@ -112,9 +115,15 @@ class ScanProgressDisplay:
         self._live.__enter__()
         return self
 
-    def __exit__(self, *args: object) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: types.TracebackType | None,
+    ) -> None:
         if self._live:
-            self._live.__exit__(*args)
+            # Call Live.__exit__ with explicit typed args to satisfy type checkers
+            self._live.__exit__(exc_type, exc, tb)
 
     # ------------------------------------------------------------------
     # Public API (call from async workers)
@@ -193,7 +202,9 @@ class ScanProgressDisplay:
             ),
         ]
         if self._state.total_findings:
-            items.append(Panel(self._render_findings_summary(), title="Live Findings", border_style="dim"))
+            items.append(
+                Panel(self._render_findings_summary(), title="Live Findings", border_style="dim")
+            )
         return Group(*items)
 
     # ------------------------------------------------------------------
@@ -224,6 +235,7 @@ class ScanProgressDisplay:
             lines.append("[dim]siyarix-agent history list  — view full results[/dim]")
 
         self._console.print(Panel("\n".join(lines), border_style="green", expand=False))
+
 
 # ---------------------------------------------------------------------------
 # Graceful cancellation (Ctrl+C two-stage)
@@ -260,6 +272,7 @@ class CancellationToken:
     def uninstall(self) -> None:
         """Restore default SIGINT handler."""
         signal.signal(signal.SIGINT, signal.SIG_DFL)
+
 
 # ---------------------------------------------------------------------------
 # Concurrent scanner executor

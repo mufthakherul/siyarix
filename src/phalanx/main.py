@@ -1,4 +1,4 @@
-"""NexSec CLI — Premium Enterprise Entry Point.
+"""Phalanx CLI — Premium Enterprise Entry Point.
 
 Features:
   • Multi-level command routing with nested Typer apps
@@ -78,7 +78,7 @@ from .ux import OnboardingWizard, SplitPane
 
 # Detect non-interactive / CI environments for banner suppression
 _IS_TTY = sys.stdout.isatty()
-_CI_MODE = os.getenv("CI", "") or os.getenv("NEXSEC_NO_BANNER", "") or not _IS_TTY
+_CI_MODE = os.getenv("CI", "") or os.getenv("PHALANX_NO_BANNER", "") or not _IS_TTY
 
 console = Console()
 registry = ToolRegistry()
@@ -95,7 +95,7 @@ xi_core = XICoreService()
 def _get_engine(mode: str = "integrated") -> ExecutionEngine:
     """Build an ExecutionEngine with API keys from config/credentials."""
     engine_config: dict = {}
-    if os.getenv("NEXSEC_FAST_DISCOVERY", "0") == "1":
+    if os.getenv("PHALANX_FAST_DISCOVERY", "0") == "1":
         engine_config["fast_discovery"] = True
     openai_key = os.environ.get("OPENAI_API_KEY", "") or creds.retrieve("openai", "api_key") or ""
     gemini_key = os.environ.get("GEMINI_API_KEY", "") or creds.retrieve("gemini", "api_key") or ""
@@ -118,19 +118,19 @@ def _get_engine(mode: str = "integrated") -> ExecutionEngine:
 # Main Typer app — Premium structure
 # ---------------------------------------------------------------------------
 app = typer.Typer(
-    name="nexsec",
+    name="phalanx",
     help=f"""
-[bold cyan]NexSec CLI — Enterprise Cybersecurity Command Center[/bold cyan]
+[bold cyan]Phalanx CLI — Enterprise Cybersecurity Command Center[/bold cyan]
 
 [dim]Version: {__version__} | Platform: {platform.system()} | Python: {platform.python_version()}[/dim]
 
 [bold]Quick Start:[/bold]
-  [green]nexsec[/green]                          — Interactive chat mode (AI assistant)
-  [green]nexsec chat[/green]                     — Interactive AI cybersecurity REPL
-  [green]nexsec scan 192.168.1.0/24[/green]      — Network/port scan
-  [green]nexsec run "scan my network"[/green]    — Natural language command
-  [green]nexsec discover example.com[/green]     — Asset & service discovery
-  [green]nexsec tool-registry list[/green]       — Show installed security tools
+  [green]phalanx[/green]                          — Interactive chat mode (AI assistant)
+  [green]phalanx chat[/green]                     — Interactive AI cybersecurity REPL
+  [green]phalanx scan 192.168.1.0/24[/green]      — Network/port scan
+  [green]phalanx run "scan my network"[/green]    — Natural language command
+  [green]phalanx discover example.com[/green]     — Asset & service discovery
+  [green]phalanx tool-registry list[/green]       — Show installed security tools
 
 [bold]Execution Modes:[/bold]
   [yellow]--mode registry[/yellow]    — Fast, offline (tool registry only)
@@ -138,13 +138,13 @@ app = typer.Typer(
   [yellow]--mode integrated[/yellow]  — AI + registry fallback (default)
 
 [bold]Premium Features:[/bold]
-  • [magenta]nexsec chat[/magenta]          — AI conversational REPL with session history
-  • [magenta]nexsec shell[/magenta]         — Cross-platform shell command helper
-  • [magenta]nexsec dashboard[/magenta]     — Live security dashboard
-  • [magenta]nexsec bulk scan[/magenta]     — Bulk target scanning
-  • [magenta]nexsec workflow[/magenta]      — Workflow orchestration
-  • [magenta]nexsec compliance[/magenta]    — Compliance reporting
-  • [magenta]nexsec auth set-key[/magenta]  — Configure AI model API keys
+  • [magenta]phalanx chat[/magenta]          — AI conversational REPL with session history
+  • [magenta]phalanx shell[/magenta]         — Cross-platform shell command helper
+  • [magenta]phalanx dashboard[/magenta]     — Live security dashboard
+  • [magenta]phalanx bulk scan[/magenta]     — Bulk target scanning
+  • [magenta]phalanx workflow[/magenta]      — Workflow orchestration
+  • [magenta]phalanx compliance[/magenta]    — Compliance reporting
+  • [magenta]phalanx auth set-key[/magenta]  — Configure AI model API keys
     """,
     add_completion=False,
     rich_markup_mode="rich",
@@ -154,7 +154,7 @@ app = typer.Typer(
 
 @app.callback(invoke_without_command=True)
 def main_callback(ctx: typer.Context) -> None:
-    """Launch interactive chat mode when nexsec is invoked with no subcommand."""
+    """Launch interactive chat mode when phalanx is invoked with no subcommand."""
     if ctx.invoked_subcommand is None and _IS_TTY:
         # No subcommand and running interactively — launch chat
         start_chat()
@@ -232,7 +232,7 @@ def render_cmd(
 ) -> None:
     """Render a saved command profile using provided key=value pairs.
 
-    Example: nexsec render-cmd quick-nmap target=10.0.0.1 flags='-Pn'
+    Example: phalanx render-cmd quick-nmap target=10.0.0.1 flags='-Pn'
     """
     store = CommandProfileStore()
     p = store.get(name)
@@ -407,14 +407,14 @@ def chat(
 ) -> None:
     """Start an interactive AI cybersecurity REPL (chat mode).
 
-    NexSec chat gives you a conversational interface to run security tools,
+    Phalanx chat gives you a conversational interface to run security tools,
     get cross-platform command help, and manage sessions with history.
 
     Examples:
-      nexsec chat
-      nexsec chat --target 192.168.1.1
-      nexsec chat --mode autonomous
-      nexsec chat --session abc123 --resume
+      phalanx chat
+      phalanx chat --target 192.168.1.1
+      phalanx chat --mode autonomous
+      phalanx chat --session abc123 --resume
     """
     session_id = session or None
     start_chat(mode=mode, target=target, session_id=session_id, resume=resume)
@@ -485,7 +485,7 @@ def shell_platform(
         ("Flags", "ssh", str(ctx.get("is_terminal_ssh", False))),
         ("Flags", "cloud", str(ctx.get("is_terminal_cloud", False))),
         ("Flags", "wsl_available", str(ctx.get("has_wsl", False))),
-        ("NexSec", "available_intents", str(ctx.get("available_tools_count", 0))),
+        ("Phalanx", "available_intents", str(ctx.get("available_tools_count", 0))),
     ]
 
     for category, key, value in rows:
@@ -584,9 +584,9 @@ def shell_translate(
     """Translate a command intent to all supported shells.
 
     Examples:
-      nexsec shell translate list_files
-      nexsec shell translate ping --target 192.168.1.1
-      nexsec shell translate network_connections
+      phalanx shell translate list_files
+      phalanx shell translate ping --target 192.168.1.1
+      phalanx shell translate network_connections
     """
     cps = cast(dict[str, dict[str, str]], CROSS_PLATFORM_COMMANDS)
     entry: dict[str, str] = cps.get(intent, {})
@@ -600,7 +600,7 @@ def shell_translate(
         else:
             console.print(f"[red]Unknown intent: {intent}[/red]")
             console.print(
-                "[dim]Run 'nexsec shell list-intents' to see all available intents.[/dim]"
+                "[dim]Run 'phalanx shell list-intents' to see all available intents.[/dim]"
             )
         raise typer.Exit(1)
 
@@ -636,8 +636,8 @@ def shell_list_intents(
     """List all available command intents for translation.
 
     Example:
-      nexsec shell list-intents
-      nexsec shell list-intents --filter network
+      phalanx shell list-intents
+      phalanx shell list-intents --filter network
     """
     intents = list(CROSS_PLATFORM_COMMANDS.keys())
     if filter_str:
@@ -680,9 +680,9 @@ def shell_security_cmds(
     """Show security-relevant commands for the current or specified shell.
 
     Examples:
-      nexsec shell security-cmds
-      nexsec shell security-cmds --shell powershell
-      nexsec shell security-cmds --shell bash
+      phalanx shell security-cmds
+      phalanx shell security-cmds --shell powershell
+      phalanx shell security-cmds --shell bash
     """
     from .shell_knowledge import ShellType
 
@@ -707,7 +707,7 @@ def shell_security_cmds(
 
     console.print(table)
     console.print(
-        "\n[dim]Use [cyan]nexsec shell translate <intent>[/cyan] for cross-platform equivalents.[/dim]"
+        "\n[dim]Use [cyan]phalanx shell translate <intent>[/cyan] for cross-platform equivalents.[/dim]"
     )
 
 
@@ -733,9 +733,9 @@ def scan(
     """Run security scans against target(s) using the execution engine.
 
     Examples:
-      nexsec scan 192.168.1.1
-      nexsec scan 10.0.0.0/24 --tool nmap --mode registry
-      nexsec scan example.com --dry-run
+      phalanx scan 192.168.1.1
+      phalanx scan 10.0.0.0/24 --tool nmap --mode registry
+      phalanx scan example.com --dry-run
     """
     if not no_banner and not _CI_MODE:
         print_banner(console, _active_theme)
@@ -791,9 +791,9 @@ def discover(
     """Discover assets, services, and vulnerabilities on a target.
 
     Examples:
-      nexsec discover 192.168.1.0/24
-      nexsec discover example.com --deep
-      nexsec discover 10.0.0.0/8 --export results.json
+      phalanx discover 192.168.1.0/24
+      phalanx discover example.com --deep
+      phalanx discover 10.0.0.0/8 --export results.json
     """
     if not no_banner and not _CI_MODE:
         print_banner(console, _active_theme)
@@ -831,10 +831,10 @@ def run(
     """Run a natural language command through the autonomous execution engine.
 
     Examples:
-      nexsec run "scan example.com with nmap and nuclei then generate report"
-      nexsec run "enumerate subdomains of target.com" --mode autonomous
-      nexsec run "check for sql injection on http://site.com/login" --dry-run
-      nexsec run --resume latest
+      phalanx run "scan example.com with nmap and nuclei then generate report"
+      phalanx run "enumerate subdomains of target.com" --mode autonomous
+      phalanx run "check for sql injection on http://site.com/login" --dry-run
+      phalanx run --resume latest
     """
     if not no_banner and not _CI_MODE:
         print_banner(console, _active_theme)
@@ -942,9 +942,9 @@ def agent(
     is achieved or max iterations are reached.
 
     Examples:
-      nexsec agent "Perform full recon on target.com" --target target.com
-      nexsec agent "Find all SQL injection vulnerabilities" -t http://app.local -n 5
-      nexsec agent "Enumerate and scan the 10.0.0.0/24 network" --max-iter 15
+      phalanx agent "Perform full recon on target.com" --target target.com
+      phalanx agent "Find all SQL injection vulnerabilities" -t http://app.local -n 5
+      phalanx agent "Enumerate and scan the 10.0.0.0/24 network" --max-iter 15
     """
     if not no_banner and not _CI_MODE:
         print_banner(console, _active_theme)
@@ -1090,7 +1090,7 @@ def health_check(
         console.print(json.dumps(status.to_dict(), indent=2))
         return
 
-    table = Table(title="NexSec Health", header_style="bold cyan")
+    table = Table(title="Phalanx Health", header_style="bold cyan")
     table.add_column("Component", style="cyan", no_wrap=True)
     table.add_column("State", style="magenta", no_wrap=True)
     table.add_column("Latency (ms)", style="green", no_wrap=True)
@@ -1131,7 +1131,7 @@ def metrics_show(
         return
 
     # Table output
-    table = Table(title="NexSec Metrics", header_style="bold cyan")
+    table = Table(title="Phalanx Metrics", header_style="bold cyan")
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green", justify="right")
 
@@ -1508,7 +1508,7 @@ def report_generate(
         tool_counts[f.get("tool", "unknown")] = tool_counts.get(f.get("tool", "unknown"), 0) + 1
 
     lines = [
-        "# NexSec Findings Report",
+        "# Phalanx Findings Report",
         "",
         f"Generated: {datetime.now().isoformat()}",
         "",
@@ -1668,7 +1668,7 @@ def report(
     events = audit.get_events(limit=100)
 
     lines = [
-        f"# NexSec Compliance Report ({framework.upper()})",
+        f"# Phalanx Compliance Report ({framework.upper()})",
         "",
         f"Generated: {datetime.now().isoformat()}",
         f"Retention days: {stats.get('retention_days')}",
@@ -1802,9 +1802,9 @@ def tool_registry_list(
     """List all discovered security tools on this system.
 
     Examples:
-      nexsec tool-registry list
-      nexsec tool-registry list --category recon
-      nexsec tool-registry list --refresh
+      phalanx tool-registry list
+      phalanx tool-registry list --category recon
+      phalanx tool-registry list --refresh
     """
     tools = registry.discover(force_refresh=refresh, fast=fast)
     if category:
@@ -1866,9 +1866,9 @@ def auth_set_key(
     """Store an API key for a model provider.
 
     Examples:
-      nexsec auth set-key openai --key sk-...
-      nexsec auth set-key gemini --key AIz...
-      nexsec auth set-key anthropic --key sk-ant-...
+      phalanx auth set-key openai --key sk-...
+      phalanx auth set-key gemini --key AIz...
+      phalanx auth set-key anthropic --key sk-ant-...
     """
     creds.delete(provider, "api_key")
     creds.store(provider, api_key, "api_key")
@@ -1910,11 +1910,11 @@ def auth_show() -> None:
 def completions_install(
     shell: str = typer.Argument(default="", help="Shell: bash | zsh | fish | powershell"),
 ) -> None:
-    """Install shell completions for NexSec.
+    """Install shell completions for Phalanx.
 
     Examples:
-      nexsec completions install bash
-      nexsec completions install powershell
+      phalanx completions install bash
+      phalanx completions install powershell
     """
     if not shell:
         shell = os.getenv("SHELL", "bash").split("/")[-1]
@@ -1925,19 +1925,19 @@ def completions_install(
     completions_map = {
         "bash": (
             "~/.bashrc",
-            "_NEXSEC_COMPLETE=bash_source nexsec >> ~/.nexsec/complete.bash\necho 'source ~/.nexsec/complete.bash' >> ~/.bashrc",
+            "_PHALANX_COMPLETE=bash_source phalanx >> ~/.phalanx/complete.bash\necho 'source ~/.phalanx/complete.bash' >> ~/.bashrc",
         ),
         "zsh": (
             "~/.zshrc",
-            "_NEXSEC_COMPLETE=zsh_source nexsec >> ~/.nexsec/complete.zsh\necho 'source ~/.nexsec/complete.zsh' >> ~/.zshrc",
+            "_PHALANX_COMPLETE=zsh_source phalanx >> ~/.phalanx/complete.zsh\necho 'source ~/.phalanx/complete.zsh' >> ~/.zshrc",
         ),
         "fish": (
-            "~/.config/fish/completions/nexsec.fish",
-            "_NEXSEC_COMPLETE=fish_source nexsec > ~/.config/fish/completions/nexsec.fish",
+            "~/.config/fish/completions/phalanx.fish",
+            "_PHALANX_COMPLETE=fish_source phalanx > ~/.config/fish/completions/phalanx.fish",
         ),
         "powershell": (
             "$PROFILE",
-            "$env:_NEXSEC_COMPLETE='powershell_source'; nexsec | Out-String | Invoke-Expression",
+            "$env:_PHALANX_COMPLETE='powershell_source'; phalanx | Out-String | Invoke-Expression",
         ),
     }
 
@@ -1964,7 +1964,7 @@ def completions_install(
 def config_list() -> None:
     """List all configuration settings."""
     rows = config.list_all()
-    table = Table(title="NexSec Configuration", show_header=True, header_style="bold cyan")
+    table = Table(title="Phalanx Configuration", show_header=True, header_style="bold cyan")
     table.add_column("Key", style="cyan", no_wrap=True)
     table.add_column("Value", style="green")
     table.add_column("Default", style="dim")
@@ -1983,7 +1983,7 @@ def config_set(
     key: str = typer.Argument(help="Setting key"),
     value: str = typer.Argument(help="New value"),
 ) -> None:
-    """Set a configuration value.\n\nExample: nexsec config set log_level debug"""
+    """Set a configuration value.\n\nExample: phalanx config set log_level debug"""
     try:
         new_val = config.set(key, value)
         console.print(f"[green]✓ {key} = {new_val}[/green]")
@@ -2031,7 +2031,7 @@ def plugin_list() -> None:
 
     if not real_plugins:
         console.print(
-            "[dim]No plugins installed. Use 'nexsec plugin install <name>' to add plugins.[/dim]"
+            "[dim]No plugins installed. Use 'phalanx plugin install <name>' to add plugins.[/dim]"
         )
         return
 
@@ -2078,11 +2078,11 @@ def wizard() -> None:
 # ---------------------------------------------------------------------------
 @app.command()
 def version() -> None:
-    """Show NexSec version information."""
+    """Show Phalanx version information."""
     tools = registry.discover()
     console.print(
         Panel.fit(
-            f"[bold cyan]NexSec[/bold cyan] [green]v{__version__}[/green]\n"
+            f"[bold cyan]Phalanx[/bold cyan] [green]v{__version__}[/green]\n"
             f"[dim]Platform:[/dim] {platform.system()} {platform.release()}\n"
             f"[dim]Python:[/dim]   {platform.python_version()}\n"
             f"[dim]Tools found:[/dim] {len(tools)}",

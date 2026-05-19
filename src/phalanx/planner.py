@@ -412,7 +412,7 @@ def _build_system_prompt(context: dict[str, Any]) -> str:
     )
     platform = context.get("platform", "unknown")
 
-    return f"""You are NexSec — an expert autonomous cybersecurity agent and task planner.
+    return f"""You are Phalanx — an expert autonomous cybersecurity agent and task planner.
 Platform: {platform}
 
 You convert natural language security instructions into structured JSON execution plans.

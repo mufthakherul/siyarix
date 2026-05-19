@@ -4,6 +4,8 @@ from nexsec.audit_log import AuditLogger, AuditSeverity, AuditEventType
 def test_audit_chain_tamper_detection(tmp_path, monkeypatch):
     # Ensure AuditLogger uses a temporary config dir to avoid touching user's files
     monkeypatch.setattr(AuditLogger, "_CONFIG_DIR", tmp_path)
+    monkeypatch.setattr(AuditLogger, "_AUDIT_DB", tmp_path / "audit.json")
+    monkeypatch.setattr(AuditLogger, "_AUDIT_LOG", tmp_path / "audit.log")
 
     logger = AuditLogger(log_startup=False)
 

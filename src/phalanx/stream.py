@@ -1,4 +1,4 @@
-"""WebSocket streaming client for the NexSec cloud platform."""
+"""WebSocket streaming client for the Siyarix cloud platform."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ _MAX_BACKOFF = 60.0
 
 
 class AgentStreamClient:
-    """Maintains a WebSocket connection to the NexSec server.
+    """Maintains a WebSocket connection to the Siyarix server.
 
     Automatically reconnects with exponential backoff and queues findings to
     the offline store when the connection is unavailable.
@@ -57,7 +57,7 @@ class AgentStreamClient:
                 )
                 self._connected = True
                 self._backoff = 1.0
-                logger.info("Connected to NexSec server at %s", self._server_url)
+                logger.info("Connected to Siyarix server at %s", self._server_url)
                 await self._flush_offline()
                 return
             except Exception as exc:

@@ -1,4 +1,4 @@
-"""NexSec Shell Knowledge — Cross-platform terminal command awareness.
+"""Siyarix Shell Knowledge — Cross-platform terminal command awareness.
 
 Knows the commands for:
   • Linux / macOS (bash, zsh, sh)

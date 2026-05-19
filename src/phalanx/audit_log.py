@@ -28,6 +28,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from siyarix.telemetry.siem import siem_forwarder
+
 try:
     import tomllib  # Python 3.11+
 except ImportError:
@@ -236,6 +238,10 @@ class AuditLogger:
         """Flush unsaved events on process exit."""
         if self._dirty:
             self._save_events()
+        try:
+            siem_forwarder.close_all()
+        except Exception:
+            pass
 
     def _startup_event(self) -> None:
         """Log system startup — uses the correct SYSTEM_START type."""
@@ -329,6 +335,12 @@ class AuditLogger:
                 f"[{color}]{event.timestamp.strftime('%H:%M:%S')} | "
                 f"{event.user} | {event.action} | {event.target}[/{color}]"
             )
+
+        # Dispatch to SIEM
+        try:
+            siem_forwarder.dispatch(event.to_dict())
+        except Exception as exc:
+            logger.debug("SIEM dispatch error: %s", exc)
 
         # Persist every 10 events or on critical/high severity
         if len(self._events) % 10 == 0 or severity in (AuditSeverity.CRITICAL, AuditSeverity.HIGH):

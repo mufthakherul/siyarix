@@ -1,4 +1,4 @@
-"""NexSec CLI — CA-2.4 Configuration Management.
+"""Siyarix CLI — CA-2.4 Configuration Management.
 
 Settings stored in ~/.siyarix/settings.toml — human-editable TOML format.
 Provides a type-safe settings store with get/set/reset/list/edit support.
@@ -112,7 +112,7 @@ def _write_toml(path: Path, data: dict[str, Any]) -> None:
     """Write dict as TOML (simple key = value format)."""
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
-        "# NexSec Agent Settings\n# Edit directly or use: siyarix-agent config set <key> <value>\n"
+        "# Siyarix Agent Settings\n# Edit directly or use: siyarix-agent config set <key> <value>\n"
     ]
     for key, value in sorted(data.items()):
         desc = DESCRIPTIONS.get(key, "")
@@ -129,7 +129,7 @@ def _write_toml(path: Path, data: dict[str, Any]) -> None:
 
 
 class SettingsStore:
-    """TOML-backed settings manager for the NexSec CLI.
+    """TOML-backed settings manager for the Siyarix CLI.
 
     All reads fall back to DEFAULTS when a key is not set.
     """

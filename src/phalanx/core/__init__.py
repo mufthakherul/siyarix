@@ -1,4 +1,4 @@
-"""Core platform kernel primitives for NexSec."""
+"""Core platform kernel primitives for Siyarix."""
 
 from .session_kernel import SessionContext, SessionKernel, SessionPersistenceLevel
 from .intent_router import IntentRoute, IntentRouter, RiskTier

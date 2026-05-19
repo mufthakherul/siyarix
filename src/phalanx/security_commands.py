@@ -1,4 +1,4 @@
-"""NexSec CLI — Security Operations Commands.
+"""Siyarix CLI — Security Operations Commands.
 
 Rich-powered commands for incident management, vulnerability tracking,
 threat hunting, MITRE ATT&CK coverage, and security dashboards.

@@ -1,4 +1,4 @@
-"""NexSec CLI — CA-2.2 Real-Time Scan Progress.
+"""Siyarix CLI — CA-2.2 Real-Time Scan Progress.
 
 Provides Rich Live-based progress display for concurrent tool execution.
 Supports per-tool spinners, overall progress bars, live findings counter,
@@ -191,7 +191,7 @@ class ScanProgressDisplay:
         elapsed = self._state.elapsed
         m, s = divmod(int(elapsed), 60)
         header = Text(
-            f"NexSec Scan  ⏱ {m:02d}:{s:02d}  Findings: {self._state.total_findings}",
+            f"Siyarix Scan  ⏱ {m:02d}:{s:02d}  Findings: {self._state.total_findings}",
             style="bold",
         )
         items = [

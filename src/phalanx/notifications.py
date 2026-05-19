@@ -1,4 +1,4 @@
-"""NexSec Notification System — In-terminal alerts, severity indicators, webhook forwarding.
+"""Siyarix Notification System — In-terminal alerts, severity indicators, webhook forwarding.
 
 Provides:
   • NotificationCenter — central hub for all notifications
@@ -274,7 +274,7 @@ class NotificationCenter:
                         "type": "mrkdwn",
                         "text": (
                             f"*{_LEVEL_CONFIG.get(n.level.value, {}).get('icon', '')} "
-                            f"NexSec — {n.level.value.upper()}*\n"
+                            f"Siyarix — {n.level.value.upper()}*\n"
                             f"*{n.title}*\n{n.message}"
                         ),
                     },

@@ -1,4 +1,4 @@
-"""NexSec AI Workflow Generator — Generate YAML workflow definitions from natural language.
+"""Siyarix AI Workflow Generator — Generate YAML workflow definitions from natural language.
 
 Provides:
   • **WorkflowGenerator** — Converts NL goals into structured YAML workflows

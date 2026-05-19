@@ -1,4 +1,4 @@
-"""Helpers for NexSec environment file management."""
+"""Helpers for Siyarix environment file management."""
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ def ensure_env_file(path: Path | None = None) -> Path:
         target.write_text(ENV_EXAMPLE_FILE.read_text(encoding="utf-8"), encoding="utf-8")
     else:
         target.write_text(
-            "# NexSec environment file\n"
+            "# Siyarix environment file\n"
             "# Add your API keys here. This file is safe to edit locally.\n\n"
             "OPENAI_API_KEY=REPLACE_ME\n"
             "GEMINI_API_KEY=REPLACE_ME\n"

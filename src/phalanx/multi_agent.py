@@ -1,4 +1,4 @@
-"""NexSec Multi-Agent Framework — Collaborative autonomous agent system.
+"""Siyarix Multi-Agent Framework — Collaborative autonomous agent system.
 
 Provides:
   • **Agent** — Individual autonomous agent with role, tools, and memory
@@ -43,6 +43,8 @@ class AgentRole(StrEnum):
     REPORTER = "reporter"
     COORDINATOR = "coordinator"
     CUSTOM = "custom"
+    SOC = "soc"
+    DFIR = "dfir"
 
 
 class AgentStatus(StrEnum):

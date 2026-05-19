@@ -1,4 +1,4 @@
-"""Manage reusable command profiles / templates for NexSec."""
+"""Manage reusable command profiles / templates for Siyarix."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""NexSec Knowledge Graph — In-memory graph of targets, findings, and relationships.
+"""Siyarix Knowledge Graph — In-memory graph of targets, findings, and relationships.
 
 Provides:
   • **KnowledgeGraph** — Central graph tracking targets, services, vulnerabilities,

@@ -1,4 +1,4 @@
-"""NexSec Security Hardening — Input Validation, Secret Redaction, Danger Analysis.
+"""Siyarix Security Hardening — Input Validation, Secret Redaction, Danger Analysis.
 
 Provides three production-grade security primitives:
 

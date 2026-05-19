@@ -1,4 +1,4 @@
-"""NexSec PTY Support — Pseudo-terminal wrapper for interactive tool execution.
+"""Siyarix PTY Support — Pseudo-terminal wrapper for interactive tool execution.
 
 Provides:
   • **PTYSession** — Launch tools in a pseudo-terminal for full interactive I/O

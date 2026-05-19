@@ -1,4 +1,4 @@
-"""NexSec Session Manager — Persistent session state, snapshots, and history.
+"""Siyarix Session Manager — Persistent session state, snapshots, and history.
 
 Provides:
   • **CommandHistory** — SQLite-backed cross-session command history
@@ -39,7 +39,7 @@ _SIYARIX_DIR = Path(os.getenv("SIYARIX_CONFIG_DIR", str(Path.home() / ".siyarix"
 
 @dataclass
 class SessionMeta:
-    """Metadata about a NexSec session."""
+    """Metadata about a Siyarix session."""
 
     session_id: str
     name: str = ""
@@ -165,12 +165,12 @@ class CommandHistory:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# SessionRegistry — track all NexSec sessions
+# SessionRegistry — track all Siyarix sessions
 # ═══════════════════════════════════════════════════════════════════════════
 
 
 class SessionRegistry:
-    """Registry of all NexSec CLI sessions, backed by SQLite."""
+    """Registry of all Siyarix CLI sessions, backed by SQLite."""
 
     def __init__(self, db_path: Path | None = None) -> None:
         self._db_path = db_path or (_SIYARIX_DIR / "sessions.db")

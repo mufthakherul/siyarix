@@ -1,4 +1,4 @@
-"""NexSec Command Pipeline System — Executing chained operations.
+"""Siyarix Command Pipeline System — Executing chained operations.
 
 Supports piping operations with '|' or sequential steps with 'then'.
 Context and findings accumulate across the execution chain.

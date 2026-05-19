@@ -1,4 +1,4 @@
-"""NexSec custom exceptions with rich error messages and context."""
+"""Siyarix custom exceptions with rich error messages and context."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from enum import StrEnum
 from typing import Any
 
 __all__ = [
-    "NexSecException",
+    "SiyarixException",
     "ValidationError",
     "ExecutionError",
     "PlanningError",
@@ -40,8 +40,8 @@ class ErrorContext:
     component: str = ""
 
 
-class NexSecException(Exception):
-    """Base exception for all NexSec errors."""
+class SiyarixException(Exception):
+    """Base exception for all Siyarix errors."""
 
     def __init__(
         self,
@@ -68,56 +68,56 @@ class NexSecException(Exception):
         return msg
 
 
-class ValidationError(NexSecException):
+class ValidationError(SiyarixException):
     """Input validation failed."""
     pass
 
 
-class ExecutionError(NexSecException):
+class ExecutionError(SiyarixException):
     """Tool execution failed."""
     pass
 
 
-class PlanningError(NexSecException):
+class PlanningError(SiyarixException):
     """Task planning failed."""
     pass
 
 
-class SafetyError(NexSecException):
+class SafetyError(SiyarixException):
     """Safety validation blocked operation."""
     pass
 
 
-class ToolNotFoundError(NexSecException):
+class ToolNotFoundError(SiyarixException):
     """Tool not found in registry or PATH."""
     pass
 
 
-class CredentialError(NexSecException):
+class CredentialError(SiyarixException):
     """Credential management error."""
     pass
 
 
-class ConfigurationError(NexSecException):
+class ConfigurationError(SiyarixException):
     """Configuration error."""
     pass
 
 
-class NetworkError(NexSecException):
+class NetworkError(SiyarixException):
     """Network operation failed."""
     pass
 
 
-class TimeoutError(NexSecException):
+class TimeoutError(SiyarixException):
     """Operation timed out."""
     pass
 
 
-class CircuitBreakerOpen(NexSecException):
+class CircuitBreakerOpen(SiyarixException):
     """Circuit breaker is open; service temporarily unavailable."""
     pass
 
 
-class MaxRetriesExceeded(NexSecException):
+class MaxRetriesExceeded(SiyarixException):
     """Maximum retry attempts exceeded."""
     pass

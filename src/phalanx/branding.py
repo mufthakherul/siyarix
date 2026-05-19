@@ -1,4 +1,4 @@
-"""NexSec Branding — Premium Design System.
+"""Siyarix Branding — Premium Design System.
 
 Seven curated themes, rich banner, severity styles, mode dispatcher display,
 and design token helpers for a consistent terminal UX.
@@ -150,7 +150,7 @@ _SEVERITY_ICONS: dict[str, str] = {
 }
 
 # ---------------------------------------------------------------------------
-# Premium ASCII banner — NexSec v2
+# Premium ASCII banner — Siyarix v2
 # ---------------------------------------------------------------------------
 _BANNER = r"""
     ▟█████▙      ▟████▙     ▟█████▙   ███▙  ▟███   ███    ▟█████▙     ▟█████▙    ▟███████▙   ███       ███
@@ -310,7 +310,7 @@ def print_banner(
     theme: str,
     subtitle: str = "Enterprise Cybersecurity Operations Platform",
 ) -> None:
-    """Print the NexSec premium banner to the console."""
+    """Print the Siyarix premium banner to the console."""
     safe_theme = resolve_theme(theme)
     style_map = _SEVERITY_STYLES[safe_theme]
     color = style_map.get("primary", "cyan")
@@ -349,7 +349,7 @@ def print_banner(
 
 
 def print_mode_dispatcher(console: Console, theme: str, active_mode_num: str = "1") -> None:
-    """Print the NexSec Mode Dispatcher table."""
+    """Print the Siyarix Mode Dispatcher table."""
     safe_theme = resolve_theme(theme)
     styles = _SEVERITY_STYLES[safe_theme]
     primary = styles.get("primary", "cyan")

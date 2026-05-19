@@ -1,4 +1,4 @@
-"""Profile and workspace configuration for NexSec Agent."""
+"""Profile and workspace configuration for Siyarix Agent."""
 
 from __future__ import annotations
 

@@ -138,7 +138,7 @@ class PluginManager:
                 name=name,
                 version="0.1.0",
                 author=author,
-                description="Custom NexSec plugin",
+                description="Custom Siyarix plugin",
                 path=str(plugin_dir),
             ),
         )

@@ -1,4 +1,4 @@
-"""Authentication helpers for NexSec Agent CLI."""
+"""Authentication helpers for Siyarix Agent CLI."""
 
 from __future__ import annotations
 

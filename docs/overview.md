@@ -9,9 +9,11 @@ Key principles:
 - **Scriptable**: outputs machine-readable JSON/YAML for automated pipelines.
 
 Primary capabilities:
+- Interactive AI Assistant (NexSec Chat)
 - Network & web scanning
 - Threat hunting and enrichment (Autonomous assistance)
 - Incident management and enterprise audit trail
+- Enterprise Credential Vault (encrypted secrets & KMS)
 - Integrated plans combining multiple security tools
 - Cross-platform shell intelligence (bash/zsh/sh, PowerShell/CMD, fish, nushell, xonsh)
 - Infra-aware tooling (Docker, Kubernetes, Terraform, cloud CLIs)

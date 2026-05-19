@@ -1,31 +1,55 @@
-# Architecture
+# Architecture & Internals
 
-NexSec is an enterprise-grade cybersecurity command center designed for modularity, cross-platform awareness, and autonomous orchestration.
+Siyarix is designed to be modular and transparent. We wanted to build a system that bridges the gap between natural language processing and actual command-line execution, without making the codebase overly complex or difficult for a student to understand.
 
-## Architectural Layers
+Here is a comprehensive breakdown of how Siyarix works under the hood.
 
-- **CLI Layer (Typer & Rich)**: A nested, multi-level command routing system using Typer for structure and Rich for premium console output, themes, and interactive components.
-- **Interactive REPL (Chat Mode)**: A specialized cybersecurity AI assistant that maintains session history, supports slash commands, and provides natural language to execution pipelines. The no-subcommand `siyarix` launch path now opens a polished command-center landing screen with quick actions and status cards.
-- **Orchestration & Planning**:
-    - **Task Planner**: Decomposes high-level instructions into multi-step execution plans.
-    - **Execution Engine**: Orchestrates tasks with support for retries, dependency management, and workflow persistence.
-- **Execution Modes**:
-    - **Registry Mode**: High-speed, offline execution using local tool discovery.
-    - **Autonomous Mode**: Model-driven planning and decision making for complex or unknown tasks.
-    - **Integrated Mode (Default)**: Combines AI planning with registry-backed tool verification for optimal reliability.
-- **Security & Knowledge**:
-    - **Enterprise Vault**: Secure, encrypted storage for API keys and secrets using Fernet and AWS KMS.
-    - **Environment Sync Layer**: Local key storage is mirrored into a repo-root `.env` file for convenience while the encrypted vault remains the source of truth.
-    - **Shell Knowledge Library**: A cross-platform translation engine that maps intents to platform-native (Bash, PowerShell, CMD) security commands.
-    - **Tool Registry**: Auto-discovery system for security binaries and their capabilities.
-- **Persistence & Compliance**:
-    - **Offline Store**: Local database for findings, execution plans, and scan history.
-    - **Audit Engine**: High-integrity, chained audit log for enterprise compliance and forensic verification.
+---
 
-## Design Principles
+## 🧩 Architectural Layers
 
-- **Surgical Execution**: The engine prioritizes precise, verified tool invocations over "hallucinated" shell commands.
-- **Platform Agnostic**: All core intents are translated to the host's native shell environment, ensuring consistent behavior across Linux, macOS, and Windows.
-- **Offline-First Resilience**: Critical operations (registry scans, vault access, audit logging) function without internet connectivity.
-- **Policy-Driven Safety**: Integrated safety resolvers and CI/CD gates ensure that autonomous actions adhere to organizational security policies.
-- **Assistant-Style UX**: The landing experience emphasizes current mode, provider, theme, session state, and quick actions so the interface feels closer to a modern CLI copilot.
+Siyarix is broken down into several distinct layers, each handling a specific part of the user journey.
+
+### 1. The CLI & Presentation Layer
+- **Typer Framework**: We use [Typer](https://typer.tiangolo.com/) to build the command-line interface. It's clean, relies on standard Python type hints, and is easy to maintain.
+- **Rich Integration**: For all the beautiful terminal output, syntax-highlighted JSON, colors, and interactive components, we rely heavily on the [Rich](https://rich.readthedocs.io/) library. This ensures the output is always readable and visually appealing.
+
+### 2. The Interactive Chat Experience (REPL)
+When you run `siyarix` without any arguments, you drop into an interactive REPL (Read-Eval-Print Loop).
+- **Session Management**: This layer acts as a friendly AI assistant that keeps track of your session history. It remembers previous commands and contextual data so you can have an ongoing conversation.
+- **Slash Commands**: To make configuration fast, we built a slash-command router (e.g., `/help`, `/theme mode dark`, `/key set`). These bypass the AI planner and execute Python functions directly for immediate feedback.
+
+### 3. Orchestration & Planning (The "Brain")
+This is where the magic happens when you ask Siyarix to perform a security task.
+- **Task Planner**: This module takes your plain-English instructions and passes them to a Large Language Model (LLM). It instructs the model to break down your request into a logical, structured sequence of execution steps (JSON). 
+- **Execution Engine**: This component takes the structured steps from the Task Planner and executes them. It handles the heavy lifting: spawning subprocesses, catching `stdout`/`stderr`, managing retries if a command fails, and ensuring that step dependencies are respected (e.g., waiting for a port scan to finish before launching a web fuzzer).
+
+### 4. Security & Knowledge Base
+To make the AI useful, we have to provide it with real-world constraints.
+- **Shell Knowledge Library**: A heuristic engine that detects your operating system and terminal type. It translates general security "intents" into native commands for Bash, PowerShell, Zsh, or CMD. This ensures that Siyarix works natively on Windows just as well as it does on Kali Linux.
+- **Tool Registry**: Upon startup, this component scans your system's `PATH` to discover which security tools (like `nmap`, `nuclei`, or `ffuf`) you already have installed. It feeds this list to the Task Planner, ensuring the AI only recommends tools you can actually run.
+- **Enterprise Credential Vault**: A secure local storage system (`~/.siyarix/`) that uses symmetric encryption (Fernet) to protect your API keys. We explicitly designed this to keep your keys out of your shell history and out of public dotfiles.
+
+---
+
+## 🔄 The Execution Workflow
+
+If you type `siyarix run "find open ports on example.com"`, here is the exact lifecycle of that command:
+
+1. **Intent Parsing**: The CLI captures your string and sends it to the Task Planner.
+2. **Context Gathering**: The Tool Registry reports that `nmap` is installed. The Shell Knowledge Library reports that you are running `zsh` on macOS.
+3. **Model Generation**: The Task Planner sends a prompt to the LLM (e.g., Gemini or OpenAI) containing your request and the context.
+4. **Plan Creation**: The LLM returns a structured JSON payload defining a step to run `nmap -p- example.com`.
+5. **Safety Verification**: The Execution Engine intercepts the planned step and checks it against a list of dangerous patterns (e.g., blocking `rm -rf`).
+6. **Execution**: The Execution Engine spawns a subprocess, runs `nmap`, captures the output, and prints the formatted results to your terminal using Rich.
+
+---
+
+## 🧠 Core Design Principles
+
+When we started this project, we wanted to stick to a few core ideas that foster learning and safety:
+
+- **Safety Over Magic**: We want the AI to suggest and execute *verified* tool invocations rather than just hallucinating random shell commands. Siyarix will always verify a tool exists and passes safety checks before pulling the trigger.
+- **Platform Friendly**: Whether you're a student running Windows or a researcher on a Linux VM, the core commands should work consistently.
+- **Learn by Doing**: The architecture is designed to be transparent. By setting `SIYARIX_LOG_LEVEL=DEBUG`, you can watch exactly how Siyarix builds its plans and learn how different security tools chain together in the real world.
+- **Welcoming UX**: We believe security tools don't have to look intimidating. A polished, friendly interface lowers the barrier to entry for beginners and makes the terminal a more pleasant place to be.

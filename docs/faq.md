@@ -10,4 +10,4 @@ A: Yes, provided you use appropriate credentials and sandboxing. The execution e
 A: You can add new tools by implementing a parser adapter in the `parsers` directory and registering the tool in the `tool_registry`. Autonomous discovery can also pick up tools added to your system PATH.
 
 **Q: Which model providers are supported for autonomous planning?**
-A: NexSec currently supports OpenAI, Ollama (local), and NexSec Cloud providers.
+A: NexSec currently supports OpenAI, Google Gemini, Anthropic, Ollama (local), and NexSec Cloud providers.

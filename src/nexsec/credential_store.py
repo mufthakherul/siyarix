@@ -34,7 +34,10 @@ try:
 except ImportError:
     CRYPTO_AVAILABLE = False
     logger = logging.getLogger(__name__)
-    logger.warning("cryptography package not installed. Credential encryption disabled.")
+    # Do not silently continue without cryptography — credential storage must be protected.
+    logger.warning(
+        "cryptography package not installed. Credential encryption unavailable; CredentialStore will be disabled until cryptography is installed."
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +103,7 @@ class CredentialStore:
 
     _DEFAULT_CONFIG_DIR = Path.home() / ".nexsec"
 
-    def __init__(self, master_password: str | None = None):
+    def __init__(self, master_password: str | None = None) -> None:
         self._config_dir = Path(os.getenv("NEXSEC_CONFIG_DIR", str(self._DEFAULT_CONFIG_DIR)))
         self._creds_file = self._config_dir / "credentials.enc"
         self._key_file = self._config_dir / ".vault_key"
@@ -108,8 +111,13 @@ class CredentialStore:
         self._master_key: bytes | None = None
         self._fernet: Fernet | None = None
 
-        if CRYPTO_AVAILABLE:
-            self._init_encryption(master_password)
+        # Enforce cryptography for secure credential handling. Fail fast if missing.
+        if not CRYPTO_AVAILABLE:
+            raise RuntimeError(
+                "cryptography package is required for CredentialStore. Install with: pip install cryptography"
+            )
+
+        self._init_encryption(master_password)
 
         self._load()
 
@@ -137,16 +145,34 @@ class CredentialStore:
     def retrieve(self, name: str, cred_type: str | None = None) -> str | None:
         return self.get_by_name(name, cred_type=cred_type)
 
-    def _init_encryption(self, password: str | None):
+    def _init_encryption(self, password: str | None) -> None:
         """Initialize encryption"""
         if not CRYPTO_AVAILABLE:
             return
-
         password = password or os.getenv("NEXSEC_MASTER_PASSWORD")
 
-        # Load or generate key.
-        if self._key_file.exists():
-            key_material = self._key_file.read_bytes()
+        # Prefer OS keyring when available and enabled. Falls back to local keyfile.
+        use_keyring = os.getenv("NEXSEC_USE_KEYRING", "1").strip() not in {"0", "false", "no"}
+        key_material = None
+        if use_keyring:
+            try:
+                import keyring
+
+                stored = keyring.get_password("nexsec", "vault_key")
+                if stored:
+                    key_material = base64.urlsafe_b64decode(stored)
+            except Exception:
+                logger.debug("Keyring unavailable or failed; falling back to file-based key")
+
+        # If no key material from keyring, try local key file
+        if key_material is None and self._key_file.exists():
+            try:
+                key_material = self._key_file.read_bytes()
+            except Exception:
+                key_material = None
+
+        # Normalize or generate
+        if key_material is not None:
             try:
                 key = self._normalize_fernet_key(key_material)
             except ValueError:
@@ -155,7 +181,32 @@ class CredentialStore:
         else:
             key = self._generate_fernet_key(password)
 
+        # If we generated a key and keyring is available, attempt to persist there
+        if use_keyring:
+            try:
+                import keyring
+
+                key_b64 = key.decode() if isinstance(key, bytes) else str(key)
+                # store base64 key material in keyring (best-effort)
+                keyring.set_password("nexsec", "vault_key", key_b64)
+            except Exception:
+                logger.debug(
+                    "Failed to persist vault key to keyring; key stored locally if permitted"
+                )
+
         self._fernet = Fernet(key)
+
+    def _kms_available(self) -> bool:
+        """Return True if a KMS provider is configured and boto3 is available."""
+        provider = os.getenv("NEXSEC_KMS_PROVIDER", "").strip().lower()
+        if provider != "aws":
+            return False
+        try:
+            import boto3
+
+            return True
+        except Exception:
+            return False
 
     def _generate_fernet_key(self, password: str | None) -> bytes:
         """Create a valid Fernet key and persist the raw material."""
@@ -172,7 +223,15 @@ class CredentialStore:
             raw_key = os.urandom(32)
 
         self._config_dir.mkdir(parents=True, exist_ok=True)
+        # write raw key material and protect file permissions on POSIX systems
         self._key_file.write_bytes(raw_key)
+        try:
+            # restrict permissions to owner only where supported
+            if os.name != "nt":
+                os.chmod(self._key_file, 0o600)
+        except Exception as exc:
+            # best-effort; log but continue
+            logger.exception("Failed to set permissions on vault key file: %s", exc)
         return base64.urlsafe_b64encode(raw_key)
 
     @staticmethod
@@ -194,26 +253,56 @@ class CredentialStore:
     def _encrypt(self, data: str) -> str:
         """Encrypt data"""
         if not self._fernet:
-            return base64.b64encode(data.encode()).decode()
+            raise RuntimeError("encryption not initialized")
         return self._fernet.encrypt(data.encode()).decode()
 
     def _decrypt(self, encrypted: str) -> str:
         """Decrypt data"""
         if not self._fernet:
-            return base64.b64decode(encrypted).decode()
+            raise RuntimeError("encryption not initialized")
         return self._fernet.decrypt(encrypted.encode()).decode()
 
-    def _load(self):
+    def _load(self) -> None:
         """Load credentials from disk"""
         if not self._creds_file.exists():
             return
 
         try:
-            encrypted_data = self._creds_file.read_text()
-            if not encrypted_data.strip():
+            raw = self._creds_file.read_text()
+            if not raw.strip():
                 return
-            decrypted = self._decrypt(encrypted_data)
-            data = json.loads(decrypted)
+
+            # Detect KMS envelope format (JSON with encrypted_key + payload)
+            obj = None
+            try:
+                obj = json.loads(raw)
+            except Exception:
+                obj = None
+
+            if obj and isinstance(obj, dict) and "encrypted_key" in obj and "payload" in obj:
+                # KMS envelope decryption using AWS KMS
+                if not self._kms_available():
+                    raise RuntimeError(
+                        "KMS provider configured but boto3 not available or provider not enabled"
+                    )
+                import base64 as _b64
+                import boto3
+
+                kms_key_blob = _b64.b64decode(obj["encrypted_key"])
+                payload = _b64.b64decode(obj["payload"])
+                kms = boto3.client("kms")
+                resp = kms.decrypt(CiphertextBlob=kms_key_blob)
+                data_key = resp.get("Plaintext")
+                if not data_key:
+                    raise RuntimeError("KMS failed to decrypt data key")
+                fernet_key = base64.urlsafe_b64encode(data_key)
+                f = Fernet(fernet_key)
+                decrypted = f.decrypt(payload).decode()
+                data = json.loads(decrypted)
+            else:
+                # Legacy local fernet-encrypted payload
+                decrypted = self._decrypt(raw)
+                data = json.loads(decrypted)
             for cred_data in data:
                 if "value_encrypted" not in cred_data:
                     logger.error(f"DEBUG: Missing value_encrypted in cred_data: {cred_data}")
@@ -224,20 +313,54 @@ class CredentialStore:
                     environment=cred_data["environment"],
                     value_encrypted=cred_data["value_encrypted"],
                     created_at=datetime.fromisoformat(cred_data["created_at"]),
-                    expires_at=datetime.fromisoformat(cred_data["expires_at"]) if cred_data.get("expires_at") else None,
+                    expires_at=datetime.fromisoformat(cred_data["expires_at"])
+                    if cred_data.get("expires_at")
+                    else None,
                     usage_count=cred_data.get("usage_count", 0),
                     rotated=cred_data.get("rotated", False),
                     tags=cred_data.get("tags", []),
                     shared_with=cred_data.get("shared_with", []),
                 )
                 self._credentials[cred.cred_id] = cred
-        except Exception as e:
-            logger.error(f"Failed to load credentials: {e}")
+        except Exception as exc:
+            logger.exception("Failed to load credentials from disk: %s", exc)
 
-    def _save(self):
+    def _save(self) -> None:
         """Save credentials to disk"""
         data = [c.to_dict() for c in self._credentials.values()]
-        encrypted = self._encrypt(json.dumps(data))
+        raw = json.dumps(data)
+
+        # If a KMS provider is configured, perform envelope encryption with KMS
+        provider = os.getenv("NEXSEC_KMS_PROVIDER", "").strip().lower()
+        if provider == "aws" and self._kms_available():
+            try:
+                import boto3
+                import base64 as _b64
+
+                kms = boto3.client("kms")
+                key_id = os.getenv("AWS_KMS_KEY_ID")
+                if not key_id:
+                    raise RuntimeError("AWS_KMS_KEY_ID must be set when NEXSEC_KMS_PROVIDER=aws")
+                # Generate a data key (plaintext + encrypted)
+                resp = kms.generate_data_key(KeyId=key_id, KeySpec="AES_256")
+                plaintext = resp.get("Plaintext")
+                ciphertext_blob = resp.get("CiphertextBlob")
+                if not plaintext or not ciphertext_blob:
+                    raise RuntimeError("Failed to generate data key from KMS")
+                fernet_key = base64.urlsafe_b64encode(plaintext)
+                f = Fernet(fernet_key)
+                payload = f.encrypt(raw.encode())
+                out = {
+                    "encrypted_key": _b64.b64encode(ciphertext_blob).decode(),
+                    "payload": _b64.b64encode(payload).decode(),
+                }
+                self._creds_file.write_text(json.dumps(out))
+                return
+            except Exception:
+                logger.exception("KMS envelope encryption failed; falling back to local encryption")
+
+        # Default: local Fernet encryption
+        encrypted = self._encrypt(raw)
         self._creds_file.write_text(encrypted)
 
     def store(
@@ -250,6 +373,8 @@ class CredentialStore:
         tags: list[str] | None = None,
     ) -> Credential:
         """Store credential"""
+        # Replace any existing credential with the same logical name/type.
+        self.delete(name, cred_type)
         cred = Credential(
             cred_id=str(uuid.uuid4())[:12],
             name=name,
@@ -282,7 +407,9 @@ class CredentialStore:
 
         return self._decrypt(cred.value_encrypted)
 
-    def get_by_name(self, name: str, environment: str | None = None, cred_type: str | None = None) -> str | None:
+    def get_by_name(
+        self, name: str, environment: str | None = None, cred_type: str | None = None
+    ) -> str | None:
         """Get credential by name"""
         for cred in self._credentials.values():
             if cred.name == name:
@@ -293,9 +420,11 @@ class CredentialStore:
                 return self.get(cred.cred_id)
         return None
 
-    def list(self, cred_type: str | None = None, environment: str | None = None) -> list[dict]:
+    def list_credentials(
+        self, cred_type: str | None = None, environment: str | None = None
+    ) -> list[dict]:
         """List credentials (metadata only, no values)"""
-        creds = self._credentials.values()
+        creds: list[Credential] = list(self._credentials.values())
 
         if cred_type:
             creds = [c for c in creds if c.cred_type == cred_type]
@@ -346,7 +475,7 @@ class CredentialStore:
                 expiring.append(cred.to_dict())
         return expiring
 
-    def export_encrypted(self, filepath: str, password: str):
+    def export_encrypted(self, filepath: str, password: str) -> None:
         """Export encrypted backup"""
         data = [c.to_dict() for c in self._credentials.values()]
         # Include encrypted values

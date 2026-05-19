@@ -190,8 +190,8 @@ class AuditLogger:
             try:
                 config = tomllib.loads(config_file.read_text())
                 self._RETENTION_DAYS = config.get("retention_days", 365)
-            except Exception:  # nosec B110
-                pass
+            except Exception as exc:  # nosec B110
+                logger.exception("Failed to load audit config: %s", exc)
 
     def _load_events(self) -> None:
         """Load existing events from disk (last 1000 only to limit memory)"""
@@ -218,7 +218,7 @@ class AuditLogger:
                 )
                 self._events.append(evt)
         except Exception as exc:
-            logger.error("Failed to load audit events: %s", exc)
+            logger.exception("Failed to load audit events: %s", exc)
 
     def _save_events(self) -> None:
         """Save events to disk atomically."""
@@ -252,7 +252,8 @@ class AuditLogger:
         """Get source IP"""
         try:
             return socket.gethostbyname(socket.gethostname())
-        except Exception:
+        except Exception as exc:
+            logger.debug("Failed to resolve host IP: %s", exc)
             return "127.0.0.1"
 
     def start_session(self, user: str) -> str:
@@ -420,8 +421,7 @@ class AuditLogger:
             "total_events": len(self._events),
             "total_sessions": len(self._sessions),
             "by_type": {
-                et: len([e for e in self._events if e.event_type == et])
-                for et in AuditEventType
+                et: len([e for e in self._events if e.event_type == et]) for et in AuditEventType
             },
             "by_severity": {
                 s: len([e for e in self._events if e.severity == s]) for s in AuditSeverity

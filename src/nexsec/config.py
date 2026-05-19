@@ -8,6 +8,11 @@ from __future__ import annotations
 
 import os
 import subprocess  # nosec B404
+import logging
+
+from nexsec.executor import safe_run_sync
+
+logger = logging.getLogger(__name__)
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +36,7 @@ DEFAULTS: dict[str, Any] = {
     "tls_verify": True,
     "history_retention_days": 90,
     "model_provider": "auto",
+    "gemini_model": "gemini-1.5-pro",
     "ollama_url": "http://localhost:11434",
     "ollama_model": "llama3.1",
     "notifications_enabled": True,
@@ -42,14 +48,15 @@ DESCRIPTIONS: dict[str, str] = {
     "default_parallel": "Max tools to run in parallel during --all scans",
     "scan_timeout": "Seconds before a running tool is killed",
     "auto_sync": "Automatically sync findings to server when connected",
-    "color_theme": "Terminal color theme: default | dark | light | minimal | neon",
+    "color_theme": "Terminal color theme: system | default | dark | light | minimal | neon",
     "log_level": "Logging verbosity: debug | info | warning | error",
     "proxy": "HTTP proxy URL for all outbound connections (empty = none)",
     "proxy_pool": "Comma-separated proxy list used for rotation",
     "client_profile": "Preferred profile: desktop_chrome | desktop_firefox | android_mobile | ios_safari",
     "tls_verify": "Verify TLS certificates on HTTPS requests",
     "history_retention_days": "Days to keep scan history (0 = forever)",
-    "model_provider": "Preferred model provider: auto | openai | ollama",
+    "model_provider": "Preferred model provider: auto | openai | gemini | ollama",
+    "gemini_model": "Gemini model name (default: gemini-1.5-pro)",
     "ollama_url": "Ollama server URL (default: http://localhost:11434)",
     "ollama_model": "Ollama model name (default: llama3.1)",
     "notifications_enabled": "Show Rich panel notifications for key events",
@@ -92,14 +99,18 @@ def _try_load_toml(path: Path) -> dict[str, Any]:
                             except ValueError:
                                 result[k] = v
                 return result
-    except Exception:
+    except Exception as exc:
+        logger = logging.getLogger(__name__)
+        logger.exception("Failed to parse TOML file %s", path)
         return {}
 
 
 def _write_toml(path: Path, data: dict[str, Any]) -> None:
     """Write dict as TOML (simple key = value format)."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    lines = ["# NexSec Agent Settings\n# Edit directly or use: nexsec-agent config set <key> <value>\n"]
+    lines = [
+        "# NexSec Agent Settings\n# Edit directly or use: nexsec-agent config set <key> <value>\n"
+    ]
     for key, value in sorted(data.items()):
         desc = DESCRIPTIONS.get(key, "")
         if desc:
@@ -174,9 +185,17 @@ class SettingsStore:
         """Open settings file in $EDITOR."""
         self._save()  # ensure file exists
         import platform as _platform
+
         default_editor = "notepad" if _platform.system().lower() == "windows" else "nano"
         editor = os.getenv("EDITOR", default_editor)
-        subprocess.call([editor, str(self._path)])  # nosec B603
+        try:
+            safe_run_sync([editor, str(self._path)], timeout=0)
+        except Exception as exc:
+            # Fallback to subprocess.call if safe_run_sync fails for unexpected editors
+            logger.exception(
+                "Opening editor failed with safe_run_sync, falling back to subprocess.call: %s", exc
+            )
+            subprocess.call([editor, str(self._path)])  # nosec B603
         # Reload after editing
         self._data = {**DEFAULTS, **_try_load_toml(self._path)}
 

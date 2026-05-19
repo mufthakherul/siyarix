@@ -1,4 +1,4 @@
-import pytest
+import asyncio
 
 from nexsec.orchestration.workflow_runtime import WorkflowRuntime, WorkflowState
 from nexsec.offline_store import OfflineStore
@@ -28,7 +28,7 @@ def _engine_factory(mode: str) -> _FakeEngine:  # noqa: ARG001
 
 
 def test_workflow_runtime_validate() -> None:
-    runtime = WorkflowRuntime(engine_factory=_engine_factory, store=OfflineStore(db_path=":memory:"))  # type: ignore[arg-type]
+    runtime = WorkflowRuntime(engine_factory=_engine_factory, store=OfflineStore())
     steps = runtime.validate(
         {
             "name": "test-flow",
@@ -42,8 +42,7 @@ def test_workflow_runtime_validate() -> None:
     assert steps[1].depends_on == ["s1"]
 
 
-@pytest.mark.asyncio
-async def test_workflow_runtime_execute_success(tmp_path) -> None:
+def test_workflow_runtime_execute_success(tmp_path) -> None:
     runtime = WorkflowRuntime(
         engine_factory=_engine_factory,
         store=OfflineStore(db_path=tmp_path / "wf.db"),
@@ -57,14 +56,13 @@ async def test_workflow_runtime_execute_success(tmp_path) -> None:
             ],
         }
     )
-    result = await runtime.execute("success-flow", steps)
+    result = asyncio.run(runtime.execute("success-flow", steps))
     assert result.status == WorkflowState.COMPLETED
     assert result.step_states["s1"] == WorkflowState.COMPLETED
     assert result.step_states["s2"] == WorkflowState.COMPLETED
 
 
-@pytest.mark.asyncio
-async def test_workflow_runtime_execute_failure_blocks_dependents(tmp_path) -> None:
+def test_workflow_runtime_execute_failure_blocks_dependents(tmp_path) -> None:
     runtime = WorkflowRuntime(
         engine_factory=_engine_factory,
         store=OfflineStore(db_path=tmp_path / "wf-fail.db"),
@@ -78,8 +76,7 @@ async def test_workflow_runtime_execute_failure_blocks_dependents(tmp_path) -> N
             ],
         }
     )
-    result = await runtime.execute("failure-flow", steps)
+    result = asyncio.run(runtime.execute("failure-flow", steps))
     assert result.status == WorkflowState.FAILED
     assert result.step_states["s1"] == WorkflowState.FAILED
     assert result.step_states["s2"] == WorkflowState.BLOCKED
-

@@ -1,4 +1,4 @@
-"""Guided Onboarding Wizard for NexSec v2.0.
+"""Guided Onboarding Wizard for Phalanx v2.0.
 
 Provides an interactive step-by-step onboarding wizard using Rich console prompting
 to set up AI model providers, discover local security tools, choose color themes,
@@ -18,8 +18,8 @@ from rich.prompt import Confirm, Prompt
 from rich.table import Table
 from rich.text import Text
 
-from nexsec.tool_registry import ToolRegistry
-from nexsec.output import OutputTheme, THEMES, set_formatter, get_formatter
+from phalanx.tool_registry import ToolRegistry
+from phalanx.output import OutputTheme, THEMES, set_formatter, get_formatter
 
 
 class OnboardingWizard:
@@ -51,9 +51,9 @@ class OnboardingWizard:
 
         # Epilogue
         self.console.print(Panel(
-            "[bold green]✓ NexSec setup completed successfully![/bold green]\n"
+            "[bold green]✓ Phalanx setup completed successfully![/bold green]\n"
             "[white]You are now fully configured to execute autonomous operations.[/white]\n"
-            "[dim]Try running: [bold cyan]nexsec chat[/bold cyan] or [bold cyan]nexsec dashboard[/bold cyan][/dim]",
+            "[dim]Try running: [bold cyan]phalanx chat[/bold cyan] or [bold cyan]phalanx dashboard[/bold cyan][/dim]",
             title="[bold green]⚡ SECURE CONFIGURATION ACQUIRED[/bold green]",
             border_style="green",
             padding=(1, 2)
@@ -85,7 +85,7 @@ class OnboardingWizard:
         """Step 2: AI Model Provider Config."""
         self.console.print("\n[bold bright_magenta]◈ STEP 2: AI MODEL CORE CONFIGURATION[/bold bright_magenta]")
         self.console.print("──────────────────────────────────────────────────────────")
-        self.console.print("NexSec uses Large Language Models to interpret commands and plan execution steps.")
+        self.console.print("Phalanx uses Large Language Models to interpret commands and plan execution steps.")
         self.console.print("Select your preferred AI Provider:\n")
 
         table = Table(box=None, header_style="bold dim white")
@@ -104,25 +104,25 @@ class OnboardingWizard:
         
         if choice == "1":
             self.console.print("\n[green]✓ Selected Ollama.[/green] Ensure Ollama is running (`ollama run llama3`).")
-            os.environ["NEXSEC_PROVIDER"] = "ollama"
+            os.environ["PHALANX_PROVIDER"] = "ollama"
         elif choice == "2":
             self.console.print("\n[green]✓ Selected Gemini.[/green]")
             key = Prompt.ask("Enter Gemini API Key (or press Enter to read from environment)", password=True).strip()
             if key:
                 os.environ["GEMINI_API_KEY"] = key
-            os.environ["NEXSEC_PROVIDER"] = "gemini"
+            os.environ["PHALANX_PROVIDER"] = "gemini"
         elif choice == "3":
             self.console.print("\n[green]✓ Selected OpenAI.[/green]")
             key = Prompt.ask("Enter OpenAI API Key (or press Enter to read from environment)", password=True).strip()
             if key:
                 os.environ["OPENAI_API_KEY"] = key
-            os.environ["NEXSEC_PROVIDER"] = "openai"
+            os.environ["PHALANX_PROVIDER"] = "openai"
 
     def _step_tool_discovery(self) -> None:
         """Step 3: Tool Discovery Check."""
         self.console.print("\n[bold bright_magenta]◈ STEP 3: ARSENAL SCAN & AUTOMATED TOOL DISCOVERY[/bold bright_magenta]")
         self.console.print("──────────────────────────────────────────────────────────")
-        self.console.print("NexSec scans your local PATH and WSL instances to detect installed penetration tools.")
+        self.console.print("Phalanx scans your local PATH and WSL instances to detect installed penetration tools.")
 
         with self.console.status("[bold bright_cyan]Scanning PATH executables...[/bold bright_cyan]"):
             discovered = self.registry.discover(force_refresh=True, fast=True)
@@ -172,7 +172,7 @@ class OnboardingWizard:
         
         # Set active theme in configuration
         try:
-            from nexsec.config import SettingsStore
+            from phalanx.config import SettingsStore
             config = SettingsStore()
             config.set("color_theme", theme_choice)
         except Exception:

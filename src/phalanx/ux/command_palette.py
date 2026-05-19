@@ -1,4 +1,4 @@
-"""Command Palette for NexSec v2.0.
+"""Command Palette for Phalanx v2.0.
 
 Provides a fuzzy-search interface to quickly search and select core commands,
 predefined intent templates, saved profiles, and recent command history.
@@ -16,8 +16,8 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from nexsec.command_profiles import CommandProfileStore
-from nexsec.session_manager import command_history
+from phalanx.command_profiles import CommandProfileStore
+from phalanx.session_manager import command_history
 
 try:
     from prompt_toolkit.completion import WordCompleter

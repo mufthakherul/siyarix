@@ -1,34 +1,49 @@
 # Troubleshooting
 
-### Diagnosing Environment Issues
+Things don't always work perfectly, especially when trying to orchestrate multiple external security tools across different operating systems. Here are some common issues and how to fix them!
 
-If NexSec is not detecting tools or behaving unexpectedly, use the built-in diagnostic commands:
+---
 
-- **`siyarix health`**: Check the status of core components, databases, and model providers.
-- **`siyarix shell doctor`**: Verify if external security binaries (nmap, nuclei, etc.) are available in your system PATH.
-- **`siyarix shell platform`**: Inspect terminal, shell, and OS metadata used for command translation.
+## 🔍 Built-in Diagnostics
 
-### Common Issues
+Before digging through dense log files, Siyarix has some built-in commands designed specifically to help you figure out what's wrong:
 
-- **Permission Errors**: Ensure external tools like `nmap` or `ffuf` have appropriate permissions to run (e.g., `sudo` for some nmap scans).
-- **API Key Failures**:
-    - Verify keys with `siyarix auth show`.
-    - Set keys securely with `siyarix auth set-key <provider>`.
-    - Use `/key list` inside chat to confirm what the assistant sees.
-    - Ensure your network allows outbound traffic to the provider's API.
-- **Model Planning Errors**:
-    - Check `siyarix config get log_level`. If it's not `debug`, set it with `siyarix config set log_level debug` to see detailed model interactions.
-    - Verify the preferred provider with `siyarix config get model_provider` or `/model` inside chat.
-    - Ensure the selected model provider is active and has credits.
-- **Theme/Appearance Issues**:
-    - Preview the current UI with `siyarix theme preview` or `/theme appearance`.
-    - Switch to a simpler interface with `siyarix theme set minimal` or `/theme mode minimal`.
-- **Vault Access**:
-    - If the vault is locked or inaccessible, ensure `~/.siyarix/.vault_key` exists and has restrictive permissions (600).
-    - If `.env` does not exist, NexSec creates it automatically in the repository root for local development.
+- **`siyarix health`**: This runs a full diagnostic sweep. It checks if your local SQLite databases are writable, if your encrypted vault is accessible, and if your configured AI endpoints are responding.
+- **`siyarix shell doctor`**: This tells you exactly which external security tools (like `nmap`, `nuclei`, `ffuf`) Siyarix can actually see on your system `PATH`.
 
-### Getting Help
+---
 
-- Run `siyarix --help` for a full list of commands.
-- For detailed debugging, run commands with `SIYARIX_LOG_LEVEL=DEBUG`.
-- If tests are failing locally, run `pytest -vv` and inspect the captured logs.
+## 🔧 Common Issues
+
+### "Tool not found" errors
+If Siyarix tries to run a tool but fails, it almost certainly means the tool isn't in your system's environment `PATH`.
+- **The Fix**: Try running the tool manually in your terminal (e.g., type `nmap`). If your terminal says "command not found", Siyarix can't use it either. Install the tool via your package manager (e.g., `apt`, `brew`, `winget`) and ensure it's on your `PATH`.
+
+### API Key Failures or "Provider Error"
+If the AI is failing to respond or throwing authentication errors:
+- **Check your keys**: Type `/key list` inside the interactive chat to see what Siyarix is trying to use.
+- **Check your billing**: Make sure you actually have credits or a valid billing method set up with your AI provider!
+- **Re-set the key**: Try re-setting the key securely using `/key set gemini <your-key>` in the chat.
+- **Network Issues**: Ensure you aren't behind a corporate proxy blocking outbound API calls to OpenAI/Google.
+
+### The AI is doing weird things or failing to plan
+Sometimes AI models get confused or hallucinate bad plans. 
+- **View the Logs**: You can turn on debug logging to see exactly what the AI is thinking and the raw JSON it is trying to return:
+  ```bash
+  export SIYARIX_LOG_LEVEL=DEBUG
+  siyarix
+  ```
+- **Switch Models**: Smaller or older models struggle with complex JSON generation. If the AI is consistently failing, try switching to a larger model like GPT-4o or Gemini 1.5 Pro using `/model <name>`.
+
+### The UI Looks Messed Up
+If the colors look wrong or the tables are rendering strangely:
+- **Terminal Support**: Ensure your terminal emulator supports 256 colors or TrueColor.
+- **Change the Theme**: Try switching to a simpler interface with `siyarix theme set minimal` or `/theme mode minimal`. You can preview themes using `siyarix theme preview`.
+
+---
+
+## 🙋 Getting More Help
+
+If you've tried the steps above and you're still stuck, don't worry! 
+- Run `siyarix --help` to see all available commands.
+- Open an issue on our GitHub repository. The CosmicSec-Lab community is very friendly and we're always happy to help you debug!

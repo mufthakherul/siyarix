@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from nexsec.shell_knowledge import (
+from phalanx.shell_knowledge import (
     ShellType,
     normalize_shell,
     shell_key,

@@ -4,7 +4,7 @@ from click.testing import CliRunner
 from typer import Typer
 from typer.main import get_command
 
-from nexsec.security_commands import register_security_commands
+from phalanx.security_commands import register_security_commands
 
 
 def test_security_group_registers_and_shows_help() -> None:

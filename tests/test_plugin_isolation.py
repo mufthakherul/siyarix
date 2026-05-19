@@ -1,4 +1,4 @@
-from nexsec.plugins import PluginManager
+from phalanx.plugins import PluginManager
 
 
 def test_plugin_isolation(tmp_path):

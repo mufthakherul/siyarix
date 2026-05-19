@@ -108,8 +108,8 @@ jobs:
 
       - name: Verify installation
         run: |
-          nexsec --version || true
-          python -c "import nexsec; print('Package imported successfully')"
+          phalanx --version || true
+          python -c "import phalanx; print('Package imported successfully')"
 
       - name: Run basic tests
         run: |
@@ -121,7 +121,7 @@ jobs:
     needs: [validate-tag, build, test-package]
     environment:
       name: pypi
-      url: https://pypi.org/project/nexsec/
+      url: https://pypi.org/project/phalanx/
     permissions:
       id-token: write  # Required for trusted publishing
     steps:
@@ -144,7 +144,7 @@ jobs:
     if: github.event.inputs.publish_test == 'true' || false
     environment:
       name: testpypi
-      url: https://test.pypi.org/project/nexsec/
+      url: https://test.pypi.org/project/phalanx/
     permissions:
       id-token: write
     steps:

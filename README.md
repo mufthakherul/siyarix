@@ -14,6 +14,8 @@
 
 **NexSec** is a security agent that brings autonomous threat detection and intelligent tool orchestration to your terminal. Developed by CosmicSec-Lab, it combines dynamic task planning with integrated execution modes to automate security scanning, threat hunting, and incident management across DevOps and penetration testing workflows.
 
+When you run `nexsec` with no subcommand, it opens an interactive command-center style chat experience. The landing screen shows your current mode, theme, session status, and model provider, plus quick actions for `/help`, `/tools`, `/key`, `/theme`, `/model`, and `/palette`.
+
 ## 🏗️ Architecture & Domain
 
 NexSec is built as a modular security orchestrator. It uses a **Task Planner** to interpret high-level instructions (natural language or structured) and an **Execution Engine** to run these tasks using a suite of security tools.
@@ -41,6 +43,14 @@ nexsec run "scan example.com with nmap and nuclei then generate report"
 
 # List discovered security tools
 nexsec tool-registry list
+
+# Launch the interactive assistant shell
+nexsec
+
+# Configure keys and theme from the interactive shell
+# /key set gemini <your-api-key>
+# /theme mode dark
+# /theme appearance
 ```
 
 ## 📖 Documentation
@@ -49,6 +59,9 @@ nexsec tool-registry list
 - `docs/architecture.md` — internal design and module breakdown
 - `docs/cli-reference.md` — full command-line documentation
 - `docs/installation.md` — detailed setup and model configuration
+- `docs/usage.md` — common workflows and examples
+- `docs/security.md` — secrets, vault, and audit trail guidance
+- `docs/troubleshooting.md` — common issues and fixes
 
 ## 🤝 Contributing
 

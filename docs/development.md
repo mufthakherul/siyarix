@@ -47,7 +47,8 @@ hatch run pip install -e .
 
 .env and secrets
 
-- A placeholder `.env.example` exists at the repository root. Copy it to `.env.local` or `.env` and fill in real values for local development. The repository `.gitignore` already ignores `.env` and `.env.*`.
+- A placeholder `.env.example` exists at the repository root. NexSec also creates/uses a repo-root `.env` file for local API key syncing.
+- You can store keys with `nexsec auth set-key <provider>` or the chat `/key` command — no manual env editing required.
 - Never commit secrets (API keys) to the repository.
 
 Linting
@@ -60,6 +61,7 @@ Notes
 
 - If you need optional features (LLM integration, Rust acceleration) install extras declared in `pyproject.toml` (e.g., `pip install -e .[all]`).
 - If you see issues during test runs, create a branch and open a PR with failing test output and a short note; I can help diagnose failures.
+- Launching `nexsec` now opens the richer assistant-style landing screen, so you can verify the UX directly in development.
 # Development Guide
 
 ### Developer Setup

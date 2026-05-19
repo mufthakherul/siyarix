@@ -1,8 +1,8 @@
-# NexSec Security Agent
+# Siyarix Security Agent
 
 <div align="center">
-  <img src="assets/logo.png" alt="NexSec Logo" width="200">
-  <p><strong>A security agent by CosmicSec-Lab — Autonomous execution engine for DevOps, penetration testing & threat hunting.</strong></p>
+  <img src="assets/logo.png" alt="Siyarix Logo" width="200">
+  <p><strong>A humble, open-source security agent by CosmicSec-Lab. Built for learning, research, and community collaboration.</strong></p>
   <p>
     <a href="https://github.com/CosmicSec-Lab/siyarix/actions/workflows/ci.yml"><img src="https://github.com/CosmicSec-Lab/siyarix/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
     <a href="https://github.com/CosmicSec-Lab/siyarix/blob/main/LICENSE"><img src="https://img.shields.io/github/license/CosmicSec-Lab/siyarix?style=flat-square" alt="License"></a>
@@ -12,61 +12,96 @@
 
 ---
 
-**NexSec** is a security agent that brings autonomous threat detection and intelligent tool orchestration to your terminal. Developed by CosmicSec-Lab, it combines dynamic task planning with integrated execution modes to automate security scanning, threat hunting, and incident management across DevOps and penetration testing workflows.
+**Siyarix** is a command-line security agent that explores how we can combine autonomous AI planning with classic security tools right in the terminal. Whether you're scanning a network, hunting for vulnerabilities, or just trying to learn how different security tools work together, Siyarix is here to act as your helpful assistant.
 
-When you run `siyarix` with no subcommand, it opens an interactive command-center style chat experience. The landing screen shows your current mode, theme, session status, and model provider, plus quick actions for `/help`, `/tools`, `/key`, `/theme`, `/model`, and `/palette`.
+### 🌱 Our Story
+Siyarix started out as a humble college project to experiment with AI and security automation. As the codebase grew and became surprisingly useful, we decided to open-source it! Today, it's maintained by the CosmicSec-Lab community. We don't claim to be an "ultra-premium enterprise solution"—rather, Siyarix is a practical, lightweight, and modern tool meant for students, researchers, penetration testers, and anyone curious about AI-driven security.
 
-## 🏗️ Architecture & Domain
+When you run `siyarix` in your terminal, it opens an interactive chat experience where you can naturally ask the agent to help you scan networks, run security tools, and understand vulnerabilities.
 
-NexSec is built as a modular security orchestrator. It uses a **Task Planner** to interpret high-level instructions (natural language or structured) and an **Execution Engine** to run these tasks using a suite of security tools.
+## ✨ Core Features
 
-- **Planner**: Converts instructions into a structured sequence of steps.
-- **Engine**: Handles the execution of steps, managing tool registry, safety validation, and results.
-- **Interpreters**: Heuristic and model-based interpreters for command understanding.
+- **Interactive AI Assistant (Chat Mode)**: A polished, terminal-based REPL where you can chat with large language models (OpenAI, Gemini, local Ollama) to plan and execute security tasks.
+- **Autonomous Tool Orchestration**: Siyarix doesn't just talk; it can actually run tools like `nmap`, `ffuf`, and `nuclei` on your machine, parse their output, and summarize the results.
+- **Cross-Platform Intelligence**: Whether you are on Linux (Bash/Zsh), macOS, or Windows (PowerShell/CMD), Siyarix understands your environment and translates security intents into commands that actually work.
+- **Secure Credential Vault**: Your API keys are encrypted locally and never exposed in plaintext or sent anywhere without your permission.
+- **Local Tool Discovery**: The agent automatically scans your system `PATH` to figure out which security tools you have installed, so it only recommends plans you can actually execute.
+
+## 🏗️ How It Works (High-Level Architecture)
+
+Siyarix is built to be simple, modular, and transparent. We want you to look under the hood and learn how it works!
+
+1. **The Planner**: Takes your natural language instructions (e.g., "Find open ports on example.com") and figures out the logical steps to achieve them.
+2. **The Execution Engine**: Safely executes the planned steps. It checks if the required tools exist, runs them in the background, and captures the standard output and errors.
+3. **The Shell Knowledge Library**: Helps Siyarix understand your operating system so it can write commands natively (like using `Test-NetConnection` on Windows vs `ping` on Linux).
+
+*(For a deep dive into the code structure, check out our [Architecture Guide](docs/architecture.md)!)*
 
 ## 🚀 Quick Start
 
 ### Installation
 
+The easiest way to get started is using Python (3.11+ is required). We highly recommend using a virtual environment or a modern package manager like `uv`.
+
 ```bash
+# Using pip
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .\.venv\Scripts\activate
 pip install siyarix
 ```
 
+*(Note: For the full AI-planning experience, you can install the optional dependencies: `pip install "siyarix[autonomous]"`).*
+
 ### Basic Usage
 
+You can use Siyarix directly from the command line for quick tasks:
+
 ```bash
-# Run a simple scan
+# Run a simple network scan
 siyarix scan 192.168.1.1
 
-# Run an autonomous command
-siyarix run "scan example.com with nmap and nuclei then generate report"
+# Tell the agent what to do using natural language
+siyarix run "scan example.com with nmap and nuclei, then summarize the results"
 
-# List discovered security tools
+# List the security tools Siyarix has found on your system
 siyarix tool-registry list
-
-# Launch the interactive assistant shell
-siyarix
-
-# Configure keys and theme from the interactive shell
-# /key set gemini <your-api-key>
-# /theme mode dark
-# /theme appearance
 ```
 
-## 📖 Documentation
+### The Interactive Chat
 
-- `docs/overview.md` — project goals and features
-- `docs/architecture.md` — internal design and module breakdown
-- `docs/cli-reference.md` — full command-line documentation
-- `docs/installation.md` — detailed setup and model configuration
-- `docs/usage.md` — common workflows and examples
-- `docs/security.md` — secrets, vault, and audit trail guidance
-- `docs/troubleshooting.md` — common issues and fixes
+For the best experience, just run `siyarix` with no arguments. This launches the interactive chat assistant!
 
-## 🤝 Contributing
+```bash
+siyarix
+```
 
-We welcome contributions! Please see `docs/contributing.md` for guidelines on how to get started.
+Once inside the interactive shell, you can use slash commands to configure your environment:
+```text
+/key set gemini <your-api-key>
+/theme mode dark
+/help
+```
+
+## 📖 Comprehensive Documentation
+
+Whether you're just getting started or looking to understand the internals, our detailed docs have you covered:
+
+- **[Overview (docs/overview.md)](docs/overview.md)** — A detailed look at what Siyarix is and why we built it.
+- **[Architecture (docs/architecture.md)](docs/architecture.md)** — Comprehensive breakdown of the internals, planners, and engines.
+- **[CLI Reference (docs/cli-reference.md)](docs/cli-reference.md)** — A complete, detailed list of all commands and flags.
+- **[Installation (docs/installation.md)](docs/installation.md)** — Step-by-step setup guides for various environments.
+- **[Usage Guide (docs/usage.md)](docs/usage.md)** — Extensive examples of how to use Siyarix day-to-day.
+- **[Security & Privacy (docs/security.md)](docs/security.md)** — How we handle your data, API keys, and keep executions safe.
+- **[Troubleshooting (docs/troubleshooting.md)](docs/troubleshooting.md)** — Help when things go wrong.
+
+## 🤝 Contributing & Community
+
+We absolutely love contributions! Since Siyarix is a community project, we welcome everyone—especially beginners, students, and hobbyists looking for their first open-source project. 
+
+If you want to add a new tool parser, fix a bug, or just improve these docs, check out our [Contributing Guide](docs/contributing.md) and [Development Guide](docs/development.md) for a friendly introduction to the codebase.
 
 ## 📜 License
 
-NexSec is released under the [MIT License](LICENSE).
+Siyarix is released under the [MIT License](LICENSE). 
+
+*Please use it responsibly. Only run security scans against systems, networks, and applications that you own or have explicit, documented permission to test. Be safe and happy hacking!*

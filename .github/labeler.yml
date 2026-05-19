@@ -46,7 +46,7 @@ source:
   - changed-files:
       - any-glob-to-any-file:
           - 'src/**/*.py'
-          - 'nexsec/**/*.py'
+          - 'phalanx/**/*.py'
           - '!**/__pycache__/**'
           - '!**/*.pyc'
 
@@ -111,19 +111,19 @@ packaging:
 parsers:
   - changed-files:
       - any-glob-to-any-file:
-          - 'src/nexsec/parsers/**'
+          - 'src/phalanx/parsers/**'
           - '**/parser*.py'
 
 # Engine
 engine:
   - changed-files:
       - any-glob-to-any-file:
-          - 'src/nexsec/engine.py'
-          - 'src/nexsec/engine/**'
+          - 'src/phalanx/engine.py'
+          - 'src/phalanx/engine/**'
 
 # CLI
 cli:
   - changed-files:
       - any-glob-to-any-file:
-          - 'src/nexsec/main.py'
-          - 'src/nexsec/cli/**'
+          - 'src/phalanx/main.py'
+          - 'src/phalanx/cli/**'

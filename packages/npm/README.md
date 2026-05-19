@@ -1,33 +1,44 @@
-# @mufthakherul/nexsec-agent
+# Phalanx Security Agent (NPM Package)
 
-Official npm launcher for the NexSec Python CLI agent.
+<div align="center">
+  <p><strong>A humble, open-source security agent by CosmicSec-Lab. Built for learning, research, and community collaboration.</strong></p>
+</div>
 
-## Install
+---
+
+**Phalanx** is a command-line security agent that explores how we can combine autonomous AI planning with classic security tools right in the terminal. 
+
+*(Note: The core of Phalanx is written in Python. This NPM package is provided as a wrapper/utility for Node.js developers who wish to integrate or trigger Phalanx within their JavaScript/TypeScript ecosystems.)*
+
+### 🌱 Our Story
+Phalanx started out as a college project to experiment with AI and security automation. As the codebase grew and became surprisingly useful, we decided to open-source it! Today, it's maintained by the CosmicSec-Lab community. We don't claim to be an "ultra-premium enterprise solution"—rather, Phalanx is a practical, lightweight, and modern tool meant for students, researchers, penetration testers, and anyone curious about AI-driven security.
+
+## 🚀 Quick Start
+
+To install Phalanx globally via npm:
 
 ```bash
-npm install -g @mufthakherul/nexsec-agent
+npm install -g phalanx-agent
 ```
 
-## Usage
+*(Ensure you have Python 3.11+ installed on your system as it is required under the hood).*
+
+### Basic Usage
 
 ```bash
-# Auto-installs Python package when needed and runs the CLI
-nexsec-agent --help
+# Launch the interactive chat assistant
+phalanx
 
-# Alias
-nexsec --version
-
-# Explicit installer command
-nexsec-agent-install
+# Tell the agent what to do using natural language
+phalanx run "scan example.com with nmap and nuclei, then summarize the results"
 ```
 
-## How it works
+## 🤝 Contributing & Documentation
 
-- Detects Python 3.11+.
-- Installs `nexsec-agent` via `pipx` (preferred) or `pip --user`.
-- Runs `python -m nexsec.main` with your CLI arguments.
+We absolutely love contributions! Since Phalanx is a community project, we welcome everyone—especially beginners and students looking for their first open-source project. 
 
-## Requirements
+For full documentation, architecture details, and contribution guidelines, please visit our [main GitHub repository](https://github.com/CosmicSec-Lab/phalanx).
 
-- Node.js 20+
-- Python 3.11+
+## 📜 License
+
+Phalanx is released under the MIT License. Please use it responsibly and only on systems you have permission to test!

@@ -2,10 +2,10 @@
 
 <div align="center">
   <img src="assets/logo.png" alt="Phalanx Logo" width="200">
-  <p><strong>A humble, open-source security agent by CosmicSec-Lab. Built for learning, research, and community collaboration.</strong></p>
+  <p><strong>A humble, open-source security agent by mufthakherul. Built for learning, research, and community collaboration.</strong></p>
   <p>
-    <a href="https://github.com/CosmicSec-Lab/phalanx/actions/workflows/ci.yml"><img src="https://github.com/CosmicSec-Lab/phalanx/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
-    <a href="https://github.com/CosmicSec-Lab/phalanx/blob/main/LICENSE"><img src="https://img.shields.io/github/license/CosmicSec-Lab/phalanx?style=flat-square" alt="License"></a>
+    <a href="https://github.com/mufthakherul/phalanx/actions/workflows/ci.yml"><img src="https://github.com/mufthakherul/phalanx/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
+    <a href="https://github.com/mufthakherul/phalanx/blob/main/LICENSE"><img src="https://img.shields.io/github/license/mufthakherul/phalanx?style=flat-square" alt="License"></a>
     <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PRs Welcome">
   </p>
 </div>
@@ -15,7 +15,7 @@
 **Phalanx** is a command-line security agent that explores how we can combine autonomous AI planning with classic security tools right in the terminal. Whether you're scanning a network, hunting for vulnerabilities, or just trying to learn how different security tools work together, Phalanx is here to act as your helpful assistant.
 
 ### 🌱 Our Story
-Phalanx started out as a humble college project to experiment with AI and security automation. As the codebase grew and became surprisingly useful, we decided to open-source it! Today, it's maintained by the CosmicSec-Lab community. We don't claim to be an "ultra-premium enterprise solution"—rather, Phalanx is a practical, lightweight, and modern tool meant for students, researchers, penetration testers, and anyone curious about AI-driven security.
+Phalanx started out as a humble college project to experiment with AI and security automation. As the codebase grew and became surprisingly useful, we decided to open-source it! Today, it's maintained by the community. Phalanx is a practical, lightweight, and modern tool meant for students, researchers, penetration testers, and anyone curious about AI-driven security.
 
 When you run `phalanx` in your terminal, it opens an interactive chat experience where you can naturally ask the agent to help you scan networks, run security tools, and understand vulnerabilities.
 
@@ -26,6 +26,7 @@ When you run `phalanx` in your terminal, it opens an interactive chat experience
 - **Cross-Platform Intelligence**: Whether you are on Linux (Bash/Zsh), macOS, or Windows (PowerShell/CMD), Phalanx understands your environment and translates security intents into commands that actually work.
 - **Secure Credential Vault**: Your API keys are encrypted locally and never exposed in plaintext or sent anywhere without your permission.
 - **Local Tool Discovery**: The agent automatically scans your system `PATH` to figure out which security tools you have installed, so it only recommends plans you can actually execute.
+- **Robust E2E Validation Pipeline**: Verified by a secure, mock-sandboxed testing suite (`test_e2e.py`) validating direct command execution, natural language conditional branching, interactive missing tool auto-installers, and real-time execution self-correction under failures.
 
 ## 🏗️ How It Works (High-Level Architecture)
 
@@ -51,6 +52,18 @@ pip install phalanx
 ```
 
 *(Note: For the full AI-planning experience, you can install the optional dependencies: `pip install "phalanx[autonomous]"`).*
+
+### 🧪 Local Verification & Testing
+
+To verify that everything is running perfectly (and fully offline) on your specific platform, you can run our suite of 120+ tests:
+
+```bash
+# Install test dependencies
+pip install pytest pytest-asyncio
+
+# Run the test suite
+pytest
+```
 
 ### Basic Usage
 

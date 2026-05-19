@@ -62,6 +62,55 @@ If you're wondering where to look, here's a quick map of the codebase:
 
 ---
 
+## 🧪 Running E2E and Live Tests
+
+To guarantee that the Phalanx agent operates reliably across different environments and operating system backends, we have developed a high-fidelity **End-to-End (E2E) and Live Testing Suite** located at [test_e2e.py](file:///d:/Miraz_Work/CosmicSec-Lab/nexsec/tests/test_e2e.py). 
+
+Unlike standard unit tests, these E2E tests execute entire orchestration flows, planning passes, and interpreter pipelines inside **secure, mock-sandboxed environments**. This design allows you to run all tests fully offline in secure environments without making active network requests, installing package dependencies, or making modifications to your host operating system.
+
+### The 4 Core E2E Scenarios
+
+Our testing suite validates the following critical agent behaviors:
+
+1. **CLI Dry-Run Scans (`test_cli_scan_dry_run`)**:
+   Validates direct CLI `scan` execution using the `--dry-run` and `--no-banner` flags. It exercises command routing (via Typer and Click's `CliRunner`), target validation, and initial plan assembly to ensure that plans are generated correctly without triggering actual tool execution.
+   
+2. **Conditional Natural Language Workflows (`test_cli_run_conditional_workflow`)**:
+   Verifies the parsing, routing, and execution of conditional instructions (e.g., `"if port_80_open then scan 127.0.0.1 with nikto else scan 127.0.0.1 with nmap"`). This ensures the interpreter properly evaluates pre-conditions and routes the task branches dynamically.
+
+3. **Interactive Auto-Installation Interceptors (`test_interactive_installation_confirm`)**:
+   Simulates scenarios where required tools are missing. By patching system environment checks, it validates two distinct interaction paths:
+   - **Confirmed Branch**: The user approves the interactive prompt, which triggers the automatic package-installer pipeline (simulating `winget` on Windows, or other system installers) and returns a successful installation signal.
+   - **Declined Branch**: The user declines the prompt, and the agent gracefully aborts without making any system changes or installations.
+
+4. **Live Tool Fallback and Self-Correction (`test_live_tool_fallback_recovery`)**:
+   Validates how the plan mutator handles real-world failure states and zero-finding outcomes:
+   - **Self-Correction**: If a tool (like `nmap`) fails due to a host ping block, the live planner adapts the plan on the fly and schedules a retry using ping bypass (`-Pn`).
+   - **Fallback Routing**: If a fuzzer (like `gobuster`) yields zero discoveries, the engine automatically schedules a fallback scan using a web vulnerability scanner (like `nikto`) to guarantee complete coverage.
+
+### How to Run the Tests
+
+You can execute these tests using `pytest` from your terminal with your virtual environment active:
+
+```bash
+# Run only the E2E tests
+pytest tests/test_e2e.py -v
+
+# Run a specific E2E test scenario
+pytest tests/test_e2e.py -k "test_live_tool_fallback_recovery" -v
+
+# Run all test suites in the repository
+pytest
+```
+
+### Writing New E2E Tests
+
+If you are developing new security workflows, platform resolvers, or shell wrappers, we highly recommend adding a corresponding E2E test:
+- **Prioritize Offline Safety**: Never let tests call actual network endpoints or run mutable system commands. Use standard library mocking tools (`unittest.mock.patch`) to mock files, installer availability (`shutil.which`), and process execution (`run_tool_complete`).
+- **Focus on Adaptability**: Write tests that verify how the engine *adapts* to failed steps, exit codes, and output patterns, ensuring the agent stays smart and resilient.
+
+---
+
 ## 🧹 Code Quality
 
 We use [Ruff](https://docs.astral.sh/ruff/) to keep the code formatted and clean. Before opening a Pull Request, it's a good idea to check your code by running:
@@ -72,3 +121,4 @@ ruff check .
 
 ### Need Help?
 If you ever get stuck, see weird test failures on your specific OS, or just want to bounce an architectural idea around, open an issue or a Draft PR! We are very happy to help you figure it out.
+

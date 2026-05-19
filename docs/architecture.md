@@ -23,6 +23,8 @@ When you run `phalanx` without any arguments, you drop into an interactive REPL 
 This is where the magic happens when you ask Phalanx to perform a security task.
 - **Task Planner**: This module takes your plain-English instructions and passes them to a Large Language Model (LLM). It instructs the model to break down your request into a logical, structured sequence of execution steps (JSON). 
 - **Execution Engine**: This component takes the structured steps from the Task Planner and executes them. It handles the heavy lifting: spawning subprocesses, catching `stdout`/`stderr`, managing retries if a command fails, and ensuring that step dependencies are respected (e.g., waiting for a port scan to finish before launching a web fuzzer).
+  - **Auto-Installation**: When a required tool is missing but a system installer (such as `winget` on Windows, or other native platform managers) is available on the `PATH`, the engine prompts the user for permission. If approved, it automatically installs the missing tool and resumes execution.
+  - **Plan Mutation & Self-Correction**: If a step fails (e.g., a target host blocks default ping probes) or yields zero findings, the engine's internal mutator automatically adapts the plan on the fly (e.g., retrying with `-Pn` or scheduling fallback scanners like `nikto`).
 
 ### 4. Security & Knowledge Base
 To make the AI useful, we have to provide it with real-world constraints.
@@ -42,6 +44,20 @@ If you type `phalanx run "find open ports on example.com"`, here is the exact li
 4. **Plan Creation**: The LLM returns a structured JSON payload defining a step to run `nmap -p- example.com`.
 5. **Safety Verification**: The Execution Engine intercepts the planned step and checks it against a list of dangerous patterns (e.g., blocking `rm -rf`).
 6. **Execution**: The Execution Engine spawns a subprocess, runs `nmap`, captures the output, and prints the formatted results to your terminal using Rich.
+
+---
+
+## 🧪 High-Fidelity E2E Validation Pipeline
+
+To ensure the architectural integrity of our planning and execution engines under real-world scenarios, we maintain a comprehensive **End-to-End (E2E) and Live testing pipeline**. 
+
+This validation suite runs in a **mock-sandboxed environment**, allowing us to simulate external system states, CLI entry points, process executions, and user interactions:
+- **CLI dry-run validation**: Verifies Typer/Click command routing and input parsing using Click's `CliRunner`.
+- **Dynamic Branching**: Asserts that the rules interpreter correctly evaluates pre-conditions and routes complex natural language conditionals correctly.
+- **Auto-Installation Flow**: Simulates system installer detection (like `winget` on Windows) and verifies prompt confirmation intercepts (confirmed vs declined branches).
+- **Execution Self-Correction**: Simulates step failures and empty results to verify that plan mutators automatically adapt the running plan on the fly.
+
+This offline-safe, non-destructive test suite allows developers to iterate safely, knowing that the engine will behave consistently across both Windows and Unix environments.
 
 ---
 

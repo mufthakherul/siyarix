@@ -12,6 +12,7 @@ As we kept adding features, the codebase grew into something much more robust. W
 - **Friendly Assistant UX**: When you type `phalanx` with no arguments, it opens a polished, interactive chat center rather than a confusing blank prompt. It shows you what models are active, your theme, and provides quick actions to get started immediately.
 - **Integrated Execution**: Phalanx doesn't just "chat" with you like a standard web LLM; it uses AI to orchestrate and run actual security tools on your machine. It then reads the standard output from those tools and helps you understand the results.
 - **Educational & Scriptable**: You can use it as a learning companion to figure out how tools work, or you can leverage its machine-readable JSON/YAML outputs to plug it directly into your own scripts and automation pipelines.
+- **Verified Stability**: We run a comprehensive suite of offline-safe, high-fidelity End-to-End (E2E) tests. This ensures that all planning loops, parser modules, user prompt systems, and self-correction fallbacks behave reliably on every supported operating system.
 
 ### 🛠️ What Can It Do?
 

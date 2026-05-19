@@ -66,6 +66,9 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+.vault_key
+credentials.enc
+sessions/
 
 # Logs
 *.log

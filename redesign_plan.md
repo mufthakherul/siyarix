@@ -4,13 +4,13 @@
 > **Classification**: Architecture & Design Document  
 > **Version**: 2.0.0-ULTRA  
 > **Status**: Design Phase → Ready for Execution  
-> **Based on**: Deep codebase audit of NexSec v0.3.0 (1274 nodes, 2119 edges)
+> **Based on**: Deep codebase audit of Phalanx v0.3.0 (1274 nodes, 2119 edges)
 
 ---
 
 ## EXECUTIVE OVERVIEW
 
-NexSec currently sits at **Proof-of-Concept maturity** with exceptional architectural bones — strong execution engine, 50+ tool integrations, encrypted credential vault, tamper-evident audit logging. The redesign does NOT throw away this foundation. Instead, it **elevates every layer** into an AI-native, enterprise-grade, cinematically beautiful cyber operations platform.
+Phalanx currently sits at **Proof-of-Concept maturity** with exceptional architectural bones — strong execution engine, 50+ tool integrations, encrypted credential vault, tamper-evident audit logging. The redesign does NOT throw away this foundation. Instead, it **elevates every layer** into an AI-native, enterprise-grade, cinematically beautiful cyber operations platform.
 
 **The transformation target:**
 
@@ -31,19 +31,19 @@ The platform exposes a **unified mode dispatcher** at startup that routes to the
 ┌─────────────────────────────────────────────────────────────────────┐
 │                    NEXSEC MODE DISPATCHER                           │
 ├─────────────────────────────────────────────────────────────────────┤
-│  Mode 1:  Interactive Shell      nexsec                             │
-│  Mode 2:  AI Conversational      nexsec chat                        │
-│  Mode 3:  Direct Command         nexsec run "scan target.com"       │
-│  Mode 4:  Autonomous Agent       nexsec agent --goal "..."          │
-│  Mode 5:  Workflow Automation    nexsec workflow run pentest.yaml   │
-│  Mode 6:  TUI Dashboard          nexsec dashboard                   │
-│  Mode 7:  Guided Wizard          nexsec wizard                      │
-│  Mode 8:  Team Collaboration     nexsec team --session ops-room-1   │
-│  Mode 9:  Headless API           nexsec serve --port 8080           │
+│  Mode 1:  Interactive Shell      phalanx                             │
+│  Mode 2:  AI Conversational      phalanx chat                        │
+│  Mode 3:  Direct Command         phalanx run "scan target.com"       │
+│  Mode 4:  Autonomous Agent       phalanx agent --goal "..."          │
+│  Mode 5:  Workflow Automation    phalanx workflow run pentest.yaml   │
+│  Mode 6:  TUI Dashboard          phalanx dashboard                   │
+│  Mode 7:  Guided Wizard          phalanx wizard                      │
+│  Mode 8:  Team Collaboration     phalanx team --session ops-room-1   │
+│  Mode 9:  Headless API           phalanx serve --port 8080           │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Mode Routing Logic** (`src/nexsec/core/mode_dispatcher.py`):
+**Mode Routing Logic** (`src/phalanx/core/mode_dispatcher.py`):
 
 ```python
 class ModeDispatcher:
@@ -78,17 +78,17 @@ Three-tier autocomplete: **context-free** → **context-aware** → **AI-predict
 
 ```
 Tier 1: Static registry completions (tool names, flags, subcommands)
-  nexsec r→  [run, resume, report, recon]
+  phalanx r→  [run, resume, report, recon]
 
 Tier 2: Context-aware completions (based on current session state)
-  nexsec scan --target [192.168.1.1 ← last target] [hosts.txt ← recent file]
+  phalanx scan --target [192.168.1.1 ← last target] [hosts.txt ← recent file]
 
 Tier 3: AI-predicted completions (based on operation graph)
-  After nmap scan → suggests: nexsec run "nuclei -target ... -t cves"
-                              nexsec run "gobuster dir -u http://..."
+  After nmap scan → suggests: phalanx run "nuclei -target ... -t cves"
+                              phalanx run "gobuster dir -u http://..."
 ```
 
-**Implementation**: `src/nexsec/ux/autocomplete.py`
+**Implementation**: `src/phalanx/ux/autocomplete.py`
 
 ```python
 class SmartAutocomplete:
@@ -123,10 +123,10 @@ Fuzzy-search command palette triggered by `Ctrl+P` or `⌘P`:
 ├────────────────────────────────────────────────────────┤
 │ > scan sub_                                            │
 ├────────────────────────────────────────────────────────┤
-│ ◈ Scan Subdomains          nexsec run "subdomain..."  │
-│ ◈ Subfinder Recon          nexsec tool subfinder      │
-│ ◈ DNS Enumeration          nexsec run "dnsx -d ..."   │
-│ ◈ Subdomain Takeover Check nexsec run "subjack ..."   │
+│ ◈ Scan Subdomains          phalanx run "subdomain..."  │
+│ ◈ Subfinder Recon          phalanx tool subfinder      │
+│ ◈ DNS Enumeration          phalanx run "dnsx -d ..."   │
+│ ◈ Subdomain Takeover Check phalanx run "subjack ..."   │
 │ ─────────────────────────────────────────────────────  │
 │ ★ RECENT                                              │
 │   scan 192.168.1.0/24 with nmap        2 min ago      │
@@ -175,7 +175,7 @@ Chat mode:
 ### 2.2 — Color System
 
 ```python
-# src/nexsec/ux/design_tokens.py
+# src/phalanx/ux/design_tokens.py
 
 class DesignTokens:
     
@@ -263,7 +263,7 @@ THEMES = {
 
 ```
 ┌─ NEXSEC CYBER OPS PLATFORM ──────────────────────────── v2.0 ─┐
-│ ◈ DARK-NEON │ 🔒 SECURE │ 👤 operator@nexsec │ 🕐 02:14:33 UTC │
+│ ◈ DARK-NEON │ 🔒 SECURE │ 👤 operator@phalanx │ 🕐 02:14:33 UTC │
 ├──────────────────────────────────────────────────────────────────┤
 │ ┌── AGENT STATUS ────┐ ┌── LIVE OPERATIONS ──────────────────┐  │
 │ │ ● Recon Agent  RUN │ │ [████████░░] nmap  192.168.1.0/24   │  │
@@ -279,8 +279,8 @@ THEMES = {
 │ └────────────────────────────────────────────┘                  │
 │ ┌── AI COPILOT ──────────────────────────────────────────────┐  │
 │ │ ⚡ Suggestion: 3 services found with default creds.        │  │
-│ │    → nexsec run "hydra -L users.txt -P pass.txt ssh://..." │  │
-│ │    → nexsec run "check-default-creds 192.168.1.0/24"      │  │
+│ │    → phalanx run "hydra -L users.txt -P pass.txt ssh://..." │  │
+│ │    → phalanx run "check-default-creds 192.168.1.0/24"      │  │
 │ └────────────────────────────────────────────────────────────┘  │
 │ > ▌                                              [F1:Help] [F5:⟳]│
 └──────────────────────────────────────────────────────────────────┘
@@ -292,7 +292,7 @@ THEMES = {
 │      LEFT PANE          │         RIGHT PANE                   │
 │  (Command / Chat)       │    (Output / Visualization)          │
 │                         │                                      │
-│  nexsec> _              │  ╔═══ ATTACK SURFACE MAP ══════════╗ │
+│  phalanx> _              │  ╔═══ ATTACK SURFACE MAP ══════════╗ │
 │                         │  ║  192.168.1.0/24                 ║ │
 │                         │  ║  [HOST]──[RDP]──[SQL]──[SMB]   ║ │
 │                         │  ╚════════════════════════════════╝ │
@@ -301,7 +301,7 @@ THEMES = {
 
 ### 2.5 — Terminal Rendering Engine
 
-**`src/nexsec/ux/renderer.py`** — Premium output engine:
+**`src/phalanx/ux/renderer.py`** — Premium output engine:
 
 ```python
 class PremiumRenderer:
@@ -350,12 +350,12 @@ class PremiumRenderer:
 
 ## PART 3: XI — EXPERIENCE INTELLIGENCE LAYER
 
-The **XI Engine** is a new module (`src/nexsec/xi/`) that makes the platform proactively intelligent. It continuously analyzes user behavior, session context, and operation state to provide adaptive assistance.
+The **XI Engine** is a new module (`src/phalanx/xi/`) that makes the platform proactively intelligent. It continuously analyzes user behavior, session context, and operation state to provide adaptive assistance.
 
 ### 3.1 — XI Architecture
 
 ```
-src/nexsec/xi/
+src/phalanx/xi/
 ├── engine.py          # Core XI orchestrator
 ├── context_tracker.py # Continuous context awareness
 ├── skill_profiler.py  # User skill level detection
@@ -369,7 +369,7 @@ src/nexsec/xi/
 ### 3.2 — Context Awareness Engine
 
 ```python
-# src/nexsec/xi/context_tracker.py
+# src/phalanx/xi/context_tracker.py
 
 @dataclass
 class OperationContext:
@@ -433,7 +433,7 @@ class ContextTracker:
 ### 3.3 — Skill Level Detection
 
 ```python
-# src/nexsec/xi/skill_profiler.py
+# src/phalanx/xi/skill_profiler.py
 
 class SkillProfiler:
     """
@@ -491,7 +491,7 @@ class SkillProfiler:
 ### 3.4 — Predictive Action Engine
 
 ```python
-# src/nexsec/xi/predictor.py
+# src/phalanx/xi/predictor.py
 
 class PredictiveActionEngine:
     """
@@ -572,7 +572,7 @@ class PredictiveActionEngine:
 Current `interpreter.py` → Upgrade to **Semantic Intent Router v2**:
 
 ```python
-# src/nexsec/core/intent_router.py
+# src/phalanx/core/intent_router.py
 
 class SemanticIntentRouter:
     """
@@ -659,12 +659,12 @@ The system understands commands in natural language without rigid syntax:
 
 ```bash
 # All of these resolve to the same operation:
-nexsec run "scan target.com"
-nexsec run "run nmap against target.com"  
-nexsec run "enumerate ports on target.com"
-nexsec run "port scan target.com"
-nexsec run "nmap target.com"
-nexsec scan target.com                    # shorthand
+phalanx run "scan target.com"
+phalanx run "run nmap against target.com"  
+phalanx run "enumerate ports on target.com"
+phalanx run "port scan target.com"
+phalanx run "nmap target.com"
+phalanx scan target.com                    # shorthand
 ```
 
 **Command Grammar** (EBNF-like):
@@ -684,13 +684,13 @@ Chain operations with `|` or `then`:
 
 ```bash
 # Pipeline syntax
-nexsec scan target.com | nexsec analyze | nexsec report --format pdf
+phalanx scan target.com | phalanx analyze | phalanx report --format pdf
 
 # Natural language pipeline
-nexsec run "scan target.com, then enumerate web directories, then run nuclei templates"
+phalanx run "scan target.com, then enumerate web directories, then run nuclei templates"
 ```
 
-**Pipeline Executor** (`src/nexsec/core/pipeline.py`):
+**Pipeline Executor** (`src/phalanx/core/pipeline.py`):
 
 ```python
 class CommandPipeline:
@@ -722,22 +722,22 @@ class CommandPipeline:
 
 ```bash
 # Create operation aliases
-nexsec alias create webapp-full "scan {target} && gobuster dir -u http://{target} && nuclei -target {target}"
+phalanx alias create webapp-full "scan {target} && gobuster dir -u http://{target} && nuclei -target {target}"
 
 # Create workflow macros  
-nexsec macro create "recon-phase" --template recon.yaml
+phalanx macro create "recon-phase" --template recon.yaml
 
 # Use aliases
-nexsec webapp-full target.com
+phalanx webapp-full target.com
 
 # List aliases
-nexsec alias list
+phalanx alias list
 ```
 
 ### 5.4 — Command Explanation System
 
 ```bash
-nexsec explain "nmap -sV -sC -O -p 1-65535 --script vuln target.com"
+phalanx explain "nmap -sV -sC -O -p 1-65535 --script vuln target.com"
 ```
 
 Output:
@@ -766,7 +766,7 @@ Output:
 Current `orchestration/workflow_runtime.py` → Full DAG-native execution engine:
 
 ```
-src/nexsec/workflow/
+src/phalanx/workflow/
 ├── engine.py          # Core workflow executor
 ├── dsl.py             # YAML DSL parser & validator
 ├── dag.py             # DAG scheduler
@@ -790,7 +790,7 @@ src/nexsec/workflow/
 name: "Web Application Penetration Test"
 version: "2.0"
 description: "Full-coverage web app pentest workflow"
-author: "nexsec-team"
+author: "phalanx-team"
 tags: [pentest, webapp, comprehensive]
 
 vars:
@@ -877,11 +877,11 @@ compliance:
 
 ```bash
 # Generate a workflow from natural language description
-nexsec workflow generate "Full black-box assessment of a cloud-native SaaS app with API testing and container scanning"
+phalanx workflow generate "Full black-box assessment of a cloud-native SaaS app with API testing and container scanning"
 ```
 
 ```python
-# src/nexsec/workflow/generator.py
+# src/phalanx/workflow/generator.py
 
 class AIWorkflowGenerator:
     """
@@ -916,7 +916,7 @@ class AIWorkflowGenerator:
 ### 6.4 — Workflow Marketplace
 
 ```
-nexsec workflow marketplace
+phalanx workflow marketplace
 ```
 
 ```
@@ -946,7 +946,7 @@ nexsec workflow marketplace
 ### 7.1 — Agent Roster
 
 ```python
-# src/nexsec/agents/registry.py
+# src/phalanx/agents/registry.py
 
 AGENT_ROSTER = {
     "recon": ReconAgent,           # Passive/active reconnaissance
@@ -965,7 +965,7 @@ AGENT_ROSTER = {
 ### 7.2 — Agent Base Class
 
 ```python
-# src/nexsec/agents/base.py
+# src/phalanx/agents/base.py
 
 class BaseAgent(ABC):
     """
@@ -1005,7 +1005,7 @@ class BaseAgent(ABC):
 ### 7.3 — Agent Orchestration & Collaboration
 
 ```python
-# src/nexsec/agents/orchestrator.py
+# src/phalanx/agents/orchestrator.py
 
 class MultiAgentOrchestrator:
     """
@@ -1044,7 +1044,7 @@ class MultiAgentOrchestrator:
 ### 7.4 — Shared Context Bus
 
 ```python
-# src/nexsec/agents/context.py
+# src/phalanx/agents/context.py
 
 class SharedContext:
     """
@@ -1079,7 +1079,7 @@ class SharedContext:
 Current `plugins.py` is good but needs enterprise upgrades:
 
 ```
-src/nexsec/plugins/
+src/phalanx/plugins/
 ├── manager.py          # Plugin lifecycle management
 ├── sandbox.py          # Isolated plugin execution
 ├── sdk.py              # Plugin SDK for developers
@@ -1088,7 +1088,7 @@ src/nexsec/plugins/
 ├── loader.py           # Hot-reload capable loader
 └── permissions.py      # Permission model
 
-~/.nexsec/plugins/
+~/.phalanx/plugins/
 ├── my-plugin/
 │   ├── plugin.yaml     # Manifest
 │   ├── __init__.py
@@ -1119,9 +1119,9 @@ sandbox: true                # Run in subprocess isolation
 ### 8.3 — Plugin SDK
 
 ```python
-# nexsec_sdk/__init__.py  (installable separately)
+# phalanx_sdk/__init__.py  (installable separately)
 
-from nexsec_sdk import (
+from phalanx_sdk import (
     Plugin, Command, Parser, Agent, Workflow,
     Finding, Severity, TargetType,
     session, findings, config, logger
@@ -1195,7 +1195,7 @@ class RolePermissions:
 ### 9.3 — Dry-Run Mode
 
 ```bash
-nexsec run "scan target.com with nuclei" --dry-run
+phalanx run "scan target.com with nuclei" --dry-run
 ```
 
 Output:
@@ -1217,7 +1217,7 @@ Output:
 ### 9.4 — Dangerous Action Detection
 
 ```python
-# src/nexsec/security/danger_analyzer.py
+# src/phalanx/security/danger_analyzer.py
 
 class DangerAnalyzer:
     
@@ -1257,8 +1257,8 @@ class DangerAnalyzer:
 ## PART 10: PROJECT STRUCTURE (V2)
 
 ```
-nexsec/
-├── src/nexsec/
+phalanx/
+├── src/phalanx/
 │   ├── core/                     # NEW: Core platform kernel
 │   │   ├── mode_dispatcher.py    # Nine-mode dispatcher
 │   │   ├── intent_router.py      # Semantic intent routing
@@ -1374,7 +1374,7 @@ nexsec/
 │   └── config.py                 # + hot-reload
 │
 ├── packages/
-│   └── nexsec-sdk/               # NEW: Developer SDK package
+│   └── phalanx-sdk/               # NEW: Developer SDK package
 │
 ├── workflows/                    # NEW: Built-in workflows
 │   ├── recon.yaml
@@ -1459,7 +1459,7 @@ nexsec/
 | 5 | Smart autocomplete (tier 1+2) | UX transformation |
 | 6 | Integration test suite | Production safety |
 
-**Deliverable**: NexSec v0.4.0 — Operationally solid
+**Deliverable**: Phalanx v0.4.0 — Operationally solid
 
 ---
 
@@ -1476,7 +1476,7 @@ nexsec/
 | 13 | PTY support + interactive tools | Full tool coverage |
 | 14 | Plugin marketplace v2 | Ecosystem growth |
 
-**Deliverable**: NexSec v0.5.0 — AI-Native platform
+**Deliverable**: Phalanx v0.5.0 — AI-Native platform
 
 ---
 
@@ -1490,7 +1490,7 @@ nexsec/
 | 21-22 | Team collaboration mode | Real-time sharing |
 | 23-24 | Headless API + webhooks | CI/CD integration |
 
-**Deliverable**: NexSec v1.0.0 — Enterprise Production
+**Deliverable**: Phalanx v1.0.0 — Enterprise Production
 
 ---
 
@@ -1529,16 +1529,16 @@ roles:
 ### 13.2 — Compliance Reporting
 
 ```bash
-nexsec compliance report --standard SOC2 --period Q1-2026
-nexsec compliance report --standard ISO27001
-nexsec compliance report --standard NIST-CSF
-nexsec compliance export --format pdf --to compliance@company.com
+phalanx compliance report --standard SOC2 --period Q1-2026
+phalanx compliance report --standard ISO27001
+phalanx compliance report --standard NIST-CSF
+phalanx compliance export --format pdf --to compliance@company.com
 ```
 
 ### 13.3 — SIEM Integration
 
 ```python
-# src/nexsec/audit_log.py (enhanced)
+# src/phalanx/audit_log.py (enhanced)
 
 class SIEMConnector:
     CONNECTORS = {
@@ -1564,7 +1564,7 @@ First Launch → "NEXSEC SETUP WIZARD"
 
 Step 1/5: Welcome & Concept
   ┌─────────────────────────────────┐
-  │  ⚡ Welcome to NexSec v2.0     │
+  │  ⚡ Welcome to Phalanx v2.0     │
   │                                │
   │  The AI-Native Cyber Ops       │
   │  Platform for elite operators  │
@@ -1588,17 +1588,17 @@ Step 5/5: Run First Mission
 ### 14.2 — Inline Help System
 
 ```bash
-nexsec run "nmap ?"         # → Suggests common nmap patterns
-nexsec scan --help-ai        # → AI-generated contextual help
+phalanx run "nmap ?"         # → Suggests common nmap patterns
+phalanx scan --help-ai        # → AI-generated contextual help
 ```
 
 ### 14.3 — Command Replay System
 
 ```bash
-nexsec replay last           # Replay last command
-nexsec replay --session s1   # Replay entire session
-nexsec replay --step 3       # Replay from step 3
-nexsec history --search sql  # Search command history
+phalanx replay last           # Replay last command
+phalanx replay --session s1   # Replay entire session
+phalanx replay --step 3       # Replay from step 3
+phalanx history --search sql  # Search command history
 ```
 
 ### 14.4 — Live Output Streaming
@@ -1672,7 +1672,7 @@ ETA: ~8 minutes  Elapsed: 12:34
 ### 16.1 — Session Kernel
 
 ```python
-# src/nexsec/session/kernel.py
+# src/phalanx/session/kernel.py
 
 @dataclass
 class SessionKernel:
@@ -1725,7 +1725,7 @@ class SessionKernel:
 ### 17.1 — State Hierarchy
 
 ```
-Global State (persisted to ~/.nexsec/)
+Global State (persisted to ~/.phalanx/)
 ├── config.toml           # Settings
 ├── credentials.enc       # Encrypted vault
 ├── offline.db            # SQLite (findings, plans, sessions)
@@ -1745,7 +1745,7 @@ Request State (per-command, ephemeral)
 ### 17.2 — State Persistence Strategy
 
 ```python
-# src/nexsec/session/snapshot.py
+# src/phalanx/session/snapshot.py
 
 class SessionSnapshot:
     """
@@ -1781,7 +1781,7 @@ class SessionSnapshot:
 ### 18.1 — Notification Types
 
 ```python
-# src/nexsec/ux/notifications.py
+# src/phalanx/ux/notifications.py
 
 class NotificationSystem:
     
@@ -1829,7 +1829,7 @@ class NotificationSystem:
 ### 19.1 — Accessibility Improvements
 
 ```python
-# src/nexsec/ux/accessibility.py
+# src/phalanx/ux/accessibility.py
 
 class AccessibilityConfig:
     """Configurable accessibility options."""
@@ -1859,9 +1859,9 @@ class AccessibilityConfig:
 ### 19.2 — Screen Reader Support
 
 ```bash
-nexsec --a11y screen-reader    # Plain text, no ANSI codes
-nexsec --a11y no-color          # Preserve color meaning in text
-nexsec --a11y verbose           # Extra context in all output
+phalanx --a11y screen-reader    # Plain text, no ANSI codes
+phalanx --a11y no-color          # Preserve color meaning in text
+phalanx --a11y verbose           # Extra context in all output
 ```
 
 ---
@@ -1937,8 +1937,8 @@ Optimizations:
 
 ---
 
-> **This document is the master blueprint for NexSec v2.0.**  
+> **This document is the master blueprint for Phalanx v2.0.**  
 > All implementation work should reference this document.  
 > Update sections as features are implemented.
 
-*Generated: 2026-05-20 | Based on deep audit of NexSec v0.3.0*
+*Generated: 2026-05-20 | Based on deep audit of Phalanx v0.3.0*

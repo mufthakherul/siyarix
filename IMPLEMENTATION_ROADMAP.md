@@ -1,4 +1,4 @@
-# NexSec Implementation Roadmap & Action Items
+# Phalanx Implementation Roadmap & Action Items
 
 **Updated**: May 17, 2026  
 **Status**: READY FOR EXECUTION  
@@ -138,7 +138,7 @@
   ```
 - **CLI Command**:
   ```bash
-  nexsec run --resume <plan_id>
+  phalanx run --resume <plan_id>
   ```
 
 #### Task 2.3: Add Plan Serialization/Deserialization
@@ -332,7 +332,7 @@
   ```
 - **CLI Command**:
   ```bash
-  nexsec health
+  phalanx health
   ```
 
 #### Task 5.2: Add Logging Improvements
@@ -352,18 +352,18 @@
   from prometheus_client import Counter, Histogram, Gauge
   
   scans_total = Counter(
-      'nexsec_scans_total',
+      'phalanx_scans_total',
       'Total scans executed',
       ['status', 'mode']
   )
   
   scan_duration = Histogram(
-      'nexsec_scan_duration_seconds',
+      'phalanx_scan_duration_seconds',
       'Scan duration in seconds'
   )
   
   findings_total = Gauge(
-      'nexsec_findings_total',
+      'phalanx_findings_total',
       'Current number of findings'
   )
   ```
@@ -465,7 +465,7 @@
 
 ### Install Development Environment
 ```bash
-cd /workspaces/nexsec
+cd /workspaces/phalanx
 python -m venv venv
 source venv/bin/activate
 pip install -e ".[all]"
@@ -488,7 +488,7 @@ pytest tests/test_integration.py -v --asyncio-mode=auto
 python -m pytest tests/test_execution_engine.py::TestExecutionEngine::test_retry_logic -v
 
 # Full suite
-python -m pytest tests/ -v --cov=src/nexsec
+python -m pytest tests/ -v --cov=src/phalanx
 ```
 
 ---
@@ -538,7 +538,7 @@ python -m pytest tests/ -v --cov=src/nexsec
 - **Weekly Dev Calls**: Thursdays 10am UTC
 - **GitHub Discussions**: For feature requests
 - **Bug Reports**: GitHub Issues with reproduction steps
-- **Security Issues**: security@nexsec.dev
+- **Security Issues**: security@phalanx.dev
 
 ---
 

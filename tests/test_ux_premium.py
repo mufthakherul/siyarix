@@ -1,8 +1,8 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from rich.layout import Layout
-from nexsec.ux import SmartAutocomplete, SplitPane, OnboardingWizard
-from nexsec.core.pipeline import CommandPipeline
+from phalanx.ux import SmartAutocomplete, SplitPane, OnboardingWizard
+from phalanx.core.pipeline import CommandPipeline
 
 def test_smart_autocomplete():
     autocomplete = SmartAutocomplete()

@@ -1,4 +1,4 @@
-from nexsec.branding import (
+from phalanx.branding import (
     available_themes,
     canonical_theme,
     resolve_theme,

@@ -11,7 +11,9 @@ from .profiles import ProfileStore
 
 
 class AuthManager:
-    def __init__(self, credentials: CredentialStore | None = None, profiles: ProfileStore | None = None) -> None:
+    def __init__(
+        self, credentials: CredentialStore | None = None, profiles: ProfileStore | None = None
+    ) -> None:
         self.credentials = credentials or CredentialStore()
         self.profiles = profiles or ProfileStore()
 
@@ -67,7 +69,9 @@ class AuthManager:
         if not profile_data:
             return {"logged_in": False, "profile": profile, "reason": "profile_not_found"}
 
-        server_url = self.credentials.retrieve(profile, "server_url") or profile_data.get("server_url")
+        server_url = self.credentials.retrieve(profile, "server_url") or profile_data.get(
+            "server_url"
+        )
         api_key = self.credentials.retrieve(profile, "api_key")
         access_token = self.credentials.retrieve(profile, "access_token")
         refresh_token = self.credentials.retrieve(profile, "refresh_token")
@@ -99,7 +103,9 @@ class AuthManager:
         if not profile_data:
             raise ValueError(f"Profile '{profile}' not found")
 
-        server_url = self.credentials.retrieve(profile, "server_url") or profile_data.get("server_url")
+        server_url = self.credentials.retrieve(profile, "server_url") or profile_data.get(
+            "server_url"
+        )
         refresh_token = self.credentials.retrieve(profile, "refresh_token")
         if not server_url:
             raise ValueError("Server URL not configured")
@@ -148,7 +154,9 @@ class AuthManager:
     def require_auth_headers(self, profile: str, auto_refresh: bool = True) -> dict[str, str]:
         headers = self.auth_headers(profile, auto_refresh=auto_refresh)
         if not headers:
-            raise ValueError(f"Profile '{profile}' has no stored credentials. Run 'nexsec auth login'.")
+            raise ValueError(
+                f"Profile '{profile}' has no stored credentials. Run 'nexsec auth login'."
+            )
         return headers
 
     def _health(self, server_url: str, profile: str) -> dict:
@@ -157,6 +165,9 @@ class AuthManager:
             resp = httpx.get(f"{server_url.rstrip('/')}/api/health", headers=headers, timeout=8.0)
             return {"ok": resp.status_code < 500, "status_code": resp.status_code}
         except Exception as exc:
+            import logging
+
+            logging.getLogger(__name__).exception("Health check failed for %s", server_url)
             return {"ok": False, "error": str(exc)}
 
     def _me(self, server_url: str, profile: str) -> dict:
@@ -169,6 +180,9 @@ class AuthManager:
                 return {"available": True, "status_code": 200, "data": resp.json()}
             return {"available": False, "status_code": resp.status_code}
         except Exception as exc:
+            import logging
+
+            logging.getLogger(__name__).exception("Failed to fetch /api/auth/me for %s", server_url)
             return {"available": False, "error": str(exc)}
 
     def _expiry_key(self, profile: str) -> str:
@@ -191,5 +205,10 @@ class AuthManager:
         try:
             expires_at = datetime.fromisoformat(value)
             return expires_at <= datetime.now(tz=UTC) + timedelta(minutes=5)
-        except Exception:
+        except Exception as exc:
+            import logging
+
+            logging.getLogger(__name__).debug(
+                "Failed to parse expiry for profile %s: %s", profile, exc
+            )
             return False

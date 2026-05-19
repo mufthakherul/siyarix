@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from typing import Any, Dict, List, Optional, cast
+
 import typer
 from rich.console import Console
 from rich.panel import Panel
@@ -26,11 +28,15 @@ console = Console()
 
 @security_app.command(name="incidents")
 def list_incidents(
-    status: str | None = typer.Option(None, "--status", help="Filter: open|closed|investigating"),
-    severity: str | None = typer.Option(None, "--severity", help="Filter: critical|high|medium|low"),
+    status: Optional[str] = typer.Option(
+        None, "--status", help="Filter: open|closed|investigating"
+    ),
+    severity: Optional[str] = typer.Option(
+        None, "--severity", help="Filter: critical|high|medium|low"
+    ),
     limit: int = typer.Option(10, "--limit", help="Number of incidents to show"),
     output: str = typer.Option("table", "--output", "-o", help="Output format: table|json"),
-):
+) -> None:
     """List security incidents with severity indicators.
 
     Examples:
@@ -39,12 +45,42 @@ def list_incidents(
       nexsec security incidents --status open --output json
     """
     # Sample data — replace with real API call when backend is available
-    incidents = [
-        {"id": "INC-001", "title": "Ransomware detected on server-01", "severity": "critical", "status": "investigating", "created": "2026-05-17"},
-        {"id": "INC-002", "title": "Phishing campaign targeting HR dept", "severity": "high", "status": "open", "created": "2026-05-16"},
-        {"id": "INC-003", "title": "Unauthorized SSH login attempt", "severity": "medium", "status": "open", "created": "2026-05-15"},
-        {"id": "INC-004", "title": "Outdated TLS certificate expiring", "severity": "low", "status": "open", "created": "2026-05-14"},
-        {"id": "INC-005", "title": "APT28 lateral movement detected", "severity": "critical", "status": "open", "created": "2026-05-17"},
+    incidents: List[Dict[str, Any]] = [
+        {
+            "id": "INC-001",
+            "title": "Ransomware detected on server-01",
+            "severity": "critical",
+            "status": "investigating",
+            "created": "2026-05-17",
+        },
+        {
+            "id": "INC-002",
+            "title": "Phishing campaign targeting HR dept",
+            "severity": "high",
+            "status": "open",
+            "created": "2026-05-16",
+        },
+        {
+            "id": "INC-003",
+            "title": "Unauthorized SSH login attempt",
+            "severity": "medium",
+            "status": "open",
+            "created": "2026-05-15",
+        },
+        {
+            "id": "INC-004",
+            "title": "Outdated TLS certificate expiring",
+            "severity": "low",
+            "status": "open",
+            "created": "2026-05-14",
+        },
+        {
+            "id": "INC-005",
+            "title": "APT28 lateral movement detected",
+            "severity": "critical",
+            "status": "open",
+            "created": "2026-05-17",
+        },
     ]
 
     if status:
@@ -55,6 +91,7 @@ def list_incidents(
 
     if output == "json":
         import json
+
         console.print_json(json.dumps(incidents, indent=2))
         return
 
@@ -70,18 +107,25 @@ def list_incidents(
     table.add_column("Status", justify="center")
     table.add_column("Created")
 
-    sev_colors = {"critical": "red", "high": "orange1", "medium": "yellow", "low": "cyan"}
-    status_colors = {"open": "red", "investigating": "yellow", "closed": "green"}
+    sev_colors: Dict[str, str] = {
+        "critical": "red",
+        "high": "orange1",
+        "medium": "yellow",
+        "low": "cyan",
+    }
+    status_colors: Dict[str, str] = {"open": "red", "investigating": "yellow", "closed": "green"}
 
     for inc in incidents:
-        sc = sev_colors.get(inc["severity"], "white")
-        stc = status_colors.get(inc["status"], "white")
+        severity_val = str(inc.get("severity", "")).lower()
+        status_val = str(inc.get("status", "")).lower()
+        sc = sev_colors.get(severity_val, "white")
+        stc = status_colors.get(status_val, "white")
         table.add_row(
-            inc["id"],
-            inc["title"],
-            f"[{sc}]{inc['severity'].upper()}[/{sc}]",
-            f"[{stc}]{inc['status']}[/{stc}]",
-            inc["created"],
+            str(inc.get("id", "-")),
+            str(inc.get("title", "-")),
+            f"[{sc}]{severity_val.upper()}[/{sc}]",
+            f"[{stc}]{status_val}[/{stc}]",
+            str(inc.get("created", "-")),
         )
 
     console.print(table)
@@ -89,7 +133,7 @@ def list_incidents(
 
 
 @security_app.command(name="incident")
-def get_incident(incident_id: str = typer.Argument(help="Incident ID (e.g. INC-001)")):
+def get_incident(incident_id: str = typer.Argument(help="Incident ID (e.g. INC-001)")) -> None:
     """Show detailed information about a specific incident."""
     incident_details = (
         "[bold]Incident:[/bold]    INC-001\n"
@@ -104,20 +148,24 @@ def get_incident(incident_id: str = typer.Argument(help="Incident ID (e.g. INC-0
         "[bold]Affected Assets:[/bold] server-01, file-share-02\n"
         "[bold]MITRE TTPs:[/bold]  T1486 (Data Encrypted), T1059 (Script Interpreter)"
     )
-    console.print(Panel.fit(
-        incident_details,
-        title=f"[bold red]Incident {incident_id}[/bold red]",
-        border_style="red",
-    ))
+    console.print(
+        Panel.fit(
+            incident_details,
+            title=f"[bold red]Incident {incident_id}[/bold red]",
+            border_style="red",
+        )
+    )
 
 
 @security_app.command(name="incident-create")
 def create_incident(
     title: str = typer.Option(..., "--title", help="Incident title"),
     description: str = typer.Option(..., "--description", help="Incident description"),
-    category: str = typer.Option(..., "--category", help="Category: malware|phishing|breach|intrusion|other"),
+    category: str = typer.Option(
+        ..., "--category", help="Category: malware|phishing|breach|intrusion|other"
+    ),
     severity: str = typer.Option("medium", "--severity", help="Severity: critical|high|medium|low"),
-):
+) -> None:
     """Create a new security incident.
 
     Example:
@@ -132,31 +180,69 @@ def create_incident(
         f"[bold]Status:[/bold]   [yellow]open[/yellow]\n"
         f"[bold]Created:[/bold]  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     )
-    console.print(Panel.fit(
-        incident_summary,
-        title="[green]✓ Incident Created[/green]",
-        border_style="green",
-    ))
+    console.print(
+        Panel.fit(
+            incident_summary,
+            title="[green]✓ Incident Created[/green]",
+            border_style="green",
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
 # Vulnerability Management
 # ---------------------------------------------------------------------------
 
+
 @security_app.command(name="vulnerabilities")
 def list_vulnerabilities(
-    status: str | None = typer.Option(None, "--status", help="Filter by status"),
-    severity: str | None = typer.Option(None, "--severity", help="Filter by severity"),
+    status: Optional[str] = typer.Option(None, "--status", help="Filter by status"),
+    severity: Optional[str] = typer.Option(None, "--severity", help="Filter by severity"),
     limit: int = typer.Option(15, "--limit", help="Number to show"),
     output: str = typer.Option("table", "--output", "-o", help="Output: table|json"),
-):
+) -> None:
     """List vulnerabilities with CVSS scores and patch status."""
-    vulns = [
-        {"id": "CVE-2024-0001", "title": "Log4Shell RCE", "cvss": 10.0, "severity": "critical", "status": "open", "affected": "log4j 2.x"},
-        {"id": "CVE-2024-0002", "title": "ProxyShell Exchange RCE", "cvss": 9.8, "severity": "critical", "status": "open", "affected": "Exchange 2016"},
-        {"id": "CVE-2024-0003", "title": "PrintNightmare Priv Esc", "cvss": 8.8, "severity": "high", "status": "patched", "affected": "Windows Print Spooler"},
-        {"id": "CVE-2024-0004", "title": "SQL Injection in WebApp", "cvss": 7.5, "severity": "high", "status": "open", "affected": "CustomApp v1.2"},
-        {"id": "CVE-2024-0005", "title": "SSRF in API Gateway", "cvss": 6.5, "severity": "medium", "status": "open", "affected": "API Gateway v3.1"},
+    vulns: List[Dict[str, Any]] = [
+        {
+            "id": "CVE-2024-0001",
+            "title": "Log4Shell RCE",
+            "cvss": 10.0,
+            "severity": "critical",
+            "status": "open",
+            "affected": "log4j 2.x",
+        },
+        {
+            "id": "CVE-2024-0002",
+            "title": "ProxyShell Exchange RCE",
+            "cvss": 9.8,
+            "severity": "critical",
+            "status": "open",
+            "affected": "Exchange 2016",
+        },
+        {
+            "id": "CVE-2024-0003",
+            "title": "PrintNightmare Priv Esc",
+            "cvss": 8.8,
+            "severity": "high",
+            "status": "patched",
+            "affected": "Windows Print Spooler",
+        },
+        {
+            "id": "CVE-2024-0004",
+            "title": "SQL Injection in WebApp",
+            "cvss": 7.5,
+            "severity": "high",
+            "status": "open",
+            "affected": "CustomApp v1.2",
+        },
+        {
+            "id": "CVE-2024-0005",
+            "title": "SSRF in API Gateway",
+            "cvss": 6.5,
+            "severity": "medium",
+            "status": "open",
+            "affected": "API Gateway v3.1",
+        },
     ]
 
     if severity:
@@ -167,6 +253,7 @@ def list_vulnerabilities(
 
     if output == "json":
         import json
+
         console.print_json(json.dumps(vulns, indent=2))
         return
 
@@ -183,29 +270,44 @@ def list_vulnerabilities(
     table.add_column("Status", justify="center")
     table.add_column("Affected", style="dim")
 
-    sev_colors = {"critical": "red", "high": "orange1", "medium": "yellow", "low": "cyan"}
-    status_colors = {"open": "red", "patched": "green", "accepted": "yellow", "mitigated": "cyan"}
+    sev_colors: Dict[str, str] = {
+        "critical": "red",
+        "high": "orange1",
+        "medium": "yellow",
+        "low": "cyan",
+    }
+    status_colors: Dict[str, str] = {
+        "open": "red",
+        "patched": "green",
+        "accepted": "yellow",
+        "mitigated": "cyan",
+    }
 
     for v in vulns:
-        sc = sev_colors.get(v["severity"], "white")
-        stc = status_colors.get(v["status"], "white")
-        cvss_color = "red" if v["cvss"] >= 9 else "orange1" if v["cvss"] >= 7 else "yellow"
+        severity_val = str(v.get("severity", "")).lower()
+        status_val = str(v.get("status", "")).lower()
+        cvss_val = float(v.get("cvss", 0.0))
+        sc = sev_colors.get(severity_val, "white")
+        stc = status_colors.get(status_val, "white")
+        cvss_color = "red" if cvss_val >= 9 else "orange1" if cvss_val >= 7 else "yellow"
         table.add_row(
-            v["id"],
-            v["title"],
-            f"[{cvss_color}]{v['cvss']}[/{cvss_color}]",
-            f"[{sc}]{v['severity'].upper()}[/{sc}]",
-            f"[{stc}]{v['status']}[/{stc}]",
-            v["affected"],
+            str(v.get("id", "-")),
+            str(v.get("title", "-")),
+            f"[{cvss_color}]{cvss_val}[/{cvss_color}]",
+            f"[{sc}]{severity_val.upper()}[/{sc}]",
+            f"[{stc}]{status_val}[/{stc}]",
+            str(v.get("affected", "-")),
         )
 
     console.print(table)
 
 
 @security_app.command(name="remediation-plan")
-def get_remediation_plan():
+def get_remediation_plan() -> None:
     """Generate a prioritized vulnerability remediation plan."""
-    table = Table(title="Vulnerability Remediation Plan", show_header=True, header_style="bold green")
+    table = Table(
+        title="Vulnerability Remediation Plan", show_header=True, header_style="bold green"
+    )
     table.add_column("Priority", justify="center", width=8)
     table.add_column("CVE", style="cyan")
     table.add_column("Action", style="white")
@@ -228,11 +330,12 @@ def get_remediation_plan():
 # Threat Hunting
 # ---------------------------------------------------------------------------
 
+
 @security_app.command(name="hunt")
 def run_hunt(
     query_id: str = typer.Argument(help="Hunt query ID"),
     target: str = typer.Option("", "--target", "-t", help="Override target"),
-):
+) -> None:
     """Execute a threat hunt query against the environment."""
     hunt_summary = (
         f"[bold]Query ID:[/bold]  {query_id}\n"
@@ -240,32 +343,66 @@ def run_hunt(
         f"[bold]Status:[/bold]    [yellow]Running...[/yellow]\n"
         "[dim]Checking MITRE ATT&CK patterns...[/dim]"
     )
-    console.print(Panel(
-        hunt_summary,
-        title="🎯 Threat Hunt",
-        border_style="yellow",
-    ))
+    console.print(
+        Panel(
+            hunt_summary,
+            title="🎯 Threat Hunt",
+            border_style="yellow",
+        )
+    )
 
 
 @security_app.command(name="queries")
 def list_queries(
-    tag: str | None = typer.Option(None, "--tag", help="Filter by tag"),
-    mitre_tactic: str | None = typer.Option(None, "--mitre-tactic", help="Filter by MITRE tactic"),
-):
+    tag: Optional[str] = typer.Option(None, "--tag", help="Filter by tag"),
+    mitre_tactic: Optional[str] = typer.Option(
+        None, "--mitre-tactic", help="Filter by MITRE tactic"
+    ),
+) -> None:
     """List available threat hunting queries."""
-    queries = [
-        {"id": "q_ps_exec", "name": "PowerShell Execution Detection", "tactic": "Execution", "tags": ["windows", "powershell"]},
-        {"id": "q_rdp_brute", "name": "RDP Brute Force Detection", "tactic": "Credential Access", "tags": ["windows", "rdp"]},
-        {"id": "q_dns_tunnel", "name": "DNS Tunneling Detection", "tactic": "Exfiltration", "tags": ["network", "dns"]},
-        {"id": "q_lsass_dump", "name": "LSASS Memory Dump", "tactic": "Credential Access", "tags": ["windows", "memory"]},
-        {"id": "q_lateral_smb", "name": "Lateral Movement via SMB", "tactic": "Lateral Movement", "tags": ["windows", "smb"]},
-        {"id": "q_c2_beacon", "name": "C2 Beacon Detection", "tactic": "Command and Control", "tags": ["network", "c2"]},
+    queries: List[Dict[str, Any]] = [
+        {
+            "id": "q_ps_exec",
+            "name": "PowerShell Execution Detection",
+            "tactic": "Execution",
+            "tags": ["windows", "powershell"],
+        },
+        {
+            "id": "q_rdp_brute",
+            "name": "RDP Brute Force Detection",
+            "tactic": "Credential Access",
+            "tags": ["windows", "rdp"],
+        },
+        {
+            "id": "q_dns_tunnel",
+            "name": "DNS Tunneling Detection",
+            "tactic": "Exfiltration",
+            "tags": ["network", "dns"],
+        },
+        {
+            "id": "q_lsass_dump",
+            "name": "LSASS Memory Dump",
+            "tactic": "Credential Access",
+            "tags": ["windows", "memory"],
+        },
+        {
+            "id": "q_lateral_smb",
+            "name": "Lateral Movement via SMB",
+            "tactic": "Lateral Movement",
+            "tags": ["windows", "smb"],
+        },
+        {
+            "id": "q_c2_beacon",
+            "name": "C2 Beacon Detection",
+            "tactic": "Command and Control",
+            "tags": ["network", "c2"],
+        },
     ]
 
     if tag:
-        queries = [q for q in queries if tag in q["tags"]]
+        queries = [q for q in queries if tag in cast(list, q.get("tags", []))]
     if mitre_tactic:
-        queries = [q for q in queries if mitre_tactic.lower() in q["tactic"].lower()]
+        queries = [q for q in queries if mitre_tactic.lower() in str(q.get("tactic", "")).lower()]
 
     table = Table(title="Threat Hunt Queries", show_header=True, header_style="bold magenta")
     table.add_column("Query ID", style="cyan", no_wrap=True)
@@ -274,13 +411,18 @@ def list_queries(
     table.add_column("Tags", style="dim")
 
     for q in queries:
-        table.add_row(q["id"], q["name"], q["tactic"], ", ".join(q["tags"]))
+        table.add_row(
+            str(q.get("id", "-")),
+            str(q.get("name", "-")),
+            str(q.get("tactic", "-")),
+            ", ".join(cast(List[str], q.get("tags", []))),
+        )
 
     console.print(table)
 
 
 @security_app.command(name="mitre-coverage")
-def mitre_coverage():
+def mitre_coverage() -> None:
     """Show MITRE ATT&CK technique coverage."""
     table = Table(
         title="MITRE ATT&CK Coverage",
@@ -306,7 +448,7 @@ def mitre_coverage():
 
     for tid, name, tactic, cov in techniques:
         color = "green" if "✓" in cov else "yellow" if "⚠" in cov else "red"
-        table.add_row(tid, name, tactic, f"[{color}]{cov}[/{color}]")
+        table.add_row(str(tid), str(name), str(tactic), f"[{color}]{cov}[/{color}]")
 
     console.print(table)
 
@@ -315,8 +457,9 @@ def mitre_coverage():
 # Security Dashboard
 # ---------------------------------------------------------------------------
 
+
 @security_app.command(name="dashboard")
-def show_dashboard():
+def show_dashboard() -> None:
     """Show the security operations dashboard with live metrics."""
     from rich.columns import Columns
 
@@ -369,7 +512,7 @@ def show_dashboard():
 
     for metric, current, target, status in kpis:
         sc = status_colors.get(status, "white")
-        table.add_row(metric, current, target, f"[{sc}]{status}[/{sc}]")
+        table.add_row(str(metric), str(current), str(target), f"[{sc}]{status}[/{sc}]")
 
     console.print(table)
 
@@ -378,10 +521,13 @@ def show_dashboard():
 # Playbooks
 # ---------------------------------------------------------------------------
 
+
 @security_app.command(name="playbooks")
-def list_playbooks():
+def list_playbooks() -> None:
     """List available incident response playbooks."""
-    table = Table(title="Incident Response Playbooks", show_header=True, header_style="bold magenta")
+    table = Table(
+        title="Incident Response Playbooks", show_header=True, header_style="bold magenta"
+    )
     table.add_column("ID", style="cyan", no_wrap=True)
     table.add_column("Name", style="white")
     table.add_column("Type", style="yellow")
@@ -396,7 +542,7 @@ def list_playbooks():
         ("pb_insider", "Insider Threat Response", "Insider", "👤 Manual"),
     ]
     for pid, name, ptype, mode in playbooks:
-        table.add_row(pid, name, ptype, mode)
+        table.add_row(str(pid), str(name), str(ptype), str(mode))
 
     console.print(table)
 

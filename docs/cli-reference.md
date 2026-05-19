@@ -4,6 +4,8 @@ NexSec CLI Version: **1.2.0**
 
 This document provides a comprehensive reference for the NexSec command hierarchy. The CLI is built with Typer; use `nexsec --help` or `nexsec <subcommand> --help` for real-time usage and flag details.
 
+> Launching `nexsec` with no subcommand opens the interactive assistant shell. The landing screen shows your platform, current mode, theme, model provider, session ID, and quick actions for the most common tasks.
+
 ## Global Options
 
 - `--mode <registry|autonomous|integrated>`: Set the execution engine strategy (Default: `integrated`).
@@ -21,6 +23,20 @@ Start an interactive AI cybersecurity REPL.
   - `--target, -t`: Set initial session target.
   - `--session, -s`: Resume a specific session by ID.
   - `--resume, -r`: Resume the most recent session.
+
+### Chat Slash Commands
+
+The chat shell supports the following high-value slash commands:
+
+- `/help`: Show all commands.
+- `/tools`: Discover installed security tools.
+- `/palette`: Search and run saved commands or intents.
+- `/key set <provider> <api_key>`: Store keys in the vault and `.env`.
+- `/key list`: Show configured providers.
+- `/theme mode <system|dark|light|minimal|neon>`: Change the UI theme.
+- `/theme appearance`: Preview the interface styling.
+- `/model <auto|openai|gemini|ollama|cloud>`: Set the preferred planner provider.
+- `/model gemini <model-name>`: Set a Gemini model name.
 
 ### `scan`
 Run security scans against targets using the execution engine.
@@ -83,7 +99,7 @@ Display the live security operations dashboard.
 - `catalog`: List available workflow templates.
 
 ### `auth` (🔑 Secrets Management)
-- `set-key <provider>`: Securely store API keys (OpenAI, Gemini, etc.).
+- `set-key <provider>`: Securely store API keys (OpenAI, Gemini, Anthropic, etc.). Keys are saved to the credential vault and synced to `.env`.
 - `show`: Check configuration status of API keys.
 
 ### `audit` (📋 Compliance & Logs)
@@ -118,4 +134,4 @@ Display the live security operations dashboard.
 ### `theme` (🎨 Customization)
 - `list`: Show available UI color themes.
 - `set <name>`: Set the global UI theme.
-- `preview`: Preview theme appearance.
+- `preview` / `appearance`: Preview the interface with shell, text, and command samples.

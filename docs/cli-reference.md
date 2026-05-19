@@ -1,137 +1,92 @@
 # CLI Reference
 
-NexSec CLI Version: **1.2.0**
+Phalanx CLI Version: **1.2.0**
 
-This document provides a comprehensive reference for the NexSec command hierarchy. The CLI is built with Typer; use `nexsec --help` or `nexsec <subcommand> --help` for real-time usage and flag details.
+This document provides a comprehensive reference for the Phalanx command hierarchy. The CLI is built using the [Typer](https://typer.tiangolo.com/) framework, which means it is self-documenting. 
 
-> Launching `nexsec` with no subcommand opens the interactive assistant shell. The landing screen shows your platform, current mode, theme, model provider, session ID, and quick actions for the most common tasks.
+*(Tip: You can append `--help` to any command in your terminal to get real-time usage and flag details, e.g., `phalanx scan --help`).*
+
+> **The Quick Start**: Launching `phalanx` with no subcommand at all opens the interactive assistant shell. The beautiful landing screen will show you your operating system, current execution mode, theme, AI model provider, session ID, and quick actions for the most common tasks.
+
+---
 
 ## Global Options
 
-- `--mode <registry|autonomous|integrated>`: Set the execution engine strategy (Default: `integrated`).
-- `--no-banner`: Suppress the ASCII startup banner.
-- `--help`: Show help for any command or sub-command.
+These flags can be applied to almost any command:
+- `--mode <registry|autonomous|integrated>`: Set how the execution engine behaves (Default: `integrated`).
+- `--no-banner`: Suppress the ASCII startup banner if you want a quieter output.
+- `--help`: Show the help documentation for the current context.
 
 ---
 
 ## Core Commands
 
+These are the primary commands you will use on a day-to-day basis.
+
 ### `chat`
-Start an interactive AI cybersecurity REPL.
+Start an interactive AI cybersecurity REPL (Read-Eval-Print Loop).
 - **Flags**:
-  - `--mode, -m`: Execution mode.
-  - `--target, -t`: Set initial session target.
-  - `--session, -s`: Resume a specific session by ID.
-  - `--resume, -r`: Resume the most recent session.
+  - `--mode, -m`: Override the execution mode.
+  - `--target, -t`: Set an initial session target (so you don't have to type it later).
+  - `--session, -s`: Resume a specific session by its unique ID.
+  - `--resume, -r`: Automatically resume your most recent session.
 
-### Chat Slash Commands
-
-The chat shell supports the following high-value slash commands:
-
-- `/help`: Show all commands.
-- `/tools`: Discover installed security tools.
-- `/palette`: Search and run saved commands or intents.
-- `/key set <provider> <api_key>`: Store keys in the vault and `.env`.
-- `/key list`: Show configured providers.
-- `/theme mode <system|dark|light|minimal|neon>`: Change the UI theme.
-- `/theme appearance`: Preview the interface styling.
-- `/model <auto|openai|gemini|ollama|cloud>`: Set the preferred planner provider.
-- `/model gemini <model-name>`: Set a Gemini model name.
+**High-Value Chat Slash Commands:**
+While inside the `chat` interface, you can type these to control the agent:
+- `/help`: Show all available slash commands.
+- `/tools`: Discover which security tools Phalanx can see installed on your local machine.
+- `/palette`: Search and run saved commands or "intents".
+- `/key set <provider> <api_key>`: Securely store your AI keys in the encrypted vault.
+- `/key list`: Show your configured providers.
+- `/theme mode <system|dark|light|minimal|neon>`: Change the UI theme on the fly.
+- `/model <auto|openai|gemini|ollama|cloud>`: Set the preferred AI planner provider.
 
 ### `scan`
-Run security scans against targets using the execution engine.
-- **Arguments**: `targets` (IP, CIDR, URL, or hostname)
+Run specific security tools against targets using the execution engine directly (without the AI planner).
+- **Arguments**: `targets` (An IP, CIDR, URL, or hostname)
 - **Flags**:
-  - `--tool, -t`: Specify a tool.
-  - `--output, -o`: format (table|json|yaml|csv).
-  - `--parallel, -p`: Number of concurrent workers.
-  - `--save, -s`: Persist results to the offline store.
-  - `--dry-run`: Plan only, do not execute.
-
-### `discover`
-Discover assets, services, and vulnerabilities on a target.
-- **Flags**:
-  - `--deep, -d`: Enable deep OS and service detection.
-  - `--export, -e`: Export results to a file.
+  - `--tool, -t`: Specify a tool (e.g., `nmap`, `nuclei`).
+  - `--output, -o`: Formatting preference (`table`, `json`, `yaml`, `csv`).
+  - `--save, -s`: Persist the results to your local offline SQLite store.
+  - `--dry-run`: Don't actually run anything; just show the proposed execution plan.
 
 ### `run`
-Execute a natural language instruction through the autonomous engine.
-- **Example**: `nexsec run "find open ports on 10.0.0.1"`
+Execute a natural language instruction through the autonomous engine right from your shell.
+- **Example**: `phalanx run "find open ports on 10.0.0.1 and output to a file"`
 
 ### `health`
-Run system health checks for all components.
-
-### `metrics`
-Show execution and performance metrics for the current session.
-
-### `dashboard`
-Display the live security operations dashboard.
+Run system health checks to ensure your vault, databases, and AI endpoints are reachable.
 
 ---
 
-## Sub-App Groups
+## Specialized Sub-Groups
 
-### `security` (🔐 SecOps Console)
-- `incidents`: List and filter security incidents.
-- `incident <id>`: Show details for a specific incident.
+If you want to dive deeper, Phalanx organizes its advanced features into sub-command groups.
+
+### `security` (🔐 Security Ops & Management)
+Manage local security data.
+- `incidents`: List and filter security incidents you have recorded.
 - `incident-create`: Manually report a new incident.
-- `vulnerabilities`: View tracked CVEs and status.
-- `remediation-plan`: Generate a prioritized fix list.
-- `hunt`: Execute threat hunting queries.
+- `hunt`: Execute threat hunting queries against your local logs.
 - `queries`: List available MITRE-mapped hunt queries.
-- `mitre-coverage`: Show technique coverage map.
-- `playbooks`: List incident response playbooks.
-- `dashboard`: Show specialized SecOps metrics.
 
 ### `shell` (🖥 Cross-platform Helper)
+Learn about your environment and translate commands.
 - `platform`: Detailed terminal and OS diagnostics.
-- `doctor`: Readiness report for security tools.
-- `translate <intent>`: Convert goals (e.g., `ping`) to platform-specific commands.
-- `list-intents`: Show all supported command intents.
-- `list-shells`: Show supported shells (Bash, PowerShell, Zsh, etc.).
-- `security-cmds`: Show platform-native security commands.
-
-### `workflow` (⚙️ Orchestration)
-- `list`: List persisted execution plans.
-- `show <id>`: Inspect plan steps and status.
-- `resume <id>`: Continue a paused or failed plan.
-- `run <file>`: Execute a YAML/JSON workflow pipeline.
-- `catalog`: List available workflow templates.
+- `doctor`: Readiness report showing which external security binaries Phalanx found on your `PATH`.
+- `translate <intent>`: Convert goals (e.g., `ping`) into platform-specific commands (e.g., `Test-Connection` on PowerShell).
+- `list-intents`: Show all the cross-platform concepts Phalanx understands.
 
 ### `auth` (🔑 Secrets Management)
-- `set-key <provider>`: Securely store API keys (OpenAI, Gemini, Anthropic, etc.). Keys are saved to the credential vault and synced to `.env`.
-- `show`: Check configuration status of API keys.
-
-### `audit` (📋 Compliance & Logs)
-- `logs`: View the enterprise audit trail.
-- `verify`: Check audit log chain integrity.
-- `report <framework>`: Generate SOC2/ISO/NIST compliance reports.
-
-### `bulk` (📦 Batch Operations)
-- `scan <file>`: Run scans against a list of targets from a file.
-- `update`: Bulk update incident or vulnerability statuses.
-
-### `findings` (🔍 Data Management)
-- `list`: Search and filter findings in the offline store.
-- `export`: Export findings to JSON or CSV.
+- `set-key <provider>`: Securely store API keys (OpenAI, Gemini, Anthropic, etc.).
+- `show`: Check the configuration status of your keys.
 
 ### `config` (⚙️ Settings)
 - `list`: Show all current settings and defaults.
-- `set <key> <val>`: Update a configuration value.
-- `reset`: Restore settings to default.
-
-### `tool-registry` (🛠 Discovery)
-- `list`: Show discovered security tools on the current system.
-- `show <name>`: Show detailed metadata for a tool.
-
-### `ci` (🚀 CI/CD Gates)
-- `gate`: Exit with failure if critical findings or unhealthy states are detected.
-
-### `profile` (👤 Workspaces)
-- `save-cmd`: Save a reusable command profile.
-- `list-cmds`: List saved command templates.
+- `set <key> <val>`: Update a configuration value locally.
+- `reset`: Restore settings to their fresh-install defaults.
 
 ### `theme` (🎨 Customization)
 - `list`: Show available UI color themes.
-- `set <name>`: Set the global UI theme.
-- `preview` / `appearance`: Preview the interface with shell, text, and command samples.
+- `set <name>`: Set the global UI theme (e.g., `dark`, `neon`).
+- `preview`: Preview the interface with shell, text, and command samples to see how your colors look.

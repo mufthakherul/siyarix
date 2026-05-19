@@ -1,16 +1,29 @@
 # Architecture
 
-NexSec is organized as a modular CLI agent with the following layers:
+NexSec is an enterprise-grade cybersecurity command center designed for modularity, cross-platform awareness, and autonomous orchestration.
 
-- **CLI Layer (Typer)**: routes subcommands and handles user input, formatting, and interactive feedback.
-- **Task Planner**: converts high-level user instructions into a structured execution plan.
-- **Execution Engine**: runs tasks using internal analyzers and external tools via the `tool_registry`.
-- **Command Interpreters**: heuristic and model-driven interpreters that classify user intent into actionable tasks.
-- **Parsers & Plugins**: normalize output from third-party tools into a common security finding format.
-- **Data Stores**: managing offline cache, enterprise audit logs, and incident tracking for persistence and compliance.
+## Architectural Layers
 
-### Design Principles
+- **CLI Layer (Typer & Rich)**: A nested, multi-level command routing system using Typer for structure and Rich for premium console output, themes, and interactive components.
+- **Interactive REPL (Chat Mode)**: A specialized cybersecurity AI assistant that maintains session history, supports slash commands, and provides natural language to execution pipelines.
+- **Orchestration & Planning**:
+    - **Task Planner**: Decomposes high-level instructions into multi-step execution plans.
+    - **Execution Engine**: Orchestrates tasks with support for retries, dependency management, and workflow persistence.
+- **Execution Modes**:
+    - **Registry Mode**: High-speed, offline execution using local tool discovery.
+    - **Autonomous Mode**: Model-driven planning and decision making for complex or unknown tasks.
+    - **Integrated Mode (Default)**: Combines AI planning with registry-backed tool verification for optimal reliability.
+- **Security & Knowledge**:
+    - **Enterprise Vault**: Secure, encrypted storage for API keys and secrets using Fernet and AWS KMS.
+    - **Shell Knowledge Library**: A cross-platform translation engine that maps intents to platform-native (Bash, PowerShell, CMD) security commands.
+    - **Tool Registry**: Auto-discovery system for security binaries and their capabilities.
+- **Persistence & Compliance**:
+    - **Offline Store**: Local database for findings, execution plans, and scan history.
+    - **Audit Engine**: High-integrity, chained audit log for enterprise compliance and forensic verification.
 
-- **Decoupled Orchestration**: The planner is independent of the execution engine, allowing for plan verification before execution.
-- **Extensible Adapters**: Each tool parser and plugin implements a standardized adapter API, making it easy to add support for new security tools.
-- **Safety-First Resolution**: All model-suggested or interpreted commands pass through a safety resolver before being sent to the subprocess executor.
+## Design Principles
+
+- **Surgical Execution**: The engine prioritizes precise, verified tool invocations over "hallucinated" shell commands.
+- **Platform Agnostic**: All core intents are translated to the host's native shell environment, ensuring consistent behavior across Linux, macOS, and Windows.
+- **Offline-First Resilience**: Critical operations (registry scans, vault access, audit logging) function without internet connectivity.
+- **Policy-Driven Safety**: Integrated safety resolvers and CI/CD gates ensure that autonomous actions adhere to organizational security policies.

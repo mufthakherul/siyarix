@@ -1,51 +1,86 @@
-# Usage — Quick Reference
+# Usage — Quick Start & Examples
 
-### Common Workflows
+## Interactive AI Assistant (Chat Mode)
 
-- **Scan a subnet quickly** (uses default tool set):
+The most powerful way to use NexSec is the interactive chat mode. It provides a conversational interface with session persistence and slash commands.
 
 ```bash
-nexsec scan 192.168.1.0/24
+# Launch chat
+nexsec chat
+
+# Launch with an initial target
+nexsec chat --target example.com
+
+# Resume the most recent session
+nexsec chat --resume
 ```
 
-- **Run an autonomous-assisted threat hunt**:
+**Common Chat Commands:**
+- `/help`: Show all slash commands.
+- `/mode autonomous`: Switch to AI-driven planning.
+- `/target 10.0.0.1`: Set the current session target.
+- `/tools`: List security tools found on your system.
+
+---
+
+## Security Operations (SecOps)
+
+Manage incidents, vulnerabilities, and threat hunts from the unified security console.
 
 ```bash
-nexsec security hunt --target example.com
+# List open incidents
+nexsec security incidents --status open
+
+# Create a new incident report
+nexsec security incident-create --title "Suspicious C2 activity" --category intrusion --severity critical
+
+# View remediation priorities
+nexsec security remediation-plan
+
+# Run a MITRE-mapped threat hunt
+nexsec security hunt q_ps_exec --target win-srv-01
 ```
 
-- **Create and execute an integrated plan** (planner selects optimal tools and sequence):
+---
+
+## Bulk Operations & Monitoring
 
 ```bash
-nexsec planner create --target my-app.com
-nexsec planner run <PLAN_ID>
+# Scan multiple targets from a file
+nexsec bulk scan targets.txt --tool nmap
+
+# Start live monitoring for new findings
+nexsec watch start "severity:critical"
 ```
 
-- **Execute an autonomous instruction**:
+---
+
+## Automation & CI/CD
+
+NexSec is designed for seamless integration into DevOps pipelines.
 
 ```bash
-nexsec run "scan 10.0.0.1 with nmap then generate report"
+# Run a scan and exit with non-zero if critical vulns are found
+nexsec scan my-app.com --save
+nexsec ci gate
+
+# Generate a compliance report
+nexsec audit report soc2 --output audit_results.md
 ```
 
-- **Manage incidents**:
+---
+
+## Cross-Platform Shell Translation
+
+Translate high-level intents to platform-native commands (Linux, Mac, Windows).
 
 ```bash
-nexsec security incidents
-nexsec security incident INC-001
-nexsec security incident-create --title "SQLi on login" --description "Blind SQLi" --category intrusion --severity high
-```
-
-- **Cross-platform shell translation**:
-
-```bash
+# List all intents
 nexsec shell list-intents
-nexsec shell translate dns_lookup --target example.com
-nexsec shell list-shells
+
+# Translate "network_connections" to current shell
+nexsec shell translate network_connections
+
+# Get a security readiness report for your terminal
+nexsec shell doctor
 ```
-
-### Output Formatting
-
-- Use `--format json` for structured output suitable for CI/CD pipelines.
-- Use `--format table` (default) for rich console output in interactive sessions.
-
-Advanced usage examples are available in `docs/cli-reference.md`.

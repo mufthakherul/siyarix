@@ -41,7 +41,9 @@ from .planner import (
 from .dynamic_resolver import DynamicResolver
 from .executor import run_tool_complete
 from .metrics import get_metrics
+from .notifications import notification_center
 from .offline_store import OfflineStore
+from .security_hardening import redactor, danger_analyzer, validator
 from .tool_registry import ToolInfo, ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -463,98 +465,131 @@ class ExecutionEngine:
         plan_id: str | None,
         store: OfflineStore | None,
     ) -> EngineResult:
-        """Execute all steps in the plan respecting dependencies."""
+        """Execute all steps in the plan respecting dependencies.
+
+        Steps with no unmet dependencies are executed in parallel via
+        asyncio.gather.  Steps whose dependencies have all completed are
+        scheduled in the next wave.  This gives automatic parallelism for
+        independent branches while preserving ordering for dependent steps.
+        """
         result = EngineResult(plan=plan, mode=self._mode)
+        pending = list(plan.steps)
 
-        for step in plan.steps:
-            # Skip steps already completed (resume support)
-            if step.id in self._completed_steps:
-                sr = self._completed_steps[step.id]
-                result.step_results.append(sr)
-                result.all_findings.extend(sr.findings)
-                result.retries_performed += sr.retry_count
-                continue
-            # Check dependencies
-            if not self._check_dependencies(step):
-                sr = StepResult(
-                    step_id=step.id,
-                    status=StepStatus.SKIPPED,
-                    output="Skipped: dependency not met",
-                )
-                result.step_results.append(sr)
-                self._completed_steps[step.id] = sr
-                if store and plan_id:
-                    store.upsert_step_execution(
-                        plan_id=plan_id,
+        while pending:
+            # Find steps whose dependencies are all satisfied
+            ready: list[ExecutionStep] = []
+            still_pending: list[ExecutionStep] = []
+
+            for step in pending:
+                # Already completed (resume support)
+                if step.id in self._completed_steps:
+                    sr = self._completed_steps[step.id]
+                    result.step_results.append(sr)
+                    result.all_findings.extend(sr.findings)
+                    result.retries_performed += sr.retry_count
+                    continue
+
+                if self._check_dependencies(step):
+                    ready.append(step)
+                else:
+                    still_pending.append(step)
+
+            if not ready:
+                # Remaining steps have unmet deps — mark them blocked
+                for step in still_pending:
+                    sr = StepResult(
                         step_id=step.id,
-                        status=sr.status.value,
-                        output=sr.output[:5000],
-                        error=sr.error[:2000],
-                        findings=sr.findings,
-                        duration_ms=sr.duration_ms,
-                        retry_count=sr.retry_count,
-                        exit_code=sr.exit_code,
+                        status=StepStatus.BLOCKED,
+                        output="Blocked: dependency not met and no more steps can run",
                     )
-                continue
+                    result.step_results.append(sr)
+                    self._completed_steps[step.id] = sr
+                    self._persist_step(store, plan_id, sr)
+                break
 
-            # Check condition
-            if step.condition and not self._evaluate_condition(step.condition):
-                sr = StepResult(
-                    step_id=step.id,
-                    status=StepStatus.SKIPPED,
-                    output=f"Skipped: condition not met ({step.condition})",
+            # Execute ready steps — parallel if >1, sequential if 1
+            if len(ready) > 1:
+                logger.info(
+                    "Parallel wave: executing %d steps concurrently: %s",
+                    len(ready),
+                    [s.id for s in ready],
                 )
-                result.step_results.append(sr)
-                self._completed_steps[step.id] = sr
-                if store and plan_id:
-                    store.upsert_step_execution(
-                        plan_id=plan_id,
+
+            async def _run_one(step: ExecutionStep) -> StepResult:
+                # Check condition
+                if step.condition and not self._evaluate_condition(step.condition):
+                    sr = StepResult(
                         step_id=step.id,
-                        status=sr.status.value,
-                        output=sr.output[:5000],
-                        error=sr.error[:2000],
-                        findings=sr.findings,
-                        duration_ms=sr.duration_ms,
-                        retry_count=sr.retry_count,
-                        exit_code=sr.exit_code,
+                        status=StepStatus.SKIPPED,
+                        output=f"Skipped: condition not met ({step.condition})",
                     )
-                continue
+                    self._completed_steps[step.id] = sr
+                    self._persist_step(store, plan_id, sr)
+                    return sr
 
-            # Execute the step with automatic retry on transient failures
-            task_id = None
-            if progress:
-                task_id = progress.add_task(
-                    f"[{step.id}] {step.description or step.tool or 'executing'}",
-                    total=None,
-                )
+                task_id = None
+                if progress:
+                    task_id = progress.add_task(
+                        f"[{step.id}] {step.description or step.tool or 'executing'}",
+                        total=None,
+                    )
 
-            sr = await self._execute_step_with_retry(step, interactive)
-            result.step_results.append(sr)
-            result.all_findings.extend(sr.findings)
-            result.retries_performed += sr.retry_count
-            self._completed_steps[step.id] = sr
-            if store and plan_id:
-                store.upsert_step_execution(
-                    plan_id=plan_id,
-                    step_id=step.id,
-                    status=sr.status.value,
-                    output=sr.output[:5000],
-                    error=sr.error[:2000],
-                    findings=sr.findings,
-                    duration_ms=sr.duration_ms,
-                    retry_count=sr.retry_count,
-                    exit_code=sr.exit_code,
-                )
+                sr = await self._execute_step_with_retry(step, interactive)
+                self._completed_steps[step.id] = sr
+                self._persist_step(store, plan_id, sr)
 
-            if progress and task_id is not None:
-                status_icon = "✅" if sr.status == StepStatus.SUCCESS else "❌"
-                progress.update(
-                    task_id,
-                    description=f"{status_icon} [{step.id}] {step.description}",
-                    completed=True,
-                )
+                if progress and task_id is not None:
+                    status_icon = "✅" if sr.status == StepStatus.SUCCESS else "❌"
+                    progress.update(
+                        task_id,
+                        description=f"{status_icon} [{step.id}] {step.description}",
+                        completed=True,
+                    )
+                return sr
+
+            wave_results = await asyncio.gather(
+                *[_run_one(s) for s in ready],
+                return_exceptions=True,
+            )
+
+            for i, wr in enumerate(wave_results):
+                if isinstance(wr, Exception):
+                    sr = StepResult(
+                        step_id=ready[i].id,
+                        status=StepStatus.FAILED,
+                        error=str(wr),
+                    )
+                    self._completed_steps[ready[i].id] = sr
+                    self._persist_step(store, plan_id, sr)
+                    result.step_results.append(sr)
+                elif isinstance(wr, StepResult):
+                    result.step_results.append(wr)
+                    result.all_findings.extend(wr.findings)
+                    result.retries_performed += wr.retry_count
+
+            pending = still_pending
 
         return result
+
+    def _persist_step(
+        self,
+        store: OfflineStore | None,
+        plan_id: str | None,
+        sr: StepResult,
+    ) -> None:
+        """Helper to persist a step result to the offline store."""
+        if store and plan_id:
+            store.upsert_step_execution(
+                plan_id=plan_id,
+                step_id=sr.step_id,
+                status=sr.status.value,
+                output=sr.output[:5000],
+                error=sr.error[:2000],
+                findings=sr.findings,
+                duration_ms=sr.duration_ms,
+                retry_count=sr.retry_count,
+                exit_code=sr.exit_code,
+            )
 
     async def _calculate_backoff_delay(self, attempt: int) -> float:
         """Calculate exponential backoff delay with jitter."""
@@ -752,6 +787,19 @@ class ExecutionEngine:
 
         # Parse findings
         findings = self._parse_tool_output(tool_name, result.stdout)
+
+        # Redact secrets from output before storing
+        safe_output = redactor.redact(result.stdout)
+        safe_error = redactor.redact(result.stderr) if result.exit_code != 0 else ""
+
+        # Emit finding notifications
+        for f in findings:
+            notification_center.finding(
+                tool=tool_name,
+                severity=f.get("severity", "info"),
+                description=f.get("description", str(f)),
+                target=step.target or "",
+            )
 
         # Record tool execution metrics
         get_metrics().record_tool_execution(
@@ -1020,3 +1068,189 @@ class ExecutionEngine:
                 else "[bold red]⚠ Issues[/bold red]",
             )
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Agentic Loop — observe → reason → act
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class AgenticLoop:
+    """Goal-driven autonomous execution loop.
+
+    Implements the observe → reason → act cycle:
+
+    1. **Observe** — Collect context: current findings, target state, tool output
+    2. **Reason** — Ask the AI planner to decide next action based on observations
+    3. **Act** — Execute the planned step(s)
+    4. **Evaluate** — Check if the goal is achieved or if re-planning is needed
+
+    The loop continues until:
+    - The goal is explicitly achieved (planner says "done")
+    - Max iterations are reached
+    - A critical error occurs
+    - The user interrupts
+
+    Usage::
+
+        loop = AgenticLoop(engine, goal="Perform full recon on target.com")
+        result = await loop.run()
+    """
+
+    def __init__(
+        self,
+        engine: ExecutionEngine,
+        goal: str,
+        target: str = "",
+        max_iterations: int = 10,
+        interactive: bool = True,
+    ) -> None:
+        self._engine = engine
+        self._goal = goal
+        self._target = target
+        self._max_iterations = max_iterations
+        self._interactive = interactive
+        self._observations: list[dict[str, Any]] = []
+        self._iteration = 0
+        self._all_findings: list[dict[str, Any]] = []
+        self._completed = False
+
+    async def run(self) -> dict[str, Any]:
+        """Execute the agentic loop until goal completion or max iterations."""
+        console.print(
+            Panel(
+                f"[bold]Goal:[/bold] {self._goal}\n"
+                f"[bold]Target:[/bold] {self._target or 'auto-detect'}\n"
+                f"[bold]Max iterations:[/bold] {self._max_iterations}",
+                title="[bold bright_cyan]🤖 Agentic Loop — Starting[/bold bright_cyan]",
+                border_style="cyan",
+            )
+        )
+
+        while self._iteration < self._max_iterations and not self._completed:
+            self._iteration += 1
+            console.print(
+                f"\n[bold cyan]━━━ Iteration {self._iteration}/{self._max_iterations} ━━━[/bold cyan]"
+            )
+
+            # 1. OBSERVE — build context from accumulated findings
+            context = self._observe()
+
+            # 2. REASON — ask the engine to plan next actions
+            console.print("[dim]🔍 Observing context...[/dim]")
+            instruction = self._reason(context)
+
+            if instruction is None or instruction.lower().strip() in ("done", "complete", "finished"):
+                self._completed = True
+                console.print("[bold green]✅ Goal achieved — loop complete[/bold green]")
+                break
+
+            # 3. ACT — execute the plan
+            console.print(f"[dim]⚡ Acting: {instruction[:100]}...[/dim]")
+            try:
+                result = await self._engine.execute(
+                    instruction,
+                    interactive=self._interactive,
+                )
+
+                # 4. EVALUATE — collect findings and check progress
+                self._evaluate(result)
+
+            except Exception as exc:
+                logger.error("Agentic loop iteration %d failed: %s", self._iteration, exc)
+                self._observations.append({
+                    "iteration": self._iteration,
+                    "error": str(exc),
+                    "phase": "act",
+                })
+                if self._interactive:
+                    console.print(f"[red]Error in iteration {self._iteration}: {exc}[/red]")
+
+        summary = {
+            "goal": self._goal,
+            "target": self._target,
+            "iterations": self._iteration,
+            "completed": self._completed,
+            "total_findings": len(self._all_findings),
+            "observations": self._observations[-5:],  # Last 5 observations
+        }
+
+        console.print(
+            Panel(
+                f"[bold]Iterations:[/bold] {self._iteration}\n"
+                f"[bold]Completed:[/bold] {'Yes' if self._completed else 'No (max iterations reached)'}\n"
+                f"[bold]Findings:[/bold] {len(self._all_findings)}",
+                title="[bold bright_cyan]🤖 Agentic Loop — Summary[/bold bright_cyan]",
+                border_style="green" if self._completed else "yellow",
+            )
+        )
+
+        return summary
+
+    def _observe(self) -> dict[str, Any]:
+        """Phase 1: Collect current state and observations."""
+        return {
+            "goal": self._goal,
+            "target": self._target,
+            "iteration": self._iteration,
+            "findings_so_far": len(self._all_findings),
+            "recent_observations": self._observations[-3:],
+            "recent_findings": self._all_findings[-5:] if self._all_findings else [],
+        }
+
+    def _reason(self, context: dict[str, Any]) -> str | None:
+        """Phase 2: Determine next action based on context.
+
+        Constructs a meta-instruction that includes accumulated context
+        so the planner can make an informed decision about next steps.
+        """
+        if self._iteration == 1:
+            # First iteration — start with the goal directly
+            return f"{self._goal}" + (f" on {self._target}" if self._target else "")
+
+        # Subsequent iterations — include context for re-planning
+        findings_summary = ""
+        if self._all_findings:
+            findings_summary = f"\n\nFindings so far ({len(self._all_findings)}):\n"
+            for f in self._all_findings[-3:]:
+                findings_summary += f"  - [{f.get('severity', 'info')}] {f.get('description', str(f))[:100]}\n"
+
+        prev_errors = [
+            o.get("error", "") for o in self._observations if o.get("error")
+        ]
+        error_context = ""
+        if prev_errors:
+            error_context = f"\n\nPrevious errors to avoid:\n  " + "\n  ".join(prev_errors[-2:])
+
+        return (
+            f"Continue working on the goal: {self._goal}"
+            + (f" targeting {self._target}" if self._target else "")
+            + f"\nThis is iteration {self._iteration} of {self._max_iterations}."
+            + findings_summary
+            + error_context
+            + "\nWhat should be the next step? If the goal is fully achieved, respond with 'done'."
+        )
+
+    def _evaluate(self, result: EngineResult) -> None:
+        """Phase 4: Evaluate results and update observations."""
+        observation = {
+            "iteration": self._iteration,
+            "success": result.success,
+            "steps_run": len(result.step_results),
+            "findings_count": len(result.all_findings),
+            "duration_ms": result.total_duration_ms,
+        }
+        self._observations.append(observation)
+        self._all_findings.extend(result.all_findings)
+
+        # Auto-detect completion heuristics
+        if not result.success and self._iteration >= 3:
+            # Multiple failures — may want to stop
+            recent_failures = sum(
+                1 for o in self._observations[-3:]
+                if not o.get("success", True)
+            )
+            if recent_failures >= 3:
+                logger.warning("3 consecutive failures — stopping agentic loop")
+                self._completed = True
+

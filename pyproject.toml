@@ -1,7 +1,7 @@
 [project]
 name = "nexsec"
-version = "0.4.0"
-description = "NexSec by NexSec — A security agent with autonomous execution engine, dynamic planning, and intelligent tool orchestration"
+version = "2.0.0"
+description = "NexSec — AI-native cybersecurity operations platform with autonomous execution, multi-agent framework, and intelligent workflow orchestration"
 description-content-type = "text/markdown"
 readme = "README.md"
 authors = [ { name = "MD MUFTHAKHERUL ISLAM MIRAZ", email = "130831166+mufthakherul@users.noreply.github.com" } ]
@@ -62,3 +62,8 @@ packages = ["src/nexsec"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+

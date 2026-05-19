@@ -94,10 +94,18 @@ class OfflineStore:
     # Internals
     # ------------------------------------------------------------------
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self._db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+    def _connect(self):
+        import contextlib
+        @contextlib.contextmanager
+        def _conn_ctx():
+            conn = sqlite3.connect(self._db_path)
+            conn.row_factory = sqlite3.Row
+            try:
+                with conn:
+                    yield conn
+            finally:
+                conn.close()
+        return _conn_ctx()
 
     # ------------------------------------------------------------------
     # Public API

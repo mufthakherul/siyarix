@@ -14,6 +14,8 @@ import asyncio
 import json
 import logging
 import os
+import re
+import time
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
@@ -21,6 +23,66 @@ from typing import Any, Protocol, runtime_checkable
 from .interpreter import InterpretedTask, RuleInterpreter, TaskCategory
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Circuit Breaker — lightweight in-module implementation
+# ---------------------------------------------------------------------------
+
+
+class CircuitBreaker:
+    """Simple circuit breaker for model providers.
+
+    States:
+      CLOSED  → requests pass through (normal)
+      OPEN    → requests short-circuited (provider failing)
+      HALF    → single test request allowed after reset_timeout
+    """
+
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
+
+    def __init__(
+        self,
+        failure_threshold: int = 3,
+        reset_timeout: float = 60.0,
+        name: str = "unknown",
+    ) -> None:
+        self.failure_threshold = failure_threshold
+        self.reset_timeout = reset_timeout
+        self.name = name
+        self._state = self.CLOSED
+        self._failure_count = 0
+        self._last_failure_time: float = 0.0
+
+    @property
+    def state(self) -> str:
+        if self._state == self.OPEN:
+            if time.monotonic() - self._last_failure_time >= self.reset_timeout:
+                self._state = self.HALF_OPEN
+        return self._state
+
+    @property
+    def is_available(self) -> bool:
+        return self.state != self.OPEN
+
+    def record_success(self) -> None:
+        self._failure_count = 0
+        self._state = self.CLOSED
+
+    def record_failure(self) -> None:
+        self._failure_count += 1
+        self._last_failure_time = time.monotonic()
+        if self._failure_count >= self.failure_threshold:
+            self._state = self.OPEN
+            logger.warning(
+                "Circuit breaker OPEN for %s after %d failures",
+                self.name, self._failure_count,
+            )
+
+    def reset(self) -> None:
+        self._state = self.CLOSED
+        self._failure_count = 0
 
 # ---------------------------------------------------------------------------
 # Execution Plan data model
@@ -416,6 +478,13 @@ class TaskPlanner:
     ) -> None:
         self._providers = providers or []
         self._interpreter = RuleInterpreter()
+        # Circuit breakers per provider type
+        self._circuit_breakers: dict[str, CircuitBreaker] = {
+            "OpenAIModel": CircuitBreaker(failure_threshold=3, reset_timeout=60.0, name="OpenAI"),
+            "GeminiModel": CircuitBreaker(failure_threshold=3, reset_timeout=60.0, name="Gemini"),
+            "OllamaModel": CircuitBreaker(failure_threshold=2, reset_timeout=30.0, name="Ollama"),
+            "CloudModel": CircuitBreaker(failure_threshold=3, reset_timeout=60.0, name="Cloud"),
+        }
 
     def add_provider(self, provider: ModelProvider) -> None:
         """Register a model provider for dynamic planning."""
@@ -505,23 +574,57 @@ class TaskPlanner:
     async def _plan_from_model(
         self, instruction: str, context: dict[str, Any]
     ) -> ExecutionPlan | None:
-        """Try each model provider in order; return the first successful plan."""
+        """Try each model provider in order; return the first successful plan.
+
+        Uses a circuit breaker per provider to avoid hammering failing endpoints.
+        """
         for provider in self._providers:
             if hasattr(provider, "available") and not provider.available:
                 continue
+
+            # Check circuit breaker
+            provider_name = type(provider).__name__
+            breaker = self._circuit_breakers.get(provider_name)
+            if breaker and not breaker.is_available:
+                logger.debug("Circuit breaker OPEN for %s — skipping", provider_name)
+                continue
+
             try:
                 raw = await provider.plan(instruction, context)
                 if raw and raw.get("steps"):
+                    if breaker:
+                        breaker.record_success()
                     return self._parse_model_response(raw, instruction)
             except Exception as exc:
-                logger.warning("Model provider %s failed: %s", type(provider).__name__, exc)
+                logger.warning("Model provider %s failed: %s", provider_name, exc)
+                if breaker:
+                    breaker.record_failure()
 
         return None
 
     def _parse_model_response(self, raw: dict[str, Any], instruction: str) -> ExecutionPlan:
-        """Parse the raw model JSON response into an ExecutionPlan."""
+        """Parse the raw model JSON response into an ExecutionPlan.
+
+        This method is intentionally lenient — it handles:
+        • Missing or mis-typed fields gracefully
+        • Markdown code-fenced JSON in string values
+        • Unknown step_type values (falls back to SHELL_CMD)
+        • args as string or list
+        """
         steps: list[ExecutionStep] = []
-        for s in raw.get("steps", []):
+        raw_steps = raw.get("steps", [])
+
+        # If raw_steps is a string (model wrapped JSON in a string), try parsing
+        if isinstance(raw_steps, str):
+            try:
+                raw_steps = json.loads(raw_steps)
+            except (json.JSONDecodeError, TypeError):
+                raw_steps = []
+
+        for s in raw_steps:
+            if not isinstance(s, dict):
+                continue
+
             step_type_str = s.get("step_type", "shell_cmd")
             try:
                 if step_type_str == "ai_analysis":
@@ -531,26 +634,56 @@ class TaskPlanner:
             except ValueError:
                 step_type = StepType.SHELL_CMD
 
+            # Handle args as string or list
+            raw_args = s.get("args", [])
+            if isinstance(raw_args, str):
+                args = raw_args.split()
+            elif isinstance(raw_args, list):
+                args = [str(a) for a in raw_args]
+            else:
+                args = []
+
+            # Handle depends_on as string or list
+            raw_deps = s.get("depends_on", [])
+            if isinstance(raw_deps, str):
+                depends_on = [raw_deps] if raw_deps else []
+            elif isinstance(raw_deps, list):
+                depends_on = [str(d) for d in raw_deps]
+            else:
+                depends_on = []
+
+            # Coerce timeout
+            try:
+                timeout = int(s.get("timeout", 300))
+            except (TypeError, ValueError):
+                timeout = 300
+
             steps.append(
                 ExecutionStep(
                     id=s.get("id", f"step_{len(steps) + 1}"),
                     step_type=step_type,
                     tool=s.get("tool"),
                     command=s.get("command"),
-                    args=s.get("args", []),
+                    args=args,
                     target=s.get("target"),
-                    depends_on=s.get("depends_on", []),
+                    depends_on=depends_on,
                     condition=s.get("condition"),
-                    timeout=s.get("timeout", 300),
+                    timeout=timeout,
                     description=s.get("description", ""),
-                    metadata=s.get("metadata", {}),
+                    metadata=s.get("metadata") or {},
                 )
             )
+
+        # Coerce confidence
+        try:
+            confidence = float(raw.get("confidence", 0.5))
+        except (TypeError, ValueError):
+            confidence = 0.5
 
         return ExecutionPlan(
             steps=steps,
             source="autonomous",
-            confidence=raw.get("confidence", 0.5),
+            confidence=confidence,
             raw_instruction=instruction,
         )
 

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from nexsec.core.session_kernel import SessionKernel, SessionPersistenceLevel
+from phalanx.core.session_kernel import SessionKernel, SessionPersistenceLevel
 
 
 def test_session_kernel_save_load_roundtrip(tmp_path: Path) -> None:

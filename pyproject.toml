@@ -1,12 +1,12 @@
 [project]
-name = "nexsec"
+name = "phalanx"
 version = "2.0.0"
-description = "NexSec — AI-native cybersecurity operations platform with autonomous execution, multi-agent framework, and intelligent workflow orchestration"
+description = "Phalanx — AI-native cybersecurity operations platform with autonomous execution, multi-agent framework, and intelligent workflow orchestration"
 description-content-type = "text/markdown"
 readme = "README.md"
 authors = [ { name = "MD MUFTHAKHERUL ISLAM MIRAZ", email = "130831166+mufthakherul@users.noreply.github.com" } ]
 requires-python = ">=3.11"
-urls = { "Homepage" = "https://github.com/mufthakherul/nexsec", "Repository" = "https://github.com/mufthakherul/nexsec.git" }
+urls = { "Homepage" = "https://github.com/mufthakherul/phalanx", "Repository" = "https://github.com/mufthakherul/phalanx.git" }
 license = { text = "MIT" }
 keywords = ["cybersecurity", "agent", "nmap", "scanner", "autonomous", "integrated", "security"]
 classifiers = [
@@ -49,15 +49,15 @@ cli = [
 ]
 
 [project.scripts]
-nexsec = "nexsec.main:app"
-nexsec-agent = "nexsec.main:app"
+phalanx = "phalanx.main:app"
+phalanx-agent = "phalanx.main:app"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/nexsec"]
+packages = ["src/phalanx"]
 
 [tool.ruff]
 line-length = 100

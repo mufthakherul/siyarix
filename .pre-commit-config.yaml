@@ -27,7 +27,7 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
-# Pre-commit hooks for NexSec
+# Pre-commit hooks for Phalanx
 # Install: pip install pre-commit && pre-commit install
 # Run manually: pre-commit run --all-files
 # Update: pre-commit autoupdate

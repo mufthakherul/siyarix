@@ -34,6 +34,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 from rich.panel import Panel
+from rich.prompt import Prompt
 from rich.progress import Progress
 from rich.table import Table
 
@@ -64,6 +65,8 @@ from .shell_knowledge import (
 )
 from .tool_registry import ToolRegistry
 from .command_profiles import CommandProfileStore, CommandProfile
+from .environment import ensure_env_file, load_env_file, provider_env_var, upsert_env_vars
+from typing import cast, Any
 
 # ---------------------------------------------------------------------------
 # Initialize core systems
@@ -78,6 +81,7 @@ registry = ToolRegistry()
 config = SettingsStore()
 plugins = PluginManager()
 creds = CredentialStore()
+load_env_file()
 _plugins_loaded = False
 
 
@@ -86,9 +90,14 @@ def _get_engine(mode: str = "integrated") -> ExecutionEngine:
     engine_config: dict = {}
     if os.getenv("NEXSEC_FAST_DISCOVERY", "0") == "1":
         engine_config["fast_discovery"] = True
-    openai_key = os.environ.get("OPENAI_API_KEY", "") or creds.get_password("openai", "api_key") or ""
+    openai_key = os.environ.get("OPENAI_API_KEY", "") or creds.retrieve("openai", "api_key") or ""
+    gemini_key = os.environ.get("GEMINI_API_KEY", "") or creds.retrieve("gemini", "api_key") or ""
     if openai_key:
         engine_config["openai_api_key"] = openai_key
+    if gemini_key:
+        engine_config["gemini_api_key"] = gemini_key
+    engine_config["model_provider"] = config.get("model_provider")
+    engine_config["gemini_model"] = config.get("gemini_model")
     engine_config["ollama_url"] = config.get("ollama_url")
     engine_config["ollama_model"] = config.get("ollama_model")
     try:
@@ -165,19 +174,23 @@ app.add_typer(profile_app, name="profile")
 
 
 @app.command()
-def palette():
+def palette() -> None:
     """Open an interactive command palette (uses prompt_toolkit if installed)."""
     try:
         from prompt_toolkit import prompt as ptk_prompt
         from prompt_toolkit.completion import WordCompleter
+
         PTK = True
-    except Exception:
+    except Exception as exc:
+        import logging
+
+        logging.getLogger(__name__).debug("prompt_toolkit not available: %s", exc)
         PTK = False
 
     store = CommandProfileStore()
     intents = sorted(CROSS_PLATFORM_COMMANDS.keys())
     options = [f"intent: {i}" for i in intents]
-    saved = store.list()
+    saved = store.list_credentials()
     options += [f"saved: {p.name} -> {p.command}" for p in saved]
 
     if PTK:
@@ -206,7 +219,10 @@ def palette():
 
 
 @app.command()
-def render_cmd(name: str = typer.Argument(..., help="Saved command profile name"), kv: list[str] = typer.Argument(None)) -> None:
+def render_cmd(
+    name: str = typer.Argument(..., help="Saved command profile name"),
+    kv: list[str] = typer.Argument(None),
+) -> None:
     """Render a saved command profile using provided key=value pairs.
 
     Example: nexsec render-cmd quick-nmap target=10.0.0.1 flags='-Pn'
@@ -228,7 +244,10 @@ def render_cmd(name: str = typer.Argument(..., help="Saved command profile name"
 
 
 @profile_app.command("save-cmd")
-def profile_save_cmd(name: str = typer.Argument(..., help="Profile name"), command: str = typer.Argument(..., help="Command to save")) -> None:
+def profile_save_cmd(
+    name: str = typer.Argument(..., help="Profile name"),
+    command: str = typer.Argument(..., help="Command to save"),
+) -> None:
     """Save a reusable command profile."""
     store = CommandProfileStore()
     p = CommandProfile(name=name, command=command)
@@ -240,7 +259,7 @@ def profile_save_cmd(name: str = typer.Argument(..., help="Profile name"), comma
 def profile_list_cmds() -> None:
     """List saved command profiles."""
     store = CommandProfileStore()
-    rows = store.list()
+    rows = store.list_credentials()
     if not rows:
         console.print("[dim]No saved command profiles.[/dim]")
         return
@@ -262,6 +281,7 @@ def profile_rm_cmd(name: str = typer.Argument(..., help="Profile name to remove"
         console.print(f"[green]✓ Removed {name}[/green]")
     else:
         console.print(f"[red]Profile not found: {name}[/red]")
+
 
 audit_app = typer.Typer(help="📋 Audit trail & compliance logs")
 app.add_typer(audit_app, name="audit")
@@ -294,21 +314,34 @@ def theme_list() -> None:
     themes = available_themes()
     table = Table(title="Available Themes", header_style="bold cyan")
     table.add_column("Theme", style="cyan")
+    table.add_column("Use", style="dim")
     for t in themes:
-        table.add_row(t)
+        table.add_row(t, "/theme set " + t)
     console.print(table)
 
 
 @theme_app.command("set")
 def theme_set(name: str = typer.Argument(..., help="Theme name to set")) -> None:
     """Set the default color theme in configuration."""
-    cname = print_banner and name
     try:
         # Use config store
         config.set("color_theme", name)
         console.print(f"[green]✓ Theme set to: {name}[/green]")
     except Exception as exc:
         console.print(f"[red]Failed to set theme: {exc}[/red]")
+
+
+@theme_app.command("preview")
+@theme_app.command("appearance")
+def theme_preview(
+    name: str = typer.Argument(default="", help="Theme to preview (optional)"),
+) -> None:
+    """Preview the current or selected theme appearance."""
+    from .branding import print_theme_preview
+
+    selected = name or config.get("color_theme") or _active_theme
+    print_theme_preview(console, selected)
+
 
 workflow_app = typer.Typer(help="⚙️ Workflow orchestration")
 app.add_typer(workflow_app, name="workflow")
@@ -358,11 +391,13 @@ _active_theme: str = "default"
 # ---------------------------------------------------------------------------
 @app.command()
 def chat(
-    mode: str = typer.Option("integrated", "--mode", "-m", help="Execution mode: registry|autonomous|integrated"),
+    mode: str = typer.Option(
+        "integrated", "--mode", "-m", help="Execution mode: registry|autonomous|integrated"
+    ),
     target: str = typer.Option("", "--target", "-t", help="Set initial target for the session"),
     session: str = typer.Option("", "--session", "-s", help="Resume a previous session by ID"),
     resume: bool = typer.Option(False, "--resume", "-r", help="Resume the most recent session"),
-):
+) -> None:
     """Start an interactive AI cybersecurity REPL (chat mode).
 
     NexSec chat gives you a conversational interface to run security tools,
@@ -382,11 +417,12 @@ def chat(
 # Shell sub-commands — Cross-platform terminal command helper
 # ---------------------------------------------------------------------------
 
+
 @shell_app.command("platform")
 def shell_platform(
     as_json: bool = typer.Option(False, "--json", help="Print raw platform context as JSON"),
     compact: bool = typer.Option(False, "--compact", help="Show compact summary output"),
-):
+) -> None:
     """Show current platform, device, runtime, and terminal diagnostics."""
     ctx = build_platform_context()
 
@@ -395,14 +431,16 @@ def shell_platform(
         return
 
     if compact:
-        console.print(Panel.fit(
-            f"[bold]Platform:[/bold] {ctx.get('platform_pretty', '')}\n"
-            f"[bold]Terminal:[/bold] {ctx.get('terminal_type', '')} | [bold]Shell:[/bold] {ctx.get('shell_platform', '')}\n"
-            f"[bold]Python:[/bold] {ctx.get('python_version', '')} | [bold]CPU:[/bold] {ctx.get('cpu_count', '')}\n"
-            f"[bold]Container:[/bold] {ctx.get('is_container', False)} ({ctx.get('container_runtime', 'none')})",
-            title="[bold]Platform Summary[/bold]",
-            border_style="cyan",
-        ))
+        console.print(
+            Panel.fit(
+                f"[bold]Platform:[/bold] {ctx.get('platform_pretty', '')}\n"
+                f"[bold]Terminal:[/bold] {ctx.get('terminal_type', '')} | [bold]Shell:[/bold] {ctx.get('shell_platform', '')}\n"
+                f"[bold]Python:[/bold] {ctx.get('python_version', '')} | [bold]CPU:[/bold] {ctx.get('cpu_count', '')}\n"
+                f"[bold]Container:[/bold] {ctx.get('is_container', False)} ({ctx.get('container_runtime', 'none')})",
+                title="[bold]Platform Summary[/bold]",
+                border_style="cyan",
+            )
+        )
         return
 
     table = Table(title="Platform & Runtime Diagnostics", header_style="bold cyan")
@@ -431,7 +469,11 @@ def shell_platform(
             "load_avg",
             f"{ctx.get('load_avg_1m', 'n/a')} / {ctx.get('load_avg_5m', 'n/a')} / {ctx.get('load_avg_15m', 'n/a')}",
         ),
-        ("Flags", "container", f"{ctx.get('is_container', False)} ({ctx.get('container_runtime', 'none')})"),
+        (
+            "Flags",
+            "container",
+            f"{ctx.get('is_container', False)} ({ctx.get('container_runtime', 'none')})",
+        ),
         ("Flags", "codespaces", str(ctx.get("is_codespaces", False))),
         ("Flags", "ssh", str(ctx.get("is_terminal_ssh", False))),
         ("Flags", "cloud", str(ctx.get("is_terminal_cloud", False))),
@@ -485,7 +527,7 @@ def shell_report(
         category = meta.get("category", "other")
         categories[category] = categories.get(category, 0) + 1
 
-    payload = {
+    payload: dict[str, Any] = {
         "intents_total": intents_total,
         "shells_total": shells_total,
         "categories": dict(sorted(categories.items())),
@@ -522,12 +564,16 @@ def shell_report(
 
 @shell_app.command("translate")
 def shell_translate(
-    intent: str = typer.Argument(help="Command intent (e.g. list_files, network_connections, ping)"),
-    target: str = typer.Option("", "--target", help="Target for commands that need one (e.g. IP/hostname)"),
+    intent: str = typer.Argument(
+        help="Command intent (e.g. list_files, network_connections, ping)"
+    ),
+    target: str = typer.Option(
+        "", "--target", help="Target for commands that need one (e.g. IP/hostname)"
+    ),
     user: str = typer.Option("", "--user", help="User for SSH/SCP intents"),
     path: str = typer.Option("", "--path", help="Path for file transfer intents"),
     file: str = typer.Option("", "--file", help="File path for file_hash intents"),
-):
+) -> None:
     """Translate a command intent to all supported shells.
 
     Examples:
@@ -535,7 +581,8 @@ def shell_translate(
       nexsec shell translate ping --target 192.168.1.1
       nexsec shell translate network_connections
     """
-    entry = CROSS_PLATFORM_COMMANDS.get(intent)
+    cps = cast(dict[str, dict[str, str]], CROSS_PLATFORM_COMMANDS)
+    entry: dict[str, str] = cps.get(intent, {})
     if not entry:
         # Fuzzy search
         matches = [k for k in CROSS_PLATFORM_COMMANDS if any(w in k for w in intent.split("_"))]
@@ -545,7 +592,9 @@ def shell_translate(
                 console.print(f"  [cyan]{m}[/cyan]")
         else:
             console.print(f"[red]Unknown intent: {intent}[/red]")
-            console.print("[dim]Run 'nexsec shell list-intents' to see all available intents.[/dim]")
+            console.print(
+                "[dim]Run 'nexsec shell list-intents' to see all available intents.[/dim]"
+            )
         raise typer.Exit(1)
 
     table = Table(
@@ -576,7 +625,7 @@ def shell_translate(
 @shell_app.command("list-intents")
 def shell_list_intents(
     filter_str: str = typer.Option("", "--filter", "-f", help="Filter intents by keyword"),
-):
+) -> None:
     """List all available command intents for translation.
 
     Example:
@@ -620,7 +669,7 @@ def shell_list_shells() -> None:
 @shell_app.command("security-cmds")
 def shell_security_cmds(
     shell_name: str = typer.Option("", "--shell", "-s", help="Override shell: bash|powershell|cmd"),
-):
+) -> None:
     """Show security-relevant commands for the current or specified shell.
 
     Examples:
@@ -650,7 +699,9 @@ def shell_security_cmds(
         table.add_row(purpose, cmd)
 
     console.print(table)
-    console.print("\n[dim]Use [cyan]nexsec shell translate <intent>[/cyan] for cross-platform equivalents.[/dim]")
+    console.print(
+        "\n[dim]Use [cyan]nexsec shell translate <intent>[/cyan] for cross-platform equivalents.[/dim]"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -671,7 +722,7 @@ def scan(
     dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
     no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
     profile: str = typer.Option("", "--profile", help="Use specific profile"),
-):
+) -> None:
     """Run security scans against target(s) using the execution engine.
 
     Examples:
@@ -704,7 +755,9 @@ def scan(
     )
 
     engine = _get_engine(mode)
-    result = asyncio.run(engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save))
+    result = asyncio.run(
+        engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save)
+    )
 
     if dry_run:
         console.print("[yellow]Dry run complete — no commands executed.[/yellow]")
@@ -727,7 +780,7 @@ def discover(
     deep: bool = typer.Option(False, "--deep", "-d", help="Deep discovery (OS, services, vulns)"),
     export: str = typer.Option("", "--export", "-e", help="Export to file (JSON/YAML)"),
     no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
-):
+) -> None:
     """Discover assets, services, and vulnerabilities on a target.
 
     Examples:
@@ -753,6 +806,7 @@ def discover(
 
     if export and result.all_findings:
         import json
+
         Path(export).write_text(json.dumps(result.all_findings, indent=2))
         console.print(f"[dim]Findings exported to {export}[/dim]")
 
@@ -765,7 +819,7 @@ def run(
     dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
     save: bool = typer.Option(False, "--save", "-s", help="Persist workflow execution"),
     no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
-):
+) -> None:
     """Run a natural language command through the autonomous execution engine.
 
     Examples:
@@ -798,7 +852,7 @@ def run(
 def workflow_list(
     limit: int = typer.Option(20, "--limit", "-l", help="Max plans to list"),
     status: str = typer.Option("", "--status", help="Filter by status"),
-):
+) -> None:
     """List persisted execution plans."""
     store = OfflineStore()
     plans = store.list_plans(limit=limit, status=status or None)
@@ -828,7 +882,7 @@ def workflow_list(
 @workflow_app.command("show")
 def workflow_show(
     plan_id: str = typer.Argument(help="Plan ID to display"),
-):
+) -> None:
     """Show a persisted execution plan with steps."""
     store = OfflineStore()
     plan = store.get_plan(plan_id)
@@ -877,7 +931,7 @@ def workflow_resume(
     latest: bool = typer.Option(False, "--latest", help="Resume the most recent plan"),
     mode: str = typer.Option("integrated", "--mode", "-m", help="Execution mode"),
     no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
-):
+) -> None:
     """Resume a previously persisted execution plan."""
     if not no_banner and not _CI_MODE:
         print_banner(console, _active_theme)
@@ -903,7 +957,7 @@ def workflow_resume(
 @app.command("health")
 def health_check(
     output: str = typer.Option("table", "--output", "-o", help="Output: table|json"),
-):
+) -> None:
     """Run system health checks."""
     status = asyncio.run(get_health().check_all())
     if output == "json":
@@ -933,7 +987,7 @@ def health_check(
 def metrics_show(
     output: str = typer.Option("table", "--output", "-o", help="Output: table|json|prometheus"),
     export: str = typer.Option("", "--export", "-e", help="Export metrics to file"),
-):
+) -> None:
     """Show metrics from the current session."""
     metrics = get_metrics()
 
@@ -978,7 +1032,7 @@ def metrics_show(
 def show(
     refresh: int = typer.Option(5, "--refresh", "-r", help="Refresh interval (seconds)"),
     export: str = typer.Option("", "--export", "-e", help="Export snapshot to file"),
-):
+) -> None:
     """Show live security dashboard."""
     print_banner(console, _active_theme)
 
@@ -1033,7 +1087,7 @@ def bulk_scan_cmd(
     mode: str = typer.Option("integrated", "--mode", "-m", help="Execution mode"),
     save: bool = typer.Option(True, "--save/--no-save", help="Persist workflow execution"),
     parallel: int = typer.Option(3, "--parallel", "-p", help="Concurrent executions"),
-):
+) -> None:
     """Bulk scan multiple targets from file."""
     print_banner(console, _active_theme)
 
@@ -1087,7 +1141,7 @@ def bulk_scan_cmd(
 def update(
     filter: str = typer.Option("", "--filter", "-f", help="Filter pattern"),
     status: str = typer.Option("", "--status", "-s", help="New status"),
-):
+) -> None:
     """Bulk update incidents or vulnerabilities."""
     console.print(f"[bold]Bulk Update[/bold]: filter={filter}, status={status}")
 
@@ -1102,7 +1156,7 @@ def start(
     notify: bool = typer.Option(True, "--notify/--no-notify", help="Send notifications"),
     severity: str = typer.Option("", "--severity", "-s", help="Filter findings by severity"),
     limit: int = typer.Option(10, "--limit", "-l", help="Max findings to show"),
-):
+) -> None:
     """Start watch mode — monitor for changes."""
     print_banner(console, _active_theme)
     console.print(f"[bold]Watch Mode Started[/bold]\nQuery: {query}\nInterval: {interval}s\n")
@@ -1113,7 +1167,7 @@ def start(
         while True:
             findings = store.search_findings(severity=severity or None, limit=limit)
             current_count = len(findings)
-            ts = datetime.now().strftime('%H:%M:%S')
+            ts = datetime.now().strftime("%H:%M:%S")
             if current_count != last_count:
                 console.print(f"[dim]{ts} — Updates detected ({current_count} findings)[/dim]")
                 table = Table(title="Recent Findings", header_style="bold cyan")
@@ -1150,7 +1204,7 @@ def findings_list(
     tool: str = typer.Option("", "--tool", "-t", help="Filter by tool"),
     search: str = typer.Option("", "--search", help="Text search"),
     limit: int = typer.Option(50, "--limit", "-n", help="Max results"),
-):
+) -> None:
     """List findings from the offline store."""
     store = OfflineStore()
     findings = store.search_findings(
@@ -1188,7 +1242,7 @@ def findings_export(
     severity: str = typer.Option("", "--severity", "-s", help="Filter by severity"),
     tool: str = typer.Option("", "--tool", "-t", help="Filter by tool"),
     search: str = typer.Option("", "--search", help="Text search"),
-):
+) -> None:
     """Export findings to JSON or CSV."""
     store = OfflineStore()
     ext = Path(output).suffix.lower()
@@ -1239,7 +1293,7 @@ def findings_export(
 def report_generate(
     output: str = typer.Argument(help="Output report file (.md, .json, .csv)"),
     limit: int = typer.Option(10000, "--limit", "-n", help="Max findings to include"),
-):
+) -> None:
     """Generate a basic findings report."""
     store = OfflineStore()
     findings = store.search_findings(limit=limit)
@@ -1270,7 +1324,9 @@ def report_generate(
     severity_counts: dict[str, int] = {}
     tool_counts: dict[str, int] = {}
     for f in findings:
-        severity_counts[f.get("severity", "info")] = severity_counts.get(f.get("severity", "info"), 0) + 1
+        severity_counts[f.get("severity", "info")] = (
+            severity_counts.get(f.get("severity", "info"), 0) + 1
+        )
         tool_counts[f.get("tool", "unknown")] = tool_counts.get(f.get("tool", "unknown"), 0) + 1
 
     lines = [
@@ -1306,8 +1362,10 @@ def report_generate(
 
 @ci_app.command("gate")
 def ci_gate(
-    allow_degraded: bool = typer.Option(False, "--allow-degraded", help="Allow degraded health state"),
-):
+    allow_degraded: bool = typer.Option(
+        False, "--allow-degraded", help="Allow degraded health state"
+    ),
+) -> None:
     """Fail if health is unhealthy or critical findings exist."""
     store = OfflineStore()
     health = asyncio.run(get_health().check_all())
@@ -1336,7 +1394,7 @@ def workflow_run_cmd(
     workflow: str = typer.Argument(help="Workflow name or file path"),
     params: str = typer.Option("{}", "--params", "-p", help="JSON parameters"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Simulate only"),
-):
+) -> None:
     """Run a workflow (YAML/JSON pipeline)."""
     print_banner(console, _active_theme)
     console.print(f"[bold]Workflow:[/bold] {workflow}")
@@ -1351,7 +1409,7 @@ def workflow_run_cmd(
 @workflow_app.command("catalog")
 def workflow_catalog(
     path: str = typer.Option("./workflows", "--path", help="Workflow directory"),
-):
+) -> None:
     """List workflow files from a directory."""
     root = Path(path)
     if not root.exists():
@@ -1382,7 +1440,7 @@ def report(
     output: str = typer.Option("report.md", "--output", "-o", help="Output file"),
     detailed: bool = typer.Option(False, "--detailed", "-d", help="Include evidence"),
     days: int = typer.Option(30, "--days", help="Number of days to include"),
-):
+) -> None:
     """Generate compliance report."""
     print_banner(console, _active_theme)
     console.print(f"[bold]Compliance Report:[/bold] {framework}")
@@ -1438,7 +1496,7 @@ def logs(
     output: str = typer.Option("", "--output", "-o", help="Export to file"),
     severity: str = typer.Option("", "--severity", help="Filter by severity"),
     days: int = typer.Option(30, "--days", help="Number of days to include"),
-):
+) -> None:
     """View audit logs."""
     print_banner(console, _active_theme)
     if output:
@@ -1499,13 +1557,13 @@ def audit_verify() -> None:
 def team_invite(
     email: str = typer.Argument(help="Email to invite"),
     role: str = typer.Option("member", "--role", "-r", help="Role: admin|member|viewer"),
-):
+) -> None:
     """Invite a team member."""
     console.print(f"[green]✓ Invitation sent to {email} (role: {role})[/green]")
 
 
 @org_app.command("stats")
-def org_stats():
+def org_stats() -> None:
     """Show organization statistics."""
     table = Table(title="Organization Statistics", show_header=True, header_style="bold cyan")
     table.add_column("Metric", style="white")
@@ -1533,7 +1591,7 @@ def tool_registry_list(
     category: str = typer.Option("", "--category", "-c", help="Filter by category"),
     refresh: bool = typer.Option(False, "--refresh", "-r", help="Force re-discovery"),
     fast: bool = typer.Option(False, "--fast", help="Skip version probes for speed"),
-):
+) -> None:
     """List all discovered security tools on this system.
 
     Examples:
@@ -1549,7 +1607,9 @@ def tool_registry_list(
         console.print("[yellow]No tools found. Install security tools and run again.[/yellow]")
         return
 
-    table = Table(title=f"Security Tools ({len(tools)} found)", show_header=True, header_style="bold cyan")
+    table = Table(
+        title=f"Security Tools ({len(tools)} found)", show_header=True, header_style="bold cyan"
+    )
     table.add_column("Name", style="cyan", no_wrap=True)
     table.add_column("Binary", style="dim")
     table.add_column("Category", style="magenta")
@@ -1566,7 +1626,7 @@ def tool_registry_list(
 
 
 @tool_registry_app.command("show")
-def tool_registry_show(name: str = typer.Argument(help="Tool name or binary")):
+def tool_registry_show(name: str = typer.Argument(help="Tool name or binary")) -> None:
     """Show detailed info about a specific tool."""
     tools = registry.discover()
     tool = next((t for t in tools if t.name == name or t.binary == name), None)
@@ -1574,16 +1634,18 @@ def tool_registry_show(name: str = typer.Argument(help="Tool name or binary")):
         console.print(f"[red]Tool not found: {name}[/red]")
         raise typer.Exit(1)
 
-    console.print(Panel.fit(
-        f"[bold]{tool.name}[/bold] ({tool.binary})\n"
-        f"[dim]Category:[/dim]     {tool.category}\n"
-        f"[dim]Version:[/dim]      {tool.version}\n"
-        f"[dim]Path:[/dim]         {tool.path}\n"
-        f"[dim]Capabilities:[/dim] {', '.join(tool.capabilities)}\n"
-        f"[dim]Description:[/dim]  {tool.description}",
-        title="Tool Info",
-        border_style="cyan",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold]{tool.name}[/bold] ({tool.binary})\n"
+            f"[dim]Category:[/dim]     {tool.category}\n"
+            f"[dim]Version:[/dim]      {tool.version}\n"
+            f"[dim]Path:[/dim]         {tool.path}\n"
+            f"[dim]Capabilities:[/dim] {', '.join(tool.capabilities)}\n"
+            f"[dim]Description:[/dim]  {tool.description}",
+            title="Tool Info",
+            border_style="cyan",
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1591,32 +1653,38 @@ def tool_registry_show(name: str = typer.Argument(help="Tool name or binary")):
 # ---------------------------------------------------------------------------
 @auth_app.command("set-key")
 def auth_set_key(
-    provider: str = typer.Argument(help="Provider: openai | anthropic | custom"),
+    provider: str = typer.Argument(help="Provider: openai | gemini | anthropic | custom"),
     api_key: str = typer.Option(..., "--key", "-k", help="API key value", hide_input=True),
-):
+) -> None:
     """Store an API key for a model provider.
 
     Examples:
       nexsec auth set-key openai --key sk-...
+      nexsec auth set-key gemini --key AIz...
       nexsec auth set-key anthropic --key sk-ant-...
     """
-    creds.set_password(provider, "api_key", api_key)
+    creds.delete(provider, "api_key")
+    creds.store(provider, api_key, "api_key")
+    env_key = provider_env_var(provider)
+    upsert_env_vars({env_key: api_key}, ensure_env_file())
+    os.environ[env_key] = api_key
     console.print(f"[green]✓ API key stored for provider: {provider}[/green]")
-    console.print("[dim]Key is stored securely in the system keyring.[/dim]")
+    console.print("[dim]Key is stored in the credential vault and synced to .env.[/dim]")
 
 
 @auth_app.command("show")
-def auth_show():
+def auth_show() -> None:
     """Show configured API key providers."""
-    providers = ["openai", "anthropic"]
+    providers = ["openai", "gemini", "anthropic", "cloud"]
     table = Table(title="Configured API Keys", show_header=True, header_style="bold green")
     table.add_column("Provider", style="cyan")
     table.add_column("Status", justify="center")
     table.add_column("Source")
 
     for prov in providers:
-        from_env = bool(os.getenv(f"{prov.upper()}_API_KEY"))
-        from_creds = bool(creds.get_password(prov, "api_key"))
+        env_key = provider_env_var(prov)
+        from_env = bool(os.getenv(env_key))
+        from_creds = bool(creds.retrieve(prov, "api_key"))
         if from_env:
             status, source = "✓ Set", "Environment variable"
         elif from_creds:
@@ -1634,7 +1702,7 @@ def auth_show():
 @completions_app.command("install")
 def completions_install(
     shell: str = typer.Argument(default="", help="Shell: bash | zsh | fish | powershell"),
-):
+) -> None:
     """Install shell completions for NexSec.
 
     Examples:
@@ -1648,10 +1716,22 @@ def completions_install(
 
     shell = shell.lower()
     completions_map = {
-        "bash": ("~/.bashrc", "_NEXSEC_COMPLETE=bash_source nexsec >> ~/.nexsec/complete.bash\necho 'source ~/.nexsec/complete.bash' >> ~/.bashrc"),
-        "zsh": ("~/.zshrc", "_NEXSEC_COMPLETE=zsh_source nexsec >> ~/.nexsec/complete.zsh\necho 'source ~/.nexsec/complete.zsh' >> ~/.zshrc"),
-        "fish": ("~/.config/fish/completions/nexsec.fish", "_NEXSEC_COMPLETE=fish_source nexsec > ~/.config/fish/completions/nexsec.fish"),
-        "powershell": ("$PROFILE", "$env:_NEXSEC_COMPLETE='powershell_source'; nexsec | Out-String | Invoke-Expression"),
+        "bash": (
+            "~/.bashrc",
+            "_NEXSEC_COMPLETE=bash_source nexsec >> ~/.nexsec/complete.bash\necho 'source ~/.nexsec/complete.bash' >> ~/.bashrc",
+        ),
+        "zsh": (
+            "~/.zshrc",
+            "_NEXSEC_COMPLETE=zsh_source nexsec >> ~/.nexsec/complete.zsh\necho 'source ~/.nexsec/complete.zsh' >> ~/.zshrc",
+        ),
+        "fish": (
+            "~/.config/fish/completions/nexsec.fish",
+            "_NEXSEC_COMPLETE=fish_source nexsec > ~/.config/fish/completions/nexsec.fish",
+        ),
+        "powershell": (
+            "$PROFILE",
+            "$env:_NEXSEC_COMPLETE='powershell_source'; nexsec | Out-String | Invoke-Expression",
+        ),
     }
 
     if shell not in completions_map:
@@ -1659,20 +1739,22 @@ def completions_install(
         raise typer.Exit(1)
 
     target, instructions = completions_map[shell]
-    console.print(Panel(
-        f"[bold]To install {shell} completions, run:[/bold]\n\n"
-        f"[green]{instructions}[/green]\n\n"
-        f"[dim]Then restart your shell or source {target}[/dim]",
-        title=f"Shell Completions ({shell})",
-        border_style="green",
-    ))
+    console.print(
+        Panel(
+            f"[bold]To install {shell} completions, run:[/bold]\n\n"
+            f"[green]{instructions}[/green]\n\n"
+            f"[dim]Then restart your shell or source {target}[/dim]",
+            title=f"Shell Completions ({shell})",
+            border_style="green",
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
 # Config commands — wired to real SettingsStore
 # ---------------------------------------------------------------------------
 @config_app.command("list")
-def config_list():
+def config_list() -> None:
     """List all configuration settings."""
     rows = config.list_all()
     table = Table(title="NexSec Configuration", show_header=True, header_style="bold cyan")
@@ -1693,7 +1775,7 @@ def config_list():
 def config_set(
     key: str = typer.Argument(help="Setting key"),
     value: str = typer.Argument(help="New value"),
-):
+) -> None:
     """Set a configuration value.\n\nExample: nexsec config set log_level debug"""
     try:
         new_val = config.set(key, value)
@@ -1704,7 +1786,7 @@ def config_set(
 
 
 @config_app.command("get")
-def config_get(key: str = typer.Argument(help="Setting key")):
+def config_get(key: str = typer.Argument(help="Setting key")) -> None:
     """Get a configuration value."""
     try:
         val = config.get(key)
@@ -1715,7 +1797,7 @@ def config_get(key: str = typer.Argument(help="Setting key")):
 
 
 @config_app.command("reset")
-def config_reset(key: str = typer.Argument(default="", help="Key to reset (empty = all)")):
+def config_reset(key: str = typer.Argument(default="", help="Key to reset (empty = all)")) -> None:
     """Reset a setting (or all settings) to defaults."""
     try:
         config.reset(key or None)
@@ -1730,7 +1812,7 @@ def config_reset(key: str = typer.Argument(default="", help="Key to reset (empty
 # Plugin management (wired to real PluginManager)
 # ---------------------------------------------------------------------------
 @plugin_app.command("list")
-def plugin_list():
+def plugin_list() -> None:
     """List all installed plugins."""
     real_plugins = plugins.list_plugins()
     table = Table(title="Plugin Ecosystem", show_header=True, header_style="bold magenta")
@@ -1741,7 +1823,9 @@ def plugin_list():
     table.add_column("Description", style="white")
 
     if not real_plugins:
-        console.print("[dim]No plugins installed. Use 'nexsec plugin install <name>' to add plugins.[/dim]")
+        console.print(
+            "[dim]No plugins installed. Use 'nexsec plugin install <name>' to add plugins.[/dim]"
+        )
         return
 
     for p in real_plugins:
@@ -1757,7 +1841,7 @@ def plugin_install(
     source: str = typer.Option(
         "official", "--source", "-s", help="Source: official|community|local"
     ),
-):
+) -> None:
     """Install a plugin."""
     console.print(f"[bold]Installing:[/bold] {plugin} from {source}...")
     # Installation logic...
@@ -1767,57 +1851,27 @@ def plugin_install(
 # ---------------------------------------------------------------------------
 # Theme management (premium)
 # ---------------------------------------------------------------------------
-@theme_app.command("list")
-def theme_list():
-    """List available themes."""
-    table = Table(title="Available Themes", show_header=True, header_style="bold yellow")
-    table.add_column("Name", style="cyan")
-    table.add_column("Preview", style="white")
-    table.add_column("Current", justify="center")
-
-    themes = [
-        ("default", "🔵 Blue/Purple gradient", "✓" if _active_theme == "default" else ""),
-        ("dark", "⚫ Pure dark", ""),
-        ("light", "⚪ Light mode", ""),
-        ("neon", "💜 Neon glow", ""),
-        ("minimal", "⬜ Minimal", ""),
-    ]
-
-    for name, preview, current in themes:
-        table.add_row(name, preview, current)
-
-    console.print(table)
-
-
-@theme_app.command("set")
-def theme_set(
-    theme: str = typer.Argument(help="Theme name"),
-):
-    """Set active theme."""
-    global _active_theme
-    if theme in available_themes():
-        _active_theme = theme
-        config.set("color_theme", theme)
-        console.print(f"[green]✓ Theme set to: {theme}[/green]")
-    else:
-        console.print(f"[red]Error: Unknown theme: {theme}[/red]")
+# Note: theme commands are defined earlier; duplicate premium-themed handlers removed to
+# avoid redefinition and typing conflicts.
 
 
 # ---------------------------------------------------------------------------
 # Version command
 # ---------------------------------------------------------------------------
 @app.command()
-def version():
+def version() -> None:
     """Show NexSec version information."""
     tools = registry.discover()
-    console.print(Panel.fit(
-        f"[bold cyan]NexSec[/bold cyan] [green]v{__version__}[/green]\n"
-        f"[dim]Platform:[/dim] {platform.system()} {platform.release()}\n"
-        f"[dim]Python:[/dim]   {platform.python_version()}\n"
-        f"[dim]Tools found:[/dim] {len(tools)}",
-        title="Version",
-        border_style="cyan",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold cyan]NexSec[/bold cyan] [green]v{__version__}[/green]\n"
+            f"[dim]Platform:[/dim] {platform.system()} {platform.release()}\n"
+            f"[dim]Python:[/dim]   {platform.python_version()}\n"
+            f"[dim]Tools found:[/dim] {len(tools)}",
+            title="Version",
+            border_style="cyan",
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1831,6 +1885,7 @@ def _load_plugins_once() -> None:
             plugins.load_command_plugins(app)
         except Exception as exc:
             import logging
+
             logging.getLogger(__name__).warning("Plugin load error: %s", exc)
         _plugins_loaded = True
 

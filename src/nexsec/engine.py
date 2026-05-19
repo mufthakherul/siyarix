@@ -31,6 +31,7 @@ from rich.table import Table
 from .planner import (
     TaskPlanner,
     CloudModel,
+    GeminiModel,
     ExecutionPlan,
     ExecutionStep,
     OllamaModel,
@@ -113,7 +114,7 @@ class EngineResult:
         for r in self.step_results:
             counts[r.status.value] = counts.get(r.status.value, 0) + 1
         return counts
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage/serialization."""
         return {
@@ -191,20 +192,36 @@ class ExecutionEngine:
         # OpenAI
         openai_key = self._config.get("openai_api_key", "")
         openai_model = self._config.get("openai_model", "gpt-4o")
-        provider = OpenAIModel(api_key=openai_key, model=openai_model)
-        if provider.available:
-            self._planner.add_provider(provider)
+        openai_provider = OpenAIModel(api_key=openai_key, model=openai_model)
 
         # Ollama (local)
         ollama_url = self._config.get("ollama_url", "http://localhost:11434")
         ollama_model = self._config.get("ollama_model", "llama3.1")
-        self._planner.add_provider(OllamaModel(base_url=ollama_url, model=ollama_model))
+        ollama_provider = OllamaModel(base_url=ollama_url, model=ollama_model)
 
         # Cloud service
         cloud_url = self._config.get("server_url", "")
         cloud_key = self._config.get("api_key", "")
-        if cloud_url and cloud_key:
-            self._planner.add_provider(CloudModel(server_url=cloud_url, api_key=cloud_key))
+        cloud_provider = CloudModel(server_url=cloud_url, api_key=cloud_key)
+
+        preferred = str(self._config.get("model_provider", "auto")).strip().lower()
+        gemini_key = self._config.get("gemini_api_key", "")
+        gemini_model = self._config.get("gemini_model", "gemini-1.5-pro")
+        gemini_provider = GeminiModel(api_key=gemini_key, model=gemini_model)
+
+        ordered_providers = [gemini_provider, openai_provider, ollama_provider, cloud_provider]
+        preference_map = {
+            "gemini": [gemini_provider, openai_provider, ollama_provider, cloud_provider],
+            "openai": [openai_provider, gemini_provider, ollama_provider, cloud_provider],
+            "ollama": [ollama_provider, gemini_provider, openai_provider, cloud_provider],
+            "cloud": [cloud_provider, gemini_provider, openai_provider, ollama_provider],
+            "auto": ordered_providers,
+        }
+
+        for provider in preference_map.get(preferred, ordered_providers):
+            if hasattr(provider, "available") and not provider.available:
+                continue
+            self._planner.add_provider(provider)
 
     @property
     def mode(self) -> ExecutionMode:
@@ -274,6 +291,8 @@ class ExecutionEngine:
 
         if persist_workflow:
             plan_id = str(uuid.uuid4())
+            # Narrow type for mypy: ensure store is not None before calling persistence API
+            assert store is not None
             store.save_plan(
                 plan_id=plan_id,
                 instruction=instruction,
@@ -303,6 +322,7 @@ class ExecutionEngine:
         result.plan_id = plan_id
 
         if persist_workflow and plan_id:
+            assert store is not None
             store.update_plan_status(plan_id, status="running")
 
         if interactive:
@@ -330,6 +350,7 @@ class ExecutionEngine:
         )
 
         if persist_workflow and plan_id:
+            assert store is not None
             store.update_plan_status(
                 plan_id,
                 status="completed" if result.success else "failed",
@@ -538,10 +559,11 @@ class ExecutionEngine:
 
     async def _calculate_backoff_delay(self, attempt: int) -> float:
         """Calculate exponential backoff delay with jitter."""
-        delay = _RETRY_BASE_DELAY * (_RETRY_BACKOFF_FACTOR ** attempt)
+        delay = _RETRY_BASE_DELAY * (_RETRY_BACKOFF_FACTOR**attempt)
         delay = min(delay, _RETRY_MAX_DELAY)  # Cap maximum delay
         # Add jitter (±10%)
         import random
+
         jitter = delay * random.uniform(0.9, 1.1)
         return jitter
 
@@ -549,21 +571,21 @@ class ExecutionEngine:
         """Execute a step with automatic retry on transient failures."""
         retry_count = 0
         last_error = None
-        
+
         # Don't retry certain step types
         no_retry_types = {StepType.REPORT, StepType.ANALYSIS}
         if step.step_type in no_retry_types:
             return await self._execute_step(step, interactive)
-        
+
         while retry_count <= _MAX_RETRIES:
             try:
                 result = await self._execute_step(step, interactive)
-                
+
                 # Success - return immediately
                 if result.status == StepStatus.SUCCESS:
                     result.retry_count = retry_count
                     return result
-                
+
                 # Failure - check if retryable
                 if result.status == StepStatus.FAILED and retry_count < _MAX_RETRIES:
                     last_error = result.error
@@ -581,11 +603,11 @@ class ExecutionEngine:
                         )
                         await asyncio.sleep(delay)
                         continue
-                
+
                 # Non-retryable or final attempt
                 result.retry_count = retry_count
                 return result
-                
+
             except Exception as e:
                 last_error = str(e)
                 if retry_count < _MAX_RETRIES and self._is_transient_error(last_error):
@@ -609,7 +631,7 @@ class ExecutionEngine:
                         error=last_error or str(e),
                         retry_count=retry_count,
                     )
-        
+
         # Max retries exceeded
         return StepResult(
             step_id=step.id,
@@ -633,7 +655,7 @@ class ExecutionEngine:
             "gateway timeout",
             "internal server error",
         ]
-        
+
         error_lower = str(error).lower()
         return any(indicator in error_lower for indicator in transient_indicators)
 
@@ -696,7 +718,7 @@ class ExecutionEngine:
                     findings_count=len(tool_findings),
                 )
             duration = (time.monotonic() - start) * 1000
-            
+
             return StepResult(
                 step_id=step.id,
                 status=StepStatus.SUCCESS,
@@ -711,7 +733,8 @@ class ExecutionEngine:
         if not resolved.is_safe:
             if interactive:
                 console.print(
-                    f"[red]⚠ Blocked unsafe command:[/red] {tool_name}\n" f"  Reasons: {'; '.join(resolved.warnings)}"
+                    f"[red]⚠ Blocked unsafe command:[/red] {tool_name}\n"
+                    f"  Reasons: {'; '.join(resolved.warnings)}"
                 )
             return StepResult(
                 step_id=step.id,
@@ -770,7 +793,8 @@ class ExecutionEngine:
         if not resolved.is_safe:
             if interactive:
                 console.print(
-                    f"[red]⚠ Blocked unsafe command:[/red] {command}\n" f"  Reasons: {'; '.join(resolved.warnings)}"
+                    f"[red]⚠ Blocked unsafe command:[/red] {command}\n"
+                    f"  Reasons: {'; '.join(resolved.warnings)}"
                 )
             return StepResult(
                 step_id=step.id,
@@ -802,7 +826,9 @@ class ExecutionEngine:
         for dep_id in step.depends_on:
             dep_result = self._completed_steps.get(dep_id)
             if dep_result and dep_result.output:
-                context_outputs.append(f"[{dep_id}] {dep_result.output[:_MAX_CONTEXT_OUTPUT_LENGTH]}")
+                context_outputs.append(
+                    f"[{dep_id}] {dep_result.output[:_MAX_CONTEXT_OUTPUT_LENGTH]}"
+                )
 
         # For now, provide a structured summary
         summary = f"Analysis requested. Context from {len(context_outputs)} previous step(s)."
@@ -830,29 +856,29 @@ class ExecutionEngine:
         """Execute a group of steps in parallel with concurrency control."""
         sub_steps = step.metadata.get("steps", [])
         max_concurrent = step.metadata.get("max_concurrent", 3)
-        
+
         if not sub_steps:
             return StepResult(step_id=step.id, status=StepStatus.SKIPPED, output="No sub-steps")
-        
+
         # Create semaphore for concurrency limit
         semaphore = asyncio.Semaphore(max_concurrent)
         start = time.monotonic()
-        
+
         async def run_bounded(s: ExecutionStep) -> StepResult:
             """Run step with bounded concurrency."""
             async with semaphore:
                 return await self._execute_step_with_retry(s, interactive)
-        
+
         # Execute all steps concurrently
         tasks = [run_bounded(s) for s in sub_steps]
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         # Aggregate results
         all_findings = []
         all_outputs = []
         all_errors = []
         total_retries = 0
-        
+
         for res in results:
             if isinstance(res, Exception):
                 all_errors.append(str(res))
@@ -864,12 +890,12 @@ class ExecutionEngine:
                 if res.error:
                     all_errors.append(f"[{res.step_id}] {res.error}")
                 total_retries += res.retry_count
-                
+
                 # Track individual step in completed
                 self._completed_steps[res.step_id] = res
-        
+
         duration_ms = (time.monotonic() - start) * 1000
-        
+
         return StepResult(
             step_id=step.id,
             status=StepStatus.SUCCESS if not all_errors else StepStatus.FAILED,
@@ -990,6 +1016,8 @@ class ExecutionEngine:
         console.print(
             Panel(
                 "\n".join(lines),
-                title="[bold green]✨ Complete[/bold green]" if result.success else "[bold red]⚠ Issues[/bold red]",
+                title="[bold green]✨ Complete[/bold green]"
+                if result.success
+                else "[bold red]⚠ Issues[/bold red]",
             )
         )

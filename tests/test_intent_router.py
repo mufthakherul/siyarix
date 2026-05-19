@@ -1,4 +1,4 @@
-from nexsec.core.intent_router import IntentRouter, RiskTier
+from phalanx.core.intent_router import IntentRouter, RiskTier
 
 
 def test_intent_router_high_risk_for_exploit() -> None:

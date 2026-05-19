@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from nexsec.audit_log import AuditLogger
-from nexsec.auth import AuthManager
-from nexsec.credential_store import CredentialStore
-from nexsec.profiles import ProfileStore
+from phalanx.audit_log import AuditLogger
+from phalanx.auth import AuthManager
+from phalanx.credential_store import CredentialStore
+from phalanx.profiles import ProfileStore
 
 
 class _Resp:
@@ -21,8 +21,8 @@ class _Resp:
 
 
 def test_credential_store_migration_and_roundtrip(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("NEXSEC_CONFIG_DIR", str(tmp_path))
-    monkeypatch.setenv("NEXSEC_MASTER_PASSWORD", "test-password")
+    monkeypatch.setenv("PHALANX_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setenv("PHALANX_MASTER_PASSWORD", "test-password")
     store = CredentialStore()
 
     legacy = tmp_path / "config.json"
@@ -43,12 +43,12 @@ def test_credential_store_migration_and_roundtrip(monkeypatch, tmp_path: Path) -
 
 
 def test_auth_profile_and_audit_flow(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("NEXSEC_CONFIG_DIR", str(tmp_path))
-    monkeypatch.setenv("NEXSEC_MASTER_PASSWORD", "test-password")
+    monkeypatch.setenv("PHALANX_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setenv("PHALANX_MASTER_PASSWORD", "test-password")
 
     def fake_get(url: str, headers: dict | None = None, timeout: float | None = None) -> _Resp:
         if url.endswith("/api/auth/me"):
-            return _Resp(200, {"email": "agent@nexsec.dev", "org": "demo"})
+            return _Resp(200, {"email": "agent@phalanx.dev", "org": "demo"})
         return _Resp(200, {"ok": True})
 
     monkeypatch.setattr("httpx.get", fake_get)
@@ -75,7 +75,7 @@ def test_auth_profile_and_audit_flow(monkeypatch, tmp_path: Path) -> None:
     audit.log(
         event_type="login",
         severity="info",
-        user="agent@nexsec.dev",
+        user="agent@phalanx.dev",
         action="login",
         result="success",
         details={"profile": "staging"},

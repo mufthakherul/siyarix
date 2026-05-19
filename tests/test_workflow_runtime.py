@@ -1,7 +1,7 @@
 import asyncio
 
-from nexsec.orchestration.workflow_runtime import WorkflowRuntime, WorkflowState
-from nexsec.offline_store import OfflineStore
+from phalanx.orchestration.workflow_runtime import WorkflowRuntime, WorkflowState
+from phalanx.offline_store import OfflineStore
 
 
 class _FakeEngineResult:

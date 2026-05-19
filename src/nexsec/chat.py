@@ -18,12 +18,28 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import logging
+import sys
 import time
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from .branding import print_theme_preview, available_themes
+from .command_profiles import CommandProfileStore, CommandProfile
+from .config import SettingsStore
+from .environment import ensure_env_file, load_env_file, provider_env_var, upsert_env_vars
+from .executor import safe_run_sync
+from .shell_knowledge import (
+    build_platform_context,
+    detect_shell,
+    normalize_shell,
+    get_security_commands,
+    get_shell_platform,
+    CROSS_PLATFORM_COMMANDS,
+)
 
 try:
     from rich.console import Console
@@ -41,24 +57,7 @@ try:
 except ImportError:
     RICH_AVAILABLE = False
 
-import logging
-
 logger = logging.getLogger(__name__)
-
-from .config import SettingsStore
-from .environment import ensure_env_file, load_env_file, provider_env_var, upsert_env_vars
-from .branding import print_theme_preview, available_themes
-from .shell_knowledge import (
-    build_platform_context,
-    detect_shell,
-    normalize_shell,
-    get_security_commands,
-    get_shell_platform,
-    CROSS_PLATFORM_COMMANDS,
-)
-from .command_profiles import CommandProfileStore, CommandProfile
-from .executor import safe_run_sync
-import sys
 
 try:
     from prompt_toolkit import prompt as ptk_prompt
@@ -602,7 +601,7 @@ class NexSecChat:
         # If user set Gemini key and the client package is missing, offer to install it
         if provider == "gemini":
             try:
-                import google.generativeai  # type: ignore
+                __import__("google.generativeai")
 
                 gemini_pkg_installed = True
             except Exception:
@@ -1236,7 +1235,7 @@ class NexSecChat:
         status: dict[str, tuple[str, str]] = {}
         # OpenAI
         try:
-            import openai  # type: ignore
+            __import__("openai")
 
             openai_installed = True
         except Exception:
@@ -1251,7 +1250,7 @@ class NexSecChat:
 
         # Gemini
         try:
-            import google.generativeai as genai  # type: ignore
+            __import__("google.generativeai")
 
             gemini_installed = True
         except Exception:
@@ -1266,7 +1265,7 @@ class NexSecChat:
 
         # Anthropic
         try:
-            import anthropic  # type: ignore
+            __import__("anthropic")
 
             anthropic_installed = True
         except Exception:

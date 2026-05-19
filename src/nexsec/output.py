@@ -16,10 +16,10 @@ from __future__ import annotations
 import csv
 import io
 import json
+import logging
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Callable, Optional, List, Dict
-import logging
+from typing import Any, Callable, Optional, Dict
 
 logger = logging.getLogger(__name__)
 

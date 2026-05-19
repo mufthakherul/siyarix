@@ -40,10 +40,9 @@ from .planner import (
 )
 from .dynamic_resolver import DynamicResolver
 from .executor import run_tool_complete
+from .metrics import get_metrics
 from .offline_store import OfflineStore
 from .tool_registry import ToolInfo, ToolRegistry
-from .metrics import get_metrics
-from .health import get_health
 
 logger = logging.getLogger(__name__)
 console = Console()

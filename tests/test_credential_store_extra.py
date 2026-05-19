@@ -1,10 +1,4 @@
-import os
-import json
-from pathlib import Path
-
-import pytest
-
-from nexsec.credential_store import CredentialStore, get_creds
+from nexsec.credential_store import CredentialStore
 
 
 def test_store_and_retrieve(tmp_path, monkeypatch):

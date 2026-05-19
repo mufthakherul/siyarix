@@ -18,7 +18,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import platform
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -28,12 +27,15 @@ from typing import Any
 
 try:
     from rich.console import Console
+    from rich.columns import Columns
     from rich.markdown import Markdown
     from rich.panel import Panel
     from rich.prompt import Prompt
     from rich.rule import Rule
     from rich.syntax import Syntax
     from rich.table import Table
+    from rich.text import Text
+    from rich.align import Align
 
     RICH_AVAILABLE = True
 except ImportError:
@@ -55,6 +57,8 @@ from .shell_knowledge import (
     CROSS_PLATFORM_COMMANDS,
 )
 from .command_profiles import CommandProfileStore, CommandProfile
+from .executor import safe_run_sync
+import sys
 
 try:
     from prompt_toolkit import prompt as ptk_prompt
@@ -287,14 +291,30 @@ class NexSecChat:
 
     def _prompt(self) -> str:
         """Display the input prompt and read a line."""
-        target_str = f" [dim]({self._session.target})[/dim]" if self._session.target else ""
+        # Show concise status in the prompt like modern agent CLIs
+        target_str = f" ({self._session.target})" if self._session.target else ""
         mode_color = {"registry": "yellow", "autonomous": "magenta", "integrated": "cyan"}.get(
             self._mode, "cyan"
         )
-        prompt_str = (
-            f"\n[bold {mode_color}]nexsec[/bold {mode_color}][dim cyan]>{target_str}[/dim cyan] "
+        theme = self._settings.get("color_theme")
+        provider = self._settings.get("model_provider")
+
+        # Display a compact inline status line above the prompt similar to Gemini/Claude
+        status = Text.assemble(
+            (f"{provider}", "bold cyan"),
+            (f" · {theme}", "dim white"),
+            (f" · {self._mode}", mode_color),
+            (f"{target_str}", "dim") if target_str else ("", "dim"),
         )
-        return Prompt.ask(prompt_str, default="").strip()
+        console.print(Align.right(Text("? for shortcuts", style="dim")))
+        console.print(status)
+
+        # Primary input prompt placeholder
+        prompt_label = Text.assemble(
+            ("> ", "bold cyan"), ("Type your message or @path/to/file", "dim")
+        )
+        answer = Prompt.ask(prompt_label, default="").strip()
+        return answer
 
     # ──────────────────────────────────────────────────────────────────────
     # Slash commands
@@ -578,6 +598,40 @@ class NexSecChat:
         upsert_env_vars({env_key: api_key}, ensure_env_file())
         os.environ[env_key] = api_key
         console.print(f"[green]✓ Stored {provider} API key in the vault and .env[/green]")
+
+        # If user set Gemini key and the client package is missing, offer to install it
+        if provider == "gemini":
+            try:
+                import google.generativeai  # type: ignore
+
+                gemini_pkg_installed = True
+            except Exception:
+                gemini_pkg_installed = False
+
+            if not gemini_pkg_installed:
+                ans = Prompt.ask(
+                    "google-generativeai package not installed — install now? (y/N)", default="N"
+                )
+                if ans.lower().startswith("y"):
+                    console.print(
+                        "[dim]Installing google-generativeai — this may take a moment...[/dim]"
+                    )
+                    try:
+                        # Use the safe runner which validates command lists
+                        res = safe_run_sync(
+                            [sys.executable, "-m", "pip", "install", "google-generativeai>=0.8.0"],
+                            timeout=600,
+                        )
+                        if res.returncode == 0:
+                            console.print(
+                                "[green]✓ google-generativeai installed — Gemini should be available now.[/green]"
+                            )
+                        else:
+                            console.print(f"[red]Failed to install package: {res.stderr}[/red]")
+                    except Exception as exc:
+                        logger.exception(
+                            "Failed to run pip install for google-generativeai: %s", exc
+                        )
 
     def _cmd_theme(self, args: str) -> None:
         tokens = args.split(maxsplit=1) if args else []
@@ -910,30 +964,50 @@ class NexSecChat:
         tokens = args.split(maxsplit=1) if args else []
         if tokens:
             selected = tokens[0].strip().lower()
-            if selected in {"auto", "openai", "gemini", "ollama", "cloud"}:
+            # If a provider is given and an additional token is provided, treat it as a model name
+            if selected in {"auto", "openai", "gemini", "ollama", "cloud", "anthropic"}:
                 self._settings.set("model_provider", selected)
-                if selected == "gemini" and len(tokens) > 1:
-                    self._settings.set("gemini_model", tokens[1].strip())
+                if len(tokens) > 1:
+                    model_name = tokens[1].strip()
+                    # store provider-specific model key if exists in settings
+                    model_key = f"{selected}_model"
+                    try:
+                        # only set if the setting key exists; SettingsStore will raise if unknown
+                        self._settings.set(model_key, model_name)
+                        console.print(f"[green]✓ Set {model_key} to: {model_name}[/green]")
+                    except KeyError:
+                        # fallback: set gemini_model for gemini, ollama_model for ollama
+                        if selected == "gemini":
+                            self._settings.set("gemini_model", model_name)
+                        elif selected == "ollama":
+                            self._settings.set("ollama_model", model_name)
+                        else:
+                            # unknown model key — still inform the user
+                            console.print(
+                                f"[yellow]Note: saved provider '{selected}' but couldn't store model '{model_name}' in settings.[/yellow]"
+                            )
+
                 console.print(f"[green]✓ Model provider set to: {selected}[/green]")
             else:
                 console.print(
-                    "[yellow]Usage: /model [auto|openai|gemini|ollama|cloud] [gemini-model][/yellow]"
+                    "[yellow]Usage: /model [auto|openai|gemini|ollama|anthropic|cloud] [model-name][/yellow]"
                 )
                 return
+
+        # Show current provider and per-provider models/status
         openai_key = os.environ.get("OPENAI_API_KEY", "")
         gemini_key = os.environ.get("GEMINI_API_KEY", "")
-        console.print(
-            Panel.fit(
-                f"[bold]Preferred:[/bold] {self._settings.get('model_provider')}\n"
-                f"[bold]OpenAI:[/bold]  {'✓ Configured' if openai_key else '✗ Not set'}\n"
-                f"[bold]Gemini:[/bold]  {'✓ Configured' if gemini_key else '✗ Not set'} ({self._settings.get('gemini_model')})\n"
-                f"[bold]Ollama:[/bold]  Available (lazy check on first use)\n"
-                f"[bold]Cloud:[/bold]   Requires NEXSEC_SERVER_URL + NEXSEC_API_KEY\n\n"
-                f"[dim]Use /key openai <value> or /key gemini <value> to store credentials.[/dim]",
-                title="Model Providers",
-                border_style="cyan",
-            )
+        anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        panel_text = (
+            f"[bold]Preferred:[/bold] {self._settings.get('model_provider')}\n"
+            f"[bold]OpenAI:[/bold]  {'✓ Configured' if openai_key else '✗ Not set'} ({self._settings.get('openai_model')})\n"
+            f"[bold]Gemini:[/bold]  {'✓ Configured' if gemini_key else '✗ Not set'} ({self._settings.get('gemini_model')})\n"
+            f"[bold]Anthropic:[/bold]  {'✓ Configured' if anthropic_key else '✗ Not set'} ({self._settings.get('anthropic_model')})\n"
+            f"[bold]Ollama:[/bold]  Available (lazy check on first use) ({self._settings.get('ollama_model')})\n"
+            f"[bold]Cloud:[/bold]   Requires NEXSEC_SERVER_URL + NEXSEC_API_KEY\n\n"
+            f"[dim]Use /key <provider> <value> to store credentials and /model <provider> <model-name> to select models.[/dim]"
         )
+        console.print(Panel.fit(panel_text, title="Model Providers", border_style="cyan"))
 
     def _cmd_context(self, _: str) -> None:
         summary = self._session.get_context_summary()
@@ -1088,21 +1162,131 @@ class NexSecChat:
             ver = "1.2.0"
 
         shell_info = get_shell_platform()
-        tools_hint = "Run [cyan]/tools[/cyan] to see available tools"
+        theme = self._settings.get("color_theme")
+        provider = self._settings.get("model_provider")
+        gemini_model = self._settings.get("gemini_model")
+
+        # Gather concise provider status (avoid network calls on startup)
+        provider_status = self._gather_provider_status()
 
         console.print(
             Panel(
                 f"[bold cyan]NexSec[/bold cyan] [green]v{ver}[/green] — [bold]AI Cybersecurity Agent[/bold]\n\n"
-                f"[dim]Platform:[/dim] {shell_info}   "
-                f"[dim]Mode:[/dim] [cyan]{self._mode}[/cyan]   "
-                f"[dim]Session:[/dim] {self._session.session_id[:8]}\n\n"
-                f"Type a [bold]natural language command[/bold] or a [cyan]/slash command[/cyan].\n"
-                f"{tools_hint}   [cyan]/help[/cyan] for commands   [cyan]/exit[/cyan] to quit",
-                title="[bold]⚡ NexSec Chat[/bold]",
+                f"[dim]A polished terminal copilot for security work — plan, inspect, and execute from one shell.[/dim]",
+                title="[bold]⚡ NexSec Command Center[/bold]",
                 border_style="cyan",
-                padding=(1, 3),
+                padding=(1, 2),
             )
         )
+
+        console.print(
+            Columns(
+                [
+                    Panel(
+                        f"[bold]Platform:[/bold] {shell_info}\n"
+                        f"[bold]Mode:[/bold] [cyan]{self._mode}[/cyan]\n"
+                        f"[bold]Theme:[/bold] {theme}\n"
+                        f"[bold]Provider:[/bold] {provider}\n"
+                        f"[bold]Session:[/bold] {self._session.session_id[:8]}",
+                        title="Session",
+                        border_style="green",
+                        padding=(1, 2),
+                    ),
+                    Panel(
+                        "[bold]/help[/bold] — command map\n"
+                        "[bold]/tools[/bold] — discover tools\n"
+                        "[bold]/palette[/bold] — quick launcher\n"
+                        "[bold]/key set ...[/bold] — store API keys\n"
+                        "[bold]/theme mode ...[/bold] — switch appearance",
+                        title="Quick Actions",
+                        border_style="magenta",
+                        padding=(1, 2),
+                    ),
+                    Panel(
+                        f"[bold]OpenAI:[/bold] {provider_status.get('openai', ('✗', ''))[0]} {provider_status.get('openai', ('', ''))[1]}\n"
+                        f"[bold]Gemini:[/bold] {provider_status.get('gemini', ('✗', ''))[0]} {provider_status.get('gemini', ('', ''))[1]}\n"
+                        f"[bold]Gemini model:[/bold] {gemini_model}\n"
+                        f"[bold]Ollama:[/bold] {provider_status.get('ollama', ('✗', ''))[0]} {provider_status.get('ollama', ('', ''))[1]}\n"
+                        f"[bold]Hotkeys:[/bold] Ctrl+C / /exit",
+                        title="Runtime",
+                        border_style="yellow",
+                        padding=(1, 2),
+                    ),
+                ],
+                equal=True,
+                expand=True,
+            )
+        )
+
+        console.print(
+            Panel(
+                "[bold cyan]Type natural language[/bold cyan] to plan work, or use slash commands to switch modes, manage keys, and preview the UI.\n"
+                "[dim]Examples:[/dim] `scan 10.0.0.5`, `enumerate services on example.com`, `/theme appearance`, `/model gemini`",
+                title="Getting Started",
+                border_style="bright_black",
+                padding=(1, 2),
+            )
+        )
+
+    def _gather_provider_status(self) -> dict[str, tuple[str, str]]:
+        """Return a concise status map for supported providers.
+
+        Map keys -> (icon, reason)
+        """
+        status: dict[str, tuple[str, str]] = {}
+        # OpenAI
+        try:
+            import openai  # type: ignore
+
+            openai_installed = True
+        except Exception:
+            openai_installed = False
+        openai_key = bool(os.getenv("OPENAI_API_KEY"))
+        if not openai_installed:
+            status["openai"] = ("✗", "pkg missing")
+        elif not openai_key:
+            status["openai"] = ("⚠", "key missing")
+        else:
+            status["openai"] = ("✓", "configured")
+
+        # Gemini
+        try:
+            import google.generativeai as genai  # type: ignore
+
+            gemini_installed = True
+        except Exception:
+            gemini_installed = False
+        gemini_key = bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
+        if not gemini_installed:
+            status["gemini"] = ("✗", "pkg missing")
+        elif not gemini_key:
+            status["gemini"] = ("⚠", "key missing")
+        else:
+            status["gemini"] = ("✓", "configured")
+
+        # Anthropic
+        try:
+            import anthropic  # type: ignore
+
+            anthropic_installed = True
+        except Exception:
+            anthropic_installed = False
+        anthropic_key = bool(os.getenv("ANTHROPIC_API_KEY"))
+        if not anthropic_installed:
+            status["anthropic"] = ("✗", "pkg missing")
+        elif not anthropic_key:
+            status["anthropic"] = ("⚠", "key missing")
+        else:
+            status["anthropic"] = ("✓", "configured")
+
+        # Ollama (don't attempt network checks here)
+        ollama_url = os.getenv("NEXSEC_OLLAMA_URL") or os.getenv("OLLAMA_URL")
+        if not ollama_url:
+            status["ollama"] = ("✗", "not configured")
+        else:
+            status["ollama"] = ("⚠", "configured (connectivity unknown)")
+
+        return status
 
     def _print_assistant(self, message: str) -> None:
         """Print an assistant text response."""
@@ -1189,7 +1373,8 @@ class NexSecChat:
         console.print(
             Panel.fit(
                 f"[dim]Session saved: {self._session.session_id[:8]}[/dim]\n"
-                f"[dim]Resume with: nexsec chat --session {self._session.session_id}[/dim]",
+                f"[dim]Resume with: nexsec chat --session {self._session.session_id}[/dim]\n"
+                f"[dim]Your theme and key settings remain in config/.env.[/dim]",
                 title="[bold]Goodbye from NexSec[/bold]",
                 border_style="dim",
             )

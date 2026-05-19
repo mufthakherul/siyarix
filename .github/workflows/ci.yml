@@ -26,7 +26,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: 'pip'
+          cache: "pip"
           cache-dependency-path: |
             pyproject.toml
             requirements*.txt
@@ -36,9 +36,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[dev]
           pip install ruff black pytest pytest-cov mypy coverage
+          pip install pre-commit
 
       - name: Run Ruff linter
         run: ruff check src tests --output-format=github
+
+      - name: Run pre-commit
+        run: |
+          pre-commit run --all-files
 
       - name: Run Black formatter check
         run: black --check .
@@ -73,7 +78,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
+          cache: "pip"
           cache-dependency-path: |
             pyproject.toml
             requirements*.txt
@@ -156,13 +161,24 @@ jobs:
       - name: Run Bandit security scan
         run: |
           pip install bandit bandit-formatter
-          bandit -r src/ -f json -o bandit-report.json || true
+          bandit -r src/ -f json -o bandit-report.json
           bandit -r src/ --config .bandit
+
+      - name: Run pip-audit
+        run: |
+          python -m pip install pip-audit
+          pip-audit --format json > pip-audit.json || true
+          # Fail the job if pip-audit reports any high or critical severity findings
+          if grep -Eq '"severity"\s*:\s*"(high|critical)"' pip-audit.json; then
+            echo "High or critical vulnerability found by pip-audit; failing CI."; 
+            cat pip-audit.json; exit 2;
+          fi
 
       - name: Run Safety vulnerability scan
         run: |
           pip install safety
           safety check --json > safety-report.json || true
+          # Note: safety report remains informational; pip-audit is treated as the canonical failure
 
       - name: Upload security reports
         if: always()

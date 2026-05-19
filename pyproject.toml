@@ -31,12 +31,14 @@ dependencies = [
 [project.optional-dependencies]
 autonomous = [
   "openai>=2.31.0",
+  "google-generativeai>=0.8.0",
 ]
 fast = [
   "maturin>=1.7",
 ]
 all = [
   "openai>=2.31.0",
+  "google-generativeai>=0.8.0",
   "pyyaml>=6.0",
   "maturin>=1.7",
 ]

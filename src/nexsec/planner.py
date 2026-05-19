@@ -10,6 +10,7 @@ the local heuristic-based interpreter.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -164,6 +165,50 @@ class OpenAIModel:
             return {}
 
 
+class GeminiModel:
+    """Model provider using Google Gemini."""
+
+    def __init__(self, api_key: str | None = None, model: str = "gemini-1.5-pro") -> None:
+        self._api_key = (
+            api_key or os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GOOGLE_API_KEY", "")
+        )
+        self._model = model
+
+    @property
+    def available(self) -> bool:
+        return bool(self._api_key)
+
+    async def plan(self, prompt: str, context: dict[str, Any]) -> dict[str, Any]:
+        """Generate an execution plan via Gemini."""
+        try:
+            import google.generativeai as genai
+        except ImportError:
+            logger.warning("google-generativeai package not installed; Gemini unavailable")
+            return {}
+
+        if not self._api_key:
+            return {}
+
+        system_prompt = _build_system_prompt(context)
+
+        def _generate() -> str:
+            genai.configure(api_key=self._api_key)
+            model = genai.GenerativeModel(self._model)
+            response = model.generate_content(
+                [system_prompt, prompt],
+                generation_config={"temperature": 0.1, "max_output_tokens": 2048},
+            )
+            text = getattr(response, "text", "") or "{}"
+            return text
+
+        try:
+            content = await asyncio.to_thread(_generate)
+            return json.loads(content)
+        except Exception as exc:
+            logger.warning("Gemini planning failed: %s", exc)
+            return {}
+
+
 # ---------------------------------------------------------------------------
 # Ollama Model Provider (local) — lazy availability check (no blocking startup)
 # ---------------------------------------------------------------------------
@@ -199,7 +244,8 @@ class OllamaModel:
             async with httpx.AsyncClient(timeout=2.0) as client:
                 resp = await client.get(f"{self._base_url}/api/tags")
                 self._available = resp.status_code == 200
-        except Exception:
+        except Exception as exc:
+            logger.exception("Ollama availability check failed")
             self._available = False
         return bool(self._available)
 

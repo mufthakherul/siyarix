@@ -39,6 +39,13 @@ try:
 except ImportError:
     RICH_AVAILABLE = False
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+from .config import SettingsStore
+from .environment import ensure_env_file, load_env_file, provider_env_var, upsert_env_vars
+from .branding import print_theme_preview, available_themes
 from .shell_knowledge import (
     build_platform_context,
     detect_shell,
@@ -48,23 +55,29 @@ from .shell_knowledge import (
     CROSS_PLATFORM_COMMANDS,
 )
 from .command_profiles import CommandProfileStore, CommandProfile
+
 try:
     from prompt_toolkit import prompt as ptk_prompt
     from prompt_toolkit.completion import WordCompleter
+
     PTK_AVAILABLE = True
-except Exception:
+except Exception as exc:
+    logger.debug("prompt_toolkit not available: %s", exc)
     PTK_AVAILABLE = False
 
 console = Console()
+load_env_file()
 
 
 # ---------------------------------------------------------------------------
 # Chat session data model
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ChatMessage:
     """A single message in the chat history."""
+
     role: str  # "user" | "assistant" | "system"
     content: str
     timestamp: datetime = field(default_factory=datetime.now)
@@ -82,6 +95,7 @@ class ChatMessage:
 @dataclass
 class ChatSession:
     """A persistent chat session with history."""
+
     session_id: str
     messages: list[ChatMessage] = field(default_factory=list)
     context: dict[str, Any] = field(default_factory=dict)
@@ -110,6 +124,7 @@ class ChatSession:
 
     def save(self, path: Path) -> None:
         import json
+
         data = {
             "session_id": self.session_id,
             "created_at": self.created_at.isoformat(),
@@ -123,6 +138,7 @@ class ChatSession:
     @classmethod
     def load(cls, path: Path) -> "ChatSession":
         import json
+
         data = json.loads(path.read_text())
         session = cls(
             session_id=data["session_id"],
@@ -132,12 +148,14 @@ class ChatSession:
             last_active=datetime.fromisoformat(data["last_active"]),
         )
         for m in data.get("messages", []):
-            session.messages.append(ChatMessage(
-                role=m["role"],
-                content=m["content"],
-                timestamp=datetime.fromisoformat(m["timestamp"]),
-                metadata=m.get("metadata", {}),
-            ))
+            session.messages.append(
+                ChatMessage(
+                    role=m["role"],
+                    content=m["content"],
+                    timestamp=datetime.fromisoformat(m["timestamp"]),
+                    metadata=m.get("metadata", {}),
+                )
+            )
         return session
 
 
@@ -170,6 +188,10 @@ _SLASH_HELP = {
     "/savecmd <name> <command>": "Save a reusable command profile",
     "/cmds": "List saved command profiles",
     "/cmd <name>": "Show or run a saved command profile",
+    "/key set <provider> <api_key>": "Store an API key in .env and the credential vault",
+    "/key list": "Show configured AI/API keys",
+    "/theme mode <system|dark|light|minimal|neon>": "Change the UI theme",
+    "/theme appearance": "Preview the UI appearance",
     "/target <host>": "Set the current target for commands",
     "/mode <mode>": "Switch execution mode (registry|autonomous|integrated)",
     "/save": "Save current session to ~/.nexsec/sessions/",
@@ -187,6 +209,7 @@ _SLASH_HELP = {
 # The NexSec Chat REPL
 # ---------------------------------------------------------------------------
 
+
 class NexSecChat:
     """Interactive REPL for NexSec — the cybersecurity AI assistant."""
 
@@ -202,6 +225,7 @@ class NexSecChat:
         self._mode = mode
         self._platform_ctx = build_platform_context()
         self._shell = detect_shell()
+        self._settings = SettingsStore()
         self._session = self._init_session(session_id, target, resume)
         self._command_history: deque[str] = deque(maxlen=1000)
         self._running = True
@@ -209,6 +233,7 @@ class NexSecChat:
     def _init_session(self, session_id: str | None, target: str, resume: bool) -> ChatSession:
         """Initialize or resume a chat session."""
         import uuid
+
         self._SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 
         if resume and session_id:
@@ -267,8 +292,7 @@ class NexSecChat:
             self._mode, "cyan"
         )
         prompt_str = (
-            f"\n[bold {mode_color}]nexsec[/bold {mode_color}]"
-            f"[dim cyan]>{target_str}[/dim cyan] "
+            f"\n[bold {mode_color}]nexsec[/bold {mode_color}][dim cyan]>{target_str}[/dim cyan] "
         )
         return Prompt.ask(prompt_str, default="").strip()
 
@@ -306,6 +330,8 @@ class NexSecChat:
             "/savecmd": self._cmd_savecmd,
             "/cmds": self._cmd_cmds,
             "/cmd": self._cmd_cmd,
+            "/key": self._cmd_key,
+            "/theme": self._cmd_theme,
             "/target": self._cmd_target,
             "/mode": self._cmd_mode,
             "/save": self._cmd_save,
@@ -358,7 +384,7 @@ class NexSecChat:
         intents = sorted(CROSS_PLATFORM_COMMANDS.keys())
         options = [f"intent: {i}" for i in intents]
         # include saved commands at the end
-        saved = store.list()
+        saved = store.list_credentials()
         options += [f"saved: {p.name} -> {p.command}" for p in saved]
 
         console.print("[dim]Type a search term to filter. Press Enter to show full list.[/dim]")
@@ -369,7 +395,8 @@ class NexSecChat:
                 query = ptk_prompt("Search: ", completer=completer).strip().lower()
             else:
                 query = Prompt.ask("Search", default="").strip().lower()
-        except Exception:
+        except Exception as exc:
+            logger.exception("Command palette input failed: %s", exc)
             query = Prompt.ask("Search", default="").strip().lower()
 
         filtered = [o for o in options if query in o.lower()] if query else options
@@ -392,13 +419,16 @@ class NexSecChat:
         try:
             idx = int(sel) - 1
             choice = filtered[idx]
-        except Exception:
+        except Exception as exc:
+            logger.exception("Invalid selection input: %s", exc)
             console.print("[red]Invalid selection[/red]")
             return
 
         if choice.startswith("intent:"):
             intent = choice.split(":", 1)[1].strip()
-            cmd = CROSS_PLATFORM_COMMANDS.get(intent, {}).get(normalize_shell(self._shell).value, "")
+            cmd = CROSS_PLATFORM_COMMANDS.get(intent, {}).get(
+                normalize_shell(self._shell).value, ""
+            )
             console.print(f"[green]Inserted command:[/green] {cmd}")
             run = Prompt.ask("Run this command? (y/N)", default="N")
             if run.lower().startswith("y"):
@@ -441,7 +471,7 @@ class NexSecChat:
 
     def _cmd_cmds(self, _: str) -> None:
         store = CommandProfileStore()
-        rows = store.list()
+        rows = store.list_credentials()
         if not rows:
             console.print("[dim]No saved command profiles.[/dim]")
             return
@@ -468,6 +498,118 @@ class NexSecChat:
         if run.lower().startswith("y"):
             asyncio.run(self._execute_instruction(p.command))
 
+    def _show_key_status(self) -> None:
+        from .credential_store import CredentialStore
+
+        try:
+            vault = CredentialStore()
+        except Exception:
+            vault = None
+
+        table = Table(title="Configured API Keys", header_style="bold green")
+        table.add_column("Provider", style="cyan")
+        table.add_column("Env Var", style="dim")
+        table.add_column("Status", justify="center")
+        table.add_column("Source")
+
+        for provider in ("openai", "gemini", "anthropic", "cloud"):
+            env_key = provider_env_var(provider)
+            from_env = bool(os.getenv(env_key))
+            from_creds = bool(vault and vault.retrieve(provider, "api_key"))
+            if from_env:
+                status, source = "✓ Set", "Environment"
+            elif from_creds:
+                status, source = "✓ Set", "Saved"
+            else:
+                status, source = "✗ Missing", "—"
+            table.add_row(provider, env_key, status, source)
+
+        console.print(table)
+
+    def _cmd_key(self, args: str) -> None:
+        tokens = args.split(maxsplit=2) if args else []
+        if not tokens or tokens[0].lower() in {"list", "show"}:
+            self._show_key_status()
+            return
+
+        action = tokens[0].lower()
+        if action in {"set", "add", "store"}:
+            if len(tokens) < 2:
+                console.print("[yellow]Usage: /key set <provider> <api_key>[/yellow]")
+                return
+            provider = tokens[1].lower()
+            api_key = tokens[2] if len(tokens) > 2 else ""
+            if not api_key:
+                api_key = Prompt.ask(f"Enter {provider} API key", password=True)
+        else:
+            provider = tokens[0].lower()
+            api_key = tokens[1] if len(tokens) > 1 else ""
+
+        if action in {"remove", "rm", "delete"}:
+            if len(tokens) < 2:
+                console.print("[yellow]Usage: /key remove <provider>[/yellow]")
+                return
+            provider = tokens[1].lower()
+            env_key = provider_env_var(provider)
+            upsert_env_vars({env_key: ""}, ensure_env_file())
+            os.environ.pop(env_key, None)
+            from .credential_store import CredentialStore
+
+            try:
+                vault = CredentialStore()
+                vault.delete(provider, "api_key")
+            except Exception:
+                logger.exception("Failed to remove credential from vault")
+            console.print(f"[green]✓ Cleared {provider} key from .env[/green]")
+            return
+
+        if not api_key:
+            api_key = Prompt.ask(f"Enter {provider} API key", password=True)
+        env_key = provider_env_var(provider)
+        # persist to the encrypted vault and .env, then update the live environment
+        try:
+            from .credential_store import CredentialStore
+
+            vault = CredentialStore()
+            vault.delete(provider, "api_key")
+            vault.store(provider, api_key, "api_key")
+        except Exception:
+            logger.exception("Failed to save credential to vault")
+        upsert_env_vars({env_key: api_key}, ensure_env_file())
+        os.environ[env_key] = api_key
+        console.print(f"[green]✓ Stored {provider} API key in the vault and .env[/green]")
+
+    def _cmd_theme(self, args: str) -> None:
+        tokens = args.split(maxsplit=1) if args else []
+        if not tokens or tokens[0].lower() in {"show", "list"}:
+            current = self._settings.get("color_theme")
+            console.print(f"Current theme: [cyan]{current}[/cyan]")
+            console.print(f"Available themes: {', '.join(available_themes())}")
+            console.print("Use /theme mode dark|light|system or /theme appearance")
+            return
+
+        action = tokens[0].lower()
+        if action in {"appearance", "preview"}:
+            print_theme_preview(console, self._settings.get("color_theme"))
+            return
+
+        if action in {"mode", "set"}:
+            if len(tokens) < 2:
+                console.print(
+                    "[yellow]Usage: /theme mode <system|dark|light|minimal|neon>[/yellow]"
+                )
+                return
+            theme = tokens[1].strip().lower()
+            self._settings.set("color_theme", theme)
+            console.print(f"[green]✓ Theme set to: {theme}[/green]")
+            print_theme_preview(console, theme)
+            return
+
+        theme = action
+        self._settings.set("color_theme", theme)
+        console.print(f"[green]✓ Theme set to: {theme}[/green]")
+        print_theme_preview(console, theme)
+
     def _cmd_history(self, args: str) -> None:
         limit = 20
         if args:
@@ -486,11 +628,14 @@ class NexSecChat:
             role_color = "cyan" if msg.role == "user" else "green"
             ts = msg.timestamp.strftime("%H:%M:%S")
             label = "You" if msg.role == "user" else "NexSec"
-            console.print(f"[dim]{ts}[/dim] [{role_color}]{label}:[/{role_color}] {msg.content[:120]}")
+            console.print(
+                f"[dim]{ts}[/dim] [{role_color}]{label}:[/{role_color}] {msg.content[:120]}"
+            )
 
     def _cmd_tools(self, _: str) -> None:
         try:
             from .tool_registry import ToolRegistry
+
             reg = ToolRegistry()
             tools = reg.discover()
             if not tools:
@@ -506,6 +651,7 @@ class NexSecChat:
                 table.add_row(t.name, t.category, t.version[:20], caps)
             console.print(table)
         except Exception as exc:
+            logger.exception("Tool discovery error")
             console.print(f"[red]Tool discovery error: {exc}[/red]")
 
     def _cmd_platform(self, _: str) -> None:
@@ -531,8 +677,16 @@ class NexSecChat:
             ("Runtime", "python", ctx.get("python_version", "")),
             ("Runtime", "cpu_count", str(ctx.get("cpu_count", ""))),
             ("Runtime", "memory_total_mb", str(ctx.get("memory_total_mb", "unknown"))),
-            ("Runtime", "load_avg", f"{ctx.get('load_avg_1m', 'n/a')} / {ctx.get('load_avg_5m', 'n/a')} / {ctx.get('load_avg_15m', 'n/a')}"),
-            ("Flags", "container", f"{ctx.get('is_container', False)} ({ctx.get('container_runtime', 'none')})"),
+            (
+                "Runtime",
+                "load_avg",
+                f"{ctx.get('load_avg_1m', 'n/a')} / {ctx.get('load_avg_5m', 'n/a')} / {ctx.get('load_avg_15m', 'n/a')}",
+            ),
+            (
+                "Flags",
+                "container",
+                f"{ctx.get('is_container', False)} ({ctx.get('container_runtime', 'none')})",
+            ),
             ("Flags", "codespaces", str(ctx.get("is_codespaces", False))),
             ("Flags", "ssh", str(ctx.get("is_terminal_ssh", False))),
             ("Flags", "cloud", str(ctx.get("is_terminal_cloud", False))),
@@ -549,16 +703,18 @@ class NexSecChat:
             "user_messages": len([m for m in self._session.messages if m.role == "user"]),
             "assistant_messages": len([m for m in self._session.messages if m.role == "assistant"]),
         }
-        console.print(Panel.fit(
-            f"[bold]Mode:[/bold] {self._mode}\n"
-            f"[bold]Target:[/bold] {self._session.target or '[dim]not set[/dim]'}\n"
-            f"[bold]Session:[/bold] {self._session.session_id}\n"
-            f"[bold]Messages:[/bold] {counts['messages']} (you: {counts['user_messages']}, agent: {counts['assistant_messages']})\n"
-            f"[bold]Shell:[/bold] {self._platform_ctx.get('shell_platform', 'unknown')}\n"
-            f"[bold]Intents:[/bold] {self._platform_ctx.get('available_tools_count', 0)}",
-            title="Chat Status",
-            border_style="cyan",
-        ))
+        console.print(
+            Panel.fit(
+                f"[bold]Mode:[/bold] {self._mode}\n"
+                f"[bold]Target:[/bold] {self._session.target or '[dim]not set[/dim]'}\n"
+                f"[bold]Session:[/bold] {self._session.session_id}\n"
+                f"[bold]Messages:[/bold] {counts['messages']} (you: {counts['user_messages']}, agent: {counts['assistant_messages']})\n"
+                f"[bold]Shell:[/bold] {self._platform_ctx.get('shell_platform', 'unknown')}\n"
+                f"[bold]Intents:[/bold] {self._platform_ctx.get('available_tools_count', 0)}",
+                title="Chat Status",
+                border_style="cyan",
+            )
+        )
 
     def _cmd_session(self, _: str) -> None:
         payload = {
@@ -570,7 +726,13 @@ class NexSecChat:
             "messages": len(self._session.messages),
             "context_keys": sorted(self._session.context.keys()),
         }
-        console.print(Panel(Syntax(json.dumps(payload, indent=2), "json"), title="Session Metadata", border_style="cyan"))
+        console.print(
+            Panel(
+                Syntax(json.dumps(payload, indent=2), "json"),
+                title="Session Metadata",
+                border_style="cyan",
+            )
+        )
 
     def _cmd_uptime(self, _: str) -> None:
         delta = datetime.now() - self._session.created_at
@@ -581,8 +743,17 @@ class NexSecChat:
 
     def _cmd_env(self, _: str) -> None:
         keys = [
-            "SHELL", "TERM", "COLORTERM", "TERM_PROGRAM", "TERM_PROGRAM_VERSION", "VSCODE_PID",
-            "CODESPACES", "CODESPACE_NAME", "SSH_CONNECTION", "CI", "PYTHONPATH",
+            "SHELL",
+            "TERM",
+            "COLORTERM",
+            "TERM_PROGRAM",
+            "TERM_PROGRAM_VERSION",
+            "VSCODE_PID",
+            "CODESPACES",
+            "CODESPACE_NAME",
+            "SSH_CONNECTION",
+            "CI",
+            "PYTHONPATH",
         ]
         table = Table(title="Environment Summary (safe keys)", header_style="bold cyan")
         table.add_column("Key", style="cyan")
@@ -602,11 +773,15 @@ class NexSecChat:
         table.add_column("Shell Example", style="green")
         current_shell = normalize_shell(self._shell).value
         for intent in intents[:120]:
-            cmd = CROSS_PLATFORM_COMMANDS[intent].get(current_shell, CROSS_PLATFORM_COMMANDS[intent].get("bash", ""))
+            cmd = CROSS_PLATFORM_COMMANDS[intent].get(
+                current_shell, CROSS_PLATFORM_COMMANDS[intent].get("bash", "")
+            )
             table.add_row(intent, cmd)
         console.print(table)
         if len(intents) > 120:
-            console.print(f"[dim]Showing 120/{len(intents)} intents. Narrow with /intents <filter>.[/dim]")
+            console.print(
+                f"[dim]Showing 120/{len(intents)} intents. Narrow with /intents <filter>.[/dim]"
+            )
 
     def _cmd_shells(self, _: str) -> None:
         from .shell_knowledge import list_supported_shells
@@ -638,7 +813,9 @@ class NexSecChat:
             ts = msg.timestamp.strftime("%H:%M:%S")
             role_color = "cyan" if msg.role == "user" else "green"
             label = "You" if msg.role == "user" else "NexSec"
-            console.print(f"[dim]{ts}[/dim] [{role_color}]{label}:[/{role_color}] {msg.content[:160]}")
+            console.print(
+                f"[dim]{ts}[/dim] [{role_color}]{label}:[/{role_color}] {msg.content[:160]}"
+            )
 
     def _cmd_examples(self, _: str) -> None:
         examples = [
@@ -689,7 +866,9 @@ class NexSecChat:
     def _cmd_translate(self, args: str) -> None:
         if not args:
             console.print("[yellow]Usage: /translate <intent>[/yellow]")
-            console.print(f"Available intents: {', '.join(list(CROSS_PLATFORM_COMMANDS.keys())[:10])}...")
+            console.print(
+                f"Available intents: {', '.join(list(CROSS_PLATFORM_COMMANDS.keys())[:10])}..."
+            )
             return
         entry = CROSS_PLATFORM_COMMANDS.get(args)
         if not entry:
@@ -728,15 +907,33 @@ class NexSecChat:
         await self._execute_instruction(args)
 
     def _cmd_model(self, args: str) -> None:
+        tokens = args.split(maxsplit=1) if args else []
+        if tokens:
+            selected = tokens[0].strip().lower()
+            if selected in {"auto", "openai", "gemini", "ollama", "cloud"}:
+                self._settings.set("model_provider", selected)
+                if selected == "gemini" and len(tokens) > 1:
+                    self._settings.set("gemini_model", tokens[1].strip())
+                console.print(f"[green]✓ Model provider set to: {selected}[/green]")
+            else:
+                console.print(
+                    "[yellow]Usage: /model [auto|openai|gemini|ollama|cloud] [gemini-model][/yellow]"
+                )
+                return
         openai_key = os.environ.get("OPENAI_API_KEY", "")
-        console.print(Panel.fit(
-            f"[bold]OpenAI:[/bold]  {'✓ Configured' if openai_key else '✗ Not set (set OPENAI_API_KEY)'}\n"
-            f"[bold]Ollama:[/bold]  Available (lazy check on first use)\n"
-            f"[bold]Cloud:[/bold]   Requires NEXSEC_SERVER_URL + NEXSEC_API_KEY\n\n"
-            f"[dim]Use: nexsec auth set-key openai --key sk-...[/dim]",
-            title="Model Providers",
-            border_style="cyan",
-        ))
+        gemini_key = os.environ.get("GEMINI_API_KEY", "")
+        console.print(
+            Panel.fit(
+                f"[bold]Preferred:[/bold] {self._settings.get('model_provider')}\n"
+                f"[bold]OpenAI:[/bold]  {'✓ Configured' if openai_key else '✗ Not set'}\n"
+                f"[bold]Gemini:[/bold]  {'✓ Configured' if gemini_key else '✗ Not set'} ({self._settings.get('gemini_model')})\n"
+                f"[bold]Ollama:[/bold]  Available (lazy check on first use)\n"
+                f"[bold]Cloud:[/bold]   Requires NEXSEC_SERVER_URL + NEXSEC_API_KEY\n\n"
+                f"[dim]Use /key openai <value> or /key gemini <value> to store credentials.[/dim]",
+                title="Model Providers",
+                border_style="cyan",
+            )
+        )
 
     def _cmd_context(self, _: str) -> None:
         summary = self._session.get_context_summary()
@@ -748,8 +945,10 @@ class NexSecChat:
     def _cmd_version(self, _: str) -> None:
         try:
             from importlib.metadata import version as _pv
+
             ver = _pv("nexsec")
-        except Exception:
+        except Exception as exc:
+            logger.debug("Failed to resolve package version: %s", exc)
             ver = "1.2.0"
         console.print(f"[bold cyan]NexSec[/bold cyan] [green]v{ver}[/green]")
 
@@ -790,7 +989,10 @@ class NexSecChat:
         # Lazy engine build
         engine_config: dict[str, Any] = {
             "openai_api_key": os.environ.get("OPENAI_API_KEY", ""),
+            "gemini_api_key": os.environ.get("GEMINI_API_KEY", ""),
             "ollama_url": os.environ.get("NEXSEC_OLLAMA_URL", "http://localhost:11434"),
+            "model_provider": self._settings.get("model_provider"),
+            "gemini_model": self._settings.get("gemini_model"),
         }
 
         reg = ToolRegistry()
@@ -838,7 +1040,9 @@ class NexSecChat:
         lower = user_input.lower()
 
         # Platform-specific help
-        if any(kw in lower for kw in ("how to", "what is", "explain", "what command", "which command")):
+        if any(
+            kw in lower for kw in ("how to", "what is", "explain", "what command", "which command")
+        ):
             # Try to suggest a relevant cross-platform command
             for intent, shells in CROSS_PLATFORM_COMMANDS.items():
                 if any(word in lower for word in intent.split("_")):
@@ -854,7 +1058,7 @@ class NexSecChat:
         # Generic response
         responses = {
             "hello": "Hello! I'm NexSec, your cybersecurity AI agent. What would you like to do?\n\n"
-                     "Try: `scan 192.168.1.1`, `enumerate subdomains of example.com`, or `/tools` to see available tools.",
+            "Try: `scan 192.168.1.1`, `enumerate subdomains of example.com`, or `/tools` to see available tools.",
             "help": "I can help you with:\n- **Scanning** hosts and networks\n- **Enumerating** subdomains and services\n- **Vulnerability scanning** with nuclei, nikto\n- **Password attacks** with hydra, hashcat\n- **OSINT** with theHarvester, amass\n\nType a natural language command or use `/help` for slash commands.",
         }
         for key, response in responses.items():
@@ -877,33 +1081,39 @@ class NexSecChat:
         """Print the welcome banner."""
         try:
             from importlib.metadata import version as _pv
+
             ver = _pv("nexsec")
-        except Exception:
+        except Exception as exc:
+            logger.debug("Failed to resolve package version: %s", exc)
             ver = "1.2.0"
 
         shell_info = get_shell_platform()
         tools_hint = "Run [cyan]/tools[/cyan] to see available tools"
 
-        console.print(Panel(
-            f"[bold cyan]NexSec[/bold cyan] [green]v{ver}[/green] — [bold]AI Cybersecurity Agent[/bold]\n\n"
-            f"[dim]Platform:[/dim] {shell_info}   "
-            f"[dim]Mode:[/dim] [cyan]{self._mode}[/cyan]   "
-            f"[dim]Session:[/dim] {self._session.session_id[:8]}\n\n"
-            f"Type a [bold]natural language command[/bold] or a [cyan]/slash command[/cyan].\n"
-            f"{tools_hint}   [cyan]/help[/cyan] for commands   [cyan]/exit[/cyan] to quit",
-            title="[bold]⚡ NexSec Chat[/bold]",
-            border_style="cyan",
-            padding=(1, 3),
-        ))
+        console.print(
+            Panel(
+                f"[bold cyan]NexSec[/bold cyan] [green]v{ver}[/green] — [bold]AI Cybersecurity Agent[/bold]\n\n"
+                f"[dim]Platform:[/dim] {shell_info}   "
+                f"[dim]Mode:[/dim] [cyan]{self._mode}[/cyan]   "
+                f"[dim]Session:[/dim] {self._session.session_id[:8]}\n\n"
+                f"Type a [bold]natural language command[/bold] or a [cyan]/slash command[/cyan].\n"
+                f"{tools_hint}   [cyan]/help[/cyan] for commands   [cyan]/exit[/cyan] to quit",
+                title="[bold]⚡ NexSec Chat[/bold]",
+                border_style="cyan",
+                padding=(1, 3),
+            )
+        )
 
     def _print_assistant(self, message: str) -> None:
         """Print an assistant text response."""
-        console.print(Panel(
-            Markdown(message),
-            title="[bold green]◆ NexSec[/bold green]",
-            border_style="green",
-            padding=(0, 2),
-        ))
+        console.print(
+            Panel(
+                Markdown(message),
+                title="[bold green]◆ NexSec[/bold green]",
+                border_style="green",
+                padding=(0, 2),
+            )
+        )
 
     def _print_plan(self, plan: "Any") -> None:  # ExecutionPlan
         table = Table(title="Execution Plan", show_header=True, header_style="bold magenta")
@@ -924,26 +1134,33 @@ class NexSecChat:
 
     def _print_results(self, result: "Any", elapsed: float) -> None:  # EngineResult
         from .engine import StepStatus
+
         success_count = sum(1 for r in result.step_results if r.status == StepStatus.SUCCESS)
         color = "green" if result.success else "red"
 
         # Print any step outputs
         for step_result in result.step_results:
             if step_result.output:
-                console.print(Panel(
-                    Syntax(step_result.output[:2000], "text", theme="monokai", line_numbers=False),
-                    title=f"[dim]Output: {step_result.step_id}[/dim]",
-                    border_style="dim",
-                ))
+                console.print(
+                    Panel(
+                        Syntax(
+                            step_result.output[:2000], "text", theme="monokai", line_numbers=False
+                        ),
+                        title=f"[dim]Output: {step_result.step_id}[/dim]",
+                        border_style="dim",
+                    )
+                )
 
         # Summary panel
-        console.print(Panel.fit(
-            f"[{color}]{'✓' if result.success else '✗'} {'Success' if result.success else 'Partial failure'}[/{color}]  "
-            f"Steps: {success_count}/{len(result.step_results)}  "
-            f"Findings: [bold]{len(result.all_findings)}[/bold]  "
-            f"Time: {elapsed:.2f}s",
-            border_style=color,
-        ))
+        console.print(
+            Panel.fit(
+                f"[{color}]{'✓' if result.success else '✗'} {'Success' if result.success else 'Partial failure'}[/{color}]  "
+                f"Steps: {success_count}/{len(result.step_results)}  "
+                f"Findings: [bold]{len(result.all_findings)}[/bold]  "
+                f"Time: {elapsed:.2f}s",
+                border_style=color,
+            )
+        )
 
         # Show findings table if any
         if result.all_findings:
@@ -953,23 +1170,36 @@ class NexSecChat:
             ftable.add_column("Detail", style="white")
             for f in result.all_findings[:20]:
                 sev = f.get("severity", "info")
-                sev_color = {"critical": "red", "high": "orange1", "medium": "yellow", "low": "cyan", "info": "white"}.get(sev, "white")
-                ftable.add_row(f"[{sev_color}]{sev}[/{sev_color}]", f.get("type", "—"), str(f.get("detail", f.get("description", "")))[:80])
+                sev_color = {
+                    "critical": "red",
+                    "high": "orange1",
+                    "medium": "yellow",
+                    "low": "cyan",
+                    "info": "white",
+                }.get(sev, "white")
+                ftable.add_row(
+                    f"[{sev_color}]{sev}[/{sev_color}]",
+                    f.get("type", "—"),
+                    str(f.get("detail", f.get("description", "")))[:80],
+                )
             console.print(ftable)
 
     def _print_goodbye(self) -> None:
         self._session.save(self._SESSIONS_DIR / f"{self._session.session_id}.json")
-        console.print(Panel.fit(
-            f"[dim]Session saved: {self._session.session_id[:8]}[/dim]\n"
-            f"[dim]Resume with: nexsec chat --session {self._session.session_id}[/dim]",
-            title="[bold]Goodbye from NexSec[/bold]",
-            border_style="dim",
-        ))
+        console.print(
+            Panel.fit(
+                f"[dim]Session saved: {self._session.session_id[:8]}[/dim]\n"
+                f"[dim]Resume with: nexsec chat --session {self._session.session_id}[/dim]",
+                title="[bold]Goodbye from NexSec[/bold]",
+                border_style="dim",
+            )
+        )
 
 
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
+
 
 def start_chat(
     mode: str = "integrated",

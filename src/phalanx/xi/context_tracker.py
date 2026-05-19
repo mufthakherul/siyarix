@@ -76,7 +76,7 @@ class ToolExecution:
 
 
 class ContextTracker:
-    """Real-time context awareness engine for NexSec sessions."""
+    """Real-time context awareness engine for Phalanx sessions."""
 
     def __init__(self) -> None:
         self._phase: str = OperationPhase.IDLE

@@ -1,4 +1,4 @@
-"""NexSec Premium UX & Interactive Layout System.
+"""Phalanx Premium UX & Interactive Layout System.
 
 Exposes next-generation terminal interfaces, split-pane timelines,
 tiered autocompletion, fuzzy command palettes, and setup wizards.

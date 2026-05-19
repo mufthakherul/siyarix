@@ -1,4 +1,4 @@
-"""Smart Autocomplete System for NexSec.
+"""Smart Autocomplete System for Phalanx.
 
 Provides three-tier autocompletion (static, context-aware, and AI/MITRE-predicted)
 for interactive prompt prompts. Works seamlessly with prompt_toolkit when available,

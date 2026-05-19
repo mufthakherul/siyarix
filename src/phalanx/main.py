@@ -45,7 +45,8 @@ from .branding import available_themes, print_banner
 from .chat import start_chat
 from .config import SettingsStore
 from .credential_store import CredentialStore
-from .engine import ExecutionEngine, ExecutionMode, AgenticLoop
+from .engine import ExecutionEngine, ExecutionMode
+from .core.agentic_loop import AgenticLoop
 from .exceptions import ValidationError
 from .health import get_health
 from .metrics import get_metrics

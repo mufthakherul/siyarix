@@ -1,6 +1,6 @@
-# NexSec Codebase Architecture Analysis
+# Phalanx Codebase Architecture Analysis
 
-**Project**: NexSec Security Agent v0.3.0  
+**Project**: Phalanx Security Agent v0.3.0  
 **Developer**: CosmicSec-Lab  
 **Analysis Date**: May 17, 2026  
 **License**: MIT  
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-NexSec is a **production-grade autonomous security orchestration agent** designed for DevOps, penetration testing, and threat hunting. It implements a sophisticated **layered architecture** combining:
+Phalanx is a **production-grade autonomous security orchestration agent** designed for DevOps, penetration testing, and threat hunting. It implements a sophisticated **layered architecture** combining:
 
 - **Task Planner** (model-driven & heuristic)
 - **Execution Engine** (registry-based or autonomous)
@@ -362,7 +362,7 @@ class ParserInterface:
 **Code Quality**: ✅ Overall high. Consistent interfaces, severity mappings, timestamp handling.
 
 **Rust Acceleration** (`rust_accel.py`):
-- Optional Rust extension for nmap XML parsing (`nexsec_rust_parsers`)
+- Optional Rust extension for nmap XML parsing (`phalanx_rust_parsers`)
 - Graceful fallback to pure Python if not available
 - Performance optimization without hard dependency
 
@@ -372,7 +372,7 @@ class ParserInterface:
 
 ### 5.1 Offline Store (`offline_store.py`)
 
-**Storage**: SQLite database at `~/.nexsec/offline.db`
+**Storage**: SQLite database at `~/.phalanx/offline.db`
 
 **Schema**:
 
@@ -431,15 +431,15 @@ class CredentialType(StrEnum):
 ```
 
 **Storage**:
-- Encrypted file at `~/.nexsec/credentials.enc`
-- Master key at `~/.nexsec/.vault_key`
+- Encrypted file at `~/.phalanx/credentials.enc`
+- Master key at `~/.phalanx/.vault_key`
 - OS keyring integration ready (via `keyring` library)
 
 **Code Quality**: ✅ Strong cryptographic practices, proper key derivation, audit tracking.
 
 ### 5.3 Configuration Management (`config.py`)
 
-**Storage**: TOML at `~/.nexsec/settings.toml`
+**Storage**: TOML at `~/.phalanx/settings.toml`
 
 **Built-in Defaults**:
 - `default_output_format`: table
@@ -495,7 +495,7 @@ def compute_hash(self, prev_hash: str | None = None) -> str:
 
 **Plugin Structure**:
 ```
-~/.nexsec/plugins/
+~/.phalanx/plugins/
 ├── my-plugin/
 │   ├── plugin.yaml          # metadata
 │   ├── __init__.py
@@ -516,10 +516,10 @@ tags: custom-tag
 ```
 
 **Plugin Manager Features**:
-- Auto-discovery from `~/.nexsec/plugins/`
+- Auto-discovery from `~/.phalanx/plugins/`
 - Enable/disable without deletion
 - Metadata validation
-- Scaffold generation (`nexsec plugin create`)
+- Scaffold generation (`phalanx plugin create`)
 - Install from path
 
 **Code Quality**: ✅ Clean, lightweight plugin system. Good for extensibility.
@@ -553,13 +553,13 @@ tags: custom-tag
 
 ```bash
 # Default: Integrated (hybrid AI + registry)
-nexsec run "scan 192.168.1.1 with nmap"
+phalanx run "scan 192.168.1.1 with nmap"
 
 # Fast mode: Registry only (no AI)
-nexsec run --mode registry "scan 192.168.1.1"
+phalanx run --mode registry "scan 192.168.1.1"
 
 # Autonomous mode: AI-driven (no registry fallback)
-nexsec run --mode autonomous "scan 192.168.1.1"
+phalanx run --mode autonomous "scan 192.168.1.1"
 ```
 
 ### 7.3 Chat Mode
@@ -879,7 +879,7 @@ Instruction
 
 **Pathway 1: Horizontal (Recommended)**
 ```
-NexSec Agent Cluster
+Phalanx Agent Cluster
 ├─ Agent Instance 1 (Pod)
 ├─ Agent Instance 2 (Pod)
 └─ Agent Instance N (Pod)
@@ -897,7 +897,7 @@ S3/Blob Storage (backup findings)
 - Increase memory (large nmap scans)
 
 **Pathway 3: Hybrid (Kubernetes)**
-- NexSec as daemonset (one per node)
+- Phalanx as daemonset (one per node)
 - Central controller (API server)
 - Distributed scan jobs via operators
 
@@ -939,7 +939,7 @@ S3/Blob Storage (backup findings)
 
 ## CONCLUSION
 
-**NexSec is a well-architected, production-grade autonomous security orchestration agent** combining sophisticated task planning with deterministic tool execution. The codebase demonstrates:
+**Phalanx is a well-architected, production-grade autonomous security orchestration agent** combining sophisticated task planning with deterministic tool execution. The codebase demonstrates:
 
 - **Expert-level architecture** (clean layering, patterns, async design)
 - **Security-conscious implementation** (validation, encryption, audit trails)

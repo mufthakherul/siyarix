@@ -16,6 +16,7 @@ Provides:
 from __future__ import annotations
 
 import os
+import logging
 import platform
 import getpass
 import socket
@@ -318,7 +319,7 @@ CROSS_PLATFORM_COMMANDS: dict[str, dict[str, str]] = {
         "nushell": "dpkg -l || rpm -qa",
         "xonsh": "dpkg -l || rpm -qa",
         "powershell": "Get-ItemProperty HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\* | Select-Object DisplayName,DisplayVersion,Publisher",
-        "cmd": 'wmic product get name,version',
+        "cmd": "wmic product get name,version",
     },
     "package_managers": {
         "bash": "command -v apt || command -v dnf || command -v yum || command -v pacman",
@@ -372,7 +373,7 @@ CROSS_PLATFORM_COMMANDS: dict[str, dict[str, str]] = {
         "nushell": "find / -perm -4000 -type f 2>/dev/null",
         "xonsh": "find / -perm -4000 -type f 2>/dev/null",
         "powershell": "# SUID is a Linux concept; check privileged executables with: icacls C:\\Windows\\System32 /c",
-        "cmd": "icacls C:\\Windows\\System32 /c 2>nul | findstr /i \"full control\"",
+        "cmd": 'icacls C:\\Windows\\System32 /c 2>nul | findstr /i "full control"',
     },
     "registry_autoruns": {
         "bash": "# Linux: check /etc/init.d/ and systemctl",
@@ -589,7 +590,11 @@ INTENT_METADATA: dict[str, dict[str, Any]] = {
     "system_info": {"category": "system", "description": "System information"},
     "disk_usage": {"category": "filesystem", "description": "Disk usage"},
     "disk_free": {"category": "filesystem", "description": "Disk free totals"},
-    "file_hash": {"category": "filesystem", "description": "Compute file hash", "placeholders": ["file"]},
+    "file_hash": {
+        "category": "filesystem",
+        "description": "Compute file hash",
+        "placeholders": ["file"],
+    },
     "find_suid": {"category": "security", "description": "Find privileged executables"},
     "registry_autoruns": {"category": "security", "description": "Startup registry keys"},
     "host_file": {"category": "filesystem", "description": "Hosts file"},
@@ -606,9 +611,21 @@ INTENT_METADATA: dict[str, dict[str, Any]] = {
     "aws_identity": {"category": "cloud", "description": "AWS caller identity"},
     "az_account": {"category": "cloud", "description": "Azure account"},
     "gcloud_auth": {"category": "cloud", "description": "GCP auth list"},
-    "ssh_connect": {"category": "remote", "description": "SSH connect", "placeholders": ["user", "target"]},
-    "scp_copy": {"category": "remote", "description": "SCP copy", "placeholders": ["user", "target", "path"]},
-    "rsync_copy": {"category": "remote", "description": "Rsync copy", "placeholders": ["user", "target", "path"]},
+    "ssh_connect": {
+        "category": "remote",
+        "description": "SSH connect",
+        "placeholders": ["user", "target"],
+    },
+    "scp_copy": {
+        "category": "remote",
+        "description": "SCP copy",
+        "placeholders": ["user", "target", "path"],
+    },
+    "rsync_copy": {
+        "category": "remote",
+        "description": "Rsync copy",
+        "placeholders": ["user", "target", "path"],
+    },
     "python_version": {"category": "dev", "description": "Python version"},
     "node_version": {"category": "dev", "description": "Node version"},
     "pip_list": {"category": "dev", "description": "Python packages"},
@@ -622,6 +639,7 @@ def render_intent(intent: str, **kwargs: str) -> str:
     for key, value in kwargs.items():
         command = command.replace(f"{{{key}}}", value)
     return command
+
 
 # ---------------------------------------------------------------------------
 # Security-relevant PowerShell commands (Windows red/blue team)
@@ -704,14 +722,17 @@ def detect_shell() -> ShellType:
         ppid = os.getppid()
         result = subprocess.run(  # nosec B603 B607
             ["ps", "-p", str(ppid), "-o", "comm="],
-            capture_output=True, text=True, timeout=3,
+            capture_output=True,
+            text=True,
+            timeout=3,
         )
         comm = result.stdout.strip().lstrip("-")
         detected = _shell_from_name(comm)
         if detected != ShellType.UNKNOWN:
             return detected
-    except Exception:  # nosec B110
-        pass
+    except Exception as exc:
+        # Log unexpected issues during shell detection; continue with UNKNOWN
+        logging.getLogger(__name__).exception("Error detecting parent shell: %s", exc)
 
     return ShellType.UNKNOWN
 
@@ -725,7 +746,8 @@ def _safe_read(path: str, max_bytes: int = 2048) -> str:
     """Read a small text file safely and return an empty string on failure."""
     try:
         return Path(path).read_text(encoding="utf-8", errors="ignore")[:max_bytes]
-    except Exception:  # nosec B110
+    except Exception as exc:
+        logging.getLogger(__name__).exception("Error reading safe file %s: %s", path, exc)
         return ""
 
 
@@ -745,7 +767,8 @@ def _safe_loadavg() -> tuple[float, float, float] | None:
     """Return load average where available."""
     try:
         return os.getloadavg()
-    except Exception:  # nosec B110
+    except Exception as exc:
+        logging.getLogger(__name__).exception("Error retrieving loadavg: %s", exc)
         return None
 
 
@@ -789,12 +812,26 @@ def get_shell_platform() -> str:
         return "Windows CMD"
     elif sys_name == "darwin":
         shell = detect_shell()
-        if shell in (ShellType.BASH, ShellType.ZSH, ShellType.SH, ShellType.FISH, ShellType.NUSHELL, ShellType.XONSH):
+        if shell in (
+            ShellType.BASH,
+            ShellType.ZSH,
+            ShellType.SH,
+            ShellType.FISH,
+            ShellType.NUSHELL,
+            ShellType.XONSH,
+        ):
             return f"macOS ({shell.value})"
         return "macOS (zsh/bash)"
     else:
         shell = detect_shell()
-        if shell in (ShellType.BASH, ShellType.ZSH, ShellType.SH, ShellType.FISH, ShellType.NUSHELL, ShellType.XONSH):
+        if shell in (
+            ShellType.BASH,
+            ShellType.ZSH,
+            ShellType.SH,
+            ShellType.FISH,
+            ShellType.NUSHELL,
+            ShellType.XONSH,
+        ):
             return f"Linux ({shell.value})"
         return "Linux (bash)"
 

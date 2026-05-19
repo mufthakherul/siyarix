@@ -82,6 +82,13 @@ _KNOWN_TOOLS: dict[str, dict] = {
         "description": "Domain WHOIS lookup",
         "default_args": [],
     },
+    "shodan": {
+        "version_cmd": ["shodan", "version"],
+        "capabilities": ["osint", "passive_recon", "vuln_detect"],
+        "category": "recon",
+        "description": "Shodan CLI for search engine for internet-connected devices",
+        "default_args": [],
+    },
     # ── Web / HTTP ──────────────────────────────────────────────────────────
     "nikto": {
         "version_cmd": ["nikto", "-Version"],

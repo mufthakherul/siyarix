@@ -40,6 +40,7 @@ from .shell_knowledge import (
     get_shell_platform,
     CROSS_PLATFORM_COMMANDS,
 )
+from .ux import SmartAutocomplete, CommandPalette, SplitPane
 
 try:
     from rich.console import Console
@@ -197,6 +198,16 @@ _SLASH_HELP = {
     "/theme appearance": "Preview the UI appearance",
     "/target <host>": "Set the current target for commands",
     "/mode <mode>": "Switch execution mode (registry|autonomous|integrated)",
+    "/modes": "Show mode dispatcher with all 9 modes",
+    "/1": "⚡ Switch to Interactive Shell mode",
+    "/2": "⚡ Switch to AI Conversational mode",
+    "/3": "⚡ Switch to Direct Command mode",
+    "/4": "⚡ Switch to Autonomous Agent mode",
+    "/5": "⚡ Switch to Workflow Automation mode",
+    "/6": "⚡ Switch to TUI Dashboard mode",
+    "/7": "⚡ Switch to Guided Wizard mode",
+    "/8": "⚡ Switch to Team Collaboration mode",
+    "/9": "⚡ Switch to Headless API mode",
     "/save": "Save current session to ~/.siyarix/sessions/",
     "/translate <intent>": "Translate a command intent to all shells",
     "/security-cmds": "Show security commands for current platform",
@@ -205,6 +216,19 @@ _SLASH_HELP = {
     "/model <provider>": "Show/switch AI model provider",
     "/context": "Show current session context",
     "/version": "Show NexSec version",
+}
+
+# Mode number → (name, engine_mode, description)
+_MODE_MAP: dict[str, tuple[str, str, str]] = {
+    "1": ("Interactive Shell", "registry", "Fast local tool execution"),
+    "2": ("AI Conversational", "integrated", "AI-powered cybersecurity REPL"),
+    "3": ("Direct Command", "autonomous", "One-shot NL command execution"),
+    "4": ("Autonomous Agent", "autonomous", "Goal-driven autonomous operations"),
+    "5": ("Workflow Automation", "integrated", "Launch: siyarix workflow run <yaml>"),
+    "6": ("TUI Dashboard", "integrated", "Launch: siyarix dashboard"),
+    "7": ("Guided Wizard", "integrated", "Launch: siyarix wizard"),
+    "8": ("Team Collaboration", "integrated", "Launch: siyarix team --session <name>"),
+    "9": ("Headless API", "integrated", "Launch: siyarix serve --port 8080"),
 }
 
 
@@ -226,12 +250,15 @@ class NexSecChat:
         resume: bool = False,
     ) -> None:
         self._mode = mode
+        self._active_mode_num = "2"  # Default: AI Conversational
         self._platform_ctx = build_platform_context()
         self._shell = detect_shell()
         self._settings = SettingsStore()
         self._session = self._init_session(session_id, target, resume)
         self._command_history: deque[str] = deque(maxlen=1000)
         self._running = True
+        self._split_pane_enabled = False
+        self._split_pane_type = "attack_map"
 
     def _init_session(self, session_id: str | None, target: str, resume: bool) -> ChatSession:
         """Initialize or resume a chat session."""
@@ -264,6 +291,8 @@ class NexSecChat:
         """Main async REPL loop."""
         while self._running:
             try:
+                if self._split_pane_enabled:
+                    self._render_split_pane_layout()
                 user_input = self._prompt()
                 if not user_input.strip():
                     continue
@@ -290,13 +319,34 @@ class NexSecChat:
 
     def _prompt(self) -> str:
         """Display the input prompt and read a line."""
+        # If split pane is enabled, show a very compact prompt to avoid clutter
+        if self._split_pane_enabled:
+            prompt_label = Text.assemble(
+                ("❯ ", "bold cyan"), ("Type command / slash command", "dim")
+            )
+            if PTK_AVAILABLE:
+                try:
+                    completer = SmartAutocomplete(self._session)
+                    return ptk_prompt("❯ ", completer=completer).strip()
+                except KeyboardInterrupt:
+                    raise
+                except Exception:
+                    return Prompt.ask(prompt_label, default="").strip()
+            else:
+                return Prompt.ask(prompt_label, default="").strip()
+
         # Show concise status in the prompt like modern agent CLIs
         target_str = f" ({self._session.target})" if self._session.target else ""
         mode_color = {"registry": "yellow", "autonomous": "magenta", "integrated": "cyan"}.get(
             self._mode, "cyan"
         )
-        theme = self._settings.get("color_theme")
-        provider = self._settings.get("model_provider")
+        theme = self._settings.get("color_theme") or "cyber-noir"
+        provider = self._settings.get("model_provider") or "auto"
+
+        # Mode switcher bar
+        from .branding import render_mode_bar
+        mode_bar = render_mode_bar(theme, self._active_mode_num)
+        console.print(mode_bar)
 
         # Display a compact inline status line above the prompt similar to Gemini/Claude
         status = Text.assemble(
@@ -304,15 +354,27 @@ class NexSecChat:
             (f" · {theme}", "dim white"),
             (f" · {self._mode}", mode_color),
             (f"{target_str}", "dim") if target_str else ("", "dim"),
+            ("  ", "dim"),
+            ("? for shortcuts · /modes for all modes", "dim"),
         )
-        console.print(Align.right(Text("? for shortcuts", style="dim")))
         console.print(status)
 
         # Primary input prompt placeholder
         prompt_label = Text.assemble(
-            ("> ", "bold cyan"), ("Type your message or @path/to/file", "dim")
+            ("❯ ", "bold cyan"), ("Type your message or @path/to/file", "dim")
         )
-        answer = Prompt.ask(prompt_label, default="").strip()
+
+        if PTK_AVAILABLE:
+            try:
+                completer = SmartAutocomplete(self._session)
+                answer = ptk_prompt("❯ ", completer=completer).strip()
+            except KeyboardInterrupt:
+                raise
+            except Exception as exc:
+                logger.debug("prompt_toolkit failed: %s", exc)
+                answer = Prompt.ask(prompt_label, default="").strip()
+        else:
+            answer = Prompt.ask(prompt_label, default="").strip()
         return answer
 
     # ──────────────────────────────────────────────────────────────────────
@@ -353,6 +415,8 @@ class NexSecChat:
             "/theme": self._cmd_theme,
             "/target": self._cmd_target,
             "/mode": self._cmd_mode,
+            "/modes": self._cmd_modes,
+            "/split": self._cmd_split,
             "/save": self._cmd_save,
             "/translate": self._cmd_translate,
             "/security-cmds": self._cmd_security_cmds,
@@ -362,6 +426,13 @@ class NexSecChat:
             "/context": self._cmd_context,
             "/version": self._cmd_version,
         }
+
+        # Handle /1 through /9 mode shortcuts
+        if command.startswith("/") and len(command) == 2 and command[1].isdigit():
+            mode_num = command[1]
+            if mode_num in _MODE_MAP:
+                self._cmd_switch_mode(mode_num)
+                return
 
         handler = handlers.get(command)
         if handler:
@@ -384,6 +455,38 @@ class NexSecChat:
             table.add_row(cmd, desc)
         console.print(table)
 
+    def _cmd_modes(self, _: str) -> None:
+        """Show the full mode dispatcher table."""
+        from .branding import print_mode_dispatcher
+        theme = self._settings.get("color_theme") or "cyber-noir"
+        print_mode_dispatcher(console, theme, self._active_mode_num)
+
+    def _cmd_switch_mode(self, mode_num: str) -> None:
+        """Switch to a numbered mode."""
+        if mode_num not in _MODE_MAP:
+            console.print(f"[red]Unknown mode: {mode_num}. Use /modes to see all modes.[/red]")
+            return
+
+        name, engine_mode, desc = _MODE_MAP[mode_num]
+        self._active_mode_num = mode_num
+
+        # Modes 1-4 are handled inline (change engine mode)
+        if mode_num in ("1", "2", "3", "4"):
+            self._mode = engine_mode
+            self._session.mode = engine_mode
+            console.print(
+                f"[bold bright_cyan]⚡ Switched to Mode {mode_num}: {name}[/bold bright_cyan]"
+                f"\n[dim]Engine mode: {engine_mode} — {desc}[/dim]"
+            )
+        else:
+            # Modes 5-9 are external commands
+            console.print(
+                f"[bold bright_cyan]⚡ Mode {mode_num}: {name}[/bold bright_cyan]"
+                f"\n[dim]{desc}[/dim]"
+                f"\n[yellow]This mode launches a separate process. "
+                f"Run the command above from your terminal.[/yellow]"
+            )
+
     def _cmd_exit(self, _: str) -> None:
         self._running = False
 
@@ -397,82 +500,73 @@ class NexSecChat:
         self._session.context.clear()
         console.print("[green]✓ Started a new conversation context.[/green]")
 
-    def _cmd_palette(self, _: str) -> None:
-        """Interactive command palette to select an intent or saved command."""
-        store = CommandProfileStore()
-        intents = sorted(CROSS_PLATFORM_COMMANDS.keys())
-        options = [f"intent: {i}" for i in intents]
-        # include saved commands at the end
-        saved = store.list_credentials()
-        options += [f"saved: {p.name} -> {p.command}" for p in saved]
-
-        console.print("[dim]Type a search term to filter. Press Enter to show full list.[/dim]")
-        query = ""
-        try:
-            if PTK_AVAILABLE:
-                completer = WordCompleter(options, ignore_case=True)
-                query = ptk_prompt("Search: ", completer=completer).strip().lower()
-            else:
-                query = Prompt.ask("Search", default="").strip().lower()
-        except Exception as exc:
-            logger.exception("Command palette input failed: %s", exc)
-            query = Prompt.ask("Search", default="").strip().lower()
-
-        filtered = [o for o in options if query in o.lower()] if query else options
-        if not filtered:
-            console.print("[dim]No items found.[/dim]")
-            return
-
-        table = Table(title="Command Palette", header_style="bold cyan")
-        table.add_column("#", style="dim", width=4)
-        table.add_column("Type", style="magenta")
-        table.add_column("Entry", style="cyan")
-        for i, entry in enumerate(filtered[:200], 1):
-            t, rest = entry.split(":", 1)
-            table.add_row(str(i), t.strip(), rest.strip())
-        console.print(table)
-
-        sel = Prompt.ask("Select # to insert/execute (blank to cancel)", default="").strip()
-        if not sel:
-            return
-        try:
-            idx = int(sel) - 1
-            choice = filtered[idx]
-        except Exception as exc:
-            logger.exception("Invalid selection input: %s", exc)
-            console.print("[red]Invalid selection[/red]")
-            return
-
-        if choice.startswith("intent:"):
-            intent = choice.split(":", 1)[1].strip()
-            cmd = CROSS_PLATFORM_COMMANDS.get(intent, {}).get(
-                normalize_shell(self._shell).value, ""
-            )
-            console.print(f"[green]Inserted command:[/green] {cmd}")
-            run = Prompt.ask("Run this command? (y/N)", default="N")
+    async def _cmd_palette(self, _: str) -> None:
+        """Open the fuzzy command palette overlay."""
+        palette = CommandPalette(self._session.session_id)
+        cmd = palette.show(console)
+        if cmd:
+            console.print(f"[green]Selected command from palette:[/green] {cmd}")
+            run = Prompt.ask("Run this command now? (y/N)", default="y")
             if run.lower().startswith("y"):
-                asyncio.run(self._execute_instruction(cmd))
+                await self._execute_instruction(cmd)
+
+    def _cmd_split(self, args: str) -> None:
+        """Toggle split pane mode or change the visualization type."""
+        args_clean = args.strip().lower()
+        if args_clean in ("off", "disable", "false"):
+            self._split_pane_enabled = False
+            console.print("[yellow]Split Pane view disabled.[/yellow]")
+            return
+
+        if args_clean in ("timeline", "metrics", "cheatsheet", "attack_map"):
+            self._split_pane_type = args_clean
+            self._split_pane_enabled = True
+            console.print(f"[green]Split Pane enabled. System view: {args_clean.upper()}[/green]")
         else:
-            # saved command
-            name = choice.split(":", 1)[1].split("->", 1)[0].strip()
-            profile = store.get(name)
-            if not profile:
-                console.print("[red]Saved profile missing[/red]")
-                return
+            self._split_pane_enabled = not self._split_pane_enabled
+            status_str = "ENABLED" if self._split_pane_enabled else "DISABLED"
+            console.print(f"[green]Split Pane view {status_str}.[/green] (System view: {self._split_pane_type.upper()})")
+            console.print("[dim]Use '/split <timeline|metrics|cheatsheet|attack_map>' to change views.[/dim]")
 
-            # detect placeholders and prompt for values
-            cps = CommandProfileStore()
-            placeholders = cps.extract_placeholders(profile.command)
-            params: dict[str, str] = {}
-            for ph in placeholders:
-                val = Prompt.ask(f"Value for '{ph}'", default="")
-                params[ph] = val
+        if self._split_pane_enabled:
+            self._render_split_pane_layout()
 
-            rendered = cps.render(profile.command, params)
-            console.print(f"[green]Rendered command:[/green] {rendered}")
-            run = Prompt.ask("Run this command? (y/N)", default="N")
-            if run.lower().startswith("y"):
-                asyncio.run(self._execute_instruction(rendered))
+    def _render_split_pane_layout(self, left_content: Any = None) -> None:
+        """Render the terminal using side-by-side SplitPane layout."""
+        if not left_content:
+            # Build a nice scroll of recent conversation/messages
+            left_text = Text()
+            if not self._session.messages:
+                left_text.append("Welcome to NexSec Cyber Command.\n", style="bold cyan")
+                left_text.append("Mode: ")
+                left_text.append(f"{self._mode}\n", style="bold green")
+                left_text.append("\nReady for input. Type your instruction below.\n\n")
+                left_text.append("Examples:\n")
+                left_text.append("  • scan 127.0.0.1\n", style="yellow")
+                left_text.append("  • enumerate subdomains of siyarix.local\n", style="yellow")
+            else:
+                for msg in self._session.last_n(6):
+                    role_color = "cyan" if msg.role == "user" else "green"
+                    label = "You" if msg.role == "user" else "NexSec"
+                    left_text.append(f"[{label}]\n", style=f"bold {role_color}")
+                    left_text.append(f"{msg.content}\n\n", style="white")
+            left_content = left_text
+
+        # Get findings from session context if available
+        findings = self._session.context.get("findings", [])
+        # Get timeline events if available
+        timeline_events = self._session.context.get("timeline_events", [])
+
+        # Instantiate SplitPane and display
+        pane = SplitPane(theme=self._settings.get("color_theme") or "dark-neon")
+        layout = pane.generate_layout(
+            left_renderable=left_content,
+            right_type=self._split_pane_type,
+            session_meta=self._session,
+            findings=findings,
+            timeline_events=timeline_events
+        )
+        console.print(layout)
 
     def _cmd_savecmd(self, args: str) -> None:
         if not args:
@@ -502,7 +596,7 @@ class NexSecChat:
             table.add_row(p.name, p.command, p.created_at or "")
         console.print(table)
 
-    def _cmd_cmd(self, args: str) -> None:
+    async def _cmd_cmd(self, args: str) -> None:
         if not args:
             console.print("[yellow]Usage: /cmd <name>[/yellow]")
             return
@@ -515,7 +609,7 @@ class NexSecChat:
         console.print(Panel.fit(p.command, title=f"Profile: {p.name}", border_style="cyan"))
         run = Prompt.ask("Run this command? (y/N)", default="N")
         if run.lower().startswith("y"):
-            asyncio.run(self._execute_instruction(p.command))
+            await self._execute_instruction(p.command)
 
     def _show_key_status(self) -> None:
         from .credential_store import CredentialStore
@@ -1101,6 +1195,23 @@ class NexSecChat:
 
         # Print results
         self._print_results(result, elapsed)
+
+        # Store findings in session context so split pane can render them!
+        self._session.context["findings"] = result.all_findings
+        
+        timeline = []
+        for step_res in result.step_results:
+            status_emoji = "🟢" if step_res.status.value == "success" else "🔴"
+            timeline.append({
+                "time": datetime.now().strftime("%H:%M:%S"),
+                "event": f"{status_emoji} Step {step_res.step_id}: {step_res.status.value.upper()}"
+            })
+        for f in result.all_findings:
+            timeline.append({
+                "time": datetime.now().strftime("%H:%M:%S"),
+                "event": f"🔴 [VULN] {f.get('type', 'Finding')}: {f.get('detail', f.get('description', ''))}"
+            })
+        self._session.context["timeline_events"] = timeline
 
         # Add assistant summary to session
         summary = f"Executed {len(result.step_results)} steps in {elapsed:.1f}s. "

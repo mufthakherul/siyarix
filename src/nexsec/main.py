@@ -38,14 +38,14 @@ from rich.prompt import Prompt
 from rich.progress import Progress
 from rich.table import Table
 
-__version__ = "1.2.0"
+__version__ = "2.0.0"
 
 from .audit_log import AuditEventType, AuditSeverity, audit
 from .branding import available_themes, print_banner
 from .chat import start_chat
 from .config import SettingsStore
 from .credential_store import CredentialStore
-from .engine import ExecutionEngine, ExecutionMode
+from .engine import ExecutionEngine, ExecutionMode, AgenticLoop
 from .exceptions import ValidationError
 from .health import get_health
 from .metrics import get_metrics
@@ -70,6 +70,7 @@ from typing import cast, Any
 from .core import IntentRouter, SessionKernel
 from .xi import XICoreService
 from .orchestration import WorkflowRuntime, WorkflowState
+from .ux import OnboardingWizard, SplitPane
 
 # ---------------------------------------------------------------------------
 # Initialize core systems
@@ -824,6 +825,7 @@ def run(
     mode: str = typer.Option("integrated", "--mode", "-m", help="Execution mode"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
     save: bool = typer.Option(False, "--save", "-s", help="Persist workflow execution"),
+    resume_plan: str = typer.Option("", "--resume", "-r", help="Resume a persisted plan by ID (or 'latest')"),
     no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
 ) -> None:
     """Run a natural language command through the autonomous execution engine.
@@ -832,9 +834,24 @@ def run(
       siyarix run "scan example.com with nmap and nuclei then generate report"
       siyarix run "enumerate subdomains of target.com" --mode autonomous
       siyarix run "check for sql injection on http://site.com/login" --dry-run
+      siyarix run --resume latest
     """
     if not no_banner and not _CI_MODE:
         print_banner(console, _active_theme)
+
+    # Handle --resume
+    if resume_plan:
+        store = OfflineStore()
+        resolved_id = resume_plan
+        if resume_plan.lower() == "latest":
+            resolved_id = store.get_latest_plan_id() or ""
+            if not resolved_id:
+                console.print("[red]No plans found to resume.[/red]")
+                raise typer.Exit(1)
+        engine = _get_engine(mode)
+        console.print(f"[cyan]Resuming plan: {resolved_id}[/cyan]")
+        result = asyncio.run(engine.resume(resolved_id, interactive=True))
+        return
 
     instruction = command
     if target:
@@ -873,8 +890,33 @@ def run(
             console.print("[yellow]Execution canceled.[/yellow]")
             return
 
-    engine = _get_engine(route.mode)
-    result = asyncio.run(engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save))
+    is_pipeline = "|" in instruction or any(t in instruction.lower() for t in [" then ", " and then ", " followed by "])
+    if is_pipeline:
+        from .core.pipeline import CommandPipeline
+        pipeline = CommandPipeline()
+        steps = pipeline.parse(instruction)
+        
+        class PipelineExecutionResult:
+            def __init__(self, success: bool, all_findings: list):
+                self.success = success
+                self.all_findings = all_findings
+                self.retries_performed = 0
+                self.plan_id = ""
+                
+        async def step_executor(step, ctx):
+            step_engine = _get_engine(route.mode)
+            res = await step_engine.execute(step.instruction, interactive=True, dry_run=dry_run, persist=save)
+            return {
+                "status": "completed" if res.success else "failed",
+                "findings": res.all_findings or [],
+                "error": getattr(res, "error_message", "") if not res.success else ""
+            }
+            
+        pipe_res = asyncio.run(pipeline.execute(steps, step_executor))
+        result = PipelineExecutionResult(success=pipe_res.success, all_findings=pipe_res.all_findings)
+    else:
+        engine = _get_engine(route.mode)
+        result = asyncio.run(engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save))
     final_state = "completed" if result.success else "failed"
     session_kernel.update_operation(
         session=session,
@@ -884,6 +926,45 @@ def run(
         artifact=result.plan_id or "",
     )
     session_kernel.save(session)
+
+
+@app.command()
+def agent(
+    goal: str = typer.Argument(help="The goal for the autonomous agent to achieve"),
+    target: str = typer.Option("", "--target", "-t", help="Target host/IP/URL"),
+    max_iterations: int = typer.Option(10, "--max-iter", "-n", help="Maximum agent iterations"),
+    mode: str = typer.Option("autonomous", "--mode", "-m", help="Execution mode"),
+    no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
+) -> None:
+    """Launch a goal-driven autonomous agent (observe → reason → act loop).
+
+    The agent will continuously plan, execute, and re-plan until the goal
+    is achieved or max iterations are reached.
+
+    Examples:
+      siyarix agent "Perform full recon on target.com" --target target.com
+      siyarix agent "Find all SQL injection vulnerabilities" -t http://app.local -n 5
+      siyarix agent "Enumerate and scan the 10.0.0.0/24 network" --max-iter 15
+    """
+    if not no_banner and not _CI_MODE:
+        print_banner(console, _active_theme)
+
+    if target:
+        try:
+            validate_target(target)
+        except ValidationError as exc:
+            console.print(f"[red]Invalid target '{target}': {exc}[/red]")
+            raise typer.Exit(1)
+
+    engine = _get_engine(mode)
+    loop = AgenticLoop(
+        engine=engine,
+        goal=goal,
+        target=target,
+        max_iterations=max_iterations,
+        interactive=True,
+    )
+    asyncio.run(loop.run())
 
 
 # ---------------------------------------------------------------------------
@@ -1071,14 +1152,17 @@ def metrics_show(
 # ---------------------------------------------------------------------------
 # Premium: Dashboard command
 # ---------------------------------------------------------------------------
-@dashboard_app.command()
+@dashboard_app.command("show")
 def show(
     refresh: int = typer.Option(5, "--refresh", "-r", help="Refresh interval (seconds)"),
     export: str = typer.Option("", "--export", "-e", help="Export snapshot to file"),
+    panel: str = typer.Option("attack_map", "--panel", "-p", help="Right pane view: attack_map|timeline|metrics|cheatsheet"),
+    target: str = typer.Option("", "--target", "-t", help="Target context to analyze"),
 ) -> None:
-    """Show live security dashboard."""
-    print_banner(console, _active_theme)
-
+    """Show live security dashboard using premium SplitPane layout."""
+    from .ux import SplitPane
+    from .session_manager import session_registry
+    
     store = OfflineStore()
     metrics = get_metrics().to_dict()
     scans = store.list_scans(limit=20)
@@ -1087,25 +1171,62 @@ def show(
     total_findings = sum(s.get("total_findings", 0) for s in scans)
     latest_scan = scans[0]["created_at"] if scans else "—"
 
-    table = Table(title="Security Operations Dashboard", show_header=True, header_style="bold cyan")
-    table.add_column("Metric", style="white")
-    table.add_column("Value", style="bold green", justify="right")
-    table.add_column("Trend", justify="center")
-    table.add_column("Status", justify="center")
+    # Fetch recent session or construct metadata
+    recent_sessions = session_registry.list_sessions(limit=1)
+    recent_session = recent_sessions[0] if recent_sessions else None
+    
+    class SessionMetaMock:
+        def __init__(self, target_val: str):
+            self.target = target_val
+            
+    tgt = target or (recent_session.target if recent_session else "127.0.0.1")
+    session_meta = SessionMetaMock(tgt)
 
-    rows = [
-        ("Total Scans", str(metrics["execution"]["total_scans"]), "→", "🟢 Active"),
-        ("Successful Scans", str(metrics["execution"]["successful_scans"]), "→", "🟢 Good"),
-        ("Failed Scans", str(metrics["execution"]["failed_scans"]), "→", "🟡 Warning"),
-        ("Total Findings", str(total_findings), "→", "🟢 Active"),
-        ("Plans Tracked", str(len(plans)), "→", "🟢 Active"),
-        ("Latest Scan", latest_scan, "→", "🟢 Good"),
-    ]
-
-    for name, value, trend, status in rows:
-        table.add_row(name, value, trend, status)
-
-    console.print(table)
+    findings_list = []
+    for s in scans:
+        if "findings" in s and isinstance(s["findings"], list):
+            findings_list.extend(s["findings"])
+        elif "all_findings" in s and isinstance(s["all_findings"], list):
+            findings_list.extend(s["all_findings"])
+            
+    timeline_events = []
+    
+    # Left pane layout
+    left_table = Table(box=None, header_style="bold cyan")
+    left_table.add_column("Security Parameter", style="white")
+    left_table.add_column("Value", style="bold green", justify="right")
+    
+    left_table.add_row("Total Scans", str(metrics["execution"]["total_scans"]))
+    left_table.add_row("Successful Scans", str(metrics["execution"]["successful_scans"]))
+    left_table.add_row("Failed Scans", str(metrics["execution"]["failed_scans"]))
+    left_table.add_row("Total Findings", str(total_findings))
+    left_table.add_row("Plans Tracked", str(len(plans)))
+    left_table.add_row("Latest Scan", latest_scan)
+    
+    left_content = Table.grid(padding=1)
+    left_content.add_row("[bold cyan]🛡️ SIYARIX OPERATIONS METRICS[/bold cyan]\n")
+    left_content.add_row(left_table)
+    
+    if plans:
+        plan_table = Table(title="Recent Plans", show_header=True, header_style="bold dim cyan", box=None)
+        plan_table.add_column("Plan ID", style="magenta")
+        plan_table.add_column("Created", style="dim")
+        for p in plans[:5]:
+            p_id = p.get("plan_id") or p.get("id") or "—"
+            plan_table.add_row(str(p_id)[:8], p.get("created_at", "—"))
+        left_content.add_row("\n")
+        left_content.add_row(plan_table)
+        
+    sp = SplitPane(theme=_active_theme)
+    layout = sp.generate_layout(
+        left_renderable=left_content,
+        right_type=panel,
+        session_meta=session_meta,
+        findings=findings_list,
+        timeline_events=timeline_events
+    )
+    
+    console.print(layout)
 
     if export:
         snapshot = {
@@ -1115,7 +1236,21 @@ def show(
             "plans_count": len(plans),
         }
         Path(export).write_text(json.dumps(snapshot, indent=2))
-        console.print(f"[dim]Exported to {export}[/dim]")
+        console.print(f"[dim]Exported snapshot to {export}[/dim]")
+
+
+@dashboard_app.callback(invoke_without_command=True)
+def dashboard_callback(
+    ctx: typer.Context,
+    refresh: int = typer.Option(5, "--refresh", "-r", help="Refresh interval (seconds)"),
+    export: str = typer.Option("", "--export", "-e", help="Export snapshot to file"),
+    panel: str = typer.Option("attack_map", "--panel", "-p", help="Right pane view: attack_map|timeline|metrics|cheatsheet"),
+    target: str = typer.Option("", "--target", "-t", help="Target context to analyze"),
+) -> None:
+    """Live system dashboard showing visual attack maps, metrics, timelines, and cheatsheets."""
+    if ctx.invoked_subcommand is not None:
+        return
+    show(refresh=refresh, export=export, panel=panel, target=target)
 
 
 # ---------------------------------------------------------------------------
@@ -1925,6 +2060,17 @@ def plugin_install(
 # ---------------------------------------------------------------------------
 # Note: theme commands are defined earlier; duplicate premium-themed handlers removed to
 # avoid redefinition and typing conflicts.
+
+
+# ---------------------------------------------------------------------------
+# Guided Setup Wizard
+# ---------------------------------------------------------------------------
+@app.command()
+def wizard() -> None:
+    """Launch the interactive guided onboarding setup wizard."""
+    from .ux import OnboardingWizard
+    wiz = OnboardingWizard()
+    wiz.run()
 
 
 # ---------------------------------------------------------------------------

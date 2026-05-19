@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import subprocess
 
-from nexsec.tool_registry import ToolRegistry
+from phalanx.tool_registry import ToolRegistry
 
 
 def test_discover_uses_wsl_fallback_on_windows(monkeypatch):
-    monkeypatch.setenv("NEXSEC_ENABLE_WSL_DISCOVERY", "1")
+    monkeypatch.setenv("PHALANX_ENABLE_WSL_DISCOVERY", "1")
 
     def fake_which(name: str):
         if name == "wsl":
@@ -22,9 +22,9 @@ def test_discover_uses_wsl_fallback_on_windows(monkeypatch):
             return subprocess.CompletedProcess(cmd, 0, stdout="Nmap 7.94\n", stderr="")
         return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="")
 
-    monkeypatch.setattr("nexsec.tool_registry.platform.system", lambda: "Windows")
-    monkeypatch.setattr("nexsec.tool_registry.shutil.which", fake_which)
-    monkeypatch.setattr("nexsec.tool_registry.subprocess.run", fake_run)
+    monkeypatch.setattr("phalanx.tool_registry.platform.system", lambda: "Windows")
+    monkeypatch.setattr("phalanx.tool_registry.shutil.which", fake_which)
+    monkeypatch.setattr("phalanx.tool_registry.subprocess.run", fake_run)
 
     tools = ToolRegistry().discover()
     nmap = next((t for t in tools if t.binary == "nmap"), None)
@@ -36,7 +36,7 @@ def test_discover_uses_wsl_fallback_on_windows(monkeypatch):
 
 
 def test_discover_prefers_local_binary_over_wsl(monkeypatch):
-    monkeypatch.setenv("NEXSEC_ENABLE_WSL_DISCOVERY", "1")
+    monkeypatch.setenv("PHALANX_ENABLE_WSL_DISCOVERY", "1")
 
     def fake_which(name: str):
         if name == "wsl":
@@ -50,9 +50,9 @@ def test_discover_prefers_local_binary_over_wsl(monkeypatch):
             return subprocess.CompletedProcess(cmd, 0, stdout="Nmap 7.95\n", stderr="")
         return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="")
 
-    monkeypatch.setattr("nexsec.tool_registry.platform.system", lambda: "Windows")
-    monkeypatch.setattr("nexsec.tool_registry.shutil.which", fake_which)
-    monkeypatch.setattr("nexsec.tool_registry.subprocess.run", fake_run)
+    monkeypatch.setattr("phalanx.tool_registry.platform.system", lambda: "Windows")
+    monkeypatch.setattr("phalanx.tool_registry.shutil.which", fake_which)
+    monkeypatch.setattr("phalanx.tool_registry.subprocess.run", fake_run)
 
     tools = ToolRegistry().discover()
     nmap = next((t for t in tools if t.binary == "nmap"), None)

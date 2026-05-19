@@ -5,8 +5,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from nexsec.offline_store import OfflineStore
-from nexsec.plugins import PluginManager
+from phalanx.offline_store import OfflineStore
+from phalanx.plugins import PluginManager
 
 
 def test_plugin_scaffold_and_list(tmp_path: Path) -> None:

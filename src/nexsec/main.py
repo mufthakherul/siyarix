@@ -67,6 +67,9 @@ from .tool_registry import ToolRegistry
 from .command_profiles import CommandProfileStore, CommandProfile
 from .environment import ensure_env_file, load_env_file, provider_env_var, upsert_env_vars
 from typing import cast, Any
+from .core import IntentRouter, SessionKernel
+from .xi import XICoreService
+from .orchestration import WorkflowRuntime, WorkflowState
 
 # ---------------------------------------------------------------------------
 # Initialize core systems
@@ -83,6 +86,9 @@ plugins = PluginManager()
 creds = CredentialStore()
 load_env_file()
 _plugins_loaded = False
+intent_router = IntentRouter()
+session_kernel = SessionKernel()
+xi_core = XICoreService()
 
 
 def _get_engine(mode: str = "integrated") -> ExecutionEngine:
@@ -839,8 +845,45 @@ def run(
             raise typer.Exit(1)
         instruction += f" on {target}"
 
-    engine = _get_engine(mode)
-    asyncio.run(engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save))
+    route = intent_router.route(instruction, preferred_mode=mode)
+    session = session_kernel.start(objective="direct-command", scope=target or "adhoc")
+    op = session_kernel.add_operation(
+        session=session,
+        instruction=instruction,
+        mode=route.mode,
+        risk_tier=route.risk_tier.value,
+    )
+
+    recommendations = xi_core.recommend(session, route)
+    if recommendations:
+        table = Table(title="XI Recommendations", header_style="bold cyan")
+        table.add_column("Priority", style="magenta", no_wrap=True)
+        table.add_column("Recommendation", style="white")
+        table.add_column("Reason", style="dim")
+        for rec in recommendations:
+            table.add_row(rec.priority, rec.title, rec.reason)
+        console.print(table)
+
+    if route.requires_confirmation and not dry_run:
+        proceed = Prompt.ask(
+            f"Risk tier is {route.risk_tier.value}. Continue execution? (y/N)", default="N"
+        )
+        if not proceed.lower().startswith("y"):
+            session_kernel.update_operation(session, op.operation_id, state="canceled")
+            console.print("[yellow]Execution canceled.[/yellow]")
+            return
+
+    engine = _get_engine(route.mode)
+    result = asyncio.run(engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save))
+    final_state = "completed" if result.success else "failed"
+    session_kernel.update_operation(
+        session=session,
+        operation_id=op.operation_id,
+        state=final_state,
+        retries=result.retries_performed,
+        artifact=result.plan_id or "",
+    )
+    session_kernel.save(session)
 
 
 # ---------------------------------------------------------------------------
@@ -1399,11 +1442,40 @@ def workflow_run_cmd(
     print_banner(console, _active_theme)
     console.print(f"[bold]Workflow:[/bold] {workflow}")
 
-    if dry_run:
-        console.print("[yellow]DRY RUN — no actions executed[/yellow]")
+    try:
+        parsed_params = json.loads(params or "{}")
+    except json.JSONDecodeError as exc:
+        console.print(f"[red]Invalid --params JSON: {exc}[/red]")
+        raise typer.Exit(1)
 
-    # Workflow execution logic...
-    console.print("[green]✓ Workflow complete![/green]")
+    runtime = WorkflowRuntime(engine_factory=_get_engine, store=OfflineStore())
+    try:
+        workflow_data = runtime.load_workflow(workflow, parsed_params)
+        workflow_name = str(workflow_data.get("name") or Path(workflow).stem or "workflow")
+        steps = runtime.validate(workflow_data)
+    except Exception as exc:
+        console.print(f"[red]Workflow validation failed: {exc}[/red]")
+        raise typer.Exit(1)
+
+    result = asyncio.run(runtime.execute(workflow_name=workflow_name, steps=steps, dry_run=dry_run))
+
+    table = Table(title=f"Workflow Result: {result.workflow_name}", header_style="bold cyan")
+    table.add_column("Step", style="cyan")
+    table.add_column("State", style="magenta")
+    table.add_column("Error", style="red")
+    for step in steps:
+        state = result.step_states.get(step.id, WorkflowState.PLANNED)
+        table.add_row(step.id, state.value, result.step_errors.get(step.id, ""))
+    console.print(table)
+
+    if result.status == WorkflowState.COMPLETED:
+        console.print(f"[green]✓ Workflow complete (plan_id={result.plan_id})[/green]")
+    elif result.status == WorkflowState.BLOCKED:
+        console.print(f"[yellow]Workflow blocked (plan_id={result.plan_id})[/yellow]")
+        raise typer.Exit(2)
+    else:
+        console.print(f"[red]Workflow failed (plan_id={result.plan_id})[/red]")
+        raise typer.Exit(1)
 
 
 @workflow_app.command("catalog")

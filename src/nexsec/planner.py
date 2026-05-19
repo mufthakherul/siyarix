@@ -245,7 +245,8 @@ class OllamaModel:
                 resp = await client.get(f"{self._base_url}/api/tags")
                 self._available = resp.status_code == 200
         except Exception as exc:
-            logger.exception("Ollama availability check failed")
+            # Avoid dumping full stack traces for transient network failures; log a concise warning
+            logger.warning("Ollama availability check failed: %s", exc)
             self._available = False
         return bool(self._available)
 

@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 from collections.abc import AsyncGenerator
+from typing import Any
 
 from .offline_store import OfflineStore
 
@@ -32,7 +33,7 @@ class AgentStreamClient:
         self._api_key = api_key
         self._agent_id = agent_id
         self._offline_store = offline_store
-        self._ws = None
+        self._ws: Any | None = None
         self._connected = False
         self._backoff = 1.0
 
@@ -76,7 +77,8 @@ class AgentStreamClient:
             try:
                 await self._send_raw({"type": "finding", "payload": finding})
                 synced_ids.append(finding["id"])
-            except Exception:
+            except Exception as exc:
+                logger.exception("Failed to flush finding %s: %s", finding.get("id"), exc)
                 break  # stop flushing on first failure; will retry next reconnect
         if synced_ids:
             self._offline_store.mark_synced(synced_ids)
@@ -97,7 +99,8 @@ class AgentStreamClient:
             return
         try:
             await self._send_raw({"type": "finding", "payload": finding})
-        except Exception:
+        except Exception as exc:
+            logger.exception("Failed to send finding %s: %s", finding.get("id"), exc)
             self._connected = False
             self._offline_store.save_finding(finding, finding.get("scan_id", "unknown"))
 
@@ -107,7 +110,8 @@ class AgentStreamClient:
             return
         try:
             await self._send_raw({"type": "scan_complete", "scan_id": scan_id, "summary": summary})
-        except Exception:
+        except Exception as exc:
+            logger.exception("Failed to send scan_complete for %s: %s", scan_id, exc)
             self._connected = False
 
     async def send_task_ack(self, task_id: str, accepted: bool, reason: str | None = None) -> None:
@@ -122,7 +126,8 @@ class AgentStreamClient:
         }
         try:
             await self._send_raw(payload)
-        except Exception:
+        except Exception as exc:
+            logger.exception("Failed to send task ack %s: %s", task_id, exc)
             self._connected = False
 
     async def send_task_progress(
@@ -142,7 +147,8 @@ class AgentStreamClient:
         }
         try:
             await self._send_raw(payload)
-        except Exception:
+        except Exception as exc:
+            logger.exception("Failed to send task progress %s: %s", task_id, exc)
             self._connected = False
 
     async def send_task_result(self, task_id: str, result: dict) -> None:
@@ -156,7 +162,8 @@ class AgentStreamClient:
         }
         try:
             await self._send_raw(payload)
-        except Exception:
+        except Exception as exc:
+            logger.exception("Failed to send task result %s: %s", task_id, exc)
             self._connected = False
 
     # ------------------------------------------------------------------

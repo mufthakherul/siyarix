@@ -1,95 +1,74 @@
-## Development setup
+# Local Development Guide
 
-This project targets Python 3.11+. The repository uses `hatchling` for build metadata but you can use a plain virtual environment too.
+Want to hack on Siyarix locally? Awesome! We've tried to make the setup as painless as possible for contributors of all skill levels. 
 
-Recommended quick start (POSIX shells):
+Siyarix is built with Python, and we target Python 3.11+ to take advantage of modern features like robust `asyncio` and advanced type hinting.
 
-1) Create and activate a virtual environment
+---
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
+## 🚀 Quick Setup
+
+The easiest way to get started is by using standard Python tools. We use `hatchling` as our build backend under the hood, but standard `pip` works perfectly.
+
+1. **Clone the repo and enter the folder**
+   ```bash
+   git clone https://github.com/CosmicSec-Lab/siyarix.git
+   cd siyarix
+   ```
+
+2. **Create a virtual environment**
+   This ensures you don't mess up your system Python installation.
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .\.venv\Scripts\activate.ps1
+   ```
+
+3. **Install the project and development dependencies**
+   We install using the `[all]` tag to get the optional features (like AI planners), and we install `pytest` and `ruff` for testing and linting.
+   ```bash
+   pip install -e '.[all]' pytest ruff
+   ```
+   *(The `-e` flag stands for editable, meaning changes you make to the Python files will take effect immediately without needing to reinstall).*
+
+4. **Run the tests**
+   Just to make sure everything works properly on your machine:
+   ```bash
+   pytest -q
+   ```
+   If all tests pass, you're good to go!
+
+---
+
+## 🔑 Managing API Keys Locally
+
+To test the AI task planner, you'll need a valid API key (e.g., Gemini, OpenAI). We made a safe way to handle this so you don't accidentally commit your keys to GitHub:
+
+Run `siyarix` in your terminal to open the interactive shell, and type:
+```text
+/key set gemini your-api-key
 ```
+Siyarix will encrypt it in your local `~/.siyarix/` directory and also generate a `.env` file in the project root for local development convenience. **The `.env` file is in our `.gitignore`, so you are perfectly safe from accidentally leaking it!**
 
-2) Upgrade packaging tools and install the package in editable mode
+---
 
-```bash
-python -m pip install --upgrade pip setuptools wheel
-pip install -e .
-```
+## 🏗️ Code Organization
 
-3) Install test and linting tools
+If you're wondering where to look, here's a quick map of the codebase:
+- `src/siyarix/main.py`: The Typer entry point for the CLI. Start here to see how commands are routed.
+- `src/siyarix/chat.py`: Where the interactive UI and slash commands live.
+- `src/siyarix/core/`: The "brains" of the operation. This holds the task planner (which talks to the LLMs) and the execution engine (which spawns subprocesses).
+- `src/siyarix/parsers/`: Small scripts that take the raw stdout of tools like `nmap` and convert them into structured JSON.
+- `tests/`: Where all our `pytest` unit tests live.
 
-```bash
-pip install pytest ruff
-```
+---
 
-Optional (pre-commit):
+## 🧹 Code Quality
 
-```bash
-pip install pre-commit
-pre-commit install
-```
-
-4) Run tests
-
-```bash
-pytest -q
-```
-
-Alternative (using Hatch):
-
-```bash
-pip install hatch
-hatch env create
-hatch run pip install -e .
-```
-
-.env and secrets
-
-- A placeholder `.env.example` exists at the repository root. NexSec also creates/uses a repo-root `.env` file for local API key syncing.
-- You can store keys with `siyarix auth set-key <provider>` or the chat `/key` command — no manual env editing required.
-- Never commit secrets (API keys) to the repository.
-
-Linting
+We use [Ruff](https://docs.astral.sh/ruff/) to keep the code formatted and clean. Before opening a Pull Request, it's a good idea to check your code by running:
 
 ```bash
 ruff check .
 ```
 
-Notes
-
-- If you need optional features (LLM integration, Rust acceleration) install extras declared in `pyproject.toml` (e.g., `pip install -e .[all]`).
-- If you see issues during test runs, create a branch and open a PR with failing test output and a short note; I can help diagnose failures.
-- Launching `siyarix` now opens the richer assistant-style landing screen, so you can verify the UX directly in development.
-# Development Guide
-
-### Developer Setup
-
-To set up a local development environment:
-
-```bash
-git clone https://github.com/CosmicSec-Lab/siyarix.git
-cd siyarix
-python -m venv .venv
-source .venv/bin/activate   # or .\.venv\Scripts\activate.ps1 on Windows
-pip install -e '.[all]'
-pytest -q
-```
-
-### Development Conventions
-
-- **Code Quality**: We use Ruff for linting and formatting. Ensure your code follows the established project style.
-- **Modularity**: When adding new functionality, prefer creating a new module or plugin rather than modifying the core execution logic.
-- **Testing**: All new features must include comprehensive unit tests under the `tests/` directory using `pytest`.
-- **Asynchrony**: Core logic is built on Python's `asyncio` for non-blocking subprocess management and model interaction.
-
-### Architecture Highlights
-
-- **`main.py`**: Multi-level CLI entry point with nested sub-apps.
-- **`chat`**: Interactive AI assistant and REPL logic.
-- **`planner`**: Task planning logic and model provider implementations.
-- **`engine`**: The primary execution loop and dependency management.
-- **`interpreter`**: Heuristic and model-driven instruction interpretation.
-- **`parsers`**: Standardized adapters for external tool output.
-- **`security_commands`**: Specialized SecOps command definitions.
+### Need Help?
+If you ever get stuck, see weird test failures on your specific OS, or just want to bounce an architectural idea around, open an issue or a Draft PR! We are very happy to help you figure it out.

@@ -128,5 +128,13 @@ pkg/
 out/
 build/
 .gradle/
-.kotlin/
 .scala/
+
+# Internal planning and design assets
+redesign_plan.md
+scratch_rename.py
+DEEP_TECHNICAL_AUDIT.md
+IMPLEMENTATION_ROADMAP.md
+docs/DEEP_TECHNICAL_AUDIT.md
+docs/IMPLEMENTATION_ROADMAP.md
+docs/modern_distribution.md

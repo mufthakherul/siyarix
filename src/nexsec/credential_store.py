@@ -202,7 +202,7 @@ class CredentialStore:
         if provider != "aws":
             return False
         try:
-            import boto3
+            __import__("boto3")
 
             return True
         except Exception:

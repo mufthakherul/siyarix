@@ -6,9 +6,8 @@ import asyncio
 import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
-import subprocess
-import shlex
 import logging
+import subprocess
 
 
 @dataclass
@@ -128,7 +127,7 @@ def safe_run_sync(
     _validate_cmd_list(cmd)
     try:
         return subprocess.run(cmd, capture_output=capture_output, text=text, timeout=timeout)
-    except subprocess.TimeoutExpired as e:
+    except subprocess.TimeoutExpired:
         logger.debug("safe_run_sync timeout for cmd=%s", cmd)
         raise
     except Exception as exc:

@@ -1,6 +1,3 @@
-from pathlib import Path
-import os
-
 from nexsec.plugins import PluginManager
 
 

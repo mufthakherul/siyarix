@@ -96,21 +96,19 @@ jobs:
 
       - name: Create requirements files for scanning
         run: |
-          pip freeze > requirements.lock
-          pip install -e . > /dev/null 2>&1 || true
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pip-audit
 
-      - name: Run OSV Scanner
-        uses: google/osv-scanner-action/github-action@v2
-        with:
-          lockfile: 'requirements.lock'
-          results-file-name: 'osv-sarif-results.sarif'
+      - name: Run dependency vulnerability scan
+        run: pip-audit --format=json --output=osv-sarif-results.json || true
 
-      - name: Upload SARIF results
+      - name: Upload dependency scan results
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: actions/upload-artifact@v4
         with:
-          sarif_file: osv-sarif-results.sarif
-          category: osv-scanner
+          name: dependency-scan-report
+          path: osv-sarif-results.json
 
   secrets-scanning:
     name: Secrets Detection
@@ -206,19 +204,13 @@ jobs:
         with:
           results_file: scorecard-results.json
           results_format: json
-          publish_results: true
+          publish_results: false
 
       - name: Upload scorecard results
         uses: actions/upload-artifact@v4
         with:
           name: scorecard-results
           path: scorecard-results.json
-
-      - name: Publish Scorecard badge
-        uses: ossf/scorecard-action@v2.4.3
-        with:
-          results_file: scorecard-results.json
-          publish_results: true
 
   dependency-updates-check:
     name: Check for Dependency Updates

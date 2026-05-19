@@ -1,6 +1,3 @@
-from pathlib import Path
-import os
-
 from siyarix.plugins import PluginManager
 
 

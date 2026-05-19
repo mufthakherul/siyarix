@@ -99,7 +99,6 @@ class HealthChecker:
 
     async def check_all(self) -> HealthStatus:
         """Perform comprehensive health check."""
-        start = time.time()
         status = HealthStatus(state=HealthState.HEALTHY)
         status.uptime_seconds = time.time() - self.start_time
 

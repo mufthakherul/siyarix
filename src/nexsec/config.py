@@ -9,12 +9,12 @@ from __future__ import annotations
 import os
 import subprocess  # nosec B404
 import logging
+from pathlib import Path
+from typing import Any
 
 from siyarix.executor import safe_run_sync
 
 logger = logging.getLogger(__name__)
-from pathlib import Path
-from typing import Any
 
 _CONFIG_DIR = Path(os.getenv("SIYARIX_CONFIG_DIR", str(Path.home() / ".siyarix")))
 _SETTINGS_FILE = _CONFIG_DIR / "settings.toml"
@@ -103,8 +103,7 @@ def _try_load_toml(path: Path) -> dict[str, Any]:
                             except ValueError:
                                 result[k] = v
                 return result
-    except Exception as exc:
-        logger = logging.getLogger(__name__)
+    except Exception:
         logger.exception("Failed to parse TOML file %s", path)
         return {}
 

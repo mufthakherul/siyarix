@@ -169,7 +169,6 @@ class WorkflowRuntime:
 
         self._store.update_plan_status(plan_id, WorkflowState.RUNNING.value)
         semaphore = asyncio.Semaphore(self._max_concurrency)
-        step_map = {s.id: s for s in steps}
         completed: set[str] = set()
         failed: set[str] = set()
 
@@ -252,4 +251,3 @@ class WorkflowRuntime:
             self._store.update_plan_status(plan_id, WorkflowState.COMPLETED.value, completed=True)
 
         return result
-

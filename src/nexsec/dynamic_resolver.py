@@ -130,6 +130,7 @@ _SAFE_COMMANDS: frozenset[str] = frozenset(
 
 # Patterns that are ALWAYS blocked — prevent destructive operations
 _BLOCKED_PATTERNS: list[re.Pattern[str]] = [
+    # ── Destructive system commands ──
     re.compile(r"\brm\s+-[a-zA-Z]*r[a-zA-Z]*f", re.IGNORECASE),  # rm -rf
     re.compile(r"\brm\s+-[a-zA-Z]*f[a-zA-Z]*r", re.IGNORECASE),  # rm -fr
     re.compile(r"\bmkfs\b", re.IGNORECASE),  # format disk
@@ -147,11 +148,32 @@ _BLOCKED_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\bsudo\s+rm\b", re.IGNORECASE),  # sudo rm
     re.compile(r"\bcurl\b.*\|\s*(?:sudo\s+)?(?:bash|sh)\b", re.IGNORECASE),  # pipe to shell
     re.compile(r"\bwget\b.*\|\s*(?:sudo\s+)?(?:bash|sh)\b", re.IGNORECASE),
+    # ── SQL injection patterns ──
+    re.compile(r";\s*\b(?:SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|UNION|EXEC)\b", re.IGNORECASE),
+    re.compile(r"\bDROP\s+(?:TABLE|DATABASE)\b", re.IGNORECASE),
+    re.compile(r"\bDELETE\s+FROM\b[^;]*(?!WHERE)", re.IGNORECASE),
+    re.compile(r"""['\"]\s*(?:OR|AND)\s+['\"]?\d+['\"]?\s*=\s*['\"]?\d+""", re.IGNORECASE),  # ' OR 1=1
+    # ── Shell injection sequences ──
+    re.compile(r"[;&|]{2,}"),  # && || ;;
+    re.compile(r"`[^`]+`"),  # backtick execution
+    re.compile(r"\$\([^)]+\)"),  # $() command substitution
+    # ── Path traversal ──
+    re.compile(r"(?:\.\.[\\/]){3,}"),  # ../../../
+    # ── Null bytes ──
+    re.compile(r"\x00"),  # null byte injection
+    # ── Format string attacks ──
+    re.compile(r"%n"),  # format string write
+    re.compile(r"(?:%s){3,}"),  # format string read chain
+    # ── Reverse shells / crypto miners ──
+    re.compile(r"/dev/tcp/", re.IGNORECASE),
+    re.compile(r"\bxmrig\b", re.IGNORECASE),  # crypto miner
+    re.compile(r"\bcpuminer\b", re.IGNORECASE),
 ]
 
 # Environment variable patterns that might indicate secrets
 _SECRET_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\$\{?(?:PASSWORD|SECRET|TOKEN|API_KEY|PRIVATE_KEY)\}?", re.IGNORECASE),
+    re.compile(r"(?i)(?:password|passwd|pwd|secret|token|auth)\s*[=:]\s*\S+"),
 ]
 
 
@@ -282,6 +304,30 @@ class DynamicResolver:
             safety_score=safety_score,
             warnings=warnings,
         )
+
+    def has_arg_injection(self, args: list[str]) -> tuple[bool, str]:
+        """Check a list of arguments for injection patterns.
+
+        Returns (found, description) where found is True if injection detected.
+        """
+        _ARG_INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
+            ("shell_pipe", re.compile(r"[|;&`]")),
+            ("command_substitution", re.compile(r"\$\(|`")),
+            ("path_traversal", re.compile(r"(?:\.\.[\\/]){3,}")),
+            ("null_byte", re.compile(r"\x00")),
+            ("newline", re.compile(r"[\r\n]")),
+            ("sql_keyword", re.compile(
+                r"\b(?:SELECT|INSERT|DELETE|DROP|ALTER|UNION|EXEC)\b.*[;'\"]",
+                re.IGNORECASE,
+            )),
+        ]
+
+        full = " ".join(args)
+        for name, pattern in _ARG_INJECTION_PATTERNS:
+            if pattern.search(full):
+                logger.warning("Arg injection detected (%s) in: %s", name, full[:200])
+                return True, name
+        return False, ""
 
     def resolve_tool_for_capability(self, capability: str, registered_tools: list[dict]) -> str | None:
         """Find the best registered tool for a given capability.

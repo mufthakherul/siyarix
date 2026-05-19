@@ -1,4 +1,4 @@
-"""XI Predictor — Predictive action engine for NexSec.
+"""XI Predictor — Predictive action engine for Phalanx.
 
 Analyzes user behaviour patterns and current context to suggest:
   • Next likely command
@@ -60,8 +60,8 @@ _PHASE_ACTIONS: dict[str, list[tuple[str, str]]] = {
         ("export findings to JSON", "Export structured findings data"),
     ],
     "reporting": [
-        ("nexsec report generate", "Generate final report"),
-        ("nexsec history list", "Review scan history"),
+        ("phalanx report generate", "Generate final report"),
+        ("phalanx history list", "Review scan history"),
     ],
 }
 
@@ -90,7 +90,7 @@ _TOOL_FOLLOWUPS: dict[str, list[tuple[str, str]]] = {
 
 
 class Predictor:
-    """Predictive action engine for NexSec XI."""
+    """Predictive action engine for Phalanx XI."""
 
     def __init__(self) -> None:
         self._command_patterns: Counter[str] = Counter()
@@ -142,7 +142,7 @@ class Predictor:
         # 3) Findings-based recommendations
         if findings_count > 0:
             predictions.append(Prediction(
-                action="generate report" if target else "nexsec report generate",
+                action="generate report" if target else "phalanx report generate",
                 confidence=0.6,
                 reason=f"{findings_count} finding(s) detected — consider reporting",
                 category="suggestion",

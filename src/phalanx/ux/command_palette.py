@@ -1,4 +1,4 @@
-"""Command Palette for NexSec v2.0.
+"""Command Palette for Siyarix v2.0.
 
 Provides a fuzzy-search interface to quickly search and select core commands,
 predefined intent templates, saved profiles, and recent command history.

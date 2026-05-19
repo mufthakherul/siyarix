@@ -1,4 +1,4 @@
-"""Guided Onboarding Wizard for NexSec v2.0.
+"""Guided Onboarding Wizard for Siyarix v2.0.
 
 Provides an interactive step-by-step onboarding wizard using Rich console prompting
 to set up AI model providers, discover local security tools, choose color themes,
@@ -51,7 +51,7 @@ class OnboardingWizard:
 
         # Epilogue
         self.console.print(Panel(
-            "[bold green]✓ NexSec setup completed successfully![/bold green]\n"
+            "[bold green]✓ Siyarix setup completed successfully![/bold green]\n"
             "[white]You are now fully configured to execute autonomous operations.[/white]\n"
             "[dim]Try running: [bold cyan]siyarix chat[/bold cyan] or [bold cyan]siyarix dashboard[/bold cyan][/dim]",
             title="[bold green]⚡ SECURE CONFIGURATION ACQUIRED[/bold green]",
@@ -85,7 +85,7 @@ class OnboardingWizard:
         """Step 2: AI Model Provider Config."""
         self.console.print("\n[bold bright_magenta]◈ STEP 2: AI MODEL CORE CONFIGURATION[/bold bright_magenta]")
         self.console.print("──────────────────────────────────────────────────────────")
-        self.console.print("NexSec uses Large Language Models to interpret commands and plan execution steps.")
+        self.console.print("Siyarix uses Large Language Models to interpret commands and plan execution steps.")
         self.console.print("Select your preferred AI Provider:\n")
 
         table = Table(box=None, header_style="bold dim white")
@@ -122,7 +122,7 @@ class OnboardingWizard:
         """Step 3: Tool Discovery Check."""
         self.console.print("\n[bold bright_magenta]◈ STEP 3: ARSENAL SCAN & AUTOMATED TOOL DISCOVERY[/bold bright_magenta]")
         self.console.print("──────────────────────────────────────────────────────────")
-        self.console.print("NexSec scans your local PATH and WSL instances to detect installed penetration tools.")
+        self.console.print("Siyarix scans your local PATH and WSL instances to detect installed penetration tools.")
 
         with self.console.status("[bold bright_cyan]Scanning PATH executables...[/bold bright_cyan]"):
             discovered = self.registry.discover(force_refresh=True, fast=True)

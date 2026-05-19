@@ -1,3 +1,4 @@
+from .amass_parser import AmassParser  # noqa: F401
 from .burpsuite_parser import BurpsuiteParser  # noqa: F401
 from .ffuf_parser import FfufParser  # noqa: F401
 from .gobuster_parser import GobusterParser  # noqa: F401
@@ -9,11 +10,14 @@ from .metasploit_parser import MetasploitParser  # noqa: F401
 from .nikto_parser import NiktoParser  # noqa: F401
 from .nmap_parser import NmapParser  # noqa: F401
 from .nuclei_parser import NucleiParser  # noqa: F401
+from .shodan_parser import ShodanParser  # noqa: F401
 from .sqlmap_parser import SqlmapParser  # noqa: F401
+from .subfinder_parser import SubfinderParser  # noqa: F401
 from .wpscan_parser import WpscanParser  # noqa: F401
 from .zaproxy_parser import ZaproxyParser  # noqa: F401
 
 __all__ = [
+    "AmassParser",
     "BurpsuiteParser",
     "FfufParser",
     "GobusterParser",
@@ -25,7 +29,9 @@ __all__ = [
     "NiktoParser",
     "NmapParser",
     "NucleiParser",
+    "ShodanParser",
     "SqlmapParser",
+    "SubfinderParser",
     "WpscanParser",
     "ZaproxyParser",
 ]

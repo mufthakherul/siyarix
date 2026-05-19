@@ -5,7 +5,7 @@ NexSec is an enterprise-grade cybersecurity command center designed for modulari
 ## Architectural Layers
 
 - **CLI Layer (Typer & Rich)**: A nested, multi-level command routing system using Typer for structure and Rich for premium console output, themes, and interactive components.
-- **Interactive REPL (Chat Mode)**: A specialized cybersecurity AI assistant that maintains session history, supports slash commands, and provides natural language to execution pipelines.
+- **Interactive REPL (Chat Mode)**: A specialized cybersecurity AI assistant that maintains session history, supports slash commands, and provides natural language to execution pipelines. The no-subcommand `nexsec` launch path now opens a polished command-center landing screen with quick actions and status cards.
 - **Orchestration & Planning**:
     - **Task Planner**: Decomposes high-level instructions into multi-step execution plans.
     - **Execution Engine**: Orchestrates tasks with support for retries, dependency management, and workflow persistence.
@@ -15,6 +15,7 @@ NexSec is an enterprise-grade cybersecurity command center designed for modulari
     - **Integrated Mode (Default)**: Combines AI planning with registry-backed tool verification for optimal reliability.
 - **Security & Knowledge**:
     - **Enterprise Vault**: Secure, encrypted storage for API keys and secrets using Fernet and AWS KMS.
+    - **Environment Sync Layer**: Local key storage is mirrored into a repo-root `.env` file for convenience while the encrypted vault remains the source of truth.
     - **Shell Knowledge Library**: A cross-platform translation engine that maps intents to platform-native (Bash, PowerShell, CMD) security commands.
     - **Tool Registry**: Auto-discovery system for security binaries and their capabilities.
 - **Persistence & Compliance**:
@@ -27,3 +28,4 @@ NexSec is an enterprise-grade cybersecurity command center designed for modulari
 - **Platform Agnostic**: All core intents are translated to the host's native shell environment, ensuring consistent behavior across Linux, macOS, and Windows.
 - **Offline-First Resilience**: Critical operations (registry scans, vault access, audit logging) function without internet connectivity.
 - **Policy-Driven Safety**: Integrated safety resolvers and CI/CD gates ensure that autonomous actions adhere to organizational security policies.
+- **Assistant-Style UX**: The landing experience emphasizes current mode, provider, theme, session state, and quick actions so the interface feels closer to a modern CLI copilot.

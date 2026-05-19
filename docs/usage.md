@@ -2,7 +2,7 @@
 
 ## Interactive AI Assistant (Chat Mode)
 
-The most powerful way to use NexSec is the interactive chat mode. It provides a conversational interface with session persistence and slash commands.
+The most powerful way to use NexSec is the interactive chat mode. It provides a conversational interface with session persistence, slash commands, model selection, and a polished landing screen when launched via `nexsec`.
 
 ```bash
 # Launch chat
@@ -13,6 +13,9 @@ nexsec chat --target example.com
 
 # Resume the most recent session
 nexsec chat --resume
+
+# Launch the default assistant-style shell
+nexsec
 ```
 
 **Common Chat Commands:**
@@ -20,6 +23,11 @@ nexsec chat --resume
 - `/mode autonomous`: Switch to AI-driven planning.
 - `/target 10.0.0.1`: Set the current session target.
 - `/tools`: List security tools found on your system.
+- `/key set gemini <api-key>`: Store a Gemini key in the vault and `.env`.
+- `/key list`: Show configured providers and status.
+- `/theme mode dark`: Switch the interface theme.
+- `/theme appearance`: Preview the current UI appearance.
+- `/model gemini`: Prefer Gemini for planning.
 
 ---
 
@@ -84,3 +92,14 @@ nexsec shell translate network_connections
 # Get a security readiness report for your terminal
 nexsec shell doctor
 ```
+
+## Command-Center Launch Flow
+
+When you run `nexsec` with no subcommand, the app opens directly into the interactive assistant shell and shows:
+
+- current platform and shell
+- active mode and session ID
+- current theme and model provider
+- quick actions for keys, themes, models, and command search
+
+This is the recommended entry point if you want a CLI assistant experience similar to other modern agent shells.

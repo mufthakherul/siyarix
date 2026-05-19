@@ -9,6 +9,11 @@ We welcome contributions from the community! To contribute to NexSec, please fol
 3.  **Commit Standards**: Use clear, professional commit messages (e.g., `feat:`, `fix:`, `docs:`, `refactor:`).
 4.  **Pull Requests**: Submit your pull request against the `main` branch. Include a descriptive summary of your changes and reference any related issues.
 
+### Documentation Expectations
+
+- If you add or change a CLI command, update `docs/cli-reference.md` and any relevant usage or troubleshooting pages.
+- If you change the default `nexsec` landing experience, refresh the README screenshots or quick-start text so the UX stays discoverable.
+
 ### Code of Conduct
 
 Maintainers and contributors are expected to follow professional and respectful behavior. Security-sensitive issues should be reported according to the guidelines in `SECURITY.md`.

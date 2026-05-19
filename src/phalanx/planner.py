@@ -692,9 +692,43 @@ class TaskPlanner:
         steps: list[ExecutionStep] = []
         step_counter = 0
 
-        # Handle multi-step workflows
-        if task.sub_tasks:
+        # Handle workflows, conditionals, and chains
+        if task.action == "conditional":
+            then_sub = next((s for s in task.sub_tasks if s.flags.get("branch") == "then"), None)
+            else_sub = next((s for s in task.sub_tasks if s.flags.get("branch") == "else"), None)
+            cond_str = task.flags.get("condition")
+
+            if then_sub:
+                then_steps = self._task_to_steps(then_sub, step_counter, [])
+                for s in then_steps:
+                    s.condition = cond_str
+                steps.extend(then_steps)
+                step_counter += len(then_steps)
+
+            if else_sub:
+                else_steps = self._task_to_steps(else_sub, step_counter, [])
+                for s in else_steps:
+                    s.condition = f"not ({cond_str})"
+                steps.extend(else_steps)
+                step_counter += len(else_steps)
+
+        elif task.action == "chain":
             prev_ids: list[str] = []
+            for i, sub in enumerate(task.sub_tasks):
+                sub_steps = self._task_to_steps(sub, step_counter, prev_ids)
+                if i > 0 and sub_steps and prev_ids:
+                    op = sub.flags.get("chain_op", "&&")
+                    prev_id = prev_ids[-1]
+                    if op == "&&":
+                        sub_steps[0].condition = f"{prev_id}.success"
+                    elif op == "||":
+                        sub_steps[0].condition = f"{prev_id}.failed"
+                steps.extend(sub_steps)
+                prev_ids = [s.id for s in sub_steps]
+                step_counter += len(sub_steps)
+
+        elif task.sub_tasks:
+            prev_ids = []
             for sub in task.sub_tasks:
                 sub_steps = self._task_to_steps(sub, step_counter, prev_ids)
                 steps.extend(sub_steps)
@@ -783,15 +817,34 @@ class TaskPlanner:
             )
 
         elif task.category == TaskCategory.CUSTOM:
-            steps.append(
-                ExecutionStep(
-                    id=f"step_{offset + 1}",
-                    step_type=StepType.SHELL_CMD,
-                    command=task.raw_text,
-                    description="Custom command execution",
-                    depends_on=depends_on,
+            intent = task.flags.get("intent")
+            if intent:
+                from . import shell_knowledge
+                kwargs = {}
+                if primary_target:
+                    kwargs["target"] = primary_target
+                    kwargs["file"] = primary_target
+                cmd = shell_knowledge.render_intent(intent, **kwargs)
+                desc = shell_knowledge.INTENT_METADATA.get(intent, {}).get("description", f"Execute {intent}")
+                steps.append(
+                    ExecutionStep(
+                        id=f"step_{offset + 1}",
+                        step_type=StepType.SHELL_CMD,
+                        command=cmd,
+                        description=desc,
+                        depends_on=depends_on,
+                    )
                 )
-            )
+            else:
+                steps.append(
+                    ExecutionStep(
+                        id=f"step_{offset + 1}",
+                        step_type=StepType.SHELL_CMD,
+                        command=task.raw_text,
+                        description="Custom command execution",
+                        depends_on=depends_on,
+                    )
+                )
 
         else:
             # Unknown — create a placeholder shell step

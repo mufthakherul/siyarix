@@ -17,6 +17,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import platform
+import shutil
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -45,6 +47,7 @@ from .notifications import notification_center
 from .offline_store import OfflineStore
 from .security_hardening import redactor, danger_analyzer, validator
 from .tool_registry import ToolInfo, ToolRegistry
+from .knowledge_graph import KnowledgeGraph
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -181,12 +184,125 @@ class ExecutionEngine:
         # Step results for tracking
         self._completed_steps: dict[str, StepResult] = {}
         self._offline_store: OfflineStore | None = None
+        self._graph = KnowledgeGraph()
 
     def _get_offline_store(self) -> OfflineStore:
         """Get or create offline store instance."""
         if self._offline_store is None:
             self._offline_store = OfflineStore()
         return self._offline_store
+
+    def _refresh_tools(self) -> None:
+        """Force rediscovery of installed tools and rebuild the resolver."""
+        fast_discovery = bool(self._config.get("fast_discovery"))
+        self._discovered_tools = self._registry.discover(force_refresh=True, fast=fast_discovery)
+        self._tool_map = {t.name: t for t in self._discovered_tools}
+        self._binary_map = {t.binary: t for t in self._discovered_tools}
+
+        registered = {t.binary: t.path for t in self._discovered_tools}
+        registered.update({t.name: t.path for t in self._discovered_tools})
+        self._resolver = DynamicResolver(registered_tools=registered)
+
+    async def _try_install_tool(self, tool_name: str) -> bool:
+        """Attempt to automatically install a required tool after obtaining user permission."""
+        system = platform.system().lower()
+        package_names = {
+            "nmap": "nmap",
+            "masscan": "masscan",
+            "amass": "amass",
+            "subfinder": "subfinder",
+            "dnsx": "dnsx",
+            "theHarvester": "theharvester",
+            "whois": "whois",
+            "shodan": "shodan",
+            "nikto": "nikto",
+            "gobuster": "gobuster",
+            "ffuf": "ffuf",
+            "feroxbuster": "feroxbuster",
+            "httpx": "httpx",
+            "wpscan": "wpscan",
+            "sqlmap": "sqlmap",
+            "nuclei": "nuclei",
+            "hydra": "hydra",
+            "john": "john",
+            "hashcat": "hashcat",
+            "msfconsole": "metasploit-framework",
+            "trufflehog": "trufflehog",
+            "gitleaks": "gitleaks",
+            "aws": "awscli",
+            "az": "azure-cli",
+            "gcloud": "google-cloud-sdk",
+            "docker": "docker",
+            "podman": "podman",
+            "kubectl": "kubernetes-cli",
+            "helm": "helm",
+            "terraform": "terraform",
+            "ansible": "ansible",
+            "uv": "uv",
+        }
+
+        package = package_names.get(tool_name, tool_name)
+        install_commands: list[list[str]] = []
+
+        python_tools = {"shodan", "trufflehog", "ansible", "theHarvester"}
+        if tool_name in python_tools or package == "shodan":
+            install_commands.append(["pip", "install", "--upgrade", package])
+            install_commands.append(["pip3", "install", "--upgrade", package])
+            install_commands.append(["python", "-m", "pip", "install", "--upgrade", package])
+            install_commands.append(["python3", "-m", "pip", "install", "--upgrade", package])
+
+        if system == "windows":
+            install_commands.append(["winget", "install", "-e", "--id", f"SecurityTool.{package}" if package in ["nmap", "wireshark"] else package, "--silent", "--accept-package-agreements", "--accept-source-agreements"])
+            install_commands.append(["winget", "install", package, "--silent"])
+            install_commands.append(["choco", "install", package, "-y", "--no-progress"])
+        elif system == "darwin":
+            install_commands.append(["brew", "install", package])
+        else:  # Linux (Debian, Ubuntu, Kali, etc.)
+            install_commands.append(["sudo", "apt-get", "update", "-y"])
+            install_commands.append(["sudo", "apt-get", "install", "-y", package])
+            install_commands.append(["apt-get", "install", "-y", package])
+
+        from .output import output
+
+        valid_installers = []
+        for cmd in install_commands:
+            installer_bin = cmd[0]
+            if shutil.which(installer_bin):
+                valid_installers.append(cmd)
+
+        if not valid_installers:
+            console.print(f"[yellow]⚠ Cannot automatically install '{tool_name}': No package manager (winget/choco/brew/apt/pip) found on PATH.[/yellow]")
+            return False
+
+        installer_desc = " / ".join([" ".join(c) for c in valid_installers[:2]])
+        confirm_msg = f"Tool '{tool_name}' is required but not installed. Do you want to automatically install it? (Proposed: {installer_desc})"
+
+        if not output.prompt_confirm(confirm_msg, default=True):
+            console.print(f"[yellow]✗ Skipping installation of '{tool_name}' by user request.[/yellow]")
+            return False
+
+        console.print(f"[bold blue]⚡ Initiating auto-installation of '{tool_name}'...[/bold blue]")
+
+        success = False
+        for cmd in valid_installers:
+            console.print(f"[dim]Running: {' '.join(cmd)}[/dim]")
+            try:
+                result = await run_tool_complete(cmd[0], cmd[1:], timeout=300)
+                if result.exit_code == 0:
+                    success = True
+                    console.print(f"[bold green]✓ Successfully installed '{tool_name}' via '{cmd[0]}'![/bold green]")
+                    break
+                else:
+                    console.print(f"[yellow]⚠ Installer '{cmd[0]}' exited with code {result.exit_code}. Trying next installer...[/yellow]")
+            except Exception as e:
+                console.print(f"[dim]Installer '{cmd[0]}' encountered an error: {e}[/dim]")
+
+        if success:
+            self._refresh_tools()
+            return True
+        else:
+            console.print(f"[red]✗ Failed to install '{tool_name}'. Please install it manually.[/red]")
+            return False
 
     def _setup_providers(self) -> None:
         """Configure model providers based on available configuration."""
@@ -223,6 +339,11 @@ class ExecutionEngine:
             if hasattr(provider, "available") and not provider.available:
                 continue
             self._planner.add_provider(provider)
+
+    @property
+    def graph(self) -> KnowledgeGraph:
+        """Get the live knowledge graph of findings."""
+        return self._graph
 
     @property
     def mode(self) -> ExecutionMode:
@@ -538,6 +659,9 @@ class ExecutionEngine:
                 self._completed_steps[step.id] = sr
                 self._persist_step(store, plan_id, sr)
 
+                # Dynamically mutate the remaining plan steps based on this step's output
+                self._adapt_plan_on_step_result(step, sr, plan, still_pending)
+
                 if progress and task_id is not None:
                     status_icon = "✅" if sr.status == StepStatus.SUCCESS else "❌"
                     progress.update(
@@ -744,6 +868,8 @@ class ExecutionEngine:
                 outputs.append(f"--- {tool_info.name} ---\n{result.stdout}")
                 # Parse findings if parser available
                 tool_findings = self._parse_tool_output(tool_info.name, result.stdout)
+                for f in tool_findings:
+                    self._graph.ingest_finding(f, tool=tool_info.name)
                 findings.extend(tool_findings)
                 metrics.record_tool_execution(
                     tool_name=tool_info.name,
@@ -765,16 +891,24 @@ class ExecutionEngine:
         resolved = self._resolver.resolve(tool_name, step.args)
 
         if not resolved.is_safe:
-            if interactive:
-                console.print(
-                    f"[red]⚠ Blocked unsafe command:[/red] {tool_name}\n"
-                    f"  Reasons: {'; '.join(resolved.warnings)}"
+            # Check if it was blocked because it was not found on PATH
+            if any("not found on PATH" in warning for warning in resolved.warnings):
+                installed = await self._try_install_tool(tool_name)
+                if installed:
+                    # Re-resolve since the tool is now installed!
+                    resolved = self._resolver.resolve(tool_name, step.args)
+
+            if not resolved.is_safe:
+                if interactive:
+                    console.print(
+                        f"[red]⚠ Blocked unsafe command:[/red] {tool_name}\n"
+                        f"  Reasons: {'; '.join(resolved.warnings)}"
+                    )
+                return StepResult(
+                    step_id=step.id,
+                    status=StepStatus.BLOCKED,
+                    error=f"Blocked: {'; '.join(resolved.warnings)}",
                 )
-            return StepResult(
-                step_id=step.id,
-                status=StepStatus.BLOCKED,
-                error=f"Blocked: {'; '.join(resolved.warnings)}",
-            )
 
         # Build args
         args = list(step.args)
@@ -787,6 +921,8 @@ class ExecutionEngine:
 
         # Parse findings
         findings = self._parse_tool_output(tool_name, result.stdout)
+        for f in findings:
+            self._graph.ingest_finding(f, tool=tool_name)
 
         # Redact secrets from output before storing
         safe_output = redactor.redact(result.stdout)
@@ -838,16 +974,24 @@ class ExecutionEngine:
         resolved = self._resolver.resolve(base_cmd, args)
 
         if not resolved.is_safe:
-            if interactive:
-                console.print(
-                    f"[red]⚠ Blocked unsafe command:[/red] {command}\n"
-                    f"  Reasons: {'; '.join(resolved.warnings)}"
+            # Check if it was blocked because it was not found on PATH
+            if any("not found on PATH" in warning for warning in resolved.warnings):
+                installed = await self._try_install_tool(base_cmd)
+                if installed:
+                    # Re-resolve since the tool is now installed!
+                    resolved = self._resolver.resolve(base_cmd, args)
+
+            if not resolved.is_safe:
+                if interactive:
+                    console.print(
+                        f"[red]⚠ Blocked unsafe command:[/red] {command}\n"
+                        f"  Reasons: {'; '.join(resolved.warnings)}"
+                    )
+                return StepResult(
+                    step_id=step.id,
+                    status=StepStatus.BLOCKED,
+                    error=f"Blocked: {'; '.join(resolved.warnings)}",
                 )
-            return StepResult(
-                step_id=step.id,
-                status=StepStatus.BLOCKED,
-                error=f"Blocked: {'; '.join(resolved.warnings)}",
-            )
 
         # Warn for unregistered commands
         if resolved.warnings and interactive:
@@ -964,12 +1108,160 @@ class ExecutionEngine:
         return True
 
     def _evaluate_condition(self, condition: str) -> bool:
-        """Evaluate a step condition based on completed steps."""
-        # Simple condition evaluation
+        """Pillar 3: Step Condition Evaluator.
+        Evaluates a step condition dynamically based on completed steps
+        and the live KnowledgeGraph state. Supports negations 'not (...)',
+        step status checkers, findings checkers, and graph target states.
+        """
+        condition = condition.strip()
+        
+        # 1. Parse negations like not (...)
+        if condition.startswith("not ") or condition.startswith("not("):
+            if condition.startswith("not "):
+                sub = condition[4:].strip()
+            else:
+                sub = condition[3:].strip()
+            if sub.startswith("(") and sub.endswith(")"):
+                sub = sub[1:-1].strip()
+            return not self._evaluate_condition(sub)
+            
+        # 2. Check for step_X.success
+        if condition.endswith(".success"):
+            step_id = condition[:-8].strip()
+            res = self._completed_steps.get(step_id)
+            return res is not None and res.status == StepStatus.SUCCESS
+
+        # 3. Check for step_X.failed
+        if condition.endswith(".failed"):
+            step_id = condition[:-8].strip()
+            res = self._completed_steps.get(step_id)
+            return res is not None and res.status == StepStatus.FAILED
+
+        # 4. Check for findings count
         if "findings.count > 0" in condition:
             total_findings = sum(len(r.findings) for r in self._completed_steps.values())
             return total_findings > 0
+
+        # 5. Check for port_X_open
+        port_match = re.match(r"^port_(\d+)_open$", condition)
+        if port_match:
+            port_num = int(port_match.group(1))
+            from siyarix.knowledge_graph import NodeType
+            ports = self._graph.find_nodes(NodeType.PORT)
+            for p in ports:
+                if p.properties.get("port") == port_num:
+                    return True
+            return False
+
+        # 6. Check for service_Y_running
+        service_match = re.match(r"^service_([a-zA-Z0-9_\-]+)_running$", condition)
+        if service_match:
+            svc_name = service_match.group(1).lower()
+            from siyarix.knowledge_graph import NodeType
+            services = self._graph.find_nodes(NodeType.SERVICE)
+            for s in services:
+                if s.label.lower() == svc_name:
+                    return True
+            return False
+
+        # 7. Check for vulnerability_found
+        if condition == "vulnerability_found":
+            from siyarix.knowledge_graph import NodeType
+            vulns = self._graph.find_nodes(NodeType.VULNERABILITY)
+            return len(vulns) > 0
+
         return True  # Default: execute
+
+    def _adapt_plan_on_step_result(
+        self,
+        step: ExecutionStep,
+        sr: StepResult,
+        plan: ExecutionPlan,
+        still_pending: list[ExecutionStep],
+    ) -> None:
+        """Pillar 3: Dynamic Plan Mutator.
+        Analyzes the result of a completed step and mutates remaining/pending steps
+        to inject retries, fallbacks, or privilege checks at runtime.
+        """
+        # Heuristic 1: Nmap Host Down / Ping blocked -> Inject -Pn and retry nmap
+        if step.tool == "nmap" and (
+            "Host seems down" in (sr.error or "") or
+            "Host seems down" in (sr.output or "") or
+            "try -Pn" in (sr.error or "") or
+            "try -Pn" in (sr.output or "")
+        ):
+            new_args = list(step.args)
+            if "-Pn" not in new_args:
+                new_args.append("-Pn")
+            retry_step = ExecutionStep(
+                id=f"{step.id}_retry_pn",
+                step_type=StepType.TOOL_RUN,
+                tool="nmap",
+                args=new_args,
+                target=step.target,
+                description=f"Retry nmap with -Pn (ping bypass) for {step.target}",
+                timeout=step.timeout,
+            )
+            # Find any steps that depended on the failed step, and update their dependency
+            for s in still_pending:
+                if step.id in s.depends_on:
+                    s.depends_on.remove(step.id)
+                    s.depends_on.append(retry_step.id)
+            still_pending.insert(0, retry_step)
+            logger.info("Dynamic Mutation: Injected nmap -Pn retry step %s", retry_step.id)
+
+        # Heuristic 2: Nikto Failure Fallback -> nuclei scan
+        elif step.tool == "nikto" and sr.status == StepStatus.FAILED:
+            fallback_step = ExecutionStep(
+                id=f"{step.id}_fallback_nuclei",
+                step_type=StepType.TOOL_RUN,
+                tool="nuclei",
+                target=step.target,
+                description=f"Fallback: nuclei vuln scan against {step.target} after nikto failure",
+            )
+            for s in still_pending:
+                if step.id in s.depends_on:
+                    s.depends_on.remove(step.id)
+                    s.depends_on.append(fallback_step.id)
+            still_pending.insert(0, fallback_step)
+            logger.info("Dynamic Mutation: Swapped/added nuclei fallback %s", fallback_step.id)
+
+        # Heuristic 3: Gobuster Zero-findings Fallback -> nikto scan
+        elif step.tool == "gobuster" and sr.status == StepStatus.SUCCESS and len(sr.findings) == 0:
+            fallback_step = ExecutionStep(
+                id=f"{step.id}_fallback_nikto",
+                step_type=StepType.TOOL_RUN,
+                tool="nikto",
+                target=step.target,
+                description=f"Zero-findings fallback: nikto scan against {step.target}",
+            )
+            for s in still_pending:
+                if step.id in s.depends_on:
+                    s.depends_on.remove(step.id)
+                    s.depends_on.append(fallback_step.id)
+            still_pending.insert(0, fallback_step)
+            logger.info("Dynamic Mutation: Injected nikto fallback %s due to zero gobuster findings", fallback_step.id)
+
+        # Heuristic 4: Shell Permission Error -> privilege check
+        elif step.step_type == StepType.SHELL_CMD:
+            is_permission_denied = False
+            err_msg = ((sr.error or "") + (sr.output or "")).lower()
+            for indicator in ("permission denied", "access denied", "not allowed", "requires elevation"):
+                if indicator in err_msg:
+                    is_permission_denied = True
+                    break
+            
+            if is_permission_denied:
+                import sys
+                priv_cmd = "whoami /priv" if sys.platform == "win32" else "sudo -l"
+                priv_step = ExecutionStep(
+                    id=f"{step.id}_priv_check",
+                    step_type=StepType.SHELL_CMD,
+                    command=priv_cmd,
+                    description=f"Privilege check due to access denial on step {step.id}",
+                )
+                still_pending.insert(0, priv_step)
+                logger.info("Dynamic Mutation: Injected privilege check %s after permission error", priv_step.id)
 
     def _parse_tool_output(self, tool_name: str, output: str) -> list[dict[str, Any]]:
         """Parse tool output using registered parsers."""
@@ -1071,186 +1363,6 @@ class ExecutionEngine:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Agentic Loop — observe → reason → act
+# Agentic Loop has been moved to siyarix.core.agentic_loop
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-class AgenticLoop:
-    """Goal-driven autonomous execution loop.
-
-    Implements the observe → reason → act cycle:
-
-    1. **Observe** — Collect context: current findings, target state, tool output
-    2. **Reason** — Ask the AI planner to decide next action based on observations
-    3. **Act** — Execute the planned step(s)
-    4. **Evaluate** — Check if the goal is achieved or if re-planning is needed
-
-    The loop continues until:
-    - The goal is explicitly achieved (planner says "done")
-    - Max iterations are reached
-    - A critical error occurs
-    - The user interrupts
-
-    Usage::
-
-        loop = AgenticLoop(engine, goal="Perform full recon on target.com")
-        result = await loop.run()
-    """
-
-    def __init__(
-        self,
-        engine: ExecutionEngine,
-        goal: str,
-        target: str = "",
-        max_iterations: int = 10,
-        interactive: bool = True,
-    ) -> None:
-        self._engine = engine
-        self._goal = goal
-        self._target = target
-        self._max_iterations = max_iterations
-        self._interactive = interactive
-        self._observations: list[dict[str, Any]] = []
-        self._iteration = 0
-        self._all_findings: list[dict[str, Any]] = []
-        self._completed = False
-
-    async def run(self) -> dict[str, Any]:
-        """Execute the agentic loop until goal completion or max iterations."""
-        console.print(
-            Panel(
-                f"[bold]Goal:[/bold] {self._goal}\n"
-                f"[bold]Target:[/bold] {self._target or 'auto-detect'}\n"
-                f"[bold]Max iterations:[/bold] {self._max_iterations}",
-                title="[bold bright_cyan]🤖 Agentic Loop — Starting[/bold bright_cyan]",
-                border_style="cyan",
-            )
-        )
-
-        while self._iteration < self._max_iterations and not self._completed:
-            self._iteration += 1
-            console.print(
-                f"\n[bold cyan]━━━ Iteration {self._iteration}/{self._max_iterations} ━━━[/bold cyan]"
-            )
-
-            # 1. OBSERVE — build context from accumulated findings
-            context = self._observe()
-
-            # 2. REASON — ask the engine to plan next actions
-            console.print("[dim]🔍 Observing context...[/dim]")
-            instruction = self._reason(context)
-
-            if instruction is None or instruction.lower().strip() in ("done", "complete", "finished"):
-                self._completed = True
-                console.print("[bold green]✅ Goal achieved — loop complete[/bold green]")
-                break
-
-            # 3. ACT — execute the plan
-            console.print(f"[dim]⚡ Acting: {instruction[:100]}...[/dim]")
-            try:
-                result = await self._engine.execute(
-                    instruction,
-                    interactive=self._interactive,
-                )
-
-                # 4. EVALUATE — collect findings and check progress
-                self._evaluate(result)
-
-            except Exception as exc:
-                logger.error("Agentic loop iteration %d failed: %s", self._iteration, exc)
-                self._observations.append({
-                    "iteration": self._iteration,
-                    "error": str(exc),
-                    "phase": "act",
-                })
-                if self._interactive:
-                    console.print(f"[red]Error in iteration {self._iteration}: {exc}[/red]")
-
-        summary = {
-            "goal": self._goal,
-            "target": self._target,
-            "iterations": self._iteration,
-            "completed": self._completed,
-            "total_findings": len(self._all_findings),
-            "observations": self._observations[-5:],  # Last 5 observations
-        }
-
-        console.print(
-            Panel(
-                f"[bold]Iterations:[/bold] {self._iteration}\n"
-                f"[bold]Completed:[/bold] {'Yes' if self._completed else 'No (max iterations reached)'}\n"
-                f"[bold]Findings:[/bold] {len(self._all_findings)}",
-                title="[bold bright_cyan]🤖 Agentic Loop — Summary[/bold bright_cyan]",
-                border_style="green" if self._completed else "yellow",
-            )
-        )
-
-        return summary
-
-    def _observe(self) -> dict[str, Any]:
-        """Phase 1: Collect current state and observations."""
-        return {
-            "goal": self._goal,
-            "target": self._target,
-            "iteration": self._iteration,
-            "findings_so_far": len(self._all_findings),
-            "recent_observations": self._observations[-3:],
-            "recent_findings": self._all_findings[-5:] if self._all_findings else [],
-        }
-
-    def _reason(self, context: dict[str, Any]) -> str | None:
-        """Phase 2: Determine next action based on context.
-
-        Constructs a meta-instruction that includes accumulated context
-        so the planner can make an informed decision about next steps.
-        """
-        if self._iteration == 1:
-            # First iteration — start with the goal directly
-            return f"{self._goal}" + (f" on {self._target}" if self._target else "")
-
-        # Subsequent iterations — include context for re-planning
-        findings_summary = ""
-        if self._all_findings:
-            findings_summary = f"\n\nFindings so far ({len(self._all_findings)}):\n"
-            for f in self._all_findings[-3:]:
-                findings_summary += f"  - [{f.get('severity', 'info')}] {f.get('description', str(f))[:100]}\n"
-
-        prev_errors = [
-            o.get("error", "") for o in self._observations if o.get("error")
-        ]
-        error_context = ""
-        if prev_errors:
-            error_context = f"\n\nPrevious errors to avoid:\n  " + "\n  ".join(prev_errors[-2:])
-
-        return (
-            f"Continue working on the goal: {self._goal}"
-            + (f" targeting {self._target}" if self._target else "")
-            + f"\nThis is iteration {self._iteration} of {self._max_iterations}."
-            + findings_summary
-            + error_context
-            + "\nWhat should be the next step? If the goal is fully achieved, respond with 'done'."
-        )
-
-    def _evaluate(self, result: EngineResult) -> None:
-        """Phase 4: Evaluate results and update observations."""
-        observation = {
-            "iteration": self._iteration,
-            "success": result.success,
-            "steps_run": len(result.step_results),
-            "findings_count": len(result.all_findings),
-            "duration_ms": result.total_duration_ms,
-        }
-        self._observations.append(observation)
-        self._all_findings.extend(result.all_findings)
-
-        # Auto-detect completion heuristics
-        if not result.success and self._iteration >= 3:
-            # Multiple failures — may want to stop
-            recent_failures = sum(
-                1 for o in self._observations[-3:]
-                if not o.get("success", True)
-            )
-            if recent_failures >= 3:
-                logger.warning("3 consecutive failures — stopping agentic loop")
-                self._completed = True
 

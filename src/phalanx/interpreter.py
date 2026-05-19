@@ -291,6 +291,56 @@ _INTENSITY_PATTERNS: dict[str, dict[str, Any]] = {
 }
 
 
+_INTENT_PATTERNS: dict[str, list[str]] = {
+    "current_directory": ["pwd", "current directory", "current folder", "present directory"],
+    "list_files": ["list files", "show files", "list directory", "dir", "ls"],
+    "list_processes": ["list processes", "show processes", "running processes", "ps aux", "ps"],
+    "process_tree": ["process tree", "pstree"],
+    "network_connections": ["network connections", "show connections", "list connections", "active connections", "netstat"],
+    "open_ports": ["open ports", "listening ports", "ports"],
+    "network_interfaces": ["network interfaces", "show interfaces", "list interfaces", "ip addr", "ifconfig", "ipconfig"],
+    "routing_table": ["routing table", "route table", "show routes", "routing"],
+    "arp_table": ["arp table", "arp cache", "show arp"],
+    "dns_lookup": ["dns lookup", "nslookup", "resolve dns", "dns query"],
+    "dns_cache": ["dns cache", "dns client cache", "show dns cache", "displaydns"],
+    "whoami": ["whoami", "current user", "show privileges", "my user", "who am i"],
+    "environment_vars": ["environment variables", "env vars", "printenv", "show env"],
+    "firewall_rules": ["firewall rules", "firewall config", "iptables", "show firewall"],
+    "scheduled_tasks": ["scheduled tasks", "cron jobs", "cron", "schtasks"],
+    "services": ["running services", "list services", "systemctl", "show services"],
+    "users": ["local users", "list users", "show users", "user accounts"],
+    "groups": ["local groups", "list groups", "show groups"],
+    "installed_software": ["installed software", "installed programs", "installed apps"],
+    "package_managers": ["package managers", "winget", "choco", "apt"],
+    "system_info": ["system info", "system information", "os info", "uname"],
+    "disk_usage": ["disk usage", "disk space", "df -h"],
+    "disk_free": ["disk free"],
+    "file_hash": ["file hash", "sha256sum", "checksum"],
+    "find_suid": ["suid files", "privileged files", "find suid", "setuid"],
+    "registry_autoruns": ["registry autoruns", "autoruns", "startup programs"],
+    "host_file": ["hosts file", "cat /etc/hosts"],
+    "ping": ["ping"],
+    "traceroute": ["traceroute", "tracert"],
+    "git_status": ["git status"],
+    "git_branches": ["git branch", "git branches"],
+    "docker_ps": ["docker ps", "docker containers", "running containers"],
+    "docker_images": ["docker images"],
+    "kubectl_get_pods": ["kubectl get pods", "kubernetes pods", "get pods"],
+    "kubectl_contexts": ["kubectl contexts", "kubernetes contexts"],
+    "helm_list": ["helm releases", "helm list"],
+    "terraform_plan": ["terraform plan"],
+    "aws_identity": ["aws identity", "aws caller identity", "aws whoami"],
+    "az_account": ["az account", "azure account"],
+    "gcloud_auth": ["gcloud auth", "gcp auth"],
+    "ssh_connect": ["ssh connect", "ssh to"],
+    "scp_copy": ["scp copy", "scp to"],
+    "rsync_copy": ["rsync copy", "rsync to"],
+    "python_version": ["python version"],
+    "node_version": ["node version"],
+    "pip_list": ["pip list", "python packages"],
+}
+
+
 class RuleInterpreter:
     """Heuristic interpreter for common security command patterns.
 
@@ -298,15 +348,86 @@ class RuleInterpreter:
     and works completely offline without any model dependencies.
     """
 
+    def _match_custom_intent(self, text_lower: str) -> tuple[str | None, float]:
+        """Match natural language command to cross-platform command intents in shell_knowledge."""
+        best_intent = None
+        longest_match_len = 0
+        
+        for intent, patterns in _INTENT_PATTERNS.items():
+            for pat in patterns:
+                # Use regex with word boundaries to ensure we don't match substrings like 'ps' in 'https'
+                pattern_regex = r'\b' + re.escape(pat) + r'\b'
+                if re.search(pattern_regex, text_lower):
+                    if len(pat) > longest_match_len:
+                        longest_match_len = len(pat)
+                        best_intent = intent
+                        
+        if best_intent:
+            return best_intent, 0.9
+        return None, 0.0
+
     def interpret(self, text: str) -> InterpretedTask:
         """Interpret natural language *text* into a structured :class:`InterpretedTask`."""
         text_lower = text.lower().strip()
 
-        # Check for multi-step workflows (contains "then", "and then", etc.)
+        # 1. Check for conditional: "if <condition> then <actions> [else <actions>]"
+        if text_lower.startswith("if "):
+            match = re.match(r"^if\s+(.+?)\s+then\s+(.+)$", text_lower, re.DOTALL)
+            if match:
+                cond_str = match.group(1).strip()
+                rest = match.group(2).strip()
+                else_parts = re.split(r"\s+else\s+", rest, maxsplit=1)
+                then_raw = else_parts[0].strip()
+                else_raw = else_parts[1].strip() if len(else_parts) > 1 else None
+                
+                then_task = self.interpret(then_raw)
+                then_task.flags["branch"] = "then"
+                
+                sub_tasks = [then_task]
+                if else_raw:
+                    else_task = self.interpret(else_raw)
+                    else_task.flags["branch"] = "else"
+                    sub_tasks.append(else_task)
+                
+                return InterpretedTask(
+                    category=TaskCategory.WORKFLOW,
+                    action="conditional",
+                    flags={"condition": cond_str},
+                    raw_text=text,
+                    confidence=0.95,
+                    sub_tasks=sub_tasks,
+                )
+
+        # 2. Check for logic chains: "&&" or "||"
+        if "&&" in text_lower or "||" in text_lower:
+            tokens = re.split(r"\s+(&&|\|\|)\s+", text)
+            sub_tasks = []
+            first_task = self.interpret(tokens[0].strip())
+            sub_tasks.append(first_task)
+            
+            for idx in range(1, len(tokens), 2):
+                if idx + 1 < len(tokens):
+                    op = tokens[idx].strip()
+                    task_text = tokens[idx + 1].strip()
+                    task = self.interpret(task_text)
+                    task.flags["chain_op"] = op
+                    sub_tasks.append(task)
+            
+            return InterpretedTask(
+                category=TaskCategory.WORKFLOW,
+                action="chain",
+                targets=list({t for si in sub_tasks for t in si.targets}),
+                tools=list({t for si in sub_tasks for t in si.tools}),
+                raw_text=text,
+                confidence=min(si.confidence for si in sub_tasks) if sub_tasks else 0.0,
+                sub_tasks=sub_tasks,
+            )
+
+        # 3. Check for standard multi-step workflows (contains "then", "and then", etc.)
         if self._is_workflow(text_lower):
             return self._interpret_workflow(text, text_lower)
 
-        # Single task
+        # 4. Single task
         return self._interpret_single(text, text_lower)
 
     def _is_workflow(self, text_lower: str) -> bool:
@@ -321,7 +442,7 @@ class RuleInterpreter:
             r"\s+(?:then|and then|after that|followed by|next|finally)\s+",
             text_lower,
         )
-        sub_tasks = [self._interpret_single(part.strip(), part.strip().lower()) for part in parts]
+        sub_tasks = [self.interpret(part.strip()) for part in parts]
 
         return InterpretedTask(
             category=TaskCategory.WORKFLOW,
@@ -335,6 +456,19 @@ class RuleInterpreter:
 
     def _interpret_single(self, raw: str, text_lower: str) -> InterpretedTask:
         """Interpret a single instruction from text."""
+        intent, intent_conf = self._match_custom_intent(text_lower)
+        if intent:
+            targets = self._extract_targets(raw)
+            return InterpretedTask(
+                category=TaskCategory.CUSTOM,
+                action=intent,
+                targets=targets,
+                tools=[],
+                flags={"intent": intent},
+                raw_text=raw,
+                confidence=intent_conf,
+            )
+
         category = self._classify_category(text_lower)
         targets = self._extract_targets(raw)
         tools = self._extract_tools(text_lower)

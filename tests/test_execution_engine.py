@@ -4,19 +4,19 @@ from __future__ import annotations
 
 import asyncio
 
-from nexsec.planner import (
+from phalanx.planner import (
     TaskPlanner,
     ExecutionPlan,
     ExecutionStep,
     StepType,
 )
-from nexsec.dynamic_resolver import DynamicResolver
-from nexsec.engine import (
+from phalanx.dynamic_resolver import DynamicResolver
+from phalanx.engine import (
     EngineResult,
     ExecutionMode,
     ExecutionEngine,
 )
-from nexsec.interpreter import (
+from phalanx.interpreter import (
     TaskCategory,
     RuleInterpreter,
 )

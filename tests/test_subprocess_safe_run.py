@@ -1,6 +1,6 @@
 import subprocess
 import sys
-from nexsec.executor import safe_run_sync
+from phalanx.executor import safe_run_sync
 
 
 def test_safe_run_sync_basic():

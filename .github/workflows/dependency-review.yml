@@ -139,18 +139,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 title: '⚠️ Dependency Review Issues Found',
-                body: `## Action Required
-
-The following dependency issues were found in PR #${context.payload.pull_request.number}:
-
-- Review required dependencies
-- Check for vulnerabilities
-- Verify license compatibility
-
-Please address these issues before merging.
-
----
-*Automated by GitHub Actions*`,
+                body: `## Action Required\n\nThe following dependency issues were found in PR #${context.payload.pull_request.number}:\n\n- Review required dependencies\n- Check for vulnerabilities\n- Verify license compatibility\n\nPlease address these issues before merging.\n\n---\n*Automated by GitHub Actions*`,
                 labels: ['dependencies', 'security']
               });
             }

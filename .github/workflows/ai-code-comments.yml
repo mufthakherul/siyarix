@@ -405,7 +405,7 @@ jobs:
         env:
           MODEL: ${{ github.event.inputs.model || 'codellama' }}
           STYLE: ${{ github.event.inputs.comment_style || 'detailed' }}
-          FILES: ${{ needs.setup.outputs.files }}
+          FILES: ${{ needs.setup.outputs.files_to_process }}
         run: |
           python generate_comments.py > comments_output.json 2>&1 || echo "[]" > comments_output.json
 
@@ -427,7 +427,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.branch || 'ai-comments-' }}
+          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
       - name: Download all comment batches

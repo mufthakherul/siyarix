@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 from phalanx.interpreter import RuleInterpreter, TaskCategory
 from phalanx.planner import TaskPlanner, StepType
 from phalanx.engine import ExecutionEngine, StepResult, StepStatus, ExecutionStep
-from phalanx.knowledge_graph import KnowledgeGraph, NodeType, EdgeType
+from phalanx.knowledge_graph import KnowledgeGraph, NodeType
 from phalanx.core.agentic_loop import AgenticLoop
 
 @pytest.mark.asyncio
@@ -104,7 +104,7 @@ async def test_pillar_4_shell_compiler_matching():
 @pytest.mark.asyncio
 async def test_tool_auto_installation():
     # Test auto-installation mechanism
-    from unittest.mock import patch, AsyncMock
+    from unittest.mock import patch
     engine = ExecutionEngine()
 
     def mock_which(cmd):

@@ -56,13 +56,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 title: '📦 Weekly: Dependency Updates Available',
-                body: `## Dependencies Update Check
-
-Checked on: ${new Date().toISOString().split('T')[0]}
-
-Please review and update dependencies when possible.
-
-*Automated weekly check*`,
+                body: `## Dependencies Update Check\n\nChecked on: ${new Date().toISOString().split('T')[0]}\n\nPlease review and update dependencies when possible.\n\n*Automated weekly check*`,
                 labels: ['dependencies', 'enhancement']
               });
             }

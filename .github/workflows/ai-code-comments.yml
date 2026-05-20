@@ -431,7 +431,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download all comment batches
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.1.3
         with:
           pattern: comments-batch-*
           path: comment_batches
@@ -489,7 +489,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.1.3
         with:
           pattern: comments-batch-*
           path: comment_batches

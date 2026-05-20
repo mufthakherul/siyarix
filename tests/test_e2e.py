@@ -9,10 +9,7 @@ This test suite validates full execution pipelines under mock environments:
 
 from __future__ import annotations
 
-import sys
-import shutil
 import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from click.testing import CliRunner
 from typer.main import get_command
@@ -80,7 +77,8 @@ async def test_interactive_installation_confirm() -> None:
         return None
 
     # Test Scenario A: User confirms the auto-installation prompt
-    with patch("shutil.which", side_effect=mock_which_installer), \
+    with patch("platform.system", return_value="Windows"), \
+         patch("shutil.which", side_effect=mock_which_installer), \
          patch("phalanx.output.output.prompt_confirm", return_value=True) as mock_confirm, \
          patch("phalanx.engine.run_tool_complete", new_callable=AsyncMock) as mock_run:
 
@@ -95,7 +93,8 @@ async def test_interactive_installation_confirm() -> None:
         mock_run.assert_called()
 
     # Test Scenario B: User declines the auto-installation prompt
-    with patch("shutil.which", side_effect=mock_which_installer), \
+    with patch("platform.system", return_value="Windows"), \
+         patch("shutil.which", side_effect=mock_which_installer), \
          patch("phalanx.output.output.prompt_confirm", return_value=False) as mock_confirm, \
          patch("phalanx.engine.run_tool_complete", new_callable=AsyncMock) as mock_run:
 

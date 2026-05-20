@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import MagicMock, patch
 from rich.layout import Layout
 from phalanx.ux import SmartAutocomplete, SplitPane, OnboardingWizard

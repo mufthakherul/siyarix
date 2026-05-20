@@ -15,12 +15,9 @@ from click.testing import CliRunner
 from typer.main import get_command
 
 from siyarix.main import app
-from siyarix.engine import ExecutionEngine, StepResult, StepStatus, ExecutionStep, EngineResult, ExecutionMode
-from siyarix.planner import TaskPlanner, StepType, ExecutionPlan
-from siyarix.interpreter import RuleInterpreter, TaskCategory
-from siyarix.knowledge_graph import KnowledgeGraph, NodeType
-from siyarix.output import output
-from siyarix.audit_log import audit, AuditEventType
+from siyarix.engine import ExecutionEngine, StepResult, StepStatus, ExecutionStep, ExecutionMode
+from siyarix.planner import StepType
+from siyarix.knowledge_graph import KnowledgeGraph
 
 
 def test_cli_scan_dry_run() -> None:

@@ -1,10 +1,9 @@
 import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
 from siyarix.interpreter import RuleInterpreter, TaskCategory
 from siyarix.planner import TaskPlanner, StepType
 from siyarix.engine import ExecutionEngine, StepResult, StepStatus, ExecutionStep
-from siyarix.knowledge_graph import KnowledgeGraph, NodeType
+from siyarix.knowledge_graph import KnowledgeGraph
 from siyarix.core.agentic_loop import AgenticLoop
 
 @pytest.mark.asyncio

@@ -212,15 +212,6 @@ jobs:
                 owner,
                 repo,
                 issue_number: issue.number,
-                body: `Welcome to ${repo}! 🎉
-
-Thank you for opening a new issue. To help us address this efficiently, please provide:
-
-1. **Clear description** - What are you trying to achieve?
-2. **Steps to reproduce** - How can we replicate this?
-3. **Expected vs actual behavior** - What should happen instead?
-4. **Environment details** - OS, Python version, etc.
-
-We appreciate your contribution!`
+                body: `Welcome to ${repo}! 🎉\n\nThank you for opening a new issue. To help us address this efficiently, please provide:\n\n1. **Clear description** - What are you trying to achieve?\n2. **Steps to reproduce** - How can we replicate this?\n3. **Expected vs actual behavior** - What should happen instead?\n4. **Environment details** - OS, Python version, etc.\n\nWe appreciate your contribution!`
               });
             }

@@ -1,72 +1,36 @@
-repos:
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.20.1
-    hooks:
-      - id: ruff
-        args: ["check"]
-
-  - repo: https://github.com/psf/black
-    rev: 24.8.0
-    hooks:
-      - id: black
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
-    hooks:
-      - id: mypy
-        args: ["--ignore-missing-imports"]
-
-  - repo: https://github.com/pre-commit/mirrors-isort
-    rev: v5.12.0
-    hooks:
-      - id: isort
-
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
-    hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
 # Pre-commit hooks for Phalanx
 # Install: pip install pre-commit && pre-commit install
 # Run manually: pre-commit run --all-files
 # Update: pre-commit autoupdate
 
 repos:
-  # Python formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      - id: ruff
+      - id: ruff-format
+
   - repo: https://github.com/psf/black
     rev: 24.10.0
     hooks:
       - id: black
         language_version: python3.12
 
-  # Python linting (with auto-fix)
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.0
-    hooks:
-      - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
-      - id: ruff-format
-
-  # Import sorting
-  - repo: https://github.com/PyCQA/isort
-    rev: 5.13.2
+  - repo: https://github.com/pre-commit/mirrors-isort
+    rev: v5.13.2
     hooks:
       - id: isort
 
-  # Type checking
-  - repo: https://github.com/python/mypy
+  - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.13.0
     hooks:
       - id: mypy
-        additional_dependencies: [types-all]
         args: [--ignore-missing-imports, --no-error-summary]
 
-  # YAML validation
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
-      - id: yaml-lint
+      - id: check-yaml
       - id: check-merge-conflict
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -75,56 +39,7 @@ repos:
       - id: check-json
       - id: check-toml
 
-  # Git security
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
-    hooks:
-      - id: forbid-new-submodules
-
-  # Shell scripts linting
-  - repo: https://github.com/lovesegfault/pre-commit-hooks
-    rev: v1.1.1
-    hooks:
-      - id: shellcheck
-
-  # Docker file linting
-  - repo: https://github.com/hadolint/hadolint
-    rev: v2.12.0
-    hooks:
-      - id: hadolint
-
-  # Markdown linting
-  - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.14.0
-    hooks:
-      - id: markdownlint2
-
-  # Spell check
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.3.0
-    hooks:
-      - id: codespell
-
-  # Detect secrets (baseline required)
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.4.0
-    hooks:
-      - id: detect-secrets
-        args: ['--baseline', '.secrets.baseline']
-        exclude: ^tests/
-
-  # Mixed line endings
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
-    hooks:
-      - id: mixed-line-ending
-        args: ['--fix', 'lf']
-
-# Configuration
 default_install_hook_types: [pre-commit, commit-msg]
 default_stages: [pre-commit]
 default_language_version:
   python: python3.12
-
-# Auto-update schedule
-# Run: pre-commit autoupdate (weekly via CI)

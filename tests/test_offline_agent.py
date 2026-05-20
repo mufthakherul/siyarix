@@ -1,10 +1,9 @@
 import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
 from phalanx.interpreter import RuleInterpreter, TaskCategory
 from phalanx.planner import TaskPlanner, StepType
 from phalanx.engine import ExecutionEngine, StepResult, StepStatus, ExecutionStep
-from phalanx.knowledge_graph import KnowledgeGraph, NodeType
+from phalanx.knowledge_graph import KnowledgeGraph
 from phalanx.core.agentic_loop import AgenticLoop
 
 @pytest.mark.asyncio

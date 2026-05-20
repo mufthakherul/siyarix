@@ -78,7 +78,7 @@ jobs:
     name: Pre-flight Checks
     runs-on: ubuntu-latest
     outputs:
-      ready: ${{ steps.check.outputs.ready }}
+      ready: ${{ steps.ollama.outputs.ready }}
       files: ${{ steps.scan.outputs.files }}
       count: ${{ steps.scan.outputs.count }}
       ollama_models: ${{ steps.ollama.outputs.models }}
@@ -142,8 +142,9 @@ jobs:
 
           COUNT=$(echo "$FILES" | grep -c "^" 2>/dev/null || echo 0)
 
+          FILES_JSON=$(printf '%s\n' "$FILES" | jq -R -s -c 'split("\n") | map(select(length > 0))')
           echo "Found $COUNT files to process"
-          echo "files=$FILES" >> $GITHUB_OUTPUT
+          echo "files=$FILES_JSON" >> $GITHUB_OUTPUT
           echo "count=$COUNT" >> $GITHUB_OUTPUT
 
   process-files:
@@ -154,7 +155,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        file: ${{ fromJson('[' + join(fromJson(needs.preflight.outputs.files), ',') + ']') }}
+        file: ${{ fromJson(needs.preflight.outputs.files) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

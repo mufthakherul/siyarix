@@ -15,12 +15,9 @@ from click.testing import CliRunner
 from typer.main import get_command
 
 from phalanx.main import app
-from phalanx.engine import ExecutionEngine, StepResult, StepStatus, ExecutionStep, EngineResult, ExecutionMode
-from phalanx.planner import TaskPlanner, StepType, ExecutionPlan
-from phalanx.interpreter import RuleInterpreter, TaskCategory
-from phalanx.knowledge_graph import KnowledgeGraph, NodeType
-from phalanx.output import output
-from phalanx.audit_log import audit, AuditEventType
+from phalanx.engine import ExecutionEngine, StepResult, StepStatus, ExecutionStep, ExecutionMode
+from phalanx.planner import StepType
+from phalanx.knowledge_graph import KnowledgeGraph
 
 
 def test_cli_scan_dry_run() -> None:

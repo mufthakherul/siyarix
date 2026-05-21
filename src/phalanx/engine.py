@@ -18,6 +18,7 @@ import asyncio
 import json
 import logging
 import platform
+import re
 import shutil
 import time
 import uuid
@@ -45,7 +46,7 @@ from .executor import run_tool_complete
 from .metrics import get_metrics
 from .notifications import notification_center
 from .offline_store import OfflineStore
-from .security_hardening import redactor, danger_analyzer, validator
+from .security_hardening import redactor
 from .tool_registry import ToolInfo, ToolRegistry
 from .knowledge_graph import KnowledgeGraph
 
@@ -948,8 +949,8 @@ class ExecutionEngine:
         return StepResult(
             step_id=step.id,
             status=StepStatus.SUCCESS if result.exit_code == 0 else StepStatus.FAILED,
-            output=result.stdout,
-            error=result.stderr if result.exit_code != 0 else "",
+            output=safe_output,
+            error=safe_error,
             duration_ms=duration,
             findings=findings,
         )
@@ -1365,4 +1366,3 @@ class ExecutionEngine:
 # ═══════════════════════════════════════════════════════════════════════════
 # Agentic Loop has been moved to phalanx.core.agentic_loop
 # ═══════════════════════════════════════════════════════════════════════════
-

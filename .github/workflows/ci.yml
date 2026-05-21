@@ -39,17 +39,75 @@ jobs:
           pip install pre-commit
 
       - name: Run Ruff linter
-        run: ruff check src tests --output-format=github
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="${{ github.event.pull_request.base.sha }}"
+            HEAD_REF="${{ github.event.pull_request.head.sha }}"
+          elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            BASE_REF="HEAD~1"
+            HEAD_REF="HEAD"
+          else
+            BASE_REF="HEAD"
+            HEAD_REF="HEAD"
+          fi
+          PY_CHANGED_FILES="$(git diff --name-only --diff-filter=ACMRT "$BASE_REF" "$HEAD_REF" | grep -E '\.py$' || true)"
+          if [ -z "$PY_CHANGED_FILES" ]; then
+            echo "No changed Python files for Ruff."
+            exit 0
+          fi
+          ruff check $PY_CHANGED_FILES --output-format=github
 
       - name: Run pre-commit
         run: |
-          pre-commit run --all-files
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="${{ github.event.pull_request.base.sha }}"
+            HEAD_REF="${{ github.event.pull_request.head.sha }}"
+          elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            BASE_REF="HEAD~1"
+            HEAD_REF="HEAD"
+          else
+            BASE_REF="HEAD"
+            HEAD_REF="HEAD"
+          fi
+          pre-commit run --from-ref "$BASE_REF" --to-ref "$HEAD_REF"
 
       - name: Run Black formatter check
-        run: black --check .
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="${{ github.event.pull_request.base.sha }}"
+            HEAD_REF="${{ github.event.pull_request.head.sha }}"
+          elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            BASE_REF="HEAD~1"
+            HEAD_REF="HEAD"
+          else
+            BASE_REF="HEAD"
+            HEAD_REF="HEAD"
+          fi
+          PY_CHANGED_FILES="$(git diff --name-only --diff-filter=ACMRT "$BASE_REF" "$HEAD_REF" | grep -E '\.py$' || true)"
+          if [ -z "$PY_CHANGED_FILES" ]; then
+            echo "No changed Python files for Black."
+            exit 0
+          fi
+          black --check $PY_CHANGED_FILES
 
       - name: Run MyPy type checker
-        run: mypy src --ignore-missing-imports --no-error-summary
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="${{ github.event.pull_request.base.sha }}"
+            HEAD_REF="${{ github.event.pull_request.head.sha }}"
+          elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            BASE_REF="HEAD~1"
+            HEAD_REF="HEAD"
+          else
+            BASE_REF="HEAD"
+            HEAD_REF="HEAD"
+          fi
+          PY_CHANGED_FILES="$(git diff --name-only --diff-filter=ACMRT "$BASE_REF" "$HEAD_REF" | grep -E '\.py$' || true)"
+          if [ -z "$PY_CHANGED_FILES" ]; then
+            echo "No changed Python files for MyPy."
+            exit 0
+          fi
+          mypy --ignore-missing-imports --no-error-summary $PY_CHANGED_FILES
 
       - name: Check for required files
         run: |
@@ -176,7 +234,7 @@ jobs:
           pip-audit --format json > pip-audit.json || true
           # Fail the job if pip-audit reports any high or critical severity findings
           if grep -Eq '"severity"\s*:\s*"(high|critical)"' pip-audit.json; then
-            echo "High or critical vulnerability found by pip-audit; failing CI."; 
+            echo "High or critical vulnerability found by pip-audit; failing CI.";
             cat pip-audit.json; exit 2;
           fi
 

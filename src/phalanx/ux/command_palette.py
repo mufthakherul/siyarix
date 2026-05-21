@@ -9,7 +9,6 @@ Rich terminal-based prompt overlay.
 from __future__ import annotations
 
 import logging
-from typing import Any, Iterable
 
 from rich.console import Console
 from rich.panel import Panel

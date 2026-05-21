@@ -17,7 +17,6 @@ Setup Ollama:
     3. Pull model: ollama pull codellama
 """
 
-import os
 import sys
 import json
 import re
@@ -34,9 +33,7 @@ except ImportError:
 
 try:
     from rich.console import Console
-    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
     from rich.table import Table
-    from rich.panel import Panel
     rich_available = True
 except ImportError:
     rich_available = False
@@ -316,7 +313,6 @@ Output ONLY the comment text, no code blocks or explanations. Start directly wit
 
         if self.style in ['docstring', 'google', 'numpy'] and language == 'python':
             # Use docstring format for Python
-            docstring = self.lang_config.DOCSTRING_STYLES.get(self.style, self.lang_config.DOCSTRING_STYLES['docstring'])
             # Format docstring - simplified version
             comment_block = f'    """{comment}"""'
             lines.insert(line_num, comment_block)

@@ -52,7 +52,6 @@ try:
     from rich.syntax import Syntax
     from rich.table import Table
     from rich.text import Text
-    from rich.align import Align
 
     RICH_AVAILABLE = True
 except ImportError:
@@ -62,7 +61,6 @@ logger = logging.getLogger(__name__)
 
 try:
     from prompt_toolkit import prompt as ptk_prompt
-    from prompt_toolkit.completion import WordCompleter
 
     PTK_AVAILABLE = True
 except Exception as exc:

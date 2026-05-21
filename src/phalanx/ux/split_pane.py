@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from rich.console import Console, RenderableType
+from rich.console import RenderableType
 from rich.layout import Layout
 from rich.panel import Panel
 from rich.table import Table

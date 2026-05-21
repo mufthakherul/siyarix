@@ -216,7 +216,7 @@ class AgenticLoop:
         prev_errors = [o.get("error", "") for o in self._observations if o.get("error")]
         error_context = ""
         if prev_errors:
-            error_context = f"\n\nPrevious errors to avoid:\n  " + "\n  ".join(prev_errors[-2:])
+            error_context = "\n\nPrevious errors to avoid:\n  " + "\n  ".join(prev_errors[-2:])
 
         return (
             f"Continue working on the goal: {self._goal}"

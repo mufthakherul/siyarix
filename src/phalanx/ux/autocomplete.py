@@ -10,11 +10,10 @@ from __future__ import annotations
 import os
 import glob
 import re
-from typing import Generator, Iterable, Any
+from typing import Iterable, Any
 
 try:
     from prompt_toolkit.completion import Completer, Completion
-    from prompt_toolkit.document import Document
 except ImportError:
     # Resilient fallback mock classes if prompt_toolkit is not installed
     class Completer:

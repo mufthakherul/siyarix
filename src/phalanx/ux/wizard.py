@@ -8,9 +8,7 @@ and execute a safe first scan verification.
 from __future__ import annotations
 
 import os
-import shutil
 import time
-from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
@@ -19,7 +17,7 @@ from rich.table import Table
 from rich.text import Text
 
 from phalanx.tool_registry import ToolRegistry
-from phalanx.output import OutputTheme, THEMES, set_formatter, get_formatter
+from phalanx.output import OutputTheme, THEMES
 
 
 class OnboardingWizard:

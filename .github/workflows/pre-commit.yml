@@ -35,14 +35,19 @@ jobs:
           restore-keys: |
             pre-commit-
 
-      - name: Run pre-commit on all files
-        run: pre-commit run --all-files --show-diff-on-failure
-
-      - name: Run pre-commit on staged files
-        if: github.event_name == 'push'
+      - name: Run pre-commit on changed files
         run: |
-          # For push events, check against parent commit
-          pre-commit run --from-ref HEAD~1 --to-ref HEAD --show-diff-on-failure
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            FROM_REF="${{ github.event.pull_request.base.sha }}"
+            TO_REF="${{ github.event.pull_request.head.sha }}"
+          elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            FROM_REF="HEAD~1"
+            TO_REF="HEAD"
+          else
+            FROM_REF="HEAD"
+            TO_REF="HEAD"
+          fi
+          pre-commit run --from-ref "$FROM_REF" --to-ref "$TO_REF" --show-diff-on-failure
 
       - name: Fail if changes detected
         if: github.event_name == 'pull_request'

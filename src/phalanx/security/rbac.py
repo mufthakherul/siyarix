@@ -5,6 +5,7 @@ Defines permissions, roles, and enforcement mechanisms for Phalanx operations.
 
 import os
 from enum import StrEnum
+from typing import Any
 
 
 class OperationPermission(StrEnum):

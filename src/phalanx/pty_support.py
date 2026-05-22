@@ -14,12 +14,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import signal
 import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any
+from typing import Any, AsyncIterator
 
 __all__ = [
     "PTYSession",

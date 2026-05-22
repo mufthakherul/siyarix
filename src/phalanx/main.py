@@ -1161,6 +1161,7 @@ def show(
     target: str = typer.Option("", "--target", "-t", help="Target context to analyze"),
 ) -> None:
     """Show live security dashboard using premium SplitPane layout."""
+    from .ux import SplitPane
     from .session_manager import session_registry
     
     store = OfflineStore()
@@ -2068,6 +2069,7 @@ def plugin_install(
 @app.command()
 def wizard() -> None:
     """Launch the interactive guided onboarding setup wizard."""
+    from .ux import OnboardingWizard
     wiz = OnboardingWizard()
     wiz.run()
 

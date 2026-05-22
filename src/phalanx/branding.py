@@ -7,6 +7,8 @@ and design token helpers for a consistent terminal UX.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
+from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel

@@ -79,7 +79,7 @@ jobs:
           name: coverage-report
 
       - name: Generate comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
@@ -182,7 +182,7 @@ jobs:
           cat changed_files.txt
 
       - name: Comment on uncovered files
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');

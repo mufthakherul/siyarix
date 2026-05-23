@@ -416,7 +416,7 @@ jobs:
           echo "Collecting processing results..."
 
       - name: Create PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const { data: prs } = await github.rest.pulls.list({

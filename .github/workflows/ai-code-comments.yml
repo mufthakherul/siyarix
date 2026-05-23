@@ -463,7 +463,7 @@ jobs:
 
       - name: Create Pull Request
         if: github.event.inputs.dry_run == 'false'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');

@@ -71,7 +71,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: high
           allow-licenses: Apache-2.0, MIT, BSD-3-Clause, BSD-2-Clause, ISC, CC0-1.0, Unlicense

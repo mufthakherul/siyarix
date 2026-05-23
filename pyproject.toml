@@ -44,7 +44,7 @@ all = [
   "maturin>=1.7",
 ]
 cli = [
-  "prompt_toolkit>=3.0",
+  "prompt_toolkit>=3.0.52",
   "jinja2>=3.0",
 ]
 

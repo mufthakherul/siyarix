@@ -20,6 +20,53 @@ class ExecutionResult:
     duration_ms: float
 
 
+async def _apply_stealth_modifications(tool_path: str, args: list[str]) -> tuple[str, list[str]]:
+    """Rewrite tool arguments and add delay jitter when stealth mode is enabled."""
+    from phalanx.config import SettingsStore
+    try:
+        config = SettingsStore()
+        if not config.get("stealth_mode"):
+            return tool_path, args
+    except Exception:
+        return tool_path, args
+
+    import random
+    # Timing Jitter: sleep between 100ms and 500ms to mimic human typing / evade threshold detection
+    delay = random.uniform(0.1, 0.5)
+    await asyncio.sleep(delay)
+
+    name = tool_path.split("/")[-1].lower()
+    new_args = list(args)
+
+    # 1. Evasive rewriting for nmap
+    if "nmap" in name:
+        # Inject stealth scan -sS and polite speed T2 if not specified, randomize hosts
+        if not any(arg.startswith("-T") for arg in new_args):
+            new_args.append("-T2")
+        if not any(arg.startswith("-s") for arg in new_args):
+            new_args.append("-sS")
+        if "-f" not in new_args:
+            new_args.append("-f")  # Fragment packets
+
+    # 2. Evasive rewriting for ffuf
+    elif "ffuf" in name:
+        # Rate limit to 50 requests/sec
+        if "-rate" not in new_args:
+            new_args.extend(["-rate", "50"])
+        # Rotate user agent
+        if "-H" not in new_args:
+            new_args.extend(["-H", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"])
+
+    # 3. Evasive rewriting for nuclei
+    elif "nuclei" in name:
+        if "-rate-limit" not in new_args:
+            new_args.extend(["-rate-limit", "10"])
+        if "-H" not in new_args:
+            new_args.extend(["-H", "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"])
+
+    return tool_path, new_args
+
+
 async def run_tool(
     tool_path: str,
     args: list[str],
@@ -29,6 +76,7 @@ async def run_tool(
 
     Handles timeout gracefully by terminating the subprocess.
     """
+    tool_path, args = await _apply_stealth_modifications(tool_path, args)
     proc = await asyncio.create_subprocess_exec(
         tool_path,
         *args,
@@ -72,6 +120,7 @@ async def run_tool_complete(
 
     Kills the process and returns a partial result on timeout.
     """
+    tool_path, args = await _apply_stealth_modifications(tool_path, args)
     start = time.monotonic()
     proc = await asyncio.create_subprocess_exec(
         tool_path,

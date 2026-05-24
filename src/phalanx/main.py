@@ -72,6 +72,7 @@ from .core import IntentRouter, SessionKernel
 from .xi import XICoreService
 from .orchestration import WorkflowRuntime, WorkflowState
 from .ux import OnboardingWizard, SplitPane
+from .logging_config import configure_logging
 
 # ---------------------------------------------------------------------------
 # Initialize core systems
@@ -84,6 +85,7 @@ _CI_MODE = os.getenv("CI", "") or os.getenv("PHALANX_NO_BANNER", "") or not _IS_
 console = Console()
 registry = ToolRegistry()
 config = SettingsStore()
+configure_logging(config.get("log_level"))
 plugins = PluginManager()
 creds = CredentialStore()
 load_env_file()
@@ -383,6 +385,30 @@ app.add_typer(dashboard_app, name="dashboard")
 
 tool_registry_app = typer.Typer(help="🛠 Tool discovery & registry")
 app.add_typer(tool_registry_app, name="tool-registry")
+
+
+@tool_registry_app.command("providers")
+def list_providers() -> None:
+    """List configured model providers (order of preference)."""
+    engine = _get_engine()
+    planners = getattr(engine, "_planner", None)
+    if not planners:
+        console.print("[dim]No planner available[/dim]")
+        raise typer.Exit(1)
+
+    providers = getattr(planners, "_providers", [])
+    if not providers:
+        console.print("[dim]No providers registered[/dim]")
+        return
+
+    table = Table(title="Configured Model Providers", header_style="bold cyan")
+    table.add_column("Index", style="dim")
+    table.add_column("Provider Type", style="cyan")
+    table.add_column("Available", style="green")
+    for i, p in enumerate(providers, 1):
+        avail = getattr(p, "available", False)
+        table.add_row(str(i), type(p).__name__, str(avail))
+    console.print(table)
 
 shell_app = typer.Typer(help="🖥 Cross-platform shell command helper")
 app.add_typer(shell_app, name="shell")

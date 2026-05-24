@@ -21,6 +21,7 @@ from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 
 from .interpreter import InterpretedTask, RuleInterpreter, TaskCategory
+from .masking import MaskingEngine
 
 logger = logging.getLogger(__name__)
 
@@ -590,7 +591,46 @@ class TaskPlanner:
                 continue
 
             try:
-                raw = await provider.plan(instruction, context)
+                # Use centralized response sensor for masking/unmasking and redaction
+                try:
+                    from .response_sensor import ResponseSensor
+
+                    rs = ResponseSensor()
+                    masked_instruction, mask = rs.mask_for_model(instruction)
+                    try:
+                        masked_context = json.loads(mask.mask(json.dumps(context or {})))
+                    except Exception:
+                        masked_context = context
+
+                    raw = await provider.plan(masked_instruction, masked_context)
+                    if raw:
+                        raw = rs.unmask_and_redact(raw, mask=mask)
+                except Exception:
+                    # Fallback to previous masking logic if ResponseSensor import fails
+                    mask = MaskingEngine()
+                    mask.add_rule("domain", r"[a-z0-9.-]+\.[a-z]{2,}")
+                    mask.add_rule("ip", r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
+                    mask.add_rule("apikey", r"sk-[A-Za-z0-9]{24,}")
+
+                    masked_instruction = mask.mask(instruction)
+                    try:
+                        masked_context = json.loads(mask.mask(json.dumps(context or {})))
+                    except Exception:
+                        masked_context = context
+
+                    raw = await provider.plan(masked_instruction, masked_context)
+                    if raw:
+                        def _unmask_obj(o: Any) -> Any:
+                            if isinstance(o, str):
+                                return mask.unmask(o)
+                            if isinstance(o, dict):
+                                return {k: _unmask_obj(v) for k, v in o.items()}
+                            if isinstance(o, list):
+                                return [_unmask_obj(i) for i in o]
+                            return o
+
+                        raw = _unmask_obj(raw)
+
                 if raw and raw.get("steps"):
                     if breaker:
                         breaker.record_success()

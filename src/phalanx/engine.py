@@ -22,7 +22,6 @@ import shutil
 import time
 import uuid
 from dataclasses import dataclass, field
-from enum import StrEnum
 from typing import Any
 
 from rich.console import Console
@@ -40,6 +39,7 @@ from .planner import (
     OpenAIModel,
     StepType,
 )
+from .engine_types import StepResult, StepStatus
 from .dynamic_resolver import DynamicResolver
 from .executor import run_tool_complete
 from .metrics import get_metrics
@@ -48,6 +48,9 @@ from .offline_store import OfflineStore
 from .security_hardening import redactor, danger_analyzer, validator
 from .tool_registry import ToolInfo, ToolRegistry
 from .knowledge_graph import KnowledgeGraph
+from .worker_pool import AsyncWorkerPool
+from .tool_executor import ToolExecutor
+from .providers import registry as provider_registry, NoopProvider
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -175,6 +178,15 @@ class ExecutionEngine:
         # Initialize task planner with providers
         self._planner = TaskPlanner()
         self._setup_providers()
+
+        # Bounded sub-agent pool
+        max_subagents = int(self._config.get("max_subagents", 15))
+        self._pool = AsyncWorkerPool(max_workers=max_subagents)
+
+        # Tool executor (delegates actual tool/shell runs)
+        self._executor = ToolExecutor(
+            resolver=self._resolver, discovered_tools=self._discovered_tools, graph=self._graph
+        )
 
         # Initialize dynamic resolver
         registered = {t.binary: t.path for t in self._discovered_tools}
@@ -306,39 +318,56 @@ class ExecutionEngine:
 
     def _setup_providers(self) -> None:
         """Configure model providers based on available configuration."""
-        # OpenAI
-        openai_key = self._config.get("openai_api_key", "")
-        openai_model = self._config.get("openai_model", "gpt-4o")
-        openai_provider = OpenAIModel(api_key=openai_key, model=openai_model)
-
-        # Ollama (local)
-        ollama_url = self._config.get("ollama_url", "http://localhost:11434")
-        ollama_model = self._config.get("ollama_model", "llama3.1")
-        ollama_provider = OllamaModel(base_url=ollama_url, model=ollama_model)
-
-        # Cloud service
-        cloud_url = self._config.get("server_url", "")
-        cloud_key = self._config.get("api_key", "")
-        cloud_provider = CloudModel(server_url=cloud_url, api_key=cloud_key)
-
+        # Instantiate adapters from the global provider registry
         preferred = str(self._config.get("model_provider", "auto")).strip().lower()
-        gemini_key = self._config.get("gemini_api_key", "")
-        gemini_model = self._config.get("gemini_model", "gemini-1.5-pro")
-        gemini_provider = GeminiModel(api_key=gemini_key, model=gemini_model)
-
-        ordered_providers = [gemini_provider, openai_provider, ollama_provider, cloud_provider]
         preference_map = {
-            "gemini": [gemini_provider, openai_provider, ollama_provider, cloud_provider],
-            "openai": [openai_provider, gemini_provider, ollama_provider, cloud_provider],
-            "ollama": [ollama_provider, gemini_provider, openai_provider, cloud_provider],
-            "cloud": [cloud_provider, gemini_provider, openai_provider, ollama_provider],
-            "auto": ordered_providers,
+            "gemini": ["gemini", "openai", "ollama", "cloud", "noop"],
+            "openai": ["openai", "gemini", "ollama", "cloud", "noop"],
+            "ollama": ["ollama", "gemini", "openai", "cloud", "noop"],
+            "cloud": ["cloud", "gemini", "openai", "ollama", "noop"],
+            "auto": ["gemini", "openai", "ollama", "cloud", "noop"],
         }
 
-        for provider in preference_map.get(preferred, ordered_providers):
-            if hasattr(provider, "available") and not provider.available:
-                continue
-            self._planner.add_provider(provider)
+        order = preference_map.get(preferred, preference_map["auto"])
+
+        for name in order:
+            try:
+                if name == "openai":
+                    api_key = self._config.get("openai_api_key", "")
+                    model = self._config.get("openai_model", "gpt-4o")
+                    prov = provider_registry.get("openai", api_key=api_key, model=model)
+                    available = bool(api_key)
+                elif name == "gemini":
+                    api_key = self._config.get("gemini_api_key", "") or self._config.get("google_api_key", "")
+                    model = self._config.get("gemini_model", "gemini-1.5-pro")
+                    prov = provider_registry.get("gemini", api_key=api_key, model=model)
+                    available = bool(api_key)
+                elif name == "ollama":
+                    url = self._config.get("ollama_url", "http://localhost:11434")
+                    model = self._config.get("ollama_model", "llama3.1")
+                    prov = provider_registry.get("ollama", base_url=url, model=model)
+                    available = True
+                elif name == "cloud":
+                    server = self._config.get("server_url", "")
+                    key = self._config.get("api_key", "")
+                    prov = provider_registry.get("cloud", server_url=server, api_key=key)
+                    available = bool(server and key)
+                else:  # noop or unknown
+                    prov = provider_registry.get("noop")
+                    available = True
+
+                if not available:
+                    continue
+
+                # Attach an availability attribute for backward compatibility
+                try:
+                    setattr(prov, "available", available)
+                except Exception:
+                    pass
+
+                self._planner.add_provider(prov)
+            except Exception:
+                logger.debug("Failed to instantiate provider adapter: %s", name, exc_info=True)
 
     @property
     def graph(self) -> KnowledgeGraph:
@@ -671,10 +700,9 @@ class ExecutionEngine:
                     )
                 return sr
 
-            wave_results = await asyncio.gather(
-                *[_run_one(s) for s in ready],
-                return_exceptions=True,
-            )
+            # Submit to bounded worker pool to control concurrency and cancellation
+            tasks = [self._pool.submit(_run_one, s) for s in ready]
+            wave_results = await asyncio.gather(*tasks, return_exceptions=True)
 
             for i, wr in enumerate(wave_results):
                 if isinstance(wr, Exception):
@@ -693,6 +721,11 @@ class ExecutionEngine:
 
             pending = still_pending
 
+        # Close worker pool before returning (best-effort)
+        try:
+            await self._pool.close(timeout=5)
+        except Exception:
+            logger.debug("Error closing sub-agent pool", exc_info=True)
         return result
 
     def _persist_step(
@@ -819,34 +852,8 @@ class ExecutionEngine:
 
     async def _execute_step(self, step: ExecutionStep, interactive: bool) -> StepResult:
         """Execute a single step based on its type."""
-        start = time.monotonic()
-
-        try:
-            if step.step_type == StepType.TOOL_RUN:
-                return await self._run_tool_step(step, interactive)
-            elif step.step_type == StepType.SHELL_CMD:
-                return await self._run_shell_step(step, interactive)
-            elif step.step_type == StepType.ANALYSIS:
-                return await self._run_analysis_step(step)
-            elif step.step_type == StepType.REPORT:
-                return self._run_report_step(step)
-            elif step.step_type == StepType.PARALLEL_GROUP:
-                return await self._run_parallel_step(step, interactive)
-            else:
-                return StepResult(
-                    step_id=step.id,
-                    status=StepStatus.SKIPPED,
-                    output=f"Unsupported step type: {step.step_type}",
-                )
-        except Exception as exc:
-            duration = (time.monotonic() - start) * 1000
-            logger.exception("Step %s failed", step.id)
-            return StepResult(
-                step_id=step.id,
-                status=StepStatus.FAILED,
-                error=str(exc),
-                duration_ms=duration,
-            )
+        # Delegate execution to ToolExecutor for better separation of concerns
+        return await self._executor.execute_step(step, interactive)
 
     async def _run_tool_step(self, step: ExecutionStep, interactive: bool) -> StepResult:
         """Execute a registered security tool."""

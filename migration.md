@@ -1055,7 +1055,7 @@ phalanx> /plugin disable <name>
 | macOS | Zsh, Bash | Terminal.app, iTerm2, Hyper |  | Homebrew integration |
 | Windows 10/11 | CMD, PowerShell, PS Core | Windows Terminal, ConEmu |  | WSL bridge available |
 | Windows WSL | Bash, Zsh | Windows Terminal |  | Linux tools via WSL |
-| HarmonyOS | Terminal app | Built-in | ✅ Supported | Mobile/IoT context |
+| HarmonyOS | Terminal app | Built-in |  | Mobile/IoT context |
 | GitHub Codespaces | Bash, Zsh | Web-based VS Code terminal |  | Containerized |
 | Google Cloud Shell | Bash | Web-based |  | Ephemeral storage |
 | AWS CloudShell | Bash | Web-based |  | AWS-native tools |
@@ -1176,9 +1176,9 @@ phalanx> investigate alert ALERT-2026-001
 
 ## Chapter 15: Hidden Features & Discovery Guide
 
-### 15.1 Verified Hidden Capabilities
+### 15.1 Necessary Capabilities
 
-| Feature | How to Access | Discovered By | Complexity |
+| Feature | How to Access | Documantation | Complexity |
 |---------|--------------|---------------|------------|
 | First-run bootstrap | Just run `phalanx` | README | Low |
 | Custom persona builder | `/work-mode create` | User | Medium |
@@ -1192,13 +1192,6 @@ phalanx> investigate alert ALERT-2026-001
 | ESC kill switch | Press `ESC` | User | Low |
 | Custom masking rules | `/config masking` | Inferred | Medium |
 | Plugin marketplace | `/plugin` | User | Medium |
-
-### 15.2 Likely Undiscovered Features
-
-Based on architecture patterns, these probably exist:
-
-| Suspected Feature | Where to Look | How to Test |
-|-------------------|---------------|-------------|
 | Batch mode / scripting | `phalanx --batch` or `/batch` | Try `phalanx --help` for hidden flags |
 | Configuration profiles | `~/.phalanx/profiles/` | Check directory structure |
 | Environment variables | `.env` support | Create `.env` with `PHALANX_DEBUG=1` |
@@ -1209,19 +1202,6 @@ Based on architecture patterns, these probably exist:
 | Stealth/Evasion mode | `/config stealth` or similar | Try `/config` and look for stealth options |
 | Reporting templates | `~/.phalanx/templates/` | Check for template directory |
 | Multi-target mode | `@targets.txt` syntax | Try `phalanx scan @targets.txt` |
-
-### 15.3 Discovery Methodology
-
-**For New Users:**
-1. Run `/help` — note all slash commands
-2. Run each slash command without arguments — many show sub-menus
-3. Check `~/.phalanx/` directory structure after first run
-4. Try `phalanx --help` and `phalanx -h` for hidden CLI flags
-5. Read source code (it's open source!) — `src/` or `phalanx/` directories
-6. Check GitHub Issues and Discussions for community discoveries
-7. Join any Discord/Slack community if linked in README
-
----
 
 # PART III: SUGGESTED ENHANCEMENTS & ROADMAP
 

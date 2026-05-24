@@ -81,8 +81,7 @@ class MaskingEngine:
         return token_pattern.sub(_token_replacer, text)
 
     def reset(self) -> None:
-        """Clear all session mappings and rules."""
-        self._rules.clear()
+        """Clear session mappings while preserving configured masking rules."""
         self._orig_to_token.clear()
         self._token_to_orig.clear()
         self._counter = 0

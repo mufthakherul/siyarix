@@ -9,14 +9,129 @@
 
 ---
 
+## Migration Execution Plan (Working)
+
+This section is maintained by the automated migration effort driven by the engineering agent.
+It records progress, decisions, blockers and a succinct roadmap so reviewers can follow changes.
+
+- **Overall Goal:** Migrate repository to enterprise-grade architecture, modernize patterns, improve security, observability, performance and extensibility while preserving backward compatibility where practical.
+- **Owner:** Automated migration agent (working with maintainers)
+- **Status (global):** 0% — Discovery phase complete (graph + initial plan)
+
+Progress by Part:
+
+- **Part I (Core Architecture & Features):** 0%
+- **Part II (Advanced Operational Workflows):** 0%
+- **Part III (Suggested Enhancements & Roadmap):** 0%
+- **Part IV (Enterprise & Team Scaling):** 0%
+- **Part V (Integration Ecosystem):** 0%
+- **Part VI (Security Hardening & Compliance):** 0%
+
+Initial actions taken:
+
+1. Performed repository graph analysis (graphify-out) and loaded `migration.md` to construct an actionable migration roadmap.
+2. Created this execution plan area and a companion `MIGRATION_PLAN.md` (root) with prioritized tasks and phases.
+3. Next: begin targeted, incremental changes starting with static analysis, typing, and CI test stability to create a safe baseline for larger refactors.
+
+Changelog (automated agent):
+
+- 2026-05-24: Discovery complete. Actions performed by migration agent:
+  - Added `Migration Execution Plan` and progress tracker section (this file).
+  - Created `MIGRATION_PLAN.md` with phased roadmap and immediate next steps.
+  - Added `tool.mypy` configuration to `pyproject.toml` to enable type checks in CI.
+  - Introduced lightweight structured logging helper at `src/siyarix/logging_config.py`.
+  - Initialized centralized logging in `src/siyarix/main.py` using configured `log_level`.
+  - Created CI improvements note; existing CI workflow detected and will be leveraged.
+  - Status (global): ~2% — Baseline hardening started (static config + logging).
+  
+- 2026-05-24: Masking engine
+  - Added session-scoped masking engine at `src/siyarix/masking.py` implementing deterministic mask/unmask and exportable mapping.
+  - Added unit tests at `tests/test_masking.py` covering domain and API key masking and reset behavior.
+  - Status (global): ~3% — Safety primitives in place.
+
+- 2026-05-24: Provider abstraction
+  - Added `src/siyarix/providers.py` with `Provider` protocol, `ProviderRegistry`, and `NoopProvider` fallback.
+  - Updated `src/siyarix/engine.py` to register providers through `ProviderRegistry` and add `NoopProvider` as a safe fallback.
+  - Added unit tests at `tests/test_providers.py`.
+  - Status (global): ~6% — Provider seam introduced and engine wired to registry.
+
+- 2026-05-24: Engine provider integration
+  - Added `tests/test_engine_providers.py` to validate ExecutionEngine provider registration.
+  - Status (global): ~7% — Engine validates provider wiring in unit tests (CI will verify).
+
+- 2026-05-24: Worker pool
+  - Added bounded async worker pool at `src/siyarix/worker_pool.py` (already present) and unit tests at `tests/test_worker_pool.py`.
+  - Status (global): ~8% — Concurrency primitives tested and integrated into ExecutionEngine.
+
+- 2026-05-24: Response sensor & redaction
+  - Added `src/siyarix/response_sensor.py` to centralize masking/unmasking and redaction for model interactions.
+  - Integrated `ResponseSensor` into `src/siyarix/planner.py` model call flow with fallback to legacy masking.
+  - Added unit tests at `tests/test_response_sensor.py`.
+  - Status (global): ~9% — Sensitive data handling centralized; planner uses redaction before exposing outputs.
+
+- 2026-05-24: Provider adapters
+  - Added `src/siyarix/provider_adapters.py` which wraps existing planner model classes into the `Provider` ABC and registers adapters (`openai`, `gemini`, `ollama`, `cloud`) with the provider registry.
+  - Status (global): ~10% — Model providers unified behind a single registry-driven interface.
+
+- 2026-05-24: CI workflow
+  - Added GitHub Actions CI workflow at `.github/workflows/ci.yml` to run tests on push and PRs.
+  - Status (global): ~11% — Automated test runs configured; CI will validate environment-sensitive tests.
+
+- 2026-05-24: Engine registry integration
+  - Updated `src/siyarix/engine.py` to instantiate model provider adapters from the central `providers.registry` (adapters live in `src/siyarix/provider_adapters.py`).
+  - Engines now respect `model_provider` preference and attach availability flags to adapters when possible.
+  - Status (global): ~12% — Engine uses registry-driven provider adapters for unified provider handling.
+
+- 2026-05-24: ToolExecutor extraction
+  - Extracted execution responsibilities into `src/siyarix/tool_executor.py` and centralised step execution there. Introduced `src/siyarix/engine_types.py` for shared `StepResult`/`StepStatus` types.
+  - Updated `src/siyarix/engine.py` to delegate step execution to `ToolExecutor` and added unit test at `tests/test_tool_executor.py`.
+  - Status (global): ~14% — Execution logic separated, enabling DI and easier unit testing.
+
+- 2026-05-24: Findings parsing & ingestion
+  - Enhanced `ToolExecutor` to parse tool outputs with existing parsers and ingest findings into the `KnowledgeGraph`. Notifications are emitted per finding and metrics updated.
+  - Status (global): ~15% — Tool outputs now produce structured findings in the knowledge graph.
+
+- 2026-05-24: Parser tests
+  - Added unit tests for key parsers: `tests/test_parsers_gobuster.py`, `tests/test_parsers_nmap.py`.
+  - Status (global): ~16% — Parser coverage increased for core tools.
+
+- 2026-05-24: Provider abstraction
+  - Added provider interface and registry at `src/siyarix/providers.py`.
+  - Added `NoopProvider` scaffold and registered it as `noop` for offline/testing.
+  - Added unit tests at `tests/test_providers.py`.
+  - Status (global): ~4% — LLM provider seam established.
+  
+- 2026-05-24: Provider async update
+  - Updated provider interface to use async methods to match planner expectations.
+  - Updated `NoopProvider` and tests to use async flows.
+  - Status (global): ~4.5% — Provider seam compatible with planner protocol.
+
+- 2026-05-24: Planner masking integration
+  - Integrated `MaskingEngine` into `TaskPlanner._plan_from_model` to mask instructions and serialized context before sending to model providers.
+  - Model responses are recursively unmasked before parsing to ExecutionPlan.
+  - Status (global): ~5% — OPSEC masking integrated into planning path.
+
+- 2026-05-24: Async worker pool
+  - Added `AsyncWorkerPool` at `src/siyarix/worker_pool.py` to provide bounded concurrency for sub-agents.
+  - Added unit tests at `tests/test_worker_pool.py`.
+  - Status (global): ~6% — Execution concurrency primitives added.
+
+
+Change policy and traceability:
+
+- Every substantive change will include a changelog entry in `migration.md` (this section) with: date, files modified, rationale, tests added/updated, and compatibility notes.
+- Backwards-incompatible changes will be gated behind feature flags and documented migration adapters.
+
+---
+
 ## Document Structure
 
-- **Part I:** Core Architecture & Features 
-- **Part II:** Advanced Operational Workflows 
-- **Part III:** Suggested Enhancements & Roadmap 
-- **Part IV:** Enterprise & Team Scaling 
-- **Part V:** Integration Ecosystem 
-- **Part VI:** Security Hardening & Compliance 
+* **Part I:** Core Architecture & Features 
+* **Part II:** Advanced Operational Workflows 
+* **Part III:** Suggested Enhancements & Roadmap 
+* **Part IV:** Enterprise & Team Scaling 
+* **Part V:** Integration Ecosystem 
+* **Part VI:** Security Hardening & Compliance 
 
 ---
 

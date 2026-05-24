@@ -16,16 +16,16 @@ It records progress, decisions, blockers and a succinct roadmap so reviewers can
 
 - **Overall Goal:** Migrate repository to enterprise-grade architecture, modernize patterns, improve security, observability, performance and extensibility while preserving backward compatibility where practical.
 - **Owner:** Automated migration agent (working with maintainers)
-- **Status (global):** 0% — Discovery phase complete (graph + initial plan)
+- **Status (global):** 20% — Phase 1 adaptive foundation actively implemented
 
 Progress by Part:
 
-- **Part I (Core Architecture & Features):** 0%
-- **Part II (Advanced Operational Workflows):** 0%
-- **Part III (Suggested Enhancements & Roadmap):** 0%
-- **Part IV (Enterprise & Team Scaling):** 0%
-- **Part V (Integration Ecosystem):** 0%
-- **Part VI (Security Hardening & Compliance):** 0%
+- **Part I (Core Architecture & Features):** 28%
+- **Part II (Advanced Operational Workflows):** 8%
+- **Part III (Suggested Enhancements & Roadmap):** 5%
+- **Part IV (Enterprise & Team Scaling):** 6%
+- **Part V (Integration Ecosystem):** 2%
+- **Part VI (Security Hardening & Compliance):** 12%
 
 Initial actions taken:
 
@@ -34,6 +34,21 @@ Initial actions taken:
 3. Next: begin targeted, incremental changes starting with static analysis, typing, and CI test stability to create a safe baseline for larger refactors.
 
 Changelog (automated agent):
+
+- 2026-05-24: Phase 1 feedback-loop + multi-agent wiring
+  - Fixed provider subsystem merge regression by consolidating `src/siyarix/providers.py` into a single compatible registry/protocol implementation.
+  - Fixed `src/siyarix/tool_executor.py` import/runtime defects (`ResolveResult` import mismatch and shell-step duration calculation).
+  - Fixed `ExecutionEngine` initialization ordering in `src/siyarix/engine.py` (resolver/graph created before `ToolExecutor`), and unified runtime step types by removing duplicated local `StepStatus`/`StepResult` definitions.
+  - Added XI runtime integration in `ExecutionEngine` context building and step feedback tracking (`ContextTracker` + `Predictor`).
+  - Added adaptive re-plan trigger path: failed/zero-finding step outcomes now feed back into planner (`TaskPlanner.replan`) and can inject corrective next steps dynamically.
+  - Added coordinator wiring for multi-agent objective dispatch in `src/siyarix/agents/coordinator.py` and `ExecutionEngine.execute_objective(...)`, connecting `AgentTeam` with `SOCAgent` and `DFIRAgent`.
+  - Added tests:
+    - `tests/test_adaptive_replan.py`
+    - `tests/test_multi_agent_coordinator.py`
+  - Compatibility notes:
+    - Existing `NoopProvider` behavior remains backward compatible for both lightweight and registry-instantiated usage patterns.
+    - Adaptive re-plan is bounded by `max_replans` (default: 3) to avoid runaway loops.
+  - Status (global): ~20% — Phase 1 feedback/adaptation architecture and coordinator integration in place.
 
 - 2026-05-24: Discovery complete. Actions performed by migration agent:
   - Added `Migration Execution Plan` and progress tracker section (this file).

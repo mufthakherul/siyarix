@@ -10,10 +10,11 @@ class DummyResolver:
         class R:
             is_safe = True
             path = "/bin/echo"
-            args = args
             warnings = []
 
-        return R()
+        r = R()
+        r.args = args
+        return r
 
 
 class DummyToolInfo:
@@ -41,7 +42,7 @@ def test_run_tool_step_basic():
 
     step = ExecutionStep(id="s1", step_type=StepType.TOOL_RUN, tool="echo", args=["hello"])
 
-    res = asyncio.get_event_loop().run_until_complete(executor.execute_step(step, interactive=False))
+    res = asyncio.run(executor.execute_step(step, interactive=False))
     assert isinstance(res, StepResult)
     assert res.status == StepStatus.SUCCESS
     assert "ok" in res.output

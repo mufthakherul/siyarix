@@ -567,6 +567,65 @@ class TaskPlanner:
         steps_desc = [s.description or (s.tool or s.command or "step") for s in plan.steps]
         return f"Plan: {' -> '.join(steps_desc)}"
 
+    async def replan(
+        self,
+        instruction: str,
+        context: dict[str, Any],
+        trigger_step: ExecutionStep,
+        trigger_reason: str,
+    ) -> ExecutionPlan | None:
+        """Adaptive re-planning entrypoint for execution feedback loops."""
+        replan_prompt = (
+            f"Objective: {instruction}\n"
+            f"Trigger: step '{trigger_step.id}' with reason '{trigger_reason}'.\n"
+            "Generate only the next minimal corrective steps."
+        )
+        model_plan = await self._plan_from_model(replan_prompt, context)
+        if model_plan and model_plan.steps:
+            model_plan.source = "adaptive-replan"
+            return model_plan
+
+        fallback_steps: list[ExecutionStep] = []
+        if trigger_reason == "step_failed" and trigger_step.tool == "nikto":
+            fallback_steps.append(
+                ExecutionStep(
+                    id=f"{trigger_step.id}_adaptive_nuclei",
+                    step_type=StepType.TOOL_RUN,
+                    tool="nuclei",
+                    target=trigger_step.target,
+                    description=f"Adaptive fallback: nuclei after {trigger_step.id} failure",
+                )
+            )
+        elif trigger_reason == "zero_findings" and trigger_step.tool == "nmap":
+            fallback_steps.append(
+                ExecutionStep(
+                    id=f"{trigger_step.id}_adaptive_nuclei",
+                    step_type=StepType.TOOL_RUN,
+                    tool="nuclei",
+                    target=trigger_step.target,
+                    description=f"Adaptive follow-up: nuclei after zero findings from {trigger_step.id}",
+                )
+            )
+        elif trigger_reason == "zero_findings" and trigger_step.tool == "gobuster":
+            fallback_steps.append(
+                ExecutionStep(
+                    id=f"{trigger_step.id}_adaptive_nikto",
+                    step_type=StepType.TOOL_RUN,
+                    tool="nikto",
+                    target=trigger_step.target,
+                    description=f"Adaptive follow-up: nikto after zero findings from {trigger_step.id}",
+                )
+            )
+
+        if not fallback_steps:
+            return None
+        return ExecutionPlan(
+            steps=fallback_steps,
+            source="adaptive-replan-fallback",
+            confidence=0.6,
+            raw_instruction=instruction,
+        )
+
     def _plan_from_interpretation(self, instruction: str) -> ExecutionPlan:
         """Create a plan purely from the heuristic interpreter."""
         task = self._interpreter.interpret(instruction)

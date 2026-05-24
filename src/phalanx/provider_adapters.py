@@ -17,7 +17,7 @@ class OpenAIAdapter(Provider):
     async def validate(self) -> bool:
         return bool(getattr(self._impl, "available", False))
 
-    async def plan(self, prompt: str, *, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def plan(self, prompt: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         return await self._impl.plan(prompt, context or {})
 
     async def chat(self, messages: Iterable[Dict[str, Any]], *, max_tokens: int = 1024) -> Dict[str, Any]:

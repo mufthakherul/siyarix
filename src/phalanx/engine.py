@@ -18,10 +18,12 @@ import asyncio
 import json
 import logging
 import platform
+import re
 import shutil
 import time
 import uuid
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Any
 
 from rich.console import Console
@@ -31,12 +33,8 @@ from rich.table import Table
 
 from .planner import (
     TaskPlanner,
-    CloudModel,
-    GeminiModel,
     ExecutionPlan,
     ExecutionStep,
-    OllamaModel,
-    OpenAIModel,
     StepType,
 )
 from .engine_types import StepResult, StepStatus
@@ -45,12 +43,13 @@ from .executor import run_tool_complete
 from .metrics import get_metrics
 from .notifications import notification_center
 from .offline_store import OfflineStore
-from .security_hardening import redactor, danger_analyzer, validator
+from .security_hardening import redactor
 from .tool_registry import ToolInfo, ToolRegistry
 from .knowledge_graph import KnowledgeGraph
 from .worker_pool import AsyncWorkerPool
 from .tool_executor import ToolExecutor
-from .providers import registry as provider_registry, NoopProvider
+from .providers import registry as provider_registry
+from .xi import ContextTracker, Predictor
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -71,32 +70,6 @@ class ExecutionMode(StrEnum):
     REGISTRY = "registry"  # Registry-only (no model-driven planning)
     AUTONOMOUS = "autonomous"  # Model-driven planning and execution
     INTEGRATED = "integrated"  # Model-driven planning with registry fallback
-
-
-class StepStatus(StrEnum):
-    """Status of an execution step."""
-
-    PENDING = "pending"
-    RUNNING = "running"
-    SUCCESS = "success"
-    FAILED = "failed"
-    SKIPPED = "skipped"
-    BLOCKED = "blocked"
-
-
-@dataclass
-class StepResult:
-    """Result of executing a single step."""
-
-    step_id: str
-    status: StepStatus
-    output: str = ""
-    error: str = ""
-    duration_ms: float = 0.0
-    findings: list[dict[str, Any]] = field(default_factory=list)
-    metadata: dict[str, Any] = field(default_factory=dict)
-    retry_count: int = 0  # How many times this step was retried
-    exit_code: int | None = None  # Tool exit code if applicable
 
 
 @dataclass
@@ -179,24 +152,32 @@ class ExecutionEngine:
         self._planner = TaskPlanner()
         self._setup_providers()
 
+        # Runtime intelligence services (XI)
+        self._xi_tracker = ContextTracker()
+        self._xi_predictor = Predictor()
+        self._replan_attempts = 0
+        self._max_replans = int(self._config.get("max_replans", 3))
+
         # Bounded sub-agent pool
         max_subagents = int(self._config.get("max_subagents", 15))
         self._pool = AsyncWorkerPool(max_workers=max_subagents)
-
-        # Tool executor (delegates actual tool/shell runs)
-        self._executor = ToolExecutor(
-            resolver=self._resolver, discovered_tools=self._discovered_tools, graph=self._graph
-        )
 
         # Initialize dynamic resolver
         registered = {t.binary: t.path for t in self._discovered_tools}
         registered.update({t.name: t.path for t in self._discovered_tools})
         self._resolver = DynamicResolver(registered_tools=registered)
 
+        # Shared graph and step state
+        self._graph = KnowledgeGraph()
+
+        # Tool executor (delegates actual tool/shell runs)
+        self._executor = ToolExecutor(
+            resolver=self._resolver, discovered_tools=self._discovered_tools, graph=self._graph
+        )
+
         # Step results for tracking
         self._completed_steps: dict[str, StepResult] = {}
         self._offline_store: OfflineStore | None = None
-        self._graph = KnowledgeGraph()
 
     def _get_offline_store(self) -> OfflineStore:
         """Get or create offline store instance."""
@@ -384,6 +365,14 @@ class ExecutionEngine:
 
     def _build_context(self) -> dict[str, Any]:
         """Build context dict for the task planner."""
+        recent_execs = self._xi_tracker.recent_executions
+        last_tool = recent_execs[-1].tool if recent_execs else ""
+        prediction_objs = self._xi_predictor.predict_next(
+            phase=self._xi_tracker.phase,
+            last_tool=last_tool,
+            target="",
+            findings_count=self._xi_tracker.total_findings,
+        )
         return {
             "available_tools": [
                 {
@@ -395,6 +384,11 @@ class ExecutionEngine:
                 for t in self._discovered_tools
             ],
             "mode": self._mode.value,
+            "xi_context": self._xi_tracker.summary(),
+            "xi_predictions": [
+                {"action": p.action, "confidence": p.confidence, "reason": p.reason}
+                for p in prediction_objs
+            ],
         }
 
     async def plan(self, instruction: str) -> ExecutionPlan:
@@ -469,6 +463,7 @@ class ExecutionEngine:
 
         # Phase 2: Execute
         self._completed_steps.clear()
+        self._replan_attempts = 0
         result = EngineResult(plan=plan, mode=self._mode)
         result.plan_id = plan_id
 
@@ -526,6 +521,7 @@ class ExecutionEngine:
 
         # Preload completed steps
         self._completed_steps.clear()
+        self._replan_attempts = 0
         for row in plan_record.get("steps", []):
             findings = json.loads(row.get("findings_json") or "[]")
             sr = StepResult(
@@ -687,9 +683,11 @@ class ExecutionEngine:
                 sr = await self._execute_step_with_retry(step, interactive)
                 self._completed_steps[step.id] = sr
                 self._persist_step(store, plan_id, sr)
+                self._record_step_feedback(step, sr)
 
                 # Dynamically mutate the remaining plan steps based on this step's output
                 self._adapt_plan_on_step_result(step, sr, plan, still_pending)
+                await self._replan_from_feedback(step, sr, plan, still_pending)
 
                 if progress and task_id is not None:
                     status_icon = "✅" if sr.status == StepStatus.SUCCESS else "❌"
@@ -1179,6 +1177,84 @@ class ExecutionEngine:
 
         return True  # Default: execute
 
+    def _record_step_feedback(self, step: ExecutionStep, sr: StepResult) -> None:
+        """Feed step outcomes into XI context/predictor for future planning."""
+        tool_name = step.tool or (step.command.split()[0] if step.command else "analysis")
+        target = step.target or ""
+        self._xi_tracker.record_execution(
+            tool=tool_name,
+            target=target,
+            duration_ms=sr.duration_ms,
+            success=sr.status == StepStatus.SUCCESS,
+            findings_count=len(sr.findings),
+        )
+        if step.command:
+            self._xi_predictor.learn(step.command)
+        elif step.tool:
+            cmd = " ".join([step.tool, *step.args, step.target or ""]).strip()
+            self._xi_predictor.learn(cmd)
+
+    async def _replan_from_feedback(
+        self,
+        step: ExecutionStep,
+        sr: StepResult,
+        plan: ExecutionPlan,
+        still_pending: list[ExecutionStep],
+    ) -> None:
+        """Trigger planner re-evaluation after failures or zero-finding outcomes."""
+        if self._replan_attempts >= self._max_replans:
+            return
+        if not (sr.status == StepStatus.FAILED or (sr.status == StepStatus.SUCCESS and len(sr.findings) == 0)):
+            return
+
+        trigger = "step_failed" if sr.status == StepStatus.FAILED else "zero_findings"
+        replan_ctx = self._build_context()
+        replan_ctx.update(
+            {
+                "trigger_step": step.to_dict(),
+                "trigger_result": {
+                    "status": sr.status.value,
+                    "error": sr.error[:500],
+                    "output": sr.output[:1000],
+                    "findings_count": len(sr.findings),
+                },
+                "completed_steps": [s.to_dict() for s in plan.steps if s.id in self._completed_steps],
+                "pending_steps": [s.to_dict() for s in still_pending],
+            }
+        )
+        adaptive = await self._planner.replan(
+            instruction=plan.raw_instruction or "",
+            context=replan_ctx,
+            trigger_step=step,
+            trigger_reason=trigger,
+        )
+        if not adaptive or not adaptive.steps:
+            return
+
+        existing_ids = {s.id for s in plan.steps} | {s.id for s in still_pending}
+        injected: list[ExecutionStep] = []
+        for i, candidate in enumerate(adaptive.steps, 1):
+            base_id = candidate.id or f"{step.id}_replan_{i}"
+            new_id = base_id
+            while new_id in existing_ids:
+                new_id = f"{base_id}_{i}"
+            candidate.id = new_id
+            if step.id not in candidate.depends_on:
+                candidate.depends_on.append(step.id)
+            existing_ids.add(new_id)
+            injected.append(candidate)
+
+        if injected:
+            still_pending[:0] = injected
+            plan.steps.extend(injected)
+            self._replan_attempts += 1
+            logger.info(
+                "Adaptive re-plan injected %d step(s) after %s (%s)",
+                len(injected),
+                step.id,
+                trigger,
+            )
+
     def _adapt_plan_on_step_result(
         self,
         step: ExecutionStep,
@@ -1290,6 +1366,23 @@ class ExecutionEngine:
 
         return []
 
+    async def execute_objective(
+        self,
+        objective: str,
+        target: str = "",
+        *,
+        interactive: bool = False,
+    ) -> dict[str, Any]:
+        """Execute a high-level objective through the multi-agent coordinator."""
+        from .agents.coordinator import CoordinatorAgent
+
+        coordinator = CoordinatorAgent(engine=self)
+        return await coordinator.execute_objective(
+            objective=objective,
+            target=target,
+            interactive=interactive,
+        )
+
     # ------------------------------------------------------------------
     # Display helpers
     # ------------------------------------------------------------------
@@ -1372,4 +1465,3 @@ class ExecutionEngine:
 # ═══════════════════════════════════════════════════════════════════════════
 # Agentic Loop has been moved to phalanx.core.agentic_loop
 # ═══════════════════════════════════════════════════════════════════════════
-

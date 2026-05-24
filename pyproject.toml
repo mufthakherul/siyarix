@@ -63,6 +63,15 @@ packages = ["src/phalanx"]
 line-length = 100
 target-version = "py311"
 
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+warn_unused_ignores = true
+strict_optional = true
+
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

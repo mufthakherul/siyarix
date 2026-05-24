@@ -15,7 +15,6 @@ from .executor import run_tool_complete
 from .metrics import get_metrics
 from .notifications import notification_center
 from .security_hardening import redactor
-from .dynamic_resolver import ResolveResult
 
 from .engine_types import StepResult, StepStatus
 from .planner import ExecutionStep, StepType
@@ -182,11 +181,7 @@ class ToolExecutor:
             return StepResult(step_id=step.id, status=StepStatus.BLOCKED, error=f"Blocked: {'; '.join(resolved.warnings)}")
 
         result = await self._run_tool(resolved.path, resolved.args, step.timeout)
-        duration = 0.0
-        try:
-            duration = (time.monotonic() - time.time()) * 1000
-        except Exception:
-            duration = 0.0
+        duration = (time.monotonic() - start) * 1000
 
         return StepResult(
             step_id=step.id,

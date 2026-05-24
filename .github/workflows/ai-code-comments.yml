@@ -52,7 +52,7 @@ jobs:
       file_count: ${{ steps.scan.outputs.count }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -171,7 +171,7 @@ jobs:
       classes_found: ${{ steps.analyze.outputs.classes }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install analysis tools
         run: |
@@ -214,7 +214,7 @@ jobs:
         chunk: [1, 2, 3, 4, 5]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -425,7 +425,7 @@ jobs:
       (github.event.inputs.dry_run == 'false' || github.event.inputs.dry_run == '')
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0

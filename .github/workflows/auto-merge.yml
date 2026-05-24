@@ -22,7 +22,7 @@ jobs:
       contains(github.event.pull_request.labels.*.name, 'dependencies')
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0

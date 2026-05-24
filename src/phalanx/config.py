@@ -42,6 +42,7 @@ DEFAULTS: dict[str, Any] = {
     "ollama_url": "http://localhost:11434",
     "ollama_model": "llama3.1",
     "notifications_enabled": True,
+    "stealth_mode": False,
 }
 
 # Human-readable descriptions
@@ -64,6 +65,7 @@ DESCRIPTIONS: dict[str, str] = {
     "ollama_url": "Ollama server URL (default: http://localhost:11434)",
     "ollama_model": "Ollama model name (default: llama3.1)",
     "notifications_enabled": "Show Rich panel notifications for key events",
+    "stealth_mode": "Enable advanced stealth and command argument evasion",
 }
 
 

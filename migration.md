@@ -11,7 +11,7 @@
 
 ## Document Structure
 
-- **Part I:** Core Architecture & Discovered Features 
+- **Part I:** Core Architecture & Features 
 - **Part II:** Advanced Operational Workflows 
 - **Part III:** Suggested Enhancements & Roadmap 
 - **Part IV:** Enterprise & Team Scaling 
@@ -20,7 +20,7 @@
 
 ---
 
-# PART I: CORE ARCHITECTURE & DISCOVERED FEATURES
+# PART I: CORE ARCHITECTURE & FEATURES
 
 ---
 

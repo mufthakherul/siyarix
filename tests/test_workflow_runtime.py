@@ -1,9 +1,9 @@
 import asyncio
 
 import pytest
-pytestmark = pytest.mark.workflow
 from phalanx.orchestration.workflow_runtime import WorkflowRuntime, WorkflowState
 from phalanx.offline_store import OfflineStore
+pytestmark = pytest.mark.workflow
 
 
 class _FakeEngineResult:

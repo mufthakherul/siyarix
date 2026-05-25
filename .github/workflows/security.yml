@@ -56,7 +56,7 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
-          upload: true
+          upload: false
           threads: 0
 
   dependency-review:
@@ -136,6 +136,7 @@ jobs:
     name: Bandit Security Scan
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       security-events: write
     steps:
       - name: Checkout repository
@@ -162,6 +163,7 @@ jobs:
     name: pip-audit Scan
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       security-events: write
     steps:
       - name: Checkout repository
@@ -190,7 +192,9 @@ jobs:
     name: OpenSSF Scorecard
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
+      id-token: write
       security-events: write
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:

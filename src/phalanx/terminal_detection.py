@@ -6,20 +6,29 @@ command adaptation as described in Chapter 13.2.
 
 from __future__ import annotations
 
+import logging
 import os
 import platform
-from dataclasses import dataclass
-from enum import Enum
+import re
+from dataclasses import dataclass, field
+from enum import Enum, StrEnum
+from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
-class ShellType(Enum):
+class ShellType(StrEnum):
     BASH = "bash"
     ZSH = "zsh"
     FISH = "fish"
+    SH = "sh"
+    NUSHELL = "nushell"
+    XONSH = "xonsh"
     POWERSHELL = "powershell"
     PWSH = "pwsh"
     CMD = "cmd"
     GENERIC = "generic"
+    UNKNOWN = "unknown"
 
 
 class TerminalType(Enum):

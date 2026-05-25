@@ -25,6 +25,10 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+Fernet: Any = None
+hashes: Any = None
+PBKDF2HMAC: Any = None
+
 try:
     from cryptography.fernet import Fernet
     from cryptography.hazmat.primitives import hashes
@@ -102,6 +106,7 @@ class CredentialStore:
     """Enterprise credential vault"""
 
     _DEFAULT_CONFIG_DIR = Path.home() / ".phalanx"
+
     def __init__(self, master_password: str | None = None) -> None:
         self._config_dir = Path(os.getenv("PHALANX_CONFIG_DIR", str(self._DEFAULT_CONFIG_DIR)))
         self._config_dir.mkdir(parents=True, exist_ok=True)
@@ -109,7 +114,7 @@ class CredentialStore:
         self._key_file = self._config_dir / ".vault_key"
         self._credentials: dict[str, Credential] = {}
         self._master_key: bytes | None = None
-        self._fernet: Fernet | None = None
+        self._fernet: Any = None
 
         # Enforce cryptography for secure credential handling. Fail fast if missing.
         if not CRYPTO_AVAILABLE:
@@ -286,7 +291,7 @@ class CredentialStore:
                         "KMS provider configured but boto3 not available or provider not enabled"
                     )
                 import base64 as _b64
-                import boto3
+                import boto3  # pyright: ignore[reportMissingImports]
 
                 kms_key_blob = _b64.b64decode(obj["encrypted_key"])
                 payload = _b64.b64decode(obj["payload"])
@@ -334,7 +339,7 @@ class CredentialStore:
         provider = os.getenv("PHALANX_KMS_PROVIDER", "").strip().lower()
         if provider == "aws" and self._kms_available():
             try:
-                import boto3
+                import boto3  # pyright: ignore[reportMissingImports]
                 import base64 as _b64
 
                 kms = boto3.client("kms")

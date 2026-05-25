@@ -302,6 +302,230 @@ _KNOWN_TOOLS: dict[str, dict] = {
         "description": "Ansible automation tool",
         "default_args": [],
     },
+    # ── Social Engineering ──────────────────────────────────────────────────
+    "setoolkit": {
+        "version_cmd": ["setoolkit", "--version"],
+        "capabilities": ["social_engineering", "phishing", "credential_harvest"],
+        "category": "social",
+        "description": "Social Engineering Toolkit (SET)",
+        "default_args": [],
+    },
+    "beef": {
+        "version_cmd": ["beef", "--version"],
+        "capabilities": ["browser_exploit", "phishing", "social_engineering"],
+        "category": "social",
+        "description": "Browser Exploitation Framework (BeEF)",
+        "default_args": [],
+    },
+    "gophish": {
+        "version_cmd": ["gophish", "--version"],
+        "capabilities": ["phishing", "campaign_manage", "email_track"],
+        "category": "social",
+        "description": "Open-source phishing framework",
+        "default_args": [],
+    },
+    "ghost-phisher": {
+        "version_cmd": ["ghost-phisher", "--version"],
+        "capabilities": ["phishing", "wireless_ap", "credential_harvest"],
+        "category": "social",
+        "description": "Phishing and fake AP framework",
+        "default_args": [],
+    },
+    # ── Wireless ──────────────────────────────────────────────────────────
+    "reaver": {
+        "version_cmd": ["reaver", "--version"],
+        "capabilities": ["wps_attack", "wireless_attack", "pin_brute"],
+        "category": "wireless",
+        "description": "WPS/WPA2 PIN attack tool",
+        "default_args": [],
+    },
+    "wifite": {
+        "version_cmd": ["wifite", "--version"],
+        "capabilities": ["wireless_audit", "wpa_crack", "deauth"],
+        "category": "wireless",
+        "description": "Automated wireless audit tool",
+        "default_args": [],
+    },
+    "kismet": {
+        "version_cmd": ["kismet", "--version"],
+        "capabilities": ["wireless_detect", "packet_capture", "sniff"],
+        "category": "wireless",
+        "description": "Wireless network detector and sniffer",
+        "default_args": [],
+    },
+    # ── Network Tools (missing) ───────────────────────────────────────────────
+    "netcat": {
+        "version_cmd": ["nc", "--version"],
+        "capabilities": ["port_scan", "banner_grab", "reverse_shell", "file_transfer"],
+        "category": "recon",
+        "description": "Network utility for reading/writing network connections",
+        "default_args": [],
+    },
+    "socat": {
+        "version_cmd": ["socat", "-V"],
+        "capabilities": ["port_forward", "relay", "proxying"],
+        "category": "recon",
+        "description": "Multipurpose relay/SOCKS proxy",
+        "default_args": [],
+    },
+    "tshark": {
+        "version_cmd": ["tshark", "--version"],
+        "capabilities": ["packet_capture", "protocol_analyze", "traffic_dump"],
+        "category": "recon",
+        "description": "CLI packet analyzer (Wireshark CLI)",
+        "default_args": [],
+    },
+    # ── Exploitation (missing) ────────────────────────────────────────────────
+    "metasploit": {
+        "version_cmd": ["msfconsole", "--version"],
+        "capabilities": ["exploitation", "post_exploit", "payload_gen", "auxiliary_scan"],
+        "category": "exploit",
+        "description": "Metasploit Framework (alias for msfconsole)",
+        "default_args": [],
+    },
+    "bloodhound": {
+        "version_cmd": ["bloodhound", "--version"],
+        "capabilities": ["ad_recon", "acl_analyze", "attack_path"],
+        "category": "exploit",
+        "description": "Active Directory attack path analysis",
+        "default_args": [],
+    },
+    "responder": {
+        "version_cmd": ["responder", "--version"],
+        "capabilities": ["llmnr_poison", "ntlm_relay", "network_sniff"],
+        "category": "exploit",
+        "description": "LLMNR/NBT-NS/mDNS poisoner and NTLM relay",
+        "default_args": [],
+    },
+    "crackmapexec": {
+        "version_cmd": ["crackmapexec", "--version"],
+        "capabilities": ["smb_recon", "winrm_exec", "pass_the_hash", "credential_dump"],
+        "category": "exploit",
+        "description": "Swiss-army knife for Windows/AD post-exploitation",
+        "default_args": [],
+    },
+    "evil-winrm": {
+        "version_cmd": ["evil-winrm", "--version"],
+        "capabilities": ["winrm_shell", "pass_the_hash", "windows_post_exploit"],
+        "category": "exploit",
+        "description": "WinRM shell for Windows post-exploitation",
+        "default_args": [],
+    },
+    "empire": {
+        "version_cmd": ["empire", "--version"],
+        "capabilities": ["post_exploit", "c2", "stager_gen", "power_shell"],
+        "category": "exploit",
+        "description": "PowerShell Empire post-exploitation agent",
+        "default_args": [],
+    },
+    "pwncat": {
+        "version_cmd": ["pwncat", "--version"],
+        "capabilities": ["reverse_shell", "privilege_esc", "post_exploit"],
+        "category": "exploit",
+        "description": "Bind/reverse shell handler with privesc",
+        "default_args": [],
+    },
+    # ── Forensics / Reporting ──────────────────────────────────────────────
+    "volatility": {
+        "version_cmd": ["volatility", "--version"],
+        "capabilities": ["memory_forensics", "process_dump", "registry_analyze"],
+        "category": "forensics",
+        "description": "Volatile memory analysis framework",
+        "default_args": [],
+    },
+    "autopsy": {
+        "version_cmd": ["autopsy", "--version"],
+        "capabilities": ["disk_forensics", "file_carve", "timeline_analyze"],
+        "category": "forensics",
+        "description": "Sleuth Kit GUI for digital forensics",
+        "default_args": [],
+    },
+    "sleuthkit": {
+        "version_cmd": ["tsk_loaddb", "--version"],
+        "capabilities": ["disk_forensics", "file_carve", "filesystem_analyze"],
+        "category": "forensics",
+        "description": "Sleuth Kit CLI for disk forensics",
+        "default_args": [],
+    },
+    "binwalk": {
+        "version_cmd": ["binwalk", "--version"],
+        "capabilities": ["firmware_analyze", "file_extract", "entropy_scan"],
+        "category": "forensics",
+        "description": "Firmware analysis and extraction tool",
+        "default_args": [],
+    },
+    # ── Additional Exploitation ──────────────────────────────────────────────
+    "certipy": {
+        "version_cmd": ["certipy", "--version"],
+        "capabilities": ["ad_cert_abuse", "ad_recon", "esc_attack"],
+        "category": "exploit",
+        "description": "Active Directory certificate abuse toolkit",
+        "default_args": [],
+    },
+    "chisel": {
+        "version_cmd": ["chisel", "--version"],
+        "capabilities": ["tunnel", "port_forward", "proxying"],
+        "category": "exploit",
+        "description": "Fast TCP/UDP tunnel over HTTP",
+        "default_args": [],
+    },
+    "ligolo-ng": {
+        "version_cmd": ["ligolo-ng", "--version"],
+        "capabilities": ["tunnel", "proxy", "pivot"],
+        "category": "exploit",
+        "description": "Tunneling/pivoting tool for penetration testing",
+        "default_args": [],
+    },
+    # ── Additional Recon / OSINT ─────────────────────────────────────────────
+    "waybackurls": {
+        "version_cmd": ["waybackurls", "--version"],
+        "capabilities": ["url_gather", "osint", "passive_recon"],
+        "category": "recon",
+        "description": "Wayback Machine URL harvester",
+        "default_args": [],
+    },
+    "gau": {
+        "version_cmd": ["gau", "--version"],
+        "capabilities": ["url_gather", "osint", "passive_recon"],
+        "category": "recon",
+        "description": "Get All URLs - passive URL gathering",
+        "default_args": [],
+    },
+    "katana": {
+        "version_cmd": ["katana", "--version"],
+        "capabilities": ["crawler", "url_gather", "spider"],
+        "category": "recon",
+        "description": "Next-gen web crawling and spidering",
+        "default_args": [],
+    },
+    "httprobe": {
+        "version_cmd": ["httprobe", "--version"],
+        "capabilities": ["http_probe", "alive_check", "tech_detect"],
+        "category": "recon",
+        "description": "Take a list of domains and probe for working HTTP/HTTPS",
+        "default_args": [],
+    },
+    "unfurl": {
+        "version_cmd": ["unfurl", "--version"],
+        "capabilities": ["url_analyze", "osint", "data_extract"],
+        "category": "recon",
+        "description": "URL extract and analyze tool (Tomnomnom)",
+        "default_args": [],
+    },
+    "interactsh": {
+        "version_cmd": ["interactsh-client", "--version"],
+        "capabilities": ["oob_detect", "dns_callback", "http_callback"],
+        "category": "web",
+        "description": "OOB interaction detection client",
+        "default_args": [],
+    },
+    "cloudflared": {
+        "version_cmd": ["cloudflared", "--version"],
+        "capabilities": ["tunnel", "proxy", "dns_over_https"],
+        "category": "infra",
+        "description": "Cloudflare tunnel client",
+        "default_args": [],
+    },
 }
 
 # Human-friendly name aliases (human name → binary name)
@@ -311,6 +535,14 @@ _TOOL_NAME_ALIASES: dict[str, str] = {
     "burp": "burpsuite",
     "theharvester": "theHarvester",
     "aircrack": "aircrack-ng",
+    "beef-framework": "beef",
+    "set": "setoolkit",
+    "cme": "crackmapexec",
+    "mimikatz": "crackmapexec",
+    "winrm": "evil-winrm",
+    "ps-empire": "empire",
+    "vol": "volatility",
+    "bloodhound-ce": "bloodhound",
 }
 
 # Reverse alias map: binary name → human-friendly name used in manifests
@@ -610,3 +842,59 @@ class ToolRegistry:
             }
             for t in self.discover(fast=True)
         ]
+
+    def scan_path(self, timeout: float = 5.0) -> list[str]:
+        """Scan ALL binaries on PATH and register unknown ones as dynamic tools.
+
+        Walks every directory in ``os.environ["PATH"]``, checks each executable,
+        and registers any unknown tools under category ``"auto-detect"``.
+
+        Returns:
+            List of newly registered tool names.
+        """
+        import time as _time
+        path_dirs = os.environ.get("PATH", "").split(os.pathsep)
+        discovered: list[str] = []
+        known = set(_KNOWN_TOOLS.keys()) | set(self._dynamic_tools.keys())
+        start = _time.monotonic()
+
+        for directory in path_dirs:
+            if _time.monotonic() - start > timeout:
+                logger.warning("scan_path timed out after %.1fs", timeout)
+                break
+            if not os.path.isdir(directory):
+                continue
+            try:
+                for entry in os.listdir(directory):
+                    if _time.monotonic() - start > timeout:
+                        break
+                    full = os.path.join(directory, entry)
+                    name, ext = os.path.splitext(entry)
+                    if not os.path.isfile(full):
+                        continue
+                    if os.name == "nt":
+                        if ext.lower() not in (".exe", ".bat", ".ps1", ".cmd"):
+                            continue
+                    elif not os.access(full, os.X_OK):
+                        continue
+                    # Normalize: strip common extensions
+                    binary = name.lower()
+                    if binary in known or binary in discovered:
+                        continue
+                    # Register as dynamic
+                    self.register_dynamic(
+                        name=binary,
+                        binary=binary,
+                        capabilities=[],
+                        category="auto-detect",
+                        description=f"Auto-detected from PATH: {full}",
+                    )
+                    discovered.append(binary)
+            except PermissionError:
+                continue
+            except OSError:
+                continue
+
+        if discovered:
+            logger.info("scan_path discovered %d new tools: %s", len(discovered), discovered)
+        return discovered

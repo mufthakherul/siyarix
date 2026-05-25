@@ -1451,38 +1451,211 @@ class PhalanxChat:
         """Handle /learning command for user learning and patterns."""
         from .learning_memory import LearningMemory
         from .user_learning import UserLearning, ExperienceLevel
+        from rich.table import Table
+        from rich.panel import Panel
+        from rich.syntax import Syntax
+        from rich.prompt import Prompt as RichPrompt
+        import json
 
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else ""
+        ul = UserLearning()
+        lm = LearningMemory()
 
         if action == "profile":
-            ul = UserLearning()
-            console.print(ul.get_profile())
+            console.print(ul.get_profile_panel())
+            suggestions = ul.get_improvement_suggestions()
+            if suggestions:
+                console.print(Panel("\n".join(f"  {s}" for s in suggestions),
+                                    title="Improvement Suggestions", border_style="yellow"))
+
+        elif action == "milestones":
+            console.print(ul.get_milestones_panel())
+
+        elif action == "sessions":
+            console.print(ul.get_sessions_panel())
+
         elif action == "patterns":
-            lm = LearningMemory()
             patterns = lm.top_patterns(10)
             if not patterns:
                 console.print("[dim]No learned patterns yet.[/dim]")
                 return
-            from rich.table import Table
-            table = Table(title=f"Learned Tool Patterns ({lm.total_records})", header_style="bold cyan")
-            table.add_column("Chain", style="green")
-            table.add_column("Count", style="yellow")
-            table.add_column("Avg Duration", style="dim")
+            table = Table(title=f"Learned Tool Patterns ({lm.total_records} total)", header_style="bold cyan")
+            table.add_column("Pattern Chain", style="green")
+            table.add_column("Uses", style="yellow", justify="right")
+            table.add_column("Confidence", style="magenta", justify="right")
+            table.add_column("Success", style="cyan", justify="right")
+            table.add_column("Avg Dur", style="dim", justify="right")
+            table.add_column("Phase", style="blue")
             for p in patterns:
-                chain = " -> ".join(p.tools)
+                chain = " -> ".join(p.ngram)
                 dur = f"{p.avg_duration_ms:.0f}ms" if p.avg_duration_ms else "-"
-                table.add_row(chain, str(p.count), dur)
+                table.add_row(chain, str(p.count), f"{p.confidence:.0%}", f"{p.success_rate:.0%}", dur, p.phase or "-")
             console.print(table)
+
+        elif action == "anti-patterns":
+            anti = lm.top_anti_patterns(10)
+            if not anti:
+                console.print("[green]No anti-patterns detected![/green]")
+                return
+            table = Table(title=f"Anti-Patterns ({len(anti)})", header_style="bold red")
+            table.add_column("Failed Chain", style="red")
+            table.add_column("Attempts", style="yellow", justify="right")
+            table.add_column("Confidence", style="magenta", justify="right")
+            for p in anti:
+                chain = " -> ".join(p.ngram)
+                table.add_row(chain, str(p.count), f"{p.confidence:.0%}")
+            console.print(table)
+
+        elif action == "network":
+            network = lm.pattern_network()
+            if not network:
+                console.print("[dim]No pattern network data yet. Run some commands first.[/dim]")
+                return
+            table = Table(title="Tool Transition Network", header_style="bold cyan")
+            table.add_column("From", style="green")
+            table.add_column("To (confidence)", style="white")
+            for src, edges in sorted(network.items())[:15]:
+                targets = ", ".join(f"{dst} ({conf:.1f})" for dst, conf in edges[:4])
+                table.add_row(src, targets)
+            console.print(table)
+
+        elif action == "phase-distribution":
+            dist = lm.phase_distribution()
+            if not dist:
+                console.print("[dim]No phase data yet.[/dim]")
+                return
+            table = Table(title="Pattern Phase Distribution", header_style="bold cyan")
+            table.add_column("Phase", style="green")
+            table.add_column("Patterns", style="yellow", justify="right")
+            for phase, count in sorted(dist.items(), key=lambda x: x[1], reverse=True):
+                table.add_row(phase, str(count))
+            console.print(table)
+
+        elif action == "suggest":
+            tool = tokens[1] if len(tokens) > 1 else ""
+            if not tool:
+                tool = RichPrompt.ask("Suggest next tool after")
+            suggestions = lm.suggest(tool, max_suggestions=8)
+            if not suggestions:
+                console.print(f"[dim]No suggestions for '{tool}'. Try using it more.[/dim]")
+                return
+            table = Table(title=f"Suggestions after '{tool}'", header_style="bold cyan")
+            table.add_column("Next Tool", style="green")
+            table.add_column("Confidence", style="magenta", justify="right")
+            table.add_column("Reason", style="white")
+            table.add_column("Phase", style="blue")
+            for s in suggestions:
+                table.add_row(s["tool"], f"{s['confidence']:.0%}", s.get("reason", "")[:50], s.get("phase", "-"))
+            console.print(table)
+
         elif action == "level":
             if len(tokens) < 2 or tokens[1] not in ("novice", "intermediate", "advanced", "expert"):
                 console.print("[yellow]Usage: /learning level <novice|intermediate|advanced|expert>[/yellow]")
                 return
-            ul = UserLearning()
             ul.experience = tokens[1]
             console.print(f"[green]✓ Experience level set to: {tokens[1]}[/green]")
+            console.print(f"[dim]Auto-detect disabled. Use /learning auto to re-enable.[/dim]")
+
+        elif action == "auto":
+            ul.enable_auto_detect()
+            console.print(f"[green]✓ Auto-detection enabled. Current level: {ul.experience}[/green]")
+
+        elif action == "pref" or action == "preferences":
+            if len(tokens) < 2:
+                prefs = ul.preferences
+                table = Table(title="User Preferences", header_style="bold cyan")
+                table.add_column("Key", style="green")
+                table.add_column("Value", style="white")
+                for k, v in prefs.items():
+                    table.add_row(k, str(v))
+                console.print(table)
+                return
+            if len(tokens) >= 3:
+                key, val = tokens[1], " ".join(tokens[2:])
+                ul.set_preference(key, val)
+                console.print(f"[green]✓ Preference set: {key} = {val}[/green]")
+
+        elif action == "export":
+            filepath = tokens[1] if len(tokens) > 1 else ""
+            if filepath:
+                data = lm.export_patterns(filepath)
+                console.print(f"[green]✓ Exported {data['pattern_count']} patterns to {filepath}[/green]")
+            else:
+                data = lm.export_patterns()
+                console.print(Panel(
+                    Syntax(json.dumps(data, indent=2, default=str), "json"),
+                    title="Exported Patterns", border_style="green"
+                ))
+
+        elif action == "import":
+            filepath = tokens[1] if len(tokens) > 1 else ""
+            if not filepath:
+                console.print("[yellow]Usage: /learning import <filepath>[/yellow]")
+                return
+            count = lm.import_patterns(filepath)
+            console.print(f"[green]✓ Imported {count} patterns from {filepath}[/green]")
+
+        elif action == "clear":
+            confirm = RichPrompt.ask("[red]Clear ALL learning data? (yes/no)[/red]", default="no")
+            if confirm.lower() == "yes":
+                lm.clear()
+                ul.clear_history()
+                console.print("[red]✓ All learning data cleared[/red]")
+
+        elif action == "summary":
+            p = ul.profile
+            ls = lm.summary
+            console.print(Panel(
+                f"[bold]User:[/bold] {p.username or 'anonymous'} | "
+                f"[bold]Level:[/bold] {p.experience} "
+                f"{'(auto)' if p.auto_detect else ''}\n"
+                f"[bold]Commands:[/bold] {p.total_commands} | "
+                f"[bold]Tools:[/bold] {p.unique_tools} | "
+                f"[bold]Categories:[/bold] {p.category_count}\n"
+                f"[bold]Patterns:[/bold] {ls['total_patterns']} | "
+                f"[bold]Anti-patterns:[/bold] {ls['total_anti_patterns']} | "
+                f"[bold]Phases:[/bold] {', '.join(ls['phase_coverage'].keys()) or 'none'}",
+                title="Learning Summary", border_style="cyan"
+            ))
+
+        elif action == "chain":
+            tool = tokens[1] if len(tokens) > 1 else ""
+            if not tool:
+                console.print("[yellow]Usage: /learning chain <tool> [tool2 ...][/yellow]")
+                return
+            partial = tokens[1:]
+            completions = lm.suggest_chain(partial)
+            if not completions:
+                console.print(f"[dim]No chain completions for: {' -> '.join(partial)}[/dim]")
+                return
+            table = Table(title=f"Chain Completions for '{' -> '.join(partial)}'", header_style="bold cyan")
+            table.add_column("Complete Chain", style="green")
+            for c in completions:
+                table.add_row(" -> ".join(c))
+            console.print(table)
+
         else:
-            console.print("[yellow]Usage: /learning profile|patterns|level[/yellow]")
+            console.print(
+                "[yellow]Usage: /learning <subcommand>\n"
+                "  profile        — show user learning profile\n"
+                "  sessions       — show session history\n"
+                "  milestones     — show learning milestones\n"
+                "  summary        — show learning summary\n"
+                "  patterns       — show top learned tool patterns\n"
+                "  anti-patterns  — show failed tool chains\n"
+                "  suggest <tool> — suggest next tools after <tool>\n"
+                "  chain <t>...   — suggest chain completions\n"
+                "  network        — show tool transition network graph\n"
+                "  phase-distribution — show patterns per phase\n"
+                "  level <lvl>    — set experience level (disables auto)\n"
+                "  auto           — enable auto-detection of experience level\n"
+                "  pref [k v]     — view or set preferences\n"
+                "  export [path]  — export learned patterns\n"
+                "  import <path>  — import patterns from file\n"
+                "  clear          — clear all learning data\n"
+                "[/yellow]"
+            )
 
     def _cmd_esc(self, _: str) -> None:
         """Emergency stop - cancel all pending execution."""

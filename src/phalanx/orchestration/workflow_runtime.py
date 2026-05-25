@@ -12,12 +12,15 @@ from typing import Any, Callable
 
 from ..offline_store import OfflineStore
 
+YAML_AVAILABLE = False
 try:
-    import yaml  # type: ignore
+    import yaml as _yaml
 
     YAML_AVAILABLE = True
 except Exception:
-    YAML_AVAILABLE = False
+    _yaml = None
+
+yaml: Any = _yaml
 
 
 class WorkflowState(StrEnum):

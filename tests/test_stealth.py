@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import pytest
-pytestmark = pytest.mark.stealth
 from phalanx.stealth import StealthEngine, StealthConfig
+pytestmark = pytest.mark.stealth
 
 
 class TestStealthEngine:

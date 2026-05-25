@@ -1,8 +1,8 @@
 """Tests for ML-based anomaly detection engine."""
 
 import pytest
-pytestmark = pytest.mark.anomaly
 from phalanx.ml_anomaly import AnomalyDetector
+pytestmark = pytest.mark.anomaly
 
 
 class TestAnomalyDetector:

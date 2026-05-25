@@ -186,6 +186,8 @@ app.add_typer(profile_app, name="profile")
 @app.command()
 def palette() -> None:
     """Open an interactive command palette (uses prompt_toolkit if installed)."""
+    ptk_prompt: Any = None
+    WordCompleter: Any = None
     try:
         from prompt_toolkit import prompt as ptk_prompt
         from prompt_toolkit.completion import WordCompleter
@@ -204,8 +206,7 @@ def palette() -> None:
     options += [f"saved: {p.name} -> {p.command}" for p in saved]
 
     if PTK:
-        completer = WordCompleter(options, ignore_case=True)
-        choice = ptk_prompt("Select or search: ", completer=completer).strip()
+        choice = ptk_prompt("Select or search: ", completer=WordCompleter(options, ignore_case=True)).strip()
     else:
         for i, o in enumerate(options[:200], 1):
             console.print(f"{i}. {o}")
@@ -409,6 +410,7 @@ def list_providers() -> None:
         avail = getattr(p, "available", False)
         table.add_row(str(i), type(p).__name__, str(avail))
     console.print(table)
+
 
 shell_app = typer.Typer(help="🖥 Cross-platform shell command helper")
 app.add_typer(shell_app, name="shell")
@@ -852,7 +854,9 @@ def run(
     mode: str = typer.Option("integrated", "--mode", "-m", help="Execution mode"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
     save: bool = typer.Option(False, "--save", "-s", help="Persist workflow execution"),
-    resume_plan: str = typer.Option("", "--resume", "-r", help="Resume a persisted plan by ID (or 'latest')"),
+    resume_plan: str = typer.Option(
+        "", "--resume", "-r", help="Resume a persisted plan by ID (or 'latest')"
+    ),
     no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
 ) -> None:
     """Run a natural language command through the autonomous execution engine.
@@ -877,7 +881,7 @@ def run(
                 raise typer.Exit(1)
         engine = _get_engine(mode)
         console.print(f"[cyan]Resuming plan: {resolved_id}[/cyan]")
-        result = asyncio.run(engine.resume(resolved_id, interactive=True))
+        asyncio.run(engine.resume(resolved_id, interactive=True))
         return
 
     instruction = command
@@ -917,33 +921,43 @@ def run(
             console.print("[yellow]Execution canceled.[/yellow]")
             return
 
-    is_pipeline = "|" in instruction or any(t in instruction.lower() for t in [" then ", " and then ", " followed by "])
+    is_pipeline = "|" in instruction or any(
+        t in instruction.lower() for t in [" then ", " and then ", " followed by "]
+    )
+    result: Any
     if is_pipeline:
         from .core.pipeline import CommandPipeline
+
         pipeline = CommandPipeline()
         steps = pipeline.parse(instruction)
-        
+
         class PipelineExecutionResult:
-            def __init__(self, success: bool, all_findings: list):
+            def __init__(self, success: bool, all_findings: list) -> None:
                 self.success = success
                 self.all_findings = all_findings
                 self.retries_performed = 0
                 self.plan_id = ""
-                
-        async def step_executor(step, ctx):
+
+        async def step_executor(step: Any, ctx: Any) -> dict[str, Any]:
             step_engine = _get_engine(route.mode)
-            res = await step_engine.execute(step.instruction, interactive=True, dry_run=dry_run, persist=save)
+            res = await step_engine.execute(
+                step.instruction, interactive=True, dry_run=dry_run, persist=save
+            )
             return {
                 "status": "completed" if res.success else "failed",
                 "findings": res.all_findings or [],
-                "error": getattr(res, "error_message", "") if not res.success else ""
+                "error": getattr(res, "error_message", "") if not res.success else "",
             }
-            
+
         pipe_res = asyncio.run(pipeline.execute(steps, step_executor))
-        result = PipelineExecutionResult(success=pipe_res.success, all_findings=pipe_res.all_findings)
+        result = PipelineExecutionResult(
+            success=pipe_res.success, all_findings=pipe_res.all_findings
+        )
     else:
         engine = _get_engine(route.mode)
-        result = asyncio.run(engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save))
+        result = asyncio.run(
+            engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save)
+        )
     final_state = "completed" if result.success else "failed"
     session_kernel.update_operation(
         session=session,
@@ -1183,13 +1197,17 @@ def metrics_show(
 def show(
     refresh: int = typer.Option(5, "--refresh", "-r", help="Refresh interval (seconds)"),
     export: str = typer.Option("", "--export", "-e", help="Export snapshot to file"),
-    panel: str = typer.Option("attack_map", "--panel", "-p", help="Right pane view: attack_map|timeline|metrics|cheatsheet"),
+    panel: str = typer.Option(
+        "attack_map",
+        "--panel",
+        "-p",
+        help="Right pane view: attack_map|timeline|metrics|cheatsheet",
+    ),
     target: str = typer.Option("", "--target", "-t", help="Target context to analyze"),
 ) -> None:
     """Show live security dashboard using premium SplitPane layout."""
-    from .ux import SplitPane
     from .session_manager import session_registry
-    
+
     store = OfflineStore()
     metrics = get_metrics().to_dict()
     scans = store.list_scans(limit=20)
@@ -1201,41 +1219,43 @@ def show(
     # Fetch recent session or construct metadata
     recent_sessions = session_registry.list_sessions(limit=1)
     recent_session = recent_sessions[0] if recent_sessions else None
-    
+
     class SessionMetaMock:
         def __init__(self, target_val: str):
             self.target = target_val
-            
+
     tgt = target or (recent_session.target if recent_session else "127.0.0.1")
     session_meta = SessionMetaMock(tgt)
 
-    findings_list = []
+    findings_list: list = []
     for s in scans:
         if "findings" in s and isinstance(s["findings"], list):
             findings_list.extend(s["findings"])
         elif "all_findings" in s and isinstance(s["all_findings"], list):
             findings_list.extend(s["all_findings"])
-            
-    timeline_events = []
-    
+
+    timeline_events: list = []
+
     # Left pane layout
     left_table = Table(box=None, header_style="bold cyan")
     left_table.add_column("Security Parameter", style="white")
     left_table.add_column("Value", style="bold green", justify="right")
-    
+
     left_table.add_row("Total Scans", str(metrics["execution"]["total_scans"]))
     left_table.add_row("Successful Scans", str(metrics["execution"]["successful_scans"]))
     left_table.add_row("Failed Scans", str(metrics["execution"]["failed_scans"]))
     left_table.add_row("Total Findings", str(total_findings))
     left_table.add_row("Plans Tracked", str(len(plans)))
     left_table.add_row("Latest Scan", latest_scan)
-    
+
     left_content = Table.grid(padding=1)
     left_content.add_row("[bold cyan]🛡️ SIYARIX OPERATIONS METRICS[/bold cyan]\n")
     left_content.add_row(left_table)
-    
+
     if plans:
-        plan_table = Table(title="Recent Plans", show_header=True, header_style="bold dim cyan", box=None)
+        plan_table = Table(
+            title="Recent Plans", show_header=True, header_style="bold dim cyan", box=None
+        )
         plan_table.add_column("Plan ID", style="magenta")
         plan_table.add_column("Created", style="dim")
         for p in plans[:5]:
@@ -1243,16 +1263,16 @@ def show(
             plan_table.add_row(str(p_id)[:8], p.get("created_at", "—"))
         left_content.add_row("\n")
         left_content.add_row(plan_table)
-        
+
     sp = SplitPane(theme=_active_theme)
     layout = sp.generate_layout(
         left_renderable=left_content,
         right_type=panel,
         session_meta=session_meta,
         findings=findings_list,
-        timeline_events=timeline_events
+        timeline_events=timeline_events,
     )
-    
+
     console.print(layout)
 
     if export:
@@ -1271,7 +1291,12 @@ def dashboard_callback(
     ctx: typer.Context,
     refresh: int = typer.Option(5, "--refresh", "-r", help="Refresh interval (seconds)"),
     export: str = typer.Option("", "--export", "-e", help="Export snapshot to file"),
-    panel: str = typer.Option("attack_map", "--panel", "-p", help="Right pane view: attack_map|timeline|metrics|cheatsheet"),
+    panel: str = typer.Option(
+        "attack_map",
+        "--panel",
+        "-p",
+        help="Right pane view: attack_map|timeline|metrics|cheatsheet",
+    ),
     target: str = typer.Option("", "--target", "-t", help="Target context to analyze"),
 ) -> None:
     """Live system dashboard showing visual attack maps, metrics, timelines, and cheatsheets."""
@@ -2095,7 +2120,6 @@ def plugin_install(
 @app.command()
 def wizard() -> None:
     """Launch the interactive guided onboarding setup wizard."""
-    from .ux import OnboardingWizard
     wiz = OnboardingWizard()
     wiz.run()
 

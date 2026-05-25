@@ -1,99 +1,295 @@
 # How to Use Phalanx
 
-Phalanx is designed to be a helpful companion in your terminal. You can use it as a traditional command-line tool, or you can drop into the interactive chat mode and converse with the AI natively. This document covers the most common workflows, from beginner explorations to advanced automation.
+Phalanx supports multiple interaction modes: interactive chat, direct CLI, autonomous agent, workflow automation, and web dashboard.
 
 ---
 
-## 💬 The Interactive Chat (Recommended)
-
-If you're new to Phalanx, or if you're trying to learn how a new security tool works, the absolute best way to use it is through the interactive chat. 
-
-To start, simply type:
+## 💬 Interactive Chat (Recommended)
 
 ```bash
 phalanx
 ```
 
-This will launch a beautiful, clear landing screen and drop you into a conversational REPL (Read-Eval-Print Loop). From here, you can use natural language.
+Launches the REPL with slash commands:
+
+```text
+/key set gemini <your-api-key>     # Configure AI provider
+/model gemini                       # Set active model
+/work-mode bug_hunter              # Switch persona
+/theme mode dark                   # Change UI theme
+/target example.com                # Set persistent target
+/tools                             # List discovered tools
+/help                              # Show all commands
+/bye                               # Save and exit
+```
 
 ### Example Conversations
-- *"Can you scan 192.168.1.1 for open ports? Explain what the ports do."*
-- *"I'm looking for web vulnerabilities on example.com, what tools should we use?"*
-- *"Help me understand what a CSRF attack is, and write me a small proof of concept script."*
-- *"What security tools are currently installed on my system?"*
-
-### Handy Slash Commands
-While in the chat, you can use shortcuts (slash commands) to configure your environment quickly without leaving the session:
-- `/help`: See all available commands.
-- `/tools`: See which security tools (like Nmap, Nuclei, or Ffuf) Phalanx has discovered on your local `PATH`.
-- `/key set gemini <your-key>`: Securely add your API key to the local encrypted vault.
-- `/theme mode dark` (or `neon`, `minimal`): Customize the interface to match your terminal aesthetic.
-- `/model gemini`: Switch the AI brain to use Gemini (or OpenAI, Ollama, etc.).
-- `/target <ip_or_domain>`: Set a persistent target for the session so you don't have to keep typing it.
+- *"Scan 192.168.1.1 for open ports and explain what they do"*
+- *"Find subdomains for example.com and check for vulnerabilities"*
+- *"What security tools are installed on my system?"*
+- *"Run a compliance check against PCI-DSS standards"*
 
 ---
 
-## ⚡ Direct Command Line Usage
-
-If you just want to get things done quickly without opening the chat, you can pass natural language instructions directly to the `run` command. Phalanx will think for a moment, create a plan, run the necessary background tools, and output the result.
+## ⚡ Direct CLI
 
 ```bash
-# Ask Phalanx to figure out the right tool to use
-phalanx run "scan scanme.nmap.org and show me the open ports"
+# Quick scan
+phalanx scan 192.168.1.1
 
-# Ask Phalanx to combine multiple tools
-phalanx run "find subdomains for example.com and then check them for open ports"
+# Natural language task
+phalanx run "find open ports on scanme.nmap.org"
+
+# List tool registry
+phalanx tool-registry list
+
+# Health check
+phalanx health
+
+# Shell diagnostics
+phalanx shell doctor
 ```
 
 ---
 
-## 🔍 Specific Security Scans
+## 📋 Playbook System
 
-If you know exactly what you want to do and don't need the AI to plan it for you, you can invoke the execution engine directly. This is extremely useful for scripting!
+Save and replay multi-step workflows:
 
 ```bash
-# Run a specific tool against a single target
-phalanx scan 10.0.0.1 --tool nmap
+# Create and save a playbook
+phalanx playbook save my-recon \
+  --steps "subfinder -d {target}" \
+  --steps "nuclei -u {target}"
 
-# Scan multiple targets from a text file
-phalanx bulk scan targets.txt --tool nuclei
+# Run a saved playbook
+phalanx playbook run bugbounty-recon --target example.com
 
-# Save the scan results into the local SQLite database for later review
-phalanx scan example.com --tool ffuf --save
+# List all playbooks
+phalanx playbook list
+
+# Install built-in playbooks
+phalanx playbook install-builtins
+```
+
+Built-in playbooks: `bugbounty-recon`, `incident-response`
+
+---
+
+## 📊 Report Generation
+
+```bash
+# Generate report from findings
+phalanx report generate \
+  --findings results.json \
+  --target example.com \
+  --format markdown \
+  --output report.md
+
+# HTML format for client deliverables
+phalanx report generate \
+  --findings results.json \
+  --format html \
+  --output report.html
+
+# SARIF format for CI/CD integration
+phalanx report generate \
+  --findings results.json \
+  --format sarif \
+  --output results.sarif
 ```
 
 ---
 
-## 🛡️ Security Operations & Threat Hunting
-
-Phalanx includes a suite of commands designed to help you manage security data locally.
+## 🔐 Stealth & Evasion
 
 ```bash
-# List open incidents you've recorded
-phalanx security incidents --status open
+# Enable stealth mode
+phalanx stealth enable --level medium
 
-# Manually report a new incident
-phalanx security incident-create --title "Suspicious activity" --category intrusion --severity critical
+# Check stealth configuration
+phalanx stealth status
 
-# Run a MITRE-mapped threat hunt query against local logs
-phalanx security hunt q_ps_exec --target win-srv-01
+# Disable stealth mode
+phalanx stealth disable
+
+# Enable canary tokens on target
+phalanx canary deploy --target example.com
+
+# List canary tokens
+phalanx canary list
+
+# View triggered tokens
+phalanx canary triggered
 ```
 
 ---
 
-## 🖥️ Shell Translation Helper
-
-One of the coolest educational features of Phalanx is that it understands the differences between Windows, Mac, and Linux terminals. If you ever forget how to do something in your current shell, you can ask Phalanx to translate the "intent" into the exact native command you need.
+## ☁️ Cloud Security Scanning
 
 ```bash
-# See all the cross-platform actions Phalanx understands
+# Scan AWS account
+phalanx cloud scan --provider aws --account 123456789012
+
+# Scan Kubernetes cluster
+phalanx cloud scan --provider kubernetes --namespace default
+
+# Scan Docker image
+phalanx cloud scan --provider docker --image nginx:latest
+```
+
+---
+
+## 📋 Compliance Assessment
+
+```bash
+# Run compliance check against a framework
+phalanx compliance run --framework pci-dss --target example.com
+
+# Run all frameworks
+phalanx compliance run --all --target example.com
+
+# View compliance summary
+phalanx compliance summary
+
+# Available frameworks:
+#   - pci-dss    (Payment Card Industry)
+#   - iso-27001  (Information Security)
+#   - nist-800-53 (US Federal)
+#   - soc-2      (Service Organizations)
+#   - gdpr       (EU Data Protection)
+#   - hipaa      (Healthcare)
+```
+
+---
+
+## 🔍 Threat Intelligence
+
+```bash
+# Ingest STIX feed
+phalanx intel ingest --stix feed.json
+
+# Query MITRE ATT&CK
+phalanx intel mitre --technique T1110
+
+# Enrich findings with threat intel
+phalanx intel enrich --findings results.json
+```
+
+---
+
+## 🧠 Multi-Model Ensemble
+
+```bash
+# Run ensemble across multiple providers
+phalanx ensemble plan "scan example.com" \
+  --providers openai gemini \
+  --strategy weighted
+
+# Check ensemble statistics
+phalanx ensemble summary
+```
+
+---
+
+## 📈 Web Dashboard
+
+```bash
+# Start the web dashboard
+phalanx dashboard --port 8090
+
+# Access at http://localhost:8090
+# WebSocket live updates at ws://localhost:8090/ws
+```
+
+REST API endpoints:
+- `GET /api/health` — System health
+- `GET /api/metrics` — Platform metrics
+- `GET /api/findings` — Recent findings
+- `GET /api/agents` — Agent status
+- `GET /api/snapshot` — Full dashboard snapshot
+
+---
+
+## 🗓️ Scheduled Scans
+
+```bash
+# Create a recurring scan
+phalanx schedule create daily-scan \
+  --target example.com \
+  --frequency daily \
+  --time "02:00" \
+  --persona defensive
+
+# List schedules
+phalanx schedule list
+
+# Delete a schedule
+phalanx schedule delete daily-scan
+```
+
+---
+
+## 🖥️ Cross-Platform Shell Translation
+
+```bash
+# Translate intent to native command
+phalanx shell translate ping
+# Linux:   ping -c 4 {target}
+# Windows: ping -n 4 {target}
+
+# List all available translations
 phalanx shell list-intents
 
-# How do I check active network connections on this OS? (Returns netstat, ss, or Get-NetTCPConnection)
-phalanx shell translate network_connections
-
-# How do I flush the DNS cache natively?
-phalanx shell translate flush_dns
+# Full platform diagnostics
+phalanx shell platform
 ```
 
-Play around and see what works best for your learning style! The best way to learn is by doing, and Phalanx is here to help you experiment safely.
+---
+
+## 🤝 Collaborative Sessions
+
+```bash
+# Start SSH-collaborative session
+phalanx collab ssh user@teammate-server
+
+# Share tool registry and context
+# Both participants see the same output
+# Joint approval required for PERMISSION-level commands
+```
+
+---
+
+## 🔧 Advanced Configuration
+
+```bash
+# Configure environment
+export PHALANX_LOG_LEVEL=DEBUG
+export PHALANX_PERSONA=bug_hunter
+export PHALANX_PROVIDER=gemini
+export PHALANX_TIMEOUT=300
+export PHALANX_SAFE_MODE=1
+export PHALANX_NO_TELEMETRY=1
+
+# All options documented in .env.example
+```
+
+---
+
+## 🐳 Docker Deployment
+
+```bash
+# Start all services
+docker compose up -d
+
+# Scale workers
+docker compose up -d --scale phalanx-worker=5
+
+# View logs
+docker compose logs -f
+
+# Stop services
+docker compose down
+```
+
+Services: `phalanx`, `phalanx-worker`, `phalanx-dashboard`, `redis`, `otel-collector`

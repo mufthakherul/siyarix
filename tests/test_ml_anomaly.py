@@ -1,5 +1,7 @@
 """Tests for ML-based anomaly detection engine."""
 
+import pytest
+pytestmark = pytest.mark.anomaly
 from siyarix.ml_anomaly import AnomalyDetector
 
 

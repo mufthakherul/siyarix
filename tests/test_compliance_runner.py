@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+pytestmark = pytest.mark.compliance
 from siyarix.compliance_runner import (
     ComplianceRunner,
     ComplianceResult,

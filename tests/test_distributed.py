@@ -1,6 +1,7 @@
 """Tests for distributed task execution."""
 
 import pytest
+pytestmark = pytest.mark.distributed
 from siyarix.distributed import DistributedOrchestrator, TaskQueueBackend, DistributedTask
 
 

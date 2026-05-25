@@ -14,13 +14,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import signal
 import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, AsyncIterator
+from typing import Any
 
 __all__ = [
     "PTYSession",
@@ -36,9 +35,8 @@ _HAS_PTY = False
 if not _IS_WINDOWS:
     try:
         import pty as _pty_mod
-        import fcntl
-        import termios
-        import struct
+
+
         _HAS_PTY = True
     except ImportError:
         pass
@@ -47,9 +45,9 @@ if not _IS_WINDOWS:
 class PTYCapabilities(StrEnum):
     """Available PTY backends."""
 
-    NATIVE_PTY = "native_pty"     # Unix pty module
-    CONPTY = "conpty"             # Windows ConPTY
-    SUBPROCESS = "subprocess"     # Fallback: plain subprocess
+    NATIVE_PTY = "native_pty"  # Unix pty module
+    CONPTY = "conpty"  # Windows ConPTY
+    SUBPROCESS = "subprocess"  # Fallback: plain subprocess
 
 
 def detect_pty_backend() -> PTYCapabilities:
@@ -57,7 +55,7 @@ def detect_pty_backend() -> PTYCapabilities:
     if _IS_WINDOWS:
         # Windows 10+ has ConPTY support
         try:
-            ver = sys.getwindowsversion()  # type: ignore[attr-defined]
+            ver = sys.getwindowsversion()
             if ver.major >= 10 and ver.build >= 17763:
                 return PTYCapabilities.CONPTY
         except AttributeError:
@@ -138,18 +136,23 @@ class PTYSession:
         self._running = True
         logger.info(
             "PTY session started: %s (backend=%s)",
-            " ".join(self.command), self._backend.value,
+            " ".join(self.command),
+            self._backend.value,
         )
 
     async def _start_pty(self) -> None:
         """Start using native Unix PTY."""
-        master_fd, slave_fd = _pty_mod.openpty()  # type: ignore[name-defined]
+        import struct
+        import fcntl
+        import termios
+
+        master_fd, slave_fd = _pty_mod.openpty()  # type: ignore[attr-defined]
         self._master_fd = master_fd
 
         # Set terminal size
         if _HAS_PTY:
-            winsize = struct.pack("HHHH", self.rows, self.cols, 0, 0)  # type: ignore[name-defined]
-            fcntl.ioctl(slave_fd, termios.TIOCSWINSZ, winsize)  # type: ignore[name-defined]
+            winsize = struct.pack("HHHH", self.rows, self.cols, 0, 0)
+            fcntl.ioctl(slave_fd, termios.TIOCSWINSZ, winsize)  # type: ignore[attr-defined]
 
         self._process = subprocess.Popen(
             self.command,
@@ -208,7 +211,8 @@ class PTYSession:
             try:
                 data = await asyncio.wait_for(
                     asyncio.get_event_loop().run_in_executor(
-                        None, lambda: self._process.stdout.read(4096)  # type: ignore
+                        None,
+                        lambda: self._process.stdout.read(4096),  # type: ignore
                     ),
                     timeout=timeout,
                 )
@@ -244,8 +248,12 @@ class PTYSession:
         self.rows = rows
         self.cols = cols
         if self._master_fd is not None and _HAS_PTY:
-            winsize = struct.pack("HHHH", rows, cols, 0, 0)  # type: ignore[name-defined]
-            fcntl.ioctl(self._master_fd, termios.TIOCSWINSZ, winsize)  # type: ignore[name-defined]
+            import struct
+            import fcntl
+            import termios
+
+            winsize = struct.pack("HHHH", rows, cols, 0, 0)
+            fcntl.ioctl(self._master_fd, termios.TIOCSWINSZ, winsize)  # type: ignore[attr-defined]
 
     async def send_signal(self, sig: int) -> None:
         """Send a signal to the process."""

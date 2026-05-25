@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+pytestmark = pytest.mark.tool_installer
 from phalanx.tool_installer import ToolInstaller, ToolInstallResult
 
 

@@ -38,11 +38,16 @@ DEFAULTS: dict[str, Any] = {
     "model_provider": "auto",
     "gemini_model": "gemini-1.5-pro",
     "openai_model": "gpt-4o",
-    "anthropic_model": "claude-2.1",
+    "anthropic_model": "claude-3-opus-20240229",
+    "groq_model": "llama3-70b-8192",
+    "together_model": "mistralai/Mixtral-8x7B-Instruct-v0.1",
     "ollama_url": "http://localhost:11434",
     "ollama_model": "llama3.1",
+    "lmstudio_url": "http://localhost:1234",
+    "lmstudio_model": "",
     "notifications_enabled": True,
     "stealth_mode": False,
+    "persona": "none",
 }
 
 # Human-readable descriptions
@@ -58,14 +63,19 @@ DESCRIPTIONS: dict[str, str] = {
     "client_profile": "Preferred profile: desktop_chrome | desktop_firefox | android_mobile | ios_safari",
     "tls_verify": "Verify TLS certificates on HTTPS requests",
     "history_retention_days": "Days to keep scan history (0 = forever)",
-    "model_provider": "Preferred model provider: auto | openai | gemini | ollama",
+    "model_provider": "Preferred model provider: auto | openai | gemini | ollama | anthropic | groq | together | lmstudio",
     "gemini_model": "Gemini model name (default: gemini-1.5-pro)",
     "openai_model": "OpenAI model name (default: gpt-4o)",
-    "anthropic_model": "Anthropic/Claude model name (default: claude-2.1)",
+    "anthropic_model": "Anthropic/Claude model name (default: claude-3-opus-20240229)",
+    "groq_model": "Groq model name (default: llama3-70b-8192)",
+    "together_model": "Together AI model name (default: mistralai/Mixtral-8x7B-Instruct-v0.1)",
     "ollama_url": "Ollama server URL (default: http://localhost:11434)",
     "ollama_model": "Ollama model name (default: llama3.1)",
+    "lmstudio_url": "LM Studio server URL (default: http://localhost:1234)",
+    "lmstudio_model": "LM Studio model name (default: empty for auto-detect)",
     "notifications_enabled": "Show Rich panel notifications for key events",
     "stealth_mode": "Enable advanced stealth and command argument evasion",
+    "persona": "Active persona name (default: none)",
 }
 
 

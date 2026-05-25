@@ -43,13 +43,12 @@ from .executor import run_tool_complete
 from .metrics import get_metrics
 from .notifications import notification_center
 from .offline_store import OfflineStore
-from .security_hardening import redactor
 from .tool_registry import ToolInfo, ToolRegistry
 from .knowledge_graph import KnowledgeGraph
 from .worker_pool import AsyncWorkerPool
 from .tool_executor import ToolExecutor
 from .providers import registry as provider_registry
-from .xi import ContextTracker, Predictor
+from .xi import ContextTracker, Predictor, SkillProfiler, XICoreService
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -179,11 +178,25 @@ class ExecutionEngine:
         self._completed_steps: dict[str, StepResult] = {}
         self._offline_store: OfflineStore | None = None
 
+        # Lazy XI services (SkillProfiler & XICoreService)
+        self._xi_skill_profiler: SkillProfiler | None = None
+        self._xi_core_service: XICoreService | None = None
+
     def _get_offline_store(self) -> OfflineStore:
         """Get or create offline store instance."""
         if self._offline_store is None:
             self._offline_store = OfflineStore()
         return self._offline_store
+
+    def _get_skill_profiler(self) -> SkillProfiler:
+        if self._xi_skill_profiler is None:
+            self._xi_skill_profiler = SkillProfiler()
+        return self._xi_skill_profiler
+
+    def _get_xi_core_service(self) -> XICoreService:
+        if self._xi_core_service is None:
+            self._xi_core_service = XICoreService()
+        return self._xi_core_service
 
     def _refresh_tools(self) -> None:
         """Force rediscovery of installed tools and rebuild the resolver."""
@@ -245,7 +258,18 @@ class ExecutionEngine:
             install_commands.append(["python3", "-m", "pip", "install", "--upgrade", package])
 
         if system == "windows":
-            install_commands.append(["winget", "install", "-e", "--id", f"SecurityTool.{package}" if package in ["nmap", "wireshark"] else package, "--silent", "--accept-package-agreements", "--accept-source-agreements"])
+            install_commands.append(
+                [
+                    "winget",
+                    "install",
+                    "-e",
+                    "--id",
+                    f"SecurityTool.{package}" if package in ["nmap", "wireshark"] else package,
+                    "--silent",
+                    "--accept-package-agreements",
+                    "--accept-source-agreements",
+                ]
+            )
             install_commands.append(["winget", "install", package, "--silent"])
             install_commands.append(["choco", "install", package, "-y", "--no-progress"])
         elif system == "darwin":
@@ -264,14 +288,18 @@ class ExecutionEngine:
                 valid_installers.append(cmd)
 
         if not valid_installers:
-            console.print(f"[yellow]⚠ Cannot automatically install '{tool_name}': No package manager (winget/choco/brew/apt/pip) found on PATH.[/yellow]")
+            console.print(
+                f"[yellow]⚠ Cannot automatically install '{tool_name}': No package manager (winget/choco/brew/apt/pip) found on PATH.[/yellow]"
+            )
             return False
 
         installer_desc = " / ".join([" ".join(c) for c in valid_installers[:2]])
         confirm_msg = f"Tool '{tool_name}' is required but not installed. Do you want to automatically install it? (Proposed: {installer_desc})"
 
         if not output.prompt_confirm(confirm_msg, default=True):
-            console.print(f"[yellow]✗ Skipping installation of '{tool_name}' by user request.[/yellow]")
+            console.print(
+                f"[yellow]✗ Skipping installation of '{tool_name}' by user request.[/yellow]"
+            )
             return False
 
         console.print(f"[bold blue]⚡ Initiating auto-installation of '{tool_name}'...[/bold blue]")
@@ -283,10 +311,14 @@ class ExecutionEngine:
                 result = await run_tool_complete(cmd[0], cmd[1:], timeout=300)
                 if result.exit_code == 0:
                     success = True
-                    console.print(f"[bold green]✓ Successfully installed '{tool_name}' via '{cmd[0]}'![/bold green]")
+                    console.print(
+                        f"[bold green]✓ Successfully installed '{tool_name}' via '{cmd[0]}'![/bold green]"
+                    )
                     break
                 else:
-                    console.print(f"[yellow]⚠ Installer '{cmd[0]}' exited with code {result.exit_code}. Trying next installer...[/yellow]")
+                    console.print(
+                        f"[yellow]⚠ Installer '{cmd[0]}' exited with code {result.exit_code}. Trying next installer...[/yellow]"
+                    )
             except Exception as e:
                 console.print(f"[dim]Installer '{cmd[0]}' encountered an error: {e}[/dim]")
 
@@ -294,7 +326,9 @@ class ExecutionEngine:
             self._refresh_tools()
             return True
         else:
-            console.print(f"[red]✗ Failed to install '{tool_name}'. Please install it manually.[/red]")
+            console.print(
+                f"[red]✗ Failed to install '{tool_name}'. Please install it manually.[/red]"
+            )
             return False
 
     def _setup_providers(self) -> None:
@@ -319,7 +353,9 @@ class ExecutionEngine:
                     prov = provider_registry.get("openai", api_key=api_key, model=model)
                     available = bool(api_key)
                 elif name == "gemini":
-                    api_key = self._config.get("gemini_api_key", "") or self._config.get("google_api_key", "")
+                    api_key = self._config.get("gemini_api_key", "") or self._config.get(
+                        "google_api_key", ""
+                    )
                     model = self._config.get("gemini_model", "gemini-1.5-pro")
                     prov = provider_registry.get("gemini", api_key=api_key, model=model)
                     available = bool(api_key)
@@ -373,6 +409,32 @@ class ExecutionEngine:
             target="",
             findings_count=self._xi_tracker.total_findings,
         )
+
+        # Skill profiler context
+        sp = self._get_skill_profiler()
+        xi_skill = {
+            "level": sp.profile.level,
+            "verbosity": sp.profile.verbosity,
+            "show_hints": sp.profile.show_hints,
+            "score": sp.profile.score,
+        }
+
+        # XI core service recommendations
+        xi_recs: list[dict[str, str]] = []
+        try:
+            xics = self._get_xi_core_service()
+            from .core.session_kernel import SessionContext
+            from .core.intent_router import IntentRoute
+
+            session = SessionContext(session_id="engine", objective="")
+            route = IntentRoute(instruction="", mode=self._mode.value)
+            xi_recs = [
+                {"title": r.title, "reason": r.reason, "priority": r.priority}
+                for r in xics.recommend(session, route)
+            ]
+        except Exception:
+            pass
+
         return {
             "available_tools": [
                 {
@@ -389,6 +451,8 @@ class ExecutionEngine:
                 {"action": p.action, "confidence": p.confidence, "reason": p.reason}
                 for p in prediction_objs
             ],
+            "xi_skill": xi_skill,
+            "xi_recommendations": xi_recs,
         }
 
     async def plan(self, instruction: str) -> ExecutionPlan:
@@ -929,10 +993,6 @@ class ExecutionEngine:
         for f in findings:
             self._graph.ingest_finding(f, tool=tool_name)
 
-        # Redact secrets from output before storing
-        safe_output = redactor.redact(result.stdout)
-        safe_error = redactor.redact(result.stderr) if result.exit_code != 0 else ""
-
         # Emit finding notifications
         for f in findings:
             notification_center.finding(
@@ -1119,7 +1179,7 @@ class ExecutionEngine:
         step status checkers, findings checkers, and graph target states.
         """
         condition = condition.strip()
-        
+
         # 1. Parse negations like not (...)
         if condition.startswith("not ") or condition.startswith("not("):
             if condition.startswith("not "):
@@ -1129,7 +1189,7 @@ class ExecutionEngine:
             if sub.startswith("(") and sub.endswith(")"):
                 sub = sub[1:-1].strip()
             return not self._evaluate_condition(sub)
-            
+
         # 2. Check for step_X.success
         if condition.endswith(".success"):
             step_id = condition[:-8].strip()
@@ -1152,6 +1212,7 @@ class ExecutionEngine:
         if port_match:
             port_num = int(port_match.group(1))
             from phalanx.knowledge_graph import NodeType
+
             ports = self._graph.find_nodes(NodeType.PORT)
             for p in ports:
                 if p.properties.get("port") == port_num:
@@ -1163,6 +1224,7 @@ class ExecutionEngine:
         if service_match:
             svc_name = service_match.group(1).lower()
             from phalanx.knowledge_graph import NodeType
+
             services = self._graph.find_nodes(NodeType.SERVICE)
             for s in services:
                 if s.label.lower() == svc_name:
@@ -1172,13 +1234,14 @@ class ExecutionEngine:
         # 7. Check for vulnerability_found
         if condition == "vulnerability_found":
             from phalanx.knowledge_graph import NodeType
+
             vulns = self._graph.find_nodes(NodeType.VULNERABILITY)
             return len(vulns) > 0
 
         return True  # Default: execute
 
     def _record_step_feedback(self, step: ExecutionStep, sr: StepResult) -> None:
-        """Feed step outcomes into XI context/predictor for future planning."""
+        """Feed step outcomes into XI context/predictor and skill profiler."""
         tool_name = step.tool or (step.command.split()[0] if step.command else "analysis")
         target = step.target or ""
         self._xi_tracker.record_execution(
@@ -1193,6 +1256,15 @@ class ExecutionEngine:
         elif step.tool:
             cmd = " ".join([step.tool, *step.args, step.target or ""]).strip()
             self._xi_predictor.learn(cmd)
+        else:
+            cmd = ""
+
+        # Feed into SkillProfiler
+        self._get_skill_profiler().record_command(
+            command=cmd or "",
+            tool=tool_name,
+            success=sr.status == StepStatus.SUCCESS,
+        )
 
     async def _replan_from_feedback(
         self,
@@ -1204,7 +1276,10 @@ class ExecutionEngine:
         """Trigger planner re-evaluation after failures or zero-finding outcomes."""
         if self._replan_attempts >= self._max_replans:
             return
-        if not (sr.status == StepStatus.FAILED or (sr.status == StepStatus.SUCCESS and len(sr.findings) == 0)):
+        if not (
+            sr.status == StepStatus.FAILED
+            or (sr.status == StepStatus.SUCCESS and len(sr.findings) == 0)
+        ):
             return
 
         trigger = "step_failed" if sr.status == StepStatus.FAILED else "zero_findings"
@@ -1218,7 +1293,9 @@ class ExecutionEngine:
                     "output": sr.output[:1000],
                     "findings_count": len(sr.findings),
                 },
-                "completed_steps": [s.to_dict() for s in plan.steps if s.id in self._completed_steps],
+                "completed_steps": [
+                    s.to_dict() for s in plan.steps if s.id in self._completed_steps
+                ],
                 "pending_steps": [s.to_dict() for s in still_pending],
             }
         )
@@ -1268,10 +1345,10 @@ class ExecutionEngine:
         """
         # Heuristic 1: Nmap Host Down / Ping blocked -> Inject -Pn and retry nmap
         if step.tool == "nmap" and (
-            "Host seems down" in (sr.error or "") or
-            "Host seems down" in (sr.output or "") or
-            "try -Pn" in (sr.error or "") or
-            "try -Pn" in (sr.output or "")
+            "Host seems down" in (sr.error or "")
+            or "Host seems down" in (sr.output or "")
+            or "try -Pn" in (sr.error or "")
+            or "try -Pn" in (sr.output or "")
         ):
             new_args = list(step.args)
             if "-Pn" not in new_args:
@@ -1323,19 +1400,28 @@ class ExecutionEngine:
                     s.depends_on.remove(step.id)
                     s.depends_on.append(fallback_step.id)
             still_pending.insert(0, fallback_step)
-            logger.info("Dynamic Mutation: Injected nikto fallback %s due to zero gobuster findings", fallback_step.id)
+            logger.info(
+                "Dynamic Mutation: Injected nikto fallback %s due to zero gobuster findings",
+                fallback_step.id,
+            )
 
         # Heuristic 4: Shell Permission Error -> privilege check
         elif step.step_type == StepType.SHELL_CMD:
             is_permission_denied = False
             err_msg = ((sr.error or "") + (sr.output or "")).lower()
-            for indicator in ("permission denied", "access denied", "not allowed", "requires elevation"):
+            for indicator in (
+                "permission denied",
+                "access denied",
+                "not allowed",
+                "requires elevation",
+            ):
                 if indicator in err_msg:
                     is_permission_denied = True
                     break
-            
+
             if is_permission_denied:
                 import sys
+
                 priv_cmd = "whoami /priv" if sys.platform == "win32" else "sudo -l"
                 priv_step = ExecutionStep(
                     id=f"{step.id}_priv_check",
@@ -1344,7 +1430,10 @@ class ExecutionEngine:
                     description=f"Privilege check due to access denial on step {step.id}",
                 )
                 still_pending.insert(0, priv_step)
-                logger.info("Dynamic Mutation: Injected privilege check %s after permission error", priv_step.id)
+                logger.info(
+                    "Dynamic Mutation: Injected privilege check %s after permission error",
+                    priv_step.id,
+                )
 
     def _parse_tool_output(self, tool_name: str, output: str) -> list[dict[str, Any]]:
         """Parse tool output using registered parsers."""

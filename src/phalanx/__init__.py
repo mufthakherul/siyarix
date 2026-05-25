@@ -63,6 +63,7 @@ from .compliance_runner import (
 )
 from .multi_model_ensemble import MultiModelEnsemble, EnsembleResult, ModelResponse, VotingStrategy
 from .adversarial_tester import AdversarialTester, AdversarialFinding, AdversarialSeverity
+from .persona_engine import PersonaEngine, Persona, PersonaName, ToolACL, WorkflowTemplate, LearningBias, BUILTIN_PERSONAS
 
 __all__ = [
     "ExecutionEngine",
@@ -187,4 +188,11 @@ __all__ = [
     "AdversarialTester",
     "AdversarialFinding",
     "AdversarialSeverity",
+    "PersonaEngine",
+    "Persona",
+    "PersonaName",
+    "ToolACL",
+    "WorkflowTemplate",
+    "LearningBias",
+    "BUILTIN_PERSONAS",
 ]

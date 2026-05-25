@@ -42,11 +42,15 @@ class LearningBias(StrEnum):
     BALANCED = "balanced"
 
 
+REVIEW = "review"
+
+
 @dataclass
 class ToolACL:
     allowed: list[str] = field(default_factory=lambda: ["*"])
     forbidden: list[str] = field(default_factory=list)
     permission_required: list[str] = field(default_factory=list)
+    review_required: list[str] = field(default_factory=list)
     auto_approve_seconds: int = 10
 
     def is_allowed(self, tool: str) -> bool:
@@ -58,6 +62,9 @@ class ToolACL:
 
     def requires_permission(self, tool: str) -> bool:
         return tool in self.permission_required
+
+    def requires_review(self, tool: str) -> bool:
+        return tool in self.review_required
 
 
 @dataclass
@@ -89,6 +96,7 @@ class Persona:
                 "allowed": self.tool_acl.allowed,
                 "forbidden": self.tool_acl.forbidden,
                 "permission_required": self.tool_acl.permission_required,
+                "review_required": self.tool_acl.review_required,
                 "auto_approve_seconds": self.tool_acl.auto_approve_seconds,
             },
             "workflow_template": self.workflow_template.to_list(),
@@ -105,6 +113,7 @@ class Persona:
             allowed=acl_data.get("allowed", ["*"]),
             forbidden=acl_data.get("forbidden", []),
             permission_required=acl_data.get("permission_required", []),
+            review_required=acl_data.get("review_required", []),
             auto_approve_seconds=acl_data.get("auto_approve_seconds", 10),
         )
         wf_data = data.get("workflow_template", [])
@@ -141,6 +150,7 @@ BUILTIN_PERSONAS: dict[str, Persona] = {
             allowed=["*"],
             forbidden=[],
             permission_required=["msfconsole", "msfvenom", "sqlmap", "meterpreter"],
+            review_required=["msfconsole", "msfvenom", "meterpreter"],
             auto_approve_seconds=5,
         ),
         workflow_template=WorkflowTemplate(
@@ -447,5 +457,6 @@ __all__ = [
     "ToolACL",
     "WorkflowTemplate",
     "LearningBias",
+    "REVIEW",
     "BUILTIN_PERSONAS",
 ]

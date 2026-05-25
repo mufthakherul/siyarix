@@ -10,19 +10,23 @@ from __future__ import annotations
 import os
 import glob
 import re
-from typing import Generator, Iterable, Any
+from typing import Any, Iterable
 
 try:
-    from prompt_toolkit.completion import Completer, Completion
-    from prompt_toolkit.document import Document
+    from prompt_toolkit.completion import Completer as PromptCompleter, Completion as PromptCompletion
+
+    Completer = PromptCompleter
+    Completion = PromptCompletion
 except ImportError:
     # Resilient fallback mock classes if prompt_toolkit is not installed
-    class Completer:
+    class Completer:  # type: ignore[no-redef]
         """Fallback Completer class."""
+
         pass
 
-    class Completion:
+    class Completion:  # type: ignore[no-redef]
         """Fallback Completion class."""
+
         def __init__(self, text: str, start_position: int = 0, display_meta: str = "") -> None:
             self.text = text
             self.start_position = start_position
@@ -31,7 +35,7 @@ except ImportError:
 
 class SmartAutocomplete(Completer):
     """Tiered Smart Autocomplete system.
-    
+
     Tier 1: Static completions (subcommands, options, tool names).
     Tier 2: Context-aware completions (recent targets, directories, files).
     Tier 3: AI-predicted completions (MITRE ATT&CK progression based on state).
@@ -41,10 +45,29 @@ class SmartAutocomplete(Completer):
         self._session = session
         self._xi = xi
         self._registry_tools = [
-            "nmap", "nuclei", "gobuster", "sqlmap", "hydra", "subfinder", 
-            "nikto", "amass", "dnsx", "theHarvester", "whois", "ffuf", 
-            "feroxbuster", "httpx", "wpscan", "john", "hashcat", 
-            "msfconsole", "trufflehog", "gitleaks", "aws", "podman", "docker"
+            "nmap",
+            "nuclei",
+            "gobuster",
+            "sqlmap",
+            "hydra",
+            "subfinder",
+            "nikto",
+            "amass",
+            "dnsx",
+            "theHarvester",
+            "whois",
+            "ffuf",
+            "feroxbuster",
+            "httpx",
+            "wpscan",
+            "john",
+            "hashcat",
+            "msfconsole",
+            "trufflehog",
+            "gitleaks",
+            "aws",
+            "podman",
+            "docker",
         ]
         self._main_commands = {
             "run": "Run a security command or instruction",
@@ -100,14 +123,21 @@ class SmartAutocomplete(Completer):
 
         # If inside 'run' or 'scan' arguments
         main_cmd = words[0]
-        
+
         # Tier 2 Context Injection: Auto-complete files & directories
-        if len(words) > 1 and (word_before.startswith(".") or "/" in word_before or "\\" in word_before or word_before == ""):
+        if len(words) > 1 and (
+            word_before.startswith(".")
+            or "/" in word_before
+            or "\\" in word_before
+            or word_before == ""
+        ):
             # File completions
             path_part = word_before
             for path_match in self._get_file_completions(path_part):
                 # Ensure we calculate clean start position for path completions
-                yield Completion(path_match, start_position=start_pos, display_meta="Local File/Path")
+                yield Completion(
+                    path_match, start_position=start_pos, display_meta="Local File/Path"
+                )
 
         # Tier 1 Static Tool Names
         if main_cmd in {"run", "scan"}:
@@ -117,7 +147,15 @@ class SmartAutocomplete(Completer):
                     yield Completion(tool, start_position=start_pos, display_meta="Security Tool")
 
             # Common command-line options
-            options = ["--target", "--help", "--verbose", "--dry-run", "--theme", "--parallel", "--resume"]
+            options = [
+                "--target",
+                "--help",
+                "--verbose",
+                "--dry-run",
+                "--theme",
+                "--parallel",
+                "--resume",
+            ]
             for opt in options:
                 if opt.startswith(word_before):
                     yield Completion(opt, start_position=start_pos, display_meta="Flag Options")
@@ -127,7 +165,10 @@ class SmartAutocomplete(Completer):
             recent_targets = set()
             for op in self._session.operations:
                 # heuristic to extract targets from past instructions
-                matches = re.findall(r"(?:https?://)?(?:[a-zA-Z0-9\-]+\.)+[a-zA-Z]{2,}|(?:\d{1,3}\.){3}\d{1,3}", op.instruction)
+                matches = re.findall(
+                    r"(?:https?://)?(?:[a-zA-Z0-9\-]+\.)+[a-zA-Z]{2,}|(?:\d{1,3}\.){3}\d{1,3}",
+                    op.instruction,
+                )
                 recent_targets.update(matches)
 
             for target in recent_targets:
@@ -146,7 +187,9 @@ class SmartAutocomplete(Completer):
                 predictions = self._predict_next_based_on_tool(last_tool)
                 for pred, desc in predictions:
                     if pred.startswith(word_before):
-                        yield Completion(pred, start_position=start_pos, display_meta=f"AI Suggestion: {desc}")
+                        yield Completion(
+                            pred, start_position=start_pos, display_meta=f"AI Suggestion: {desc}"
+                        )
 
     def _get_file_completions(self, path_part: str) -> list[str]:
         """Scan current directory for matching files/directories."""
@@ -172,22 +215,22 @@ class SmartAutocomplete(Completer):
                 ("nuclei", "Vulnerability scanning based on open ports"),
                 ("gobuster", "Brute-force directories/files on discovered web ports"),
                 ("nikto", "Web server scanner check for general misconfigurations"),
-                ("httpx", "Probe discovered hosts for live HTTP/HTTPS services")
+                ("httpx", "Probe discovered hosts for live HTTP/HTTPS services"),
             ],
             "subfinder": [
                 ("dnsx", "Perform fast DNS resolution of found subdomains"),
                 ("httpx", "Filter out live web servers from subdomain list"),
-                ("nmap", "Port scan live subdomains discovered")
+                ("nmap", "Port scan live subdomains discovered"),
             ],
             "httpx": [
                 ("nuclei", "Scan web interface with custom CVE templates"),
                 ("gobuster", "Enumerate directories for hidden endpoints"),
-                ("nikto", "Verify web server configuration flags and SSL details")
+                ("nikto", "Verify web server configuration flags and SSL details"),
             ],
             "nuclei": [
                 ("sqlmap", "Scan detected SQL Injection parameters for database dump"),
                 ("hydra", "Brute force authentication portals found in scan"),
-                ("msfconsole", "Trigger exploitation modules for verified vulnerabilities")
-            ]
+                ("msfconsole", "Trigger exploitation modules for verified vulnerabilities"),
+            ],
         }
         return progression.get(tool.lower(), [])

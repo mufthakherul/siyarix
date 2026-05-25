@@ -9,7 +9,7 @@ Rich terminal-based prompt overlay.
 from __future__ import annotations
 
 import logging
-from typing import Any, Iterable
+from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
@@ -19,9 +19,13 @@ from rich.text import Text
 from siyarix.command_profiles import CommandProfileStore
 from siyarix.session_manager import command_history
 
+WordCompleter: Any = None
+ptk_prompt: Any = None
+
 try:
     from prompt_toolkit.completion import WordCompleter
     from prompt_toolkit.shortcuts import prompt as ptk_prompt
+
     PTK_AVAILABLE = True
 except ImportError:
     PTK_AVAILABLE = False
@@ -35,7 +39,7 @@ class CommandPalette:
     def __init__(self, session_id: str = "") -> None:
         self.session_id = session_id
         self._profile_store = CommandProfileStore()
-        
+
         # Predefined operations that make sense to launch from the command palette
         self._core_actions = {
             "nmap scan full": "Scan all 65535 ports with service & OS detection",
@@ -77,21 +81,23 @@ class CommandPalette:
 
     def show(self, console: Console) -> str | None:
         """Display the fuzzy command palette overlay.
-        
+
         Returns the selected and parsed command string, or None if cancelled.
         """
         # Draw elegant cyberpunk header
         header_text = Text()
         header_text.append("⚡ COMMAND PALETTE ", style="bold cyan")
         header_text.append("[Ctrl+P / /palette]", style="dim")
-        
-        console.print(Panel(
-            "[bold green]◈ CORE ACTIONS  ◈ SAVED PROFILES  ◈ RECENT HISTORY[/bold green]\n"
-            "[dim]Enter keyword search term to filter choices. Leave blank to cancel.[/dim]",
-            title=header_text,
-            border_style="bright_blue",
-            padding=(1, 2)
-        ))
+
+        console.print(
+            Panel(
+                "[bold green]◈ CORE ACTIONS  ◈ SAVED PROFILES  ◈ RECENT HISTORY[/bold green]\n"
+                "[dim]Enter keyword search term to filter choices. Leave blank to cancel.[/dim]",
+                title=header_text,
+                border_style="bright_blue",
+                padding=(1, 2),
+            )
+        )
 
         options = self.get_search_options()
         query = ""
@@ -102,6 +108,7 @@ class CommandPalette:
                 query = ptk_prompt("Search > ", completer=completer).strip()
             else:
                 from rich.prompt import Prompt
+
                 query = Prompt.ask("Search > ", default="").strip()
         except KeyboardInterrupt:
             console.print("\n[yellow]Cancelled Command Palette.[/yellow]")
@@ -121,10 +128,10 @@ class CommandPalette:
 
         # Render matches
         table = Table(
-            title="🔍 Matching Actions", 
-            border_style="dim", 
+            title="🔍 Matching Actions",
+            border_style="dim",
             header_style="bold bright_cyan",
-            row_styles=["", "dim"]
+            row_styles=["", "dim"],
         )
         table.add_column("#", style="dim", justify="right", width=4)
         table.add_column("Type", style="magenta", width=10)
@@ -141,13 +148,16 @@ class CommandPalette:
             else:
                 ctype, name = "history", source_part
 
-            cmd_display = f"[bold]{name.strip()}[/bold] - {details.strip()}" if details else name.strip()
+            cmd_display = (
+                f"[bold]{name.strip()}[/bold] - {details.strip()}" if details else name.strip()
+            )
             table.add_row(str(idx), ctype.strip().upper(), cmd_display)
 
         console.print(table)
 
         # Ask to execute or insert
         from rich.prompt import Prompt
+
         selection = Prompt.ask("Select command index to execute", default="").strip()
         if not selection:
             return None
@@ -156,7 +166,7 @@ class CommandPalette:
             selected_idx = int(selection) - 1
             if 0 <= selected_idx < len(filtered):
                 chosen = filtered[selected_idx]
-                
+
                 # Parse choice back to clean command
                 if chosen.startswith("action:"):
                     act_name = chosen.split(":", 1)[1].split(" | ", 1)[0].strip()
@@ -206,9 +216,12 @@ class CommandPalette:
         if not placeholders:
             return command
 
-        console.print(f"\n[cyan]◈ Profile contains {len(placeholders)} variable placeholders.[/cyan]")
+        console.print(
+            f"\n[cyan]◈ Profile contains {len(placeholders)} variable placeholders.[/cyan]"
+        )
         params = {}
         from rich.prompt import Prompt
+
         for ph in placeholders:
             val = Prompt.ask(f"Value for '{ph}'").strip()
             params[ph] = val

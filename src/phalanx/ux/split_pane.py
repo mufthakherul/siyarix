@@ -2,7 +2,7 @@
 
 Leverages Rich Layouts to split the terminal screen side-by-side:
 - Left Pane: Interactive commands, chat history, or agent responses.
-- Right Pane: Real-time cyber visualizations including Attack Maps, 
+- Right Pane: Real-time cyber visualizations including Attack Maps,
   Incident Timelines, Host Profiles, and Risk Gauges.
 """
 
@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from rich.console import Console, RenderableType
+from rich.console import RenderableType
 from rich.layout import Layout
 from rich.panel import Panel
 from rich.table import Table
@@ -27,46 +27,49 @@ class SplitPane:
         self._layout = Layout()
 
     def generate_layout(
-        self, 
-        left_renderable: RenderableType, 
+        self,
+        left_renderable: RenderableType,
         right_type: str = "attack_map",
         session_meta: Any = None,
         findings: list[dict[str, Any]] | None = None,
-        timeline_events: list[Any] | None = None
+        timeline_events: list[Any] | None = None,
     ) -> Layout:
         """Create a side-by-side terminal split layout.
-        
+
         right_type options: 'attack_map', 'timeline', 'metrics', 'cheatsheet'
         """
         # Define side-by-side main panes
-        self._layout.split_row(
-            Layout(name="left", ratio=3),
-            Layout(name="right", ratio=3)
-        )
+        self._layout.split_row(Layout(name="left", ratio=3), Layout(name="right", ratio=3))
 
         # 1. Populate Left Pane
-        self._layout["left"].update(Panel(
-            left_renderable,
-            title="[bold bright_cyan]⚡ OPERATIONAL TERMINAL (Chat / Shell)[/bold bright_cyan]",
-            border_style="bright_blue"
-        ))
+        self._layout["left"].update(
+            Panel(
+                left_renderable,
+                title="[bold bright_cyan]⚡ OPERATIONAL TERMINAL (Chat / Shell)[/bold bright_cyan]",
+                border_style="bright_blue",
+            )
+        )
 
         # 2. Render and Populate Right Pane based on type
-        right_renderable = self._render_right_pane(right_type, session_meta, findings, timeline_events)
-        self._layout["right"].update(Panel(
-            right_renderable,
-            title=f"[bold bright_magenta]🔍 SYSTEM VIEW: {right_type.upper().replace('_', ' ')}[/bold bright_magenta]",
-            border_style="bright_magenta"
-        ))
+        right_renderable = self._render_right_pane(
+            right_type, session_meta, findings, timeline_events
+        )
+        self._layout["right"].update(
+            Panel(
+                right_renderable,
+                title=f"[bold bright_magenta]🔍 SYSTEM VIEW: {right_type.upper().replace('_', ' ')}[/bold bright_magenta]",
+                border_style="bright_magenta",
+            )
+        )
 
         return self._layout
 
     def _render_right_pane(
-        self, 
+        self,
         right_type: str,
         session_meta: Any,
         findings: list[dict[str, Any]] | None,
-        timeline_events: list[Any] | None
+        timeline_events: list[Any] | None,
     ) -> RenderableType:
         """Render the selected visualization for the right pane."""
         if right_type == "timeline":
@@ -79,7 +82,9 @@ class SplitPane:
             # Default to attack map
             return self._render_attack_map(session_meta, findings)
 
-    def _render_attack_map(self, session_meta: Any, findings: list[dict[str, Any]] | None) -> RenderableType:
+    def _render_attack_map(
+        self, session_meta: Any, findings: list[dict[str, Any]] | None
+    ) -> RenderableType:
         """Render a cinematically beautiful ASCII attack surface map."""
         text = Text()
         target = "127.0.0.1"
@@ -93,7 +98,10 @@ class SplitPane:
         # Network topology nodes
         text.append("  [ GATEWAY ] ═════╦═════ [ INGRESS SW ]\n", style="bold bright_blue")
         text.append("                   ║\n", style="bold bright_blue")
-        text.append("                   ╠═════ [ FIREWALL ] (Stateful Inspection)\n", style="bold bright_blue")
+        text.append(
+            "                   ╠═════ [ FIREWALL ] (Stateful Inspection)\n",
+            style="bold bright_blue",
+        )
         text.append("                   ║\n", style="bold bright_blue")
         text.append("                   ╚═════ [ TARGET NODE ] ── ", style="bold bright_blue")
         text.append(f"({target})\n", style="bright_cyan")
@@ -110,7 +118,17 @@ class SplitPane:
 
         text.append("\n  🔌 OPEN PORTS & ATTACK PATHS:\n", style="bold yellow")
         for port in ports:
-            service = "SSH" if port == 22 else "HTTP" if port == 80 else "HTTPS" if port == 443 else "RDP" if port == 3389 else "Service"
+            service = (
+                "SSH"
+                if port == 22
+                else "HTTP"
+                if port == 80
+                else "HTTPS"
+                if port == 443
+                else "RDP"
+                if port == 3389
+                else "Service"
+            )
             text.append(f"    🟢 Port {port:<5} ── [{service:<7}] ── ", style="green")
             # Correlate vulns to port if matching
             matched_vulns = []
@@ -136,7 +154,10 @@ class SplitPane:
 
         blocks = "█" * int(severity_score) + "░" * (10 - int(severity_score))
         color = "red" if severity_score >= 7.0 else "yellow" if severity_score >= 4.0 else "green"
-        text.append(f"\n  📊 SEVERITY RISK RATIO: [{color}]{blocks}[/] {severity_score:.1f}/10\n", style="bold")
+        text.append(
+            f"\n  📊 SEVERITY RISK RATIO: [{color}]{blocks}[/] {severity_score:.1f}/10\n",
+            style="bold",
+        )
 
         return text
 
@@ -177,6 +198,7 @@ class SplitPane:
 
         # Mock resource allocations
         import psutil
+
         try:
             cpu_pct = psutil.cpu_percent()
             mem = psutil.virtual_memory()
@@ -185,12 +207,16 @@ class SplitPane:
             cpu_pct = 12.4
             mem_pct = 44.8
 
-        text.append(f"  🧠 CPU Allocation:  {cpu_pct:<5}% [cyan]{'█' * int(cpu_pct/10)}{'░' * (10-int(cpu_pct/10))}[/cyan]\n")
-        text.append(f"  💾 RAM Utilization: {mem_pct:<5}% [cyan]{'█' * int(mem_pct/10)}{'░' * (10-int(mem_pct/10))}[/cyan]\n\n")
+        text.append(
+            f"  🧠 CPU Allocation:  {cpu_pct:<5}% [cyan]{'█' * int(cpu_pct / 10)}{'░' * (10 - int(cpu_pct / 10))}[/cyan]\n"
+        )
+        text.append(
+            f"  💾 RAM Utilization: {mem_pct:<5}% [cyan]{'█' * int(mem_pct / 10)}{'░' * (10 - int(mem_pct / 10))}[/cyan]\n\n"
+        )
 
         # Scan progress
         text.append("  🚀 RUNNING SECURITY SCANS:\n", style="bold cyan")
-        
+
         # Build beautiful inline progress columns using Rich
         progress = Progress(
             TextColumn("    {task.description:<14}"),
@@ -200,12 +226,14 @@ class SplitPane:
         progress.add_task("Nmap recon", total=100, completed=100)
         progress.add_task("Nuclei scan", total=100, completed=65)
         progress.add_task("Dirbuster", total=100, completed=20)
-        
+
         return progress
 
     def _render_cheatsheet(self) -> RenderableType:
         """Render operational key bindings and command helper sheets."""
-        table = Table(title="Keyboard Shortcuts", show_header=True, header_style="bold blue", box=None)
+        table = Table(
+            title="Keyboard Shortcuts", show_header=True, header_style="bold blue", box=None
+        )
         table.add_column("Shortcut", style="bold bright_cyan", justify="left")
         table.add_column("Function Description", style="white")
 

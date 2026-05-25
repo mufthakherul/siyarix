@@ -230,6 +230,23 @@ _SLASH_HELP = {
     "/work-mode create": "Create a custom persona with interactive builder",
     "/work-mode list": "List all available personas (built-in + custom)",
     "/work-mode auto": "Enable auto persona detection mode",
+    "/config tool": "Show tool ACL configuration for active persona",
+    "/collab create <name>": "Create a new team collaboration session",
+    "/collab list": "List active collaboration sessions",
+    "/collab join <id>": "Join an existing collaboration session",
+    "/collab send <msg>": "Broadcast message to collab session",
+    "/coder generate <prompt>": "Generate code using AI provider",
+    "/coder review <file>": "Review a code file for issues",
+    "/mcp connect <url>": "Connect to an MCP server",
+    "/mcp call <tool> <args>": "Call a tool on the MCP server",
+    "/mcp disconnect": "Disconnect from MCP server",
+    "/agent spawn <name> <task>": "Spawn a new sub-agent",
+    "/agent list": "List all active sub-agents",
+    "/agent kill <id>": "Kill a specific sub-agent",
+    "/learning profile": "Show user learning profile",
+    "/learning patterns": "Show learned tool patterns",
+    "/learning level <novice|intermediate|advanced|expert>": "Set experience level",
+    "/esc": "Emergency stop - cancel all pending execution",
 }
 
 # Mode number → (name, engine_mode, description)
@@ -442,6 +459,13 @@ class PhalanxChat:
             "/version": self._cmd_version,
             "/report": self._cmd_report,
             "/work-mode": self._cmd_work_mode,
+            "/config": self._cmd_config,
+            "/collab": self._cmd_collab,
+            "/coder": self._cmd_coder,
+            "/mcp": self._cmd_mcp,
+            "/agent": self._cmd_agent,
+            "/learning": self._cmd_learning,
+            "/esc": self._cmd_esc,
         }
 
         # Handle /1 through /9 mode shortcuts
@@ -1244,6 +1268,235 @@ class PhalanxChat:
             console.print(f"[cyan]Current persona: {current.name}[/cyan]")
             console.print(f"[dim]{current.description}[/dim]")
         console.print("[dim]Use /work-mode <name>, /work-mode list, or /work-mode create[/dim]")
+
+    async def _cmd_config(self, args: str) -> None:
+        """Handle /config command for tool ACL, settings, etc."""
+        from .persona_engine import PersonaEngine
+
+        tokens = args.split() if args else []
+        if not tokens or tokens[0].lower() != "tool":
+            console.print("[yellow]Usage: /config tool - show tool ACL for active persona[/yellow]")
+            return
+
+        engine = PersonaEngine()
+        persona = engine.active_persona
+        if not persona:
+            console.print("[dim]No active persona.[/dim]")
+            return
+
+        acl = persona.tool_acl
+        from rich.table import Table
+        table = Table(title=f"Tool ACL for '{persona.name}'", header_style="bold cyan")
+        table.add_column("Rule", style="cyan")
+        table.add_column("Tools", style="white")
+        table.add_row("Allowed", ", ".join(acl.allowed) if acl.allowed != ["*"] else "ALL (*)")
+        table.add_row("Forbidden", ", ".join(acl.forbidden) if acl.forbidden else "(none)")
+        table.add_row("Permission Required", ", ".join(acl.permission_required) if acl.permission_required else "(none)")
+        table.add_row("Review Required", ", ".join(acl.review_required) if acl.review_required else "(none)")
+        table.add_row("Auto-Approve (s)", str(acl.auto_approve_seconds))
+        console.print(table)
+
+    async def _cmd_collab(self, args: str) -> None:
+        """Handle /collab command for team collaboration."""
+        from .collaboration import CollaborationManager, CollabSession
+
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else ""
+        mgr = CollaborationManager()
+
+        if action == "create":
+            name = " ".join(tokens[1:]) if len(tokens) > 1 else ""
+            if not name:
+                name = Prompt.ask("Session name")
+            session = mgr.create_session(name, host=os.environ.get("USER", "unknown"), target=self._session.target)
+            console.print(f"[green]✓ Created collaboration session: {session.name}[/green]")
+            console.print(f"[dim]ID: {session.session_id}[/dim]")
+            console.print(f"[dim]Share this ID for others to join.[/dim]")
+        elif action == "list":
+            sessions = mgr.list_sessions()
+            mgr.show_table(sessions)
+        elif action == "join":
+            if len(tokens) < 2:
+                console.print("[yellow]Usage: /collab join <session_id>[/yellow]")
+                return
+            session_id = tokens[1]
+            session = CollabSession.load(session_id)
+            if not session:
+                console.print(f"[red]Session not found: {session_id}[/red]")
+                return
+            name = Prompt.ask("Your display name", default=os.environ.get("USER", "anonymous"))
+            session.add_member(name)
+            console.print(f"[green]✓ Joined session '{session.name}' as {name}[/green]")
+        elif action == "send":
+            if len(tokens) < 2:
+                console.print("[yellow]Usage: /collab send <message>[/yellow]")
+                return
+            message = " ".join(tokens[1:])
+            sessions = mgr.list_sessions()
+            if not sessions:
+                console.print("[yellow]No active sessions.[/yellow]")
+                return
+            session = CollabSession.load(sessions[0]["session_id"])
+            if session:
+                session.broadcast(os.environ.get("USER", "anonymous"), message)
+                console.print("[green]✓ Message broadcast to session.[/green]")
+        else:
+            console.print("[yellow]Usage: /collab create|list|join|send[/yellow]")
+
+    async def _cmd_coder(self, args: str) -> None:
+        """Handle /coder command for code generation and review."""
+        from .coder_bridge import CoderBridge
+
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else ""
+        bridge = CoderBridge()
+
+        if action == "generate":
+            prompt = " ".join(tokens[1:]) if len(tokens) > 1 else ""
+            if not prompt:
+                prompt = Prompt.ask("Describe the code you need")
+            console.print(f"[dim]Generating code for: {prompt}[/dim]")
+            code = await bridge.generate(prompt)
+            if code:
+                console.print(Panel(Syntax(code, "python", theme="monokai"), title="Generated Code", border_style="green"))
+        elif action == "review":
+            path = tokens[1] if len(tokens) > 1 else ""
+            if not path:
+                console.print("[yellow]Usage: /coder review <file_path>[/yellow]")
+                return
+            try:
+                with open(path) as f:
+                    code = f.read()
+                review = await bridge.review(path, code)
+                console.print(review.to_panel())
+            except FileNotFoundError:
+                console.print(f"[red]File not found: {path}[/red]")
+        else:
+            console.print("[yellow]Usage: /coder generate|review[/yellow]")
+
+    async def _cmd_mcp(self, args: str) -> None:
+        """Handle /mcp command for MCP server interaction."""
+        from .mcp_integration import MCPClient
+
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else ""
+
+        if action == "connect":
+            url = tokens[1] if len(tokens) > 1 else ""
+            if not url:
+                url = Prompt.ask("MCP server URL")
+            client = MCPClient()
+            ok = await client.connect(url)
+            if ok:
+                self._session.context["mcp_client"] = client
+                console.print(f"[green]✓ Connected to MCP server at {url}[/green]")
+            else:
+                console.print(f"[red]Failed to connect to {url}[/red]")
+        elif action == "call":
+            client = self._session.context.get("mcp_client")
+            if not client:
+                console.print("[yellow]Not connected to an MCP server. Use /mcp connect first.[/yellow]")
+                return
+            tool = tokens[1] if len(tokens) > 1 else ""
+            if not tool:
+                console.print("[yellow]Usage: /mcp call <tool> [args...][/yellow]")
+                return
+            params = {"args": tokens[2:]} if len(tokens) > 2 else {}
+            result = await client.call_tool(tool, params)
+            console.print(Panel(json.dumps(result, indent=2), title=f"MCP: {tool}", border_style="magenta"))
+        elif action == "disconnect":
+            client = self._session.context.pop("mcp_client", None)
+            if client:
+                await client.disconnect()
+                console.print("[green]✓ Disconnected from MCP server.[/green]")
+            else:
+                console.print("[dim]Not connected to any MCP server.[/dim]")
+        else:
+            console.print("[yellow]Usage: /mcp connect|call|disconnect[/yellow]")
+
+    async def _cmd_agent(self, args: str) -> None:
+        """Handle /agent command for sub-agent lifecycle management."""
+        from .agent_lifecycle import AgentLifecycle
+
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else ""
+
+        if "agent_lifecycle" not in self._session.context:
+            self._session.context["agent_lifecycle"] = AgentLifecycle()
+        mgr = self._session.context["agent_lifecycle"]
+
+        if action == "spawn":
+            name = tokens[1] if len(tokens) > 1 else ""
+            task = " ".join(tokens[2:]) if len(tokens) > 2 else ""
+            if not name:
+                console.print("[yellow]Usage: /agent spawn <name> [task][/yellow]")
+                return
+            agent = mgr.spawn(name, task)
+            console.print(f"[green]✓ Spawned agent '{name}' (ID: {agent.id})[/green]")
+        elif action == "list":
+            mgr.show_table()
+        elif action == "kill":
+            if len(tokens) < 2:
+                console.print("[yellow]Usage: /agent kill <agent_id>[/yellow]")
+                return
+            ok = mgr.kill(tokens[1])
+            if ok:
+                console.print(f"[green]✓ Killed agent {tokens[1]}[/green]")
+            else:
+                console.print(f"[red]Agent not found: {tokens[1]}[/red]")
+        else:
+            console.print("[yellow]Usage: /agent spawn|list|kill[/yellow]")
+
+    async def _cmd_learning(self, args: str) -> None:
+        """Handle /learning command for user learning and patterns."""
+        from .learning_memory import LearningMemory
+        from .user_learning import UserLearning, ExperienceLevel
+
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else ""
+
+        if action == "profile":
+            ul = UserLearning()
+            console.print(ul.get_profile())
+        elif action == "patterns":
+            lm = LearningMemory()
+            patterns = lm.top_patterns(10)
+            if not patterns:
+                console.print("[dim]No learned patterns yet.[/dim]")
+                return
+            from rich.table import Table
+            table = Table(title=f"Learned Tool Patterns ({lm.total_records})", header_style="bold cyan")
+            table.add_column("Chain", style="green")
+            table.add_column("Count", style="yellow")
+            table.add_column("Avg Duration", style="dim")
+            for p in patterns:
+                chain = " -> ".join(p.tools)
+                dur = f"{p.avg_duration_ms:.0f}ms" if p.avg_duration_ms else "-"
+                table.add_row(chain, str(p.count), dur)
+            console.print(table)
+        elif action == "level":
+            if len(tokens) < 2 or tokens[1] not in ("novice", "intermediate", "advanced", "expert"):
+                console.print("[yellow]Usage: /learning level <novice|intermediate|advanced|expert>[/yellow]")
+                return
+            ul = UserLearning()
+            ul.experience = tokens[1]
+            console.print(f"[green]✓ Experience level set to: {tokens[1]}[/green]")
+        else:
+            console.print("[yellow]Usage: /learning profile|patterns|level[/yellow]")
+
+    def _cmd_esc(self, _: str) -> None:
+        """Emergency stop - cancel all pending execution."""
+        console.print("[bold red]⚠ EMERGENCY STOP TRIGGERED[/bold red]")
+        self._running = False
+        # Notify kill switch in response sensor
+        try:
+            from .kill_switch import KillSwitch
+            ks = KillSwitch()
+            ks.trigger()
+            console.print("[dim]Kill switch triggered: all pending operations cancelled.[/dim]")
+        except Exception as exc:
+            logger.debug("Kill switch trigger: %s", exc)
+        console.print("[yellow]Session terminated by user. Use /exit to fully quit.[/yellow]")
 
     def _cmd_version(self, _: str) -> None:
         try:

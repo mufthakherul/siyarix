@@ -57,6 +57,7 @@ class InterpretedTask:
             "sub_tasks": [s.to_dict() for s in self.sub_tasks],
         }
 
+
 # ---------------------------------------------------------------------------
 # Pattern definitions for heuristic-based interpretation
 # ---------------------------------------------------------------------------
@@ -296,9 +297,22 @@ _INTENT_PATTERNS: dict[str, list[str]] = {
     "list_files": ["list files", "show files", "list directory", "dir", "ls"],
     "list_processes": ["list processes", "show processes", "running processes", "ps aux", "ps"],
     "process_tree": ["process tree", "pstree"],
-    "network_connections": ["network connections", "show connections", "list connections", "active connections", "netstat"],
+    "network_connections": [
+        "network connections",
+        "show connections",
+        "list connections",
+        "active connections",
+        "netstat",
+    ],
     "open_ports": ["open ports", "listening ports", "ports"],
-    "network_interfaces": ["network interfaces", "show interfaces", "list interfaces", "ip addr", "ifconfig", "ipconfig"],
+    "network_interfaces": [
+        "network interfaces",
+        "show interfaces",
+        "list interfaces",
+        "ip addr",
+        "ifconfig",
+        "ipconfig",
+    ],
     "routing_table": ["routing table", "route table", "show routes", "routing"],
     "arp_table": ["arp table", "arp cache", "show arp"],
     "dns_lookup": ["dns lookup", "nslookup", "resolve dns", "dns query"],
@@ -352,16 +366,16 @@ class RuleInterpreter:
         """Match natural language command to cross-platform command intents in shell_knowledge."""
         best_intent = None
         longest_match_len = 0
-        
+
         for intent, patterns in _INTENT_PATTERNS.items():
             for pat in patterns:
                 # Use regex with word boundaries to ensure we don't match substrings like 'ps' in 'https'
-                pattern_regex = r'\b' + re.escape(pat) + r'\b'
+                pattern_regex = r"\b" + re.escape(pat) + r"\b"
                 if re.search(pattern_regex, text_lower):
                     if len(pat) > longest_match_len:
                         longest_match_len = len(pat)
                         best_intent = intent
-                        
+
         if best_intent:
             return best_intent, 0.9
         return None, 0.0
@@ -379,16 +393,16 @@ class RuleInterpreter:
                 else_parts = re.split(r"\s+else\s+", rest, maxsplit=1)
                 then_raw = else_parts[0].strip()
                 else_raw = else_parts[1].strip() if len(else_parts) > 1 else None
-                
+
                 then_task = self.interpret(then_raw)
                 then_task.flags["branch"] = "then"
-                
+
                 sub_tasks = [then_task]
                 if else_raw:
                     else_task = self.interpret(else_raw)
                     else_task.flags["branch"] = "else"
                     sub_tasks.append(else_task)
-                
+
                 return InterpretedTask(
                     category=TaskCategory.WORKFLOW,
                     action="conditional",
@@ -404,7 +418,7 @@ class RuleInterpreter:
             sub_tasks = []
             first_task = self.interpret(tokens[0].strip())
             sub_tasks.append(first_task)
-            
+
             for idx in range(1, len(tokens), 2):
                 if idx + 1 < len(tokens):
                     op = tokens[idx].strip()
@@ -412,7 +426,7 @@ class RuleInterpreter:
                     task = self.interpret(task_text)
                     task.flags["chain_op"] = op
                     sub_tasks.append(task)
-            
+
             return InterpretedTask(
                 category=TaskCategory.WORKFLOW,
                 action="chain",

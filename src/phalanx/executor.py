@@ -23,6 +23,7 @@ class ExecutionResult:
 async def _apply_stealth_modifications(tool_path: str, args: list[str]) -> tuple[str, list[str]]:
     """Rewrite tool arguments and add delay jitter when stealth mode is enabled."""
     from siyarix.config import SettingsStore
+
     try:
         config = SettingsStore()
         if not config.get("stealth_mode"):
@@ -31,6 +32,7 @@ async def _apply_stealth_modifications(tool_path: str, args: list[str]) -> tuple
         return tool_path, args
 
     import random
+
     # Timing Jitter: sleep between 100ms and 500ms to mimic human typing / evade threshold detection
     delay = random.uniform(0.1, 0.5)
     await asyncio.sleep(delay)
@@ -55,7 +57,9 @@ async def _apply_stealth_modifications(tool_path: str, args: list[str]) -> tuple
             new_args.extend(["-rate", "50"])
         # Rotate user agent
         if "-H" not in new_args:
-            new_args.extend(["-H", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"])
+            new_args.extend(
+                ["-H", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"]
+            )
 
     # 3. Evasive rewriting for nuclei
     elif "nuclei" in name:

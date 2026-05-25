@@ -42,6 +42,17 @@ from .shell_knowledge import (
 )
 from .ux import SmartAutocomplete, CommandPalette, SplitPane
 
+Console: Any = None
+Columns: Any = None
+Markdown: Any = None
+Panel: Any = None
+Prompt: Any = None
+Rule: Any = None
+Syntax: Any = None
+Table: Any = None
+Text: Any = None
+ptk_prompt: Any = None
+
 try:
     from rich.console import Console
     from rich.columns import Columns
@@ -52,7 +63,6 @@ try:
     from rich.syntax import Syntax
     from rich.table import Table
     from rich.text import Text
-    from rich.align import Align
 
     RICH_AVAILABLE = True
 except ImportError:
@@ -62,7 +72,6 @@ logger = logging.getLogger(__name__)
 
 try:
     from prompt_toolkit import prompt as ptk_prompt
-    from prompt_toolkit.completion import WordCompleter
 
     PTK_AVAILABLE = True
 except Exception as exc:
@@ -241,7 +250,9 @@ _MODE_MAP: dict[str, tuple[str, str, str]] = {
 class SiyarixChat:
     """Interactive REPL for Siyarix — the cybersecurity AI assistant."""
 
-    _SESSIONS_DIR = Path(os.getenv("SIYARIX_CONFIG_DIR", str(Path.home() / ".siyarix"))) / "sessions"
+    _SESSIONS_DIR = (
+        Path(os.getenv("SIYARIX_CONFIG_DIR", str(Path.home() / ".siyarix"))) / "sessions"
+    )
 
     def __init__(
         self,
@@ -327,8 +338,7 @@ class SiyarixChat:
             )
             if PTK_AVAILABLE:
                 try:
-                    completer = SmartAutocomplete(self._session)
-                    return ptk_prompt("❯ ", completer=completer).strip()
+                    return ptk_prompt("❯ ", completer=SmartAutocomplete(self._session)).strip()
                 except KeyboardInterrupt:
                     raise
                 except Exception:
@@ -346,6 +356,7 @@ class SiyarixChat:
 
         # Mode switcher bar
         from .branding import render_mode_bar
+
         mode_bar = render_mode_bar(theme, self._active_mode_num)
         console.print(mode_bar)
 
@@ -367,8 +378,7 @@ class SiyarixChat:
 
         if PTK_AVAILABLE:
             try:
-                completer = SmartAutocomplete(self._session)
-                answer = ptk_prompt("❯ ", completer=completer).strip()
+                answer = ptk_prompt("❯ ", completer=SmartAutocomplete(self._session)).strip()
             except KeyboardInterrupt:
                 raise
             except Exception as exc:
@@ -460,6 +470,7 @@ class SiyarixChat:
     def _cmd_modes(self, _: str) -> None:
         """Show the full mode dispatcher table."""
         from .branding import print_mode_dispatcher
+
         theme = self._settings.get("color_theme") or "cyber-noir"
         print_mode_dispatcher(console, theme, self._active_mode_num)
 
@@ -508,20 +519,20 @@ class SiyarixChat:
         if fmt not in ("markdown", "html"):
             console.print("[yellow]Invalid format. Use 'markdown' or 'html'.[/yellow]")
             return
-            
+
         try:
             from .knowledge_graph import KnowledgeGraph
             from .output.reporting import ReportGenerator
-            
+
             # Since graph might be shared/global or attached to session context, we try to load it
             # For simplicity, if engine is accessible, we could pull it from there
             # Since we don't have direct access to engine here, we create a mock one or rely on local JSON
             # We'll just instantiate the generator for the structure since this is a demonstration
             console.print("[dim]Generating premium report...[/dim]")
-            
+
             graph = KnowledgeGraph()
             # If we had persisted graph to context, load it here.
-            
+
             generator = ReportGenerator(graph)
             path = generator.save_report(format=fmt)
             console.print(f"[bold green]✓ Report generated successfully at: {path}[/bold green]")
@@ -553,8 +564,12 @@ class SiyarixChat:
         else:
             self._split_pane_enabled = not self._split_pane_enabled
             status_str = "ENABLED" if self._split_pane_enabled else "DISABLED"
-            console.print(f"[green]Split Pane view {status_str}.[/green] (System view: {self._split_pane_type.upper()})")
-            console.print("[dim]Use '/split <timeline|metrics|cheatsheet|attack_map>' to change views.[/dim]")
+            console.print(
+                f"[green]Split Pane view {status_str}.[/green] (System view: {self._split_pane_type.upper()})"
+            )
+            console.print(
+                "[dim]Use '/split <timeline|metrics|cheatsheet|attack_map>' to change views.[/dim]"
+            )
 
         if self._split_pane_enabled:
             self._render_split_pane_layout()
@@ -592,7 +607,7 @@ class SiyarixChat:
             right_type=self._split_pane_type,
             session_meta=self._session,
             findings=findings,
-            timeline_events=timeline_events
+            timeline_events=timeline_events,
         )
         console.print(layout)
 
@@ -1226,19 +1241,23 @@ class SiyarixChat:
 
         # Store findings in session context so split pane can render them!
         self._session.context["findings"] = result.all_findings
-        
+
         timeline = []
         for step_res in result.step_results:
             status_emoji = "🟢" if step_res.status.value == "success" else "🔴"
-            timeline.append({
-                "time": datetime.now().strftime("%H:%M:%S"),
-                "event": f"{status_emoji} Step {step_res.step_id}: {step_res.status.value.upper()}"
-            })
+            timeline.append(
+                {
+                    "time": datetime.now().strftime("%H:%M:%S"),
+                    "event": f"{status_emoji} Step {step_res.step_id}: {step_res.status.value.upper()}",
+                }
+            )
         for f in result.all_findings:
-            timeline.append({
-                "time": datetime.now().strftime("%H:%M:%S"),
-                "event": f"🔴 [VULN] {f.get('type', 'Finding')}: {f.get('detail', f.get('description', ''))}"
-            })
+            timeline.append(
+                {
+                    "time": datetime.now().strftime("%H:%M:%S"),
+                    "event": f"🔴 [VULN] {f.get('type', 'Finding')}: {f.get('detail', f.get('description', ''))}",
+                }
+            )
         self._session.context["timeline_events"] = timeline
 
         # Add assistant summary to session

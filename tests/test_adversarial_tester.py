@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+pytestmark = pytest.mark.adversarial
 from siyarix.adversarial_tester import AdversarialTester, AdversarialFinding, AdversarialSeverity
 
 

@@ -85,7 +85,7 @@ class AuthManager:
                 "auth_method": profile_data.get("auth_method"),
             }
 
-        me = self._me(server_url, profile)
+        me = self._me(server_url or "", profile)
 
         return {
             "logged_in": True,

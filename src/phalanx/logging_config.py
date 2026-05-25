@@ -3,6 +3,7 @@
 Provides a minimal, dependency-free JSON-style logger with UTC timestamps
 and a helper to set sensible defaults for console and file handlers.
 """
+
 from __future__ import annotations
 
 import json

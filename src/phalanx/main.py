@@ -102,14 +102,26 @@ def _get_engine(mode: str = "integrated") -> ExecutionEngine:
         engine_config["fast_discovery"] = True
     openai_key = os.environ.get("OPENAI_API_KEY", "") or creds.retrieve("openai", "api_key") or ""
     gemini_key = os.environ.get("GEMINI_API_KEY", "") or creds.retrieve("gemini", "api_key") or ""
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "") or creds.retrieve("anthropic", "api_key") or ""
+    groq_key = os.environ.get("GROQ_API_KEY", "") or creds.retrieve("groq", "api_key") or ""
+    together_key = os.environ.get("TOGETHER_API_KEY", "") or creds.retrieve("together", "api_key") or ""
     if openai_key:
         engine_config["openai_api_key"] = openai_key
     if gemini_key:
         engine_config["gemini_api_key"] = gemini_key
+    if anthropic_key:
+        engine_config["anthropic_api_key"] = anthropic_key
+    if groq_key:
+        engine_config["groq_api_key"] = groq_key
+    if together_key:
+        engine_config["together_api_key"] = together_key
     engine_config["model_provider"] = config.get("model_provider")
     engine_config["gemini_model"] = config.get("gemini_model")
+    engine_config["openai_model"] = config.get("openai_model")
+    engine_config["anthropic_model"] = config.get("anthropic_model")
     engine_config["ollama_url"] = config.get("ollama_url")
     engine_config["ollama_model"] = config.get("ollama_model")
+    engine_config["lmstudio_url"] = config.get("lmstudio_url", "http://localhost:1234")
     try:
         exec_mode = ExecutionMode(mode)
     except ValueError:
@@ -745,7 +757,7 @@ def shell_security_cmds(
 # ---------------------------------------------------------------------------
 @app.command()
 def scan(
-    targets: list[str] = typer.Argument(help="Target(s): IP, CIDR, URL, or hostname"),
+    targets: list[str] = typer.Argument(help="Target(s): IP, CIDR, URL, hostname, or @file.txt"),
     tool: str = typer.Option("", "--tool", "-t", help="Specific tool to use"),
     mode: str = typer.Option(
         "integrated", "--mode", "-m", help="Execution mode: registry|autonomous|integrated"
@@ -758,25 +770,59 @@ def scan(
     dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
     no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
     profile: str = typer.Option("", "--profile", help="Use specific profile"),
+    work_mode: str = typer.Option("", "--work-mode", help="Persona: offensive|defensive|bug_hunter|pentester|soc_analyst|none|auto"),
 ) -> None:
     """Run security scans against target(s) using the execution engine.
+
+    Supports @targets.txt multi-target mode: prefix a path with @ to load targets from file.
 
     Examples:
       phalanx scan 192.168.1.1
       phalanx scan 10.0.0.0/24 --tool nmap --mode registry
+      phalanx scan @targets.txt --parallel 5
       phalanx scan example.com --dry-run
+      phalanx scan example.com --work-mode bug_hunter
     """
     if not no_banner and not _CI_MODE:
         print_banner(console, _active_theme)
 
-    for target in targets:
+    # Support @targets.txt multi-target mode (Chapter 15 Hidden Features)
+    expanded_targets: list[str] = []
+    for t in targets:
+        if t.startswith("@"):
+            target_file = Path(t[1:])
+            if target_file.exists():
+                lines = [l.strip() for l in target_file.read_text().splitlines() if l.strip()]
+                expanded_targets.extend(lines)
+                console.print(f"[dim]Loaded {len(lines)} targets from {target_file}[/dim]")
+            else:
+                console.print(f"[red]Target file not found: {target_file}[/red]")
+                raise typer.Exit(3)
+        else:
+            expanded_targets.append(t)
+
+    if not expanded_targets:
+        console.print("[red]No targets specified. Use phalanx scan <target> or @file.txt[/red]")
+        raise typer.Exit(1)
+
+    for target in expanded_targets:
         try:
             validate_target(target)
         except ValidationError as exc:
             console.print(f"[red]Invalid target '{target}': {exc}[/red]")
             raise typer.Exit(1)
 
-    instruction = f"scan {' '.join(targets)}"
+    # Apply persona if specified
+    if work_mode:
+        try:
+            from .persona_engine import PersonaEngine
+            pe = PersonaEngine()
+            pe.switch_to(work_mode)
+            console.print(f"[dim]Persona: {work_mode}[/dim]")
+        except ValueError as exc:
+            console.print(f"[yellow]{exc}[/yellow]")
+
+    instruction = f"scan {' '.join(expanded_targets)}"
     if tool:
         instruction += f" with {tool}"
 
@@ -786,14 +832,31 @@ def scan(
         user=os.getenv("USER", os.getenv("USERNAME", "cli")),
         action="scan",
         result="started",
-        target=",".join(targets),
-        details={"tool": tool, "mode": mode, "targets": targets},
+        target=",".join(expanded_targets),
+        details={"tool": tool, "mode": mode, "targets": expanded_targets},
     )
 
-    engine = _get_engine(mode)
-    result = asyncio.run(
-        engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save)
-    )
+    # Show progress for multi-target scans
+    if len(expanded_targets) > 1:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold cyan]Scanning {task.description}[/bold cyan]"),
+            TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            task_id = progress.add_task(
+                f"{len(expanded_targets)} targets", total=len(expanded_targets)
+            )
+            engine = _get_engine(mode)
+            result = asyncio.run(
+                engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save)
+            )
+            progress.update(task_id, advance=len(expanded_targets))
+    else:
+        engine = _get_engine(mode)
+        result = asyncio.run(
+            engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save)
+        )
 
     if dry_run:
         console.print("[yellow]Dry run complete — no commands executed.[/yellow]")

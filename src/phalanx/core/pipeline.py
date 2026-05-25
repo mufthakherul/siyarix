@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from ..interpreter import RuleInterpreter, InterpretedTask, TaskCategory
+from ..interpreter import RuleInterpreter, InterpretedTask
 
 
 @dataclass

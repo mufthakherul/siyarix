@@ -133,4 +133,3 @@ class SessionKernel:
             persistence=SessionPersistenceLevel(data.get("persistence", "workspace")),
             operations=operations,
         )
-

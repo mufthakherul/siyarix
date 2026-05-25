@@ -32,4 +32,3 @@ class InMemoryEventBus:
     def publish(self, event: Event) -> None:
         for callback in self._subscribers.get(event.topic, []):
             callback(event)
-

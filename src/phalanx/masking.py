@@ -3,12 +3,12 @@
 Provides simple, deterministic masking and unmasking for sensitive
 tokens (domains, IPs, API keys) used by planners and LLM providers.
 """
+
 from __future__ import annotations
 
 import re
-import uuid
-from dataclasses import dataclass, field
-from typing import Dict, List, Pattern, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Pattern
 
 
 @dataclass
@@ -23,7 +23,7 @@ class MaskingEngine:
 
     Usage:
         me = MaskingEngine()
-        me.add_rule("domain", r"(?P<domain>[a-z0-9.-]+\.[a-z]{2,})")
+        me.add_rule("domain", "(?P<domain>[a-z0-9.-]+\\.[a-z]{2,})")
         masked = me.mask("scan xyz.com and api.xyz.com")
         unmasked = me.unmask(masked)
     """
@@ -61,18 +61,21 @@ class MaskingEngine:
 
         result = text
         for rule in self._rules:
-            # Use callable replacement to capture each match
-            result = rule.pattern.sub(lambda m, r=rule: _replacer(m, r), result)
+            def _sub(m: re.Match) -> str:
+                return _replacer(m, rule)
+            result = rule.pattern.sub(_sub, result)
         return result
 
     def unmask(self, text: str) -> str:
         """Reverse masking by replacing tokens with original values."""
         if not text:
             return text
+
         # Replace tokens with original values; tokens are safe ASCII
         def _token_replacer(match: re.Match) -> str:
             token = match.group(0)
-            return self._token_to_orig.get(token, token)
+            val = self._token_to_orig.get(token)
+            return val if val is not None else token
 
         # Build token regex based on current mapping
         if not self._token_to_orig:

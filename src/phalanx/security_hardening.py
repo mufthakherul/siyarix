@@ -47,20 +47,19 @@ _INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("null_byte", re.compile(r"\x00")),
     ("newline_injection", re.compile(r"[\r\n]")),
     ("format_string", re.compile(r"%[0-9]*[nsxp]", re.IGNORECASE)),
-    ("sql_keyword", re.compile(
-        r"\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|UNION|EXEC)\b.*[;'\"]",
-        re.IGNORECASE,
-    )),
+    (
+        "sql_keyword",
+        re.compile(
+            r"\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|UNION|EXEC)\b.*[;'\"]",
+            re.IGNORECASE,
+        ),
+    ),
     ("redirect", re.compile(r"[><]{1,2}")),
     ("backtick_exec", re.compile(r"`[^`]+`")),
 ]
 
-_HOSTNAME_RE = re.compile(
-    r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z0-9-]{1,63})*$"
-)
-_URL_RE = re.compile(
-    r"^https?://[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+$"
-)
+_HOSTNAME_RE = re.compile(r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z0-9-]{1,63})*$")
+_URL_RE = re.compile(r"^https?://[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+$")
 
 
 class InputValidator:
@@ -158,15 +157,21 @@ _REDACT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("bearer_token", re.compile(r"(?i)Bearer\s+[A-Za-z0-9_.~+/=-]{20,}")),
     ("basic_auth", re.compile(r"(?i)Basic\s+[A-Za-z0-9+/=]{10,}")),
     ("github_token", re.compile(r"gh[pousr]_[A-Za-z0-9_]{36,}")),
-    ("generic_api_key", re.compile(r"(?i)(?:api[_-]?key|apikey)\s*[=:]\s*['\"]?[A-Za-z0-9_.~+/=-]{16,}['\"]?")),
+    (
+        "generic_api_key",
+        re.compile(r"(?i)(?:api[_-]?key|apikey)\s*[=:]\s*['\"]?[A-Za-z0-9_.~+/=-]{16,}['\"]?"),
+    ),
     # Passwords in URLs
     ("url_password", re.compile(r"://[^:]+:([^@]{3,})@")),
     # Private key markers
     ("private_key", re.compile(r"-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----")),
     # Generic secret-like key=value
-    ("secret_kv", re.compile(
-        r"(?i)(?:password|passwd|pwd|secret|token|auth|credential|private[_-]?key)\s*[=:]\s*\S+",
-    )),
+    (
+        "secret_kv",
+        re.compile(
+            r"(?i)(?:password|passwd|pwd|secret|token|auth|credential|private[_-]?key)\s*[=:]\s*\S+",
+        ),
+    ),
     # JWT tokens
     ("jwt_token", re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+")),
     # Slack tokens
@@ -175,11 +180,25 @@ _REDACT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("google_api_key", re.compile(r"AIza[0-9A-Za-z_-]{35}")),
 ]
 
-_SENSITIVE_KEY_WORDS = frozenset({
-    "password", "passwd", "pwd", "secret", "token", "api_key", "apikey",
-    "api-key", "auth", "credential", "private_key", "access_key",
-    "secret_key", "bearer", "authorization",
-})
+_SENSITIVE_KEY_WORDS = frozenset(
+    {
+        "password",
+        "passwd",
+        "pwd",
+        "secret",
+        "token",
+        "api_key",
+        "apikey",
+        "api-key",
+        "auth",
+        "credential",
+        "private_key",
+        "access_key",
+        "secret_key",
+        "bearer",
+        "authorization",
+    }
+)
 
 
 class SecretRedactor:
@@ -227,6 +246,7 @@ class SecretRedactor:
 # DangerAnalyzer
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class DangerReport:
     """Assessment of how dangerous a command is."""
@@ -245,10 +265,22 @@ class DangerReport:
 _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     # (pattern, severity, description)
     # ── CRITICAL ──
-    (re.compile(r"\brm\s+-[a-zA-Z]*r[a-zA-Z]*f", re.I), "critical", "Recursive force delete (rm -rf)"),
-    (re.compile(r"\brm\s+-[a-zA-Z]*f[a-zA-Z]*r", re.I), "critical", "Recursive force delete (rm -fr)"),
+    (
+        re.compile(r"\brm\s+-[a-zA-Z]*r[a-zA-Z]*f", re.I),
+        "critical",
+        "Recursive force delete (rm -rf)",
+    ),
+    (
+        re.compile(r"\brm\s+-[a-zA-Z]*f[a-zA-Z]*r", re.I),
+        "critical",
+        "Recursive force delete (rm -fr)",
+    ),
     (re.compile(r"\bmkfs\b", re.I), "critical", "Filesystem format (mkfs)"),
-    (re.compile(r"\bdd\s+if=/dev/(?:zero|random|urandom)", re.I), "critical", "Raw disk write (dd)"),
+    (
+        re.compile(r"\bdd\s+if=/dev/(?:zero|random|urandom)", re.I),
+        "critical",
+        "Raw disk write (dd)",
+    ),
     (re.compile(r"\bformat\s+[a-zA-Z]:", re.I), "critical", "Windows disk format"),
     (re.compile(r">\s*/dev/sd[a-z]", re.I), "critical", "Direct disk overwrite"),
     (re.compile(r":\(\)\s*\{\s*:\|:&\s*\}\s*;", re.I), "critical", "Fork bomb"),
@@ -275,7 +307,11 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     (re.compile(r"\bufw\s+disable\b", re.I), "medium", "Disable firewall"),
     (re.compile(r"\bsystemctl\s+(?:stop|disable)\b", re.I), "medium", "Stop/disable service"),
     (re.compile(r"\bnc\s+-[a-zA-Z]*l", re.I), "medium", "Netcat listener (possible reverse shell)"),
-    (re.compile(r"\bpython[23]?\s+-c\s+.*socket", re.I), "medium", "Python socket (possible reverse shell)"),
+    (
+        re.compile(r"\bpython[23]?\s+-c\s+.*socket", re.I),
+        "medium",
+        "Python socket (possible reverse shell)",
+    ),
     (re.compile(r"/dev/tcp/", re.I), "medium", "Bash /dev/tcp (reverse shell pattern)"),
     # ── LOW ──
     (re.compile(r"\bchmod\b", re.I), "low", "Permission change (chmod)"),
@@ -311,7 +347,9 @@ class DangerAnalyzer:
         if max_severity == "critical":
             recommendation = "⛔ BLOCK — This command is destructive and should NOT be executed."
         elif max_severity == "high":
-            recommendation = "⚠️  CONFIRM — This command is high-risk. Require explicit user confirmation."
+            recommendation = (
+                "⚠️  CONFIRM — This command is high-risk. Require explicit user confirmation."
+            )
         elif max_severity == "medium":
             recommendation = "⚡ CAUTION — Review this command before execution."
         elif max_severity == "low":
@@ -345,11 +383,13 @@ class DangerAnalyzer:
             lines.append(f"  • {reason}")
         lines.append(f"\n[bold]{report.recommendation}[/bold]")
 
-        c.print(Panel(
-            "\n".join(lines),
-            title=f"[{style}]⚠ Security Alert[/{style}]",
-            border_style=style,
-        ))
+        c.print(
+            Panel(
+                "\n".join(lines),
+                title=f"[{style}]⚠ Security Alert[/{style}]",
+                border_style=style,
+            )
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════

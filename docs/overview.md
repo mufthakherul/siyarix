@@ -1,27 +1,106 @@
-# Phalanx — Overview
+# Phalanx — Platform Overview
 
-Phalanx (by CosmicSec-Lab) is a lightweight, open-source security agent designed to make security operations accessible, fast, and repeatable straight from your terminal. It explores how we can blend modern AI task planning with deterministic, classic security tools like Nmap, Nuclei, and Ffuf to create a seamless security workflow.
+Phalanx is an **enterprise-grade, AI-native cybersecurity operations platform** that orchestrates security tools through autonomous AI planning, multi-agent coordination, and intelligent workflow execution. It transforms your terminal into a powerful security operations center.
 
-### 🌱 How It Started
-We originally built Phalanx as a college project to experiment with large language models in a security context. The goal was simple: could an AI understand a network topology well enough to run the right scanning tools automatically? 
+---
 
-As we kept adding features, the codebase grew into something much more robust. We realized it could actually be a great learning tool for other students, researchers, and junior penetration testers to understand how security tools map to real-world threats. Now, it is fully public and open-source for anyone to use, learn from, and contribute to!
+## 🎯 Core Mission
 
-### ✨ Key Principles
-- **Keep it Simple**: We believe cognitive load should be minimal. You shouldn't need a 50-page manual to run a port scan. The primary CLI command is just `phalanx`.
-- **Friendly Assistant UX**: When you type `phalanx` with no arguments, it opens a polished, interactive chat center rather than a confusing blank prompt. It shows you what models are active, your theme, and provides quick actions to get started immediately.
-- **Integrated Execution**: Phalanx doesn't just "chat" with you like a standard web LLM; it uses AI to orchestrate and run actual security tools on your machine. It then reads the standard output from those tools and helps you understand the results.
-- **Educational & Scriptable**: You can use it as a learning companion to figure out how tools work, or you can leverage its machine-readable JSON/YAML outputs to plug it directly into your own scripts and automation pipelines.
-- **Verified Stability**: We run a comprehensive suite of offline-safe, high-fidelity End-to-End (E2E) tests. This ensures that all planning loops, parser modules, user prompt systems, and self-correction fallbacks behave reliably on every supported operating system.
+Bridge the gap between AI-driven planning and deterministic tool execution. Phalanx doesn't just chat — it acts. It discovers your environment, plans attack/defense strategies, executes security tools, parses results, learns from outcomes, and generates professional reports.
 
-### 🛠️ What Can It Do?
+### Key Principles
+- **Autonomous Execution**: From natural language to executed commands in one step
+- **Safety First**: Bidirectional data masking, command sandboxing, permission gates
+- **Cross-Platform**: Native support for Linux, macOS, Windows, WSL, cloud shells
+- **Extensible**: Plugin system, 17 parsers, custom provider adapters
+- **Observable**: OpenTelemetry, audit trails, SIEM forwarding
 
-Phalanx comes packed with features designed to help you interact with your operating system securely:
+---
 
-- **Interactive AI Assistant**: Chat with your local or cloud models to plan complex security scans. The REPL retains session history so you can ask follow-up questions.
-- **Network & Web Scanning**: Easily orchestrate tools to map out networks, find open ports, or discover web vulnerabilities without needing to remember complex bash flags.
-- **Threat Hunting**: Ask the agent to help you search through logs or enrich data based on MITRE ATT&CK techniques.
-- **Cross-Platform Compatibility**: Phalanx tries its best to understand your native shell (Bash, Zsh, PowerShell) whether you're on Linux, macOS, or Windows. It translates concepts into the right syntax for your machine.
-- **Credential Management**: A built-in, encrypted vault ensures your API keys are never leaked to your bash history or public `.env` files.
+## 🛠️ Capability Matrix
 
-Our goal is not to replace human security professionals, but to create a helpful, modern companion that makes learning and executing security tasks a little bit easier and a lot more fun.
+### Planning & Intelligence
+| Capability | Description | Module |
+|------------|-------------|--------|
+| AI Task Planning | LLM-powered execution plan generation | `planner.py` |
+| Heuristic Fallback | Rule-based planning without LLM | `interpreter.py` |
+| Multi-Model Ensemble | Vote across providers for optimal plan | `multi_model_ensemble.py` |
+| Adversarial Review | Auto-detect IDS triggers, rate issues, safety risks | `adversarial_tester.py` |
+| ML Anomaly Detection | Statistical baseline deviation analysis | `ml_anomaly.py` |
+| Experience Intelligence | Context tracking, next-action prediction, skill profiling | `xi/` |
+
+### Execution & Orchestration
+| Capability | Description | Module |
+|------------|-------------|--------|
+| 7-Agent Team | Recon, Scanner, Enumeration, Exploit, SOC, DFIR, Report | `agents/` |
+| Tool Registry | Auto-discovers 50+ security tools from PATH | `tool_registry.py` |
+| Exploit Chains | Parameterized campaign workflows with dependency linking | `exploitation.py` |
+| Distributed Queue | Redis-backed multi-worker task execution | `distributed.py` |
+| Playbook Engine | Save/load/replay multi-step workflows | `playbook_engine.py` |
+| Scheduled Scans | Cron-based recurring automated assessments | `scheduler.py` |
+
+### Security & Hardening
+| Capability | Description | Module |
+|------------|-------------|--------|
+| Data Masking | Bidirectional OPSEC masking for cloud LLMs | `masking.py` |
+| Input Validation | 8 injection patterns, 35+ dangerous command patterns | `security_hardening.py` |
+| Deception | Honeypot detection, canary tokens, fake banners | `deception.py`, `canary.py` |
+| Stealth Evasion | 5 levels: jitter, UA rotation, proxy chain, decoy traffic | `stealth.py` |
+| RBAC | 5 roles × 5 permissions for team environments | `security/rbac.py` |
+| Compliance | PCI-DSS, ISO 27001, NIST 800-53, SOC 2, GDPR, HIPAA | `compliance_runner.py` |
+
+### Intelligence & Integration
+| Capability | Description | Module |
+|------------|-------------|--------|
+| Threat Intel | STIX/TAXII, MISP ingestion, MITRE ATT&CK mapping | `threat_intel.py` |
+| Cloud Scanning | AWS, Azure, GCP, Kubernetes, Docker security checks | `cloud_scanner.py` |
+| SIEM Forwarding | Splunk HEC, ElasticSearch, generic webhooks | `telemetry/siem.py` |
+| OpenTelemetry | Traces, spans, metrics, exporter registration | `telemetry/opentelemetry.py` |
+| Web Dashboard | REST API, WebSocket live updates, metrics snapshots | `dashboard.py` |
+
+### Reporting & Output
+| Capability | Description | Module |
+|------------|-------------|--------|
+| Report Engine | Markdown, HTML, JSON, SARIF with CVSS 3.1 scoring | `report_engine.py` |
+| CVSS Scoring | Full 3.1 vector calculation, auto-inference from findings | `cvss_scorer.py` |
+| Audit Trails | Tamper-evident SHA-256 chain, SIEM-compatible | `audit_log.py` |
+| Output Formats | Rich tables, JSON, YAML, CSV, HTML, XML | `output.py` |
+
+---
+
+## 📊 Project Scale
+
+- **118** Python source modules
+- **58** test files with shared fixtures
+- **50+** security tool integrations
+- **17** tool output parsers
+- **14** GitHub Actions CI/CD workflows
+- **6** compliance frameworks
+- **7** specialized AI agents
+- **25+** MITRE ATT&CK technique mappings
+- **12** advanced feature modules
+
+---
+
+## 🌐 Ecosystem Integration
+
+Phalanx integrates into existing security stacks:
+
+- **SIEM**: Splunk, ElasticSearch via `siem.py`
+- **Ticketing**: JIRA, GitHub Issues (plugin-ready)
+- **Communication**: Slack, Discord, Teams (plugin-ready)
+- **Cloud**: AWS, Azure, GCP scanning
+- **Container**: Docker, Kubernetes security checks
+- **Threat Intel**: MISP, STIX/TAXII feeds
+- **IaC**: Terraform, CloudFormation scanning
+
+---
+
+## 🔒 Security & Compliance
+
+- **OPSEC**: Bidirectional data masking prevents target leakage to cloud LLMs
+- **Encryption**: AES-256-GCM for API keys, SHA-256 for audit integrity
+- **Access Control**: RBAC with 5 permission levels for tools
+- **Compliance**: Automated assessment against 6 major frameworks
+- **Evidence**: Chain of custody tracking, cryptographic evidence hashing
+- **Audit**: Tamper-evident log chains, non-repudiation support

@@ -27,4 +27,3 @@ def test_session_kernel_save_load_roundtrip(tmp_path: Path) -> None:
     assert len(loaded.operations) == 1
     assert loaded.operations[0].state == "completed"
     assert loaded.operations[0].artifacts == ["plan-123"]
-

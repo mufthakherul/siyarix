@@ -27,8 +27,7 @@ def test_cli_scan_dry_run() -> None:
 
     # Invoke dry-run scan on a valid local loopback IP
     result = runner.invoke(
-        command,
-        ["scan", "127.0.0.1", "--mode", "registry", "--dry-run", "--no-banner"]
+        command, ["scan", "127.0.0.1", "--mode", "registry", "--dry-run", "--no-banner"]
     )
 
     assert result.exit_code == 0
@@ -50,8 +49,8 @@ def test_cli_run_conditional_workflow() -> None:
             "--mode",
             "registry",
             "--dry-run",
-            "--no-banner"
-        ]
+            "--no-banner",
+        ],
     )
 
     assert result.exit_code == 0
@@ -74,11 +73,12 @@ async def test_interactive_installation_confirm() -> None:
         return None
 
     # Test Scenario A: User confirms the auto-installation prompt
-    with patch("platform.system", return_value="Windows"), \
-         patch("shutil.which", side_effect=mock_which_installer), \
-         patch("phalanx.output.output.prompt_confirm", return_value=True) as mock_confirm, \
-         patch("phalanx.engine.run_tool_complete", new_callable=AsyncMock) as mock_run:
-
+    with (
+        patch("platform.system", return_value="Windows"),
+        patch("shutil.which", side_effect=mock_which_installer),
+        patch("phalanx.output.output.prompt_confirm", return_value=True) as mock_confirm,
+        patch("phalanx.engine.run_tool_complete", new_callable=AsyncMock) as mock_run,
+    ):
         mock_run.return_value.exit_code = 0
         mock_run.return_value.stdout = "Successfully installed gobuster via winget"
         mock_run.return_value.stderr = ""
@@ -90,11 +90,12 @@ async def test_interactive_installation_confirm() -> None:
         mock_run.assert_called()
 
     # Test Scenario B: User declines the auto-installation prompt
-    with patch("platform.system", return_value="Windows"), \
-         patch("shutil.which", side_effect=mock_which_installer), \
-         patch("phalanx.output.output.prompt_confirm", return_value=False) as mock_confirm, \
-         patch("phalanx.engine.run_tool_complete", new_callable=AsyncMock) as mock_run:
-
+    with (
+        patch("platform.system", return_value="Windows"),
+        patch("shutil.which", side_effect=mock_which_installer),
+        patch("phalanx.output.output.prompt_confirm", return_value=False) as mock_confirm,
+        patch("phalanx.engine.run_tool_complete", new_callable=AsyncMock) as mock_run,
+    ):
         success = await engine._try_install_tool("gobuster")
 
         assert success is False
@@ -114,13 +115,13 @@ async def test_live_tool_fallback_recovery() -> None:
         step_type=StepType.TOOL_RUN,
         tool="nmap",
         args=["10.0.0.1"],
-        target="10.0.0.1"
+        target="10.0.0.1",
     )
-    
+
     sr_failed = StepResult(
         step_id="step_nmap_ping",
         status=StepStatus.FAILED,
-        error="Host seems down. If it is really up, try -Pn"
+        error="Host seems down. If it is really up, try -Pn",
     )
 
     pending_steps = []
@@ -140,14 +141,10 @@ async def test_live_tool_fallback_recovery() -> None:
         step_type=StepType.TOOL_RUN,
         tool="gobuster",
         args=["-u", "http://10.0.0.1"],
-        target="10.0.0.1"
+        target="10.0.0.1",
     )
 
-    sr_zero = StepResult(
-        step_id="step_gobuster_fuzz",
-        status=StepStatus.SUCCESS,
-        findings=[]
-    )
+    sr_zero = StepResult(step_id="step_gobuster_fuzz", status=StepStatus.SUCCESS, findings=[])
 
     pending_steps_fuzz = []
     engine._adapt_plan_on_step_result(step_gobuster, sr_zero, MagicMock(), pending_steps_fuzz)

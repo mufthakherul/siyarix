@@ -74,6 +74,7 @@ from .mcp_integration import MCPClient, MCPTool
 from .learning_memory import LearningMemory, ToolPattern, LearningEvent
 from .core.session_kernel import SessionContext
 from .user_learning import UserLearning, UserProfile, SessionRecord, ExperienceLevel, PedagogicalEngine, PedagogicalStep
+from .session_log import SessionLog, CommandEntry, SafetyEvent, SessionLogger, session_logger
 
 __all__ = [
     "ExecutionEngine",
@@ -233,4 +234,9 @@ __all__ = [
     "ExperienceLevel",
     "PedagogicalEngine",
     "PedagogicalStep",
+    "SessionLog",
+    "CommandEntry",
+    "SafetyEvent",
+    "SessionLogger",
+    "session_logger",
 ]

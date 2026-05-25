@@ -5,13 +5,13 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-pytestmark = pytest.mark.siem
 from phalanx.telemetry.siem import (
     SIEMConnector,
     SplunkHECConnector,
     ElasticSIEMConnector,
     TelemetryForwarder,
 )
+pytestmark = pytest.mark.siem
 
 
 class TestSIEMConnector:

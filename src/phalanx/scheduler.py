@@ -2,24 +2,23 @@
 
 from __future__ import annotations
 
-import os
 import json
-import time
-import asyncio
 import logging
-from dataclasses import dataclass, field
+import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
 SCHEDULES_FILE = Path.home() / ".phalanx" / "schedules.json"
 
+
 @dataclass
 class ScheduledJob:
     """A scheduled recurring scan job."""
-    
+
     id: str
     name: str
     target: str
@@ -93,12 +92,12 @@ class PhalanxScheduler:
         except Exception as exc:
             logger.error("Error saving schedules: %s", exc)
 
-    def create(self, name: str, target: str, cron: str, command: str, persona: str = "none") -> ScheduledJob:
+    def create(
+        self, name: str, target: str, cron: str, command: str, persona: str = "none"
+    ) -> ScheduledJob:
         """Create and schedule a new job."""
-        jid = f"job_{str(uuid.uuid4())[:8]}" if "uuid" in globals() else f"job_{int(time.time())}"
-        import uuid
         jid = f"job_{str(uuid.uuid4())[:8]}"
-        
+
         job = ScheduledJob(
             id=jid,
             name=name,
@@ -137,7 +136,7 @@ class PhalanxScheduler:
         """Execute the job immediately using the Phalanx Engine."""
         from phalanx.engine import ExecutionEngine
         from phalanx.audit_log import audit, AuditEventType, AuditSeverity
-        
+
         logger.info("Executing scheduled job %s: %s", job.name, job.command)
         job.last_run = datetime.now(UTC).isoformat()
         job.next_run = job.calculate_next_run().isoformat()
@@ -156,7 +155,7 @@ class PhalanxScheduler:
         try:
             engine = ExecutionEngine()
             result = await engine.execute(job.command, interactive=False, persist=True)
-            
+
             audit.log(
                 event_type=AuditEventType.SCAN_COMPLETE,
                 severity=AuditSeverity.INFO,

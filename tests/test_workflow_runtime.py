@@ -1,9 +1,9 @@
 import asyncio
 
 import pytest
-pytestmark = pytest.mark.workflow
 from siyarix.orchestration.workflow_runtime import WorkflowRuntime, WorkflowState
 from siyarix.offline_store import OfflineStore
+pytestmark = pytest.mark.workflow
 
 
 class _FakeEngineResult:

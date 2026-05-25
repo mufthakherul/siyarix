@@ -37,7 +37,11 @@ class AdversarialFinding:
 
 # Known IDS-triggering patterns
 _IDS_TRIGGER_PATTERNS: list[tuple[str, str, AdversarialSeverity]] = [
-    (r"nmap\s+-s[CVW]", "Full connect/version scan may trigger IDS", AdversarialSeverity.MEDIUM),
+    (
+        r"nmap\s+-s[CVW]",
+        "Full connect/version scan may trigger IDS",
+        AdversarialSeverity.MEDIUM,
+    ),
     (
         r"masscan\s+--rate\s+10000",
         "High-rate masscan will likely trigger IDS",
@@ -53,8 +57,16 @@ _IDS_TRIGGER_PATTERNS: list[tuple[str, str, AdversarialSeverity]] = [
         "Automated SQL injection without rate limiting",
         AdversarialSeverity.MEDIUM,
     ),
-    (r"nuclei\s+.*-t\s+.*cves", "CVE scanning may trigger WAF detection", AdversarialSeverity.LOW),
-    (r"gobuster\s+dir", "Directory brute-force may trigger rate limiting", AdversarialSeverity.LOW),
+    (
+        r"nuclei\s+.*-t\s+.*cves",
+        "CVE scanning may trigger WAF detection",
+        AdversarialSeverity.LOW,
+    ),
+    (
+        r"gobuster\s+dir",
+        "Directory brute-force may trigger rate limiting",
+        AdversarialSeverity.LOW,
+    ),
 ]
 
 
@@ -101,12 +113,18 @@ class AdversarialTester:
         # 1) IDS trigger detection
         for pattern, message, severity in _IDS_TRIGGER_PATTERNS:
             if re.search(pattern, full_plan, re.IGNORECASE):
-                tool = pattern.split(r"\s+")[0] if pattern.startswith(r"nmap") else "unknown"
+                tool = (
+                    pattern.split(r"\s+")[0]
+                    if pattern.startswith(r"nmap")
+                    else "unknown"
+                )
                 findings.append(
                     AdversarialFinding(
                         severity=severity,
                         message=message,
-                        suggestion=self._get_mitigation(tool) if tool != "unknown" else "",
+                        suggestion=(
+                            self._get_mitigation(tool) if tool != "unknown" else ""
+                        ),
                         related_tool=tool,
                         category="ids_trigger",
                     )
@@ -131,7 +149,9 @@ class AdversarialTester:
                 "critical_count": sum(
                     1 for f in findings if f.severity == AdversarialSeverity.CRITICAL
                 ),
-                "high_count": sum(1 for f in findings if f.severity == AdversarialSeverity.HIGH),
+                "high_count": sum(
+                    1 for f in findings if f.severity == AdversarialSeverity.HIGH
+                ),
             }
         )
 
@@ -139,7 +159,12 @@ class AdversarialTester:
 
     def _detect_rate_issues(self, plan_lines: list[str]) -> list[AdversarialFinding]:
         findings: list[AdversarialFinding] = []
-        aggressive_tools_without_limit = {"masscan": 0, "hydra": 0, "ffuf": 0, "sqlmap": 0}
+        aggressive_tools_without_limit = {
+            "masscan": 0,
+            "hydra": 0,
+            "ffuf": 0,
+            "sqlmap": 0,
+        }
 
         for line in plan_lines:
             for tool in aggressive_tools_without_limit:
@@ -196,7 +221,9 @@ class AdversarialTester:
                 )
         return findings
 
-    def _detect_dependency_issues(self, plan_lines: list[str]) -> list[AdversarialFinding]:
+    def _detect_dependency_issues(
+        self, plan_lines: list[str]
+    ) -> list[AdversarialFinding]:
         findings: list[AdversarialFinding] = []
         tool_mentions: dict[str, int] = {}
         for line in plan_lines:

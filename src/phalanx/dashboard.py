@@ -14,7 +14,7 @@ import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from http import HTTPStatus
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -101,7 +101,9 @@ class _DashboardHTTPHandler(BaseHTTPRequestHandler):
         if cfg and cfg.enable_cors:
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+            self.send_header(
+                "Access-Control-Allow-Headers", "Content-Type, Authorization"
+            )
 
     def _check_auth(self) -> bool:
         cfg = self.service._config if self.service else None
@@ -187,12 +189,16 @@ class _DashboardHTTPHandler(BaseHTTPRequestHandler):
 
         expected_method, handler_name = route
         if self.command != expected_method:
-            self._send_json({"error": "method not allowed"}, HTTPStatus.METHOD_NOT_ALLOWED)
+            self._send_json(
+                {"error": "method not allowed"}, HTTPStatus.METHOD_NOT_ALLOWED
+            )
             return
 
         handler = getattr(self, handler_name, None)
         if handler is None:
-            self._send_json({"error": "internal error"}, HTTPStatus.INTERNAL_SERVER_ERROR)
+            self._send_json(
+                {"error": "internal error"}, HTTPStatus.INTERNAL_SERVER_ERROR
+            )
             return
         handler()
 
@@ -224,7 +230,9 @@ class DashboardService:
     - WS /ws/live  — WebSocket for live updates (requires ``websockets``)
     """
 
-    def __init__(self, engine: Any = None, config: DashboardConfig | None = None) -> None:
+    def __init__(
+        self, engine: Any = None, config: DashboardConfig | None = None
+    ) -> None:
         self._engine = engine
         self._config = config or DashboardConfig()
         self._started = False
@@ -329,7 +337,9 @@ class DashboardService:
         )
         server = HTTPServer((host, port), handler_factory)
         self._http_server = server
-        thread = threading.Thread(target=server.serve_forever, daemon=True, name="dash-http")
+        thread = threading.Thread(
+            target=server.serve_forever, daemon=True, name="dash-http"
+        )
         thread.start()
         self._http_thread = thread
         logger.info("HTTP dashboard listening on http://%s:%s", host, port)
@@ -338,7 +348,9 @@ class DashboardService:
     async def _start_websocket(self, host: str, port: int) -> None:
         """Start the optional async WebSocket server on the NEXT port."""
         if not _HAS_WEBSOCKETS:
-            logger.info("WebSocket unavailable — install websockets package for WS support")
+            logger.info(
+                "WebSocket unavailable — install websockets package for WS support"
+            )
             return
         ws_port = port + 1
 
@@ -355,7 +367,12 @@ class DashboardService:
         self._ws_server = await websockets.serve(ws_handler, host, ws_port)
         logger.info("WebSocket server listening on ws://%s:%s", host, ws_port)
 
-    def run(self, host: str | None = None, port: int | None = None, loop: asyncio.AbstractEventLoop | None = None) -> None:
+    def run(
+        self,
+        host: str | None = None,
+        port: int | None = None,
+        loop: asyncio.AbstractEventLoop | None = None,
+    ) -> None:
         """Start the dashboard server.
 
         Blocks the current thread.  The REST API is served via stdlib

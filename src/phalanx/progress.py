@@ -8,24 +8,18 @@ and graceful Ctrl+C cancellation (two-stage: cancel-tool then cancel-all).
 from __future__ import annotations
 
 import asyncio
-import types
 import signal
 import time
+import types
 from dataclasses import dataclass, field
 from typing import Any
 
 from rich.console import Console, Group
 from rich.live import Live
 from rich.panel import Panel
-from rich.progress import (
-    BarColumn,
-    MofNCompleteColumn,
-    Progress,
-    SpinnerColumn,
-    TaskID,
-    TextColumn,
-    TimeElapsedColumn,
-)
+from rich.progress import (BarColumn, MofNCompleteColumn, Progress,
+                           SpinnerColumn, TaskID, TextColumn,
+                           TimeElapsedColumn)
 from rich.table import Table
 from rich.text import Text
 
@@ -204,7 +198,11 @@ class ScanProgressDisplay:
         ]
         if self._state.total_findings:
             items.append(
-                Panel(self._render_findings_summary(), title="Live Findings", border_style="dim")
+                Panel(
+                    self._render_findings_summary(),
+                    title="Live Findings",
+                    border_style="dim",
+                )
             )
         return Group(*items)
 
@@ -290,22 +288,11 @@ async def run_tools_with_progress(
     Returns (all_findings, state).
     """
     from .executor import run_tool_complete
-    from .parsers import (
-        BurpsuiteParser,
-        FfufParser,
-        GobusterParser,
-        HashcatParser,
-        HydraParser,
-        JohnParser,
-        MasscanParser,
-        MetasploitParser,
-        NiktoParser,
-        NmapParser,
-        NucleiParser,
-        SqlmapParser,
-        WpscanParser,
-        ZaproxyParser,
-    )
+    from .parsers import (BurpsuiteParser, FfufParser, GobusterParser,
+                          HashcatParser, HydraParser, JohnParser,
+                          MasscanParser, MetasploitParser, NiktoParser,
+                          NmapParser, NucleiParser, SqlmapParser, WpscanParser,
+                          ZaproxyParser)
 
     _PARSERS: dict[str, Any] = {
         "nmap": NmapParser(),

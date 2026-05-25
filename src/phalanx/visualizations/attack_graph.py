@@ -62,7 +62,11 @@ class AttackGraphVisualizer:
             self.console.print()
 
     def _build_tree(
-        self, graph: KnowledgeGraph, current_id: str, current_tree: Tree, visited: set[str]
+        self,
+        graph: KnowledgeGraph,
+        current_id: str,
+        current_tree: Tree,
+        visited: set[str],
     ) -> None:
         """Recursively build the tree from the graph edges."""
         # Find all edges from current node

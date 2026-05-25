@@ -1,7 +1,9 @@
 """Tests for ML-based anomaly detection engine."""
 
 import pytest
+
 from phalanx.ml_anomaly import AnomalyDetector
+
 pytestmark = pytest.mark.anomaly
 
 
@@ -17,7 +19,14 @@ class TestAnomalyDetector:
         detector = AnomalyDetector(min_samples=5)
         for i in range(5):
             detector.train(
-                [{"port": 80, "service": "http", "protocol": "tcp", "source_ip": "10.0.0.1"}]
+                [
+                    {
+                        "port": 80,
+                        "service": "http",
+                        "protocol": "tcp",
+                        "source_ip": "10.0.0.1",
+                    }
+                ]
             )
         assert detector.stats()["baseline_ready"] is True
 
@@ -26,7 +35,9 @@ class TestAnomalyDetector:
         for i in range(5):
             detector.train([{"port": 80, "service": "http", "protocol": "tcp"}])
 
-        score = detector.analyze({"port": 4444, "service": "unknown", "protocol": "tcp"})
+        score = detector.analyze(
+            {"port": 4444, "service": "unknown", "protocol": "tcp"}
+        )
         assert score.is_anomalous or len(score.contributing_factors) > 0
 
     def test_anomaly_alert_generation(self):
@@ -38,7 +49,11 @@ class TestAnomalyDetector:
             {"port": 4444, "service": "unknown", "protocol": "tcp", "tool": "nmap"}
         )
         if alert:
-            assert alert.anomaly_type in ("port_anomaly", "service_anomaly", "behavioral_anomaly")
+            assert alert.anomaly_type in (
+                "port_anomaly",
+                "service_anomaly",
+                "behavioral_anomaly",
+            )
             assert alert.score > 0
             assert alert.tool == "nmap"
 
@@ -46,7 +61,14 @@ class TestAnomalyDetector:
         detector = AnomalyDetector(z_threshold=5.0, min_samples=3)
         for i in range(10):
             detector.train(
-                [{"port": 80, "service": "http", "protocol": "tcp", "payload_size": 100}]
+                [
+                    {
+                        "port": 80,
+                        "service": "http",
+                        "protocol": "tcp",
+                        "payload_size": 100,
+                    }
+                ]
             )
 
         score = detector.analyze(

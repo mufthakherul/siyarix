@@ -27,7 +27,7 @@ If the AI is failing to respond or throwing authentication errors:
 - **Network Issues**: Ensure you aren't behind a corporate proxy blocking outbound API calls to OpenAI/Google.
 
 ### The AI is doing weird things or failing to plan
-Sometimes AI models get confused or hallucinate bad plans. 
+Sometimes AI models get confused or hallucinate bad plans.
 - **View the Logs**: You can turn on debug logging to see exactly what the AI is thinking and the raw JSON it is trying to return:
   ```bash
   export PHALANX_LOG_LEVEL=DEBUG
@@ -44,6 +44,6 @@ If the colors look wrong or the tables are rendering strangely:
 
 ## 🙋 Getting More Help
 
-If you've tried the steps above and you're still stuck, don't worry! 
+If you've tried the steps above and you're still stuck, don't worry!
 - Run `phalanx --help` to see all available commands.
 - Open an issue on our GitHub repository. The CosmicSec-Lab community is very friendly and we're always happy to help you debug!

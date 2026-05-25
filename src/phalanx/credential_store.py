@@ -34,8 +34,8 @@ HAS_AESGCM = False
 try:
     from cryptography.fernet import Fernet
     from cryptography.hazmat.primitives import hashes
-    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
     HAS_AESGCM = True
     CRYPTO_AVAILABLE = True
@@ -118,7 +118,9 @@ class CredentialStore:
     _DEFAULT_CONFIG_DIR = Path.home() / ".phalanx"
 
     def __init__(self, master_password: str | None = None) -> None:
-        self._config_dir = Path(os.getenv("PHALANX_CONFIG_DIR", str(self._DEFAULT_CONFIG_DIR)))
+        self._config_dir = Path(
+            os.getenv("PHALANX_CONFIG_DIR", str(self._DEFAULT_CONFIG_DIR))
+        )
         self._config_dir.mkdir(parents=True, exist_ok=True)
         self._creds_file = self._config_dir / "credentials.enc"
         self._key_file = self._config_dir / ".vault_key"
@@ -167,7 +169,11 @@ class CredentialStore:
         password = password or os.getenv("PHALANX_MASTER_PASSWORD")
 
         # Prefer OS keyring when available and enabled. Falls back to local keyfile.
-        use_keyring = os.getenv("PHALANX_USE_KEYRING", "1").strip() not in {"0", "false", "no"}
+        use_keyring = os.getenv("PHALANX_USE_KEYRING", "1").strip() not in {
+            "0",
+            "false",
+            "no",
+        }
         key_material = None
         if use_keyring:
             try:
@@ -177,7 +183,9 @@ class CredentialStore:
                 if stored:
                     key_material = base64.urlsafe_b64decode(stored)
             except Exception:
-                logger.debug("Keyring unavailable or failed; falling back to file-based key")
+                logger.debug(
+                    "Keyring unavailable or failed; falling back to file-based key"
+                )
 
         # If no key material from keyring, try local key file
         if key_material is None and self._key_file.exists():
@@ -272,8 +280,9 @@ class CredentialStore:
         nonce = os.urandom(_AES_NONCE_SIZE)
         key = self._master_key
         if len(key) != _AES_KEY_SIZE:
-            from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
             from cryptography.hazmat.primitives import hashes as hash_mod
+            from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
+
             hkdf = HKDFExpand(
                 algorithm=hash_mod.SHA256(),
                 length=_AES_KEY_SIZE,
@@ -292,8 +301,9 @@ class CredentialStore:
         ct = raw[_AES_NONCE_SIZE:]
         key = self._master_key
         if len(key) != _AES_KEY_SIZE:
-            from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
             from cryptography.hazmat.primitives import hashes as hash_mod
+            from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
+
             hkdf = HKDFExpand(
                 algorithm=hash_mod.SHA256(),
                 length=_AES_KEY_SIZE,
@@ -352,7 +362,11 @@ class CredentialStore:
         # Re-encrypt all credentials with new key
         for cred in self._credentials.values():
             try:
-                plaintext = self._decrypt_aesgcm(cred.value_encrypted) if HAS_AESGCM else self._decrypt(cred.value_encrypted)
+                plaintext = (
+                    self._decrypt_aesgcm(cred.value_encrypted)
+                    if HAS_AESGCM
+                    else self._decrypt(cred.value_encrypted)
+                )
                 cred.value_encrypted = self._encrypt_aesgcm(plaintext)
                 cred.rotated = True
             except Exception:
@@ -361,7 +375,9 @@ class CredentialStore:
                     cred.value_encrypted = self._encrypt_aesgcm(plaintext)
                     cred.rotated = True
                 except Exception as exc:
-                    logger.warning("Failed to rotate credential %s: %s", cred.cred_id, exc)
+                    logger.warning(
+                        "Failed to rotate credential %s: %s", cred.cred_id, exc
+                    )
         self._save()
         logger.info("Master key rotated successfully")
         return True
@@ -383,13 +399,19 @@ class CredentialStore:
             except Exception:
                 obj = None
 
-            if obj and isinstance(obj, dict) and "encrypted_key" in obj and "payload" in obj:
+            if (
+                obj
+                and isinstance(obj, dict)
+                and "encrypted_key" in obj
+                and "payload" in obj
+            ):
                 # KMS envelope decryption using AWS KMS
                 if not self._kms_available():
                     raise RuntimeError(
                         "KMS provider configured but boto3 not available or provider not enabled"
                     )
                 import base64 as _b64
+
                 import boto3  # pyright: ignore[reportMissingImports]
 
                 kms_key_blob = _b64.b64decode(obj["encrypted_key"])
@@ -409,7 +431,9 @@ class CredentialStore:
                 data = json.loads(decrypted)
             for cred_data in data:
                 if "value_encrypted" not in cred_data:
-                    logger.error(f"DEBUG: Missing value_encrypted in cred_data: {cred_data}")
+                    logger.error(
+                        f"DEBUG: Missing value_encrypted in cred_data: {cred_data}"
+                    )
                 cred = Credential(
                     cred_id=cred_data["cred_id"],
                     name=cred_data["name"],
@@ -417,9 +441,11 @@ class CredentialStore:
                     environment=cred_data["environment"],
                     value_encrypted=cred_data["value_encrypted"],
                     created_at=datetime.fromisoformat(cred_data["created_at"]),
-                    expires_at=datetime.fromisoformat(cred_data["expires_at"])
-                    if cred_data.get("expires_at")
-                    else None,
+                    expires_at=(
+                        datetime.fromisoformat(cred_data["expires_at"])
+                        if cred_data.get("expires_at")
+                        else None
+                    ),
                     usage_count=cred_data.get("usage_count", 0),
                     rotated=cred_data.get("rotated", False),
                     tags=cred_data.get("tags", []),
@@ -438,13 +464,16 @@ class CredentialStore:
         provider = os.getenv("PHALANX_KMS_PROVIDER", "").strip().lower()
         if provider == "aws" and self._kms_available():
             try:
-                import boto3  # pyright: ignore[reportMissingImports]
                 import base64 as _b64
+
+                import boto3  # pyright: ignore[reportMissingImports]
 
                 kms = boto3.client("kms")
                 key_id = os.getenv("AWS_KMS_KEY_ID")
                 if not key_id:
-                    raise RuntimeError("AWS_KMS_KEY_ID must be set when PHALANX_KMS_PROVIDER=aws")
+                    raise RuntimeError(
+                        "AWS_KMS_KEY_ID must be set when PHALANX_KMS_PROVIDER=aws"
+                    )
                 # Generate a data key (plaintext + encrypted)
                 resp = kms.generate_data_key(KeyId=key_id, KeySpec="AES_256")
                 plaintext = resp.get("Plaintext")
@@ -461,7 +490,9 @@ class CredentialStore:
                 self._creds_file.write_text(json.dumps(out))
                 return
             except Exception:
-                logger.exception("KMS envelope encryption failed; falling back to local encryption")
+                logger.exception(
+                    "KMS envelope encryption failed; falling back to local encryption"
+                )
 
         # Default: local Fernet encryption
         encrypted = self._encrypt(raw)
@@ -590,7 +621,9 @@ class CredentialStore:
         # Encrypt with provided password
         if CRYPTO_AVAILABLE:
             salt = os.urandom(16)
-            kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000)
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000
+            )
             key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
             fernet = Fernet(key)
             encrypted = fernet.encrypt(json.dumps(data).encode())
@@ -607,7 +640,9 @@ class CredentialStore:
         salt = data[:16]
         encrypted = data[16:]
 
-        kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000)
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000
+        )
         key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
         fernet = Fernet(key)
         decrypted = fernet.decrypt(encrypted)

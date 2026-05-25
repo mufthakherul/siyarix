@@ -71,7 +71,10 @@ class BootstrapEngine:
             python_version=sys.version,
         )
         # Detect WSL
-        if "microsoft" in platform.release().lower() or "wsl" in platform.release().lower():
+        if (
+            "microsoft" in platform.release().lower()
+            or "wsl" in platform.release().lower()
+        ):
             info.is_wsl = True
         # Detect package manager
         if shutil.which("apt-get"):
@@ -94,18 +97,21 @@ class BootstrapEngine:
         deps = {}
         try:
             import pydantic
+
             deps["pydantic"] = True
             del pydantic
         except ImportError:
             deps["pydantic"] = False
         try:
             import rich
+
             deps["rich"] = True
             del rich
         except ImportError:
             deps["rich"] = False
         try:
             import httpx
+
             deps["httpx"] = True
             del httpx
         except ImportError:
@@ -131,18 +137,21 @@ class BootstrapEngine:
         result: dict[str, bool] = {"sqlite": True, "redis": False, "postgres": False}
         try:
             import sqlite3
+
             sqlite3.connect(":memory:").close()
             result["sqlite"] = True
         except Exception:
             result["sqlite"] = False
         try:
             import redis
+
             result["redis"] = True
             del redis
         except ImportError:
             result["redis"] = False
         try:
             import psycopg2
+
             result["postgres"] = True
             del psycopg2
         except ImportError:
@@ -158,28 +167,49 @@ class BootstrapEngine:
 
     def check_optional_tools(self) -> dict[str, bool]:
         optional = [
-            "nuclei", "ffuf", "gobuster", "subfinder", "httpx", "dnsx",
-            "masscan", "nikto", "sqlmap", "hydra", "john", "hashcat",
-            "trufflehog", "gitleaks", "docker", "kubectl", "terraform",
-            "aws", "az", "gcloud",
+            "nuclei",
+            "ffuf",
+            "gobuster",
+            "subfinder",
+            "httpx",
+            "dnsx",
+            "masscan",
+            "nikto",
+            "sqlmap",
+            "hydra",
+            "john",
+            "hashcat",
+            "trufflehog",
+            "gitleaks",
+            "docker",
+            "kubectl",
+            "terraform",
+            "aws",
+            "az",
+            "gcloud",
         ]
         found = {}
         for tool in optional:
             found[tool] = shutil.which(tool) is not None
         return found
 
-    def prompt_install_missing(self, missing: list[str], interactive: bool) -> list[str]:
+    def prompt_install_missing(
+        self, missing: list[str], interactive: bool
+    ) -> list[str]:
         """Prompt user for missing dependency installation (T9)."""
         if not interactive or not missing:
             return []
         try:
             from rich.console import Console
             from rich.prompt import Prompt
+
             c = Console()
             c.print(f"[yellow]Missing dependencies: {', '.join(missing)}[/yellow]")
             approved = []
             for dep in missing:
-                answer = Prompt.ask(f"Install {dep}?", choices=["y", "n", "a"], default="y")
+                answer = Prompt.ask(
+                    f"Install {dep}?", choices=["y", "n", "a"], default="y"
+                )
                 if answer.lower() in ("y", "a"):
                     approved.append(dep)
             return approved
@@ -189,12 +219,15 @@ class BootstrapEngine:
     def auto_install_packages(self, packages: list[str]) -> dict[str, bool]:
         """Auto-install approved packages (T10)."""
         import subprocess
+
         results: dict[str, bool] = {}
         for pkg in packages:
             try:
                 result = subprocess.run(
                     [sys.executable, "-m", "pip", "install", pkg],
-                    capture_output=True, text=True, timeout=300,
+                    capture_output=True,
+                    text=True,
+                    timeout=300,
                 )
                 results[pkg] = result.returncode == 0
             except Exception as exc:
@@ -269,7 +302,9 @@ class BootstrapEngine:
         # T7: Database backend check
         db_status = self.check_database_backend()
         if not db_status.get("sqlite", False):
-            self._result.warnings.append("SQLite not available — session persistence disabled")
+            self._result.warnings.append(
+                "SQLite not available — session persistence disabled"
+            )
 
         # T8: Runtime tools check
         tools = self.check_runtime_tools()
@@ -277,7 +312,9 @@ class BootstrapEngine:
         self._result.runtime_ok = self._result.tools_found >= 2
         missing_tools = [k for k, v in tools.items() if not v]
         if missing_tools:
-            self._result.warnings.append(f"Missing recommended tools: {', '.join(missing_tools)}")
+            self._result.warnings.append(
+                f"Missing recommended tools: {', '.join(missing_tools)}"
+            )
 
         # T9-T10: Interactive install prompt for missing deps
         if missing_deps and interactive:
@@ -288,7 +325,9 @@ class BootstrapEngine:
                 fail_count = len(approved) - success_count
                 if fail_count > 0:
                     failed = [p for p, s in install_results.items() if not s]
-                    self._result.warnings.append(f"Failed to auto-install: {', '.join(failed)}")
+                    self._result.warnings.append(
+                        f"Failed to auto-install: {', '.join(failed)}"
+                    )
 
         # Directory setup (T4)
         self.ensure_directory_structure()

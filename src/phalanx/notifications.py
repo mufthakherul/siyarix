@@ -290,7 +290,9 @@ class NotificationCenter:
                 )
                 if resp.status_code not in (200, 204):
                     logger.warning(
-                        "Webhook POST failed (%d): %s", resp.status_code, resp.text[:200]
+                        "Webhook POST failed (%d): %s",
+                        resp.status_code,
+                        resp.text[:200],
                     )
         except Exception as exc:
             logger.warning("Webhook forwarding failed: %s", exc)

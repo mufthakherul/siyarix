@@ -18,7 +18,9 @@ class HashcatParser:
             line = line.strip()
             if not line or ":" not in line:
                 continue
-            if line.lower().startswith(("session", "status", "speed", "progress", "hash.mode")):
+            if line.lower().startswith(
+                ("session", "status", "speed", "progress", "hash.mode")
+            ):
                 continue
             hash_part, plain = line.rsplit(":", 1)
             if not hash_part or not plain:

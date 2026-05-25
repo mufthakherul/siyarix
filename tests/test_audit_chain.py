@@ -1,4 +1,4 @@
-from phalanx.audit_log import AuditLogger, AuditSeverity, AuditEventType
+from phalanx.audit_log import AuditEventType, AuditLogger, AuditSeverity
 
 
 def test_audit_chain_tamper_detection(tmp_path, monkeypatch):

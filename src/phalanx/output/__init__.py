@@ -55,15 +55,9 @@ try:
     from rich.align import Align
     from rich.console import Console
     from rich.panel import Panel
-    from rich.progress import (
-        BarColumn,
-        Progress,
-        SpinnerColumn,
-        TaskProgressColumn,
-        TextColumn,
-        TimeRemainingColumn,
-        TransferSpeedColumn,
-    )
+    from rich.progress import (BarColumn, Progress, SpinnerColumn,
+                               TaskProgressColumn, TextColumn,
+                               TimeRemainingColumn, TransferSpeedColumn)
     from rich.prompt import Confirm, Prompt
     from rich.syntax import Syntax
     from rich.table import Table
@@ -145,7 +139,9 @@ class OutputEngine:
         self.format = OutputFormat(output_format)
         self.console: Any = Console() if RICH_AVAILABLE else None
 
-    def print_banner(self, title: str, subtitle: str = "", style: str = "primary") -> None:
+    def print_banner(
+        self, title: str, subtitle: str = "", style: str = "primary"
+    ) -> None:
         if RICH_AVAILABLE and self.console is not None:
             banner_text = Text()
             banner_text.append(title, style=self.theme[style])
@@ -174,10 +170,14 @@ class OutputEngine:
             columns = list(data[0].keys())
         if RICH_AVAILABLE and self.format == OutputFormat.TABLE:
             table = Table(
-                title=title, show_header=True, header_style=f"bold {self.theme['primary']}"
+                title=title,
+                show_header=True,
+                header_style=f"bold {self.theme['primary']}",
             )
             for col in columns:
-                table.add_column(col.replace("_", " ").title(), style=self.theme["info"])
+                table.add_column(
+                    col.replace("_", " ").title(), style=self.theme["info"]
+                )
             for row in data:
                 table.add_row(*[str(row.get(col, "")) for col in columns])
             if self.console is not None:
@@ -224,30 +224,41 @@ class OutputEngine:
 
     def print_success(self, message: str) -> None:
         if RICH_AVAILABLE and self.console is not None:
-            self.console.print(f"[{self.theme['success']}]✓ {message}[/{self.theme['success']}]")
+            self.console.print(
+                f"[{self.theme['success']}]✓ {message}[/{self.theme['success']}]"
+            )
         else:
             self._raw_print(f"✓ {message}")
 
     def print_error(self, message: str) -> None:
         if RICH_AVAILABLE and self.console is not None:
-            self.console.print(f"[{self.theme['error']}]✗ {message}[/{self.theme['error']}]")
+            self.console.print(
+                f"[{self.theme['error']}]✗ {message}[/{self.theme['error']}]"
+            )
         else:
             self._raw_print(f"✗ Error: {message}")
 
     def print_warning(self, message: str) -> None:
         if RICH_AVAILABLE and self.console is not None:
-            self.console.print(f"[{self.theme['warning']}]⚠ {message}[/{self.theme['warning']}]")
+            self.console.print(
+                f"[{self.theme['warning']}]⚠ {message}[/{self.theme['warning']}]"
+            )
         else:
             self._raw_print(f"⚠ Warning: {message}")
 
     def print_info(self, message: str) -> None:
         if RICH_AVAILABLE and self.console is not None:
-            self.console.print(f"[{self.theme['info']}]ℹ {message}[/{self.theme['info']}]")
+            self.console.print(
+                f"[{self.theme['info']}]ℹ {message}[/{self.theme['info']}]"
+            )
         else:
             self._raw_print(f"ℹ {message}")
 
     def print_progress(
-        self, items: list, process_fn: Callable[[Any], Any], description: str = "Processing"
+        self,
+        items: list,
+        process_fn: Callable[[Any], Any],
+        description: str = "Processing",
     ) -> None:
         if RICH_AVAILABLE:
             with Progress(
@@ -271,16 +282,21 @@ class OutputEngine:
     def prompt_confirm(self, message: str, default: bool = False) -> bool:
         if RICH_AVAILABLE:
             return Confirm.ask(message, default=default)
-        response = input(f"{message} (y/n) [{'Y' if default else 'n'}]: ").strip().lower()
+        response = (
+            input(f"{message} (y/n) [{'Y' if default else 'n'}]: ").strip().lower()
+        )
         if not response:
             return default
         return response in ("y", "yes")
 
-    def prompt_input(self, message: str, default: str = "", password: bool = False) -> str:
+    def prompt_input(
+        self, message: str, default: str = "", password: bool = False
+    ) -> str:
         if RICH_AVAILABLE:
             return Prompt.ask(message, default=default, password=password)
         if password:
             import getpass
+
             return getpass.getpass(f"{message}: ")
         return input(f"{message} [{default}]: ").strip() or default
 

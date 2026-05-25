@@ -56,7 +56,9 @@ class FfufParser:
             size = m.group("size")
             severity = _SEVERITY_BY_STATUS.get(status, "info")
             full_target = (
-                f"{base_url.rstrip('/')}/{path.lstrip('/')}" if base_url != "unknown" else path
+                f"{base_url.rstrip('/')}/{path.lstrip('/')}"
+                if base_url != "unknown"
+                else path
             )
             findings.append(
                 {

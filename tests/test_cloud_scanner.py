@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+pytestmark = pytest.mark.cloud
 from phalanx.cloud_scanner import CloudScanner, CloudScanResult, CloudProvider
 
 

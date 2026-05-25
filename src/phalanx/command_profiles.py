@@ -13,6 +13,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+Template: Any = None
+
 try:
     from jinja2 import Template
 

@@ -1,5 +1,4 @@
 import asyncio
-import time
 
 from phalanx.worker_pool import AsyncWorkerPool
 
@@ -40,8 +39,6 @@ def test_worker_pool_close_cancels_tasks():
         assert res in ("cancelled", "done")
 
     asyncio.run(_run())
-import asyncio
-from phalanx.worker_pool import AsyncWorkerPool
 
 
 async def _sleep_and_return(x: int) -> int:

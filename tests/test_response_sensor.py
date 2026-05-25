@@ -1,5 +1,3 @@
-import pytest
-
 from phalanx.response_sensor import ResponseSensor
 
 
@@ -15,4 +13,3 @@ def test_mask_unmask_and_redact_simple():
     assert "192.168.1.5" in out["result"]
     # the raw API key should be redacted in redactor output
     assert "[REDACTED]" in out["note"]
-

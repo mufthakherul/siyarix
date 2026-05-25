@@ -19,4 +19,3 @@ def test_safe_run_sync_rejects_suspicious():
     except ValueError:
         raised = True
     assert raised, "Expected ValueError for suspicious command parts"
-

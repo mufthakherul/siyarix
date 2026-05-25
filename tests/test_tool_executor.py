@@ -38,7 +38,9 @@ async def fake_run_tool(path, args, timeout):
 def test_run_tool_step_basic():
     resolver = DummyResolver()
     tools = [DummyToolInfo()]
-    executor = ToolExecutor(resolver=resolver, discovered_tools=tools, graph=None, run_tool_fn=fake_run_tool)
+    executor = ToolExecutor(
+        resolver=resolver, discovered_tools=tools, graph=None, run_tool_fn=fake_run_tool
+    )
 
     step = ExecutionStep(id="s1", step_type=StepType.TOOL_RUN, tool="echo", args=["hello"])
 

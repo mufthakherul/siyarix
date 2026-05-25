@@ -10,6 +10,7 @@ from rich.panel import Panel
 
 # Use TYPE_CHECKING to avoid circular import
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from phalanx.engine import ExecutionEngine, EngineResult
 
@@ -77,9 +78,13 @@ class AgenticLoop:
                 console.print(f"[dim]🧠 Tactical Reflection Triggered: {instruction}[/dim]")
             else:
                 console.print("[dim]🔍 Observing context and reasoning next steps...[/dim]")
-                instruction = self._reason(context)
+                instruction = self._reason(context) or ""
 
-            if instruction is None or instruction.lower().strip() in ("done", "complete", "finished"):
+            if instruction.lower().strip() in (
+                "done",
+                "complete",
+                "finished",
+            ):
                 self._completed = True
                 console.print("[bold green]✅ Goal achieved — loop complete[/bold green]")
                 break
@@ -97,11 +102,13 @@ class AgenticLoop:
 
             except Exception as exc:
                 logger.error("Agentic loop iteration %d failed: %s", self._iteration, exc)
-                self._observations.append({
-                    "iteration": self._iteration,
-                    "error": str(exc),
-                    "phase": "act",
-                })
+                self._observations.append(
+                    {
+                        "iteration": self._iteration,
+                        "error": str(exc),
+                        "phase": "act",
+                    }
+                )
                 if self._interactive:
                     console.print(f"[red]Error in iteration {self._iteration}: {exc}[/red]")
 
@@ -145,42 +152,48 @@ class AgenticLoop:
         from phalanx.knowledge_graph import NodeType, EdgeType
 
         graph = self._engine.graph
-        
+
         # 1. Traverse all HOST nodes
         hosts = graph.find_nodes(NodeType.HOST)
         for host in hosts:
             host_label = host.label
-            
+
             # Find all port edges for this host
             port_edges = graph.get_edges(source_id=host.node_id, edge_type=EdgeType.HAS_PORT)
             for port_edge in port_edges:
                 port_node = graph.get_node(port_edge.target_id)
                 if not port_node:
                     continue
-                
+
                 port_val = port_node.properties.get("port")
-                
+
                 # Find all services running on this port
-                svc_edges = graph.get_edges(source_id=port_node.node_id, edge_type=EdgeType.RUNS_SERVICE)
+                svc_edges = graph.get_edges(
+                    source_id=port_node.node_id, edge_type=EdgeType.RUNS_SERVICE
+                )
                 for svc_edge in svc_edges:
                     svc_node = graph.get_node(svc_edge.target_id)
                     if not svc_node:
                         continue
-                    
+
                     svc_name = svc_node.label.lower()
-                    
+
                     # Heuristic A: Weak auth services (SSH, FTP, Telnet) -> Hydra Brute Force
                     if svc_name in ("ssh", "ftp", "telnet"):
                         action = f"run hydra brute force on {host_label} {svc_name} using common credentials"
                         if action not in self._reflection_queue:
                             self._reflection_queue.append(action)
-                            
+
                     # Heuristic B: HTTP / HTTPS services -> Nuclei scanner + directory enum
-                    elif svc_name in ("http", "https") or "http" in svc_name or port_val in (80, 443, 8080, 8443):
+                    elif (
+                        svc_name in ("http", "https")
+                        or "http" in svc_name
+                        or port_val in (80, 443, 8080, 8443)
+                    ):
                         action = f"run nuclei vulnerability scan against {host_label}"
                         if action not in self._reflection_queue:
                             self._reflection_queue.append(action)
-                        
+
                         # Add a directory enumeration follow-up if not already queued
                         dir_action = f"run gobuster directory scan on {host_label}"
                         if dir_action not in self._reflection_queue:
@@ -211,12 +224,14 @@ class AgenticLoop:
         if self._all_findings:
             findings_summary = f"\n\nFindings so far ({len(self._all_findings)}):\n"
             for f in self._all_findings[-3:]:
-                findings_summary += f"  - [{f.get('severity', 'info')}] {f.get('description', str(f))[:100]}\n"
+                findings_summary += (
+                    f"  - [{f.get('severity', 'info')}] {f.get('description', str(f))[:100]}\n"
+                )
 
         prev_errors = [o.get("error", "") for o in self._observations if o.get("error")]
         error_context = ""
         if prev_errors:
-            error_context = f"\n\nPrevious errors to avoid:\n  " + "\n  ".join(prev_errors[-2:])
+            error_context = "\n\nPrevious errors to avoid:\n  " + "\n  ".join(prev_errors[-2:])
 
         return (
             f"Continue working on the goal: {self._goal}"

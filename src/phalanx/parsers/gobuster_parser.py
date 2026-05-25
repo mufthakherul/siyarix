@@ -65,7 +65,8 @@ class GobusterParser:
                     "title": f"Directory found: {path} (HTTP {status})",
                     "severity": severity,
                     "description": (
-                        f"Gobuster discovered path {path!r} returning HTTP {status} " f"(size: {size} bytes)"
+                        f"Gobuster discovered path {path!r} returning HTTP {status} "
+                        f"(size: {size} bytes)"
                     ),
                     "evidence": f"{target}{path} → HTTP {status}",
                     "tool": "gobuster",

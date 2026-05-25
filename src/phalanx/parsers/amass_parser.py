@@ -29,7 +29,7 @@ class AmassParser:
             name = record.get("name", "unknown")
             domain = record.get("domain", "unknown")
             addresses = record.get("addresses", [])
-            
+
             ips = [addr.get("ip") for addr in addresses if "ip" in addr]
             evidence = f"IPs: {', '.join(ips)}" if ips else "No IPs found"
 

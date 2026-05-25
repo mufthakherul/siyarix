@@ -58,7 +58,8 @@ class NucleiParser:
                 {
                     "title": f"[{template_id}] {name}",
                     "severity": severity,
-                    "description": description or f"Nuclei template {template_id} matched at {matched_at}",
+                    "description": description
+                    or f"Nuclei template {template_id} matched at {matched_at}",
                     "evidence": " | ".join(evidence_parts),
                     "tool": "nuclei",
                     "target": record.get("host", matched_at),

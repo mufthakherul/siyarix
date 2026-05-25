@@ -26,13 +26,13 @@ class ShodanParser:
                 record = json.loads(line)
             except json.JSONDecodeError:
                 continue
-                
+
             ip_str = record.get("ip_str", "unknown")
             org = record.get("org", "unknown")
             os = record.get("os", "unknown")
             ports = record.get("ports", [])
             vulns = record.get("vulns", [])
-            
+
             # Host summary finding
             findings.append(
                 {
@@ -45,7 +45,7 @@ class ShodanParser:
                     "timestamp": _now_iso(),
                 }
             )
-            
+
             # Add vulnerabilities if any
             for vuln in vulns:
                 findings.append(

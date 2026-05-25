@@ -80,7 +80,7 @@ def _try_load_toml(path: Path) -> dict[str, Any]:
             return tomllib.loads(path.read_text())
         except ImportError:
             try:
-                import tomli  # third-party
+                import tomli  # pyright: ignore[reportMissingImports]  # third-party
 
                 return tomli.loads(path.read_text())
             except ImportError:

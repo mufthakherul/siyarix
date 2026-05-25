@@ -24,6 +24,7 @@ __all__ = [
 
 class ErrorSeverity(StrEnum):
     """Error severity levels."""
+
     CRITICAL = "critical"
     ERROR = "error"
     WARNING = "warning"
@@ -33,6 +34,7 @@ class ErrorSeverity(StrEnum):
 @dataclass
 class ErrorContext:
     """Rich error context for better diagnostics."""
+
     severity: ErrorSeverity = ErrorSeverity.ERROR
     user_message: str = ""
     technical_details: dict[str, Any] | None = None
@@ -70,54 +72,65 @@ class PhalanxException(Exception):
 
 class ValidationError(PhalanxException):
     """Input validation failed."""
+
     pass
 
 
 class ExecutionError(PhalanxException):
     """Tool execution failed."""
+
     pass
 
 
 class PlanningError(PhalanxException):
     """Task planning failed."""
+
     pass
 
 
 class SafetyError(PhalanxException):
     """Safety validation blocked operation."""
+
     pass
 
 
 class ToolNotFoundError(PhalanxException):
     """Tool not found in registry or PATH."""
+
     pass
 
 
 class CredentialError(PhalanxException):
     """Credential management error."""
+
     pass
 
 
 class ConfigurationError(PhalanxException):
     """Configuration error."""
+
     pass
 
 
 class NetworkError(PhalanxException):
     """Network operation failed."""
+
     pass
 
 
 class TimeoutError(PhalanxException):
     """Operation timed out."""
+
     pass
 
 
 class CircuitBreakerOpen(PhalanxException):
     """Circuit breaker is open; service temporarily unavailable."""
+
     pass
 
 
 class MaxRetriesExceeded(PhalanxException):
     """Maximum retry attempts exceeded."""
+
     pass

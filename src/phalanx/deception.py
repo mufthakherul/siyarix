@@ -255,7 +255,7 @@ class TrapdoorCredentialManager:
     def _hash_password(self, password: str) -> str:
         import hashlib
 
-        return hashlib.sha256(password.encode()).hexdigest()[:16]
+        return hashlib.sha256(password.encode()).hexdigest()
 
 
 __all__ = [

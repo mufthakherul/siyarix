@@ -138,6 +138,7 @@ class ExecutionEngine:
         registry: ToolRegistry | None = None,
         config: dict[str, Any] | None = None,
         learning_memory: Any = None,
+        session_logger: Any = None,
     ) -> None:
         self._mode = mode
         self._registry = registry or ToolRegistry()
@@ -182,6 +183,10 @@ class ExecutionEngine:
 
         # Learning memory for correction tracking
         self._learning_memory = learning_memory
+
+        # Session logger for structured audit logging
+        self._session_logger = session_logger
+        self._current_log_session_id: str | None = None
 
         # Lazy XI services (SkillProfiler & XICoreService)
         self._xi_skill_profiler: SkillProfiler | None = None
@@ -564,6 +569,23 @@ class ExecutionEngine:
                 status="planned",
             )
 
+        # Create session log for this execution
+        if self._session_logger is not None:
+            log_id = plan_id or str(uuid.uuid4())[:12]
+            self._session_logger.create_log(
+                session_id=log_id,
+                persona=self._config.get("persona", ""),
+                llm_provider=self._config.get("model_provider", ""),
+                llm_model=self._config.get("gemini_model", ""),
+            )
+            self._current_log_session_id = log_id
+            # Log the input instruction
+            self._session_logger.add_command(
+                session_id=log_id,
+                input_text=instruction,
+                ai_plan=[s.command or s.tool or "" for s in plan.steps if s.command or s.tool],
+            )
+
         if dry_run:
             result = EngineResult(plan=plan, mode=self._mode)
             result.plan_id = plan_id
@@ -625,6 +647,15 @@ class ExecutionEngine:
         # Phase 3: Summary
         if interactive:
             self._display_summary(result)
+
+        # Finalize session log
+        if self._session_logger is not None and self._current_log_session_id:
+            self._session_logger.update_end_time(self._current_log_session_id)
+            for sr in result.step_results:
+                for f in (sr.findings or []):
+                    tool = f.get("tool", "unknown")
+                    self._session_logger.track_tool_usage(self._current_log_session_id, tool)
+            self._current_log_session_id = None
 
         return result
 
@@ -1117,6 +1148,21 @@ class ExecutionEngine:
             except Exception as exc:
                 logger.debug("Failed to record tool correction: %s", exc)
 
+        # Log to session log
+        if self._session_logger is not None and self._current_log_session_id:
+            try:
+                self._session_logger.add_command(
+                    session_id=self._current_log_session_id,
+                    input_text=f"{tool_name} {' '.join(args)}",
+                    execution_time_ms=duration,
+                    output_summary=f"{len(findings)} findings" if findings else f"exit: {result.exit_code}",
+                )
+                self._session_logger.track_tool_usage(
+                    self._current_log_session_id, tool_name
+                )
+            except Exception as exc:
+                logger.debug("Session log recording failed: %s", exc)
+
         return StepResult(
             step_id=step.id,
             status=StepStatus.SUCCESS if result.exit_code == 0 else StepStatus.FAILED,
@@ -1213,6 +1259,21 @@ class ExecutionEngine:
                 )
             except Exception as exc:
                 logger.debug("Failed to record shell correction: %s", exc)
+
+        # Log to session log
+        if self._session_logger is not None and self._current_log_session_id:
+            try:
+                self._session_logger.add_command(
+                    session_id=self._current_log_session_id,
+                    input_text=command,
+                    execution_time_ms=duration,
+                    output_summary=f"exit: {result.exit_code}",
+                )
+                self._session_logger.track_tool_usage(
+                    self._current_log_session_id, base_cmd
+                )
+            except Exception as exc:
+                logger.debug("Session log recording failed: %s", exc)
 
         return StepResult(
             step_id=step.id,

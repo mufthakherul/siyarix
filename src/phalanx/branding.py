@@ -7,8 +7,6 @@ and design token helpers for a consistent terminal UX.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
-from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
@@ -372,7 +370,11 @@ def print_mode_dispatcher(console: Console, theme: str, active_mode_num: str = "
 
     for mode in _MODES:
         is_active = mode["num"] == active_mode_num
-        key_str = f"[bold {accent}]{mode['key']}[/bold {accent}]" if is_active else f"[{muted}]{mode['key']}[/{muted}]"
+        key_str = (
+            f"[bold {accent}]{mode['key']}[/bold {accent}]"
+            if is_active
+            else f"[{muted}]{mode['key']}[/{muted}]"
+        )
         name_str = (
             f"[bold {accent}]▶ {mode['name']}[/bold {accent}]"
             if is_active
@@ -413,7 +415,9 @@ def print_theme_preview(console: Console, theme: str) -> None:
             f"[bold]Border:[/bold] [{border}]■■■[/{border}]\n"
             f"[bold]Sample:[/bold] [green]{_sample_command(safe_theme)}[/green]\n"
             f"[bold]Severities:[/bold]  "
-            + "  ".join(severity_label(safe_theme, s) for s in ("info", "low", "medium", "high", "critical")),
+            + "  ".join(
+                severity_label(safe_theme, s) for s in ("info", "low", "medium", "high", "critical")
+            ),
             title=f"[bold {accent}]Theme Preview — {safe_theme}[/bold {accent}]",
             border_style=border,
         )

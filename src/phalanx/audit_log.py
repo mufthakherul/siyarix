@@ -329,6 +329,7 @@ class AuditLogger:
 
         # Real-time console output (stderr to avoid polluting stdout pipes)
         if RICH_AVAILABLE and os.getenv("PHALANX_AUDIT_VERBOSE", "0") == "1":
+
             console = Console(stderr=True)
             color = _SEVERITY_COLORS.get(severity, "white")
             console.print(

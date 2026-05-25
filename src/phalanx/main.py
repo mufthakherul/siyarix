@@ -34,7 +34,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.prompt import Prompt
 from rich.table import Table
 
@@ -855,7 +855,9 @@ def scan(
             target_file = Path(t[1:])
             if target_file.exists():
                 lines = [
-                    l.strip() for l in target_file.read_text().splitlines() if l.strip()
+                    line.strip()
+                    for line in target_file.read_text().splitlines()
+                    if line.strip()
                 ]
                 expanded_targets.extend(lines)
                 console.print(

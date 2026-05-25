@@ -137,6 +137,7 @@ class ExecutionEngine:
         mode: ExecutionMode = ExecutionMode.INTEGRATED,
         registry: ToolRegistry | None = None,
         config: dict[str, Any] | None = None,
+        learning_memory: Any = None,
     ) -> None:
         self._mode = mode
         self._registry = registry or ToolRegistry()
@@ -178,6 +179,9 @@ class ExecutionEngine:
         # Step results for tracking
         self._completed_steps: dict[str, StepResult] = {}
         self._offline_store: OfflineStore | None = None
+
+        # Learning memory for correction tracking
+        self._learning_memory = learning_memory
 
         # Lazy XI services (SkillProfiler & XICoreService)
         self._xi_skill_profiler: SkillProfiler | None = None
@@ -1038,10 +1042,12 @@ class ExecutionEngine:
                 )
 
         # Permission gate check for tool
+        original_args_str = " ".join(step.args)
+        confirmed_args_str = original_args_str
         try:
             from .permission_gate import PermissionGate
             gate = PermissionGate()
-            gate_result = gate.check(" ".join(step.args), tool=tool_name)
+            gate_result = gate.check(original_args_str, tool=tool_name)
             if gate_result.stage == "forbidden":
                 return StepResult(
                     step_id=step.id,
@@ -1050,18 +1056,22 @@ class ExecutionEngine:
                 )
             if gate_result.requires_review and interactive:
                 from .shell_review import review_and_confirm
-                confirmed = review_and_confirm(" ".join(step.args), tool_name, gate_result.reason)
+                confirmed = review_and_confirm(original_args_str, tool_name, gate_result.reason)
                 if confirmed is None:
                     return StepResult(
                         step_id=step.id,
                         status=StepStatus.BLOCKED,
                         error="Cancelled by user review",
                     )
+                confirmed_args_str = confirmed
         except Exception as exc:
             logger.debug("Permission gate check failed: %s", exc)
 
-        # Build args
-        args = list(step.args)
+        # Build args from confirmed (possibly edited) string
+        if confirmed_args_str != original_args_str:
+            args = confirmed_args_str.split()
+        else:
+            args = list(step.args)
         if step.target:
             args.append(step.target)
 
@@ -1090,6 +1100,22 @@ class ExecutionEngine:
             successful=result.exit_code == 0,
             findings_count=len(findings),
         )
+
+        # Record correction if args were modified by user
+        if self._learning_memory is not None and confirmed_args_str != original_args_str:
+            try:
+                self._learning_memory.record_with_correction(
+                    tools=[tool_name],
+                    original=f"{tool_name} {original_args_str}",
+                    corrected=f"{tool_name} {confirmed_args_str}",
+                    task=step.description or "",
+                    findings_after=len(findings),
+                    duration_ms=duration,
+                    success=result.exit_code == 0,
+                    target=step.target or "",
+                )
+            except Exception as exc:
+                logger.debug("Failed to record tool correction: %s", exc)
 
         return StepResult(
             step_id=step.id,
@@ -1140,6 +1166,7 @@ class ExecutionEngine:
                 )
 
         # Permission gate check for shell command
+        original_command = command
         try:
             from .permission_gate import PermissionGate
             gate = PermissionGate()
@@ -1171,6 +1198,21 @@ class ExecutionEngine:
         start = time.monotonic()
         result = await run_tool_complete(resolved.path, resolved.args, step.timeout)
         duration = (time.monotonic() - start) * 1000
+
+        # Record correction if command was modified by user
+        if self._learning_memory is not None and command != original_command:
+            try:
+                self._learning_memory.record_with_correction(
+                    tools=[base_cmd],
+                    original=original_command,
+                    corrected=command,
+                    task=step.description or "",
+                    duration_ms=duration,
+                    success=result.exit_code == 0,
+                    target=step.target or "",
+                )
+            except Exception as exc:
+                logger.debug("Failed to record shell correction: %s", exc)
 
         return StepResult(
             step_id=step.id,

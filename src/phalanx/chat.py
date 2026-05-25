@@ -1725,7 +1725,9 @@ class PhalanxChat:
         }
 
         reg = ToolRegistry()
-        engine = ExecutionEngine(mode=exec_mode, registry=reg, config=engine_config)
+        from .learning_memory import LearningMemory
+        lm = LearningMemory()
+        engine = ExecutionEngine(mode=exec_mode, registry=reg, config=engine_config, learning_memory=lm)
 
         # Build full context with conversation history
         ctx = engine._build_context()
@@ -1784,6 +1786,22 @@ class PhalanxChat:
         summary += f"Found {len(result.all_findings)} findings. "
         summary += "Success." if result.success else "Some steps failed."
         self._session.add_message("assistant", summary, findings=len(result.all_findings))
+
+        # Pedagogical output: educational breakdown after task completion
+        from .user_learning import UserLearning
+        ul = UserLearning()
+        step_results_by_id = {sr.step_id: sr for sr in result.step_results}
+        steps_for_pedagogical = []
+        for s in plan.steps:
+            sr = step_results_by_id.get(s.id)
+            steps_for_pedagogical.append({
+                "tool": s.tool or "",
+                "command": s.command or s.description or "",
+                "output": sr.output if sr and sr.output else "",
+                "step_type": s.step_type.value if hasattr(s.step_type, "value") else str(s.step_type),
+                "description": s.description or "",
+            })
+        ul.generate_pedagogical_output(steps_for_pedagogical, result.all_findings)
 
     def _generate_text_response(self, user_input: str) -> str:
         """Generate a helpful text response when no tool execution is needed."""

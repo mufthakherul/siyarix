@@ -329,13 +329,13 @@ class TestExecutionModels:
     def test_is_transient_error_detection(self) -> None:
         """Test that transient errors are correctly identified."""
         engine = ExecutionEngine(mode=ExecutionMode.REGISTRY)
-        
+
         # Transient errors should be retryable
         assert engine._is_transient_error("Connection timeout")
         assert engine._is_transient_error("temporarily unavailable")
         assert engine._is_transient_error("server is unavailable")
         assert engine._is_transient_error("gateway timeout")
-        
+
         # Non-transient errors should not be retryable
         assert not engine._is_transient_error("Command not found")
         assert not engine._is_transient_error("Access denied")
@@ -343,12 +343,12 @@ class TestExecutionModels:
     def test_calculate_backoff_delay(self) -> None:
         """Test exponential backoff delay calculation."""
         engine = ExecutionEngine(mode=ExecutionMode.REGISTRY)
-        
+
         # Test backoff increases exponentially
         delay_0 = _run(engine._calculate_backoff_delay(0))
         delay_1 = _run(engine._calculate_backoff_delay(1))
         delay_2 = _run(engine._calculate_backoff_delay(2))
-        
+
         assert delay_1 > delay_0
         assert delay_2 > delay_1
         assert delay_2 <= 30.0  # Should be capped at _RETRY_MAX_DELAY

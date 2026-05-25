@@ -112,12 +112,95 @@ class BootstrapEngine:
             deps["httpx"] = False
         return deps
 
+    def _detect_shell(self) -> str:
+        """Detect shell from environment."""
+        return os.environ.get("SHELL", "").lower()
+
+    def _detect_terminal_from_env(self) -> str:
+        """Detect terminal emulator."""
+        term_program = os.environ.get("TERM_PROGRAM", "")
+        term = os.environ.get("TERM", "")
+        if term_program:
+            return term_program
+        if term:
+            return term
+        return "unknown"
+
+    def check_database_backend(self) -> dict[str, bool]:
+        """Check database backend availability (T7)."""
+        result: dict[str, bool] = {"sqlite": True, "redis": False, "postgres": False}
+        try:
+            import sqlite3
+            sqlite3.connect(":memory:").close()
+            result["sqlite"] = True
+        except Exception:
+            result["sqlite"] = False
+        try:
+            import redis
+            result["redis"] = True
+            del redis
+        except ImportError:
+            result["redis"] = False
+        try:
+            import psycopg2
+            result["postgres"] = True
+            del psycopg2
+        except ImportError:
+            result["postgres"] = False
+        return result
+
     def check_runtime_tools(self) -> dict[str, bool]:
-        essential = ["nmap", "curl", "dig", "ping"]
+        essential = ["nmap", "curl", "dig", "ping", "whois", "openssl"]
         found = {}
         for tool in essential:
             found[tool] = shutil.which(tool) is not None
         return found
+
+    def check_optional_tools(self) -> dict[str, bool]:
+        optional = [
+            "nuclei", "ffuf", "gobuster", "subfinder", "httpx", "dnsx",
+            "masscan", "nikto", "sqlmap", "hydra", "john", "hashcat",
+            "trufflehog", "gitleaks", "docker", "kubectl", "terraform",
+            "aws", "az", "gcloud",
+        ]
+        found = {}
+        for tool in optional:
+            found[tool] = shutil.which(tool) is not None
+        return found
+
+    def prompt_install_missing(self, missing: list[str], interactive: bool) -> list[str]:
+        """Prompt user for missing dependency installation (T9)."""
+        if not interactive or not missing:
+            return []
+        try:
+            from rich.console import Console
+            from rich.prompt import Prompt
+            c = Console()
+            c.print(f"[yellow]Missing dependencies: {', '.join(missing)}[/yellow]")
+            approved = []
+            for dep in missing:
+                answer = Prompt.ask(f"Install {dep}?", choices=["y", "n", "a"], default="y")
+                if answer.lower() in ("y", "a"):
+                    approved.append(dep)
+            return approved
+        except ImportError:
+            return missing  # Auto-approve if rich not available
+
+    def auto_install_packages(self, packages: list[str]) -> dict[str, bool]:
+        """Auto-install approved packages (T10)."""
+        import subprocess
+        results: dict[str, bool] = {}
+        for pkg in packages:
+            try:
+                result = subprocess.run(
+                    [sys.executable, "-m", "pip", "install", pkg],
+                    capture_output=True, text=True, timeout=300,
+                )
+                results[pkg] = result.returncode == 0
+            except Exception as exc:
+                logger.warning("Failed to install %s: %s", pkg, exc)
+                results[pkg] = False
+        return results
 
     def ensure_directory_structure(self) -> None:
         dirs = [
@@ -162,35 +245,55 @@ class BootstrapEngine:
 
         logger.info("Phalanx first-run bootstrap starting...")
 
-        # Platform detection
+        # T1-T2: Platform detection
         self._result.platform = self.detect_platform()
 
-        # Python version check
+        # T3: Terminal/shell detection
+        detected_shell = self._detect_shell()
+        detected_terminal = self._detect_terminal_from_env()
+        self._result.platform.shell = detected_shell
+        self._result.platform.terminal = detected_terminal
+
+        # T5: Python version check
         if not self.check_python_version():
             self._result.errors.append(
                 f"Python {'.'.join(str(v) for v in self.REQUIRED_PYTHON)}+ required, "
                 f"found {sys.version_info.major}.{sys.version_info.minor}"
             )
 
-        # Dependency check
+        # T6: Dependency check
         deps = self.check_dependencies()
         missing_deps = [k for k, v in deps.items() if not v]
         self._result.dependencies_ok = len(missing_deps) == 0
-        if missing_deps and interactive:
-            logger.warning("Missing dependencies: %s", ", ".join(missing_deps))
 
-        # Runtime tools check
+        # T7: Database backend check
+        db_status = self.check_database_backend()
+        if not db_status.get("sqlite", False):
+            self._result.warnings.append("SQLite not available — session persistence disabled")
+
+        # T8: Runtime tools check
         tools = self.check_runtime_tools()
         self._result.tools_found = sum(1 for v in tools.values() if v)
-        self._result.runtime_ok = self._result.tools_found >= 2  # At least 2 essential tools
+        self._result.runtime_ok = self._result.tools_found >= 2
         missing_tools = [k for k, v in tools.items() if not v]
         if missing_tools:
             self._result.warnings.append(f"Missing recommended tools: {', '.join(missing_tools)}")
 
-        # Directory setup
+        # T9-T10: Interactive install prompt for missing deps
+        if missing_deps and interactive:
+            approved = self.prompt_install_missing(missing_deps, interactive)
+            if approved:
+                install_results = self.auto_install_packages(approved)
+                success_count = sum(1 for v in install_results.values() if v)
+                fail_count = len(approved) - success_count
+                if fail_count > 0:
+                    failed = [p for p, s in install_results.items() if not s]
+                    self._result.warnings.append(f"Failed to auto-install: {', '.join(failed)}")
+
+        # Directory setup (T4)
         self.ensure_directory_structure()
 
-        # Write initialization marker
+        # T11: Write initialization marker
         self.write_marker()
 
         self._result.success = len(self._result.errors) == 0

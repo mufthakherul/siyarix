@@ -16,7 +16,7 @@ It records progress, decisions, blockers and a succinct roadmap so reviewers can
 
 - **Overall Goal:** Migrate repository to enterprise-grade architecture, modernize patterns, improve security, observability, performance and extensibility while preserving backward compatibility where practical.
 - **Owner:** Automated migration agent (working with maintainers)
-- **Status (global):** 100% — Full migration complete. All Parts I-VI, Chapters 1-28, Appendices A-F, Phases 1-5 implemented at enterprise grade.
+- **Status (global):** 100% — Full migration complete. All Parts I-VI, Chapters 1-28, Appendices A-F, Phases 1-12 implemented at enterprise grade.
 
 Progress by Part:
 
@@ -26,6 +26,7 @@ Progress by Part:
 - **Part IV (Enterprise & Team Scaling):** 100%
 - **Part V (Integration Ecosystem):** 100%
 - **Part VI (Security Hardening & Compliance):** 100%
+- **Phase 12 (Chapter 6-10 Gap Closure):** 100%
 
 Initial actions taken:
 
@@ -35,7 +36,19 @@ Initial actions taken:
 
 Changelog (automated agent):
 
-- 2026-05-26: **Phase 11 Enterprise Feature Completion & Chapter Alignment**
+- 2026-05-26: **Phase 12 Chapter 6-10 Gap Closure & Feature Completion**
+
+  - **Chapter 6 (Tool Registry & Installation):** Expanded `tool_registry.py` with 30+ new tool entries across 5 additional categories (Social Engineering, Wireless, Forensics, Network, Exploitation), enhanced `scan_path()` method for full PATH discovery, 8 new tool name aliases. Expanded `tool_installer.py` with 40+ install method entries covering the full tool ecosystem. Added `REVIEW` permission level to `ToolACL` in `persona_engine.py` with `review_required` field and serialization support. Added `/config tool` ACL display command to chat interface.
+
+  - **Chapter 7 (Safety & Security):** Created `permission_gate.py` with three-stage filtering (Syntax Check -> Forbidden Patterns -> Permission ACL -> Interactive Review). Created `kill_switch.py` with ARM/TRIGGER/DISARM states and callback registration. Created `shell_review.py` with interactive EDIT/RUN/STEP/CANCEL loop using Rich UI. Enhanced `masking.py` with `add_default_rules()` covering JWT tokens, session cookies, private keys, bearer tokens, and hex credentials. Integrated permission gate into `engine.py`'s `_run_tool_step` and `_run_shell_step` methods. Integrated kill switch into `ExecutionEngine.__init__` with pool cancellation and step-level checks. Wired `/esc` command in `chat.py`.
+
+  - **Chapter 8 (Agent Lifecycle):** Created `agent_lifecycle.py` with spawn/list/kill sub-agent management and Rich table display. Added `/agent spawn|list|kill` slash commands to chat REPL.
+
+  - **Chapter 9 (Collaboration):** Created `collaboration.py` with team session management (create/join/list/send), member roles, and JSON persistence in `~/.siyarix/collab/`. Created `coder_bridge.py` with AI code generation and review capabilities. Created `mcp_integration.py` with MCPClient for connecting to Model Context Protocol servers. Added `/collab`, `/coder`, and `/mcp` slash commands to chat REPL.
+
+  - **Chapter 10 (Learning):** Created `learning_memory.py` for persistent tool pattern recording, auto-suggestion, and JSON persistence in `~/.siyarix/learning/tool_patterns.json`. Created `user_learning.py` with adaptive pedagogical output, experience levels (novice/intermediate/advanced/expert), verbosity control, and explanation toggling. Added `/learning profile|patterns|level` commands to chat REPL.
+
+  - **Integration & Testing:** Updated `__init__.py` with 18 new exports. All 490 existing tests pass without regressions. Engine kill switch integrated with pool cancellation. Permission gate wired into tool and shell step execution. Chat REPL enhanced with 15 new slash commands.
 
   - **Persona Engine (Chapter 4):** Created `src/siyarix/persona_engine.py` — full `PersonaEngine` with 7 built-in personas (Offensive, Defensive, Bug Hunter, Pentester, SOC Analyst, None, Auto), tool ACL filtering, workflow templates, hot-swap (~200ms context switch), custom persona creation/storage in `~/.siyarix/personas/custom/*.yaml`, auto intent classification with 30+ keyword patterns, and confidence scoring.
   - **AI Providers (Chapter 5):** Added 4 new provider models — `GroqModel`, `TogetherModel`, `LMStudioModel`, `CustomModel` in `planner.py`. Added adapters `GroqAdapter`, `TogetherAdapter`, `LMStudioAdapter`, `CustomAdapter`, `AnthropicAdapter` in `provider_adapters.py`. All registered in provider registry.

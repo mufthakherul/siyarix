@@ -336,11 +336,15 @@ class ExecutionEngine:
         # Instantiate adapters from the global provider registry
         preferred = str(self._config.get("model_provider", "auto")).strip().lower()
         preference_map = {
-            "gemini": ["gemini", "openai", "ollama", "cloud", "noop"],
-            "openai": ["openai", "gemini", "ollama", "cloud", "noop"],
-            "ollama": ["ollama", "gemini", "openai", "cloud", "noop"],
-            "cloud": ["cloud", "gemini", "openai", "ollama", "noop"],
-            "auto": ["gemini", "openai", "ollama", "cloud", "noop"],
+            "gemini": ["gemini", "openai", "anthropic", "groq", "together", "ollama", "lmstudio", "cloud", "noop"],
+            "openai": ["openai", "gemini", "anthropic", "groq", "together", "ollama", "lmstudio", "cloud", "noop"],
+            "ollama": ["ollama", "lmstudio", "gemini", "openai", "anthropic", "groq", "together", "cloud", "noop"],
+            "cloud": ["cloud", "gemini", "openai", "anthropic", "groq", "together", "ollama", "lmstudio", "noop"],
+            "groq": ["groq", "openai", "gemini", "anthropic", "together", "ollama", "lmstudio", "cloud", "noop"],
+            "together": ["together", "groq", "openai", "gemini", "anthropic", "ollama", "lmstudio", "cloud", "noop"],
+            "lmstudio": ["lmstudio", "ollama", "gemini", "openai", "anthropic", "groq", "together", "cloud", "noop"],
+            "anthropic": ["anthropic", "openai", "gemini", "groq", "together", "ollama", "lmstudio", "cloud", "noop"],
+            "auto": ["gemini", "openai", "anthropic", "groq", "together", "ollama", "lmstudio", "cloud", "noop"],
         }
 
         order = preference_map.get(preferred, preference_map["auto"])
@@ -369,6 +373,26 @@ class ExecutionEngine:
                     key = self._config.get("api_key", "")
                     prov = provider_registry.get("cloud", server_url=server, api_key=key)
                     available = bool(server and key)
+                elif name == "groq":
+                    api_key = self._config.get("groq_api_key", "")
+                    model = self._config.get("groq_model", "llama3-70b-8192")
+                    prov = provider_registry.get("groq", api_key=api_key, model=model)
+                    available = bool(api_key)
+                elif name == "together":
+                    api_key = self._config.get("together_api_key", "")
+                    model = self._config.get("together_model", "mistralai/Mixtral-8x7B-Instruct-v0.1")
+                    prov = provider_registry.get("together", api_key=api_key, model=model)
+                    available = bool(api_key)
+                elif name == "lmstudio":
+                    url = self._config.get("lmstudio_url", "http://localhost:1234")
+                    model = self._config.get("lmstudio_model", "")
+                    prov = provider_registry.get("lmstudio", base_url=url, model=model)
+                    available = True
+                elif name == "anthropic":
+                    api_key = self._config.get("anthropic_api_key", "")
+                    model = self._config.get("anthropic_model", "claude-3-opus-20240229")
+                    prov = provider_registry.get("anthropic", api_key=api_key, model=model)
+                    available = bool(api_key)
                 else:  # noop or unknown
                     prov = provider_registry.get("noop")
                     available = True

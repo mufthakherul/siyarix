@@ -1,0 +1,94 @@
+version: "3.9"
+
+services:
+  phalanx:
+    build:
+      context: .
+      target: production
+    image: phalanx:latest
+    container_name: phalanx
+    environment:
+      - PHALANX_LOG_LEVEL=${PHALANX_LOG_LEVEL:-INFO}
+      - PHALANX_PERSONA=${PHALANX_PERSONA:-bug_hunter}
+      - PHALANX_PROVIDER=${PHALANX_PROVIDER:-noop}
+      - PHALANX_NO_TELEMETRY=${PHALANX_NO_TELEMETRY:-1}
+    volumes:
+      - phalanx_data:/root/.phalanx
+      - ./src:/app/src:ro
+    stdin_open: true
+    tty: true
+    networks:
+      - phalanx_net
+
+  phalanx-worker:
+    build:
+      context: .
+      target: production
+    image: phalanx:latest
+    container_name: phalanx-worker
+    environment:
+      - PHALANX_MODE=worker
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    volumes:
+      - phalanx_data:/root/.phalanx
+    networks:
+      - phalanx_net
+    deploy:
+      replicas: 3
+
+  phalanx-dashboard:
+    build:
+      context: .
+      target: production
+    image: phalanx:latest
+    container_name: phalanx-dashboard
+    command: ["phalanx", "dashboard"]
+    ports:
+      - "8090:8090"
+    environment:
+      - PHALANX_DASHBOARD_PORT=8090
+      - PHALANX_DASHBOARD_HOST=0.0.0.0
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - phalanx_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: phalanx-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - phalanx_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: phalanx-otel
+    environment:
+      - TZ=UTC
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel/config.yaml:ro
+    ports:
+      - "4318:4318"
+    networks:
+      - phalanx_net
+    profiles:
+      - telemetry
+
+networks:
+  phalanx_net:
+    driver: bridge
+
+volumes:
+  phalanx_data:
+  redis_data:

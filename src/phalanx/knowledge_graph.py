@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 __all__ = [
     "KnowledgeGraph",
@@ -207,7 +207,8 @@ class KnowledgeGraph:
         if source_id not in self._nodes or target_id not in self._nodes:
             logger.warning(
                 "Cannot add edge: source=%s or target=%s not in graph",
-                source_id, target_id,
+                source_id,
+                target_id,
             )
             return None
 
@@ -333,15 +334,19 @@ class KnowledgeGraph:
             port = finding.get("port")
             if port:
                 port_node = self.add_node(
-                    NodeType.PORT, f"{target_label}:{port}",
-                    discovered_by=tool, port=port,
+                    NodeType.PORT,
+                    f"{target_label}:{port}",
+                    discovered_by=tool,
+                    port=port,
                 )
                 self.add_edge(host_node.node_id, port_node.node_id, EdgeType.HAS_PORT)
 
                 service = finding.get("service")
                 if service:
                     svc_node = self.add_node(
-                        NodeType.SERVICE, service, discovered_by=tool,
+                        NodeType.SERVICE,
+                        service,
+                        discovered_by=tool,
                     )
                     self.add_edge(port_node.node_id, svc_node.node_id, EdgeType.RUNS_SERVICE)
 
@@ -349,8 +354,10 @@ class KnowledgeGraph:
             if vuln:
                 severity = finding.get("severity", "info")
                 vuln_node = self.add_node(
-                    NodeType.VULNERABILITY, vuln,
-                    discovered_by=tool, severity=severity,
+                    NodeType.VULNERABILITY,
+                    vuln,
+                    discovered_by=tool,
+                    severity=severity,
                     description=finding.get("description", ""),
                 )
                 self.add_edge(host_node.node_id, vuln_node.node_id, EdgeType.HAS_VULN)
@@ -374,7 +381,12 @@ class KnowledgeGraph:
         """Save graph to a JSON file."""
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(self.to_json(), encoding="utf-8")
-        logger.info("Knowledge graph saved to %s (%d nodes, %d edges)", path, self.node_count, self.edge_count)
+        logger.info(
+            "Knowledge graph saved to %s (%d nodes, %d edges)",
+            path,
+            self.node_count,
+            self.edge_count,
+        )
 
     @classmethod
     def load(cls, path: Path) -> KnowledgeGraph:
@@ -406,5 +418,10 @@ class KnowledgeGraph:
             graph._adjacency[edge.source_id].append(edge.target_id)
             graph._reverse_adj[edge.target_id].append(edge.source_id)
 
-        logger.info("Knowledge graph loaded from %s (%d nodes, %d edges)", path, graph.node_count, graph.edge_count)
+        logger.info(
+            "Knowledge graph loaded from %s (%d nodes, %d edges)",
+            path,
+            graph.node_count,
+            graph.edge_count,
+        )
         return graph

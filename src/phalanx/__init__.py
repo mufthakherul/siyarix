@@ -71,8 +71,8 @@ from .agent_lifecycle import AgentLifecycle, AgentInstance
 from .collaboration import CollaborationManager, CollabSession, CollabMember
 from .coder_bridge import CoderBridge, CodeReview
 from .mcp_integration import MCPClient, MCPTool
-from .learning_memory import LearningMemory, ToolPattern
-from .user_learning import UserLearning, UserProfile, ExperienceLevel
+from .learning_memory import LearningMemory, ToolPattern, SessionContext
+from .user_learning import UserLearning, UserProfile, SessionRecord, ExperienceLevel
 
 __all__ = [
     "ExecutionEngine",
@@ -224,7 +224,9 @@ __all__ = [
     "MCPTool",
     "LearningMemory",
     "ToolPattern",
+    "SessionContext",
     "UserLearning",
     "UserProfile",
+    "SessionRecord",
     "ExperienceLevel",
 ]

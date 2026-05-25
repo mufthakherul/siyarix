@@ -1,120 +1,152 @@
 # Phalanx Security Agent
 
 <div align="center">
-  <img src="assets/logo.png" alt="Phalanx Logo" width="200">
-  <p><strong>A humble, open-source security agent by mufthakherul. Built for learning, research, and community collaboration.</strong></p>
+  <p><strong>AI-native cybersecurity operations platform — autonomous execution, multi-agent framework, intelligent orchestration</strong></p>
   <p>
     <a href="https://github.com/mufthakherul/phalanx/actions/workflows/ci.yml"><img src="https://github.com/mufthakherul/phalanx/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
-    <a href="https://github.com/mufthakherul/phalanx/blob/main/LICENSE"><img src="https://img.shields.io/github/license/mufthakherul/phalanx?style=flat-square" alt="License"></a>
-    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PRs Welcome">
+    <a href="https://github.com/mufthakherul/phalanx/blob/main/LICENSE"><img src="https://img.shields.io/github/license/mufthakherul/phalanx" alt="License"></a>
+    <a href="https://pypi.org/project/phalanx/"><img src="https://img.shields.io/pypi/v/phalanx" alt="PyPI"></a>
+    <a href="https://github.com/mufthakherul/phalanx"><img src="https://img.shields.io/github/stars/mufthakherul/phalanx" alt="Stars"></a>
+    <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python">
+    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome">
+    <img src="https://img.shields.io/badge/coverage-%3E80%25-success" alt="Coverage">
   </p>
 </div>
 
 ---
 
-**Phalanx** is a command-line security agent that explores how we can combine autonomous AI planning with classic security tools right in the terminal. Whether you're scanning a network, hunting for vulnerabilities, or just trying to learn how different security tools work together, Phalanx is here to act as your helpful assistant.
+Phalanx is an **enterprise-grade, AI-native cybersecurity operations platform** that combines autonomous AI planning with classic security tools. It orchestrates tool execution, analyzes findings, generates reports, and adapts in real time — all from your terminal.
 
 ### 🌱 Our Story
-Phalanx started out as a humble college project to experiment with AI and security automation. As the codebase grew and became surprisingly useful, we decided to open-source it! Today, it's maintained by the community. Phalanx is a practical, lightweight, and modern tool meant for students, researchers, penetration testers, and anyone curious about AI-driven security.
+Phalanx started as a college project to experiment with AI and security automation. As the codebase grew into a production-grade platform, we open-sourced it. Today it powers 118 modules, 58 test files, and supports 30+ security tools across 6 compliance frameworks.
 
-When you run `phalanx` in your terminal, it opens an interactive chat experience where you can naturally ask the agent to help you scan networks, run security tools, and understand vulnerabilities.
+---
 
-## ✨ Core Features
+## ✨ Enterprise Features
 
-- **Interactive AI Assistant (Chat Mode)**: A polished, terminal-based REPL where you can chat with large language models (OpenAI, Gemini, local Ollama) to plan and execute security tasks.
-- **Autonomous Tool Orchestration**: Phalanx doesn't just talk; it can actually run tools like `nmap`, `ffuf`, and `nuclei` on your machine, parse their output, and summarize the results.
-- **Cross-Platform Intelligence**: Whether you are on Linux (Bash/Zsh), macOS, or Windows (PowerShell/CMD), Phalanx understands your environment and translates security intents into commands that actually work.
-- **Secure Credential Vault**: Your API keys are encrypted locally and never exposed in plaintext or sent anywhere without your permission.
-- **Local Tool Discovery**: The agent automatically scans your system `PATH` to figure out which security tools you have installed, so it only recommends plans you can actually execute.
-- **Robust E2E Validation Pipeline**: Verified by a secure, mock-sandboxed testing suite (`test_e2e.py`) validating direct command execution, natural language conditional branching, interactive missing tool auto-installers, and real-time execution self-correction under failures.
+### Core Platform
+- **AI Task Planner**: LLM-driven execution planning (OpenAI, Gemini, Ollama, local models)
+- **Multi-Agent Orchestration**: 7 specialized agents (Recon, Scanner, Enumeration, Exploit, SOC, DFIR, Report)
+- **Autonomous Execution**: Adaptive re-planning, fallback routing, self-correction on failures
+- **Cross-Platform Shell**: Native command translation across Bash, Zsh, PowerShell, CMD
+- **Secure Credential Vault**: AES-256-GCM encrypted, OS keyring integration
 
-## 🏗️ How It Works (High-Level Architecture)
+### Advanced Security Modules
+- **Exploit Chain Automation**: Parameterized campaign workflows with dependency-linked phases
+- **ML Anomaly Detection**: Statistical baseline, z-score analysis, temporal pattern deviation
+- **Threat Intelligence**: STIX/TAXII, MISP ingestion, MITRE ATT&CK DB (25+ techniques)
+- **Deception Tactics**: Honeypot detection, canary tokens, fake banners, trapdoor credentials
+- **Adversarial Testing**: IDS trigger detection, rate-limit analysis, plan safety validation
+- **Stealth Evasion**: 5 evasion levels, User-Agent rotation, proxy chaining, decoy traffic
 
-Phalanx is built to be simple, modular, and transparent. We want you to look under the hood and learn how it works!
+### Enterprise Infrastructure
+- **Distributed Deployment**: Redis-backed task queue, multi-worker orchestration
+- **OpenTelemetry**: Full traces, spans, metrics, exporter registration
+- **Web Dashboard**: REST API, WebSocket live updates, snapshot system
+- **CI/CD Integration**: 14 GitHub Actions workflows, pre-commit hooks
+- **Docker Support**: Multi-service compose (phalanx, worker, dashboard, redis, otel)
+- **Compliance Assessment**: PCI-DSS, ISO 27001, NIST 800-53, SOC 2, GDPR, HIPAA
 
-1. **The Planner**: Takes your natural language instructions (e.g., "Find open ports on example.com") and figures out the logical steps to achieve them.
-2. **The Execution Engine**: Safely executes the planned steps. It checks if the required tools exist, runs them in the background, and captures the standard output and errors.
-3. **The Shell Knowledge Library**: Helps Phalanx understand your operating system so it can write commands natively (like using `Test-NetConnection` on Windows vs `ping` on Linux).
+### Reporting & Automation
+- **Report Engine**: Markdown, HTML, JSON, SARIF output with CVSS 3.1 scoring
+- **Playbook System**: Save/load/execute reusable workflows with variables
+- **Scheduled Scans**: Cron-based recurring assessments
+- **Evidence Preservation**: SHA-256 chain, chain of custody tracking
 
-*(For a deep dive into the code structure, check out our [Architecture Guide](docs/architecture.md)!)*
+---
 
 ## 🚀 Quick Start
 
 ### Installation
-
-The easiest way to get started is using Python (3.11+ is required). We highly recommend using a virtual environment or a modern package manager like `uv`.
-
 ```bash
-# Using pip
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .\.venv\Scripts\activate
+# Production
 pip install phalanx
+
+# Full experience (AI planners, CLI, SIEM)
+pip install "phalanx[all,cli,siem]"
+
+# Development
+git clone https://github.com/mufthakherul/phalanx.git
+cd phalanx
+pip install -e ".[all,cli,siem]"
 ```
 
-*(Note: For the full AI-planning experience, you can install the optional dependencies: `pip install "phalanx[autonomous]"`).*
-
-### 🧪 Local Verification & Testing
-
-To verify that everything is running perfectly (and fully offline) on your specific platform, you can run our suite of 120+ tests:
-
+### Docker
 ```bash
-# Install test dependencies
-pip install pytest pytest-asyncio
+docker compose up -d
+```
 
-# Run the test suite
-pytest
+### Verify
+```bash
+make test        # Run 58 test files
+make lint        # Ruff linting
+make typecheck   # Mypy strict mode
 ```
 
 ### Basic Usage
-
-You can use Phalanx directly from the command line for quick tasks:
-
 ```bash
-# Run a simple network scan
+# Interactive chat
+phalanx
+
+# Quick scan
 phalanx scan 192.168.1.1
 
-# Tell the agent what to do using natural language
-phalanx run "scan example.com with nmap and nuclei, then summarize the results"
+# Natural language task
+phalanx run "scan example.com with nmap and nuclei"
 
-# List the security tools Phalanx has found on your system
-phalanx tool-registry list
+# Generate report
+phalanx report generate --findings results.json --format html
 ```
 
-### The Interactive Chat
-
-For the best experience, just run `phalanx` with no arguments. This launches the interactive chat assistant!
-
-```bash
-phalanx
-```
-
-Once inside the interactive shell, you can use slash commands to configure your environment:
-```text
-/key set gemini <your-api-key>
-/theme mode dark
-/help
-```
+---
 
 ## 📖 Comprehensive Documentation
 
-Whether you're just getting started or looking to understand the internals, our detailed docs have you covered:
+| Document | Description |
+|----------|-------------|
+| [Overview](docs/overview.md) | Full platform capabilities, principles, ecosystem |
+| [Architecture](docs/architecture.md) | 7-layer architecture, module deep dive, execution flows |
+| [Installation](docs/installation.md) | Setup guides, Docker, CI/CD, configuration profiles |
+| [Usage Guide](docs/usage.md) | Examples for all modules, playbooks, reports, dashboards |
+| [CLI Reference](docs/cli-reference.md) | Complete command reference with 40+ commands |
+| [Models](docs/models.md) | AI provider setup, multi-model ensemble, local models |
+| [Security](docs/security.md) | Stealth, canary tokens, compliance, OPSEC, data masking |
+| [Extending](docs/extending.md) | Plugin system, custom parsers, provider adapters |
+| [Development](docs/development.md) | Setup, testing, Makefile, CI/CD, code quality |
+| [Contributing](docs/contributing.md) | PR process, code of conduct, getting involved |
+| [Troubleshooting](docs/troubleshooting.md) | Common issues, diagnostics, debugging |
+| [FAQ](docs/faq.md) | Frequently asked questions |
 
-- **[Overview (docs/overview.md)](docs/overview.md)** — A detailed look at what Phalanx is and why we built it.
-- **[Architecture (docs/architecture.md)](docs/architecture.md)** — Comprehensive breakdown of the internals, planners, and engines.
-- **[CLI Reference (docs/cli-reference.md)](docs/cli-reference.md)** — A complete, detailed list of all commands and flags.
-- **[Installation (docs/installation.md)](docs/installation.md)** — Step-by-step setup guides for various environments.
-- **[Usage Guide (docs/usage.md)](docs/usage.md)** — Extensive examples of how to use Phalanx day-to-day.
-- **[Security & Privacy (docs/security.md)](docs/security.md)** — How we handle your data, API keys, and keep executions safe.
-- **[Troubleshooting (docs/troubleshooting.md)](docs/troubleshooting.md)** — Help when things go wrong.
+---
 
-## 🤝 Contributing & Community
+## 🏗️ Architecture at a Glance
 
-We absolutely love contributions! Since Phalanx is a community project, we welcome everyone—especially beginners, students, and hobbyists looking for their first open-source project. 
+```
+User → CLI Layer → Session Kernel → Intent Router
+  → Mode Dispatcher → Execution Engine
+    ├── AI Planner (LLM + Heuristic)
+    ├── Tool Registry + Executor
+    ├── Multi-Agent Coordinator
+    ├── Knowledge Graph
+    └── Security Pipeline (Mask → Sensor → Execute → Audit)
+```
 
-If you want to add a new tool parser, fix a bug, or just improve these docs, check out our [Contributing Guide](docs/contributing.md) and [Development Guide](docs/development.md) for a friendly introduction to the codebase.
+Plus 12 advanced modules: Exploitation, ML Anomaly, Threat Intel, Deception,
+Distributed, OTel, Dashboard, Bootstrap, Stealth, Canary, Cloud Scanner, Compliance.
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions of all kinds! See [CONTRIBUTING.md](docs/contributing.md) to get started.
+
+- **Report bugs**: Open a GitHub issue
+- **Suggest features**: Start a discussion
+- **Write code**: Look for `good first issue` tags
+- **Improve docs**: PRs for documentation are always appreciated
+
+---
 
 ## 📜 License
 
-Phalanx is released under the [MIT License](LICENSE). 
-
-*Please use it responsibly. Only run security scans against systems, networks, and applications that you own or have explicit, documented permission to test. Be safe and happy hacking!*
+MIT — Use responsibly. Only scan systems you own or have explicit permission to test.

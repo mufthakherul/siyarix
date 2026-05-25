@@ -1,5 +1,7 @@
 """Tests for deception tactics module."""
 
+import pytest
+pytestmark = pytest.mark.deception
 from phalanx.deception import (
     HoneypotDetector,
     FakeBannerGenerator,

@@ -1,5 +1,7 @@
 """Tests for threat intelligence ingestion module."""
 
+import pytest
+pytestmark = pytest.mark.threat_intel
 from phalanx.threat_intel import ThreatIntelFeed, MITREAttackDB
 
 

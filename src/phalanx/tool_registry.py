@@ -176,6 +176,37 @@ _KNOWN_TOOLS: dict[str, dict] = {
         "description": "Metasploit Framework console",
         "default_args": [],
     },
+    # ── MITM / Network Attacks ───────────────────────────────────────────
+    "bettercap": {
+        "version_cmd": ["bettercap", "--version"],
+        "capabilities": ["mitm", "arp_spoof", "dns_spoof", "http_proxy", "network_sniff"],
+        "category": "exploit",
+        "description": "Swiss-army knife for network attacks and monitoring (MITM)",
+        "default_args": [],
+    },
+    "ettercap": {
+        "version_cmd": ["ettercap", "--version"],
+        "capabilities": ["mitm", "arp_poison", "packet_sniff", "protocol_analyze"],
+        "category": "exploit",
+        "description": "Comprehensive MITM attack framework",
+        "default_args": [],
+    },
+    # ── Wireless ──────────────────────────────────────────────────────────
+    "aircrack-ng": {
+        "version_cmd": ["aircrack-ng", "--version"],
+        "capabilities": ["wireless_attack", "wpa_crack", "packet_capture", "deauth"],
+        "category": "exploit",
+        "description": "Wireless network security assessment suite",
+        "default_args": [],
+    },
+    # ── Windows / Active Directory ─────────────────────────────────────────
+    "impacket": {
+        "version_cmd": ["impacket", "--version"],
+        "capabilities": ["smb_recon", "kerberoast", "wmi_exec", "pass_the_hash", "dc_sync"],
+        "category": "exploit",
+        "description": "Impacket — Windows protocol abuse toolkit (SMB, Kerberos, WMI)",
+        "default_args": [],
+    },
     # ── Web Proxies / DAST ──────────────────────────────────────────────────
     "zap.sh": {
         "version_cmd": ["zap.sh", "-version"],
@@ -279,6 +310,7 @@ _TOOL_NAME_ALIASES: dict[str, str] = {
     "zaproxy": "zap.sh",
     "burp": "burpsuite",
     "theharvester": "theHarvester",
+    "aircrack": "aircrack-ng",
 }
 
 # Reverse alias map: binary name → human-friendly name used in manifests
@@ -318,6 +350,22 @@ CAPABILITY_CATEGORIES: dict[str, str] = {
     "infra_manage": "infra",
     "automation": "infra",
     "config_manage": "infra",
+    "mitm": "exploit",
+    "arp_spoof": "exploit",
+    "dns_spoof": "exploit",
+    "network_sniff": "exploit",
+    "arp_poison": "exploit",
+    "packet_sniff": "exploit",
+    "protocol_analyze": "exploit",
+    "wireless_attack": "exploit",
+    "wpa_crack": "exploit",
+    "packet_capture": "exploit",
+    "deauth": "exploit",
+    "smb_recon": "exploit",
+    "kerberoast": "exploit",
+    "wmi_exec": "exploit",
+    "pass_the_hash": "exploit",
+    "dc_sync": "exploit",
 }
 
 # Cache TTL for tool discovery (seconds)

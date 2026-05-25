@@ -14,7 +14,6 @@ import asyncio
 import json
 import logging
 import os
-import re
 import time
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -78,12 +77,14 @@ class CircuitBreaker:
             self._state = self.OPEN
             logger.warning(
                 "Circuit breaker OPEN for %s after %d failures",
-                self.name, self._failure_count,
+                self.name,
+                self._failure_count,
             )
 
     def reset(self) -> None:
         self._state = self.CLOSED
         self._failure_count = 0
+
 
 # ---------------------------------------------------------------------------
 # Execution Plan data model
@@ -255,8 +256,8 @@ class GeminiModel:
         system_prompt = _build_system_prompt(context)
 
         def _generate() -> str:
-            genai.configure(api_key=self._api_key)
-            model = genai.GenerativeModel(self._model)
+            genai.configure(api_key=self._api_key)  # pyright: ignore[reportPrivateImportUsage]
+            model = genai.GenerativeModel(self._model)  # pyright: ignore[reportPrivateImportUsage]
             response = model.generate_content(
                 [system_prompt, prompt],
                 generation_config={"temperature": 0.1, "max_output_tokens": 2048},
@@ -639,7 +640,7 @@ class TaskPlanner:
         Uses a circuit breaker per provider to avoid hammering failing endpoints.
         """
         for provider in self._providers:
-            if hasattr(provider, "available") and not provider.available:
+            if not getattr(provider, "available", True):
                 continue
 
             # Check circuit breaker
@@ -679,6 +680,7 @@ class TaskPlanner:
 
                     raw = await provider.plan(masked_instruction, masked_context)
                     if raw:
+
                         def _unmask_obj(o: Any) -> Any:
                             if isinstance(o, str):
                                 return mask.unmask(o)
@@ -919,12 +921,15 @@ class TaskPlanner:
             intent = task.flags.get("intent")
             if intent:
                 from . import shell_knowledge
+
                 kwargs = {}
                 if primary_target:
                     kwargs["target"] = primary_target
                     kwargs["file"] = primary_target
                 cmd = shell_knowledge.render_intent(intent, **kwargs)
-                desc = shell_knowledge.INTENT_METADATA.get(intent, {}).get("description", f"Execute {intent}")
+                desc = shell_knowledge.INTENT_METADATA.get(intent, {}).get(
+                    "description", f"Execute {intent}"
+                )
                 steps.append(
                     ExecutionStep(
                         id=f"step_{offset + 1}",

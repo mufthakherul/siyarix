@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+pytestmark = pytest.mark.playbook
 from siyarix.playbook_engine import PlaybookEngine, Playbook, PlaybookStep, PlaybookStepType
 
 

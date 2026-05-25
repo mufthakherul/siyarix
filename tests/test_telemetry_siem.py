@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+pytestmark = pytest.mark.siem
 from siyarix.telemetry.siem import (
     SIEMConnector,
     SplunkHECConnector,

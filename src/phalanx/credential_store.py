@@ -314,6 +314,58 @@ class CredentialStore:
             raise RuntimeError("encryption not initialized")
         return self._fernet.decrypt(encrypted.encode()).decode()
 
+    def migrate_to_aesgcm(self) -> bool:
+        """Migrate all credentials from Fernet to AES-256-GCM encryption."""
+        if not HAS_AESGCM:
+            logger.warning("AES-256-GCM not available; skipping migration")
+            return False
+        if not self._master_key:
+            self._master_key = os.urandom(_AES_KEY_SIZE)
+        migrated = 0
+        for cred in self._credentials.values():
+            try:
+                plaintext = self._decrypt(cred.value_encrypted)
+                cred.value_encrypted = self._encrypt_aesgcm(plaintext)
+                migrated += 1
+            except Exception as exc:
+                logger.warning("Failed to migrate credential %s: %s", cred.cred_id, exc)
+        if migrated > 0:
+            self._save()
+            logger.info("Migrated %d credentials to AES-256-GCM", migrated)
+        return migrated > 0
+
+    def rotate_key(self, new_master_password: str | None = None) -> bool:
+        """Rotate master encryption key (Chapter 5.4 key rotation)."""
+        if not HAS_AESGCM:
+            logger.warning("AES-256-GCM not available for key rotation")
+            return False
+        old_key = self._master_key
+        self._master_key = os.urandom(_AES_KEY_SIZE)
+        if new_master_password:
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=_AES_KEY_SIZE,
+                salt=os.urandom(16),
+                iterations=_AES_ITERATIONS,
+            )
+            self._master_key = kdf.derive(new_master_password.encode())
+        # Re-encrypt all credentials with new key
+        for cred in self._credentials.values():
+            try:
+                plaintext = self._decrypt_aesgcm(cred.value_encrypted) if HAS_AESGCM else self._decrypt(cred.value_encrypted)
+                cred.value_encrypted = self._encrypt_aesgcm(plaintext)
+                cred.rotated = True
+            except Exception:
+                try:
+                    plaintext = self._decrypt(cred.value_encrypted)
+                    cred.value_encrypted = self._encrypt_aesgcm(plaintext)
+                    cred.rotated = True
+                except Exception as exc:
+                    logger.warning("Failed to rotate credential %s: %s", cred.cred_id, exc)
+        self._save()
+        logger.info("Master key rotated successfully")
+        return True
+
     def _load(self) -> None:
         """Load credentials from disk"""
         if not self._creds_file.exists():

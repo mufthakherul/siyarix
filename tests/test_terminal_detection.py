@@ -5,13 +5,13 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
-pytestmark = pytest.mark.terminal
 from phalanx.terminal_detection import (
     TerminalDetector,
     TerminalInfo,
     ShellType,
     TerminalType,
 )
+pytestmark = pytest.mark.terminal
 
 
 class TestTerminalDetector:

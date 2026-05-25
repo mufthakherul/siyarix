@@ -3,6 +3,7 @@
 This class isolates tool/shell execution so ExecutionEngine can delegate
 and ToolExecutor can be unit-tested with injected run_tool function.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -70,8 +71,8 @@ class ToolExecutor:
 
         # Handle __all__ case
         if tool_name == "__all__":
-            findings = []
-            outputs = []
+            findings: list = []
+            outputs: list = []
             metrics = get_metrics()
             for tool_info in self._discovered_tools:
                 args = list(step.args)
@@ -98,7 +99,11 @@ class ToolExecutor:
         # Resolve tool
         resolved = self._resolver.resolve(step.tool or "", step.args)
         if not resolved.is_safe:
-            return StepResult(step_id=step.id, status=StepStatus.BLOCKED, error=f"Blocked: {'; '.join(resolved.warnings)}")
+            return StepResult(
+                step_id=step.id,
+                status=StepStatus.BLOCKED,
+                error=f"Blocked: {'; '.join(resolved.warnings)}",
+            )
 
         args = list(step.args)
         if step.target:
@@ -116,7 +121,7 @@ class ToolExecutor:
         try:
             from .parsers import GobusterParser, NiktoParser, NmapParser, NucleiParser
 
-            parsers = {
+            parsers: dict[str, Any] = {
                 "nmap": NmapParser(),
                 "nikto": NiktoParser(),
                 "nuclei": NucleiParser(),
@@ -168,7 +173,9 @@ class ToolExecutor:
     async def _run_shell_step(self, step: ExecutionStep, interactive: bool) -> StepResult:
         command = step.command or ""
         if not command:
-            return StepResult(step_id=step.id, status=StepStatus.SKIPPED, output="No command specified")
+            return StepResult(
+                step_id=step.id, status=StepStatus.SKIPPED, output="No command specified"
+            )
 
         parts = command.split()
         base_cmd = parts[0]
@@ -178,10 +185,15 @@ class ToolExecutor:
 
         resolved = self._resolver.resolve(base_cmd, args)
         if not resolved.is_safe:
-            return StepResult(step_id=step.id, status=StepStatus.BLOCKED, error=f"Blocked: {'; '.join(resolved.warnings)}")
+            return StepResult(
+                step_id=step.id,
+                status=StepStatus.BLOCKED,
+                error=f"Blocked: {'; '.join(resolved.warnings)}",
+            )
 
+        start_time = time.monotonic()
         result = await self._run_tool(resolved.path, resolved.args, step.timeout)
-        duration = (time.monotonic() - start) * 1000
+        duration = (time.monotonic() - start_time) * 1000
 
         return StepResult(
             step_id=step.id,
@@ -193,15 +205,21 @@ class ToolExecutor:
 
     async def _run_analysis_step(self, step: ExecutionStep) -> StepResult:
         # Minimal analysis implementation — returns summary
-        context_outputs = []
         for dep_id in step.depends_on:
             # engine populates completed steps; ToolExecutor doesn't access them here
             pass
-        return StepResult(step_id=step.id, status=StepStatus.SUCCESS, output="Analysis placeholder", metadata={"type": "analysis"})
+        return StepResult(
+            step_id=step.id,
+            status=StepStatus.SUCCESS,
+            output="Analysis placeholder",
+            metadata={"type": "analysis"},
+        )
 
     def _run_report_step(self, step: ExecutionStep) -> StepResult:
         fmt = step.metadata.get("format", "text")
-        return StepResult(step_id=step.id, status=StepStatus.SUCCESS, output=f"Report generation ({fmt})")
+        return StepResult(
+            step_id=step.id, status=StepStatus.SUCCESS, output=f"Report generation ({fmt})"
+        )
 
     async def _run_parallel_step(self, step: ExecutionStep, interactive: bool) -> StepResult:
         sub_steps = step.metadata.get("steps", [])

@@ -1,10 +1,11 @@
 """Response sensor utilities: masking before model calls, unmasking and redaction after."""
+
 from __future__ import annotations
 
 from typing import Any, Dict
 
 from .masking import MaskingEngine
-from .security_hardening import SecretRedactor, danger_analyzer
+from .security_hardening import SecretRedactor
 
 
 class ResponseSensor:
@@ -20,7 +21,9 @@ class ResponseSensor:
     def __init__(self) -> None:
         self._redactor = SecretRedactor()
 
-    def mask_for_model(self, text: str | None, *, rules: Dict[str, str] | None = None) -> tuple[str, MaskingEngine]:
+    def mask_for_model(
+        self, text: str | None, *, rules: Dict[str, str] | None = None
+    ) -> tuple[str, MaskingEngine]:
         """Return (masked_text, mask_engine)."""
         me = MaskingEngine()
         # Default rules: domain, ip, api keys
@@ -37,6 +40,7 @@ class ResponseSensor:
 
     def unmask_and_redact(self, payload: Any, mask: MaskingEngine | None = None) -> Any:
         """Unmask tokens in `payload` (recursively) and redact secrets before returning."""
+
         def _unmask_obj(o: Any) -> Any:
             if isinstance(o, str):
                 s = mask.unmask(o) if mask else o

@@ -766,7 +766,7 @@ def _linux_pretty_name() -> str:
 def _safe_loadavg() -> tuple[float, float, float] | None:
     """Return load average where available."""
     try:
-        return os.getloadavg()
+        return os.getloadavg()  # type: ignore[attr-defined]
     except Exception as exc:
         logging.getLogger(__name__).exception("Error retrieving loadavg: %s", exc)
         return None

@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 try:
-    import phalanx_rust_parsers as _rust
+    import phalanx_rust_parsers as _rust  # pyright: ignore[reportMissingImports]
 except Exception as exc:
     import logging
 

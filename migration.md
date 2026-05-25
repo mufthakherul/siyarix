@@ -35,6 +35,23 @@ Initial actions taken:
 
 Changelog (automated agent):
 
+- 2026-05-26: **Phase 11 Enterprise Feature Completion & Chapter Alignment**
+
+  - **Persona Engine (Chapter 4):** Created `src/phalanx/persona_engine.py` — full `PersonaEngine` with 7 built-in personas (Offensive, Defensive, Bug Hunter, Pentester, SOC Analyst, None, Auto), tool ACL filtering, workflow templates, hot-swap (~200ms context switch), custom persona creation/storage in `~/.phalanx/personas/custom/*.yaml`, auto intent classification with 30+ keyword patterns, and confidence scoring.
+  - **AI Providers (Chapter 5):** Added 4 new provider models — `GroqModel`, `TogetherModel`, `LMStudioModel`, `CustomModel` in `planner.py`. Added adapters `GroqAdapter`, `TogetherAdapter`, `LMStudioAdapter`, `CustomAdapter`, `AnthropicAdapter` in `provider_adapters.py`. All registered in provider registry.
+  - **Credential Vault AES-256-GCM (Chapter 5.4):** Added AES-256-GCM encryption with `_encrypt_aesgcm`/`_decrypt_aesgcm` methods, key rotation via `rotate_key()`, migration path from Fernet via `migrate_to_aesgcm()`, and HKDF key derivation. Added `/key rotate` slash command.
+  - **Bootstrap Enhancements (Chapter 2):** Added T7 database backend check, T9 interactive install prompt, T10 auto-install packages, T3 terminal/shell detection integration with `terminal_detection.py`. Added `check_database_backend()`, `prompt_install_missing()`, `auto_install_packages()`.
+  - **Chat /work-mode (Chapter 4):** Added `/work-mode` slash command with `list`, `create`, `auto`, and named persona switching. Added `/work-mode create` interactive persona builder. Updated help text.
+  - **Configuration (Chapter 5):** Added config options for `groq_model`, `together_model`, `lmstudio_url`, `lmstudio_model`, `persona` with defaults and descriptions.
+  - **Exit Codes (Chapter 3.3):** Added `EXIT_CODE_MAP` and `exit_code_for()` to `exceptions.py`. Codes: 0 success, 1 execution error, 2 permission denied, 3 tool not found, 4 LLM error/timeout.
+  - **Multi-Target Mode (Chapter 15):** Added `@targets.txt` support to `scan` command for loading targets from file. Added `--work-mode` flag to `scan` command.
+  - **Scan Progress Indicators (Chapter 3):** Added Rich progress bar for multi-target scans showing target count and elapsed time.
+  - **Engine Provider Config:** Updated `engine.py` `_setup_providers()` with preference chains for all 9+ provider types. Updated `main.py` `_get_engine()` to load all API keys.
+  - **Exports:** Added `PersonaEngine`, `Persona`, `PersonaName`, `ToolACL`, `WorkflowTemplate`, `LearningBias`, `BUILTIN_PERSONAS` to `__init__.py`.
+  - **Tests:** All 431 existing tests pass without regression.
+
+- 2026-05-25: **Phase 9-10 Final Integration & Feature Completion** — 100% Migration
+
 - 2026-05-25: **Phase 9-10 Final Integration & Feature Completion** — 100% Migration
 
   - **Infrastructure & Tooling (Phase A):**

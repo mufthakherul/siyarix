@@ -34,10 +34,19 @@ class MaskingEngine:
         self._orig_to_token: Dict[str, str] = {}
         self._token_to_orig: Dict[str, str] = {}
         self._counter = 0
+        self.add_default_rules()
 
     def add_rule(self, name: str, regex: str, replacement: str | None = None) -> None:
         compiled = re.compile(regex, flags=re.IGNORECASE)
         self._rules.append(MaskRule(name=name, pattern=compiled, replacement=replacement))
+
+    def add_default_rules(self) -> None:
+        """Add default security-sensitive regex patterns."""
+        self.add_rule("jwt", r"eyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+")
+        self.add_rule("session_cookie", r"(session|token|auth|connect\.sid)=[a-zA-Z0-9%]+")
+        self.add_rule("private_key", r"-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----")
+        self.add_rule("bearer_token", r"Bearer\s+[A-Za-z0-9._~+/=-]{20,}")
+        self.add_rule("hex_credential", r"[0-9a-fA-F]{32,}")
 
     def _new_token(self) -> str:
         # stable-looking token per session

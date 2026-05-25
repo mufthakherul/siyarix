@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import pytest
-pytestmark = pytest.mark.cvss
 from siyarix.cvss_scorer import CVSSScorer, CVSSVector, CVSSResult, Severity
+pytestmark = pytest.mark.cvss
 
 
 class TestCVSSScorer:

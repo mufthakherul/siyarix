@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-pytestmark = pytest.mark.canary
 from siyarix.canary import CanaryTokenManager, CanaryToken, CanaryTokenType, CanaryDeployment
+pytestmark = pytest.mark.canary
 
 
 class TestCanaryTokenManager:

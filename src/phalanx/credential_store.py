@@ -28,22 +28,32 @@ from typing import Any
 Fernet: Any = None
 hashes: Any = None
 PBKDF2HMAC: Any = None
+AESGCM: Any = None
+HAS_AESGCM = False
 
 try:
     from cryptography.fernet import Fernet
     from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+    HAS_AESGCM = True
     CRYPTO_AVAILABLE = True
 except ImportError:
     CRYPTO_AVAILABLE = False
+    HAS_AESGCM = False
     logger = logging.getLogger(__name__)
-    # Do not silently continue without cryptography — credential storage must be protected.
     logger.warning(
-        "cryptography package not installed. Credential encryption unavailable; CredentialStore will be disabled until cryptography is installed."
+        "cryptography package not installed. Credential encryption unavailable; "
+        "CredentialStore will be disabled until cryptography is installed."
     )
 
 logger = logging.getLogger(__name__)
+
+# AES-256-GCM key derivation constants
+_AES_KEY_SIZE = 32  # 256 bits
+_AES_NONCE_SIZE = 12  # 96 bits recommended for GCM
+_AES_ITERATIONS = 600000  # OWASP recommended PBKDF2 iterations
 
 
 class CredentialType(StrEnum):
@@ -255,14 +265,51 @@ class CredentialStore:
 
         raise ValueError("unsupported key length")
 
+    def _encrypt_aesgcm(self, data: str) -> str:
+        """Encrypt using AES-256-GCM as documented in Chapter 5.4."""
+        if not HAS_AESGCM or not self._master_key:
+            return self._encrypt(data)
+        nonce = os.urandom(_AES_NONCE_SIZE)
+        key = self._master_key
+        if len(key) != _AES_KEY_SIZE:
+            from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
+            from cryptography.hazmat.primitives import hashes as hash_mod
+            hkdf = HKDFExpand(
+                algorithm=hash_mod.SHA256(),
+                length=_AES_KEY_SIZE,
+                info=b"phalanx-aes-gcm-key",
+            )
+            key = hkdf.derive(key)
+        ct = AESGCM(key).encrypt(nonce, data.encode(), None)
+        return base64.b64encode(nonce + ct).decode()
+
+    def _decrypt_aesgcm(self, encrypted: str) -> str:
+        """Decrypt using AES-256-GCM."""
+        if not HAS_AESGCM or not self._master_key:
+            return self._decrypt(encrypted)
+        raw = base64.b64decode(encrypted)
+        nonce = raw[:_AES_NONCE_SIZE]
+        ct = raw[_AES_NONCE_SIZE:]
+        key = self._master_key
+        if len(key) != _AES_KEY_SIZE:
+            from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
+            from cryptography.hazmat.primitives import hashes as hash_mod
+            hkdf = HKDFExpand(
+                algorithm=hash_mod.SHA256(),
+                length=_AES_KEY_SIZE,
+                info=b"phalanx-aes-gcm-key",
+            )
+            key = hkdf.derive(key)
+        return AESGCM(key).decrypt(nonce, ct, None).decode()
+
     def _encrypt(self, data: str) -> str:
-        """Encrypt data"""
+        """Encrypt data using Fernet (backward compatible)."""
         if not self._fernet:
             raise RuntimeError("encryption not initialized")
         return self._fernet.encrypt(data.encode()).decode()
 
     def _decrypt(self, encrypted: str) -> str:
-        """Decrypt data"""
+        """Decrypt data using Fernet (backward compatible)."""
         if not self._fernet:
             raise RuntimeError("encryption not initialized")
         return self._fernet.decrypt(encrypted.encode()).decode()

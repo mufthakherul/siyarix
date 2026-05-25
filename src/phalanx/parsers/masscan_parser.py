@@ -5,7 +5,9 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 
-_OPEN_RE = re.compile(r"^Discovered open port (?P<port>\d+)/(?P<proto>\w+) on (?P<host>\S+)")
+_OPEN_RE = re.compile(
+    r"^Discovered open port (?P<port>\d+)/(?P<proto>\w+) on (?P<host>\S+)"
+)
 
 
 def _now_iso() -> str:

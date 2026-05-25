@@ -293,9 +293,20 @@ _INTENSITY_PATTERNS: dict[str, dict[str, Any]] = {
 
 
 _INTENT_PATTERNS: dict[str, list[str]] = {
-    "current_directory": ["pwd", "current directory", "current folder", "present directory"],
+    "current_directory": [
+        "pwd",
+        "current directory",
+        "current folder",
+        "present directory",
+    ],
     "list_files": ["list files", "show files", "list directory", "dir", "ls"],
-    "list_processes": ["list processes", "show processes", "running processes", "ps aux", "ps"],
+    "list_processes": [
+        "list processes",
+        "show processes",
+        "running processes",
+        "ps aux",
+        "ps",
+    ],
     "process_tree": ["process tree", "pstree"],
     "network_connections": [
         "network connections",
@@ -319,12 +330,21 @@ _INTENT_PATTERNS: dict[str, list[str]] = {
     "dns_cache": ["dns cache", "dns client cache", "show dns cache", "displaydns"],
     "whoami": ["whoami", "current user", "show privileges", "my user", "who am i"],
     "environment_vars": ["environment variables", "env vars", "printenv", "show env"],
-    "firewall_rules": ["firewall rules", "firewall config", "iptables", "show firewall"],
+    "firewall_rules": [
+        "firewall rules",
+        "firewall config",
+        "iptables",
+        "show firewall",
+    ],
     "scheduled_tasks": ["scheduled tasks", "cron jobs", "cron", "schtasks"],
     "services": ["running services", "list services", "systemctl", "show services"],
     "users": ["local users", "list users", "show users", "user accounts"],
     "groups": ["local groups", "list groups", "show groups"],
-    "installed_software": ["installed software", "installed programs", "installed apps"],
+    "installed_software": [
+        "installed software",
+        "installed programs",
+        "installed apps",
+    ],
     "package_managers": ["package managers", "winget", "choco", "apt"],
     "system_info": ["system info", "system information", "os info", "uname"],
     "disk_usage": ["disk usage", "disk space", "df -h"],
@@ -446,7 +466,13 @@ class RuleInterpreter:
 
     def _is_workflow(self, text_lower: str) -> bool:
         """Detect if the text describes a multi-step workflow."""
-        workflow_connectors = [" then ", " and then ", " after that ", " followed by ", " next "]
+        workflow_connectors = [
+            " then ",
+            " and then ",
+            " after that ",
+            " followed by ",
+            " next ",
+        ]
         return any(conn in text_lower for conn in workflow_connectors)
 
     def _interpret_workflow(self, raw: str, text_lower: str) -> InterpretedTask:
@@ -581,7 +607,9 @@ class RuleInterpreter:
 
         return flags
 
-    def _infer_action(self, text_lower: str, category: TaskCategory, tools: list[str]) -> str:
+    def _infer_action(
+        self, text_lower: str, category: TaskCategory, tools: list[str]
+    ) -> str:
         """Infer a specific action verb."""
         if category == TaskCategory.SCAN:
             if tools:

@@ -72,7 +72,8 @@ class CommandHistory:
 
     def _init_db(self) -> None:
         with self._get_conn() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS command_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     command TEXT NOT NULL,
@@ -82,15 +83,20 @@ class CommandHistory:
                     duration_ms REAL DEFAULT 0.0,
                     metadata_json TEXT DEFAULT '{}'
                 )
-            """)
-            conn.execute("""
+            """
+            )
+            conn.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_history_ts
                 ON command_history(timestamp DESC)
-            """)
-            conn.execute("""
+            """
+            )
+            conn.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_history_cmd
                 ON command_history(command)
-            """)
+            """
+            )
 
     def add(
         self,
@@ -184,7 +190,8 @@ class SessionRegistry:
 
     def _init_db(self) -> None:
         with self._get_conn() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS sessions (
                     session_id TEXT PRIMARY KEY,
                     name TEXT DEFAULT '',
@@ -196,7 +203,8 @@ class SessionRegistry:
                     tags_json TEXT DEFAULT '[]',
                     notes TEXT DEFAULT ''
                 )
-            """)
+            """
+            )
 
     def register(self, meta: SessionMeta) -> None:
         """Register or update a session."""

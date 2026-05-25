@@ -133,10 +133,21 @@ class TestOperationPhase:
 
     def test_next_phase_sequence(self):
         assert OperationPhase.next_phase(OperationPhase.IDLE) == OperationPhase.RECON
-        assert OperationPhase.next_phase(OperationPhase.RECON) == OperationPhase.SCANNING
-        assert OperationPhase.next_phase(OperationPhase.SCANNING) == OperationPhase.ENUMERATION
-        assert OperationPhase.next_phase(OperationPhase.EXPLOITATION) == OperationPhase.POST_EXPLOIT
-        assert OperationPhase.next_phase(OperationPhase.REPORTING) == OperationPhase.CLEANUP
+        assert (
+            OperationPhase.next_phase(OperationPhase.RECON) == OperationPhase.SCANNING
+        )
+        assert (
+            OperationPhase.next_phase(OperationPhase.SCANNING)
+            == OperationPhase.ENUMERATION
+        )
+        assert (
+            OperationPhase.next_phase(OperationPhase.EXPLOITATION)
+            == OperationPhase.POST_EXPLOIT
+        )
+        assert (
+            OperationPhase.next_phase(OperationPhase.REPORTING)
+            == OperationPhase.CLEANUP
+        )
 
     def test_next_phase_unknown(self):
         assert OperationPhase.next_phase("unknown") == OperationPhase.IDLE

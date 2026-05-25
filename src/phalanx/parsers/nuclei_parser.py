@@ -52,7 +52,9 @@ class NucleiParser:
                 evidence_parts.append(f"matcher: {matcher_name}")
             extracted = record.get("extracted-results", [])
             if extracted:
-                evidence_parts.append(f"extracted: {', '.join(str(e) for e in extracted[:3])}")
+                evidence_parts.append(
+                    f"extracted: {', '.join(str(e) for e in extracted[:3])}"
+                )
 
             findings.append(
                 {

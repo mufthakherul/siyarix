@@ -20,33 +20,39 @@ class EttercapParser:
                 continue
             lowered = line.lower()
             if "password" in lowered or "pass:" in lowered:
-                findings.append({
-                    "title": "Ettercap captured credentials",
-                    "severity": "critical",
-                    "description": line,
-                    "evidence": line,
-                    "tool": "ettercap",
-                    "target": "network",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "Ettercap captured credentials",
+                        "severity": "critical",
+                        "description": line,
+                        "evidence": line,
+                        "tool": "ettercap",
+                        "target": "network",
+                        "timestamp": _now_iso(),
+                    }
+                )
             elif "ssl strip" in lowered or "https" in lowered:
-                findings.append({
-                    "title": "Ettercap SSL stripping detected",
-                    "severity": "high",
-                    "description": line,
-                    "evidence": line,
-                    "tool": "ettercap",
-                    "target": "network",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "Ettercap SSL stripping detected",
+                        "severity": "high",
+                        "description": line,
+                        "evidence": line,
+                        "tool": "ettercap",
+                        "target": "network",
+                        "timestamp": _now_iso(),
+                    }
+                )
             elif "host" in lowered and ("added" in lowered or "detected" in lowered):
-                findings.append({
-                    "title": "Ettercap host discovery",
-                    "severity": "medium",
-                    "description": line,
-                    "evidence": line,
-                    "tool": "ettercap",
-                    "target": "network",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "Ettercap host discovery",
+                        "severity": "medium",
+                        "description": line,
+                        "evidence": line,
+                        "tool": "ettercap",
+                        "target": "network",
+                        "timestamp": _now_iso(),
+                    }
+                )
         return findings

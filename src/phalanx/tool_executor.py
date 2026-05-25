@@ -12,13 +12,12 @@ from typing import Any, Callable
 
 from rich.console import Console
 
+from .engine_types import StepResult, StepStatus
 from .executor import run_tool_complete
 from .metrics import get_metrics
 from .notifications import notification_center
-from .security_hardening import redactor
-
-from .engine_types import StepResult, StepStatus
 from .planner import ExecutionStep, StepType
+from .security_hardening import redactor
 
 console = Console()
 
@@ -119,7 +118,8 @@ class ToolExecutor:
         # Parse findings using available parsers
         findings = []
         try:
-            from .parsers import GobusterParser, NiktoParser, NmapParser, NucleiParser
+            from .parsers import (GobusterParser, NiktoParser, NmapParser,
+                                  NucleiParser)
 
             parsers: dict[str, Any] = {
                 "nmap": NmapParser(),
@@ -170,11 +170,15 @@ class ToolExecutor:
             findings=findings,
         )
 
-    async def _run_shell_step(self, step: ExecutionStep, interactive: bool) -> StepResult:
+    async def _run_shell_step(
+        self, step: ExecutionStep, interactive: bool
+    ) -> StepResult:
         command = step.command or ""
         if not command:
             return StepResult(
-                step_id=step.id, status=StepStatus.SKIPPED, output="No command specified"
+                step_id=step.id,
+                status=StepStatus.SKIPPED,
+                output="No command specified",
             )
 
         parts = command.split()
@@ -218,13 +222,19 @@ class ToolExecutor:
     def _run_report_step(self, step: ExecutionStep) -> StepResult:
         fmt = step.metadata.get("format", "text")
         return StepResult(
-            step_id=step.id, status=StepStatus.SUCCESS, output=f"Report generation ({fmt})"
+            step_id=step.id,
+            status=StepStatus.SUCCESS,
+            output=f"Report generation ({fmt})",
         )
 
-    async def _run_parallel_step(self, step: ExecutionStep, interactive: bool) -> StepResult:
+    async def _run_parallel_step(
+        self, step: ExecutionStep, interactive: bool
+    ) -> StepResult:
         sub_steps = step.metadata.get("steps", [])
         if not sub_steps:
-            return StepResult(step_id=step.id, status=StepStatus.SKIPPED, output="No sub-steps")
+            return StepResult(
+                step_id=step.id, status=StepStatus.SKIPPED, output="No sub-steps"
+            )
 
         semaphore = asyncio.Semaphore(step.metadata.get("max_concurrent", 3))
 

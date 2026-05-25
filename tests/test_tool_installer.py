@@ -5,7 +5,9 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+
 from phalanx.tool_installer import ToolInstaller, ToolInstallResult
+
 pytestmark = pytest.mark.tool_installer
 
 
@@ -66,7 +68,9 @@ class TestToolInstaller:
     def test_auto_install_missing(self, installer):
         with patch.object(installer, "is_installed", return_value=False):
             with patch.object(
-                installer, "install", return_value=ToolInstallResult(tool="nmap", success=False)
+                installer,
+                "install",
+                return_value=ToolInstallResult(tool="nmap", success=False),
             ):
                 results = installer.auto_install_missing(["nmap"])
                 assert len(results) == 1

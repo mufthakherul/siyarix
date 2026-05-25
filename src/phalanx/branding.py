@@ -346,7 +346,9 @@ def print_banner(
 # ---------------------------------------------------------------------------
 
 
-def print_mode_dispatcher(console: Console, theme: str, active_mode_num: str = "1") -> None:
+def print_mode_dispatcher(
+    console: Console, theme: str, active_mode_num: str = "1"
+) -> None:
     """Print the Phalanx Mode Dispatcher table."""
     safe_theme = resolve_theme(theme)
     styles = _SEVERITY_STYLES[safe_theme]
@@ -416,14 +418,17 @@ def print_theme_preview(console: Console, theme: str) -> None:
             f"[bold]Sample:[/bold] [green]{_sample_command(safe_theme)}[/green]\n"
             f"[bold]Severities:[/bold]  "
             + "  ".join(
-                severity_label(safe_theme, s) for s in ("info", "low", "medium", "high", "critical")
+                severity_label(safe_theme, s)
+                for s in ("info", "low", "medium", "high", "critical")
             ),
             title=f"[bold {accent}]Theme Preview — {safe_theme}[/bold {accent}]",
             border_style=border,
         )
     )
 
-    table = Table(title="UI Surface Samples", header_style=f"bold {primary}", border_style=border)
+    table = Table(
+        title="UI Surface Samples", header_style=f"bold {primary}", border_style=border
+    )
     table.add_column("Surface", style=primary)
     table.add_column("Example", style="white")
     table.add_row("Banner", "NEXSEC CLI v2.0")

@@ -7,13 +7,14 @@ and provides standard completion helpers when used as a fallback.
 
 from __future__ import annotations
 
-import os
 import glob
+import os
 import re
 from typing import Any, Iterable
 
 try:
-    from prompt_toolkit.completion import Completer as PromptCompleter, Completion as PromptCompletion
+    from prompt_toolkit.completion import Completer as PromptCompleter
+    from prompt_toolkit.completion import Completion as PromptCompletion
 
     Completer = PromptCompleter
     Completion = PromptCompletion
@@ -27,7 +28,9 @@ except ImportError:
     class Completion:  # type: ignore[no-redef]
         """Fallback Completion class."""
 
-        def __init__(self, text: str, start_position: int = 0, display_meta: str = "") -> None:
+        def __init__(
+            self, text: str, start_position: int = 0, display_meta: str = ""
+        ) -> None:
             self.text = text
             self.start_position = start_position
             self.display_meta = display_meta
@@ -100,7 +103,9 @@ class SmartAutocomplete(Completer):
             "/exit": "Exit application",
         }
 
-    def get_completions(self, document: Any, complete_event: Any = None) -> Iterable[Completion]:
+    def get_completions(
+        self, document: Any, complete_event: Any = None
+    ) -> Iterable[Completion]:
         """Generate autocompletions dynamically based on cursor position."""
         text = document.text_before_cursor
         word_before = document.get_word_before_cursor()
@@ -110,7 +115,9 @@ class SmartAutocomplete(Completer):
         if text.startswith("/"):
             for slash_cmd, desc in self._slash_commands.items():
                 if slash_cmd.startswith(text):
-                    yield Completion(slash_cmd, start_position=-len(text), display_meta=desc)
+                    yield Completion(
+                        slash_cmd, start_position=-len(text), display_meta=desc
+                    )
             return
 
         # Main command matching (First word completion)
@@ -144,7 +151,9 @@ class SmartAutocomplete(Completer):
             # Offer targets or tool names
             for tool in self._registry_tools:
                 if tool.startswith(word_before):
-                    yield Completion(tool, start_position=start_pos, display_meta="Security Tool")
+                    yield Completion(
+                        tool, start_position=start_pos, display_meta="Security Tool"
+                    )
 
             # Common command-line options
             options = [
@@ -158,7 +167,9 @@ class SmartAutocomplete(Completer):
             ]
             for opt in options:
                 if opt.startswith(word_before):
-                    yield Completion(opt, start_position=start_pos, display_meta="Flag Options")
+                    yield Completion(
+                        opt, start_position=start_pos, display_meta="Flag Options"
+                    )
 
         # Tier 2 Session-Aware Targets completion
         if self._session and hasattr(self._session, "operations"):
@@ -173,7 +184,9 @@ class SmartAutocomplete(Completer):
 
             for target in recent_targets:
                 if target.startswith(word_before):
-                    yield Completion(target, start_position=start_pos, display_meta="Recent Target")
+                    yield Completion(
+                        target, start_position=start_pos, display_meta="Recent Target"
+                    )
 
         # Tier 3 AI / MITRE ATT&CK progression completions
         # If user recently ran nmap, suggest gobuster, nuclei, whois
@@ -188,7 +201,9 @@ class SmartAutocomplete(Completer):
                 for pred, desc in predictions:
                     if pred.startswith(word_before):
                         yield Completion(
-                            pred, start_position=start_pos, display_meta=f"AI Suggestion: {desc}"
+                            pred,
+                            start_position=start_pos,
+                            display_meta=f"AI Suggestion: {desc}",
                         )
 
     def _get_file_completions(self, path_part: str) -> list[str]:
@@ -230,7 +245,10 @@ class SmartAutocomplete(Completer):
             "nuclei": [
                 ("sqlmap", "Scan detected SQL Injection parameters for database dump"),
                 ("hydra", "Brute force authentication portals found in scan"),
-                ("msfconsole", "Trigger exploitation modules for verified vulnerabilities"),
+                (
+                    "msfconsole",
+                    "Trigger exploitation modules for verified vulnerabilities",
+                ),
             ],
         }
         return progression.get(tool.lower(), [])

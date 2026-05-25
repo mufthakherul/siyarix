@@ -76,13 +76,17 @@ class OpenTelemetryCollector:
         """Register a trace exporter callback."""
         self._exporters.append(exporter)
 
-    def start_trace(self, name: str = "operation", attributes: dict[str, str] | None = None) -> str:
+    def start_trace(
+        self, name: str = "operation", attributes: dict[str, str] | None = None
+    ) -> str:
         """Start a new trace, returning the trace_id."""
         if not self._enabled:
             return ""
         trace_id = uuid.uuid4().hex[:16]
         root_span = self._create_span(trace_id, "", name, attributes or {})
-        trace = Trace(trace_id=trace_id, root_span_id=root_span.span_id, spans=[root_span])
+        trace = Trace(
+            trace_id=trace_id, root_span_id=root_span.span_id, spans=[root_span]
+        )
         self._traces[trace_id] = trace
         _trace_id_var.set(trace_id)
         _span_id_var.set(root_span.span_id)
@@ -90,7 +94,13 @@ class OpenTelemetryCollector:
         logger.debug("Started trace %s: %s", trace_id, name)
         return trace_id
 
-    def end_trace(self, trace_id: str, status: str = "ok", error: str = "", attributes: dict[str, str] | None = None) -> Trace | None:
+    def end_trace(
+        self,
+        trace_id: str,
+        status: str = "ok",
+        error: str = "",
+        attributes: dict[str, str] | None = None,
+    ) -> Trace | None:
         """End a trace and export it."""
         trace = self._traces.get(trace_id)
         if not trace:
@@ -145,7 +155,11 @@ class OpenTelemetryCollector:
         span = self._get_span(trace_id, span_id)
         if span:
             span.events.append(
-                {"name": name, "attributes": attributes or {}, "timestamp": time.monotonic()}
+                {
+                    "name": name,
+                    "attributes": attributes or {},
+                    "timestamp": time.monotonic(),
+                }
             )
 
     def _create_span(
@@ -191,7 +205,9 @@ def get_collector() -> OpenTelemetryCollector:
     return _otel_collector
 
 
-def trace(name: str | None = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+def trace(
+    name: str | None = None,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator that wraps a function in an OpenTelemetry trace span."""
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -240,7 +256,9 @@ class OpenTelemetryMiddleware:
         self._collector = get_collector()
 
     async def execute(self, instruction: str, **kwargs: Any) -> Any:
-        trace_id = self._collector.start_trace("engine.execute", {"instruction": instruction[:200]})
+        trace_id = self._collector.start_trace(
+            "engine.execute", {"instruction": instruction[:200]}
+        )
         try:
             result = await self._engine.execute(instruction, **kwargs)
             attributes: dict[str, str] = {

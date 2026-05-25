@@ -1,11 +1,10 @@
 """Tests for OpenTelemetry instrumentation."""
 
 import pytest
-from phalanx.telemetry.opentelemetry import (
-    OpenTelemetryCollector,
-    OpenTelemetryMiddleware,
-    trace,
-)
+
+from phalanx.telemetry.opentelemetry import (OpenTelemetryCollector,
+                                             OpenTelemetryMiddleware, trace)
+
 pytestmark = pytest.mark.opentelemetry
 
 

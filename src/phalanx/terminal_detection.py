@@ -66,9 +66,11 @@ class TerminalDetector:
         info = TerminalInfo(
             os_name=platform.system(),
             is_wsl=self._is_wsl(),
-            is_interactive=hasattr(__builtins__, "__IPYTHON__") or sys.stdin.isatty()
-            if hasattr(sys, "stdin")
-            else False,
+            is_interactive=(
+                hasattr(__builtins__, "__IPYTHON__") or sys.stdin.isatty()
+                if hasattr(sys, "stdin")
+                else False
+            ),
         )
 
         # Shell detection
@@ -179,7 +181,9 @@ class TerminalDetector:
             },
         }
 
-    def translate_command(self, command: str, shell_type: ShellType | None = None) -> str:
+    def translate_command(
+        self, command: str, shell_type: ShellType | None = None
+    ) -> str:
         """Translate a generic command for the target shell."""
         if shell_type is None:
             shell_type = self.detect().shell
@@ -196,7 +200,6 @@ class TerminalDetector:
 
 
 import sys  # noqa: E402 (needed for is_interactive detection)
-
 
 __all__ = [
     "TerminalDetector",

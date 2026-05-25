@@ -4,6 +4,7 @@ Coder Bridge -- AI code generation and review facilitator.
 Wraps an LLM provider for generating, reviewing, and explaining code
 as described in Chapter 9.2.
 """
+
 from __future__ import annotations
 
 import logging
@@ -12,8 +13,8 @@ from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.syntax import Syntax
 from rich.prompt import Prompt
+from rich.syntax import Syntax
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -32,7 +33,12 @@ class CodeReview:
             text += "\n[bold]Issues:[/bold]\n"
             for i, issue in enumerate(self.issues[:10], 1):
                 severity = issue.get("severity", "info")
-                color = {"critical": "red", "high": "yellow", "medium": "orange1", "low": "cyan"}.get(severity, "white")
+                color = {
+                    "critical": "red",
+                    "high": "yellow",
+                    "medium": "orange1",
+                    "low": "cyan",
+                }.get(severity, "white")
                 text += f"  {i}. [{color}][{severity.upper()}][/{color}] {issue.get('message', '')}\n"
         return Panel(text, title="Code Review", border_style="green")
 
@@ -59,15 +65,33 @@ class CoderBridge:
         for i, line in enumerate(lines, 1):
             stripped = line.strip()
             if "TODO" in stripped or "FIXME" in stripped:
-                review.issues.append({"severity": "low", "message": f"Line {i}: Contains TODO/FIXME"})
+                review.issues.append(
+                    {"severity": "low", "message": f"Line {i}: Contains TODO/FIXME"}
+                )
             if "password" in stripped.lower() and "=" in stripped:
-                review.issues.append({"severity": "high", "message": f"Line {i}: Possible hardcoded credential"})
+                review.issues.append(
+                    {
+                        "severity": "high",
+                        "message": f"Line {i}: Possible hardcoded credential",
+                    }
+                )
             if "eval(" in stripped or "exec(" in stripped:
-                review.issues.append({"severity": "critical", "message": f"Line {i}: Use of eval/exec is dangerous"})
+                review.issues.append(
+                    {
+                        "severity": "critical",
+                        "message": f"Line {i}: Use of eval/exec is dangerous",
+                    }
+                )
             if len(stripped) > 120:
-                review.issues.append({"severity": "medium", "message": f"Line {i}: Line too long ({len(stripped)} > 120 chars)"})
+                review.issues.append(
+                    {
+                        "severity": "medium",
+                        "message": f"Line {i}: Line too long ({len(stripped)} > 120 chars)",
+                    }
+                )
 
         review.score = max(0, 10 - len(review.issues))
         return review
+
 
 __all__ = ["CoderBridge", "CodeReview"]

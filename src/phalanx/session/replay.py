@@ -28,23 +28,31 @@ class CommandReplayer:
             ts = row["timestamp"]
             res = row["result"]
             color = "green" if res == "success" else "red"
-            self.console.print(f"  [bold]{idx}.[/bold] [{color}]{res}[/{color}] - {cmd} [dim]({ts})[/dim]")
+            self.console.print(
+                f"  [bold]{idx}.[/bold] [{color}]{res}[/{color}] - {cmd} [dim]({ts})[/dim]"
+            )
 
     def replay_session(self, session_id: str) -> list[str]:
         """Fetch all commands from a specific session ID, returning them in chronological order."""
-        rows = command_history._get_conn().execute(
-            """SELECT command FROM command_history
+        rows = (
+            command_history._get_conn()
+            .execute(
+                """SELECT command FROM command_history
                WHERE session_id = ?
                ORDER BY timestamp ASC""",
-            (session_id,)
-        ).fetchall()
-        
+                (session_id,),
+            )
+            .fetchall()
+        )
+
         commands = [r["command"] for r in rows]
         if not commands:
             self.console.print(f"[yellow]No commands found for session: {session_id}[/yellow]")
             return []
 
-        self.console.print(f"[bold green]Prepared {len(commands)} commands for replay from session {session_id}[/bold green]")
+        self.console.print(
+            f"[bold green]Prepared {len(commands)} commands for replay from session {session_id}[/bold green]"
+        )
         return commands
 
     def replay_last(self) -> str | None:

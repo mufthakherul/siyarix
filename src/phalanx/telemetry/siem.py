@@ -7,12 +7,18 @@ Provides async connectors for forwarding audit events to:
 """
 
 import asyncio
-import json
 import logging
 import os
 from typing import Any
 
-import httpx
+httpx: Any = None
+
+try:
+    import httpx
+
+    HAS_HTTPX = True
+except ImportError:
+    HAS_HTTPX = False
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +30,19 @@ class SIEMConnector:
         """Forward an event to the SIEM. Returns True if successful."""
         raise NotImplementedError
 
+    async def close(self) -> None:
+        """Close the connector. Subclasses may override."""
+        pass
+
 
 class SplunkHECConnector(SIEMConnector):
     """Splunk HTTP Event Collector connector."""
 
     def __init__(self, endpoint: str, token: str) -> None:
+        if not HAS_HTTPX:
+            raise ImportError(
+                "httpx is required for SplunkHECConnector. Install with: pip install siyarix[siem]"
+            )
         self.endpoint = endpoint
         self.headers = {"Authorization": f"Splunk {token}"}
         # Use an async client pool for efficiency
@@ -57,6 +71,10 @@ class ElasticSIEMConnector(SIEMConnector):
     """ElasticSearch connector."""
 
     def __init__(self, endpoint: str, api_key: str, index: str = "siyarix-audit") -> None:
+        if not HAS_HTTPX:
+            raise ImportError(
+                "httpx is required for ElasticSIEMConnector. Install with: pip install siyarix[siem]"
+            )
         self.endpoint = f"{endpoint.rstrip('/')}/{index}/_doc"
         self.headers = {"Authorization": f"ApiKey {api_key}"}
         self.client = httpx.AsyncClient(headers=self.headers)
@@ -117,5 +135,6 @@ class TelemetryForwarder:
                     asyncio.run(conn.close())
                 except RuntimeError:
                     pass
+
 
 siem_forwarder = TelemetryForwarder()

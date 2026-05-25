@@ -13,6 +13,7 @@ from phalanx.audit_log import audit
 
 class ComplianceStandard:
     """Supported compliance reporting standards."""
+
     SOC2 = "SOC2"
     ISO27001 = "ISO27001"
     NIST_CSF = "NIST-CSF"
@@ -21,12 +22,7 @@ class ComplianceStandard:
 class ComplianceReportGenerator:
     """Generates compliance reports from the audit trail."""
 
-    def generate_report(
-        self,
-        standard: str,
-        days: int = 30,
-        format: str = "json"
-    ) -> str:
+    def generate_report(self, standard: str, days: int = 30, format: str = "json") -> str:
         """Generate a compliance report."""
         # 1. Verify the integrity of the audit log
         integrity = audit.verify_chain()
@@ -41,7 +37,7 @@ class ComplianceReportGenerator:
 
         # 3. Map events to compliance controls
         report_data = self._map_to_controls(standard, events)
-        
+
         # Add metadata
         report_data["metadata"] = {
             "standard": standard,
@@ -62,36 +58,38 @@ class ComplianceReportGenerator:
     def _map_to_controls(self, standard: str, events: list[Any]) -> dict[str, Any]:
         """Map events to specific compliance framework controls."""
         report: dict[str, Any] = {"controls": {}}
-        
+
         if standard == ComplianceStandard.SOC2:
             # CC6.1 - Logical Access Security
-            auth_events = [e for e in events if e.event_type in ("auth_login", "auth_logout", "auth_failed")]
+            auth_events = [
+                e for e in events if e.event_type in ("auth_login", "auth_logout", "auth_failed")
+            ]
             report["controls"]["CC6.1_Access_Control"] = {
                 "status": "compliant",
                 "evidence_count": len(auth_events),
-                "summary": f"Logged {len(auth_events)} authentication events."
+                "summary": f"Logged {len(auth_events)} authentication events.",
             }
-            
+
             # CC7.2 - Security Event Monitoring
             scan_events = [e for e in events if e.event_type.startswith("scan_")]
             report["controls"]["CC7.2_Security_Monitoring"] = {
                 "status": "compliant",
                 "evidence_count": len(scan_events),
-                "summary": f"Tracked {len(scan_events)} active security scans/operations."
+                "summary": f"Tracked {len(scan_events)} active security scans/operations.",
             }
-            
+
         elif standard == ComplianceStandard.ISO27001:
             # A.9 Access Control
             report["controls"]["A.9_Access_Control"] = {"status": "compliant"}
             # A.12 Operations Security
             report["controls"]["A.12_Operations_Security"] = {"status": "compliant"}
-            
+
         elif standard == ComplianceStandard.NIST_CSF:
             # PR.AC - Identity Management and Access Control
             report["controls"]["PR.AC"] = {"status": "compliant"}
             # DE.AE - Anomalies and Events
             report["controls"]["DE.AE"] = {"status": "compliant"}
-            
+
         else:
             raise ValueError(f"Unknown standard: {standard}")
 
@@ -109,7 +107,7 @@ class ComplianceReportGenerator:
             "",
             "## Controls Evaluated",
         ]
-        
+
         for control, details in report_data.get("controls", {}).items():
             lines.append(f"### {control.replace('_', ' ')}")
             lines.append(f"- **Status:** {details.get('status', 'unknown').upper()}")
@@ -118,7 +116,7 @@ class ComplianceReportGenerator:
             if "summary" in details:
                 lines.append(f"- **Summary:** {details['summary']}")
             lines.append("")
-            
+
         return "\n".join(lines)
 
 

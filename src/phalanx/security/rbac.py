@@ -5,20 +5,21 @@ Defines permissions, roles, and enforcement mechanisms for Phalanx operations.
 
 import os
 from enum import StrEnum
-from typing import Any
 
 
 class OperationPermission(StrEnum):
     """Granular permissions for cyber operations."""
-    READ_ONLY = "read_only"        # List tools, view history, read knowledge graph
-    PASSIVE = "passive"            # OSINT, passive recon (no packets to target)
-    ACTIVE = "active"              # Port scans, web crawling, directory brute-forcing
-    INTRUSIVE = "intrusive"        # Vuln scanning, exploitation, payload drops
-    DESTRUCTIVE = "destructive"    # Data deletion, service disruption (requires --force)
+
+    READ_ONLY = "read_only"  # List tools, view history, read knowledge graph
+    PASSIVE = "passive"  # OSINT, passive recon (no packets to target)
+    ACTIVE = "active"  # Port scans, web crawling, directory brute-forcing
+    INTRUSIVE = "intrusive"  # Vuln scanning, exploitation, payload drops
+    DESTRUCTIVE = "destructive"  # Data deletion, service disruption (requires --force)
 
 
 class Role(StrEnum):
     """Pre-defined enterprise roles."""
+
     VIEWER = "viewer"
     ANALYST = "analyst"
     OPERATOR = "operator"
@@ -28,7 +29,7 @@ class Role(StrEnum):
 
 class RolePermissions:
     """Mapping of roles to their allowed permissions."""
-    
+
     _MAPPING: dict[Role, set[OperationPermission]] = {
         Role.VIEWER: {OperationPermission.READ_ONLY},
         Role.ANALYST: {OperationPermission.READ_ONLY, OperationPermission.PASSIVE},
@@ -86,6 +87,7 @@ class RBACEnforcer:
                 f"Access Denied: Your role ({self.current_role}) lacks the "
                 f"'{permission}' permission required for this operation."
             )
+
 
 # Global singleton
 rbac = RBACEnforcer()

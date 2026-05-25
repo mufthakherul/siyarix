@@ -12,14 +12,14 @@ import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
 
-class CanaryTokenType(str, Enum):
+class CanaryTokenType(StrEnum):
     WEB = "web"
     DNS = "dns"
     AWS_KEY = "aws_key"

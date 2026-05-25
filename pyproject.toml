@@ -34,6 +34,9 @@ autonomous = [
   "openai>=2.31.0",
   "google-generativeai>=0.8.0",
 ]
+siem = [
+  "httpx>=0.27",
+]
 fast = [
   "maturin>=1.7",
 ]

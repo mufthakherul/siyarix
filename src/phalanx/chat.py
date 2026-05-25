@@ -226,6 +226,10 @@ _SLASH_HELP = {
     "/context": "Show current session context",
     "/version": "Show Phalanx version",
     "/report [format]": "Generate an executive report (markdown or html)",
+    "/work-mode": "Switch persona: offensive, defensive, bug_hunter, pentester, soc_analyst, none, auto",
+    "/work-mode create": "Create a custom persona with interactive builder",
+    "/work-mode list": "List all available personas (built-in + custom)",
+    "/work-mode auto": "Enable auto persona detection mode",
 }
 
 # Mode number → (name, engine_mode, description)
@@ -437,6 +441,7 @@ class PhalanxChat:
             "/context": self._cmd_context,
             "/version": self._cmd_version,
             "/report": self._cmd_report,
+            "/work-mode": self._cmd_work_mode,
         }
 
         # Handle /1 through /9 mode shortcuts
@@ -697,6 +702,7 @@ class PhalanxChat:
             api_key = tokens[2] if len(tokens) > 2 else ""
             if not api_key:
                 api_key = Prompt.ask(f"Enter {provider} API key", password=True)
+        # (key rotate handler added in separate commit)
         else:
             provider = tokens[0].lower()
             api_key = tokens[1] if len(tokens) > 1 else ""
@@ -1151,6 +1157,82 @@ class PhalanxChat:
             console.print("[dim]No conversation context yet.[/dim]")
             return
         console.print(Panel(summary, title="Session Context", border_style="dim"))
+
+    def _cmd_work_mode(self, args: str) -> None:
+        """Handle /work-mode persona switching and management."""
+        from .persona_engine import PersonaEngine, Persona, ToolACL, WorkflowTemplate
+
+        engine = PersonaEngine()
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else ""
+
+        if action == "list":
+            personas = engine.persona_list
+            table = Table(title=f"Available Personas ({len(personas)})", header_style="bold cyan")
+            table.add_column("Name", style="cyan")
+            table.add_column("Description", style="white")
+            table.add_column("Bias", style="magenta")
+            table.add_column("Type", style="dim")
+            for p in personas:
+                ptype = "Custom" if p.is_custom else "Built-in"
+                table.add_row(p.name, p.description, p.learning_bias.value, ptype)
+            console.print(table)
+            if engine.active_persona:
+                console.print(f"\n[dim]Active: [cyan]{engine.active_persona.name}[/cyan][/dim]")
+            return
+
+        if action == "create":
+            from rich.prompt import Prompt as RichPrompt
+            name = RichPrompt.ask("Persona name").strip().lower().replace(" ", "_")
+            if not name:
+                console.print("[red]Name required.[/red]")
+                return
+            desc = RichPrompt.ask("Description")
+            system_prompt = RichPrompt.ask("System prompt")
+            allowed_tools = RichPrompt.ask("Allowed tools (comma-separated, * for all)", default="*")
+            forbidden_tools = RichPrompt.ask("Forbidden tools (comma-separated)", default="")
+            acl = ToolACL(
+                allowed=[t.strip() for t in allowed_tools.split(",") if t.strip()],
+                forbidden=[t.strip() for t in forbidden_tools.split(",") if t.strip()],
+            )
+            persona = Persona(
+                name=name,
+                description=desc,
+                system_prompt=system_prompt,
+                tool_acl=acl,
+                is_custom=True,
+            )
+            path = engine.save_custom_persona(persona)
+            console.print(f"[green]✓ Custom persona '{name}' saved to {path}[/green]")
+            engine.switch_to(name)
+            console.print(f"[green]✓ Switched to persona: {name}[/green]")
+            return
+
+        if action == "auto":
+            engine.switch_to("auto")
+            self._session.context["persona"] = "auto"
+            console.print("[green]✓ Auto persona detection enabled[/green]")
+            return
+
+        if action:
+            try:
+                engine.switch_to(action)
+                self._session.context["persona"] = action
+                persona = engine.get_persona(action)
+                console.print(
+                    f"[green]✓ Switched to persona: {action}[/green]"
+                )
+                if persona:
+                    console.print(f"[dim]{persona.description}[/dim]")
+            except ValueError as exc:
+                console.print(f"[red]{exc}[/red]")
+            return
+
+        current = engine.active_persona
+        if current:
+            console.print(f"[cyan]Current persona: {current.name}[/cyan]")
+            console.print(f"[dim]{current.description}[/dim]")
+        console.print("[dim]Use /work-mode <name>, /work-mode list, or /work-mode create[/dim]")
 
     def _cmd_version(self, _: str) -> None:
         try:

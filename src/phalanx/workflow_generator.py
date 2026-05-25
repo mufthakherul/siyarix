@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 # ── Predefined templates ────────────────────────────────────────────────
 
+
 class TemplateCategory(StrEnum):
     RECON = "recon"
     SCAN = "scan"
@@ -56,6 +57,7 @@ class WorkflowTemplate:
     def render(self, **variables: str) -> dict[str, Any]:
         """Render the template with variable substitution."""
         import json
+
         rendered = json.dumps(self.steps)
         for key, value in variables.items():
             rendered = rendered.replace(f"${{{key}}}", value)
@@ -78,13 +80,32 @@ BUILTIN_TEMPLATES: dict[str, WorkflowTemplate] = {
         estimated_duration="15-30 min",
         risk_level="low",
         steps=[
-            {"id": "dns", "tool": "dig", "args": ["${target}", "ANY"], "description": "DNS enumeration"},
+            {
+                "id": "dns",
+                "tool": "dig",
+                "args": ["${target}", "ANY"],
+                "description": "DNS enumeration",
+            },
             {"id": "whois", "tool": "whois", "args": ["${target}"], "description": "WHOIS lookup"},
-            {"id": "subfinder", "tool": "subfinder", "args": ["-d", "${target}"], "description": "Subdomain enumeration"},
-            {"id": "nmap-quick", "tool": "nmap", "args": ["-sV", "-T4", "--top-ports", "1000", "${target}"],
-             "depends_on": ["dns"], "description": "Quick port scan"},
-            {"id": "report", "step_type": "report", "depends_on": ["nmap-quick", "subfinder", "whois"],
-             "description": "Generate recon report"},
+            {
+                "id": "subfinder",
+                "tool": "subfinder",
+                "args": ["-d", "${target}"],
+                "description": "Subdomain enumeration",
+            },
+            {
+                "id": "nmap-quick",
+                "tool": "nmap",
+                "args": ["-sV", "-T4", "--top-ports", "1000", "${target}"],
+                "depends_on": ["dns"],
+                "description": "Quick port scan",
+            },
+            {
+                "id": "report",
+                "step_type": "report",
+                "depends_on": ["nmap-quick", "subfinder", "whois"],
+                "description": "Generate recon report",
+            },
         ],
     ),
     "webapp-scan": WorkflowTemplate(
@@ -95,17 +116,45 @@ BUILTIN_TEMPLATES: dict[str, WorkflowTemplate] = {
         estimated_duration="30-60 min",
         risk_level="medium",
         steps=[
-            {"id": "httpx", "tool": "httpx", "args": ["-u", "${target_url}", "-tech-detect"],
-             "description": "HTTP probe and tech detection"},
-            {"id": "nuclei", "tool": "nuclei", "args": ["-u", "${target_url}", "-severity", "critical,high,medium"],
-             "depends_on": ["httpx"], "description": "Vulnerability scan with Nuclei"},
-            {"id": "nikto", "tool": "nikto", "args": ["-h", "${target_url}"],
-             "depends_on": ["httpx"], "description": "Web server misconfiguration scan"},
-            {"id": "gobuster", "tool": "gobuster", "args": ["dir", "-u", "${target_url}", "-w",
-             "/usr/share/wordlists/dirb/common.txt"], "depends_on": ["httpx"],
-             "description": "Directory enumeration"},
-            {"id": "report", "step_type": "report", "depends_on": ["nuclei", "nikto", "gobuster"],
-             "description": "Generate webapp assessment report"},
+            {
+                "id": "httpx",
+                "tool": "httpx",
+                "args": ["-u", "${target_url}", "-tech-detect"],
+                "description": "HTTP probe and tech detection",
+            },
+            {
+                "id": "nuclei",
+                "tool": "nuclei",
+                "args": ["-u", "${target_url}", "-severity", "critical,high,medium"],
+                "depends_on": ["httpx"],
+                "description": "Vulnerability scan with Nuclei",
+            },
+            {
+                "id": "nikto",
+                "tool": "nikto",
+                "args": ["-h", "${target_url}"],
+                "depends_on": ["httpx"],
+                "description": "Web server misconfiguration scan",
+            },
+            {
+                "id": "gobuster",
+                "tool": "gobuster",
+                "args": [
+                    "dir",
+                    "-u",
+                    "${target_url}",
+                    "-w",
+                    "/usr/share/wordlists/dirb/common.txt",
+                ],
+                "depends_on": ["httpx"],
+                "description": "Directory enumeration",
+            },
+            {
+                "id": "report",
+                "step_type": "report",
+                "depends_on": ["nuclei", "nikto", "gobuster"],
+                "description": "Generate webapp assessment report",
+            },
         ],
     ),
     "network-sweep": WorkflowTemplate(
@@ -116,14 +165,32 @@ BUILTIN_TEMPLATES: dict[str, WorkflowTemplate] = {
         estimated_duration="10-20 min",
         risk_level="low",
         steps=[
-            {"id": "ping-sweep", "tool": "nmap", "args": ["-sn", "${network_range}"],
-             "description": "Host discovery ping sweep"},
-            {"id": "port-scan", "tool": "nmap", "args": ["-sV", "-T4", "-iL", "live_hosts.txt"],
-             "depends_on": ["ping-sweep"], "description": "Service version scan of live hosts"},
-            {"id": "vuln-scan", "tool": "nmap", "args": ["--script", "vuln", "-iL", "live_hosts.txt"],
-             "depends_on": ["port-scan"], "description": "Vulnerability script scan"},
-            {"id": "report", "step_type": "report", "depends_on": ["vuln-scan"],
-             "description": "Generate network assessment report"},
+            {
+                "id": "ping-sweep",
+                "tool": "nmap",
+                "args": ["-sn", "${network_range}"],
+                "description": "Host discovery ping sweep",
+            },
+            {
+                "id": "port-scan",
+                "tool": "nmap",
+                "args": ["-sV", "-T4", "-iL", "live_hosts.txt"],
+                "depends_on": ["ping-sweep"],
+                "description": "Service version scan of live hosts",
+            },
+            {
+                "id": "vuln-scan",
+                "tool": "nmap",
+                "args": ["--script", "vuln", "-iL", "live_hosts.txt"],
+                "depends_on": ["port-scan"],
+                "description": "Vulnerability script scan",
+            },
+            {
+                "id": "report",
+                "step_type": "report",
+                "depends_on": ["vuln-scan"],
+                "description": "Generate network assessment report",
+            },
         ],
     ),
     "quick-check": WorkflowTemplate(
@@ -134,12 +201,25 @@ BUILTIN_TEMPLATES: dict[str, WorkflowTemplate] = {
         estimated_duration="5-10 min",
         risk_level="low",
         steps=[
-            {"id": "ports", "tool": "nmap", "args": ["-sV", "--top-ports", "100", "${target}"],
-             "description": "Top 100 ports scan"},
-            {"id": "vulns", "tool": "nuclei", "args": ["-u", "${target}", "-severity", "critical,high"],
-             "depends_on": ["ports"], "description": "Critical vulnerability check"},
-            {"id": "report", "step_type": "report", "depends_on": ["vulns"],
-             "description": "Quick security report"},
+            {
+                "id": "ports",
+                "tool": "nmap",
+                "args": ["-sV", "--top-ports", "100", "${target}"],
+                "description": "Top 100 ports scan",
+            },
+            {
+                "id": "vulns",
+                "tool": "nuclei",
+                "args": ["-u", "${target}", "-severity", "critical,high"],
+                "depends_on": ["ports"],
+                "description": "Critical vulnerability check",
+            },
+            {
+                "id": "report",
+                "step_type": "report",
+                "depends_on": ["vulns"],
+                "description": "Quick security report",
+            },
         ],
     ),
 }
@@ -180,6 +260,7 @@ class GeneratedWorkflow:
         """Save workflow to a YAML file."""
         try:
             import yaml
+
             path.parent.mkdir(parents=True, exist_ok=True)
             with open(path, "w", encoding="utf-8") as fh:
                 yaml.dump(self.to_yaml_dict(), fh, default_flow_style=False, sort_keys=False)
@@ -187,6 +268,7 @@ class GeneratedWorkflow:
         except ImportError:
             # Fallback: save as JSON
             import json
+
             json_path = path.with_suffix(".json")
             json_path.parent.mkdir(parents=True, exist_ok=True)
             json_path.write_text(
@@ -335,83 +417,106 @@ class WorkflowGenerator:
         # Recon keywords
         if any(kw in goal_lower for kw in ["recon", "reconnaissance", "discover", "enumerate"]):
             step_num += 1
-            steps.append({
-                "id": f"step_{step_num}",
-                "tool": "nmap",
-                "args": ["-sV", "-T4", target or "${target}"],
-                "description": "Service enumeration",
-            })
+            steps.append(
+                {
+                    "id": f"step_{step_num}",
+                    "tool": "nmap",
+                    "args": ["-sV", "-T4", target or "${target}"],
+                    "description": "Service enumeration",
+                }
+            )
 
         # Scan keywords
         if any(kw in goal_lower for kw in ["scan", "vulnerability", "vuln", "assess"]):
             step_num += 1
             depends = [f"step_{step_num - 1}"] if steps else []
-            steps.append({
-                "id": f"step_{step_num}",
-                "tool": "nuclei",
-                "args": ["-u", target or "${target}"],
-                "depends_on": depends,
-                "description": "Vulnerability scanning",
-            })
+            steps.append(
+                {
+                    "id": f"step_{step_num}",
+                    "tool": "nuclei",
+                    "args": ["-u", target or "${target}"],
+                    "depends_on": depends,
+                    "description": "Vulnerability scanning",
+                }
+            )
 
         # Web keywords
         if any(kw in goal_lower for kw in ["web", "http", "webapp", "application", "sql", "xss"]):
             step_num += 1
             depends = [f"step_{step_num - 1}"] if steps else []
-            steps.append({
-                "id": f"step_{step_num}",
-                "tool": "nikto",
-                "args": ["-h", target or "${target}"],
-                "depends_on": depends,
-                "description": "Web application scanning",
-            })
+            steps.append(
+                {
+                    "id": f"step_{step_num}",
+                    "tool": "nikto",
+                    "args": ["-h", target or "${target}"],
+                    "depends_on": depends,
+                    "description": "Web application scanning",
+                }
+            )
 
         # Subdomain keywords
         if any(kw in goal_lower for kw in ["subdomain", "dns", "domain"]):
             step_num += 1
-            steps.append({
-                "id": f"step_{step_num}",
-                "tool": "subfinder",
-                "args": ["-d", target or "${target}"],
-                "description": "Subdomain enumeration",
-            })
+            steps.append(
+                {
+                    "id": f"step_{step_num}",
+                    "tool": "subfinder",
+                    "args": ["-d", target or "${target}"],
+                    "description": "Subdomain enumeration",
+                }
+            )
 
         # Directory keywords
         if any(kw in goal_lower for kw in ["directory", "dir", "brute", "fuzz"]):
             step_num += 1
             depends = [f"step_{step_num - 1}"] if steps else []
-            steps.append({
-                "id": f"step_{step_num}",
-                "tool": "gobuster",
-                "args": ["dir", "-u", target or "${target}", "-w", "/usr/share/wordlists/dirb/common.txt"],
-                "depends_on": depends,
-                "description": "Directory brute-forcing",
-            })
+            steps.append(
+                {
+                    "id": f"step_{step_num}",
+                    "tool": "gobuster",
+                    "args": [
+                        "dir",
+                        "-u",
+                        target or "${target}",
+                        "-w",
+                        "/usr/share/wordlists/dirb/common.txt",
+                    ],
+                    "depends_on": depends,
+                    "description": "Directory brute-forcing",
+                }
+            )
 
         # Fallback — generic scan
         if not steps:
-            steps.append({
-                "id": "step_1",
-                "tool": "nmap",
-                "args": ["-sV", "-T4", target or "${target}"],
-                "description": f"Automated scan for: {goal[:80]}",
-            })
+            steps.append(
+                {
+                    "id": "step_1",
+                    "tool": "nmap",
+                    "args": ["-sV", "-T4", target or "${target}"],
+                    "description": f"Automated scan for: {goal[:80]}",
+                }
+            )
 
         # Always add report step
         step_num += 1
-        steps.append({
-            "id": f"step_{step_num}",
-            "step_type": "report",
-            "depends_on": [s["id"] for s in steps],
-            "description": "Generate findings report",
-        })
+        steps.append(
+            {
+                "id": f"step_{step_num}",
+                "step_type": "report",
+                "depends_on": [s["id"] for s in steps],
+                "description": "Generate findings report",
+            }
+        )
 
         return steps
 
     def _estimate_risk(self, goal: str) -> str:
         """Estimate risk level from goal keywords."""
         goal_lower = goal.lower()
-        if any(kw in goal_lower for kw in ["exploit", "attack", "payload", "reverse shell", "brute force"]):
+        if any(
+            kw in goal_lower
+            for kw in ["exploit", "attack", "payload", "reverse shell", "brute force"]
+        ):
             return "high"
         if any(kw in goal_lower for kw in ["scan", "vulnerability", "pentest", "inject"]):
             return "medium"

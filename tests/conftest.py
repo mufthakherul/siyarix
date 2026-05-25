@@ -14,6 +14,7 @@ import pytest
 from phalanx.engine_types import StepResult, StepStatus
 from phalanx.knowledge_graph import KnowledgeGraph
 from phalanx.masking import MaskingEngine
+from phalanx.planner import ExecutionPlan, ExecutionStep, StepType
 from phalanx.providers import NoopProvider, ProviderRegistry
 from phalanx.tool_registry import ToolInfo, ToolRegistry
 
@@ -218,3 +219,40 @@ def mock_async_tool_executor() -> MagicMock:
         )
     )
     return mock
+
+
+# ── Execution Plan Fixtures ───────────────────────────────────────────
+
+
+@pytest.fixture
+def mock_execution_plan() -> ExecutionPlan:
+    """Return a pre-built ExecutionPlan for testing planner/engine integration."""
+    return ExecutionPlan(
+        steps=[
+            ExecutionStep(
+                id="step_1",
+                step_type=StepType.TOOL_RUN,
+                tool="nmap",
+                args=["-sV", "target"],
+                target="target",
+                description="Nmap version scan",
+            ),
+            ExecutionStep(
+                id="step_2",
+                step_type=StepType.TOOL_RUN,
+                tool="nuclei",
+                args=["target"],
+                target="target",
+                description="Nuclei vulnerability scan",
+                depends_on=["step_1"],
+            ),
+            ExecutionStep(
+                id="step_3",
+                step_type=StepType.REPORT,
+                description="Generate report",
+                depends_on=["step_2"],
+            ),
+        ],
+        raw_instruction="Scan target with nmap and nuclei",
+        source="test",
+    )

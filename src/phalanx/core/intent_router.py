@@ -10,7 +10,7 @@ Upgraded to Semantic Intent Router v2 supporting multi-stage classification:
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
@@ -29,14 +29,15 @@ class RiskTier(StrEnum):
 class IntentRoute:
     """Resolved route for an incoming command/instruction."""
 
-    instruction: str
-    mode: str
-    category: str
-    confidence: float
-    risk_tier: RiskTier
-    requires_confirmation: bool
-    metadata: dict[str, Any]
-    routing_stage: int  # 1, 2, 3, or 4
+    instruction: str = ""
+    mode: str = ""
+    category: str = ""
+    confidence: float = 0.0
+    risk_tier: RiskTier = RiskTier.LOW
+    requires_confirmation: bool = False
+    metadata: dict[str, Any] = field(default_factory=dict)
+    routing_stage: int = 0  # 1, 2, 3, or 4
+    intent: str = ""
 
 
 class IntentRouter:

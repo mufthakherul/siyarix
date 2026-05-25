@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import pytest
-pytestmark = pytest.mark.compliance
 from phalanx.compliance_runner import (
     ComplianceRunner,
     ComplianceResult,
     ComplianceControl,
     ComplianceFramework,
 )
+pytestmark = pytest.mark.compliance
 
 
 class TestComplianceRunner:

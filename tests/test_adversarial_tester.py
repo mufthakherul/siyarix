@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import pytest
-pytestmark = pytest.mark.adversarial
 from phalanx.adversarial_tester import AdversarialTester, AdversarialFinding, AdversarialSeverity
+pytestmark = pytest.mark.adversarial
 
 
 class TestAdversarialTester:

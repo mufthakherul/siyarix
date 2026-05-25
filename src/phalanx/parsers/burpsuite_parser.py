@@ -19,7 +19,11 @@ class BurpsuiteParser:
             if not line:
                 continue
             lowered = line.lower()
-            if "issue:" not in lowered and "severity:" not in lowered and "confidence:" not in lowered:
+            if (
+                "issue:" not in lowered
+                and "severity:" not in lowered
+                and "confidence:" not in lowered
+            ):
                 continue
             if "severity: high" in lowered:
                 severity = "high"

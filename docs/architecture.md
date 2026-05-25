@@ -1,71 +1,198 @@
 # Architecture & Internals
 
-Phalanx is designed to be modular and transparent. We wanted to build a system that bridges the gap between natural language processing and actual command-line execution, without making the codebase overly complex or difficult for a student to understand.
-
-Here is a comprehensive breakdown of how Phalanx works under the hood.
+Phalanx follows a **7-layer Clean Architecture** with modular, event-driven design. Each layer has distinct responsibilities, enabling independent evolution, testing, and deployment.
 
 ---
 
-## 🧩 Architectural Layers
+## 🏛️ Seven-Layer Architecture
 
-Phalanx is broken down into several distinct layers, each handling a specific part of the user journey.
-
-### 1. The CLI & Presentation Layer
-- **Typer Framework**: We use [Typer](https://typer.tiangolo.com/) to build the command-line interface. It's clean, relies on standard Python type hints, and is easy to maintain.
-- **Rich Integration**: For all the beautiful terminal output, syntax-highlighted JSON, colors, and interactive components, we rely heavily on the [Rich](https://rich.readthedocs.io/) library. This ensures the output is always readable and visually appealing.
-
-### 2. The Interactive Chat Experience (REPL)
-When you run `phalanx` without any arguments, you drop into an interactive REPL (Read-Eval-Print Loop).
-- **Session Management**: This layer acts as a friendly AI assistant that keeps track of your session history. It remembers previous commands and contextual data so you can have an ongoing conversation.
-- **Slash Commands**: To make configuration fast, we built a slash-command router (e.g., `/help`, `/theme mode dark`, `/key set`). These bypass the AI planner and execute Python functions directly for immediate feedback.
-
-### 3. Orchestration & Planning (The "Brain")
-This is where the magic happens when you ask Phalanx to perform a security task.
-- **Task Planner**: This module takes your plain-English instructions and passes them to a Large Language Model (LLM). It instructs the model to break down your request into a logical, structured sequence of execution steps (JSON). 
-- **Execution Engine**: This component takes the structured steps from the Task Planner and executes them. It handles the heavy lifting: spawning subprocesses, catching `stdout`/`stderr`, managing retries if a command fails, and ensuring that step dependencies are respected (e.g., waiting for a port scan to finish before launching a web fuzzer).
-  - **Auto-Installation**: When a required tool is missing but a system installer (such as `winget` on Windows, or other native platform managers) is available on the `PATH`, the engine prompts the user for permission. If approved, it automatically installs the missing tool and resumes execution.
-  - **Plan Mutation & Self-Correction**: If a step fails (e.g., a target host blocks default ping probes) or yields zero findings, the engine's internal mutator automatically adapts the plan on the fly (e.g., retrying with `-Pn` or scheduling fallback scanners like `nikto`).
-
-### 4. Security & Knowledge Base
-To make the AI useful, we have to provide it with real-world constraints.
-- **Shell Knowledge Library**: A heuristic engine that detects your operating system and terminal type. It translates general security "intents" into native commands for Bash, PowerShell, Zsh, or CMD. This ensures that Phalanx works natively on Windows just as well as it does on Kali Linux.
-- **Tool Registry**: Upon startup, this component scans your system's `PATH` to discover which security tools (like `nmap`, `nuclei`, or `ffuf`) you already have installed. It feeds this list to the Task Planner, ensuring the AI only recommends tools you can actually run.
-- **Enterprise Credential Vault**: A secure local storage system (`~/.phalanx/`) that uses symmetric encryption (Fernet) to protect your API keys. We explicitly designed this to keep your keys out of your shell history and out of public dotfiles.
-
----
-
-## 🔄 The Execution Workflow
-
-If you type `phalanx run "find open ports on example.com"`, here is the exact lifecycle of that command:
-
-1. **Intent Parsing**: The CLI captures your string and sends it to the Task Planner.
-2. **Context Gathering**: The Tool Registry reports that `nmap` is installed. The Shell Knowledge Library reports that you are running `zsh` on macOS.
-3. **Model Generation**: The Task Planner sends a prompt to the LLM (e.g., Gemini or OpenAI) containing your request and the context.
-4. **Plan Creation**: The LLM returns a structured JSON payload defining a step to run `nmap -p- example.com`.
-5. **Safety Verification**: The Execution Engine intercepts the planned step and checks it against a list of dangerous patterns (e.g., blocking `rm -rf`).
-6. **Execution**: The Execution Engine spawns a subprocess, runs `nmap`, captures the output, and prints the formatted results to your terminal using Rich.
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ LAYER 7: USER INTERFACE                                                     │
+│ CLI (Typer) │ Interactive REPL │ Dashboard │ VS Code │ Collaborative SSH    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ LAYER 6: CORE KERNEL                                                        │
+│ SessionKernel │ IntentRouter │ ModeDispatcher │ EventBus │ Pipeline         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ LAYER 5: EXECUTION ENGINE                                                   │
+│ ExecutionEngine │ TaskPlanner │ ToolExecutor │ AgentTeam │ WorkflowRuntime   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ LAYER 4: AI & INTELLIGENCE                                                  │
+│ Provider Adapters │ Multi-Model Ensemble │ XI │ ML Anomaly │ Adversarial     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ LAYER 3: SECURITY & COMPLIANCE                                              │
+│ MaskingEngine │ InputValidator │ RBAC │ Compliance │ Stealth │ Canary        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ LAYER 2: INFRASTRUCTURE                                                     │
+│ KnowledgeGraph │ CredentialStore │ OfflineStore │ Audit │ Metrics │ OTel     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ LAYER 1: INTEGRATION                                                        │
+│ Tool Registry │ Parsers (17) │ Plugins │ SIEM │ Cloud Scanner │ Threat Intel │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 🧪 High-Fidelity E2E Validation Pipeline
+## 🧩 Module Deep Dive
 
-To ensure the architectural integrity of our planning and execution engines under real-world scenarios, we maintain a comprehensive **End-to-End (E2E) and Live testing pipeline**. 
+### Layer 7: User Interface
+| Module | Purpose |
+|--------|---------|
+| `main.py` | Typer CLI entry point — 30+ commands, 9 interaction modes |
+| `chat.py` | Interactive REPL — streaming, multi-turn, slash commands |
+| `ux/` | Premium terminal UI — wizard, split pane, palette, autocomplete |
+| `dashboard.py` | Web dashboard — REST API, WebSocket live updates, metrics snapshots |
 
-This validation suite runs in a **mock-sandboxed environment**, allowing us to simulate external system states, CLI entry points, process executions, and user interactions:
-- **CLI dry-run validation**: Verifies Typer/Click command routing and input parsing using Click's `CliRunner`.
-- **Dynamic Branching**: Asserts that the rules interpreter correctly evaluates pre-conditions and routes complex natural language conditionals correctly.
-- **Auto-Installation Flow**: Simulates system installer detection (like `winget` on Windows) and verifies prompt confirmation intercepts (confirmed vs declined branches).
-- **Execution Self-Correction**: Simulates step failures and empty results to verify that plan mutators automatically adapt the running plan on the fly.
+### Layer 6: Core Kernel
+| Module | Purpose |
+|--------|---------|
+| `core/session_kernel.py` | Session context, operation cards, persistence levels |
+| `core/intent_router.py` | 4-stage routing: exact → heuristic → keyword → LLM |
+| `core/event_bus.py` | In-process pub/sub for operation-level signaling |
+| `core/mode_dispatcher.py` | 9 interaction modes (shell, chat, autonomous, dashboard, etc.) |
+| `core/pipeline.py` | Sequential step execution with context propagation |
+| `core/agentic_loop.py` | Observe → Reflect → Reason → Act → Evaluate cycle |
 
-This offline-safe, non-destructive test suite allows developers to iterate safely, knowing that the engine will behave consistently across both Windows and Unix environments.
+### Layer 5: Execution Engine
+| Module | Purpose |
+|--------|---------|
+| `engine.py` | Central orchestrator — 3 modes, dynamic mutation, feedback loop |
+| `planner.py` | LLM-first + heuristic fallback, circuit breaker, retry logic |
+| `tool_executor.py` | Tool execution with dependency resolution, chaining |
+| `multi_agent.py` | Agent framework — AgentTeam, AgentRole, messaging |
+| `agents/coordinator.py` | Objective decomposition → phase-based multi-agent dispatch |
+| `agents/soc_agent.py` | 8 detection rules, triage tickets, MITRE ATT&CK mapping |
+| `agents/dfir_agent.py` | Memory/disk/network forensics, IOC extraction, chain of custody |
+| `playbook_engine.py` | Playbook save/load/execute with variables and conditionals |
+| `workflow_runtime.py` | YAML workflow automation runtime |
+
+### Layer 4: AI & Intelligence
+| Module | Purpose |
+|--------|---------|
+| `providers.py` | Provider abstraction — OpenAI, Gemini, Ollama, NoopProvider |
+| `provider_adapters.py` | Adapter wrappers for planner model classes |
+| `multi_model_ensemble.py` | Multi-provider voting, consensus, hallucination detection |
+| `xi/context_tracker.py` | Real-time operation awareness (phase, targets, executions) |
+| `xi/predictor.py` | Predictive next-action engine with pattern learning |
+| `xi/skill_profiler.py` | User skill assessment (beginner→expert), adaptive UX |
+| `ml_anomaly.py` | Statistical baseline, z-score, frequency analysis, alerts |
+| `adversarial_tester.py` | IDS trigger detect, rate-limit, safety, dependency checks |
+
+### Layer 3: Security & Compliance
+| Module | Purpose |
+|--------|---------|
+| `masking.py` | Session-scoped deterministic masking with exportable mapping |
+| `response_sensor.py` | Pre-model masking + post-model redaction pipeline |
+| `security_hardening.py` | Input validation, secret redaction, danger pattern analysis |
+| `security/rbac.py` | 5 roles × 5 permissions for team environments |
+| `security/attack_path.py` | Graph traversal for multi-step exploit paths |
+| `security/compliance.py` | Compliance report generation (SOC 2, ISO 27001, NIST-CSF) |
+| `compliance_runner.py` | Automated assessment: PCI-DSS, ISO 27001, NIST, SOC 2, GDPR, HIPAA |
+| `stealth.py` | Evasion: 5 levels, UA rotation, proxy chaining, decoy traffic |
+| `canary.py` | 7 token types, deployment, trigger detection, alert handlers |
+| `deception.py` | Honeypot detection (7 signatures), canary tokens (5 patterns) |
+
+### Layer 2: Infrastructure
+| Module | Purpose |
+|--------|---------|
+| `knowledge_graph.py` | Graph DB — 15 node types, 20 edge types, BFS/DFS/shortest path |
+| `credential_store.py` | Encrypted vault — Fernet AES-128, keyring, RBAC |
+| `offline_store.py` | SQLite offline storage — schema, sync, CRUD |
+| `audit_log.py` | Enterprise audit — tamper-evident SHA-256 chain, SIEM forward |
+| `metrics.py` | Prometheus-format metrics — execution, tool, planner |
+| `notifications.py` | In-terminal alerts, severity panels, webhook forwarding |
+| `telemetry/opentelemetry.py` | Traces, spans, decorator, middleware, exporter registration |
+| `telemetry/siem.py` | Splunk HEC, ElasticSearch, generic webhook connectors |
+
+### Layer 1: Integration
+| Module | Purpose |
+|--------|---------|
+| `tool_registry.py` | Auto-discovers 50+ tools from PATH, capability inference |
+| `tool_installer.py` | Auto-install missing tools via apt/brew/choco/pip/go |
+| `parsers/` | 17 tool output parsers (nmap, nuclei, gobuster, sqlmap, etc.) |
+| `plugins.py` | Plugin manager — scaffold, install, remove, dynamic loading |
+| `exploitation.py` | Exploit chain builder, msfvenom payload generator |
+| `threat_intel.py` | STIX/TAXII, MISP ingestion, MITRE ATT&CK DB (25+ techniques) |
+| `cloud_scanner.py` | AWS, Azure, GCP, Kubernetes, Docker security checks |
+| `bootstrap.py` | First-run setup, platform detection, directory structure |
 
 ---
 
-## 🧠 Core Design Principles
+## 🔄 Execution Flow
 
-When we started this project, we wanted to stick to a few core ideas that foster learning and safety:
+```
+User Input
+  │
+  ▼
+[Layer 7] CLI / Chat / Dashboard — captures user intent
+  │
+  ▼
+[Layer 6] SessionKernel → IntentRouter — routes to correct handler
+  │
+  ▼
+[Layer 5] ExecutionEngine — orchestrates execution plan
+  │
+  ├── [Layer 4] TaskPlanner — generates plan via LLM or heuristic
+  ├── [Layer 4] AdversarialTester — reviews plan for risks
+  ├── [Layer 4] MultiModelEnsemble — votes across providers (optional)
+  │
+  ▼
+[Layer 5] ToolExecutor — executes steps with dependency resolution
+  │
+  ├── [Layer 3] MaskingEngine — masks sensitive data before LLM calls
+  ├── [Layer 1] ToolRegistry — verifies tool availability
+  ├── [Layer 3] DangerAnalyzer — validates command safety
+  ├── [Layer 3] ResponseSensor — unmask + redact model outputs
+  │
+  ▼
+[Layer 2] KnowledgeGraph — stores findings and relationships
+[Layer 2] AuditLog — records tamper-evident execution log
+[Layer 2] Metrics — updates execution statistics
+```
 
-- **Safety Over Magic**: We want the AI to suggest and execute *verified* tool invocations rather than just hallucinating random shell commands. Phalanx will always verify a tool exists and passes safety checks before pulling the trigger.
-- **Platform Friendly**: Whether you're a student running Windows or a researcher on a Linux VM, the core commands should work consistently.
-- **Learn by Doing**: The architecture is designed to be transparent. By setting `PHALANX_LOG_LEVEL=DEBUG`, you can watch exactly how Phalanx builds its plans and learn how different security tools chain together in the real world.
-- **Welcoming UX**: We believe security tools don't have to look intimidating. A polished, friendly interface lowers the barrier to entry for beginners and makes the terminal a more pleasant place to be.
+---
+
+## 🧪 Testing Architecture
+
+```
+tests/
+├── conftest.py          # 15 shared fixtures (providers, masking, tools, mock outputs)
+├── pytest.ini           # Markers: slow, network, parser, agent, xi, integration, e2e
+├── __init__.py          # Test package marker
+│
+├── test_engine*.py      # Execution engine tests
+├── test_planner*.py     # Planner tests
+├── test_xi_*.py         # XI module tests (17+13+11+6 tests)
+├── test_agents_*.py     # Agent tests (12+14+13 tests)
+├── test_parsers_all.py  # All 17 parsers (28 tests)
+├── test_*.py            # 58 total test files
+```
+
+---
+
+## 🔐 Security Architecture
+
+```
+Input
+  │
+  ▼
+[Layer 3] MaskingEngine — replaces real targets with placeholders
+  │
+  ▼
+[Layer 4] LLM Provider — never sees real targets
+  │
+  ▼
+[Layer 3] DangerAnalyzer — blocks dangerous command patterns
+  │
+  ▼
+[Layer 3] ResponseSensor — detects forbidden commands, permission gates
+  │
+  ▼
+[Layer 3] Unmasking — restores real targets from placeholders
+  │
+  ▼
+[Layer 5] Execution — executes in sandboxed subprocess
+  │
+  ▼
+[Layer 2] Audit — records tamper-evident chain
+```

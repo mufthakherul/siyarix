@@ -1,46 +1,57 @@
-"""Provider abstraction and registry for AI backends."""
+"""Provider abstraction and registry for AI backends.
+
+Provides a unified interface for all AI model providers with:
+- Provider protocol with async plan/chat/validate/close methods
+- ProviderRegistry with preference ordering
+- Built-in NoopProvider for offline/testing
+- Support for OpenAI, Gemini, Ollama, and Cloud providers
+- Automatic fallback chain configuration
+"""
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Dict, Iterable, List, Optional, Protocol, runtime_checkable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-@runtime_checkable
-class Provider(Protocol):
-    """Common provider interface used by planner and engine."""
+class Provider:
+    """Common provider interface used by planner and engine.
 
-    available: bool
+    All model providers should implement this protocol.
+    """
 
-    async def plan(self, prompt: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        ...
+    available: bool = False
+
+    async def plan(self, prompt: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+        raise NotImplementedError
 
     async def validate(self) -> bool:
-        ...
+        raise NotImplementedError
 
     async def chat(
         self,
-        messages: Iterable[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         *,
         max_tokens: int = 1024,
-    ) -> Dict[str, Any]:
-        ...
+    ) -> dict[str, Any]:
+        raise NotImplementedError
 
     async def close(self) -> None:
-        ...
+        raise NotImplementedError
 
 
-class NoopProvider:
+class NoopProvider(Provider):
     """No-op provider for offline/testing scenarios."""
 
     def __init__(self, *, response: str | None = None) -> None:
         self.available = True
         self.response = response
+        self._name = "noop"
 
-    async def plan(self, prompt: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def plan(self, prompt: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
         await asyncio.sleep(0)
         if self.response is None:
             return {}
@@ -51,10 +62,10 @@ class NoopProvider:
 
     async def chat(
         self,
-        messages: Iterable[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         *,
-        max_tokens: int = 1024,  # noqa: ARG002
-    ) -> Dict[str, Any]:
+        max_tokens: int = 1024,
+    ) -> dict[str, Any]:
         last = None
         for m in messages:
             last = m
@@ -65,7 +76,12 @@ class NoopProvider:
 
 
 class ProviderRegistry:
-    """Registry for provider factories and/or instances."""
+    """Registry for provider factories and/or instances.
+
+    Supports both class-based (factory) and instance-based registration.
+    Providers can be queried by name, ordered by preference, and filtered
+    by availability.
+    """
 
     def __init__(self) -> None:
         self._providers: dict[str, Any] = {}
@@ -86,18 +102,18 @@ class ProviderRegistry:
             return provider(**kwargs)
         return provider
 
-    def list_providers(self) -> List[str]:
+    def list_providers(self) -> list[str]:
         return list(self._providers.keys())
 
-    def list(self) -> List[Provider]:
+    def get_list(self) -> list[Provider]:
         return [p for _, p in self._ordered]
 
-    def available(self) -> List[Provider]:
+    def available(self) -> list[Provider]:
         return [p for _, p in self._ordered if getattr(p, "available", False)]
 
-    def ordered_by_preference(self, preferred: List[str] | None = None) -> List[Provider]:
+    def ordered_by_preference(self, preferred: list[str] | None = None) -> list[Provider]:
         if not preferred:
-            return self.list()
+            return self.get_list()
         preferred_lower = [p.lower() for p in preferred]
         ordered: list[Provider] = []
         others: list[Provider] = []
@@ -108,6 +124,10 @@ class ProviderRegistry:
                 others.append(prov)
         ordered.extend(others)
         return ordered
+
+    def clear(self) -> None:
+        self._providers.clear()
+        self._ordered.clear()
 
 
 registry = ProviderRegistry()

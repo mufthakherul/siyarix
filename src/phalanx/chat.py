@@ -702,7 +702,18 @@ class SiyarixChat:
             api_key = tokens[2] if len(tokens) > 2 else ""
             if not api_key:
                 api_key = Prompt.ask(f"Enter {provider} API key", password=True)
-        # (key rotate handler added in separate commit)
+        elif action in {"rotate", "roll"}:
+            from .credential_store import CredentialStore
+            try:
+                vault = CredentialStore()
+                new_password = Prompt.ask("Enter new master password (optional)", password=True, default="")
+                if vault.rotate_key(new_password or None):
+                    console.print("[green]✓ Master encryption key rotated successfully[/green]")
+                else:
+                    console.print("[yellow]Key rotation requires AES-256-GCM; ensure cryptography is up to date[/yellow]")
+            except Exception as exc:
+                console.print(f"[red]Key rotation failed: {exc}[/red]")
+            return
         else:
             provider = tokens[0].lower()
             api_key = tokens[1] if len(tokens) > 1 else ""

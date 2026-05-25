@@ -1,87 +1,166 @@
-# Getting Started with Phalanx
-
-Hey there! Setting up Phalanx is designed to be straightforward. Because the core engine is built in Python, you can run it natively on almost any operating system (Linux, macOS, or Windows). 
-
-Below are the detailed instructions for getting your environment set up perfectly.
+# Installation Guide
 
 ---
 
-## 🛠️ Prerequisites
+## 📋 Prerequisites
 
-Before you begin, ensure you have the following installed on your machine:
-- **Python 3.11 or higher**: Phalanx relies on modern Python features (like `asyncio` and advanced type hinting).
-- **A Package Manager**: Standard `pip` works great, but we highly recommend [uv](https://github.com/astral-sh/uv) if you want blazing-fast installations.
-
-*(Optional but Recommended)*: 
-- Have a few security tools installed on your `PATH` (e.g., `nmap`, `nuclei`, `ffuf`). Phalanx acts as a brain that orchestrates these tools, so the more tools you have installed natively, the more powerful Phalanx becomes!
+- **Python 3.11+** (required for modern features)
+- **pip** or **uv** (recommended for speed)
+- **Git** (for source installation)
 
 ---
 
-## 📦 Installation Guide
+## 📦 Installation Methods
 
-We strongly recommend installing Phalanx inside an isolated virtual environment so it doesn't conflict with your system Python packages.
-
-### Method 1: Standard Installation (via pip)
-
+### Method 1: PyPI (Stable)
 ```bash
-# 1. Create a virtual environment
-python -m venv .venv
-
-# 2. Activate the virtual environment
-source .venv/bin/activate        # Linux/macOS
-.\.venv\Scripts\activate.ps1      # Windows (PowerShell)
-
-# 3. Install Phalanx
 pip install phalanx
 ```
 
-### Method 2: Installing the "All-Batteries-Included" Version
-
-If you want the absolute best experience (including the autonomous AI planner, rich interactive command palettes, and cross-platform terminal optimizations), you should install the optional extras:
-
+### Method 2: Full Installation (Recommended)
 ```bash
-pip install "phalanx[autonomous,cli]"
+pip install "phalanx[all,cli,siem]"
 ```
+Includes: AI planners (OpenAI, Gemini), CLI tools (prompt_toolkit, jinja2), SIEM connectors (httpx)
 
-### Method 3: Installing from Source (For Developers & Contributors)
-
-If you want to poke around the code, run the bleeding-edge development version, or contribute a bug fix:
-
+### Method 3: Source (Development)
 ```bash
-git clone https://github.com/CosmicSec-Lab/phalanx.git
+git clone https://github.com/mufthakherul/phalanx.git
 cd phalanx
 python -m venv .venv
-source .venv/bin/activate
-pip install -e '.[all]'
+source .venv/bin/activate  # Linux/macOS
+# .\.venv\Scripts\activate.ps1  # Windows
+pip install -e ".[all,cli,siem]"
 ```
-*(The `-e` flag means "editable", so any changes you make to the code will immediately apply without needing to reinstall).*
+
+### Method 4: Docker
+```bash
+docker compose up -d
+```
+Runs phalanx, worker, dashboard, redis, and OpenTelemetry collector.
 
 ---
 
-## 🔑 Setting Up Your API Keys
+## 🔧 Configuration
 
-Because Phalanx uses AI models to help plan your tasks, you'll need an API key for your preferred LLM provider (like Google Gemini, OpenAI, or Anthropic). You can also use Ollama for local, offline models!
+### First-Run Bootstrap
+When you run `phalanx` for the first time, the bootstrap engine:
+1. Detects your platform (OS, shell, terminal, WSL)
+2. Verifies Python ≥3.11
+3. Checks runtime dependencies
+4. Creates `~/.phalanx/` directory structure
+5. Writes initialization marker
 
-Don't worry, your keys are stored securely in a local encrypted vault (`~/.phalanx/`). They are never sent anywhere without your permission.
+### Directory Structure
+```
+~/.phalanx/
+├── config.yaml           # Main configuration
+├── personas/             # Custom personae
+│   └── custom/
+├── plugins/              # Plugin store
+├── memory/               # Learning data (SQLite)
+├── logs/                 # Session logs + audit
+├── vault/                # Encrypted credentials
+├── cache/                # Tool output, AI plans, DNS
+├── templates/            # Reports, playbooks
+├── masking/              # Custom masking rules
+├── canary/               # Canary token storage
+└── playbooks/            # Saved playbooks
+```
 
-**The Easiest Way to Configure Keys:**
-1. Launch the interactive shell by typing:
-   ```bash
-   phalanx
-   ```
-2. Once the chat interface opens, use the slash command to securely save your key:
-   ```text
-   /key set gemini your-api-key-here
-   ```
-   *(You can replace `gemini` with `openai` or `anthropic` depending on your provider).*
+### API Key Configuration
+```bash
+# Interactive (secure — keys never touch shell history)
+phalanx
+/key set gemini <your-api-key>
+/key set openai <your-api-key>
 
-3. Verify your configuration:
-   ```text
-   /key list
-   ```
+# Environment variables (for CI/automation)
+export OPENAI_API_KEY=sk-...
+export GEMINI_API_KEY=...
+```
 
 ---
 
-## 🎉 You're Ready!
+## 🐳 Docker Setup
 
-That's it! You're ready to start exploring. We recommend checking out [usage.md](usage.md) next for some fun examples of what you can do with your newly configured agent.
+### Quick Start
+```bash
+docker compose up -d
+```
+
+### Multi-Service Architecture
+| Service | Description | Scale |
+|---------|-------------|-------|
+| `phalanx` | Main application | 1 |
+| `phalanx-worker` | Task execution | 3+ |
+| `phalanx-dashboard` | Web UI | 1 |
+| `redis` | Task queue | 1 |
+| `otel-collector` | Telemetry | 0+ |
+
+### Custom Configuration
+```bash
+# Override environment variables
+PHALANX_LOG_LEVEL=DEBUG docker compose up -d
+
+# Enable telemetry
+docker compose --profile telemetry up -d
+```
+
+---
+
+## 🔨 Makefile Targets
+
+| Target | Description |
+|--------|-------------|
+| `make install` | Install production dependencies |
+| `make install-dev` | Install dev + all extras |
+| `make test` | Run full test suite |
+| `make test-quick` | Run fast tests (skip slow) |
+| `make lint` | Ruff linter check |
+| `make lint-fix` | Auto-fix lint issues |
+| `make typecheck` | Mypy strict type check |
+| `make format` | Ruff formatter |
+| `make security` | Bandit security scan |
+| `make clean` | Remove build artifacts |
+| `make build` | Build distribution packages |
+| `make docker-build` | Build Docker images |
+| `make docker-up` | Start Docker services |
+| `make coverage` | Tests with coverage report (≥80%) |
+| `make benchmark` | Performance benchmarks |
+
+---
+
+## 🔄 CI/CD Pipeline
+
+Phalanx includes 14 GitHub Actions workflows:
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `ci.yml` | Push/PR | Ruff, mypy, pytest, coverage ≥80% |
+| `coverage.yml` | Push | Coverage on 3.11 + 3.12 |
+| `publish.yml` | `v*` tag | PyPI release |
+| `security.yml` | Push | Dependency security scan |
+| `pre-commit.yml` | PR | Pre-commit hook validation |
+| `stale.yml` | Daily | Stale issue/PR management |
+| `release.yml` | Release | Release automation |
+| `dependency-review.yml` | PR | Dependency review |
+| `auto-merge.yml` | PR | Auto-merge approved PRs |
+
+---
+
+## ✅ Verification
+
+```bash
+# Verify installation
+phalanx --version
+
+# Run health checks
+phalanx health
+
+# Run test suite
+pytest -v
+
+# Full verification
+make test && make lint && make typecheck && make security
+```

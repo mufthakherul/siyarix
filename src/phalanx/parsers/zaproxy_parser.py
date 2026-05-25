@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 
-_ALERT_RE = re.compile(r"(?i)\b(alert|risk|vulnerab|xss|sqli|injection|csrf)\b")
+_ALERT_RE = re.compile(r"(?i)\b(alert|risk|vulnerab|scripting|xss|sqli|injection|csrf|cross)\b|\[(high|medium|low|critical|info)\]")
 _TARGET_RE = re.compile(r"(?i)\bhttps?://\S+")
 
 

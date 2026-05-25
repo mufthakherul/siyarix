@@ -63,7 +63,16 @@ from .compliance_runner import (
 )
 from .multi_model_ensemble import MultiModelEnsemble, EnsembleResult, ModelResponse, VotingStrategy
 from .adversarial_tester import AdversarialTester, AdversarialFinding, AdversarialSeverity
-from .persona_engine import PersonaEngine, Persona, PersonaName, ToolACL, WorkflowTemplate, LearningBias, BUILTIN_PERSONAS
+from .persona_engine import PersonaEngine, Persona, PersonaName, ToolACL, WorkflowTemplate, LearningBias, REVIEW, BUILTIN_PERSONAS
+from .permission_gate import PermissionGate, GateResult
+from .kill_switch import KillSwitch, KillSwitchState
+from .shell_review import ReviewResult, review_command, review_and_confirm, ReviewDecision
+from .agent_lifecycle import AgentLifecycle, AgentInstance
+from .collaboration import CollaborationManager, CollabSession, CollabMember
+from .coder_bridge import CoderBridge, CodeReview
+from .mcp_integration import MCPClient, MCPTool
+from .learning_memory import LearningMemory, ToolPattern
+from .user_learning import UserLearning, UserProfile, ExperienceLevel
 
 __all__ = [
     "ExecutionEngine",
@@ -194,5 +203,28 @@ __all__ = [
     "ToolACL",
     "WorkflowTemplate",
     "LearningBias",
+    "REVIEW",
     "BUILTIN_PERSONAS",
+    "PermissionGate",
+    "GateResult",
+    "KillSwitch",
+    "KillSwitchState",
+    "ReviewResult",
+    "review_command",
+    "review_and_confirm",
+    "ReviewDecision",
+    "AgentLifecycle",
+    "AgentInstance",
+    "CollaborationManager",
+    "CollabSession",
+    "CollabMember",
+    "CoderBridge",
+    "CodeReview",
+    "MCPClient",
+    "MCPTool",
+    "LearningMemory",
+    "ToolPattern",
+    "UserLearning",
+    "UserProfile",
+    "ExperienceLevel",
 ]

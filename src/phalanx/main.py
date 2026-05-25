@@ -121,7 +121,7 @@ def _get_engine(mode: str = "integrated") -> ExecutionEngine:
     engine_config["anthropic_model"] = config.get("anthropic_model")
     engine_config["ollama_url"] = config.get("ollama_url")
     engine_config["ollama_model"] = config.get("ollama_model")
-    engine_config["lmstudio_url"] = config.get("lmstudio_url", "http://localhost:1234")
+    engine_config["lmstudio_url"] = config.get("lmstudio_url")
     try:
         exec_mode = ExecutionMode(mode)
     except ValueError:

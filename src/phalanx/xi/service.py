@@ -54,4 +54,3 @@ class XICoreService:
             )
 
         return recs
-

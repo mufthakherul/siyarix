@@ -84,30 +84,43 @@ class SkillProfile:
 
 
 # Advanced features that indicate expertise
-_ADVANCED_FEATURES = frozenset({
-    "--mode autonomous",
-    "--mode integrated",
-    "--parallel",
-    "--dry-run",
-    "--persist",
-    "/workflow",
-    "/agent",
-    "/translate",
-    "/palette",
-    "/security-cmds",
-    "parallel_group",
-    "depends_on",
-    "pipe",
-    "&&",
-    "YAML workflow",
-})
+_ADVANCED_FEATURES = frozenset(
+    {
+        "--mode autonomous",
+        "--mode integrated",
+        "--parallel",
+        "--dry-run",
+        "--persist",
+        "/workflow",
+        "/agent",
+        "/translate",
+        "/palette",
+        "/security-cmds",
+        "parallel_group",
+        "depends_on",
+        "pipe",
+        "&&",
+        "YAML workflow",
+    }
+)
 
 # Advanced tools
-_ADVANCED_TOOLS = frozenset({
-    "sqlmap", "hydra", "hashcat", "john", "msfconsole",
-    "burpsuite", "bloodhound", "impacket", "responder",
-    "mimikatz", "powershell-empire", "cobaltstrike",
-})
+_ADVANCED_TOOLS = frozenset(
+    {
+        "sqlmap",
+        "hydra",
+        "hashcat",
+        "john",
+        "msfconsole",
+        "burpsuite",
+        "bloodhound",
+        "impacket",
+        "responder",
+        "mimikatz",
+        "powershell-empire",
+        "cobaltstrike",
+    }
+)
 
 
 class SkillProfiler:
@@ -170,19 +183,22 @@ class SkillProfiler:
         elif self._total_commands > 10:
             score += 5
 
-        # Factor 4: Error rate (penalty: -10 to 0)
+        # Factor 4: Error rate (penalty: -20 to 0)
         error_rate = self._errors / max(self._total_commands, 1)
-        if error_rate > 0.3:
+        if error_rate > 0.5:
+            score -= 20
+        elif error_rate > 0.3:
             score -= 10
         elif error_rate > 0.15:
             score -= 5
 
         # Factor 5: Command speed (0-10 points) — fast operators = experienced
         avg_interval = self._avg_interval()
-        if avg_interval > 0 and avg_interval < 5.0:
-            score += 10
-        elif avg_interval > 0 and avg_interval < 15.0:
-            score += 5
+        if error_rate < 0.3:
+            if avg_interval > 0 and avg_interval < 5.0:
+                score += 10
+            elif avg_interval > 0 and avg_interval < 15.0:
+                score += 5
 
         # Clamp
         score = max(0.0, min(100.0, score))

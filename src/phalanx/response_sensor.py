@@ -6,6 +6,8 @@ from typing import Any, Dict
 
 from .masking import MaskingEngine
 from .security_hardening import SecretRedactor
+from .kill_switch import KillSwitch
+from .permission_gate import PermissionGate, GateResult
 
 
 class ResponseSensor:
@@ -20,6 +22,8 @@ class ResponseSensor:
 
     def __init__(self) -> None:
         self._redactor = SecretRedactor()
+        self._kill_switch = KillSwitch()
+        self._permission_gate = PermissionGate()
 
     def mask_for_model(
         self, text: str | None, *, rules: Dict[str, str] | None = None
@@ -52,6 +56,14 @@ class ResponseSensor:
             return o
 
         return _unmask_obj(payload)
+
+    @property
+    def kill_switch(self) -> KillSwitch:
+        return self._kill_switch
+
+    def filter_response(self, text: str, tool: str = "") -> GateResult:
+        """Three-stage filtering: syntax -> forbidden -> permission."""
+        return self._permission_gate.check(text, tool=tool)
 
 
 __all__ = ["ResponseSensor"]

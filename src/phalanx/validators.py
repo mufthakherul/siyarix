@@ -69,7 +69,7 @@ def validate_pattern(
     """Validate against regex pattern."""
     if isinstance(pattern, str):
         pattern = re.compile(pattern)
-    
+
     if not pattern.match(value):
         raise ValidationError(
             f"{field_name} does not match required pattern",
@@ -94,7 +94,7 @@ def validate_port(port: int | str) -> None:
                 component="validator",
             ),
         )
-    
+
     if not 1 <= port_num <= 65535:
         raise ValidationError(
             f"Port out of range: {port_num}",
@@ -127,10 +127,10 @@ def validate_hostname(hostname: str) -> None:
     """Validate hostname (RFC 1123)."""
     # Remove port if present
     host = hostname.split(":")[0]
-    
+
     # Pattern for valid hostname
     pattern = r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z]{2,}$"
-    
+
     if not re.match(pattern, host):
         raise ValidationError(
             f"Invalid hostname: {hostname}",
@@ -177,30 +177,30 @@ def validate_api_key(api_key: str, min_length: int = 20) -> None:
 
 def validate_target(target: str) -> dict[str, Any]:
     """Validate target and return metadata.
-    
+
     Returns:
         dict with keys: type (ipv4|ipv6|cidr|hostname|url), normalized_target
-    
+
     Raises:
         ValidationError: If target is invalid
     """
     target = target.strip()
     validate_not_empty(target, "target")
-    
+
     # Try IPv4
     try:
         ipaddress.IPv4Address(target)
         return {"type": "ipv4", "normalized": target}
     except ValueError:
         pass
-    
+
     # Try IPv6
     try:
         ipaddress.IPv6Address(target)
         return {"type": "ipv6", "normalized": target}
     except ValueError:
         pass
-    
+
     # Try CIDR
     if "/" in target:
         try:
@@ -208,7 +208,7 @@ def validate_target(target: str) -> dict[str, Any]:
             return {"type": "cidr", "normalized": target}
         except ValueError:
             pass
-    
+
     # Try URL
     if target.startswith(("http://", "https://")):
         try:
@@ -216,14 +216,14 @@ def validate_target(target: str) -> dict[str, Any]:
             return {"type": "url", "normalized": target}
         except ValidationError:
             pass
-    
+
     # Try hostname
     try:
         validate_hostname(target)
         return {"type": "hostname", "normalized": target}
     except ValidationError:
         pass
-    
+
     raise ValidationError(
         f"Invalid target: {target}",
         context=ErrorContext(
@@ -246,5 +246,5 @@ def sanitize_target(target: str) -> str:
     dangerous_chars = ";|&><'\"$`()\n"
     for char in dangerous_chars:
         target = target.replace(char, "")
-    
+
     return target.strip()

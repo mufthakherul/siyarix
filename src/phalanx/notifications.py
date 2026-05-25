@@ -17,7 +17,6 @@ Usage::
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from collections import deque
 from dataclasses import dataclass, field
@@ -27,7 +26,6 @@ from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.text import Text
 
 __all__ = [
     "NotificationLevel",
@@ -187,7 +185,8 @@ class NotificationCenter:
         """Search notification history by keyword."""
         query_lower = query.lower()
         results = [
-            n for n in self._history
+            n
+            for n in self._history
             if query_lower in n.title.lower() or query_lower in n.message.lower()
         ]
         return results[-limit:]
@@ -290,7 +289,9 @@ class NotificationCenter:
                     headers={"Content-Type": "application/json"},
                 )
                 if resp.status_code not in (200, 204):
-                    logger.warning("Webhook POST failed (%d): %s", resp.status_code, resp.text[:200])
+                    logger.warning(
+                        "Webhook POST failed (%d): %s", resp.status_code, resp.text[:200]
+                    )
         except Exception as exc:
             logger.warning("Webhook forwarding failed: %s", exc)
 

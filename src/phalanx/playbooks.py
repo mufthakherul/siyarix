@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import os
 import json
 import logging
-import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List
@@ -15,17 +13,20 @@ logger = logging.getLogger(__name__)
 # Standard playbooks path
 PLAYBOOKS_DIR = Path.home() / ".siyarix" / "playbooks"
 
+
 @dataclass
 class Playbook:
     """A reusable security scan playbook."""
-    
+
     name: str
     description: str
     steps: List[Dict[str, Any]]
     variables: List[str] = field(default_factory=list)
     risk_level: str = "low"
     estimated_duration: str = "5 min"
-    created_at: str = field(default_factory=lambda: Path().stat().st_ctime if Path().exists() else "")
+    created_at: str = field(
+        default_factory=lambda: str(Path().stat().st_ctime) if Path().exists() else ""
+    )
 
     def render(self, vars_dict: Dict[str, str]) -> List[Dict[str, Any]]:
         """Render steps replacing variables of the form ${var}."""
@@ -47,6 +48,7 @@ class PlaybookManager:
     def _load_defaults(self) -> None:
         """Seed default templates into playbooks directory."""
         from siyarix.workflow_generator import BUILTIN_TEMPLATES
+
         for key, t in BUILTIN_TEMPLATES.items():
             path = self.directory / f"{key}.json"
             if not path.exists():

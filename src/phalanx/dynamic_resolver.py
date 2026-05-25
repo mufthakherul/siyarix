@@ -152,7 +152,9 @@ _BLOCKED_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r";\s*\b(?:SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|UNION|EXEC)\b", re.IGNORECASE),
     re.compile(r"\bDROP\s+(?:TABLE|DATABASE)\b", re.IGNORECASE),
     re.compile(r"\bDELETE\s+FROM\b[^;]*(?!WHERE)", re.IGNORECASE),
-    re.compile(r"""['\"]\s*(?:OR|AND)\s+['\"]?\d+['\"]?\s*=\s*['\"]?\d+""", re.IGNORECASE),  # ' OR 1=1
+    re.compile(
+        r"""['\"]\s*(?:OR|AND)\s+['\"]?\d+['\"]?\s*=\s*['\"]?\d+""", re.IGNORECASE
+    ),  # ' OR 1=1
     # ── Shell injection sequences ──
     re.compile(r"[;&|]{2,}"),  # && || ;;
     re.compile(r"`[^`]+`"),  # backtick execution
@@ -294,7 +296,10 @@ class DynamicResolver:
             safety_score -= 0.1
 
         if not is_safe:
-            warnings.append(f"Command '{base_cmd}' is not in the known safe list; " "will require user confirmation")
+            warnings.append(
+                f"Command '{base_cmd}' is not in the known safe list; "
+                "will require user confirmation"
+            )
 
         return ResolvedCommand(
             executable=base_cmd,
@@ -316,10 +321,13 @@ class DynamicResolver:
             ("path_traversal", re.compile(r"(?:\.\.[\\/]){3,}")),
             ("null_byte", re.compile(r"\x00")),
             ("newline", re.compile(r"[\r\n]")),
-            ("sql_keyword", re.compile(
-                r"\b(?:SELECT|INSERT|DELETE|DROP|ALTER|UNION|EXEC)\b.*[;'\"]",
-                re.IGNORECASE,
-            )),
+            (
+                "sql_keyword",
+                re.compile(
+                    r"\b(?:SELECT|INSERT|DELETE|DROP|ALTER|UNION|EXEC)\b.*[;'\"]",
+                    re.IGNORECASE,
+                ),
+            ),
         ]
 
         full = " ".join(args)
@@ -329,7 +337,9 @@ class DynamicResolver:
                 return True, name
         return False, ""
 
-    def resolve_tool_for_capability(self, capability: str, registered_tools: list[dict]) -> str | None:
+    def resolve_tool_for_capability(
+        self, capability: str, registered_tools: list[dict]
+    ) -> str | None:
         """Find the best registered tool for a given capability.
 
         Parameters

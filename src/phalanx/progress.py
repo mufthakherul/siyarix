@@ -12,6 +12,7 @@ import types
 import signal
 import time
 from dataclasses import dataclass, field
+from typing import Any
 
 from rich.console import Console, Group
 from rich.live import Live
@@ -306,7 +307,7 @@ async def run_tools_with_progress(
         ZaproxyParser,
     )
 
-    _PARSERS = {
+    _PARSERS: dict[str, Any] = {
         "nmap": NmapParser(),
         "nikto": NiktoParser(),
         "nuclei": NucleiParser(),

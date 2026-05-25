@@ -278,7 +278,7 @@ class PluginManager:
             parser_fn = getattr(module, "parse_tool_output", None)
             if callable(parser_fn):
                 try:
-                    parsers[plugin.name] = parser_fn
+                    parsers[plugin.name] = parser_fn  # pyright: ignore[reportArgumentType]
                 except Exception:
                     logging.getLogger(__name__).exception(
                         "Parser function for plugin %s raised at registration; skipping",

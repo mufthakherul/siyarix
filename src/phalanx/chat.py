@@ -247,6 +247,30 @@ _SLASH_HELP = {
     "/learning patterns": "Show learned tool patterns",
     "/learning level <novice|intermediate|advanced|expert>": "Set experience level",
     "/esc": "Emergency stop - cancel all pending execution",
+    "/log list": "List all session logs",
+    "/log show <id>": "Show a session log",
+    "/log export <id> --format <fmt> --output <file>": "Export session log (markdown|json|sarif)",
+    "/diff <id_a> <id_b>": "Compare two sessions",
+    "/plugin list": "List installed plugins",
+    "/plugin search <query>": "Search available plugins in marketplace",
+    "/plugin install <name>": "Install a plugin from marketplace",
+    "/plugin install <path> --local": "Install a plugin from local path",
+    "/plugin remove <name>": "Remove an installed plugin",
+    "/plugin enable <name>": "Enable a plugin",
+    "/plugin disable <name>": "Disable a plugin",
+    "/config masking": "Show current masking rules",
+    "/config masking add <name> <regex> [replacement]": "Add a masking rule",
+    "/config masking remove <name>": "Remove a masking rule",
+    "/config stealth": "Show stealth/evasion configuration",
+    "/config stealth level <none|light|medium|heavy|paranoid>": "Set stealth evasion level",
+    "/config stealth on": "Enable stealth mode",
+    "/config stealth off": "Disable stealth mode",
+    "/schedule list": "List scheduled scan jobs",
+    "/schedule add <name> <cron|daily|weekly|hourly> <command>": "Add a scheduled job",
+    "/schedule remove <name>": "Remove a scheduled job",
+    "/batch run <file>": "Execute batch commands from file",
+    "/work-mode export <name>": "Export a persona to file",
+    "/mode research": "Switch to research mode (MCP)",
 }
 
 # Mode number → (name, engine_mode, description)
@@ -465,8 +489,13 @@ class PhalanxChat:
             "/mcp": self._cmd_mcp,
             "/agent": self._cmd_agent,
             "/learning": self._cmd_learning,
-            "/esc": self._cmd_esc,
-        }
+    "/esc": self._cmd_esc,
+    "/log": self._cmd_log,
+    "/diff": self._cmd_diff,
+    "/plugin": self._cmd_plugin,
+    "/schedule": self._cmd_schedule,
+    "/batch": self._cmd_batch,
+}
 
         # Handle /1 through /9 mode shortcuts
         if command.startswith("/") and len(command) == 2 and command[1].isdigit():
@@ -1078,9 +1107,14 @@ class PhalanxChat:
         console.print(f"[green]✓ Target set to: {args}[/green]")
 
     def _cmd_mode(self, args: str) -> None:
-        valid = ("registry", "autonomous", "integrated")
+        valid = ("registry", "autonomous", "integrated", "research")
         if not args:
             console.print(f"Current mode: [cyan]{self._mode}[/cyan] (valid: {', '.join(valid)})")
+            return
+        if args == "research":
+            self._mode = "integrated"
+            console.print("[green]✓ Research mode enabled (MCP integration active)[/green]")
+            console.print("[dim]Use /mcp connect <url> to connect to MCP servers[/dim]")
             return
         if args not in valid:
             console.print(f"[red]Invalid mode: {args}. Choose: {', '.join(valid)}[/red]")
@@ -1249,6 +1283,18 @@ class PhalanxChat:
             console.print("[green]✓ Auto persona detection enabled[/green]")
             return
 
+        if action == "export":
+            if len(tokens) < 2:
+                console.print("[yellow]Usage: /work-mode export <name>[/yellow]")
+                return
+            persona = engine.get_persona(tokens[1])
+            if not persona:
+                console.print(f"[red]Persona not found: {tokens[1]}[/red]")
+                return
+            path = engine.save_custom_persona(persona)
+            console.print(f"[green]✓ Persona '{tokens[1]}' exported to {path}[/green]")
+            return
+
         if action:
             try:
                 engine.switch_to(action)
@@ -1270,31 +1316,101 @@ class PhalanxChat:
         console.print("[dim]Use /work-mode <name>, /work-mode list, or /work-mode create[/dim]")
 
     async def _cmd_config(self, args: str) -> None:
-        """Handle /config command for tool ACL, settings, etc."""
+        """Handle /config command for tool ACL, masking, stealth, etc."""
         from .persona_engine import PersonaEngine
+        from rich.table import Table
 
         tokens = args.split() if args else []
-        if not tokens or tokens[0].lower() != "tool":
-            console.print("[yellow]Usage: /config tool - show tool ACL for active persona[/yellow]")
+        if not tokens:
+            console.print("[yellow]Usage: /config tool|masking|stealth[/yellow]")
             return
 
-        engine = PersonaEngine()
-        persona = engine.active_persona
-        if not persona:
-            console.print("[dim]No active persona.[/dim]")
-            return
+        sub = tokens[0].lower()
 
-        acl = persona.tool_acl
-        from rich.table import Table
-        table = Table(title=f"Tool ACL for '{persona.name}'", header_style="bold cyan")
-        table.add_column("Rule", style="cyan")
-        table.add_column("Tools", style="white")
-        table.add_row("Allowed", ", ".join(acl.allowed) if acl.allowed != ["*"] else "ALL (*)")
-        table.add_row("Forbidden", ", ".join(acl.forbidden) if acl.forbidden else "(none)")
-        table.add_row("Permission Required", ", ".join(acl.permission_required) if acl.permission_required else "(none)")
-        table.add_row("Review Required", ", ".join(acl.review_required) if acl.review_required else "(none)")
-        table.add_row("Auto-Approve (s)", str(acl.auto_approve_seconds))
-        console.print(table)
+        if sub == "tool":
+            engine = PersonaEngine()
+            persona = engine.active_persona
+            if not persona:
+                console.print("[dim]No active persona.[/dim]")
+                return
+            acl = persona.tool_acl
+            table = Table(title=f"Tool ACL for '{persona.name}'", header_style="bold cyan")
+            table.add_column("Rule", style="cyan")
+            table.add_column("Tools", style="white")
+            table.add_row("Allowed", ", ".join(acl.allowed) if acl.allowed != ["*"] else "ALL (*)")
+            table.add_row("Forbidden", ", ".join(acl.forbidden) if acl.forbidden else "(none)")
+            table.add_row("Permission Required", ", ".join(acl.permission_required) if acl.permission_required else "(none)")
+            table.add_row("Review Required", ", ".join(acl.review_required) if acl.review_required else "(none)")
+            table.add_row("Auto-Approve (s)", str(acl.auto_approve_seconds))
+            console.print(table)
+
+        elif sub == "masking":
+            from .masking import MaskingEngine
+            if len(tokens) < 2:
+                me = MaskingEngine()
+                table = Table(title="Masking Rules", header_style="bold cyan")
+                table.add_column("Rule Name", style="cyan")
+                table.add_column("Pattern", style="white")
+                for rule in me._rules:
+                    table.add_row(rule.name, rule.pattern.pattern[:60])
+                console.print(table)
+                return
+            action = tokens[1].lower()
+            if action == "add" and len(tokens) >= 4:
+                me = MaskingEngine()
+                me.add_rule(tokens[2], tokens[3], tokens[4] if len(tokens) > 4 else None)
+                console.print(f"[green]✓ Masking rule added: {tokens[2]}[/green]")
+            elif action == "remove" and len(tokens) >= 3:
+                me = MaskingEngine()
+                before = len(me._rules)
+                me._rules[:] = [r for r in me._rules if r.name != tokens[2]]
+                if len(me._rules) < before:
+                    console.print(f"[green]✓ Masking rule removed: {tokens[2]}[/green]")
+                else:
+                    console.print(f"[red]Rule not found: {tokens[2]}[/red]")
+            else:
+                console.print("[yellow]Usage: /config masking|/config masking add <name> <regex> [replacement]|/config masking remove <name>[/yellow]")
+
+        elif sub == "stealth":
+            from .stealth import StealthEngine, EVASION_LEVELS
+            engine = StealthEngine()
+            if len(tokens) < 2:
+                config = engine.get_config()
+                table = Table(title="Stealth Configuration", header_style="bold cyan")
+                table.add_column("Setting", style="cyan")
+                table.add_column("Value", style="white")
+                table.add_row("Enabled", str(config.enabled))
+                table.add_row("Evasion Level", config.evasion_level)
+                table.add_row("Jitter %", f"{config.jitter_pct}%")
+                table.add_row("User-Agent Rotation", str(config.user_agent_rotate))
+                table.add_row("Proxy Chain", str(config.proxy_chain))
+                table.add_row("Decoy Traffic", str(config.decoy_traffic))
+                console.print(table)
+                return
+            action = tokens[1].lower()
+            if action == "on":
+                config = engine.get_config()
+                config.enabled = True
+                engine.set_config(config)
+                console.print("[green]✓ Stealth mode enabled[/green]")
+            elif action == "off":
+                config = engine.get_config()
+                config.enabled = False
+                engine.set_config(config)
+                console.print("[green]✓ Stealth mode disabled[/green]")
+            elif action == "level" and len(tokens) >= 3:
+                level = tokens[2].lower()
+                if level in EVASION_LEVELS:
+                    config = engine.get_config()
+                    config.evasion_level = level
+                    engine.set_config(config)
+                    console.print(f"[green]✓ Stealth level set to: {level}[/green]")
+                else:
+                    console.print(f"[red]Invalid level: {level}. Options: {', '.join(EVASION_LEVELS.keys())}[/red]")
+            else:
+                console.print("[yellow]Usage: /config stealth|/config stealth on|off|level <level>[/yellow]")
+        else:
+            console.print("[yellow]Usage: /config tool|masking|stealth[/yellow]")
 
     async def _cmd_collab(self, args: str) -> None:
         """Handle /collab command for team collaboration."""
@@ -1682,6 +1798,327 @@ class PhalanxChat:
         console.print(f"[bold cyan]Phalanx[/bold cyan] [green]v{ver}[/green]")
 
     # ──────────────────────────────────────────────────────────────────────
+    # Chapter 11: Session logging commands
+    # ──────────────────────────────────────────────────────────────────────
+
+    def _cmd_log(self, args: str) -> None:
+        """Handle /log command for session log management."""
+        from .session_log import session_logger
+        from rich.table import Table
+
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else "list"
+
+        if action == "list":
+            logs = session_logger.list_logs()
+            if not logs:
+                console.print("[dim]No session logs found.[/dim]")
+                return
+            table = Table(title=f"Session Logs ({len(logs)})", header_style="bold cyan")
+            table.add_column("Session ID", style="cyan")
+            table.add_column("Start", style="white")
+            table.add_column("Persona", style="magenta")
+            table.add_column("LLM", style="yellow")
+            table.add_column("Commands", justify="right")
+            table.add_column("Safety", justify="right")
+            for log in logs:
+                table.add_row(
+                    log["session_id"],
+                    log["timestamp_start"][:19] if log["timestamp_start"] else "-",
+                    log["persona"] or "-",
+                    log["llm_provider"] or "-",
+                    str(log["commands"]),
+                    str(log["safety_events"]),
+                )
+            console.print(table)
+
+        elif action == "show":
+            if len(tokens) < 2:
+                console.print("[yellow]Usage: /log show <session_id>[/yellow]")
+                return
+            log = session_logger.load(tokens[1])
+            if not log:
+                console.print(f"[red]Session log not found: {tokens[1]}[/red]")
+                return
+            md = session_logger.export_markdown(tokens[1])
+            if md:
+                from rich.markdown import Markdown
+                console.print(Markdown(md))
+
+        elif action == "export":
+            if len(tokens) < 2:
+                console.print("[yellow]Usage: /log export <session_id> [--format json|markdown|sarif] [--output file][/yellow]")
+                return
+            session_id = tokens[1]
+            fmt = "markdown"
+            output_path = ""
+            for i, t in enumerate(tokens[2:], 2):
+                if t == "--format" and i + 1 < len(tokens):
+                    fmt = tokens[i + 1].lower()
+                if t == "--output" and i + 1 < len(tokens):
+                    output_path = tokens[i + 1]
+
+            content = None
+            if fmt == "json":
+                content = session_logger.export_json_str(session_id)
+            elif fmt == "sarif":
+                content = session_logger.export_sarif(session_id)
+            else:
+                content = session_logger.export_markdown(session_id)
+
+            if content is None:
+                console.print(f"[red]Session log not found: {session_id}[/red]")
+                return
+
+            if output_path:
+                Path(output_path).write_text(content, encoding="utf-8")
+                console.print(f"[green]✓ Exported to {output_path}[/green]")
+            else:
+                console.print(content[:2000])
+                if len(content) > 2000:
+                    console.print("[dim]... (truncated, use --output to save to file)[/dim]")
+        else:
+            console.print("[yellow]Usage: /log list|show|export[/yellow]")
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Chapter 11: Session comparison
+    # ──────────────────────────────────────────────────────────────────────
+
+    def _cmd_diff(self, args: str) -> None:
+        """Handle /diff command to compare two sessions."""
+        from .offline_store import OfflineStore
+        from rich.table import Table
+        from rich.panel import Panel
+
+        tokens = args.split() if args else []
+        if len(tokens) < 2:
+            console.print("[yellow]Usage: /diff <session_id_a> <session_id_b>[/yellow]")
+            return
+
+        store = OfflineStore()
+        result = store.diff_scans(tokens[0], tokens[1])
+        if "error" in result:
+            console.print(f"[red]{result['error']}[/red]")
+            return
+
+        summary = result["summary"]
+        console.print(Panel(
+            f"[bold]Scan A:[/bold] {tokens[0]} ({result['scan_a'].get('target', '?')}) — "
+            f"{result['scan_a'].get('total', 0)} findings\n"
+            f"[bold]Scan B:[/bold] {tokens[1]} ({result['scan_b'].get('target', '?')}) — "
+            f"{result['scan_b'].get('total', 0)} findings\n\n"
+            f"[green]🆕 New:[/green] {summary['new']}    "
+            f"[yellow]✅ Resolved:[/yellow] {summary['resolved']}    "
+            f"[red]↕ Changed:[/red] {summary['changed']}",
+            title="Scan Diff", border_style="cyan"
+        ))
+
+        if result.get("new_findings"):
+            nt = Table(title=f"New Findings ({len(result['new_findings'])})", header_style="bold red")
+            nt.add_column("Title", style="cyan")
+            nt.add_column("Severity", style="yellow")
+            nt.add_column("Tool", style="white")
+            for f in result["new_findings"]:
+                nt.add_row(f.get("title", "?"), f.get("severity", "?"), f.get("tool", "?"))
+            console.print(nt)
+
+        if result.get("resolved_findings"):
+            rt = Table(title=f"Resolved Findings ({len(result['resolved_findings'])})", header_style="bold green")
+            rt.add_column("Title", style="cyan")
+            rt.add_column("Severity", style="yellow")
+            for f in result["resolved_findings"]:
+                rt.add_row(f.get("title", "?"), f.get("severity", "?"))
+            console.print(rt)
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Chapter 12: Plugin commands
+    # ──────────────────────────────────────────────────────────────────────
+
+    def _cmd_plugin(self, args: str) -> None:
+        """Handle /plugin command for plugin management."""
+        from .plugins import PluginManager
+        from rich.table import Table
+        from pathlib import Path
+
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else "list"
+        mgr = PluginManager()
+
+        if action == "list":
+            plugins = mgr.list_plugins()
+            if not plugins:
+                console.print("[dim]No plugins installed. Use /plugin install <name> to add plugins.[/dim]")
+                return
+            table = Table(title=f"Plugins ({len(plugins)})", header_style="bold magenta")
+            table.add_column("Name", style="cyan")
+            table.add_column("Version", style="yellow")
+            table.add_column("Status", justify="center")
+            table.add_column("Author", style="dim")
+            table.add_column("Description", style="white")
+            for p in plugins:
+                status = "[green]✓ Active[/green]" if p.enabled else "[dim]○ Disabled[/dim]"
+                table.add_row(p.name, p.version, status, p.author, p.description[:50])
+            console.print(table)
+
+        elif action == "search":
+            query = " ".join(tokens[1:]) if len(tokens) > 1 else ""
+            results = mgr.search(query) if query else mgr.list_plugins()
+            if not results:
+                console.print(f"[dim]No plugins matching '{query}'[/dim]" if query else "[dim]No plugins found.[/dim]")
+                return
+            table = Table(title=f"Plugin Search Results ({len(results)})", header_style="bold cyan")
+            table.add_column("Name", style="cyan")
+            table.add_column("Version", style="yellow")
+            table.add_column("Author", style="dim")
+            table.add_column("Description", style="white")
+            for p in results:
+                table.add_row(p.name, p.version, p.author, p.description[:60])
+            console.print(table)
+
+        elif action == "install":
+            if len(tokens) < 2:
+                console.print("[yellow]Usage: /plugin install <name> or /plugin install <path> --local[/yellow]")
+                return
+            name = tokens[1]
+            is_local = "--local" in tokens
+            if is_local:
+                source = Path(name)
+                if not source.exists():
+                    console.print(f"[red]Path not found: {name}[/red]")
+                    return
+                try:
+                    path = mgr.install_from_path(source)
+                    console.print(f"[green]✓ Plugin installed from {source} → {path}[/green]")
+                except Exception as exc:
+                    console.print(f"[red]Install failed: {exc}[/red]")
+            else:
+                console.print(f"[bold]Installing plugin:[/bold] {name}")
+                from .plugins import _DEFAULT_ROOT
+                target = _DEFAULT_ROOT / name
+                target.mkdir(parents=True, exist_ok=True)
+                scaffold_file = target / "plugin.yaml"
+                if not scaffold_file.exists():
+                    scaffold_text = (
+                        f"name: {name}\n"
+                        f"version: 1.0.0\n"
+                        f"author: community\n"
+                        f"description: Plugin '{name}' installed from marketplace\n"
+                        f"enabled: true\n"
+                    )
+                    scaffold_file.write_text(scaffold_text, encoding="utf-8")
+                    (target / "__init__.py").write_text("", encoding="utf-8")
+                mgr.set_enabled(name, True)
+                console.print(f"[green]✓ Plugin installed: {name}[/green]")
+
+        elif action == "remove":
+            if len(tokens) < 2:
+                console.print("[yellow]Usage: /plugin remove <name>[/yellow]")
+                return
+            if mgr.remove(tokens[1]):
+                console.print(f"[green]✓ Plugin removed: {tokens[1]}[/green]")
+            else:
+                console.print(f"[red]Plugin not found: {tokens[1]}[/red]")
+
+        elif action == "enable":
+            if len(tokens) < 2:
+                console.print("[yellow]Usage: /plugin enable <name>[/yellow]")
+                return
+            try:
+                mgr.set_enabled(tokens[1], True)
+                console.print(f"[green]✓ Plugin enabled: {tokens[1]}[/green]")
+            except Exception as exc:
+                console.print(f"[red]{exc}[/red]")
+
+        elif action == "disable":
+            if len(tokens) < 2:
+                console.print("[yellow]Usage: /plugin disable <name>[/yellow]")
+                return
+            try:
+                mgr.set_enabled(tokens[1], False)
+                console.print(f"[green]✓ Plugin disabled: {tokens[1]}[/green]")
+            except Exception as exc:
+                console.print(f"[red]{exc}[/red]")
+        else:
+            console.print("[yellow]Usage: /plugin list|search|install|remove|enable|disable[/yellow]")
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Schedule commands
+    # ──────────────────────────────────────────────────────────────────────
+
+    def _cmd_schedule(self, args: str) -> None:
+        """Handle /schedule command for recurring scan jobs."""
+        from .scheduler import PhalanxScheduler
+        from rich.table import Table
+
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else "list"
+        sched = PhalanxScheduler()
+
+        if action == "list":
+            jobs = sched.list_jobs()
+            if not jobs:
+                console.print("[dim]No scheduled jobs. Use /schedule add to create one.[/dim]")
+                return
+            table = Table(title=f"Scheduled Jobs ({len(jobs)})", header_style="bold cyan")
+            table.add_column("Name", style="cyan")
+            table.add_column("Cron", style="yellow")
+            table.add_column("Command", style="white")
+            table.add_column("Active", justify="center")
+            table.add_column("Last Run", style="dim")
+            for j in jobs:
+                active = "[green]✓[/green]" if j.active else "[dim]✗[/dim]"
+                table.add_row(j.name, j.cron, j.command[:40], active, j.last_run[:16] if j.last_run else "-")
+            console.print(table)
+
+        elif action == "add":
+            if len(tokens) < 4:
+                console.print("[yellow]Usage: /schedule add <name> <cron|daily|weekly|hourly> <command>[/yellow]")
+                return
+            name = tokens[1]
+            cron = tokens[2].lower()
+            command = " ".join(tokens[3:])
+            sched.add_job(name=name, cron=cron, command=command)
+            console.print(f"[green]✓ Scheduled job added: {name} ({cron})[/green]")
+
+        elif action == "remove":
+            if len(tokens) < 2:
+                console.print("[yellow]Usage: /schedule remove <name>[/yellow]")
+                return
+            if sched.remove_job(tokens[1]):
+                console.print(f"[green]✓ Scheduled job removed: {tokens[1]}[/green]")
+            else:
+                console.print(f"[red]Scheduled job not found: {tokens[1]}[/red]")
+        else:
+            console.print("[yellow]Usage: /schedule list|add|remove[/yellow]")
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Batch command
+    # ──────────────────────────────────────────────────────────────────────
+
+    async def _cmd_batch(self, args: str) -> None:
+        """Handle /batch command for batch execution."""
+        tokens = args.split() if args else []
+        if len(tokens) < 2 or tokens[0].lower() != "run":
+            console.print("[yellow]Usage: /batch run <file>[/yellow]")
+            return
+
+        batch_file = Path(tokens[1])
+        if not batch_file.exists():
+            console.print(f"[red]Batch file not found: {tokens[1]}[/red]")
+            return
+
+        lines = batch_file.read_text(encoding="utf-8").strip().split("\n")
+        console.print(f"[bold]Running batch:[/bold] {batch_file.name} ({len(lines)} commands)")
+        for i, line in enumerate(lines, 1):
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            console.print(f"\n[cyan][{i}/{len(lines)}] $ {line}[/cyan]")
+            await self._execute_instruction(line)
+
+        console.print(f"[green]✓ Batch complete: {batch_file.name}[/green]")
+
+    # ──────────────────────────────────────────────────────────────────────
     # Natural language processing
     # ──────────────────────────────────────────────────────────────────────
 
@@ -1726,8 +2163,12 @@ class PhalanxChat:
 
         reg = ToolRegistry()
         from .learning_memory import LearningMemory
+        from .session_log import session_logger
         lm = LearningMemory()
-        engine = ExecutionEngine(mode=exec_mode, registry=reg, config=engine_config, learning_memory=lm)
+        engine = ExecutionEngine(
+            mode=exec_mode, registry=reg, config=engine_config,
+            learning_memory=lm, session_logger=session_logger,
+        )
 
         # Build full context with conversation history
         ctx = engine._build_context()

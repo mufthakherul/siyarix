@@ -106,13 +106,19 @@ class TaskQueueBackend:
         if worker:
             worker["last_heartbeat"] = datetime.now().isoformat()
 
+    def _get_redis_client(self):
+        if not hasattr(self, '_redis_client'):
+            import redis.asyncio as redis_async  # pyright: ignore[reportMissingImports]
+            self._redis_client = redis_async.Redis.from_url(
+                self._config.get("redis_url", "redis://localhost:6379"),
+                connection_pool_kwargs={"max_connections": 10},
+            )
+        return self._redis_client
+
     async def _enqueue_redis(self, task: DistributedTask) -> str:
         try:
-            import redis.asyncio as redis_async  # pyright: ignore[reportMissingImports]
-
-            r = redis_async.Redis.from_url(self._config.get("redis_url", "redis://localhost:6379"))
+            r = self._get_redis_client()
             await r.rpush("phalanx:queue", json.dumps(task.__dict__, default=str))
-            await r.close()
             return task.task_id
         except ImportError:
             logger.warning("redis not installed, falling back to memory queue")
@@ -121,11 +127,8 @@ class TaskQueueBackend:
 
     async def _dequeue_redis(self, worker_id: str) -> DistributedTask | None:
         try:
-            import redis.asyncio as redis_async  # pyright: ignore[reportMissingImports]
-
-            r = redis_async.Redis.from_url(self._config.get("redis_url", "redis://localhost:6379"))
+            r = self._get_redis_client()
             data = await r.blpop("phalanx:queue", timeout=5)
-            await r.close()
             if data:
                 task_dict = json.loads(data[1])
                 task = DistributedTask(**task_dict)

@@ -12,4 +12,3 @@ def test_intent_router_unknown_promotes_registry_to_integrated() -> None:
     router = IntentRouter()
     route = router.route("do something magical unknown", preferred_mode="registry")
     assert route.mode == "integrated"
-

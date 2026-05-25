@@ -26,4 +26,3 @@ def test_severity_label_minimal_theme_has_no_icons() -> None:
 
 def test_resolve_theme_fallbacks_to_default() -> None:
     assert resolve_theme("unknown-theme") == "cyber-noir"
-

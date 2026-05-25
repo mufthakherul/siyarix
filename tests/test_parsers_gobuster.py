@@ -2,11 +2,11 @@ from siyarix.parsers.gobuster_parser import GobusterParser
 
 
 def test_gobuster_parser_basic():
-    output = '''
+    output = """
 Url: http://example.com
 /admin (Status: 200) [Size: 1234]
 /login (Status: 302) [Size: 0]
-'''
+"""
     p = GobusterParser()
     findings = p.parse(output)
     assert isinstance(findings, list)

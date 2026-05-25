@@ -1,6 +1,6 @@
 import asyncio
 
-from siyarix.providers import ProviderRegistry, NoopProvider
+from siyarix.providers import ProviderRegistry, NoopProvider, registry
 
 
 def test_provider_registry_ordering():
@@ -9,10 +9,8 @@ def test_provider_registry_ordering():
     reg.register("b", NoopProvider())
     reg.register("c", NoopProvider())
 
-    ordered = reg.ordered_by_preference(["b", "c"])  # prefer b then c
+    ordered = reg.ordered_by_preference(["b", "c"])
     assert len(ordered) == 3
-    # first two should be b and c
-    # we can't inspect keys directly, but ensure providers are in list
     assert ordered[0].available
     assert ordered[1].available
 
@@ -25,14 +23,10 @@ def test_noop_provider_plan_returns_empty():
         assert res == {}
 
     asyncio.run(_run())
-from siyarix.providers import registry, NoopProvider
 
 
 def test_noop_provider_registered():
     assert "noop" in registry.list_providers()
-
-
-import asyncio
 
 
 def test_noop_provider_behaviour():

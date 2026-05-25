@@ -1,0 +1,94 @@
+version: "3.9"
+
+services:
+  siyarix:
+    build:
+      context: .
+      target: production
+    image: siyarix:latest
+    container_name: siyarix
+    environment:
+      - SIYARIX_LOG_LEVEL=${SIYARIX_LOG_LEVEL:-INFO}
+      - SIYARIX_PERSONA=${SIYARIX_PERSONA:-bug_hunter}
+      - SIYARIX_PROVIDER=${SIYARIX_PROVIDER:-noop}
+      - SIYARIX_NO_TELEMETRY=${SIYARIX_NO_TELEMETRY:-1}
+    volumes:
+      - siyarix_data:/root/.siyarix
+      - ./src:/app/src:ro
+    stdin_open: true
+    tty: true
+    networks:
+      - siyarix_net
+
+  siyarix-worker:
+    build:
+      context: .
+      target: production
+    image: siyarix:latest
+    container_name: siyarix-worker
+    environment:
+      - SIYARIX_MODE=worker
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    volumes:
+      - siyarix_data:/root/.siyarix
+    networks:
+      - siyarix_net
+    deploy:
+      replicas: 3
+
+  siyarix-dashboard:
+    build:
+      context: .
+      target: production
+    image: siyarix:latest
+    container_name: siyarix-dashboard
+    command: ["siyarix", "dashboard"]
+    ports:
+      - "8090:8090"
+    environment:
+      - SIYARIX_DASHBOARD_PORT=8090
+      - SIYARIX_DASHBOARD_HOST=0.0.0.0
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - siyarix_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: siyarix-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - siyarix_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: siyarix-otel
+    environment:
+      - TZ=UTC
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel/config.yaml:ro
+    ports:
+      - "4318:4318"
+    networks:
+      - siyarix_net
+    profiles:
+      - telemetry
+
+networks:
+  siyarix_net:
+    driver: bridge
+
+volumes:
+  siyarix_data:
+  redis_data:

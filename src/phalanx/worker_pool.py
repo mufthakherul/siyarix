@@ -3,11 +3,12 @@
 Provides a simple concurrency limiter with submit/close APIs suitable for
 running tool-execution coroutines in the ExecutionEngine.
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Awaitable, Callable
+from typing import Any, Callable, Coroutine
 
 logger = logging.getLogger(__name__)
 
@@ -28,13 +29,13 @@ class AsyncWorkerPool:
         self._tasks: set[asyncio.Task] = set()
         self._closed = False
 
-    async def submit(self, fn: Callable[..., Awaitable[Any]], *args: Any, **kwargs: Any) -> Any:
+    async def submit(self, fn: Callable[..., Coroutine[Any, Any, Any]], *args: Any, **kwargs: Any) -> Any:
         if self._closed:
             raise RuntimeError("Pool is closed")
 
         async with self._sema:
             # Wrap execution in a task so it can be cancelled externally if needed
-            task = asyncio.create_task(fn(*args, **kwargs))
+            task: asyncio.Task[Any] = asyncio.create_task(fn(*args, **kwargs))
             self._tasks.add(task)
 
             try:
@@ -56,7 +57,9 @@ class AsyncWorkerPool:
                 t.cancel()
 
         try:
-            await asyncio.wait_for(asyncio.gather(*self._tasks, return_exceptions=True), timeout=timeout)
+            await asyncio.wait_for(
+                asyncio.gather(*self._tasks, return_exceptions=True), timeout=timeout
+            )
         except asyncio.TimeoutError:
             logger.warning("Worker pool shutdown timed out; some tasks did not finish")
 

@@ -208,7 +208,9 @@ class HealthChecker:
 
                 elif provider_name == "Cloud":
                     # Check if cloud config present
-                    available = bool(os.getenv("SIYARIX_SERVER_URL") and os.getenv("SIYARIX_API_KEY"))
+                    available = bool(
+                        os.getenv("SIYARIX_SERVER_URL") and os.getenv("SIYARIX_API_KEY")
+                    )
                     message = "Cloud configured" if available else "Cloud not configured"
 
                 self.model_providers_available[provider_name] = available

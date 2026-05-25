@@ -1,7 +1,7 @@
 """Shared engine types used by ExecutionEngine and ToolExecutor."""
+
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any

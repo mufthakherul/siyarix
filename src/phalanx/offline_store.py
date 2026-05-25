@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import json
 import sqlite3
 from datetime import UTC
 from pathlib import Path
+from typing import Generator
 
 _DB_DIR = Path.home() / ".phalanx"
 _DB_PATH = _DB_DIR / "offline.db"
@@ -94,10 +96,9 @@ class OfflineStore:
     # Internals
     # ------------------------------------------------------------------
 
-    def _connect(self):
-        import contextlib
+    def _connect(self) -> contextlib.AbstractContextManager[sqlite3.Connection]:
         @contextlib.contextmanager
-        def _conn_ctx():
+        def _conn_ctx() -> Generator[sqlite3.Connection, None, None]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
             try:
@@ -105,6 +106,7 @@ class OfflineStore:
                     yield conn
             finally:
                 conn.close()
+
         return _conn_ctx()
 
     # ------------------------------------------------------------------
@@ -131,7 +133,8 @@ class OfflineStore:
         created_at = datetime.now(tz=UTC).isoformat()
         with self._connect() as conn:
             conn.execute(
-                "INSERT OR IGNORE INTO scans (id, target, tool, status, created_at) " "VALUES (?, ?, ?, ?, ?)",
+                "INSERT OR IGNORE INTO scans (id, target, tool, status, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
                 (scan_id, target, tool, status, created_at),
             )
             conn.commit()
@@ -216,7 +219,9 @@ class OfflineStore:
     # Workflow persistence (execution plans and steps)
     # ------------------------------------------------------------------
 
-    def save_plan(self, plan_id: str, instruction: str, plan_json: str, status: str = "planned") -> None:
+    def save_plan(
+        self, plan_id: str, instruction: str, plan_json: str, status: str = "planned"
+    ) -> None:
         """Persist a new execution plan."""
         from datetime import datetime
 
@@ -242,10 +247,7 @@ class OfflineStore:
         completed_at = now if completed else None
         with self._connect() as conn:
             conn.execute(
-                (
-                    "UPDATE execution_plans SET status=?, updated_at=?, completed_at=? "
-                    "WHERE id=?"
-                ),
+                ("UPDATE execution_plans SET status=?, updated_at=?, completed_at=? WHERE id=?"),
                 (status, now, completed_at, plan_id),
             )
             conn.commit()
@@ -393,7 +395,9 @@ class OfflineStore:
             return None
         scan = dict(scan_row)
         with self._connect() as conn:
-            finding_rows = conn.execute("SELECT * FROM findings WHERE scan_id=?", (scan_id,)).fetchall()
+            finding_rows = conn.execute(
+                "SELECT * FROM findings WHERE scan_id=?", (scan_id,)
+            ).fetchall()
         scan["findings"] = [dict(r) for r in finding_rows]
         return scan
 
@@ -464,7 +468,9 @@ class OfflineStore:
         with self._connect() as conn:
             total_scans = conn.execute("SELECT COUNT(*) FROM scans").fetchone()[0]
             total_findings = conn.execute("SELECT COUNT(*) FROM findings").fetchone()[0]
-            sev_rows = conn.execute("SELECT severity, COUNT(*) AS cnt FROM findings GROUP BY severity").fetchall()
+            sev_rows = conn.execute(
+                "SELECT severity, COUNT(*) AS cnt FROM findings GROUP BY severity"
+            ).fetchall()
             tool_rows = conn.execute(
                 "SELECT tool, COUNT(*) AS cnt FROM scans GROUP BY tool ORDER BY cnt DESC LIMIT 5"
             ).fetchall()

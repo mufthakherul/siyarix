@@ -133,7 +133,9 @@ class Agent:
         """Receive a message from another agent or the coordinator."""
         self.memory.messages_received.append(message)
         await self._inbox.put(message)
-        logger.debug("Agent %s received message from %s: %s", self.name, message.sender, message.msg_type)
+        logger.debug(
+            "Agent %s received message from %s: %s", self.name, message.sender, message.msg_type
+        )
 
     async def process_next(self) -> AgentMessage | None:
         """Process the next message in the inbox.
@@ -231,9 +233,9 @@ class AgentTeam:
         """Get all agents with a specific role."""
         return [a for a in self._agents.values() if a.role == role]
 
-    def list_agents(self) -> list[dict[str, Any]]:
+    def list_agents(self) -> list[Agent]:
         """List all agents and their status."""
-        return [a.to_dict() for a in self._agents.values()]
+        return list(self._agents.values())
 
     async def send_message(self, message: AgentMessage) -> None:
         """Route a message to the recipient agent."""
@@ -244,7 +246,9 @@ class AgentTeam:
         else:
             logger.warning("Message to unknown agent: %s", message.recipient)
 
-    async def broadcast(self, sender: str, content: str, payload: dict[str, Any] | None = None) -> None:
+    async def broadcast(
+        self, sender: str, content: str, payload: dict[str, Any] | None = None
+    ) -> None:
         """Broadcast a message to all agents."""
         for agent_name in self._agents:
             if agent_name != sender:
@@ -314,7 +318,7 @@ class AgentTeam:
             "team_id": self.team_id,
             "name": self.name,
             "agent_count": len(self._agents),
-            "agents": self.list_agents(),
+            "agents": [a.to_dict() for a in self._agents.values()],
             "messages_total": len(self._message_log),
             "results_count": len(self._results),
         }

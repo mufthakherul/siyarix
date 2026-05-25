@@ -120,54 +120,64 @@ class Predictor:
         phase_actions = _PHASE_ACTIONS.get(phase, _PHASE_ACTIONS.get("idle", []))
         for action_template, reason in phase_actions[:3]:
             action = action_template.replace("{target}", target) if target else action_template
-            predictions.append(Prediction(
-                action=action,
-                confidence=0.7,
-                reason=f"Phase [{phase}]: {reason}",
-                category="suggestion",
-            ))
+            predictions.append(
+                Prediction(
+                    action=action,
+                    confidence=0.7,
+                    reason=f"Phase [{phase}]: {reason}",
+                    category="suggestion",
+                )
+            )
 
         # 2) Tool follow-up recommendations
         if last_tool:
             followups = _TOOL_FOLLOWUPS.get(last_tool.lower(), [])
             for action_template, reason in followups[:2]:
                 action = action_template.replace("{target}", target) if target else action_template
-                predictions.append(Prediction(
-                    action=action,
-                    confidence=0.8,
-                    reason=f"After {last_tool}: {reason}",
-                    category="suggestion",
-                ))
+                predictions.append(
+                    Prediction(
+                        action=action,
+                        confidence=0.8,
+                        reason=f"After {last_tool}: {reason}",
+                        category="suggestion",
+                    )
+                )
 
         # 3) Findings-based recommendations
         if findings_count > 0:
-            predictions.append(Prediction(
-                action="generate report" if target else "siyarix report generate",
-                confidence=0.6,
-                reason=f"{findings_count} finding(s) detected — consider reporting",
-                category="suggestion",
-            ))
+            predictions.append(
+                Prediction(
+                    action="generate report" if target else "siyarix report generate",
+                    confidence=0.6,
+                    reason=f"{findings_count} finding(s) detected — consider reporting",
+                    category="suggestion",
+                )
+            )
 
         # 4) Learned pattern-based predictions
         if self._last_command:
             for (prev, nxt), count in self._sequence_pairs.most_common(3):
                 if prev == self._last_command and count >= 2:
-                    predictions.append(Prediction(
-                        action=nxt,
-                        confidence=min(0.5 + count * 0.1, 0.9),
-                        reason=f"You frequently run {nxt} after {prev}",
-                        category="optimization",
-                        metadata={"pattern_count": count},
-                    ))
+                    predictions.append(
+                        Prediction(
+                            action=nxt,
+                            confidence=min(0.5 + count * 0.1, 0.9),
+                            reason=f"You frequently run {nxt} after {prev}",
+                            category="optimization",
+                            metadata={"pattern_count": count},
+                        )
+                    )
 
         # 5) Warning if idle too long in active phase
         if phase not in ("idle", "reporting", "cleanup") and findings_count == 0:
-            predictions.append(Prediction(
-                action="review approach",
-                confidence=0.4,
-                reason="No findings yet in active phase — consider adjusting approach",
-                category="warning",
-            ))
+            predictions.append(
+                Prediction(
+                    action="review approach",
+                    confidence=0.4,
+                    reason="No findings yet in active phase — consider adjusting approach",
+                    category="warning",
+                )
+            )
 
         # Deduplicate by action
         seen: set[str] = set()

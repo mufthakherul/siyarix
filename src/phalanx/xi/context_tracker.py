@@ -11,7 +11,6 @@ Tracks:
 from __future__ import annotations
 
 import logging
-import time
 from collections import Counter, deque
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -34,7 +33,16 @@ class OperationPhase:
     REPORTING = "reporting"
     CLEANUP = "cleanup"
 
-    _PHASE_ORDER = [IDLE, RECON, SCANNING, ENUMERATION, EXPLOITATION, POST_EXPLOIT, REPORTING, CLEANUP]
+    _PHASE_ORDER = [
+        IDLE,
+        RECON,
+        SCANNING,
+        ENUMERATION,
+        EXPLOITATION,
+        POST_EXPLOIT,
+        REPORTING,
+        CLEANUP,
+    ]
 
     @classmethod
     def next_phase(cls, current: str) -> str:
@@ -104,7 +112,15 @@ class ContextTracker:
         tool_lower = tool.lower()
         cmd_lower = command.lower()
 
-        recon_tools = {"whois", "dig", "nslookup", "theHarvester", "amass", "subfinder", "assetfinder"}
+        recon_tools = {
+            "whois",
+            "dig",
+            "nslookup",
+            "theHarvester",
+            "amass",
+            "subfinder",
+            "assetfinder",
+        }
         scan_tools = {"nmap", "masscan", "rustscan", "zmap", "unicornscan"}
         enum_tools = {"gobuster", "ffuf", "dirb", "dirsearch", "nikto", "wpscan", "nuclei"}
         exploit_tools = {"sqlmap", "hydra", "john", "hashcat", "msfconsole", "metasploit"}

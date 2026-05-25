@@ -49,6 +49,7 @@ from .worker_pool import AsyncWorkerPool
 from .tool_executor import ToolExecutor
 from .providers import registry as provider_registry
 from .xi import ContextTracker, Predictor, SkillProfiler, XICoreService
+from .kill_switch import KillSwitch, KillSwitchState
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -181,6 +182,22 @@ class ExecutionEngine:
         # Lazy XI services (SkillProfiler & XICoreService)
         self._xi_skill_profiler: SkillProfiler | None = None
         self._xi_core_service: XICoreService | None = None
+
+        # Kill switch for emergency stop
+        self._kill_switch = KillSwitch()
+        self._kill_switch.register(self._on_kill)
+
+    @property
+    def kill_switch(self) -> KillSwitch:
+        return self._kill_switch
+
+    def _on_kill(self) -> None:
+        """Callback when kill switch is triggered."""
+        logger.warning("Kill switch triggered - cancelling all pool tasks")
+        try:
+            self._pool.cancel_pending()
+        except Exception as exc:
+            logger.exception("Pool cancellation failed: %s", exc)
 
     def _get_offline_store(self) -> OfflineStore:
         """Get or create offline store instance."""
@@ -516,6 +533,16 @@ class ExecutionEngine:
         store = self._get_offline_store() if persist_workflow else None
         plan_id: str | None = None
 
+        # Check kill switch before execution
+        if self._kill_switch.state == KillSwitchState.TRIGGERED:
+            logger.warning("Execution aborted: kill switch triggered")
+            return EngineResult(
+                plan=ExecutionPlan(instruction=instruction, steps=[]),
+                mode=self._mode,
+                step_results=[],
+                total_duration_ms=0.0,
+            )
+
         # Phase 1: Plan
         plan = await self.plan(instruction)
 
@@ -750,6 +777,13 @@ class ExecutionEngine:
                 )
 
             async def _run_one(step: ExecutionStep) -> StepResult:
+                # Check kill switch
+                if self._kill_switch.state == KillSwitchState.TRIGGERED:
+                    return StepResult(
+                        step_id=step.id,
+                        status=StepStatus.SKIPPED,
+                        output="Skipped: kill switch triggered",
+                    )
                 # Check condition
                 if step.condition and not self._evaluate_condition(step.condition):
                     sr = StepResult(
@@ -1003,6 +1037,29 @@ class ExecutionEngine:
                     error=f"Blocked: {'; '.join(resolved.warnings)}",
                 )
 
+        # Permission gate check for tool
+        try:
+            from .permission_gate import PermissionGate
+            gate = PermissionGate()
+            gate_result = gate.check(" ".join(step.args), tool=tool_name)
+            if gate_result.stage == "forbidden":
+                return StepResult(
+                    step_id=step.id,
+                    status=StepStatus.BLOCKED,
+                    error=f"Forbidden by permission gate: {gate_result.reason}",
+                )
+            if gate_result.requires_review and interactive:
+                from .shell_review import review_and_confirm
+                confirmed = review_and_confirm(" ".join(step.args), tool_name, gate_result.reason)
+                if confirmed is None:
+                    return StepResult(
+                        step_id=step.id,
+                        status=StepStatus.BLOCKED,
+                        error="Cancelled by user review",
+                    )
+        except Exception as exc:
+            logger.debug("Permission gate check failed: %s", exc)
+
         # Build args
         args = list(step.args)
         if step.target:
@@ -1081,6 +1138,30 @@ class ExecutionEngine:
                     status=StepStatus.BLOCKED,
                     error=f"Blocked: {'; '.join(resolved.warnings)}",
                 )
+
+        # Permission gate check for shell command
+        try:
+            from .permission_gate import PermissionGate
+            gate = PermissionGate()
+            gate_result = gate.check(command, tool=base_cmd)
+            if gate_result.stage == "forbidden":
+                return StepResult(
+                    step_id=step.id,
+                    status=StepStatus.BLOCKED,
+                    error=f"Forbidden by permission gate: {gate_result.reason}",
+                )
+            if gate_result.requires_review and interactive:
+                from .shell_review import review_and_confirm
+                confirmed = review_and_confirm(command, base_cmd, gate_result.reason)
+                if confirmed is None:
+                    return StepResult(
+                        step_id=step.id,
+                        status=StepStatus.BLOCKED,
+                        error="Cancelled by user review",
+                    )
+                command = confirmed
+        except Exception as exc:
+            logger.debug("Permission gate check failed: %s", exc)
 
         # Warn for unregistered commands
         if resolved.warnings and interactive:

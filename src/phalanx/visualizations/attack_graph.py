@@ -3,12 +3,10 @@
 Renders the in-memory knowledge graph into a visual hierarchy in the terminal using Rich.
 """
 
-from typing import Any
-
 from rich.console import Console
 from rich.tree import Tree
 
-from phalanx.knowledge_graph import KnowledgeGraph, NodeType, EdgeType
+from phalanx.knowledge_graph import KnowledgeGraph, NodeType
 
 
 class AttackGraphVisualizer:
@@ -47,7 +45,9 @@ class AttackGraphVisualizer:
         hosts = graph.find_nodes(node_type=NodeType.HOST)
         if not hosts:
             # Fallback if no specific host node
-            self.console.print(f"[cyan]Knowledge Graph: {graph.node_count} nodes, {graph.edge_count} edges[/cyan]")
+            self.console.print(
+                f"[cyan]Knowledge Graph: {graph.node_count} nodes, {graph.edge_count} edges[/cyan]"
+            )
             return
 
         for host in hosts:
@@ -57,11 +57,13 @@ class AttackGraphVisualizer:
 
             # Recursive helper to build tree
             self._build_tree(graph, host.node_id, root_tree, set([host.node_id]))
-            
+
             self.console.print(root_tree)
             self.console.print()
 
-    def _build_tree(self, graph: KnowledgeGraph, current_id: str, current_tree: Tree, visited: set[str]) -> None:
+    def _build_tree(
+        self, graph: KnowledgeGraph, current_id: str, current_tree: Tree, visited: set[str]
+    ) -> None:
         """Recursively build the tree from the graph edges."""
         # Find all edges from current node
         outgoing_edges = graph.get_edges(source_id=current_id)
@@ -69,14 +71,14 @@ class AttackGraphVisualizer:
             target_node = graph.get_node(edge.target_id)
             if not target_node or target_node.node_id in visited:
                 continue
-            
+
             visited.add(target_node.node_id)
             color = self._get_node_color(target_node.node_type)
             icon = self._get_node_icon(target_node.node_type)
-            
+
             # Format label
             label = f"[{color}]{icon} {target_node.label}[/{color}]"
-            
+
             # Add extra context for vulnerabilities
             if target_node.node_type == NodeType.VULNERABILITY:
                 severity = target_node.properties.get("severity", "unknown")
@@ -85,6 +87,6 @@ class AttackGraphVisualizer:
 
             # Create branch
             branch = current_tree.add(label)
-            
+
             # Recurse
             self._build_tree(graph, target_node.node_id, branch, visited.copy())

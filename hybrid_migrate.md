@@ -12,7 +12,7 @@
 
 | # | Task | Status | Notes |
 |---|------|--------|-------|
-| 1 | Wire up the Multi-Agent Framework — CoordinatorAgent with task decomposition | ✅ DONE | `src/phalanx/agents/coordinator.py` enhanced with intelligent decomposition, parallel dispatch, dependency resolution |
+| 1 | Wire up the Multi-Agent Framework — CoordinatorAgent with task decomposition | ✅ DONE | `src/phalanx/agents/coordinator.py` — `_decompose_objective()`, parallel `asyncio.gather` dispatch with semaphore, topological dependency resolution, OODA loop |
 | 2 | Close the AI feedback loop — Adaptive re-plan after step failures/zero findings | ✅ DONE | Engine._replan_from_feedback() wired in ExecutionEngine._execute_plan, bounded by max_replans (default 3) |
 | 3 | Deepen E2E test coverage — Full planner→engine→parser→store pipeline | ✅ DONE | 15 new test files (exploitation, ML anomaly, OTel, deception, threat intel, distributed) + existing E2E tests enhanced |
 | 4 | Complete the XI service — Connect ContextTracker + Predictor to planner | ✅ DONE | XI integrated in ExecutionEngine._build_context() and _record_step_feedback(); planner receives XI predictions |
@@ -42,7 +42,7 @@
 
 ### Implementation Details
 
-- **ExploitChainBuilder:** Generates parameterized campaign workflows with phases (recon→enumeration→exploitation→post-exploit→privilege escalation→lateral movement→persistence). Each step has tool, args, timeout, retries, and dependency linking.
+- **ExploitChainBuilder:** `build_chain()` generates parameterized campaign workflows with phases (recon→enumeration→exploitation→post-exploit→privilege escalation→lateral movement→persistence). Each step has tool, args, timeout, retries, and dependency linking. `build_msfvenom_payload()` generates msfvenom command strings with auto-detected output format and input validation.
 - **Payload Generation:** `build_msfvenom_payload()` generates msfvenom command strings for Windows/Linux/macOS/Android across x64/x86/ARM architectures with configurable encoders and output formats.
 - **Passive Recon:** ThreatIntelFeed.ingest_stix() and .ingest_misp() parse STIX 2.x indicators and MISP events into structured ThreatIntel objects. MITREAttackDB provides CVE-to-technique mappings and finding enrichment.
 - **Protocol Modules:** Enhanced SOC agent with SSH, SMB, HTTP detection rules; DFIR agent with memory/disk/network forensics workflows.
@@ -172,8 +172,8 @@
 
 All migration phases are complete at 100%. The project is fully enterprise-grade with:
 
-- **118 source files** across 50+ modules
-- **58 test files** with shared fixtures in `conftest.py`
+- **~105 source files** across 50+ modules (including sub-packages)
+- **56 test files** with **15 shared fixtures** in `conftest.py`
 - **12 new feature modules** covering all chapters of migration.md
 - **Full CI/CD** with 14 GitHub Actions workflows
 - **Docker/Compose** multi-service deployment

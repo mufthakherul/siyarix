@@ -122,8 +122,7 @@ phalanx report generate --findings results.json --format html
 ## 🏗️ Architecture at a Glance
 
 ```
-User → CLI Layer → Session Kernel → Intent Router
-  → Mode Dispatcher → Execution Engine
+User → CLI Layer → Session Kernel → Intent Router → Mode Dispatcher → Execution Engine
     ├── AI Planner (LLM + Heuristic)
     ├── Tool Registry + Executor
     ├── Multi-Agent Coordinator

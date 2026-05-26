@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import csv
+import functools
 import json
 import sqlite3
 from datetime import UTC
@@ -99,7 +100,7 @@ class OfflineStore:
     def _connect(self) -> contextlib.AbstractContextManager[sqlite3.Connection]:
         @contextlib.contextmanager
         def _conn_ctx() -> Generator[sqlite3.Connection, None, None]:
-            conn = sqlite3.connect(self._db_path)
+            conn = sqlite3.connect(str(self._db_path), timeout=30)
             conn.row_factory = sqlite3.Row
             try:
                 with conn:
@@ -124,7 +125,6 @@ class OfflineStore:
             conn.execute(_CREATE_STEP_EXECUTIONS)
             for statement in _CREATE_INDEXES:
                 conn.execute(statement)
-            conn.commit()
 
     def save_scan(self, scan_id: str, target: str, tool: str, status: str) -> None:
         """Persist a new scan record."""
@@ -137,7 +137,7 @@ class OfflineStore:
                 "VALUES (?, ?, ?, ?, ?)",
                 (scan_id, target, tool, status, created_at),
             )
-            conn.commit()
+        self._invalidate_cache()
 
     def update_scan_status(self, scan_id: str, status: str) -> None:
         """Update the status of an existing scan."""
@@ -146,7 +146,7 @@ class OfflineStore:
                 "UPDATE scans SET status = ? WHERE id = ?",
                 (status, scan_id),
             )
-            conn.commit()
+        self._invalidate_cache()
 
     def save_finding(self, finding: dict, scan_id: str) -> None:
         """Persist a finding associated with *scan_id*."""
@@ -172,7 +172,7 @@ class OfflineStore:
                     finding.get("timestamp", ""),
                 ),
             )
-            conn.commit()
+        self._invalidate_cache()
 
     def get_unsynced_findings(self) -> list[dict]:
         """Return all findings that have not yet been synced to the server."""
@@ -190,7 +190,7 @@ class OfflineStore:
                 f"UPDATE findings SET synced = 1 WHERE id IN ({placeholders})",  # nosec B608
                 finding_ids,
             )
-            conn.commit()
+        self._invalidate_cache()
 
     def export_json(self, output_path: str) -> None:
         """Export all findings to a JSON file at *output_path*."""
@@ -237,7 +237,7 @@ class OfflineStore:
                 ),
                 (plan_id, instruction, plan_json, status, now, now),
             )
-            conn.commit()
+        self._invalidate_cache()
 
     def update_plan_status(
         self, plan_id: str, status: str, completed: bool = False
@@ -254,7 +254,7 @@ class OfflineStore:
                 ),
                 (status, now, completed_at, plan_id),
             )
-            conn.commit()
+        self._invalidate_cache()
 
     def upsert_step_execution(
         self,
@@ -299,8 +299,14 @@ class OfflineStore:
                     now,
                 ),
             )
-            conn.commit()
+        self._invalidate_cache()
 
+    def _invalidate_cache(self) -> None:
+        """Clear cached query results after write operations."""
+        self.get_plan.cache_clear()
+        self.get_scan_with_findings.cache_clear()
+
+    @functools.lru_cache(maxsize=256)
     def get_plan(self, plan_id: str) -> dict | None:
         """Fetch a plan and its steps by ID."""
         with self._connect() as conn:
@@ -392,19 +398,19 @@ class OfflineStore:
             result.append(d)
         return result
 
+    @functools.lru_cache(maxsize=256)
     def get_scan_with_findings(self, scan_id: str) -> dict | None:
         """Return full scan record plus all its findings."""
         with self._connect() as conn:
             scan_row = conn.execute(
                 "SELECT * FROM scans WHERE id=?", (scan_id,)
             ).fetchone()
-        if not scan_row:
-            return None
-        scan = dict(scan_row)
-        with self._connect() as conn:
+            if not scan_row:
+                return None
             finding_rows = conn.execute(
                 "SELECT * FROM findings WHERE scan_id=?", (scan_id,)
             ).fetchall()
+        scan = dict(scan_row)
         scan["findings"] = [dict(r) for r in finding_rows]
         return scan
 
@@ -506,7 +512,7 @@ class OfflineStore:
                 return False
             conn.execute("DELETE FROM findings WHERE scan_id=?", (scan_id,))
             conn.execute("DELETE FROM scans WHERE id=?", (scan_id,))
-            conn.commit()
+            self._invalidate_cache()
         return True
 
     def vacuum(self) -> None:
@@ -519,7 +525,6 @@ class OfflineStore:
         with self._connect() as conn:
             conn.execute("PRAGMA optimize")
             conn.execute("ANALYZE")
-            conn.commit()
 
     def db_stats(self) -> dict[str, int]:
         """Return lightweight local DB storage stats."""
@@ -539,12 +544,37 @@ class OfflineStore:
         """Import external findings into local store under a synthetic scan id."""
         if not findings:
             return 0
-        self.save_scan(
-            scan_id=scan_id, target="imported", tool="external", status="complete"
-        )
-        imported = 0
-        for finding in findings:
-            if isinstance(finding, dict):
-                self.save_finding(finding, scan_id=scan_id)
-                imported += 1
-        return imported
+        from datetime import datetime
+
+        now = datetime.now(tz=UTC).isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO scans (id, target, tool, status, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (scan_id, "imported", "external", "complete", now),
+            )
+            rows = [
+                (
+                    f.get("id", ""),
+                    scan_id,
+                    f.get("title", ""),
+                    f.get("severity", "info"),
+                    f.get("description", ""),
+                    f.get("evidence", ""),
+                    f.get("tool", ""),
+                    f.get("target", ""),
+                    f.get("timestamp", ""),
+                )
+                for f in findings
+                if isinstance(f, dict)
+            ]
+            conn.executemany(
+                """
+                INSERT OR IGNORE INTO findings
+                    (id, scan_id, title, severity, description, evidence, tool, target, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                rows,
+            )
+            self._invalidate_cache()
+        return len(rows)

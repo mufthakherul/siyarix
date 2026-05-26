@@ -231,13 +231,6 @@ _SLASH_HELP = {
     "/log show <id>": "Show a session log",
     "/log export <id> --format <fmt> --output <file>": "Export session log (markdown|json|sarif)",
     "/diff <id_a> <id_b>": "Compare two sessions",
-    "/plugin list": "List installed plugins",
-    "/plugin search <query>": "Search available plugins in marketplace",
-    "/plugin install <name>": "Install a plugin from marketplace",
-    "/plugin install <path> --local": "Install a plugin from local path",
-    "/plugin remove <name>": "Remove an installed plugin",
-    "/plugin enable <name>": "Enable a plugin",
-    "/plugin disable <name>": "Disable a plugin",
     "/schedule list": "List scheduled scan jobs",
     "/schedule add <name> <cron|daily|weekly|hourly> <command>": "Add a scheduled job",
     "/schedule remove <name>": "Remove a scheduled job",
@@ -471,7 +464,6 @@ class PhalanxChat:
             "/esc": self._cmd_esc,
             "/log": self._cmd_log,
             "/diff": self._cmd_diff,
-            "/plugin": self._cmd_plugin,
             "/schedule": self._cmd_schedule,
             "/batch": self._cmd_batch,
             "/hsm": self._cmd_hsm,
@@ -1911,139 +1903,6 @@ class PhalanxChat:
             console.print(rt)
 
     # ──────────────────────────────────────────────────────────────────────
-    # Chapter 12: Plugin commands
-    # ──────────────────────────────────────────────────────────────────────
-
-    def _cmd_plugin(self, args: str) -> None:
-        """Handle /plugin command for plugin management."""
-        from pathlib import Path
-
-        from rich.table import Table
-
-        from .plugins import PluginManager
-
-        tokens = args.split() if args else []
-        action = tokens[0].lower() if tokens else "list"
-        mgr = PluginManager()
-
-        if action == "list":
-            plugins = mgr.list_plugins()
-            if not plugins:
-                console.print(
-                    "[dim]No plugins installed. Use /plugin install <name> to add plugins.[/dim]"
-                )
-                return
-            table = Table(
-                title=f"Plugins ({len(plugins)})", header_style="bold magenta"
-            )
-            table.add_column("Name", style="cyan")
-            table.add_column("Version", style="yellow")
-            table.add_column("Status", justify="center")
-            table.add_column("Author", style="dim")
-            table.add_column("Description", style="white")
-            for p in plugins:
-                status = (
-                    "[green]✓ Active[/green]" if p.enabled else "[dim]○ Disabled[/dim]"
-                )
-                table.add_row(p.name, p.version, status, p.author, p.description[:50])
-            console.print(table)
-
-        elif action == "search":
-            query = " ".join(tokens[1:]) if len(tokens) > 1 else ""
-            results = mgr.search(query) if query else mgr.list_plugins()
-            if not results:
-                console.print(
-                    f"[dim]No plugins matching '{query}'[/dim]"
-                    if query
-                    else "[dim]No plugins found.[/dim]"
-                )
-                return
-            table = Table(
-                title=f"Plugin Search Results ({len(results)})",
-                header_style="bold cyan",
-            )
-            table.add_column("Name", style="cyan")
-            table.add_column("Version", style="yellow")
-            table.add_column("Author", style="dim")
-            table.add_column("Description", style="white")
-            for p in results:
-                table.add_row(p.name, p.version, p.author, p.description[:60])
-            console.print(table)
-
-        elif action == "install":
-            if len(tokens) < 2:
-                console.print(
-                    "[yellow]Usage: /plugin install <name> or /plugin install <path> --local[/yellow]"
-                )
-                return
-            name = tokens[1]
-            is_local = "--local" in tokens
-            if is_local:
-                source = Path(name)
-                if not source.exists():
-                    console.print(f"[red]Path not found: {name}[/red]")
-                    return
-                try:
-                    path = mgr.install_from_path(source)
-                    console.print(
-                        f"[green]✓ Plugin installed from {source} → {path}[/green]"
-                    )
-                except Exception as exc:
-                    console.print(f"[red]Install failed: {exc}[/red]")
-            else:
-                console.print(f"[bold]Installing plugin:[/bold] {name}")
-                from .plugins import _DEFAULT_ROOT
-
-                target = _DEFAULT_ROOT / name
-                target.mkdir(parents=True, exist_ok=True)
-                scaffold_file = target / "plugin.yaml"
-                if not scaffold_file.exists():
-                    scaffold_text = (
-                        f"name: {name}\n"
-                        f"version: 1.0.0\n"
-                        f"author: community\n"
-                        f"description: Plugin '{name}' installed from marketplace\n"
-                        f"enabled: true\n"
-                    )
-                    scaffold_file.write_text(scaffold_text, encoding="utf-8")
-                    (target / "__init__.py").write_text("", encoding="utf-8")
-                mgr.set_enabled(name, True)
-                console.print(f"[green]✓ Plugin installed: {name}[/green]")
-
-        elif action == "remove":
-            if len(tokens) < 2:
-                console.print("[yellow]Usage: /plugin remove <name>[/yellow]")
-                return
-            if mgr.remove(tokens[1]):
-                console.print(f"[green]✓ Plugin removed: {tokens[1]}[/green]")
-            else:
-                console.print(f"[red]Plugin not found: {tokens[1]}[/red]")
-
-        elif action == "enable":
-            if len(tokens) < 2:
-                console.print("[yellow]Usage: /plugin enable <name>[/yellow]")
-                return
-            try:
-                mgr.set_enabled(tokens[1], True)
-                console.print(f"[green]✓ Plugin enabled: {tokens[1]}[/green]")
-            except Exception as exc:
-                console.print(f"[red]{exc}[/red]")
-
-        elif action == "disable":
-            if len(tokens) < 2:
-                console.print("[yellow]Usage: /plugin disable <name>[/yellow]")
-                return
-            try:
-                mgr.set_enabled(tokens[1], False)
-                console.print(f"[green]✓ Plugin disabled: {tokens[1]}[/green]")
-            except Exception as exc:
-                console.print(f"[red]{exc}[/red]")
-        else:
-            console.print(
-                "[yellow]Usage: /plugin list|search|install|remove|enable|disable[/yellow]"
-            )
-
-    # ──────────────────────────────────────────────────────────────────────
     # Schedule commands
     # ──────────────────────────────────────────────────────────────────────
 
@@ -2459,7 +2318,7 @@ class PhalanxChat:
             title = " ".join(tokens[1:]) if len(tokens) > 1 else Prompt.ask("Ticket title")
             sent = platform_integration.send_notification(f"Ticket: {title}", severity="medium")
             console.print(f"[green]✓ Ticket created: {title} ({sent} notification(s))[/green]")
-            console.print("[yellow]Note: Jira/GitHub integration requires plugin installation (see /plugin)[/yellow]")
+            console.print("[yellow]Note: Jira/GitHub integration is not yet available[/yellow]")
         elif action == "list":
             console.print("[yellow]Use /findings list to see findings that can be converted to tickets[/yellow]")
         else:

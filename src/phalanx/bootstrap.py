@@ -241,8 +241,6 @@ class BootstrapEngine:
             self._home / "personas",
             self._home / "personas" / "custom",
             self._home / "profiles",
-            self._home / "plugins" / "installed",
-            self._home / "plugins" / "available",
             self._home / "memory",
             self._home / "logs" / "sessions",
             self._home / "logs" / "audit",

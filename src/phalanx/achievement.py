@@ -51,7 +51,6 @@ BUILTIN_ACHIEVEMENTS: list[Achievement] = [
     Achievement(id="first_learning", name="Student", description="Complete your first learning module", icon="📚", category="learning", tier="bronze", target=1),
     Achievement(id="ten_learning", name="Scholar", description="Complete 10 learning modules", icon="🎓", category="learning", tier="silver", target=10),
 
-    Achievement(id="first_plugin", name="Extensible", description="Install your first plugin", icon="🔌", category="plugins", tier="bronze", target=1),
     Achievement(id="first_report", name="Reporter", description="Generate your first report", icon="📊", category="reporting", tier="bronze", target=1),
     Achievement(id="first_playbook", name="Playbook Author", description="Create your first playbook", icon="📖", category="playbooks", tier="silver", target=1),
 
@@ -169,9 +168,6 @@ class AchievementSystem:
         elif event_type == "learning_module":
             self.progress("first_learning")
             self.progress("ten_learning")
-
-        elif event_type == "plugin_install":
-            self.progress("first_plugin")
 
         elif event_type == "report_generated":
             self.progress("first_report")

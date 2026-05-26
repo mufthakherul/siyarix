@@ -7,11 +7,11 @@ current workload characteristics.
 
 from __future__ import annotations
 
-import json
+import functools
 import logging
 import os
 import platform as _platform
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -26,11 +26,13 @@ class SystemResources:
     platform: str = ""
     architecture: str = ""
 
-    @property
+    @functools.cached_property
     def recommended_max_agents(self) -> int:
-        return max(1, min(self.cpu_logical * 2, 32))
+        cpu_based = self.cpu_logical * 2
+        ram_based = int(self.total_ram_gb) // 2
+        return max(1, min(cpu_based, ram_based, 64))
 
-    @property
+    @functools.cached_property
     def recommended_memory_per_agent_mb(self) -> int:
         if self.total_ram_gb >= 64:
             return 4096
@@ -42,7 +44,7 @@ class SystemResources:
             return 512
         return 256
 
-    @property
+    @functools.cached_property
     def recommended_concurrent_tools(self) -> int:
         return max(1, self.cpu_logical // 2)
 
@@ -115,8 +117,19 @@ class PerformanceOptimizer:
     def configure(self, **kwargs: Any) -> PerformanceConfig:
         for key, value in kwargs.items():
             if hasattr(self._config, key):
+                if key in (
+                    "max_concurrent_agents", "memory_limit_per_agent_mb",
+                    "network_bandwidth_limit_mbps",
+                ):
+                    if not isinstance(value, int) or value < 0:
+                        continue
                 setattr(self._config, key, value)
         return self._config
+
+    def refresh_resources(self) -> SystemResources:
+        """Re-detect system resources at runtime."""
+        self._resources = self._detect_resources()
+        return self._resources
 
     def summary(self) -> dict[str, Any]:
         return {

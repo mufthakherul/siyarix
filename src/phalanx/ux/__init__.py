@@ -6,10 +6,12 @@ tiered autocompletion, and fuzzy command palettes.
 
 from .autocomplete import SmartAutocomplete
 from .command_palette import CommandPalette
+from .config_panel import ConfigPanel
 from .split_pane import SplitPane
 
 __all__ = [
     "SmartAutocomplete",
     "CommandPalette",
+    "ConfigPanel",
     "SplitPane",
 ]

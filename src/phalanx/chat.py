@@ -216,7 +216,7 @@ _SLASH_HELP = {
     "/work-mode create": "Create a custom persona with interactive builder",
     "/work-mode list": "List all available personas (built-in + custom)",
     "/work-mode auto": "Enable auto persona detection mode",
-    "/config tool": "Show tool ACL configuration for active persona",
+    "/config": "Open the interactive configuration panel",
 
     "/coder generate <prompt>": "Generate code using AI provider",
     "/coder review <file>": "Review a code file for issues",
@@ -241,13 +241,6 @@ _SLASH_HELP = {
     "/plugin remove <name>": "Remove an installed plugin",
     "/plugin enable <name>": "Enable a plugin",
     "/plugin disable <name>": "Disable a plugin",
-    "/config masking": "Show current masking rules",
-    "/config masking add <name> <regex> [replacement]": "Add a masking rule",
-    "/config masking remove <name>": "Remove a masking rule",
-    "/config stealth": "Show stealth/evasion configuration",
-    "/config stealth level <none|light|medium|heavy|paranoid>": "Set stealth evasion level",
-    "/config stealth on": "Enable stealth mode",
-    "/config stealth off": "Disable stealth mode",
     "/schedule list": "List scheduled scan jobs",
     "/schedule add <name> <cron|daily|weekly|hourly> <command>": "Add a scheduled job",
     "/schedule remove <name>": "Remove a scheduled job",
@@ -1350,128 +1343,10 @@ class PhalanxChat:
         )
 
     async def _cmd_config(self, args: str) -> None:
-        """Handle /config command for tool ACL, masking, stealth, etc."""
-        from rich.table import Table
+        """Open the interactive configuration panel."""
+        from .ux.config_panel import ConfigPanel
 
-        from .persona_engine import PersonaEngine
-
-        tokens = args.split() if args else []
-        if not tokens:
-            console.print("[yellow]Usage: /config tool|masking|stealth[/yellow]")
-            return
-
-        sub = tokens[0].lower()
-
-        if sub == "tool":
-            engine = PersonaEngine()
-            persona = engine.active_persona
-            if not persona:
-                console.print("[dim]No active persona.[/dim]")
-                return
-            acl = persona.tool_acl
-            table = Table(
-                title=f"Tool ACL for '{persona.name}'", header_style="bold cyan"
-            )
-            table.add_column("Rule", style="cyan")
-            table.add_column("Tools", style="white")
-            table.add_row(
-                "Allowed", ", ".join(acl.allowed) if acl.allowed != ["*"] else "ALL (*)"
-            )
-            table.add_row(
-                "Forbidden", ", ".join(acl.forbidden) if acl.forbidden else "(none)"
-            )
-            table.add_row(
-                "Permission Required",
-                (
-                    ", ".join(acl.permission_required)
-                    if acl.permission_required
-                    else "(none)"
-                ),
-            )
-            table.add_row(
-                "Review Required",
-                ", ".join(acl.review_required) if acl.review_required else "(none)",
-            )
-            table.add_row("Auto-Approve (s)", str(acl.auto_approve_seconds))
-            console.print(table)
-
-        elif sub == "masking":
-            from .masking import MaskingEngine
-
-            if len(tokens) < 2:
-                me = MaskingEngine()
-                table = Table(title="Masking Rules", header_style="bold cyan")
-                table.add_column("Rule Name", style="cyan")
-                table.add_column("Pattern", style="white")
-                for rule in me._rules:
-                    table.add_row(rule.name, rule.pattern.pattern[:60])
-                console.print(table)
-                return
-            action = tokens[1].lower()
-            if action == "add" and len(tokens) >= 4:
-                me = MaskingEngine()
-                me.add_rule(
-                    tokens[2], tokens[3], tokens[4] if len(tokens) > 4 else None
-                )
-                console.print(f"[green]✓ Masking rule added: {tokens[2]}[/green]")
-            elif action == "remove" and len(tokens) >= 3:
-                me = MaskingEngine()
-                before = len(me._rules)
-                me._rules[:] = [r for r in me._rules if r.name != tokens[2]]
-                if len(me._rules) < before:
-                    console.print(f"[green]✓ Masking rule removed: {tokens[2]}[/green]")
-                else:
-                    console.print(f"[red]Rule not found: {tokens[2]}[/red]")
-            else:
-                console.print(
-                    "[yellow]Usage: /config masking|/config masking add <name> <regex> [replacement]|/config masking remove <name>[/yellow]"
-                )
-
-        elif sub == "stealth":
-            from .stealth import EVASION_LEVELS, StealthEngine
-
-            engine = StealthEngine()
-            if len(tokens) < 2:
-                config = engine.get_config()
-                table = Table(title="Stealth Configuration", header_style="bold cyan")
-                table.add_column("Setting", style="cyan")
-                table.add_column("Value", style="white")
-                table.add_row("Enabled", str(config.enabled))
-                table.add_row("Evasion Level", config.evasion_level)
-                table.add_row("Jitter %", f"{config.jitter_pct}%")
-                table.add_row("User-Agent Rotation", str(config.user_agent_rotate))
-                table.add_row("Proxy Chain", str(config.proxy_chain))
-                table.add_row("Decoy Traffic", str(config.decoy_traffic))
-                console.print(table)
-                return
-            action = tokens[1].lower()
-            if action == "on":
-                config = engine.get_config()
-                config.enabled = True
-                engine.set_config(config)
-                console.print("[green]✓ Stealth mode enabled[/green]")
-            elif action == "off":
-                config = engine.get_config()
-                config.enabled = False
-                engine.set_config(config)
-                console.print("[green]✓ Stealth mode disabled[/green]")
-            elif action == "level" and len(tokens) >= 3:
-                level = tokens[2].lower()
-                if level in EVASION_LEVELS:
-                    config = engine.get_config()
-                    config.evasion_level = level
-                    engine.set_config(config)
-                    console.print(f"[green]✓ Stealth level set to: {level}[/green]")
-                else:
-                    console.print(
-                        f"[red]Invalid level: {level}. Options: {', '.join(EVASION_LEVELS.keys())}[/red]"
-                    )
-            else:
-                console.print(
-                    "[yellow]Usage: /config stealth|/config stealth on|off|level <level>[/yellow]"
-                )
-        else:
-            console.print("[yellow]Usage: /config tool|masking|stealth[/yellow]")
+        ConfigPanel().run()
 
     async def _cmd_coder(self, args: str) -> None:
         """Handle /coder command for code generation and review."""

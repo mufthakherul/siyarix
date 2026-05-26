@@ -29,7 +29,7 @@ from .core import IntentRouter, SessionKernel
 from .core.session_kernel import SessionContext
 from .credential_store import CredentialStore
 from .cvss_scorer import CVSSResult, CVSSScorer, CVSSVector, Severity
-from .dashboard import DashboardConfig, DashboardService, DashboardSnapshot
+from .dashboard import DashboardConfig, DashboardSnapshot
 from .deception import (FakeBannerGenerator, HoneypotDetector,
                         TrapdoorCredentialManager)
 from .distributed import (DistributedOrchestrator, DistributedTask,
@@ -193,7 +193,7 @@ __all__ = [
     "OpenTelemetryCollector",
     "OpenTelemetryMiddleware",
     "get_collector",
-    "DashboardService",
+
     "DashboardSnapshot",
     "DashboardConfig",
     "DistributedOrchestrator",

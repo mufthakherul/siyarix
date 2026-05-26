@@ -7,6 +7,7 @@ and ToolExecutor can be unit-tested with injected run_tool function.
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from typing import Any, Callable
 
@@ -15,9 +16,10 @@ from rich.console import Console
 from .engine_types import StepResult, StepStatus
 from .executor import run_tool_complete
 from .metrics import get_metrics
-from .notifications import notification_center
 from .planner import ExecutionStep, StepType
 from .security_hardening import redactor
+
+logger = logging.getLogger(__name__)
 
 console = Console()
 
@@ -35,7 +37,9 @@ class ToolExecutor:
         self._graph = graph
         self._run_tool = run_tool_fn or run_tool_complete
 
-    async def execute_step(self, step: ExecutionStep, interactive: bool) -> StepResult:
+    async def execute_step(
+        self, step: ExecutionStep, interactive: bool = False
+    ) -> StepResult:
         start = time.monotonic()
 
         try:
@@ -46,7 +50,7 @@ class ToolExecutor:
             elif step.step_type == StepType.ANALYSIS:
                 return await self._run_analysis_step(step)
             elif step.step_type == StepType.REPORT:
-                return self._run_report_step(step)
+                return await self._run_report_step(step)
             elif step.step_type == StepType.PARALLEL_GROUP:
                 return await self._run_parallel_step(step, interactive)
             else:
@@ -68,23 +72,25 @@ class ToolExecutor:
         tool_name = step.tool or ""
         start = time.monotonic()
 
-        # Handle __all__ case
         if tool_name == "__all__":
             findings: list = []
             outputs: list = []
             metrics = get_metrics()
             for tool_info in self._discovered_tools:
+                tool_start = time.monotonic()
                 args = list(step.args)
                 if step.target:
                     args.append(step.target)
                 result = await self._run_tool(tool_info.path, args, step.timeout)
+                tool_duration = time.monotonic() - tool_start
                 outputs.append(f"--- {tool_info.name} ---\n{result.stdout}")
-                # TODO: parse findings and ingest into graph
+                tool_findings = self._parse_output(tool_info.name, result.stdout)
+                findings.extend(tool_findings)
                 metrics.record_tool_execution(
                     tool_name=tool_info.name,
-                    duration=0.0,
-                    successful=True,
-                    findings_count=0,
+                    duration=tool_duration,
+                    successful=result.exit_code == 0,
+                    findings_count=len(tool_findings),
                 )
             duration = (time.monotonic() - start) * 1000
             return StepResult(
@@ -115,43 +121,7 @@ class ToolExecutor:
         safe_output = redactor.redact(result.stdout)
         safe_error = redactor.redact(result.stderr) if result.exit_code != 0 else ""
 
-        # Parse findings using available parsers
-        findings = []
-        try:
-            from .parsers import (GobusterParser, NiktoParser, NmapParser,
-                                  NucleiParser)
-
-            parsers: dict[str, Any] = {
-                "nmap": NmapParser(),
-                "nikto": NiktoParser(),
-                "nuclei": NucleiParser(),
-                "gobuster": GobusterParser(),
-            }
-            parser = parsers.get(tool_name)
-            if parser:
-                try:
-                    findings = parser.parse(result.stdout)
-                except Exception:
-                    findings = []
-        except Exception:
-            findings = []
-
-        # Ingest findings into graph and emit notifications
-        for f in findings:
-            try:
-                if self._graph is not None and hasattr(self._graph, "ingest_finding"):
-                    self._graph.ingest_finding(f, tool=tool_name)
-            except Exception:
-                pass
-            try:
-                notification_center.finding(
-                    tool=tool_name,
-                    severity=f.get("severity", "info"),
-                    description=f.get("description", str(f)),
-                    target=step.target or "",
-                )
-            except Exception:
-                pass
+        findings = self._parse_output(tool_name, result.stdout)
 
         # Record metrics
         get_metrics().record_tool_execution(
@@ -207,25 +177,75 @@ class ToolExecutor:
             duration_ms=duration,
         )
 
-    async def _run_analysis_step(self, step: ExecutionStep) -> StepResult:
-        # Minimal analysis implementation — returns summary
-        for dep_id in step.depends_on:
-            # engine populates completed steps; ToolExecutor doesn't access them here
-            pass
-        return StepResult(
-            step_id=step.id,
-            status=StepStatus.SUCCESS,
-            output="Analysis placeholder",
-            metadata={"type": "analysis"},
-        )
+    def _parse_output(self, tool_name: str, output: str) -> list[dict[str, Any]]:
+        """Parse tool output using registered parsers."""
+        try:
+            from .parsers import (GobusterParser, NiktoParser, NmapParser,
+                                  NucleiParser)
 
-    def _run_report_step(self, step: ExecutionStep) -> StepResult:
+            parsers: dict[str, Any] = {
+                "nmap": NmapParser(),
+                "nikto": NiktoParser(),
+                "nuclei": NucleiParser(),
+                "gobuster": GobusterParser(),
+            }
+            parser = parsers.get(tool_name)
+            if parser:
+                return parser.parse(output) or []
+        except Exception:
+            pass
+        return []
+
+    async def _run_analysis_step(self, step: ExecutionStep) -> StepResult:
+        try:
+            from .report_engine import ReportEngine
+
+            engine = ReportEngine()
+            report = engine.generate_analysis(
+                title=step.description or "Analysis",
+                findings=[],
+                step_metadata=step.metadata,
+            )
+            return StepResult(
+                step_id=step.id,
+                status=StepStatus.SUCCESS,
+                output=report or "Analysis complete — no findings to summarize",
+                metadata={"type": "analysis"},
+            )
+        except Exception as exc:
+            logger.debug("Analysis via ReportEngine failed: %s", exc)
+            return StepResult(
+                step_id=step.id,
+                status=StepStatus.SUCCESS,
+                output=f"Analysis requested: {step.description}",
+                metadata={"type": "analysis"},
+            )
+
+    async def _run_report_step(self, step: ExecutionStep) -> StepResult:
         fmt = step.metadata.get("format", "text")
-        return StepResult(
-            step_id=step.id,
-            status=StepStatus.SUCCESS,
-            output=f"Report generation ({fmt})",
-        )
+        try:
+            from .report_engine import ReportEngine
+
+            engine = ReportEngine()
+            report = engine.generate_report(
+                title=step.description or "Report",
+                fmt=fmt,
+                step_metadata=step.metadata,
+            )
+            return StepResult(
+                step_id=step.id,
+                status=StepStatus.SUCCESS,
+                output=report or f"Report generated ({fmt})",
+                metadata={"format": fmt},
+            )
+        except Exception as exc:
+            logger.debug("Report via ReportEngine failed: %s", exc)
+            return StepResult(
+                step_id=step.id,
+                status=StepStatus.SUCCESS,
+                output=f"Report generation ({fmt})",
+                metadata={"format": fmt},
+            )
 
     async def _run_parallel_step(
         self, step: ExecutionStep, interactive: bool

@@ -17,8 +17,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import logging
+import os
 import sys
 import time
 from collections import deque
@@ -27,20 +27,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .branding import print_theme_preview, available_themes
-from .command_profiles import CommandProfileStore, CommandProfile
+from .branding import available_themes, print_theme_preview
+from .command_profiles import CommandProfile, CommandProfileStore
 from .config import SettingsStore
-from .environment import ensure_env_file, load_env_file, provider_env_var, upsert_env_vars
+from .environment import (ensure_env_file, load_env_file, provider_env_var,
+                          upsert_env_vars)
 from .executor import safe_run_sync
-from .shell_knowledge import (
-    build_platform_context,
-    detect_shell,
-    normalize_shell,
-    get_security_commands,
-    get_shell_platform,
-    CROSS_PLATFORM_COMMANDS,
-)
-from .ux import SmartAutocomplete, CommandPalette, SplitPane
+from .shell_knowledge import (CROSS_PLATFORM_COMMANDS, build_platform_context,
+                              detect_shell, get_security_commands,
+                              get_shell_platform, normalize_shell)
+from .ux import CommandPalette, SmartAutocomplete, SplitPane
 
 Console: Any = None
 Columns: Any = None
@@ -54,8 +50,8 @@ Text: Any = None
 ptk_prompt: Any = None
 
 try:
-    from rich.console import Console
     from rich.columns import Columns
+    from rich.console import Console
     from rich.markdown import Markdown
     from rich.panel import Panel
     from rich.prompt import Prompt
@@ -296,7 +292,8 @@ class PhalanxChat:
     """Interactive REPL for Phalanx — the cybersecurity AI assistant."""
 
     _SESSIONS_DIR = (
-        Path(os.getenv("PHALANX_CONFIG_DIR", str(Path.home() / ".phalanx"))) / "sessions"
+        Path(os.getenv("PHALANX_CONFIG_DIR", str(Path.home() / ".phalanx")))
+        / "sessions"
     )
 
     def __init__(
@@ -317,7 +314,9 @@ class PhalanxChat:
         self._split_pane_enabled = False
         self._split_pane_type = "attack_map"
 
-    def _init_session(self, session_id: str | None, target: str, resume: bool) -> ChatSession:
+    def _init_session(
+        self, session_id: str | None, target: str, resume: bool
+    ) -> ChatSession:
         """Initialize or resume a chat session."""
         import uuid
 
@@ -383,7 +382,9 @@ class PhalanxChat:
             )
             if PTK_AVAILABLE:
                 try:
-                    return ptk_prompt("❯ ", completer=SmartAutocomplete(self._session)).strip()
+                    return ptk_prompt(
+                        "❯ ", completer=SmartAutocomplete(self._session)
+                    ).strip()
                 except KeyboardInterrupt:
                     raise
                 except Exception:
@@ -393,9 +394,11 @@ class PhalanxChat:
 
         # Show concise status in the prompt like modern agent CLIs
         target_str = f" ({self._session.target})" if self._session.target else ""
-        mode_color = {"registry": "yellow", "autonomous": "magenta", "integrated": "cyan"}.get(
-            self._mode, "cyan"
-        )
+        mode_color = {
+            "registry": "yellow",
+            "autonomous": "magenta",
+            "integrated": "cyan",
+        }.get(self._mode, "cyan")
         theme = self._settings.get("color_theme") or "cyber-noir"
         provider = self._settings.get("model_provider") or "auto"
 
@@ -423,7 +426,9 @@ class PhalanxChat:
 
         if PTK_AVAILABLE:
             try:
-                answer = ptk_prompt("❯ ", completer=SmartAutocomplete(self._session)).strip()
+                answer = ptk_prompt(
+                    "❯ ", completer=SmartAutocomplete(self._session)
+                ).strip()
             except KeyboardInterrupt:
                 raise
             except Exception as exc:
@@ -489,13 +494,13 @@ class PhalanxChat:
             "/mcp": self._cmd_mcp,
             "/agent": self._cmd_agent,
             "/learning": self._cmd_learning,
-    "/esc": self._cmd_esc,
-    "/log": self._cmd_log,
-    "/diff": self._cmd_diff,
-    "/plugin": self._cmd_plugin,
-    "/schedule": self._cmd_schedule,
-    "/batch": self._cmd_batch,
-}
+            "/esc": self._cmd_esc,
+            "/log": self._cmd_log,
+            "/diff": self._cmd_diff,
+            "/plugin": self._cmd_plugin,
+            "/schedule": self._cmd_schedule,
+            "/batch": self._cmd_batch,
+        }
 
         # Handle /1 through /9 mode shortcuts
         if command.startswith("/") and len(command) == 2 and command[1].isdigit():
@@ -515,10 +520,14 @@ class PhalanxChat:
             hint = ""
             if suggestions:
                 hint = f"  Did you mean: {', '.join(suggestions)}"
-            console.print(f"[red]Unknown command: {command}[/red] — type [cyan]/help[/cyan]{hint}")
+            console.print(
+                f"[red]Unknown command: {command}[/red] — type [cyan]/help[/cyan]{hint}"
+            )
 
     def _cmd_help(self, _: str) -> None:
-        table = Table(title="Phalanx Chat Commands", show_header=True, header_style="bold cyan")
+        table = Table(
+            title="Phalanx Chat Commands", show_header=True, header_style="bold cyan"
+        )
         table.add_column("Command", style="cyan", no_wrap=True)
         table.add_column("Description", style="white")
         for cmd, desc in _SLASH_HELP.items():
@@ -535,7 +544,9 @@ class PhalanxChat:
     def _cmd_switch_mode(self, mode_num: str) -> None:
         """Switch to a numbered mode."""
         if mode_num not in _MODE_MAP:
-            console.print(f"[red]Unknown mode: {mode_num}. Use /modes to see all modes.[/red]")
+            console.print(
+                f"[red]Unknown mode: {mode_num}. Use /modes to see all modes.[/red]"
+            )
             return
 
         name, engine_mode, desc = _MODE_MAP[mode_num]
@@ -593,7 +604,9 @@ class PhalanxChat:
 
             generator = ReportGenerator(graph)
             path = generator.save_report(format=fmt)
-            console.print(f"[bold green]✓ Report generated successfully at: {path}[/bold green]")
+            console.print(
+                f"[bold green]✓ Report generated successfully at: {path}[/bold green]"
+            )
         except Exception as exc:
             console.print(f"[bold red]Failed to generate report: {exc}[/bold red]")
 
@@ -618,7 +631,9 @@ class PhalanxChat:
         if args_clean in ("timeline", "metrics", "cheatsheet", "attack_map"):
             self._split_pane_type = args_clean
             self._split_pane_enabled = True
-            console.print(f"[green]Split Pane enabled. System view: {args_clean.upper()}[/green]")
+            console.print(
+                f"[green]Split Pane enabled. System view: {args_clean.upper()}[/green]"
+            )
         else:
             self._split_pane_enabled = not self._split_pane_enabled
             status_str = "ENABLED" if self._split_pane_enabled else "DISABLED"
@@ -638,13 +653,17 @@ class PhalanxChat:
             # Build a nice scroll of recent conversation/messages
             left_text = Text()
             if not self._session.messages:
-                left_text.append("Welcome to Phalanx Cyber Command.\n", style="bold cyan")
+                left_text.append(
+                    "Welcome to Phalanx Cyber Command.\n", style="bold cyan"
+                )
                 left_text.append("Mode: ")
                 left_text.append(f"{self._mode}\n", style="bold green")
                 left_text.append("\nReady for input. Type your instruction below.\n\n")
                 left_text.append("Examples:\n")
                 left_text.append("  • scan 127.0.0.1\n", style="yellow")
-                left_text.append("  • enumerate subdomains of phalanx.local\n", style="yellow")
+                left_text.append(
+                    "  • enumerate subdomains of phalanx.local\n", style="yellow"
+                )
             else:
                 for msg in self._session.last_n(6):
                     role_color = "cyan" if msg.role == "user" else "green"
@@ -707,7 +726,9 @@ class PhalanxChat:
         if not p:
             console.print(f"[red]Profile not found: {name}[/red]")
             return
-        console.print(Panel.fit(p.command, title=f"Profile: {p.name}", border_style="cyan"))
+        console.print(
+            Panel.fit(p.command, title=f"Profile: {p.name}", border_style="cyan")
+        )
         run = Prompt.ask("Run this command? (y/N)", default="N")
         if run.lower().startswith("y"):
             await self._execute_instruction(p.command)
@@ -757,13 +778,20 @@ class PhalanxChat:
                 api_key = Prompt.ask(f"Enter {provider} API key", password=True)
         elif action in {"rotate", "roll"}:
             from .credential_store import CredentialStore
+
             try:
                 vault = CredentialStore()
-                new_password = Prompt.ask("Enter new master password (optional)", password=True, default="")
+                new_password = Prompt.ask(
+                    "Enter new master password (optional)", password=True, default=""
+                )
                 if vault.rotate_key(new_password or None):
-                    console.print("[green]✓ Master encryption key rotated successfully[/green]")
+                    console.print(
+                        "[green]✓ Master encryption key rotated successfully[/green]"
+                    )
                 else:
-                    console.print("[yellow]Key rotation requires AES-256-GCM; ensure cryptography is up to date[/yellow]")
+                    console.print(
+                        "[yellow]Key rotation requires AES-256-GCM; ensure cryptography is up to date[/yellow]"
+                    )
             except Exception as exc:
                 console.print(f"[red]Key rotation failed: {exc}[/red]")
             return
@@ -803,7 +831,9 @@ class PhalanxChat:
             logger.exception("Failed to save credential to vault")
         upsert_env_vars({env_key: api_key}, ensure_env_file())
         os.environ[env_key] = api_key
-        console.print(f"[green]✓ Stored {provider} API key in the vault and .env[/green]")
+        console.print(
+            f"[green]✓ Stored {provider} API key in the vault and .env[/green]"
+        )
 
         # If user set Gemini key and the client package is missing, offer to install it
         if provider == "gemini":
@@ -816,7 +846,8 @@ class PhalanxChat:
 
             if not gemini_pkg_installed:
                 ans = Prompt.ask(
-                    "google-generativeai package not installed — install now? (y/N)", default="N"
+                    "google-generativeai package not installed — install now? (y/N)",
+                    default="N",
                 )
                 if ans.lower().startswith("y"):
                     console.print(
@@ -825,7 +856,13 @@ class PhalanxChat:
                     try:
                         # Use the safe runner which validates command lists
                         res = safe_run_sync(
-                            [sys.executable, "-m", "pip", "install", "google-generativeai>=0.8.0"],
+                            [
+                                sys.executable,
+                                "-m",
+                                "pip",
+                                "install",
+                                "google-generativeai>=0.8.0",
+                            ],
                             timeout=600,
                         )
                         if res.returncode == 0:
@@ -833,7 +870,9 @@ class PhalanxChat:
                                 "[green]✓ google-generativeai installed — Gemini should be available now.[/green]"
                             )
                         else:
-                            console.print(f"[red]Failed to install package: {res.stderr}[/red]")
+                            console.print(
+                                f"[red]Failed to install package: {res.stderr}[/red]"
+                            )
                     except Exception as exc:
                         logger.exception(
                             "Failed to run pip install for google-generativeai: %s", exc
@@ -901,7 +940,9 @@ class PhalanxChat:
             if not tools:
                 console.print("[yellow]No tools found on PATH.[/yellow]")
                 return
-            table = Table(title=f"{len(tools)} Security Tools Found", header_style="bold cyan")
+            table = Table(
+                title=f"{len(tools)} Security Tools Found", header_style="bold cyan"
+            )
             table.add_column("Name", style="cyan")
             table.add_column("Category", style="magenta")
             table.add_column("Version", style="dim")
@@ -932,8 +973,16 @@ class PhalanxChat:
             ("Terminal", "type", ctx.get("terminal_type", "")),
             ("Terminal", "program", ctx.get("term_program", "") or "unknown"),
             ("Terminal", "term", ctx.get("term", "") or "unknown"),
-            ("Terminal", "shell", f"{ctx.get('shell', '')} ({ctx.get('shell_platform', '')})"),
-            ("Terminal", "shell_executable", ctx.get("shell_executable", "") or "unknown"),
+            (
+                "Terminal",
+                "shell",
+                f"{ctx.get('shell', '')} ({ctx.get('shell_platform', '')})",
+            ),
+            (
+                "Terminal",
+                "shell_executable",
+                ctx.get("shell_executable", "") or "unknown",
+            ),
             ("Runtime", "python", ctx.get("python_version", "")),
             ("Runtime", "cpu_count", str(ctx.get("cpu_count", ""))),
             ("Runtime", "memory_total_mb", str(ctx.get("memory_total_mb", "unknown"))),
@@ -960,8 +1009,12 @@ class PhalanxChat:
     def _cmd_status(self, _: str) -> None:
         counts = {
             "messages": len(self._session.messages),
-            "user_messages": len([m for m in self._session.messages if m.role == "user"]),
-            "assistant_messages": len([m for m in self._session.messages if m.role == "assistant"]),
+            "user_messages": len(
+                [m for m in self._session.messages if m.role == "user"]
+            ),
+            "assistant_messages": len(
+                [m for m in self._session.messages if m.role == "assistant"]
+            ),
         }
         console.print(
             Panel.fit(
@@ -999,7 +1052,9 @@ class PhalanxChat:
         seconds = int(delta.total_seconds())
         hours, rem = divmod(seconds, 3600)
         minutes, secs = divmod(rem, 60)
-        console.print(f"Session uptime: [cyan]{hours:02d}:{minutes:02d}:{secs:02d}[/cyan]")
+        console.print(
+            f"Session uptime: [cyan]{hours:02d}:{minutes:02d}:{secs:02d}[/cyan]"
+        )
 
     def _cmd_env(self, _: str) -> None:
         keys = [
@@ -1028,7 +1083,9 @@ class PhalanxChat:
         intents = sorted(CROSS_PLATFORM_COMMANDS.keys())
         if filter_str:
             intents = [i for i in intents if filter_str in i.lower()]
-        table = Table(title=f"Command Intents ({len(intents)})", header_style="bold cyan")
+        table = Table(
+            title=f"Command Intents ({len(intents)})", header_style="bold cyan"
+        )
         table.add_column("Intent", style="cyan")
         table.add_column("Shell Example", style="green")
         current_shell = normalize_shell(self._shell).value
@@ -1068,7 +1125,9 @@ class PhalanxChat:
             console.print(f"[dim]No matches for '{needle}'.[/dim]")
             return
 
-        console.print(Rule(f"[bold]Search results for '{needle}' ({len(results)})[/bold]"))
+        console.print(
+            Rule(f"[bold]Search results for '{needle}' ({len(results)})[/bold]")
+        )
         for msg in results[-15:]:
             ts = msg.timestamp.strftime("%H:%M:%S")
             role_color = "cyan" if msg.role == "user" else "green"
@@ -1109,15 +1168,21 @@ class PhalanxChat:
     def _cmd_mode(self, args: str) -> None:
         valid = ("registry", "autonomous", "integrated", "research")
         if not args:
-            console.print(f"Current mode: [cyan]{self._mode}[/cyan] (valid: {', '.join(valid)})")
+            console.print(
+                f"Current mode: [cyan]{self._mode}[/cyan] (valid: {', '.join(valid)})"
+            )
             return
         if args == "research":
             self._mode = "integrated"
-            console.print("[green]✓ Research mode enabled (MCP integration active)[/green]")
+            console.print(
+                "[green]✓ Research mode enabled (MCP integration active)[/green]"
+            )
             console.print("[dim]Use /mcp connect <url> to connect to MCP servers[/dim]")
             return
         if args not in valid:
-            console.print(f"[red]Invalid mode: {args}. Choose: {', '.join(valid)}[/red]")
+            console.print(
+                f"[red]Invalid mode: {args}. Choose: {', '.join(valid)}[/red]"
+            )
             return
         self._mode = args
         self._session.mode = args
@@ -1185,7 +1250,9 @@ class PhalanxChat:
                     try:
                         # only set if the setting key exists; SettingsStore will raise if unknown
                         self._settings.set(model_key, model_name)
-                        console.print(f"[green]✓ Set {model_key} to: {model_name}[/green]")
+                        console.print(
+                            f"[green]✓ Set {model_key} to: {model_name}[/green]"
+                        )
                     except KeyError:
                         # fallback: set gemini_model for gemini, ollama_model for ollama
                         if selected == "gemini":
@@ -1218,7 +1285,9 @@ class PhalanxChat:
             f"[bold]Cloud:[/bold]   Requires PHALANX_SERVER_URL + PHALANX_API_KEY\n\n"
             f"[dim]Use /key <provider> <value> to store credentials and /model <provider> <model-name> to select models.[/dim]"
         )
-        console.print(Panel.fit(panel_text, title="Model Providers", border_style="cyan"))
+        console.print(
+            Panel.fit(panel_text, title="Model Providers", border_style="cyan")
+        )
 
     def _cmd_context(self, _: str) -> None:
         summary = self._session.get_context_summary()
@@ -1229,7 +1298,8 @@ class PhalanxChat:
 
     def _cmd_work_mode(self, args: str) -> None:
         """Handle /work-mode persona switching and management."""
-        from .persona_engine import PersonaEngine, Persona, ToolACL, WorkflowTemplate
+        from .persona_engine import (Persona, PersonaEngine, ToolACL,
+                                     WorkflowTemplate)
 
         engine = PersonaEngine()
         tokens = args.split() if args else []
@@ -1237,7 +1307,9 @@ class PhalanxChat:
 
         if action == "list":
             personas = engine.persona_list
-            table = Table(title=f"Available Personas ({len(personas)})", header_style="bold cyan")
+            table = Table(
+                title=f"Available Personas ({len(personas)})", header_style="bold cyan"
+            )
             table.add_column("Name", style="cyan")
             table.add_column("Description", style="white")
             table.add_column("Bias", style="magenta")
@@ -1247,19 +1319,26 @@ class PhalanxChat:
                 table.add_row(p.name, p.description, p.learning_bias.value, ptype)
             console.print(table)
             if engine.active_persona:
-                console.print(f"\n[dim]Active: [cyan]{engine.active_persona.name}[/cyan][/dim]")
+                console.print(
+                    f"\n[dim]Active: [cyan]{engine.active_persona.name}[/cyan][/dim]"
+                )
             return
 
         if action == "create":
             from rich.prompt import Prompt as RichPrompt
+
             name = RichPrompt.ask("Persona name").strip().lower().replace(" ", "_")
             if not name:
                 console.print("[red]Name required.[/red]")
                 return
             desc = RichPrompt.ask("Description")
             system_prompt = RichPrompt.ask("System prompt")
-            allowed_tools = RichPrompt.ask("Allowed tools (comma-separated, * for all)", default="*")
-            forbidden_tools = RichPrompt.ask("Forbidden tools (comma-separated)", default="")
+            allowed_tools = RichPrompt.ask(
+                "Allowed tools (comma-separated, * for all)", default="*"
+            )
+            forbidden_tools = RichPrompt.ask(
+                "Forbidden tools (comma-separated)", default=""
+            )
             acl = ToolACL(
                 allowed=[t.strip() for t in allowed_tools.split(",") if t.strip()],
                 forbidden=[t.strip() for t in forbidden_tools.split(",") if t.strip()],
@@ -1300,9 +1379,7 @@ class PhalanxChat:
                 engine.switch_to(action)
                 self._session.context["persona"] = action
                 persona = engine.get_persona(action)
-                console.print(
-                    f"[green]✓ Switched to persona: {action}[/green]"
-                )
+                console.print(f"[green]✓ Switched to persona: {action}[/green]")
                 if persona:
                     console.print(f"[dim]{persona.description}[/dim]")
             except ValueError as exc:
@@ -1313,12 +1390,15 @@ class PhalanxChat:
         if current:
             console.print(f"[cyan]Current persona: {current.name}[/cyan]")
             console.print(f"[dim]{current.description}[/dim]")
-        console.print("[dim]Use /work-mode <name>, /work-mode list, or /work-mode create[/dim]")
+        console.print(
+            "[dim]Use /work-mode <name>, /work-mode list, or /work-mode create[/dim]"
+        )
 
     async def _cmd_config(self, args: str) -> None:
         """Handle /config command for tool ACL, masking, stealth, etc."""
-        from .persona_engine import PersonaEngine
         from rich.table import Table
+
+        from .persona_engine import PersonaEngine
 
         tokens = args.split() if args else []
         if not tokens:
@@ -1334,18 +1414,35 @@ class PhalanxChat:
                 console.print("[dim]No active persona.[/dim]")
                 return
             acl = persona.tool_acl
-            table = Table(title=f"Tool ACL for '{persona.name}'", header_style="bold cyan")
+            table = Table(
+                title=f"Tool ACL for '{persona.name}'", header_style="bold cyan"
+            )
             table.add_column("Rule", style="cyan")
             table.add_column("Tools", style="white")
-            table.add_row("Allowed", ", ".join(acl.allowed) if acl.allowed != ["*"] else "ALL (*)")
-            table.add_row("Forbidden", ", ".join(acl.forbidden) if acl.forbidden else "(none)")
-            table.add_row("Permission Required", ", ".join(acl.permission_required) if acl.permission_required else "(none)")
-            table.add_row("Review Required", ", ".join(acl.review_required) if acl.review_required else "(none)")
+            table.add_row(
+                "Allowed", ", ".join(acl.allowed) if acl.allowed != ["*"] else "ALL (*)"
+            )
+            table.add_row(
+                "Forbidden", ", ".join(acl.forbidden) if acl.forbidden else "(none)"
+            )
+            table.add_row(
+                "Permission Required",
+                (
+                    ", ".join(acl.permission_required)
+                    if acl.permission_required
+                    else "(none)"
+                ),
+            )
+            table.add_row(
+                "Review Required",
+                ", ".join(acl.review_required) if acl.review_required else "(none)",
+            )
             table.add_row("Auto-Approve (s)", str(acl.auto_approve_seconds))
             console.print(table)
 
         elif sub == "masking":
             from .masking import MaskingEngine
+
             if len(tokens) < 2:
                 me = MaskingEngine()
                 table = Table(title="Masking Rules", header_style="bold cyan")
@@ -1358,7 +1455,9 @@ class PhalanxChat:
             action = tokens[1].lower()
             if action == "add" and len(tokens) >= 4:
                 me = MaskingEngine()
-                me.add_rule(tokens[2], tokens[3], tokens[4] if len(tokens) > 4 else None)
+                me.add_rule(
+                    tokens[2], tokens[3], tokens[4] if len(tokens) > 4 else None
+                )
                 console.print(f"[green]✓ Masking rule added: {tokens[2]}[/green]")
             elif action == "remove" and len(tokens) >= 3:
                 me = MaskingEngine()
@@ -1369,10 +1468,13 @@ class PhalanxChat:
                 else:
                     console.print(f"[red]Rule not found: {tokens[2]}[/red]")
             else:
-                console.print("[yellow]Usage: /config masking|/config masking add <name> <regex> [replacement]|/config masking remove <name>[/yellow]")
+                console.print(
+                    "[yellow]Usage: /config masking|/config masking add <name> <regex> [replacement]|/config masking remove <name>[/yellow]"
+                )
 
         elif sub == "stealth":
-            from .stealth import StealthEngine, EVASION_LEVELS
+            from .stealth import EVASION_LEVELS, StealthEngine
+
             engine = StealthEngine()
             if len(tokens) < 2:
                 config = engine.get_config()
@@ -1406,9 +1508,13 @@ class PhalanxChat:
                     engine.set_config(config)
                     console.print(f"[green]✓ Stealth level set to: {level}[/green]")
                 else:
-                    console.print(f"[red]Invalid level: {level}. Options: {', '.join(EVASION_LEVELS.keys())}[/red]")
+                    console.print(
+                        f"[red]Invalid level: {level}. Options: {', '.join(EVASION_LEVELS.keys())}[/red]"
+                    )
             else:
-                console.print("[yellow]Usage: /config stealth|/config stealth on|off|level <level>[/yellow]")
+                console.print(
+                    "[yellow]Usage: /config stealth|/config stealth on|off|level <level>[/yellow]"
+                )
         else:
             console.print("[yellow]Usage: /config tool|masking|stealth[/yellow]")
 
@@ -1424,8 +1530,14 @@ class PhalanxChat:
             name = " ".join(tokens[1:]) if len(tokens) > 1 else ""
             if not name:
                 name = Prompt.ask("Session name")
-            session = mgr.create_session(name, host=os.environ.get("USER", "unknown"), target=self._session.target)
-            console.print(f"[green]✓ Created collaboration session: {session.name}[/green]")
+            session = mgr.create_session(
+                name,
+                host=os.environ.get("USER", "unknown"),
+                target=self._session.target,
+            )
+            console.print(
+                f"[green]✓ Created collaboration session: {session.name}[/green]"
+            )
             console.print(f"[dim]ID: {session.session_id}[/dim]")
             console.print(f"[dim]Share this ID for others to join.[/dim]")
         elif action == "list":
@@ -1440,7 +1552,9 @@ class PhalanxChat:
             if not session:
                 console.print(f"[red]Session not found: {session_id}[/red]")
                 return
-            name = Prompt.ask("Your display name", default=os.environ.get("USER", "anonymous"))
+            name = Prompt.ask(
+                "Your display name", default=os.environ.get("USER", "anonymous")
+            )
             session.add_member(name)
             console.print(f"[green]✓ Joined session '{session.name}' as {name}[/green]")
         elif action == "send":
@@ -1474,7 +1588,13 @@ class PhalanxChat:
             console.print(f"[dim]Generating code for: {prompt}[/dim]")
             code = await bridge.generate(prompt)
             if code:
-                console.print(Panel(Syntax(code, "python", theme="monokai"), title="Generated Code", border_style="green"))
+                console.print(
+                    Panel(
+                        Syntax(code, "python", theme="monokai"),
+                        title="Generated Code",
+                        border_style="green",
+                    )
+                )
         elif action == "review":
             path = tokens[1] if len(tokens) > 1 else ""
             if not path:
@@ -1511,7 +1631,9 @@ class PhalanxChat:
         elif action == "call":
             client = self._session.context.get("mcp_client")
             if not client:
-                console.print("[yellow]Not connected to an MCP server. Use /mcp connect first.[/yellow]")
+                console.print(
+                    "[yellow]Not connected to an MCP server. Use /mcp connect first.[/yellow]"
+                )
                 return
             tool = tokens[1] if len(tokens) > 1 else ""
             if not tool:
@@ -1519,7 +1641,13 @@ class PhalanxChat:
                 return
             params = {"args": tokens[2:]} if len(tokens) > 2 else {}
             result = await client.call_tool(tool, params)
-            console.print(Panel(json.dumps(result, indent=2), title=f"MCP: {tool}", border_style="magenta"))
+            console.print(
+                Panel(
+                    json.dumps(result, indent=2),
+                    title=f"MCP: {tool}",
+                    border_style="magenta",
+                )
+            )
         elif action == "disconnect":
             client = self._session.context.pop("mcp_client", None)
             if client:
@@ -1565,13 +1693,15 @@ class PhalanxChat:
 
     async def _cmd_learning(self, args: str) -> None:
         """Handle /learning command for user learning and patterns."""
-        from .learning_memory import LearningMemory
-        from .user_learning import UserLearning, ExperienceLevel
-        from rich.table import Table
-        from rich.panel import Panel
-        from rich.syntax import Syntax
-        from rich.prompt import Prompt as RichPrompt
         import json
+
+        from rich.panel import Panel
+        from rich.prompt import Prompt as RichPrompt
+        from rich.syntax import Syntax
+        from rich.table import Table
+
+        from .learning_memory import LearningMemory
+        from .user_learning import ExperienceLevel, UserLearning
 
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else ""
@@ -1582,8 +1712,13 @@ class PhalanxChat:
             console.print(ul.get_profile_panel())
             suggestions = ul.get_improvement_suggestions()
             if suggestions:
-                console.print(Panel("\n".join(f"  {s}" for s in suggestions),
-                                    title="Improvement Suggestions", border_style="yellow"))
+                console.print(
+                    Panel(
+                        "\n".join(f"  {s}" for s in suggestions),
+                        title="Improvement Suggestions",
+                        border_style="yellow",
+                    )
+                )
 
         elif action == "milestones":
             console.print(ul.get_milestones_panel())
@@ -1596,7 +1731,10 @@ class PhalanxChat:
             if not patterns:
                 console.print("[dim]No learned patterns yet.[/dim]")
                 return
-            table = Table(title=f"Learned Tool Patterns ({lm.total_records} total)", header_style="bold cyan")
+            table = Table(
+                title=f"Learned Tool Patterns ({lm.total_records} total)",
+                header_style="bold cyan",
+            )
             table.add_column("Pattern Chain", style="green")
             table.add_column("Uses", style="yellow", justify="right")
             table.add_column("Confidence", style="magenta", justify="right")
@@ -1606,7 +1744,14 @@ class PhalanxChat:
             for p in patterns:
                 chain = " -> ".join(p.ngram)
                 dur = f"{p.avg_duration_ms:.0f}ms" if p.avg_duration_ms else "-"
-                table.add_row(chain, str(p.count), f"{p.confidence:.0%}", f"{p.success_rate:.0%}", dur, p.phase or "-")
+                table.add_row(
+                    chain,
+                    str(p.count),
+                    f"{p.confidence:.0%}",
+                    f"{p.success_rate:.0%}",
+                    dur,
+                    p.phase or "-",
+                )
             console.print(table)
 
         elif action == "anti-patterns":
@@ -1626,7 +1771,9 @@ class PhalanxChat:
         elif action == "network":
             network = lm.pattern_network()
             if not network:
-                console.print("[dim]No pattern network data yet. Run some commands first.[/dim]")
+                console.print(
+                    "[dim]No pattern network data yet. Run some commands first.[/dim]"
+                )
                 return
             table = Table(title="Tool Transition Network", header_style="bold cyan")
             table.add_column("From", style="green")
@@ -1654,7 +1801,9 @@ class PhalanxChat:
                 tool = RichPrompt.ask("Suggest next tool after")
             suggestions = lm.suggest(tool, max_suggestions=8)
             if not suggestions:
-                console.print(f"[dim]No suggestions for '{tool}'. Try using it more.[/dim]")
+                console.print(
+                    f"[dim]No suggestions for '{tool}'. Try using it more.[/dim]"
+                )
                 return
             table = Table(title=f"Suggestions after '{tool}'", header_style="bold cyan")
             table.add_column("Next Tool", style="green")
@@ -1662,20 +1811,36 @@ class PhalanxChat:
             table.add_column("Reason", style="white")
             table.add_column("Phase", style="blue")
             for s in suggestions:
-                table.add_row(s["tool"], f"{s['confidence']:.0%}", s.get("reason", "")[:50], s.get("phase", "-"))
+                table.add_row(
+                    s["tool"],
+                    f"{s['confidence']:.0%}",
+                    s.get("reason", "")[:50],
+                    s.get("phase", "-"),
+                )
             console.print(table)
 
         elif action == "level":
-            if len(tokens) < 2 or tokens[1] not in ("novice", "intermediate", "advanced", "expert"):
-                console.print("[yellow]Usage: /learning level <novice|intermediate|advanced|expert>[/yellow]")
+            if len(tokens) < 2 or tokens[1] not in (
+                "novice",
+                "intermediate",
+                "advanced",
+                "expert",
+            ):
+                console.print(
+                    "[yellow]Usage: /learning level <novice|intermediate|advanced|expert>[/yellow]"
+                )
                 return
             ul.experience = tokens[1]
             console.print(f"[green]✓ Experience level set to: {tokens[1]}[/green]")
-            console.print(f"[dim]Auto-detect disabled. Use /learning auto to re-enable.[/dim]")
+            console.print(
+                f"[dim]Auto-detect disabled. Use /learning auto to re-enable.[/dim]"
+            )
 
         elif action == "auto":
             ul.enable_auto_detect()
-            console.print(f"[green]✓ Auto-detection enabled. Current level: {ul.experience}[/green]")
+            console.print(
+                f"[green]✓ Auto-detection enabled. Current level: {ul.experience}[/green]"
+            )
 
         elif action == "pref" or action == "preferences":
             if len(tokens) < 2:
@@ -1696,13 +1861,18 @@ class PhalanxChat:
             filepath = tokens[1] if len(tokens) > 1 else ""
             if filepath:
                 data = lm.export_patterns(filepath)
-                console.print(f"[green]✓ Exported {data['pattern_count']} patterns to {filepath}[/green]")
+                console.print(
+                    f"[green]✓ Exported {data['pattern_count']} patterns to {filepath}[/green]"
+                )
             else:
                 data = lm.export_patterns()
-                console.print(Panel(
-                    Syntax(json.dumps(data, indent=2, default=str), "json"),
-                    title="Exported Patterns", border_style="green"
-                ))
+                console.print(
+                    Panel(
+                        Syntax(json.dumps(data, indent=2, default=str), "json"),
+                        title="Exported Patterns",
+                        border_style="green",
+                    )
+                )
 
         elif action == "import":
             filepath = tokens[1] if len(tokens) > 1 else ""
@@ -1713,7 +1883,9 @@ class PhalanxChat:
             console.print(f"[green]✓ Imported {count} patterns from {filepath}[/green]")
 
         elif action == "clear":
-            confirm = RichPrompt.ask("[red]Clear ALL learning data? (yes/no)[/red]", default="no")
+            confirm = RichPrompt.ask(
+                "[red]Clear ALL learning data? (yes/no)[/red]", default="no"
+            )
             if confirm.lower() == "yes":
                 lm.clear()
                 ul.clear_history()
@@ -1722,30 +1894,40 @@ class PhalanxChat:
         elif action == "summary":
             p = ul.profile
             ls = lm.summary
-            console.print(Panel(
-                f"[bold]User:[/bold] {p.username or 'anonymous'} | "
-                f"[bold]Level:[/bold] {p.experience} "
-                f"{'(auto)' if p.auto_detect else ''}\n"
-                f"[bold]Commands:[/bold] {p.total_commands} | "
-                f"[bold]Tools:[/bold] {p.unique_tools} | "
-                f"[bold]Categories:[/bold] {p.category_count}\n"
-                f"[bold]Patterns:[/bold] {ls['total_patterns']} | "
-                f"[bold]Anti-patterns:[/bold] {ls['total_anti_patterns']} | "
-                f"[bold]Phases:[/bold] {', '.join(ls['phase_coverage'].keys()) or 'none'}",
-                title="Learning Summary", border_style="cyan"
-            ))
+            console.print(
+                Panel(
+                    f"[bold]User:[/bold] {p.username or 'anonymous'} | "
+                    f"[bold]Level:[/bold] {p.experience} "
+                    f"{'(auto)' if p.auto_detect else ''}\n"
+                    f"[bold]Commands:[/bold] {p.total_commands} | "
+                    f"[bold]Tools:[/bold] {p.unique_tools} | "
+                    f"[bold]Categories:[/bold] {p.category_count}\n"
+                    f"[bold]Patterns:[/bold] {ls['total_patterns']} | "
+                    f"[bold]Anti-patterns:[/bold] {ls['total_anti_patterns']} | "
+                    f"[bold]Phases:[/bold] {', '.join(ls['phase_coverage'].keys()) or 'none'}",
+                    title="Learning Summary",
+                    border_style="cyan",
+                )
+            )
 
         elif action == "chain":
             tool = tokens[1] if len(tokens) > 1 else ""
             if not tool:
-                console.print("[yellow]Usage: /learning chain <tool> [tool2 ...][/yellow]")
+                console.print(
+                    "[yellow]Usage: /learning chain <tool> [tool2 ...][/yellow]"
+                )
                 return
             partial = tokens[1:]
             completions = lm.suggest_chain(partial)
             if not completions:
-                console.print(f"[dim]No chain completions for: {' -> '.join(partial)}[/dim]")
+                console.print(
+                    f"[dim]No chain completions for: {' -> '.join(partial)}[/dim]"
+                )
                 return
-            table = Table(title=f"Chain Completions for '{' -> '.join(partial)}'", header_style="bold cyan")
+            table = Table(
+                title=f"Chain Completions for '{' -> '.join(partial)}'",
+                header_style="bold cyan",
+            )
             table.add_column("Complete Chain", style="green")
             for c in completions:
                 table.add_row(" -> ".join(c))
@@ -1780,12 +1962,17 @@ class PhalanxChat:
         # Notify kill switch in response sensor
         try:
             from .kill_switch import KillSwitch
+
             ks = KillSwitch()
             ks.trigger()
-            console.print("[dim]Kill switch triggered: all pending operations cancelled.[/dim]")
+            console.print(
+                "[dim]Kill switch triggered: all pending operations cancelled.[/dim]"
+            )
         except Exception as exc:
             logger.debug("Kill switch trigger: %s", exc)
-        console.print("[yellow]Session terminated by user. Use /exit to fully quit.[/yellow]")
+        console.print(
+            "[yellow]Session terminated by user. Use /exit to fully quit.[/yellow]"
+        )
 
     def _cmd_version(self, _: str) -> None:
         try:
@@ -1803,8 +1990,9 @@ class PhalanxChat:
 
     def _cmd_log(self, args: str) -> None:
         """Handle /log command for session log management."""
-        from .session_log import session_logger
         from rich.table import Table
+
+        from .session_log import session_logger
 
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "list"
@@ -1843,11 +2031,14 @@ class PhalanxChat:
             md = session_logger.export_markdown(tokens[1])
             if md:
                 from rich.markdown import Markdown
+
                 console.print(Markdown(md))
 
         elif action == "export":
             if len(tokens) < 2:
-                console.print("[yellow]Usage: /log export <session_id> [--format json|markdown|sarif] [--output file][/yellow]")
+                console.print(
+                    "[yellow]Usage: /log export <session_id> [--format json|markdown|sarif] [--output file][/yellow]"
+                )
                 return
             session_id = tokens[1]
             fmt = "markdown"
@@ -1876,7 +2067,9 @@ class PhalanxChat:
             else:
                 console.print(content[:2000])
                 if len(content) > 2000:
-                    console.print("[dim]... (truncated, use --output to save to file)[/dim]")
+                    console.print(
+                        "[dim]... (truncated, use --output to save to file)[/dim]"
+                    )
         else:
             console.print("[yellow]Usage: /log list|show|export[/yellow]")
 
@@ -1886,9 +2079,10 @@ class PhalanxChat:
 
     def _cmd_diff(self, args: str) -> None:
         """Handle /diff command to compare two sessions."""
-        from .offline_store import OfflineStore
-        from rich.table import Table
         from rich.panel import Panel
+        from rich.table import Table
+
+        from .offline_store import OfflineStore
 
         tokens = args.split() if args else []
         if len(tokens) < 2:
@@ -1902,28 +2096,39 @@ class PhalanxChat:
             return
 
         summary = result["summary"]
-        console.print(Panel(
-            f"[bold]Scan A:[/bold] {tokens[0]} ({result['scan_a'].get('target', '?')}) — "
-            f"{result['scan_a'].get('total', 0)} findings\n"
-            f"[bold]Scan B:[/bold] {tokens[1]} ({result['scan_b'].get('target', '?')}) — "
-            f"{result['scan_b'].get('total', 0)} findings\n\n"
-            f"[green]🆕 New:[/green] {summary['new']}    "
-            f"[yellow]✅ Resolved:[/yellow] {summary['resolved']}    "
-            f"[red]↕ Changed:[/red] {summary['changed']}",
-            title="Scan Diff", border_style="cyan"
-        ))
+        console.print(
+            Panel(
+                f"[bold]Scan A:[/bold] {tokens[0]} ({result['scan_a'].get('target', '?')}) — "
+                f"{result['scan_a'].get('total', 0)} findings\n"
+                f"[bold]Scan B:[/bold] {tokens[1]} ({result['scan_b'].get('target', '?')}) — "
+                f"{result['scan_b'].get('total', 0)} findings\n\n"
+                f"[green]🆕 New:[/green] {summary['new']}    "
+                f"[yellow]✅ Resolved:[/yellow] {summary['resolved']}    "
+                f"[red]↕ Changed:[/red] {summary['changed']}",
+                title="Scan Diff",
+                border_style="cyan",
+            )
+        )
 
         if result.get("new_findings"):
-            nt = Table(title=f"New Findings ({len(result['new_findings'])})", header_style="bold red")
+            nt = Table(
+                title=f"New Findings ({len(result['new_findings'])})",
+                header_style="bold red",
+            )
             nt.add_column("Title", style="cyan")
             nt.add_column("Severity", style="yellow")
             nt.add_column("Tool", style="white")
             for f in result["new_findings"]:
-                nt.add_row(f.get("title", "?"), f.get("severity", "?"), f.get("tool", "?"))
+                nt.add_row(
+                    f.get("title", "?"), f.get("severity", "?"), f.get("tool", "?")
+                )
             console.print(nt)
 
         if result.get("resolved_findings"):
-            rt = Table(title=f"Resolved Findings ({len(result['resolved_findings'])})", header_style="bold green")
+            rt = Table(
+                title=f"Resolved Findings ({len(result['resolved_findings'])})",
+                header_style="bold green",
+            )
             rt.add_column("Title", style="cyan")
             rt.add_column("Severity", style="yellow")
             for f in result["resolved_findings"]:
@@ -1936,9 +2141,11 @@ class PhalanxChat:
 
     def _cmd_plugin(self, args: str) -> None:
         """Handle /plugin command for plugin management."""
-        from .plugins import PluginManager
-        from rich.table import Table
         from pathlib import Path
+
+        from rich.table import Table
+
+        from .plugins import PluginManager
 
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "list"
@@ -1947,16 +2154,22 @@ class PhalanxChat:
         if action == "list":
             plugins = mgr.list_plugins()
             if not plugins:
-                console.print("[dim]No plugins installed. Use /plugin install <name> to add plugins.[/dim]")
+                console.print(
+                    "[dim]No plugins installed. Use /plugin install <name> to add plugins.[/dim]"
+                )
                 return
-            table = Table(title=f"Plugins ({len(plugins)})", header_style="bold magenta")
+            table = Table(
+                title=f"Plugins ({len(plugins)})", header_style="bold magenta"
+            )
             table.add_column("Name", style="cyan")
             table.add_column("Version", style="yellow")
             table.add_column("Status", justify="center")
             table.add_column("Author", style="dim")
             table.add_column("Description", style="white")
             for p in plugins:
-                status = "[green]✓ Active[/green]" if p.enabled else "[dim]○ Disabled[/dim]"
+                status = (
+                    "[green]✓ Active[/green]" if p.enabled else "[dim]○ Disabled[/dim]"
+                )
                 table.add_row(p.name, p.version, status, p.author, p.description[:50])
             console.print(table)
 
@@ -1964,9 +2177,16 @@ class PhalanxChat:
             query = " ".join(tokens[1:]) if len(tokens) > 1 else ""
             results = mgr.search(query) if query else mgr.list_plugins()
             if not results:
-                console.print(f"[dim]No plugins matching '{query}'[/dim]" if query else "[dim]No plugins found.[/dim]")
+                console.print(
+                    f"[dim]No plugins matching '{query}'[/dim]"
+                    if query
+                    else "[dim]No plugins found.[/dim]"
+                )
                 return
-            table = Table(title=f"Plugin Search Results ({len(results)})", header_style="bold cyan")
+            table = Table(
+                title=f"Plugin Search Results ({len(results)})",
+                header_style="bold cyan",
+            )
             table.add_column("Name", style="cyan")
             table.add_column("Version", style="yellow")
             table.add_column("Author", style="dim")
@@ -1977,7 +2197,9 @@ class PhalanxChat:
 
         elif action == "install":
             if len(tokens) < 2:
-                console.print("[yellow]Usage: /plugin install <name> or /plugin install <path> --local[/yellow]")
+                console.print(
+                    "[yellow]Usage: /plugin install <name> or /plugin install <path> --local[/yellow]"
+                )
                 return
             name = tokens[1]
             is_local = "--local" in tokens
@@ -1988,12 +2210,15 @@ class PhalanxChat:
                     return
                 try:
                     path = mgr.install_from_path(source)
-                    console.print(f"[green]✓ Plugin installed from {source} → {path}[/green]")
+                    console.print(
+                        f"[green]✓ Plugin installed from {source} → {path}[/green]"
+                    )
                 except Exception as exc:
                     console.print(f"[red]Install failed: {exc}[/red]")
             else:
                 console.print(f"[bold]Installing plugin:[/bold] {name}")
                 from .plugins import _DEFAULT_ROOT
+
                 target = _DEFAULT_ROOT / name
                 target.mkdir(parents=True, exist_ok=True)
                 scaffold_file = target / "plugin.yaml"
@@ -2039,7 +2264,9 @@ class PhalanxChat:
             except Exception as exc:
                 console.print(f"[red]{exc}[/red]")
         else:
-            console.print("[yellow]Usage: /plugin list|search|install|remove|enable|disable[/yellow]")
+            console.print(
+                "[yellow]Usage: /plugin list|search|install|remove|enable|disable[/yellow]"
+            )
 
     # ──────────────────────────────────────────────────────────────────────
     # Schedule commands
@@ -2047,8 +2274,9 @@ class PhalanxChat:
 
     def _cmd_schedule(self, args: str) -> None:
         """Handle /schedule command for recurring scan jobs."""
-        from .scheduler import PhalanxScheduler
         from rich.table import Table
+
+        from .scheduler import PhalanxScheduler
 
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "list"
@@ -2057,9 +2285,13 @@ class PhalanxChat:
         if action == "list":
             jobs = sched.list_jobs()
             if not jobs:
-                console.print("[dim]No scheduled jobs. Use /schedule add to create one.[/dim]")
+                console.print(
+                    "[dim]No scheduled jobs. Use /schedule add to create one.[/dim]"
+                )
                 return
-            table = Table(title=f"Scheduled Jobs ({len(jobs)})", header_style="bold cyan")
+            table = Table(
+                title=f"Scheduled Jobs ({len(jobs)})", header_style="bold cyan"
+            )
             table.add_column("Name", style="cyan")
             table.add_column("Cron", style="yellow")
             table.add_column("Command", style="white")
@@ -2067,12 +2299,20 @@ class PhalanxChat:
             table.add_column("Last Run", style="dim")
             for j in jobs:
                 active = "[green]✓[/green]" if j.active else "[dim]✗[/dim]"
-                table.add_row(j.name, j.cron, j.command[:40], active, j.last_run[:16] if j.last_run else "-")
+                table.add_row(
+                    j.name,
+                    j.cron,
+                    j.command[:40],
+                    active,
+                    j.last_run[:16] if j.last_run else "-",
+                )
             console.print(table)
 
         elif action == "add":
             if len(tokens) < 4:
-                console.print("[yellow]Usage: /schedule add <name> <cron|daily|weekly|hourly> <command>[/yellow]")
+                console.print(
+                    "[yellow]Usage: /schedule add <name> <cron|daily|weekly|hourly> <command>[/yellow]"
+                )
                 return
             name = tokens[1]
             cron = tokens[2].lower()
@@ -2108,7 +2348,9 @@ class PhalanxChat:
             return
 
         lines = batch_file.read_text(encoding="utf-8").strip().split("\n")
-        console.print(f"[bold]Running batch:[/bold] {batch_file.name} ({len(lines)} commands)")
+        console.print(
+            f"[bold]Running batch:[/bold] {batch_file.name} ({len(lines)} commands)"
+        )
         for i, line in enumerate(lines, 1):
             line = line.strip()
             if not line or line.startswith("#"):
@@ -2156,7 +2398,9 @@ class PhalanxChat:
         engine_config: dict[str, Any] = {
             "openai_api_key": os.environ.get("OPENAI_API_KEY", ""),
             "gemini_api_key": os.environ.get("GEMINI_API_KEY", ""),
-            "ollama_url": os.environ.get("PHALANX_OLLAMA_URL", "http://localhost:11434"),
+            "ollama_url": os.environ.get(
+                "PHALANX_OLLAMA_URL", "http://localhost:11434"
+            ),
             "model_provider": self._settings.get("model_provider"),
             "gemini_model": self._settings.get("gemini_model"),
         }
@@ -2164,10 +2408,14 @@ class PhalanxChat:
         reg = ToolRegistry()
         from .learning_memory import LearningMemory
         from .session_log import session_logger
+
         lm = LearningMemory()
         engine = ExecutionEngine(
-            mode=exec_mode, registry=reg, config=engine_config,
-            learning_memory=lm, session_logger=session_logger,
+            mode=exec_mode,
+            registry=reg,
+            config=engine_config,
+            learning_memory=lm,
+            session_logger=session_logger,
         )
 
         # Build full context with conversation history
@@ -2226,22 +2474,31 @@ class PhalanxChat:
         summary = f"Executed {len(result.step_results)} steps in {elapsed:.1f}s. "
         summary += f"Found {len(result.all_findings)} findings. "
         summary += "Success." if result.success else "Some steps failed."
-        self._session.add_message("assistant", summary, findings=len(result.all_findings))
+        self._session.add_message(
+            "assistant", summary, findings=len(result.all_findings)
+        )
 
         # Pedagogical output: educational breakdown after task completion
         from .user_learning import UserLearning
+
         ul = UserLearning()
         step_results_by_id = {sr.step_id: sr for sr in result.step_results}
         steps_for_pedagogical = []
         for s in plan.steps:
             sr = step_results_by_id.get(s.id)
-            steps_for_pedagogical.append({
-                "tool": s.tool or "",
-                "command": s.command or s.description or "",
-                "output": sr.output if sr and sr.output else "",
-                "step_type": s.step_type.value if hasattr(s.step_type, "value") else str(s.step_type),
-                "description": s.description or "",
-            })
+            steps_for_pedagogical.append(
+                {
+                    "tool": s.tool or "",
+                    "command": s.command or s.description or "",
+                    "output": sr.output if sr and sr.output else "",
+                    "step_type": (
+                        s.step_type.value
+                        if hasattr(s.step_type, "value")
+                        else str(s.step_type)
+                    ),
+                    "description": s.description or "",
+                }
+            )
         ul.generate_pedagogical_output(steps_for_pedagogical, result.all_findings)
 
     def _generate_text_response(self, user_input: str) -> str:
@@ -2250,7 +2507,8 @@ class PhalanxChat:
 
         # Platform-specific help
         if any(
-            kw in lower for kw in ("how to", "what is", "explain", "what command", "which command")
+            kw in lower
+            for kw in ("how to", "what is", "explain", "what command", "which command")
         ):
             # Try to suggest a relevant cross-platform command
             for intent, shells in CROSS_PLATFORM_COMMANDS.items():
@@ -2435,7 +2693,9 @@ class PhalanxChat:
         )
 
     def _print_plan(self, plan: "Any") -> None:  # ExecutionPlan
-        table = Table(title="Execution Plan", show_header=True, header_style="bold magenta")
+        table = Table(
+            title="Execution Plan", show_header=True, header_style="bold magenta"
+        )
         table.add_column("#", style="dim", width=3)
         table.add_column("Type", style="cyan", width=12)
         table.add_column("Tool/Command", style="green")
@@ -2454,7 +2714,9 @@ class PhalanxChat:
     def _print_results(self, result: "Any", elapsed: float) -> None:  # EngineResult
         from .engine import StepStatus
 
-        success_count = sum(1 for r in result.step_results if r.status == StepStatus.SUCCESS)
+        success_count = sum(
+            1 for r in result.step_results if r.status == StepStatus.SUCCESS
+        )
         color = "green" if result.success else "red"
 
         # Print any step outputs
@@ -2463,7 +2725,10 @@ class PhalanxChat:
                 console.print(
                     Panel(
                         Syntax(
-                            step_result.output[:2000], "text", theme="monokai", line_numbers=False
+                            step_result.output[:2000],
+                            "text",
+                            theme="monokai",
+                            line_numbers=False,
                         ),
                         title=f"[dim]Output: {step_result.step_id}[/dim]",
                         border_style="dim",

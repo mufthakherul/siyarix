@@ -95,7 +95,9 @@ class SessionKernel:
         artifact: str | None = None,
         audit_hash: str | None = None,
     ) -> OperationCard | None:
-        target = next((o for o in session.operations if o.operation_id == operation_id), None)
+        target = next(
+            (o for o in session.operations if o.operation_id == operation_id), None
+        )
         if not target:
             return None
         if state is not None:

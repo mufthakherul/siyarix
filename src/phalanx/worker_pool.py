@@ -29,7 +29,9 @@ class AsyncWorkerPool:
         self._tasks: set[asyncio.Task] = set()
         self._closed = False
 
-    async def submit(self, fn: Callable[..., Coroutine[Any, Any, Any]], *args: Any, **kwargs: Any) -> Any:
+    async def submit(
+        self, fn: Callable[..., Coroutine[Any, Any, Any]], *args: Any, **kwargs: Any
+    ) -> Any:
         if self._closed:
             raise RuntimeError("Pool is closed")
 

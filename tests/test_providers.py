@@ -1,6 +1,6 @@
 import asyncio
 
-from phalanx.providers import ProviderRegistry, NoopProvider, registry
+from phalanx.providers import NoopProvider, ProviderRegistry, registry
 
 
 def test_provider_registry_ordering():

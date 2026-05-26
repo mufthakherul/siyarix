@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+# Use TYPE_CHECKING to avoid circular import
+from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
 from rich.panel import Panel
 
-# Use TYPE_CHECKING to avoid circular import
-from typing import TYPE_CHECKING
-
 if TYPE_CHECKING:
-    from phalanx.engine import ExecutionEngine, EngineResult
+    from phalanx.engine import EngineResult, ExecutionEngine
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -75,9 +73,13 @@ class AgenticLoop:
             # 3. REASON — ask the engine to plan next actions or use reflection queue
             if self._reflection_queue:
                 instruction = self._reflection_queue.pop(0)
-                console.print(f"[dim]🧠 Tactical Reflection Triggered: {instruction}[/dim]")
+                console.print(
+                    f"[dim]🧠 Tactical Reflection Triggered: {instruction}[/dim]"
+                )
             else:
-                console.print("[dim]🔍 Observing context and reasoning next steps...[/dim]")
+                console.print(
+                    "[dim]🔍 Observing context and reasoning next steps...[/dim]"
+                )
                 instruction = self._reason(context) or ""
 
             if instruction.lower().strip() in (
@@ -86,7 +88,9 @@ class AgenticLoop:
                 "finished",
             ):
                 self._completed = True
-                console.print("[bold green]✅ Goal achieved — loop complete[/bold green]")
+                console.print(
+                    "[bold green]✅ Goal achieved — loop complete[/bold green]"
+                )
                 break
 
             # 4. ACT — execute the plan
@@ -101,7 +105,9 @@ class AgenticLoop:
                 self._evaluate(result)
 
             except Exception as exc:
-                logger.error("Agentic loop iteration %d failed: %s", self._iteration, exc)
+                logger.error(
+                    "Agentic loop iteration %d failed: %s", self._iteration, exc
+                )
                 self._observations.append(
                     {
                         "iteration": self._iteration,
@@ -110,7 +116,9 @@ class AgenticLoop:
                     }
                 )
                 if self._interactive:
-                    console.print(f"[red]Error in iteration {self._iteration}: {exc}[/red]")
+                    console.print(
+                        f"[red]Error in iteration {self._iteration}: {exc}[/red]"
+                    )
 
         summary = {
             "goal": self._goal,
@@ -149,7 +157,7 @@ class AgenticLoop:
         Queries the KnowledgeGraph to traverse hosts, ports, services,
         subdomains, and vulnerabilities, then queues targeted follow-up actions.
         """
-        from phalanx.knowledge_graph import NodeType, EdgeType
+        from phalanx.knowledge_graph import EdgeType, NodeType
 
         graph = self._engine.graph
 
@@ -159,7 +167,9 @@ class AgenticLoop:
             host_label = host.label
 
             # Find all port edges for this host
-            port_edges = graph.get_edges(source_id=host.node_id, edge_type=EdgeType.HAS_PORT)
+            port_edges = graph.get_edges(
+                source_id=host.node_id, edge_type=EdgeType.HAS_PORT
+            )
             for port_edge in port_edges:
                 port_node = graph.get_node(port_edge.target_id)
                 if not port_node:
@@ -224,14 +234,14 @@ class AgenticLoop:
         if self._all_findings:
             findings_summary = f"\n\nFindings so far ({len(self._all_findings)}):\n"
             for f in self._all_findings[-3:]:
-                findings_summary += (
-                    f"  - [{f.get('severity', 'info')}] {f.get('description', str(f))[:100]}\n"
-                )
+                findings_summary += f"  - [{f.get('severity', 'info')}] {f.get('description', str(f))[:100]}\n"
 
         prev_errors = [o.get("error", "") for o in self._observations if o.get("error")]
         error_context = ""
         if prev_errors:
-            error_context = "\n\nPrevious errors to avoid:\n  " + "\n  ".join(prev_errors[-2:])
+            error_context = "\n\nPrevious errors to avoid:\n  " + "\n  ".join(
+                prev_errors[-2:]
+            )
 
         return (
             f"Continue working on the goal: {self._goal}"
@@ -255,7 +265,9 @@ class AgenticLoop:
         self._all_findings.extend(result.all_findings)
 
         if not result.success and self._iteration >= 3:
-            recent_failures = sum(1 for o in self._observations[-3:] if not o.get("success", True))
+            recent_failures = sum(
+                1 for o in self._observations[-3:] if not o.get("success", True)
+            )
             if recent_failures >= 3:
                 logger.warning("3 consecutive failures — stopping agentic loop")
                 self._completed = True

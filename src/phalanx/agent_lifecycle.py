@@ -2,7 +2,9 @@
 Agent lifecycle commands for managing sub-agents in runtime.
 Provides spawn/list/kill functionality.
 """
+
 from __future__ import annotations
+
 import asyncio
 import logging
 import time
@@ -12,11 +14,12 @@ from datetime import datetime
 from typing import Any
 
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 
 logger = logging.getLogger(__name__)
 console = Console()
+
 
 @dataclass
 class AgentInstance:
@@ -25,6 +28,7 @@ class AgentInstance:
     created_at: datetime = field(default_factory=datetime.now)
     status: str = "idle"  # idle | running | completed | failed
     task: str = ""
+
 
 class AgentLifecycle:
     def __init__(self):
@@ -63,5 +67,6 @@ class AgentLifecycle:
         for a in agents:
             table.add_row(a.id, a.name, a.status, a.task[:40])
         console.print(table)
+
 
 __all__ = ["AgentLifecycle", "AgentInstance"]

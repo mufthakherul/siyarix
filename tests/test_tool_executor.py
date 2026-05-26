@@ -1,8 +1,8 @@
 import asyncio
 
-from phalanx.tool_executor import ToolExecutor
 from phalanx.engine_types import StepResult, StepStatus
 from phalanx.planner import ExecutionStep, StepType
+from phalanx.tool_executor import ToolExecutor
 
 
 class DummyResolver:
@@ -42,7 +42,9 @@ def test_run_tool_step_basic():
         resolver=resolver, discovered_tools=tools, graph=None, run_tool_fn=fake_run_tool
     )
 
-    step = ExecutionStep(id="s1", step_type=StepType.TOOL_RUN, tool="echo", args=["hello"])
+    step = ExecutionStep(
+        id="s1", step_type=StepType.TOOL_RUN, tool="echo", args=["hello"]
+    )
 
     res = asyncio.run(executor.execute_step(step, interactive=False))
     assert isinstance(res, StepResult)

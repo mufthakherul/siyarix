@@ -1,8 +1,8 @@
 # Contributing to Phalanx
 
-First off, thank you for considering contributing to Phalanx! 
+First off, thank you for considering contributing to Phalanx!
 
-This project started as a college experiment to see if AI could orchestrate command-line security tools. As the project grew, we decided to open-source it so that others could learn from it. We are incredibly grateful for anyone who wants to help make it better. 
+This project started as a college experiment to see if AI could orchestrate command-line security tools. As the project grew, we decided to open-source it so that others could learn from it. We are incredibly grateful for anyone who wants to help make it better.
 
 Whether you're a seasoned Python developer, a student looking for their first open-source pull request, or a security researcher with cool ideas, you are explicitly welcome here.
 
@@ -36,6 +36,6 @@ We try to keep our PR process as low-stress as possible.
 
 We are building a community for learning and research. We expect everyone to be kind, respectful, and encouraging to one another. There is no such thing as a "stupid" question here.
 
-If you find a severe security vulnerability in Phalanx itself, please do not open a public GitHub issue. Instead, please check out [security.md](security.md) for how to report it privately so we can patch it safely. 
+If you find a severe security vulnerability in Phalanx itself, please do not open a public GitHub issue. Instead, please check out [security.md](security.md) for how to report it privately so we can patch it safely.
 
 Happy hacking, and thank you again for your interest in Phalanx!

@@ -6,7 +6,10 @@ import json
 from pathlib import Path
 
 import pytest
-from phalanx.report_engine import ReportEngine, Report, ReportConfig, ReportFormat
+
+from phalanx.report_engine import (Report, ReportConfig, ReportEngine,
+                                   ReportFormat)
+
 pytestmark = pytest.mark.report
 
 

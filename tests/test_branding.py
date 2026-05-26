@@ -1,9 +1,5 @@
-from phalanx.branding import (
-    available_themes,
-    canonical_theme,
-    resolve_theme,
-    severity_label,
-)
+from phalanx.branding import (available_themes, canonical_theme, resolve_theme,
+                              severity_label)
 
 
 def test_available_themes_contains_expected_values() -> None:

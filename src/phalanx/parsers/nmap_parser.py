@@ -105,7 +105,9 @@ class NmapParser:
                     service_version = f"{product} {version}".strip()
 
                 severity = _severity_for_port(port_num)
-                description = f"Port {port_num}/{protocol} is open — service: {service_name}"
+                description = (
+                    f"Port {port_num}/{protocol} is open — service: {service_name}"
+                )
                 if service_version:
                     description += f" ({service_version})"
 

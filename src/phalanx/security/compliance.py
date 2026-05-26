@@ -22,7 +22,9 @@ class ComplianceStandard:
 class ComplianceReportGenerator:
     """Generates compliance reports from the audit trail."""
 
-    def generate_report(self, standard: str, days: int = 30, format: str = "json") -> str:
+    def generate_report(
+        self, standard: str, days: int = 30, format: str = "json"
+    ) -> str:
         """Generate a compliance report."""
         # 1. Verify the integrity of the audit log
         integrity = audit.verify_chain()
@@ -62,7 +64,9 @@ class ComplianceReportGenerator:
         if standard == ComplianceStandard.SOC2:
             # CC6.1 - Logical Access Security
             auth_events = [
-                e for e in events if e.event_type in ("auth_login", "auth_logout", "auth_failed")
+                e
+                for e in events
+                if e.event_type in ("auth_login", "auth_logout", "auth_failed")
             ]
             report["controls"]["CC6.1_Access_Control"] = {
                 "status": "compliant",

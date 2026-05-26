@@ -65,7 +65,9 @@ class CommandPalette:
         # Command profiles
         profiles = self._profile_store.list_profiles()
         for p in profiles:
-            options.append(f"profile: {p.name} | {p.command} ({p.description or 'No desc'})")
+            options.append(
+                f"profile: {p.name} | {p.command} ({p.description or 'No desc'})"
+            )
 
         # Persistent history
         try:
@@ -149,7 +151,9 @@ class CommandPalette:
                 ctype, name = "history", source_part
 
             cmd_display = (
-                f"[bold]{name.strip()}[/bold] - {details.strip()}" if details else name.strip()
+                f"[bold]{name.strip()}[/bold] - {details.strip()}"
+                if details
+                else name.strip()
             )
             table.add_row(str(idx), ctype.strip().upper(), cmd_display)
 

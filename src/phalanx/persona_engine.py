@@ -9,8 +9,8 @@ As described in Chapter 4 of the architecture:
 
 from __future__ import annotations
 
-import time
 import logging
+import time
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
@@ -226,7 +226,13 @@ BUILTIN_PERSONAS: dict[str, Persona] = {
             steps=["Planning", "Execution", "Evidence Collection", "Reporting"]
         ),
         learning_bias=LearningBias.METHODICAL,
-        tool_filter_category=["recon", "web", "exploitation", "post-exploitation", "cloud"],
+        tool_filter_category=[
+            "recon",
+            "web",
+            "exploitation",
+            "post-exploitation",
+            "cloud",
+        ],
     ),
     PersonaName.SOC_ANALYST: Persona(
         name="soc_analyst",
@@ -348,6 +354,7 @@ class PersonaEngine:
         if not self._custom_dir.exists():
             return custom
         import yaml
+
         for path in self._custom_dir.glob("*.yaml"):
             try:
                 data = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -366,9 +373,13 @@ class PersonaEngine:
         path = self._custom_dir / f"{safe_name}.yaml"
         try:
             import yaml
-            path.write_text(yaml.dump(persona.to_dict(), default_flow_style=False), encoding="utf-8")
+
+            path.write_text(
+                yaml.dump(persona.to_dict(), default_flow_style=False), encoding="utf-8"
+            )
         except ImportError:
             import json
+
             path.write_text(json.dumps(persona.to_dict(), indent=2), encoding="utf-8")
         self._personas[persona.name] = persona
         return path
@@ -393,7 +404,9 @@ class PersonaEngine:
 
     def get_system_prompt(self, name: str | None = None) -> str:
         """Get the system prompt for a persona."""
-        persona_name = name or (self._active_persona.name if self._active_persona else "none")
+        persona_name = name or (
+            self._active_persona.name if self._active_persona else "none"
+        )
         persona = self._personas.get(persona_name)
         if not persona:
             persona = self._personas.get("none", BUILTIN_PERSONAS[PersonaName.NONE])
@@ -404,7 +417,9 @@ class PersonaEngine:
         start = time.monotonic()
         persona = self._personas.get(name)
         if not persona:
-            raise ValueError(f"Unknown persona: {name}. Available: {list(self._personas.keys())}")
+            raise ValueError(
+                f"Unknown persona: {name}. Available: {list(self._personas.keys())}"
+            )
         self._active_persona = persona
         elapsed_ms = (time.monotonic() - start) * 1000
         logger.debug("Persona switch to '%s' completed in %.1fms", name, elapsed_ms)
@@ -443,7 +458,9 @@ class PersonaEngine:
 
     def get_workflow_template(self, name: str | None = None) -> list[str]:
         """Get the workflow template for a persona."""
-        persona_name = name or (self._active_persona.name if self._active_persona else "none")
+        persona_name = name or (
+            self._active_persona.name if self._active_persona else "none"
+        )
         persona = self._personas.get(persona_name)
         if not persona:
             return []

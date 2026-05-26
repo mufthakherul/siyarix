@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from phalanx.cvss_scorer import CVSSScorer, CVSSVector, CVSSResult, Severity
+
+from phalanx.cvss_scorer import CVSSResult, CVSSScorer, CVSSVector, Severity
+
 pytestmark = pytest.mark.cvss
 
 
@@ -56,16 +58,24 @@ class TestCVSSScorer:
         assert result.score >= 7.0
 
     def test_score_from_finding_low(self, scorer):
-        finding = {"title": "Info disclosure", "severity": "low", "description": "Banner grabbing"}
+        finding = {
+            "title": "Info disclosure",
+            "severity": "low",
+            "description": "Banner grabbing",
+        }
         result = scorer.score_from_finding(finding)
         assert result.score < 4.0
 
     def test_score_from_cve(self, scorer):
-        result = scorer.score_from_cve("CVE-2023-1234", "Remote code execution in web application")
+        result = scorer.score_from_cve(
+            "CVE-2023-1234", "Remote code execution in web application"
+        )
         assert result.score > 0
 
     def test_parse_vector_string(self, scorer):
-        vector = scorer.parse_vector_string("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H")
+        vector = scorer.parse_vector_string(
+            "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        )
         assert vector.attack_vector == "network"
         assert vector.attack_complexity == "low"
         assert vector.confidentiality == "high"

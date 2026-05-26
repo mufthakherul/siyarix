@@ -5,7 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from phalanx.canary import CanaryTokenManager, CanaryToken, CanaryTokenType, CanaryDeployment
+
+from phalanx.canary import (CanaryDeployment, CanaryToken, CanaryTokenManager,
+                            CanaryTokenType)
+
 pytestmark = pytest.mark.canary
 
 
@@ -26,7 +29,9 @@ class TestCanaryTokenManager:
         assert ".phalanx-alert.local" not in token.value
 
     def test_create_credential_token(self, manager):
-        token = manager.create_token(CanaryTokenType.CREDENTIAL, description="SSH honeypot")
+        token = manager.create_token(
+            CanaryTokenType.CREDENTIAL, description="SSH honeypot"
+        )
         assert token.description == "SSH honeypot"
         assert ":" in token.value
 
@@ -95,7 +100,9 @@ class TestCanaryTokenManager:
         assert summary["active_tokens"] == 2
 
     def test_canary_token_dataclass(self):
-        token = CanaryToken(token_id="test-123", token_type=CanaryTokenType.WEB, value="secret")
+        token = CanaryToken(
+            token_id="test-123", token_type=CanaryTokenType.WEB, value="secret"
+        )
         assert token.token_id == "test-123"
         assert not token.triggered
 

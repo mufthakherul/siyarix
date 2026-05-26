@@ -1,11 +1,11 @@
 # Phalanx Security Agent — Comprehensive Master Documentation
 
-> **Project:** github.com/mufthakherul/phalanx  
-> **Classification:** Cybersecurity-Native AI Agent & Universal Tool Orchestrator  
-> **Maintainer:** mufthakherul & Contributing Team  
-> **License:** MIT+custom sensors as this is a sencetive  
-> **Status:** Active Development — Community-Driven Discovery Encouraged  
-> **Document Version:** Edition v2.0 — Enhanced with Suggested Roadmap  
+> **Project:** github.com/mufthakherul/phalanx
+> **Classification:** Cybersecurity-Native AI Agent & Universal Tool Orchestrator
+> **Maintainer:** mufthakherul & Contributing Team
+> **License:** MIT+custom sensors as this is a sencetive
+> **Status:** Active Development — Community-Driven Discovery Encouraged
+> **Document Version:** Edition v2.0 — Enhanced with Suggested Roadmap
 
 ---
 
@@ -163,7 +163,7 @@ Changelog (automated agent):
   - Initialized centralized logging in `src/phalanx/main.py` using configured `log_level`.
   - Created CI improvements note; existing CI workflow detected and will be leveraged.
   - Status (global): ~2% — Baseline hardening started (static config + logging).
-  
+
 - 2026-05-24: Masking engine
   - Added session-scoped masking engine at `src/phalanx/masking.py` implementing deterministic mask/unmask and exportable mapping.
   - Added unit tests at `tests/test_masking.py` covering domain and API key masking and reset behavior.
@@ -220,7 +220,7 @@ Changelog (automated agent):
   - Added `NoopProvider` scaffold and registered it as `noop` for offline/testing.
   - Added unit tests at `tests/test_providers.py`.
   - Status (global): ~4% — LLM provider seam established.
-  
+
 - 2026-05-24: Provider async update
   - Updated provider interface to use async methods to match planner expectations.
   - Updated `NoopProvider` and tests to use async flows.
@@ -246,12 +246,12 @@ Change policy and traceability:
 
 ## Document Structure
 
-* **Part I:** Core Architecture & Features 
-* **Part II:** Advanced Operational Workflows 
-* **Part III:** Suggested Enhancements & Roadmap 
-* **Part IV:** Enterprise & Team Scaling 
-* **Part V:** Integration Ecosystem 
-* **Part VI:** Security Hardening & Compliance 
+* **Part I:** Core Architecture & Features
+* **Part II:** Advanced Operational Workflows
+* **Part III:** Suggested Enhancements & Roadmap
+* **Part IV:** Enterprise & Team Scaling
+* **Part V:** Integration Ecosystem
+* **Part VI:** Security Hardening & Compliance
 
 ---
 
@@ -274,7 +274,7 @@ Change policy and traceability:
 │                              │                                              │
 │ LAYER 6: PHALANX CORE ENGINE │                                              │
 │ ┌─────────────────────────────────────────────────────────────────────────┐ │
-│ │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────────┐   │ │ 
+│ │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────────┐   │ │
 │ │  │   Persona    │  │   Planner    │  │     Execution Engine         │   │ │
 │ │  │   Engine     │  │  (AI/Local)  │  │     (15+ Sub-Agent Pool)     │   │ │
 │ │  │              │  │              │  │                              │   │ │
@@ -432,7 +432,7 @@ User Input
 | **T12** | Display completion message | *"All done! Please restart your terminal."* |
 
 **Second Run Behavior:**
-- Reads first-run marker → skips bootstrap entirely 
+- Reads first-run marker → skips bootstrap entirely
 - Loads `~/.phalanx/config.yaml` (or equivalent)
 - Initializes main engine directly
 - Scans PATH for tools
@@ -608,7 +608,7 @@ When switching personas mid-session, Phalanx **hot-swaps**:
 ```
 ┌───────────────────────────────────────┐
 │         Provider Interface            │
-│  ┌─────────────────────────────────┐  │ 
+│  ┌─────────────────────────────────┐  │
 │  │  connect(endpoint, key, model)  │  │
 │  │  plan(prompt, context)          │  │
 │  │  chat(history)                  │  │
@@ -1166,7 +1166,7 @@ What it means:
   • Next step: Verify with manual testing or search for PoC
 
 ═══════════════════════════════════════════════════
-[Phalanx] Would you like a detailed explanation of any step? [1/2/3/n]: 
+[Phalanx] Would you like a detailed explanation of any step? [1/2/3/n]:
 ```
 
 ---
@@ -1508,7 +1508,7 @@ User: "Scan xyz.com"
 
 ```
 [Phalanx] Context window 85% full. Compressing history...
-[Phalanx] Summary: "So far: discovered 15 subdomains, found 2 CVEs, 
+[Phalanx] Summary: "So far: discovered 15 subdomains, found 2 CVEs,
           currently fuzzing directories. Next: verify findings."
 ```
 
@@ -1517,7 +1517,7 @@ User: "Scan xyz.com"
 **Concept:** Opt-in sharing of successful command patterns (anonymized).
 
 ```
-[Phalanx] Community insight: 847 users found that adding 
+[Phalanx] Community insight: 847 users found that adding
           `--tags cve` to nuclei improves CVE detection by 23%.
 [Phalanx] Apply this insight? [Y/n]: Y
 ```

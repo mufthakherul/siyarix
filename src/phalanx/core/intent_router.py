@@ -56,7 +56,9 @@ class IntentRouter:
             r"^wizard\s*(.*)$": (TaskCategory.CONFIG, "onboarding_wizard"),
         }
 
-    def route(self, instruction: str, preferred_mode: str = "integrated") -> IntentRoute:
+    def route(
+        self, instruction: str, preferred_mode: str = "integrated"
+    ) -> IntentRoute:
         """Evaluate command and resolve intent route using 4-stage pipeline."""
         instruction_clean = instruction.strip().lower()
 

@@ -146,10 +146,14 @@ _BLOCKED_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\bchown\s+.*\s+/(?!tmp)", re.IGNORECASE),  # chown system dirs
     re.compile(r">\s*/etc/", re.IGNORECASE),  # overwrite system config
     re.compile(r"\bsudo\s+rm\b", re.IGNORECASE),  # sudo rm
-    re.compile(r"\bcurl\b.*\|\s*(?:sudo\s+)?(?:bash|sh)\b", re.IGNORECASE),  # pipe to shell
+    re.compile(
+        r"\bcurl\b.*\|\s*(?:sudo\s+)?(?:bash|sh)\b", re.IGNORECASE
+    ),  # pipe to shell
     re.compile(r"\bwget\b.*\|\s*(?:sudo\s+)?(?:bash|sh)\b", re.IGNORECASE),
     # ── SQL injection patterns ──
-    re.compile(r";\s*\b(?:SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|UNION|EXEC)\b", re.IGNORECASE),
+    re.compile(
+        r";\s*\b(?:SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|UNION|EXEC)\b", re.IGNORECASE
+    ),
     re.compile(r"\bDROP\s+(?:TABLE|DATABASE)\b", re.IGNORECASE),
     re.compile(r"\bDELETE\s+FROM\b[^;]*(?!WHERE)", re.IGNORECASE),
     re.compile(
@@ -265,7 +269,9 @@ class DynamicResolver:
                     is_registered_tool=False,
                     path="",
                     safety_score=0.0,
-                    warnings=[f"Blocked: matches dangerous pattern {pattern.pattern!r}"],
+                    warnings=[
+                        f"Blocked: matches dangerous pattern {pattern.pattern!r}"
+                    ],
                 )
 
         # 3) Check for secret leaks
@@ -274,7 +280,9 @@ class DynamicResolver:
                 warnings.append("Command may reference sensitive environment variables")
 
         # 4) Check if the command is in the safe allowlist
-        base_cmd = tool_or_command.split()[0] if " " in tool_or_command else tool_or_command
+        base_cmd = (
+            tool_or_command.split()[0] if " " in tool_or_command else tool_or_command
+        )
         is_safe = base_cmd in self._safe_commands
 
         # 5) Try to find the executable on PATH

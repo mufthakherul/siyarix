@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import pytest
-from phalanx.multi_model_ensemble import MultiModelEnsemble, EnsembleResult, ModelResponse
+
+from phalanx.multi_model_ensemble import (EnsembleResult, ModelResponse,
+                                          MultiModelEnsemble)
+
 pytestmark = pytest.mark.ensemble
 
 
@@ -59,7 +62,9 @@ class TestMultiModelEnsemble:
         assert result.consensus_level > 0.5
 
     def test_select_providers_for_task(self, ensemble):
-        providers = ensemble.select_providers_for_task("simple task", complexity="simple")
+        providers = ensemble.select_providers_for_task(
+            "simple task", complexity="simple"
+        )
         assert isinstance(providers, list)
 
     @pytest.mark.asyncio
@@ -73,7 +78,9 @@ class TestMultiModelEnsemble:
         assert summary["registered_providers"] == 0
 
     def test_model_response_dataclass(self):
-        resp = ModelResponse(model_name="test", provider="test", plan="nmap -sV", confidence=0.9)
+        resp = ModelResponse(
+            model_name="test", provider="test", plan="nmap -sV", confidence=0.9
+        )
         assert resp.model_name == "test"
         assert resp.confidence == 0.9
 

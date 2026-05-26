@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from phalanx.knowledge_graph import KnowledgeGraph, NodeType, EdgeType
+from phalanx.knowledge_graph import EdgeType, KnowledgeGraph, NodeType
 
 logger = logging.getLogger(__name__)
 
@@ -100,8 +100,16 @@ class AttackPathAnalyzer:
             "high_severity_paths": len(high_severity),
             "paths": [
                 {
-                    "origin": origin_node.label if (origin_node := self.graph.get_node(p.origin_id)) else p.origin_id,
-                    "target": target_node.label if (target_node := self.graph.get_node(p.target_id)) else p.target_id,
+                    "origin": (
+                        origin_node.label
+                        if (origin_node := self.graph.get_node(p.origin_id))
+                        else p.origin_id
+                    ),
+                    "target": (
+                        target_node.label
+                        if (target_node := self.graph.get_node(p.target_id))
+                        else p.target_id
+                    ),
                     "severity": p.severity,
                     "description": p.description,
                     "steps": len(p.path_nodes) - 1,

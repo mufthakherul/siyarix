@@ -16,20 +16,15 @@ from __future__ import annotations
 
 import json
 import logging
-import os
-from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from rich.columns import Columns
 from rich.console import Console
 from rich.panel import Panel
-from rich.prompt import Prompt as RichPrompt
 from rich.rule import Rule
 from rich.table import Table
-from rich.text import Text
 from rich.tree import Tree
 
 logger = logging.getLogger(__name__)

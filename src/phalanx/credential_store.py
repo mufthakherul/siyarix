@@ -349,7 +349,6 @@ class CredentialStore:
         if not HAS_AESGCM:
             logger.warning("AES-256-GCM not available for key rotation")
             return False
-        old_key = self._master_key
         self._master_key = os.urandom(_AES_KEY_SIZE)
         if new_master_password:
             kdf = PBKDF2HMAC(

@@ -18,7 +18,6 @@ Features:
 
 from __future__ import annotations
 
-import difflib
 import json
 import logging
 import platform
@@ -490,7 +489,6 @@ class LearningMemory:
                 orig_flags = set(self.extract_flags(original))
                 corr_flags = set(self.extract_flags(corrected))
                 added = corr_flags - orig_flags
-                removed = orig_flags - corr_flags
                 if delta > 0:
                     p.effective_flags.extend(added)
                 elif delta < 0:
@@ -520,11 +518,7 @@ class LearningMemory:
         self, tools: list[str], original: str, corrected: str, delta: int
     ) -> str:
         """Generate a natural-language insight from a correction."""
-        diff = list(
-            difflib.unified_diff(original.split(), corrected.split(), lineterm="")
-        )
         added = [w for w in corrected.split() if w not in original.split()]
-        removed = [w for w in original.split() if w not in corrected.split()]
 
         tool_name = tools[0] if tools else "command"
 

@@ -174,11 +174,8 @@ class ChatSession:
 # ---------------------------------------------------------------------------
 
 _SLASH_HELP = {
-    "/help": "Show available slash commands",
-    "/?": "Alias for /help",
-    "/exit": "Exit chat mode",
-    "/quit": "Exit chat mode",
-    "/bye": "Exit chat mode",
+    "/help": "Show available slash commands (alias: /?)",
+    "/exit": "Exit chat mode (aliases: /quit, /bye, /leave, /end)",
     "/clear": "Clear the screen and conversation history",
     "/new": "Start a clean conversation but keep target/mode",
     "/history": "Show recent conversation history",

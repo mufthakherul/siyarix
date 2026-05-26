@@ -59,7 +59,6 @@ from .logging_config import configure_logging
 from .metrics import get_metrics
 from .offline_store import OfflineStore
 from .orchestration import WorkflowRuntime, WorkflowState
-from .plugins import PluginManager
 from .security_commands import security_app
 from .shell_knowledge import (CROSS_PLATFORM_COMMANDS, INTENT_METADATA,
                               build_platform_context, detect_shell,
@@ -83,10 +82,8 @@ console = Console()
 registry = ToolRegistry()
 config = SettingsStore()
 configure_logging(config.get("log_level"))
-plugins = PluginManager()
 creds = CredentialStore()
 load_env_file()
-_plugins_loaded = False
 intent_router = IntentRouter()
 session_kernel = SessionKernel()
 xi_core = XICoreService()
@@ -390,9 +387,6 @@ app.add_typer(config_app, name="config")
 
 completions_app = typer.Typer(help="🏁 Shell completions")
 app.add_typer(completions_app, name="completions")
-
-plugin_app = typer.Typer(help="🔌 Plugin lifecycle management")
-app.add_typer(plugin_app, name="plugin")
 
 theme_app = typer.Typer(help="🎨 Theme customization")
 app.add_typer(theme_app, name="theme")
@@ -2465,70 +2459,6 @@ def config_reset(
 
 
 # ---------------------------------------------------------------------------
-# Plugin management (wired to real PluginManager)
-# ---------------------------------------------------------------------------
-@plugin_app.command("list")
-def plugin_list() -> None:
-    """List all installed plugins."""
-    real_plugins = plugins.list_plugins()
-    table = Table(
-        title="Plugin Ecosystem", show_header=True, header_style="bold magenta"
-    )
-    table.add_column("Name", style="cyan")
-    table.add_column("Version", style="yellow")
-    table.add_column("Status", justify="center")
-    table.add_column("Author", style="dim")
-    table.add_column("Description", style="white")
-
-    if not real_plugins:
-        console.print(
-            "[dim]No plugins installed. Use 'phalanx plugin install <name>' to add plugins.[/dim]"
-        )
-        return
-
-    for p in real_plugins:
-        status = "[green]✓ Active[/green]" if p.enabled else "[dim]○ Disabled[/dim]"
-        table.add_row(p.name, p.version, status, p.author, p.description[:40])
-
-    console.print(table)
-
-
-@plugin_app.command("install")
-def plugin_install(
-    plugin: str = typer.Argument(help="Plugin name or URL"),
-    source: str = typer.Option(
-        "official", "--source", "-s", help="Source: official|community|local"
-    ),
-) -> None:
-    """Install a plugin from marketplace or local path."""
-    from pathlib import Path
-
-    console.print(f"[bold]Installing:[/bold] {plugin} from {source}...")
-    source_path = Path(plugin)
-    try:
-        if source_path.exists():
-            installed = plugins.install_from_path(source_path)
-            console.print(
-                f"[green]✓ Plugin installed from {plugin} → {installed}[/green]"
-            )
-        else:
-            target = Path(plugins.root) / plugin
-            target.mkdir(parents=True, exist_ok=True)
-            yaml_path = target / "plugin.yaml"
-            if not yaml_path.exists():
-                yaml_path.write_text(
-                    f"name: {plugin}\nversion: 1.0.0\nauthor: community\n"
-                    f"description: Plugin '{plugin}' installed from marketplace\nenabled: true\n",
-                    encoding="utf-8",
-                )
-                (target / "__init__.py").write_text("", encoding="utf-8")
-            plugins.set_enabled(plugin, True)
-            console.print(f"[green]✓ Plugin installed: {plugin}[/green]")
-    except Exception as exc:
-        console.print(f"[red]Install failed: {exc}[/red]")
-
-
-# ---------------------------------------------------------------------------
 # Theme management (premium)
 # ---------------------------------------------------------------------------
 # Note: theme commands are defined earlier; duplicate premium-themed handlers removed to
@@ -2557,22 +2487,8 @@ def version() -> None:
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
-def _load_plugins_once() -> None:
-    """Load plugins exactly once, safely."""
-    global _plugins_loaded
-    if not _plugins_loaded:
-        try:
-            plugins.load_command_plugins(app)
-        except Exception as exc:
-            import logging
-
-            logging.getLogger(__name__).warning("Plugin load error: %s", exc)
-        _plugins_loaded = True
-
-
 if __name__ == "__main__":
     try:
-        _load_plugins_once()
         app()
     except KeyboardInterrupt:
         console.print("\n[yellow]Interrupted by user[/yellow]")

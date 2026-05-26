@@ -38,7 +38,6 @@ class TestBootstrapEngine:
         engine = BootstrapEngine(phalanx_home=tmp_path)
         engine.ensure_directory_structure()
         assert (tmp_path / "personas").exists()
-        assert (tmp_path / "plugins" / "installed").exists()
         assert (tmp_path / "memory").exists()
         assert (tmp_path / "logs" / "sessions").exists()
         assert (tmp_path / "vault").exists()

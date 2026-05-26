@@ -63,7 +63,6 @@ from .persona_engine import (BUILTIN_PERSONAS, REVIEW, LearningBias, Persona,
 from .planner import ExecutionPlan, ExecutionStep, StepType, TaskPlanner
 from .playbook_engine import (Playbook, PlaybookEngine, PlaybookStep,
                               PlaybookStepType)
-from .plugins import PluginManager
 from .providers import (AnthropicAdapter, CloudAdapter, CustomAdapter,
                          GeminiAdapter, GroqAdapter, LMStudioAdapter,
                          NoopProvider, OllamaAdapter, OpenAIAdapter, Provider,
@@ -165,7 +164,6 @@ __all__ = [
     "get_health",
     "ValidationError",
     "validate_target",
-    "PluginManager",
     "configure_logging",
     "IntentRouter",
     "SessionKernel",

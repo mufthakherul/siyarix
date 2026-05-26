@@ -6,7 +6,7 @@ import ipaddress
 import re
 from typing import Any
 
-from .exceptions import ValidationError, ErrorContext, ErrorSeverity
+from .exceptions import ErrorContext, ErrorSeverity, ValidationError
 
 __all__ = [
     "validate_target",

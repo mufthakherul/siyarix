@@ -23,14 +23,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from rich.columns import Columns
 from rich.console import Console
 from rich.panel import Panel
+from rich.prompt import Prompt as RichPrompt
+from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree
-from rich.prompt import Prompt as RichPrompt
-from rich.rule import Rule
-from rich.columns import Columns
 
 logger = logging.getLogger(__name__)
 
@@ -40,19 +40,49 @@ _MEMORY_DIR = _SIYARIX_HOME / "memory"
 
 # ── Tool categories for diversity tracking ───────────────────────────────
 _TOOL_CATEGORIES: dict[str, str] = {
-    "nmap": "recon", "masscan": "recon", "whois": "recon", "dig": "recon",
-    "nslookup": "recon", "theHarvester": "recon", "amass": "recon",
-    "subfinder": "recon", "dnsx": "recon", "httpx": "recon",
-    "waybackurls": "recon", "gau": "recon", "katana": "recon", "shodan": "recon",
-    "gobuster": "web", "ffuf": "web", "nikto": "web", "wpscan": "web",
-    "nuclei": "web", "sqlmap": "web", "zap": "web", "burpsuite": "web",
-    "hydra": "exploit", "john": "exploit", "hashcat": "exploit",
-    "msfconsole": "exploit", "bettercap": "exploit",
-    "aircrack-ng": "wireless", "reaver": "wireless", "wifite": "wireless",
-    "kismet": "wireless", "impacket": "exploit", "responder": "exploit",
-    "crackmapexec": "exploit", "evil-winrm": "exploit", "bloodhound": "exploit",
-    "volatility": "forensics", "binwalk": "forensics", "sleuthkit": "forensics",
-    "docker": "infra", "kubectl": "infra", "terraform": "infra", "ansible": "infra",
+    "nmap": "recon",
+    "masscan": "recon",
+    "whois": "recon",
+    "dig": "recon",
+    "nslookup": "recon",
+    "theHarvester": "recon",
+    "amass": "recon",
+    "subfinder": "recon",
+    "dnsx": "recon",
+    "httpx": "recon",
+    "waybackurls": "recon",
+    "gau": "recon",
+    "katana": "recon",
+    "shodan": "recon",
+    "gobuster": "web",
+    "ffuf": "web",
+    "nikto": "web",
+    "wpscan": "web",
+    "nuclei": "web",
+    "sqlmap": "web",
+    "zap": "web",
+    "burpsuite": "web",
+    "hydra": "exploit",
+    "john": "exploit",
+    "hashcat": "exploit",
+    "msfconsole": "exploit",
+    "bettercap": "exploit",
+    "aircrack-ng": "wireless",
+    "reaver": "wireless",
+    "wifite": "wireless",
+    "kismet": "wireless",
+    "impacket": "exploit",
+    "responder": "exploit",
+    "crackmapexec": "exploit",
+    "evil-winrm": "exploit",
+    "bloodhound": "exploit",
+    "volatility": "forensics",
+    "binwalk": "forensics",
+    "sleuthkit": "forensics",
+    "docker": "infra",
+    "kubectl": "infra",
+    "terraform": "infra",
+    "ansible": "infra",
 }
 
 # ── CVE educational database (curated) ───────────────────────────────────
@@ -236,17 +266,23 @@ class SessionRecord:
 
     def to_dict(self) -> dict:
         return {
-            "session_id": self.session_id, "started_at": self.started_at,
-            "ended_at": self.ended_at, "command_count": self.command_count,
-            "tools_used": self.tools_used, "categories": self.categories,
-            "findings_found": self.findings_found, "errors": self.errors,
+            "session_id": self.session_id,
+            "started_at": self.started_at,
+            "ended_at": self.ended_at,
+            "command_count": self.command_count,
+            "tools_used": self.tools_used,
+            "categories": self.categories,
+            "findings_found": self.findings_found,
+            "errors": self.errors,
             "duration_seconds": round(self.duration_seconds, 1),
             "pedagogical_steps": self.pedagogical_steps,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> SessionRecord:
-        return cls(**{k: v for k, v in data.items() if k in SessionRecord.__dataclass_fields__})
+        return cls(
+            **{k: v for k, v in data.items() if k in SessionRecord.__dataclass_fields__}
+        )
 
 
 @dataclass
@@ -265,11 +301,17 @@ class UserProfile:
     session_count: int = 0
     milestones: list[str] = field(default_factory=list)
     pedagogical_enabled: bool = False
-    preferences: dict = field(default_factory=lambda: {
-        "verbosity": "adaptive", "show_hints": True,
-        "auto_confirm_safe": False, "output_format": "rich",
-        "color_theme": "", "show_timestamps": True, "compact_mode": False,
-    })
+    preferences: dict = field(
+        default_factory=lambda: {
+            "verbosity": "adaptive",
+            "show_hints": True,
+            "auto_confirm_safe": False,
+            "output_format": "rich",
+            "color_theme": "",
+            "show_timestamps": True,
+            "compact_mode": False,
+        }
+    )
     recent_tools: list[str] = field(default_factory=list)
     sessions: list[SessionRecord] = field(default_factory=list)
     updated_at: str = ""
@@ -277,15 +319,19 @@ class UserProfile:
 
     def to_dict(self) -> dict:
         return {
-            "username": self.username, "experience": self.experience,
-            "auto_detect": self.auto_detect, "total_commands": self.total_commands,
+            "username": self.username,
+            "experience": self.experience,
+            "auto_detect": self.auto_detect,
+            "total_commands": self.total_commands,
             "unique_tools": self.unique_tools,
             "advanced_command_count": self.advanced_command_count,
             "category_count": self.category_count,
             "category_counts": self.category_counts,
             "error_rate": round(self.error_rate, 4),
-            "total_errors": self.total_errors, "total_findings": self.total_findings,
-            "session_count": self.session_count, "milestones": self.milestones,
+            "total_errors": self.total_errors,
+            "total_findings": self.total_findings,
+            "session_count": self.session_count,
+            "milestones": self.milestones,
             "pedagogical_enabled": self.pedagogical_enabled,
             "preferences": self.preferences,
             "recent_tools": self.recent_tools[-50:],
@@ -312,11 +358,18 @@ class UserProfile:
             session_count=data.get("session_count", 0),
             milestones=data.get("milestones", []),
             pedagogical_enabled=data.get("pedagogical_enabled", False),
-            preferences=data.get("preferences", {
-                "verbosity": "adaptive", "show_hints": True,
-                "auto_confirm_safe": False, "output_format": "rich",
-                "color_theme": "", "show_timestamps": True, "compact_mode": False,
-            }),
+            preferences=data.get(
+                "preferences",
+                {
+                    "verbosity": "adaptive",
+                    "show_hints": True,
+                    "auto_confirm_safe": False,
+                    "output_format": "rich",
+                    "color_theme": "",
+                    "show_timestamps": True,
+                    "compact_mode": False,
+                },
+            ),
             recent_tools=data.get("recent_tools", []),
             sessions=sessions,
             updated_at=data.get("updated_at", ""),
@@ -326,24 +379,73 @@ class UserProfile:
 
 # ── Milestones ───────────────────────────────────────────────────────────
 _MILESTONES = [
-    {"id": "first_command", "name": "First Command", "cond": lambda p: p.total_commands >= 1},
-    {"id": "tool_diversity_3", "name": "Tool Explorer", "cond": lambda p: p.category_count >= 2 and p.unique_tools >= 3},
-    {"id": "ten_commands", "name": "Getting Started", "cond": lambda p: p.total_commands >= 10},
-    {"id": "all_categories", "name": "Tool Master", "cond": lambda p: p.category_count >= 4},
-    {"id": "advanced_user", "name": "Power User", "cond": lambda p: p.advanced_command_count >= 5},
-    {"id": "hundred_commands", "name": "Centurion", "cond": lambda p: p.total_commands >= 100},
-    {"id": "exploit_initiated", "name": "First Exploit", "cond": lambda p: p.category_counts.get("exploit", 0) >= 1},
-    {"id": "recon_specialist", "name": "Recon Specialist", "cond": lambda p: p.category_counts.get("recon", 0) >= 10},
-    {"id": "web_expert", "name": "Web Expert", "cond": lambda p: p.category_counts.get("web", 0) >= 10},
-    {"id": "wireless_pioneer", "name": "Wireless Pioneer", "cond": lambda p: p.category_counts.get("wireless", 0) >= 1},
-    {"id": "forensics_investigator", "name": "Forensics Investigator", "cond": lambda p: p.category_counts.get("forensics", 0) >= 1},
-    {"id": "expert_level", "name": "Expert Status", "cond": lambda p: p.experience == "expert"},
+    {
+        "id": "first_command",
+        "name": "First Command",
+        "cond": lambda p: p.total_commands >= 1,
+    },
+    {
+        "id": "tool_diversity_3",
+        "name": "Tool Explorer",
+        "cond": lambda p: p.category_count >= 2 and p.unique_tools >= 3,
+    },
+    {
+        "id": "ten_commands",
+        "name": "Getting Started",
+        "cond": lambda p: p.total_commands >= 10,
+    },
+    {
+        "id": "all_categories",
+        "name": "Tool Master",
+        "cond": lambda p: p.category_count >= 4,
+    },
+    {
+        "id": "advanced_user",
+        "name": "Power User",
+        "cond": lambda p: p.advanced_command_count >= 5,
+    },
+    {
+        "id": "hundred_commands",
+        "name": "Centurion",
+        "cond": lambda p: p.total_commands >= 100,
+    },
+    {
+        "id": "exploit_initiated",
+        "name": "First Exploit",
+        "cond": lambda p: p.category_counts.get("exploit", 0) >= 1,
+    },
+    {
+        "id": "recon_specialist",
+        "name": "Recon Specialist",
+        "cond": lambda p: p.category_counts.get("recon", 0) >= 10,
+    },
+    {
+        "id": "web_expert",
+        "name": "Web Expert",
+        "cond": lambda p: p.category_counts.get("web", 0) >= 10,
+    },
+    {
+        "id": "wireless_pioneer",
+        "name": "Wireless Pioneer",
+        "cond": lambda p: p.category_counts.get("wireless", 0) >= 1,
+    },
+    {
+        "id": "forensics_investigator",
+        "name": "Forensics Investigator",
+        "cond": lambda p: p.category_counts.get("forensics", 0) >= 1,
+    },
+    {
+        "id": "expert_level",
+        "name": "Expert Status",
+        "cond": lambda p: p.experience == "expert",
+    },
 ]
 
 
 @dataclass
 class PedagogicalStep:
     """A single step in the educational breakdown."""
+
     title: str
     command: str
     what_happened: str
@@ -381,6 +483,7 @@ class PedagogicalEngine:
             cve_id = ""
 
             import re
+
             cves = re.findall(r"CVE-\d{4}-\d{4,}", output or "")
             for cve in cves[:3]:
                 details.append(f"Detected {cve}")
@@ -393,7 +496,9 @@ class PedagogicalEngine:
                         cve_id = cve
 
             if findings:
-                step_findings = [f for f in findings if f.get("tool", "").lower() == tool.lower()]
+                step_findings = [
+                    f for f in findings if f.get("tool", "").lower() == tool.lower()
+                ]
                 for sf in step_findings[:3]:
                     sev = sf.get("severity", "info")
                     desc = sf.get("description", sf.get("detail", ""))
@@ -402,7 +507,11 @@ class PedagogicalEngine:
 
             severity = ""
             if findings:
-                severities = [f.get("severity", "") for f in findings if f.get("tool", "").lower() == tool.lower()]
+                severities = [
+                    f.get("severity", "")
+                    for f in findings
+                    if f.get("tool", "").lower() == tool.lower()
+                ]
                 if "critical" in severities:
                     severity = "critical"
                 elif "high" in severities:
@@ -410,11 +519,17 @@ class PedagogicalEngine:
                 elif "medium" in severities:
                     severity = "medium"
 
-            pedagogical_steps.append(PedagogicalStep(
-                title=title, command=command,
-                what_happened=what_happened, what_it_means=what_it_means,
-                severity=severity, details=details, cve_id=cve_id,
-            ))
+            pedagogical_steps.append(
+                PedagogicalStep(
+                    title=title,
+                    command=command,
+                    what_happened=what_happened,
+                    what_it_means=what_it_means,
+                    severity=severity,
+                    details=details,
+                    cve_id=cve_id,
+                )
+            )
 
         return pedagogical_steps
 
@@ -466,7 +581,9 @@ class PedagogicalEngine:
 
         for i, step in enumerate(steps, 1):
             border_style = "red" if step.severity in ("critical", "high") else "cyan"
-            self._console.print(Rule(f"[bold]STEP {i}: {step.title}[/bold]", style=border_style))
+            self._console.print(
+                Rule(f"[bold]STEP {i}: {step.title}[/bold]", style=border_style)
+            )
 
             content = (
                 f"\n[bold cyan]What happened:[/bold cyan]\n  {step.what_happened}\n\n"
@@ -489,16 +606,23 @@ class PedagogicalEngine:
                     content += f"  Mitigation: {cve_data['mitigation']}\n"
 
             if step.severity:
-                color = {"critical": "red", "high": "yellow"}.get(step.severity, "white")
+                color = {"critical": "red", "high": "yellow"}.get(
+                    step.severity, "white"
+                )
                 content += f"\n[{color}]Severity: {step.severity.upper()}[/{color}]\n"
 
-            self._console.print(Panel(content.strip(), border_style=border_style, padding=(1, 2)))
+            self._console.print(
+                Panel(content.strip(), border_style=border_style, padding=(1, 2))
+            )
 
         if len(steps) > 1:
-            self._console.print(f"\n{label} Would you like a detailed explanation of any step? ", end="")
+            self._console.print(
+                f"\n{label} Would you like a detailed explanation of any step? ", end=""
+            )
             choices = "/".join(str(i) for i in range(1, len(steps) + 1))
             self._console.print(f"[bold][{choices}/n][/bold]: ", end="")
             import sys
+
             answer = sys.stdin.readline().strip()
             if answer.isdigit():
                 idx = int(answer) - 1
@@ -506,7 +630,9 @@ class PedagogicalEngine:
                     self._display_detailed_step(steps[idx])
 
     def _display_detailed_step(self, step: PedagogicalStep) -> None:
-        self._console.print(Rule(f"[bold]Deep Dive: {step.title}[/bold]", style="magenta"))
+        self._console.print(
+            Rule(f"[bold]Deep Dive: {step.title}[/bold]", style="magenta")
+        )
         content = (
             f"[bold]Command:[/bold] {step.command}\n\n"
             f"[bold cyan]What happened:[/bold cyan]\n  {step.what_happened}\n\n"
@@ -527,7 +653,11 @@ class PedagogicalEngine:
                     f"  \n[dim]Next step: Verify with manual testing or search for PoC[/dim]\n"
                 )
 
-        self._console.print(Panel(content.strip(), title="Educational Deep Dive", border_style="magenta"))
+        self._console.print(
+            Panel(
+                content.strip(), title="Educational Deep Dive", border_style="magenta"
+            )
+        )
 
 
 class UserLearning:
@@ -606,8 +736,15 @@ class UserLearning:
     # ── Preferences ──────────────────────────────────────────────────────
 
     def set_preference(self, key: str, value: Any) -> None:
-        valid = {"verbosity", "show_hints", "auto_confirm_safe",
-                 "output_format", "color_theme", "show_timestamps", "compact_mode"}
+        valid = {
+            "verbosity",
+            "show_hints",
+            "auto_confirm_safe",
+            "output_format",
+            "color_theme",
+            "show_timestamps",
+            "compact_mode",
+        }
         if key not in valid:
             logger.warning("Unknown preference: %s", key)
             return
@@ -625,7 +762,8 @@ class UserLearning:
 
     def start_session(self, session_id: str = "") -> None:
         self._current_session = SessionRecord(
-            session_id=session_id or datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S"),
+            session_id=session_id
+            or datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S"),
             started_at=datetime.now(timezone.utc).isoformat(),
         )
         self._profile.session_count += 1
@@ -729,9 +867,14 @@ class UserLearning:
         return newly
 
     def get_milestones(self) -> list[dict]:
-        return [{"id": m["id"], "name": m["name"],
-                 "achieved": m["id"] in self._profile.milestones}
-                for m in _MILESTONES]
+        return [
+            {
+                "id": m["id"],
+                "name": m["name"],
+                "achieved": m["id"] in self._profile.milestones,
+            }
+            for m in _MILESTONES
+        ]
 
     # ── Pedagogical Output (Chapter 10.2) ────────────────────────────────
 
@@ -753,16 +896,23 @@ class UserLearning:
 
     def should_show_explanation(self) -> bool:
         if self._profile.auto_detect:
-            return self._profile.experience in (ExperienceLevel.NOVICE, ExperienceLevel.INTERMEDIATE)
+            return self._profile.experience in (
+                ExperienceLevel.NOVICE,
+                ExperienceLevel.INTERMEDIATE,
+            )
         return self._profile.preferences.get("show_hints", True)
 
     def verbosity_level(self) -> int:
         if not self._profile.auto_detect:
             return {"minimal": 0, "compact": 1, "normal": 1, "verbose": 2}.get(
-                self._profile.preferences.get("verbosity", "adaptive"), 1)
-        return {ExperienceLevel.NOVICE: 2, ExperienceLevel.INTERMEDIATE: 1,
-                ExperienceLevel.ADVANCED: 1, ExperienceLevel.EXPERT: 0}.get(
-            self._profile.experience, 1)
+                self._profile.preferences.get("verbosity", "adaptive"), 1
+            )
+        return {
+            ExperienceLevel.NOVICE: 2,
+            ExperienceLevel.INTERMEDIATE: 1,
+            ExperienceLevel.ADVANCED: 1,
+            ExperienceLevel.EXPERT: 0,
+        }.get(self._profile.experience, 1)
 
     def auto_confirm_safe(self) -> bool:
         return self._profile.experience == ExperienceLevel.EXPERT
@@ -792,29 +942,43 @@ class UserLearning:
     def get_profile_panel(self) -> Panel:
         p = self._profile
         tree = Tree(f"[bold cyan]User: {p.username or 'anonymous'}[/bold cyan]")
-        tree.add(f"[bold]Experience:[/bold] [magenta]{p.experience}[/magenta]"
-                 f"{' ([green]auto[/green])' if p.auto_detect else ' ([yellow]manual[/yellow])'}")
-        tree.add(f"[bold]Pedagogical:[/bold] {'[green]On[/green]' if p.pedagogical_enabled else '[red]Off[/red]'}")
-        tree.add(f"[bold]Commands:[/bold] {p.total_commands} | "
-                 f"[bold]Tools:[/bold] {p.unique_tools} | "
-                 f"[bold]Categories:[/bold] {p.category_count}")
-        tree.add(f"[bold]Advanced:[/bold] {p.advanced_command_count} | "
-                 f"[bold]Error Rate:[/bold] {p.error_rate:.1%} | "
-                 f"[bold]Findings:[/bold] {p.total_findings}")
+        tree.add(
+            f"[bold]Experience:[/bold] [magenta]{p.experience}[/magenta]"
+            f"{' ([green]auto[/green])' if p.auto_detect else ' ([yellow]manual[/yellow])'}"
+        )
+        tree.add(
+            f"[bold]Pedagogical:[/bold] {'[green]On[/green]' if p.pedagogical_enabled else '[red]Off[/red]'}"
+        )
+        tree.add(
+            f"[bold]Commands:[/bold] {p.total_commands} | "
+            f"[bold]Tools:[/bold] {p.unique_tools} | "
+            f"[bold]Categories:[/bold] {p.category_count}"
+        )
+        tree.add(
+            f"[bold]Advanced:[/bold] {p.advanced_command_count} | "
+            f"[bold]Error Rate:[/bold] {p.error_rate:.1%} | "
+            f"[bold]Findings:[/bold] {p.total_findings}"
+        )
         tree.add(f"[bold]Sessions:[/bold] {p.session_count}")
-        tree.add(f"[bold]Verbosity:[/bold] {self.verbosity_level()}/2 | "
-                 f"[bold]Explanations:[/bold] {'[green]On[/green]' if self.should_show_explanation() else '[red]Off[/red]'}")
+        tree.add(
+            f"[bold]Verbosity:[/bold] {self.verbosity_level()}/2 | "
+            f"[bold]Explanations:[/bold] {'[green]On[/green]' if self.should_show_explanation() else '[red]Off[/red]'}"
+        )
         achieved = [m for m in _MILESTONES if m["id"] in p.milestones]
         if achieved:
             mb = tree.add("[bold]Milestones:[/bold]")
             for m in achieved:
                 mb.add(f"[green]{m['name']}[/green]")
-        return Panel(tree, title="User Learning Profile", border_style="cyan", padding=(1, 2))
+        return Panel(
+            tree, title="User Learning Profile", border_style="cyan", padding=(1, 2)
+        )
 
     def get_milestones_panel(self) -> Panel:
         mstones = self.get_milestones()
         ac = sum(1 for m in mstones if m["achieved"])
-        table = Table(title=f"Milestones ({ac}/{len(mstones)})", header_style="bold cyan")
+        table = Table(
+            title=f"Milestones ({ac}/{len(mstones)})", header_style="bold cyan"
+        )
         table.add_column("Status", width=4)
         table.add_column("Name")
         table.add_column("ID", style="dim")
@@ -826,8 +990,14 @@ class UserLearning:
     def get_sessions_panel(self, limit: int = 10) -> Panel:
         sessions = self._profile.sessions[-limit:]
         if not sessions:
-            return Panel("[dim]No sessions yet.[/dim]", title="Session History", border_style="dim")
-        table = Table(title=f"Recent Sessions ({len(sessions)})", header_style="bold cyan")
+            return Panel(
+                "[dim]No sessions yet.[/dim]",
+                title="Session History",
+                border_style="dim",
+            )
+        table = Table(
+            title=f"Recent Sessions ({len(sessions)})", header_style="bold cyan"
+        )
         table.add_column("ID", style="cyan")
         table.add_column("Cmds", justify="right")
         table.add_column("Tools")
@@ -839,10 +1009,15 @@ class UserLearning:
             tools = ", ".join(s.tools_used[:3])
             if len(s.tools_used) > 3:
                 tools += "..."
-            table.add_row(s.session_id[:10], str(s.command_count), tools,
-                         str(s.findings_found), str(s.errors),
-                         str(s.pedagogical_steps),
-                         f"{s.duration_seconds:.0f}s" if s.duration_seconds else "-")
+            table.add_row(
+                s.session_id[:10],
+                str(s.command_count),
+                tools,
+                str(s.findings_found),
+                str(s.errors),
+                str(s.pedagogical_steps),
+                f"{s.duration_seconds:.0f}s" if s.duration_seconds else "-",
+            )
         return Panel(table, title="Session History", border_style="cyan")
 
     def get_improvement_suggestions(self) -> list[str]:
@@ -852,14 +1027,19 @@ class UserLearning:
             suggestions.append("Try more tools: nmap, whois, gobuster, nuclei, hydra")
         elif p.unique_tools < 15:
             suggestions.append("Good diversity! Try bloodhound, impacket, volatility")
-        missing = [c for c in ("recon", "web", "exploit", "wireless", "forensics")
-                   if c not in p.category_counts]
+        missing = [
+            c
+            for c in ("recon", "web", "exploit", "wireless", "forensics")
+            if c not in p.category_counts
+        ]
         if missing:
             suggestions.append(f"Explore: {'/'.join(missing)}")
         if p.advanced_command_count < 3 and p.total_commands > 10:
             suggestions.append("Try --dry-run, --parallel, or chain with &&")
         if p.error_rate > 0.2 and p.total_commands > 10:
-            suggestions.append(f"Error rate {p.error_rate:.0%}. Use --dry-run to preview.")
+            suggestions.append(
+                f"Error rate {p.error_rate:.0%}. Use --dry-run to preview."
+            )
         return suggestions
 
     def clear_history(self) -> None:

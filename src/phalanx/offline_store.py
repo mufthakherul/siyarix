@@ -239,7 +239,9 @@ class OfflineStore:
             )
             conn.commit()
 
-    def update_plan_status(self, plan_id: str, status: str, completed: bool = False) -> None:
+    def update_plan_status(
+        self, plan_id: str, status: str, completed: bool = False
+    ) -> None:
         """Update plan status and completion timestamp."""
         from datetime import datetime
 
@@ -247,7 +249,9 @@ class OfflineStore:
         completed_at = now if completed else None
         with self._connect() as conn:
             conn.execute(
-                ("UPDATE execution_plans SET status=?, updated_at=?, completed_at=? WHERE id=?"),
+                (
+                    "UPDATE execution_plans SET status=?, updated_at=?, completed_at=? WHERE id=?"
+                ),
                 (status, now, completed_at, plan_id),
             )
             conn.commit()
@@ -306,7 +310,8 @@ class OfflineStore:
             if not plan_row:
                 return None
             step_rows = conn.execute(
-                "SELECT * FROM step_executions WHERE plan_id=? ORDER BY step_id", (plan_id,)
+                "SELECT * FROM step_executions WHERE plan_id=? ORDER BY step_id",
+                (plan_id,),
             ).fetchall()
 
         plan = dict(plan_row)
@@ -390,7 +395,9 @@ class OfflineStore:
     def get_scan_with_findings(self, scan_id: str) -> dict | None:
         """Return full scan record plus all its findings."""
         with self._connect() as conn:
-            scan_row = conn.execute("SELECT * FROM scans WHERE id=?", (scan_id,)).fetchone()
+            scan_row = conn.execute(
+                "SELECT * FROM scans WHERE id=?", (scan_id,)
+            ).fetchone()
         if not scan_row:
             return None
         scan = dict(scan_row)
@@ -436,7 +443,9 @@ class OfflineStore:
         a_titles = {f["title"]: f for f in a["findings"]}
         b_titles = {f["title"]: f for f in b["findings"]}
         new_findings = [f for title, f in b_titles.items() if title not in a_titles]
-        resolved_findings = [f for title, f in a_titles.items() if title not in b_titles]
+        resolved_findings = [
+            f for title, f in a_titles.items() if title not in b_titles
+        ]
         changed: list[dict] = []
         for title in a_titles:
             if title in b_titles:
@@ -451,8 +460,16 @@ class OfflineStore:
                         }
                     )
         return {
-            "scan_a": {"id": scan_id_a, "target": a.get("target"), "total": len(a["findings"])},
-            "scan_b": {"id": scan_id_b, "target": b.get("target"), "total": len(b["findings"])},
+            "scan_a": {
+                "id": scan_id_a,
+                "target": a.get("target"),
+                "total": len(a["findings"]),
+            },
+            "scan_b": {
+                "id": scan_id_b,
+                "target": b.get("target"),
+                "total": len(b["findings"]),
+            },
             "new_findings": new_findings,
             "resolved_findings": resolved_findings,
             "changed_severity": changed,
@@ -522,7 +539,9 @@ class OfflineStore:
         """Import external findings into local store under a synthetic scan id."""
         if not findings:
             return 0
-        self.save_scan(scan_id=scan_id, target="imported", tool="external", status="complete")
+        self.save_scan(
+            scan_id=scan_id, target="imported", tool="external", status="complete"
+        )
         imported = 0
         for finding in findings:
             if isinstance(finding, dict):

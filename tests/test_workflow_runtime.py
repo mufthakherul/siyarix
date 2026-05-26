@@ -1,8 +1,11 @@
 import asyncio
 
 import pytest
-from siyarix.orchestration.workflow_runtime import WorkflowRuntime, WorkflowState
+
 from siyarix.offline_store import OfflineStore
+from siyarix.orchestration.workflow_runtime import (WorkflowRuntime,
+                                                    WorkflowState)
+
 pytestmark = pytest.mark.workflow
 
 
@@ -19,7 +22,9 @@ class _FakeEngineResult:
 
 
 class _FakeEngine:
-    async def execute(self, instruction: str, interactive: bool, persist: bool):  # noqa: ARG002
+    async def execute(
+        self, instruction: str, interactive: bool, persist: bool
+    ):  # noqa: ARG002
         if "fail" in instruction:
             return _FakeEngineResult(success=False)
         return _FakeEngineResult(success=True)

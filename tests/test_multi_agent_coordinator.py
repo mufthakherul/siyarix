@@ -12,14 +12,18 @@ class _FakeEngineResult:
 
 
 class _FakeEngine:
-    async def execute(self, instruction: str, interactive: bool, persist: bool):  # noqa: ARG002
+    async def execute(
+        self, instruction: str, interactive: bool, persist: bool
+    ):  # noqa: ARG002
         assert instruction
         return _FakeEngineResult()
 
 
 def test_coordinator_dispatches_objective() -> None:
     coordinator = CoordinatorAgent(engine=_FakeEngine())  # type: ignore[arg-type]
-    result = asyncio.run(coordinator.execute_objective("full recon and scan", target="example.com"))
+    result = asyncio.run(
+        coordinator.execute_objective("full recon and scan", target="example.com")
+    )
 
     assert result["team"] == "siyarix-hybrid-team"
     assert result["target"] == "example.com"

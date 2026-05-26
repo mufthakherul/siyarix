@@ -6,7 +6,7 @@
 
 ---
 
-**Siyarix** is a command-line security agent that explores how we can combine autonomous AI planning with classic security tools right in the terminal. 
+**Siyarix** is a command-line security agent that explores how we can combine autonomous AI planning with classic security tools right in the terminal.
 
 *(Note: The core of Siyarix is written in Python. This NPM package is provided as a wrapper/utility for Node.js developers who wish to integrate or trigger Siyarix within their JavaScript/TypeScript ecosystems.)*
 
@@ -35,7 +35,7 @@ siyarix run "scan example.com with nmap and nuclei, then summarize the results"
 
 ## 🤝 Contributing & Documentation
 
-We absolutely love contributions! Since Siyarix is a community project, we welcome everyone—especially beginners and students looking for their first open-source project. 
+We absolutely love contributions! Since Siyarix is a community project, we welcome everyone—especially beginners and students looking for their first open-source project.
 
 For full documentation, architecture details, and contribution guidelines, please visit our [main GitHub repository](https://github.com/CosmicSec-Lab/siyarix).
 

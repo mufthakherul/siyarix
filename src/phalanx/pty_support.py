@@ -36,7 +36,6 @@ if not _IS_WINDOWS:
     try:
         import pty as _pty_mod
 
-
         _HAS_PTY = True
     except ImportError:
         pass
@@ -142,8 +141,8 @@ class PTYSession:
 
     async def _start_pty(self) -> None:
         """Start using native Unix PTY."""
-        import struct
         import fcntl
+        import struct
         import termios
 
         master_fd, slave_fd = _pty_mod.openpty()  # type: ignore[attr-defined]
@@ -248,8 +247,8 @@ class PTYSession:
         self.rows = rows
         self.cols = cols
         if self._master_fd is not None and _HAS_PTY:
-            import struct
             import fcntl
+            import struct
             import termios
 
             winsize = struct.pack("HHHH", rows, cols, 0, 0)

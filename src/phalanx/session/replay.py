@@ -47,7 +47,9 @@ class CommandReplayer:
 
         commands = [r["command"] for r in rows]
         if not commands:
-            self.console.print(f"[yellow]No commands found for session: {session_id}[/yellow]")
+            self.console.print(
+                f"[yellow]No commands found for session: {session_id}[/yellow]"
+            )
             return []
 
         self.console.print(

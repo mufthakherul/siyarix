@@ -60,7 +60,9 @@ class ReportGenerator:
             for v in vuln_nodes:
                 md.append(f"### {v.label}")
                 md.append(f"- **Severity:** {v.properties.get('severity', 'info')}")
-                md.append(f"- **Description:** {v.properties.get('description', 'N/A')}")
+                md.append(
+                    f"- **Description:** {v.properties.get('description', 'N/A')}"
+                )
                 md.append(f"- **Discovered By:** {v.discovered_by}")
                 md.append("")
         else:

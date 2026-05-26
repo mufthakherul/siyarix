@@ -26,7 +26,9 @@ class _JSONFormatter(logging.Formatter):
         return json.dumps(payload, ensure_ascii=False)
 
 
-def configure_logging(level: Optional[str] = None, *, enable_console: bool = True) -> None:
+def configure_logging(
+    level: Optional[str] = None, *, enable_console: bool = True
+) -> None:
     """Configure root logger.
 
     - `level`: optional string like "INFO"/"DEBUG". If None, defaults to INFO.

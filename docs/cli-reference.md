@@ -2,7 +2,7 @@
 
 Siyarix CLI Version: **1.2.0**
 
-This document provides a comprehensive reference for the Siyarix command hierarchy. The CLI is built using the [Typer](https://typer.tiangolo.com/) framework, which means it is self-documenting. 
+This document provides a comprehensive reference for the Siyarix command hierarchy. The CLI is built using the [Typer](https://typer.tiangolo.com/) framework, which means it is self-documenting.
 
 *(Tip: You can append `--help` to any command in your terminal to get real-time usage and flag details, e.g., `siyarix scan --help`).*
 

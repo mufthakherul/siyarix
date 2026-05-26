@@ -8,7 +8,7 @@ Since Siyarix is an AI-assisted security tool, we take the security of your API 
 
 When you give Siyarix an API key (like an OpenAI or Gemini key), we don't just leave it sitting in plaintext in a config file, and we definitely don't want you typing it into your shell where it gets saved to your `~/.bash_history`.
 
-1. **Encrypted Local Vault**: We store your keys in a local vault located at `~/.siyarix/`. 
+1. **Encrypted Local Vault**: We store your keys in a local vault located at `~/.siyarix/`.
 2. **Local Encryption**: The keys are encrypted using symmetric encryption (Fernet). The master key to unlock them is generated locally and stored with strict `600` permissions, meaning only your user account can read it.
 3. **Environment Sync**: For developer convenience, we safely sync these decrypted keys to a `.env` file in the project root so the app can read them easily during runtime. We have explicitly added `.env` to our `.gitignore` to prevent accidental leaks.
 
@@ -28,8 +28,8 @@ Large Language Models (LLMs) can sometimes hallucinate weird or dangerous comman
 
 ## 🐛 Reporting Vulnerabilities
 
-Because this project is open-source and built for learning, there might be bugs! 
+Because this project is open-source and built for learning, there might be bugs!
 
-If you find a severe security vulnerability in Siyarix itself (e.g., a way to bypass the Safety Resolver or extract keys from the vault), **please do not open a public GitHub issue.** 
+If you find a severe security vulnerability in Siyarix itself (e.g., a way to bypass the Safety Resolver or extract keys from the vault), **please do not open a public GitHub issue.**
 
 Instead, please reach out to the maintainers directly so we can patch it safely before making it public. We deeply appreciate your help in keeping the community safe!

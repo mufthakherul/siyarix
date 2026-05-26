@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import subprocess
 import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
-import logging
-import subprocess
 
 
 @dataclass
@@ -20,7 +20,9 @@ class ExecutionResult:
     duration_ms: float
 
 
-async def _apply_stealth_modifications(tool_path: str, args: list[str]) -> tuple[str, list[str]]:
+async def _apply_stealth_modifications(
+    tool_path: str, args: list[str]
+) -> tuple[str, list[str]]:
     """Rewrite tool arguments and add delay jitter when stealth mode is enabled."""
     from siyarix.config import SettingsStore
 
@@ -58,7 +60,10 @@ async def _apply_stealth_modifications(tool_path: str, args: list[str]) -> tuple
         # Rotate user agent
         if "-H" not in new_args:
             new_args.extend(
-                ["-H", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"]
+                [
+                    "-H",
+                    "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                ]
             )
 
     # 3. Evasive rewriting for nuclei
@@ -66,7 +71,9 @@ async def _apply_stealth_modifications(tool_path: str, args: list[str]) -> tuple
         if "-rate-limit" not in new_args:
             new_args.extend(["-rate-limit", "10"])
         if "-H" not in new_args:
-            new_args.extend(["-H", "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"])
+            new_args.extend(
+                ["-H", "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"]
+            )
 
     return tool_path, new_args
 
@@ -89,7 +96,9 @@ async def run_tool(
     )
 
     if proc.stdout is None:  # guaranteed by PIPE, but guard for type safety
-        raise RuntimeError("subprocess stdout is None despite PIPE — this should never happen")
+        raise RuntimeError(
+            "subprocess stdout is None despite PIPE — this should never happen"
+        )
 
     deadline = time.monotonic() + timeout
 
@@ -134,7 +143,9 @@ async def run_tool_complete(
     )
 
     try:
-        stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(
+            proc.communicate(), timeout=timeout
+        )
         exit_code = proc.returncode if proc.returncode is not None else 0
     except TimeoutError:
         proc.kill()
@@ -179,7 +190,9 @@ def safe_run_sync(
     """
     _validate_cmd_list(cmd)
     try:
-        return subprocess.run(cmd, capture_output=capture_output, text=text, timeout=timeout)
+        return subprocess.run(
+            cmd, capture_output=capture_output, text=text, timeout=timeout
+        )
     except subprocess.TimeoutExpired:
         logger.debug("safe_run_sync timeout for cmd=%s", cmd)
         raise
@@ -196,7 +209,9 @@ async def safe_run_async(cmd: list[str], timeout: int = 10) -> ExecutionResult:
         *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
     try:
-        stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(
+            proc.communicate(), timeout=timeout
+        )
         exit_code = proc.returncode if proc.returncode is not None else 0
     except asyncio.TimeoutError:
         proc.kill()

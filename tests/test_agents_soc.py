@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from siyarix.agents.soc_agent import SOCAgent
 
 

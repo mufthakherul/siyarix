@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from siyarix.xi.skill_profiler import SkillProfiler, SkillProfile, SkillLevel
+from siyarix.xi.skill_profiler import SkillLevel, SkillProfile, SkillProfiler
 
 
 class TestSkillProfiler:
@@ -45,9 +45,16 @@ class TestSkillProfiler:
     def test_expert_profile(self):
         sp = SkillProfiler()
         for i in range(60):
-            tool = ["nmap", "nuclei", "sqlmap", "hydra", "gobuster", "ffuf", "wpscan", "nikto"][
-                i % 8
-            ]
+            tool = [
+                "nmap",
+                "nuclei",
+                "sqlmap",
+                "hydra",
+                "gobuster",
+                "ffuf",
+                "wpscan",
+                "nikto",
+            ][i % 8]
             command = f"{tool} --parallel --persist target"
             sp.record_command(command, tool=tool, success=True)
         # Trigger final assessment

@@ -20,7 +20,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Callable, Awaitable
+from typing import Any, Awaitable, Callable
 
 __all__ = [
     "Agent",
@@ -76,8 +76,12 @@ class AgentMemory:
 
     findings: list[dict[str, Any]] = field(default_factory=list)
     commands_run: list[str] = field(default_factory=list)
-    messages_received: deque[AgentMessage] = field(default_factory=lambda: deque(maxlen=100))
-    messages_sent: deque[AgentMessage] = field(default_factory=lambda: deque(maxlen=100))
+    messages_received: deque[AgentMessage] = field(
+        default_factory=lambda: deque(maxlen=100)
+    )
+    messages_sent: deque[AgentMessage] = field(
+        default_factory=lambda: deque(maxlen=100)
+    )
     context: dict[str, Any] = field(default_factory=dict)
 
     def add_finding(self, finding: dict[str, Any]) -> None:
@@ -120,7 +124,9 @@ class Agent:
         self.status = AgentStatus.IDLE
         self.memory = AgentMemory()
         self._inbox: asyncio.Queue[AgentMessage] = asyncio.Queue()
-        self._task_handler: Callable[[str, dict[str, Any]], Awaitable[dict[str, Any]]] | None = None
+        self._task_handler: (
+            Callable[[str, dict[str, Any]], Awaitable[dict[str, Any]]] | None
+        ) = None
 
     def set_task_handler(
         self,
@@ -134,7 +140,10 @@ class Agent:
         self.memory.messages_received.append(message)
         await self._inbox.put(message)
         logger.debug(
-            "Agent %s received message from %s: %s", self.name, message.sender, message.msg_type
+            "Agent %s received message from %s: %s",
+            self.name,
+            message.sender,
+            message.msg_type,
         )
 
     async def process_next(self) -> AgentMessage | None:
@@ -217,7 +226,9 @@ class AgentTeam:
     def add_agent(self, agent: Agent) -> None:
         """Register an agent with the team."""
         self._agents[agent.name] = agent
-        logger.info("Agent '%s' (%s) joined team '%s'", agent.name, agent.role.value, self.name)
+        logger.info(
+            "Agent '%s' (%s) joined team '%s'", agent.name, agent.role.value, self.name
+        )
 
     def remove_agent(self, name: str) -> bool:
         """Remove an agent from the team."""

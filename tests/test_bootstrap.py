@@ -6,7 +6,10 @@ import platform
 from pathlib import Path
 
 import pytest
-from siyarix.bootstrap import BootstrapEngine, BootstrapResult, PlatformInfo, SIYARIX_HOME
+
+from siyarix.bootstrap import (SIYARIX_HOME, BootstrapEngine, BootstrapResult,
+                               PlatformInfo)
+
 pytestmark = pytest.mark.bootstrap
 
 

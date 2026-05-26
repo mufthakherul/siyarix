@@ -1,11 +1,10 @@
 """Tests for OpenTelemetry instrumentation."""
 
 import pytest
-from siyarix.telemetry.opentelemetry import (
-    OpenTelemetryCollector,
-    OpenTelemetryMiddleware,
-    trace,
-)
+
+from siyarix.telemetry.opentelemetry import (OpenTelemetryCollector,
+                                             OpenTelemetryMiddleware, trace)
+
 pytestmark = pytest.mark.opentelemetry
 
 

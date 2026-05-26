@@ -215,7 +215,9 @@ class ThreatIntelFeed:
                 return 0
 
         count = 0
-        objects = stix_data.get("objects", []) if isinstance(stix_data, dict) else stix_data
+        objects = (
+            stix_data.get("objects", []) if isinstance(stix_data, dict) else stix_data
+        )
         for obj in objects:
             if not isinstance(obj, dict):
                 continue
@@ -240,7 +242,9 @@ class ThreatIntelFeed:
                 confidence=obj.get("confidence", "medium"),
                 description=obj.get("description", ""),
                 tags=obj.get("labels", []),
-                first_seen=datetime.fromisoformat(obj.get("created", datetime.now().isoformat())),
+                first_seen=datetime.fromisoformat(
+                    obj.get("created", datetime.now().isoformat())
+                ),
                 last_seen=datetime.now(),
                 raw=obj,
             )
@@ -257,13 +261,17 @@ class ThreatIntelFeed:
                 return 0
 
         count = 0
-        events = misp_data.get("response", []) if isinstance(misp_data, dict) else misp_data
+        events = (
+            misp_data.get("response", []) if isinstance(misp_data, dict) else misp_data
+        )
         if not isinstance(events, list):
             events = [misp_data]
 
         for event in events:
             event_obj = event.get("Event", event) if isinstance(event, dict) else event
-            attributes = event_obj.get("Attribute", []) if isinstance(event_obj, dict) else []
+            attributes = (
+                event_obj.get("Attribute", []) if isinstance(event_obj, dict) else []
+            )
             for attr in attributes:
                 indicator = ThreatIntel(
                     id=attr.get("uuid", uuid.uuid4().hex[:12]),
@@ -292,7 +300,10 @@ class ThreatIntelFeed:
         for indicator in self._indicators.values():
             if indicator.indicator and indicator.indicator in text:
                 matches.append(indicator)
-            if indicator.indicator_type == "ip-dst" or indicator.indicator_type == "domain":
+            if (
+                indicator.indicator_type == "ip-dst"
+                or indicator.indicator_type == "domain"
+            ):
                 pattern = re.escape(indicator.indicator)
                 if re.search(pattern, text, re.IGNORECASE):
                     if indicator not in matches:
@@ -300,13 +311,17 @@ class ThreatIntelFeed:
         return matches[:50]
 
     def indicators_by_type(self, indicator_type: str) -> list[ThreatIntel]:
-        return [i for i in self._indicators.values() if i.indicator_type == indicator_type]
+        return [
+            i for i in self._indicators.values() if i.indicator_type == indicator_type
+        ]
 
     def indicators_by_severity(self, min_severity: str = "medium") -> list[ThreatIntel]:
         severity_order = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
         min_val = severity_order.get(min_severity, 0)
         return [
-            i for i in self._indicators.values() if severity_order.get(i.severity, 0) >= min_val
+            i
+            for i in self._indicators.values()
+            if severity_order.get(i.severity, 0) >= min_val
         ]
 
     def enrich_finding(self, finding: dict[str, Any]) -> dict[str, Any]:
@@ -358,7 +373,9 @@ class ThreatIntelFeed:
         source_counts: dict[str, int] = {}
         for indicator in self._indicators.values():
             source_counts[indicator.source] = source_counts.get(indicator.source, 0) + 1
-            type_counts[indicator.indicator_type] = type_counts.get(indicator.indicator_type, 0) + 1
+            type_counts[indicator.indicator_type] = (
+                type_counts.get(indicator.indicator_type, 0) + 1
+            )
         return {
             "total_indicators": len(self._indicators),
             "by_source": dict(sorted(source_counts.items())),

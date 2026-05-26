@@ -14,7 +14,9 @@ from pathlib import Path
 from types import ModuleType
 
 _NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{1,63}$")
-_DEFAULT_ROOT = Path(os.getenv("SIYARIX_PLUGINS_DIR", str(Path.home() / ".siyarix" / "plugins")))
+_DEFAULT_ROOT = Path(
+    os.getenv("SIYARIX_PLUGINS_DIR", str(Path.home() / ".siyarix" / "plugins"))
+)
 
 
 @dataclass
@@ -203,7 +205,9 @@ class PluginManager:
         if not plugin_dir.exists():
             raise FileNotFoundError(f"Plugin '{name}' not found.")
 
-        existing = self.get_plugin(name) or PluginMetadata(name=name, path=str(plugin_dir))
+        existing = self.get_plugin(name) or PluginMetadata(
+            name=name, path=str(plugin_dir)
+        )
         updated = PluginMetadata(
             name=existing.name,
             version=existing.version,
@@ -237,7 +241,9 @@ class PluginManager:
             if not module_file.exists():
                 continue
             try:
-                module = self._load_module(module_file, f"siyarix_plugin_{plugin.name}_commands")
+                module = self._load_module(
+                    module_file, f"siyarix_plugin_{plugin.name}_commands"
+                )
             except Exception:
                 # Plugin module failed to import — skip and continue, do not crash the host app
                 logging.getLogger(__name__).exception(
@@ -253,7 +259,8 @@ class PluginManager:
                 except Exception:
                     # Plugin register handler raised — isolate and continue
                     logging.getLogger(__name__).exception(
-                        "Plugin %s register() raised an exception; skipping", plugin.name
+                        "Plugin %s register() raised an exception; skipping",
+                        plugin.name,
                     )
                     continue
         return loaded
@@ -268,7 +275,9 @@ class PluginManager:
             if not module_file.exists():
                 continue
             try:
-                module = self._load_module(module_file, f"siyarix_plugin_{plugin.name}_parser")
+                module = self._load_module(
+                    module_file, f"siyarix_plugin_{plugin.name}_parser"
+                )
             except Exception:
                 logging.getLogger(__name__).exception(
                     "Failed to load parser plugin module for %s; skipping", plugin.name
@@ -278,7 +287,9 @@ class PluginManager:
             parser_fn = getattr(module, "parse_tool_output", None)
             if callable(parser_fn):
                 try:
-                    parsers[plugin.name] = parser_fn  # pyright: ignore[reportArgumentType]
+                    parsers[plugin.name] = (
+                        parser_fn  # pyright: ignore[reportArgumentType]
+                    )
                 except Exception:
                     logging.getLogger(__name__).exception(
                         "Parser function for plugin %s raised at registration; skipping",

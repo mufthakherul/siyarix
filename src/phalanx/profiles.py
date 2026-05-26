@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-import os
 import logging
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -44,7 +44,9 @@ class ProfileStore:
         active = data.get("active_profile") or DEFAULT_PROFILE
         profiles = data.get("profiles", {})
         if active not in profiles and profiles:
-            return max(profiles.keys(), key=lambda key: profiles[key].get("last_used_at", ""))
+            return max(
+                profiles.keys(), key=lambda key: profiles[key].get("last_used_at", "")
+            )
         return active
 
     def set_active_profile(self, name: str) -> None:
@@ -95,7 +97,10 @@ class ProfileStore:
             "last_used_at": now,
         }
         data.setdefault("profiles", {})[name] = profile
-        if not data.get("active_profile") or data["active_profile"] not in data["profiles"]:
+        if (
+            not data.get("active_profile")
+            or data["active_profile"] not in data["profiles"]
+        ):
             data["active_profile"] = name
         self.save(data)
         return {"name": name, **profile}

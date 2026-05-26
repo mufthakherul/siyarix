@@ -153,13 +153,18 @@ _REDACT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     # API keys
     ("openai_key", re.compile(r"sk-[A-Za-z0-9_-]{20,}")),
     ("aws_access_key", re.compile(r"AKIA[0-9A-Z]{16}")),
-    ("aws_secret_key", re.compile(r"(?i)aws[_-]?secret[_-]?access[_-]?key\s*[=:]\s*\S+")),
+    (
+        "aws_secret_key",
+        re.compile(r"(?i)aws[_-]?secret[_-]?access[_-]?key\s*[=:]\s*\S+"),
+    ),
     ("bearer_token", re.compile(r"(?i)Bearer\s+[A-Za-z0-9_.~+/=-]{20,}")),
     ("basic_auth", re.compile(r"(?i)Basic\s+[A-Za-z0-9+/=]{10,}")),
     ("github_token", re.compile(r"gh[pousr]_[A-Za-z0-9_]{36,}")),
     (
         "generic_api_key",
-        re.compile(r"(?i)(?:api[_-]?key|apikey)\s*[=:]\s*['\"]?[A-Za-z0-9_.~+/=-]{16,}['\"]?"),
+        re.compile(
+            r"(?i)(?:api[_-]?key|apikey)\s*[=:]\s*['\"]?[A-Za-z0-9_.~+/=-]{16,}['\"]?"
+        ),
     ),
     # Passwords in URLs
     ("url_password", re.compile(r"://[^:]+:([^@]{3,})@")),
@@ -173,7 +178,10 @@ _REDACT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
         ),
     ),
     # JWT tokens
-    ("jwt_token", re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+")),
+    (
+        "jwt_token",
+        re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+"),
+    ),
     # Slack tokens
     ("slack_token", re.compile(r"xox[bporas]-[0-9A-Za-z-]+")),
     # Gemini / Google API keys
@@ -286,18 +294,38 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     (re.compile(r":\(\)\s*\{\s*:\|:&\s*\}\s*;", re.I), "critical", "Fork bomb"),
     (re.compile(r"\bchmod\s+777\s+/(?:\s|$)", re.I), "critical", "chmod 777 on root"),
     (re.compile(r"\bsudo\s+rm\s+-[a-zA-Z]*r", re.I), "critical", "sudo rm -r"),
-    (re.compile(r">\s*/etc/(?:passwd|shadow|sudoers)", re.I), "critical", "Overwrite auth files"),
+    (
+        re.compile(r">\s*/etc/(?:passwd|shadow|sudoers)", re.I),
+        "critical",
+        "Overwrite auth files",
+    ),
     # ── HIGH ──
     (re.compile(r"\bshutdown\b", re.I), "high", "System shutdown"),
     (re.compile(r"\breboot\b", re.I), "high", "System reboot"),
     (re.compile(r"\bhalt\b", re.I), "high", "System halt"),
     (re.compile(r"\binit\s+0\b", re.I), "high", "init 0 (shutdown)"),
-    (re.compile(r"\bchown\s+.*\s+/(?!tmp)", re.I), "high", "chown on system directories"),
+    (
+        re.compile(r"\bchown\s+.*\s+/(?!tmp)", re.I),
+        "high",
+        "chown on system directories",
+    ),
     (re.compile(r">\s*/etc/", re.I), "high", "Overwrite system config"),
-    (re.compile(r"\bcurl\b.*\|\s*(?:sudo\s+)?(?:bash|sh)\b", re.I), "high", "Pipe curl to shell"),
-    (re.compile(r"\bwget\b.*\|\s*(?:sudo\s+)?(?:bash|sh)\b", re.I), "high", "Pipe wget to shell"),
+    (
+        re.compile(r"\bcurl\b.*\|\s*(?:sudo\s+)?(?:bash|sh)\b", re.I),
+        "high",
+        "Pipe curl to shell",
+    ),
+    (
+        re.compile(r"\bwget\b.*\|\s*(?:sudo\s+)?(?:bash|sh)\b", re.I),
+        "high",
+        "Pipe wget to shell",
+    ),
     (re.compile(r"\bDROP\s+(?:TABLE|DATABASE)\b", re.I), "high", "SQL DROP statement"),
-    (re.compile(r"\bDELETE\s+FROM\b(?!.*\bWHERE\b)", re.I), "high", "SQL DELETE without WHERE"),
+    (
+        re.compile(r"\bDELETE\s+FROM\b(?!.*\bWHERE\b)", re.I),
+        "high",
+        "SQL DELETE without WHERE",
+    ),
     (re.compile(r"\bTRUNCATE\s+TABLE\b", re.I), "high", "SQL TRUNCATE TABLE"),
     # ── MEDIUM ──
     (re.compile(r"\brm\s+", re.I), "medium", "File deletion (rm)"),
@@ -305,8 +333,16 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     (re.compile(r"\bpkill\s+-9\b", re.I), "medium", "Force kill processes"),
     (re.compile(r"\biptables\s+-F\b", re.I), "medium", "Flush firewall rules"),
     (re.compile(r"\bufw\s+disable\b", re.I), "medium", "Disable firewall"),
-    (re.compile(r"\bsystemctl\s+(?:stop|disable)\b", re.I), "medium", "Stop/disable service"),
-    (re.compile(r"\bnc\s+-[a-zA-Z]*l", re.I), "medium", "Netcat listener (possible reverse shell)"),
+    (
+        re.compile(r"\bsystemctl\s+(?:stop|disable)\b", re.I),
+        "medium",
+        "Stop/disable service",
+    ),
+    (
+        re.compile(r"\bnc\s+-[a-zA-Z]*l", re.I),
+        "medium",
+        "Netcat listener (possible reverse shell)",
+    ),
     (
         re.compile(r"\bpython[23]?\s+-c\s+.*socket", re.I),
         "medium",
@@ -339,17 +375,19 @@ class DangerAnalyzer:
             if pattern.search(command):
                 reasons.append(f"[{severity.upper()}] {description}")
                 matched.append(pattern.pattern)
-                if _SEVERITY_RANK.get(severity, 0) > _SEVERITY_RANK.get(max_severity, 0):
+                if _SEVERITY_RANK.get(severity, 0) > _SEVERITY_RANK.get(
+                    max_severity, 0
+                ):
                     max_severity = severity
 
         is_dangerous = max_severity != "safe"
         recommendation = ""
         if max_severity == "critical":
-            recommendation = "⛔ BLOCK — This command is destructive and should NOT be executed."
-        elif max_severity == "high":
             recommendation = (
-                "⚠️  CONFIRM — This command is high-risk. Require explicit user confirmation."
+                "⛔ BLOCK — This command is destructive and should NOT be executed."
             )
+        elif max_severity == "high":
+            recommendation = "⚠️  CONFIRM — This command is high-risk. Require explicit user confirmation."
         elif max_severity == "medium":
             recommendation = "⚡ CAUTION — Review this command before execution."
         elif max_severity == "low":
@@ -363,7 +401,9 @@ class DangerAnalyzer:
             matched_patterns=matched,
         )
 
-    def format_warning(self, report: DangerReport, console: Console | None = None) -> None:
+    def format_warning(
+        self, report: DangerReport, console: Console | None = None
+    ) -> None:
         """Print a formatted danger warning to a Rich console."""
         if not report.is_dangerous:
             return

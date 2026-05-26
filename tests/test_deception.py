@@ -1,12 +1,10 @@
 """Tests for deception tactics module."""
 
 import pytest
-from siyarix.deception import (
-    HoneypotDetector,
-    FakeBannerGenerator,
-    TrapdoorCredentialManager,
-    DeceptionType,
-)
+
+from siyarix.deception import (DeceptionType, FakeBannerGenerator,
+                               HoneypotDetector, TrapdoorCredentialManager)
+
 pytestmark = pytest.mark.deception
 
 

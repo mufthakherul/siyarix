@@ -32,20 +32,32 @@ class DFIRAgent(Agent):
         super().__init__(
             name=name,
             role=AgentRole.DFIR,
-            tools=["volatility", "autopsy", "strings", "sleuthkit", "binwalk", "bulk_extractor"],
+            tools=[
+                "volatility",
+                "autopsy",
+                "strings",
+                "sleuthkit",
+                "binwalk",
+                "bulk_extractor",
+            ],
             description="Executes forensic data gathering, memory analysis, and incident response.",
         )
         self.set_task_handler(self._gather_evidence)
         self._cases: list[dict[str, Any]] = []
         self._iocs_extracted: int = 0
 
-    async def _gather_evidence(self, command: str, payload: dict[str, Any]) -> dict[str, Any]:
+    async def _gather_evidence(
+        self, command: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
         target = payload.get("target", "system")
         evidence_type = payload.get("evidence_type", "memory")
         scope = payload.get("scope", "full")
 
         logger.info(
-            "DFIR Agent: Gathering %s evidence from %s (scope=%s)", evidence_type, target, scope
+            "DFIR Agent: Gathering %s evidence from %s (scope=%s)",
+            evidence_type,
+            target,
+            scope,
         )
 
         collected_evidence = self._collect_evidence(target, evidence_type, scope)
@@ -87,7 +99,11 @@ class DFIRAgent(Agent):
         tools_map = {
             "memory": [
                 {"tool": "volatility", "plugin": "windows.info", "artifact": "OS info"},
-                {"tool": "volatility", "plugin": "windows.pslist", "artifact": "Process list"},
+                {
+                    "tool": "volatility",
+                    "plugin": "windows.pslist",
+                    "artifact": "Process list",
+                },
                 {
                     "tool": "volatility",
                     "plugin": "windows.netscan",
@@ -98,19 +114,39 @@ class DFIRAgent(Agent):
                     "plugin": "windows.malfind",
                     "artifact": "Malicious process detection",
                 },
-                {"tool": "strings", "args": [], "artifact": "String extraction from memory"},
+                {
+                    "tool": "strings",
+                    "args": [],
+                    "artifact": "String extraction from memory",
+                },
             ],
             "disk": [
-                {"tool": "sleuthkit", "command": "fls", "artifact": "File system listing"},
-                {"tool": "sleuthkit", "command": "icat", "artifact": "File content extraction"},
-                {"tool": "bulk_extractor", "args": [], "artifact": "Bulk data extraction"},
+                {
+                    "tool": "sleuthkit",
+                    "command": "fls",
+                    "artifact": "File system listing",
+                },
+                {
+                    "tool": "sleuthkit",
+                    "command": "icat",
+                    "artifact": "File content extraction",
+                },
+                {
+                    "tool": "bulk_extractor",
+                    "args": [],
+                    "artifact": "Bulk data extraction",
+                },
             ],
             "network": [
                 {"tool": "tcpdump", "args": [], "artifact": "Network packet capture"},
                 {"tool": "tshark", "args": [], "artifact": "Protocol analysis"},
             ],
             "log": [
-                {"tool": "grep", "args": ["-r", "-E"], "artifact": "Log pattern matching"},
+                {
+                    "tool": "grep",
+                    "args": ["-r", "-E"],
+                    "artifact": "Log pattern matching",
+                },
                 {"tool": "awk", "args": [], "artifact": "Log parsing and aggregation"},
             ],
         }
@@ -147,7 +183,9 @@ class DFIRAgent(Agent):
         timeline.sort(key=lambda x: x["timestamp"], reverse=True)
         return timeline
 
-    def _extract_iocs(self, evidence: list[dict[str, Any]], target: str) -> list[dict[str, Any]]:
+    def _extract_iocs(
+        self, evidence: list[dict[str, Any]], target: str
+    ) -> list[dict[str, Any]]:
         iocs: list[dict[str, Any]] = []
         ioc_patterns = {
             "ip_address": r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
@@ -177,7 +215,9 @@ class DFIRAgent(Agent):
                     )
         return iocs
 
-    def _generate_chain_of_custody(self, target: str, evidence_type: str) -> dict[str, Any]:
+    def _generate_chain_of_custody(
+        self, target: str, evidence_type: str
+    ) -> dict[str, Any]:
         return {
             "case_officer": "DFIR Agent (automated)",
             "evidence_type": evidence_type,
@@ -189,12 +229,16 @@ class DFIRAgent(Agent):
             "status": "preserved",
         }
 
-    def _recommend_next(self, target: str, evidence_type: str, iocs: list[dict[str, Any]]) -> str:
+    def _recommend_next(
+        self, target: str, evidence_type: str, iocs: list[dict[str, Any]]
+    ) -> str:
         if iocs:
             return f"Investigate {len(iocs)} IOC(s) found — cross-reference with threat intel feeds and initiate containment"
         if evidence_type == "memory":
             return "No IOCs found in memory — consider disk forensics and timeline analysis"
-        return "Continue with deeper analysis — correlate findings across evidence types"
+        return (
+            "Continue with deeper analysis — correlate findings across evidence types"
+        )
 
     def get_case_summary(self) -> list[dict[str, Any]]:
         return list(self._cases)

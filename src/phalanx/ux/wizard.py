@@ -16,8 +16,8 @@ from rich.prompt import Confirm, Prompt
 from rich.table import Table
 from rich.text import Text
 
+from siyarix.output import THEMES, OutputTheme
 from siyarix.tool_registry import ToolRegistry
-from siyarix.output import OutputTheme, THEMES
 
 
 class OnboardingWizard:
@@ -81,7 +81,9 @@ class OnboardingWizard:
             "Welcome, Operator. This wizard will configure your AI core and security tools "
             "to establish a robust cyber operations command interface.\n"
         )
-        return Confirm.ask("[bold cyan]Proceed with initialization?[/bold cyan]", default=True)
+        return Confirm.ask(
+            "[bold cyan]Proceed with initialization?[/bold cyan]", default=True
+        )
 
     def _step_model_provider(self) -> None:
         """Step 2: AI Model Provider Config."""
@@ -106,12 +108,21 @@ class OnboardingWizard:
             "Offline/Free",
             "Local Ollama server running (e.g. llama3/codellama)",
         )
-        table.add_row("2", "Gemini AI (Google)", "Cloud/API", "GEMINI_API_KEY environment variable")
-        table.add_row("3", "OpenAI (GPT-4)", "Cloud/API", "OPENAI_API_KEY environment variable")
+        table.add_row(
+            "2",
+            "Gemini AI (Google)",
+            "Cloud/API",
+            "GEMINI_API_KEY environment variable",
+        )
+        table.add_row(
+            "3", "OpenAI (GPT-4)", "Cloud/API", "OPENAI_API_KEY environment variable"
+        )
 
         self.console.print(table)
 
-        choice = Prompt.ask("Choose Model Provider [1-3]", choices=["1", "2", "3"], default="1")
+        choice = Prompt.ask(
+            "Choose Model Provider [1-3]", choices=["1", "2", "3"], default="1"
+        )
 
         if choice == "1":
             self.console.print(
@@ -121,7 +132,8 @@ class OnboardingWizard:
         elif choice == "2":
             self.console.print("\n[green]✓ Selected Gemini.[/green]")
             key = Prompt.ask(
-                "Enter Gemini API Key (or press Enter to read from environment)", password=True
+                "Enter Gemini API Key (or press Enter to read from environment)",
+                password=True,
             ).strip()
             if key:
                 os.environ["GEMINI_API_KEY"] = key
@@ -129,7 +141,8 @@ class OnboardingWizard:
         elif choice == "3":
             self.console.print("\n[green]✓ Selected OpenAI.[/green]")
             key = Prompt.ask(
-                "Enter OpenAI API Key (or press Enter to read from environment)", password=True
+                "Enter OpenAI API Key (or press Enter to read from environment)",
+                password=True,
             ).strip()
             if key:
                 os.environ["OPENAI_API_KEY"] = key
@@ -196,7 +209,9 @@ class OnboardingWizard:
         self.console.print(table)
 
         theme_choice = Prompt.ask(
-            "Select theme to apply", choices=[t.value for t in themes_list], default="neon"
+            "Select theme to apply",
+            choices=[t.value for t in themes_list],
+            default="neon",
         )
 
         # Set active theme in configuration

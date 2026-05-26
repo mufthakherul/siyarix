@@ -12,7 +12,9 @@ from .profiles import ProfileStore
 
 class AuthManager:
     def __init__(
-        self, credentials: CredentialStore | None = None, profiles: ProfileStore | None = None
+        self,
+        credentials: CredentialStore | None = None,
+        profiles: ProfileStore | None = None,
     ) -> None:
         self.credentials = credentials or CredentialStore()
         self.profiles = profiles or ProfileStore()
@@ -67,11 +69,15 @@ class AuthManager:
     def status(self, profile: str) -> dict:
         profile_data = self.profiles.get_profile(profile)
         if not profile_data:
-            return {"logged_in": False, "profile": profile, "reason": "profile_not_found"}
+            return {
+                "logged_in": False,
+                "profile": profile,
+                "reason": "profile_not_found",
+            }
 
-        server_url = self.credentials.retrieve(profile, "server_url") or profile_data.get(
-            "server_url"
-        )
+        server_url = self.credentials.retrieve(
+            profile, "server_url"
+        ) or profile_data.get("server_url")
         api_key = self.credentials.retrieve(profile, "api_key")
         access_token = self.credentials.retrieve(profile, "access_token")
         refresh_token = self.credentials.retrieve(profile, "refresh_token")
@@ -103,9 +109,9 @@ class AuthManager:
         if not profile_data:
             raise ValueError(f"Profile '{profile}' not found")
 
-        server_url = self.credentials.retrieve(profile, "server_url") or profile_data.get(
-            "server_url"
-        )
+        server_url = self.credentials.retrieve(
+            profile, "server_url"
+        ) or profile_data.get("server_url")
         refresh_token = self.credentials.retrieve(profile, "refresh_token")
         if not server_url:
             raise ValueError("Server URL not configured")
@@ -151,7 +157,9 @@ class AuthManager:
             return {"X-API-Key": api_key}
         return {}
 
-    def require_auth_headers(self, profile: str, auto_refresh: bool = True) -> dict[str, str]:
+    def require_auth_headers(
+        self, profile: str, auto_refresh: bool = True
+    ) -> dict[str, str]:
         headers = self.auth_headers(profile, auto_refresh=auto_refresh)
         if not headers:
             raise ValueError(
@@ -162,12 +170,16 @@ class AuthManager:
     def _health(self, server_url: str, profile: str) -> dict:
         headers = self.auth_headers(profile, auto_refresh=False)
         try:
-            resp = httpx.get(f"{server_url.rstrip('/')}/api/health", headers=headers, timeout=8.0)
+            resp = httpx.get(
+                f"{server_url.rstrip('/')}/api/health", headers=headers, timeout=8.0
+            )
             return {"ok": resp.status_code < 500, "status_code": resp.status_code}
         except Exception as exc:
             import logging
 
-            logging.getLogger(__name__).exception("Health check failed for %s", server_url)
+            logging.getLogger(__name__).exception(
+                "Health check failed for %s", server_url
+            )
             return {"ok": False, "error": str(exc)}
 
     def _me(self, server_url: str, profile: str) -> dict:
@@ -175,14 +187,18 @@ class AuthManager:
         if not headers:
             return {"available": False}
         try:
-            resp = httpx.get(f"{server_url.rstrip('/')}/api/auth/me", headers=headers, timeout=8.0)
+            resp = httpx.get(
+                f"{server_url.rstrip('/')}/api/auth/me", headers=headers, timeout=8.0
+            )
             if resp.status_code == 200:
                 return {"available": True, "status_code": 200, "data": resp.json()}
             return {"available": False, "status_code": resp.status_code}
         except Exception as exc:
             import logging
 
-            logging.getLogger(__name__).exception("Failed to fetch /api/auth/me for %s", server_url)
+            logging.getLogger(__name__).exception(
+                "Failed to fetch /api/auth/me for %s", server_url
+            )
             return {"available": False, "error": str(exc)}
 
     def _expiry_key(self, profile: str) -> str:

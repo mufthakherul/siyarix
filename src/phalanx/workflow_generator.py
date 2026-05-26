@@ -86,7 +86,12 @@ BUILTIN_TEMPLATES: dict[str, WorkflowTemplate] = {
                 "args": ["${target}", "ANY"],
                 "description": "DNS enumeration",
             },
-            {"id": "whois", "tool": "whois", "args": ["${target}"], "description": "WHOIS lookup"},
+            {
+                "id": "whois",
+                "tool": "whois",
+                "args": ["${target}"],
+                "description": "WHOIS lookup",
+            },
             {
                 "id": "subfinder",
                 "tool": "subfinder",
@@ -263,7 +268,9 @@ class GeneratedWorkflow:
 
             path.parent.mkdir(parents=True, exist_ok=True)
             with open(path, "w", encoding="utf-8") as fh:
-                yaml.dump(self.to_yaml_dict(), fh, default_flow_style=False, sort_keys=False)
+                yaml.dump(
+                    self.to_yaml_dict(), fh, default_flow_style=False, sort_keys=False
+                )
             logger.info("Workflow saved to %s", path)
         except ImportError:
             # Fallback: save as JSON
@@ -275,7 +282,9 @@ class GeneratedWorkflow:
                 json.dumps(self.to_yaml_dict(), indent=2, default=str),
                 encoding="utf-8",
             )
-            logger.info("Workflow saved as JSON to %s (pyyaml not installed)", json_path)
+            logger.info(
+                "Workflow saved as JSON to %s (pyyaml not installed)", json_path
+            )
 
 
 class WorkflowValidator:
@@ -352,7 +361,9 @@ class WorkflowGenerator:
         template = BUILTIN_TEMPLATES.get(template_key)
         if not template:
             available = ", ".join(BUILTIN_TEMPLATES.keys())
-            raise ValueError(f"Unknown template: {template_key}. Available: {available}")
+            raise ValueError(
+                f"Unknown template: {template_key}. Available: {available}"
+            )
 
         rendered = template.render(**variables)
         wf = GeneratedWorkflow(
@@ -415,7 +426,10 @@ class WorkflowGenerator:
         step_num = 0
 
         # Recon keywords
-        if any(kw in goal_lower for kw in ["recon", "reconnaissance", "discover", "enumerate"]):
+        if any(
+            kw in goal_lower
+            for kw in ["recon", "reconnaissance", "discover", "enumerate"]
+        ):
             step_num += 1
             steps.append(
                 {
@@ -441,7 +455,10 @@ class WorkflowGenerator:
             )
 
         # Web keywords
-        if any(kw in goal_lower for kw in ["web", "http", "webapp", "application", "sql", "xss"]):
+        if any(
+            kw in goal_lower
+            for kw in ["web", "http", "webapp", "application", "sql", "xss"]
+        ):
             step_num += 1
             depends = [f"step_{step_num - 1}"] if steps else []
             steps.append(
@@ -518,6 +535,8 @@ class WorkflowGenerator:
             for kw in ["exploit", "attack", "payload", "reverse shell", "brute force"]
         ):
             return "high"
-        if any(kw in goal_lower for kw in ["scan", "vulnerability", "pentest", "inject"]):
+        if any(
+            kw in goal_lower for kw in ["scan", "vulnerability", "pentest", "inject"]
+        ):
             return "medium"
         return "low"

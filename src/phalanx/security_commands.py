@@ -7,7 +7,6 @@ threat hunting, MITRE ATT&CK coverage, and security dashboards.
 from __future__ import annotations
 
 from datetime import datetime
-
 from typing import Any, Dict, List, Optional, cast
 
 import typer
@@ -35,7 +34,9 @@ def list_incidents(
         None, "--severity", help="Filter: critical|high|medium|low"
     ),
     limit: int = typer.Option(10, "--limit", help="Number of incidents to show"),
-    output: str = typer.Option("table", "--output", "-o", help="Output format: table|json"),
+    output: str = typer.Option(
+        "table", "--output", "-o", help="Output format: table|json"
+    ),
 ) -> None:
     """List security incidents with severity indicators.
 
@@ -113,7 +114,11 @@ def list_incidents(
         "medium": "yellow",
         "low": "cyan",
     }
-    status_colors: Dict[str, str] = {"open": "red", "investigating": "yellow", "closed": "green"}
+    status_colors: Dict[str, str] = {
+        "open": "red",
+        "investigating": "yellow",
+        "closed": "green",
+    }
 
     for inc in incidents:
         severity_val = str(inc.get("severity", "")).lower()
@@ -129,11 +134,15 @@ def list_incidents(
         )
 
     console.print(table)
-    console.print("[dim]Use --server flag to connect to backend API for live data.[/dim]")
+    console.print(
+        "[dim]Use --server flag to connect to backend API for live data.[/dim]"
+    )
 
 
 @security_app.command(name="incident")
-def get_incident(incident_id: str = typer.Argument(help="Incident ID (e.g. INC-001)")) -> None:
+def get_incident(
+    incident_id: str = typer.Argument(help="Incident ID (e.g. INC-001)"),
+) -> None:
     """Show detailed information about a specific incident."""
     incident_details = (
         "[bold]Incident:[/bold]    INC-001\n"
@@ -164,14 +173,21 @@ def create_incident(
     category: str = typer.Option(
         ..., "--category", help="Category: malware|phishing|breach|intrusion|other"
     ),
-    severity: str = typer.Option("medium", "--severity", help="Severity: critical|high|medium|low"),
+    severity: str = typer.Option(
+        "medium", "--severity", help="Severity: critical|high|medium|low"
+    ),
 ) -> None:
     """Create a new security incident.
 
     Example:
       siyarix security incident-create --title "SQLi on login page" --description "Blind SQL injection" --category intrusion --severity high
     """
-    sev_colors = {"critical": "red", "high": "orange1", "medium": "yellow", "low": "cyan"}
+    sev_colors = {
+        "critical": "red",
+        "high": "orange1",
+        "medium": "yellow",
+        "low": "cyan",
+    }
     sc = sev_colors.get(severity, "white")
     incident_summary = (
         f"[bold]Title:[/bold]    {title}\n"
@@ -197,7 +213,9 @@ def create_incident(
 @security_app.command(name="vulnerabilities")
 def list_vulnerabilities(
     status: Optional[str] = typer.Option(None, "--status", help="Filter by status"),
-    severity: Optional[str] = typer.Option(None, "--severity", help="Filter by severity"),
+    severity: Optional[str] = typer.Option(
+        None, "--severity", help="Filter by severity"
+    ),
     limit: int = typer.Option(15, "--limit", help="Number to show"),
     output: str = typer.Option("table", "--output", "-o", help="Output: table|json"),
 ) -> None:
@@ -289,7 +307,9 @@ def list_vulnerabilities(
         cvss_val = float(v.get("cvss", 0.0))
         sc = sev_colors.get(severity_val, "white")
         stc = status_colors.get(status_val, "white")
-        cvss_color = "red" if cvss_val >= 9 else "orange1" if cvss_val >= 7 else "yellow"
+        cvss_color = (
+            "red" if cvss_val >= 9 else "orange1" if cvss_val >= 7 else "yellow"
+        )
         table.add_row(
             str(v.get("id", "-")),
             str(v.get("title", "-")),
@@ -306,7 +326,9 @@ def list_vulnerabilities(
 def get_remediation_plan() -> None:
     """Generate a prioritized vulnerability remediation plan."""
     table = Table(
-        title="Vulnerability Remediation Plan", show_header=True, header_style="bold green"
+        title="Vulnerability Remediation Plan",
+        show_header=True,
+        header_style="bold green",
     )
     table.add_column("Priority", justify="center", width=8)
     table.add_column("CVE", style="cyan")
@@ -318,7 +340,13 @@ def get_remediation_plan() -> None:
         ("1", "CVE-2024-0001", "Upgrade log4j to 2.17.1+", "2 days", "DevOps"),
         ("2", "CVE-2024-0002", "Apply KB5001779 Exchange patch", "3 days", "SysAdmin"),
         ("3", "CVE-2024-0004", "Sanitize SQL inputs in WebApp", "1 week", "Dev Team"),
-        ("4", "CVE-2024-0005", "Block internal metadata endpoints", "3 days", "Network"),
+        (
+            "4",
+            "CVE-2024-0005",
+            "Block internal metadata endpoints",
+            "3 days",
+            "Network",
+        ),
     ]
     for p, cve, action, eta, owner in plan:
         table.add_row(p, cve, action, eta, owner)
@@ -402,9 +430,15 @@ def list_queries(
     if tag:
         queries = [q for q in queries if tag in cast(list, q.get("tags", []))]
     if mitre_tactic:
-        queries = [q for q in queries if mitre_tactic.lower() in str(q.get("tactic", "")).lower()]
+        queries = [
+            q
+            for q in queries
+            if mitre_tactic.lower() in str(q.get("tactic", "")).lower()
+        ]
 
-    table = Table(title="Threat Hunt Queries", show_header=True, header_style="bold magenta")
+    table = Table(
+        title="Threat Hunt Queries", show_header=True, header_style="bold magenta"
+    )
     table.add_column("Query ID", style="cyan", no_wrap=True)
     table.add_column("Name", style="white")
     table.add_column("MITRE Tactic", style="yellow")
@@ -526,7 +560,9 @@ def show_dashboard() -> None:
 def list_playbooks() -> None:
     """List available incident response playbooks."""
     table = Table(
-        title="Incident Response Playbooks", show_header=True, header_style="bold magenta"
+        title="Incident Response Playbooks",
+        show_header=True,
+        header_style="bold magenta",
     )
     table.add_column("ID", style="cyan", no_wrap=True)
     table.add_column("Name", style="white")

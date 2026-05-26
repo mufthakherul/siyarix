@@ -2,7 +2,9 @@
 Emergency Stop (ESC) kill-switch for the Siyarix execution engine.
 Wires into chat._running and engine._pool.cancel_pending().
 """
+
 from __future__ import annotations
+
 import asyncio
 import logging
 from dataclasses import dataclass, field
@@ -10,10 +12,12 @@ from enum import Enum
 
 logger = logging.getLogger(__name__)
 
+
 class KillSwitchState(Enum):
     ARMED = "armed"
     TRIGGERED = "triggered"
     DISARMED = "disarmed"
+
 
 @dataclass
 class KillSwitch:
@@ -39,5 +43,6 @@ class KillSwitch:
 
     def register(self, callback) -> None:
         self._callbacks.append(callback)
+
 
 __all__ = ["KillSwitch", "KillSwitchState"]

@@ -75,7 +75,9 @@ class TaskQueueBackend:
         self._memory_results[task.task_id] = task
         return task
 
-    async def complete_task(self, task_id: str, result: dict[str, Any], error: str = "") -> None:
+    async def complete_task(
+        self, task_id: str, result: dict[str, Any], error: str = ""
+    ) -> None:
         task = self._memory_results.get(task_id)
         if task:
             task.status = "completed" if not error else "failed"
@@ -107,8 +109,9 @@ class TaskQueueBackend:
             worker["last_heartbeat"] = datetime.now().isoformat()
 
     def _get_redis_client(self):
-        if not hasattr(self, '_redis_client'):
+        if not hasattr(self, "_redis_client"):
             import redis.asyncio as redis_async  # pyright: ignore[reportMissingImports]
+
             self._redis_client = redis_async.Redis.from_url(
                 self._config.get("redis_url", "redis://localhost:6379"),
                 connection_pool_kwargs={"max_connections": 10},
@@ -143,9 +146,15 @@ class TaskQueueBackend:
         return {
             "backend_type": self._backend_type,
             "pending": len([t for t in self._memory_queue if t.status == "pending"]),
-            "running": len([t for t in self._memory_results.values() if t.status == "running"]),
-            "completed": len([t for t in self._memory_results.values() if t.status == "completed"]),
-            "failed": len([t for t in self._memory_results.values() if t.status == "failed"]),
+            "running": len(
+                [t for t in self._memory_results.values() if t.status == "running"]
+            ),
+            "completed": len(
+                [t for t in self._memory_results.values() if t.status == "completed"]
+            ),
+            "failed": len(
+                [t for t in self._memory_results.values() if t.status == "failed"]
+            ),
             "workers_registered": len(self._workers),
         }
 
@@ -161,14 +170,18 @@ class DistributedOrchestrator:
     def register_handler(self, task_type: str, handler: Callable) -> None:
         self._task_handlers[task_type] = handler
 
-    async def dispatch(self, task_type: str, payload: dict[str, Any], priority: int = 0) -> str:
+    async def dispatch(
+        self, task_type: str, payload: dict[str, Any], priority: int = 0
+    ) -> str:
         task = DistributedTask(
             task_type=task_type,
             payload=payload,
             priority=priority,
         )
         task_id = await self._backend.enqueue(task)
-        logger.info("Dispatched task %s (type=%s, priority=%d)", task_id, task_type, priority)
+        logger.info(
+            "Dispatched task %s (type=%s, priority=%d)", task_id, task_type, priority
+        )
         return task_id
 
     async def process_next(self, worker_id: str | None = None) -> bool:
@@ -177,10 +190,14 @@ class DistributedOrchestrator:
         if not task:
             return False
 
-        logger.info("Worker %s processing task %s (type=%s)", wid, task.task_id, task.task_type)
+        logger.info(
+            "Worker %s processing task %s (type=%s)", wid, task.task_id, task.task_type
+        )
         handler = self._task_handlers.get(task.task_type)
         if not handler:
-            await self._backend.complete_task(task.task_id, {}, f"No handler for {task.task_type}")
+            await self._backend.complete_task(
+                task.task_id, {}, f"No handler for {task.task_type}"
+            )
             return True
 
         try:

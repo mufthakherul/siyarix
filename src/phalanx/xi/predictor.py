@@ -119,7 +119,11 @@ class Predictor:
         # 1) Phase-based recommendations
         phase_actions = _PHASE_ACTIONS.get(phase, _PHASE_ACTIONS.get("idle", []))
         for action_template, reason in phase_actions[:3]:
-            action = action_template.replace("{target}", target) if target else action_template
+            action = (
+                action_template.replace("{target}", target)
+                if target
+                else action_template
+            )
             predictions.append(
                 Prediction(
                     action=action,
@@ -133,7 +137,11 @@ class Predictor:
         if last_tool:
             followups = _TOOL_FOLLOWUPS.get(last_tool.lower(), [])
             for action_template, reason in followups[:2]:
-                action = action_template.replace("{target}", target) if target else action_template
+                action = (
+                    action_template.replace("{target}", target)
+                    if target
+                    else action_template
+                )
                 predictions.append(
                     Prediction(
                         action=action,

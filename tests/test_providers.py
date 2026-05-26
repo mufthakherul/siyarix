@@ -1,6 +1,6 @@
 import asyncio
 
-from siyarix.providers import ProviderRegistry, NoopProvider, registry
+from siyarix.providers import NoopProvider, ProviderRegistry, registry
 
 
 def test_provider_registry_ordering():

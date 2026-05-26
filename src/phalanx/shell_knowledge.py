@@ -15,15 +15,15 @@ Provides:
 
 from __future__ import annotations
 
-import os
-import logging
-import platform
 import getpass
-import socket
+import logging
+import os
+import platform
 import shutil
+import socket
 import subprocess  # nosec B404
-from pathlib import Path
 from enum import StrEnum
+from pathlib import Path
 from typing import Any, Mapping
 
 
@@ -567,26 +567,45 @@ CROSS_PLATFORM_COMMANDS: dict[str, dict[str, str]] = {
 }
 
 INTENT_METADATA: dict[str, dict[str, Any]] = {
-    "current_directory": {"category": "filesystem", "description": "Show current directory"},
+    "current_directory": {
+        "category": "filesystem",
+        "description": "Show current directory",
+    },
     "list_files": {"category": "filesystem", "description": "List directory contents"},
     "list_processes": {"category": "process", "description": "Show running processes"},
-    "process_tree": {"category": "process", "description": "Process tree/top consumers"},
-    "network_connections": {"category": "network", "description": "Active network connections"},
+    "process_tree": {
+        "category": "process",
+        "description": "Process tree/top consumers",
+    },
+    "network_connections": {
+        "category": "network",
+        "description": "Active network connections",
+    },
     "open_ports": {"category": "network", "description": "Listening ports"},
     "network_interfaces": {"category": "network", "description": "Network interfaces"},
     "routing_table": {"category": "network", "description": "Routing table"},
     "arp_table": {"category": "network", "description": "ARP cache"},
-    "dns_lookup": {"category": "network", "description": "DNS lookup", "placeholders": ["target"]},
+    "dns_lookup": {
+        "category": "network",
+        "description": "DNS lookup",
+        "placeholders": ["target"],
+    },
     "dns_cache": {"category": "network", "description": "DNS cache"},
     "whoami": {"category": "identity", "description": "Current user and privileges"},
     "environment_vars": {"category": "system", "description": "Environment variables"},
     "firewall_rules": {"category": "security", "description": "Firewall rules"},
-    "scheduled_tasks": {"category": "system", "description": "Scheduled tasks/cron jobs"},
+    "scheduled_tasks": {
+        "category": "system",
+        "description": "Scheduled tasks/cron jobs",
+    },
     "services": {"category": "system", "description": "Running services"},
     "users": {"category": "identity", "description": "User accounts"},
     "groups": {"category": "identity", "description": "Groups"},
     "installed_software": {"category": "system", "description": "Installed software"},
-    "package_managers": {"category": "system", "description": "Available package managers"},
+    "package_managers": {
+        "category": "system",
+        "description": "Available package managers",
+    },
     "system_info": {"category": "system", "description": "System information"},
     "disk_usage": {"category": "filesystem", "description": "Disk usage"},
     "disk_free": {"category": "filesystem", "description": "Disk free totals"},
@@ -596,10 +615,21 @@ INTENT_METADATA: dict[str, dict[str, Any]] = {
         "placeholders": ["file"],
     },
     "find_suid": {"category": "security", "description": "Find privileged executables"},
-    "registry_autoruns": {"category": "security", "description": "Startup registry keys"},
+    "registry_autoruns": {
+        "category": "security",
+        "description": "Startup registry keys",
+    },
     "host_file": {"category": "filesystem", "description": "Hosts file"},
-    "ping": {"category": "network", "description": "Ping target", "placeholders": ["target"]},
-    "traceroute": {"category": "network", "description": "Trace route", "placeholders": ["target"]},
+    "ping": {
+        "category": "network",
+        "description": "Ping target",
+        "placeholders": ["target"],
+    },
+    "traceroute": {
+        "category": "network",
+        "description": "Trace route",
+        "placeholders": ["target"],
+    },
     "git_status": {"category": "dev", "description": "Git status"},
     "git_branches": {"category": "dev", "description": "Git branches"},
     "docker_ps": {"category": "containers", "description": "Docker running containers"},
@@ -747,7 +777,9 @@ def _safe_read(path: str, max_bytes: int = 2048) -> str:
     try:
         return Path(path).read_text(encoding="utf-8", errors="ignore")[:max_bytes]
     except Exception as exc:
-        logging.getLogger(__name__).exception("Error reading safe file %s: %s", path, exc)
+        logging.getLogger(__name__).exception(
+            "Error reading safe file %s: %s", path, exc
+        )
         return ""
 
 

@@ -74,7 +74,7 @@ fn parse_nuclei_json(py: Python<'_>, json_output: &str) -> PyResult<Vec<Py<PyDic
         let severity = item.get("info").and_then(|i| i.get("severity")).and_then(|v| v.as_str()).unwrap_or("medium");
         let name = item.get("info").and_then(|i| i.get("name")).and_then(|v| v.as_str()).unwrap_or("Unknown finding");
         let target = item.get("host").and_then(|v| v.as_str()).unwrap_or("");
-        
+
         finding.set_item("title", name)?;
         finding.set_item("severity", severity)?;
         finding.set_item("description", format!("Nuclei finding: {name}"))?;

@@ -62,7 +62,9 @@ class AgentStreamClient:
                 return
             except Exception as exc:
                 self._connected = False
-                logger.warning("Connection failed (%s), retrying in %.0fs", exc, self._backoff)
+                logger.warning(
+                    "Connection failed (%s), retrying in %.0fs", exc, self._backoff
+                )
                 await asyncio.sleep(self._backoff)
                 self._backoff = min(self._backoff * 2, _MAX_BACKOFF)
 
@@ -78,7 +80,9 @@ class AgentStreamClient:
                 await self._send_raw({"type": "finding", "payload": finding})
                 synced_ids.append(finding["id"])
             except Exception as exc:
-                logger.exception("Failed to flush finding %s: %s", finding.get("id"), exc)
+                logger.exception(
+                    "Failed to flush finding %s: %s", finding.get("id"), exc
+                )
                 break  # stop flushing on first failure; will retry next reconnect
         if synced_ids:
             self._offline_store.mark_synced(synced_ids)
@@ -109,12 +113,16 @@ class AgentStreamClient:
         if not self._connected or self._ws is None:
             return
         try:
-            await self._send_raw({"type": "scan_complete", "scan_id": scan_id, "summary": summary})
+            await self._send_raw(
+                {"type": "scan_complete", "scan_id": scan_id, "summary": summary}
+            )
         except Exception as exc:
             logger.exception("Failed to send scan_complete for %s: %s", scan_id, exc)
             self._connected = False
 
-    async def send_task_ack(self, task_id: str, accepted: bool, reason: str | None = None) -> None:
+    async def send_task_ack(
+        self, task_id: str, accepted: bool, reason: str | None = None
+    ) -> None:
         """Acknowledge task receipt/validation outcome to server."""
         if not self._connected or self._ws is None:
             return

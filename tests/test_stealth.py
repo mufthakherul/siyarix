@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from siyarix.stealth import StealthEngine, StealthConfig
+
+from siyarix.stealth import StealthConfig, StealthEngine
+
 pytestmark = pytest.mark.stealth
 
 

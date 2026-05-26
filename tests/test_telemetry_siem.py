@@ -5,12 +5,10 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from siyarix.telemetry.siem import (
-    SIEMConnector,
-    SplunkHECConnector,
-    ElasticSIEMConnector,
-    TelemetryForwarder,
-)
+
+from siyarix.telemetry.siem import (ElasticSIEMConnector, SIEMConnector,
+                                    SplunkHECConnector, TelemetryForwarder)
+
 pytestmark = pytest.mark.siem
 
 
@@ -83,7 +81,9 @@ class TestElasticSIEMConnector:
 
     def test_index_format(self):
         with patch("siyarix.telemetry.siem.HAS_HTTPX", True):
-            conn = ElasticSIEMConnector("http://localhost:9200", "test-key", index="custom-index")
+            conn = ElasticSIEMConnector(
+                "http://localhost:9200", "test-key", index="custom-index"
+            )
             assert "custom-index/_doc" in conn.endpoint
 
 

@@ -5,12 +5,10 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
-from siyarix.terminal_detection import (
-    TerminalDetector,
-    TerminalInfo,
-    ShellType,
-    TerminalType,
-)
+
+from siyarix.terminal_detection import (ShellType, TerminalDetector,
+                                        TerminalInfo, TerminalType)
+
 pytestmark = pytest.mark.terminal
 
 
@@ -43,7 +41,9 @@ class TestTerminalDetector:
 
     def test_translate_command(self, detector):
         translated = detector.translate_command("list_files /tmp")
-        assert "ls" in translated or "dir" in translated or "Get-ChildItem" in translated
+        assert (
+            "ls" in translated or "dir" in translated or "Get-ChildItem" in translated
+        )
 
     def test_translate_command_custom_shell(self, detector):
         translated = detector.translate_command("list_files /tmp", ShellType.POWERSHELL)

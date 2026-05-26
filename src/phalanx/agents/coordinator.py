@@ -11,12 +11,11 @@ import asyncio
 import logging
 import time
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..multi_agent import Agent, AgentRole, AgentTeam
 from .dfir_agent import DFIRAgent
 from .soc_agent import SOCAgent
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..engine import ExecutionEngine
@@ -55,7 +54,9 @@ class CoordinatorAgent:
             tools=["nmap", "whois", "subfinder", "masscan", "dnsx"],
         )
         scanner = Agent(
-            name="scanner-1", role=AgentRole.SCANNER, tools=["nuclei", "nikto", "gobuster", "ffuf"]
+            name="scanner-1",
+            role=AgentRole.SCANNER,
+            tools=["nuclei", "nikto", "gobuster", "ffuf"],
         )
         enumerator = Agent(
             name="enum-1",
@@ -108,7 +109,9 @@ class CoordinatorAgent:
         self._current_target = target
         start_time = time.monotonic()
 
-        logger.info("Coordinator dispatching objective: %s (target=%s)", objective, target)
+        logger.info(
+            "Coordinator dispatching objective: %s (target=%s)", objective, target
+        )
 
         decomposition = self._decompose_objective(objective)
         phase_results: dict[str, Any] = {}
@@ -125,20 +128,32 @@ class CoordinatorAgent:
             for dep in depends_on:
                 if dep not in completed_phases:
                     blocked = True
-                    logger.warning("Phase %s blocked by unmet dependency: %s", phase_name, dep)
-                    r = phase_results.setdefault(phase_name, {
-                        "agents_used": len(phase_agents),
-                        "responses": [],
-                        "duration_seconds": 0.0,
-                    })
+                    logger.warning(
+                        "Phase %s blocked by unmet dependency: %s", phase_name, dep
+                    )
+                    r = phase_results.setdefault(
+                        phase_name,
+                        {
+                            "agents_used": len(phase_agents),
+                            "responses": [],
+                            "duration_seconds": 0.0,
+                        },
+                    )
                     for agent_name in phase_agents:
-                        r["responses"].append({"blocked": True, "reason": f"dependency '{dep}' not completed"})
+                        r["responses"].append(
+                            {
+                                "blocked": True,
+                                "reason": f"dependency '{dep}' not completed",
+                            }
+                        )
                     break
 
             if blocked:
                 continue
 
-            logger.info("Executing phase: %s with %d agent(s)", phase_name, len(phase_agents))
+            logger.info(
+                "Executing phase: %s with %d agent(s)", phase_name, len(phase_agents)
+            )
             phase_start = time.monotonic()
 
             batch = []
@@ -227,20 +242,54 @@ class CoordinatorAgent:
             "whois",
             "subdomain",
         ]
-        scan_keywords = ["scan", "vulnerability", "vuln", "cve", "nuclei", "nikto", "web"]
-        exploit_keywords = ["exploit", "attack", "brute", "crack", "sqlmap", "hydra", "penetrate"]
+        scan_keywords = [
+            "scan",
+            "vulnerability",
+            "vuln",
+            "cve",
+            "nuclei",
+            "nikto",
+            "web",
+        ]
+        exploit_keywords = [
+            "exploit",
+            "attack",
+            "brute",
+            "crack",
+            "sqlmap",
+            "hydra",
+            "penetrate",
+        ]
         report_keywords = ["report", "summarize", "document", "export", "output"]
         privesc_keywords = [
-            "privilege", "escalation", "privesc", "elevate", "root", "admin",
+            "privilege",
+            "escalation",
+            "privesc",
+            "elevate",
+            "root",
+            "admin",
         ]
         lateral_keywords = [
-            "lateral", "pivot", "movement", "spread",
+            "lateral",
+            "pivot",
+            "movement",
+            "spread",
         ]
         persistence_keywords = [
-            "persist", "persistence", "backdoor", "implant", "maintain",
+            "persist",
+            "persistence",
+            "backdoor",
+            "implant",
+            "maintain",
         ]
         credential_keywords = [
-            "credential", "password", "hash", "dump", "kerberoast", "hashcat", "john",
+            "credential",
+            "password",
+            "hash",
+            "dump",
+            "kerberoast",
+            "hashcat",
+            "john",
         ]
 
         has_recon = any(kw in obj_lower for kw in recon_keywords)
@@ -252,8 +301,18 @@ class CoordinatorAgent:
         has_persistence = any(kw in obj_lower for kw in persistence_keywords)
         has_credential = any(kw in obj_lower for kw in credential_keywords)
 
-        if not any([has_recon, has_scan, has_exploit, has_report,
-                     has_privesc, has_lateral, has_persistence, has_credential]):
+        if not any(
+            [
+                has_recon,
+                has_scan,
+                has_exploit,
+                has_report,
+                has_privesc,
+                has_lateral,
+                has_persistence,
+                has_credential,
+            ]
+        ):
             has_recon = True
             has_scan = True
 
@@ -282,7 +341,11 @@ class CoordinatorAgent:
         if has_lateral:
             phases["lateral_movement"] = {
                 "agents": ["exploit-1"],
-                "depends_on": ["privilege_escalation"] if has_privesc else ["exploitation"] if has_exploit else [],
+                "depends_on": (
+                    ["privilege_escalation"]
+                    if has_privesc
+                    else ["exploitation"] if has_exploit else []
+                ),
             }
         if has_persistence:
             phases["persistence"] = {
@@ -305,11 +368,15 @@ class CoordinatorAgent:
 
         while remaining:
             batch = [
-                name for name, info in remaining.items()
-                if not info.get("depends_on") or all(d in resolved for d in info["depends_on"])
+                name
+                for name, info in remaining.items()
+                if not info.get("depends_on")
+                or all(d in resolved for d in info["depends_on"])
             ]
             if not batch:
-                logger.warning("Cycle or unresolvable dependencies detected; forcing remaining phases")
+                logger.warning(
+                    "Cycle or unresolvable dependencies detected; forcing remaining phases"
+                )
                 batch = list(remaining.keys())
             for name in batch:
                 resolved.append(name)

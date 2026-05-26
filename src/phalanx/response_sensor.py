@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from .masking import MaskingEngine
-from .security_hardening import SecretRedactor
 from .kill_switch import KillSwitch
-from .permission_gate import PermissionGate, GateResult
+from .masking import MaskingEngine
+from .permission_gate import GateResult, PermissionGate
+from .security_hardening import SecretRedactor
 
 
 class ResponseSensor:

@@ -1,6 +1,6 @@
 # Local Development Guide
 
-Want to hack on Siyarix locally? Awesome! We've tried to make the setup as painless as possible for contributors of all skill levels. 
+Want to hack on Siyarix locally? Awesome! We've tried to make the setup as painless as possible for contributors of all skill levels.
 
 Siyarix is built with Python, and we target Python 3.11+ to take advantage of modern features like robust `asyncio` and advanced type hinting.
 
@@ -64,7 +64,7 @@ If you're wondering where to look, here's a quick map of the codebase:
 
 ## 🧪 Running E2E and Live Tests
 
-To guarantee that the Siyarix agent operates reliably across different environments and operating system backends, we have developed a high-fidelity **End-to-End (E2E) and Live Testing Suite** located at [test_e2e.py](file:///d:/Miraz_Work/CosmicSec-Lab/siyarix/tests/test_e2e.py). 
+To guarantee that the Siyarix agent operates reliably across different environments and operating system backends, we have developed a high-fidelity **End-to-End (E2E) and Live Testing Suite** located at [test_e2e.py](file:///d:/Miraz_Work/CosmicSec-Lab/siyarix/tests/test_e2e.py).
 
 Unlike standard unit tests, these E2E tests execute entire orchestration flows, planning passes, and interpreter pipelines inside **secure, mock-sandboxed environments**. This design allows you to run all tests fully offline in secure environments without making active network requests, installing package dependencies, or making modifications to your host operating system.
 
@@ -74,7 +74,7 @@ Our testing suite validates the following critical agent behaviors:
 
 1. **CLI Dry-Run Scans (`test_cli_scan_dry_run`)**:
    Validates direct CLI `scan` execution using the `--dry-run` and `--no-banner` flags. It exercises command routing (via Typer and Click's `CliRunner`), target validation, and initial plan assembly to ensure that plans are generated correctly without triggering actual tool execution.
-   
+
 2. **Conditional Natural Language Workflows (`test_cli_run_conditional_workflow`)**:
    Verifies the parsing, routing, and execution of conditional instructions (e.g., `"if port_80_open then scan 127.0.0.1 with nikto else scan 127.0.0.1 with nmap"`). This ensures the interpreter properly evaluates pre-conditions and routes the task branches dynamically.
 
@@ -121,4 +121,3 @@ ruff check .
 
 ### Need Help?
 If you ever get stuck, see weird test failures on your specific OS, or just want to bounce an architectural idea around, open an issue or a Draft PR! We are very happy to help you figure it out.
-

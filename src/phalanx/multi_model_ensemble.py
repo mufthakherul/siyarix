@@ -154,7 +154,8 @@ class MultiModelEnsemble:
         provider = self._providers.get(provider_name)
         if not provider:
             return ModelResponse(
-                model_name=provider_name, error=f"Provider {provider_name} not registered"
+                model_name=provider_name,
+                error=f"Provider {provider_name} not registered",
             )
 
         try:
@@ -202,7 +203,10 @@ class MultiModelEnsemble:
             plans = [r.plan[:100] for r in valid]
             common = Counter(plans).most_common(1)
             if common:
-                return valid[plans.index(common[0][0])].plan, "Selected by majority vote"
+                return (
+                    valid[plans.index(common[0][0])].plan,
+                    "Selected by majority vote",
+                )
 
         if strategy == VotingStrategy.WEIGHTED:
             best = max(valid, key=lambda r: r.confidence * (1 - r.cost_estimate * 10))
@@ -227,7 +231,10 @@ class MultiModelEnsemble:
         if len(valid) < 2:
             return 0.0
         matches = sum(
-            1 for i in range(len(valid)) for j in range(i + 1, len(valid)) if valid[i] == valid[j]
+            1
+            for i in range(len(valid))
+            for j in range(i + 1, len(valid))
+            if valid[i] == valid[j]
         )
         total = len(valid) * (len(valid) - 1) / 2
         return matches / total if total > 0 else 0.0
@@ -237,7 +244,9 @@ class MultiModelEnsemble:
         if len(valid) < 2:
             return 0.0
         scores = [r.confidence for r in valid]
-        variance = sum((s - sum(scores) / len(scores)) ** 2 for s in scores) / len(scores)
+        variance = sum((s - sum(scores) / len(scores)) ** 2 for s in scores) / len(
+            scores
+        )
         return min(variance * 2, 1.0)
 
 

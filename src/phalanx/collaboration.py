@@ -4,6 +4,7 @@ Team Collaboration module -- multi-user session management for Siyarix.
 Provides session hosting, joining, and message broadcasting
 for team-based penetration testing as described in Chapter 9.
 """
+
 from __future__ import annotations
 
 import json
@@ -17,8 +18,8 @@ from pathlib import Path
 from typing import Any
 
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -50,7 +51,10 @@ class CollabSession:
             "name": self.name,
             "host": self.host,
             "created_at": self.created_at,
-            "members": [{"name": m.name, "role": m.role, "joined_at": m.joined_at} for m in self.members],
+            "members": [
+                {"name": m.name, "role": m.role, "joined_at": m.joined_at}
+                for m in self.members
+            ],
             "messages": self.messages[-100:],
             "target": self.target,
         }
@@ -82,17 +86,21 @@ class CollabSession:
             return cls.from_dict(json.load(f))
 
     def add_member(self, name: str, role: str = "analyst") -> CollabMember:
-        member = CollabMember(name=name, role=role, joined_at=datetime.now().isoformat())
+        member = CollabMember(
+            name=name, role=role, joined_at=datetime.now().isoformat()
+        )
         self.members.append(member)
         self.save()
         return member
 
     def broadcast(self, sender: str, message: str) -> None:
-        self.messages.append({
-            "sender": sender,
-            "message": message,
-            "timestamp": datetime.now().isoformat(),
-        })
+        self.messages.append(
+            {
+                "sender": sender,
+                "message": message,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
         self.save()
 
 
@@ -138,7 +146,14 @@ class CollaborationManager:
         table.add_column("Target", style="dim")
         for s in sessions:
             member_count = len(s.get("members", []))
-            table.add_row(s.get("session_id", "")[:8], s.get("name", ""), s.get("host", ""), str(member_count), s.get("target", "") or "-")
+            table.add_row(
+                s.get("session_id", "")[:8],
+                s.get("name", ""),
+                s.get("host", ""),
+                str(member_count),
+                s.get("target", "") or "-",
+            )
         console.print(table)
+
 
 __all__ = ["CollaborationManager", "CollabSession", "CollabMember"]

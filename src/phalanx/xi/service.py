@@ -22,7 +22,9 @@ class XIRecommendation:
 class XICoreService:
     """Generate context-aware recommendations and next actions."""
 
-    def recommend(self, session: SessionContext, route: IntentRoute) -> list[XIRecommendation]:
+    def recommend(
+        self, session: SessionContext, route: IntentRoute
+    ) -> list[XIRecommendation]:
         recs: list[XIRecommendation] = []
 
         if route.risk_tier == RiskTier.HIGH:
@@ -43,7 +45,10 @@ class XICoreService:
                 )
             )
 
-        if session.operations and session.operations[-1].state not in {"completed", "failed"}:
+        if session.operations and session.operations[-1].state not in {
+            "completed",
+            "failed",
+        }:
             recs.append(
                 XIRecommendation(
                     title="Resume active operation",

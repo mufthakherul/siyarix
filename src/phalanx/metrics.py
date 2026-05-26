@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from enum import StrEnum
 
 __all__ = [
@@ -39,7 +39,9 @@ class Metric:
         """Format as Prometheus line."""
         labels_str = ""
         if self.labels:
-            labels_str = "{" + ",".join(f'{k}="{v}"' for k, v in self.labels.items()) + "}"
+            labels_str = (
+                "{" + ",".join(f'{k}="{v}"' for k, v in self.labels.items()) + "}"
+            )
 
         timestamp_ms = int(self.timestamp.timestamp() * 1000)
         return f"{self.name}{labels_str} {self.value} {timestamp_ms}"
@@ -64,7 +66,9 @@ class ExecutionMetrics:
             Metric("siyarix_scans_failed", MetricType.GAUGE, self.failed_scans),
             Metric("siyarix_findings_total", MetricType.GAUGE, self.total_findings),
             Metric(
-                "siyarix_execution_duration_seconds", MetricType.GAUGE, self.total_duration_seconds
+                "siyarix_execution_duration_seconds",
+                MetricType.GAUGE,
+                self.total_duration_seconds,
             ),
             Metric(
                 "siyarix_execution_avg_duration_seconds",
@@ -134,7 +138,11 @@ class PlannerMetrics:
             Metric("siyarix_plans_failed", MetricType.GAUGE, self.plans_failed),
             Metric("siyarix_model_calls", MetricType.COUNTER, self.model_calls),
             Metric("siyarix_model_errors", MetricType.COUNTER, self.model_errors),
-            Metric("siyarix_interpreter_fallbacks", MetricType.COUNTER, self.interpreter_fallbacks),
+            Metric(
+                "siyarix_interpreter_fallbacks",
+                MetricType.COUNTER,
+                self.interpreter_fallbacks,
+            ),
         ]
 
 
@@ -160,7 +168,9 @@ class MetricsCollector:
         """Get uptime since startup."""
         return time.time() - self.start_time
 
-    def record_scan(self, duration: float, successful: bool, findings_count: int = 0) -> None:
+    def record_scan(
+        self, duration: float, successful: bool, findings_count: int = 0
+    ) -> None:
         """Record scan execution."""
         self.execution.total_scans += 1
         if successful:
@@ -195,7 +205,9 @@ class MetricsCollector:
         tool.total_duration_seconds += duration
         tool.findings_count += findings_count
 
-    def record_plan_generation(self, successful: bool, used_model: bool = False) -> None:
+    def record_plan_generation(
+        self, successful: bool, used_model: bool = False
+    ) -> None:
         """Record plan generation."""
         self.planner.plans_generated += 1
         if successful:

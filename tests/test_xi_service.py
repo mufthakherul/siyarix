@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+
 from siyarix.core.intent_router import IntentRoute, RiskTier
 from siyarix.core.session_kernel import OperationCard, SessionContext
 from siyarix.xi.service import XICoreService, XIRecommendation
@@ -29,7 +30,9 @@ class TestXICoreService:
         assert any("dry-run" in r.title.lower() for r in recs)
 
     def test_recommend_no_target(self, service, session):
-        route = IntentRoute(intent="test", risk_tier=RiskTier.LOW, metadata={"targets": []})
+        route = IntentRoute(
+            intent="test", risk_tier=RiskTier.LOW, metadata={"targets": []}
+        )
         recs = service.recommend(session, route)
         assert any("target" in r.title.lower() for r in recs)
 

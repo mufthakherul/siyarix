@@ -23,7 +23,9 @@ class OpenAIAdapter(Provider):
     async def validate(self) -> bool:
         return bool(getattr(self._impl, "available", False))
 
-    async def plan(self, prompt: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def plan(
+        self, prompt: str, context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         return await self._impl.plan(prompt, context or {})
 
     async def chat(
@@ -39,12 +41,16 @@ class OpenAIAdapter(Provider):
 
 
 class GeminiAdapter(OpenAIAdapter):
-    def __init__(self, api_key: str | None = None, model: str = "gemini-1.5-pro") -> None:
+    def __init__(
+        self, api_key: str | None = None, model: str = "gemini-1.5-pro"
+    ) -> None:
         self._impl = _planner.GeminiModel(api_key=api_key, model=model)
 
 
 class OllamaAdapter(OpenAIAdapter):
-    def __init__(self, base_url: str = "http://localhost:11434", model: str = "llama3.1") -> None:
+    def __init__(
+        self, base_url: str = "http://localhost:11434", model: str = "llama3.1"
+    ) -> None:
         self._impl = _planner.OllamaModel(base_url=base_url, model=model)
 
 
@@ -53,33 +59,44 @@ class CloudAdapter(OpenAIAdapter):
         self._impl = _planner.CloudModel(server_url=server_url, api_key=api_key)
 
 
-
 class GroqAdapter(OpenAIAdapter):
-    def __init__(self, api_key: str | None = None, model: str = "llama3-70b-8192") -> None:
+    def __init__(
+        self, api_key: str | None = None, model: str = "llama3-70b-8192"
+    ) -> None:
         self._impl = _planner.GroqModel(api_key=api_key, model=model)
 
 
 class TogetherAdapter(OpenAIAdapter):
     def __init__(
-        self, api_key: str | None = None, model: str = "mistralai/Mixtral-8x7B-Instruct-v0.1"
+        self,
+        api_key: str | None = None,
+        model: str = "mistralai/Mixtral-8x7B-Instruct-v0.1",
     ) -> None:
         self._impl = _planner.TogetherModel(api_key=api_key, model=model)
 
 
 class LMStudioAdapter(OpenAIAdapter):
-    def __init__(self, base_url: str = "http://localhost:1234", model: str = "") -> None:
+    def __init__(
+        self, base_url: str = "http://localhost:1234", model: str = ""
+    ) -> None:
         self._impl = _planner.LMStudioModel(base_url=base_url, model=model)
 
 
 class CustomAdapter(OpenAIAdapter):
-    def __init__(self, server_url: str = "", api_key: str = "", model: str = "") -> None:
-        self._impl = _planner.CustomModel(server_url=server_url, api_key=api_key, model=model)
+    def __init__(
+        self, server_url: str = "", api_key: str = "", model: str = ""
+    ) -> None:
+        self._impl = _planner.CustomModel(
+            server_url=server_url, api_key=api_key, model=model
+        )
 
 
 class AnthropicAdapter(Provider):
     """Adapter for Anthropic Claude models."""
 
-    def __init__(self, api_key: str | None = None, model: str = "claude-3-opus-20240229") -> None:
+    def __init__(
+        self, api_key: str | None = None, model: str = "claude-3-opus-20240229"
+    ) -> None:
         self._api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
         self._model = model
 
@@ -90,7 +107,9 @@ class AnthropicAdapter(Provider):
     async def validate(self) -> bool:
         return self.available
 
-    async def plan(self, prompt: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def plan(
+        self, prompt: str, context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         from .planner import _build_system_prompt
 
         if not self.available:
@@ -129,7 +148,10 @@ class AnthropicAdapter(Provider):
             response = await client.messages.create(
                 model=self._model,
                 max_tokens=max_tokens,
-                messages=[{"role": m.get("role", "user"), "content": m.get("content", "")} for m in messages],
+                messages=[
+                    {"role": m.get("role", "user"), "content": m.get("content", "")}
+                    for m in messages
+                ],
             )
             return {"reply": response.content[0].text if response.content else ""}
         except Exception as exc:

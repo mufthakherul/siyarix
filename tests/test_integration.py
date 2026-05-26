@@ -20,7 +20,9 @@ def test_workflow_persistence_roundtrip() -> None:
 
         plan_id = "plan-123"
         plan_json = json.dumps({"steps": [], "source": "registry", "confidence": 0.5})
-        store.save_plan(plan_id=plan_id, instruction="scan 127.0.0.1", plan_json=plan_json)
+        store.save_plan(
+            plan_id=plan_id, instruction="scan 127.0.0.1", plan_json=plan_json
+        )
 
         store.upsert_step_execution(
             plan_id=plan_id,

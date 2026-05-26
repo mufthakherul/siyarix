@@ -9,15 +9,17 @@ This test suite validates full execution pipelines under mock environments:
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from click.testing import CliRunner
 from typer.main import get_command
 
-from siyarix.main import app
-from siyarix.engine import ExecutionEngine, StepResult, StepStatus, ExecutionStep, ExecutionMode
-from siyarix.planner import StepType
+from siyarix.engine import (ExecutionEngine, ExecutionMode, ExecutionStep,
+                            StepResult, StepStatus)
 from siyarix.knowledge_graph import KnowledgeGraph
+from siyarix.main import app
+from siyarix.planner import StepType
 
 
 def test_cli_scan_dry_run() -> None:
@@ -76,7 +78,9 @@ async def test_interactive_installation_confirm() -> None:
     with (
         patch("platform.system", return_value="Windows"),
         patch("shutil.which", side_effect=mock_which_installer),
-        patch("siyarix.output.output.prompt_confirm", return_value=True) as mock_confirm,
+        patch(
+            "siyarix.output.output.prompt_confirm", return_value=True
+        ) as mock_confirm,
         patch("siyarix.engine.run_tool_complete", new_callable=AsyncMock) as mock_run,
     ):
         mock_run.return_value.exit_code = 0
@@ -93,7 +97,9 @@ async def test_interactive_installation_confirm() -> None:
     with (
         patch("platform.system", return_value="Windows"),
         patch("shutil.which", side_effect=mock_which_installer),
-        patch("siyarix.output.output.prompt_confirm", return_value=False) as mock_confirm,
+        patch(
+            "siyarix.output.output.prompt_confirm", return_value=False
+        ) as mock_confirm,
         patch("siyarix.engine.run_tool_complete", new_callable=AsyncMock) as mock_run,
     ):
         success = await engine._try_install_tool("gobuster")
@@ -144,10 +150,14 @@ async def test_live_tool_fallback_recovery() -> None:
         target="10.0.0.1",
     )
 
-    sr_zero = StepResult(step_id="step_gobuster_fuzz", status=StepStatus.SUCCESS, findings=[])
+    sr_zero = StepResult(
+        step_id="step_gobuster_fuzz", status=StepStatus.SUCCESS, findings=[]
+    )
 
     pending_steps_fuzz = []
-    engine._adapt_plan_on_step_result(step_gobuster, sr_zero, MagicMock(), pending_steps_fuzz)
+    engine._adapt_plan_on_step_result(
+        step_gobuster, sr_zero, MagicMock(), pending_steps_fuzz
+    )
 
     # Verify fallback to Nikto web scanner was triggered
     assert len(pending_steps_fuzz) == 1

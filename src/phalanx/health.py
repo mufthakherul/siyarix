@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 import time
-import logging
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -115,7 +115,9 @@ class HealthChecker:
         await self._check_system_resources(status)
 
         # Determine overall state
-        unhealthy = sum(1 for c in status.components if c.state == HealthState.UNHEALTHY)
+        unhealthy = sum(
+            1 for c in status.components if c.state == HealthState.UNHEALTHY
+        )
         degraded = sum(1 for c in status.components if c.state == HealthState.DEGRADED)
 
         if unhealthy > 0:
@@ -186,11 +188,21 @@ class HealthChecker:
 
                 if provider_name == "OpenAI":
                     available = bool(os.getenv("OPENAI_API_KEY"))
-                    message = "OpenAI API key configured" if available else "OpenAI not configured"
+                    message = (
+                        "OpenAI API key configured"
+                        if available
+                        else "OpenAI not configured"
+                    )
 
                 elif provider_name == "Gemini":
-                    available = bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
-                    message = "Gemini API key configured" if available else "Gemini not configured"
+                    available = bool(
+                        os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+                    )
+                    message = (
+                        "Gemini API key configured"
+                        if available
+                        else "Gemini not configured"
+                    )
 
                 elif provider_name == "Ollama":
                     # Check if Ollama is running
@@ -200,7 +212,11 @@ class HealthChecker:
                         async with httpx.AsyncClient(timeout=2.0) as client:
                             resp = await client.get("http://localhost:11434/api/tags")
                             available = resp.status_code == 200
-                            message = "Ollama responsive" if available else "Ollama not responding"
+                            message = (
+                                "Ollama responsive"
+                                if available
+                                else "Ollama not responding"
+                            )
                     except Exception as exc:
                         logger.exception("Ollama check failed: %s", exc)
                         available = False
@@ -211,7 +227,9 @@ class HealthChecker:
                     available = bool(
                         os.getenv("SIYARIX_SERVER_URL") and os.getenv("SIYARIX_API_KEY")
                     )
-                    message = "Cloud configured" if available else "Cloud not configured"
+                    message = (
+                        "Cloud configured" if available else "Cloud not configured"
+                    )
 
                 self.model_providers_available[provider_name] = available
 
@@ -219,7 +237,9 @@ class HealthChecker:
                 status.components.append(
                     ComponentHealth(
                         name=f"ModelProvider/{provider_name}",
-                        state=HealthState.HEALTHY if available else HealthState.DEGRADED,
+                        state=(
+                            HealthState.HEALTHY if available else HealthState.DEGRADED
+                        ),
                         message=message,
                         latency_ms=latency,
                         details={"available": available},
@@ -255,10 +275,14 @@ class HealthChecker:
                 status.components.append(
                     ComponentHealth(
                         name=f"Tool/{tool}",
-                        state=HealthState.HEALTHY if available else HealthState.DEGRADED,
-                        message=f"{'Found' if available else 'Not found'} at {path}"
-                        if available
-                        else "Not in PATH",
+                        state=(
+                            HealthState.HEALTHY if available else HealthState.DEGRADED
+                        ),
+                        message=(
+                            f"{'Found' if available else 'Not found'} at {path}"
+                            if available
+                            else "Not in PATH"
+                        ),
                         latency_ms=latency,
                     )
                 )
@@ -303,7 +327,11 @@ class HealthChecker:
             mem_state = (
                 HealthState.HEALTHY
                 if memory.percent < 80
-                else (HealthState.DEGRADED if memory.percent < 95 else HealthState.UNHEALTHY)
+                else (
+                    HealthState.DEGRADED
+                    if memory.percent < 95
+                    else HealthState.UNHEALTHY
+                )
             )
             status.components.append(
                 ComponentHealth(
@@ -323,7 +351,9 @@ class HealthChecker:
             disk_state = (
                 HealthState.HEALTHY
                 if disk.percent < 80
-                else (HealthState.DEGRADED if disk.percent < 95 else HealthState.UNHEALTHY)
+                else (
+                    HealthState.DEGRADED if disk.percent < 95 else HealthState.UNHEALTHY
+                )
             )
             status.components.append(
                 ComponentHealth(
@@ -343,7 +373,9 @@ class HealthChecker:
             cpu_state = (
                 HealthState.HEALTHY
                 if cpu_percent < 80
-                else (HealthState.DEGRADED if cpu_percent < 95 else HealthState.UNHEALTHY)
+                else (
+                    HealthState.DEGRADED if cpu_percent < 95 else HealthState.UNHEALTHY
+                )
             )
             status.components.append(
                 ComponentHealth(

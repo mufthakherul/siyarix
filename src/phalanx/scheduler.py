@@ -6,7 +6,7 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Dict, List
 
@@ -22,7 +22,9 @@ class ScheduledJob:
     id: str
     name: str
     target: str
-    cron: str  # standard interval: "daily", "weekly", "hourly", or standard 5-field cron
+    cron: (
+        str  # standard interval: "daily", "weekly", "hourly", or standard 5-field cron
+    )
     command: str
     persona: str = "none"
     last_run: str = ""
@@ -134,8 +136,8 @@ class SiyarixScheduler:
 
     async def execute_job(self, job: ScheduledJob) -> bool:
         """Execute the job immediately using the Siyarix Engine."""
+        from siyarix.audit_log import AuditEventType, AuditSeverity, audit
         from siyarix.engine import ExecutionEngine
-        from siyarix.audit_log import audit, AuditEventType, AuditSeverity
 
         logger.info("Executing scheduled job %s: %s", job.name, job.command)
         job.last_run = datetime.now(UTC).isoformat()
@@ -149,7 +151,11 @@ class SiyarixScheduler:
             action="scheduled_scan",
             result="started",
             target=job.target,
-            details={"job_name": job.name, "command": job.command, "persona": job.persona},
+            details={
+                "job_name": job.name,
+                "command": job.command,
+                "persona": job.persona,
+            },
         )
 
         try:

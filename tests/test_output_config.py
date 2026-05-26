@@ -167,10 +167,13 @@ class TestOfflineStoreHistory:
             {"title": "Open SSH port", "severity": "low", "tool": "nmap"}, "scan-001"
         )
         store.save_finding(
-            {"title": "SQL Injection", "severity": "critical", "tool": "nmap"}, "scan-001"
+            {"title": "SQL Injection", "severity": "critical", "tool": "nmap"},
+            "scan-001",
         )
         store.save_scan("scan-002", "10.0.0.1", "nuclei", "complete")
-        store.save_finding({"title": "XSS Found", "severity": "high", "tool": "nuclei"}, "scan-002")
+        store.save_finding(
+            {"title": "XSS Found", "severity": "high", "tool": "nuclei"}, "scan-002"
+        )
 
     def test_list_scans(self, tmp_path):
         store = self._make_store(tmp_path)
@@ -303,7 +306,9 @@ class TestProgressRunner:
 
         monkeypatch.setattr(p, "ScanProgressDisplay", DummyDisplay)
         monkeypatch.setattr(p, "CancellationToken", DummyToken)
-        monkeypatch.setattr("siyarix.executor.run_tool_complete", fake_run_tool_complete)
+        monkeypatch.setattr(
+            "siyarix.executor.run_tool_complete", fake_run_tool_complete
+        )
 
         results, state = asyncio.run(
             p.run_tools_with_progress(

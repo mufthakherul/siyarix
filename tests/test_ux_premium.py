@@ -1,7 +1,9 @@
 from unittest.mock import MagicMock, patch
+
 from rich.layout import Layout
-from siyarix.ux import SmartAutocomplete, SplitPane, OnboardingWizard
+
 from siyarix.core.pipeline import CommandPipeline
+from siyarix.ux import OnboardingWizard, SmartAutocomplete, SplitPane
 
 
 def test_smart_autocomplete():
@@ -45,20 +47,28 @@ def test_smart_autocomplete():
 def test_split_pane_layout():
     sp = SplitPane()
     left_renderable = "Operational Logs"
-    layout = sp.generate_layout(left_renderable=left_renderable, right_type="attack_map")
+    layout = sp.generate_layout(
+        left_renderable=left_renderable, right_type="attack_map"
+    )
 
     assert isinstance(layout, Layout)
     assert layout["left"] is not None
     assert layout["right"] is not None
 
     # Test other right types
-    layout_timeline = sp.generate_layout(left_renderable=left_renderable, right_type="timeline")
+    layout_timeline = sp.generate_layout(
+        left_renderable=left_renderable, right_type="timeline"
+    )
     assert layout_timeline["right"] is not None
 
-    layout_metrics = sp.generate_layout(left_renderable=left_renderable, right_type="metrics")
+    layout_metrics = sp.generate_layout(
+        left_renderable=left_renderable, right_type="metrics"
+    )
     assert layout_metrics["right"] is not None
 
-    layout_cheatsheet = sp.generate_layout(left_renderable=left_renderable, right_type="cheatsheet")
+    layout_cheatsheet = sp.generate_layout(
+        left_renderable=left_renderable, right_type="cheatsheet"
+    )
     assert layout_cheatsheet["right"] is not None
 
 
@@ -67,7 +77,10 @@ def test_split_pane_layout():
 def test_onboarding_wizard(mock_prompt, mock_confirm):
     # Mock user accepting all steps
     mock_confirm.return_value = True
-    mock_prompt.side_effect = ["1", "neon"]  # Step 2: provider Ollama, Step 4: theme neon
+    mock_prompt.side_effect = [
+        "1",
+        "neon",
+    ]  # Step 2: provider Ollama, Step 4: theme neon
 
     wiz = OnboardingWizard()
     success = wiz.run()

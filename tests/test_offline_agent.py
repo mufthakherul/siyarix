@@ -1,10 +1,13 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from siyarix.interpreter import RuleInterpreter, TaskCategory
-from siyarix.planner import TaskPlanner, StepType
-from siyarix.engine import ExecutionEngine, StepResult, StepStatus, ExecutionStep
-from siyarix.knowledge_graph import KnowledgeGraph
+
+import pytest
+
 from siyarix.core.agentic_loop import AgenticLoop
+from siyarix.engine import (ExecutionEngine, ExecutionStep, StepResult,
+                            StepStatus)
+from siyarix.interpreter import RuleInterpreter, TaskCategory
+from siyarix.knowledge_graph import KnowledgeGraph
+from siyarix.planner import StepType, TaskPlanner
 
 
 @pytest.mark.asyncio
@@ -24,7 +27,9 @@ async def test_pillar_1_conditional_interpreter_and_evaluator():
     assert task_cond.sub_tasks[1].flags["branch"] == "else"
 
     # Check logical chain parsing
-    task_chain = interpreter.interpret("scan 192.168.1.1 with nmap && scan 192.168.1.1 with nikto")
+    task_chain = interpreter.interpret(
+        "scan 192.168.1.1 with nmap && scan 192.168.1.1 with nikto"
+    )
     assert task_chain.category == TaskCategory.WORKFLOW
     assert task_chain.action == "chain"
     assert len(task_chain.sub_tasks) == 2
@@ -59,7 +64,11 @@ async def test_pillar_3_adaptive_plan_mutator():
 
     # 1. Nmap Ping Bypass Mutator Check
     step_nmap = ExecutionStep(
-        id="step_1", step_type=StepType.TOOL_RUN, tool="nmap", args=[], target="192.168.1.100"
+        id="step_1",
+        step_type=StepType.TOOL_RUN,
+        tool="nmap",
+        args=[],
+        target="192.168.1.100",
     )
     sr_failed = StepResult(
         step_id="step_1",
@@ -76,26 +85,39 @@ async def test_pillar_3_adaptive_plan_mutator():
 
     # 2. Gobuster Zero-findings Fallback Mutator Check
     step_gobuster = ExecutionStep(
-        id="step_2", step_type=StepType.TOOL_RUN, tool="gobuster", args=[], target="192.168.1.100"
+        id="step_2",
+        step_type=StepType.TOOL_RUN,
+        tool="gobuster",
+        args=[],
+        target="192.168.1.100",
     )
     sr_zero = StepResult(step_id="step_2", status=StepStatus.SUCCESS, findings=[])
     still_pending_gobuster = []
 
-    engine._adapt_plan_on_step_result(step_gobuster, sr_zero, MagicMock(), still_pending_gobuster)
+    engine._adapt_plan_on_step_result(
+        step_gobuster, sr_zero, MagicMock(), still_pending_gobuster
+    )
     assert len(still_pending_gobuster) == 1
     assert still_pending_gobuster[0].tool == "nikto"
     assert still_pending_gobuster[0].id == "step_2_fallback_nikto"
 
     # 3. Shell Permission Error Mutator Check
-    step_shell = ExecutionStep(id="step_3", step_type=StepType.SHELL_CMD, command="cat /etc/shadow")
+    step_shell = ExecutionStep(
+        id="step_3", step_type=StepType.SHELL_CMD, command="cat /etc/shadow"
+    )
     sr_permission = StepResult(
         step_id="step_3", status=StepStatus.FAILED, error="Permission denied"
     )
     still_pending_shell = []
 
-    engine._adapt_plan_on_step_result(step_shell, sr_permission, MagicMock(), still_pending_shell)
+    engine._adapt_plan_on_step_result(
+        step_shell, sr_permission, MagicMock(), still_pending_shell
+    )
     assert len(still_pending_shell) == 1
-    assert "sudo" in still_pending_shell[0].command or "whoami" in still_pending_shell[0].command
+    assert (
+        "sudo" in still_pending_shell[0].command
+        or "whoami" in still_pending_shell[0].command
+    )
 
 
 @pytest.mark.asyncio
@@ -131,7 +153,9 @@ async def test_tool_auto_installation():
 
     with (
         patch("shutil.which", side_effect=mock_which),
-        patch("siyarix.output.output.prompt_confirm", return_value=True) as mock_confirm,
+        patch(
+            "siyarix.output.output.prompt_confirm", return_value=True
+        ) as mock_confirm,
         patch("siyarix.engine.run_tool_complete", new_callable=AsyncMock) as mock_run,
     ):
         mock_run.return_value.exit_code = 0

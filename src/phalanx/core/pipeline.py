@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from ..interpreter import RuleInterpreter, InterpretedTask
+from ..interpreter import InterpretedTask, RuleInterpreter
 
 
 @dataclass
@@ -75,7 +75,9 @@ class CommandPipeline:
         else:
             # Match variations of 'then', 'and then', 'next', 'followed by'
             pattern = r"\s+(?:then|and then|next|followed by)\s+"
-            steps_raw = [s.strip() for s in re.split(pattern, pipeline_str, flags=re.IGNORECASE)]
+            steps_raw = [
+                s.strip() for s in re.split(pattern, pipeline_str, flags=re.IGNORECASE)
+            ]
 
         steps: list[PipelineStep] = []
         for i, raw_step in enumerate(steps_raw):
@@ -106,7 +108,11 @@ class CommandPipeline:
             step.status = "running"
             try:
                 # Merge target context down to subsequent steps if they lack targets
-                if step.interpreted_task and not step.interpreted_task.targets and context.targets:
+                if (
+                    step.interpreted_task
+                    and not step.interpreted_task.targets
+                    and context.targets
+                ):
                     step.interpreted_task.targets = list(context.targets)
 
                 # Execute step

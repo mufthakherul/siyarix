@@ -17,7 +17,9 @@ def test_discover_uses_wsl_fallback_on_windows(monkeypatch):
 
     def fake_run(cmd, capture_output, text, timeout):
         if cmd[:4] == ["C:/Windows/System32/wsl.exe", "-e", "sh", "-lc"]:
-            return subprocess.CompletedProcess(cmd, 0, stdout="/usr/bin/nmap\n", stderr="")
+            return subprocess.CompletedProcess(
+                cmd, 0, stdout="/usr/bin/nmap\n", stderr=""
+            )
         if cmd[:3] == ["C:/Windows/System32/wsl.exe", "-e", "nmap"]:
             return subprocess.CompletedProcess(cmd, 0, stdout="Nmap 7.94\n", stderr="")
         return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="")

@@ -25,7 +25,9 @@ class Provider:
 
     available: bool = False
 
-    async def plan(self, prompt: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def plan(
+        self, prompt: str, context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         raise NotImplementedError
 
     async def validate(self) -> bool:
@@ -51,7 +53,9 @@ class NoopProvider(Provider):
         self.response = response
         self._name = "noop"
 
-    async def plan(self, prompt: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def plan(
+        self, prompt: str, context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         await asyncio.sleep(0)
         if self.response is None:
             return {}
@@ -111,7 +115,9 @@ class ProviderRegistry:
     def available(self) -> list[Provider]:
         return [p for _, p in self._ordered if getattr(p, "available", False)]
 
-    def ordered_by_preference(self, preferred: list[str] | None = None) -> list[Provider]:
+    def ordered_by_preference(
+        self, preferred: list[str] | None = None
+    ) -> list[Provider]:
         if not preferred:
             return self.get_list()
         preferred_lower = [p.lower() for p in preferred]

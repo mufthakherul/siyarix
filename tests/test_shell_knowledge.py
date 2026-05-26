@@ -1,17 +1,10 @@
 from __future__ import annotations
 
-from siyarix.shell_knowledge import (
-    ShellType,
-    normalize_shell,
-    shell_key,
-    translate_command,
-    list_supported_shells,
-    render_intent,
-    INTENT_METADATA,
-    detect_device_type,
-    terminal_type_from_env,
-    build_platform_context,
-)
+from siyarix.shell_knowledge import (INTENT_METADATA, ShellType,
+                                     build_platform_context,
+                                     detect_device_type, list_supported_shells,
+                                     normalize_shell, render_intent, shell_key,
+                                     terminal_type_from_env, translate_command)
 
 
 def test_normalize_shell_aliases_to_canonical_keys() -> None:

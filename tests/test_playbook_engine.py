@@ -5,7 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from siyarix.playbook_engine import PlaybookEngine, Playbook, PlaybookStep, PlaybookStepType
+
+from siyarix.playbook_engine import (Playbook, PlaybookEngine, PlaybookStep,
+                                     PlaybookStepType)
+
 pytestmark = pytest.mark.playbook
 
 
@@ -44,7 +47,9 @@ class TestPlaybookEngine:
         assert engine.load("nonexistent") is None
 
     def test_resolve_variables(self):
-        playbook = Playbook(name="test", variables={"target": "example.com", "port": "80"})
+        playbook = Playbook(
+            name="test", variables={"target": "example.com", "port": "80"}
+        )
         resolved = playbook.resolve_variables("nmap -p {port} {target}")
         assert resolved == "nmap -p 80 example.com"
 
@@ -77,7 +82,9 @@ class TestPlaybookEngine:
         assert step.max_retries == 1
 
     def test_playbook_dataclass(self):
-        pb = Playbook(name="test", version="2.0", author="Test Author", tags=["web", "recon"])
+        pb = Playbook(
+            name="test", version="2.0", author="Test Author", tags=["web", "recon"]
+        )
         assert pb.name == "test"
         assert pb.version == "2.0"
         assert "web" in pb.tags

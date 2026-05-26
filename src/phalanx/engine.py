@@ -28,28 +28,24 @@ from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.progress import (Progress, SpinnerColumn, TextColumn,
+                           TimeElapsedColumn)
 from rich.table import Table
 
-from .planner import (
-    TaskPlanner,
-    ExecutionPlan,
-    ExecutionStep,
-    StepType,
-)
-from .engine_types import StepResult, StepStatus
 from .dynamic_resolver import DynamicResolver
+from .engine_types import StepResult, StepStatus
 from .executor import run_tool_complete
+from .kill_switch import KillSwitch, KillSwitchState
+from .knowledge_graph import KnowledgeGraph
 from .metrics import get_metrics
 from .notifications import notification_center
 from .offline_store import OfflineStore
-from .tool_registry import ToolInfo, ToolRegistry
-from .knowledge_graph import KnowledgeGraph
-from .worker_pool import AsyncWorkerPool
-from .tool_executor import ToolExecutor
+from .planner import ExecutionPlan, ExecutionStep, StepType, TaskPlanner
 from .providers import registry as provider_registry
+from .tool_executor import ToolExecutor
+from .tool_registry import ToolInfo, ToolRegistry
+from .worker_pool import AsyncWorkerPool
 from .xi import ContextTracker, Predictor, SkillProfiler, XICoreService
-from .kill_switch import KillSwitch, KillSwitchState
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -86,7 +82,10 @@ class EngineResult:
 
     @property
     def success(self) -> bool:
-        return all(r.status in (StepStatus.SUCCESS, StepStatus.SKIPPED) for r in self.step_results)
+        return all(
+            r.status in (StepStatus.SUCCESS, StepStatus.SKIPPED)
+            for r in self.step_results
+        )
 
     @property
     def summary(self) -> dict[str, int]:
@@ -147,8 +146,12 @@ class ExecutionEngine:
         # Discover tools and build context
         fast_discovery = bool(self._config.get("fast_discovery"))
         self._discovered_tools = self._registry.discover(fast=fast_discovery)
-        self._tool_map: dict[str, ToolInfo] = {t.name: t for t in self._discovered_tools}
-        self._binary_map: dict[str, ToolInfo] = {t.binary: t for t in self._discovered_tools}
+        self._tool_map: dict[str, ToolInfo] = {
+            t.name: t for t in self._discovered_tools
+        }
+        self._binary_map: dict[str, ToolInfo] = {
+            t.binary: t for t in self._discovered_tools
+        }
 
         # Initialize task planner with providers
         self._planner = TaskPlanner()
@@ -174,7 +177,9 @@ class ExecutionEngine:
 
         # Tool executor (delegates actual tool/shell runs)
         self._executor = ToolExecutor(
-            resolver=self._resolver, discovered_tools=self._discovered_tools, graph=self._graph
+            resolver=self._resolver,
+            discovered_tools=self._discovered_tools,
+            graph=self._graph,
         )
 
         # Step results for tracking
@@ -227,7 +232,9 @@ class ExecutionEngine:
     def _refresh_tools(self) -> None:
         """Force rediscovery of installed tools and rebuild the resolver."""
         fast_discovery = bool(self._config.get("fast_discovery"))
-        self._discovered_tools = self._registry.discover(force_refresh=True, fast=fast_discovery)
+        self._discovered_tools = self._registry.discover(
+            force_refresh=True, fast=fast_discovery
+        )
         self._tool_map = {t.name: t for t in self._discovered_tools}
         self._binary_map = {t.binary: t for t in self._discovered_tools}
 
@@ -280,8 +287,12 @@ class ExecutionEngine:
         if tool_name in python_tools or package == "shodan":
             install_commands.append(["pip", "install", "--upgrade", package])
             install_commands.append(["pip3", "install", "--upgrade", package])
-            install_commands.append(["python", "-m", "pip", "install", "--upgrade", package])
-            install_commands.append(["python3", "-m", "pip", "install", "--upgrade", package])
+            install_commands.append(
+                ["python", "-m", "pip", "install", "--upgrade", package]
+            )
+            install_commands.append(
+                ["python3", "-m", "pip", "install", "--upgrade", package]
+            )
 
         if system == "windows":
             install_commands.append(
@@ -290,14 +301,20 @@ class ExecutionEngine:
                     "install",
                     "-e",
                     "--id",
-                    f"SecurityTool.{package}" if package in ["nmap", "wireshark"] else package,
+                    (
+                        f"SecurityTool.{package}"
+                        if package in ["nmap", "wireshark"]
+                        else package
+                    ),
                     "--silent",
                     "--accept-package-agreements",
                     "--accept-source-agreements",
                 ]
             )
             install_commands.append(["winget", "install", package, "--silent"])
-            install_commands.append(["choco", "install", package, "-y", "--no-progress"])
+            install_commands.append(
+                ["choco", "install", package, "-y", "--no-progress"]
+            )
         elif system == "darwin":
             install_commands.append(["brew", "install", package])
         else:  # Linux (Debian, Ubuntu, Kali, etc.)
@@ -328,7 +345,9 @@ class ExecutionEngine:
             )
             return False
 
-        console.print(f"[bold blue]⚡ Initiating auto-installation of '{tool_name}'...[/bold blue]")
+        console.print(
+            f"[bold blue]⚡ Initiating auto-installation of '{tool_name}'...[/bold blue]"
+        )
 
         success = False
         for cmd in valid_installers:
@@ -346,7 +365,9 @@ class ExecutionEngine:
                         f"[yellow]⚠ Installer '{cmd[0]}' exited with code {result.exit_code}. Trying next installer...[/yellow]"
                     )
             except Exception as e:
-                console.print(f"[dim]Installer '{cmd[0]}' encountered an error: {e}[/dim]")
+                console.print(
+                    f"[dim]Installer '{cmd[0]}' encountered an error: {e}[/dim]"
+                )
 
         if success:
             self._refresh_tools()
@@ -362,15 +383,105 @@ class ExecutionEngine:
         # Instantiate adapters from the global provider registry
         preferred = str(self._config.get("model_provider", "auto")).strip().lower()
         preference_map = {
-            "gemini": ["gemini", "openai", "anthropic", "groq", "together", "ollama", "lmstudio", "cloud", "noop"],
-            "openai": ["openai", "gemini", "anthropic", "groq", "together", "ollama", "lmstudio", "cloud", "noop"],
-            "ollama": ["ollama", "lmstudio", "gemini", "openai", "anthropic", "groq", "together", "cloud", "noop"],
-            "cloud": ["cloud", "gemini", "openai", "anthropic", "groq", "together", "ollama", "lmstudio", "noop"],
-            "groq": ["groq", "openai", "gemini", "anthropic", "together", "ollama", "lmstudio", "cloud", "noop"],
-            "together": ["together", "groq", "openai", "gemini", "anthropic", "ollama", "lmstudio", "cloud", "noop"],
-            "lmstudio": ["lmstudio", "ollama", "gemini", "openai", "anthropic", "groq", "together", "cloud", "noop"],
-            "anthropic": ["anthropic", "openai", "gemini", "groq", "together", "ollama", "lmstudio", "cloud", "noop"],
-            "auto": ["gemini", "openai", "anthropic", "groq", "together", "ollama", "lmstudio", "cloud", "noop"],
+            "gemini": [
+                "gemini",
+                "openai",
+                "anthropic",
+                "groq",
+                "together",
+                "ollama",
+                "lmstudio",
+                "cloud",
+                "noop",
+            ],
+            "openai": [
+                "openai",
+                "gemini",
+                "anthropic",
+                "groq",
+                "together",
+                "ollama",
+                "lmstudio",
+                "cloud",
+                "noop",
+            ],
+            "ollama": [
+                "ollama",
+                "lmstudio",
+                "gemini",
+                "openai",
+                "anthropic",
+                "groq",
+                "together",
+                "cloud",
+                "noop",
+            ],
+            "cloud": [
+                "cloud",
+                "gemini",
+                "openai",
+                "anthropic",
+                "groq",
+                "together",
+                "ollama",
+                "lmstudio",
+                "noop",
+            ],
+            "groq": [
+                "groq",
+                "openai",
+                "gemini",
+                "anthropic",
+                "together",
+                "ollama",
+                "lmstudio",
+                "cloud",
+                "noop",
+            ],
+            "together": [
+                "together",
+                "groq",
+                "openai",
+                "gemini",
+                "anthropic",
+                "ollama",
+                "lmstudio",
+                "cloud",
+                "noop",
+            ],
+            "lmstudio": [
+                "lmstudio",
+                "ollama",
+                "gemini",
+                "openai",
+                "anthropic",
+                "groq",
+                "together",
+                "cloud",
+                "noop",
+            ],
+            "anthropic": [
+                "anthropic",
+                "openai",
+                "gemini",
+                "groq",
+                "together",
+                "ollama",
+                "lmstudio",
+                "cloud",
+                "noop",
+            ],
+            "auto": [
+                "gemini",
+                "openai",
+                "anthropic",
+                "groq",
+                "together",
+                "ollama",
+                "lmstudio",
+                "cloud",
+                "noop",
+            ],
         }
 
         order = preference_map.get(preferred, preference_map["auto"])
@@ -383,9 +494,9 @@ class ExecutionEngine:
                     prov = provider_registry.get("openai", api_key=api_key, model=model)
                     available = bool(api_key)
                 elif name == "gemini":
-                    api_key = self._config.get("gemini_api_key", "") or self._config.get(
-                        "google_api_key", ""
-                    )
+                    api_key = self._config.get(
+                        "gemini_api_key", ""
+                    ) or self._config.get("google_api_key", "")
                     model = self._config.get("gemini_model", "gemini-1.5-pro")
                     prov = provider_registry.get("gemini", api_key=api_key, model=model)
                     available = bool(api_key)
@@ -397,7 +508,9 @@ class ExecutionEngine:
                 elif name == "cloud":
                     server = self._config.get("server_url", "")
                     key = self._config.get("api_key", "")
-                    prov = provider_registry.get("cloud", server_url=server, api_key=key)
+                    prov = provider_registry.get(
+                        "cloud", server_url=server, api_key=key
+                    )
                     available = bool(server and key)
                 elif name == "groq":
                     api_key = self._config.get("groq_api_key", "")
@@ -406,8 +519,12 @@ class ExecutionEngine:
                     available = bool(api_key)
                 elif name == "together":
                     api_key = self._config.get("together_api_key", "")
-                    model = self._config.get("together_model", "mistralai/Mixtral-8x7B-Instruct-v0.1")
-                    prov = provider_registry.get("together", api_key=api_key, model=model)
+                    model = self._config.get(
+                        "together_model", "mistralai/Mixtral-8x7B-Instruct-v0.1"
+                    )
+                    prov = provider_registry.get(
+                        "together", api_key=api_key, model=model
+                    )
                     available = bool(api_key)
                 elif name == "lmstudio":
                     url = self._config.get("lmstudio_url", "http://localhost:1234")
@@ -416,8 +533,12 @@ class ExecutionEngine:
                     available = True
                 elif name == "anthropic":
                     api_key = self._config.get("anthropic_api_key", "")
-                    model = self._config.get("anthropic_model", "claude-3-opus-20240229")
-                    prov = provider_registry.get("anthropic", api_key=api_key, model=model)
+                    model = self._config.get(
+                        "anthropic_model", "claude-3-opus-20240229"
+                    )
+                    prov = provider_registry.get(
+                        "anthropic", api_key=api_key, model=model
+                    )
                     available = bool(api_key)
                 else:  # noop or unknown
                     prov = provider_registry.get("noop")
@@ -434,7 +555,9 @@ class ExecutionEngine:
 
                 self._planner.add_provider(prov)
             except Exception:
-                logger.debug("Failed to instantiate provider adapter: %s", name, exc_info=True)
+                logger.debug(
+                    "Failed to instantiate provider adapter: %s", name, exc_info=True
+                )
 
     @property
     def graph(self) -> KnowledgeGraph:
@@ -473,8 +596,8 @@ class ExecutionEngine:
         xi_recs: list[dict[str, str]] = []
         try:
             xics = self._get_xi_core_service()
-            from .core.session_kernel import SessionContext
             from .core.intent_router import IntentRoute
+            from .core.session_kernel import SessionContext
 
             session = SessionContext(session_id="engine", objective="")
             route = IntentRoute(instruction="", mode=self._mode.value)
@@ -583,7 +706,9 @@ class ExecutionEngine:
             self._session_logger.add_command(
                 session_id=log_id,
                 input_text=instruction,
-                ai_plan=[s.command or s.tool or "" for s in plan.steps if s.command or s.tool],
+                ai_plan=[
+                    s.command or s.tool or "" for s in plan.steps if s.command or s.tool
+                ],
             )
 
         if dry_run:
@@ -619,7 +744,9 @@ class ExecutionEngine:
                 TimeElapsedColumn(),
                 console=console,
             ) as progress:
-                result = await self._execute_plan(plan, progress, interactive, plan_id, store)
+                result = await self._execute_plan(
+                    plan, progress, interactive, plan_id, store
+                )
         else:
             result = await self._execute_plan(plan, None, interactive, plan_id, store)
 
@@ -652,9 +779,11 @@ class ExecutionEngine:
         if self._session_logger is not None and self._current_log_session_id:
             self._session_logger.update_end_time(self._current_log_session_id)
             for sr in result.step_results:
-                for f in (sr.findings or []):
+                for f in sr.findings or []:
                     tool = f.get("tool", "unknown")
-                    self._session_logger.track_tool_usage(self._current_log_session_id, tool)
+                    self._session_logger.track_tool_usage(
+                        self._current_log_session_id, tool
+                    )
             self._current_log_session_id = None
 
         return result
@@ -695,7 +824,9 @@ class ExecutionEngine:
                 TimeElapsedColumn(),
                 console=console,
             ) as progress:
-                result = await self._execute_plan(plan, progress, interactive, plan_id, store)
+                result = await self._execute_plan(
+                    plan, progress, interactive, plan_id, store
+                )
         else:
             result = await self._execute_plan(plan, None, interactive, plan_id, store)
         result.total_duration_ms = (time.monotonic() - start_time) * 1000
@@ -913,7 +1044,9 @@ class ExecutionEngine:
         jitter = delay * random.uniform(0.9, 1.1)
         return jitter
 
-    async def _execute_step_with_retry(self, step: ExecutionStep, interactive: bool) -> StepResult:
+    async def _execute_step_with_retry(
+        self, step: ExecutionStep, interactive: bool
+    ) -> StepResult:
         """Execute a step with automatic retry on transient failures."""
         retry_count = 0
         last_error = None
@@ -1010,7 +1143,9 @@ class ExecutionEngine:
         # Delegate execution to ToolExecutor for better separation of concerns
         return await self._executor.execute_step(step, interactive)
 
-    async def _run_tool_step(self, step: ExecutionStep, interactive: bool) -> StepResult:
+    async def _run_tool_step(
+        self, step: ExecutionStep, interactive: bool
+    ) -> StepResult:
         """Execute a registered security tool."""
         tool_name = step.tool or ""
         start = time.monotonic()
@@ -1077,6 +1212,7 @@ class ExecutionEngine:
         confirmed_args_str = original_args_str
         try:
             from .permission_gate import PermissionGate
+
             gate = PermissionGate()
             gate_result = gate.check(original_args_str, tool=tool_name)
             if gate_result.stage == "forbidden":
@@ -1087,7 +1223,10 @@ class ExecutionEngine:
                 )
             if gate_result.requires_review and interactive:
                 from .shell_review import review_and_confirm
-                confirmed = review_and_confirm(original_args_str, tool_name, gate_result.reason)
+
+                confirmed = review_and_confirm(
+                    original_args_str, tool_name, gate_result.reason
+                )
                 if confirmed is None:
                     return StepResult(
                         step_id=step.id,
@@ -1133,7 +1272,10 @@ class ExecutionEngine:
         )
 
         # Record correction if args were modified by user
-        if self._learning_memory is not None and confirmed_args_str != original_args_str:
+        if (
+            self._learning_memory is not None
+            and confirmed_args_str != original_args_str
+        ):
             try:
                 self._learning_memory.record_with_correction(
                     tools=[tool_name],
@@ -1155,7 +1297,11 @@ class ExecutionEngine:
                     session_id=self._current_log_session_id,
                     input_text=f"{tool_name} {' '.join(args)}",
                     execution_time_ms=duration,
-                    output_summary=f"{len(findings)} findings" if findings else f"exit: {result.exit_code}",
+                    output_summary=(
+                        f"{len(findings)} findings"
+                        if findings
+                        else f"exit: {result.exit_code}"
+                    ),
                 )
                 self._session_logger.track_tool_usage(
                     self._current_log_session_id, tool_name
@@ -1172,7 +1318,9 @@ class ExecutionEngine:
             findings=findings,
         )
 
-    async def _run_shell_step(self, step: ExecutionStep, interactive: bool) -> StepResult:
+    async def _run_shell_step(
+        self, step: ExecutionStep, interactive: bool
+    ) -> StepResult:
         """Execute a shell command (from autonomous model planning)."""
         command = step.command or ""
         if not command:
@@ -1215,6 +1363,7 @@ class ExecutionEngine:
         original_command = command
         try:
             from .permission_gate import PermissionGate
+
             gate = PermissionGate()
             gate_result = gate.check(command, tool=base_cmd)
             if gate_result.stage == "forbidden":
@@ -1225,6 +1374,7 @@ class ExecutionEngine:
                 )
             if gate_result.requires_review and interactive:
                 from .shell_review import review_and_confirm
+
                 confirmed = review_and_confirm(command, base_cmd, gate_result.reason)
                 if confirmed is None:
                     return StepResult(
@@ -1295,7 +1445,9 @@ class ExecutionEngine:
                 )
 
         # For now, provide a structured summary
-        summary = f"Analysis requested. Context from {len(context_outputs)} previous step(s)."
+        summary = (
+            f"Analysis requested. Context from {len(context_outputs)} previous step(s)."
+        )
         if context_outputs:
             summary += "\n" + "\n".join(context_outputs[:5])
 
@@ -1316,13 +1468,17 @@ class ExecutionEngine:
             metadata={"format": fmt},
         )
 
-    async def _run_parallel_step(self, step: ExecutionStep, interactive: bool) -> StepResult:
+    async def _run_parallel_step(
+        self, step: ExecutionStep, interactive: bool
+    ) -> StepResult:
         """Execute a group of steps in parallel with concurrency control."""
         sub_steps = step.metadata.get("steps", [])
         max_concurrent = step.metadata.get("max_concurrent", 3)
 
         if not sub_steps:
-            return StepResult(step_id=step.id, status=StepStatus.SKIPPED, output="No sub-steps")
+            return StepResult(
+                step_id=step.id, status=StepStatus.SKIPPED, output="No sub-steps"
+            )
 
         # Create semaphore for concurrency limit
         semaphore = asyncio.Semaphore(max_concurrent)
@@ -1363,7 +1519,11 @@ class ExecutionEngine:
         return StepResult(
             step_id=step.id,
             status=StepStatus.SUCCESS if not all_errors else StepStatus.FAILED,
-            output="\n".join(all_outputs) if all_outputs else "Parallel execution completed",
+            output=(
+                "\n".join(all_outputs)
+                if all_outputs
+                else "Parallel execution completed"
+            ),
             error="; ".join(all_errors) if all_errors else "",
             findings=all_findings,
             duration_ms=duration_ms,
@@ -1412,7 +1572,9 @@ class ExecutionEngine:
 
         # 4. Check for findings count
         if "findings.count > 0" in condition:
-            total_findings = sum(len(r.findings) for r in self._completed_steps.values())
+            total_findings = sum(
+                len(r.findings) for r in self._completed_steps.values()
+            )
             return total_findings > 0
 
         # 5. Check for port_X_open
@@ -1450,7 +1612,9 @@ class ExecutionEngine:
 
     def _record_step_feedback(self, step: ExecutionStep, sr: StepResult) -> None:
         """Feed step outcomes into XI context/predictor and skill profiler."""
-        tool_name = step.tool or (step.command.split()[0] if step.command else "analysis")
+        tool_name = step.tool or (
+            step.command.split()[0] if step.command else "analysis"
+        )
         target = step.target or ""
         self._xi_tracker.record_execution(
             tool=tool_name,
@@ -1576,7 +1740,9 @@ class ExecutionEngine:
                     s.depends_on.remove(step.id)
                     s.depends_on.append(retry_step.id)
             still_pending.insert(0, retry_step)
-            logger.info("Dynamic Mutation: Injected nmap -Pn retry step %s", retry_step.id)
+            logger.info(
+                "Dynamic Mutation: Injected nmap -Pn retry step %s", retry_step.id
+            )
 
         # Heuristic 2: Nikto Failure Fallback -> nuclei scan
         elif step.tool == "nikto" and sr.status == StepStatus.FAILED:
@@ -1592,10 +1758,16 @@ class ExecutionEngine:
                     s.depends_on.remove(step.id)
                     s.depends_on.append(fallback_step.id)
             still_pending.insert(0, fallback_step)
-            logger.info("Dynamic Mutation: Swapped/added nuclei fallback %s", fallback_step.id)
+            logger.info(
+                "Dynamic Mutation: Swapped/added nuclei fallback %s", fallback_step.id
+            )
 
         # Heuristic 3: Gobuster Zero-findings Fallback -> nikto scan
-        elif step.tool == "gobuster" and sr.status == StepStatus.SUCCESS and len(sr.findings) == 0:
+        elif (
+            step.tool == "gobuster"
+            and sr.status == StepStatus.SUCCESS
+            and len(sr.findings) == 0
+        ):
             fallback_step = ExecutionStep(
                 id=f"{step.id}_fallback_nikto",
                 step_type=StepType.TOOL_RUN,
@@ -1645,7 +1817,8 @@ class ExecutionEngine:
 
     def _parse_tool_output(self, tool_name: str, output: str) -> list[dict[str, Any]]:
         """Parse tool output using registered parsers."""
-        from .parsers import GobusterParser, NiktoParser, NmapParser, NucleiParser
+        from .parsers import (GobusterParser, NiktoParser, NmapParser,
+                              NucleiParser)
 
         parsers: dict[str, Any] = {
             "nmap": NmapParser(),
@@ -1752,9 +1925,11 @@ class ExecutionEngine:
         console.print(
             Panel(
                 "\n".join(lines),
-                title="[bold green]✨ Complete[/bold green]"
-                if result.success
-                else "[bold red]⚠ Issues[/bold red]",
+                title=(
+                    "[bold green]✨ Complete[/bold green]"
+                    if result.success
+                    else "[bold red]⚠ Issues[/bold red]"
+                ),
             )
         )
 

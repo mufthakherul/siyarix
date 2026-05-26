@@ -167,7 +167,9 @@ class KnowledgeGraph:
     def get_node(self, node_id: str) -> Node | None:
         return self._nodes.get(node_id)
 
-    def find_nodes(self, node_type: NodeType | None = None, label_contains: str = "") -> list[Node]:
+    def find_nodes(
+        self, node_type: NodeType | None = None, label_contains: str = ""
+    ) -> list[Node]:
         """Search nodes by type and/or label substring."""
         results = []
         for node in self._nodes.values():
@@ -183,7 +185,9 @@ class KnowledgeGraph:
         if node_id not in self._nodes:
             return False
         del self._nodes[node_id]
-        self._edges = [e for e in self._edges if e.source_id != node_id and e.target_id != node_id]
+        self._edges = [
+            e for e in self._edges if e.source_id != node_id and e.target_id != node_id
+        ]
         self._adjacency.pop(node_id, None)
         self._reverse_adj.pop(node_id, None)
         for adj_list in self._adjacency.values():
@@ -289,7 +293,9 @@ class KnowledgeGraph:
 
     def subgraph(self, node_type: NodeType) -> list[dict[str, Any]]:
         """Extract a subgraph containing only nodes of a given type and their edges."""
-        type_nodes = {n.node_id for n in self._nodes.values() if n.node_type == node_type}
+        type_nodes = {
+            n.node_id for n in self._nodes.values() if n.node_type == node_type
+        }
         return [
             edge.to_dict()
             for edge in self._edges
@@ -348,7 +354,9 @@ class KnowledgeGraph:
                         service,
                         discovered_by=tool,
                     )
-                    self.add_edge(port_node.node_id, svc_node.node_id, EdgeType.RUNS_SERVICE)
+                    self.add_edge(
+                        port_node.node_id, svc_node.node_id, EdgeType.RUNS_SERVICE
+                    )
 
             vuln = finding.get("title") or finding.get("vulnerability")
             if vuln:

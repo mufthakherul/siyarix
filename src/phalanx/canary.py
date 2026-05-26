@@ -57,14 +57,26 @@ class CanaryDeployment:
 
 TOKEN_TEMPLATES: dict[str, list[dict[str, Any]]] = {
     "web": [
-        {"location": "/admin.bak", "description": "Fake backup file honeypot", "type": "file"},
+        {
+            "location": "/admin.bak",
+            "description": "Fake backup file honeypot",
+            "type": "file",
+        },
         {
             "location": "/config.json",
             "description": "Fake config with honeypot keys",
             "type": "aws_key",
         },
-        {"location": "/debug.php", "description": "Fake debug endpoint honeypot", "type": "web"},
-        {"location": "/.git/config", "description": "Fake git exposure honeypot", "type": "file"},
+        {
+            "location": "/debug.php",
+            "description": "Fake debug endpoint honeypot",
+            "type": "web",
+        },
+        {
+            "location": "/.git/config",
+            "description": "Fake git exposure honeypot",
+            "type": "file",
+        },
     ],
     "dns": [
         {
@@ -79,8 +91,16 @@ TOKEN_TEMPLATES: dict[str, list[dict[str, Any]]] = {
         },
     ],
     "credential": [
-        {"location": "ssh_config", "description": "Honeypot SSH credential", "type": "credential"},
-        {"location": "ftp_config", "description": "Honeypot FTP credential", "type": "credential"},
+        {
+            "location": "ssh_config",
+            "description": "Honeypot SSH credential",
+            "type": "credential",
+        },
+        {
+            "location": "ftp_config",
+            "description": "Honeypot FTP credential",
+            "type": "credential",
+        },
     ],
 }
 
@@ -144,7 +164,9 @@ class CanaryTokenManager:
         logger.info("Deployed %d canary tokens to %s", len(deployment.tokens), target)
         return deployment
 
-    def trigger_token(self, token_id: str, source: str = "unknown") -> CanaryToken | None:
+    def trigger_token(
+        self, token_id: str, source: str = "unknown"
+    ) -> CanaryToken | None:
         token = self._tokens.get(token_id)
         if not token:
             logger.warning("Trigger for unknown canary token: %s", token_id)
@@ -155,7 +177,9 @@ class CanaryTokenManager:
         token.triggered_by = source
         self._save_tokens()
 
-        logger.warning("CANARY TRIGGERED: %s at %s (by %s)", token_id, token.location, source)
+        logger.warning(
+            "CANARY TRIGGERED: %s at %s (by %s)", token_id, token.location, source
+        )
         for handler in self._alert_handlers:
             try:
                 handler(token)

@@ -31,7 +31,9 @@ class BehavioralBaseline:
     payload_size_std: float = 1.0
     time_of_day_weights: dict[int, float] = field(default_factory=dict)
     source_ip_frequencies: dict[str, float] = field(default_factory=dict)
-    port_service_cooccurrence: dict[tuple[int, str], float] = field(default_factory=dict)
+    port_service_cooccurrence: dict[tuple[int, str], float] = field(
+        default_factory=dict
+    )
     samples_collected: int = 0
 
     @property
@@ -125,12 +127,24 @@ class AnomalyDetector:
                 cooccur_counter[(int(port), str(svc))] += 1
 
         total = len(data)
-        self._baseline.port_frequencies = {k: v / total for k, v in port_counter.items()}
-        self._baseline.service_frequencies = {k: v / total for k, v in svc_counter.items()}
-        self._baseline.protocol_frequencies = {k: v / total for k, v in proto_counter.items()}
-        self._baseline.source_ip_frequencies = {k: v / total for k, v in source_counter.items()}
-        self._baseline.time_of_day_weights = {k: v / total for k, v in hour_counter.items()}
-        self._baseline.port_service_cooccurrence = {k: v / total for k, v in cooccur_counter.items()}
+        self._baseline.port_frequencies = {
+            k: v / total for k, v in port_counter.items()
+        }
+        self._baseline.service_frequencies = {
+            k: v / total for k, v in svc_counter.items()
+        }
+        self._baseline.protocol_frequencies = {
+            k: v / total for k, v in proto_counter.items()
+        }
+        self._baseline.source_ip_frequencies = {
+            k: v / total for k, v in source_counter.items()
+        }
+        self._baseline.time_of_day_weights = {
+            k: v / total for k, v in hour_counter.items()
+        }
+        self._baseline.port_service_cooccurrence = {
+            k: v / total for k, v in cooccur_counter.items()
+        }
         self._baseline.samples_collected = total
 
         if payload_sizes:
@@ -139,7 +153,9 @@ class AnomalyDetector:
                 variance = sum(
                     (x - self._baseline.payload_size_mean) ** 2 for x in payload_sizes
                 ) / (len(payload_sizes) - 1)
-                self._baseline.payload_size_std = math.sqrt(variance) if variance > 0 else 1.0
+                self._baseline.payload_size_std = (
+                    math.sqrt(variance) if variance > 0 else 1.0
+                )
 
     def analyze(self, observation: dict[str, Any]) -> AnomalyScore:
         """Score a single observation for anomalousness."""
@@ -184,7 +200,9 @@ class AnomalyDetector:
         port = observation.get("port")
         svc = observation.get("service")
         if port and svc and self._baseline.port_service_cooccurrence:
-            freq = self._baseline.port_service_cooccurrence.get((int(port), str(svc)), 0)
+            freq = self._baseline.port_service_cooccurrence.get(
+                (int(port), str(svc)), 0
+            )
             if freq == 0:
                 factors.append(f"Rare port-service combination: {port}/{svc}")
                 features["cooccurrence_frequency"] = 0.0
@@ -255,14 +273,18 @@ class AnomalyDetector:
             )
             self._alerts.append(alert)
             self._anomaly_count += 1
-            logger.warning("Anomaly detected: %s (score=%.2f)", alert.description, score.score)
+            logger.warning(
+                "Anomaly detected: %s (score=%.2f)", alert.description, score.score
+            )
             return alert
         return None
 
     def get_alerts(self, min_severity: str = "low") -> list[AnomalyAlert]:
         severity_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
         min_rank = severity_order.get(min_severity, 0)
-        return [a for a in self._alerts if severity_order.get(a.severity, 0) >= min_rank]
+        return [
+            a for a in self._alerts if severity_order.get(a.severity, 0) >= min_rank
+        ]
 
     def stats(self) -> dict[str, Any]:
         return {

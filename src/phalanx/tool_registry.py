@@ -7,13 +7,13 @@ Includes caching to avoid repeated subprocess calls on every command.
 
 from __future__ import annotations
 
+import logging
 import os
 import platform
 import shutil
 import subprocess  # nosec B404
 import time
 from dataclasses import dataclass, field
-import logging
 
 from siyarix.executor import safe_run_sync
 
@@ -179,7 +179,13 @@ _KNOWN_TOOLS: dict[str, dict] = {
     # ── MITM / Network Attacks ───────────────────────────────────────────
     "bettercap": {
         "version_cmd": ["bettercap", "--version"],
-        "capabilities": ["mitm", "arp_spoof", "dns_spoof", "http_proxy", "network_sniff"],
+        "capabilities": [
+            "mitm",
+            "arp_spoof",
+            "dns_spoof",
+            "http_proxy",
+            "network_sniff",
+        ],
         "category": "exploit",
         "description": "Swiss-army knife for network attacks and monitoring (MITM)",
         "default_args": [],
@@ -202,7 +208,13 @@ _KNOWN_TOOLS: dict[str, dict] = {
     # ── Windows / Active Directory ─────────────────────────────────────────
     "impacket": {
         "version_cmd": ["impacket", "--version"],
-        "capabilities": ["smb_recon", "kerberoast", "wmi_exec", "pass_the_hash", "dc_sync"],
+        "capabilities": [
+            "smb_recon",
+            "kerberoast",
+            "wmi_exec",
+            "pass_the_hash",
+            "dc_sync",
+        ],
         "category": "exploit",
         "description": "Impacket — Windows protocol abuse toolkit (SMB, Kerberos, WMI)",
         "default_args": [],
@@ -378,7 +390,12 @@ _KNOWN_TOOLS: dict[str, dict] = {
     # ── Exploitation (missing) ────────────────────────────────────────────────
     "metasploit": {
         "version_cmd": ["msfconsole", "--version"],
-        "capabilities": ["exploitation", "post_exploit", "payload_gen", "auxiliary_scan"],
+        "capabilities": [
+            "exploitation",
+            "post_exploit",
+            "payload_gen",
+            "auxiliary_scan",
+        ],
         "category": "exploit",
         "description": "Metasploit Framework (alias for msfconsole)",
         "default_args": [],
@@ -659,10 +676,13 @@ class ToolRegistry:
                 return None, False
             # Use safe_run_sync to avoid accidental shell=True patterns
             result = safe_run_sync(
-                [self._wsl_binary, "-e", "sh", "-lc", f"command -v {tool_name}"], timeout=5
+                [self._wsl_binary, "-e", "sh", "-lc", f"command -v {tool_name}"],
+                timeout=5,
             )
         except Exception as exc:
-            logger.exception("WSL tool path resolution failed for %s: %s", tool_name, exc)
+            logger.exception(
+                "WSL tool path resolution failed for %s: %s", tool_name, exc
+            )
             return None, False
 
         if result.returncode != 0 or not (result.stdout or "").strip():
@@ -695,7 +715,9 @@ class ToolRegistry:
         # Invalidate cache
         self._cache = None
 
-    def discover(self, force_refresh: bool = False, fast: bool = False) -> list[ToolInfo]:
+    def discover(
+        self, force_refresh: bool = False, fast: bool = False
+    ) -> list[ToolInfo]:
         """Return a list of :class:`ToolInfo` for every tool found on PATH.
 
         Results are cached for _DISCOVERY_CACHE_TTL seconds. Pass
@@ -745,7 +767,9 @@ class ToolRegistry:
             path = shutil.which(tool_name)
             if path is None:
                 continue
-            version = "unknown" if fast_mode else self._probe_dynamic_version(tool_name, path)
+            version = (
+                "unknown" if fast_mode else self._probe_dynamic_version(tool_name, path)
+            )
             found.append(
                 ToolInfo(
                     name=meta.get("display_name", tool_name),
@@ -807,7 +831,9 @@ class ToolRegistry:
                     return line
             return "unknown"
         except Exception as exc:
-            logger.exception("Failed to probe dynamic tool version for %s: %s", name, exc)
+            logger.exception(
+                "Failed to probe dynamic tool version for %s: %s", name, exc
+            )
             return "unknown"
 
     def to_manifest(self) -> dict:
@@ -853,6 +879,7 @@ class ToolRegistry:
             List of newly registered tool names.
         """
         import time as _time
+
         path_dirs = os.environ.get("PATH", "").split(os.pathsep)
         discovered: list[str] = []
         known = set(_KNOWN_TOOLS.keys()) | set(self._dynamic_tools.keys())
@@ -896,5 +923,7 @@ class ToolRegistry:
                 continue
 
         if discovered:
-            logger.info("scan_path discovered %d new tools: %s", len(discovered), discovered)
+            logger.info(
+                "scan_path discovered %d new tools: %s", len(discovered), discovered
+            )
         return discovered

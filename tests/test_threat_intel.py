@@ -1,13 +1,17 @@
 """Tests for threat intelligence ingestion module."""
 
 import pytest
-from siyarix.threat_intel import ThreatIntelFeed, MITREAttackDB
+
+from siyarix.threat_intel import MITREAttackDB, ThreatIntelFeed
+
 pytestmark = pytest.mark.threat_intel
 
 
 class TestMITREAttackDB:
     def test_map_finding_cve(self):
-        mappings = MITREAttackDB.map_finding({"title": "CVE-2024-1234 RCE vulnerability"})
+        mappings = MITREAttackDB.map_finding(
+            {"title": "CVE-2024-1234 RCE vulnerability"}
+        )
         assert len(mappings) > 0
         assert any("T1190" in m.attack_id for m in mappings)
 
@@ -101,7 +105,11 @@ class TestThreatIntelFeed:
     def test_enrich_finding_with_mitre(self):
         feed = ThreatIntelFeed()
         enriched = feed.enrich_finding(
-            {"title": "RCE vulnerability found", "target": "10.0.0.1", "severity": "high"}
+            {
+                "title": "RCE vulnerability found",
+                "target": "10.0.0.1",
+                "severity": "high",
+            }
         )
         assert "mitre_attack" in enriched
         assert len(enriched["mitre_attack"]) > 0
@@ -121,7 +129,9 @@ class TestThreatIntelFeed:
                 ]
             }
         )
-        enriched = feed.enrich_finding({"title": "SSL cert from evil.com", "target": "evil.com"})
+        enriched = feed.enrich_finding(
+            {"title": "SSL cert from evil.com", "target": "evil.com"}
+        )
         found = enriched.get("threat_intel", [])
         assert len(found) >= 1 or "threat_intel" not in enriched
 

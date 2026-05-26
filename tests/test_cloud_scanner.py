@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from siyarix.cloud_scanner import CloudScanner, CloudScanResult, CloudProvider
+
+from siyarix.cloud_scanner import CloudProvider, CloudScanner, CloudScanResult
+
 pytestmark = pytest.mark.cloud
 
 

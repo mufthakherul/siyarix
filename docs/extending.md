@@ -1,6 +1,6 @@
 # Extending Siyarix (Plugins & Parsers)
 
-Siyarix is designed to be highly extensible. Because there are thousands of open-source security tools in the wild, we couldn't possibly support all of them out of the box. 
+Siyarix is designed to be highly extensible. Because there are thousands of open-source security tools in the wild, we couldn't possibly support all of them out of the box.
 
 Instead, we built a simple Plugin Architecture that allows anyone in the community to add support for their favorite tool.
 
@@ -31,7 +31,7 @@ from siyarix.parsers.base import BaseParser
 
 class SecScannerParser(BaseParser):
     """Parser for the sec-scanner security tool."""
-    
+
     @property
     def tool_name(self) -> str:
         return "sec-scanner"
@@ -39,12 +39,12 @@ class SecScannerParser(BaseParser):
     def parse(self, stdout: str, stderr: str = "") -> dict:
         # Here is where you write the logic to extract data from the stdout!
         results = []
-        
+
         for line in stdout.splitlines():
             if "VULNERABILITY FOUND:" in line:
                 vuln = line.split(":")[-1].strip()
                 results.append({"vulnerability": vuln, "severity": "high"})
-                
+
         return {
             "status": "success",
             "findings_count": len(results),
@@ -54,7 +54,7 @@ class SecScannerParser(BaseParser):
 ```
 
 ### 3. Register the Parser
-Once your parser is written, you need to tell the Execution Engine that it exists. 
+Once your parser is written, you need to tell the Execution Engine that it exists.
 
 Open `src/siyarix/parsers/__init__.py` and add your new class to the global parser registry map so it can be dynamically loaded.
 

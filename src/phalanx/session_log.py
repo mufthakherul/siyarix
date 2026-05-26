@@ -10,7 +10,7 @@ import json
 import logging
 import os
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -98,7 +98,9 @@ class SessionLogger:
 
     def save(self, log: SessionLog) -> Path:
         path = self._path(log.session_id)
-        path.write_text(json.dumps(log.to_dict(), indent=2, default=str), encoding="utf-8")
+        path.write_text(
+            json.dumps(log.to_dict(), indent=2, default=str), encoding="utf-8"
+        )
         return path
 
     def load(self, session_id: str) -> SessionLog | None:
@@ -116,19 +118,23 @@ class SessionLogger:
         if not self._log_dir.exists():
             return []
         logs: list[dict[str, Any]] = []
-        for path in sorted(self._log_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+        for path in sorted(
+            self._log_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
+        ):
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
-                logs.append({
-                    "session_id": data.get("session_id", path.stem),
-                    "timestamp_start": data.get("timestamp_start", ""),
-                    "timestamp_end": data.get("timestamp_end", ""),
-                    "persona": data.get("persona", ""),
-                    "llm_provider": data.get("llm_provider", ""),
-                    "commands": len(data.get("commands", [])),
-                    "tool_count": len(data.get("tool_usage", {})),
-                    "safety_events": len(data.get("safety_events", [])),
-                })
+                logs.append(
+                    {
+                        "session_id": data.get("session_id", path.stem),
+                        "timestamp_start": data.get("timestamp_start", ""),
+                        "timestamp_end": data.get("timestamp_end", ""),
+                        "persona": data.get("persona", ""),
+                        "llm_provider": data.get("llm_provider", ""),
+                        "commands": len(data.get("commands", [])),
+                        "tool_count": len(data.get("tool_usage", {})),
+                        "safety_events": len(data.get("safety_events", [])),
+                    }
+                )
             except Exception:
                 continue
         return logs
@@ -214,10 +220,12 @@ class SessionLogger:
             ],
         }
         for cmd in log.commands:
-            sarif["runs"][0]["results"].append({
-                "message": {"text": cmd.input},
-                "ruleId": f"CMD-{cmd.id:04d}",
-            })
+            sarif["runs"][0]["results"].append(
+                {
+                    "message": {"text": cmd.input},
+                    "ruleId": f"CMD-{cmd.id:04d}",
+                }
+            )
         return json.dumps(sarif, indent=2, default=str)
 
     def add_safety_event(self, session_id: str, command: str, action: str) -> bool:
@@ -243,17 +251,19 @@ class SessionLogger:
             return False
         cmd_id = len(log.commands) + 1
         ref = f"logs/{session_id}/cmd_{cmd_id:02d}_output.txt"
-        log.commands.append(CommandEntry(
-            id=cmd_id,
-            timestamp=datetime.now(timezone.utc).isoformat(),
-            input=input_text,
-            masked_input=masked_input,
-            ai_plan=ai_plan or [],
-            approved=approved,
-            execution_time_ms=execution_time_ms,
-            output_summary=output_summary,
-            full_output_ref=ref,
-        ))
+        log.commands.append(
+            CommandEntry(
+                id=cmd_id,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                input=input_text,
+                masked_input=masked_input,
+                ai_plan=ai_plan or [],
+                approved=approved,
+                execution_time_ms=execution_time_ms,
+                output_summary=output_summary,
+                full_output_ref=ref,
+            )
+        )
         self.save(log)
         return True
 

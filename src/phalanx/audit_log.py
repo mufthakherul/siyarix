@@ -329,7 +329,6 @@ class AuditLogger:
 
         # Real-time console output (stderr to avoid polluting stdout pipes)
         if RICH_AVAILABLE and os.getenv("SIYARIX_AUDIT_VERBOSE", "0") == "1":
-
             console = Console(stderr=True)
             color = _SEVERITY_COLORS.get(severity, "white")
             console.print(
@@ -344,7 +343,10 @@ class AuditLogger:
             logger.debug("SIEM dispatch error: %s", exc)
 
         # Persist every 10 events or on critical/high severity
-        if len(self._events) % 10 == 0 or severity in (AuditSeverity.CRITICAL, AuditSeverity.HIGH):
+        if len(self._events) % 10 == 0 or severity in (
+            AuditSeverity.CRITICAL,
+            AuditSeverity.HIGH,
+        ):
             self._save_events()
 
         return event
@@ -434,12 +436,16 @@ class AuditLogger:
             "total_events": len(self._events),
             "total_sessions": len(self._sessions),
             "by_type": {
-                et: len([e for e in self._events if e.event_type == et]) for et in AuditEventType
+                et: len([e for e in self._events if e.event_type == et])
+                for et in AuditEventType
             },
             "by_severity": {
-                s: len([e for e in self._events if e.severity == s]) for s in AuditSeverity
+                s: len([e for e in self._events if e.severity == s])
+                for s in AuditSeverity
             },
-            "active_sessions": len([s for s in self._sessions.values() if not s.end_time]),
+            "active_sessions": len(
+                [s for s in self._sessions.values() if not s.end_time]
+            ),
             "retention_days": self._RETENTION_DAYS,
         }
 
@@ -465,4 +471,6 @@ def log_event(
     details: dict | None = None,
 ) -> AuditEvent:
     """Convenience function to log event"""
-    return audit.log(event_type, severity, user, action, result, target, session_id, details)
+    return audit.log(
+        event_type, severity, user, action, result, target, session_id, details
+    )

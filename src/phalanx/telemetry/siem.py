@@ -46,7 +46,9 @@ class SplunkHECConnector(SIEMConnector):
         self.endpoint = endpoint
         self.headers = {"Authorization": f"Splunk {token}"}
         # Use an async client pool for efficiency
-        self.client = httpx.AsyncClient(headers=self.headers, verify=False)  # nosec B501
+        self.client = httpx.AsyncClient(
+            headers=self.headers, verify=False
+        )  # nosec B501
 
     async def forward_event(self, event: dict[str, Any]) -> bool:
         payload = {
@@ -70,7 +72,9 @@ class SplunkHECConnector(SIEMConnector):
 class ElasticSIEMConnector(SIEMConnector):
     """ElasticSearch connector."""
 
-    def __init__(self, endpoint: str, api_key: str, index: str = "siyarix-audit") -> None:
+    def __init__(
+        self, endpoint: str, api_key: str, index: str = "siyarix-audit"
+    ) -> None:
         if not HAS_HTTPX:
             raise ImportError(
                 "httpx is required for ElasticSIEMConnector. Install with: pip install siyarix[siem]"

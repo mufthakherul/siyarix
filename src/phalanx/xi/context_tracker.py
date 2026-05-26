@@ -122,8 +122,23 @@ class ContextTracker:
             "assetfinder",
         }
         scan_tools = {"nmap", "masscan", "rustscan", "zmap", "unicornscan"}
-        enum_tools = {"gobuster", "ffuf", "dirb", "dirsearch", "nikto", "wpscan", "nuclei"}
-        exploit_tools = {"sqlmap", "hydra", "john", "hashcat", "msfconsole", "metasploit"}
+        enum_tools = {
+            "gobuster",
+            "ffuf",
+            "dirb",
+            "dirsearch",
+            "nikto",
+            "wpscan",
+            "nuclei",
+        }
+        exploit_tools = {
+            "sqlmap",
+            "hydra",
+            "john",
+            "hashcat",
+            "msfconsole",
+            "metasploit",
+        }
 
         if tool_lower in recon_tools or "recon" in cmd_lower:
             self._phase = OperationPhase.RECON

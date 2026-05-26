@@ -66,7 +66,7 @@ from .shell_knowledge import (CROSS_PLATFORM_COMMANDS, INTENT_METADATA,
                               get_security_commands, get_shell_platform,
                               list_supported_shells, normalize_shell)
 from .tool_registry import ToolRegistry
-from .ux import OnboardingWizard, SplitPane
+
 from .validators import validate_target
 from .xi import XICoreService
 
@@ -769,9 +769,6 @@ app.add_typer(bulk_app, name="bulk")
 
 watch_app = typer.Typer(help="👁 Watch mode & live monitoring")
 app.add_typer(watch_app, name="watch")
-
-dashboard_app = typer.Typer(help="📊 Live security dashboard")
-app.add_typer(dashboard_app, name="dashboard")
 
 tool_registry_app = typer.Typer(help="🛠 Tool discovery & registry")
 app.add_typer(tool_registry_app, name="tool-registry")
@@ -1659,130 +1656,6 @@ def metrics_show(
 
 
 # ---------------------------------------------------------------------------
-# Premium: Dashboard command
-# ---------------------------------------------------------------------------
-@dashboard_app.command("show")
-def show(
-    refresh: int = typer.Option(
-        5, "--refresh", "-r", help="Refresh interval (seconds)"
-    ),
-    export: str = typer.Option("", "--export", "-e", help="Export snapshot to file"),
-    panel: str = typer.Option(
-        "attack_map",
-        "--panel",
-        "-p",
-        help="Right pane view: attack_map|timeline|metrics|cheatsheet",
-    ),
-    target: str = typer.Option("", "--target", "-t", help="Target context to analyze"),
-) -> None:
-    """Show live security dashboard using premium SplitPane layout."""
-    from .session_manager import session_registry
-
-    store = OfflineStore()
-    metrics = get_metrics().to_dict()
-    scans = store.list_scans(limit=20)
-    plans = store.list_plans(limit=20)
-
-    total_findings = sum(s.get("total_findings", 0) for s in scans)
-    latest_scan = scans[0]["created_at"] if scans else "—"
-
-    # Fetch recent session or construct metadata
-    recent_sessions = session_registry.list_sessions(limit=1)
-    recent_session = recent_sessions[0] if recent_sessions else None
-
-    class SessionMetaMock:
-        def __init__(self, target_val: str):
-            self.target = target_val
-
-    tgt = target or (recent_session.target if recent_session else "127.0.0.1")
-    session_meta = SessionMetaMock(tgt)
-
-    findings_list: list = []
-    for s in scans:
-        if "findings" in s and isinstance(s["findings"], list):
-            findings_list.extend(s["findings"])
-        elif "all_findings" in s and isinstance(s["all_findings"], list):
-            findings_list.extend(s["all_findings"])
-
-    timeline_events: list = []
-
-    # Left pane layout
-    left_table = Table(box=None, header_style="bold cyan")
-    left_table.add_column("Security Parameter", style="white")
-    left_table.add_column("Value", style="bold green", justify="right")
-
-    left_table.add_row("Total Scans", str(metrics["execution"]["total_scans"]))
-    left_table.add_row(
-        "Successful Scans", str(metrics["execution"]["successful_scans"])
-    )
-    left_table.add_row("Failed Scans", str(metrics["execution"]["failed_scans"]))
-    left_table.add_row("Total Findings", str(total_findings))
-    left_table.add_row("Plans Tracked", str(len(plans)))
-    left_table.add_row("Latest Scan", latest_scan)
-
-    left_content = Table.grid(padding=1)
-    left_content.add_row("[bold cyan]🛡️ SIYARIX OPERATIONS METRICS[/bold cyan]\n")
-    left_content.add_row(left_table)
-
-    if plans:
-        plan_table = Table(
-            title="Recent Plans",
-            show_header=True,
-            header_style="bold dim cyan",
-            box=None,
-        )
-        plan_table.add_column("Plan ID", style="magenta")
-        plan_table.add_column("Created", style="dim")
-        for p in plans[:5]:
-            p_id = p.get("plan_id") or p.get("id") or "—"
-            plan_table.add_row(str(p_id)[:8], p.get("created_at", "—"))
-        left_content.add_row("\n")
-        left_content.add_row(plan_table)
-
-    sp = SplitPane(theme=_active_theme)
-    layout = sp.generate_layout(
-        left_renderable=left_content,
-        right_type=panel,
-        session_meta=session_meta,
-        findings=findings_list,
-        timeline_events=timeline_events,
-    )
-
-    console.print(layout)
-
-    if export:
-        snapshot = {
-            "metrics": metrics,
-            "total_findings": total_findings,
-            "latest_scan": latest_scan,
-            "plans_count": len(plans),
-        }
-        Path(export).write_text(json.dumps(snapshot, indent=2))
-        console.print(f"[dim]Exported snapshot to {export}[/dim]")
-
-
-@dashboard_app.callback(invoke_without_command=True)
-def dashboard_callback(
-    ctx: typer.Context,
-    refresh: int = typer.Option(
-        5, "--refresh", "-r", help="Refresh interval (seconds)"
-    ),
-    export: str = typer.Option("", "--export", "-e", help="Export snapshot to file"),
-    panel: str = typer.Option(
-        "attack_map",
-        "--panel",
-        "-p",
-        help="Right pane view: attack_map|timeline|metrics|cheatsheet",
-    ),
-    target: str = typer.Option("", "--target", "-t", help="Target context to analyze"),
-) -> None:
-    """Live system dashboard showing visual attack maps, metrics, timelines, and cheatsheets."""
-    if ctx.invoked_subcommand is not None:
-        return
-    show(refresh=refresh, export=export, panel=panel, target=target)
-
-
-# ---------------------------------------------------------------------------
 # Premium: Bulk operations
 # ---------------------------------------------------------------------------
 @bulk_app.command("scan")
@@ -2660,16 +2533,6 @@ def plugin_install(
 # ---------------------------------------------------------------------------
 # Note: theme commands are defined earlier; duplicate premium-themed handlers removed to
 # avoid redefinition and typing conflicts.
-
-
-# ---------------------------------------------------------------------------
-# Guided Setup Wizard
-# ---------------------------------------------------------------------------
-@app.command()
-def wizard() -> None:
-    """Launch the interactive guided onboarding setup wizard."""
-    wiz = OnboardingWizard()
-    wiz.run()
 
 
 # ---------------------------------------------------------------------------

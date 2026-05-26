@@ -7,17 +7,22 @@ Includes caching to avoid repeated subprocess calls on every command.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import platform
+import re
 import shutil
 import subprocess  # nosec B404
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from phalanx.executor import safe_run_sync
 
 logger = logging.getLogger(__name__)
+
+_EXTERNAL_METADATA_FILE = Path(__file__).resolve().parent / "data" / "tool_metadata.json"
 
 # ---------------------------------------------------------------------------
 # Known tools registry — the REGISTRY component
@@ -652,6 +657,7 @@ class ToolRegistry:
         self._wsl_binary = shutil.which("wsl")
         self._cache: list[ToolInfo] | None = None
         self._cache_time: float = 0.0
+        self._external_metadata: dict[str, dict] = self._load_external_metadata()
 
     def _wsl_discovery_enabled(self) -> bool:
         raw = os.getenv("PHALANX_ENABLE_WSL_DISCOVERY", "1").strip().lower()
@@ -689,6 +695,99 @@ class ToolRegistry:
             return None, False
 
         return self._wsl_binary, True
+
+    def _load_external_metadata(self) -> dict[str, dict]:
+        """Load tool metadata from the external JSON file."""
+        f = _EXTERNAL_METADATA_FILE
+        if not f.exists():
+            return {}
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            logger.debug("Loaded %d entries from %s", len(data), f)
+            return data
+        except Exception as exc:
+            logger.warning("Failed to load tool metadata from %s: %s", f, exc)
+            return {}
+
+    def _lookup_external_metadata(self, name: str) -> dict | None:
+        """Look up a tool in external metadata, then known tools, then infer from help."""
+        meta = self._external_metadata.get(name)
+        if meta:
+            return meta
+        meta = _KNOWN_TOOLS.get(name)
+        if meta:
+            return meta
+        return None
+
+    def _infer_capabilities(self, name: str, binary_path: str) -> dict:
+        """Run --help on a binary and infer capabilities from output text."""
+        _HELP_PATTERNS: list[tuple[re.Pattern, str]] = [
+            (re.compile(r"port\s*scan|nmap|masscan"), "port_scan"),
+            (re.compile(r"service\s*(detect|version|probe)"), "service_detect"),
+            (re.compile(r"os\s*(detect|fingerprint|identify)"), "os_detect"),
+            (re.compile(r"dns|domain|subdomain|resolv|dig"), "dns_recon"),
+            (re.compile(r"subdomain|subdomain_enum"), "subdomain_enum"),
+            (re.compile(r"whois|osint|passive|recon"), "osint"),
+            (re.compile(r"vuln|vulnerability|cve|cvss"), "vuln_detect"),
+            (re.compile(r"web\s*(scan|app|server)"), "web_scan"),
+            (re.compile(r"dir.*(enum|bust)|gobuster|dirb"), "dir_enum"),
+            (re.compile(r"fuzz|ffuf|wfuzz|param"), "fuzzing"),
+            (re.compile(r"sql|sqli|injection|database"), "sqli"),
+            (re.compile(r"brute|bruteforce|hydra"), "brute_force"),
+            (re.compile(r"password|credential|hash|john"), "password_crack"),
+            (re.compile(r"exploit|msf|metasploit"), "exploitation"),
+            (re.compile(r"post.*exploit"), "post_exploit"),
+            (re.compile(r"mitm|arp.*spoof|ettercap"), "mitm"),
+            (re.compile(r"sniff|packet|tcpdump|tshark"), "packet_sniff"),
+            (re.compile(r"wireless|wifi|aircrack"), "wireless_attack"),
+            (re.compile(r"cloud|aws|azure|gcp|s3"), "cloud_enum"),
+            (re.compile(r"docker|podman|container"), "container_runtime"),
+            (re.compile(r"k8s|kubernetes|kubectl"), "k8s_manage"),
+            (re.compile(r"terraform|ansible|iac"), "iac_plan"),
+            (re.compile(r"social.*eng|phish|setoolkit"), "social_engineering"),
+            (re.compile(r"reverse.*shell|payload"), "reverse_shell"),
+            (re.compile(r"proxy|tunnel|chisel"), "proxy"),
+            (re.compile(r"forensic|volatility|sleuth"), "forensics"),
+            (re.compile(r"secret|gitleaks|trufflehog"), "secret_scan"),
+            (re.compile(r"ldap|kerberos|bloodhound"), "ad_recon"),
+            (re.compile(r"samba|smb|cifs|netbios"), "smb_recon"),
+            (re.compile(r"cert|tls|ssl|https"), "certificate_scan"),
+            (re.compile(r"api|rest|graphql"), "api_scan"),
+        ]
+        _EXCLUDE = [re.compile(r"usage:\s+python\d*\s+-m", re.I), re.compile(r"no\s+help|unrecognized", re.I)]
+        caps: set[str] = set()
+        for flag in ("--help", "-h"):
+            try:
+                r = subprocess.run([binary_path, flag], capture_output=True, text=True, timeout=5)
+                text = (r.stdout + r.stderr).lower()
+                if any(p.search(text) for p in _EXCLUDE):
+                    continue
+                for pattern, cap in _HELP_PATTERNS:
+                    if pattern.search(text):
+                        caps.add(cap)
+                if not caps and len(text.strip()) > 50:
+                    caps.add("cli_tool")
+            except (OSError, subprocess.TimeoutExpired):
+                continue
+        if not caps:
+            return {}
+        category = next((_CAT_MAP[c] for c in caps if c in _CAT_MAP), "tool")
+        return {"capabilities": sorted(caps), "category": category, "description": f"{name} — inferred from --help"}
+
+    _CAT_MAP = {
+        "dns_recon": "recon", "port_scan": "recon", "osint": "recon",
+        "web_scan": "web", "dir_enum": "web", "fuzzing": "web", "sqli": "web",
+        "vuln_detect": "vuln", "cve_scan": "vuln",
+        "brute_force": "exploit", "password_crack": "exploit", "exploitation": "exploit",
+        "mitm": "exploit", "ad_recon": "exploit", "smb_recon": "exploit",
+        "social_engineering": "social",
+        "wireless_attack": "wireless",
+        "cloud_enum": "cloud",
+        "container_runtime": "infra", "k8s_manage": "infra", "iac_plan": "infra",
+        "forensics": "forensics", "packet_sniff": "recon",
+        "secret_scan": "web", "reverse_shell": "exploit", "proxy": "exploit",
+        "certificate_scan": "recon", "api_scan": "web",
+    }
 
     def register_dynamic(
         self,
@@ -762,7 +861,7 @@ class ToolRegistry:
                 )
             )
 
-        # Dynamic tools
+        # Dynamic tools (include auto-detected from scan_path)
         for tool_name, meta in self._dynamic_tools.items():
             path = shutil.which(tool_name)
             if path is None:
@@ -770,15 +869,31 @@ class ToolRegistry:
             version = (
                 "unknown" if fast_mode else self._probe_dynamic_version(tool_name, path)
             )
+            # Try to enrich empty capabilities from external metadata
+            caps = list(meta.get("capabilities", []))
+            cat = meta.get("category", "custom")
+            desc = meta.get("description", "")
+            if not caps or cat == "auto-detect":
+                ext = self._lookup_external_metadata(tool_name)
+                if ext:
+                    caps = list(ext.get("capabilities", caps))
+                    cat = ext.get("category", cat)
+                    desc = ext.get("description", desc)
+                elif not caps and path:
+                    inferred = self._infer_capabilities(tool_name, path)
+                    if inferred:
+                        caps = list(inferred.get("capabilities", caps))
+                        cat = inferred.get("category", cat)
+                        desc = inferred.get("description", desc)
             found.append(
                 ToolInfo(
                     name=meta.get("display_name", tool_name),
                     binary=tool_name,
                     path=path,
                     version=version,
-                    capabilities=list(meta.get("capabilities", [])),
-                    category=meta.get("category", "custom"),
-                    description=meta.get("description", ""),
+                    capabilities=caps,
+                    category=cat,
+                    description=desc,
                     default_args=list(meta.get("default_args", [])),
                     is_dynamic=True,
                 )

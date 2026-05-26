@@ -322,6 +322,19 @@ class AnthropicAdapter(Provider):
         return None
 
 
+class OpenCodeAdapter(OpenAIAdapter):
+    """Adapter for OpenCode API (OpenAI-compatible)."""
+
+    BASE_URL = "https://api.opencode.ai/v1"
+    DEFAULT_MODEL = "deepseek-v4-flash-free"
+
+    def __init__(
+        self, api_key: str | None = None, model: str = DEFAULT_MODEL
+    ) -> None:
+        model_cls = _PlannerModelLazy.get("OpenAIModel")
+        self._impl = model_cls(api_key=api_key, model=model, base_url=self.BASE_URL)
+
+
 # Register adapter classes in the registry
 registry.register("openai", OpenAIAdapter)
 registry.register("gemini", GeminiAdapter)
@@ -332,10 +345,11 @@ registry.register("together", TogetherAdapter)
 registry.register("lmstudio", LMStudioAdapter)
 registry.register("custom", CustomAdapter)
 registry.register("anthropic", AnthropicAdapter)
+registry.register("opencode", OpenCodeAdapter)
 
 __all__ = [
     "Provider", "ProviderRegistry", "NoopProvider", "registry",
     "OpenAIAdapter", "GeminiAdapter", "OllamaAdapter", "CloudAdapter",
     "GroqAdapter", "TogetherAdapter", "LMStudioAdapter", "CustomAdapter",
-    "AnthropicAdapter",
+    "AnthropicAdapter", "OpenCodeAdapter",
 ]

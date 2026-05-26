@@ -50,11 +50,11 @@ BUILTIN_ACHIEVEMENTS: list[Achievement] = [
     Achievement(id="stealth_ten", name="Stealth Operator", description="Complete 10 scans without IDS triggers", icon="👻", category="stealth", tier="silver", target=10),
     Achievement(id="first_learning", name="Student", description="Complete your first learning module", icon="📚", category="learning", tier="bronze", target=1),
     Achievement(id="ten_learning", name="Scholar", description="Complete 10 learning modules", icon="🎓", category="learning", tier="silver", target=10),
-    Achievement(id="first_collab", name="Team Player", description="Join your first collaboration session", icon="🤝", category="collaboration", tier="bronze", target=1),
+
     Achievement(id="first_plugin", name="Extensible", description="Install your first plugin", icon="🔌", category="plugins", tier="bronze", target=1),
     Achievement(id="first_report", name="Reporter", description="Generate your first report", icon="📊", category="reporting", tier="bronze", target=1),
     Achievement(id="first_playbook", name="Playbook Author", description="Create your first playbook", icon="📖", category="playbooks", tier="silver", target=1),
-    Achievement(id="first_ctf", name="CTF Competitor", description="Join your first CTF challenge", icon="🏁", category="community", tier="bronze", target=1),
+
     Achievement(id="first_agent", name="Commander", description="Spawn your first sub-agent", icon="🤖", category="agents", tier="bronze", target=1),
     Achievement(id="perfect_scan", name="Perfectionist", description="Complete a scan with zero failed steps", icon="✨", category="scanning", tier="silver", target=1),
     Achievement(id="first_mobile", name="Mobile Hunter", description="Scan your first mobile application", icon="📱", category="mobile", tier="bronze", target=1),
@@ -169,9 +169,6 @@ class AchievementSystem:
         elif event_type == "learning_module":
             self.progress("first_learning")
             self.progress("ten_learning")
-
-        elif event_type == "collaboration":
-            self.progress("first_collab")
 
         elif event_type == "plugin_install":
             self.progress("first_plugin")

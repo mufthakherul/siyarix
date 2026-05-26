@@ -228,13 +228,7 @@ _SLASH_HELP = {
     "/work-mode list": "List all available personas (built-in + custom)",
     "/work-mode auto": "Enable auto persona detection mode",
     "/config tool": "Show tool ACL configuration for active persona",
-    "/collab create <name>": "Create a new team collaboration session",
-    "/collab list": "List active collaboration sessions",
-    "/collab join <id>": "Join an existing collaboration session",
-    "/collab send <msg>": "Broadcast message to collab session",
-    "/collab status": "Show collaboration session status",
-    "/collab ssh <id>": "SSH into a collaboration session",
-    "/collab disconnect": "Disconnect from collaboration session",
+
     "/coder generate <prompt>": "Generate code using AI provider",
     "/coder review <file>": "Review a code file for issues",
     "/mcp connect <url>": "Connect to an MCP server",
@@ -281,8 +275,7 @@ _SLASH_HELP = {
     "/compliance run --framework <fw> <target>": "Compliance framework assessment (pci-dss|iso-27001|nist-800-53|soc2|gdpr|hipaa)",
     "/opsec isolate|burn|status|disable": "Operational security measures",
     "/siem connect|status|forward <platform> <url>": "SIEM/SOAR integration",
-    "/challenge list|join|hint|submit|leaderboard": "CTF challenge participation",
-    "/community leaderboard|profile|register": "Community features and leaderboard",
+
     "/performance status|tune|configure": "Performance optimization",
     "/cache status|clear|invalidate [domain]": "Cache management",
     "/distributed status|configure|nodes": "Multi-node distributed execution",
@@ -296,7 +289,6 @@ _SLASH_HELP = {
     "/canary deploy|list|status": "Deploy and monitor canary deception tokens",
     "/stealth status|on|off|level <l>": "Evasion and stealth configuration",
     "/audit export|status|verify": "Audit log export and chain verification",
-    "/team list|invite|roles": "Team management and role listing",
 }
 
 # Mode number → (name, engine_mode, description)
@@ -308,7 +300,6 @@ _MODE_MAP: dict[str, tuple[str, str, str]] = {
     "5": ("Workflow Automation", "integrated", "Launch: phalanx workflow run <yaml>"),
     "6": ("TUI Dashboard", "integrated", "Launch: phalanx dashboard"),
     "7": ("Guided Wizard", "integrated", "Launch: phalanx wizard"),
-    "8": ("Team Collaboration", "integrated", "Launch: phalanx team --session <name>"),
     "9": ("Headless API", "integrated", "Launch: phalanx serve --port 8080"),
 }
 
@@ -519,7 +510,6 @@ class PhalanxChat:
             "/report": self._cmd_report,
             "/work-mode": self._cmd_work_mode,
             "/config": self._cmd_config,
-            "/collab": self._cmd_collab,
             "/coder": self._cmd_coder,
             "/mcp": self._cmd_mcp,
             "/agent": self._cmd_agent,
@@ -540,8 +530,6 @@ class PhalanxChat:
             "/compliance": self._cmd_compliance,
             "/opsec": self._cmd_opsec,
             "/siem": self._cmd_siem,
-            "/challenge": self._cmd_challenge,
-            "/community": self._cmd_community,
             "/performance": self._cmd_performance,
             "/cache": self._cmd_cache,
             "/distributed": self._cmd_distributed,
@@ -555,7 +543,6 @@ class PhalanxChat:
             "/canary": self._cmd_canary,
             "/stealth": self._cmd_stealth,
             "/audit": self._cmd_audit,
-            "/team": self._cmd_team,
         }
 
         # Handle /1 through /9 mode shortcuts
@@ -1573,74 +1560,6 @@ class PhalanxChat:
         else:
             console.print("[yellow]Usage: /config tool|masking|stealth[/yellow]")
 
-    async def _cmd_collab(self, args: str) -> None:
-        """Handle /collab command for team collaboration."""
-        from .collaboration import CollaborationManager, CollabSession
-
-        tokens = args.split() if args else []
-        action = tokens[0].lower() if tokens else ""
-        mgr = CollaborationManager()
-
-        if action == "create":
-            name = " ".join(tokens[1:]) if len(tokens) > 1 else ""
-            if not name:
-                name = Prompt.ask("Session name")
-            session = mgr.create_session(
-                name,
-                host=os.environ.get("USER", "unknown"),
-                target=self._session.target,
-            )
-            console.print(
-                f"[green]✓ Created collaboration session: {session.name}[/green]"
-            )
-            console.print(f"[dim]ID: {session.session_id}[/dim]")
-            console.print("[dim]Share this ID for others to join.[/dim]")
-        elif action == "list":
-            sessions = mgr.list_sessions()
-            mgr.show_table(sessions)
-        elif action == "join":
-            if len(tokens) < 2:
-                console.print("[yellow]Usage: /collab join <session_id>[/yellow]")
-                return
-            session_id = tokens[1]
-            session = CollabSession.load(session_id)
-            if not session:
-                console.print(f"[red]Session not found: {session_id}[/red]")
-                return
-            name = Prompt.ask(
-                "Your display name", default=os.environ.get("USER", "anonymous")
-            )
-            session.add_member(name)
-            console.print(f"[green]✓ Joined session '{session.name}' as {name}[/green]")
-        elif action == "send":
-            if len(tokens) < 2:
-                console.print("[yellow]Usage: /collab send <message>[/yellow]")
-                return
-            message = " ".join(tokens[1:])
-            sessions = mgr.list_sessions()
-            if not sessions:
-                console.print("[yellow]No active sessions.[/yellow]")
-                return
-            session = CollabSession.load(sessions[0]["session_id"])
-            if session:
-                session.broadcast(os.environ.get("USER", "anonymous"), message)
-                console.print("[green]✓ Message broadcast to session.[/green]")
-        elif action == "status":
-            sessions = mgr.list_sessions()
-            console.print(f"[bold]Collaboration:[/bold] {len(sessions)} active session(s)")
-            for s in sessions:
-                console.print(f"  • {s.get('session_id','?')[:8]} — {s.get('name','?')} ({s.get('member_count',0)} members)")
-        elif action == "ssh":
-            if len(tokens) < 2:
-                console.print("[yellow]Usage: /collab ssh <session_id>[/yellow]")
-                return
-            console.print("[yellow]SSH collaboration requires the Phalanx SSH gateway service running on the host.[/yellow]")
-            console.print(f"[dim]To connect: ssh phalanx@{socket.gethostname()} -- session {tokens[1]}[/dim]")
-        elif action == "disconnect":
-            console.print("[green]Disconnected from collaboration session.[/green]")
-        else:
-            console.print("[yellow]Usage: /collab create|list|join|send|status|ssh|disconnect[/yellow]")
-
     async def _cmd_coder(self, args: str) -> None:
         """Handle /coder command for code generation and review."""
         from .coder_bridge import CoderBridge
@@ -2600,54 +2519,6 @@ class PhalanxChat:
             summary = platform_integration.summary()
             console.print(f"SIEM connections: {summary.get('siem_connections', 0)}")
 
-    async def _cmd_challenge(self, args: str) -> None:
-        """Handle /challenge command for CTF participation."""
-        from .challenge import challenge_system
-        tokens = args.split() if args else []
-        if not tokens or tokens[0] not in ("list", "join", "hint", "submit", "leaderboard"):
-            console.print("[yellow]Usage: /challenge list|join|hint|submit|leaderboard[/yellow]")
-            return
-        if tokens[0] == "list":
-            challenges = challenge_system.list_active()
-            for c in challenges:
-                console.print(f"  [{c.difficulty}] {c.name}: {c.description} (target: {c.target})")
-        elif tokens[0] == "join":
-            cid = tokens[1] if len(tokens) > 1 else ""
-            username = tokens[2] if len(tokens) > 2 else "anonymous"
-            p = challenge_system.join(cid, username)
-            console.print(f"[green]Joined challenge: {cid}[/green]" if p else "[red]Challenge not found[/red]")
-        elif tokens[0] == "hint":
-            cid = tokens[1] if len(tokens) > 1 else ""
-            idx = int(tokens[2]) - 1 if len(tokens) > 2 else 0
-            hint = challenge_system.get_hint(cid, "anonymous", idx)
-            console.print(f"[yellow]Hint: {hint}[/yellow]" if hint else "[red]No more hints[/red]")
-        elif tokens[0] == "leaderboard":
-            cid = tokens[1] if len(tokens) > 1 else ""
-            board = challenge_system.get_leaderboard(cid)
-            for entry in board[:10]:
-                console.print(f"  #{entry.rank} {entry.username}: {entry.score} pts (flags: {entry.flags_found})")
-
-    async def _cmd_community(self, args: str) -> None:
-        """Handle /community command for leaderboard and sharing."""
-        from .community import community_service
-        tokens = args.split() if args else []
-        if not tokens or tokens[0] not in ("leaderboard", "profile", "register"):
-            console.print("[yellow]Usage: /community leaderboard|profile|register <username>[/yellow]")
-            return
-        if tokens[0] == "register":
-            username = tokens[1] if len(tokens) > 1 else "user"
-            community_service.register(username)
-            console.print(f"[green]Registered: {username}[/green]")
-        elif tokens[0] == "leaderboard":
-            board = community_service.get_leaderboard(limit=15)
-            for entry in board:
-                console.print(f"  #{entry.rank} {entry.username}: {entry.score} pts ({entry.scans} scans, {entry.findings} findings)")
-        elif tokens[0] == "profile":
-            username = tokens[1] if len(tokens) > 1 else ""
-            profile = community_service.get_profile(username)
-            if profile:
-                console.print(f"User: {profile.username} | Scans: {profile.total_scans} | Findings: {profile.total_findings} | Rep: {profile.reputation}")
-
     async def _cmd_performance(self, args: str) -> None:
         """Handle /performance command for resource optimization."""
         from .performance import performance_optimizer
@@ -2928,26 +2799,6 @@ class PhalanxChat:
             console.print(f"[{'green' if valid else 'red'}]Chain integrity: {'VALID' if valid else 'COMPROMISED'}[/]")
         else:
             console.print("[yellow]Usage: /audit export|status|verify[/yellow]")
-
-    async def _cmd_team(self, args: str) -> None:
-        """Handle /team command for team management."""
-        from .persona_engine import PersonaEngine
-        tokens = args.split() if args else []
-        action = tokens[0].lower() if tokens else "list"
-        if action == "list":
-            console.print("[dim]Team members managed via persona ACL. Use /config tool to see permissions.[/dim]")
-            console.print("[yellow]For multi-user collaboration, use: phalanx team invite (CLI)[/yellow]")
-        elif action == "invite":
-            member = tokens[1] if len(tokens) > 1 else Prompt.ask("Member name/email")
-            console.print(f"[green]✓ Invitation sent to {member}[/green]")
-            console.print("[yellow]The invited member can join with: phalanx team --session <name>[/yellow]")
-        elif action == "roles":
-            engine = PersonaEngine()
-            personas = engine.list_personas()
-            for p in personas:
-                console.print(f"  • {p.name}: {p.role} — {p.description[:60]}")
-        else:
-            console.print("[yellow]Usage: /team list|invite|roles[/yellow]")
 
     # ──────────────────────────────────────────────────────────────────────
     # Natural language processing

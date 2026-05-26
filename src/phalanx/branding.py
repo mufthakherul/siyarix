@@ -223,17 +223,9 @@ _MODES: list[dict[str, str]] = [
     {
         "num": "8",
         "key": "[8]",
-        "name": "Team Collaboration",
-        "cmd": "phalanx team --session ops-room-1",
-        "shortcut": "/8",
-        "desc": "Shared real-time session",
-    },
-    {
-        "num": "9",
-        "key": "[9]",
         "name": "Headless API",
         "cmd": "phalanx serve --port 8080",
-        "shortcut": "/9",
+        "shortcut": "/8",
         "desc": "REST/WebSocket API server",
     },
 ]

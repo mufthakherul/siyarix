@@ -3196,27 +3196,35 @@ class PhalanxChat:
     # ──────────────────────────────────────────────────────────────────────
 
     def _print_welcome(self) -> None:
-        """Print the welcome banner."""
+        """Print the welcome banner with system status overview."""
         try:
             from importlib.metadata import version as _pv
-
             ver = _pv("phalanx")
-        except Exception as exc:
-            logger.debug("Failed to resolve package version: %s", exc)
-            ver = "1.2.0"
+        except Exception:
+            ver = "2.0.0"
 
         shell_info = get_shell_platform()
         theme = self._settings.get("color_theme")
         provider = self._settings.get("model_provider")
-        gemini_model = self._settings.get("gemini_model")
 
-        # Gather concise provider status (avoid network calls on startup)
         provider_status = self._gather_provider_status()
+
+        # Gather system stats from offline store
+        scans_count = 0
+        findings_count = 0
+        try:
+            from .offline_store import OfflineStore
+            store = OfflineStore()
+            stats = store.stats()
+            scans_count = stats.get("total_scans", 0)
+            findings_count = stats.get("total_findings", 0)
+        except Exception:
+            pass
 
         console.print(
             Panel(
-                f"[bold cyan]Phalanx[/bold cyan] [green]v{ver}[/green] — [bold]AI Cybersecurity Agent[/bold]\n\n"
-                f"[dim]A polished terminal copilot for security work — plan, inspect, and execute from one shell.[/dim]",
+                f"[bold cyan]Phalanx[/bold cyan] [green]v{ver}[/green] — [bold]AI Cybersecurity Agent[/bold]\n"
+                f"[dim]Terminal copilot for security work — plan, inspect, execute from one shell.[/dim]",
                 title="[bold]⚡ Phalanx Command Center[/bold]",
                 border_style="cyan",
                 padding=(1, 2),
@@ -3237,21 +3245,31 @@ class PhalanxChat:
                         padding=(1, 2),
                     ),
                     Panel(
-                        "[bold]/help[/bold] — command map\n"
-                        "[bold]/tools[/bold] — discover tools\n"
-                        "[bold]/palette[/bold] — quick launcher\n"
-                        "[bold]/key set ...[/bold] — store API keys\n"
-                        "[bold]/theme mode ...[/bold] — switch appearance",
+                        f"[bold]Scans:[/bold] {scans_count}\n"
+                        f"[bold]Findings:[/bold] {findings_count}\n"
+                        f"[bold]Tools:[/bold] {len(self._tools)}\n"
+                        f"[bold]Commands:[/bold] {len(self._commands)}\n"
+                        f"[bold]Hotkeys:[/bold] /help · /exit",
+                        title="System",
+                        border_style="blue",
+                        padding=(1, 2),
+                    ),
+                    Panel(
+                        "[bold]/help[/bold] — command reference\n"
+                        "[bold]/scan <tgt>[/bold] — run a scan\n"
+                        "[bold]/run <cmd>[/bold] — natural language\n"
+                        "[bold]/key set[/bold] — API key management\n"
+                        "[bold]/theme[/bold] — switch appearance",
                         title="Quick Actions",
                         border_style="magenta",
                         padding=(1, 2),
                     ),
                     Panel(
-                        f"[bold]OpenAI:[/bold] {provider_status.get('openai', ('✗', ''))[0]} {provider_status.get('openai', ('', ''))[1]}\n"
-                        f"[bold]Gemini:[/bold] {provider_status.get('gemini', ('✗', ''))[0]} {provider_status.get('gemini', ('', ''))[1]}\n"
-                        f"[bold]Gemini model:[/bold] {gemini_model}\n"
-                        f"[bold]Ollama:[/bold] {provider_status.get('ollama', ('✗', ''))[0]} {provider_status.get('ollama', ('', ''))[1]}\n"
-                        f"[bold]Hotkeys:[/bold] Ctrl+C / /exit",
+                        f"[bold]OpenAI:[/bold] {provider_status.get('openai', ('✗', ''))[0]}\n"
+                        f"[bold]Gemini:[/bold] {provider_status.get('gemini', ('✗', ''))[0]}\n"
+                        f"[bold]Ollama:[/bold] {provider_status.get('ollama', ('✗', ''))[0]}\n"
+                        f"[bold]Claude:[/bold] {provider_status.get('anthropic', ('✗', ''))[0]}\n"
+                        f"[bold]Mode:[/bold] [cyan]{self._mode}[/cyan]",
                         title="Runtime",
                         border_style="yellow",
                         padding=(1, 2),
@@ -3264,8 +3282,8 @@ class PhalanxChat:
 
         console.print(
             Panel(
-                "[bold cyan]Type natural language[/bold cyan] to plan work, or use slash commands to switch modes, manage keys, and preview the UI.\n"
-                "[dim]Examples:[/dim] `scan 10.0.0.5`, `enumerate services on example.com`, `/theme appearance`, `/model gemini`",
+                "[bold cyan]Type natural language[/bold cyan] to plan work, or use slash commands.\n"
+                "[dim]Examples:[/dim] [green]scan 10.0.0.5[/green]  [green]enumerate example.com[/green]  [green]/theme appearance[/green]",
                 title="Getting Started",
                 border_style="bright_black",
                 padding=(1, 2),

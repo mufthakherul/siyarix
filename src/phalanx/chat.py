@@ -2283,7 +2283,7 @@ class PhalanxChat:
         sched = PhalanxScheduler()
 
         if action == "list":
-            jobs = sched.list_jobs()
+            jobs = sched.list_all()
             if not jobs:
                 console.print(
                     "[dim]No scheduled jobs. Use /schedule add to create one.[/dim]"
@@ -2317,14 +2317,14 @@ class PhalanxChat:
             name = tokens[1]
             cron = tokens[2].lower()
             command = " ".join(tokens[3:])
-            sched.add_job(name=name, cron=cron, command=command)
+            sched.create(name=name, target="", cron=cron, command=command)
             console.print(f"[green]✓ Scheduled job added: {name} ({cron})[/green]")
 
         elif action == "remove":
             if len(tokens) < 2:
                 console.print("[yellow]Usage: /schedule remove <name>[/yellow]")
                 return
-            if sched.remove_job(tokens[1]):
+            if sched.delete(tokens[1]):
                 console.print(f"[green]✓ Scheduled job removed: {tokens[1]}[/green]")
             else:
                 console.print(f"[red]Scheduled job not found: {tokens[1]}[/red]")
@@ -2440,6 +2440,68 @@ class PhalanxChat:
         # Show plan if requested
         if show_plan and len(plan.steps) > 1:
             self._print_plan(plan)
+
+        # Multi-model ensemble voting (available providers > 1)
+        try:
+            from .multi_model_ensemble import MultiModelEnsemble, VotingStrategy
+
+            ensemble = MultiModelEnsemble()
+            registered_count = 0
+            for p in getattr(getattr(engine, "_planner", None), "_providers", []):
+                name = type(p).__name__.lower().replace("model", "")
+                if getattr(p, "available", False) and hasattr(p, "plan"):
+                    ensemble.register_provider(name, p)
+                    registered_count += 1
+            if registered_count > 1:
+                ensemble_result = await ensemble.plan(
+                    instruction,
+                    voting_strategy=VotingStrategy.WEIGHTED,
+                )
+                if ensemble_result.selection_reason and registered_count > 1:
+                    console.print(
+                        Panel(
+                            f"[bold]Ensemble:[/bold] {ensemble_result.selection_reason}\n"
+                            f"[dim]Providers:[/dim] {', '.join(ensemble_result.responses) if hasattr(ensemble_result, 'responses') else registered_count}  "
+                            f"[dim]Consensus:[/dim] {ensemble_result.consensus_level:.0%}  "
+                            f"[dim]Hallucination risk:[/dim] {ensemble_result.hallucination_risk:.0%}",
+                            title="[bold cyan]🔮 Multi-Model Ensemble[/bold cyan]",
+                            border_style="cyan",
+                        )
+                    )
+        except Exception as exc:
+            logger.debug("Ensemble integration skipped: %s", exc)
+
+        # Adversarial plan review
+        try:
+            from .adversarial_tester import AdversarialTester, AdversarialSeverity
+
+            tester = AdversarialTester()
+            plan_lines = [
+                f"{s.tool or ''} {' '.join(s.args)} {s.target or ''}".strip()
+                or s.command or ""
+                for s in plan.steps
+            ]
+            findings = tester.review_plan(plan_lines)
+            critical = [f for f in findings if f.severity == AdversarialSeverity.CRITICAL]
+            high = [f for f in findings if f.severity == AdversarialSeverity.HIGH]
+            if findings:
+                console.print(
+                    Panel(
+                        "\n".join(
+                            f"[{'red' if f.severity in ('critical','high') else 'yellow'}]"
+                            f"{'🔴' if f.severity == 'critical' else '⚠'} "
+                            f"[{f.severity.upper()}] {f.message}[/]\n"
+                            f"  [dim]Suggestion: {f.suggestion}[/dim]"
+                            for f in findings[:5]
+                        ) + (f"\n  [dim]... and {len(findings)-5} more[/dim]" if len(findings) > 5 else ""),
+                        title=f"[bold {'red' if critical else 'yellow'}]🔍 Adversarial Review ({len(findings)} findings)"
+                        f"{' — ' + str(len(critical)) + ' critical' if critical else ''}"
+                        f"{' — ' + str(len(high)) + ' high' if high else ''}[/bold {'red' if critical else 'yellow'}]",
+                        border_style="red" if critical else "yellow",
+                    )
+                )
+        except Exception as exc:
+            logger.debug("Adversarial review skipped: %s", exc)
 
         # Execute with live output
         t0 = time.monotonic()

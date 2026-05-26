@@ -634,6 +634,8 @@ class ExecutionEngine:
         This is the planning phase — no execution happens here.
         """
         context = self._build_context()
+        # Compress context to stay within token limits
+        context = self.compress_context(context)
         force_mode = None
         if self._mode == ExecutionMode.REGISTRY:
             force_mode = "static"
@@ -1897,7 +1899,56 @@ class ExecutionEngine:
                 subtitle=f"Confidence: {plan.confidence:.0%}",
             )
         )
+
+        # Chain-of-thought reasoning display
+        if plan.reasoning:
+            console.print(
+                Panel(
+                    plan.reasoning[:2000],
+                    title="[bold yellow]🧠 Model Reasoning[/bold yellow]",
+                    border_style="yellow",
+                )
+            )
         console.print()
+
+    def compress_context(
+        self,
+        context: dict[str, Any],
+        max_tokens: int = 8000,
+    ) -> dict[str, Any]:
+        """Compress context window by summarizing verbose fields.
+        
+        Truncates large tool descriptions, conversation history, and 
+        XI context when approaching LLM token limits. Preserves the 
+        most recent and highest-priority information.
+        """
+        compressed = dict(context)
+
+        # Compress available_tools — keep names, truncate descriptions
+        tools = compressed.get("available_tools", [])
+        if isinstance(tools, list) and len(tools) > 20:
+            compressed["available_tools"] = tools[:20]
+            compressed["_tools_truncated"] = len(tools) - 20
+
+        # Compress conversation_history — keep last 5 turns only
+        history = compressed.get("conversation_history", "")
+        if isinstance(history, str) and len(history) > max_tokens:
+            lines = history.split("\n")
+            compressed["conversation_history"] = "\n".join(lines[-40:])
+            compressed["_history_truncated"] = len(lines) - 40
+
+        # Compress xi_context summary
+        xi = compressed.get("xi_context", {})
+        if isinstance(xi, dict) and xi.get("recent_executions"):
+            xi["recent_executions"] = xi["recent_executions"][-10:]
+            compressed["xi_context"] = xi
+
+        # Compress xi_recommendations — keep top 5
+        recs = compressed.get("xi_recommendations", [])
+        if isinstance(recs, list) and len(recs) > 5:
+            compressed["xi_recommendations"] = recs[:5]
+
+        return compressed
 
     def _display_summary(self, result: EngineResult) -> None:
         """Display the execution summary."""

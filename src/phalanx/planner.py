@@ -192,9 +192,12 @@ class ModelProvider(Protocol):
 class OpenAIModel:
     """Model provider using OpenAI API (GPT-4o, etc.)."""
 
-    def __init__(self, api_key: str | None = None, model: str = "gpt-4o") -> None:
+    def __init__(
+        self, api_key: str | None = None, model: str = "gpt-4o", base_url: str | None = None
+    ) -> None:
         self._api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
         self._model = model
+        self._base_url = base_url
 
     @property
     def available(self) -> bool:
@@ -215,7 +218,10 @@ class OpenAIModel:
 
         system_prompt = _build_system_prompt(context)
 
-        client = openai.AsyncOpenAI(api_key=self._api_key)
+        kwargs = {"api_key": self._api_key}
+        if self._base_url:
+            kwargs["base_url"] = self._base_url
+        client = openai.AsyncOpenAI(**kwargs)
         try:
             response = await client.chat.completions.create(
                 model=self._model,

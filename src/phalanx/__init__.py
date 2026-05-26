@@ -65,7 +65,8 @@ from .playbook_engine import (Playbook, PlaybookEngine, PlaybookStep,
                               PlaybookStepType)
 from .providers import (AnthropicAdapter, CloudAdapter, CustomAdapter,
                          GeminiAdapter, GroqAdapter, LMStudioAdapter,
-                         NoopProvider, OllamaAdapter, OpenAIAdapter, Provider,
+                         NoopProvider, OllamaAdapter, OpenAIAdapter,
+                         OpenCodeAdapter, Provider,
                          ProviderRegistry, TogetherAdapter)
 from .providers import registry as provider_registry
 from .report_engine import (Report, ReportConfig, ReportEngine, ReportFormat,
@@ -129,6 +130,7 @@ __all__ = [
     "LMStudioAdapter",
     "CustomAdapter",
     "AnthropicAdapter",
+    "OpenCodeAdapter",
     "MaskingEngine",
     "ResponseSensor",
     "InputValidator",

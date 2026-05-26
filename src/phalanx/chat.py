@@ -204,16 +204,6 @@ _SLASH_HELP = {
     "/theme appearance": "Preview the UI appearance",
     "/target <host>": "Set the current target for commands",
     "/mode <mode>": "Switch execution mode (registry|autonomous|integrated)",
-    "/modes": "Show mode dispatcher with all 9 modes",
-    "/1": "⚡ Switch to Interactive Shell mode",
-    "/2": "⚡ Switch to AI Conversational mode",
-    "/3": "⚡ Switch to Direct Command mode",
-    "/4": "⚡ Switch to Autonomous Agent mode",
-    "/5": "⚡ Switch to Workflow Automation mode",
-    "/6": "⚡ Switch to TUI Dashboard mode",
-    "/7": "⚡ Switch to Guided Wizard mode",
-    "/8": "⚡ Switch to Team Collaboration mode",
-    "/9": "⚡ Switch to Headless API mode",
     "/save": "Save current session to ~/.phalanx/sessions/",
     "/translate <intent>": "Translate a command intent to all shells",
     "/security-cmds": "Show security commands for current platform",
@@ -291,19 +281,6 @@ _SLASH_HELP = {
     "/audit export|status|verify": "Audit log export and chain verification",
 }
 
-# Mode number → (name, engine_mode, description)
-_MODE_MAP: dict[str, tuple[str, str, str]] = {
-    "1": ("Interactive Shell", "registry", "Fast local tool execution"),
-    "2": ("AI Conversational", "integrated", "AI-powered cybersecurity REPL"),
-    "3": ("Direct Command", "autonomous", "One-shot NL command execution"),
-    "4": ("Autonomous Agent", "autonomous", "Goal-driven autonomous operations"),
-    "5": ("Workflow Automation", "integrated", "Launch: phalanx workflow run <yaml>"),
-    "6": ("TUI Dashboard", "integrated", "Launch: phalanx dashboard"),
-    "7": ("Guided Wizard", "integrated", "Launch: phalanx wizard"),
-    "9": ("Headless API", "integrated", "Launch: phalanx serve --port 8080"),
-}
-
-
 # ---------------------------------------------------------------------------
 # The Phalanx Chat REPL
 # ---------------------------------------------------------------------------
@@ -325,7 +302,6 @@ class PhalanxChat:
         resume: bool = False,
     ) -> None:
         self._mode = mode
-        self._active_mode_num = "2"  # Default: AI Conversational
         self._platform_ctx = build_platform_context()
         self._shell = detect_shell()
         self._settings = SettingsStore()
@@ -423,20 +399,14 @@ class PhalanxChat:
         theme = self._settings.get("color_theme") or "cyber-noir"
         provider = self._settings.get("model_provider") or "auto"
 
-        # Mode switcher bar
-        from .branding import render_mode_bar
-
-        mode_bar = render_mode_bar(theme, self._active_mode_num)
-        console.print(mode_bar)
-
-        # Display a compact inline status line above the prompt similar to Gemini/Claude
+        # Display a compact inline status line above the prompt
         status = Text.assemble(
             (f"{provider}", "bold cyan"),
             (f" · {theme}", "dim white"),
             (f" · {self._mode}", mode_color),
             (f"{target_str}", "dim") if target_str else ("", "dim"),
             ("  ", "dim"),
-            ("? for shortcuts · /modes for all modes", "dim"),
+            ("? for shortcuts · /help for all commands", "dim"),
         )
         console.print(status)
 
@@ -497,7 +467,6 @@ class PhalanxChat:
             "/theme": self._cmd_theme,
             "/target": self._cmd_target,
             "/mode": self._cmd_mode,
-            "/modes": self._cmd_modes,
             "/split": self._cmd_split,
             "/save": self._cmd_save,
             "/translate": self._cmd_translate,
@@ -545,13 +514,6 @@ class PhalanxChat:
             "/audit": self._cmd_audit,
         }
 
-        # Handle /1 through /9 mode shortcuts
-        if command.startswith("/") and len(command) == 2 and command[1].isdigit():
-            mode_num = command[1]
-            if mode_num in _MODE_MAP:
-                self._cmd_switch_mode(mode_num)
-                return
-
         handler = handlers.get(command)
         if handler:
             if asyncio.iscoroutinefunction(handler):
@@ -576,41 +538,6 @@ class PhalanxChat:
         for cmd, desc in _SLASH_HELP.items():
             table.add_row(cmd, desc)
         console.print(table)
-
-    def _cmd_modes(self, _: str) -> None:
-        """Show the full mode dispatcher table."""
-        from .branding import print_mode_dispatcher
-
-        theme = self._settings.get("color_theme") or "cyber-noir"
-        print_mode_dispatcher(console, theme, self._active_mode_num)
-
-    def _cmd_switch_mode(self, mode_num: str) -> None:
-        """Switch to a numbered mode."""
-        if mode_num not in _MODE_MAP:
-            console.print(
-                f"[red]Unknown mode: {mode_num}. Use /modes to see all modes.[/red]"
-            )
-            return
-
-        name, engine_mode, desc = _MODE_MAP[mode_num]
-        self._active_mode_num = mode_num
-
-        # Modes 1-4 are handled inline (change engine mode)
-        if mode_num in ("1", "2", "3", "4"):
-            self._mode = engine_mode
-            self._session.mode = engine_mode
-            console.print(
-                f"[bold bright_cyan]⚡ Switched to Mode {mode_num}: {name}[/bold bright_cyan]"
-                f"\n[dim]Engine mode: {engine_mode} — {desc}[/dim]"
-            )
-        else:
-            # Modes 5-9 are external commands
-            console.print(
-                f"[bold bright_cyan]⚡ Mode {mode_num}: {name}[/bold bright_cyan]"
-                f"\n[dim]{desc}[/dim]"
-                f"\n[yellow]This mode launches a separate process. "
-                f"Run the command above from your terminal.[/yellow]"
-            )
 
     def _cmd_exit(self, _: str) -> None:
         self._running = False
@@ -3087,7 +3014,6 @@ class PhalanxChat:
                 [
                     Panel(
                         f"[bold]Platform:[/bold] {shell_info}\n"
-                        f"[bold]Mode:[/bold] [cyan]{self._mode}[/cyan]\n"
                         f"[bold]Theme:[/bold] {theme}\n"
                         f"[bold]Provider:[/bold] {provider}\n"
                         f"[bold]Session:[/bold] {self._session.session_id[:8]}",
@@ -3119,8 +3045,7 @@ class PhalanxChat:
                         f"[bold]OpenAI:[/bold] {provider_status.get('openai', ('✗', ''))[0]}\n"
                         f"[bold]Gemini:[/bold] {provider_status.get('gemini', ('✗', ''))[0]}\n"
                         f"[bold]Ollama:[/bold] {provider_status.get('ollama', ('✗', ''))[0]}\n"
-                        f"[bold]Claude:[/bold] {provider_status.get('anthropic', ('✗', ''))[0]}\n"
-                        f"[bold]Mode:[/bold] [cyan]{self._mode}[/cyan]",
+                        f"[bold]Claude:[/bold] {provider_status.get('anthropic', ('✗', ''))[0]}",
                         title="Runtime",
                         border_style="yellow",
                         padding=(1, 2),

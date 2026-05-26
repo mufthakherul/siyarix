@@ -6,7 +6,10 @@ import platform
 from pathlib import Path
 
 import pytest
-from phalanx.bootstrap import BootstrapEngine, BootstrapResult, PlatformInfo, PHALANX_HOME
+
+from phalanx.bootstrap import (PHALANX_HOME, BootstrapEngine, BootstrapResult,
+                               PlatformInfo)
+
 pytestmark = pytest.mark.bootstrap
 
 

@@ -35,7 +35,7 @@ _PHALANX_HOME = Path.home() / ".phalanx"
 _MEMORY_DIR = _PHALANX_HOME / "memory"
 _LEARNING_DIR = _PHALANX_HOME / "learning"
 
-_PATTERN_HALF_LIFE = 2592000.0      # 30 days
+_PATTERN_HALF_LIFE = 2592000.0  # 30 days
 _MAX_NGRAM_ORDER = 5
 _MIN_CONFIDENCE_SAMPLES = 3
 
@@ -44,7 +44,16 @@ _MIN_CONFIDENCE_SAMPLES = 3
 _TASK_KEYWORDS: dict[str, list[str]] = {
     "port_scan": ["nmap", "masscan", "rustscan", "port scan", "portscan"],
     "subdomain_enum": ["subfinder", "amass", "assetfinder", "subdomain", "dns"],
-    "web_scan": ["nuclei", "nikto", "gobuster", "ffuf", "feroxbuster", "wpscan", "web", "http"],
+    "web_scan": [
+        "nuclei",
+        "nikto",
+        "gobuster",
+        "ffuf",
+        "feroxbuster",
+        "wpscan",
+        "web",
+        "http",
+    ],
     "dir_enum": ["gobuster dir", "ffuf", "dirb", "dirsearch", "directory"],
     "vuln_scan": ["nuclei", "vuln", "cve", "nikto"],
     "exploit": ["hydra", "sqlmap", "msfconsole", "metasploit", "exploit"],
@@ -57,7 +66,7 @@ _TASK_KEYWORDS: dict[str, list[str]] = {
 }
 
 # Timing thresholds in seconds
-_FAST_THRESHOLD = 30.0       # Under 30s = "fast"
+_FAST_THRESHOLD = 30.0  # Under 30s = "fast"
 _THOROUGH_THRESHOLD = 300.0  # Over 5min = "thorough"
 
 # ── Dataclasses ───────────────────────────────────────────────────────────
@@ -82,8 +91,8 @@ class ToolPattern:
     decay_score: float = 1.0
 
     # ── Correction tracking (10.1) ───────────────────────────────────────
-    original_command: str = ""        # AI-generated command
-    user_correction: str = ""         # User-modified command
+    original_command: str = ""  # AI-generated command
+    user_correction: str = ""  # User-modified command
     correction_findings_delta: int = 0  # Extra findings from correction
     correction_count: int = 0
 
@@ -126,7 +135,9 @@ class ToolPattern:
 
     @property
     def has_correction(self) -> bool:
-        return bool(self.user_correction) and self.user_correction != self.original_command
+        return (
+            bool(self.user_correction) and self.user_correction != self.original_command
+        )
 
     @property
     def flag_effectiveness_score(self) -> float:
@@ -202,22 +213,24 @@ class LearningEvent:
     """A human-readable learning event emitted when a pattern is recorded."""
 
     task: str
-    generated: str              # AI-generated command
-    user_modified: str          # User-modified version (if any)
-    result: str                 # Outcome description
-    insight: str                # Natural-language lesson
+    generated: str  # AI-generated command
+    user_modified: str  # User-modified version (if any)
+    result: str  # Outcome description
+    insight: str  # Natural-language lesson
     delta_findings: int = 0
 
     def format_message(self, persona: str = "Phalanx") -> str:
         lines = [
-            f"[{persona}] Task: \"{self.task}\"",
+            f'[{persona}] Task: "{self.task}"',
             f"[{persona}] Generated: {self.generated}",
         ]
         if self.user_modified and self.user_modified != self.generated:
             lines.append(f"[{persona}] User modified: {self.user_modified}")
         lines.append(f"[{persona}] Result: {self.result}")
-        lines.append(f"[{persona}] Learning: \"{self.insight}\"")
-        lines.append(f"[{persona}] Pattern saved. Future similar tasks will suggest this.")
+        lines.append(f'[{persona}] Learning: "{self.insight}"')
+        lines.append(
+            f"[{persona}] Pattern saved. Future similar tasks will suggest this."
+        )
         return "\n".join(lines)
 
 
@@ -282,15 +295,21 @@ class LearningMemory:
             with open(str(self._patterns_path)) as f:
                 data = json.load(f)
             raw = data.get("patterns", [])
-            self._patterns = [ToolPattern.from_dict(d) for d in raw if not d.get("is_anti_pattern")]
-            self._anti_patterns = [ToolPattern.from_dict(d) for d in raw if d.get("is_anti_pattern")]
+            self._patterns = [
+                ToolPattern.from_dict(d) for d in raw if not d.get("is_anti_pattern")
+            ]
+            self._anti_patterns = [
+                ToolPattern.from_dict(d) for d in raw if d.get("is_anti_pattern")
+            ]
             self._rebuild_index()
         except Exception as exc:
             logger.warning("Failed to load learning patterns: %s", exc)
 
     def _save(self) -> None:
         try:
-            combined = [p.to_dict() for p in self._patterns] + [p.to_dict() for p in self._anti_patterns]
+            combined = [p.to_dict() for p in self._patterns] + [
+                p.to_dict() for p in self._anti_patterns
+            ]
             with open(str(self._patterns_path), "w") as f:
                 json.dump({"patterns": combined}, f, indent=2, default=str)
         except Exception as exc:
@@ -371,7 +390,7 @@ class LearningMemory:
 
         for order in range(1, min(len(tools), _MAX_NGRAM_ORDER) + 1):
             for i in range(len(tools) - order + 1):
-                ngram = tools[i: i + order]
+                ngram = tools[i : i + order]
                 tags = []
                 if phase:
                     tags.append(f"phase:{phase}")
@@ -381,13 +400,37 @@ class LearningMemory:
                     tags.append(f"session:{session_id}")
 
                 if success:
-                    self._upsert_pattern(ngram, duration_ms, findings_count, tags,
-                                         phase, task_type, platform_name, flags,
-                                         persona, command, "", 0, False)
+                    self._upsert_pattern(
+                        ngram,
+                        duration_ms,
+                        findings_count,
+                        tags,
+                        phase,
+                        task_type,
+                        platform_name,
+                        flags,
+                        persona,
+                        command,
+                        "",
+                        0,
+                        False,
+                    )
                 else:
-                    self._upsert_pattern(ngram, duration_ms, findings_count, tags,
-                                         phase, task_type, platform_name, flags,
-                                         persona, command, "", 0, True)
+                    self._upsert_pattern(
+                        ngram,
+                        duration_ms,
+                        findings_count,
+                        tags,
+                        phase,
+                        task_type,
+                        platform_name,
+                        flags,
+                        persona,
+                        command,
+                        "",
+                        0,
+                        True,
+                    )
 
         self._recent_tools.extend(tools)
         self._recent_tools = self._recent_tools[-50:]
@@ -462,17 +505,24 @@ class LearningMemory:
             task=task or f"{' -> '.join(tools)} scan",
             generated=original,
             user_modified=corrected,
-            result=f"{abs(delta)} {'more' if delta > 0 else 'fewer'} findings than default."
-                   if delta != 0 else "No change in findings.",
+            result=(
+                f"{abs(delta)} {'more' if delta > 0 else 'fewer'} findings than default."
+                if delta != 0
+                else "No change in findings."
+            ),
             insight=insight,
             delta_findings=delta,
         )
         self._correction_events.append(event)
         return event
 
-    def _generate_insight(self, tools: list[str], original: str, corrected: str, delta: int) -> str:
+    def _generate_insight(
+        self, tools: list[str], original: str, corrected: str, delta: int
+    ) -> str:
         """Generate a natural-language insight from a correction."""
-        diff = list(difflib.unified_diff(original.split(), corrected.split(), lineterm=""))
+        diff = list(
+            difflib.unified_diff(original.split(), corrected.split(), lineterm="")
+        )
         added = [w for w in corrected.split() if w not in original.split()]
         removed = [w for w in original.split() if w not in corrected.split()]
 
@@ -483,15 +533,26 @@ class LearningMemory:
         if delta > 0:
             return f"Modified {tool_name} flags produced {delta} more findings"
         if delta < 0:
-            return f"Simpler {tool_name} command was sufficient — extra flags added noise"
+            return (
+                f"Simpler {tool_name} command was sufficient — extra flags added noise"
+            )
         return f"Alternative {tool_name} flags produce equivalent results"
 
     def _upsert_pattern(
-        self, ngram: list[str], duration_ms: float,
-        findings_count: int, tags: list[str], phase: str,
-        task_type: str, platform_name: str, flags: list[str],
-        persona: str, command: str, correction: str,
-        correction_delta: int, is_anti: bool,
+        self,
+        ngram: list[str],
+        duration_ms: float,
+        findings_count: int,
+        tags: list[str],
+        phase: str,
+        task_type: str,
+        platform_name: str,
+        flags: list[str],
+        persona: str,
+        command: str,
+        correction: str,
+        correction_delta: int,
+        is_anti: bool,
     ) -> None:
         now = datetime.now(timezone.utc).isoformat()
         key = "|".join(ngram)
@@ -518,13 +579,20 @@ class LearningMemory:
                 return
 
         new_pattern = ToolPattern(
-            ngram=ngram, task_type=task_type, persona=persona,
-            platform=platform_name, count=1,
+            ngram=ngram,
+            task_type=task_type,
+            persona=persona,
+            platform=platform_name,
+            count=1,
             success_count=0 if is_anti else 1,
-            last_used=now, total_duration_ms=duration_ms,
-            total_findings=findings_count, context_tags=tags[:10],
-            phase=phase, is_anti_pattern=is_anti,
-            original_command=command, user_correction=correction,
+            last_used=now,
+            total_duration_ms=duration_ms,
+            total_findings=findings_count,
+            context_tags=tags[:10],
+            phase=phase,
+            is_anti_pattern=is_anti,
+            original_command=command,
+            user_correction=correction,
             correction_findings_delta=correction_delta,
         )
         pattern_list.append(new_pattern)
@@ -580,13 +648,20 @@ class LearningMemory:
                     if current_tool in self._recent_tools:
                         session_boost *= 1.3
 
-                    efficiency = 1.0 + (1.0 - min(p.avg_duration_ms / 300000.0, 1.0)) * 0.5
-                    final_confidence = base_conf * context_boost * session_boost * efficiency
+                    efficiency = (
+                        1.0 + (1.0 - min(p.avg_duration_ms / 300000.0, 1.0)) * 0.5
+                    )
+                    final_confidence = (
+                        base_conf * context_boost * session_boost * efficiency
+                    )
 
                     if final_confidence < min_confidence:
                         continue
 
-                    if next_tool not in scored or final_confidence > scored[next_tool]["confidence"]:
+                    if (
+                        next_tool not in scored
+                        or final_confidence > scored[next_tool]["confidence"]
+                    ):
                         scored[next_tool] = {
                             "tool": next_tool,
                             "confidence": round(min(final_confidence, 1.0), 4),
@@ -598,7 +673,9 @@ class LearningMemory:
                         }
 
         warnings = self._check_anti_patterns(current_tool)
-        result = sorted(scored.values(), key=lambda x: x["confidence"], reverse=True)[:max_suggestions]
+        result = sorted(scored.values(), key=lambda x: x["confidence"], reverse=True)[
+            :max_suggestions
+        ]
         result.extend(warnings)
         return result
 
@@ -606,16 +683,20 @@ class LearningMemory:
         warnings = []
         for ap in self._anti_patterns:
             if tool in ap.ngram and ap.count >= 2:
-                warnings.append({
-                    "tool": f"⚠ {tool}",
-                    "confidence": round(ap.confidence, 4),
-                    "reason": f"Anti-pattern: {'→'.join(ap.ngram)} failed {ap.count - ap.success_count}/{ap.count}",
-                    "success_rate": round(ap.success_rate, 2),
-                    "warning": True,
-                })
+                warnings.append(
+                    {
+                        "tool": f"⚠ {tool}",
+                        "confidence": round(ap.confidence, 4),
+                        "reason": f"Anti-pattern: {'→'.join(ap.ngram)} failed {ap.count - ap.success_count}/{ap.count}",
+                        "success_rate": round(ap.success_rate, 2),
+                        "warning": True,
+                    }
+                )
         return warnings
 
-    def suggest_for_task_type(self, task_type: str, max_suggestions: int = 5) -> list[dict]:
+    def suggest_for_task_type(
+        self, task_type: str, max_suggestions: int = 5
+    ) -> list[dict]:
         """Suggest tools optimized for a specific task type."""
         now = time.time()
         scored: dict[str, dict] = {}
@@ -624,7 +705,10 @@ class LearningMemory:
                 continue
             p.apply_decay(now)
             for tool in p.ngram:
-                if tool not in scored or p.confidence * p.decay_score > scored[tool]["confidence"]:
+                if (
+                    tool not in scored
+                    or p.confidence * p.decay_score > scored[tool]["confidence"]
+                ):
                     scored[tool] = {
                         "tool": tool,
                         "confidence": round(p.confidence * p.decay_score, 4),
@@ -633,7 +717,9 @@ class LearningMemory:
                         "timing": p.timing_category,
                         "platform": p.platform,
                     }
-        return sorted(scored.values(), key=lambda x: x["confidence"], reverse=True)[:max_suggestions]
+        return sorted(scored.values(), key=lambda x: x["confidence"], reverse=True)[
+            :max_suggestions
+        ]
 
     def suggest_platform_optimizations(self, platform_name: str = "") -> list[dict]:
         """Suggest platform-specific optimizations."""
@@ -643,12 +729,14 @@ class LearningMemory:
             if p.platform == platform_name and p.has_correction:
                 if p.effective_flags:
                     flag_str = " ".join(p.effective_flags[:3])
-                    optimizations.append({
-                        "tool": " -> ".join(p.ngram),
-                        "optimization": f"Use flags {flag_str} on {platform_name}",
-                        "findings_improvement": f"+{p.correction_findings_delta} findings",
-                        "confidence": round(p.confidence, 2),
-                    })
+                    optimizations.append(
+                        {
+                            "tool": " -> ".join(p.ngram),
+                            "optimization": f"Use flags {flag_str} on {platform_name}",
+                            "findings_improvement": f"+{p.correction_findings_delta} findings",
+                            "confidence": round(p.confidence, 2),
+                        }
+                    )
         return sorted(optimizations, key=lambda x: x["confidence"], reverse=True)[:10]
 
     # ── Analytics ────────────────────────────────────────────────────────
@@ -677,7 +765,11 @@ class LearningMemory:
         for p in self._patterns:
             plat = p.platform or "unknown"
             if plat not in by_platform:
-                by_platform[plat] = {"patterns": 0, "corrections": 0, "total_findings": 0}
+                by_platform[plat] = {
+                    "patterns": 0,
+                    "corrections": 0,
+                    "total_findings": 0,
+                }
             by_platform[plat]["patterns"] += 1
             by_platform[plat]["corrections"] += p.correction_count
             by_platform[plat]["total_findings"] += p.total_findings
@@ -697,7 +789,11 @@ class LearningMemory:
                 "tool": tool,
                 "effective_flags": sorted(v["effective"]),
                 "ineffective_flags": sorted(v["ineffective"]),
-                "score": round(len(v["effective"]) / max(len(v["effective"]) + len(v["ineffective"]), 1), 2),
+                "score": round(
+                    len(v["effective"])
+                    / max(len(v["effective"]) + len(v["ineffective"]), 1),
+                    2,
+                ),
             }
             for tool, v in sorted(report.items())
         ]
@@ -742,8 +838,10 @@ class LearningMemory:
                 if src not in graph:
                     graph[src] = {}
                 graph[src][dst] = graph[src].get(dst, 0) + p.count * p.confidence
-        return {src: sorted(dst.items(), key=lambda x: x[1], reverse=True)[:5]
-                for src, dst in graph.items()}
+        return {
+            src: sorted(dst.items(), key=lambda x: x[1], reverse=True)[:5]
+            for src, dst in graph.items()
+        }
 
     @property
     def recent_correction_events(self) -> list[LearningEvent]:
@@ -809,15 +907,24 @@ class LearningMemory:
                 continue
             if merge and not pattern.is_anti_pattern:
                 self._upsert_pattern(
-                    pattern.ngram, pattern.total_duration_ms,
-                    int(pattern.avg_findings), pattern.context_tags,
-                    pattern.phase, pattern.task_type, pattern.platform,
-                    [], pattern.persona, pattern.original_command,
-                    pattern.user_correction, pattern.correction_findings_delta,
+                    pattern.ngram,
+                    pattern.total_duration_ms,
+                    int(pattern.avg_findings),
+                    pattern.context_tags,
+                    pattern.phase,
+                    pattern.task_type,
+                    pattern.platform,
+                    [],
+                    pattern.persona,
+                    pattern.original_command,
+                    pattern.user_correction,
+                    pattern.correction_findings_delta,
                     False,
                 )
             else:
-                (self._anti_patterns if pattern.is_anti_pattern else self._patterns).append(pattern)
+                (
+                    self._anti_patterns if pattern.is_anti_pattern else self._patterns
+                ).append(pattern)
             imported += 1
         self._rebuild_index()
         self._save()

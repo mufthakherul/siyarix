@@ -38,7 +38,11 @@ _TOOL_INSTALL_MAP: dict[str, dict[str, list[str]]] = {
     "nuclei": {
         "apt": ["apt-get", "install", "-y", "nuclei"],
         "brew": ["brew", "install", "nuclei"],
-        "go": ["go", "install", "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"],
+        "go": [
+            "go",
+            "install",
+            "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest",
+        ],
         "curl": [
             "curl",
             "-s",
@@ -73,7 +77,11 @@ _TOOL_INSTALL_MAP: dict[str, dict[str, list[str]]] = {
     "subfinder": {
         "apt": ["apt-get", "install", "-y", "subfinder"],
         "brew": ["brew", "install", "subfinder"],
-        "go": ["go", "install", "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest"],
+        "go": [
+            "go",
+            "install",
+            "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
+        ],
     },
     "nikto": {
         "apt": ["apt-get", "install", "-y", "nikto"],
@@ -141,7 +149,12 @@ _TOOL_INSTALL_MAP: dict[str, dict[str, list[str]]] = {
     "setoolkit": {
         "apt": ["apt-get", "install", "-y", "set"],
         "brew": ["brew", "install", "set"],
-        "git": ["git", "clone", "https://github.com/trustedsec/social-engineer-toolkit", "/opt/set"],
+        "git": [
+            "git",
+            "clone",
+            "https://github.com/trustedsec/social-engineer-toolkit",
+            "/opt/set",
+        ],
     },
     "beef": {
         "apt": ["apt-get", "install", "-y", "beef-xss"],
@@ -151,7 +164,11 @@ _TOOL_INSTALL_MAP: dict[str, dict[str, list[str]]] = {
     "gophish": {
         "apt": ["apt-get", "install", "-y", "gophish"],
         "brew": ["brew", "install", "gophish"],
-        "wget": ["wget", "-q", "https://github.com/gophish/gophish/releases/latest/download/gophish-linux-amd64.zip"],
+        "wget": [
+            "wget",
+            "-q",
+            "https://github.com/gophish/gophish/releases/latest/download/gophish-linux-amd64.zip",
+        ],
     },
     "reaver": {
         "apt": ["apt-get", "install", "-y", "reaver"],
@@ -208,13 +225,21 @@ _TOOL_INSTALL_MAP: dict[str, dict[str, list[str]]] = {
         "brew": ["brew", "install", "unfurl"],
     },
     "interactsh": {
-        "go": ["go", "install", "github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest"],
+        "go": [
+            "go",
+            "install",
+            "github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest",
+        ],
         "brew": ["brew", "install", "interactsh"],
     },
     "cloudflared": {
         "apt": ["apt-get", "install", "-y", "cloudflared"],
         "brew": ["brew", "install", "cloudflared"],
-        "wget": ["wget", "-q", "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"],
+        "wget": [
+            "wget",
+            "-q",
+            "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64",
+        ],
     },
     "bloodhound": {
         "apt": ["apt-get", "install", "-y", "bloodhound"],
@@ -224,7 +249,12 @@ _TOOL_INSTALL_MAP: dict[str, dict[str, list[str]]] = {
     "responder": {
         "apt": ["apt-get", "install", "-y", "responder"],
         "brew": ["brew", "install", "responder"],
-        "git": ["git", "clone", "https://github.com/lgandx/Responder", "/opt/responder"],
+        "git": [
+            "git",
+            "clone",
+            "https://github.com/lgandx/Responder",
+            "/opt/responder",
+        ],
     },
     "crackmapexec": {
         "pip": [sys.executable, "-m", "pip", "install", "crackmapexec"],

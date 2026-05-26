@@ -7,10 +7,10 @@ Modules:
   • skill_profiler — User skill level detection and UX adaptation
 """
 
-from .service import XICoreService, XIRecommendation
 from .context_tracker import ContextTracker, OperationPhase, TrackedTarget
-from .predictor import Predictor, Prediction
-from .skill_profiler import SkillProfiler, SkillProfile, SkillLevel
+from .predictor import Prediction, Predictor
+from .service import XICoreService, XIRecommendation
+from .skill_profiler import SkillLevel, SkillProfile, SkillProfiler
 
 __all__ = [
     "XICoreService",

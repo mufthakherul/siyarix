@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from phalanx.agents.coordinator import CoordinatorAgent
 
 
@@ -51,7 +52,9 @@ class TestCoordinatorAgent:
 
     @pytest.mark.asyncio
     async def test_execute_objective_exploit(self, coordinator):
-        result = await coordinator.execute_objective("exploit web app", target="example.com")
+        result = await coordinator.execute_objective(
+            "exploit web app", target="example.com"
+        )
         assert "exploitation" in result["phases_executed"]
 
     @pytest.mark.asyncio

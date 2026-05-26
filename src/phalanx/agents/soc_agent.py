@@ -47,7 +47,9 @@ class SOCAgent(Agent):
         self._detected_events: list[dict[str, Any]] = []
         self._tickets_generated: int = 0
 
-    async def _analyze_logs(self, command: str, payload: dict[str, Any]) -> dict[str, Any]:
+    async def _analyze_logs(
+        self, command: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
         target = payload.get("target", "system")
         log_data = payload.get("logs", "")
 
@@ -69,7 +71,10 @@ class SOCAgent(Agent):
         self._tickets_generated += len(triage)
         self._detected_events.extend(anomalies)
         logger.info(
-            "SOC Agent: %d anomalies, %d tickets for %s", len(anomalies), len(triage), target
+            "SOC Agent: %d anomalies, %d tickets for %s",
+            len(anomalies),
+            len(triage),
+            target,
         )
         return response
 

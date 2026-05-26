@@ -6,9 +6,9 @@ Provides a type-safe settings store with get/set/reset/list/edit support.
 
 from __future__ import annotations
 
+import logging
 import os
 import subprocess  # nosec B404
-import logging
 from pathlib import Path
 from typing import Any
 
@@ -157,13 +157,17 @@ class SettingsStore:
     def get(self, key: str) -> Any:
         """Return value for *key*, falling back to default."""
         if key not in DEFAULTS:
-            raise KeyError(f"Unknown setting: '{key}'. Run 'config list' to see valid keys.")
+            raise KeyError(
+                f"Unknown setting: '{key}'. Run 'config list' to see valid keys."
+            )
         return self._data.get(key, DEFAULTS[key])
 
     def set(self, key: str, value: str) -> Any:
         """Set *key* to *value* (string input is coerced to the correct type)."""
         if key not in DEFAULTS:
-            raise KeyError(f"Unknown setting: '{key}'. Run 'config list' to see valid keys.")
+            raise KeyError(
+                f"Unknown setting: '{key}'. Run 'config list' to see valid keys."
+            )
         coerced = self._coerce(key, value)
         self._data[key] = coerced
         self._save()
@@ -201,14 +205,17 @@ class SettingsStore:
         self._save()  # ensure file exists
         import platform as _platform
 
-        default_editor = "notepad" if _platform.system().lower() == "windows" else "nano"
+        default_editor = (
+            "notepad" if _platform.system().lower() == "windows" else "nano"
+        )
         editor = os.getenv("EDITOR", default_editor)
         try:
             safe_run_sync([editor, str(self._path)], timeout=0)
         except Exception as exc:
             # Fallback to subprocess.call if safe_run_sync fails for unexpected editors
             logger.exception(
-                "Opening editor failed with safe_run_sync, falling back to subprocess.call: %s", exc
+                "Opening editor failed with safe_run_sync, falling back to subprocess.call: %s",
+                exc,
             )
             subprocess.call([editor, str(self._path)])  # nosec B603
         # Reload after editing

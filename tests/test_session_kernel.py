@@ -10,7 +10,9 @@ def test_session_kernel_save_load_roundtrip(tmp_path: Path) -> None:
         scope="example.com",
         persistence=SessionPersistenceLevel.WORKSPACE,
     )
-    op = kernel.add_operation(session, "scan example.com with nmap", "integrated", "medium")
+    op = kernel.add_operation(
+        session, "scan example.com with nmap", "integrated", "medium"
+    )
     kernel.update_operation(
         session,
         op.operation_id,

@@ -42,7 +42,9 @@ def ensure_env_file(path: Path | None = None) -> Path:
         return target
 
     if ENV_EXAMPLE_FILE.exists():
-        target.write_text(ENV_EXAMPLE_FILE.read_text(encoding="utf-8"), encoding="utf-8")
+        target.write_text(
+            ENV_EXAMPLE_FILE.read_text(encoding="utf-8"), encoding="utf-8"
+        )
     else:
         target.write_text(
             "# Phalanx environment file\n"
@@ -57,7 +59,9 @@ def ensure_env_file(path: Path | None = None) -> Path:
     return target
 
 
-def load_env_file(path: Path | None = None, *, override: bool = False) -> dict[str, str]:
+def load_env_file(
+    path: Path | None = None, *, override: bool = False
+) -> dict[str, str]:
     """Load key=value pairs from .env into os.environ.
 
     Existing environment variables are preserved unless override=True.
@@ -77,7 +81,12 @@ def load_env_file(path: Path | None = None, *, override: bool = False) -> dict[s
         key, raw_value = match.groups()
         value = _strip_quotes(raw_value.strip())
         loaded[key] = value
-        if value.strip().upper() in {"REPLACE_ME", "CHANGE_ME", "PLEASE_SET_ME", "TODO"}:
+        if value.strip().upper() in {
+            "REPLACE_ME",
+            "CHANGE_ME",
+            "PLEASE_SET_ME",
+            "TODO",
+        }:
             continue
         if override or key not in os.environ:
             os.environ[key] = value

@@ -48,7 +48,10 @@ def test_offline_store_applies_wal_and_indexes(tmp_path: Path) -> None:
             "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'"
         ).fetchall()
 
-    assert str(mode).lower() in {"wal", "memory"}  # WAL can downgrade on constrained envs.
+    assert str(mode).lower() in {
+        "wal",
+        "memory",
+    }  # WAL can downgrade on constrained envs.
     assert any("idx_findings_synced" in row["name"] for row in index_rows)
     assert any("idx_scans_created_at" in row["name"] for row in index_rows)
 

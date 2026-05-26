@@ -157,7 +157,9 @@ class ExecutionPlan:
             "source": self.source,
             "confidence": self.confidence,
             "raw_instruction": self.raw_instruction,
-            "interpreted_task": self.interpreted_task.to_dict() if self.interpreted_task else None,
+            "interpreted_task": (
+                self.interpreted_task.to_dict() if self.interpreted_task else None
+            ),
         }
 
     def __repr__(self) -> str:
@@ -202,7 +204,9 @@ class OpenAIModel:
         try:
             import openai
         except ImportError:
-            logger.warning("openai package not installed; autonomous planning unavailable")
+            logger.warning(
+                "openai package not installed; autonomous planning unavailable"
+            )
             return {}
 
         if not self._api_key:
@@ -232,9 +236,13 @@ class OpenAIModel:
 class GeminiModel:
     """Model provider using Google Gemini."""
 
-    def __init__(self, api_key: str | None = None, model: str = "gemini-1.5-pro") -> None:
+    def __init__(
+        self, api_key: str | None = None, model: str = "gemini-1.5-pro"
+    ) -> None:
         self._api_key = (
-            api_key or os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GOOGLE_API_KEY", "")
+            api_key
+            or os.environ.get("GEMINI_API_KEY", "")
+            or os.environ.get("GOOGLE_API_KEY", "")
         )
         self._model = model
 
@@ -247,7 +255,9 @@ class GeminiModel:
         try:
             import google.generativeai as genai
         except ImportError:
-            logger.warning("google-generativeai package not installed; Gemini unavailable")
+            logger.warning(
+                "google-generativeai package not installed; Gemini unavailable"
+            )
             return {}
 
         if not self._api_key:
@@ -256,8 +266,12 @@ class GeminiModel:
         system_prompt = _build_system_prompt(context)
 
         def _generate() -> str:
-            genai.configure(api_key=self._api_key)  # pyright: ignore[reportPrivateImportUsage]
-            model = genai.GenerativeModel(self._model)  # pyright: ignore[reportPrivateImportUsage]
+            genai.configure(
+                api_key=self._api_key
+            )  # pyright: ignore[reportPrivateImportUsage]
+            model = genai.GenerativeModel(
+                self._model
+            )  # pyright: ignore[reportPrivateImportUsage]
             response = model.generate_content(
                 [system_prompt, prompt],
                 generation_config={"temperature": 0.1, "max_output_tokens": 2048},
@@ -408,7 +422,9 @@ class CloudModel:
 class GroqModel:
     """Model provider using Groq API (fast inference)."""
 
-    def __init__(self, api_key: str | None = None, model: str = "llama3-70b-8192") -> None:
+    def __init__(
+        self, api_key: str | None = None, model: str = "llama3-70b-8192"
+    ) -> None:
         self._api_key = api_key or os.environ.get("GROQ_API_KEY", "")
         self._model = model
 
@@ -445,7 +461,11 @@ class GroqModel:
                 )
                 if resp.status_code == 200:
                     data = resp.json()
-                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "{}")
+                    content = (
+                        data.get("choices", [{}])[0]
+                        .get("message", {})
+                        .get("content", "{}")
+                    )
                     return json.loads(content)
         except Exception as exc:
             logger.warning("Groq planning failed: %s", exc)
@@ -460,7 +480,11 @@ class GroqModel:
 class TogetherModel:
     """Model provider using Together AI API."""
 
-    def __init__(self, api_key: str | None = None, model: str = "mistralai/Mixtral-8x7B-Instruct-v0.1") -> None:
+    def __init__(
+        self,
+        api_key: str | None = None,
+        model: str = "mistralai/Mixtral-8x7B-Instruct-v0.1",
+    ) -> None:
         self._api_key = api_key or os.environ.get("TOGETHER_API_KEY", "")
         self._model = model
 
@@ -497,7 +521,11 @@ class TogetherModel:
                 )
                 if resp.status_code == 200:
                     data = resp.json()
-                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "{}")
+                    content = (
+                        data.get("choices", [{}])[0]
+                        .get("message", {})
+                        .get("content", "{}")
+                    )
                     return json.loads(content)
         except Exception as exc:
             logger.warning("Together AI planning failed: %s", exc)
@@ -512,7 +540,9 @@ class TogetherModel:
 class LMStudioModel:
     """Model provider using local LM Studio instance (OpenAI-compatible API)."""
 
-    def __init__(self, base_url: str = "http://localhost:1234", model: str = "") -> None:
+    def __init__(
+        self, base_url: str = "http://localhost:1234", model: str = ""
+    ) -> None:
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._available: bool | None = None
@@ -524,6 +554,7 @@ class LMStudioModel:
     async def _check_available(self) -> bool:
         try:
             import httpx
+
             async with httpx.AsyncClient(timeout=2.0) as client:
                 resp = await client.get(f"{self._base_url}/v1/models")
                 self._available = resp.status_code == 200
@@ -560,7 +591,11 @@ class LMStudioModel:
                 )
                 if resp.status_code == 200:
                     data = resp.json()
-                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "{}")
+                    content = (
+                        data.get("choices", [{}])[0]
+                        .get("message", {})
+                        .get("content", "{}")
+                    )
                     return json.loads(content)
         except Exception as exc:
             logger.warning("LM Studio planning failed: %s", exc)
@@ -576,7 +611,9 @@ class LMStudioModel:
 class CustomModel:
     """Model provider for user-defined custom API endpoints."""
 
-    def __init__(self, server_url: str = "", api_key: str = "", model: str = "") -> None:
+    def __init__(
+        self, server_url: str = "", api_key: str = "", model: str = ""
+    ) -> None:
         self._server_url = server_url.rstrip("/")
         self._api_key = api_key
         self._model = model
@@ -705,14 +742,30 @@ class TaskPlanner:
         self._interpreter = RuleInterpreter()
         # Circuit breakers per provider type
         self._circuit_breakers: dict[str, CircuitBreaker] = {
-            "OpenAIModel": CircuitBreaker(failure_threshold=3, reset_timeout=60.0, name="OpenAI"),
-            "GeminiModel": CircuitBreaker(failure_threshold=3, reset_timeout=60.0, name="Gemini"),
-            "OllamaModel": CircuitBreaker(failure_threshold=2, reset_timeout=30.0, name="Ollama"),
-            "CloudModel": CircuitBreaker(failure_threshold=3, reset_timeout=60.0, name="Cloud"),
-            "GroqModel": CircuitBreaker(failure_threshold=3, reset_timeout=60.0, name="Groq"),
-            "TogetherModel": CircuitBreaker(failure_threshold=3, reset_timeout=60.0, name="Together"),
-            "LMStudioModel": CircuitBreaker(failure_threshold=2, reset_timeout=30.0, name="LMStudio"),
-            "CustomModel": CircuitBreaker(failure_threshold=3, reset_timeout=60.0, name="Custom"),
+            "OpenAIModel": CircuitBreaker(
+                failure_threshold=3, reset_timeout=60.0, name="OpenAI"
+            ),
+            "GeminiModel": CircuitBreaker(
+                failure_threshold=3, reset_timeout=60.0, name="Gemini"
+            ),
+            "OllamaModel": CircuitBreaker(
+                failure_threshold=2, reset_timeout=30.0, name="Ollama"
+            ),
+            "CloudModel": CircuitBreaker(
+                failure_threshold=3, reset_timeout=60.0, name="Cloud"
+            ),
+            "GroqModel": CircuitBreaker(
+                failure_threshold=3, reset_timeout=60.0, name="Groq"
+            ),
+            "TogetherModel": CircuitBreaker(
+                failure_threshold=3, reset_timeout=60.0, name="Together"
+            ),
+            "LMStudioModel": CircuitBreaker(
+                failure_threshold=2, reset_timeout=30.0, name="LMStudio"
+            ),
+            "CustomModel": CircuitBreaker(
+                failure_threshold=3, reset_timeout=60.0, name="Custom"
+            ),
         }
 
     def add_provider(self, provider: ModelProvider) -> None:
@@ -788,11 +841,15 @@ class TaskPlanner:
 
     async def interpret(self, instruction: str, target: str | None = None) -> str:
         """Briefly interpret a command and return a summary string."""
-        plan = await self.plan(instruction, context={"targets": [target] if target else []})
+        plan = await self.plan(
+            instruction, context={"targets": [target] if target else []}
+        )
         if not plan.steps:
             return f"Unknown instruction: {instruction}"
 
-        steps_desc = [s.description or (s.tool or s.command or "step") for s in plan.steps]
+        steps_desc = [
+            s.description or (s.tool or s.command or "step") for s in plan.steps
+        ]
         return f"Plan: {' -> '.join(steps_desc)}"
 
     async def replan(
@@ -885,7 +942,9 @@ class TaskPlanner:
                     rs = ResponseSensor()
                     masked_instruction, mask = rs.mask_for_model(instruction)
                     try:
-                        masked_context = json.loads(mask.mask(json.dumps(context or {})))
+                        masked_context = json.loads(
+                            mask.mask(json.dumps(context or {}))
+                        )
                     except Exception:
                         masked_context = context
 
@@ -901,7 +960,9 @@ class TaskPlanner:
 
                     masked_instruction = mask.mask(instruction)
                     try:
-                        masked_context = json.loads(mask.mask(json.dumps(context or {})))
+                        masked_context = json.loads(
+                            mask.mask(json.dumps(context or {}))
+                        )
                     except Exception:
                         masked_context = context
 
@@ -930,7 +991,9 @@ class TaskPlanner:
 
         return None
 
-    def _parse_model_response(self, raw: dict[str, Any], instruction: str) -> ExecutionPlan:
+    def _parse_model_response(
+        self, raw: dict[str, Any], instruction: str
+    ) -> ExecutionPlan:
         """Parse the raw model JSON response into an ExecutionPlan.
 
         This method is intentionally lenient — it handles:
@@ -1015,15 +1078,21 @@ class TaskPlanner:
             raw_instruction=instruction,
         )
 
-    def _build_plan_from_task(self, task: InterpretedTask, instruction: str) -> ExecutionPlan:
+    def _build_plan_from_task(
+        self, task: InterpretedTask, instruction: str
+    ) -> ExecutionPlan:
         """Convert an InterpretedTask into an ExecutionPlan with concrete steps."""
         steps: list[ExecutionStep] = []
         step_counter = 0
 
         # Handle workflows, conditionals, and chains
         if task.action == "conditional":
-            then_sub = next((s for s in task.sub_tasks if s.flags.get("branch") == "then"), None)
-            else_sub = next((s for s in task.sub_tasks if s.flags.get("branch") == "else"), None)
+            then_sub = next(
+                (s for s in task.sub_tasks if s.flags.get("branch") == "then"), None
+            )
+            else_sub = next(
+                (s for s in task.sub_tasks if s.flags.get("branch") == "else"), None
+            )
             cond_str = task.flags.get("condition")
 
             if then_sub:

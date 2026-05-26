@@ -60,7 +60,9 @@ class Playbook:
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
-    def resolve_variables(self, command: str, extra_vars: dict[str, str] | None = None) -> str:
+    def resolve_variables(
+        self, command: str, extra_vars: dict[str, str] | None = None
+    ) -> str:
         vars_map = dict(self.variables)
         if extra_vars:
             vars_map.update(extra_vars)
@@ -189,7 +191,10 @@ class PlaybookEngine:
             name="bugbounty-recon",
             description="Standard bug bounty reconnaissance workflow",
             author="Phalanx Built-in",
-            variables={"target": "", "wordlist": "/usr/share/wordlists/dirb/common.txt"},
+            variables={
+                "target": "",
+                "wordlist": "/usr/share/wordlists/dirb/common.txt",
+            },
             tags=["recon", "bugbounty", "web"],
         )
         playbook.steps = [

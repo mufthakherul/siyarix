@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import pytest
-from phalanx.compliance_runner import (
-    ComplianceRunner,
-    ComplianceResult,
-    ComplianceControl,
-    ComplianceFramework,
-)
+
+from phalanx.compliance_runner import (ComplianceControl, ComplianceFramework,
+                                       ComplianceResult, ComplianceRunner)
+
 pytestmark = pytest.mark.compliance
 
 
@@ -64,12 +62,16 @@ class TestComplianceRunner:
         assert summary["total_assessments"] == 2
 
     def test_control_dataclass(self):
-        control = ComplianceControl(control_id="TEST-1", title="Test Control", compliant=True)
+        control = ComplianceControl(
+            control_id="TEST-1", title="Test Control", compliant=True
+        )
         assert control.control_id == "TEST-1"
         assert control.compliant is True
         assert control.applicable is True
 
     def test_result_dataclass(self):
-        result = ComplianceResult(framework=ComplianceFramework.PCI_DSS, target="example.com")
+        result = ComplianceResult(
+            framework=ComplianceFramework.PCI_DSS, target="example.com"
+        )
         assert result.framework == ComplianceFramework.PCI_DSS
         assert result.assessment_id == ""

@@ -187,7 +187,9 @@ class ComplianceRunner:
     def __init__(self) -> None:
         self._results: list[ComplianceResult] = []
 
-    def assess(self, framework: ComplianceFramework, target: str = "") -> ComplianceResult:
+    def assess(
+        self, framework: ComplianceFramework, target: str = ""
+    ) -> ComplianceResult:
         import uuid
 
         controls_data = _COMPLIANCE_CONTROLS.get(framework.value, [])
@@ -232,7 +234,9 @@ class ComplianceRunner:
             fw = ComplianceFramework(framework_name.lower().replace(" ", "-"))
         except ValueError:
             available = [f.value for f in ComplianceFramework]
-            raise ValueError(f"Unknown framework '{framework_name}'. Available frameworks: {available}")
+            raise ValueError(
+                f"Unknown framework '{framework_name}'. Available frameworks: {available}"
+            )
         return self.assess(fw, target)
 
     def _check_compliance(
@@ -255,64 +259,128 @@ class ComplianceRunner:
                 return self._check_hipaa(control_id, target)
             return False
         except Exception:
-            logger.debug("Compliance check failed for %s/%s", framework.value, control_id, exc_info=True)
+            logger.debug(
+                "Compliance check failed for %s/%s",
+                framework.value,
+                control_id,
+                exc_info=True,
+            )
             return False
 
     def _check_pci_dss(self, control_id: str, target: str) -> bool:
         if control_id == "PCI-6.5":
-            return self._check_tool_installed("bandit") or self._check_tool_installed("semgrep")
+            return self._check_tool_installed("bandit") or self._check_tool_installed(
+                "semgrep"
+            )
         elif control_id == "PCI-6.6":
-            return self._check_process_running("nginx") or self._check_process_running("httpd") or self._check_tool_installed("modsecurity")
+            return (
+                self._check_process_running("nginx")
+                or self._check_process_running("httpd")
+                or self._check_tool_installed("modsecurity")
+            )
         elif control_id == "PCI-11.3":
-            return self._check_tool_installed("nmap") or self._check_tool_installed("sqlmap")
+            return self._check_tool_installed("nmap") or self._check_tool_installed(
+                "sqlmap"
+            )
         elif control_id == "PCI-10.2":
-            return self._check_service_exists("auditd") or self._check_service_exists("syslog") or self._check_service_exists("EventLog")
+            return (
+                self._check_service_exists("auditd")
+                or self._check_service_exists("syslog")
+                or self._check_service_exists("EventLog")
+            )
         return False
 
     def _check_iso_27001(self, control_id: str, target: str) -> bool:
         if control_id == "ISO-A.12.6.1":
-            return self._check_tool_installed("trivy") or self._check_tool_installed("grype") or self._check_tool_installed("nessus")
+            return (
+                self._check_tool_installed("trivy")
+                or self._check_tool_installed("grype")
+                or self._check_tool_installed("nessus")
+            )
         elif control_id == "ISO-A.14.2.1":
-            return self._check_tool_installed("bandit") or self._check_tool_installed("semgrep") or self._check_tool_installed("sonarscanner")
+            return (
+                self._check_tool_installed("bandit")
+                or self._check_tool_installed("semgrep")
+                or self._check_tool_installed("sonarscanner")
+            )
         elif control_id == "ISO-A.12.4.1":
-            return self._check_service_exists("auditd") or self._check_service_exists("syslog") or self._check_service_exists("EventLog")
+            return (
+                self._check_service_exists("auditd")
+                or self._check_service_exists("syslog")
+                or self._check_service_exists("EventLog")
+            )
         return False
 
     def _check_nist(self, control_id: str, target: str) -> bool:
         if control_id == "RA-5":
-            return self._check_tool_installed("nmap") or self._check_tool_installed("openvas") or self._check_tool_installed("trivy")
+            return (
+                self._check_tool_installed("nmap")
+                or self._check_tool_installed("openvas")
+                or self._check_tool_installed("trivy")
+            )
         elif control_id == "SI-4":
-            return self._check_process_running("auditd") or self._check_process_running("wazuh") or self._check_tool_installed("ossec")
+            return (
+                self._check_process_running("auditd")
+                or self._check_process_running("wazuh")
+                or self._check_tool_installed("ossec")
+            )
         elif control_id == "CA-2":
-            return self._check_tool_installed("nmap") or self._check_tool_installed("openvas")
+            return self._check_tool_installed("nmap") or self._check_tool_installed(
+                "openvas"
+            )
         return False
 
     def _check_soc2(self, control_id: str, target: str) -> bool:
         if control_id == "CC7.1":
-            return self._check_process_running("prometheus") or self._check_process_running("nagios") or self._check_process_running("zabbix")
+            return (
+                self._check_process_running("prometheus")
+                or self._check_process_running("nagios")
+                or self._check_process_running("zabbix")
+            )
         elif control_id == "CC7.2":
-            return self._check_tool_installed("thehive") or self._check_tool_installed("ir") or self._check_dir_exists("/var/log/incidents")
+            return (
+                self._check_tool_installed("thehive")
+                or self._check_tool_installed("ir")
+                or self._check_dir_exists("/var/log/incidents")
+            )
         return False
 
     def _check_gdpr(self, control_id: str, target: str) -> bool:
         if control_id == "GDPR-32":
-            return self._check_dir_exists("/etc/ssl") or self._check_dir_exists("/etc/letsencrypt") or bool(os.environ.get("SSL_CERT_FILE"))
+            return (
+                self._check_dir_exists("/etc/ssl")
+                or self._check_dir_exists("/etc/letsencrypt")
+                or bool(os.environ.get("SSL_CERT_FILE"))
+            )
         elif control_id == "GDPR-33":
-            return self._check_dir_exists("/var/log/breach") or os.path.exists("/etc/breach-notification.conf")
+            return self._check_dir_exists("/var/log/breach") or os.path.exists(
+                "/etc/breach-notification.conf"
+            )
         return False
 
     def _check_hipaa(self, control_id: str, target: str) -> bool:
         if control_id == "HIPAA-164.308":
-            return self._check_dir_exists("/etc/ssl") or self._check_tool_installed("openssl")
+            return self._check_dir_exists("/etc/ssl") or self._check_tool_installed(
+                "openssl"
+            )
         elif control_id == "HIPAA-164.312":
-            return self._check_dir_exists("/etc/ssl") or self._check_tool_installed("openssl")
+            return self._check_dir_exists("/etc/ssl") or self._check_tool_installed(
+                "openssl"
+            )
         return False
 
     def _check_tool_installed(self, tool_name: str) -> bool:
         try:
             result = subprocess.run(
-                [sys.executable, "-m", tool_name, "--help"] if tool_name in ("bandit", "semgrep", "trivy")
-                else (["where", tool_name] if sys.platform == "win32" else ["which", tool_name]),
+                (
+                    [sys.executable, "-m", tool_name, "--help"]
+                    if tool_name in ("bandit", "semgrep", "trivy")
+                    else (
+                        ["where", tool_name]
+                        if sys.platform == "win32"
+                        else ["which", tool_name]
+                    )
+                ),
                 capture_output=True,
                 timeout=5,
             )
@@ -321,7 +389,11 @@ class ComplianceRunner:
             pass
         try:
             result = subprocess.run(
-                ["where", tool_name] if sys.platform == "win32" else [tool_name, "--version"],
+                (
+                    ["where", tool_name]
+                    if sys.platform == "win32"
+                    else [tool_name, "--version"]
+                ),
                 capture_output=True,
                 timeout=5,
             )
@@ -348,7 +420,10 @@ class ComplianceRunner:
                     capture_output=True,
                     timeout=5,
                 )
-                return "RUNNING" in result.stdout.decode() or "STOPPED" in result.stdout.decode()
+                return (
+                    "RUNNING" in result.stdout.decode()
+                    or "STOPPED" in result.stdout.decode()
+                )
             else:
                 result = subprocess.run(
                     ["systemctl", "is-active", service_name],
@@ -362,7 +437,9 @@ class ComplianceRunner:
     def _check_dir_exists(self, path: str) -> bool:
         return os.path.isdir(path)
 
-    def _gather_evidence(self, framework: ComplianceFramework, control_id: str, target: str) -> str:
+    def _gather_evidence(
+        self, framework: ComplianceFramework, control_id: str, target: str
+    ) -> str:
         parts: list[str] = []
         if target:
             parts.append(f"target={target}")
@@ -398,28 +475,48 @@ class ComplianceRunner:
             tools = [t for t in ("nmap", "sqlmap") if self._check_tool_installed(t)]
             return f"pentest_tools={','.join(tools) if tools else 'none'}"
         elif control_id == "PCI-10.2":
-            svcs = [s for s in ("auditd", "syslog", "EventLog") if self._check_service_exists(s)]
+            svcs = [
+                s
+                for s in ("auditd", "syslog", "EventLog")
+                if self._check_service_exists(s)
+            ]
             return f"audit_services={','.join(svcs) if svcs else 'none'}"
         return "no_specific_evidence"
 
     def _gather_iso_27001_evidence(self, control_id: str, target: str) -> str:
         if control_id == "ISO-A.12.6.1":
-            tools = [t for t in ("trivy", "grype", "nessus") if self._check_tool_installed(t)]
+            tools = [
+                t for t in ("trivy", "grype", "nessus") if self._check_tool_installed(t)
+            ]
             return f"vuln_scanners={','.join(tools) if tools else 'none'}"
         elif control_id == "ISO-A.14.2.1":
-            tools = [t for t in ("bandit", "semgrep", "sonarscanner") if self._check_tool_installed(t)]
+            tools = [
+                t
+                for t in ("bandit", "semgrep", "sonarscanner")
+                if self._check_tool_installed(t)
+            ]
             return f"sast_tools={','.join(tools) if tools else 'none'}"
         elif control_id == "ISO-A.12.4.1":
-            svcs = [s for s in ("auditd", "syslog", "EventLog") if self._check_service_exists(s)]
+            svcs = [
+                s
+                for s in ("auditd", "syslog", "EventLog")
+                if self._check_service_exists(s)
+            ]
             return f"logging_services={','.join(svcs) if svcs else 'none'}"
         return "no_specific_evidence"
 
     def _gather_nist_evidence(self, control_id: str, target: str) -> str:
         if control_id == "RA-5":
-            tools = [t for t in ("nmap", "openvas", "trivy") if self._check_tool_installed(t)]
+            tools = [
+                t for t in ("nmap", "openvas", "trivy") if self._check_tool_installed(t)
+            ]
             return f"scanners={','.join(tools) if tools else 'none'}"
         elif control_id == "SI-4":
-            procs = [p for p in ("auditd", "wazuh", "ossec") if self._check_process_running(p)]
+            procs = [
+                p
+                for p in ("auditd", "wazuh", "ossec")
+                if self._check_process_running(p)
+            ]
             return f"monitoring={','.join(procs) if procs else 'none'}"
         elif control_id == "CA-2":
             tools = [t for t in ("nmap", "openvas") if self._check_tool_installed(t)]
@@ -428,7 +525,11 @@ class ComplianceRunner:
 
     def _gather_soc2_evidence(self, control_id: str, target: str) -> str:
         if control_id == "CC7.1":
-            procs = [p for p in ("prometheus", "nagios", "zabbix") if self._check_process_running(p)]
+            procs = [
+                p
+                for p in ("prometheus", "nagios", "zabbix")
+                if self._check_process_running(p)
+            ]
             return f"monitoring_tools={','.join(procs) if procs else 'none'}"
         elif control_id == "CC7.2":
             dirs = [d for d in ("/var/log/incidents",) if self._check_dir_exists(d)]
@@ -438,7 +539,9 @@ class ComplianceRunner:
 
     def _gather_gdpr_evidence(self, control_id: str, target: str) -> str:
         if control_id == "GDPR-32":
-            dirs = [d for d in ("/etc/ssl", "/etc/letsencrypt") if self._check_dir_exists(d)]
+            dirs = [
+                d for d in ("/etc/ssl", "/etc/letsencrypt") if self._check_dir_exists(d)
+            ]
             ssl_env = "SSL_CERT_FILE" if os.environ.get("SSL_CERT_FILE") else None
             return f"encryption_dirs={','.join(dirs) if dirs else 'none'}, ssl_env={ssl_env or 'unset'}"
         elif control_id == "GDPR-33":
@@ -466,7 +569,12 @@ class ComplianceRunner:
             "total_assessments": len(self._results),
             "frameworks": {
                 fw.value: {
-                    "total": sum(1 for r in self._results if r.framework == fw for c in r.controls),
+                    "total": sum(
+                        1
+                        for r in self._results
+                        if r.framework == fw
+                        for c in r.controls
+                    ),
                     "compliant": sum(
                         1
                         for r in self._results
@@ -494,4 +602,9 @@ class ComplianceRunner:
         }
 
 
-__all__ = ["ComplianceRunner", "ComplianceResult", "ComplianceControl", "ComplianceFramework"]
+__all__ = [
+    "ComplianceRunner",
+    "ComplianceResult",
+    "ComplianceControl",
+    "ComplianceFramework",
+]

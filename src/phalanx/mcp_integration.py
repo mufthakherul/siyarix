@@ -4,6 +4,7 @@ MCP (Model Context Protocol) integration for research mode.
 Supports connecting to MCP servers for enhanced tool use
 and data gathering, as described in Chapter 9.3.
 """
+
 from __future__ import annotations
 
 import json
@@ -44,6 +45,7 @@ class MCPClient:
             return False
         try:
             import httpx
+
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.get(f"{self._endpoint}/health")
                 if resp.status_code == 200:
@@ -52,7 +54,9 @@ class MCPClient:
                     tools_resp = await client.get(f"{self._endpoint}/tools")
                     if tools_resp.status_code == 200:
                         tools_data = tools_resp.json()
-                        self._tools = [MCPTool(**t) for t in tools_data.get("tools", [])]
+                        self._tools = [
+                            MCPTool(**t) for t in tools_data.get("tools", [])
+                        ]
                     logger.info("Connected to MCP server at %s", self._endpoint)
                     return True
         except ImportError:
@@ -61,12 +65,15 @@ class MCPClient:
             logger.warning("MCP connection failed: %s", exc)
         return False
 
-    async def call_tool(self, name: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def call_tool(
+        self, name: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         if not self._connected:
             logger.warning("MCP client not connected")
             return {"error": "not connected"}
         try:
             import httpx
+
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
                     f"{self._endpoint}/tools/{name}/call",
@@ -82,5 +89,6 @@ class MCPClient:
     async def disconnect(self) -> None:
         self._connected = False
         self._tools = []
+
 
 __all__ = ["MCPClient", "MCPTool"]

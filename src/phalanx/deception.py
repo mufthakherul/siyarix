@@ -38,16 +38,40 @@ HONEYPOT_SIGNATURES: list[dict[str, Any]] = [
     {"name": "honeyd", "pattern": r"220 Honeyd Virtual", "type": "virtual_honeypot"},
     {"name": "glastopf", "pattern": r"Glastopf Web Honeypot", "type": "web_honeypot"},
     {"name": "tpot", "pattern": r"T-Pot\s+\d+\.\d+", "type": "honeypot_platform"},
-    {"name": "modern-honeypot-network", "pattern": r"MHN\s+Server", "type": "honeypot_platform"},
+    {
+        "name": "modern-honeypot-network",
+        "pattern": r"MHN\s+Server",
+        "type": "honeypot_platform",
+    },
 ]
 
 
 CANARY_TOKEN_PATTERNS: list[dict[str, Any]] = [
-    {"name": "canary-aws-key", "pattern": r"AKIA[0-9A-Z]{16}", "context": "Canary AWS access key"},
-    {"name": "canary-dns", "pattern": r"canarytokendns\.", "context": "Canary DNS token"},
-    {"name": "canary-url", "pattern": r"canarytokens\.com", "context": "Canary token URL"},
-    {"name": "canary-email", "pattern": r"canarytoken@", "context": "Canary email token"},
-    {"name": "thinkst-canary", "pattern": r"canary\.thinkst\.com", "context": "Thinkst Canary"},
+    {
+        "name": "canary-aws-key",
+        "pattern": r"AKIA[0-9A-Z]{16}",
+        "context": "Canary AWS access key",
+    },
+    {
+        "name": "canary-dns",
+        "pattern": r"canarytokendns\.",
+        "context": "Canary DNS token",
+    },
+    {
+        "name": "canary-url",
+        "pattern": r"canarytokens\.com",
+        "context": "Canary token URL",
+    },
+    {
+        "name": "canary-email",
+        "pattern": r"canarytoken@",
+        "context": "Canary email token",
+    },
+    {
+        "name": "thinkst-canary",
+        "pattern": r"canary\.thinkst\.com",
+        "context": "Thinkst Canary",
+    },
 ]
 
 
@@ -104,7 +128,9 @@ class HoneypotDetector:
         self._signatures = HONEYPOT_SIGNATURES
         self._canary_patterns = CANARY_TOKEN_PATTERNS
 
-    def analyze_scan_output(self, output: str, tool: str, target: str) -> list[DeceptionFinding]:
+    def analyze_scan_output(
+        self, output: str, tool: str, target: str
+    ) -> list[DeceptionFinding]:
         findings: list[DeceptionFinding] = []
         output_lower = output.lower()
 
@@ -137,7 +163,9 @@ class HoneypotDetector:
                 )
                 findings.append(finding)
                 self._findings.append(finding)
-                logger.warning("Canary token detected on %s: %s", target, pattern["context"])
+                logger.warning(
+                    "Canary token detected on %s: %s", target, pattern["context"]
+                )
 
         return findings
 
@@ -154,15 +182,23 @@ class FakeBannerGenerator:
                 "ssh", "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3", 22, "8.9p1", "Ubuntu 22.04"
             ),
             FakeBannerTemplate("ssh", "SSH-2.0-OpenSSH_7.4", 22, "7.4", "CentOS 7"),
-            FakeBannerTemplate("ssh", "SSH-2.0-OpenSSH_9.3p1 Debian-3", 22, "9.3p1", "Debian 12"),
+            FakeBannerTemplate(
+                "ssh", "SSH-2.0-OpenSSH_9.3p1 Debian-3", 22, "9.3p1", "Debian 12"
+            ),
         ],
         "http": [
-            FakeBannerTemplate("http", "Apache/2.4.57 (Ubuntu)", 80, "2.4.57", "Ubuntu 22.04"),
+            FakeBannerTemplate(
+                "http", "Apache/2.4.57 (Ubuntu)", 80, "2.4.57", "Ubuntu 22.04"
+            ),
             FakeBannerTemplate("http", "nginx/1.24.0", 80, "1.24.0", "Linux"),
-            FakeBannerTemplate("http", "Microsoft-IIS/10.0", 80, "10.0", "Windows Server 2022"),
+            FakeBannerTemplate(
+                "http", "Microsoft-IIS/10.0", 80, "10.0", "Windows Server 2022"
+            ),
         ],
         "mysql": [
-            FakeBannerTemplate("mysql", "5.7.42-0ubuntu0.18.04.1", 3306, "5.7.42", "Ubuntu 18.04"),
+            FakeBannerTemplate(
+                "mysql", "5.7.42-0ubuntu0.18.04.1", 3306, "5.7.42", "Ubuntu 18.04"
+            ),
             FakeBannerTemplate("mysql", "8.0.33", 3306, "8.0.33", "Linux"),
         ],
     }
@@ -210,7 +246,8 @@ class TrapdoorCredentialManager:
             password_hash=self._hash_password(password),
             service=service,
             description=description or f"Trapdoor credential for {service}",
-            alert_message=alert_message or f"Trapdoor credential used: {username}@{service}",
+            alert_message=alert_message
+            or f"Trapdoor credential used: {username}@{service}",
         )
         self._credentials[f"{username}@{service}"] = cred
         logger.info("Trapdoor credential added: %s@%s", username, service)

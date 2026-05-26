@@ -18,7 +18,6 @@ from phalanx.planner import ExecutionPlan, ExecutionStep, StepType
 from phalanx.providers import NoopProvider, ProviderRegistry
 from phalanx.tool_registry import ToolInfo, ToolRegistry
 
-
 # ── Provider Fixtures ────────────────────────────────────────────────
 
 
@@ -53,8 +52,12 @@ def tool_registry() -> ToolRegistry:
     """Return a ToolRegistry with a few test tools registered."""
     registry = ToolRegistry()
     registry._tools = {
-        "nmap": ToolInfo(name="nmap", path="/usr/bin/nmap", version="7.94", category="recon"),
-        "nuclei": ToolInfo(name="nuclei", path="/usr/bin/nuclei", version="3.1", category="web"),
+        "nmap": ToolInfo(
+            name="nmap", path="/usr/bin/nmap", version="7.94", category="recon"
+        ),
+        "nuclei": ToolInfo(
+            name="nuclei", path="/usr/bin/nuclei", version="3.1", category="web"
+        ),
         "gobuster": ToolInfo(
             name="gobuster", path="/usr/bin/gobuster", version="3.5", category="web"
         ),

@@ -187,7 +187,9 @@ class CVSSScorer:
         )
 
     def score_from_finding(self, finding: dict[str, Any]) -> CVSSResult:
-        title = (finding.get("title", "") + " " + finding.get("description", "")).lower()
+        title = (
+            finding.get("title", "") + " " + finding.get("description", "")
+        ).lower()
         severity = finding.get("severity", "medium").lower()
 
         # Auto-infer CVSS metrics from text
@@ -246,7 +248,12 @@ class CVSSScorer:
             "RC": "report_confidence",
         }
         field_value_maps: dict[str, dict[str, str]] = {
-            "attack_vector": {"N": "network", "A": "adjacent", "L": "local", "P": "physical"},
+            "attack_vector": {
+                "N": "network",
+                "A": "adjacent",
+                "L": "local",
+                "P": "physical",
+            },
             "privileges_required": {"N": "none", "L": "low", "H": "high"},
             "user_interaction": {"N": "none", "R": "required"},
             "scope": {"U": "unchanged", "C": "changed"},

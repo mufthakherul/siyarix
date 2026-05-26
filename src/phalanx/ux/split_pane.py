@@ -14,9 +14,9 @@ from typing import Any
 from rich.console import RenderableType
 from rich.layout import Layout
 from rich.panel import Panel
+from rich.progress import BarColumn, Progress, TextColumn
 from rich.table import Table
 from rich.text import Text
-from rich.progress import Progress, BarColumn, TextColumn
 
 
 class SplitPane:
@@ -39,7 +39,9 @@ class SplitPane:
         right_type options: 'attack_map', 'timeline', 'metrics', 'cheatsheet'
         """
         # Define side-by-side main panes
-        self._layout.split_row(Layout(name="left", ratio=3), Layout(name="right", ratio=3))
+        self._layout.split_row(
+            Layout(name="left", ratio=3), Layout(name="right", ratio=3)
+        )
 
         # 1. Populate Left Pane
         self._layout["left"].update(
@@ -96,14 +98,18 @@ class SplitPane:
         text.append("  " + "─" * 40 + "\n\n", style="dim blue")
 
         # Network topology nodes
-        text.append("  [ GATEWAY ] ═════╦═════ [ INGRESS SW ]\n", style="bold bright_blue")
+        text.append(
+            "  [ GATEWAY ] ═════╦═════ [ INGRESS SW ]\n", style="bold bright_blue"
+        )
         text.append("                   ║\n", style="bold bright_blue")
         text.append(
             "                   ╠═════ [ FIREWALL ] (Stateful Inspection)\n",
             style="bold bright_blue",
         )
         text.append("                   ║\n", style="bold bright_blue")
-        text.append("                   ╚═════ [ TARGET NODE ] ── ", style="bold bright_blue")
+        text.append(
+            "                   ╚═════ [ TARGET NODE ] ── ", style="bold bright_blue"
+        )
         text.append(f"({target})\n", style="bright_cyan")
 
         # Open ports and detected assets
@@ -121,13 +127,13 @@ class SplitPane:
             service = (
                 "SSH"
                 if port == 22
-                else "HTTP"
-                if port == 80
-                else "HTTPS"
-                if port == 443
-                else "RDP"
-                if port == 3389
-                else "Service"
+                else (
+                    "HTTP"
+                    if port == 80
+                    else (
+                        "HTTPS" if port == 443 else "RDP" if port == 3389 else "Service"
+                    )
+                )
             )
             text.append(f"    🟢 Port {port:<5} ── [{service:<7}] ── ", style="green")
             # Correlate vulns to port if matching
@@ -145,7 +151,13 @@ class SplitPane:
         # Add inline CVSS Risk Gauge
         severity_score = 0.0
         if findings:
-            sev_weights = {"critical": 9.5, "high": 7.5, "medium": 5.0, "low": 2.5, "info": 0.0}
+            sev_weights = {
+                "critical": 9.5,
+                "high": 7.5,
+                "medium": 5.0,
+                "low": 2.5,
+                "info": 0.0,
+            }
             for f in findings:
                 sev = f.get("severity", "info").lower()
                 severity_score = max(severity_score, sev_weights.get(sev, 0.0))
@@ -153,7 +165,11 @@ class SplitPane:
             severity_score = 6.4  # Default sample score
 
         blocks = "█" * int(severity_score) + "░" * (10 - int(severity_score))
-        color = "red" if severity_score >= 7.0 else "yellow" if severity_score >= 4.0 else "green"
+        color = (
+            "red"
+            if severity_score >= 7.0
+            else "yellow" if severity_score >= 4.0 else "green"
+        )
         text.append(
             f"\n  📊 SEVERITY RISK RATIO: [{color}]{blocks}[/] {severity_score:.1f}/10\n",
             style="bold",
@@ -170,11 +186,23 @@ class SplitPane:
         if not events:
             # Seed mock historical ops timeline
             events = [
-                {"time": "02:14:05", "event": "🔍 Discovered target online via ping sweep"},
-                {"time": "02:14:12", "event": "⚡ Launched Nmap Full Scan (Ports 1-65535)"},
+                {
+                    "time": "02:14:05",
+                    "event": "🔍 Discovered target online via ping sweep",
+                },
+                {
+                    "time": "02:14:12",
+                    "event": "⚡ Launched Nmap Full Scan (Ports 1-65535)",
+                },
                 {"time": "02:14:28", "event": "🟢 Port 80, 443, 3389 identified OPEN"},
-                {"time": "02:14:31", "event": "🧪 Initiated Nuclei vulnerability templates scan"},
-                {"time": "02:14:33", "event": "🔴 [VULN] CVE-2024-1337 Apache RCE detected!"},
+                {
+                    "time": "02:14:31",
+                    "event": "🧪 Initiated Nuclei vulnerability templates scan",
+                },
+                {
+                    "time": "02:14:33",
+                    "event": "🔴 [VULN] CVE-2024-1337 Apache RCE detected!",
+                },
             ]
 
         for ev in events:
@@ -232,7 +260,10 @@ class SplitPane:
     def _render_cheatsheet(self) -> RenderableType:
         """Render operational key bindings and command helper sheets."""
         table = Table(
-            title="Keyboard Shortcuts", show_header=True, header_style="bold blue", box=None
+            title="Keyboard Shortcuts",
+            show_header=True,
+            header_style="bold blue",
+            box=None,
         )
         table.add_column("Shortcut", style="bold bright_cyan", justify="left")
         table.add_column("Function Description", style="white")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from phalanx.agents.dfir_agent import DFIRAgent
 
 
@@ -30,7 +31,9 @@ class TestDFIRAgent:
 
     @pytest.mark.asyncio
     async def test_gather_evidence_disk(self, agent):
-        result = await agent._gather_evidence("", {"target": "victim-pc", "evidence_type": "disk"})
+        result = await agent._gather_evidence(
+            "", {"target": "victim-pc", "evidence_type": "disk"}
+        )
         assert result["evidence_type"] == "disk"
         assert result["collected_artifacts"] > 0
 

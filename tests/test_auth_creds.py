@@ -46,7 +46,9 @@ def test_auth_profile_and_audit_flow(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("PHALANX_CONFIG_DIR", str(tmp_path))
     monkeypatch.setenv("PHALANX_MASTER_PASSWORD", "test-password")
 
-    def fake_get(url: str, headers: dict | None = None, timeout: float | None = None) -> _Resp:
+    def fake_get(
+        url: str, headers: dict | None = None, timeout: float | None = None
+    ) -> _Resp:
         if url.endswith("/api/auth/me"):
             return _Resp(200, {"email": "agent@phalanx.dev", "org": "demo"})
         return _Resp(200, {"ok": True})

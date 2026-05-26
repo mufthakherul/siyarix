@@ -1,7 +1,10 @@
 """Tests for distributed task execution."""
 
 import pytest
-from phalanx.distributed import DistributedOrchestrator, TaskQueueBackend, DistributedTask
+
+from phalanx.distributed import (DistributedOrchestrator, DistributedTask,
+                                 TaskQueueBackend)
+
 pytestmark = pytest.mark.distributed
 
 

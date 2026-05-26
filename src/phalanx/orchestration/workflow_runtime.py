@@ -76,7 +76,9 @@ class WorkflowRuntime:
         self._store = store or OfflineStore()
         self._max_concurrency = max(max_concurrency, 1)
 
-    def load_workflow(self, workflow: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    def load_workflow(
+        self, workflow: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         params = params or {}
         if workflow.strip().startswith("{"):
             data = json.loads(workflow)
@@ -95,7 +97,9 @@ class WorkflowRuntime:
 
         return self._apply_params(data, params)
 
-    def _apply_params(self, data: dict[str, Any], params: dict[str, Any]) -> dict[str, Any]:
+    def _apply_params(
+        self, data: dict[str, Any], params: dict[str, Any]
+    ) -> dict[str, Any]:
         if not params:
             return data
         rendered = json.dumps(data)
@@ -187,7 +191,9 @@ class WorkflowRuntime:
                 result.status = WorkflowState.BLOCKED
                 break
 
-            async def run_step(spec: WorkflowStepSpec) -> tuple[str, bool, dict[str, Any], str]:
+            async def run_step(
+                spec: WorkflowStepSpec,
+            ) -> tuple[str, bool, dict[str, Any], str]:
                 async with semaphore:
                     result.step_states[spec.id] = WorkflowState.RUNNING
                     self._store.upsert_step_execution(
@@ -202,7 +208,9 @@ class WorkflowRuntime:
                         engine = self._engine_factory(spec.mode)
                         try:
                             exec_result = await engine.execute(
-                                spec.instruction, interactive=False, persist=spec.persist
+                                spec.instruction,
+                                interactive=False,
+                                persist=spec.persist,
                             )
                             payload = exec_result.to_dict()
                             if exec_result.success:
@@ -241,16 +249,23 @@ class WorkflowRuntime:
                     result.step_states[step_id] = WorkflowState.FAILED
                     result.step_errors[step_id] = error
                     for candidate in steps:
-                        if step_id in candidate.depends_on and candidate.id not in completed:
+                        if (
+                            step_id in candidate.depends_on
+                            and candidate.id not in completed
+                        ):
                             result.step_states[candidate.id] = WorkflowState.BLOCKED
 
         if failed:
             result.status = WorkflowState.FAILED
-            self._store.update_plan_status(plan_id, WorkflowState.FAILED.value, completed=True)
+            self._store.update_plan_status(
+                plan_id, WorkflowState.FAILED.value, completed=True
+            )
         elif result.status == WorkflowState.BLOCKED:
             self._store.update_plan_status(plan_id, WorkflowState.BLOCKED.value)
         else:
             result.status = WorkflowState.COMPLETED
-            self._store.update_plan_status(plan_id, WorkflowState.COMPLETED.value, completed=True)
+            self._store.update_plan_status(
+                plan_id, WorkflowState.COMPLETED.value, completed=True
+            )
 
         return result

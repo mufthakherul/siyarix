@@ -12,7 +12,7 @@ Bridge the gap between AI-driven planning and deterministic tool execution. Siya
 - **Autonomous Execution**: From natural language to executed commands in one step
 - **Safety First**: Bidirectional data masking, command sandboxing, permission gates
 - **Cross-Platform**: Native support for Linux, macOS, Windows, WSL, cloud shells
-- **Extensible**: Plugin system, 17 parsers, custom provider adapters
+- **Extensible**: 17 parsers, custom provider adapters
 - **Observable**: OpenTelemetry, audit trails, SIEM forwarding
 
 ---
@@ -87,8 +87,8 @@ Bridge the gap between AI-driven planning and deterministic tool execution. Siya
 Siyarix integrates into existing security stacks:
 
 - **SIEM**: Splunk, ElasticSearch via `siem.py`
-- **Ticketing**: JIRA, GitHub Issues (plugin-ready)
-- **Communication**: Slack, Discord, Teams (plugin-ready)
+- **Ticketing**: JIRA, GitHub Issues (coming soon)
+- **Communication**: Slack, Discord, Teams (coming soon)
 - **Cloud**: AWS, Azure, GCP scanning
 - **Container**: Docker, Kubernetes security checks
 - **Threat Intel**: MISP, STIX/TAXII feeds

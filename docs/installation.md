@@ -57,7 +57,6 @@ When you run `siyarix` for the first time, the bootstrap engine:
 ├── config.yaml           # Main configuration
 ├── personas/             # Custom personae
 │   └── custom/
-├── plugins/              # Plugin store
 ├── memory/               # Learning data (SQLite)
 ├── logs/                 # Session logs + audit
 ├── vault/                # Encrypted credentials

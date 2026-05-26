@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 import os
-import subprocess  # nosec B404
 from pathlib import Path
 from typing import Any
 
@@ -246,13 +245,21 @@ class SettingsStore:
         editor = os.getenv("EDITOR", default_editor)
         try:
             safe_run_sync([editor, str(self._path)], timeout=0)
-        except Exception as exc:
-            # Fallback to subprocess.call if safe_run_sync fails for unexpected editors
+        except Exception:
             logger.exception(
-                "Opening editor failed with safe_run_sync, falling back to subprocess.call: %s",
-                exc,
+                "Opening editor failed with safe_run_sync for editor=%s path=%s",
+                editor,
+                self._path,
             )
-            subprocess.call([editor, str(self._path)])  # nosec B603
+            try:
+                import subprocess
+                subprocess.run(  # nosec B603
+                    [editor, str(self._path)],
+                    capture_output=False,
+                    timeout=30,
+                )
+            except Exception as inner:
+                logger.error("Fallback editor launch failed: %s", inner)
         # Reload after editing
         self._data = {**DEFAULTS, **_try_load_toml(self._path)}
 

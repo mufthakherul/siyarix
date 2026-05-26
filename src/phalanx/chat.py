@@ -19,6 +19,7 @@ import asyncio
 import json
 import logging
 import os
+import socket
 import sys
 import time
 from collections import deque
@@ -1353,8 +1354,7 @@ class PhalanxChat:
 
     def _cmd_work_mode(self, args: str) -> None:
         """Handle /work-mode persona switching and management."""
-        from .persona_engine import (Persona, PersonaEngine, ToolACL,
-                                     WorkflowTemplate)
+        from .persona_engine import (Persona, PersonaEngine, ToolACL)
 
         engine = PersonaEngine()
         tokens = args.split() if args else []
@@ -1594,7 +1594,7 @@ class PhalanxChat:
                 f"[green]✓ Created collaboration session: {session.name}[/green]"
             )
             console.print(f"[dim]ID: {session.session_id}[/dim]")
-            console.print(f"[dim]Share this ID for others to join.[/dim]")
+            console.print("[dim]Share this ID for others to join.[/dim]")
         elif action == "list":
             sessions = mgr.list_sessions()
             mgr.show_table(sessions)
@@ -1769,7 +1769,7 @@ class PhalanxChat:
         from rich.table import Table
 
         from .learning_memory import LearningMemory
-        from .user_learning import ExperienceLevel, UserLearning
+        from .user_learning import UserLearning
 
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else ""
@@ -1901,7 +1901,7 @@ class PhalanxChat:
             ul.experience = tokens[1]
             console.print(f"[green]✓ Experience level set to: {tokens[1]}[/green]")
             console.print(
-                f"[dim]Auto-detect disabled. Use /learning auto to re-enable.[/dim]"
+                "[dim]Auto-detect disabled. Use /learning auto to re-enable.[/dim]"
             )
 
         elif action == "auto":
@@ -2448,7 +2448,7 @@ class PhalanxChat:
 
     async def _cmd_k8s(self, args: str) -> None:
         """Handle /k8s command for Kubernetes security scanning."""
-        from .cloud_scanner import CloudProvider, CloudScanner
+        from .cloud_scanner import CloudScanner
         tokens = args.split() if args else []
         if not tokens or tokens[0] not in ("scan", "audit", "rbac"):
             console.print("[yellow]Usage: /k8s scan|audit|rbac <namespace>[/yellow]")
@@ -2534,7 +2534,7 @@ class PhalanxChat:
             if "--provider" in tokens:
                 idx = tokens.index("--provider")
                 provider = tokens[idx + 1] if idx + 1 < len(tokens) else "yubikey"
-            status = hsm.connect(provider=provider)
+            hsm.connect(provider=provider)
             console.print(hsm.generate_report(fmt="text"))
         elif tokens[0] == "status":
             console.print(hsm.generate_report(fmt="text"))

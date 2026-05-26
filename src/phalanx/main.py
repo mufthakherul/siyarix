@@ -74,8 +74,9 @@ from .xi import XICoreService
 # Initialize core systems
 # ---------------------------------------------------------------------------
 
-# Detect non-interactive / CI environments for banner suppression
+# Detect non-interactive / CI / pipe environments
 _IS_TTY = sys.stdout.isatty()
+_IS_STDIN_PIPE = not sys.stdin.isatty()
 _CI_MODE = os.getenv("CI", "") or os.getenv("SIYARIX_NO_BANNER", "") or not _IS_TTY
 
 console = Console()
@@ -149,31 +150,25 @@ def _get_engine(mode: str = "integrated") -> ExecutionEngine:
 app = typer.Typer(
     name="siyarix",
     help=f"""
-[bold cyan]Siyarix CLI — Enterprise Cybersecurity Command Center[/bold cyan]
+[bold cyan]Siyarix CLI — Cybersecurity Command Center[/bold cyan]
 
 [dim]Version: {__version__} | Platform: {platform.system()} | Python: {platform.python_version()}[/dim]
 
 [bold]Quick Start:[/bold]
-  [green]siyarix[/green]                          — Interactive chat mode (AI assistant)
-  [green]siyarix chat[/green]                     — Interactive AI cybersecurity REPL
-  [green]siyarix scan 192.168.1.0/24[/green]      — Network/port scan
+  [green]siyarix[/green]                          — Interactive shell (chat / TUI)
+  [green]siyarix scan 192.168.1.0/24[/green]      — Direct command execution
+  [green]echo "scan 10.0.0.1" | siyarix[/green]  — Pipe commands via stdin
   [green]siyarix run "scan my network"[/green]    — Natural language command
   [green]siyarix discover example.com[/green]     — Asset & service discovery
-  [green]siyarix tool-registry list[/green]       — Show installed security tools
 
-[bold]Execution Modes:[/bold]
-  [yellow]--mode registry[/yellow]    — Fast, offline (tool registry only)
-  [yellow]--mode autonomous[/yellow]  — AI model-driven planning
-  [yellow]--mode integrated[/yellow]  — AI + registry fallback (default)
-
-[bold]Premium Features:[/bold]
-  • [magenta]siyarix chat[/magenta]          — AI conversational REPL with session history
-  • [magenta]siyarix shell[/magenta]         — Cross-platform shell command helper
-  • [magenta]siyarix dashboard[/magenta]     — Live security dashboard
-  • [magenta]siyarix bulk scan[/magenta]     — Bulk target scanning
-  • [magenta]siyarix workflow[/magenta]      — Workflow orchestration
-  • [magenta]siyarix compliance[/magenta]    — Compliance reporting
-  • [magenta]siyarix auth set-key[/magenta]  — Configure AI model API keys
+[bold]Key Commands:[/bold]
+  • [magenta]siyarix scan[/magenta]         — Network / port scanning
+  • [magenta]siyarix run[/magenta]          — Natural language → execution
+  • [magenta]siyarix agent[/magenta]        — Goal-driven autonomous agent
+  • [magenta]siyarix shell[/magenta]        — Cross-platform shell helper
+  • [magenta]siyarix workflow[/magenta]     — Workflow orchestration
+  • [magenta]siyarix auth set-key[/magenta] — Configure AI model API keys
+  • [magenta]siyarix --help[/magenta]       — Full command reference
     """,
     add_completion=False,
     rich_markup_mode="rich",
@@ -181,13 +176,49 @@ app = typer.Typer(
 )
 
 
+def _run_batch_lines(lines: list[str]) -> None:
+    """Execute a list of command lines through the chat REPL handler."""
+    from .chat import SiyarixChat
+    chat = SiyarixChat(mode="integrated")
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        console.print(f"[bold]> {line}[/bold]")
+        if line.startswith("/"):
+            cmd, _, rest = line.partition(" ")
+            handler = chat._commands.get(cmd)
+            if handler:
+                asyncio.run(handler(rest.strip()))
+            else:
+                console.print(f"[red]Unknown command: {cmd}[/red]")
+        else:
+            asyncio.run(chat._handle_natural_language(line))
+
+
 @app.callback(invoke_without_command=True)
 def main_callback(
     ctx: typer.Context,
     config: str = typer.Option(None, "--config", "-c", help="Path to custom config file (YAML/JSON)"),
     batch: str = typer.Option(None, "--batch", "-b", help="Path to batch script file to execute"),
+    mode: str = typer.Option(
+        "integrated",
+        "--mode",
+        "-m",
+        help="Execution mode: registry|autonomous|integrated",
+    ),
+    target: str = typer.Option(
+        "", "--target", "-t", help="Set initial target for the session"
+    ),
 ) -> None:
-    """Launch interactive chat mode when siyarix is invoked with no subcommand."""
+    """Siyarix CLI — the unified entry point.
+
+    \b
+    Three usage modes:
+      1) [green]siyarix[/green]              — Interactive shell (chat + TUI)
+      2) [green]siyarix <command>[/green]    — Direct command execution
+      3) [green]echo ... | siyarix[/green]   — Pipe commands via stdin
+    """
     if config:
         resolved = Path(config).expanduser().resolve()
         if resolved.exists():
@@ -197,32 +228,29 @@ def main_callback(
         else:
             console.print(f"[red]Config file not found: {resolved}[/red]")
             raise typer.Exit(1)
+
+    # --batch file mode (file-based, non-interactive)
     if batch:
         resolved = Path(batch).expanduser().resolve()
         if resolved.exists():
             script_lines = resolved.read_text(encoding="utf-8").splitlines()
             console.print(f"[dim]Executing batch script: {resolved} ({len(script_lines)} commands)[/dim]")
-            from .chat import SiyarixChat
-            chat = SiyarixChat(mode="integrated")
-            for line in script_lines:
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
-                console.print(f"[bold]> {line}[/bold]")
-                if line.startswith("/"):
-                    cmd, _, rest = line.partition(" ")
-                    handler = chat._commands.get(cmd)
-                    if handler:
-                        asyncio.run(handler(rest.strip()))
-                    else:
-                        console.print(f"[red]Unknown command: {cmd}[/red]")
-                else:
-                    asyncio.run(chat._handle_natural_language(line))
+            _run_batch_lines(script_lines)
         else:
             console.print(f"[red]Batch script not found: {resolved}[/red]")
             raise typer.Exit(1)
-    if ctx.invoked_subcommand is None and _IS_TTY and not batch:
-        start_chat()
+        return
+
+    # Pipe from stdin: echo "scan 10.0.0.1" | siyarix
+    if _IS_STDIN_PIPE:
+        lines = [l for l in sys.stdin if l.strip()]
+        if lines:
+            _run_batch_lines([l.strip() for l in lines])
+        return
+
+    # No subcommand + TTY: launch interactive UI
+    if ctx.invoked_subcommand is None and _IS_TTY:
+        start_chat(mode=mode, target=target)
 
 
 # Register security command group into the main CLI.
@@ -231,12 +259,6 @@ app.add_typer(security_app, name="security")
 # ---------------------------------------------------------------------------
 # Sub-command groups (Premium ecosystem)
 # ---------------------------------------------------------------------------
-
-offline_app = typer.Typer(help="💾 Offline data & cache management")
-app.add_typer(offline_app, name="offline")
-
-mode_app = typer.Typer(help="⚙️ Execution mode management")
-app.add_typer(mode_app, name="mode")
 
 auth_app = typer.Typer(help="🔑 Authentication & API keys")
 app.add_typer(auth_app, name="auth")
@@ -363,20 +385,11 @@ def profile_rm_cmd(
 audit_app = typer.Typer(help="📋 Audit trail & compliance logs")
 app.add_typer(audit_app, name="audit")
 
-history_app = typer.Typer(help="📜 Scan history & findings")
-app.add_typer(history_app, name="history")
-
 config_app = typer.Typer(help="⚙️ CLI configuration")
 app.add_typer(config_app, name="config")
 
 completions_app = typer.Typer(help="🏁 Shell completions")
 app.add_typer(completions_app, name="completions")
-
-planner_app = typer.Typer(help="🤖 Model provider & autonomous planning")
-app.add_typer(planner_app, name="planner")
-
-sync_app = typer.Typer(help="🔄 Offline sync & reconciliation")
-app.add_typer(sync_app, name="sync")
 
 plugin_app = typer.Typer(help="🔌 Plugin lifecycle management")
 app.add_typer(plugin_app, name="plugin")
@@ -799,42 +812,6 @@ app.add_typer(shell_app, name="shell")
 # ---------------------------------------------------------------------------
 _active_profile: str | None = None
 _active_theme: str = "default"
-
-
-# ---------------------------------------------------------------------------
-# Chat command — Interactive AI cybersecurity REPL
-# ---------------------------------------------------------------------------
-@app.command()
-def chat(
-    mode: str = typer.Option(
-        "integrated",
-        "--mode",
-        "-m",
-        help="Execution mode: registry|autonomous|integrated",
-    ),
-    target: str = typer.Option(
-        "", "--target", "-t", help="Set initial target for the session"
-    ),
-    session: str = typer.Option(
-        "", "--session", "-s", help="Resume a previous session by ID"
-    ),
-    resume: bool = typer.Option(
-        False, "--resume", "-r", help="Resume the most recent session"
-    ),
-) -> None:
-    """Start an interactive AI cybersecurity REPL (chat mode).
-
-    Siyarix chat gives you a conversational interface to run security tools,
-    get cross-platform command help, and manage sessions with history.
-
-    Examples:
-      siyarix chat
-      siyarix chat --target 192.168.1.1
-      siyarix chat --mode autonomous
-      siyarix chat --session abc123 --resume
-    """
-    session_id = session or None
-    start_chat(mode=mode, target=target, session_id=session_id, resume=resume)
 
 
 # ---------------------------------------------------------------------------

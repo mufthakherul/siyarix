@@ -1,6 +1,6 @@
 """Phalanx Branding — Premium Design System.
 
-Seven curated themes, rich banner, severity styles, mode dispatcher display,
+Seven curated themes, rich banner, severity styles,
 and design token helpers for a consistent terminal UX.
 """
 
@@ -11,7 +11,6 @@ import logging
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.text import Text
 
 logger = logging.getLogger(__name__)
 
@@ -161,77 +160,6 @@ _BANNER = r"""
 """
 
 # ---------------------------------------------------------------------------
-# Mode dispatcher table data
-# ---------------------------------------------------------------------------
-_MODES: list[dict[str, str]] = [
-    {
-        "num": "1",
-        "key": "[1]",
-        "name": "Interactive Shell",
-        "cmd": "phalanx",
-        "shortcut": "/1",
-        "desc": "AI-powered interactive REPL (default)",
-    },
-    {
-        "num": "2",
-        "key": "[2]",
-        "name": "AI Conversational",
-        "cmd": "phalanx chat",
-        "shortcut": "/2",
-        "desc": "Multi-turn AI cyber assistant",
-    },
-    {
-        "num": "3",
-        "key": "[3]",
-        "name": "Direct Command",
-        "cmd": 'phalanx run "scan target.com"',
-        "shortcut": "/3",
-        "desc": "One-shot NL command execution",
-    },
-    {
-        "num": "4",
-        "key": "[4]",
-        "name": "Autonomous Agent",
-        "cmd": 'phalanx agent --goal "..."',
-        "shortcut": "/4",
-        "desc": "Goal-driven autonomous operation",
-    },
-    {
-        "num": "5",
-        "key": "[5]",
-        "name": "Workflow Automation",
-        "cmd": "phalanx workflow run pentest.yaml",
-        "shortcut": "/5",
-        "desc": "YAML DAG workflow execution",
-    },
-    {
-        "num": "6",
-        "key": "[6]",
-        "name": "TUI Dashboard",
-        "cmd": "phalanx dashboard",
-        "shortcut": "/6",
-        "desc": "Live security operations dashboard",
-    },
-    {
-        "num": "7",
-        "key": "[7]",
-        "name": "Guided Wizard",
-        "cmd": "phalanx wizard",
-        "shortcut": "/7",
-        "desc": "Step-by-step guided operations",
-    },
-    {
-        "num": "8",
-        "key": "[8]",
-        "name": "Headless API",
-        "cmd": "phalanx serve --port 8080",
-        "shortcut": "/8",
-        "desc": "REST/WebSocket API server",
-    },
-]
-
-
-# ---------------------------------------------------------------------------
 # Theme resolution helpers
 # ---------------------------------------------------------------------------
 
@@ -334,55 +262,6 @@ def print_banner(
 
 
 # ---------------------------------------------------------------------------
-# Mode dispatcher display
-# ---------------------------------------------------------------------------
-
-
-def print_mode_dispatcher(
-    console: Console, theme: str, active_mode_num: str = "1"
-) -> None:
-    """Print the Phalanx Mode Dispatcher table."""
-    safe_theme = resolve_theme(theme)
-    styles = _SEVERITY_STYLES[safe_theme]
-    primary = styles.get("primary", "cyan")
-    accent = styles.get("accent", "bright_cyan")
-    muted = styles.get("muted", "bright_black")
-    border = styles.get("border", "cyan")
-
-    table = Table(
-        show_header=True,
-        header_style=f"bold {primary}",
-        border_style=border,
-        title=f"[bold {accent}]⚡ NEXSEC MODE DISPATCHER[/bold {accent}]",
-        title_justify="center",
-        padding=(0, 1),
-    )
-    table.add_column("Key", style="bold", width=5, justify="center")
-    table.add_column("Mode", width=22)
-    table.add_column("Command", style="green")
-    table.add_column("Description", style=f"{muted}")
-
-    for mode in _MODES:
-        is_active = mode["num"] == active_mode_num
-        key_str = (
-            f"[bold {accent}]{mode['key']}[/bold {accent}]"
-            if is_active
-            else f"[{muted}]{mode['key']}[/{muted}]"
-        )
-        name_str = (
-            f"[bold {accent}]▶ {mode['name']}[/bold {accent}]"
-            if is_active
-            else f"[{primary}]{mode['name']}[/{primary}]"
-        )
-        table.add_row(key_str, name_str, mode["cmd"], mode["desc"])
-
-    console.print(table)
-    console.print(
-        f"[{muted}]  Switch with /1–/9 inside chat · Current: [bold]{active_mode_num}[/bold][/{muted}]"
-    )
-
-
-# ---------------------------------------------------------------------------
 # Theme preview
 # ---------------------------------------------------------------------------
 
@@ -433,26 +312,4 @@ def print_theme_preview(console: Console, theme: str) -> None:
     console.print(table)
 
 
-# ---------------------------------------------------------------------------
-# Compact mode switcher bar (for prompt display)
-# ---------------------------------------------------------------------------
 
-
-def render_mode_bar(theme: str, active_mode_num: str = "1") -> Text:
-    """Render a compact single-line mode switcher bar as a Rich Text object."""
-    safe_theme = resolve_theme(theme)
-    styles = _SEVERITY_STYLES[safe_theme]
-    accent = styles.get("accent", "bright_cyan")
-    muted = styles.get("muted", "bright_black")
-
-    text = Text()
-    for i, mode in enumerate(_MODES):
-        is_active = mode["num"] == active_mode_num
-        label = f"[{mode['num']}]{mode['name'].split()[0]}"
-        if is_active:
-            text.append(f" {label} ", style=f"bold {accent}")
-        else:
-            text.append(f" {label} ", style=muted)
-        if i < len(_MODES) - 1:
-            text.append("·", style=muted)
-    return text

@@ -19,9 +19,8 @@ from .canary import (CanaryDeployment, CanaryToken, CanaryTokenManager,
                      CanaryTokenType)
 from .cloud_scanner import CloudProvider, CloudScanner, CloudScanResult
 from .coder_bridge import CoderBridge, CodeReview
-from .collaboration import CollabMember, CollaborationManager, CollabSession
 from .compliance_runner import (ComplianceControl, ComplianceFramework,
-                                ComplianceResult, ComplianceRunner)
+                                 ComplianceResult, ComplianceRunner)
 from .config import SettingsStore
 from .core import AgenticLoop
 from .core import InMemoryEventBus as EventBus
@@ -92,8 +91,7 @@ from .user_learning import (ExperienceLevel, PedagogicalEngine,
                             UserProfile)
 from .achievement import Achievement, AchievementSystem, achievement_system
 from .cache_manager import CacheEntry, CacheManager, cache_manager
-from .challenge import Challenge, ChallengeParticipant, ChallengeSystem, challenge_system
-from .community import CommunityProfile, CommunityService, LeaderboardEntry, community_service
+
 from .hsm_manager import HSMError, HSMKeyInfo, HSMNotAvailable, HSMService, HSMStatus
 from .iac_scanner import IaCFinding, IaCScanResult, IaCScanner
 from .importer import ImportResult, ImportedFinding, SecurityImporter, security_importer
@@ -259,9 +257,6 @@ __all__ = [
     "ReviewDecision",
     "AgentLifecycle",
     "AgentInstance",
-    "CollaborationManager",
-    "CollabSession",
-    "CollabMember",
     "CoderBridge",
     "CodeReview",
     "MCPClient",
@@ -287,14 +282,6 @@ __all__ = [
     "CacheManager",
     "CacheEntry",
     "cache_manager",
-    "ChallengeSystem",
-    "Challenge",
-    "ChallengeParticipant",
-    "challenge_system",
-    "CommunityService",
-    "CommunityProfile",
-    "LeaderboardEntry",
-    "community_service",
     "HSMService",
     "HSMStatus",
     "HSMKeyInfo",

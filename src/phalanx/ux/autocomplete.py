@@ -80,7 +80,7 @@ class SmartAutocomplete(Completer):
             "workflow": "Manage and run automation workflows",
             "wizard": "Guided onboarding wizard setup",
             "dashboard": "Launch interactive TUI SOC Dashboard",
-            "team": "Initiate collaboration session",
+
             "serve": "Start headless API mode",
             "alias": "Manage custom command aliases",
             "macro": "Manage execution macros",

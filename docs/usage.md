@@ -250,8 +250,6 @@ phalanx shell platform
 ## 🤝 Collaborative Sessions
 
 ```bash
-# Start SSH-collaborative session
-phalanx collab ssh user@teammate-server
 
 # Share tool registry and context
 # Both participants see the same output

@@ -11,7 +11,7 @@ Features:
   • Multi-environment & profile support
   • Offline-first with sync capabilities
   • CI/CD integration & policy gates
-  • Team collaboration & org management
+
   • Advanced output formats (JSON/YAML/CSV/Table/Rich)
   • Secure credential & API key management
   • Real-time progress & live dashboards
@@ -435,9 +435,6 @@ def theme_preview(
 
 workflow_app = typer.Typer(help="⚙️ Workflow orchestration")
 app.add_typer(workflow_app, name="workflow")
-
-team_app = typer.Typer(help="👥 Team & organization")
-app.add_typer(team_app, name="team")
 
 org_app = typer.Typer(help="🏢 Organization-scoped commands")
 app.add_typer(org_app, name="org")
@@ -2321,20 +2318,6 @@ def audit_verify() -> None:
 
 
 # Security sub-commands are defined in security_commands.py.
-
-
-# ---------------------------------------------------------------------------
-# Premium: Team & Organization commands
-# ---------------------------------------------------------------------------
-@team_app.command("invite")
-def team_invite(
-    email: str = typer.Argument(help="Email to invite"),
-    role: str = typer.Option(
-        "member", "--role", "-r", help="Role: admin|member|viewer"
-    ),
-) -> None:
-    """Invite a team member."""
-    console.print(f"[green]✓ Invitation sent to {email} (role: {role})[/green]")
 
 
 @org_app.command("stats")

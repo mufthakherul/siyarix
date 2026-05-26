@@ -1148,161 +1148,91 @@ class ExecutionEngine:
     async def _run_tool_step(
         self, step: ExecutionStep, interactive: bool
     ) -> StepResult:
-        """Execute a registered security tool."""
+        """Execute a registered security tool via ToolExecutor, with engine-level extras."""
         tool_name = step.tool or ""
-        start = time.monotonic()
 
-        # Handle "__all__" special case
-        if tool_name == "__all__":
-            findings: list[dict[str, Any]] = []
-            outputs: list[str] = []
-            metrics = get_metrics()
-            for tool_info in self._discovered_tools:
-                tool_start = time.monotonic()
-                args = list(step.args)
-                if step.target:
-                    args.append(step.target)
-                result = await run_tool_complete(tool_info.path, args, step.timeout)
-                tool_duration = time.monotonic() - tool_start
-                outputs.append(f"--- {tool_info.name} ---\n{result.stdout}")
-                # Parse findings if parser available
-                tool_findings = self._parse_tool_output(tool_info.name, result.stdout)
-                for f in tool_findings:
-                    self._graph.ingest_finding(f, tool=tool_info.name)
-                findings.extend(tool_findings)
-                metrics.record_tool_execution(
-                    tool_name=tool_info.name,
-                    duration=tool_duration,
-                    successful=result.exit_code == 0,
-                    findings_count=len(tool_findings),
-                )
-            duration = (time.monotonic() - start) * 1000
-
-            return StepResult(
-                step_id=step.id,
-                status=StepStatus.SUCCESS,
-                output="\n".join(outputs),
-                duration_ms=duration,
-                findings=findings,
-            )
-
-        # Resolve the tool
-        resolved = self._resolver.resolve(tool_name, step.args)
-
-        if not resolved.is_safe:
-            # Check if it was blocked because it was not found on PATH
-            if any("not found on PATH" in warning for warning in resolved.warnings):
+        # Check install-and-retry for missing tools
+        if tool_name != "__all__":
+            resolved = self._resolver.resolve(tool_name, step.args)
+            if not resolved.is_safe and any(
+                "not found on PATH" in w for w in resolved.warnings
+            ):
                 installed = await self._try_install_tool(tool_name)
                 if installed:
-                    # Re-resolve since the tool is now installed!
-                    resolved = self._resolver.resolve(tool_name, step.args)
-
-            if not resolved.is_safe:
-                if interactive:
-                    console.print(
-                        f"[red]⚠ Blocked unsafe command:[/red] {tool_name}\n"
-                        f"  Reasons: {'; '.join(resolved.warnings)}"
+                    self._resolver = DynamicResolver(
+                        registered_tools={
+                            t.binary: t.path
+                            for t in self._discovered_tools
+                        }
+                        | {t.name: t.path for t in self._discovered_tools}
                     )
-                return StepResult(
-                    step_id=step.id,
-                    status=StepStatus.BLOCKED,
-                    error=f"Blocked: {'; '.join(resolved.warnings)}",
-                )
 
-        # Permission gate check for tool
+        # Permission gate
         original_args_str = " ".join(step.args)
-        confirmed_args_str = original_args_str
-        try:
-            from .permission_gate import PermissionGate
-
-            gate = PermissionGate()
-            gate_result = gate.check(original_args_str, tool=tool_name)
-            if gate_result.stage == "forbidden":
-                return StepResult(
-                    step_id=step.id,
-                    status=StepStatus.BLOCKED,
-                    error=f"Forbidden by permission gate: {gate_result.reason}",
-                )
-            if gate_result.requires_review and interactive:
-                from .shell_review import review_and_confirm
-
-                confirmed = review_and_confirm(
-                    original_args_str, tool_name, gate_result.reason
-                )
-                if confirmed is None:
-                    return StepResult(
-                        step_id=step.id,
-                        status=StepStatus.BLOCKED,
-                        error="Cancelled by user review",
-                    )
-                confirmed_args_str = confirmed
-        except Exception as exc:
-            logger.debug("Permission gate check failed: %s", exc)
-
-        # Build args from confirmed (possibly edited) string
-        if confirmed_args_str != original_args_str:
-            args = confirmed_args_str.split()
-        else:
-            args = list(step.args)
-        if step.target:
-            args.append(step.target)
-
-        # Execute
-        result = await run_tool_complete(resolved.path, args, step.timeout)
-        duration = (time.monotonic() - start) * 1000
-
-        # Parse findings
-        findings = self._parse_tool_output(tool_name, result.stdout)
-        for f in findings:
-            self._graph.ingest_finding(f, tool=tool_name)
-
-        # Emit finding notifications
-        for f in findings:
-            notification_center.finding(
-                tool=tool_name,
-                severity=f.get("severity", "info"),
-                description=f.get("description", str(f)),
-                target=step.target or "",
+        confirmed_str = await self._apply_permission_gate(
+            step, tool_name, original_args_str, interactive
+        )
+        if confirmed_str == "__forbidden__":
+            return StepResult(
+                step_id=step.id,
+                status=StepStatus.BLOCKED,
+                error="Forbidden by permission gate",
+            )
+        if confirmed_str != original_args_str:
+            step = ExecutionStep(
+                id=step.id,
+                step_type=step.step_type,
+                tool=step.tool,
+                command=step.command,
+                args=confirmed_str.split(),
+                target=step.target,
+                depends_on=step.depends_on,
+                condition=step.condition,
+                timeout=step.timeout,
+                description=step.description,
+                metadata=step.metadata,
             )
 
-        # Record tool execution metrics
-        get_metrics().record_tool_execution(
-            tool_name=tool_name,
-            duration=duration / 1000,
-            successful=result.exit_code == 0,
-            findings_count=len(findings),
-        )
+        # Delegate core execution to ToolExecutor
+        sr = await self._executor.execute_step(step, interactive)
 
-        # Record correction if args were modified by user
-        if (
-            self._learning_memory is not None
-            and confirmed_args_str != original_args_str
-        ):
+        # Engine-level extras: notifications, learning, session log
+        if sr.findings:
+            for f in sr.findings:
+                notification_center.finding(
+                    tool=tool_name,
+                    severity=f.get("severity", "info"),
+                    description=f.get("description", str(f)),
+                    target=step.target or "",
+                )
+            for f in sr.findings:
+                self._graph.ingest_finding(f, tool=tool_name)
+
+        if self._learning_memory is not None and confirmed_str != original_args_str:
             try:
                 self._learning_memory.record_with_correction(
                     tools=[tool_name],
                     original=f"{tool_name} {original_args_str}",
-                    corrected=f"{tool_name} {confirmed_args_str}",
+                    corrected=confirmed_str,
                     task=step.description or "",
-                    findings_after=len(findings),
-                    duration_ms=duration,
-                    success=result.exit_code == 0,
+                    findings_after=len(sr.findings),
+                    duration_ms=sr.duration_ms,
+                    success=sr.status == StepStatus.SUCCESS,
                     target=step.target or "",
                 )
             except Exception as exc:
                 logger.debug("Failed to record tool correction: %s", exc)
 
-        # Log to session log
         if self._session_logger is not None and self._current_log_session_id:
             try:
                 self._session_logger.add_command(
                     session_id=self._current_log_session_id,
-                    input_text=f"{tool_name} {' '.join(args)}",
-                    execution_time_ms=duration,
+                    input_text=f"{tool_name} {confirmed_str}",
+                    execution_time_ms=sr.duration_ms,
                     output_summary=(
-                        f"{len(findings)} findings"
-                        if findings
-                        else f"exit: {result.exit_code}"
+                        f"{len(sr.findings)} findings"
+                        if sr.findings
+                        else f"exit: {sr.exit_code}"
                     ),
                 )
                 self._session_logger.track_tool_usage(
@@ -1311,19 +1241,12 @@ class ExecutionEngine:
             except Exception as exc:
                 logger.debug("Session log recording failed: %s", exc)
 
-        return StepResult(
-            step_id=step.id,
-            status=StepStatus.SUCCESS if result.exit_code == 0 else StepStatus.FAILED,
-            output=result.stdout,
-            error=result.stderr if result.exit_code != 0 else "",
-            duration_ms=duration,
-            findings=findings,
-        )
+        return sr
 
     async def _run_shell_step(
         self, step: ExecutionStep, interactive: bool
     ) -> StepResult:
-        """Execute a shell command (from autonomous model planning)."""
+        """Execute a shell command — delegate to ToolExecutor with engine-level extras."""
         command = step.command or ""
         if not command:
             return StepResult(
@@ -1332,94 +1255,73 @@ class ExecutionEngine:
                 output="No command specified",
             )
 
-        # Resolve and validate
+        # Check install for missing base command
         parts = command.split()
         base_cmd = parts[0]
-        args = parts[1:] + list(step.args)
-        if step.target:
-            args.append(step.target)
-
-        resolved = self._resolver.resolve(base_cmd, args)
-
-        if not resolved.is_safe:
-            # Check if it was blocked because it was not found on PATH
-            if any("not found on PATH" in warning for warning in resolved.warnings):
-                installed = await self._try_install_tool(base_cmd)
-                if installed:
-                    # Re-resolve since the tool is now installed!
-                    resolved = self._resolver.resolve(base_cmd, args)
-
-            if not resolved.is_safe:
-                if interactive:
-                    console.print(
-                        f"[red]⚠ Blocked unsafe command:[/red] {command}\n"
-                        f"  Reasons: {'; '.join(resolved.warnings)}"
-                    )
-                return StepResult(
-                    step_id=step.id,
-                    status=StepStatus.BLOCKED,
-                    error=f"Blocked: {'; '.join(resolved.warnings)}",
+        resolved = self._resolver.resolve(base_cmd, parts[1:] + list(step.args))
+        if not resolved.is_safe and any(
+            "not found on PATH" in w for w in resolved.warnings
+        ):
+            installed = await self._try_install_tool(base_cmd)
+            if installed:
+                self._resolver = DynamicResolver(
+                    registered_tools={
+                        t.binary: t.path for t in self._discovered_tools
+                    }
+                    | {t.name: t.path for t in self._discovered_tools}
                 )
 
-        # Permission gate check for shell command
-        original_command = command
-        try:
-            from .permission_gate import PermissionGate
+        # Permission gate
+        confirmed_str = await self._apply_permission_gate(
+            step, command, command, interactive
+        )
+        if confirmed_str == "__forbidden__":
+            return StepResult(
+                step_id=step.id,
+                status=StepStatus.BLOCKED,
+                error="Forbidden by permission gate",
+            )
+        if confirmed_str != command:
+            step = ExecutionStep(
+                id=step.id,
+                step_type=step.step_type,
+                tool=step.tool,
+                command=confirmed_str,
+                args=step.args,
+                target=step.target,
+                depends_on=step.depends_on,
+                condition=step.condition,
+                timeout=step.timeout,
+                description=step.description,
+                metadata=step.metadata,
+            )
 
-            gate = PermissionGate()
-            gate_result = gate.check(command, tool=base_cmd)
-            if gate_result.stage == "forbidden":
-                return StepResult(
-                    step_id=step.id,
-                    status=StepStatus.BLOCKED,
-                    error=f"Forbidden by permission gate: {gate_result.reason}",
-                )
-            if gate_result.requires_review and interactive:
-                from .shell_review import review_and_confirm
+        # Delegate to ToolExecutor
+        sr = await self._executor.execute_step(step, interactive)
 
-                confirmed = review_and_confirm(command, base_cmd, gate_result.reason)
-                if confirmed is None:
-                    return StepResult(
-                        step_id=step.id,
-                        status=StepStatus.BLOCKED,
-                        error="Cancelled by user review",
-                    )
-                command = confirmed
-        except Exception as exc:
-            logger.debug("Permission gate check failed: %s", exc)
-
-        # Warn for unregistered commands
-        if resolved.warnings and interactive:
-            for w in resolved.warnings:
-                console.print(f"[yellow]⚠ {w}[/yellow]")
-
-        start = time.monotonic()
-        result = await run_tool_complete(resolved.path, resolved.args, step.timeout)
-        duration = (time.monotonic() - start) * 1000
-
-        # Record correction if command was modified by user
-        if self._learning_memory is not None and command != original_command:
+        # Learning memory
+        if self._learning_memory is not None and command != confirmed_str:
             try:
                 self._learning_memory.record_with_correction(
                     tools=[base_cmd],
-                    original=original_command,
-                    corrected=command,
+                    original=command,
+                    corrected=confirmed_str,
                     task=step.description or "",
-                    duration_ms=duration,
-                    success=result.exit_code == 0,
+                    duration_ms=sr.duration_ms,
+                    success=sr.status == StepStatus.SUCCESS,
                     target=step.target or "",
                 )
             except Exception as exc:
                 logger.debug("Failed to record shell correction: %s", exc)
 
-        # Log to session log
+        # Session log
         if self._session_logger is not None and self._current_log_session_id:
             try:
                 self._session_logger.add_command(
                     session_id=self._current_log_session_id,
-                    input_text=command,
-                    execution_time_ms=duration,
-                    output_summary=f"exit: {result.exit_code}",
+                    input_text=confirmed_str,
+                    execution_time_ms=sr.duration_ms,
+                    output_summary=f"exit: {sr.exit_code}",
                 )
                 self._session_logger.track_tool_usage(
                     self._current_log_session_id, base_cmd
@@ -1427,110 +1329,49 @@ class ExecutionEngine:
             except Exception as exc:
                 logger.debug("Session log recording failed: %s", exc)
 
-        return StepResult(
-            step_id=step.id,
-            status=StepStatus.SUCCESS if result.exit_code == 0 else StepStatus.FAILED,
-            output=result.stdout,
-            error=result.stderr if result.exit_code != 0 else "",
-            duration_ms=duration,
-        )
+        return sr
+
+    async def _apply_permission_gate(
+        self,
+        step: ExecutionStep,
+        value: str,
+        display_name: str,
+        interactive: bool,
+    ) -> str:
+        """Check permission gate; return confirmed value, original, or '__forbidden__'."""
+        try:
+            from .permission_gate import PermissionGate
+
+            gate = PermissionGate()
+            gate_result = gate.check(value, tool=step.tool or display_name)
+            if gate_result.stage == "forbidden":
+                return "__forbidden__"
+            if gate_result.requires_review and interactive:
+                from .shell_review import review_and_confirm
+
+                confirmed = review_and_confirm(
+                    value, step.tool or display_name, gate_result.reason
+                )
+                if confirmed is None:
+                    return "__forbidden__"
+                return confirmed
+        except Exception as exc:
+            logger.debug("Permission gate check failed: %s", exc)
+        return value
 
     async def _run_analysis_step(self, step: ExecutionStep) -> StepResult:
-        """Run a model-driven analysis step on previous results."""
-        # Gather outputs from previous steps
-        context_outputs = []
-        for dep_id in step.depends_on:
-            dep_result = self._completed_steps.get(dep_id)
-            if dep_result and dep_result.output:
-                context_outputs.append(
-                    f"[{dep_id}] {dep_result.output[:_MAX_CONTEXT_OUTPUT_LENGTH]}"
-                )
+        """Run a model-driven analysis step — delegate to ToolExecutor."""
+        return await self._executor.execute_step(step, True)
 
-        # For now, provide a structured summary
-        summary = (
-            f"Analysis requested. Context from {len(context_outputs)} previous step(s)."
-        )
-        if context_outputs:
-            summary += "\n" + "\n".join(context_outputs[:5])
-
-        return StepResult(
-            step_id=step.id,
-            status=StepStatus.SUCCESS,
-            output=summary,
-            metadata={"type": "analysis", "context_count": len(context_outputs)},
-        )
-
-    def _run_report_step(self, step: ExecutionStep) -> StepResult:
-        """Generate a report step."""
-        fmt = step.metadata.get("format", "text")
-        return StepResult(
-            step_id=step.id,
-            status=StepStatus.SUCCESS,
-            output=f"Report generation ({fmt}) — delegated to report engine",
-            metadata={"format": fmt},
-        )
+    async def _run_report_step(self, step: ExecutionStep) -> StepResult:
+        """Generate a report step — defer to ToolExecutor."""
+        return await self._executor.execute_step(step)
 
     async def _run_parallel_step(
         self, step: ExecutionStep, interactive: bool
     ) -> StepResult:
-        """Execute a group of steps in parallel with concurrency control."""
-        sub_steps = step.metadata.get("steps", [])
-        max_concurrent = step.metadata.get("max_concurrent", 3)
-
-        if not sub_steps:
-            return StepResult(
-                step_id=step.id, status=StepStatus.SKIPPED, output="No sub-steps"
-            )
-
-        # Create semaphore for concurrency limit
-        semaphore = asyncio.Semaphore(max_concurrent)
-        start = time.monotonic()
-
-        async def run_bounded(s: ExecutionStep) -> StepResult:
-            """Run step with bounded concurrency."""
-            async with semaphore:
-                return await self._execute_step_with_retry(s, interactive)
-
-        # Execute all steps concurrently
-        tasks = [run_bounded(s) for s in sub_steps]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Aggregate results
-        all_findings = []
-        all_outputs = []
-        all_errors = []
-        total_retries = 0
-
-        for res in results:
-            if isinstance(res, Exception):
-                all_errors.append(str(res))
-                logger.error("Parallel step failed with exception: %s", res)
-            elif isinstance(res, StepResult):
-                all_findings.extend(res.findings)
-                if res.output:
-                    all_outputs.append(f"[{res.step_id}] {res.output}")
-                if res.error:
-                    all_errors.append(f"[{res.step_id}] {res.error}")
-                total_retries += res.retry_count
-
-                # Track individual step in completed
-                self._completed_steps[res.step_id] = res
-
-        duration_ms = (time.monotonic() - start) * 1000
-
-        return StepResult(
-            step_id=step.id,
-            status=StepStatus.SUCCESS if not all_errors else StepStatus.FAILED,
-            output=(
-                "\n".join(all_outputs)
-                if all_outputs
-                else "Parallel execution completed"
-            ),
-            error="; ".join(all_errors) if all_errors else "",
-            findings=all_findings,
-            duration_ms=duration_ms,
-            retry_count=total_retries,
-        )
+        """Execute a group of steps in parallel — delegate to ToolExecutor."""
+        return await self._executor.execute_step(step, interactive)
 
     def _check_dependencies(self, step: ExecutionStep) -> bool:
         """Check if all dependencies have completed successfully."""
@@ -1816,27 +1657,6 @@ class ExecutionEngine:
                     "Dynamic Mutation: Injected privilege check %s after permission error",
                     priv_step.id,
                 )
-
-    def _parse_tool_output(self, tool_name: str, output: str) -> list[dict[str, Any]]:
-        """Parse tool output using registered parsers."""
-        from .parsers import (GobusterParser, NiktoParser, NmapParser,
-                              NucleiParser)
-
-        parsers: dict[str, Any] = {
-            "nmap": NmapParser(),
-            "nikto": NiktoParser(),
-            "nuclei": NucleiParser(),
-            "gobuster": GobusterParser(),
-        }
-
-        parser = parsers.get(tool_name)
-        if parser:
-            try:
-                return parser.parse(output)
-            except Exception as exc:
-                logger.warning("Parser for %s failed: %s", tool_name, exc)
-
-        return []
 
     async def execute_objective(
         self,

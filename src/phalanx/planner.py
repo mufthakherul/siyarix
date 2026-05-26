@@ -148,6 +148,7 @@ class ExecutionPlan:
     steps: list[ExecutionStep] = field(default_factory=list)
     source: str = "registry"  # "registry" | "autonomous" | "integrated"
     confidence: float = 0.0
+    reasoning: str = ""  # Model reasoning/chain-of-thought behind the plan
     raw_instruction: str = ""
     interpreted_task: InterpretedTask | None = None
 
@@ -1071,10 +1072,15 @@ class TaskPlanner:
         except (TypeError, ValueError):
             confidence = 0.5
 
+        reasoning = raw.get("reasoning", "") or raw.get("chain_of_thought", "")
+        if isinstance(reasoning, list):
+            reasoning = "\n".join(str(r) for r in reasoning)
+
         return ExecutionPlan(
             steps=steps,
             source="autonomous",
             confidence=confidence,
+            reasoning=reasoning,
             raw_instruction=instruction,
         )
 

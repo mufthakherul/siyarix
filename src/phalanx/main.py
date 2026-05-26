@@ -396,6 +396,89 @@ app.add_typer(org_app, name="org")
 schedule_app = typer.Typer(help="⏱ Recurring scan schedules")
 app.add_typer(schedule_app, name="schedule")
 
+
+@schedule_app.command("list")
+def schedule_list(
+    output: str = typer.Option("table", "--output", "-o", help="table|json"),
+) -> None:
+    """List all scheduled scan jobs."""
+    from .scheduler import PhalanxScheduler
+
+    sched = PhalanxScheduler()
+    jobs = sched.list_all()
+    if not jobs:
+        console.print("[dim]No scheduled jobs found.[/dim]")
+        return
+    if output == "json":
+        console.print(
+            json.dumps(
+                [
+                    {
+                        "id": j.id,
+                        "name": j.name,
+                        "target": j.target,
+                        "cron": j.cron,
+                        "command": j.command,
+                        "persona": j.persona,
+                        "active": j.active,
+                        "last_run": j.last_run,
+                        "next_run": j.next_run,
+                    }
+                    for j in jobs
+                ],
+                indent=2,
+            )
+        )
+        return
+    table = Table(title=f"Scheduled Jobs ({len(jobs)})", header_style="bold cyan")
+    table.add_column("Name", style="cyan")
+    table.add_column("Target", style="green")
+    table.add_column("Cron", style="yellow")
+    table.add_column("Command", style="white")
+    table.add_column("Active", justify="center")
+    table.add_column("Next Run", style="dim")
+    for j in jobs:
+        active = "[green]✓[/green]" if j.active else "[dim]✗[/dim]"
+        table.add_row(
+            j.name,
+            j.target or "—",
+            j.cron,
+            j.command[:40],
+            active,
+            j.next_run[:16] if j.next_run else "-",
+        )
+    console.print(table)
+
+
+@schedule_app.command("create")
+def schedule_create(
+    name: str = typer.Argument(..., help="Job name"),
+    target: str = typer.Argument(..., help="Scan target"),
+    cron: str = typer.Argument("daily", help="daily|weekly|hourly or cron expression"),
+    command: str = typer.Argument("", help="Command to execute"),
+    persona: str = typer.Option("none", "--persona", "-p", help="Persona to use"),
+) -> None:
+    """Create a new scheduled scan job."""
+    from .scheduler import PhalanxScheduler
+
+    sched = PhalanxScheduler()
+    job = sched.create(name=name, target=target, cron=cron, command=command, persona=persona)
+    console.print(f"[green]✓ Scheduled job created: {job.name} (id={job.id})[/green]")
+
+
+@schedule_app.command("delete")
+def schedule_delete(
+    job_id: str = typer.Argument(..., help="Job ID or name"),
+) -> None:
+    """Delete a scheduled scan job."""
+    from .scheduler import PhalanxScheduler
+
+    sched = PhalanxScheduler()
+    if sched.delete(job_id):
+        console.print(f"[green]✓ Scheduled job deleted: {job_id}[/green]")
+    else:
+        console.print(f"[red]Scheduled job not found: {job_id}[/red]")
+
 findings_app = typer.Typer(help="🔍 Finding collaboration")
 app.add_typer(findings_app, name="findings")
 

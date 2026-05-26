@@ -111,7 +111,6 @@ phalanx report generate --findings results.json --format html
 | [CLI Reference](docs/cli-reference.md) | Complete command reference with 40+ commands |
 | [Models](docs/models.md) | AI provider setup, multi-model ensemble, local models |
 | [Security](docs/security.md) | Stealth, canary tokens, compliance, OPSEC, data masking |
-| [Extending](docs/extending.md) | Plugin system, custom parsers, provider adapters |
 | [Development](docs/development.md) | Setup, testing, Makefile, CI/CD, code quality |
 | [Contributing](docs/contributing.md) | PR process, code of conduct, getting involved |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues, diagnostics, debugging |

@@ -303,12 +303,12 @@ Change policy and traceability:
 │ └─────────────────────────────────────────────────────────────────────────┘ │
 │                              │                                              │
 │ LAYER 5: INTEGRATION & EXTENSION                                            │
-│ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐         │
-│ │   Plugin     │ │     MCP      │ │   Collab     │ │    Coder     │         │
-│ │   System     │ │   Servers    │ │   (SSH)      │ │    (VS)      │         │
-│ │  (/plugin)   │ │  (Research)  │ │  (/collab)   │ │  (/coder)    │         │
-│ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘         │
-│        └────────────────┴────────────────┴────────────────┘                 │
+│ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐                          │
+│ │     MCP      │ │   Collab     │ │    Coder     │                          │
+│ │   Servers    │ │   (SSH)      │ │    (VS)      │                          │
+│ │  (Research)  │ │  (/collab)   │ │  (/coder)    │                          │
+│ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘                          │
+│        └────────────────┴────────────────┘                                  │
 │                              │                                              │
 │ LAYER 4: KNOWLEDGE & MEMORY                                                 │
 │ ┌───────────────┐ ┌──────────────┐ ┌────────────────────────────────────┐   │
@@ -700,7 +700,6 @@ def discover_tools():
 - Known tool names (nmap, nuclei, ffuf, etc.)
 - Binary analysis for custom tools
 - Metadata extraction (help flags, version strings)
-- Community-contributed signatures via plugin system
 
 ### 6.2 Tool Categories (Auto-Detected)
 
@@ -1226,52 +1225,7 @@ phalanx> /log export sess_abc123 --format sarif --output findings.sarif
 - **PDF:** Client deliverables
 - **SARIF:** Static analysis results interchange format (industry standard)
 
----
 
-## Chapter 12: Plugin System
-
-### 12.1 Plugin Architecture
-
-```
-┌────────────────────────────────────────┐
-│           Plugin Manager               │
-│  ┌─────────────────────────────────┐   │
-│  │  discover()                     │   │
-│  │  install(name, source)          │   │
-│  │  remove(name)                   │   │
-│  │  enable(name)                   │   │
-│  │  disable(name)                  │   │
-│  │  list()                         │   │
-│  └─────────────────────────────────┘   │
-└──────────────────┬─────────────────────┘
-                   │
-    ┌──────────────┼──────────────┐
-    ▼              ▼              ▼
-┌────────┐   ┌────────┐   ┌────────┐
-│Provider│   │Report  │   │Notify  │
-│Plugin  │   │Plugin  │   │Plugin  │
-└────────┘   └────────┘   └────────┘
-```
-
-### 12.2 Verified Plugin Commands
-
-```
-phalanx> /plugin search
-phalanx> /plugin install <name>
-phalanx> /plugin remove <name>
-phalanx> /plugin list
-phalanx> /plugin enable <name>
-phalanx> /plugin disable <name>
-```
-
-### 12.3 Plugin Categories (Discovered & Suggested)
-
-| Category | Examples | Status |
-|----------|----------|--------|
-| AI Providers | phalanx-openai, phalanx-gemini, phalanx-ollama | ✅ Verified |
-| Report Generators | phalanx-report-pdf, phalanx-report-html | ⚠️ Suggested |
-| Notifications | phalanx-discord, phalanx-slack, phalanx-email | ⚠️ Suggested |
-| Ticketing | phalanx-jira, phalanx-github-issues | ⚠️ Suggested |
 | Cloud Platforms | phalanx-aws, phalanx-azure, phalanx-gcp | ⚠️ Suggested |
 | Container Security | phalanx-docker, phalanx-kubernetes | ⚠️ Suggested |
 | Compliance | phalanx-pci-dss, phalanx-iso27001 | ⚠️ Suggested |
@@ -1426,7 +1380,6 @@ phalanx> investigate alert ALERT-2026-001
 | Session logging | `/log <id>` | User | Low |
 | ESC kill switch | Press `ESC` | User | Low |
 | Custom masking rules | `/config masking` | Inferred | Medium |
-| Plugin marketplace | `/plugin` | User | Medium |
 | Batch mode / scripting | `phalanx --batch` or `/batch` | Try `phalanx --help` for hidden flags |
 | Configuration profiles | `~/.phalanx/profiles/` | Check directory structure |
 | Environment variables | `.env` support | Create `.env` with `PHALANX_DEBUG=1` |
@@ -1595,7 +1548,7 @@ All outputs will be:
   • Stored in tamper-evident log
 
 Evidence ID: EVID-2026-001
-Court-admissible: Yes (with notarization plugin)
+Court-admissible: Yes
 ```
 
 ### 17.5 Multi-Target Campaign Mode (Suggested)
@@ -1632,9 +1585,7 @@ Sections:
   6. Retest Verification
   7. Appendix: Tool Output
 
-Format: PDF (with plugin: phalanx-report-pdf)
-       HTML (with plugin: phalanx-report-html)
-       DOCX (with plugin: phalanx-report-docx)
+Format: PDF | HTML | DOCX
 ```
 
 ### 18.2 CVSS Auto-Scoring (Suggested)
@@ -1704,7 +1655,6 @@ Permissions:
   • Max auto-approve: None (always require approval)
   • Can view logs: Own only
   • Can collaborate: Yes
-  • Can install plugins: No
 
 phalanx> /team rbac assign junior-analyst @alice
 ```
@@ -1978,13 +1928,13 @@ phalanx> /challenge join weekly-ctf
 
 ### 24.1 Built-in Compliance Modules (Suggested)
 
-| Framework | Plugin | Coverage |
-|-----------|--------|----------|
-| PCI-DSS | phalanx-pci-dss | Requirement 6, 11 |
-| ISO 27001 | phalanx-iso27001 | A.12.6, A.14.2 |
-| NIST 800-53 | phalanx-nist-800-53 | RA-5, SI-4 |
-| SOC 2 | phalanx-soc2 | CC7.1, CC7.2 |
-| GDPR | phalanx-gdpr | Article 32 |
+| Framework | Coverage |
+|-----------|----------|
+| PCI-DSS | Requirement 6, 11 |
+| ISO 27001 | A.12.6, A.14.2 |
+| NIST 800-53 | RA-5, SI-4 |
+| SOC 2 | CC7.1, CC7.2 |
+| GDPR | Article 32 |
 | HIPAA | phalanx-hipaa | 164.308, 164.312 |
 
 ```
@@ -2088,13 +2038,13 @@ phalanx> /siem connect --splunk https://splunk.company.com:8089
 
 ### 26.3 Communication Platforms (Suggested)
 
-| Platform | Plugin | Use Case |
-|----------|--------|----------|
-| Slack | phalanx-slack | Team notifications |
-| Discord | phalanx-discord | Community alerts |
-| Microsoft Teams | phalanx-teams | Enterprise notifications |
-| Telegram | phalanx-telegram | Mobile alerts |
-| PagerDuty | phalanx-pagerduty | On-call paging |
+| Platform | Use Case |
+|----------|----------|
+| Slack | Team notifications |
+| Discord | Community alerts |
+| Microsoft Teams | Enterprise notifications |
+| Telegram | Mobile alerts |
+| PagerDuty | On-call paging |
 | Email | phalanx-email | Formal reporting |
 
 ---
@@ -2205,7 +2155,6 @@ Hit rate: 67% (saving ~45 minutes per session)
 | `/config` | `tool/safety/learning/masking` | Configuration hub |
 | `/key` | `set/rotate/remove/list` | AI provider management |
 | `/model` | `set <provider> <model>` | Model selection |
-| `/plugin` | `search/install/remove/list` | Plugin marketplace |
 | `/collab` | `ssh/disconnect/status` | Team collaboration |
 | `/coder` | `(sec)/disconnect` | VS Code integration |
 | `/mode` | `research/standard` | MCP research mode |
@@ -2276,9 +2225,6 @@ Hit rate: 67% (saving ~45 minutes per session)
 │   ├── pentester.yaml
 │   └── custom/
 │       └── api_hunter.yaml
-├── plugins/
-│   ├── installed/
-│   └── available/
 ├── memory/
 │   ├── tool_patterns.db     # Tool learning data
 │   └── user_progress.db     # User learning data
@@ -2330,7 +2276,6 @@ Hit rate: 67% (saving ~45 minutes per session)
 | Commands not executing | Tool ACL set to OFF | `/config tool access` → enable |
 | Real targets in LLM logs | Masking not configured | `/config masking` → add rules |
 | ESC not working | Terminal capture issue | Try `Ctrl+C` as fallback |
-| Plugin install fails | Network/permission | Check `pip` permissions |
 | Session not saving | Disk space/permissions | Check `~/.phalanx/logs/` writable |
 | VS Code not connecting | Extension missing | Install Phalanx VS Code extension |
 | Collaboration timeout | SSH/firewall | Check port 22 and network |

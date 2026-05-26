@@ -27,7 +27,7 @@ Phalanx follows a **7-layer Clean Architecture** with modular, event-driven desi
 │ KnowledgeGraph │ CredentialStore │ OfflineStore │ Audit │ Metrics │ OTel     │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ LAYER 1: INTEGRATION                                                        │
-│ Tool Registry │ Parsers (17) │ Plugins │ SIEM │ Cloud Scanner │ Threat Intel │
+│ Tool Registry │ Parsers (17) │ SIEM │ Cloud Scanner │ Threat Intel │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -110,7 +110,6 @@ Phalanx follows a **7-layer Clean Architecture** with modular, event-driven desi
 | `tool_registry.py` | Auto-discovers 50+ tools from PATH, capability inference |
 | `tool_installer.py` | Auto-install missing tools via apt/brew/choco/pip/go |
 | `parsers/` | 17 tool output parsers (nmap, nuclei, gobuster, sqlmap, etc.) |
-| `plugins.py` | Plugin manager — scaffold, install, remove, dynamic loading |
 | `exploitation.py` | Exploit chain builder, msfvenom payload generator |
 | `threat_intel.py` | STIX/TAXII, MISP ingestion, MITRE ATT&CK DB (25+ techniques) |
 | `cloud_scanner.py` | AWS, Azure, GCP, Kubernetes, Docker security checks |

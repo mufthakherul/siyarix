@@ -65,7 +65,10 @@ from .planner import ExecutionPlan, ExecutionStep, StepType, TaskPlanner
 from .playbook_engine import (Playbook, PlaybookEngine, PlaybookStep,
                               PlaybookStepType)
 from .plugins import PluginManager
-from .providers import NoopProvider, Provider, ProviderRegistry
+from .providers import (AnthropicAdapter, CloudAdapter, CustomAdapter,
+                         GeminiAdapter, GroqAdapter, LMStudioAdapter,
+                         NoopProvider, OllamaAdapter, OpenAIAdapter, Provider,
+                         ProviderRegistry, TogetherAdapter)
 from .providers import registry as provider_registry
 from .report_engine import (Report, ReportConfig, ReportEngine, ReportFormat,
                             ReportSection)
@@ -120,6 +123,15 @@ __all__ = [
     "ProviderRegistry",
     "NoopProvider",
     "provider_registry",
+    "OpenAIAdapter",
+    "GeminiAdapter",
+    "OllamaAdapter",
+    "CloudAdapter",
+    "GroqAdapter",
+    "TogetherAdapter",
+    "LMStudioAdapter",
+    "CustomAdapter",
+    "AnthropicAdapter",
     "MaskingEngine",
     "ResponseSensor",
     "InputValidator",

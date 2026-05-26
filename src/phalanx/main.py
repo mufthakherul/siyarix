@@ -182,10 +182,46 @@ app = typer.Typer(
 
 
 @app.callback(invoke_without_command=True)
-def main_callback(ctx: typer.Context) -> None:
+def main_callback(
+    ctx: typer.Context,
+    config: str = typer.Option(None, "--config", "-c", help="Path to custom config file (YAML/JSON)"),
+    batch: str = typer.Option(None, "--batch", "-b", help="Path to batch script file to execute"),
+) -> None:
     """Launch interactive chat mode when phalanx is invoked with no subcommand."""
-    if ctx.invoked_subcommand is None and _IS_TTY:
-        # No subcommand and running interactively — launch chat
+    if config:
+        resolved = Path(config).expanduser().resolve()
+        if resolved.exists():
+            os.environ["PHALANX_CONFIG"] = str(resolved)
+            os.environ["PHALANX_CONFIG_DIR"] = str(resolved.parent)
+            console.print(f"[dim]Loaded config: {resolved}[/dim]")
+        else:
+            console.print(f"[red]Config file not found: {resolved}[/red]")
+            raise typer.Exit(1)
+    if batch:
+        resolved = Path(batch).expanduser().resolve()
+        if resolved.exists():
+            script_lines = resolved.read_text(encoding="utf-8").splitlines()
+            console.print(f"[dim]Executing batch script: {resolved} ({len(script_lines)} commands)[/dim]")
+            from .chat import PhalanxChat
+            chat = PhalanxChat(mode="integrated")
+            for line in script_lines:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                console.print(f"[bold]> {line}[/bold]")
+                if line.startswith("/"):
+                    cmd, _, rest = line.partition(" ")
+                    handler = chat._commands.get(cmd)
+                    if handler:
+                        asyncio.run(handler(rest.strip()))
+                    else:
+                        console.print(f"[red]Unknown command: {cmd}[/red]")
+                else:
+                    asyncio.run(chat._handle_natural_language(line))
+        else:
+            console.print(f"[red]Batch script not found: {resolved}[/red]")
+            raise typer.Exit(1)
+    if ctx.invoked_subcommand is None and _IS_TTY and not batch:
         start_chat()
 
 

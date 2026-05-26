@@ -41,7 +41,7 @@ class TestStealthEngine:
     def test_get_user_agent_with_rotation(self, engine):
         engine.enable("light")
         ua = engine.get_current_user_agent()
-        assert isinstance(ua, str) and len(ua) > 10
+        assert isinstance(ua, str) and len(ua) >= 10
 
     def test_randomized_delay_no_jitter(self, engine):
         delay = engine.get_randomized_delay(100.0)

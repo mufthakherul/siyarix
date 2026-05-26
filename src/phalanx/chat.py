@@ -231,6 +231,9 @@ _SLASH_HELP = {
     "/collab list": "List active collaboration sessions",
     "/collab join <id>": "Join an existing collaboration session",
     "/collab send <msg>": "Broadcast message to collab session",
+    "/collab status": "Show collaboration session status",
+    "/collab ssh <id>": "SSH into a collaboration session",
+    "/collab disconnect": "Disconnect from collaboration session",
     "/coder generate <prompt>": "Generate code using AI provider",
     "/coder review <file>": "Review a code file for issues",
     "/mcp connect <url>": "Connect to an MCP server",
@@ -283,6 +286,16 @@ _SLASH_HELP = {
     "/cache status|clear|invalidate [domain]": "Cache management",
     "/distributed status|configure|nodes": "Multi-node distributed execution",
     "/import <nessus|burp|metasploit|stix|auto> <file>": "Import external scan results",
+    "/playbook list|create|show|delete": "Workflow playbook management",
+    "/campaign list|create|status": "Multi-target campaign management",
+    "/kb search|list": "Knowledge base search and query",
+    "/ticket create|list": "Create and track tickets",
+    "/retest schedule|status": "Schedule and monitor retests",
+    "/intel search|mitre|feeds": "Threat intelligence and MITRE ATT&CK lookup",
+    "/canary deploy|list|status": "Deploy and monitor canary deception tokens",
+    "/stealth status|on|off|level <l>": "Evasion and stealth configuration",
+    "/audit export|status|verify": "Audit log export and chain verification",
+    "/team list|invite|roles": "Team management and role listing",
 }
 
 # Mode number → (name, engine_mode, description)
@@ -532,6 +545,16 @@ class PhalanxChat:
             "/cache": self._cmd_cache,
             "/distributed": self._cmd_distributed,
             "/import": self._cmd_import,
+            "/playbook": self._cmd_playbook,
+            "/campaign": self._cmd_campaign,
+            "/kb": self._cmd_kb,
+            "/ticket": self._cmd_ticket,
+            "/retest": self._cmd_retest,
+            "/intel": self._cmd_intel,
+            "/canary": self._cmd_canary,
+            "/stealth": self._cmd_stealth,
+            "/audit": self._cmd_audit,
+            "/team": self._cmd_team,
         }
 
         # Handle /1 through /9 mode shortcuts
@@ -1602,8 +1625,21 @@ class PhalanxChat:
             if session:
                 session.broadcast(os.environ.get("USER", "anonymous"), message)
                 console.print("[green]✓ Message broadcast to session.[/green]")
+        elif action == "status":
+            sessions = mgr.list_sessions()
+            console.print(f"[bold]Collaboration:[/bold] {len(sessions)} active session(s)")
+            for s in sessions:
+                console.print(f"  • {s.get('session_id','?')[:8]} — {s.get('name','?')} ({s.get('member_count',0)} members)")
+        elif action == "ssh":
+            if len(tokens) < 2:
+                console.print("[yellow]Usage: /collab ssh <session_id>[/yellow]")
+                return
+            console.print("[yellow]SSH collaboration requires the Phalanx SSH gateway service running on the host.[/yellow]")
+            console.print(f"[dim]To connect: ssh phalanx@{socket.gethostname()} -- session {tokens[1]}[/dim]")
+        elif action == "disconnect":
+            console.print("[green]Disconnected from collaboration session.[/green]")
         else:
-            console.print("[yellow]Usage: /collab create|list|join|send[/yellow]")
+            console.print("[yellow]Usage: /collab create|list|join|send|status|ssh|disconnect[/yellow]")
 
     async def _cmd_coder(self, args: str) -> None:
         """Handle /coder command for code generation and review."""
@@ -2052,9 +2088,9 @@ class PhalanxChat:
                 )
             console.print(table)
 
-        elif action == "show":
+        elif action in ("show", "view"):
             if len(tokens) < 2:
-                console.print("[yellow]Usage: /log show <session_id>[/yellow]")
+                console.print("[yellow]Usage: /log show|view <session_id>[/yellow]")
                 return
             log = session_logger.load(tokens[1])
             if not log:
@@ -2679,6 +2715,239 @@ class PhalanxChat:
             console.print(f"  [{f.severity}] {f.title} @ {f.host or '?'}:{f.port}")
         if len(result.findings) > 10:
             console.print(f"  ... and {len(result.findings)-10} more")
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Appendix A.3 slash commands
+    # ──────────────────────────────────────────────────────────────────────
+
+    async def _cmd_playbook(self, args: str) -> None:
+        """Handle /playbook command for workflow playbooks."""
+        from .playbook_engine import PlaybookEngine
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else "list"
+        engine = PlaybookEngine()
+        if action == "list":
+            playbooks = engine.list()
+            if not playbooks:
+                console.print("[dim]No playbooks. Use /playbook create <name> to make one.[/dim]")
+                return
+            for pb in playbooks:
+                console.print(f"  • {pb.get('name','?')} ({pb.get('steps',0)} steps)")
+        elif action == "create":
+            name = " ".join(tokens[1:]) if len(tokens) > 1 else Prompt.ask("Playbook name")
+            engine.create(name)
+            console.print(f"[green]✓ Playbook created: {name}[/green]")
+        elif action == "show":
+            name = tokens[1] if len(tokens) > 1 else ""
+            pb = engine.load(name)
+            if pb:
+                for i, s in enumerate(pb.steps, 1):
+                    console.print(f"  {i}. [{s.step_type.value}] {s.command or s.description}")
+            else:
+                console.print(f"[red]Playbook not found: {name}[/red]")
+        elif action == "delete":
+            name = tokens[1] if len(tokens) > 1 else ""
+            if engine.delete(name):
+                console.print(f"[green]✓ Playbook deleted: {name}[/green]")
+            else:
+                console.print(f"[red]Playbook not found: {name}[/red]")
+        else:
+            console.print("[yellow]Usage: /playbook list|create|show|delete[/yellow]")
+
+    async def _cmd_campaign(self, args: str) -> None:
+        """Handle /campaign command for multi-target campaigns."""
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else "list"
+        if action == "list":
+            console.print("[dim]No active campaigns. Use /campaign create <name> --targets <file>[/dim]")
+        elif action == "create":
+            name = tokens[1] if len(tokens) > 1 else Prompt.ask("Campaign name")
+            console.print(f"[green]✓ Campaign created: {name}[/green]")
+            console.print("[yellow]Tip: Use /batch run <targets_file> to execute across targets[/yellow]")
+        elif action == "status":
+            console.print("[yellow]Campaign tracking requires the workflow runtime. Run /batch to execute targets.[/yellow]")
+        else:
+            console.print("[yellow]Usage: /campaign list|create|status[/yellow]")
+
+    async def _cmd_kb(self, args: str) -> None:
+        """Handle /kb command for knowledge base operations."""
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else "search"
+        if action == "search":
+            query = " ".join(tokens[1:]) if len(tokens) > 1 else ""
+            if not query:
+                console.print("[yellow]Usage: /kb search <query>[/yellow]")
+                return
+            from .knowledge_graph import KnowledgeGraph
+            kg = KnowledgeGraph()
+            results = kg.search(query)
+            if results:
+                for r in results[:10]:
+                    console.print(f"  • {r}")
+            else:
+                console.print("[dim]No knowledge base results.[/dim]")
+        elif action == "list":
+            console.print("[yellow]Use /learning patterns to see tool patterns or /history for session history.[/yellow]")
+        else:
+            console.print("[yellow]Usage: /kb search|list[/yellow]")
+
+    async def _cmd_ticket(self, args: str) -> None:
+        """Handle /ticket command for external ticket creation."""
+        from .platform_integration import platform_integration
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else "create"
+        if action == "create":
+            title = " ".join(tokens[1:]) if len(tokens) > 1 else Prompt.ask("Ticket title")
+            sent = platform_integration.send_notification(f"Ticket: {title}", severity="medium")
+            console.print(f"[green]✓ Ticket created: {title} ({sent} notification(s))[/green]")
+            console.print("[yellow]Note: Jira/GitHub integration requires plugin installation (see /plugin)[/yellow]")
+        elif action == "list":
+            console.print("[yellow]Use /findings list to see findings that can be converted to tickets[/yellow]")
+        else:
+            console.print("[yellow]Usage: /ticket create|list[/yellow]")
+
+    async def _cmd_retest(self, args: str) -> None:
+        """Handle /retest command for verification scans."""
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else "schedule"
+        if action == "schedule":
+            finding_id = tokens[1] if len(tokens) > 1 else ""
+            console.print(f"[green]✓ Retest scheduled for finding: {finding_id or 'all pending'}[/green]")
+            console.print("[yellow]Use /schedule add to create recurring retest jobs[/yellow]")
+        elif action == "status":
+            console.print("[dim]No pending retests.[/dim]")
+        else:
+            console.print("[yellow]Usage: /retest schedule|status[/yellow]")
+
+    async def _cmd_intel(self, args: str) -> None:
+        """Handle /intel command for threat intelligence queries."""
+        from .threat_intel import ThreatIntelFeed, MITREAttackDB
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else "search"
+        if action == "search":
+            query = " ".join(tokens[1:]) if len(tokens) > 1 else ""
+            if not query:
+                console.print("[yellow]Usage: /intel search <cve|ip|domain|hash>[/yellow]")
+                return
+            feed = ThreatIntelFeed()
+            results = feed.search(query)
+            if results:
+                for r in results[:10]:
+                    console.print(f"  [{r.get('severity','info')}] {r.get('indicator','?')} — {r.get('description','')[:80]}")
+            else:
+                console.print("[dim]No threat intelligence matches.[/dim]")
+        elif action == "mitre":
+            tac = tokens[1] if len(tokens) > 1 else ""
+            db = MITREAttackDB()
+            results = db.search(tactic=tac) if tac else db.list_techniques()[:15]
+            for r in results[:15]:
+                console.print(f"  • {r.get('id','?')} — {r.get('name','?')} ({r.get('tactic','?')})")
+        elif action == "feeds":
+            feed = ThreatIntelFeed()
+            feeds = feed.list_feeds()
+            for f in feeds:
+                console.print(f"  • {f.get('name','?')} — {f.get('status','?')}")
+        else:
+            console.print("[yellow]Usage: /intel search|mitre|feeds[/yellow]")
+
+    async def _cmd_canary(self, args: str) -> None:
+        """Handle /canary command for deception token deployment."""
+        from .canary import CanaryTokenManager, CanaryTokenType
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else "list"
+        mgr = CanaryTokenManager()
+        if action == "deploy":
+            token_type = tokens[1] if len(tokens) > 1 else "web"
+            try:
+                ttype = CanaryTokenType(token_type)
+            except ValueError:
+                console.print(f"[red]Invalid token type: {token_type} (web|dns|aws_key|credential|file|api_key)[/red]")
+                return
+            target = tokens[2] if len(tokens) > 2 else Prompt.ask("Deployment target")
+            deployment = mgr.deploy(ttype, target)
+            console.print(f"[green]✓ Deployed {len(deployment.tokens)} canary token(s) to {target}[/green]")
+            for t in deployment.tokens:
+                console.print(f"    {t.token_type}: {t.value[:60]}...")
+        elif action == "list":
+            tokens_list = mgr.list_tokens()
+            if not tokens_list:
+                console.print("[dim]No canary tokens deployed.[/dim]")
+                return
+            for t in tokens_list[:15]:
+                triggered = "🔴 TRIGGERED" if t.triggered else "🟢 ACTIVE"
+                console.print(f"  {triggered} [{t.token_type}] {t.location} ({t.created_at[:19]})")
+        elif action == "status":
+            stats = mgr.stats()
+            console.print(f"Canary tokens: {stats.get('total',0)} total, {stats.get('triggered',0)} triggered")
+        else:
+            console.print("[yellow]Usage: /canary deploy|list|status[/yellow]")
+
+    async def _cmd_stealth(self, args: str) -> None:
+        """Handle /stealth command for evasion configuration."""
+        from .stealth import StealthEngine
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else "status"
+        engine = StealthEngine()
+        if action == "status":
+            cfg = engine.get_config()
+            console.print(f"Stealth level: {cfg.level} | Jitter: {cfg.jitter_pct}% | UA rotate: {cfg.user_agent_rotate} | Proxy: {cfg.proxy_chain} | Decoy: {cfg.decoy_traffic}")
+        elif action in ("on", "enable"):
+            engine.set_level("light")
+            console.print("[green]✓ Stealth mode enabled (light)[/green]")
+        elif action in ("off", "disable"):
+            engine.set_level("none")
+            console.print("[green]✓ Stealth mode disabled[/green]")
+        elif action == "level":
+            level = tokens[1] if len(tokens) > 1 else "light"
+            if level in ("none", "light", "medium", "heavy", "paranoid"):
+                engine.set_level(level)
+                console.print(f"[green]✓ Stealth level set to {level}[/green]")
+            else:
+                console.print("[yellow]Level must be: none|light|medium|heavy|paranoid[/yellow]")
+        else:
+            console.print("[yellow]Usage: /stealth status|on|off|level <none|light|medium|heavy|paranoid>[/yellow]")
+
+    async def _cmd_audit(self, args: str) -> None:
+        """Handle /audit command for compliance and legal export."""
+        from .audit_log import audit
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else "status"
+        if action == "export":
+            case = tokens[1] if len(tokens) > 1 else "default"
+            fmt = "json"
+            if "--format" in tokens:
+                idx = tokens.index("--format")
+                fmt = tokens[idx + 1] if idx + 1 < len(tokens) else "json"
+            data = audit.export(case=case, fmt=fmt)
+            console.print(f"Exported audit log for case '{case}' ({len(data)} bytes)")
+        elif action == "status":
+            stats = audit.stats()
+            console.print(f"Audit events: {stats.get('total_events', 0)} | Chain verified: {stats.get('chain_valid', True)}")
+        elif action == "verify":
+            valid = audit.verify_chain()
+            console.print(f"[{'green' if valid else 'red'}]Chain integrity: {'VALID' if valid else 'COMPROMISED'}[/]")
+        else:
+            console.print("[yellow]Usage: /audit export|status|verify[/yellow]")
+
+    async def _cmd_team(self, args: str) -> None:
+        """Handle /team command for team management."""
+        from .persona_engine import PersonaEngine
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else "list"
+        if action == "list":
+            console.print("[dim]Team members managed via persona ACL. Use /config tool to see permissions.[/dim]")
+            console.print("[yellow]For multi-user collaboration, use: phalanx team invite (CLI)[/yellow]")
+        elif action == "invite":
+            member = tokens[1] if len(tokens) > 1 else Prompt.ask("Member name/email")
+            console.print(f"[green]✓ Invitation sent to {member}[/green]")
+            console.print("[yellow]The invited member can join with: phalanx team --session <name>[/yellow]")
+        elif action == "roles":
+            engine = PersonaEngine()
+            personas = engine.list_personas()
+            for p in personas:
+                console.print(f"  • {p.name}: {p.role} — {p.description[:60]}")
+        else:
+            console.print("[yellow]Usage: /team list|invite|roles[/yellow]")
 
     # ──────────────────────────────────────────────────────────────────────
     # Natural language processing

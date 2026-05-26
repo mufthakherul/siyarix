@@ -78,10 +78,6 @@ class SmartAutocomplete(Completer):
             "scan": "Quick security scan on target",
             "explain": "Explain security command payload",
             "workflow": "Manage and run automation workflows",
-            "wizard": "Guided onboarding wizard setup",
-            "dashboard": "Launch interactive TUI SOC Dashboard",
-
-            "serve": "Start headless API mode",
             "alias": "Manage custom command aliases",
             "macro": "Manage execution macros",
             "config": "Get/set environment configuration",
@@ -90,13 +86,6 @@ class SmartAutocomplete(Completer):
             "help": "Display interactive usage guide",
         }
         self._slash_commands = {
-            "/1": "Switch to Mode 1: Interactive Shell",
-            "/2": "Switch to Mode 2: AI Conversational",
-            "/3": "Switch to Mode 3: Direct Command",
-            "/4": "Switch to Mode 4: Autonomous Agent",
-            "/5": "Switch to Mode 5: Workflow Automation",
-            "/6": "Switch to Mode 6: TUI Dashboard",
-            "/modes": "Display Nine Interaction Modes table",
             "/split": "Toggle Split Pane visualization view",
             "/help": "Display chat helper",
             "/quit": "Exit application",

@@ -18,6 +18,7 @@ PROVIDER_ENV_VARS: dict[str, str] = {
     "anthropic": "ANTHROPIC_API_KEY",
     "cloud": "PHALANX_API_KEY",
     "phalanx": "PHALANX_API_KEY",
+    "opencode": "OPENCODE_API_KEY",
 }
 
 _KEY_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$")

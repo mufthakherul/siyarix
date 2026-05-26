@@ -16,7 +16,21 @@ from phalanx.executor import safe_run_sync
 
 logger = logging.getLogger(__name__)
 
-_CONFIG_DIR = Path(os.getenv("PHALANX_CONFIG_DIR", str(Path.home() / ".phalanx")))
+# Environment variable → config key mapping (Appendix B)
+_ENV_TO_CONFIG: dict[str, str] = {
+    "PHALANX_CONFIG": "_config_path",
+    "PHALANX_HOME": "_home_dir",
+    "PHALANX_DEBUG": "log_level",
+    "PHALANX_PERSONA": "persona",
+    "PHALANX_PROVIDER": "model_provider",
+    "PHALANX_TIMEOUT": "scan_timeout",
+    "PHALANX_LOG_LEVEL": "log_level",
+    "PHALANX_NO_TELEMETRY": "_no_telemetry",
+    "PHALANX_SAFE_MODE": "_safe_mode",
+}
+
+_CONFIG_DIR = Path(os.getenv("PHALANX_CONFIG_DIR",
+                 os.getenv("PHALANX_HOME", str(Path.home() / ".phalanx"))))
 _SETTINGS_FILE = _CONFIG_DIR / "settings.toml"
 
 # ---------------------------------------------------------------------------
@@ -149,6 +163,27 @@ class SettingsStore:
     def __init__(self, path: Path | None = None) -> None:
         self._path = path or _SETTINGS_FILE
         self._data: dict[str, Any] = {**DEFAULTS, **_try_load_toml(self._path)}
+        self._apply_env_overrides()
+
+    def _apply_env_overrides(self) -> None:
+        for env_key, config_key in _ENV_TO_CONFIG.items():
+            val = os.getenv(env_key)
+            if val is not None:
+                if config_key in ("_no_telemetry", "_safe_mode"):
+                    self._data[config_key] = val.lower() in ("1", "true", "yes")
+                elif config_key == "log_level":
+                    self._data[config_key] = val.lower()
+                elif config_key == "scan_timeout":
+                    try:
+                        self._data[config_key] = int(val)
+                    except ValueError:
+                        pass
+                elif config_key in ("model_provider", "persona"):
+                    self._data[config_key] = val
+                elif config_key == "_config_path":
+                    self._data[config_key] = str(Path(val).expanduser().resolve())
+                elif config_key == "_home_dir":
+                    self._data[config_key] = str(Path(val).expanduser().resolve())
 
     # ------------------------------------------------------------------
     # Core API

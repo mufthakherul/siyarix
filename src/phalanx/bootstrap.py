@@ -240,21 +240,40 @@ class BootstrapEngine:
             self._home,
             self._home / "personas",
             self._home / "personas" / "custom",
+            self._home / "profiles",
             self._home / "plugins" / "installed",
             self._home / "plugins" / "available",
             self._home / "memory",
             self._home / "logs" / "sessions",
             self._home / "logs" / "audit",
-            self._home / "vault",
+            self._home / "vault" / "keys",
+            self._home / "vault" / "tokens",
             self._home / "cache" / "tool_outputs",
             self._home / "cache" / "ai_plans",
             self._home / "cache" / "dns",
+            self._home / "cache" / "intel",
+            self._home / "cache" / "scan_results",
+            self._home / "cache" / "user_data",
             self._home / "templates" / "reports",
             self._home / "templates" / "playbooks",
+            self._home / "playbooks",
+            self._home / "achievements",
+            self._home / "sessions",
             self._home / "masking",
         ]
         for d in dirs:
             d.mkdir(parents=True, exist_ok=True)
+        # Create config.yaml alias pointing to settings.toml (Appendix C)
+        config_alias = self._home / "config.yaml"
+        if not config_alias.exists():
+            try:
+                config_alias.write_text(
+                    "# Phalanx configuration\n"
+                    "# This file is an alias entry point.\n"
+                    "# Actual settings are stored in settings.toml\n"
+                )
+            except OSError:
+                pass
 
     def write_marker(self) -> None:
         marker = self._home / ".initialized"

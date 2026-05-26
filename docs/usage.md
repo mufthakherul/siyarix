@@ -192,25 +192,6 @@ phalanx ensemble summary
 
 ---
 
-## 📈 Web Dashboard
-
-```bash
-# Start the web dashboard
-phalanx dashboard --port 8090
-
-# Access at http://localhost:8090
-# WebSocket live updates at ws://localhost:8090/ws
-```
-
-REST API endpoints:
-- `GET /api/health` — System health
-- `GET /api/metrics` — Platform metrics
-- `GET /api/findings` — Recent findings
-- `GET /api/agents` — Agent status
-- `GET /api/snapshot` — Full dashboard snapshot
-
----
-
 ## 🗓️ Scheduled Scans
 
 ```bash

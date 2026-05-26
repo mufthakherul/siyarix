@@ -69,8 +69,8 @@ Phalanx follows a **7-layer Clean Architecture** with modular, event-driven desi
 ### Layer 4: AI & Intelligence
 | Module | Purpose |
 |--------|---------|
-| `providers.py` | Provider abstraction — OpenAI, Gemini, Ollama, NoopProvider |
-| `provider_adapters.py` | Adapter wrappers for planner model classes |
+| `providers.py` | Provider abstraction + adapter classes — OpenAI, Gemini, Ollama, Claude, NoopProvider |
+| `provider_adapters.py` | Re-exports from providers.py for backward compatibility |
 | `multi_model_ensemble.py` | Multi-provider voting, consensus, hallucination detection |
 | `xi/context_tracker.py` | Real-time operation awareness (phase, targets, executions) |
 | `xi/predictor.py` | Predictive next-action engine with pattern learning |

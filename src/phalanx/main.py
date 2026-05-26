@@ -642,7 +642,7 @@ def hsm_configure(
     """Configure and connect to an HSM provider."""
     from .hsm_manager import HSMService
     hsm = HSMService()
-    status = hsm.connect(provider=provider)
+    hsm.connect(provider=provider)
     console.print(hsm.generate_report(fmt="text"))
 
 @opsec_app.command("isolate")

@@ -5,7 +5,6 @@ Wires into chat._running and engine._pool.cancel_pending().
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from dataclasses import dataclass, field
 from enum import Enum

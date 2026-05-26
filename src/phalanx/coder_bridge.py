@@ -9,12 +9,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.prompt import Prompt
-from rich.syntax import Syntax
 
 logger = logging.getLogger(__name__)
 console = Console()

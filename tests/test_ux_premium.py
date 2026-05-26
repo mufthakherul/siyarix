@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 from rich.layout import Layout
 
 from siyarix.core.pipeline import CommandPipeline
-from siyarix.ux import OnboardingWizard, SmartAutocomplete, SplitPane
+from siyarix.ux import SmartAutocomplete, SplitPane
 
 
 def test_smart_autocomplete():
@@ -15,13 +15,13 @@ def test_smart_autocomplete():
     doc.get_word_before_cursor.return_value = "/"
     completions = list(autocomplete.get_completions(doc))
     assert len(completions) > 0
-    assert any(c.text == "/modes" for c in completions)
+    assert any(c.text == "/help" for c in completions)
 
     # Test first word completion
     doc.text_before_cursor = "w"
     doc.get_word_before_cursor.return_value = "w"
     completions = list(autocomplete.get_completions(doc))
-    assert any(c.text == "wizard" for c in completions)
+    assert any(c.text == "workflow" for c in completions)
 
     # Test tool completion inside run/scan command
     doc.text_before_cursor = "run n"
@@ -70,21 +70,6 @@ def test_split_pane_layout():
         left_renderable=left_renderable, right_type="cheatsheet"
     )
     assert layout_cheatsheet["right"] is not None
-
-
-@patch("rich.prompt.Confirm.ask")
-@patch("rich.prompt.Prompt.ask")
-def test_onboarding_wizard(mock_prompt, mock_confirm):
-    # Mock user accepting all steps
-    mock_confirm.return_value = True
-    mock_prompt.side_effect = [
-        "1",
-        "neon",
-    ]  # Step 2: provider Ollama, Step 4: theme neon
-
-    wiz = OnboardingWizard()
-    success = wiz.run()
-    assert success is True
 
 
 def test_command_pipeline_parsing():

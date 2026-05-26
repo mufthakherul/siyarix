@@ -267,6 +267,22 @@ _SLASH_HELP = {
     "/batch run <file>": "Execute batch commands from file",
     "/work-mode export <name>": "Export a persona to file",
     "/mode research": "Switch to research mode (MCP)",
+    "/cloud <aws|azure|gcp> <target>": "Cloud provider security scanning",
+    "/k8s scan|audit|rbac <namespace>": "Kubernetes security assessment",
+    "/docker scan|image|ps <image>": "Container security scanning",
+    "/iac scan --path <dir>": "Infrastructure as Code misconfiguration scanning",
+    "/mobile android --apk <path>": "Mobile application (APK) static analysis",
+    "/iot scan|firmware|serial <target>": "IoT/embedded device security testing",
+    "/hsm configure|status|disconnect": "Hardware Security Module integration",
+    "/compliance run --framework <fw> <target>": "Compliance framework assessment (pci-dss|iso-27001|nist-800-53|soc2|gdpr|hipaa)",
+    "/opsec isolate|burn|status|disable": "Operational security measures",
+    "/siem connect|status|forward <platform> <url>": "SIEM/SOAR integration",
+    "/challenge list|join|hint|submit|leaderboard": "CTF challenge participation",
+    "/community leaderboard|profile|register": "Community features and leaderboard",
+    "/performance status|tune|configure": "Performance optimization",
+    "/cache status|clear|invalidate [domain]": "Cache management",
+    "/distributed status|configure|nodes": "Multi-node distributed execution",
+    "/import <nessus|burp|metasploit|stix|auto> <file>": "Import external scan results",
 }
 
 # Mode number → (name, engine_mode, description)
@@ -500,6 +516,22 @@ class PhalanxChat:
             "/plugin": self._cmd_plugin,
             "/schedule": self._cmd_schedule,
             "/batch": self._cmd_batch,
+            "/cloud": self._cmd_cloud,
+            "/k8s": self._cmd_k8s,
+            "/docker": self._cmd_docker,
+            "/iac": self._cmd_iac,
+            "/mobile": self._cmd_mobile,
+            "/iot": self._cmd_iot,
+            "/hsm": self._cmd_hsm,
+            "/compliance": self._cmd_compliance,
+            "/opsec": self._cmd_opsec,
+            "/siem": self._cmd_siem,
+            "/challenge": self._cmd_challenge,
+            "/community": self._cmd_community,
+            "/performance": self._cmd_performance,
+            "/cache": self._cmd_cache,
+            "/distributed": self._cmd_distributed,
+            "/import": self._cmd_import,
         }
 
         # Handle /1 through /9 mode shortcuts
@@ -2359,6 +2391,294 @@ class PhalanxChat:
             await self._execute_instruction(line)
 
         console.print(f"[green]✓ Batch complete: {batch_file.name}[/green]")
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Chapter 21-28 slash commands
+    # ──────────────────────────────────────────────────────────────────────
+
+    async def _cmd_cloud(self, args: str) -> None:
+        """Handle /cloud command for cloud provider scanning."""
+        from .cloud_scanner import CloudProvider, CloudScanner
+        tokens = args.split() if args else []
+        if not tokens or tokens[0] not in ("aws", "azure", "gcp", "scan"):
+            console.print("[yellow]Usage: /cloud <aws|azure|gcp> <target>[/yellow]")
+            return
+        provider = tokens[0]
+        target = tokens[1] if len(tokens) > 1 else ""
+        scanner = CloudScanner()
+        provider_enum = getattr(CloudProvider, provider.upper(), CloudProvider.AWS)
+        result = scanner.scan_cloud(provider_enum, target)
+        console.print(scanner.generate_report(result, fmt="text"))
+
+    async def _cmd_k8s(self, args: str) -> None:
+        """Handle /k8s command for Kubernetes security scanning."""
+        from .cloud_scanner import CloudProvider, CloudScanner
+        tokens = args.split() if args else []
+        if not tokens or tokens[0] not in ("scan", "audit", "rbac"):
+            console.print("[yellow]Usage: /k8s scan|audit|rbac <namespace>[/yellow]")
+            return
+        namespace = tokens[1] if len(tokens) > 1 else "default"
+        scanner = CloudScanner()
+        result = scanner.scan_kubernetes(namespace)
+        console.print(scanner.generate_report(result, fmt="text"))
+
+    async def _cmd_docker(self, args: str) -> None:
+        """Handle /docker command for container scanning."""
+        from .cloud_scanner import CloudScanner
+        tokens = args.split() if args else []
+        if not tokens or tokens[0] not in ("scan", "image", "ps"):
+            console.print("[yellow]Usage: /docker scan|image|ps <image>[/yellow]")
+            return
+        image = tokens[1] if len(tokens) > 1 else ""
+        scanner = CloudScanner()
+        result = scanner.scan_docker(image)
+        console.print(scanner.generate_report(result, fmt="text"))
+
+    async def _cmd_iac(self, args: str) -> None:
+        """Handle /iac command for Infrastructure as Code scanning."""
+        from .iac_scanner import IaCScanner
+        tokens = args.split() if args else []
+        if len(tokens) < 2 or tokens[0] not in ("scan",):
+            console.print("[yellow]Usage: /iac scan --path <directory>[/yellow]")
+            return
+        path = tokens[1] if len(tokens) > 1 else "."
+        if "--path" in tokens:
+            idx = tokens.index("--path")
+            path = tokens[idx + 1] if idx + 1 < len(tokens) else "."
+        scanner = IaCScanner()
+        result = scanner.scan_path(path)
+        console.print(scanner.generate_report(result, fmt="text"))
+
+    async def _cmd_mobile(self, args: str) -> None:
+        """Handle /mobile command for mobile app testing."""
+        from .mobile_scanner import MobileScanner
+        tokens = args.split() if args else []
+        if len(tokens) < 2 or tokens[0] not in ("android", "apk", "ios", "ipa"):
+            console.print("[yellow]Usage: /mobile android --apk <path>[/yellow]")
+            return
+        apk_path = ""
+        if "--apk" in tokens:
+            idx = tokens.index("--apk")
+            apk_path = tokens[idx + 1] if idx + 1 < len(tokens) else ""
+        if not apk_path:
+            console.print("[yellow]--apk <path> is required[/yellow]")
+            return
+        scanner = MobileScanner()
+        result = scanner.scan_apk(apk_path)
+        console.print(scanner.generate_report(result, fmt="text"))
+
+    async def _cmd_iot(self, args: str) -> None:
+        """Handle /iot command for IoT device testing."""
+        from .iot_scanner import IoTScanner
+        tokens = args.split() if args else []
+        if len(tokens) < 2 or tokens[0] not in ("scan", "firmware", "serial"):
+            console.print("[yellow]Usage: /iot scan|firmware|serial <device|path>[/yellow]")
+            return
+        target = tokens[1]
+        scanner = IoTScanner()
+        if tokens[0] == "firmware":
+            result = scanner.scan_firmware(target)
+        elif tokens[0] == "serial":
+            baud = int(tokens[2]) if len(tokens) > 2 else 115200
+            result = scanner.scan_serial_port(target, baud=baud)
+        else:
+            result = scanner.scan_firmware(target)
+        console.print(scanner.generate_report(result, fmt="text"))
+
+    async def _cmd_hsm(self, args: str) -> None:
+        """Handle /hsm command for hardware security module integration."""
+        from .hsm_manager import HSMService
+        tokens = args.split() if args else []
+        if not tokens or tokens[0] not in ("configure", "status", "disconnect"):
+            console.print("[yellow]Usage: /hsm configure|status|disconnect [--provider yubikey|pkcs11|tpm][/yellow]")
+            return
+        hsm = HSMService()
+        if tokens[0] == "configure":
+            provider = "yubikey"
+            if "--provider" in tokens:
+                idx = tokens.index("--provider")
+                provider = tokens[idx + 1] if idx + 1 < len(tokens) else "yubikey"
+            status = hsm.connect(provider=provider)
+            console.print(hsm.generate_report(fmt="text"))
+        elif tokens[0] == "status":
+            console.print(hsm.generate_report(fmt="text"))
+        elif tokens[0] == "disconnect":
+            hsm.disconnect()
+            console.print("[green]HSM disconnected[/green]")
+
+    async def _cmd_compliance(self, args: str) -> None:
+        """Handle /compliance command for framework assessment."""
+        from .compliance_runner import ComplianceRunner
+        tokens = args.split() if args else []
+        if len(tokens) < 2 or tokens[0] not in ("run",):
+            console.print("[yellow]Usage: /compliance run --framework pci-dss|iso-27001|nist-800-53|soc2|gdpr|hipaa <target>[/yellow]")
+            return
+        framework = "pci-dss"
+        target = ""
+        if "--framework" in tokens:
+            idx = tokens.index("--framework")
+            framework = tokens[idx + 1] if idx + 1 < len(tokens) else "pci-dss"
+        target = tokens[-1] if not tokens[-1].startswith("--") else ""
+        runner = ComplianceRunner()
+        result = runner.run_framework(framework, target)
+        console.print(runner.generate_report(result, fmt="text"))
+
+    async def _cmd_opsec(self, args: str) -> None:
+        """Handle /opsec command for operational security."""
+        from .opsec import opsec_manager
+        tokens = args.split() if args else []
+        if not tokens or tokens[0] not in ("isolate", "burn", "status", "disable"):
+            console.print("[yellow]Usage: /opsec isolate|burn|status|disable [--target <target>][/yellow]")
+            return
+        if tokens[0] == "isolate":
+            target = ""
+            if "--target" in tokens:
+                idx = tokens.index("--target")
+                target = tokens[idx + 1] if idx + 1 < len(tokens) else ""
+            result = opsec_manager.isolate(target=target, use_tor=True, use_doh=True)
+            console.print(f"[green]{result.detail}[/green]")
+        elif tokens[0] == "burn":
+            session = tokens[1] if len(tokens) > 1 else ""
+            result = opsec_manager.burn(session_id=session)
+            console.print(f"[red]{result.detail}[/red]")
+        elif tokens[0] == "status":
+            s = opsec_manager.status
+            console.print(f"Isolated: {s.isolated} | TOR: {s.tor_enabled} | DoH: {s.doh_enabled} | Memory-only: {s.memory_only}")
+        elif tokens[0] == "disable":
+            opsec_manager.disable()
+            console.print("[green]OPSEC deactivated[/green]")
+
+    async def _cmd_siem(self, args: str) -> None:
+        """Handle /siem command for SIEM/SOAR integration."""
+        from .platform_integration import platform_integration
+        tokens = args.split() if args else []
+        if not tokens or tokens[0] not in ("connect", "status", "forward"):
+            console.print("[yellow]Usage: /siem connect|status|forward <platform> <url>[/yellow]")
+            return
+        if tokens[0] == "connect":
+            platform = tokens[1] if len(tokens) > 1 else "splunk"
+            url = tokens[2] if len(tokens) > 2 else ""
+            result = platform_integration.connect_siem(platform, url=url)
+            console.print(f"[green]SIEM connected: {result.platform}[/green]" if result.connected else f"[red]{result.error}[/red]")
+        elif tokens[0] == "status":
+            summary = platform_integration.summary()
+            console.print(f"SIEM connections: {summary.get('siem_connections', 0)}")
+
+    async def _cmd_challenge(self, args: str) -> None:
+        """Handle /challenge command for CTF participation."""
+        from .challenge import challenge_system
+        tokens = args.split() if args else []
+        if not tokens or tokens[0] not in ("list", "join", "hint", "submit", "leaderboard"):
+            console.print("[yellow]Usage: /challenge list|join|hint|submit|leaderboard[/yellow]")
+            return
+        if tokens[0] == "list":
+            challenges = challenge_system.list_active()
+            for c in challenges:
+                console.print(f"  [{c.difficulty}] {c.name}: {c.description} (target: {c.target})")
+        elif tokens[0] == "join":
+            cid = tokens[1] if len(tokens) > 1 else ""
+            username = tokens[2] if len(tokens) > 2 else "anonymous"
+            p = challenge_system.join(cid, username)
+            console.print(f"[green]Joined challenge: {cid}[/green]" if p else "[red]Challenge not found[/red]")
+        elif tokens[0] == "hint":
+            cid = tokens[1] if len(tokens) > 1 else ""
+            idx = int(tokens[2]) - 1 if len(tokens) > 2 else 0
+            hint = challenge_system.get_hint(cid, "anonymous", idx)
+            console.print(f"[yellow]Hint: {hint}[/yellow]" if hint else "[red]No more hints[/red]")
+        elif tokens[0] == "leaderboard":
+            cid = tokens[1] if len(tokens) > 1 else ""
+            board = challenge_system.get_leaderboard(cid)
+            for entry in board[:10]:
+                console.print(f"  #{entry.rank} {entry.username}: {entry.score} pts (flags: {entry.flags_found})")
+
+    async def _cmd_community(self, args: str) -> None:
+        """Handle /community command for leaderboard and sharing."""
+        from .community import community_service
+        tokens = args.split() if args else []
+        if not tokens or tokens[0] not in ("leaderboard", "profile", "register"):
+            console.print("[yellow]Usage: /community leaderboard|profile|register <username>[/yellow]")
+            return
+        if tokens[0] == "register":
+            username = tokens[1] if len(tokens) > 1 else "user"
+            community_service.register(username)
+            console.print(f"[green]Registered: {username}[/green]")
+        elif tokens[0] == "leaderboard":
+            board = community_service.get_leaderboard(limit=15)
+            for entry in board:
+                console.print(f"  #{entry.rank} {entry.username}: {entry.score} pts ({entry.scans} scans, {entry.findings} findings)")
+        elif tokens[0] == "profile":
+            username = tokens[1] if len(tokens) > 1 else ""
+            profile = community_service.get_profile(username)
+            if profile:
+                console.print(f"User: {profile.username} | Scans: {profile.total_scans} | Findings: {profile.total_findings} | Rep: {profile.reputation}")
+
+    async def _cmd_performance(self, args: str) -> None:
+        """Handle /performance command for resource optimization."""
+        from .performance import performance_optimizer
+        tokens = args.split() if args else []
+        if not tokens or tokens[0] not in ("status", "tune", "configure"):
+            console.print("[yellow]Usage: /performance status|tune|configure[/yellow]")
+            return
+        if tokens[0] == "tune":
+            config = performance_optimizer.auto_tune()
+            console.print(f"[green]Auto-tuned: {config.max_concurrent_agents} agents, {config.memory_limit_per_agent_mb}MB each[/green]")
+        elif tokens[0] == "status":
+            s = performance_optimizer.summary()
+            r = s["resources"]
+            console.print(f"CPU: {r['cpu_cores']}C/{r['cpu_logical']}T | RAM: {r['ram_gb']}GB | Platform: {r['platform']}")
+            console.print(f"Agents: {s['config']['max_concurrent_agents']} | Memory/agent: {s['config']['memory_per_agent_mb']}MB")
+            console.print(f"Recommended: {s['recommended']['max_agents']} agents, {s['recommended']['memory_per_agent_mb']}MB/agent")
+
+    async def _cmd_cache(self, args: str) -> None:
+        """Handle /cache command for cache management."""
+        from .cache_manager import cache_manager
+        tokens = args.split() if args else []
+        if not tokens or tokens[0] not in ("status", "clear", "invalidate"):
+            console.print("[yellow]Usage: /cache status|clear|invalidate [domain][/yellow]")
+            return
+        if tokens[0] == "status":
+            stats = cache_manager.stats()
+            console.print(f"Cache: {stats['total_entries']} entries, {stats['total_size_mb']}MB, hit rate: {stats['hit_rate']:.0%}")
+            console.print(f"Domains: {', '.join(stats.get('domains', []))}")
+        elif tokens[0] == "clear":
+            count = cache_manager.clear()
+            console.print(f"[green]Cache cleared: {count} entries removed[/green]")
+        elif tokens[0] == "invalidate":
+            domain = tokens[1] if len(tokens) > 1 else ""
+            count = cache_manager.invalidate(domain)
+            console.print(f"[green]{count} entries invalidated[/green]")
+
+    async def _cmd_distributed(self, args: str) -> None:
+        """Handle /distributed command for multi-node execution."""
+        from .distributed import DistributedOrchestrator
+        tokens = args.split() if args else []
+        if not tokens or tokens[0] not in ("status", "configure", "nodes"):
+            console.print("[yellow]Usage: /distributed status|configure|nodes[/yellow]")
+            return
+        orch = DistributedOrchestrator()
+        if tokens[0] == "status":
+            summary = orch.summary()
+            console.print(f"Distributed: {summary.get('total_workers', 1)} workers, {summary.get('total_cores', 0)} cores, {summary.get('total_ram_gb', 0)}GB RAM")
+
+    async def _cmd_import(self, args: str) -> None:
+        """Handle /import command for importing scan results."""
+        from .importer import security_importer
+        tokens = args.split() if args else []
+        if len(tokens) < 2 or tokens[0] not in ("nessus", "burp", "metasploit", "stix", "auto"):
+            console.print("[yellow]Usage: /import <nessus|burp|metasploit|stix|auto> <file>[/yellow]")
+            return
+        fmt = tokens[0]
+        path = tokens[1]
+        importer_fn = getattr(security_importer, f"import_{fmt}", None)
+        if importer_fn:
+            result = importer_fn(path)
+        else:
+            result = security_importer.auto_import(path)
+        console.print(f"Imported {result.total_imported} findings from {fmt} ({len(result.errors)} errors)")
+        for f in result.findings[:10]:
+            console.print(f"  [{f.severity}] {f.title} @ {f.host or '?'}:{f.port}")
+        if len(result.findings) > 10:
+            console.print(f"  ... and {len(result.findings)-10} more")
 
     # ──────────────────────────────────────────────────────────────────────
     # Natural language processing

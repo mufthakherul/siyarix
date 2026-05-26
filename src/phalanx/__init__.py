@@ -87,6 +87,21 @@ from .tool_registry import ToolInfo, ToolRegistry
 from .user_learning import (ExperienceLevel, PedagogicalEngine,
                             PedagogicalStep, SessionRecord, UserLearning,
                             UserProfile)
+from .achievement import Achievement, AchievementSystem, achievement_system
+from .cache_manager import CacheEntry, CacheManager, cache_manager
+from .challenge import Challenge, ChallengeParticipant, ChallengeSystem, challenge_system
+from .community import CommunityProfile, CommunityService, LeaderboardEntry, community_service
+from .hsm_manager import HSMError, HSMKeyInfo, HSMNotAvailable, HSMService, HSMStatus
+from .iac_scanner import IaCFinding, IaCScanResult, IaCScanner
+from .importer import ImportResult, ImportedFinding, SecurityImporter, security_importer
+from .iot_scanner import IoTFinding, IoTScanResult, IoTScanner
+from .mobile_scanner import MobileFinding, MobileScanResult, MobileScanner
+from .opsec import OPSECActionResult, OPSECManager, OPSECStatus, opsec_manager
+from .performance import PerformanceConfig, PerformanceOptimizer, SystemResources, performance_optimizer
+from .platform_integration import (BOUNTY_PLATFORMS, COMMS_PLATFORMS, SIEM_PLATFORMS,
+                                   NotificationChannel, PlatformConnection,
+                                   PlatformIntegrationService, SubmissionResult,
+                                   platform_integration)
 from .validators import validate_target
 from .worker_pool import AsyncWorkerPool
 from .xi import ContextTracker, Predictor, XICoreService
@@ -254,4 +269,52 @@ __all__ = [
     "SafetyEvent",
     "SessionLogger",
     "session_logger",
+    "AchievementSystem",
+    "Achievement",
+    "achievement_system",
+    "CacheManager",
+    "CacheEntry",
+    "cache_manager",
+    "ChallengeSystem",
+    "Challenge",
+    "ChallengeParticipant",
+    "challenge_system",
+    "CommunityService",
+    "CommunityProfile",
+    "LeaderboardEntry",
+    "community_service",
+    "HSMService",
+    "HSMStatus",
+    "HSMKeyInfo",
+    "HSMError",
+    "HSMNotAvailable",
+    "IaCScanner",
+    "IaCFinding",
+    "IaCScanResult",
+    "SecurityImporter",
+    "ImportedFinding",
+    "ImportResult",
+    "security_importer",
+    "IoTScanner",
+    "IoTFinding",
+    "IoTScanResult",
+    "MobileScanner",
+    "MobileFinding",
+    "MobileScanResult",
+    "OPSECManager",
+    "OPSECStatus",
+    "OPSECActionResult",
+    "opsec_manager",
+    "PerformanceOptimizer",
+    "PerformanceConfig",
+    "SystemResources",
+    "performance_optimizer",
+    "PlatformIntegrationService",
+    "PlatformConnection",
+    "SubmissionResult",
+    "NotificationChannel",
+    "platform_integration",
+    "BOUNTY_PLATFORMS",
+    "SIEM_PLATFORMS",
+    "COMMS_PLATFORMS",
 ]

@@ -479,8 +479,238 @@ def schedule_delete(
     else:
         console.print(f"[red]Scheduled job not found: {job_id}[/red]")
 
+cloud_app = typer.Typer(help="☁️ Cloud provider security scanning")
+app.add_typer(cloud_app, name="cloud")
+
+k8s_app = typer.Typer(help="☸️ Kubernetes security assessment")
+app.add_typer(k8s_app, name="k8s")
+
+docker_app = typer.Typer(help="🐳 Container security scanning")
+app.add_typer(docker_app, name="docker")
+
+iac_app = typer.Typer(help="🏗️ Infrastructure as Code scanning")
+app.add_typer(iac_app, name="iac")
+
+mobile_app = typer.Typer(help="📱 Mobile application security testing")
+app.add_typer(mobile_app, name="mobile")
+
+iot_app = typer.Typer(help="🔌 IoT & embedded device testing")
+app.add_typer(iot_app, name="iot")
+
+hsm_app = typer.Typer(help="🔐 Hardware Security Module management")
+app.add_typer(hsm_app, name="hsm")
+
+opsec_app = typer.Typer(help="👤 Operational Security measures")
+app.add_typer(opsec_app, name="opsec")
+
+siem_app = typer.Typer(help="📡 SIEM/SOAR integration")
+app.add_typer(siem_app, name="siem")
+
+platform_app = typer.Typer(help="🔗 Bug bounty platform integration")
+app.add_typer(platform_app, name="platform")
+
+performance_app = typer.Typer(help="⚡ Performance optimization")
+app.add_typer(performance_app, name="performance")
+
+cache_app = typer.Typer(help="💾 Cache management")
+app.add_typer(cache_app, name="cache")
+
+distributed_app = typer.Typer(help="🌐 Distributed execution")
+app.add_typer(distributed_app, name="distributed")
+
+import_app = typer.Typer(help="📥 Import external scan results")
+app.add_typer(import_app, name="import")
+
 findings_app = typer.Typer(help="🔍 Finding collaboration")
 app.add_typer(findings_app, name="findings")
+
+@cloud_app.command("scan")
+def cloud_scan(
+    provider: str = typer.Argument("aws", help="aws|azure|gcp"),
+    target: str = typer.Argument("", help="Account/project/tenant ID or name"),
+) -> None:
+    """Scan a cloud provider environment for security issues."""
+    from .cloud_scanner import CloudProvider, CloudScanner
+    provider_enum = getattr(CloudProvider, provider.upper(), CloudProvider.AWS)
+    scanner = CloudScanner()
+    result = scanner.scan_cloud(provider_enum, target)
+    console.print(scanner.generate_report(result, fmt="text"))
+
+@k8s_app.command("scan")
+def k8s_scan(
+    namespace: str = typer.Argument("default", help="Kubernetes namespace"),
+) -> None:
+    """Scan a Kubernetes cluster for security issues."""
+    from .cloud_scanner import CloudScanner
+    scanner = CloudScanner()
+    result = scanner.scan_kubernetes(namespace)
+    console.print(scanner.generate_report(result, fmt="text"))
+
+@docker_app.command("scan")
+def docker_scan(
+    image: str = typer.Argument("", help="Docker image name"),
+) -> None:
+    """Scan a Docker container image for vulnerabilities."""
+    from .cloud_scanner import CloudScanner
+    scanner = CloudScanner()
+    result = scanner.scan_docker(image)
+    console.print(scanner.generate_report(result, fmt="text"))
+
+@iac_app.command("scan")
+def iac_scan(
+    path: str = typer.Argument(".", help="Path to IaC directory/file"),
+    recursive: bool = typer.Option(True, "--recursive", "-r", help="Scan subdirectories"),
+) -> None:
+    """Scan Infrastructure as Code templates for misconfigurations."""
+    from .iac_scanner import IaCScanner
+    scanner = IaCScanner()
+    result = scanner.scan_path(path)
+    console.print(scanner.generate_report(result, fmt="text"))
+
+@mobile_app.command("scan")
+def mobile_scan(
+    apk_path: str = typer.Argument(..., help="Path to APK file"),
+) -> None:
+    """Static analysis of an Android APK for security issues."""
+    from .mobile_scanner import MobileScanner
+    scanner = MobileScanner()
+    result = scanner.scan_apk(apk_path)
+    console.print(scanner.generate_report(result, fmt="text"))
+
+@iot_app.command("scan")
+def iot_scan(
+    device: str = typer.Argument("", help="Firmware path or serial port"),
+    mode: str = typer.Option("firmware", "--mode", "-m", help="firmware|serial"),
+    baud: int = typer.Option(115200, "--baud", "-b", help="Serial baud rate"),
+) -> None:
+    """Scan an IoT device or firmware image."""
+    from .iot_scanner import IoTScanner
+    scanner = IoTScanner()
+    if mode == "serial":
+        result = scanner.scan_serial_port(device, baud=baud)
+    else:
+        result = scanner.scan_firmware(device)
+    console.print(scanner.generate_report(result, fmt="text"))
+
+@hsm_app.command("status")
+def hsm_status() -> None:
+    """Show HSM connection status."""
+    from .hsm_manager import HSMService
+    hsm = HSMService()
+    console.print(hsm.generate_report(fmt="text"))
+
+@hsm_app.command("configure")
+def hsm_configure(
+    provider: str = typer.Option("yubikey", "--provider", "-p", help="yubikey|pkcs11|tpm"),
+) -> None:
+    """Configure and connect to an HSM provider."""
+    from .hsm_manager import HSMService
+    hsm = HSMService()
+    status = hsm.connect(provider=provider)
+    console.print(hsm.generate_report(fmt="text"))
+
+@opsec_app.command("isolate")
+def opsec_isolate(
+    target: str = typer.Option("", "--target", "-t", help="Target to isolate"),
+    tor: bool = typer.Option(False, "--tor", help="Use TOR exit node rotation"),
+    doh: bool = typer.Option(True, "--doh", help="DNS over HTTPS"),
+) -> None:
+    """Isolate scanning activity with OPSEC measures."""
+    from .opsec import opsec_manager
+    result = opsec_manager.isolate(target=target, use_tor=tor, use_doh=doh)
+    console.print(f"[green]{result.detail}[/green]")
+
+@opsec_app.command("burn")
+def opsec_burn(
+    session: str = typer.Argument("", help="Session ID to destroy"),
+) -> None:
+    """Securely destroy all traces of a session."""
+    from .opsec import opsec_manager
+    result = opsec_manager.burn(session_id=session)
+    console.print(f"[red]{result.detail}[/red]")
+
+@siem_app.command("connect")
+def siem_connect(
+    platform: str = typer.Argument("splunk", help="splunk|elastic|qradar"),
+    url: str = typer.Argument("", help="SIEM URL"),
+) -> None:
+    """Connect to a SIEM/SOAR platform."""
+    from .platform_integration import platform_integration
+    result = platform_integration.connect_siem(platform, url=url)
+    if result.connected:
+        console.print(f"[green]Connected to {platform}[/green]")
+    else:
+        console.print(f"[red]{result.error}[/red]")
+
+@platform_app.command("connect")
+def platform_connect(
+    platform: str = typer.Argument("hackerone", help="hackerone|bugcrowd|intigriti"),
+    username: str = typer.Option("", "--username", "-u"),
+) -> None:
+    """Connect to a bug bounty platform."""
+    from .platform_integration import platform_integration
+    result = platform_integration.connect_bounty(platform, username=username)
+    if result.connected:
+        console.print(f"[green]Connected to {platform} as {result.username}[/green]")
+    else:
+        console.print(f"[red]{result.error}[/red]")
+
+@performance_app.command("status")
+def perf_status() -> None:
+    """Show system resources and performance configuration."""
+    from .performance import performance_optimizer
+    s = performance_optimizer.summary()
+    r = s["resources"]
+    console.print(f"CPU: {r['cpu_cores']}C/{r['cpu_logical']}T | RAM: {r['ram_gb']}GB | Platform: {r['platform']}")
+    console.print(f"Agents: {s['config']['max_concurrent_agents']} | Memory/agent: {s['config']['memory_per_agent_mb']}MB")
+
+@performance_app.command("tune")
+def perf_tune() -> None:
+    """Auto-tune performance parameters based on hardware."""
+    from .performance import performance_optimizer
+    config = performance_optimizer.auto_tune()
+    console.print(f"[green]Tuned: {config.max_concurrent_agents} agents, {config.memory_limit_per_agent_mb}MB each[/green]")
+
+@cache_app.command("status")
+def cache_status() -> None:
+    """Show cache statistics."""
+    from .cache_manager import cache_manager
+    stats = cache_manager.stats()
+    console.print(f"Entries: {stats['total_entries']} | Size: {stats['total_size_mb']}MB | Hit rate: {stats['hit_rate']:.0%}")
+    console.print(f"Domains: {', '.join(stats.get('domains', []))}")
+
+@cache_app.command("clear")
+def cache_clear() -> None:
+    """Clear all cached data."""
+    from .cache_manager import cache_manager
+    count = cache_manager.clear()
+    console.print(f"[green]Cache cleared: {count} entries[/green]")
+
+@distributed_app.command("status")
+def distributed_status() -> None:
+    """Show distributed worker cluster status."""
+    from .distributed import DistributedOrchestrator
+    orch = DistributedOrchestrator()
+    summary = orch.summary()
+    console.print(f"Workers: {summary.get('total_workers', 1)} | Cores: {summary.get('total_cores', 0)} | RAM: {summary.get('total_ram_gb', 0)}GB")
+
+@import_app.command("scan")
+def import_scan(
+    fmt: str = typer.Argument("auto", help="nessus|burp|metasploit|stix|auto"),
+    path: str = typer.Argument(..., help="Path to scan result file"),
+) -> None:
+    """Import external scan results for unified analysis."""
+    from .importer import security_importer
+    importer_fn = getattr(security_importer, f"import_{fmt}", None)
+    if importer_fn:
+        result = importer_fn(path)
+    else:
+        result = security_importer.auto_import(path)
+    console.print(f"Imported {result.total_imported} findings from {fmt}")
+    for f in result.findings[:10]:
+        console.print(f"  [{f.severity}] {f.title} @ {f.host or '?'}:{f.port}")
+    if len(result.findings) > 10:
+        console.print(f"  ... and {len(result.findings) - 10} more")
 
 report_app = typer.Typer(help="📊 Report generation & distribution")
 app.add_typer(report_app, name="report")

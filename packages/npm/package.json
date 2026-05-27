@@ -1,5 +1,5 @@
 {
-  "name": "@mufthakherul/siyarix-agent",
+  "name": "@mufthakherul/siyarix",
   "version": "0.1.3",
   "description": "Official npm launcher for Siyarix — AI Cybersecurity Orchestration Agent",
   "license": "MIT",
@@ -17,20 +17,17 @@
     "security",
     "cybersecurity",
     "cli",
-    "agent",
-    "npm",
     "pentest",
     "audit",
     "scanner"
   ],
   "type": "commonjs",
   "bin": {
-    "siyarix": "bin/siyarix-agent.js",
-    "siyarix-agent": "bin/siyarix-agent.js",
-    "siyarix-install": "bin/siyarix-agent-install.js"
+    "siyarix": "bin/siyarix.js",
+    "siyarix-install": "bin/siyarix-install.js"
   },
   "scripts": {
-    "test": "node --check bin/siyarix-agent.js && node --check bin/siyarix-agent-install.js && node --check lib/installer.js",
+    "test": "node --check bin/siyarix.js && node --check bin/siyarix-install.js && node --check lib/installer.js",
     "pack:check": "npm pack --dry-run"
   },
   "engines": {

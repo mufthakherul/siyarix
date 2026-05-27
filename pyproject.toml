@@ -72,7 +72,6 @@ dev = [
 
 [project.scripts]
 siyarix = "siyarix.main:app"
-siyarix-agent = "siyarix.main:app"
 
 [build-system]
 requires = ["hatchling"]

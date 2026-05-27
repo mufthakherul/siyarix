@@ -57,8 +57,8 @@ install_via_pip() {
 
 install_via_brew() {
   info "Installing via Homebrew..."
-  if [ -f "packages/homebrew/siyarix-agent.rb" ]; then
-    brew install --formula packages/homebrew/siyarix-agent.rb
+  if [ -f "packages/homebrew/siyarix.rb" ]; then
+    brew install --formula packages/homebrew/siyarix.rb
   else
     brew install siyarix 2>/dev/null || warn "Homebrew formula not yet in core tap"
   fi
@@ -108,7 +108,7 @@ install_via_snap() {
 install_via_ohpm() {
   if command -v ohpm &>/dev/null; then
     info "Installing via ohpm (OpenHarmony)..."
-    ohpm install @mufthakherul/siyarix-agent@"^${SIYARIX_VERSION}" 2>/dev/null
+    ohpm install @mufthakherul/siyarix@"^${SIYARIX_VERSION}" 2>/dev/null
   fi
   install_via_pip
 }
@@ -116,7 +116,7 @@ install_via_ohpm() {
 install_via_hpm() {
   if command -v hpm &>/dev/null; then
     info "Installing via hpm (HarmonyOS)..."
-    hpm install -g @mufthakherul/siyarix-agent 2>/dev/null
+    hpm install -g @mufthakherul/siyarix 2>/dev/null
   fi
   install_via_pip
 }

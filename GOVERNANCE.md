@@ -129,4 +129,4 @@ This governance model draws inspiration from established open-source projects an
 
 ---
 
-*SPDX-License-Identifier: AGPL-3.0-only*
+*SPDX-License-Identifier: AGPL-3.0-or-later*

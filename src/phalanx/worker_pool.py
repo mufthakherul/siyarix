@@ -45,18 +45,23 @@ class AsyncWorkerPool:
             finally:
                 self._tasks.discard(task)
 
+    async def cancel_pending(self) -> None:
+        """Cancel pending tasks without closing the pool (reusable)."""
+        for t in list(self._tasks):
+            if not t.done():
+                t.cancel()
+
     async def close(self, timeout: float | None = None) -> None:
         """Cancel any running tasks and wait for them to finish.
 
         If `timeout` is provided, wait up to that many seconds for tasks to complete.
+        The pool cannot be reused after close.
         """
         self._closed = True
         if not self._tasks:
             return
 
-        for t in list(self._tasks):
-            if not t.done():
-                t.cancel()
+        await self.cancel_pending()
 
         try:
             await asyncio.wait_for(

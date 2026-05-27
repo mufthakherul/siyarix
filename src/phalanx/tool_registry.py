@@ -644,6 +644,22 @@ class ToolInfo:
         return f"ToolInfo(name={self.name!r}, version={self.version!r}, path={self.path!r})"
 
 
+_CAT_MAP: dict[str, str] = {
+    "dns_recon": "recon", "port_scan": "recon", "osint": "recon",
+    "web_scan": "web", "dir_enum": "web", "fuzzing": "web", "sqli": "web",
+    "vuln_detect": "vuln", "cve_scan": "vuln",
+    "brute_force": "exploit", "password_crack": "exploit", "exploitation": "exploit",
+    "mitm": "exploit", "ad_recon": "exploit", "smb_recon": "exploit",
+    "social_engineering": "social",
+    "wireless_attack": "wireless",
+    "cloud_enum": "cloud",
+    "container_runtime": "infra", "k8s_manage": "infra", "iac_plan": "infra",
+    "forensics": "forensics", "packet_sniff": "recon",
+    "secret_scan": "web", "reverse_shell": "exploit", "proxy": "exploit",
+    "certificate_scan": "recon", "api_scan": "web",
+}
+
+
 class ToolRegistry:
     """Discovers locally installed security tools and probes their versions.
 
@@ -735,15 +751,15 @@ class ToolRegistry:
             (re.compile(r"sql|sqli|injection|database"), "sqli"),
             (re.compile(r"brute|bruteforce|hydra"), "brute_force"),
             (re.compile(r"password|credential|hash|john"), "password_crack"),
-            (re.compile(r"exploit|msf|metasploit"), "exploitation"),
+            (re.compile(r"exploit|exploitation|msf|metasploit"), "exploitation"),
             (re.compile(r"post.*exploit"), "post_exploit"),
             (re.compile(r"mitm|arp.*spoof|ettercap"), "mitm"),
             (re.compile(r"sniff|packet|tcpdump|tshark"), "packet_sniff"),
             (re.compile(r"wireless|wifi|aircrack"), "wireless_attack"),
             (re.compile(r"cloud|aws|azure|gcp|s3"), "cloud_enum"),
-            (re.compile(r"docker|podman|container"), "container_runtime"),
+            (re.compile(r"container|docker|podman"), "container_runtime"),
             (re.compile(r"k8s|kubernetes|kubectl"), "k8s_manage"),
-            (re.compile(r"terraform|ansible|iac"), "iac_plan"),
+            (re.compile(r"iac|terraform|ansible"), "iac_plan"),
             (re.compile(r"social.*eng|phish|setoolkit"), "social_engineering"),
             (re.compile(r"reverse.*shell|payload"), "reverse_shell"),
             (re.compile(r"proxy|tunnel|chisel"), "proxy"),
@@ -772,22 +788,8 @@ class ToolRegistry:
         if not caps:
             return {}
         category = next((_CAT_MAP[c] for c in caps if c in _CAT_MAP), "tool")
-        return {"capabilities": sorted(caps), "category": category, "description": f"{name} — inferred from --help"}
-
-    _CAT_MAP = {
-        "dns_recon": "recon", "port_scan": "recon", "osint": "recon",
-        "web_scan": "web", "dir_enum": "web", "fuzzing": "web", "sqli": "web",
-        "vuln_detect": "vuln", "cve_scan": "vuln",
-        "brute_force": "exploit", "password_crack": "exploit", "exploitation": "exploit",
-        "mitm": "exploit", "ad_recon": "exploit", "smb_recon": "exploit",
-        "social_engineering": "social",
-        "wireless_attack": "wireless",
-        "cloud_enum": "cloud",
-        "container_runtime": "infra", "k8s_manage": "infra", "iac_plan": "infra",
-        "forensics": "forensics", "packet_sniff": "recon",
-        "secret_scan": "web", "reverse_shell": "exploit", "proxy": "exploit",
-        "certificate_scan": "recon", "api_scan": "web",
-    }
+        desc = f"{name} — inferred from --help"
+        return {"capabilities": sorted(caps), "category": category, "description": desc}
 
     def register_dynamic(
         self,
@@ -946,7 +948,7 @@ class ToolRegistry:
                     return line
             return "unknown"
         except Exception as exc:
-            logger.exception(
+            logger.warning(
                 "Failed to probe dynamic tool version for %s: %s", name, exc
             )
             return "unknown"
@@ -970,19 +972,29 @@ class ToolRegistry:
             ]
         }
 
-    def to_planner_context(self) -> list[dict]:
-        """Return tool information formatted for task planner context."""
-        return [
-            {
-                "name": t.name,
-                "binary": t.binary,
-                "capabilities": t.capabilities,
-                "category": t.category,
-                "description": t.description,
-                "default_args": t.default_args,
-            }
-            for t in self.discover(fast=True)
-        ]
+    def update_metadata(self, output_path: Path) -> int:
+        """Scan PATH and generate a new metadata file."""
+        print("Scanning PATH and inferring capabilities from --help ...")
+        scanned = self.scan_path()
+        print(f"  Found {len(scanned)} tools with inferable metadata")
+
+        merged = dict(_KNOWN_TOOLS)
+        for tool_name in scanned:
+            if tool_name not in merged:
+                merged[tool_name] = {
+                    "category": "auto-detect",
+                    "description": f"Auto-detected tool: {tool_name}",
+                }
+
+        def _sort_key(item):
+            meta = item[1]
+            return (meta.get("category", "z"), item[0])
+        merged = dict(sorted(merged.items(), key=_sort_key))
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(merged, indent=2), encoding="utf-8")
+        print(f"\nWrote {len(merged)} entries to {output_path}")
+        return len(merged)
 
     def scan_path(self, timeout: float = 5.0) -> list[str]:
         """Scan ALL binaries on PATH and register unknown ones as dynamic tools.

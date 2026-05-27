@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from . import _now_iso
+
 from datetime import UTC, datetime
 
 

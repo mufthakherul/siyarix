@@ -1141,14 +1141,18 @@ class ExecutionEngine:
         return any(indicator in error_lower for indicator in transient_indicators)
 
     async def _execute_step(self, step: ExecutionStep, interactive: bool) -> StepResult:
-        """Execute a single step based on its type."""
-        # Delegate execution to ToolExecutor for better separation of concerns
+        """Execute a single step based on its type, routing through engine lifecycle hooks."""
+        if step.step_type == StepType.TOOL_RUN:
+            return await self._run_tool_step(step, interactive)
+        if step.step_type == StepType.SHELL_CMD:
+            return await self._run_shell_step(step, interactive)
+        # ANALYSIS, REPORT, PARALLEL_GROUP: delegate directly to executor
         return await self._executor.execute_step(step, interactive)
 
     async def _run_tool_step(
         self, step: ExecutionStep, interactive: bool
     ) -> StepResult:
-        """Execute a registered security tool via ToolExecutor, with engine-level extras."""
+        """Execute a registered security tool — delegates to ToolExecutor with lifecycle hooks."""
         tool_name = step.tool or ""
 
         # Check install-and-retry for missing tools
@@ -1358,20 +1362,6 @@ class ExecutionEngine:
         except Exception as exc:
             logger.debug("Permission gate check failed: %s", exc)
         return value
-
-    async def _run_analysis_step(self, step: ExecutionStep) -> StepResult:
-        """Run a model-driven analysis step — delegate to ToolExecutor."""
-        return await self._executor.execute_step(step, True)
-
-    async def _run_report_step(self, step: ExecutionStep) -> StepResult:
-        """Generate a report step — defer to ToolExecutor."""
-        return await self._executor.execute_step(step)
-
-    async def _run_parallel_step(
-        self, step: ExecutionStep, interactive: bool
-    ) -> StepResult:
-        """Execute a group of steps in parallel — delegate to ToolExecutor."""
-        return await self._executor.execute_step(step, interactive)
 
     def _check_dependencies(self, step: ExecutionStep) -> bool:
         """Check if all dependencies have completed successfully."""

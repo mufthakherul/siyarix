@@ -2256,8 +2256,17 @@ def tool_registry_list(
     console.print(table)
 
 
-@tool_registry_app.command("show")
-def tool_registry_show(name: str = typer.Argument(help="Tool name or binary")) -> None:
+@tool_registry_app.command("update-metadata")
+def tool_registry_update_metadata(
+    output_path: str = typer.Argument(..., help="Path to save the tool metadata JSON")
+) -> None:
+    """Regenerate the tool metadata file by scanning all binaries on PATH."""
+    from phalanx.tool_registry import ToolRegistry
+    from pathlib import Path
+    
+    reg = ToolRegistry()
+    count = reg.update_metadata(Path(output_path))
+    print(f"Successfully updated metadata: {count} tools recorded.")
     """Show detailed info about a specific tool."""
     tools = registry.discover()
     tool = next((t for t in tools if t.name == name or t.binary == name), None)

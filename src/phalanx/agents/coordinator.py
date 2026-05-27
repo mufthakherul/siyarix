@@ -198,7 +198,6 @@ class CoordinatorAgent:
         self._last_results = phase_results
 
         total_duration = time.monotonic() - start_time
-        team_result = await self._team.execute_goal(goal=objective, target=target)
 
         result = {
             "team": self._team.name,
@@ -209,8 +208,12 @@ class CoordinatorAgent:
             "agents_used": len(self._team.list_agents()),
             "phases_executed": list(decomposition.keys()),
             "phase_results": phase_results,
-            "team_result": team_result,
-            "results": team_result.get("results", []),
+            "results": [
+                r
+                for phase in phase_results.values()
+                for r in phase.get("responses", [])
+                if isinstance(r, dict)
+            ],
             "success": all(
                 r.get("success", False)
                 for phase in phase_results.values()

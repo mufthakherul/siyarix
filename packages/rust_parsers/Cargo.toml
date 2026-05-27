@@ -1,10 +1,10 @@
 [package]
-name = "nexsec_rust_parsers"
+name = "siyarix_rust_parsers"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "nexsec_rust_parsers"
+name = "siyarix_rust_parsers"
 crate-type = ["cdylib"]
 
 [dependencies]

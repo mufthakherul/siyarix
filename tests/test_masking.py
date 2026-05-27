@@ -1,4 +1,4 @@
-from phalanx.masking import MaskingEngine
+from siyarix.masking import MaskingEngine
 
 
 def test_mask_unmask_domain_and_apikey():

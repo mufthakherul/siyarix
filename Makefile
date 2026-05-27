@@ -11,25 +11,25 @@ install-dev: ## Install development dependencies
 	pip install pytest pytest-asyncio pytest-cov ruff mypy pre-commit
 
 test: ## Run all tests
-	python -m pytest tests/ -v --tb=short --cov=src/phalanx --cov-report=term --cov-report=html
+	python -m pytest tests/ -v --tb=short --cov=src/siyarix --cov-report=term --cov-report=html
 
 test-quick: ## Run quick tests (exclude slow)
 	python -m pytest tests/ -v --tb=short -m "not slow" -x
 
 lint: ## Run ruff linter
-	ruff check src/phalanx/ tests/
+	ruff check src/siyarix/ tests/
 
 lint-fix: ## Run ruff linter with auto-fix
-	ruff check --fix src/phalanx/ tests/
+	ruff check --fix src/siyarix/ tests/
 
 typecheck: ## Run mypy type checker
-	mypy src/phalanx/
+	mypy src/siyarix/
 
 format: ## Run ruff formatter
-	ruff format src/phalanx/ tests/
+	ruff format src/siyarix/ tests/
 
 security: ## Run security checks
-	bandit -r src/phalanx/ -f json -o bandit-report.json || true
+	bandit -r src/siyarix/ -f json -o bandit-report.json || true
 
 clean: ## Clean build artifacts and caches
 	rm -rf build/ dist/ *.egg-info/
@@ -57,7 +57,7 @@ pre-commit: ## Run pre-commit hooks
 	pre-commit run --all-files
 
 coverage: ## Run tests with coverage report
-	python -m pytest tests/ -v --tb=short --cov=phalanx --cov-report=term-missing --cov-fail-under=50
+	python -m pytest tests/ -v --tb=short --cov=siyarix --cov-report=term-missing --cov-fail-under=50
 
 benchmark: ## Run performance benchmarks
 	python -m pytest tests/ -v --tb=short -m "benchmark" --benchmark-only 2>/dev/null || echo "pytest-benchmark not installed; install with: pip install pytest-benchmark"

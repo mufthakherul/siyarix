@@ -2,8 +2,8 @@ from unittest.mock import MagicMock
 
 from rich.layout import Layout
 
-from phalanx.core.pipeline import CommandPipeline
-from phalanx.ux import SmartAutocomplete, SplitPane
+from siyarix.core.pipeline import CommandPipeline
+from siyarix.ux import SmartAutocomplete, SplitPane
 
 
 def test_smart_autocomplete():

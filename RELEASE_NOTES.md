@@ -1,4 +1,4 @@
-# Phalanx v0.1.3 — Preview Release
+# Siyarix v0.1.3 — Preview Release
 
 ## Overview
 
@@ -69,8 +69,8 @@ stability, security, and architectural improvements.
 
 ## Build Artifacts
 
-- `phalanx-0.1.3.tar.gz`
-- `phalanx-0.1.3-py3-none-any.whl`
+- `siyarix-0.1.3.tar.gz`
+- `siyarix-0.1.3-py3-none-any.whl`
 
 ## Tests
 

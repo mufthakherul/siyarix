@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from phalanx.agents.coordinator import CoordinatorAgent
+from siyarix.agents.coordinator import CoordinatorAgent
 
 
 class TestCoordinatorAgent:

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from phalanx.bootstrap import (PHALANX_HOME, BootstrapEngine, BootstrapResult,
+from siyarix.bootstrap import (SIYARIX_HOME, BootstrapEngine, BootstrapResult,
                                PlatformInfo)
 
 pytestmark = pytest.mark.bootstrap
@@ -16,7 +16,7 @@ pytestmark = pytest.mark.bootstrap
 class TestBootstrapEngine:
     def test_initialization(self):
         engine = BootstrapEngine()
-        assert engine._home == PHALANX_HOME
+        assert engine._home == SIYARIX_HOME
 
     def test_detect_platform(self):
         engine = BootstrapEngine()
@@ -35,7 +35,7 @@ class TestBootstrapEngine:
         assert "pydantic" in deps
 
     def test_ensure_directory_structure(self, tmp_path: Path):
-        engine = BootstrapEngine(phalanx_home=tmp_path)
+        engine = BootstrapEngine(siyarix_home=tmp_path)
         engine.ensure_directory_structure()
         assert (tmp_path / "personas").exists()
         assert (tmp_path / "memory").exists()
@@ -47,7 +47,7 @@ class TestBootstrapEngine:
 
     def test_first_run_detection(self, tmp_path: Path):
         marker = tmp_path / ".initialized"
-        engine = BootstrapEngine(phalanx_home=tmp_path)
+        engine = BootstrapEngine(siyarix_home=tmp_path)
         assert engine.is_first_run is True
         marker.write_text("initialized")
         assert engine.is_first_run is False
@@ -56,7 +56,7 @@ class TestBootstrapEngine:
     async def test_run_skip_if_initialized(self, tmp_path: Path):
         marker = tmp_path.parent / ".initialized"
         marker.write_text("initialized")
-        engine = BootstrapEngine(phalanx_home=tmp_path)
+        engine = BootstrapEngine(siyarix_home=tmp_path)
         result = await engine.run()
         assert result.success is True
 

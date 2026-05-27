@@ -4,7 +4,7 @@ from click.testing import CliRunner
 from typer import Typer
 from typer.main import get_command
 
-from phalanx.security_commands import security_app
+from siyarix.security_commands import security_app
 
 
 def test_security_group_registers_and_shows_help() -> None:

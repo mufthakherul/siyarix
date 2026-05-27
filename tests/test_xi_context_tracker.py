@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phalanx.xi.context_tracker import ContextTracker, OperationPhase
+from siyarix.xi.context_tracker import ContextTracker, OperationPhase
 
 
 class TestContextTracker:
@@ -32,7 +32,7 @@ class TestContextTracker:
 
     def test_auto_detect_phase_reporting(self):
         tracker = ContextTracker()
-        phase = tracker.auto_detect_phase("phalanx", "report findings")
+        phase = tracker.auto_detect_phase("siyarix", "report findings")
         assert phase == OperationPhase.REPORTING
 
     def test_track_target(self):

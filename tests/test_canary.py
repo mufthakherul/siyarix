@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from phalanx.canary import (CanaryDeployment, CanaryToken, CanaryTokenManager,
+from siyarix.canary import (CanaryDeployment, CanaryToken, CanaryTokenManager,
                             CanaryTokenType)
 
 pytestmark = pytest.mark.canary
@@ -26,7 +26,7 @@ class TestCanaryTokenManager:
     def test_create_dns_token(self, manager):
         token = manager.create_token(CanaryTokenType.DNS, location="test.example.com")
         assert token.location == "test.example.com"
-        assert ".phalanx-alert.local" not in token.value
+        assert ".siyarix-alert.local" not in token.value
 
     def test_create_credential_token(self, manager):
         token = manager.create_token(

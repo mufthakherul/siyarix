@@ -1,4 +1,4 @@
-from phalanx.branding import (available_themes, canonical_theme, resolve_theme,
+from siyarix.branding import (available_themes, canonical_theme, resolve_theme,
                               severity_label)
 
 

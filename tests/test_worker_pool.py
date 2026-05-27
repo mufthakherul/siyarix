@@ -1,6 +1,6 @@
 import asyncio
 
-from phalanx.worker_pool import AsyncWorkerPool
+from siyarix.worker_pool import AsyncWorkerPool
 
 
 def test_worker_pool_concurrency_and_results():

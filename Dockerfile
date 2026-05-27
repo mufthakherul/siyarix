@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install phalanx
+# Install siyarix
 COPY pyproject.toml README.md ./
 COPY src/ src/
 RUN pip install -e ".[all,cli,siem]"
@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 FROM base AS production
 COPY --from=base /app /app
-ENTRYPOINT ["phalanx"]
+ENTRYPOINT ["siyarix"]
 CMD ["--help"]
 
 FROM base AS development

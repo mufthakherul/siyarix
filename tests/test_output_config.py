@@ -15,7 +15,7 @@ import pytest
 
 class TestOutputFormatter:
     def test_formatter_json(self, capsys):
-        from phalanx.output import OutputFormatter
+        from siyarix.output import OutputFormatter
 
         fmt = OutputFormatter(fmt="json")
         fmt.json({"key": "value"})
@@ -24,7 +24,7 @@ class TestOutputFormatter:
         assert "value" in out
 
     def test_formatter_csv(self, capsys):
-        from phalanx.output import OutputFormatter
+        from siyarix.output import OutputFormatter
 
         fmt = OutputFormatter(fmt="csv")
         fmt.csv([{"a": 1, "b": 2}, {"a": 3, "b": 4}])
@@ -33,7 +33,7 @@ class TestOutputFormatter:
         assert "1" in out
 
     def test_formatter_quiet(self, capsys):
-        from phalanx.output import OutputFormatter
+        from siyarix.output import OutputFormatter
 
         fmt = OutputFormatter(fmt="quiet")
         fmt.quiet({"status": "ok"}, key="status")
@@ -44,7 +44,7 @@ class TestOutputFormatter:
         """If pyyaml is not installed, should fall back to JSON without crashing."""
         import unittest.mock as mock
 
-        from phalanx.output import OutputFormatter
+        from siyarix.output import OutputFormatter
 
         fmt = OutputFormatter(fmt="yaml")
         with mock.patch.dict("sys.modules", {"yaml": None}):
@@ -52,14 +52,14 @@ class TestOutputFormatter:
             fmt.yaml({"x": 1})  # Should not raise
 
     def test_set_formatter(self):
-        from phalanx.output import get_formatter, set_formatter
+        from siyarix.output import get_formatter, set_formatter
 
         set_formatter("json")
         f = get_formatter("json")
         assert f.fmt == "json"
 
     def test_set_formatter_tracks_no_color_and_verbose(self):
-        from phalanx.output import get_formatter, set_formatter
+        from siyarix.output import get_formatter, set_formatter
 
         set_formatter("yaml", no_color=True, verbose=2)
         f = get_formatter("yaml")
@@ -68,7 +68,7 @@ class TestOutputFormatter:
         assert f.verbose == 2
 
     def test_exit_codes_exported(self):
-        from phalanx.output import EXIT_AUTH_ERROR, EXIT_ERROR, EXIT_OK
+        from siyarix.output import EXIT_AUTH_ERROR, EXIT_ERROR, EXIT_OK
 
         assert EXIT_OK == 0
         assert EXIT_ERROR == 1
@@ -82,7 +82,7 @@ class TestOutputFormatter:
 
 class TestSettingsStore:
     def _make_store(self, tmp_path: Path):
-        from phalanx.config import SettingsStore
+        from siyarix.config import SettingsStore
 
         return SettingsStore(path=tmp_path / "settings.toml")
 
@@ -142,7 +142,7 @@ class TestSettingsStore:
     def test_persistence(self, tmp_path):
         """Changes survive creating a new SettingsStore instance."""
         path = tmp_path / "settings.toml"
-        from phalanx.config import SettingsStore
+        from siyarix.config import SettingsStore
 
         s1 = SettingsStore(path=path)
         s1.set("default_parallel", "7")
@@ -157,7 +157,7 @@ class TestSettingsStore:
 
 class TestOfflineStoreHistory:
     def _make_store(self, tmp_path: Path):
-        from phalanx.offline_store import OfflineStore
+        from siyarix.offline_store import OfflineStore
 
         return OfflineStore(db_path=tmp_path / "test.db")
 
@@ -263,7 +263,7 @@ class TestOfflineStoreHistory:
 
 class TestProgressRunner:
     def test_run_tools_with_progress_returns_per_tool_results(self, monkeypatch):
-        from phalanx import progress as p
+        from siyarix import progress as p
 
         class DummyDisplay:
             def __init__(self, state):
@@ -307,7 +307,7 @@ class TestProgressRunner:
         monkeypatch.setattr(p, "ScanProgressDisplay", DummyDisplay)
         monkeypatch.setattr(p, "CancellationToken", DummyToken)
         monkeypatch.setattr(
-            "phalanx.executor.run_tool_complete", fake_run_tool_complete
+            "siyarix.executor.run_tool_complete", fake_run_tool_complete
         )
 
         results, state = asyncio.run(

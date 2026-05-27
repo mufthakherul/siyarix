@@ -1,6 +1,6 @@
-# Contributing to Phalanx
+# Contributing to Siyarix
 
-First off, thank you for considering contributing to Phalanx!
+First off, thank you for considering contributing to Siyarix!
 
 This project started as a college experiment to see if AI could orchestrate command-line security tools. As the project grew, we decided to open-source it so that others could learn from it. We are incredibly grateful for anyone who wants to help make it better.
 
@@ -23,7 +23,7 @@ You don't need to be an expert in AI or Python to contribute! Here are a few way
 
 We try to keep our PR process as low-stress as possible.
 
-1. **Fork the Repository**: Create your own copy of the Phalanx repository on GitHub and create a new branch for your feature (e.g., `git checkout -b feat/add-new-parser`).
+1. **Fork the Repository**: Create your own copy of the Siyarix repository on GitHub and create a new branch for your feature (e.g., `git checkout -b feat/add-new-parser`).
 2. **Test Locally**: Make sure the existing tests pass before you push. If you're adding something new, try to add a small test for it in the `tests/` folder! (See [development.md](development.md) for how to run tests locally).
 3. **Commit Messages**: Try to be clear about what you changed. We like the conventional commit format (e.g., `feat: added ffuf parser` or `fix: crash on windows shell`), but we won't reject your PR if you forget.
 4. **Open the PR**: Submit it against the `main` branch. A maintainer will review it, give you some friendly feedback, and get it merged!
@@ -36,6 +36,6 @@ We try to keep our PR process as low-stress as possible.
 
 We are building a community for learning and research. We expect everyone to be kind, respectful, and encouraging to one another. There is no such thing as a "stupid" question here.
 
-If you find a severe security vulnerability in Phalanx itself, please do not open a public GitHub issue. Instead, please check out [security.md](security.md) for how to report it privately so we can patch it safely.
+If you find a severe security vulnerability in Siyarix itself, please do not open a public GitHub issue. Instead, please check out [security.md](security.md) for how to report it privately so we can patch it safely.
 
-Happy hacking, and thank you again for your interest in Phalanx!
+Happy hacking, and thank you again for your interest in Siyarix!

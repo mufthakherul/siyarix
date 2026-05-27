@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import asyncio
 
-from phalanx.dynamic_resolver import DynamicResolver
-from phalanx.engine import EngineResult, ExecutionEngine, ExecutionMode
-from phalanx.interpreter import RuleInterpreter, TaskCategory
-from phalanx.planner import ExecutionPlan, ExecutionStep, StepType, TaskPlanner
+from siyarix.dynamic_resolver import DynamicResolver
+from siyarix.engine import EngineResult, ExecutionEngine, ExecutionMode
+from siyarix.interpreter import RuleInterpreter, TaskCategory
+from siyarix.planner import ExecutionPlan, ExecutionStep, StepType, TaskPlanner
 
 
 def _run(coro):

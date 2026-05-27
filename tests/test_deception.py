@@ -2,7 +2,7 @@
 
 import pytest
 
-from phalanx.deception import (DeceptionType, FakeBannerGenerator,
+from siyarix.deception import (DeceptionType, FakeBannerGenerator,
                                HoneypotDetector, TrapdoorCredentialManager)
 
 pytestmark = pytest.mark.deception

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from phalanx.cvss_scorer import CVSSResult, CVSSScorer, CVSSVector, Severity
+from siyarix.cvss_scorer import CVSSResult, CVSSScorer, CVSSVector, Severity
 
 pytestmark = pytest.mark.cvss
 

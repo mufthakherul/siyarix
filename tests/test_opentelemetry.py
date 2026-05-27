@@ -2,7 +2,7 @@
 
 import pytest
 
-from phalanx.telemetry.opentelemetry import (OpenTelemetryCollector,
+from siyarix.telemetry.opentelemetry import (OpenTelemetryCollector,
                                              OpenTelemetryMiddleware, trace)
 
 pytestmark = pytest.mark.opentelemetry

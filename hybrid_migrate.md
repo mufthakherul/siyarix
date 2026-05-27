@@ -12,7 +12,7 @@
 
 | # | Task | Status | Notes |
 |---|------|--------|-------|
-| 1 | Wire up the Multi-Agent Framework — CoordinatorAgent with task decomposition | ✅ DONE | `src/phalanx/agents/coordinator.py` — `_decompose_objective()`, parallel `asyncio.gather` dispatch with semaphore, topological dependency resolution, OODA loop |
+| 1 | Wire up the Multi-Agent Framework — CoordinatorAgent with task decomposition | ✅ DONE | `src/siyarix/agents/coordinator.py` — `_decompose_objective()`, parallel `asyncio.gather` dispatch with semaphore, topological dependency resolution, OODA loop |
 | 2 | Close the AI feedback loop — Adaptive re-plan after step failures/zero findings | ✅ DONE | Engine._replan_from_feedback() wired in ExecutionEngine._execute_plan, bounded by max_replans (default 3) |
 | 3 | Deepen E2E test coverage — Full planner→engine→parser→store pipeline | ✅ DONE | 15 new test files (exploitation, ML anomaly, OTel, deception, threat intel, distributed) + existing E2E tests enhanced |
 | 4 | Complete the XI service — Connect ContextTracker + Predictor to planner | ✅ DONE | XI integrated in ExecutionEngine._build_context() and _record_step_feedback(); planner receives XI predictions |
@@ -28,13 +28,13 @@
 
 ## Phase 2 — Classic Hacking Module Expansion — **100% Complete**
 
-**Goal:** Make Phalanx a serious offensive toolchain, not just a scan orchestrator.
+**Goal:** Make Siyarix a serious offensive toolchain, not just a scan orchestrator.
 
 ### Tasks
 
 | # | Task | Status | Notes |
 |---|------|--------|-------|
-| 1 | Exploitation Chain Automation | ✅ DONE | `src/phalanx/exploitation.py` — ExploitChainBuilder, ExploitChainExecutor, msfvenom payload generator, dependency-linked phases |
+| 1 | Exploitation Chain Automation | ✅ DONE | `src/siyarix/exploitation.py` — ExploitChainBuilder, ExploitChainExecutor, msfvenom payload generator, dependency-linked phases |
 | 2 | Protocol-Level Attack Modules | ✅ DONE | Tool registry supports: bettercap/ettercap (MITM), aircrack-ng (wireless), impacket (SMB/ Kerberoasting) — parsers ready |
 | 3 | Passive Recon Pipeline | ✅ DONE | ThreatIntelFeed ingests STIX/TAXII, MISP; MITREAttackDB maps 25+ techniques; enrich_finding() adds context |
 | 4 | Custom Payload Generation | ✅ DONE | ExploitChainBuilder.build_msfvenom_payload() — OS×arch×listener type→encoded payload format |
@@ -57,7 +57,7 @@
 
 | # | Task | Status | Notes |
 |---|------|--------|-------|
-| 1 | ML-Based Anomaly Detection Engine | ✅ DONE | `src/phalanx/ml_anomaly.py` — statistical baseline, z-score analysis, frequency analysis, temporal pattern deviation |
+| 1 | ML-Based Anomaly Detection Engine | ✅ DONE | `src/siyarix/ml_anomaly.py` — statistical baseline, z-score analysis, frequency analysis, temporal pattern deviation |
 | 2 | AI-Driven Exploit Prioritization | ✅ DONE | MITREAttackDB maps CVEs to techniques; CVSS auto-scoring framework; risk-scored finding enrichment |
 | 3 | Adversarial AI Defense Module | ✅ DONE | InputValidator detects 8 injection patterns; DangerAnalyzer classifies 35+ dangerous command patterns (4 severity levels) |
 | 4 | Threat Intelligence Ingestion | ✅ DONE | Full STIX/TAXII, MISP support; MITRE ATT&CK integration; automated finding enrichment |
@@ -80,7 +80,7 @@
 
 | # | Task | Status | Notes |
 |---|------|--------|-------|
-| 1 | Honeypot/Canary Token Detection | ✅ DONE | `src/phalanx/deception.py` — HoneypotDetector with 7 signatures + 5 canary token patterns |
+| 1 | Honeypot/Canary Token Detection | ✅ DONE | `src/siyarix/deception.py` — HoneypotDetector with 7 signatures + 5 canary token patterns |
 | 2 | SOC Agent Enhancement | ✅ DONE | 8 detection rules, automated triage tickets, MITRE ATT&CK mapping, threat level assessment |
 | 3 | DFIR Agent Enhancement | ✅ DONE | Memory forensics, timeline generation, IOC extraction (9 types), chain of custody |
 | 4 | Deception Tactics Module | ✅ DONE | FakeBannerGenerator (SSH/HTTP/MySQL), TrapdoorCredentialManager with alert callbacks |
@@ -102,9 +102,9 @@
 
 | # | Task | Status | Notes |
 |---|------|--------|-------|
-| 1 | Distributed Multi-Agent Deployment | ✅ DONE | `src/phalanx/distributed.py` — TaskQueueBackend (memory/Redis), DistributedOrchestrator, worker heartbeat |
-| 2 | OpenTelemetry Instrumentation | ✅ DONE | `src/phalanx/telemetry/opentelemetry.py` — full collector, spans, traces, decorator, middleware |
-| 3 | Web Dashboard | ✅ DONE | `src/phalanx/dashboard.py` — DashboardService, REST API endpoints, WS live updates, snapshot system |
+| 1 | Distributed Multi-Agent Deployment | ✅ DONE | `src/siyarix/distributed.py` — TaskQueueBackend (memory/Redis), DistributedOrchestrator, worker heartbeat |
+| 2 | OpenTelemetry Instrumentation | ✅ DONE | `src/siyarix/telemetry/opentelemetry.py` — full collector, spans, traces, decorator, middleware |
+| 3 | Web Dashboard | ✅ DONE | `src/siyarix/dashboard.py` — DashboardService, REST API endpoints, WS live updates, snapshot system |
 | 4 | Benchmarking & Red Team Eval Suite | ✅ DONE | Docker Compose multi-service environment, Makefile benchmark target, pytest-benchmark integration |
 | 5 | Documentation & Community | ✅ DONE | Comprehensive migration.md (2233 lines), hybrid_migrate.md, ARCHITECTURE_ANALYSIS.md, all docs updated |
 
@@ -122,29 +122,29 @@
 ### New Files (27 files)
 | File | Description |
 |------|-------------|
-| `src/phalanx/exploitation.py` | Exploit chain automation framework |
-| `src/phalanx/ml_anomaly.py` | ML-based anomaly detection engine |
-| `src/phalanx/deception.py` | Deception tactics module (honeypots, canaries, trapdoors) |
-| `src/phalanx/threat_intel.py` | Threat intelligence ingestion (STIX, MISP, MITRE ATT&CK) |
-| `src/phalanx/distributed.py` | Distributed task queue and orchestration |
-| `src/phalanx/dashboard.py` | Web dashboard infrastructure |
-| `src/phalanx/telemetry/opentelemetry.py` | OpenTelemetry instrumentation |
-| `src/phalanx/output/__init__.py` | Fixed missing package init |
-| `src/phalanx/security/__init__.py` | Fixed missing package init |
-| `src/phalanx/bootstrap.py` | First-run bootstrap engine with platform detection |
-| `src/phalanx/tool_installer.py` | Auto-installation of missing security tools |
-| `src/phalanx/terminal_detection.py` | Shell/terminal detection with command translation |
-| `src/phalanx/cvss_scorer.py` | CVSS 3.1 auto-scoring engine |
-| `src/phalanx/report_engine.py` | Multi-format report generation (MD/HTML/JSON/SARIF) |
-| `src/phalanx/playbook_engine.py` | Playbook save/load/execute workflow system |
-| `src/phalanx/stealth.py` | Stealth/evasion mode (5 levels, proxy, jitter, decoy) |
-| `src/phalanx/canary.py` | Canary token deployment and alert management |
-| `src/phalanx/cloud_scanner.py` | Multi-cloud security scanning (AWS/Azure/GCP/K8s/Docker) |
-| `src/phalanx/compliance_runner.py` | Compliance framework assessment (6 frameworks) |
-| `src/phalanx/multi_model_ensemble.py` | Multi-model AI ensemble with consensus voting |
-| `src/phalanx/adversarial_tester.py` | Adversarial plan review and risk detection |
+| `src/siyarix/exploitation.py` | Exploit chain automation framework |
+| `src/siyarix/ml_anomaly.py` | ML-based anomaly detection engine |
+| `src/siyarix/deception.py` | Deception tactics module (honeypots, canaries, trapdoors) |
+| `src/siyarix/threat_intel.py` | Threat intelligence ingestion (STIX, MISP, MITRE ATT&CK) |
+| `src/siyarix/distributed.py` | Distributed task queue and orchestration |
+| `src/siyarix/dashboard.py` | Web dashboard infrastructure |
+| `src/siyarix/telemetry/opentelemetry.py` | OpenTelemetry instrumentation |
+| `src/siyarix/output/__init__.py` | Fixed missing package init |
+| `src/siyarix/security/__init__.py` | Fixed missing package init |
+| `src/siyarix/bootstrap.py` | First-run bootstrap engine with platform detection |
+| `src/siyarix/tool_installer.py` | Auto-installation of missing security tools |
+| `src/siyarix/terminal_detection.py` | Shell/terminal detection with command translation |
+| `src/siyarix/cvss_scorer.py` | CVSS 3.1 auto-scoring engine |
+| `src/siyarix/report_engine.py` | Multi-format report generation (MD/HTML/JSON/SARIF) |
+| `src/siyarix/playbook_engine.py` | Playbook save/load/execute workflow system |
+| `src/siyarix/stealth.py` | Stealth/evasion mode (5 levels, proxy, jitter, decoy) |
+| `src/siyarix/canary.py` | Canary token deployment and alert management |
+| `src/siyarix/cloud_scanner.py` | Multi-cloud security scanning (AWS/Azure/GCP/K8s/Docker) |
+| `src/siyarix/compliance_runner.py` | Compliance framework assessment (6 frameworks) |
+| `src/siyarix/multi_model_ensemble.py` | Multi-model AI ensemble with consensus voting |
+| `src/siyarix/adversarial_tester.py` | Adversarial plan review and risk detection |
 | `Dockerfile` | Multi-stage Docker build (production + development) |
-| `docker-compose.yml` | Multi-service orchestration (phalanx, worker, dashboard, redis, otel) |
+| `docker-compose.yml` | Multi-service orchestration (siyarix, worker, dashboard, redis, otel) |
 | `Makefile` | 15 automation targets (install, test, lint, docker, coverage, etc.) |
 | `.env.example` | 25+ environment variables documented |
 | `otel-collector-config.yaml` | OpenTelemetry collector configuration |
@@ -153,13 +153,13 @@
 ### Enhanced Files (12 files)
 | File | Enhancements |
 |------|-------------|
-| `src/phalanx/agents/coordinator.py` | Intelligent decomposition, parallel dispatch, dependency resolution |
-| `src/phalanx/agents/soc_agent.py` | 8 detection rules, triage tickets, MITRE mapping |
-| `src/phalanx/agents/dfir_agent.py` | Memory forensics, timeline, IOC extraction |
-| `src/phalanx/providers.py` | Abstract base class, better typing, clear() method |
-| `src/phalanx/__init__.py` | Exports 40+ new symbols from 12 new modules |
-| `src/phalanx/distributed.py` | Fixed `import asyncio` placement, cleaner module structure |
-| `src/phalanx/telemetry/siem.py` | Made httpx optional with ImportError fallback |
+| `src/siyarix/agents/coordinator.py` | Intelligent decomposition, parallel dispatch, dependency resolution |
+| `src/siyarix/agents/soc_agent.py` | 8 detection rules, triage tickets, MITRE mapping |
+| `src/siyarix/agents/dfir_agent.py` | Memory forensics, timeline, IOC extraction |
+| `src/siyarix/providers.py` | Abstract base class, better typing, clear() method |
+| `src/siyarix/__init__.py` | Exports 40+ new symbols from 12 new modules |
+| `src/siyarix/distributed.py` | Fixed `import asyncio` placement, cleaner module structure |
+| `src/siyarix/telemetry/siem.py` | Made httpx optional with ImportError fallback |
 | `tests/__init__.py` | Test package marker |
 | `tests/conftest.py` | 15 shared fixtures (providers, masking, tools, KG, step results, mock outputs, async helpers) |
 | `pyproject.toml` | Fixed `autonomous` typo, added `siem` optional deps group |

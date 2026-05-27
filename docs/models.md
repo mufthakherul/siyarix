@@ -1,6 +1,6 @@
 # Configuring AI Models
 
-Phalanx relies on Large Language Models (LLMs) to act as its "Task Planner." Without a model, Phalanx can still run direct commands, but it won't be able to autonomously orchestrate complex multi-step plans.
+Siyarix relies on Large Language Models (LLMs) to act as its "Task Planner." Without a model, Siyarix can still run direct commands, but it won't be able to autonomously orchestrate complex multi-step plans.
 
 We support several major providers out of the box.
 
@@ -13,7 +13,7 @@ If you want the smartest, most capable agent experience, we highly recommend usi
 ### Google Gemini (Recommended)
 Gemini 1.5 Pro and Gemini 1.5 Flash are exceptionally good at understanding JSON and shell commands.
 1. Get an API key from Google AI Studio.
-2. In the Phalanx chat, type:
+2. In the Siyarix chat, type:
    ```text
    /key set gemini <your-api-key>
    ```
@@ -25,7 +25,7 @@ Gemini 1.5 Pro and Gemini 1.5 Flash are exceptionally good at understanding JSON
 ### OpenAI
 GPT-4o and GPT-4-turbo are also heavily tested and work flawlessly.
 1. Get an API key from the OpenAI Developer Platform.
-2. In the Phalanx chat, type:
+2. In the Siyarix chat, type:
    ```text
    /key set openai <your-api-key>
    ```
@@ -37,7 +37,7 @@ GPT-4o and GPT-4-turbo are also heavily tested and work flawlessly.
 ### Anthropic
 Claude 3.5 Sonnet is excellent for logical reasoning and bash script generation.
 1. Get an API key from the Anthropic Console.
-2. In the Phalanx chat, type:
+2. In the Siyarix chat, type:
    ```text
    /key set anthropic <your-api-key>
    ```
@@ -50,7 +50,7 @@ Claude 3.5 Sonnet is excellent for logical reasoning and bash script generation.
 
 ## 🦙 Local Models (Ollama)
 
-If you are working on a sensitive assessment, air-gapped network, or simply don't want to send your prompt data to the cloud, Phalanx fully supports local, open-weights models via [Ollama](https://ollama.com/).
+If you are working on a sensitive assessment, air-gapped network, or simply don't want to send your prompt data to the cloud, Siyarix fully supports local, open-weights models via [Ollama](https://ollama.com/).
 
 ### Setting Up Ollama
 
@@ -62,13 +62,13 @@ If you are working on a sensitive assessment, air-gapped network, or simply don'
    ```
 3. **Start the Ollama Server**: Ensure the background service is running on `http://localhost:11434`.
 
-### Connecting Phalanx to Ollama
+### Connecting Siyarix to Ollama
 
-1. Open the Phalanx interactive shell.
+1. Open the Siyarix interactive shell.
 2. Switch the active model provider to Ollama:
    ```text
    /model ollama
    ```
-3. *(Optional)* By default, Phalanx will try to use the `llama3` model. If you want to use a specific model you downloaded (e.g., `mistral`), you can configure the specific model name in your `~/.phalanx/settings.toml`.
+3. *(Optional)* By default, Siyarix will try to use the `llama3` model. If you want to use a specific model you downloaded (e.g., `mistral`), you can configure the specific model name in your `~/.siyarix/settings.toml`.
 
 **Note on Local Models**: Local models are incredibly cool for privacy, but they are generally much smaller than cloud models like GPT-4o. You may notice that local models occasionally struggle to output perfectly formatted JSON or understand highly complex multi-tool plans. If this happens, try breaking your request into smaller, simpler steps!

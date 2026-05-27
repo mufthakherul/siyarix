@@ -1,4 +1,4 @@
-from phalanx.engine import ExecutionEngine
+from siyarix.engine import ExecutionEngine
 
 
 def test_engine_registers_providers():

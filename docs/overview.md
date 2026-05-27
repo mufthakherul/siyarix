@@ -1,12 +1,12 @@
-# Phalanx — Platform Overview
+# Siyarix — Platform Overview
 
-Phalanx is an **enterprise-grade, AI-native cybersecurity operations platform** that orchestrates security tools through autonomous AI planning, multi-agent coordination, and intelligent workflow execution. It transforms your terminal into a powerful security operations center.
+Siyarix is an **enterprise-grade, AI-native cybersecurity operations platform** that orchestrates security tools through autonomous AI planning, multi-agent coordination, and intelligent workflow execution. It transforms your terminal into a powerful security operations center.
 
 ---
 
 ## 🎯 Core Mission
 
-Bridge the gap between AI-driven planning and deterministic tool execution. Phalanx doesn't just chat — it acts. It discovers your environment, plans attack/defense strategies, executes security tools, parses results, learns from outcomes, and generates professional reports.
+Bridge the gap between AI-driven planning and deterministic tool execution. Siyarix doesn't just chat — it acts. It discovers your environment, plans attack/defense strategies, executes security tools, parses results, learns from outcomes, and generates professional reports.
 
 ### Key Principles
 - **Autonomous Execution**: From natural language to executed commands in one step
@@ -84,7 +84,7 @@ Bridge the gap between AI-driven planning and deterministic tool execution. Phal
 
 ## 🌐 Ecosystem Integration
 
-Phalanx integrates into existing security stacks:
+Siyarix integrates into existing security stacks:
 
 - **SIEM**: Splunk, ElasticSearch via `siem.py`
 - **Ticketing**: JIRA, GitHub Issues (coming soon)

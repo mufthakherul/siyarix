@@ -6,9 +6,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from phalanx.core.intent_router import IntentRoute, RiskTier
-from phalanx.core.session_kernel import OperationCard, SessionContext
-from phalanx.xi.service import XICoreService, XIRecommendation
+from siyarix.core.intent_router import IntentRoute, RiskTier
+from siyarix.core.session_kernel import OperationCard, SessionContext
+from siyarix.xi.service import XICoreService, XIRecommendation
 
 
 class TestXICoreService:

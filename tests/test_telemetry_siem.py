@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from phalanx.telemetry.siem import (ElasticSIEMConnector, SIEMConnector,
+from siyarix.telemetry.siem import (ElasticSIEMConnector, SIEMConnector,
                                     SplunkHECConnector, TelemetryForwarder)
 
 pytestmark = pytest.mark.siem
@@ -27,12 +27,12 @@ class TestSplunkHECConnector:
     """Test SplunkHECConnector."""
 
     def test_init_requires_httpx(self):
-        with patch("phalanx.telemetry.siem.HAS_HTTPX", False):
+        with patch("siyarix.telemetry.siem.HAS_HTTPX", False):
             with pytest.raises(ImportError, match="httpx is required"):
                 SplunkHECConnector("http://localhost:8088", "test-token")
 
-    @patch("phalanx.telemetry.siem.HAS_HTTPX", True)
-    @patch("phalanx.telemetry.siem.httpx.AsyncClient")
+    @patch("siyarix.telemetry.siem.HAS_HTTPX", True)
+    @patch("siyarix.telemetry.siem.httpx.AsyncClient")
     def test_forward_event_success(self, mock_client_class):
         mock_client = MagicMock()
         mock_client.post = AsyncMock(return_value=MagicMock(status_code=200))
@@ -44,8 +44,8 @@ class TestSplunkHECConnector:
         result = asyncio.run(conn.forward_event({"event": "test"}))
         assert result is True
 
-    @patch("phalanx.telemetry.siem.HAS_HTTPX", True)
-    @patch("phalanx.telemetry.siem.httpx.AsyncClient")
+    @patch("siyarix.telemetry.siem.HAS_HTTPX", True)
+    @patch("siyarix.telemetry.siem.httpx.AsyncClient")
     def test_forward_event_failure(self, mock_client_class):
         mock_client = MagicMock()
         mock_client.post = AsyncMock(return_value=MagicMock(status_code=500))
@@ -62,12 +62,12 @@ class TestElasticSIEMConnector:
     """Test ElasticSIEMConnector."""
 
     def test_init_requires_httpx(self):
-        with patch("phalanx.telemetry.siem.HAS_HTTPX", False):
+        with patch("siyarix.telemetry.siem.HAS_HTTPX", False):
             with pytest.raises(ImportError, match="httpx is required"):
                 ElasticSIEMConnector("http://localhost:9200", "test-key")
 
-    @patch("phalanx.telemetry.siem.HAS_HTTPX", True)
-    @patch("phalanx.telemetry.siem.httpx.AsyncClient")
+    @patch("siyarix.telemetry.siem.HAS_HTTPX", True)
+    @patch("siyarix.telemetry.siem.httpx.AsyncClient")
     def test_forward_event_success(self, mock_client_class):
         mock_client = MagicMock()
         mock_client.post = AsyncMock(return_value=MagicMock(status_code=201))
@@ -80,7 +80,7 @@ class TestElasticSIEMConnector:
         assert result is True
 
     def test_index_format(self):
-        with patch("phalanx.telemetry.siem.HAS_HTTPX", True):
+        with patch("siyarix.telemetry.siem.HAS_HTTPX", True):
             conn = ElasticSIEMConnector(
                 "http://localhost:9200", "test-key", index="custom-index"
             )
@@ -97,22 +97,22 @@ class TestTelemetryForwarder:
 
     def test_init_with_splunk_env(self):
         env = {
-            "PHALANX_SPLUNK_URL": "http://splunk:8088",
-            "PHALANX_SPLUNK_TOKEN": "splunk-token",
+            "SIYARIX_SPLUNK_URL": "http://splunk:8088",
+            "SIYARIX_SPLUNK_TOKEN": "splunk-token",
         }
         with patch.dict("os.environ", env, clear=True):
-            with patch("phalanx.telemetry.siem.HAS_HTTPX", True):
+            with patch("siyarix.telemetry.siem.HAS_HTTPX", True):
                 fwd = TelemetryForwarder()
                 assert len(fwd.connectors) == 1
                 assert isinstance(fwd.connectors[0], SplunkHECConnector)
 
     def test_init_with_elastic_env(self):
         env = {
-            "PHALANX_ELASTIC_URL": "http://elastic:9200",
-            "PHALANX_ELASTIC_KEY": "elastic-key",
+            "SIYARIX_ELASTIC_URL": "http://elastic:9200",
+            "SIYARIX_ELASTIC_KEY": "elastic-key",
         }
         with patch.dict("os.environ", env, clear=True):
-            with patch("phalanx.telemetry.siem.HAS_HTTPX", True):
+            with patch("siyarix.telemetry.siem.HAS_HTTPX", True):
                 fwd = TelemetryForwarder()
                 assert len(fwd.connectors) == 1
                 assert isinstance(fwd.connectors[0], ElasticSIEMConnector)
@@ -122,7 +122,7 @@ class TestTelemetryForwarder:
         fwd.dispatch({"test": "event"})  # Should not raise
 
     def test_dispatch_with_connectors(self):
-        with patch("phalanx.telemetry.siem.HAS_HTTPX", True):
+        with patch("siyarix.telemetry.siem.HAS_HTTPX", True):
             mock_conn = MagicMock(spec=SIEMConnector)
             mock_conn.forward_event = AsyncMock(return_value=True)
             fwd = TelemetryForwarder()
@@ -131,7 +131,7 @@ class TestTelemetryForwarder:
             mock_conn.forward_event.assert_called_once()
 
     def test_close_all(self):
-        with patch("phalanx.telemetry.siem.HAS_HTTPX", True):
+        with patch("siyarix.telemetry.siem.HAS_HTTPX", True):
             mock_conn = MagicMock(spec=SplunkHECConnector)
             mock_conn.close = AsyncMock()
             fwd = TelemetryForwarder()

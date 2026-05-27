@@ -1,12 +1,12 @@
 # CLI Reference
 
-Phalanx CLI Version: **1.2.0**
+Siyarix CLI Version: **1.2.0**
 
-This document provides a comprehensive reference for the Phalanx command hierarchy. The CLI is built using the [Typer](https://typer.tiangolo.com/) framework, which means it is self-documenting.
+This document provides a comprehensive reference for the Siyarix command hierarchy. The CLI is built using the [Typer](https://typer.tiangolo.com/) framework, which means it is self-documenting.
 
-*(Tip: You can append `--help` to any command in your terminal to get real-time usage and flag details, e.g., `phalanx scan --help`).*
+*(Tip: You can append `--help` to any command in your terminal to get real-time usage and flag details, e.g., `siyarix scan --help`).*
 
-> **The Quick Start**: Launching `phalanx` with no subcommand at all opens the interactive assistant shell. The beautiful landing screen will show you your operating system, current execution mode, theme, AI model provider, session ID, and quick actions for the most common tasks.
+> **The Quick Start**: Launching `siyarix` with no subcommand at all opens the interactive assistant shell. The beautiful landing screen will show you your operating system, current execution mode, theme, AI model provider, session ID, and quick actions for the most common tasks.
 
 ---
 
@@ -34,7 +34,7 @@ Start an interactive AI cybersecurity REPL (Read-Eval-Print Loop).
 **High-Value Chat Slash Commands:**
 While inside the `chat` interface, you can type these to control the agent:
 - `/help`: Show all available slash commands.
-- `/tools`: Discover which security tools Phalanx can see installed on your local machine.
+- `/tools`: Discover which security tools Siyarix can see installed on your local machine.
 - `/palette`: Search and run saved commands or "intents".
 - `/key set <provider> <api_key>`: Securely store your AI keys in the encrypted vault.
 - `/key list`: Show your configured providers.
@@ -52,7 +52,7 @@ Run specific security tools against targets using the execution engine directly 
 
 ### `run`
 Execute a natural language instruction through the autonomous engine right from your shell.
-- **Example**: `phalanx run "find open ports on 10.0.0.1 and output to a file"`
+- **Example**: `siyarix run "find open ports on 10.0.0.1 and output to a file"`
 
 ### `health`
 Run system health checks to ensure your vault, databases, and AI endpoints are reachable.
@@ -61,7 +61,7 @@ Run system health checks to ensure your vault, databases, and AI endpoints are r
 
 ## Specialized Sub-Groups
 
-If you want to dive deeper, Phalanx organizes its advanced features into sub-command groups.
+If you want to dive deeper, Siyarix organizes its advanced features into sub-command groups.
 
 ### `security` (🔐 Security Ops & Management)
 Manage local security data.
@@ -73,9 +73,9 @@ Manage local security data.
 ### `shell` (🖥 Cross-platform Helper)
 Learn about your environment and translate commands.
 - `platform`: Detailed terminal and OS diagnostics.
-- `doctor`: Readiness report showing which external security binaries Phalanx found on your `PATH`.
+- `doctor`: Readiness report showing which external security binaries Siyarix found on your `PATH`.
 - `translate <intent>`: Convert goals (e.g., `ping`) into platform-specific commands (e.g., `Test-Connection` on PowerShell).
-- `list-intents`: Show all the cross-platform concepts Phalanx understands.
+- `list-intents`: Show all the cross-platform concepts Siyarix understands.
 
 ### `auth` (🔑 Secrets Management)
 - `set-key <provider>`: Securely store API keys (OpenAI, Gemini, Anthropic, etc.).

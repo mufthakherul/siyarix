@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phalanx.xi.skill_profiler import SkillLevel, SkillProfile, SkillProfiler
+from siyarix.xi.skill_profiler import SkillLevel, SkillProfile, SkillProfiler
 
 
 class TestSkillProfiler:

@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from phalanx.audit_log import AuditLogger
-from phalanx.auth import AuthManager
-from phalanx.credential_store import CredentialStore
-from phalanx.profiles import ProfileStore
+from siyarix.audit_log import AuditLogger
+from siyarix.auth import AuthManager
+from siyarix.credential_store import CredentialStore
+from siyarix.profiles import ProfileStore
 
 
 class _Resp:
@@ -21,8 +21,8 @@ class _Resp:
 
 
 def test_credential_store_migration_and_roundtrip(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("PHALANX_CONFIG_DIR", str(tmp_path))
-    monkeypatch.setenv("PHALANX_MASTER_PASSWORD", "test-password")
+    monkeypatch.setenv("SIYARIX_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setenv("SIYARIX_MASTER_PASSWORD", "test-password")
     store = CredentialStore()
 
     legacy = tmp_path / "config.json"
@@ -43,14 +43,14 @@ def test_credential_store_migration_and_roundtrip(monkeypatch, tmp_path: Path) -
 
 
 def test_auth_profile_and_audit_flow(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("PHALANX_CONFIG_DIR", str(tmp_path))
-    monkeypatch.setenv("PHALANX_MASTER_PASSWORD", "test-password")
+    monkeypatch.setenv("SIYARIX_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setenv("SIYARIX_MASTER_PASSWORD", "test-password")
 
     def fake_get(
         url: str, headers: dict | None = None, timeout: float | None = None
     ) -> _Resp:
         if url.endswith("/api/auth/me"):
-            return _Resp(200, {"email": "agent@phalanx.dev", "org": "demo"})
+            return _Resp(200, {"email": "agent@siyarix.dev", "org": "demo"})
         return _Resp(200, {"ok": True})
 
     monkeypatch.setattr("httpx.get", fake_get)
@@ -77,7 +77,7 @@ def test_auth_profile_and_audit_flow(monkeypatch, tmp_path: Path) -> None:
     audit.log(
         event_type="login",
         severity="info",
-        user="agent@phalanx.dev",
+        user="agent@siyarix.dev",
         action="login",
         result="success",
         details={"profile": "staging"},

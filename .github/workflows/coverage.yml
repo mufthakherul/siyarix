@@ -134,7 +134,7 @@ jobs:
         with:
           file: ./coverage.xml
           flags: unittests
-          name: phalanx
+          name: siyarix
           fail_ci_if_error: false
           verbose: true
 

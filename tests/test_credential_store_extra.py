@@ -1,10 +1,10 @@
-from phalanx.credential_store import CredentialStore
+from siyarix.credential_store import CredentialStore
 
 
 def test_store_and_retrieve(tmp_path, monkeypatch):
     # Use isolated config dir
-    cfg = tmp_path / "phalanx_cfg"
-    monkeypatch.setenv("PHALANX_CONFIG_DIR", str(cfg))
+    cfg = tmp_path / "siyarix_cfg"
+    monkeypatch.setenv("SIYARIX_CONFIG_DIR", str(cfg))
 
     store = CredentialStore(master_password="testpass")
     cred = store.store(name="api_default", value="secret-value", cred_type="api_key")
@@ -15,8 +15,8 @@ def test_store_and_retrieve(tmp_path, monkeypatch):
 
 
 def test_rotate_and_delete(tmp_path, monkeypatch):
-    cfg = tmp_path / "phalanx_cfg"
-    monkeypatch.setenv("PHALANX_CONFIG_DIR", str(cfg))
+    cfg = tmp_path / "siyarix_cfg"
+    monkeypatch.setenv("SIYARIX_CONFIG_DIR", str(cfg))
 
     store = CredentialStore(master_password="testpass")
     cred = store.store(name="temp", value="v1", cred_type="api_key")
@@ -31,8 +31,8 @@ def test_rotate_and_delete(tmp_path, monkeypatch):
 
 
 def test_export_import(tmp_path, monkeypatch):
-    cfg = tmp_path / "phalanx_cfg"
-    monkeypatch.setenv("PHALANX_CONFIG_DIR", str(cfg))
+    cfg = tmp_path / "siyarix_cfg"
+    monkeypatch.setenv("SIYARIX_CONFIG_DIR", str(cfg))
 
     store = CredentialStore(master_password="exportpass")
     store.store(name="a", value="1")
@@ -44,7 +44,7 @@ def test_export_import(tmp_path, monkeypatch):
 
     # create a fresh instance and import
     other_cfg = tmp_path / "other_cfg"
-    monkeypatch.setenv("PHALANX_CONFIG_DIR", str(other_cfg))
+    monkeypatch.setenv("SIYARIX_CONFIG_DIR", str(other_cfg))
     new_store = CredentialStore(master_password="exportpass")
     count = new_store.import_encrypted(str(out), password="pw")
     assert count == 2

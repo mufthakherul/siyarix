@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from phalanx.compliance_runner import (ComplianceControl, ComplianceFramework,
+from siyarix.compliance_runner import (ComplianceControl, ComplianceFramework,
                                        ComplianceResult, ComplianceRunner)
 
 pytestmark = pytest.mark.compliance

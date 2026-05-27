@@ -1,13 +1,13 @@
-# How to Use Phalanx
+# How to Use Siyarix
 
-Phalanx supports multiple interaction modes: interactive chat, direct CLI, autonomous agent, workflow automation, and web dashboard.
+Siyarix supports multiple interaction modes: interactive chat, direct CLI, autonomous agent, workflow automation, and web dashboard.
 
 ---
 
 ## 💬 Interactive Chat (Recommended)
 
 ```bash
-phalanx
+siyarix
 ```
 
 Launches the REPL with slash commands:
@@ -35,19 +35,19 @@ Launches the REPL with slash commands:
 
 ```bash
 # Quick scan
-phalanx scan 192.168.1.1
+siyarix scan 192.168.1.1
 
 # Natural language task
-phalanx run "find open ports on scanme.nmap.org"
+siyarix run "find open ports on scanme.nmap.org"
 
 # List tool registry
-phalanx tool-registry list
+siyarix tool-registry list
 
 # Health check
-phalanx health
+siyarix health
 
 # Shell diagnostics
-phalanx shell doctor
+siyarix shell doctor
 ```
 
 ---
@@ -58,18 +58,18 @@ Save and replay multi-step workflows:
 
 ```bash
 # Create and save a playbook
-phalanx playbook save my-recon \
+siyarix playbook save my-recon \
   --steps "subfinder -d {target}" \
   --steps "nuclei -u {target}"
 
 # Run a saved playbook
-phalanx playbook run bugbounty-recon --target example.com
+siyarix playbook run bugbounty-recon --target example.com
 
 # List all playbooks
-phalanx playbook list
+siyarix playbook list
 
 # Install built-in playbooks
-phalanx playbook install-builtins
+siyarix playbook install-builtins
 ```
 
 Built-in playbooks: `bugbounty-recon`, `incident-response`
@@ -80,20 +80,20 @@ Built-in playbooks: `bugbounty-recon`, `incident-response`
 
 ```bash
 # Generate report from findings
-phalanx report generate \
+siyarix report generate \
   --findings results.json \
   --target example.com \
   --format markdown \
   --output report.md
 
 # HTML format for client deliverables
-phalanx report generate \
+siyarix report generate \
   --findings results.json \
   --format html \
   --output report.html
 
 # SARIF format for CI/CD integration
-phalanx report generate \
+siyarix report generate \
   --findings results.json \
   --format sarif \
   --output results.sarif
@@ -105,22 +105,22 @@ phalanx report generate \
 
 ```bash
 # Enable stealth mode
-phalanx stealth enable --level medium
+siyarix stealth enable --level medium
 
 # Check stealth configuration
-phalanx stealth status
+siyarix stealth status
 
 # Disable stealth mode
-phalanx stealth disable
+siyarix stealth disable
 
 # Enable canary tokens on target
-phalanx canary deploy --target example.com
+siyarix canary deploy --target example.com
 
 # List canary tokens
-phalanx canary list
+siyarix canary list
 
 # View triggered tokens
-phalanx canary triggered
+siyarix canary triggered
 ```
 
 ---
@@ -129,13 +129,13 @@ phalanx canary triggered
 
 ```bash
 # Scan AWS account
-phalanx cloud scan --provider aws --account 123456789012
+siyarix cloud scan --provider aws --account 123456789012
 
 # Scan Kubernetes cluster
-phalanx cloud scan --provider kubernetes --namespace default
+siyarix cloud scan --provider kubernetes --namespace default
 
 # Scan Docker image
-phalanx cloud scan --provider docker --image nginx:latest
+siyarix cloud scan --provider docker --image nginx:latest
 ```
 
 ---
@@ -144,13 +144,13 @@ phalanx cloud scan --provider docker --image nginx:latest
 
 ```bash
 # Run compliance check against a framework
-phalanx compliance run --framework pci-dss --target example.com
+siyarix compliance run --framework pci-dss --target example.com
 
 # Run all frameworks
-phalanx compliance run --all --target example.com
+siyarix compliance run --all --target example.com
 
 # View compliance summary
-phalanx compliance summary
+siyarix compliance summary
 
 # Available frameworks:
 #   - pci-dss    (Payment Card Industry)
@@ -167,13 +167,13 @@ phalanx compliance summary
 
 ```bash
 # Ingest STIX feed
-phalanx intel ingest --stix feed.json
+siyarix intel ingest --stix feed.json
 
 # Query MITRE ATT&CK
-phalanx intel mitre --technique T1110
+siyarix intel mitre --technique T1110
 
 # Enrich findings with threat intel
-phalanx intel enrich --findings results.json
+siyarix intel enrich --findings results.json
 ```
 
 ---
@@ -182,12 +182,12 @@ phalanx intel enrich --findings results.json
 
 ```bash
 # Run ensemble across multiple providers
-phalanx ensemble plan "scan example.com" \
+siyarix ensemble plan "scan example.com" \
   --providers openai gemini \
   --strategy weighted
 
 # Check ensemble statistics
-phalanx ensemble summary
+siyarix ensemble summary
 ```
 
 ---
@@ -196,17 +196,17 @@ phalanx ensemble summary
 
 ```bash
 # Create a recurring scan
-phalanx schedule create daily-scan \
+siyarix schedule create daily-scan \
   --target example.com \
   --frequency daily \
   --time "02:00" \
   --persona defensive
 
 # List schedules
-phalanx schedule list
+siyarix schedule list
 
 # Delete a schedule
-phalanx schedule delete daily-scan
+siyarix schedule delete daily-scan
 ```
 
 ---
@@ -215,15 +215,15 @@ phalanx schedule delete daily-scan
 
 ```bash
 # Translate intent to native command
-phalanx shell translate ping
+siyarix shell translate ping
 # Linux:   ping -c 4 {target}
 # Windows: ping -n 4 {target}
 
 # List all available translations
-phalanx shell list-intents
+siyarix shell list-intents
 
 # Full platform diagnostics
-phalanx shell platform
+siyarix shell platform
 ```
 
 ---
@@ -243,12 +243,12 @@ phalanx shell platform
 
 ```bash
 # Configure environment
-export PHALANX_LOG_LEVEL=DEBUG
-export PHALANX_PERSONA=bug_hunter
-export PHALANX_PROVIDER=gemini
-export PHALANX_TIMEOUT=300
-export PHALANX_SAFE_MODE=1
-export PHALANX_NO_TELEMETRY=1
+export SIYARIX_LOG_LEVEL=DEBUG
+export SIYARIX_PERSONA=bug_hunter
+export SIYARIX_PROVIDER=gemini
+export SIYARIX_TIMEOUT=300
+export SIYARIX_SAFE_MODE=1
+export SIYARIX_NO_TELEMETRY=1
 
 # All options documented in .env.example
 ```
@@ -262,7 +262,7 @@ export PHALANX_NO_TELEMETRY=1
 docker compose up -d
 
 # Scale workers
-docker compose up -d --scale phalanx-worker=5
+docker compose up -d --scale siyarix-worker=5
 
 # View logs
 docker compose logs -f
@@ -271,4 +271,4 @@ docker compose logs -f
 docker compose down
 ```
 
-Services: `phalanx`, `phalanx-worker`, `phalanx-dashboard`, `redis`, `otel-collector`
+Services: `siyarix`, `siyarix-worker`, `siyarix-dashboard`, `redis`, `otel-collector`

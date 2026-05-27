@@ -1,4 +1,4 @@
-"""Shared test fixtures and configuration for the Phalanx test suite."""
+"""Shared test fixtures and configuration for the Siyarix test suite."""
 
 from __future__ import annotations
 
@@ -11,12 +11,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from phalanx.engine_types import StepResult, StepStatus
-from phalanx.knowledge_graph import KnowledgeGraph
-from phalanx.masking import MaskingEngine
-from phalanx.planner import ExecutionPlan, ExecutionStep, StepType
-from phalanx.providers import NoopProvider, ProviderRegistry
-from phalanx.tool_registry import ToolInfo, ToolRegistry
+from siyarix.engine_types import StepResult, StepStatus
+from siyarix.knowledge_graph import KnowledgeGraph
+from siyarix.masking import MaskingEngine
+from siyarix.planner import ExecutionPlan, ExecutionStep, StepType
+from siyarix.providers import NoopProvider, ProviderRegistry
+from siyarix.tool_registry import ToolInfo, ToolRegistry
 
 # ── Provider Fixtures ────────────────────────────────────────────────
 
@@ -114,7 +114,7 @@ def temp_dir() -> Generator[Path, None, None]:
 def temp_config_file(temp_dir: Path) -> Path:
     """Create a temporary config file."""
     config_path = temp_dir / "config.toml"
-    config_path.write_text('[phalanx]\nlog_level = "DEBUG"\npersona = "bug_hunter"\n')
+    config_path.write_text('[siyarix]\nlog_level = "DEBUG"\npersona = "bug_hunter"\n')
     return config_path
 
 
@@ -123,10 +123,10 @@ def temp_config_file(temp_dir: Path) -> Path:
 
 @pytest.fixture(autouse=True)
 def clean_env() -> Generator[None, None, None]:
-    """Clean phalanx-related environment variables before each test."""
-    phalanx_vars = [k for k in os.environ if k.startswith("PHALANX_")]
-    backup = {k: os.environ[k] for k in phalanx_vars}
-    for k in phalanx_vars:
+    """Clean siyarix-related environment variables before each test."""
+    siyarix_vars = [k for k in os.environ if k.startswith("SIYARIX_")]
+    backup = {k: os.environ[k] for k in siyarix_vars}
+    for k in siyarix_vars:
         del os.environ[k]
     yield
     os.environ.update(backup)

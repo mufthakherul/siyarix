@@ -1,12 +1,12 @@
 [project]
-name = "phalanx"
+name = "siyarix"
 version = "0.1.3"
-description = "Phalanx — AI-native cybersecurity operations platform with autonomous execution, multi-agent framework, and intelligent workflow orchestration"
+description = "Siyarix — AI-native cybersecurity operations platform with autonomous execution, multi-agent framework, and intelligent workflow orchestration"
 description-content-type = "text/markdown"
 readme = "README.md"
 authors = [ { name = "MD MUFTHAKHERUL ISLAM MIRAZ", email = "130831166+mufthakherul@users.noreply.github.com" } ]
 requires-python = ">=3.11"
-urls = { "Homepage" = "https://github.com/mufthakherul/phalanx", "Repository" = "https://github.com/mufthakherul/phalanx.git" }
+urls = { "Homepage" = "https://github.com/mufthakherul/siyarix", "Repository" = "https://github.com/mufthakherul/siyarix.git" }
 license = { text = "MIT" }
 keywords = ["cybersecurity", "agent", "nmap", "scanner", "autonomous", "integrated", "security"]
 classifiers = [
@@ -51,15 +51,15 @@ cli = [
 ]
 
 [project.scripts]
-phalanx = "phalanx.main:app"
-phalanx-agent = "phalanx.main:app"
+siyarix = "siyarix.main:app"
+siyarix-agent = "siyarix.main:app"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/phalanx"]
+packages = ["src/siyarix"]
 
 [tool.ruff]
 line-length = 100

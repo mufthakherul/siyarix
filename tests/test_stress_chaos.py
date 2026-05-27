@@ -1,4 +1,4 @@
-"""Phalanx Pre-Launch Stress, Chaos & Resilience Test Suite.
+"""Siyarix Pre-Launch Stress, Chaos & Resilience Test Suite.
 
 Covers all 7 phases:
   Phase 1 — Chaos Simulation
@@ -34,7 +34,7 @@ class TestPhase1_ChaosSimulation:
 
     @pytest.mark.asyncio
     async def test_1a_high_concurrency_worker_pool(self):
-        from phalanx.worker_pool import AsyncWorkerPool
+        from siyarix.worker_pool import AsyncWorkerPool
 
         pool = AsyncWorkerPool(max_workers=50)
         counter = 0
@@ -56,7 +56,7 @@ class TestPhase1_ChaosSimulation:
 
     @pytest.mark.asyncio
     async def test_1b_rapid_spawn_terminate(self):
-        from phalanx.worker_pool import AsyncWorkerPool
+        from siyarix.worker_pool import AsyncWorkerPool
 
         pool = AsyncWorkerPool(max_workers=20)
 
@@ -79,7 +79,7 @@ class TestPhase1_ChaosSimulation:
 
     @pytest.mark.asyncio
     async def test_1c_partial_module_failure_isolation(self):
-        from phalanx.security_hardening import validator, danger_analyzer
+        from siyarix.security_hardening import validator, danger_analyzer
 
         report = danger_analyzer.analyze("echo hello")
         assert not report.is_dangerous
@@ -89,8 +89,8 @@ class TestPhase1_ChaosSimulation:
 
     @pytest.mark.asyncio
     async def test_1d_malformed_tool_outputs(self):
-        from phalanx.parsers.nmap_parser import NmapParser
-        from phalanx.parsers.nuclei_parser import NucleiParser
+        from siyarix.parsers.nmap_parser import NmapParser
+        from siyarix.parsers.nuclei_parser import NucleiParser
 
         parser = NmapParser()
         result = parser.parse(b"\x00\x01\x02\xff\xfe\xfd".decode("latin-1"))
@@ -105,7 +105,7 @@ class TestPhase1_ChaosSimulation:
 
     @pytest.mark.asyncio
     async def test_1e_kill_switch_under_load(self):
-        from phalanx.kill_switch import KillSwitch, KillSwitchState
+        from siyarix.kill_switch import KillSwitch, KillSwitchState
 
         ks = KillSwitch()
         assert ks.state == KillSwitchState.ARMED
@@ -130,7 +130,7 @@ class TestPhase1_ChaosSimulation:
 
     @pytest.mark.asyncio
     async def test_1f_executor_validate_cmd_list_blocking(self):
-        from phalanx.executor import _validate_cmd_list
+        from siyarix.executor import _validate_cmd_list
 
         injection_cmds = [
             ["echo", "hello; rm -rf /"],
@@ -162,7 +162,7 @@ class TestPhase2_AdversarialInput:
 
     @pytest.mark.asyncio
     async def test_2a_extreme_payload_sizes(self):
-        from phalanx.security_hardening import validator
+        from siyarix.security_hardening import validator
 
         huge = "A" * 1_000_000
         ok, _ = validator.validate_ip(huge)
@@ -174,7 +174,7 @@ class TestPhase2_AdversarialInput:
 
     @pytest.mark.asyncio
     async def test_2b_injection_attempts_blocked(self):
-        from phalanx.security_hardening import _INJECTION_PATTERNS
+        from siyarix.security_hardening import _INJECTION_PATTERNS
 
         injections = [
             ("target; rm -rf /", "shell_pipe"),
@@ -201,7 +201,7 @@ class TestPhase2_AdversarialInput:
 
     @pytest.mark.asyncio
     async def test_2c_danger_patterns_catch_destructive(self):
-        from phalanx.security_hardening import danger_analyzer
+        from siyarix.security_hardening import danger_analyzer
 
         cases = [
             ("sudo rm -rf /", "critical"),
@@ -226,7 +226,7 @@ class TestPhase2_AdversarialInput:
 
     @pytest.mark.asyncio
     async def test_2d_conflicting_tasks_safe(self):
-        from phalanx.dynamic_resolver import DynamicResolver
+        from siyarix.dynamic_resolver import DynamicResolver
 
         resolver = DynamicResolver()
         result = resolver.resolve("rm", ["-rf", "/"])
@@ -239,7 +239,7 @@ class TestPhase2_AdversarialInput:
 
     @pytest.mark.asyncio
     async def test_2e_has_arg_injection_detection(self):
-        from phalanx.dynamic_resolver import DynamicResolver
+        from siyarix.dynamic_resolver import DynamicResolver
 
         resolver = DynamicResolver()
         for args in [
@@ -261,7 +261,7 @@ class TestPhase3_OrchestrationBreakdown:
 
     @pytest.mark.asyncio
     async def test_3a_agent_team_broadcast_under_stress(self):
-        from phalanx.multi_agent import Agent, AgentRole, AgentTeam, AgentMessage
+        from siyarix.multi_agent import Agent, AgentRole, AgentTeam, AgentMessage
 
         team = AgentTeam(name="stress-team")
         agents = [Agent(name=f"agent-{i}", role=AgentRole.RECON) for i in range(10)]
@@ -290,7 +290,7 @@ class TestPhase3_OrchestrationBreakdown:
 
     @pytest.mark.asyncio
     async def test_3b_no_message_id_collision(self):
-        from phalanx.multi_agent import AgentMessage
+        from siyarix.multi_agent import AgentMessage
 
         ids = {AgentMessage(sender="a", recipient="b", content="c").message_id
                for _ in range(1000)}
@@ -298,7 +298,7 @@ class TestPhase3_OrchestrationBreakdown:
 
     @pytest.mark.asyncio
     async def test_3c_coordinator_dependency_resolution(self):
-        from phalanx.agents import CoordinatorAgent
+        from siyarix.agents import CoordinatorAgent
         from unittest.mock import AsyncMock
 
         engine = AsyncMock()
@@ -323,7 +323,7 @@ class TestPhase4_SelfHealing:
 
     @pytest.mark.asyncio
     async def test_4a_calculate_backoff_delay(self):
-        from phalanx.engine.recovery import calculate_backoff_delay
+        from siyarix.engine.recovery import calculate_backoff_delay
 
         for attempt in range(0, 20):
             delay = await calculate_backoff_delay(attempt)
@@ -333,7 +333,7 @@ class TestPhase4_SelfHealing:
 
     @pytest.mark.asyncio
     async def test_4b_is_transient_error(self):
-        from phalanx.engine.recovery import is_transient_error
+        from siyarix.engine.recovery import is_transient_error
 
         for msg in [
             "Connection refused",
@@ -357,7 +357,7 @@ class TestPhase4_SelfHealing:
 
     @pytest.mark.asyncio
     async def test_4c_secret_redactor_isolation(self):
-        from phalanx.security_hardening import SecretRedactor
+        from siyarix.security_hardening import SecretRedactor
 
         redactor = SecretRedactor()
         for case in ["", "\x00\x01\x02", "A" * 100_000, "None"]:
@@ -378,7 +378,7 @@ class TestPhase5_SecurityAudit:
 
     @pytest.mark.asyncio
     async def test_5a_no_unsafe_eval(self):
-        src_dir = Path(__file__).resolve().parent.parent / "src" / "phalanx"
+        src_dir = Path(__file__).resolve().parent.parent / "src" / "siyarix"
         for pyfile in src_dir.rglob("*.py"):
             if "__pycache__" in str(pyfile):
                 continue
@@ -396,7 +396,7 @@ class TestPhase5_SecurityAudit:
 
     @pytest.mark.asyncio
     async def test_5b_no_subprocess_shell_true(self):
-        src_dir = Path(__file__).resolve().parent.parent / "src" / "phalanx"
+        src_dir = Path(__file__).resolve().parent.parent / "src" / "siyarix"
         for pyfile in src_dir.rglob("*.py"):
             if "__pycache__" in str(pyfile):
                 continue
@@ -413,7 +413,7 @@ class TestPhase5_SecurityAudit:
 
     @pytest.mark.asyncio
     async def test_5c_no_hardcoded_credentials(self):
-        src_dir = Path(__file__).resolve().parent.parent / "src" / "phalanx"
+        src_dir = Path(__file__).resolve().parent.parent / "src" / "siyarix"
         for pyfile in src_dir.rglob("*.py"):
             if "__pycache__" in str(pyfile):
                 continue
@@ -438,7 +438,7 @@ class TestPhase6_PerformanceLimit:
 
     @pytest.mark.asyncio
     async def test_6a_max_parallel_resolver(self):
-        from phalanx.dynamic_resolver import DynamicResolver
+        from siyarix.dynamic_resolver import DynamicResolver
 
         resolver = DynamicResolver()
         commands = [
@@ -465,7 +465,7 @@ class TestPhase6_PerformanceLimit:
 
     @pytest.mark.asyncio
     async def test_6b_memory_pressure_input_validation(self):
-        from phalanx.security_hardening import validator
+        from siyarix.security_hardening import validator
 
         tracemalloc.start()
         try:
@@ -480,7 +480,7 @@ class TestPhase6_PerformanceLimit:
 
     @pytest.mark.asyncio
     async def test_6c_repeated_secret_redaction(self):
-        from phalanx.security_hardening import redactor
+        from siyarix.security_hardening import redactor
 
         sample = "API key sk-abc123def456xyz789 is secret, password=hello123"
         for _ in range(10_000):
@@ -497,7 +497,7 @@ class TestPhase7_FailureAutoFix:
 
     @pytest.mark.asyncio
     async def test_7a_worker_pool_correct_signature(self):
-        from phalanx.worker_pool import AsyncWorkerPool
+        from siyarix.worker_pool import AsyncWorkerPool
 
         pool = AsyncWorkerPool(max_workers=5)
 
@@ -510,7 +510,7 @@ class TestPhase7_FailureAutoFix:
 
     @pytest.mark.asyncio
     async def test_7b_input_validator_empty_string(self):
-        from phalanx.security_hardening import validator
+        from siyarix.security_hardening import validator
 
         for method in [validator.validate_ip, validator.validate_hostname,
                        validator.validate_url, validator.validate_target]:
@@ -519,7 +519,7 @@ class TestPhase7_FailureAutoFix:
 
     @pytest.mark.asyncio
     async def test_7c_danger_analyzer_empty_command(self):
-        from phalanx.security_hardening import danger_analyzer
+        from siyarix.security_hardening import danger_analyzer
 
         for cmd in ["", "   "]:
             report = danger_analyzer.analyze(cmd)
@@ -528,7 +528,7 @@ class TestPhase7_FailureAutoFix:
 
     @pytest.mark.asyncio
     async def test_7d_kill_switch_property(self):
-        from phalanx.kill_switch import KillSwitch, KillSwitchState
+        from siyarix.kill_switch import KillSwitch, KillSwitchState
 
         ks = KillSwitch()
         assert not ks.is_triggered

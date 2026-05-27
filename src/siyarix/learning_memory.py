@@ -731,7 +731,7 @@ class LearningMemory:
                             "confidence": round(p.confidence, 2),
                         }
                     )
-        return sorted(optimizations, key=lambda x: x["confidence"], reverse=True)[:10]
+        return sorted(optimizations, key=lambda x: x.get("confidence", 0), reverse=True)[:10]  # type: ignore[arg-type,return-value]
 
     # ── Analytics ────────────────────────────────────────────────────────
 
@@ -923,6 +923,19 @@ class LearningMemory:
         self._rebuild_index()
         self._save()
         return imported
+
+    def suggest_chain(self, partial: list[str], max_suggestions: int = 8) -> list[list[str]]:
+        completions: list[list[str]] = []
+        for p in self._patterns:
+            p.apply_decay(time.time())
+            ngram_len = len(p.ngram)
+            for i in range(ngram_len - len(partial) + 1):
+                if p.ngram[i:i + len(partial)] == partial:
+                    remaining = p.ngram[i + len(partial):]
+                    if remaining:
+                        completions.append(partial + remaining)
+        completions.sort(key=lambda x: len(x), reverse=True)
+        return completions[:max_suggestions]
 
     def clear(self) -> None:
         self._patterns.clear()

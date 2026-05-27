@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
@@ -43,7 +44,7 @@ class CodeReview:
 class CoderBridge:
     """Lightweight code generation and review bridge."""
 
-    def __init__(self, provider=None):
+    def __init__(self, provider: Any = None) -> None:
         self._provider = provider
 
     async def generate(self, prompt: str, language: str = "python") -> str:

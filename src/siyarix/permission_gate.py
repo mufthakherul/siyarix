@@ -26,7 +26,7 @@ class GateResult:
 
 
 class PermissionGate:
-    def __init__(self, persona_engine=None):
+    def __init__(self, persona_engine: Any = None) -> None:
         self._persona_engine = persona_engine
         self._danger_analyzer = DangerAnalyzer()
 

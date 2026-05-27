@@ -84,7 +84,7 @@ def validate_pattern(
 def validate_port(port: int | str | None) -> None:
     """Validate port number."""
     try:
-        port_num = int(port) if isinstance(port, str) else port  # type: ignore[arg-type]
+        port_num = int(port) if isinstance(port, str) else port
     except (ValueError, TypeError):
         raise ValidationError(
             f"Invalid port: {port}",

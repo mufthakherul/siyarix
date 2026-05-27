@@ -107,7 +107,7 @@ class TestStoreGetDelete:
 
     def test_get_by_cred_id(self, store):
         _c = store.store(name="get_test", value="get_val")
-        val = store.get(c.cred_id)
+        val = store.get(_c.cred_id)
         assert val == "get_val"
 
     def test_get_nonexistent(self, store):
@@ -142,8 +142,8 @@ class TestStoreGetDelete:
 
     def test_rotate(self, store):
         _c = store.store(name="rotate_me", value="old_val")
-        assert store.rotate(c.cred_id, "new_val") is True
-        assert store.get(c.cred_id) == "new_val"
+        assert store.rotate(_c.cred_id, "new_val") is True
+        assert store.get(_c.cred_id) == "new_val"
 
     def test_rotate_not_found(self, store):
         assert store.rotate("nonexistent", "val") is False
@@ -192,17 +192,17 @@ class TestListCredentials:
 class TestShareAndExpiring:
     def test_share(self, store):
         _c = store.store(name="shared_key", value="shared_val")
-        assert store.share(c.cred_id, "user_a") is True
-        assert "user_a" in store._credentials[c.cred_id].shared_with
+        assert store.share(_c.cred_id, "user_a") is True
+        assert "user_a" in store._credentials[_c.cred_id].shared_with
 
     def test_share_not_found(self, store):
         assert store.share("nonexistent", "user_a") is False
 
     def test_share_duplicate(self, store):
         _c = store.store(name="dup_share", value="val")
-        store.share(c.cred_id, "user_a")
-        store.share(c.cred_id, "user_a")
-        assert store._credentials[c.cred_id].shared_with == ["user_a"]
+        store.share(_c.cred_id, "user_a")
+        store.share(_c.cred_id, "user_a")
+        assert store._credentials[_c.cred_id].shared_with == ["user_a"]
 
     def test_check_expiring_none(self, store):
         assert store.check_expiring(7) == []

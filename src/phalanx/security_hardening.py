@@ -41,8 +41,8 @@ logger = logging.getLogger(__name__)
 
 # Characters that MUST NOT appear in a target string (shell metacharacters)
 _INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    ("shell_pipe", re.compile(r"[|;&`$]")),
-    ("command_substitution", re.compile(r"\$\(|`")),
+    ("shell_pipe", re.compile(r"[|;&`]")),
+    ("command_substitution", re.compile(r"\$\(")),
     ("path_traversal", re.compile(r"\.\./\.\./\.\.")),
     ("null_byte", re.compile(r"\x00")),
     ("newline_injection", re.compile(r"[\r\n]")),
@@ -279,6 +279,26 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "sudo rm -r",
     ),
     (
+        re.compile(r"\brm\s+-[a-zA-Z]*[rf][a-zA-Z]*[rf]", re.I),
+        "critical",
+        "Recursive force delete (rm -rf)",
+    ),
+    (
+        re.compile(r"\bmkfs\b", re.I),
+        "critical",
+        "Format disk (mkfs)",
+    ),
+    (
+        re.compile(r"\bdd\s+if=", re.I),
+        "critical",
+        "Raw disk overwrite (dd)",
+    ),
+    (
+        re.compile(r">\s*/dev/sd[a-z]", re.I),
+        "critical",
+        "Write to block device",
+    ),
+    (
         re.compile(r"\bmv\s+/.*\s+/dev/null", re.I),
         "critical",
         "Move files to /dev/null (data destruction)",
@@ -287,6 +307,16 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         re.compile(r">\s*/etc/(?:passwd|shadow|sudoers)", re.I),
         "critical",
         "Overwrite auth files",
+    ),
+    (
+        re.compile(r":\(\)\s*\{\s*:\|:&\s*\}\s*;", re.I),
+        "critical",
+        "Bash fork bomb",
+    ),
+    (
+        re.compile(r"\bchmod\s+777\s+/", re.I),
+        "critical",
+        "World-writable root (chmod 777 /)",
     ),
     # ── HIGH ──
     (re.compile(r"\bshutdown\b", re.I), "high", "System shutdown"),
@@ -338,6 +368,9 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "Python socket (possible reverse shell)",
     ),
     (re.compile(r"/dev/tcp/", re.I), "medium", "Bash /dev/tcp (reverse shell pattern)"),
+    (re.compile(r"\bxmrig\b", re.I), "medium", "Cryptominer (xmrig)"),
+    (re.compile(r"\bcpuminer\b", re.I), "medium", "Cryptominer (cpuminer)"),
+    (re.compile(r"\bformat\s+[a-zA-Z]:", re.I), "medium", "Windows format disk"),
     # ── LOW ──
     (re.compile(r"\bchmod\b", re.I), "low", "Permission change (chmod)"),
     (re.compile(r"\bchown\b", re.I), "low", "Ownership change (chown)"),

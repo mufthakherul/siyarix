@@ -6,6 +6,7 @@ Wires into chat._running and engine._pool.cancel_pending().
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -40,7 +41,7 @@ class KillSwitch:
     def arm(self) -> None:
         self.state = KillSwitchState.ARMED
 
-    def register(self, callback) -> None:
+    def register(self, callback: Callable[[], None]) -> None:
         self._callbacks.append(callback)
 
     @property

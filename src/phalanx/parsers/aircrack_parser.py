@@ -5,11 +5,6 @@ from __future__ import annotations
 from . import _now_iso
 
 import re
-from datetime import UTC, datetime
-
-
-def _now_iso() -> str:
-    return datetime.now(tz=UTC).isoformat()
 
 
 _KEY_FOUND_RE = re.compile(r"KEY FOUND!\s*\[\s*([^\]]+)\s*\]", re.IGNORECASE)

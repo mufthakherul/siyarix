@@ -5,16 +5,10 @@ from __future__ import annotations
 from . import _now_iso
 
 import re
-from datetime import UTC, datetime
 
 _OPEN_RE = re.compile(
     r"^Discovered open port (?P<port>\d+)/(?P<proto>\w+) on (?P<host>\S+)"
 )
-
-
-def _now_iso() -> str:
-    return datetime.now(tz=UTC).isoformat()
-
 
 class MasscanParser:
     """Parse masscan output into normalized finding dictionaries."""

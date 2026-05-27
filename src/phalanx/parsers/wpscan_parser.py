@@ -5,17 +5,11 @@ from __future__ import annotations
 from . import _now_iso
 
 import re
-from datetime import UTC, datetime
 
 _URL_RE = re.compile(r"^\[\+\]\s*URL:\s*(?P<url>\S+)")
 _VULN_RE = re.compile(r"(?i)\b(vulnerable|vulnerability|CVE-\d{4}-\d+)\b")
 _WARN_RE = re.compile(r"^\[!\]\s*(?P<msg>.+)$")
 _PLUGIN_RE = re.compile(r"^\[\+\]\s*(?P<name>[^:]+):\s*(?P<value>.+)$")
-
-
-def _now_iso() -> str:
-    return datetime.now(tz=UTC).isoformat()
-
 
 class WpscanParser:
     """Parse WPScan output into normalized finding dictionaries."""

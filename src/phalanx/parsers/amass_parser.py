@@ -5,11 +5,6 @@ from __future__ import annotations
 from . import _now_iso
 
 import json
-from datetime import UTC, datetime
-
-
-def _now_iso() -> str:
-    return datetime.now(tz=UTC).isoformat()
 
 
 class AmassParser:

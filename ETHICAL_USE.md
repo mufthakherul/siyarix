@@ -116,4 +116,4 @@ If you are unsure whether a particular use case is permitted, or to report a vio
 
 ---
 
-*SPDX-License-Identifier: AGPL-3.0-only*
+*SPDX-License-Identifier: AGPL-3.0-or-later*

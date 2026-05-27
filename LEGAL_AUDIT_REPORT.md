@@ -150,7 +150,7 @@ This report documents the licensing architecture, governance framework, and lega
 | README.md absent | Create README with license badge, attribution, and usage examples | Before next release |
 | No CONTRIBUTORS file | Add AUTHORS or CONTRIBUTORS file for contributor recognition | Next release |
 | DCO not implemented | Consider adding Developer Certificate of Origin (DCO) to PR process | v0.2.0 |
-| Source-file SPDX headers | Add `# SPDX-License-Identifier: AGPL-3.0-only` to all `.py` source files | v0.2.0 |
+| Source-file SPDX headers | Add `# SPDX-License-Identifier: AGPL-3.0-or-later` to all `.py` source files | v0.2.0 |
 
 ### Low Priority
 
@@ -186,4 +186,4 @@ The Siyarix project now has a complete, professionally structured legal and gove
 
 ---
 
-*SPDX-License-Identifier: AGPL-3.0-only*
+*SPDX-License-Identifier: AGPL-3.0-or-later*

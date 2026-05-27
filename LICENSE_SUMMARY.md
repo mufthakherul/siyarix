@@ -1,6 +1,6 @@
 # Siyarix License Summary
 
-Siyarix is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+Siyarix is licensed under the **GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)**.
 
 ---
 
@@ -18,9 +18,10 @@ Siyarix is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0
 
 ## Key Protections
 
-- **Copyleft**: Modifications must remain under AGPL-3.0 — ensuring the whole community benefits from improvements.
+- **Copyleft**: Modifications must remain under AGPL-3.0-or-later — ensuring the whole community benefits from improvements.
 - **Network Transparency**: The "Affero" clause (Section 13) closes the SaaS loophole: even if you never distribute copies, if users interact with your modified version over a network, you must provide the source.
 - **Patent Grant**: Contributors grant a royalty-free patent license for their contributions.
+- **"or later" Upgrade Path**: Licensees may use any later version of the AGPL published by the FSF, simplifying future license upgrades.
 - **No Warranty**: The software is provided "as is" with no warranties.
 
 ---
@@ -47,4 +48,4 @@ This license works alongside:
 
 ---
 
-*SPDX-License-Identifier: AGPL-3.0-only*
+*SPDX-License-Identifier: AGPL-3.0-or-later*

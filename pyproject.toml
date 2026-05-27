@@ -1,6 +1,6 @@
 [project]
 name = "phalanx"
-version = "0.1.3-beta"
+version = "0.1.3"
 description = "Phalanx — AI-native cybersecurity operations platform with autonomous execution, multi-agent framework, and intelligent workflow orchestration"
 description-content-type = "text/markdown"
 readme = "README.md"

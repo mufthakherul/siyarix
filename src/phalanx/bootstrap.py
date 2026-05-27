@@ -277,7 +277,7 @@ class BootstrapEngine:
         marker = self._home / ".initialized"
         marker.write_text(
             f"# Phalanx initialized\n"
-            f"version=0.1.3-beta\n"
+            f"version=0.1.3\n"
             f"created_at={datetime.now().isoformat()}\n"
             f"platform={platform.system()}\n"
             f"python={sys.version}\n"

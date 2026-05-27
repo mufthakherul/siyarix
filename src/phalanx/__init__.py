@@ -5,7 +5,7 @@ orchestration, and advanced security tooling for offensive and defensive
 cybersecurity operations.
 """
 
-__version__ = "0.1.3-beta"
+__version__ = "0.1.3"
 __author__ = "MD MUFTHAKHERUL ISLAM MIRAZ"
 __license__ = "MIT"
 

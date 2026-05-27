@@ -1743,7 +1743,7 @@ class PhalanxChat:
             ver = _pv("phalanx")
         except Exception as exc:
             logger.debug("Failed to resolve package version: %s", exc)
-            ver = "0.1.3-beta"
+            ver = "0.1.3"
         console.print(f"[bold cyan]Phalanx[/bold cyan] [green]v{ver}[/green]")
 
     # ──────────────────────────────────────────────────────────────────────
@@ -2695,7 +2695,7 @@ class PhalanxChat:
             from importlib.metadata import version as _pv
             ver = _pv("phalanx")
         except Exception:
-            ver = "0.1.3-beta"
+            ver = "0.1.3"
 
         shell_info = get_shell_platform()
         theme = self._settings.get("color_theme")

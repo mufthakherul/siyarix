@@ -1,4 +1,4 @@
-"""Unified Mode Dispatcher for Phalanx v2.0.
+"""Unified Mode Dispatcher for Phalanx v0.1.3.
 
 Detects the optimal interaction mode based on CLI context, environment variables,
 TTY availability, and user preferences.

@@ -1,4 +1,4 @@
-# Phalanx v0.1.3-beta — Preview Release
+# Phalanx v0.1.3 — Preview Release
 
 ## Overview
 
@@ -29,7 +29,7 @@ stability, security, and architectural improvements.
 - **Lint**: Fixed all 24 ruff violations including unused imports, ambiguous variable
   names (`l` → `line`), and f-string prefix warnings.
 - **Version Synchronization**: Unified version from inconsistent `2.0.0` / `1.2.0` values
-  to `0.1.3-beta` across 8 reference points: `pyproject.toml`, `__init__.py`, `main.py`,
+  to `0.1.3` across 8 reference points: `pyproject.toml`, `__init__.py`, `main.py`,
   `chat.py` (2 locations), `report_engine.py`, `branding.py`, `bootstrap.py`, `poetry.lock`.
 
 ## Security Improvements
@@ -69,8 +69,8 @@ stability, security, and architectural improvements.
 
 ## Build Artifacts
 
-- `phalanx-0.1.3b0.tar.gz`
-- `phalanx-0.1.3b0-py3-none-any.whl`
+- `phalanx-0.1.3.tar.gz`
+- `phalanx-0.1.3-py3-none-any.whl`
 
 ## Tests
 
@@ -81,8 +81,9 @@ stability, security, and architectural improvements.
 
 ## Recommendation for Production Promotion
 
-**NOT RECOMMENDED** for production use at this stage. This is a beta/preview release
-intended for evaluation, testing, and development. Key gaps for production readiness:
+**NOT RECOMMENDED** for production use at this stage. This is a preview release
+(major version 0 denotes pre-release status per semantic versioning).
+Key gaps for production readiness:
 - Agent lifecycle management is incomplete
 - Type annotation coverage needs improvement
 - Formal coverage threshold not enforced

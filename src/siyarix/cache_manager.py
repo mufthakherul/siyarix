@@ -160,9 +160,10 @@ class CacheManager:
         return len(keys)
 
     def stats(self, domain: str = "") -> dict[str, Any]:
-        entries = self._entries.values()
         if domain:
-            entries = [e for e in entries if e.domain == domain]
+            entries: list[CacheEntry] = [e for e in self._entries.values() if e.domain == domain]
+        else:
+            entries = list(self._entries.values())
 
         if not entries:
             return {"total_entries": 0, "total_size_bytes": 0, "hit_rate": 0.0}
@@ -189,7 +190,7 @@ class CacheManager:
 cache_manager = CacheManager()
 
 
-def cached(domain: str = "tool_output"):
+def cached(domain: str = "tool_output") -> Callable[[F], F]:
     """Decorator: caches function return value by (func_name, args, kwargs)."""
     def decorator(func: F) -> F:
         @wraps(func)

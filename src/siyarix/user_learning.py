@@ -373,7 +373,7 @@ class UserProfile:
 
 
 # ── Milestones ───────────────────────────────────────────────────────────
-_MILESTONES = [
+_MILESTONES: list[dict[str, Any]] = [
     {
         "id": "first_command",
         "name": "First Command",

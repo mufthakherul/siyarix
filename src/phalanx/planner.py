@@ -422,141 +422,45 @@ class CloudModel:
 
 
 # ---------------------------------------------------------------------------
-# Groq Model Provider
+# Base for OpenAI-compatible HTTP API providers
 # ---------------------------------------------------------------------------
 
 
-class GroqModel:
-    """Model provider using Groq API (fast inference)."""
-
-    def __init__(
-        self, api_key: str | None = None, model: str = "llama3-70b-8192"
-    ) -> None:
-        self._api_key = api_key or os.environ.get("GROQ_API_KEY", "")
-        self._model = model
-
-    @property
-    def available(self) -> bool:
-        return bool(self._api_key)
-
-    async def plan(self, prompt: str, context: dict[str, Any]) -> dict[str, Any]:
-        try:
-            import httpx
-        except ImportError:
-            return {}
-        if not self._api_key:
-            return {}
-        system_prompt = _build_system_prompt(context)
-        try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    json={
-                        "model": self._model,
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": prompt},
-                        ],
-                        "temperature": 0.1,
-                        "max_tokens": 2048,
-                        "response_format": {"type": "json_object"},
-                    },
-                    headers={
-                        "Authorization": f"Bearer {self._api_key}",
-                        "Content-Type": "application/json",
-                    },
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    content = (
-                        data.get("choices", [{}])[0]
-                        .get("message", {})
-                        .get("content", "{}")
-                    )
-                    return json.loads(content)
-        except Exception as exc:
-            logger.warning("Groq planning failed: %s", exc)
-        return {}
-
-
-# ---------------------------------------------------------------------------
-# Together AI Model Provider
-# ---------------------------------------------------------------------------
-
-
-class TogetherModel:
-    """Model provider using Together AI API."""
+class _OpenAICompatibleModel:
+    """Base for OpenAI-compatible chat completion providers (Groq, Together, LM Studio, Custom)."""
 
     def __init__(
         self,
-        api_key: str | None = None,
-        model: str = "mistralai/Mixtral-8x7B-Instruct-v0.1",
-    ) -> None:
-        self._api_key = api_key or os.environ.get("TOGETHER_API_KEY", "")
-        self._model = model
-
-    @property
-    def available(self) -> bool:
-        return bool(self._api_key)
-
-    async def plan(self, prompt: str, context: dict[str, Any]) -> dict[str, Any]:
-        try:
-            import httpx
-        except ImportError:
-            return {}
-        if not self._api_key:
-            return {}
-        system_prompt = _build_system_prompt(context)
-        try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(
-                    "https://api.together.xyz/v1/chat/completions",
-                    json={
-                        "model": self._model,
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": prompt},
-                        ],
-                        "temperature": 0.1,
-                        "max_tokens": 2048,
-                        "response_format": {"type": "json_object"},
-                    },
-                    headers={
-                        "Authorization": f"Bearer {self._api_key}",
-                        "Content-Type": "application/json",
-                    },
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    content = (
-                        data.get("choices", [{}])[0]
-                        .get("message", {})
-                        .get("content", "{}")
-                    )
-                    return json.loads(content)
-        except Exception as exc:
-            logger.warning("Together AI planning failed: %s", exc)
-        return {}
-
-
-# ---------------------------------------------------------------------------
-# LM Studio Model Provider (Local)
-# ---------------------------------------------------------------------------
-
-
-class LMStudioModel:
-    """Model provider using local LM Studio instance (OpenAI-compatible API)."""
-
-    def __init__(
-        self, base_url: str = "http://localhost:1234", model: str = ""
+        *,
+        base_url: str,
+        api_key: str = "",
+        model: str = "",
+        timeout: float = 60.0,
+        name: str = "provider",
+        lazy_check: bool = False,
+        require_api_key: bool = True,
+        require_model: bool = True,
+        json_mode: bool = True,
     ) -> None:
         self._base_url = base_url.rstrip("/")
+        self._api_key = api_key
         self._model = model
-        self._available: bool | None = None
+        self._timeout = timeout
+        self._name = name
+        self._lazy_check = lazy_check
+        self._require_api_key = require_api_key
+        self._require_model = require_model
+        self._json_mode = json_mode
+        if lazy_check:
+            self._available: bool | None = None
 
     @property
     def available(self) -> bool:
-        return True
+        if self._lazy_check:
+            return True
+        if self._require_api_key:
+            return bool(self._api_key)
+        return bool(self._base_url)
 
     async def _check_available(self) -> bool:
         try:
@@ -574,27 +478,45 @@ class LMStudioModel:
             import httpx
         except ImportError:
             return {}
-        if self._available is None:
-            ok = await self._check_available()
-            if not ok:
+
+        if self._lazy_check:
+            if self._available is None:
+                ok = await self._check_available()
+                if not ok:
+                    return {}
+            elif not self._available:
                 return {}
-        elif not self._available:
+        elif self._require_api_key and not self._api_key:
             return {}
+        elif not self._require_api_key and not self._base_url:
+            return {}
+
         system_prompt = _build_system_prompt(context)
         try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
+            headers = {"Content-Type": "application/json"}
+            if self._api_key:
+                headers["Authorization"] = f"Bearer {self._api_key}"
+
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                payload: dict[str, Any] = {
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": 0.1,
+                    "max_tokens": 2048,
+                }
+                if self._json_mode:
+                    payload["response_format"] = {"type": "json_object"}
+                if self._require_model:
+                    payload["model"] = self._model or "default"
+                elif self._model:
+                    payload["model"] = self._model
+
                 resp = await client.post(
-                    f"{self._base_url}/v1/chat/completions",
-                    json={
-                        "model": self._model or "local-model",
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": prompt},
-                        ],
-                        "temperature": 0.1,
-                        "max_tokens": 2048,
-                        "response_format": {"type": "json_object"},
-                    },
+                    f"{self._base_url}/chat/completions",
+                    json=payload,
+                    headers=headers,
                 )
                 if resp.status_code == 200:
                     data = resp.json()
@@ -605,9 +527,76 @@ class LMStudioModel:
                     )
                     return json.loads(content)
         except Exception as exc:
-            logger.warning("LM Studio planning failed: %s", exc)
-            self._available = False
+            logger.warning("%s planning failed: %s", self._name, exc)
+            if self._lazy_check:
+                self._available = False
         return {}
+
+
+# ---------------------------------------------------------------------------
+# Groq Model Provider
+# ---------------------------------------------------------------------------
+
+
+class GroqModel(_OpenAICompatibleModel):
+    """Model provider using Groq API (fast inference)."""
+
+    def __init__(
+        self, api_key: str | None = None, model: str = "llama3-70b-8192"
+    ) -> None:
+        super().__init__(
+            base_url="https://api.groq.com/openai/v1",
+            api_key=api_key or os.environ.get("GROQ_API_KEY", ""),
+            model=model,
+            name="Groq",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Together AI Model Provider
+# ---------------------------------------------------------------------------
+
+
+class TogetherModel(_OpenAICompatibleModel):
+    """Model provider using Together AI API."""
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        model: str = "mistralai/Mixtral-8x7B-Instruct-v0.1",
+    ) -> None:
+        super().__init__(
+            base_url="https://api.together.xyz/v1",
+            api_key=api_key or os.environ.get("TOGETHER_API_KEY", ""),
+            model=model,
+            name="Together",
+        )
+
+
+# ---------------------------------------------------------------------------
+# LM Studio Model Provider (Local)
+# ---------------------------------------------------------------------------
+
+
+class LMStudioModel(_OpenAICompatibleModel):
+    """Model provider using local LM Studio instance (OpenAI-compatible API)."""
+
+    def __init__(
+        self, base_url: str = "http://localhost:1234", model: str = ""
+    ) -> None:
+        super().__init__(
+            base_url=base_url,
+            api_key="",
+            model=model or "local-model",
+            timeout=120.0,
+            name="LMStudio",
+            lazy_check=True,
+            require_api_key=False,
+        )
+
+    @property
+    def available(self) -> bool:
+        return True
 
 
 # ---------------------------------------------------------------------------
@@ -615,56 +604,21 @@ class LMStudioModel:
 # ---------------------------------------------------------------------------
 
 
-class CustomModel:
+class CustomModel(_OpenAICompatibleModel):
     """Model provider for user-defined custom API endpoints."""
 
     def __init__(
         self, server_url: str = "", api_key: str = "", model: str = ""
     ) -> None:
-        self._server_url = server_url.rstrip("/")
-        self._api_key = api_key
-        self._model = model
-
-    @property
-    def available(self) -> bool:
-        return bool(self._server_url)
-
-    async def plan(self, prompt: str, context: dict[str, Any]) -> dict[str, Any]:
-        if not self.available:
-            return {}
-        try:
-            import httpx
-        except ImportError:
-            return {}
-        system_prompt = _build_system_prompt(context)
-        try:
-            headers = {"Content-Type": "application/json"}
-            if self._api_key:
-                headers["Authorization"] = f"Bearer {self._api_key}"
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                endpoint = f"{self._server_url}/chat/completions"
-                payload: dict[str, Any] = {
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt},
-                    ],
-                    "temperature": 0.1,
-                    "max_tokens": 2048,
-                }
-                if self._model:
-                    payload["model"] = self._model
-                resp = await client.post(endpoint, json=payload, headers=headers)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    content = (
-                        data.get("choices", [{}])[0]
-                        .get("message", {})
-                        .get("content", "{}")
-                    )
-                    return json.loads(content)
-        except Exception as exc:
-            logger.warning("Custom model planning failed: %s", exc)
-        return {}
+        super().__init__(
+            base_url=server_url,
+            api_key=api_key,
+            model=model,
+            name="Custom",
+            require_api_key=False,
+            require_model=False,
+            json_mode=False,
+        )
 
 
 # ---------------------------------------------------------------------------

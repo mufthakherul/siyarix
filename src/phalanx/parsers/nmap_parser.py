@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from . import _now_iso
+
 import re
 import xml.etree.ElementTree as ET  # nosec B405
 from datetime import UTC, datetime

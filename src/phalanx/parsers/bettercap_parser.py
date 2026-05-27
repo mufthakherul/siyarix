@@ -3,12 +3,8 @@
 from __future__ import annotations
 
 import re
-from datetime import UTC, datetime
 
-
-def _now_iso() -> str:
-    return datetime.now(tz=UTC).isoformat()
-
+from . import _now_iso
 
 _ENDPOINT_RE = re.compile(r"(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\S+)")
 

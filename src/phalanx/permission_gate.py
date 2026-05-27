@@ -1,30 +1,18 @@
 """
 Three-stage permission gate for runtime safety enforcement.
 
-Syntax Check -> Forbidden Words -> Permission Gate
+Syntax Check -> Danger Analysis -> Permission ACL
 """
 
 from __future__ import annotations
 
 import logging
-import re
 from dataclasses import dataclass
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from .security_hardening import DangerAnalyzer
 
-FORBIDDEN_PATTERNS: list[str] = [
-    r"rm\s+-rf\s+/",
-    r"mkfs\.",
-    r"dd\s+if=.*of=/dev/",
-    r":\(\)\s*\{",
-    r">\s*/dev/sda",
-    r"chmod\s+-?R?\s*777\s+/",
-    r"wget\s+.*\|\s*bash",
-    r"curl\s+.*\|\s*bash",
-    r"sudo\s+rm\s+-rf\s+/",
-    r"mv\s+/.*\s+/dev/null",
-]
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -40,7 +28,7 @@ class GateResult:
 class PermissionGate:
     def __init__(self, persona_engine=None):
         self._persona_engine = persona_engine
-        self._forbidden = [re.compile(p, re.IGNORECASE) for p in FORBIDDEN_PATTERNS]
+        self._danger_analyzer = DangerAnalyzer()
 
     def check(
         self, command: str, tool: str = "", context: dict[str, Any] | None = None
@@ -49,16 +37,25 @@ class PermissionGate:
         if not command or not command.strip():
             return GateResult(False, "syntax", "Empty command", command=command)
 
-        # Stage 2: Forbidden patterns
-        for pattern in self._forbidden:
-            if pattern.search(command):
-                return GateResult(
-                    False,
-                    "forbidden",
-                    f"Contains forbidden pattern: {pattern.pattern}",
-                    tool=tool,
-                    command=command,
-                )
+        # Stage 2: Danger analysis (uses DangerAnalyzer patterns from security_hardening)
+        report = self._danger_analyzer.analyze(command)
+        if report.severity == "critical":
+            return GateResult(
+                False,
+                "forbidden",
+                f"Destructive command blocked: {'; '.join(report.reasons)}",
+                tool=tool,
+                command=command,
+            )
+        if report.severity in ("high", "medium"):
+            return GateResult(
+                True,
+                "review",
+                f"Requires review: {'; '.join(report.reasons)}",
+                tool=tool,
+                command=command,
+                requires_review=True,
+            )
 
         # Stage 3: Permission check via ACL
         if self._persona_engine and tool:

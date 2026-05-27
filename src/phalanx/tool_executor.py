@@ -180,14 +180,38 @@ class ToolExecutor:
     def _parse_output(self, tool_name: str, output: str) -> list[dict[str, Any]]:
         """Parse tool output using registered parsers."""
         try:
-            from .parsers import (GobusterParser, NiktoParser, NmapParser,
-                                  NucleiParser)
+            from .parsers import (
+                AircrackParser, AmassParser, BettercapParser,
+                BurpsuiteParser, EttercapParser, FfufParser,
+                GobusterParser, HashcatParser, HydraParser,
+                ImpacketParser, JohnParser, MasscanParser,
+                MetasploitParser, NiktoParser, NmapParser,
+                NucleiParser, ShodanParser, SqlmapParser,
+                SubfinderParser, WpscanParser, ZaproxyParser,
+            )
 
             parsers: dict[str, Any] = {
-                "nmap": NmapParser(),
-                "nikto": NiktoParser(),
-                "nuclei": NucleiParser(),
+                "aircrack-ng": AircrackParser(),
+                "amass": AmassParser(),
+                "bettercap": BettercapParser(),
+                "burpsuite": BurpsuiteParser(),
+                "ettercap": EttercapParser(),
+                "ffuf": FfufParser(),
                 "gobuster": GobusterParser(),
+                "hashcat": HashcatParser(),
+                "hydra": HydraParser(),
+                "impacket": ImpacketParser(),
+                "john": JohnParser(),
+                "masscan": MasscanParser(),
+                "metasploit": MetasploitParser(),
+                "nikto": NiktoParser(),
+                "nmap": NmapParser(),
+                "nuclei": NucleiParser(),
+                "shodan": ShodanParser(),
+                "sqlmap": SqlmapParser(),
+                "subfinder": SubfinderParser(),
+                "wpscan": WpscanParser(),
+                "zaproxy": ZaproxyParser(),
             }
             parser = parsers.get(tool_name)
             if parser:

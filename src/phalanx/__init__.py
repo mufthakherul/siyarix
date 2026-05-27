@@ -72,7 +72,7 @@ from .providers import registry as provider_registry
 from .report_engine import (Report, ReportConfig, ReportEngine, ReportFormat,
                             ReportSection)
 from .response_sensor import ResponseSensor
-from .security_hardening import DangerAnalyzer, InputValidator, SecretRedactor
+from .security_hardening import DangerAnalyzer, SecretRedactor
 from .session_log import (CommandEntry, SafetyEvent, SessionLog, SessionLogger,
                           session_logger)
 from .shell_review import (ReviewDecision, ReviewResult, review_and_confirm,
@@ -133,7 +133,6 @@ __all__ = [
     "OpenCodeAdapter",
     "MaskingEngine",
     "ResponseSensor",
-    "InputValidator",
     "SecretRedactor",
     "DangerAnalyzer",
     "KnowledgeGraph",

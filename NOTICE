@@ -1,55 +1,169 @@
-Siyarix - AI Cybersecurity Orchestration Agent
-Copyright (C) 2026  MD MUFTHAKHERUL ISLAM MIRAZ
+Siyarix AI Cybersecurity Orchestration Agent
+=======================================================================
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published
-by the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+(a) Project Identity
+-----------------------------------------------------------------------
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
+  Project:       Siyarix
+  Description:   AI Cybersecurity Orchestration Agent
+  Homepage:      https://github.com/mufthakherul/siyarix
+  License:       GNU Affero General Public License v3.0 or later
+  SPDX:          AGPL-3.0-or-later
 
-You should have received a copy of the GNU Affero General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
----
+(b) Copyright Notice
+-----------------------------------------------------------------------
 
-Third-Party Notices
-===================
+  Copyright (C) 2026  MD MUFTHAKHERUL ISLAM MIRAZ
 
-This software includes third-party components with separate copyright
-notices and license terms. See THIRD_PARTY_LICENSES.md for details.
 
-The following are major dependencies and their copyright holders:
+(c) License Reference
+-----------------------------------------------------------------------
 
-  Python (https://python.org)                    PSF License
-  cryptography                                    Apache-2.0 / BSD
-  httpx                                           BSD-3-Clause
-  rich                                            MIT
-  pydantic                                        MIT
-  typer                                           MIT
-  tenacity                                        Apache-2.0
-  psutil                                          BSD-3-Clause
-  keyring                                         MIT
-  defusedxml                                      Python-2.0
-  aiofiles                                        Apache-2.0
-  google-generativeai                              Apache-2.0
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as
+  published by the Free Software Foundation, either version 3 of the
+  License, or (at your option) any later version.
 
-Full license texts and dependency information are available in
-THIRD_PARTY_LICENSES.md.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
 
----
+  A copy of the GNU Affero General Public License is distributed
+  alongside this software in the file LICENSE.  If not, see
+  <https://www.gnu.org/licenses/>.
 
-AI Model Providers
-==================
-When using cloud AI providers (OpenAI, Google Gemini, Anthropic, etc.),
-your interactions are subject to that provider's terms of service and
-privacy policy. Siyarix is not affiliated with or endorsed by these
-providers.
 
----
+(d) Third-Party Dependencies
+-----------------------------------------------------------------------
 
-Project Homepage: https://github.com/mufthakherul/siyarix
-SPDX-License-Identifier: AGPL-3.0-only
+  This software bundles or depends on third-party components with
+  separate copyright and license terms.  Full license texts are
+  documented in THIRD_PARTY_LICENSES.md.
+
+  Major runtime dependencies and their licenses:
+
+    Package          Version     License             SPDX
+    -------          -------     -------             ----
+    Python 3                    PSF License v2       Python-2.0
+    aiofiles                    Apache 2.0           Apache-2.0
+    cryptography                Apache 2.0 / BSD     Apache-2.0 OR BSD-3-Clause
+    defusedxml                  Python-2.0           Python-2.0
+    google-generativeai          Apache 2.0           Apache-2.0
+    httpx                       BSD-3-Clause         BSD-3-Clause
+    keyring                     MIT                  MIT
+    psutil                      BSD-3-Clause         BSD-3-Clause
+    pydantic                    MIT                  MIT
+    rich                        MIT                  MIT
+    tenacity                    Apache 2.0           Apache-2.0
+    typer                       MIT                  MIT
+
+  Optional dependencies (AI providers, dashboard, cloud scanning):
+
+    Package          License             Notes
+    -------          -------             -----
+    openai           Apache 2.0          OpenAI Python SDK
+    anthropic        MIT                 Anthropic Python SDK
+    jinja2           BSD-3-Clause        Template engine
+    prompt-toolkit   BSD-3-Clause        Enhanced REPL
+    fastapi          MIT                 Dashboard API
+    uvicorn          BSD-3-Clause        Dashboard server
+    redis            MIT                 Distributed backend
+    boto3            Apache 2.0          AWS SDK
+    azure-identity   MIT                 Azure SDK
+    kubernetes       Apache 2.0          K8s client
+
+
+(e) AI Model Provider Architecture
+-----------------------------------------------------------------------
+
+  Siyarix is architected as a **provider-agnostic AI orchestration
+  platform**.  It does not require, prefer, or depend on any single
+  artificial intelligence model or vendor.
+
+  1.  Provider Abstraction Layer
+      All AI capabilities are accessed through a uniform provider
+      interface (see src/siyarix/providers.py).  Any model that
+      implements this interface can be used interchangeably.
+
+  2.  Supported Provider Families
+      - Google Gemini (primary test provider during development
+        due to available free-tier access)
+      - OpenAI (GPT-4, GPT-4o, GPT-3.5-turbo, etc.)
+      - Anthropic (Claude 3.5 Sonnet, etc.)
+      - Ollama (local open-weight models)
+      - LM Studio (self-hosted local models)
+      - Groq (cloud inference)
+      - Together AI (cloud inference)
+      - Custom / Compatible endpoints (any OpenAI-compatible API)
+
+  3.  Dynamic Provider Selection
+      Providers are selected at runtime based on configuration,
+      availability, task type, cost constraints, and performance
+      requirements.  No provider is hard-coded as mandatory.
+
+  4.  Failover & Routing
+      The system supports automatic failover between providers.
+      If the primary provider is unavailable or returns errors,
+      the system can fall back to secondary providers transparently.
+
+  5.  Local / Offline Operation
+      Siyarix can operate without any cloud AI provider by using
+      heuristic fallback planning (no LLM required) or local models
+      via Ollama / LM Studio.  This enables fully air-gapped usage.
+
+  6.  No Vendor Lock-In
+      The provider abstraction is designed so that users can switch
+      between providers, add new providers, or remove providers
+      without changes to the core execution engine.
+
+  7.  API Key Independence
+      Each provider requires its own API credentials, stored in the
+      encrypted local credential vault.  No provider keys are bundled
+      or distributed with the software.
+
+  8.  Data Flow
+      When a cloud AI provider is used, prompts and context are
+      masked through the bidirectional masking engine before
+      transmission.  See RESPONSIBLE_AI_USE.md for details.
+
+
+(f) Disclaimer of Affiliation
+-----------------------------------------------------------------------
+
+  Siyarix is an independent open-source project.  It is **not
+  affiliated with, endorsed by, or sponsored by** any of the
+  following organisations or their affiliates:
+
+    - Google LLC (Gemini, Google AI)
+    - OpenAI, LLC (ChatGPT, GPT models)
+    - Anthropic PBC (Claude)
+    - Groq, Inc.
+    - Together Computer, Inc.
+    - Meta Platforms, Inc. (Llama models)
+    - Mistral AI
+    - Any other AI model or cloud provider
+
+  All product names, logos, and brands are property of their
+  respective owners.  Use of these names does not imply
+  cooperation or endorsement.
+
+  Users who connect Siyarix to a third-party AI service are subject
+  to that service's own terms of use, privacy policy, and data
+  handling practices.  The Siyarix project accepts no liability for
+  data processed through third-party AI providers.
+
+
+(g) Project Homepage
+-----------------------------------------------------------------------
+
+  Source code and issue tracker:
+  https://github.com/mufthakherul/siyarix
+
+  Official distribution channels:
+  - GitHub:  https://github.com/mufthakherul/siyarix
+  - PyPI:    https://pypi.org/project/siyarix/
+
+-----------------------------------------------------------------------
+SPDX-License-Identifier: AGPL-3.0-or-later

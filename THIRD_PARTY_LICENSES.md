@@ -72,7 +72,7 @@ Siyarix does not bundle any AI models. AI capabilities are provided through:
 
 ## License Compatibility
 
-AGPL-3.0 is compatible with:
+AGPL-3.0-or-later is compatible with:
 
 - Apache-2.0 (compatible with additional permissions)
 - MIT (compatible)
@@ -98,4 +98,4 @@ If you distribute Siyarix (or a modified version), you must:
 
 ---
 
-*SPDX-License-Identifier: AGPL-3.0-only*
+*SPDX-License-Identifier: AGPL-3.0-or-later*

@@ -56,4 +56,4 @@ Found a bug? Have an idea? See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get
 
 ---
 
-*SPDX-License-Identifier: AGPL-3.0-only*
+*SPDX-License-Identifier: AGPL-3.0-or-later*

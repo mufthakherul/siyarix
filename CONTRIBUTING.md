@@ -254,4 +254,4 @@ By contributing to Siyarix, you agree that your contributions will be licensed u
 
 ---
 
-*SPDX-License-Identifier: AGPL-3.0-only*
+*SPDX-License-Identifier: AGPL-3.0-or-later*

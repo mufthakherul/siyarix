@@ -288,27 +288,37 @@ async def run_tools_with_progress(
     Returns (all_findings, state).
     """
     from .executor import run_tool_complete
-    from .parsers import (BurpsuiteParser, FfufParser, GobusterParser,
-                          HashcatParser, HydraParser, JohnParser,
+    from .parsers import (AircrackParser, AmassParser, BettercapParser,
+                          BurpsuiteParser, EttercapParser, FfufParser,
+                          GobusterParser, HashcatParser, HydraParser,
+                          ImpacketParser, JohnParser,
                           MasscanParser, MetasploitParser, NiktoParser,
-                          NmapParser, NucleiParser, SqlmapParser, WpscanParser,
+                          NmapParser, NucleiParser, ShodanParser,
+                          SqlmapParser, SubfinderParser, WpscanParser,
                           ZaproxyParser)
 
     _PARSERS: dict[str, Any] = {
-        "nmap": NmapParser(),
-        "nikto": NiktoParser(),
-        "nuclei": NucleiParser(),
-        "gobuster": GobusterParser(),
-        "sqlmap": SqlmapParser(),
-        "ffuf": FfufParser(),
-        "masscan": MasscanParser(),
-        "wpscan": WpscanParser(),
-        "hydra": HydraParser(),
-        "zaproxy": ZaproxyParser(),
-        "john": JohnParser(),
-        "hashcat": HashcatParser(),
-        "metasploit": MetasploitParser(),
+        "aircrack-ng": AircrackParser(),
+        "amass": AmassParser(),
+        "bettercap": BettercapParser(),
         "burpsuite": BurpsuiteParser(),
+        "ettercap": EttercapParser(),
+        "ffuf": FfufParser(),
+        "gobuster": GobusterParser(),
+        "hashcat": HashcatParser(),
+        "hydra": HydraParser(),
+        "impacket": ImpacketParser(),
+        "john": JohnParser(),
+        "masscan": MasscanParser(),
+        "metasploit": MetasploitParser(),
+        "nikto": NiktoParser(),
+        "nmap": NmapParser(),
+        "nuclei": NucleiParser(),
+        "shodan": ShodanParser(),
+        "sqlmap": SqlmapParser(),
+        "subfinder": SubfinderParser(),
+        "wpscan": WpscanParser(),
+        "zaproxy": ZaproxyParser(),
     }
 
     state = ScanProgressState(tools_total=len(tools))

@@ -1,11 +1,42 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any, Protocol, runtime_checkable
+
+
+@runtime_checkable
+class Parser(Protocol):
+    """Protocol for output parsers — all parsers must implement ``parse``."""
+
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        """Parse raw tool output into normalized finding dicts."""
+        ...
 
 
 def _now_iso() -> str:
     """Return current UTC timestamp as ISO string."""
     return datetime.now(tz=UTC).isoformat()
+
+
+def build_finding(
+    *,
+    title: str,
+    severity: str,
+    description: str,
+    evidence: str,
+    tool: str,
+    target: str = "",
+) -> dict[str, Any]:
+    """Build a normalized finding dict with current timestamp."""
+    return {
+        "title": title,
+        "severity": severity,
+        "description": description,
+        "evidence": evidence,
+        "tool": tool,
+        "target": target,
+        "timestamp": _now_iso(),
+    }
 
 
 from .aircrack_parser import AircrackParser  # noqa: F401, E402
@@ -31,6 +62,8 @@ from .wpscan_parser import WpscanParser  # noqa: F401, E402
 from .zaproxy_parser import ZaproxyParser  # noqa: F401, E402
 
 __all__ = [
+    "Parser",
+    "build_finding",
     "_now_iso",
     "AircrackParser",
     "AmassParser",

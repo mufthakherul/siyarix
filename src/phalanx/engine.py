@@ -1009,11 +1009,11 @@ class ExecutionEngine:
 
             pending = still_pending
 
-        # Close worker pool before returning (best-effort)
+        # Reset worker pool for next execution (cancel pending, keep pool alive)
         try:
-            await self._pool.close(timeout=5)
+            await self._pool.cancel_pending()
         except Exception:
-            logger.debug("Error closing sub-agent pool", exc_info=True)
+            logger.debug("Error resetting sub-agent pool", exc_info=True)
         return result
 
     def _persist_step(
@@ -1360,8 +1360,8 @@ class ExecutionEngine:
                     return "__forbidden__"
                 return confirmed
         except Exception as exc:
-            logger.debug("Permission gate check failed: %s", exc)
-        return value
+            logger.warning("Permission gate check failed, blocking: %s", exc)
+            return "__forbidden__"
 
     def _check_dependencies(self, step: ExecutionStep) -> bool:
         """Check if all dependencies have completed successfully."""

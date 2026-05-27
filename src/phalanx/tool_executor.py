@@ -181,7 +181,7 @@ class ToolExecutor:
         """Parse tool output using registered parsers."""
         try:
             from .parsers import (
-                AircrackParser, AmassParser, BettercapParser,
+                Parser, AircrackParser, AmassParser, BettercapParser,
                 BurpsuiteParser, EttercapParser, FfufParser,
                 GobusterParser, HashcatParser, HydraParser,
                 ImpacketParser, JohnParser, MasscanParser,
@@ -190,7 +190,7 @@ class ToolExecutor:
                 SubfinderParser, WpscanParser, ZaproxyParser,
             )
 
-            parsers: dict[str, Any] = {
+            parsers: dict[str, Parser] = {
                 "aircrack-ng": AircrackParser(),
                 "amass": AmassParser(),
                 "bettercap": BettercapParser(),
@@ -216,8 +216,8 @@ class ToolExecutor:
             parser = parsers.get(tool_name)
             if parser:
                 return parser.parse(output) or []
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Parser failed for %s: %s", tool_name, exc)
         return []
 
     async def _run_analysis_step(self, step: ExecutionStep) -> StepResult:

@@ -284,6 +284,7 @@ class PhalanxChat:
         self._session = self._init_session(session_id, target, resume)
         self._command_history: deque[str] = deque(maxlen=1000)
         self._running = True
+        self._engine_kill_switch = None
         self._split_pane_enabled = False
         self._split_pane_type = "attack_map"
 
@@ -1726,20 +1727,15 @@ class PhalanxChat:
         """Emergency stop - cancel all pending execution."""
         console.print("[bold red]⚠ EMERGENCY STOP TRIGGERED[/bold red]")
         self._running = False
-        # Notify kill switch in response sensor
-        try:
-            from .kill_switch import KillSwitch
-
-            ks = KillSwitch()
-            ks.trigger()
+        if self._engine_kill_switch:
+            self._engine_kill_switch.trigger()
             console.print(
                 "[dim]Kill switch triggered: all pending operations cancelled.[/dim]"
             )
-        except Exception as exc:
-            logger.debug("Kill switch trigger: %s", exc)
-        console.print(
-            "[yellow]Session terminated by user. Use /exit to fully quit.[/yellow]"
-        )
+        else:
+            console.print(
+                "[dim]No active engine to cancel.[/dim]"
+            )
 
     def _cmd_version(self, _: str) -> None:
         try:
@@ -2504,6 +2500,7 @@ class PhalanxChat:
             learning_memory=lm,
             session_logger=session_logger,
         )
+        self._engine_kill_switch = getattr(engine, "_kill_switch", None)
 
         # Build full context with conversation history
         ctx = engine._build_context()

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import subprocess
 import time
 from collections.abc import AsyncGenerator
@@ -39,7 +40,7 @@ async def _apply_stealth_modifications(
     delay = random.uniform(0.1, 0.5)
     await asyncio.sleep(delay)
 
-    name = tool_path.split("/")[-1].lower()
+    name = os.path.basename(tool_path).lower()
     new_args = list(args)
 
     # 1. Evasive rewriting for nmap
@@ -88,6 +89,7 @@ async def run_tool(
     Handles timeout gracefully by terminating the subprocess.
     """
     tool_path, args = await _apply_stealth_modifications(tool_path, args)
+    _validate_cmd_list([tool_path, *args])
     proc = await asyncio.create_subprocess_exec(
         tool_path,
         *args,
@@ -134,6 +136,7 @@ async def run_tool_complete(
     Kills the process and returns a partial result on timeout.
     """
     tool_path, args = await _apply_stealth_modifications(tool_path, args)
+    _validate_cmd_list([tool_path, *args])
     start = time.monotonic()
     proc = await asyncio.create_subprocess_exec(
         tool_path,

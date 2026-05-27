@@ -210,7 +210,8 @@ class OutputEngine:
             if self.console is not None:
                 self.console.print(table)
         else:
-            self._export_data(data)
+            for row in data:
+                self._raw_print("\t".join(str(row.get(col, "")) for col in columns))
 
     def print_json(self, data: Any) -> None:
         if RICH_AVAILABLE and self.format == OutputFormat.JSON:
@@ -339,7 +340,7 @@ class OutputEngine:
         elif self.format == OutputFormat.XML:
             self._export_xml(data)
         else:
-            self.print_table(data)
+            self._raw_print(str(data))
 
     def _export_html(self, data: list[dict]) -> None:
         if not data:
@@ -374,7 +375,11 @@ class OutputEngine:
 
     def export_to_file(self, data: Any, filepath: str) -> None:
         path = Path(filepath)
-        fmt = OutputFormat(path.suffix.lstrip("."))
+        suffix = path.suffix.lstrip(".")
+        try:
+            fmt = OutputFormat(suffix)
+        except ValueError:
+            fmt = OutputFormat.RAW
         if fmt == OutputFormat.JSON:
             path.write_text(json.dumps(data, indent=2))
         elif fmt == OutputFormat.YAML and YAML_AVAILABLE:

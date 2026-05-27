@@ -25,7 +25,7 @@ Only the latest minor release receives security patches. Users are encouraged to
 If you discover a security vulnerability in Siyarix, **do not** open a public GitHub issue. Instead:
 
 1. **GitHub Security Advisories** (Preferred)
-   - Navigate to: `https://github.com/mufthakherul/phalanx/security/advisories`
+   - Navigate to: `https://github.com/mufthakherul/siyarix/security/advisories`
    - Click "New advisory" and fill out the form
    - Provide sufficient detail for reproduction
 

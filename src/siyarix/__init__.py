@@ -7,7 +7,7 @@ cybersecurity operations.
 
 __version__ = "0.1.3"
 __author__ = "MD MUFTHAKHERUL ISLAM MIRAZ"
-__license__ = "MIT"
+__license__ = "AGPL-3.0-or-later"
 
 from .adversarial_tester import (AdversarialFinding, AdversarialSeverity,
                                  AdversarialTester)

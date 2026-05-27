@@ -73,7 +73,7 @@ We support the open-source ecosystem. If you fork Siyarix:
 
 Recommended forking attribution:
 ```
-This project is a fork of [Siyarix](https://github.com/mufthakherul/phalanx).
+This project is a fork of [Siyarix](https://github.com/mufthakherul/siyarix).
 It is not affiliated with or endorsed by the Siyarix project.
 ```
 
@@ -83,7 +83,7 @@ It is not affiliated with or endorsed by the Siyarix project.
 
 The only official Siyarix distribution channels are:
 
-- **GitHub**: `https://github.com/mufthakherul/phalanx`
+- **GitHub**: `https://github.com/mufthakherul/siyarix`
 - **PyPI**: `https://pypi.org/project/siyarix/`
 - **Docker**: Official images published by the Siyarix project
 

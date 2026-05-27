@@ -599,6 +599,47 @@ class ComplianceRunner:
             },
         }
 
+    def generate_report(self, result: ComplianceResult, fmt: str = "text") -> str:
+        if fmt == "json":
+            import json
+            return json.dumps({
+                "framework": result.framework.value,
+                "target": result.target,
+                "assessed_at": result.assessed_at,
+                "assessment_id": result.assessment_id,
+                "total_controls": len(result.controls),
+                "compliant": sum(1 for c in result.controls if c.compliant),
+                "non_compliant": sum(1 for c in result.controls if not c.compliant and c.applicable),
+                "controls": [
+                    {
+                        "id": c.control_id,
+                        "title": c.title,
+                        "compliant": c.compliant,
+                        "severity": c.severity,
+                        "evidence": c.evidence,
+                        "remediation": c.remediation,
+                    }
+                    for c in result.controls
+                ],
+            }, indent=2)
+        lines = [
+            f"Compliance Assessment — {result.framework.value.upper()}",
+            f"  Target:       {result.target or '(not specified)'}",
+            f"  Assessed At:  {result.assessed_at}",
+            f"  Assessment:   {result.assessment_id}",
+            "",
+            f"  Controls:     {len(result.controls)} total",
+            f"  Compliant:    {sum(1 for c in result.controls if c.compliant)}",
+            f"  Non-compliant: {sum(1 for c in result.controls if not c.compliant and c.applicable)}",
+            "",
+        ]
+        for c in result.controls[:20]:
+            status = "✓" if c.compliant else "✗"
+            lines.append(f"    [{status}] {c.control_id}: {c.title}")
+        if len(result.controls) > 20:
+            lines.append(f"    ... and {len(result.controls) - 20} more")
+        return "\n".join(lines)
+
 
 __all__ = [
     "ComplianceRunner",

@@ -153,10 +153,10 @@ class ConfigPanel:
             table.add_column("Value", style="white")
             table.add_row("Enabled", str(config.enabled))
             table.add_row("Evasion Level", config.evasion_level)
-            table.add_row("Jitter %", f"{config.jitter_pct}%")
-            table.add_row("User-Agent Rotation", str(config.user_agent_rotate))
-            table.add_row("Proxy Chain", str(config.proxy_chain))
-            table.add_row("Decoy Traffic", str(config.decoy_traffic))
+            table.add_row("Jitter %", f"{config.jitter_percentage}%")
+            table.add_row("User-Agent Rotation", str(config.rotate_user_agents))
+            table.add_row("Proxy Chain", str(config.use_proxy_chain))
+            table.add_row("Decoy Traffic", str(config.use_decoy_traffic))
             console.print(table)
 
             action = (
@@ -169,21 +169,15 @@ class ConfigPanel:
             if action == "b":
                 break
             if action == "on":
-                c = engine.get_config()
-                c.enabled = True
-                engine.set_config(c)
+                engine.enable()
                 console.print("[green]\u2713 Stealth enabled[/green]")
             elif action == "off":
-                c = engine.get_config()
-                c.enabled = False
-                engine.set_config(c)
+                engine.disable()
                 console.print("[green]\u2713 Stealth disabled[/green]")
             elif action == "l":
                 level = Prompt.ask(f"  Level ({', '.join(EVASION_LEVELS.keys())})")
                 if level in EVASION_LEVELS:
-                    c = engine.get_config()
-                    c.evasion_level = level
-                    engine.set_config(c)
+                    engine.set_level(level)
                     console.print(f"[green]\u2713 Level set to {level}[/green]")
                 else:
                     console.print(f"[red]Invalid. Options: {', '.join(EVASION_LEVELS.keys())}[/red]")
@@ -221,7 +215,7 @@ class ConfigPanel:
     # ------------------------------------------------------------------
 
     def _section_theme(self) -> None:
-        from . import available_themes, resolve_theme, print_theme_preview
+        from ..branding import available_themes, resolve_theme, print_theme_preview
 
         themes = available_themes()
         table = Table(title="Available Themes", header_style="bold cyan")
@@ -255,19 +249,18 @@ class ConfigPanel:
         table = Table(title="Performance Settings", header_style="bold cyan")
         table.add_column("Setting", style="cyan")
         table.add_column("Value", style="white")
-        table.add_row("Parallelism", str(opt.config.max_parallel_tasks))
-        table.add_row("Cache TTL (s)", str(opt.config.cache_ttl_seconds))
+        table.add_row("Concurrent Agents", str(opt.config.max_concurrent_agents))
+        table.add_row("Memory/Agent (MB)", str(opt.config.memory_limit_per_agent_mb))
         table.add_row("Log Level", opt.config.log_level)
-        table.add_row("Metrics Enabled", str(opt.config.enable_metrics))
+        table.add_row("Caching", str(opt.config.enable_caching))
         console.print(table)
 
         action = Prompt.ask("[cyan][T]une[/cyan] [dim][B]ack[/dim]").strip().lower()
         if action == "t":
             try:
-                from ..performance import PerformanceConfig
-                parallel = int(Prompt.ask("  Max parallel tasks", default=str(opt.config.max_parallel_tasks)))
-                cache = int(Prompt.ask("  Cache TTL (seconds)", default=str(opt.config.cache_ttl_seconds)))
-                opt.configure(PerformanceConfig(max_parallel_tasks=parallel, cache_ttl_seconds=cache))
+                parallel = int(Prompt.ask("  Max concurrent agents", default=str(opt.config.max_concurrent_agents)))
+                memory = int(Prompt.ask("  Memory per agent (MB)", default=str(opt.config.memory_limit_per_agent_mb)))
+                opt.configure(max_concurrent_agents=parallel, memory_limit_per_agent_mb=memory)
                 console.print("[green]\u2713 Performance tuned[/green]")
             except ValueError:
                 console.print("[red]Invalid number[/red]")
@@ -306,17 +299,17 @@ class ConfigPanel:
         table = Table(title="Learning Profile", header_style="bold cyan")
         table.add_column("Attribute", style="cyan")
         table.add_column("Value", style="white")
-        table.add_row("Experience Level", ul.profile.experience_level.value if ul.profile else "unknown")
-        table.add_row("Sessions Completed", str(ul.profile.sessions_completed if ul.profile else 0))
-        table.add_row("Patterns Learned", str(len(ul.patterns)))
+        table.add_row("Experience Level", ul.profile.experience if ul.profile else "unknown")
+        table.add_row("Sessions Completed", str(ul.profile.session_count if ul.profile else 0))
+        table.add_row("Unique Tools", str(ul.profile.unique_tools if ul.profile else 0))
         console.print(table)
 
         action = Prompt.ask("[cyan][S]et level[/cyan] [dim][B]ack[/dim]").strip().lower()
         if action == "s":
-            levels = [e.value for e in ExperienceLevel]
+            levels = ExperienceLevel.all()
             level = Prompt.ask(f"  Level ({', '.join(levels)})")
             if level in levels:
-                ul.set_level(ExperienceLevel(level))
+                ul.experience = level
                 console.print(f"[green]\u2713 Level set to {level}[/green]")
             else:
                 console.print(f"[red]Invalid. Options: {', '.join(levels)}[/red]")
@@ -335,7 +328,7 @@ class ConfigPanel:
         table.add_column("Provider", style="cyan")
         table.add_column("Status", style="white")
         for provider in ["openai", "gemini", "ollama", "anthropic", "cloud", "groq", "together"]:
-            exists = any(c.name == provider for c in creds)
+            exists = any(c.get("name") == provider for c in creds)
             table.add_row(provider, "[green]\u2713 configured[/green]" if exists else "[dim]not set[/dim]")
         console.print(table)
 
@@ -343,5 +336,5 @@ class ConfigPanel:
         if action == "s":
             provider = Prompt.ask("  Provider name")
             key = Prompt.ask("  API key")
-            store.store_credential(provider, key)
+            store.store(name=provider, value=key)
             console.print(f"[green]\u2713 Key stored for {provider}[/green]")

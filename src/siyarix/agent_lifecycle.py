@@ -27,7 +27,7 @@ class AgentInstance:
 
 
 class AgentLifecycle:
-    def __init__(self):
+    def __init__(self) -> None:
         self._agents: dict[str, AgentInstance] = {}
 
     def spawn(self, name: str, task: str = "") -> AgentInstance:

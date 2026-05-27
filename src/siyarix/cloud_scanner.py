@@ -899,5 +899,53 @@ class CloudScanner:
             "total_findings": sum(len(r.findings) for r in self._scan_history),
         }
 
+    def generate_report(self, result: CloudScanResult, fmt: str = "text") -> str:
+        """Generate a formatted report from a scan result."""
+        if fmt == "json":
+            import json
+            return json.dumps({
+                "scan_id": result.scan_id,
+                "provider": result.provider.value,
+                "target": result.target,
+                "scanned_at": result.scanned_at,
+                "summary": result.summary,
+                "findings": result.findings,
+                "error": result.error,
+            }, indent=2)
+        lines = [
+            f"╒═══ Cloud Scan Report — {result.provider.value.upper()} ═══╕",
+            f"  Target:       {result.target or '(not specified)'}",
+            f"  Scan ID:      {result.scan_id}",
+            f"  Timestamp:    {result.scanned_at}",
+            f"  Duration:     {result.scan_duration_seconds:.2f}s",
+            "",
+            f"  Summary:      {result.summary.get('severity_counts', {})}",
+            f"  Total Checks: {result.summary.get('total_checks', 0)}",
+            "",
+        ]
+        if result.error:
+            lines.append(f"  ERROR: {result.error}")
+        if result.findings:
+            lines.append("  Findings:")
+            for f in result.findings[:20]:
+                sev = f.get("severity", "?").upper()
+                status = f.get("status", "?")
+                title = f.get("title", f.get("check_name", "?"))
+                lines.append(f"    [{sev}] {title} ({status})")
+            if len(result.findings) > 20:
+                lines.append(f"    ... and {len(result.findings) - 20} more")
+        lines.append("")
+        return "\n".join(lines)
+
+    async def scan_cloud(self, provider: CloudProvider, target: str = "") -> CloudScanResult:
+        """Alias for scan_by_provider — compatibility wrapper."""
+        return await self.scan_by_provider(provider, target)
+
+    async def scan(self, provider: CloudProvider | str, target: str = "") -> CloudScanResult:
+        """Universal scan entry point. Accepts provider as string or enum."""
+        if isinstance(provider, str):
+            provider = CloudProvider(provider.lower())
+        return await self.scan_by_provider(provider, target)
+
 
 __all__ = ["CloudScanner", "CloudScanResult", "CloudProvider"]

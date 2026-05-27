@@ -190,6 +190,18 @@ class StealthEngine:
             for p in selected
         ]
 
+    def get_config(self) -> StealthConfig:
+        return self._config
+
+    def set_config(self, **kwargs: Any) -> None:
+        for key, value in kwargs.items():
+            if hasattr(self._config, key):
+                setattr(self._config, key, value)
+        self._config.enabled = self._config.evasion_level != "none"
+
+    def set_level(self, level: str) -> None:
+        self._config.apply_level(level)
+
     def summary(self) -> dict[str, Any]:
         return {
             "enabled": self._config.enabled,

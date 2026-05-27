@@ -108,7 +108,7 @@ class TaskQueueBackend:
         if worker:
             worker["last_heartbeat"] = datetime.now().isoformat()
 
-    def _get_redis_client(self):
+    def _get_redis_client(self) -> Any:
         if not hasattr(self, "_redis_client"):
             import redis.asyncio as redis_async  # pyright: ignore[reportMissingImports]
 
@@ -222,6 +222,22 @@ class DistributedOrchestrator:
     @property
     def backend(self) -> TaskQueueBackend:
         return self._backend
+
+    def summary(self) -> dict[str, Any]:
+        """Return a summary of orchestrator state."""
+        stats = self._backend.stats()
+        return {
+            "worker_id": self._worker_id,
+            "backend_type": self._backend.backend_type,
+            "registered_handlers": list(self._task_handlers.keys()),
+            "total_workers": stats.get("workers_registered", 0),
+            "total_cores": 0,
+            "total_ram_gb": 0,
+            "pending_tasks": stats.get("pending", 0),
+            "running_tasks": stats.get("running", 0),
+            "completed_tasks": stats.get("completed", 0),
+            "failed_tasks": stats.get("failed", 0),
+        }
 
 
 __all__ = [

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from typing import Any
 import platform
 import re
 import shutil
@@ -986,7 +987,7 @@ class ToolRegistry:
                     "description": f"Auto-detected tool: {tool_name}",
                 }
 
-        def _sort_key(item):
+        def _sort_key(item: tuple[str, dict[str, Any]]) -> Any:
             meta = item[1]
             return (meta.get("category", "z"), item[0])
         merged = dict(sorted(merged.items(), key=_sort_key))

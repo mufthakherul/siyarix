@@ -218,10 +218,7 @@ class OpenAIModel:
 
         system_prompt = _build_system_prompt(context)
 
-        kwargs = {"api_key": self._api_key}
-        if self._base_url:
-            kwargs["base_url"] = self._base_url
-        client = openai.AsyncOpenAI(**kwargs)
+        client = openai.AsyncOpenAI(api_key=self._api_key, base_url=self._base_url) if self._base_url else openai.AsyncOpenAI(api_key=self._api_key)
         try:
             response = await client.chat.completions.create(
                 model=self._model,

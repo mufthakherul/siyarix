@@ -183,12 +183,7 @@ def _run_batch_lines(lines: list[str]) -> None:
             continue
         console.print(f"[bold]> {line}[/bold]")
         if line.startswith("/"):
-            cmd, _, rest = line.partition(" ")
-            handler = chat._commands.get(cmd)
-            if handler:
-                asyncio.run(handler(rest.strip()))
-            else:
-                console.print(f"[red]Unknown command: {cmd}[/red]")
+            asyncio.run(chat._handle_slash(line))
         else:
             asyncio.run(chat._handle_natural_language(line))
 
@@ -573,7 +568,7 @@ def cloud_scan(
     from .cloud_scanner import CloudProvider, CloudScanner
     provider_enum = getattr(CloudProvider, provider.upper(), CloudProvider.AWS)
     scanner = CloudScanner()
-    result = scanner.scan_cloud(provider_enum, target)
+    result = asyncio.run(scanner.scan_cloud(provider_enum, target))
     console.print(scanner.generate_report(result, fmt="text"))
 
 @k8s_app.command("scan")
@@ -583,7 +578,7 @@ def k8s_scan(
     """Scan a Kubernetes cluster for security issues."""
     from .cloud_scanner import CloudScanner
     scanner = CloudScanner()
-    result = scanner.scan_kubernetes(namespace)
+    result = asyncio.run(scanner.scan_kubernetes(namespace))
     console.print(scanner.generate_report(result, fmt="text"))
 
 @docker_app.command("scan")
@@ -593,7 +588,7 @@ def docker_scan(
     """Scan a Docker container image for vulnerabilities."""
     from .cloud_scanner import CloudScanner
     scanner = CloudScanner()
-    result = scanner.scan_docker(image)
+    result = asyncio.run(scanner.scan_docker(image))
     console.print(scanner.generate_report(result, fmt="text"))
 
 @iac_app.command("scan")

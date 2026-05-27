@@ -138,3 +138,9 @@ IMPLEMENTATION_ROADMAP.md
 docs/DEEP_TECHNICAL_AUDIT.md
 docs/IMPLEMENTATION_ROADMAP.md
 docs/modern_distribution.md
+
+# Generated files
+coverage.xml
+pip-audit.json
+tests/.pytest_cache/
+tests/__pycache__/

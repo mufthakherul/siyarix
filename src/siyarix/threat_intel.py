@@ -136,6 +136,26 @@ class MITREAttackDB:
     }
 
     @classmethod
+    def search(cls, tactic: str = "") -> list[dict[str, str]]:
+        q = tactic.lower()
+        results: list[dict[str, str]] = []
+        for attack_id, (technique_name, tactic_name) in cls.TECHNIQUE_MAP.items():
+            if not q or q in tactic_name.lower() or q in technique_name.lower():
+                results.append({
+                    "id": attack_id,
+                    "name": technique_name,
+                    "tactic": tactic_name,
+                })
+        return results
+
+    @classmethod
+    def list_techniques(cls) -> list[dict[str, str]]:
+        return [
+            {"id": attack_id, "name": technique_name, "tactic": tactic_name}
+            for attack_id, (technique_name, tactic_name) in cls.TECHNIQUE_MAP.items()
+        ]
+
+    @classmethod
     def _extract_cve_ids(cls, text: str) -> list[str]:
         return re.findall(r"CVE-\d{4}-\d{4,}", text, re.IGNORECASE)
 
@@ -293,6 +313,22 @@ class ThreatIntelFeed:
                     count += 1
         logger.info("Ingested %d MISP indicators", count)
         return count
+
+    def search(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
+        q = query.lower()
+        results: list[dict[str, Any]] = []
+        for indicator in self._indicators.values():
+            if q in indicator.indicator.lower() or q in indicator.description.lower():
+                results.append(indicator.to_dict())
+                if len(results) >= limit:
+                    break
+        return results
+
+    def list_feeds(self) -> list[dict[str, Any]]:
+        return [
+            {"name": source, "status": "active", "indicators": len([i for i in self._indicators.values() if i.source == source])}
+            for source in sorted({i.source for i in self._indicators.values()})
+        ] or [{"name": "default", "status": "empty", "indicators": 0}]
 
     def find_matches(self, text: str) -> list[ThreatIntel]:
         """Find threat indicators that match the given text."""

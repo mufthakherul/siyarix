@@ -449,6 +449,9 @@ class AuditLogger:
             "retention_days": self._RETENTION_DAYS,
         }
 
+    def stats(self) -> dict[str, Any]:
+        return self.get_statistics()
+
     def cleanup_old_events(self) -> None:
         """Remove events older than retention period"""
         cutoff = datetime.now() - timedelta(days=self._RETENTION_DAYS)

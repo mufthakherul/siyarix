@@ -377,6 +377,25 @@ class KnowledgeGraph:
 
     # ── Persistence ──────────────────────────────────────────────────────
 
+    def search(self, query: str, limit: int = 10) -> list[str]:
+        q = query.lower()
+        results: list[str] = []
+        for node in self._nodes.values():
+            if q in node.label.lower():
+                results.append(f"[{node.node_type.value}] {node.label} ({node.node_id})")
+                if len(results) >= limit:
+                    break
+        if len(results) < limit:
+            for node in self._nodes.values():
+                for k, v in node.properties.items():
+                    if q in str(v).lower() and f"[{node.node_type.value}] {node.label} ({node.node_id})" not in results:
+                        results.append(f"[{node.node_type.value}] {node.label} ({node.node_id})")
+                        if len(results) >= limit:
+                            break
+                if len(results) >= limit:
+                    break
+        return results
+
     def to_json(self) -> str:
         """Serialize the graph to JSON."""
         data = {

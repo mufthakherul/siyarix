@@ -60,8 +60,8 @@ stability, security, and architectural improvements.
 
 1. **Type Annotations (Low)**: 106 mypy warnings for pre-existing missing type annotations.
    These do not affect runtime correctness but will be addressed in a future release.
-2. **Test Coverage (Medium)**: No formal coverage threshold enforced. Current tests cover
-   core paths but deeper branch coverage is needed for production confidence.
+2. **Test Coverage (Medium)**: Coverage threshold set at 50% baseline (current: 51%).
+   Deeper branch coverage needed for production confidence.
 3. **AgentLifecycle Stub (Low)**: `agent_lifecycle.py` is a 68-line stub not yet connected
    to process spawning. Non-functional for multi-agent lifecycle management.
 4. **Schema Versions**: Some internal format versions (`1.2.0` in audit_log, `2.1.0` in SARIF
@@ -86,7 +86,7 @@ stability, security, and architectural improvements.
 Key gaps for production readiness:
 - Agent lifecycle management is incomplete
 - Type annotation coverage needs improvement
-- Formal coverage threshold not enforced
+- Coverage threshold at 50% — needs 80%+ for production
 - Multi-agent orchestration needs hardening
 
 Recommend targeting **v1.0.0** after addressing the above gaps.

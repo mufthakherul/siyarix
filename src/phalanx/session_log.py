@@ -134,7 +134,8 @@ class SessionLogger:
                         "safety_events": len(data.get("safety_events", [])),
                     }
                 )
-            except Exception:
+            except Exception as exc:
+                logger.warning("Failed to parse session log %s: %s", path, exc)
                 continue
         return logs
 

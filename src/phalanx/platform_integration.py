@@ -95,7 +95,7 @@ class PlatformIntegrationService:
         logger.info("Connected to bounty platform: %s", platform)
         return conn
 
-    def submit_finding(self, platform: str, program: str, finding_data: dict[str, Any]) -> SubmissionResult:
+    def submit_finding(self, platform: str, program: str, _finding_data: dict[str, Any] | None = None) -> SubmissionResult:
         conn = self._bounty_connections.get(platform)
         if not conn or not conn.connected:
             return SubmissionResult(platform=platform, error=f"Not connected to {platform}")

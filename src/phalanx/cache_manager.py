@@ -131,8 +131,8 @@ class CacheManager:
         self._entries.pop(key, None)
         try:
             self._data_path(key).unlink()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Failed to delete cache key %s: %s", key, exc)
 
     def get_or_compute(self, key: str, domain: str, compute_fn: Callable[[], str]) -> str:
         cached = self.get(key, domain)
@@ -149,8 +149,8 @@ class CacheManager:
             for f in self._dir.glob("*.cache"):
                 try:
                     f.unlink()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("Failed to evict %s: %s", f.name, exc)
             self._save_index()
             return count
         keys = [k for k, v in self._entries.items() if v.domain == domain]

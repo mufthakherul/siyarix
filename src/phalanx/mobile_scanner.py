@@ -123,8 +123,8 @@ class MobileScanner:
                         try:
                             content = zf.read(fname).decode("utf-8", errors="replace")
                             self._scan_for_secrets(fname, content, findings)
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            logger.debug("Failed to scan %s: %s", fname, exc)
 
                 # Check for common insecure patterns in smali code
                 smali_files = [n for n in names if n.endswith(".smali")]
@@ -133,8 +133,8 @@ class MobileScanner:
                         try:
                             content = zf.read(sf).decode("utf-8", errors="replace")
                             self._scan_for_secrets(sf, content, findings)
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            logger.debug("Failed to scan smali %s: %s", sf, exc)
         except zipfile.BadZipFile:
             findings.append(MobileFinding(
                 severity="high", category="integrity",

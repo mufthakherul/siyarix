@@ -220,8 +220,8 @@ class OnboardingWizard:
 
             config = SettingsStore()
             config.set("color_theme", theme_choice)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to persist theme: %s", exc)
         self.console.print(
             f"\n[green]✓ Selected theme:[/green] [bold cyan]{theme_choice}[/bold cyan] applied successfully."
         )

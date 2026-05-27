@@ -171,7 +171,7 @@ class SmartAutocomplete(Completer):
         }
 
     def get_completions(
-        self, document: Any, complete_event: Any = None
+        self, document: Any, _complete_event: Any = None
     ) -> Iterable[Completion]:
         """Generate autocompletions dynamically based on cursor position."""
         text = document.text_before_cursor

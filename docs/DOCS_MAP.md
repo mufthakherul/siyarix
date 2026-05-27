@@ -31,6 +31,17 @@ Start here:
 - `user/security-workflows.md` — common security workflows
 - `user/ai-workflows.md` — AI-powered operations
 - `user/reporting.md` — output formats, reports, audit logs
+- `user/cloud-scanning.md` — AWS, Azure, GCP, K8s, Docker scanning
+- `user/compliance-frameworks.md` — SOC2, ISO27001, NIST, GDPR, HIPAA, PCI-DSS
+- `user/threat-intelligence.md` — MITRE ATT&CK, MISP, STIX feeds
+- `user/playbooks.md` — reusable incident response workflows
+- `user/workflow-files.md` — YAML/JSON DAG workflow reference
+- `user/scheduled-scans.md` — cron-based recurring scans
+- `user/deception-and-canary-tokens.md` — honeypot detection, canary tokens
+- `user/importing-findings.md` — import Nessus, Burp, Metasploit results
+- `user/iac-scanning.md` — Terraform, CloudFormation, Helm, Dockerfile scanning
+- `user/mobile-scanning.md` — Android APK security analysis
+- `user/iot-scanning.md` — firmware analysis, serial port scanning
 
 ### Developers
 
@@ -48,6 +59,10 @@ Start here:
 - `architecture/execution-engine.md` — plan execution
 - `architecture/memory-and-state.md` — persistence and caching
 - `architecture/security-model.md` — security architecture
+- `architecture/multi-agent-framework.md` — AgentTeam, CoordinatorAgent, message protocol
+- `architecture/experience-intelligence.md` — context tracking, skill profiling, predictions
+- `architecture/interaction-modes.md` — 9 interaction modes reference
+- `architecture/intent-routing.md` — 4-stage semantic routing pipeline
 
 ### AI engineers
 
@@ -56,6 +71,8 @@ Start here:
 - `ai/agent-reasoning.md` — planning and reasoning pipeline
 - `ai/tool-execution.md` — tool lifecycle and parsing
 - `ai/safety-and-hallucination.md` — safety constraints
+- `ai/multi-model-ensemble.md` — parallel LLM voting strategies
+- `ai/mcp-integration.md` — Model Context Protocol client
 
 ### Security researchers
 
@@ -64,6 +81,7 @@ Start here:
 - `security/threat-model.md` — security analysis
 - `security/vulnerability-reporting.md` — how to report issues
 - `security/operational-security.md` — OPSEC features
+- `security/hsm-integration.md` — YubiKey, PKCS#11, TPM support
 
 ### Legal & compliance
 
@@ -72,6 +90,10 @@ Start here:
 - `legal/disclaimer.md` — warranty and liability
 - `legal/trademark-policy.md` — trademark usage
 - `legal/responsible-ai-usage.md` — AI governance
+
+### DevOps / deployment
+
+- `deployment/distributed-mode.md` — Redis/RQ multi-node task distribution
 
 ## Documentation tree
 
@@ -89,7 +111,18 @@ docs/
 │   ├── interactive-chat.md      # REPL, slash commands, multi-turn chat
 │   ├── security-workflows.md    # Recon, vuln assessment, exploitation, IR
 │   ├── ai-workflows.md          # AI planning, multi-agent, failover
-│   └── reporting.md             # Report formats, audit logging, metrics
+│   ├── reporting.md             # Report formats, audit logging, metrics
+│   ├── cloud-scanning.md        # AWS, Azure, GCP, K8s, Docker scanning
+│   ├── compliance-frameworks.md # SOC2, ISO27001, NIST, GDPR, HIPAA, PCI-DSS
+│   ├── threat-intelligence.md   # MITRE ATT&CK, MISP, STIX feed ingestion
+│   ├── playbooks.md             # Reusable incident response workflows
+│   ├── workflow-files.md        # YAML/JSON DAG workflow format reference
+│   ├── scheduled-scans.md       # Cron-based recurring scan scheduler
+│   ├── deception-and-canary-tokens.md  # Honeypot detection, canary tokens
+│   ├── importing-findings.md    # Nessus, Burp, Metasploit, STIX import
+│   ├── iac-scanning.md          # Terraform, CloudFormation, Helm, Dockerfile
+│   ├── mobile-scanning.md       # Android APK static analysis
+│   └── iot-scanning.md          # Firmware analysis, serial port scanning
 │
 ├── developer/
 │   ├── codebase-overview.md     # Module structure and key subsystems
@@ -104,21 +137,31 @@ docs/
 │   ├── provider-abstraction.md  # Provider interface, registry, failover
 │   ├── execution-engine.md      # Step execution, dependency resolution
 │   ├── memory-and-state.md      # Knowledge graph, persistence, caching
-│   └── security-model.md        # Permission gate, masking, audit
+│   ├── security-model.md        # Permission gate, masking, audit
+│   ├── multi-agent-framework.md # AgentTeam, CoordinatorAgent, roles
+│   ├── experience-intelligence.md  # XI subsystem — context, skills, predictions
+│   ├── interaction-modes.md     # 9 interaction modes reference
+│   └── intent-routing.md        # 4-stage semantic routing pipeline
 │
 ├── ai/
 │   ├── multi-provider-routing.md  # 10 providers, preference chains, CB
 │   ├── prompt-architecture.md     # System context, safety constraints
 │   ├── agent-reasoning.md         # Goal decomposition, multi-agent
 │   ├── tool-execution.md          # Tool discovery, parsing, errors
-│   └── safety-and-hallucination.md  # Response sensor, danger analysis
+│   ├── safety-and-hallucination.md  # Response sensor, danger analysis
+│   ├── multi-model-ensemble.md    # Parallel LLM voting strategies
+│   └── mcp-integration.md         # Model Context Protocol client
 │
 ├── security/
 │   ├── ethical-hacking-policy.md   # Authorized use, scope, compliance
 │   ├── abuse-prevention.md         # Danger analysis, kill switch, OPSEC
 │   ├── threat-model.md             # Assets, boundaries, mitigations
 │   ├── vulnerability-reporting.md  # Reporting process, disclosure
-│   └── operational-security.md     # TOR, proxy rotation, stealth
+│   ├── operational-security.md     # TOR, proxy rotation, stealth
+│   └── hsm-integration.md          # YubiKey, PKCS#11, TPM support
+│
+├── deployment/
+│   └── distributed-mode.md         # Redis/RQ multi-node task distribution
 │
 └── legal/
     ├── agpl-license-guide.md       # AGPL-3.0-or-later explained
@@ -138,6 +181,7 @@ docs/
 | `architecture/` | System design, data flow, security model | Architects |
 | `ai/` | AI provider system, agent reasoning | AI engineers |
 | `security/` | Ethics, safety, threat model, OPSEC | Security team |
+| `deployment/` | Distributed deployment, multi-node, Redis/RQ | DevOps |
 | `legal/` | Licensing, trademark, governance | Legal/compliance |
 
 ## Scalability plan
@@ -148,13 +192,12 @@ The current structure supports expansion into these additional areas as the proj
 docs/
 ├── plugins/       → When plugin system matures (sandboxing, lifecycle, SDK)
 ├── api/           → If REST/gRPC API is added (auth, endpoints, SDK)
-├── deployment/    → Docker, cloud, enterprise deployment guides
 ├── operations/    → Monitoring, logging, performance tuning
 ├── governance/    → Additional governance beyond legal
 └── contributing/  → Expanded contributor guides
 ```
 
-Each new section can be added without breaking the existing structure. Internal cross-references use relative paths and will continue to work.
+The `deployment/` section has been started with `distributed-mode.md`. Each new section can be added without breaking the existing structure.
 
 ## Conventions
 

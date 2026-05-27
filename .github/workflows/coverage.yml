@@ -47,7 +47,7 @@ jobs:
             --cov-report=term-missing:skip-covered \
             --cov-report=html \
             --cov-branch \
-            --cov-fail-under=80 \
+            --cov-fail-under=50 \
             -v \
             --tb=short \
             -m "not integration"

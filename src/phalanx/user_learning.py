@@ -675,7 +675,7 @@ class UserLearning:
             self._profile.created_at = datetime.now(timezone.utc).isoformat()
             return
         try:
-            with open(str(self._profile_path)) as f:
+            with open(str(self._profile_path), encoding="utf-8") as f:
                 data = json.load(f)
             self._profile = UserProfile.from_dict(data)
         except Exception as exc:
@@ -684,7 +684,7 @@ class UserLearning:
     def _save(self) -> None:
         self._profile.updated_at = datetime.now(timezone.utc).isoformat()
         try:
-            with open(str(self._profile_path), "w") as f:
+            with open(str(self._profile_path), "w", encoding="utf-8") as f:
                 json.dump(self._profile.to_dict(), f, indent=2, default=str)
         except Exception as exc:
             logger.warning("Failed to save user profile: %s", exc)

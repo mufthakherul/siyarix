@@ -291,7 +291,7 @@ class LearningMemory:
         if not self._patterns_path.exists():
             return
         try:
-            with open(str(self._patterns_path)) as f:
+            with open(str(self._patterns_path), encoding="utf-8") as f:
                 data = json.load(f)
             raw = data.get("patterns", [])
             self._patterns = [
@@ -309,7 +309,7 @@ class LearningMemory:
             combined = [p.to_dict() for p in self._patterns] + [
                 p.to_dict() for p in self._anti_patterns
             ]
-            with open(str(self._patterns_path), "w") as f:
+            with open(str(self._patterns_path), "w", encoding="utf-8") as f:
                 json.dump({"patterns": combined}, f, indent=2, default=str)
         except Exception as exc:
             logger.warning("Failed to save learning patterns: %s", exc)
@@ -880,7 +880,7 @@ class LearningMemory:
         if filepath:
             path = Path(filepath)
             path.parent.mkdir(parents=True, exist_ok=True)
-            with open(str(path), "w") as f:
+            with open(str(path), "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, default=str)
         return data
 
@@ -889,7 +889,7 @@ class LearningMemory:
             path = Path(source)
             if not path.exists():
                 return 0
-            with open(str(path)) as f:
+            with open(str(path), encoding="utf-8") as f:
                 data = json.load(f)
         else:
             data = source

@@ -241,7 +241,7 @@ def print_banner(
         _ver = _pkg_version("phalanx")
     except Exception as exc:
         logger.debug("Failed to resolve package version: %s", exc)
-        _ver = "2.0.0"
+        _ver = "0.1.3-beta"
 
     import platform as _platform
 

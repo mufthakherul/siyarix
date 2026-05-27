@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import random
 
 from .steps import _RETRY_BACKOFF_FACTOR, _RETRY_BASE_DELAY, _RETRY_MAX_DELAY

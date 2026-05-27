@@ -7,6 +7,7 @@ and execute a safe first scan verification.
 
 from __future__ import annotations
 
+import logging
 import os
 import time
 
@@ -18,6 +19,8 @@ from rich.text import Text
 
 from phalanx.output import THEMES, OutputTheme
 from phalanx.tool_registry import ToolRegistry
+
+logger = logging.getLogger(__name__)
 
 
 class OnboardingWizard:

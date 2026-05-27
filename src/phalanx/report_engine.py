@@ -429,7 +429,7 @@ class ReportEngine:
             "version": "2.1.0",
             "runs": [
                 {
-                    "tool": {"driver": {"name": "Phalanx", "version": "2.0.0"}},
+                    "tool": {"driver": {"name": "Phalanx", "version": "0.1.3-beta"}},
                     "results": results,
                     "properties": {
                         "report_id": report.report_id,

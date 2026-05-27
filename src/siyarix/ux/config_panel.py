@@ -42,6 +42,7 @@ class ConfigPanel:
             ("7.  Cache", "View and clear caches"),
             ("8.  Learning Profile", "View/set experience level"),
             ("9.  API Keys", "Manage provider API credentials"),
+            ("10. Discovered Tools", "List discovered security tools"),
         ]
 
         body = "\n".join(
@@ -71,6 +72,7 @@ class ConfigPanel:
             "7": self._section_cache,
             "8": self._section_learning,
             "9": self._section_keys,
+            "10": self._section_tools,
         }
         handler = dispatch_map.get(choice)
         if handler:
@@ -338,3 +340,29 @@ class ConfigPanel:
             key = Prompt.ask("  API key")
             store.store(name=provider, value=key)
             console.print(f"[green]\u2713 Key stored for {provider}[/green]")
+
+    # ------------------------------------------------------------------
+    # Section: Discovered Tools
+    # ------------------------------------------------------------------
+
+    def _section_tools(self) -> None:
+        from ..tool_registry import ToolRegistry
+
+        registry = ToolRegistry()
+        tools = registry.discover(fast=True)
+
+        table = Table(title="Discovered Security Tools", header_style="bold cyan")
+        table.add_column("Name", style="cyan")
+        table.add_column("Version", style="white")
+        table.add_column("Description", style="dim white")
+
+        sorted_tools = sorted(tools, key=lambda t: (t.category if hasattr(t, "category") else "", t.name))
+        for tool in sorted_tools[:50]:
+            name = getattr(tool, "name", str(tool))
+            ver = getattr(tool, "version", getattr(tool, "ver", "")) or "—"
+            desc = getattr(tool, "description", "") or ""
+            table.add_row(str(name), str(ver), str(desc)[:60])
+
+        console.print(table)
+        console.print("[dim]Showing up to 50 tools — run [cyan]/tools[/cyan] for full list[/dim]")
+        Prompt.ask("[dim]Press Enter to return[/dim]", default="")

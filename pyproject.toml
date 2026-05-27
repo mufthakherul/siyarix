@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-only
 [project]
 name = "siyarix"
 version = "0.1.3"
@@ -7,13 +8,13 @@ readme = "README.md"
 authors = [ { name = "MD MUFTHAKHERUL ISLAM MIRAZ", email = "130831166+mufthakherul@users.noreply.github.com" } ]
 requires-python = ">=3.11"
 urls = { "Homepage" = "https://github.com/mufthakherul/siyarix", "Repository" = "https://github.com/mufthakherul/siyarix.git", "Documentation" = "https://github.com/mufthakherul/siyarix", "Changelog" = "https://github.com/mufthakherul/siyarix/releases" }
-license = { text = "MIT" }
+license = { text = "AGPL-3.0-only" }
 keywords = ["cybersecurity", "agent", "siyarix", "ai", "pentest", "automation", "nmap", "scanner", "autonomous", "orchestration"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Information Technology",
   "Intended Audience :: System Administrators",
-  "License :: OSI Approved :: MIT License",
+  "License :: OSI Approved :: GNU Affero General Public License v3",
   "Natural Language :: English",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",

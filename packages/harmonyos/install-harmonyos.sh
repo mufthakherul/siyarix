@@ -12,14 +12,14 @@ echo "==> Installing Siyarix v${SIYARIX_VERSION} for HarmonyOS"
 # Check for ohpm
 if command -v ohpm &>/dev/null; then
   echo "==> Installing via ohpm..."
-  ohpm install @mufthakherul/siyarix-agent@"^${SIYARIX_VERSION}"
+  ohpm install @mufthakherul/siyarix@"^${SIYARIX_VERSION}"
   echo "==> ohpm install complete"
 fi
 
 # Check for hpm (legacy HarmonyOS package manager)
 if command -v hpm &>/dev/null; then
   echo "==> Installing via hpm..."
-  hpm install -g @mufthakherul/siyarix-agent
+  hpm install -g @mufthakherul/siyarix
   echo "==> hpm install complete"
 fi
 

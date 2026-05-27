@@ -85,7 +85,7 @@ function Install-ViaChoco {
 function Install-ViaNpm {
   Write-Info "Installing via npm..."
   try {
-    npm install -g @mufthakherul/siyarix-agent
+    npm install -g @mufthakherul/siyarix
     return $true
   } catch {
     return $false

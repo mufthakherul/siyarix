@@ -50,8 +50,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - run: node --check bin/siyarix-agent.js
-      - run: node --check bin/siyarix-agent-install.js
+      - run: node --check bin/siyarix.js
+      - run: node --check bin/siyarix-install.js
       - run: node --check lib/installer.js
       - run: npm pack --dry-run
 

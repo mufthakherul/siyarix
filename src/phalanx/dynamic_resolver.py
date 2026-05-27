@@ -1,8 +1,8 @@
 """Dynamic tool/command resolver with safety validation.
 
 Resolves autonomous task suggestions and shell commands to safe, executable
-commands. Enforces an allowlist and blocks dangerous patterns to prevent
-command injection or destructive operations.
+commands. Enforces an allowlist and blocks dangerous/injected commands via
+``DangerAnalyzer`` (from *security_hardening*) before execution.
 
 This module acts as the security gate between the task planner and the
 actual subprocess executor.
@@ -15,10 +15,15 @@ import re
 import shutil
 from dataclasses import dataclass
 
+from phalanx.security_hardening import (
+    _INJECTION_PATTERNS,
+    danger_analyzer,
+)
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Safety allowlists and blocklists
+# Safety allowlists
 # ---------------------------------------------------------------------------
 
 # Commands that are ALWAYS safe to suggest (even outside the security tool registry)
@@ -128,54 +133,6 @@ _SAFE_COMMANDS: frozenset[str] = frozenset(
     }
 )
 
-# Patterns that are ALWAYS blocked — prevent destructive operations
-_BLOCKED_PATTERNS: list[re.Pattern[str]] = [
-    # ── Destructive system commands ──
-    re.compile(r"\brm\s+-[a-zA-Z]*r[a-zA-Z]*f", re.IGNORECASE),  # rm -rf
-    re.compile(r"\brm\s+-[a-zA-Z]*f[a-zA-Z]*r", re.IGNORECASE),  # rm -fr
-    re.compile(r"\bmkfs\b", re.IGNORECASE),  # format disk
-    re.compile(r"\bdd\s+if=", re.IGNORECASE),  # dd
-    re.compile(r"\bformat\s+[a-zA-Z]:", re.IGNORECASE),  # Windows format
-    re.compile(r">\s*/dev/sd[a-z]", re.IGNORECASE),  # write to disk
-    re.compile(r"\bshutdown\b", re.IGNORECASE),
-    re.compile(r"\breboot\b", re.IGNORECASE),
-    re.compile(r"\bhalt\b", re.IGNORECASE),
-    re.compile(r"\binit\s+0\b", re.IGNORECASE),
-    re.compile(r":\(\)\s*\{\s*:\|:&\s*\}\s*;", re.IGNORECASE),  # fork bomb
-    re.compile(r"\bchmod\s+777\s+/", re.IGNORECASE),  # chmod 777 /
-    re.compile(r"\bchown\s+.*\s+/(?!tmp)", re.IGNORECASE),  # chown system dirs
-    re.compile(r">\s*/etc/", re.IGNORECASE),  # overwrite system config
-    re.compile(r"\bsudo\s+rm\b", re.IGNORECASE),  # sudo rm
-    re.compile(
-        r"\bcurl\b.*\|\s*(?:sudo\s+)?(?:bash|sh)\b", re.IGNORECASE
-    ),  # pipe to shell
-    re.compile(r"\bwget\b.*\|\s*(?:sudo\s+)?(?:bash|sh)\b", re.IGNORECASE),
-    # ── SQL injection patterns ──
-    re.compile(
-        r";\s*\b(?:SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|UNION|EXEC)\b", re.IGNORECASE
-    ),
-    re.compile(r"\bDROP\s+(?:TABLE|DATABASE)\b", re.IGNORECASE),
-    re.compile(r"\bDELETE\s+FROM\b[^;]*(?!WHERE)", re.IGNORECASE),
-    re.compile(
-        r"""['\"]\s*(?:OR|AND)\s+['\"]?\d+['\"]?\s*=\s*['\"]?\d+""", re.IGNORECASE
-    ),  # ' OR 1=1
-    # ── Shell injection sequences ──
-    re.compile(r"[;&|]{2,}"),  # && || ;;
-    re.compile(r"`[^`]+`"),  # backtick execution
-    re.compile(r"\$\([^)]+\)"),  # $() command substitution
-    # ── Path traversal ──
-    re.compile(r"(?:\.\.[\\/]){3,}"),  # ../../../
-    # ── Null bytes ──
-    re.compile(r"\x00"),  # null byte injection
-    # ── Format string attacks ──
-    re.compile(r"%n"),  # format string write
-    re.compile(r"(?:%s){3,}"),  # format string read chain
-    # ── Reverse shells / crypto miners ──
-    re.compile(r"/dev/tcp/", re.IGNORECASE),
-    re.compile(r"\bxmrig\b", re.IGNORECASE),  # crypto miner
-    re.compile(r"\bcpuminer\b", re.IGNORECASE),
-]
-
 # Environment variable patterns that might indicate secrets
 _SECRET_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\$\{?(?:PASSWORD|SECRET|TOKEN|API_KEY|PRIVATE_KEY)\}?", re.IGNORECASE),
@@ -258,28 +215,39 @@ class DynamicResolver:
                 warnings=[],
             )
 
-        # 2) Check for blocked patterns in the full command string
+        # 2) Check for dangerous command patterns via DangerAnalyzer
         full_cmd = f"{tool_or_command} {' '.join(args)}"
-        for pattern in _BLOCKED_PATTERNS:
+        report = danger_analyzer.analyze(full_cmd)
+        if report.severity in ("critical", "high"):
+            logger.warning("Blocked dangerous command: %s", full_cmd)
+            return ResolvedCommand(
+                executable=tool_or_command,
+                args=args,
+                is_registered_tool=False,
+                path="",
+                safety_score=0.0,
+                warnings=report.reasons[:1],
+            )
+
+        # 3) Check for injection patterns (shared with InputValidator)
+        for name, pattern in _INJECTION_PATTERNS:
             if pattern.search(full_cmd):
-                logger.warning("Blocked dangerous command pattern: %s", full_cmd)
+                logger.warning("Blocked injection (%s): %s", name, full_cmd)
                 return ResolvedCommand(
                     executable=tool_or_command,
                     args=args,
                     is_registered_tool=False,
                     path="",
                     safety_score=0.0,
-                    warnings=[
-                        f"Blocked: matches dangerous pattern {pattern.pattern!r}"
-                    ],
+                    warnings=[f"Blocked: injection pattern '{name}' detected"],
                 )
 
-        # 3) Check for secret leaks
+        # 4) Check for secret leaks
         for pattern in _SECRET_PATTERNS:
             if pattern.search(full_cmd):
                 warnings.append("Command may reference sensitive environment variables")
 
-        # 4) Check if the command is in the safe allowlist
+        # 5) Check if the command is in the safe allowlist
         base_cmd = (
             tool_or_command.split()[0] if " " in tool_or_command else tool_or_command
         )
@@ -319,27 +287,9 @@ class DynamicResolver:
         )
 
     def has_arg_injection(self, args: list[str]) -> tuple[bool, str]:
-        """Check a list of arguments for injection patterns.
-
-        Returns (found, description) where found is True if injection detected.
-        """
-        _ARG_INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-            ("shell_pipe", re.compile(r"[|;&`]")),
-            ("command_substitution", re.compile(r"\$\(|`")),
-            ("path_traversal", re.compile(r"(?:\.\.[\\/]){3,}")),
-            ("null_byte", re.compile(r"\x00")),
-            ("newline", re.compile(r"[\r\n]")),
-            (
-                "sql_keyword",
-                re.compile(
-                    r"\b(?:SELECT|INSERT|DELETE|DROP|ALTER|UNION|EXEC)\b.*[;'\"]",
-                    re.IGNORECASE,
-                ),
-            ),
-        ]
-
+        """Check a list of arguments for injection patterns (delegates to InputValidator's patterns)."""
         full = " ".join(args)
-        for name, pattern in _ARG_INJECTION_PATTERNS:
+        for name, pattern in _INJECTION_PATTERNS:
             if pattern.search(full):
                 logger.warning("Arg injection detected (%s) in: %s", name, full[:200])
                 return True, name

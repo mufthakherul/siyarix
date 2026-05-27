@@ -38,7 +38,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.prompt import Prompt
 from rich.table import Table
 
-__version__ = "0.1.3-beta"
+__version__ = "0.1.3"
 
 from typing import Any, cast
 

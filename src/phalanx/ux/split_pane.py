@@ -1,4 +1,4 @@
-"""Split Pane Layout for Phalanx v2.0.
+"""Split Pane Layout for Phalanx v0.1.3.
 
 Leverages Rich Layouts to split the terminal screen side-by-side:
 - Left Pane: Interactive commands, chat history, or agent responses.

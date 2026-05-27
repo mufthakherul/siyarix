@@ -97,7 +97,7 @@ class ReportEngine:
             "target": target,
             "total_findings": len(sorted_findings),
             "severity_counts": self._count_severities(sorted_findings),
-            "generated_by": "Phalanx Report Engine v2.0",
+            "generated_by": "Phalanx Report Engine v0.1.3",
         }
 
         sections = []
@@ -429,7 +429,7 @@ class ReportEngine:
             "version": "2.1.0",
             "runs": [
                 {
-                    "tool": {"driver": {"name": "Phalanx", "version": "0.1.3-beta"}},
+                    "tool": {"driver": {"name": "Phalanx", "version": "0.1.3"}},
                     "results": results,
                     "properties": {
                         "report_id": report.report_id,

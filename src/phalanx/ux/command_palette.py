@@ -1,4 +1,4 @@
-"""Command Palette for Phalanx v2.0.
+"""Command Palette for Phalanx v0.1.3.
 
 Provides a fuzzy-search interface to quickly search and select core commands,
 predefined intent templates, saved profiles, and recent command history.

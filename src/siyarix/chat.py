@@ -68,6 +68,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from prompt_toolkit import prompt as ptk_prompt
+    from prompt_toolkit.key_binding import KeyBindings
 
     PTK_AVAILABLE = True
 except Exception as exc:
@@ -225,7 +226,8 @@ _SLASH_HELP = {
     "/learning profile": "Show user learning profile",
     "/learning patterns": "Show learned tool patterns",
     "/learning level <novice|intermediate|advanced|expert>": "Set experience level",
-    "/esc": "Emergency stop - cancel all pending execution",
+    "/esc": "Emergency stop / cancel current task (ESC key also works)",
+    "/cancel": "Cancel current task without exiting (same as ESC once)",
     "/log list": "List all session logs",
     "/log show <id>": "Show a session log",
     "/log export <id> --format <fmt> --output <file>": "Export session log (markdown|json|sarif)",
@@ -286,6 +288,11 @@ class SiyarixChat:
         self._engine_kill_switch = None
         self._split_pane_enabled = False
         self._split_pane_type = "attack_map"
+        self._tools: list[str] = []
+        self._commands: list[str] = []
+        self._esc_press_count = 0
+        self._esc_press_time = 0.0
+        self._esc_window = 2.0
 
     def _init_session(
         self, session_id: str | None, target: str, resume: bool
@@ -323,10 +330,32 @@ class SiyarixChat:
                 if self._split_pane_enabled:
                     self._render_split_pane_layout()
                 user_input = self._prompt()
-                if not user_input.strip():
+                if not user_input:
+                    if self._esc_press_count > 0:
+                        now = time.time()
+                        if now - self._esc_press_time < self._esc_window:
+                            self._esc_press_count += 1
+                            if self._esc_press_count >= 2:
+                                console.print("[bold yellow]Exiting...[/bold yellow]")
+                                self._running = False
+                                break
+                        else:
+                            self._esc_press_count = 1
+                            self._esc_press_time = now
+                        if self._engine_kill_switch:
+                            self._engine_kill_switch.trigger()
+                            console.print("[dim]Current task cancelled. Press ESC again to exit.[/dim]")
+                        else:
+                            console.print("[dim]No active task. Press ESC again to exit.[/dim]")
+                        continue
                     continue
 
+                self._esc_press_count = 0
                 self._command_history.append(user_input)
+
+                if user_input == "?" or user_input.lower() == "help":
+                    self._cmd_help("")
+                    continue
 
                 if user_input.startswith("/"):
                     await self._handle_slash(user_input)
@@ -334,7 +363,16 @@ class SiyarixChat:
                     await self._handle_natural_language(user_input)
 
             except KeyboardInterrupt:
-                console.print("\n[dim]Use /exit to quit[/dim]")
+                self._esc_press_count += 1
+                if self._esc_press_count >= 2:
+                    console.print("[bold yellow]Exiting...[/bold yellow]")
+                    self._running = False
+                else:
+                    if self._engine_kill_switch:
+                        self._engine_kill_switch.trigger()
+                    console.print(
+                        "[dim]Task cancelled. Press Ctrl+C again to exit.[/dim]"
+                    )
             except EOFError:
                 self._running = False
             except Exception as exc:
@@ -348,7 +386,8 @@ class SiyarixChat:
 
     def _prompt(self) -> str:
         """Display the input prompt and read a line."""
-        # If split pane is enabled, show a very compact prompt to avoid clutter
+        esc_bindings = self._make_esc_bindings() if PTK_AVAILABLE else None
+
         if self._split_pane_enabled:
             prompt_label = Text.assemble(
                 ("❯ ", "bold cyan"), ("Type command / slash command", "dim")
@@ -356,7 +395,7 @@ class SiyarixChat:
             if PTK_AVAILABLE:
                 try:
                     return ptk_prompt(
-                        "❯ ", completer=SmartAutocomplete(self._session)
+                        "❯ ", key_bindings=esc_bindings, completer=SmartAutocomplete(self._session)
                     ).strip()
                 except KeyboardInterrupt:
                     raise
@@ -394,7 +433,7 @@ class SiyarixChat:
         if PTK_AVAILABLE:
             try:
                 answer = ptk_prompt(
-                    "❯ ", completer=SmartAutocomplete(self._session)
+                    "❯ ", key_bindings=esc_bindings, completer=SmartAutocomplete(self._session)
                 ).strip()
             except KeyboardInterrupt:
                 raise
@@ -404,6 +443,29 @@ class SiyarixChat:
         else:
             answer = Prompt.ask(prompt_label, default="").strip()
         return answer
+
+    def _make_esc_bindings(self) -> Any:
+        """Create prompt_toolkit key bindings for ESC detection."""
+        from prompt_toolkit.keys import Keys
+
+        kb = KeyBindings()
+
+        @kb.add(Keys.Escape)
+        def _on_esc(event: Any) -> None:
+            now = time.time()
+            if now - self._esc_press_time < self._esc_window:
+                self._esc_press_count += 1
+                if self._esc_press_count >= 2:
+                    self._running = False
+                    event.app.exit()
+                    return
+            else:
+                self._esc_press_count = 1
+                self._esc_press_time = now
+            event.app.current_buffer.text = ""
+            event.app.current_buffer.validate_and_handle()
+
+        return kb
 
     # ──────────────────────────────────────────────────────────────────────
     # Slash commands
@@ -462,6 +524,7 @@ class SiyarixChat:
             "/agent": self._cmd_agent,
             "/learning": self._cmd_learning,
             "/esc": self._cmd_esc,
+            "/cancel": self._cmd_esc,
             "/log": self._cmd_log,
             "/diff": self._cmd_diff,
             "/schedule": self._cmd_schedule,
@@ -1306,11 +1369,11 @@ class SiyarixChat:
             if len(tokens) < 2:
                 console.print("[yellow]Usage: /work-mode export <name>[/yellow]")
                 return
-            persona = engine.get_persona(tokens[1])
-            if not persona:
+            export_persona: Persona | None = engine.get_persona(tokens[1])
+            if not export_persona:
                 console.print(f"[red]Persona not found: {tokens[1]}[/red]")
                 return
-            path = engine.save_custom_persona(persona)
+            path = engine.save_custom_persona(export_persona)
             console.print(f"[green]✓ Persona '{tokens[1]}' exported to {path}[/green]")
             return
 
@@ -1318,10 +1381,10 @@ class SiyarixChat:
             try:
                 engine.switch_to(action)
                 self._session.context["persona"] = action
-                persona = engine.get_persona(action)
+                switched_persona = engine.get_persona(action)
                 console.print(f"[green]✓ Switched to persona: {action}[/green]")
-                if persona:
-                    console.print(f"[dim]{persona.description}[/dim]")
+                if switched_persona:
+                    console.print(f"[dim]{switched_persona.description}[/dim]")
             except ValueError as exc:
                 console.print(f"[red]{exc}[/red]")
             return
@@ -1396,8 +1459,8 @@ class SiyarixChat:
             else:
                 console.print(f"[red]Failed to connect to {url}[/red]")
         elif action == "call":
-            client = self._session.context.get("mcp_client")
-            if not client:
+            call_client: MCPClient | None = self._session.context.get("mcp_client")
+            if not call_client:
                 console.print(
                     "[yellow]Not connected to an MCP server. Use /mcp connect first.[/yellow]"
                 )
@@ -1407,7 +1470,7 @@ class SiyarixChat:
                 console.print("[yellow]Usage: /mcp call <tool> [args...][/yellow]")
                 return
             params = {"args": tokens[2:]} if len(tokens) > 2 else {}
-            result = await client.call_tool(tool, params)
+            result = await call_client.call_tool(tool, params)
             console.print(
                 Panel(
                     json.dumps(result, indent=2),
@@ -1477,11 +1540,11 @@ class SiyarixChat:
 
         if action == "profile":
             console.print(ul.get_profile_panel())
-            suggestions = ul.get_improvement_suggestions()
-            if suggestions:
+            improve_suggestions = ul.get_improvement_suggestions()
+            if improve_suggestions:
                 console.print(
                     Panel(
-                        "\n".join(f"  {s}" for s in suggestions),
+                        "\n".join(f"  {s}" for s in improve_suggestions),
                         title="Improvement Suggestions",
                         border_style="yellow",
                     )
@@ -1508,16 +1571,16 @@ class SiyarixChat:
             table.add_column("Success", style="cyan", justify="right")
             table.add_column("Avg Dur", style="dim", justify="right")
             table.add_column("Phase", style="blue")
-            for p in patterns:
-                chain = " -> ".join(p.ngram)
-                dur = f"{p.avg_duration_ms:.0f}ms" if p.avg_duration_ms else "-"
+            for pat in patterns:
+                chain = " -> ".join(pat.ngram)
+                dur = f"{pat.avg_duration_ms:.0f}ms" if pat.avg_duration_ms else "-"
                 table.add_row(
                     chain,
-                    str(p.count),
-                    f"{p.confidence:.0%}",
-                    f"{p.success_rate:.0%}",
+                    str(pat.count),
+                    f"{pat.confidence:.0%}",
+                    f"{pat.success_rate:.0%}",
                     dur,
-                    p.phase or "-",
+                    pat.phase or "-",
                 )
             console.print(table)
 
@@ -1566,8 +1629,8 @@ class SiyarixChat:
             tool = tokens[1] if len(tokens) > 1 else ""
             if not tool:
                 tool = RichPrompt.ask("Suggest next tool after")
-            suggestions = lm.suggest(tool, max_suggestions=8)
-            if not suggestions:
+            tool_suggestions = lm.suggest(tool, max_suggestions=8)
+            if not tool_suggestions:
                 console.print(
                     f"[dim]No suggestions for '{tool}'. Try using it more.[/dim]"
                 )
@@ -1577,7 +1640,7 @@ class SiyarixChat:
             table.add_column("Confidence", style="magenta", justify="right")
             table.add_column("Reason", style="white")
             table.add_column("Phase", style="blue")
-            for s in suggestions:
+            for s in tool_suggestions:
                 table.add_row(
                     s["tool"],
                     f"{s['confidence']:.0%}",
@@ -1659,16 +1722,16 @@ class SiyarixChat:
                 console.print("[red]✓ All learning data cleared[/red]")
 
         elif action == "summary":
-            p = ul.profile
+            prof = ul.profile
             ls = lm.summary
             console.print(
                 Panel(
-                    f"[bold]User:[/bold] {p.username or 'anonymous'} | "
-                    f"[bold]Level:[/bold] {p.experience} "
-                    f"{'(auto)' if p.auto_detect else ''}\n"
-                    f"[bold]Commands:[/bold] {p.total_commands} | "
-                    f"[bold]Tools:[/bold] {p.unique_tools} | "
-                    f"[bold]Categories:[/bold] {p.category_count}\n"
+                    f"[bold]User:[/bold] {prof.username or 'anonymous'} | "
+                    f"[bold]Level:[/bold] {prof.experience} "
+                    f"{'(auto)' if prof.auto_detect else ''}\n"
+                    f"[bold]Commands:[/bold] {prof.total_commands} | "
+                    f"[bold]Tools:[/bold] {prof.unique_tools} | "
+                    f"[bold]Categories:[/bold] {prof.category_count}\n"
                     f"[bold]Patterns:[/bold] {ls['total_patterns']} | "
                     f"[bold]Anti-patterns:[/bold] {ls['total_anti_patterns']} | "
                     f"[bold]Phases:[/bold] {', '.join(ls['phase_coverage'].keys()) or 'none'}",
@@ -1725,6 +1788,8 @@ class SiyarixChat:
     def _cmd_esc(self, _: str) -> None:
         """Emergency stop - cancel all pending execution."""
         console.print("[bold red]⚠ EMERGENCY STOP TRIGGERED[/bold red]")
+        self._esc_press_count = 1
+        self._esc_press_time = time.time()
         self._running = False
         if self._engine_kill_switch:
             self._engine_kill_switch.trigger()
@@ -1786,8 +1851,8 @@ class SiyarixChat:
             if len(tokens) < 2:
                 console.print("[yellow]Usage: /log show|view <session_id>[/yellow]")
                 return
-            log = session_logger.load(tokens[1])
-            if not log:
+            log_entry = session_logger.load(tokens[1])
+            if not log_entry:
                 console.print(f"[red]Session log not found: {tokens[1]}[/red]")
                 return
             md = session_logger.export_markdown(tokens[1])
@@ -2004,7 +2069,7 @@ class SiyarixChat:
         target = tokens[1] if len(tokens) > 1 else ""
         scanner = CloudScanner()
         provider_enum = getattr(CloudProvider, provider.upper(), CloudProvider.AWS)
-        result = scanner.scan_cloud(provider_enum, target)
+        result = await scanner.scan_by_provider(provider_enum, target)
         console.print(scanner.generate_report(result, fmt="text"))
 
     async def _cmd_k8s(self, args: str) -> None:
@@ -2016,7 +2081,7 @@ class SiyarixChat:
             return
         namespace = tokens[1] if len(tokens) > 1 else "default"
         scanner = CloudScanner()
-        result = scanner.scan_kubernetes(namespace)
+        result = await scanner.scan_kubernetes(namespace)
         console.print(scanner.generate_report(result, fmt="text"))
 
     async def _cmd_docker(self, args: str) -> None:
@@ -2028,7 +2093,7 @@ class SiyarixChat:
             return
         image = tokens[1] if len(tokens) > 1 else ""
         scanner = CloudScanner()
-        result = scanner.scan_docker(image)
+        result = await scanner.scan_docker(image)
         console.print(scanner.generate_report(result, fmt="text"))
 
     async def _cmd_iac(self, args: str) -> None:
@@ -2240,7 +2305,7 @@ class SiyarixChat:
         action = tokens[0].lower() if tokens else "list"
         engine = PlaybookEngine()
         if action == "list":
-            playbooks = engine.list()
+            playbooks = engine.list_playbooks()
             if not playbooks:
                 console.print("[dim]No playbooks. Use /playbook create <name> to make one.[/dim]")
                 return
@@ -2252,9 +2317,9 @@ class SiyarixChat:
             console.print(f"[green]✓ Playbook created: {name}[/green]")
         elif action == "show":
             name = tokens[1] if len(tokens) > 1 else ""
-            pb = engine.load(name)
-            if pb:
-                for i, s in enumerate(pb.steps, 1):
+            loaded_pb = engine.load(name)
+            if loaded_pb:
+                for i, s in enumerate(loaded_pb.steps, 1):
                     console.print(f"  {i}. [{s.step_type.value}] {s.command or s.description}")
             else:
                 console.print(f"[red]Playbook not found: {name}[/red]")
@@ -2343,17 +2408,17 @@ class SiyarixChat:
                 console.print("[yellow]Usage: /intel search <cve|ip|domain|hash>[/yellow]")
                 return
             feed = ThreatIntelFeed()
-            results = feed.search(query)
-            if results:
-                for r in results[:10]:
+            intel_results = feed.search(query)
+            if intel_results:
+                for r in intel_results[:10]:
                     console.print(f"  [{r.get('severity','info')}] {r.get('indicator','?')} — {r.get('description','')[:80]}")
             else:
                 console.print("[dim]No threat intelligence matches.[/dim]")
         elif action == "mitre":
             tac = tokens[1] if len(tokens) > 1 else ""
             db = MITREAttackDB()
-            results = db.search(tactic=tac) if tac else db.list_techniques()[:15]
-            for r in results[:15]:
+            mitre_results: list[dict[str, str]] = db.search(tactic=tac) if tac else db.list_techniques()[:15]
+            for r in mitre_results[:15]:
                 console.print(f"  • {r.get('id','?')} — {r.get('name','?')} ({r.get('tactic','?')})")
         elif action == "feeds":
             feed = ThreatIntelFeed()
@@ -2377,7 +2442,7 @@ class SiyarixChat:
                 console.print(f"[red]Invalid token type: {token_type} (web|dns|aws_key|credential|file|api_key)[/red]")
                 return
             target = tokens[2] if len(tokens) > 2 else Prompt.ask("Deployment target")
-            deployment = mgr.deploy(ttype, target)
+            deployment = mgr.deploy_to_target(target, token_types=[ttype])
             console.print(f"[green]✓ Deployed {len(deployment.tokens)} canary token(s) to {target}[/green]")
             for t in deployment.tokens:
                 console.print(f"    {t.token_type}: {t.value[:60]}...")
@@ -2390,8 +2455,8 @@ class SiyarixChat:
                 triggered = "🔴 TRIGGERED" if t.triggered else "🟢 ACTIVE"
                 console.print(f"  {triggered} [{t.token_type}] {t.location} ({t.created_at[:19]})")
         elif action == "status":
-            stats = mgr.stats()
-            console.print(f"Canary tokens: {stats.get('total',0)} total, {stats.get('triggered',0)} triggered")
+            canary_stats = mgr.summary()
+            console.print(f"Canary tokens: {canary_stats.get('total_tokens',0)} total, {canary_stats.get('triggered_tokens',0)} triggered")
         else:
             console.print("[yellow]Usage: /canary deploy|list|status[/yellow]")
 
@@ -2403,7 +2468,7 @@ class SiyarixChat:
         engine = StealthEngine()
         if action == "status":
             cfg = engine.get_config()
-            console.print(f"Stealth level: {cfg.level} | Jitter: {cfg.jitter_pct}% | UA rotate: {cfg.user_agent_rotate} | Proxy: {cfg.proxy_chain} | Decoy: {cfg.decoy_traffic}")
+            console.print(f"Stealth level: {cfg.evasion_level} | Jitter: {cfg.jitter_percentage}% | UA rotate: {cfg.rotate_user_agents} | Proxy: {cfg.use_proxy_chain} | Decoy: {cfg.use_decoy_traffic}")
         elif action in ("on", "enable"):
             engine.set_level("light")
             console.print("[green]✓ Stealth mode enabled (light)[/green]")
@@ -2426,16 +2491,18 @@ class SiyarixChat:
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "status"
         if action == "export":
-            case = tokens[1] if len(tokens) > 1 else "default"
             fmt = "json"
             if "--format" in tokens:
                 idx = tokens.index("--format")
                 fmt = tokens[idx + 1] if idx + 1 < len(tokens) else "json"
-            data = audit.export(case=case, fmt=fmt)
-            console.print(f"Exported audit log for case '{case}' ({len(data)} bytes)")
+            data = audit.export(format=fmt)
+            if data is None:
+                console.print("[red]Failed to export audit log[/red]")
+                return
+            console.print(f"Exported audit log ({len(data)} bytes)")
         elif action == "status":
-            stats = audit.stats()
-            console.print(f"Audit events: {stats.get('total_events', 0)} | Chain verified: {stats.get('chain_valid', True)}")
+            audit_stats = audit.stats()
+            console.print(f"Audit events: {audit_stats.get('total_events', 0)} | Chain verified: {audit_stats.get('chain_integrity', 'intact')}")
         elif action == "verify":
             valid = audit.verify_chain()
             console.print(f"[{'green' if valid else 'red'}]Chain integrity: {'VALID' if valid else 'COMPROMISED'}[/]")
@@ -2544,7 +2611,7 @@ class SiyarixChat:
                     console.print(
                         Panel(
                             f"[bold]Ensemble:[/bold] {ensemble_result.selection_reason}\n"
-                            f"[dim]Providers:[/dim] {', '.join(ensemble_result.responses) if hasattr(ensemble_result, 'responses') else registered_count}  "
+                            f"[dim]Providers:[/dim] {', '.join(r.model_name for r in ensemble_result.responses) if hasattr(ensemble_result, 'responses') and ensemble_result.responses else str(registered_count)}  "
                             f"[dim]Consensus:[/dim] {ensemble_result.consensus_level:.0%}  "
                             f"[dim]Hallucination risk:[/dim] {ensemble_result.hallucination_risk:.0%}",
                             title="[bold cyan]🔮 Multi-Model Ensemble[/bold cyan]",

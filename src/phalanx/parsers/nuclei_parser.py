@@ -5,7 +5,6 @@ from __future__ import annotations
 from . import _now_iso
 
 import json
-from datetime import UTC, datetime
 
 _SEVERITY_MAP: dict[str, str] = {
     "critical": "critical",
@@ -15,11 +14,6 @@ _SEVERITY_MAP: dict[str, str] = {
     "info": "info",
     "unknown": "info",
 }
-
-
-def _now_iso() -> str:
-    return datetime.now(tz=UTC).isoformat()
-
 
 class NucleiParser:
     """Parses nuclei JSONL output (one JSON object per line) into finding dicts."""

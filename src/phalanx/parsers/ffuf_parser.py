@@ -5,7 +5,6 @@ from __future__ import annotations
 from . import _now_iso
 
 import re
-from datetime import UTC, datetime
 
 _SEVERITY_BY_STATUS = {
     200: "info",
@@ -26,10 +25,6 @@ _ROW_RE = re.compile(
     r"^(?P<path>\S+)\s+\[Status:\s*(?P<status>\d+),\s*Size:\s*(?P<size>\d+),\s*Words:\s*(?P<words>\d+),\s*Lines:\s*(?P<lines>\d+)\]"
 )
 _URL_RE = re.compile(r"^::\s*URL:\s*(?P<url>\S+)")
-
-
-def _now_iso() -> str:
-    return datetime.now(tz=UTC).isoformat()
 
 
 class FfufParser:

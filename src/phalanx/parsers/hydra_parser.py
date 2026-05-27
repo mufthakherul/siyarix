@@ -5,16 +5,11 @@ from __future__ import annotations
 from . import _now_iso
 
 import re
-from datetime import UTC, datetime
 
 _CRED_RE = re.compile(
     r"\[(?P<port>\d+)\]\[(?P<service>[^\]]+)\]\s*host:\s*(?P<host>\S+)\s+login:\s*(?P<login>\S+)\s+password:\s*(?P<password>\S+)",
     re.IGNORECASE,
 )
-
-
-def _now_iso() -> str:
-    return datetime.now(tz=UTC).isoformat()
 
 
 class HydraParser:

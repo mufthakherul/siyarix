@@ -1,18 +1,28 @@
 [project]
 name = "siyarix"
 version = "0.1.3"
-description = "Siyarix — AI-native cybersecurity operations platform with autonomous execution, multi-agent framework, and intelligent workflow orchestration"
+description = "Siyarix — AI Cybersecurity Orchestration Agent"
 description-content-type = "text/markdown"
 readme = "README.md"
 authors = [ { name = "MD MUFTHAKHERUL ISLAM MIRAZ", email = "130831166+mufthakherul@users.noreply.github.com" } ]
 requires-python = ">=3.11"
-urls = { "Homepage" = "https://github.com/mufthakherul/siyarix", "Repository" = "https://github.com/mufthakherul/siyarix.git" }
+urls = { "Homepage" = "https://github.com/mufthakherul/siyarix", "Repository" = "https://github.com/mufthakherul/siyarix.git", "Documentation" = "https://github.com/mufthakherul/siyarix", "Changelog" = "https://github.com/mufthakherul/siyarix/releases" }
 license = { text = "MIT" }
-keywords = ["cybersecurity", "agent", "nmap", "scanner", "autonomous", "integrated", "security"]
+keywords = ["cybersecurity", "agent", "siyarix", "ai", "pentest", "automation", "nmap", "scanner", "autonomous", "orchestration"]
 classifiers = [
-  "Programming Language :: Python :: 3",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Information Technology",
+  "Intended Audience :: System Administrators",
   "License :: OSI Approved :: MIT License",
+  "Natural Language :: English",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Security",
+  "Topic :: System :: Networking",
+  "Topic :: System :: Systems Administration",
   "Typing :: Typed",
 ]
 dependencies = [
@@ -48,6 +58,16 @@ all = [
 cli = [
   "prompt_toolkit>=3.0",
   "jinja2>=3.0",
+]
+dev = [
+  "pytest>=8.0",
+  "pytest-asyncio>=0.24",
+  "pytest-cov>=5.0",
+  "ruff>=0.5",
+  "mypy>=1.10",
+  "pre-commit>=3.7",
+  "build>=1.2",
+  "twine>=5.0",
 ]
 
 [project.scripts]

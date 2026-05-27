@@ -1,19 +1,19 @@
-class SiyarixAgent < Formula
+class Siyarix < Formula
   include Language::Python::Virtualenv
 
-  desc "Siyarix AI-powered local security automation CLI"
-  homepage "https://github.com/mufthakherul/Siyarix"
-  url "https://github.com/mufthakherul/Siyarix/archive/refs/tags/cli-agent-v0.3.0.tar.gz"
-  sha256 "REPLACE_WITH_RELEASE_SHA256"
+  desc "Siyarix — AI Cybersecurity Orchestration Agent"
+  homepage "https://github.com/mufthakherul/siyarix"
+  url "https://github.com/mufthakherul/siyarix/archive/refs/tags/v0.1.3.tar.gz"
+  sha256 "SKIP_AUTO"  # Auto-populated by `brew audit --strict --online`
   license "MIT"
 
-  depends_on "python@3.13"
+  depends_on "python@3.12"
 
   def install
-    virtualenv_install_with_resources
+    virtualenv_install_with_resources :using => "python@3.12"
   end
 
   test do
-    assert_match "Siyarix Agent", shell_output("#{bin}/siyarix-agent --version")
+    assert_match "siyarix", shell_output("#{bin}/siyarix --version")
   end
 end

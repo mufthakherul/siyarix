@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 from defusedxml import ElementTree as ET
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -76,12 +77,22 @@ class SecurityImporter:
             for report_host in root.iter("ReportHost"):
                 host_name = report_host.get("name", "")
                 for item in report_host.iter("ReportItem"):
+                    sev_raw = item.get("severity", "0")
+                    try:
+                        sev_raw = int(sev_raw)
+                    except ValueError:
+                        sev_raw = str(sev_raw).lower()
+                    sev_raw = item.get("severity", "0")
+                    try:
+                        sev_raw = int(sev_raw)
+                    except ValueError:
+                        sev_raw = str(sev_raw).lower()
                     finding = ImportedFinding(
                         source="nessus",
                         original_id=item.get("pluginID", ""),
                         title=item.findtext("pluginName", ""),
                         description=item.findtext("description", ""),
-                        severity=SEVERITY_MAP.get(item.get("severity", "0").lower(), "info"),
+                        severity=SEVERITY_MAP.get(sev_raw, "info"),
                         cve=item.findtext("cve", ""),
                         cwe=item.findtext("cwe", "") or item.findtext("cwe_id", ""),
                         cvss_score=float(item.findtext("cvss3_base_score", "0") or "0"),
@@ -231,8 +242,9 @@ class SecurityImporter:
         ]
 
         for detector, importer_fn in format_detectors:
-            if detector(name, ext):
-                return importer_fn(p)
+            if detector(name, ext):  # type: ignore[no-untyped-call]
+                fn: Callable[[Path], ImportResult] = importer_fn
+                return fn(p)
 
         # Last resort: try each format
         results = [

@@ -34,35 +34,31 @@ class AttackPathAnalyzer:
 
         # 1. Find all vulnerable nodes
         vuln_nodes = self.graph.find_nodes(NodeType.VULNERABILITY)
-        if not vuln_nodes:
-            return paths
 
         # 2. Find all external entry points (Domains, Subdomains, Hosts)
-        entry_nodes = (
-            self.graph.find_nodes(NodeType.DOMAIN)
-            + self.graph.find_nodes(NodeType.SUBDOMAIN)
-            + self.graph.find_nodes(NodeType.HOST)
-        )
+        if vuln_nodes:
+            entry_nodes = (
+                self.graph.find_nodes(NodeType.DOMAIN)
+                + self.graph.find_nodes(NodeType.SUBDOMAIN)
+                + self.graph.find_nodes(NodeType.HOST)
+            )
 
-        for entry in entry_nodes:
-            for vuln in vuln_nodes:
-                # Find shortest path from entry point to the vulnerability
-                path_ids = self.graph.shortest_path(entry.node_id, vuln.node_id)
-                if path_ids and len(path_ids) > 1:
-                    # Ensure path actually makes sense (isn't traversing backwards through unrelated hosts)
-                    # We can refine this later with specific edge traversal filtering
-                    severity = vuln.properties.get("severity", "medium")
-                    description = f"Path from {entry.label} to {vuln.label}"
+            for entry in entry_nodes:
+                for vuln in vuln_nodes:
+                    path_ids = self.graph.shortest_path(entry.node_id, vuln.node_id)
+                    if path_ids and len(path_ids) > 1:
+                        severity = vuln.properties.get("severity", "medium")
+                        description = f"Path from {entry.label} to {vuln.label}"
 
-                    paths.append(
-                        AttackPath(
-                            origin_id=entry.node_id,
-                            target_id=vuln.node_id,
-                            path_nodes=path_ids,
-                            severity=severity,
-                            description=description,
+                        paths.append(
+                            AttackPath(
+                                origin_id=entry.node_id,
+                                target_id=vuln.node_id,
+                                path_nodes=path_ids,
+                                severity=severity,
+                                description=description,
+                            )
                         )
-                    )
 
         # 3. Find credential reuse paths
         cred_nodes = self.graph.find_nodes(NodeType.CREDENTIAL)

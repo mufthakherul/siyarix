@@ -5,7 +5,7 @@ class Siyarix < Formula
   homepage "https://github.com/mufthakherul/siyarix"
   url "https://github.com/mufthakherul/siyarix/archive/refs/tags/v0.1.3.tar.gz"
   sha256 "SKIP_AUTO"  # Auto-populated by `brew audit --strict --online`
-  license "MIT"
+  license "AGPL-3.0-or-later"
 
   depends_on "python@3.12"
 

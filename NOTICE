@@ -6,7 +6,7 @@ Siyarix AI Cybersecurity Orchestration Agent
 
   Project:       Siyarix
   Description:   AI Cybersecurity Orchestration Agent
-  Homepage:      https://github.com/mufthakherul/phalanx
+  Homepage:      https://github.com/mufthakherul/siyarix
   License:       GNU Affero General Public License v3.0 or later
   SPDX:          AGPL-3.0-or-later
 
@@ -159,10 +159,10 @@ Siyarix AI Cybersecurity Orchestration Agent
 -----------------------------------------------------------------------
 
   Source code and issue tracker:
-  https://github.com/mufthakherul/phalanx
+  https://github.com/mufthakherul/siyarix
 
   Official distribution channels:
-  - GitHub:  https://github.com/mufthakherul/phalanx
+  - GitHub:  https://github.com/mufthakherul/siyarix
   - PyPI:    https://pypi.org/project/siyarix/
 
 -----------------------------------------------------------------------

@@ -39,8 +39,8 @@ All contributors must adhere to our [Code of Conduct](CODE_OF_CONDUCT.md). We ar
 
 ```bash
 # Fork the repository on GitHub, then:
-git clone https://github.com/YOUR-USERNAME/phalanx.git
-cd phalanx
+git clone https://github.com/YOUR-USERNAME/siyarix.git
+cd siyarix
 python -m venv .venv
 source .venv/bin/activate   # Linux/macOS
 # .\.venv\Scripts\activate.ps1  # Windows

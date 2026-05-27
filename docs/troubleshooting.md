@@ -46,4 +46,4 @@ If the colors look wrong or the tables are rendering strangely:
 
 If you've tried the steps above and you're still stuck, don't worry!
 - Run `siyarix --help` to see all available commands.
-- Open an issue on our GitHub repository. The CosmicSec-Lab community is very friendly and we're always happy to help you debug!
+- Open an issue on our GitHub repository. The Mufthakherul community is very friendly and we're always happy to help you debug!

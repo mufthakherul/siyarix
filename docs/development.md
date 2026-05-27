@@ -12,7 +12,7 @@ The easiest way to get started is by using standard Python tools. We use `hatchl
 
 1. **Clone the repo and enter the folder**
    ```bash
-   git clone https://github.com/CosmicSec-Lab/siyarix.git
+   git clone https://github.com/Mufthakherul/siyarix.git
    cd siyarix
    ```
 
@@ -64,7 +64,7 @@ If you're wondering where to look, here's a quick map of the codebase:
 
 ## 🧪 Running E2E and Live Tests
 
-To guarantee that the Siyarix agent operates reliably across different environments and operating system backends, we have developed a high-fidelity **End-to-End (E2E) and Live Testing Suite** located at [test_e2e.py](file:///d:/Miraz_Work/CosmicSec-Lab/siyarix/tests/test_e2e.py).
+To guarantee that the Siyarix agent operates reliably across different environments and operating system backends, we have developed a high-fidelity **End-to-End (E2E) and Live Testing Suite** located at [test_e2e.py](file:///d:/Miraz_Work/Mufthakherul/siyarix/tests/test_e2e.py).
 
 Unlike standard unit tests, these E2E tests execute entire orchestration flows, planning passes, and interpreter pipelines inside **secure, mock-sandboxed environments**. This design allows you to run all tests fully offline in secure environments without making active network requests, installing package dependencies, or making modifications to your host operating system.
 

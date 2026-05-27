@@ -1,7 +1,7 @@
 # Frequently Asked Questions
 
 **Q: What exactly is Siyarix?**
-A: Siyarix is an open-source, AI-assisted security agent for your terminal. It helps you orchestrate security scans, translate commands across different operating systems, and learn about security concepts interactively. It started as a college project and is now maintained by the CosmicSec-Lab community for educational and research purposes.
+A: Siyarix is an open-source, AI-assisted security agent for your terminal. It helps you orchestrate security scans, translate commands across different operating systems, and learn about security concepts interactively. It started as a college project and is now maintained by the Mufthakherul community for educational and research purposes.
 
 **Q: Is it safe to use AI to run security commands?**
 A: Safety is our absolute top priority! Siyarix doesn't just blindly run whatever the AI suggests. The execution engine has built-in safety checks (a "Safety Resolver") to block dangerous shell commands (like `rm -rf /` or `mkfs`). However, as with any security tool, you should *always* review the AI's plan and only run scans against networks you own or have explicit permission to test.

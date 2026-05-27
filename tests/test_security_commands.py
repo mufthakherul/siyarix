@@ -4,12 +4,12 @@ from click.testing import CliRunner
 from typer import Typer
 from typer.main import get_command
 
-from siyarix.security_commands import register_security_commands
+from siyarix.security_commands import security_app
 
 
 def test_security_group_registers_and_shows_help() -> None:
     cli = Typer()
-    register_security_commands(cli)
+    cli.add_typer(security_app, name="security")
 
     command = get_command(cli)
     runner = CliRunner()

@@ -583,6 +583,4 @@ def list_playbooks() -> None:
     console.print(table)
 
 
-def register_security_commands(cli: typer.Typer) -> None:
-    """Register security commands with CLI."""
-    cli.add_typer(security_app, name="security")
+

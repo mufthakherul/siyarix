@@ -21,7 +21,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Callable
 
-from .reporting import ReportGenerator
+from ..report_engine import ReportGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -80,49 +80,76 @@ class OutputFormat(StrEnum):
 
 
 class OutputTheme(StrEnum):
-    DEFAULT = "default"
-    DARK = "dark"
-    LIGHT = "light"
-    NEON = "neon"
-    MINIMAL = "minimal"
+    DEFAULT = "cyber-noir"
+    CYBER_NOIR = "cyber-noir"
+    MATRIX = "matrix"
+    BLOODMOON = "bloodmoon"
+    ARCTIC = "arctic"
+    GOLDENROD = "goldenrod"
+    ECLIPSE = "eclipse"
+    SYNTHWAVE = "synthwave"
+    DARK = "cyber-noir"
+    LIGHT = "arctic"
+    NEON = "synthwave"
+    MINIMAL = "eclipse"
 
 
 THEMES = {
-    OutputTheme.DEFAULT: {
-        "primary": "cyan",
-        "secondary": "magenta",
-        "success": "green",
-        "warning": "yellow",
-        "error": "red",
-        "info": "blue",
-        "muted": "bright_black",
+    OutputTheme.CYBER_NOIR: {
+        "primary": "cyan", "secondary": "magenta",
+        "success": "bright_green", "warning": "bright_yellow",
+        "error": "bright_red", "info": "bright_black", "muted": "bright_black",
+        "border": "cyan", "accent": "bright_cyan",
+        "critical": "bold bright_red", "high": "bold red",
+        "medium": "bright_yellow", "low": "bright_cyan",
     },
-    OutputTheme.DARK: {
-        "primary": "bright_cyan",
-        "secondary": "bright_magenta",
-        "success": "bright_green",
-        "warning": "bright_yellow",
-        "error": "bright_red",
-        "info": "bright_blue",
-        "muted": "bright_black",
+    OutputTheme.MATRIX: {
+        "primary": "green", "secondary": "bright_green",
+        "success": "bright_green", "warning": "bright_yellow",
+        "error": "bold bright_red", "info": "green", "muted": "dark_green",
+        "border": "green", "accent": "bright_green",
+        "critical": "bold bright_red", "high": "bold red",
+        "medium": "bright_yellow", "low": "bright_green",
     },
-    OutputTheme.NEON: {
-        "primary": "rgb(0,255,255)",
-        "secondary": "rgb(255,0,255)",
-        "success": "rgb(0,255,0)",
-        "warning": "rgb(255,255,0)",
-        "error": "rgb(255,0,0)",
-        "info": "rgb(0,100,255)",
-        "muted": "rgb(100,100,100)",
+    OutputTheme.BLOODMOON: {
+        "primary": "red", "secondary": "bright_red",
+        "success": "dark_orange", "warning": "red",
+        "error": "bold bright_red", "info": "bright_black", "muted": "bright_black",
+        "border": "red", "accent": "bright_red",
+        "critical": "bold bright_red", "high": "bright_red",
+        "medium": "red", "low": "dark_orange",
     },
-    OutputTheme.MINIMAL: {
-        "primary": "white",
-        "secondary": "white",
-        "success": "white",
-        "warning": "white",
-        "error": "white",
-        "info": "white",
-        "muted": "bright_black",
+    OutputTheme.ARCTIC: {
+        "primary": "blue", "secondary": "bright_blue",
+        "success": "green", "warning": "dark_orange",
+        "error": "bold red", "info": "bright_black", "muted": "grey70",
+        "border": "bright_blue", "accent": "bright_blue",
+        "critical": "bold red", "high": "red",
+        "medium": "dark_orange", "low": "blue",
+    },
+    OutputTheme.GOLDENROD: {
+        "primary": "yellow", "secondary": "bright_yellow",
+        "success": "bright_green", "warning": "bright_yellow",
+        "error": "bold bright_red", "info": "bright_black", "muted": "dark_orange",
+        "border": "yellow", "accent": "bright_yellow",
+        "critical": "bold bright_red", "high": "red",
+        "medium": "bright_yellow", "low": "yellow",
+    },
+    OutputTheme.ECLIPSE: {
+        "primary": "white", "secondary": "white",
+        "success": "bold", "warning": "",
+        "error": "bold", "info": "dim", "muted": "dim",
+        "border": "white", "accent": "bold",
+        "critical": "bold", "high": "bold",
+        "medium": "", "low": "",
+    },
+    OutputTheme.SYNTHWAVE: {
+        "primary": "magenta", "secondary": "bright_magenta",
+        "success": "bright_cyan", "warning": "bright_yellow",
+        "error": "bright_red", "info": "magenta", "muted": "purple4",
+        "border": "bright_magenta", "accent": "bright_magenta",
+        "critical": "bold bright_magenta", "high": "bright_red",
+        "medium": "bright_yellow", "low": "bright_cyan",
     },
 }
 

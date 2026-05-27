@@ -532,7 +532,7 @@ class SiyarixChat:
 
         try:
             from .knowledge_graph import KnowledgeGraph
-            from .output.reporting import ReportGenerator
+            from .report_engine import ReportGenerator
 
             # Since graph might be shared/global or attached to session context, we try to load it
             # For simplicity, if engine is accessible, we could pull it from there

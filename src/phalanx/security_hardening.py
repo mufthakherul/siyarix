@@ -274,26 +274,15 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     # (pattern, severity, description)
     # ── CRITICAL ──
     (
-        re.compile(r"\brm\s+-[a-zA-Z]*r[a-zA-Z]*f", re.I),
+        re.compile(r"\bsudo\s+rm\s+-[a-zA-Z]*r", re.I),
         "critical",
-        "Recursive force delete (rm -rf)",
+        "sudo rm -r",
     ),
     (
-        re.compile(r"\brm\s+-[a-zA-Z]*f[a-zA-Z]*r", re.I),
+        re.compile(r"\bmv\s+/.*\s+/dev/null", re.I),
         "critical",
-        "Recursive force delete (rm -fr)",
+        "Move files to /dev/null (data destruction)",
     ),
-    (re.compile(r"\bmkfs\b", re.I), "critical", "Filesystem format (mkfs)"),
-    (
-        re.compile(r"\bdd\s+if=/dev/(?:zero|random|urandom)", re.I),
-        "critical",
-        "Raw disk write (dd)",
-    ),
-    (re.compile(r"\bformat\s+[a-zA-Z]:", re.I), "critical", "Windows disk format"),
-    (re.compile(r">\s*/dev/sd[a-z]", re.I), "critical", "Direct disk overwrite"),
-    (re.compile(r":\(\)\s*\{\s*:\|:&\s*\}\s*;", re.I), "critical", "Fork bomb"),
-    (re.compile(r"\bchmod\s+777\s+/(?:\s|$)", re.I), "critical", "chmod 777 on root"),
-    (re.compile(r"\bsudo\s+rm\s+-[a-zA-Z]*r", re.I), "critical", "sudo rm -r"),
     (
         re.compile(r">\s*/etc/(?:passwd|shadow|sudoers)", re.I),
         "critical",

@@ -128,7 +128,7 @@ class ModeDispatcher:
             return DirectCommandMode(ctx)
 
         # Look for explicit 'chat' in args
-        if ctx.args and ctx.args[0] == "chat":
+        if len(ctx.args) > 0 and ctx.args[0] == "chat":
             return AIConversationalMode(ctx)
 
         return InteractiveShellMode(ctx)

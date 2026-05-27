@@ -222,13 +222,12 @@ class ToolExecutor:
 
     async def _run_analysis_step(self, step: ExecutionStep) -> StepResult:
         try:
-            from .report_engine import ReportEngine
+            from .report_engine import ReportEngine, ReportFormat
 
             engine = ReportEngine()
-            report = engine.generate_analysis(
-                title=step.description or "Analysis",
-                findings=[],
-                step_metadata=step.metadata,
+            report = engine.render(
+                engine.build_report(findings=[], target=step.description or "Analysis"),
+                fmt=ReportFormat.MARKDOWN,
             )
             return StepResult(
                 step_id=step.id,
@@ -248,13 +247,12 @@ class ToolExecutor:
     async def _run_report_step(self, step: ExecutionStep) -> StepResult:
         fmt = step.metadata.get("format", "text")
         try:
-            from .report_engine import ReportEngine
+            from .report_engine import ReportEngine, ReportFormat
 
             engine = ReportEngine()
-            report = engine.generate_report(
-                title=step.description or "Report",
-                fmt=fmt,
-                step_metadata=step.metadata,
+            report = engine.render(
+                engine.build_report(findings=[], target=step.description or "Report"),
+                fmt=ReportFormat.MARKDOWN if fmt == "markdown" else ReportFormat.HTML if fmt == "html" else ReportFormat.JSON if fmt == "json" else ReportFormat.MARKDOWN,
             )
             return StepResult(
                 step_id=step.id,

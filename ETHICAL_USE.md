@@ -113,3 +113,7 @@ If you are unsure whether a particular use case is permitted, or to report a vio
 ---
 
 *This policy supplements the GNU Affero General Public License v3.0 under which Siyarix is distributed. It does not create binding legal obligations beyond those already imposed by applicable law, but violations may result in exclusion from project communities and contributor programs.*
+
+---
+
+*SPDX-License-Identifier: AGPL-3.0-only*

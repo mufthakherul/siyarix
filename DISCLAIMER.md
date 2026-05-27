@@ -75,3 +75,7 @@ This disclaimer may be updated from time to time. Continued use of Siyarix after
 ---
 
 *If you do not agree with these terms, do not use Siyarix.*
+
+---
+
+*SPDX-License-Identifier: AGPL-3.0-only*

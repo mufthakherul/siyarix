@@ -122,3 +122,7 @@ Violation of this policy may result in:
 ---
 
 *This policy is designed to protect the Siyarix brand while fostering a healthy, open ecosystem. It is not intended to restrict legitimate discussion, education, or innovation.*
+
+---
+
+*SPDX-License-Identifier: AGPL-3.0-only*

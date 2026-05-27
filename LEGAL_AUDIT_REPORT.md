@@ -136,6 +136,7 @@ This report documents the licensing architecture, governance framework, and lega
 | `/.github/ISSUE_TEMPLATE/bug_report.md` | Bug report template | ✅ Created |
 | `/.github/ISSUE_TEMPLATE/feature_request.md` | Feature request template | ✅ Created |
 | `/.github/PULL_REQUEST_TEMPLATE.md` | PR template | ✅ Created |
+| `/NOTICE` | AGPL attribution & third-party notice | ✅ Created |
 | `/LEGAL_AUDIT_REPORT.md` | This document | ✅ Created |
 
 ---
@@ -149,7 +150,7 @@ This report documents the licensing architecture, governance framework, and lega
 | README.md absent | Create README with license badge, attribution, and usage examples | Before next release |
 | No CONTRIBUTORS file | Add AUTHORS or CONTRIBUTORS file for contributor recognition | Next release |
 | DCO not implemented | Consider adding Developer Certificate of Origin (DCO) to PR process | v0.2.0 |
-| License headers in source | Add SPDX short-form headers to all `.py` source files | Ongoing |
+| Source-file SPDX headers | Add `# SPDX-License-Identifier: AGPL-3.0-only` to all `.py` source files | v0.2.0 |
 
 ### Low Priority
 
@@ -181,4 +182,8 @@ The Siyarix project now has a complete, professionally structured legal and gove
 - Creates safe harbor for security researchers
 - Remains contributor-friendly with no CLAs or unnecessary barriers
 
-**Overall readiness level for v1.0.0: HIGH** — minor documentation gaps remain (README, source headers) but core legal and governance infrastructure is complete.
+**Overall readiness level for v1.0.0: HIGH** — minor gaps remain (README required for PyPI, source-file SPDX headers) but core legal and governance infrastructure is complete and internally consistent.
+
+---
+
+*SPDX-License-Identifier: AGPL-3.0-only*

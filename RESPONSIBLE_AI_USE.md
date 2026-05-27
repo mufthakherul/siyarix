@@ -149,3 +149,7 @@ Organizations deploying Siyarix's AI features should:
 ---
 
 *This policy supplements the GNU Affero General Public License v3.0 and the [Ethical Use Policy](ETHICAL_USE.md). It is intended as a governance framework, not legal advice. Consult qualified professionals for regulatory compliance guidance.*
+
+---
+
+*SPDX-License-Identifier: AGPL-3.0-only*

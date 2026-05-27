@@ -69,3 +69,7 @@ Commercial licensing is negotiated on a case-by-case basis. Factors include:
 ---
 
 *For license compliance questions regarding AGPL-3.0, we recommend consulting with legal counsel familiar with open-source licensing.*
+
+---
+
+*SPDX-License-Identifier: AGPL-3.0-only*

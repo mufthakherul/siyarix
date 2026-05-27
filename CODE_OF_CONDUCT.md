@@ -50,3 +50,7 @@ Community leaders will follow these Community Impact Guidelines in determining t
 ## Attribution
 
 This Code of Conduct is adapted from the [Contributor Covenant](https://www.contributor-covenant.org/), version 2.1, available at https://www.contributor-covenant.org/version/2/1/code_of_conduct.html.
+
+---
+
+*SPDX-License-Identifier: AGPL-3.0-only*

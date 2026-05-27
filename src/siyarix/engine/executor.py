@@ -148,7 +148,7 @@ class ExecutionEngine:
         """Callback when kill switch is triggered."""
         logger.warning("Kill switch triggered - cancelling all pool tasks")
         try:
-            self._pool.cancel_pending()
+            asyncio.create_task(self._pool.cancel_pending())
         except Exception as exc:
             logger.exception("Pool cancellation failed: %s", exc)
 
@@ -430,7 +430,7 @@ class ExecutionEngine:
         if self._kill_switch.state == KillSwitchState.TRIGGERED:
             logger.warning("Execution aborted: kill switch triggered")
             return EngineResult(
-                plan=ExecutionPlan(instruction=instruction, steps=[]),
+                plan=ExecutionPlan(raw_instruction=instruction, steps=[]),
                 mode=self._mode,
                 step_results=[],
                 total_duration_ms=0.0,
@@ -1085,7 +1085,7 @@ class ExecutionEngine:
             return res is not None and res.status == StepStatus.SUCCESS
 
         if condition.endswith(".failed"):
-            step_id = condition[:-8].strip()
+            step_id = condition[:-7].strip()
             res = self._completed_steps.get(step_id)
             return res is not None and res.status == StepStatus.FAILED
 
@@ -1139,7 +1139,8 @@ class ExecutionEngine:
             findings_count=len(sr.findings),
         )
         if step.command:
-            self._xi_predictor.learn(step.command)
+            cmd = step.command
+            self._xi_predictor.learn(cmd)
         elif step.tool:
             cmd = " ".join([step.tool, *step.args, step.target or ""]).strip()
             self._xi_predictor.learn(cmd)

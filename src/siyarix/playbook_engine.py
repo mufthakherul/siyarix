@@ -159,6 +159,19 @@ class PlaybookEngine:
             logger.error("Failed to load playbook '%s': %s", name, exc)
             return None
 
+    def create(self, name: str, description: str = "") -> Playbook:
+        from datetime import datetime
+        playbook = Playbook(
+            name=name,
+            description=description,
+            version="1.0",
+            author="Siyarix User",
+            created_at=datetime.now().isoformat(),
+            updated_at=datetime.now().isoformat(),
+        )
+        self.save(playbook)
+        return playbook
+
     def list_playbooks(self) -> list[dict[str, Any]]:
         playbooks: list[dict[str, Any]] = []
         for path in sorted(self._dir.glob("*.json")):

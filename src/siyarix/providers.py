@@ -259,10 +259,7 @@ class AnthropicAdapter(Provider):
     ) -> None:
         self._api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
         self._model = model
-
-    @property
-    def available(self) -> bool:
-        return bool(self._api_key)
+        self.available = bool(self._api_key)
 
     async def validate(self) -> bool:
         return self.available

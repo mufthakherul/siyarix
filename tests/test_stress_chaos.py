@@ -14,10 +14,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import re
 import sys
-import time
 import tracemalloc
 from pathlib import Path
 
@@ -66,7 +64,8 @@ class TestPhase1_ChaosSimulation:
             await asyncio.sleep(5.0)
             return n
 
-        handles = [pool.submit(slow_task, i) for i in range(100)]
+        for i in range(100):
+            pool.submit(slow_task, i)
         await asyncio.sleep(0.05)
 
         await pool.cancel_pending()
@@ -191,11 +190,9 @@ class TestPhase2_AdversarialInput:
         ]
         for payload, expected_name in injections:
             detected = False
-            detected_name = ""
             for name, pattern in _INJECTION_PATTERNS:
                 if pattern.search(payload):
                     detected = True
-                    detected_name = name
                     break
             assert detected, (
                 f"Injection not detected: {payload!r} "

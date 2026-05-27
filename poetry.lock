@@ -86,7 +86,7 @@ files = [
 
 [[package]]
 name = "cffi"
-version = "2.0.0"
+version = "0.1.3-beta"
 description = "Foreign Function Interface for Python calling C code."
 optional = false
 python-versions = ">=3.9"

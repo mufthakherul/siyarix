@@ -9,7 +9,7 @@
   "Author": "MD MUFTHAKHERUL ISLAM MIRAZ",
   "PackageName": "Siyarix",
   "PackageUrl": "https://github.com/mufthakherul/siyarix",
-  "License": "MIT",
+  "License": "AGPL-3.0-or-later",
   "LicenseUrl": "https://github.com/mufthakherul/siyarix/blob/main/LICENSE",
   "Copyright": "Copyright (c) 2024 MD MUFTHAKHERUL ISLAM MIRAZ",
   "ShortDescription": "Siyarix — AI Cybersecurity Orchestration Agent",

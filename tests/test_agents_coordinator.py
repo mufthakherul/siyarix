@@ -36,13 +36,11 @@ class TestCoordinatorAgent:
 
     def test_register_default_agents(self, coordinator):
         agents = coordinator._team.list_agents()
-        assert len(agents) >= 6  # 5 role agents + SOC + DFIR
+        assert len(agents) >= 5  # 5 role agents (recon, scanner, enum, exploit, report)
         agent_names = [a.name for a in agents]
         assert "recon-1" in agent_names
         assert "scanner-1" in agent_names
         assert "exploit-1" in agent_names
-        assert "soc-analyst-1" in agent_names
-        assert "dfir-responder-1" in agent_names
 
     @pytest.mark.asyncio
     async def test_execute_objective_recon(self, coordinator):

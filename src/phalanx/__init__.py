@@ -12,7 +12,7 @@ __license__ = "MIT"
 from .adversarial_tester import (AdversarialFinding, AdversarialSeverity,
                                  AdversarialTester)
 from .agent_lifecycle import AgentInstance, AgentLifecycle
-from .agents import CoordinatorAgent, DFIRAgent, SOCAgent
+from .agents import CoordinatorAgent
 from .audit_log import AuditEventType, AuditSeverity, audit
 from .bootstrap import BootstrapEngine, BootstrapResult, PlatformInfo
 from .canary import (CanaryDeployment, CanaryToken, CanaryTokenManager,
@@ -175,8 +175,6 @@ __all__ = [
     "Predictor",
     "WorkflowRuntime",
     "CoordinatorAgent",
-    "SOCAgent",
-    "DFIRAgent",
     "ExploitChainBuilder",
     "ExploitChainExecutor",
     "ExploitChain",

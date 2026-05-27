@@ -7,14 +7,36 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number (e.g., 1.0.0)'
+        description: 'Version number (e.g., 0.1.3)'
         required: true
         type: string
+      publish_pypi:
+        description: 'Publish to PyPI'
+        type: boolean
+        default: true
+      publish_npm:
+        description: 'Publish to npm'
+        type: boolean
+        default: true
+      publish_apt:
+        description: 'Build APT repository'
+        type: boolean
+        default: true
+      publish_docker:
+        description: 'Build & push Docker image'
+        type: boolean
+        default: true
 
 permissions:
   contents: write
   issues: write
   pull-requests: write
+  packages: write
+  id-token: write
+
+env:
+  PKG_VERSION: ${{ github.event.inputs.version || github.ref_name }}
+  DOCKER_IMAGE: ghcr.io/${{ github.repository }}
 
 jobs:
   validate-tag:
@@ -22,35 +44,40 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
-      changelog: ${{ steps.changelog.outputs.changelog }}
+      semver: ${{ steps.semver.outputs.semver }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Extract version
         id: version
         run: |
-          if [[ "${{ github.event.inputs.version }}" != "" ]]; then
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          else
-            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          fi
+          VER="${{ env.PKG_VERSION }}"
+          VER="${VER#v}"
+          echo "version=${VER}" >> $GITHUB_OUTPUT
 
-      - name: Generate changelog
-        id: changelog
+      - name: Validate semver
+        id: semver
         run: |
-          git log --pretty=format:"- %s (%h)" ${{ github.event.inputs.version }}..HEAD --since="" > CHANGELOG_NEW.md 2>/dev/null || echo "Changes in this release" > CHANGELOG_NEW.md
-          cat CHANGELOG_NEW.md >> $GITHUB_OUTPUT
+          VER="${{ steps.version.outputs.version }}"
+          if [[ ! "$VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "::error::Invalid semver: $VER"
+            exit 1
+          fi
+          echo "semver=${VER}" >> $GITHUB_OUTPUT
 
-  build:
-    name: Build Distribution
+  # ==============================
+  # PYTHON PACKAGE (PyPI)
+  # ==============================
+  build-python:
+    name: Build Python Packages
     runs-on: ubuntu-latest
     needs: validate-tag
+    outputs:
+      wheel: ${{ steps.wheel-name.outputs.wheel }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -59,76 +86,42 @@ jobs:
 
       - name: Install build tools
         run: |
-          python -m pip install --upgrade pip
-          pip install build twine check-wheel-contents
+          pip install --upgrade pip build twine check-wheel-contents
 
-      - name: Build source distribution
-        run: python -m build --sdist
+      - name: Build sdist & wheel
+        run: python -m build
 
-      - name: Build wheel distribution
-        run: python -m build --wheel
-
-      - name: Check wheel contents
+      - name: Check wheel
         run: check-wheel-contents dist/
 
-      - name: Verify package metadata
-        run: |
-          twine check dist/*
+      - name: Twine check
+        run: twine check dist/*
 
-      - name: Upload distribution artifacts
+      - name: Get wheel name
+        id: wheel-name
+        run: |
+          WHL=$(ls dist/*.whl | head -1)
+          echo "wheel=$(basename ${WHL})" >> $GITHUB_OUTPUT
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dist
+          name: dist-python
           path: dist/
-          retention-days: 5
-
-  test-package:
-    name: Test Package
-    runs-on: ubuntu-latest
-    needs: [validate-tag, build]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Download distribution
-        uses: actions/download-artifact@v4.1.3
-        with:
-          name: dist
-          path: dist/
-
-      - name: Install package
-        run: |
-          pip install dist/*.whl
-          pip install dist/*.tar.gz
-
-      - name: Verify installation
-        run: |
-          siyarix --version || true
-          python -c "import siyarix; print('Package imported successfully')"
-
-      - name: Run basic tests
-        run: |
-          pytest tests/ -v -x --timeout=60 -m "not integration" || true
+          retention-days: 30
 
   publish-pypi:
     name: Publish to PyPI
     runs-on: ubuntu-latest
-    needs: [validate-tag, build, test-package]
+    needs: [validate-tag, build-python, test-python-package]
+    if: ${{ github.event.inputs.publish_pypi != 'false' }}
     environment:
       name: pypi
       url: https://pypi.org/project/siyarix/
-    permissions:
-      id-token: write  # Required for trusted publishing
     steps:
-      - name: Download distribution
-        uses: actions/download-artifact@v4.1.3
+      - uses: actions/download-artifact@v4
         with:
-          name: dist
+          name: dist-python
           path: dist/
 
       - name: Publish to PyPI
@@ -140,18 +133,15 @@ jobs:
   publish-testpypi:
     name: Publish to TestPyPI
     runs-on: ubuntu-latest
-    needs: [validate-tag, build, test-package]
-    if: github.event.inputs.publish_test == 'true' || false
+    needs: [validate-tag, build-python]
+    if: ${{ github.event.inputs.publish_pypi == 'true' || false }}
     environment:
       name: testpypi
       url: https://test.pypi.org/project/siyarix/
-    permissions:
-      id-token: write
     steps:
-      - name: Download distribution
-        uses: actions/download-artifact@v4.1.3
+      - uses: actions/download-artifact@v4
         with:
-          name: dist
+          name: dist-python
           path: dist/
 
       - name: Publish to TestPyPI
@@ -161,73 +151,288 @@ jobs:
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           skip_existing: true
 
+  test-python-package:
+    name: Test Python Package
+    runs-on: ubuntu-latest
+    needs: [validate-tag, build-python]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-python
+          path: dist/
+
+      - name: Install from wheel
+        run: |
+          pip install dist/*.whl
+          pip install pytest pytest-asyncio pytest-cov
+
+      - name: Verify import
+        run: |
+          siyarix --version
+          python -c "import siyarix; print('Package OK:', siyarix.__version__)"
+
+      - name: Run tests from installed package
+        run: |
+          python -m pytest --pyargs siyarix -v --tb=short -x -m "not integration" --timeout=60 || true
+
+  # ==============================
+  # NPM PACKAGE
+  # ==============================
+  build-npm:
+    name: Build NPM Package
+    runs-on: ubuntu-latest
+    needs: validate-tag
+    defaults:
+      run:
+        working-directory: packages/npm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Update version
+        run: |
+          VER="${{ needs.validate-tag.outputs.version }}"
+          node -e "const p=require('./package.json'); p.version='${VER}'; require('fs').writeFileSync('package.json', JSON.stringify(p, null, 2)+'\n')"
+
+      - name: Lint & check
+        run: |
+          node --check bin/siyarix-agent.js
+          node --check bin/siyarix-agent-install.js
+          node --check lib/installer.js
+          npm pack --dry-run
+
+      - name: Pack
+        run: npm pack
+
+      - name: Upload npm package
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-npm
+          path: packages/npm/*.tgz
+          retention-days: 30
+
+  publish-npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    needs: [validate-tag, build-npm]
+    if: ${{ github.event.inputs.publish_npm != 'false' }}
+    defaults:
+      run:
+        working-directory: packages/npm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Update version
+        run: |
+          VER="${{ needs.validate-tag.outputs.version }}"
+          node -e "const p=require('./package.json'); p.version='${VER}'; require('fs').writeFileSync('package.json', JSON.stringify(p, null, 2)+'\n')"
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # ==============================
+  # DEB / APT PACKAGE
+  # ==============================
+  build-deb:
+    name: Build DEB Package
+    runs-on: ubuntu-latest
+    needs: validate-tag
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deb build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq dpkg-dev fakeroot
+
+      - name: Build .deb
+        run: |
+          bash packages/deb/build-deb.sh "${{ needs.validate-tag.outputs.version }}"
+
+      - name: Build APT repository
+        run: |
+          bash packages/deb/build-apt-repo.sh "${{ needs.validate-tag.outputs.version }}"
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-deb
+          path: |
+            *.deb
+            packages/deb/apt-repo/
+          retention-days: 30
+
+  publish-apt:
+    name: Deploy APT Repository
+    runs-on: ubuntu-latest
+    needs: [validate-tag, build-deb]
+    if: ${{ github.event.inputs.publish_apt != 'false' && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-deb
+          path: apt-repo
+
+      - name: Deploy to Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./apt-repo
+          destination_dir: apt
+          keep_files: true
+
+  # ==============================
+  # DOCKER IMAGE
+  # ==============================
+  build-docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: validate-tag
+    if: ${{ github.event.inputs.publish_docker != 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ needs.validate-tag.outputs.version }}
+            ghcr.io/${{ github.repository }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ==============================
+  # WINGET SUBMISSION (auto-PR)
+  # ==============================
+  submit-winget:
+    name: Submit to Winget
+    runs-on: ubuntu-latest
+    needs: [validate-tag, build-python]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Submit winget PR
+        uses: vedantmgoyal2009/winget-releaser@v2
+        with:
+          identifier: Mufthakherul.Siyarix
+          version: ${{ needs.validate-tag.outputs.version }}
+          installers-regex: 'siyarix-install\.ps1'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # ==============================
+  # GITHUB RELEASE
+  # ==============================
   create-github-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [validate-tag, build, test-package, publish-pypi]
+    needs: [validate-tag, build-python, build-npm, build-deb, build-docker]
+    if: always()
     permissions:
       contents: write
     steps:
-      - name: Download distribution
-        uses: actions/download-artifact@v4.1.3
+      - uses: actions/checkout@v4
         with:
-          name: dist
-          path: dist/
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
 
       - name: Generate release notes
         id: release-notes
         run: |
-          # Extract PR numbers and contributors
           echo "## What's Changed" > release_notes.md
-          git log --pretty=format:"- %s (%an)" ${{ needs.validate-tag.outputs.version }}^..HEAD >> release_notes.md || true
-          cat release_notes.md >> $GITHUB_OUTPUT
+          git log --pretty=format:"- %s (%h)" ${{ needs.validate-tag.outputs.semver }}^..HEAD >> release_notes.md || true
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.validate-tag.outputs.version }}
           name: Release v${{ needs.validate-tag.outputs.version }}
-          body: ${{ needs.validate-tag.outputs.changelog }}
+          body_path: release_notes.md
           draft: false
           prerelease: ${{ contains(needs.validate-tag.outputs.version, 'alpha') || contains(needs.validate-tag.outputs.version, 'beta') || contains(needs.validate-tag.outputs.version, 'rc') }}
           generate_release_notes: true
           files: |
-            dist/*.whl
-            dist/*.tar.gz
+            artifacts/dist-python/*.whl
+            artifacts/dist-python/*.tar.gz
+            artifacts/dist-npm/*.tgz
+            artifacts/dist-deb/*.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  update-homebrew:
-    name: Update Homebrew
+  # ==============================
+  # SUMMARY
+  # ==============================
+  summary:
+    name: Release Summary
     runs-on: ubuntu-latest
-    needs: [validate-tag, publish-pypi]
-    if: contains(github.ref, 'refs/tags/v')
-    steps:
-      - name: Notify Homebrew
-        run: |
-          # Homebrew auto-updates via form, but we can ping maintainers
-          echo "Homebrew package will be auto-updated"
-
-  notify:
-    name: Notify
-    runs-on: ubuntu-latest
-    needs: [validate-tag, publish-pypi, create-github-release]
+    needs: [validate-tag, create-github-release, publish-pypi, publish-npm, publish-apt]
     if: always()
     steps:
-      - name: Create summary
+      - name: Generate summary
         run: |
-          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Release v${{ needs.validate-tag.outputs.version }} Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${{ needs.validate-tag.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Step | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Test Package | ${{ needs.test-package.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Publish PyPI | ${{ needs.publish-pypi.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Package | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| PyPI (siyarix) | ${{ needs.publish-pypi.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| npm (@mufthakherul/siyarix-agent) | ${{ needs.publish-npm.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| APT (deb) | ${{ needs.publish-apt.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker (ghcr.io) | ${{ needs.build-docker.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| GitHub Release | ${{ needs.create-github-release.result }} |" >> $GITHUB_STEP_SUMMARY
-
-      - name: Discord notification
-        if: env.DISCORD_WEBHOOK_URL != ''
-        run: |
-          echo "Add Discord webhook for release notifications"
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Install Commands" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '| Method | Command |' >> $GITHUB_STEP_SUMMARY
+          echo '|--------|---------|' >> $GITHUB_STEP_SUMMARY
+          echo '| pip | `pip install siyarix` |' >> $GITHUB_STEP_SUMMARY
+          echo '| pipx | `pipx install siyarix` |' >> $GITHUB_STEP_SUMMARY
+          echo '| uv | `uv tool install siyarix` |' >> $GITHUB_STEP_SUMMARY
+          echo '| npm | `npm install -g @mufthakherul/siyarix-agent` |' >> $GITHUB_STEP_SUMMARY
+          echo '| APT (Kali/Debian/Ubuntu) | `sudo apt install siyarix` |' >> $GITHUB_STEP_SUMMARY
+          echo '| Homebrew (macOS) | `brew install siyarix` |' >> $GITHUB_STEP_SUMMARY
+          echo '| Docker | `docker run ghcr.io/mufthakherul/siyarix:latest` |' >> $GITHUB_STEP_SUMMARY
+          echo '| Windows (winget) | `winget install Mufthakherul.Siyarix` |' >> $GITHUB_STEP_SUMMARY
+          echo '| Windows (choco) | `choco install siyarix` |' >> $GITHUB_STEP_SUMMARY
+          echo '| Universal (curl) | `curl -fsSL https://siyarix.dev/install.sh | bash` |' >> $GITHUB_STEP_SUMMARY
+          echo '| Universal (pwsh) | `irm https://siyarix.dev/install.ps1 | iex` |' >> $GITHUB_STEP_SUMMARY

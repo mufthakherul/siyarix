@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+
+case "$1" in
+  remove|purge)
+    echo "Removing Siyarix configuration..."
+    rm -rf /root/.siyarix
+    ;;
+esac
+
+exit 0

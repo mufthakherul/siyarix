@@ -5,7 +5,6 @@ from __future__ import annotations
 from . import _now_iso
 
 import re
-from datetime import UTC, datetime
 
 # OSVDB ranges mapped to severity
 _OSVDB_SEVERITY: list[tuple[range, str]] = [
@@ -26,11 +25,6 @@ def _severity_for_osvdb(osvdb_id: int) -> str:
         if osvdb_id in rng:
             return sev
     return "info"
-
-
-def _now_iso() -> str:
-    return datetime.now(tz=UTC).isoformat()
-
 
 class NiktoParser:
     """Parses nikto text output (lines starting with ``+``) into finding dicts."""

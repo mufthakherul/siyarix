@@ -6,7 +6,6 @@ from . import _now_iso
 
 import re
 import xml.etree.ElementTree as ET  # nosec B405
-from datetime import UTC, datetime
 
 from ..rust_accel import parse_nmap_xml as rust_parse_nmap_xml
 
@@ -47,11 +46,6 @@ _PORT_SEVERITY: dict[int, str] = {
 
 def _severity_for_port(port: int) -> str:
     return _PORT_SEVERITY.get(port, "info")
-
-
-def _now_iso() -> str:
-    return datetime.now(tz=UTC).isoformat()
-
 
 class NmapParser:
     """Parses nmap XML (preferred) or plain-text output into normalised finding dicts."""

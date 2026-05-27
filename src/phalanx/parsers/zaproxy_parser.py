@@ -5,17 +5,11 @@ from __future__ import annotations
 from . import _now_iso
 
 import re
-from datetime import UTC, datetime
 
 _ALERT_RE = re.compile(
     r"(?i)\b(alert|risk|vulnerab|scripting|xss|sqli|injection|csrf|cross)\b|\[(high|medium|low|critical|info)\]"
 )
 _TARGET_RE = re.compile(r"(?i)\bhttps?://\S+")
-
-
-def _now_iso() -> str:
-    return datetime.now(tz=UTC).isoformat()
-
 
 class ZaproxyParser:
     """Parse ZAP output into normalized finding dictionaries."""

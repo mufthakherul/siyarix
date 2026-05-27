@@ -5,7 +5,6 @@ from __future__ import annotations
 from . import _now_iso
 
 import re
-from datetime import UTC, datetime
 
 # HTTP status code → severity
 _STATUS_SEVERITY: dict[int, str] = {
@@ -29,10 +28,6 @@ _LINE_RE = re.compile(r"^(/\S*)\s+\(Status:\s+(\d+)\)(?:\s+\[Size:\s+(\d+)\])?")
 
 def _severity_for_status(status: int) -> str:
     return _STATUS_SEVERITY.get(status, "info")
-
-
-def _now_iso() -> str:
-    return datetime.now(tz=UTC).isoformat()
 
 
 class GobusterParser:

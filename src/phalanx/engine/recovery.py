@@ -19,6 +19,12 @@ TRANSIENT_INDICATORS = [
     "server is unavailable",
     "gateway timeout",
     "internal server error",
+    "service unavailable",
+    "too many requests",
+    "rate limit",
+    "rate_limit",
+    "server error",
+    "bad gateway",
 ]
 
 

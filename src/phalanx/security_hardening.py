@@ -44,6 +44,7 @@ _INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("shell_pipe", re.compile(r"[|;&`]")),
     ("command_substitution", re.compile(r"\$\(")),
     ("path_traversal", re.compile(r"\.\./\.\./\.\.")),
+    ("path_traversal_backslash", re.compile(r"\.\.[\\/]\.\.[\\/]\.\.")),
     ("null_byte", re.compile(r"\x00")),
     ("newline_injection", re.compile(r"[\r\n]")),
     ("format_string", re.compile(r"%[0-9]*[nsxp]", re.IGNORECASE)),

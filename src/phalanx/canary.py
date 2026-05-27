@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import tempfile
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -245,7 +247,7 @@ class CanaryTokenManager:
             CanaryTokenType.DNS: f"canary-{uuid.uuid4().hex[:8]}.monitor.local",
             CanaryTokenType.AWS_KEY: "/config/credentials",
             CanaryTokenType.CREDENTIAL: "/etc/honeypot-credentials",
-            CanaryTokenType.FILE: f"/tmp/.canary_{uuid.uuid4().hex[:8]}",
+            CanaryTokenType.FILE: os.path.join(tempfile.gettempdir(), f".canary_{uuid.uuid4().hex[:8]}"),
             CanaryTokenType.DB_RECORD: f"canary_records_{uuid.uuid4().hex[:8]}",
             CanaryTokenType.API_KEY: "/.env",
         }

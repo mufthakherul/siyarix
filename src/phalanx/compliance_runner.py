@@ -347,12 +347,14 @@ class ComplianceRunner:
 
     def _check_gdpr(self, control_id: str, target: str) -> bool:
         if control_id == "GDPR-32":
-            return (
-                self._check_dir_exists("/etc/ssl")
-                or self._check_dir_exists("/etc/letsencrypt")
-                or bool(os.environ.get("SSL_CERT_FILE"))
-            )
+            checks = [bool(os.environ.get("SSL_CERT_FILE"))]
+            if sys.platform != "win32":
+                checks.insert(0, self._check_dir_exists("/etc/ssl"))
+                checks.insert(1, self._check_dir_exists("/etc/letsencrypt"))
+            return any(checks)
         elif control_id == "GDPR-33":
+            if sys.platform == "win32":
+                return False
             return self._check_dir_exists("/var/log/breach") or os.path.exists(
                 "/etc/breach-notification.conf"
             )
@@ -360,13 +362,9 @@ class ComplianceRunner:
 
     def _check_hipaa(self, control_id: str, target: str) -> bool:
         if control_id == "HIPAA-164.308":
-            return self._check_dir_exists("/etc/ssl") or self._check_tool_installed(
-                "openssl"
-            )
+            return self._check_tool_installed("openssl")
         elif control_id == "HIPAA-164.312":
-            return self._check_dir_exists("/etc/ssl") or self._check_tool_installed(
-                "openssl"
-            )
+            return self._check_tool_installed("openssl")
         return False
 
     def _check_tool_installed(self, tool_name: str) -> bool:

@@ -277,7 +277,7 @@ class BootstrapEngine:
         marker = self._home / ".initialized"
         marker.write_text(
             f"# Siyarix initialized\n"
-            f"version=2.0.0\n"
+            f"version=0.1.3-beta\n"
             f"created_at={datetime.now().isoformat()}\n"
             f"platform={platform.system()}\n"
             f"python={sys.version}\n"

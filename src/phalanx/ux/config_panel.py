@@ -28,9 +28,7 @@ class ConfigPanel:
 
     def _main_menu(self) -> str:
         """Render the main configuration menu and return the user's choice."""
-        from . import resolve_theme
 
-        theme_name = "cyber-noir"
         accent = "bright_cyan"
         mute = "bright_black"
 
@@ -236,7 +234,7 @@ class ConfigPanel:
         store = SettingsStore()
         current = store.get("color_theme") or "cyber-noir"
 
-        choice = Prompt.ask(f"  Theme name", default=current)
+        choice = Prompt.ask("  Theme name", default=current)
         resolved = resolve_theme(choice)
         if resolved:
             store.set("color_theme", resolved)

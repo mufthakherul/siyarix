@@ -19,7 +19,6 @@ import asyncio
 import json
 import logging
 import os
-import socket
 import sys
 import time
 from collections import deque
@@ -1744,7 +1743,7 @@ class SiyarixChat:
             ver = _pv("siyarix")
         except Exception as exc:
             logger.debug("Failed to resolve package version: %s", exc)
-            ver = "1.2.0"
+            ver = "0.1.3-beta"
         console.print(f"[bold cyan]Siyarix[/bold cyan] [green]v{ver}[/green]")
 
     # ──────────────────────────────────────────────────────────────────────
@@ -2696,7 +2695,7 @@ class SiyarixChat:
             from importlib.metadata import version as _pv
             ver = _pv("siyarix")
         except Exception:
-            ver = "2.0.0"
+            ver = "0.1.3-beta"
 
         shell_info = get_shell_platform()
         theme = self._settings.get("color_theme")

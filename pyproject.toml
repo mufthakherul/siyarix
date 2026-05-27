@@ -1,6 +1,6 @@
 [project]
 name = "siyarix"
-version = "2.0.0"
+version = "0.1.3-beta"
 description = "Siyarix — AI-native cybersecurity operations platform with autonomous execution, multi-agent framework, and intelligent workflow orchestration"
 description-content-type = "text/markdown"
 readme = "README.md"

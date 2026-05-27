@@ -38,7 +38,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.prompt import Prompt
 from rich.table import Table
 
-__version__ = "2.0.0"
+__version__ = "0.1.3-beta"
 
 from typing import Any, cast
 
@@ -240,9 +240,9 @@ def main_callback(
 
     # Pipe from stdin: echo "scan 10.0.0.1" | siyarix
     if _IS_STDIN_PIPE:
-        lines = [l for l in sys.stdin if l.strip()]
+        lines = [line for line in sys.stdin if line.strip()]
         if lines:
-            _run_batch_lines([l.strip() for l in lines])
+            _run_batch_lines([line.strip() for line in lines])
         return
 
     # No subcommand + TTY: launch interactive UI
@@ -2267,25 +2267,6 @@ def tool_registry_update_metadata(
     reg = ToolRegistry()
     count = reg.update_metadata(Path(output_path))
     print(f"Successfully updated metadata: {count} tools recorded.")
-    """Show detailed info about a specific tool."""
-    tools = registry.discover()
-    tool = next((t for t in tools if t.name == name or t.binary == name), None)
-    if not tool:
-        console.print(f"[red]Tool not found: {name}[/red]")
-        raise typer.Exit(1)
-
-    console.print(
-        Panel.fit(
-            f"[bold]{tool.name}[/bold] ({tool.binary})\n"
-            f"[dim]Category:[/dim]     {tool.category}\n"
-            f"[dim]Version:[/dim]      {tool.version}\n"
-            f"[dim]Path:[/dim]         {tool.path}\n"
-            f"[dim]Capabilities:[/dim] {', '.join(tool.capabilities)}\n"
-            f"[dim]Description:[/dim]  {tool.description}",
-            title="Tool Info",
-            border_style="cyan",
-        )
-    )
 
 
 # ---------------------------------------------------------------------------

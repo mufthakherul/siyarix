@@ -43,5 +43,9 @@ class KillSwitch:
     def register(self, callback) -> None:
         self._callbacks.append(callback)
 
+    @property
+    def is_triggered(self) -> bool:
+        return self.state == KillSwitchState.TRIGGERED
+
 
 __all__ = ["KillSwitch", "KillSwitchState"]

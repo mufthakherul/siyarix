@@ -172,10 +172,10 @@ def lm(tmp_path: Path) -> LearningMemory:
         mem = LearningMemory()
         mem._patterns.clear()
         mem._anti_patterns.clear()
-        l._ngram_index.clear()
+        mem._ngram_index.clear()
         mem._patterns_path = tmp_path / "learning" / "tool_patterns.json"
         mem._patterns_path.parent.mkdir(parents=True, exist_ok=True)
-        return l
+        return mem
 
 
 class TestLearningMemoryInit:

@@ -231,7 +231,7 @@ class ScanProgressDisplay:
         if total == 0:
             lines.append("[green]✅ No findings — target looks clean.[/green]")
         else:
-            lines.append("[dim]siyarix-agent history list  — view full results[/dim]")
+            lines.append("[dim]siyarix history list  — view full results[/dim]")
 
         self._console.print(Panel("\n".join(lines), border_style="green", expand=False))
 

@@ -18,7 +18,7 @@ Siyarix started out as a college project to experiment with AI and security auto
 To install Siyarix globally via npm:
 
 ```bash
-npm install -g siyarix-agent
+npm install -g @mufthakherul/siyarix
 ```
 
 *(Ensure you have Python 3.11+ installed on your system as it is required under the hood).*

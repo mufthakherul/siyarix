@@ -137,7 +137,7 @@ def _write_toml(path: Path, data: dict[str, Any]) -> None:
     """Write dict as TOML (simple key = value format)."""
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
-        "# Siyarix Agent Settings\n# Edit directly or use: siyarix-agent config set <key> <value>\n"
+        "# Siyarix Settings\n# Edit directly or use: siyarix config set <key> <value>\n"
     ]
     for key, value in sorted(data.items()):
         desc = DESCRIPTIONS.get(key, "")

@@ -227,7 +227,8 @@ class NotificationCenter:
 
     def _render(self, n: Notification) -> None:
         """Render a notification to the Rich console."""
-        cfg = _LEVEL_CONFIG.get(n.level.value, _LEVEL_CONFIG["info"])
+        level_val = n.level.value if isinstance(n.level, NotificationLevel) else n.level
+        cfg = _LEVEL_CONFIG.get(level_val, _LEVEL_CONFIG["info"])
         icon = cfg["icon"]
         border = cfg["border"]
         style = cfg["style"]

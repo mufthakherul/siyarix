@@ -9,7 +9,7 @@
     <a href="https://github.com/mufthakherul/siyarix"><img src="https://img.shields.io/github/stars/mufthakherul/siyarix" alt="Stars"></a>
     <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python">
     <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome">
-    <img src="https://img.shields.io/badge/coverage-%3E80%25-success" alt="Coverage">
+    <a href="https://codecov.io/gh/mufthakherul/phalanx"><img src="https://codecov.io/gh/mufthakherul/phalanx/branch/main/graph/badge.svg" alt="Coverage"></a>
   </p>
 </div>
 

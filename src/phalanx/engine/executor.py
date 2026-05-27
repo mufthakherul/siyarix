@@ -22,101 +22,44 @@ import re
 import shutil
 import time
 import uuid
-from dataclasses import dataclass, field
-from enum import StrEnum
 from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import (Progress, SpinnerColumn, TextColumn,
-                           TimeElapsedColumn)
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
-from .dynamic_resolver import DynamicResolver
-from .engine_types import StepResult, StepStatus
-from .executor import run_tool_complete
-from .kill_switch import KillSwitch, KillSwitchState
-from .knowledge_graph import KnowledgeGraph
-from .metrics import get_metrics
-from .notifications import notification_center
-from .offline_store import OfflineStore
-from .planner import ExecutionPlan, ExecutionStep, StepType, TaskPlanner
-from .providers import registry as provider_registry
-from .tool_executor import ToolExecutor
-from .tool_registry import ToolInfo, ToolRegistry
-from .worker_pool import AsyncWorkerPool
-from .xi import ContextTracker, Predictor, SkillProfiler, XICoreService
+from ..dynamic_resolver import DynamicResolver
+from ..engine_types import StepResult, StepStatus
+from ..kill_switch import KillSwitch, KillSwitchState
+from ..knowledge_graph import KnowledgeGraph
+from ..metrics import get_metrics
+from ..notifications import notification_center
+from ..offline_store import OfflineStore
+from ..planner import ExecutionPlan, ExecutionStep, StepType, TaskPlanner
+from ..tool_executor import ToolExecutor
+from ..tool_registry import ToolInfo, ToolRegistry
+from ..worker_pool import AsyncWorkerPool
+from ..xi import ContextTracker, Predictor, SkillProfiler, XICoreService
 
-logger = logging.getLogger(__name__)
+from .context import compress_context as _compress_context
+from .providers import setup_providers as _setup_providers
+from .recovery import is_transient_error as _is_transient_error_impl
+from .recovery import calculate_backoff_delay as _calculate_backoff_delay_impl
+from .safety import check_permission_gate as _check_permission_gate
+from .safety import FORBIDDEN_MARKER as _FORBIDDEN_MARKER
+from .steps import (
+    EngineResult,
+    ExecutionMode,
+    _MAX_CONTEXT_OUTPUT_LENGTH,
+    _MAX_RETRIES,
+    _RETRY_BACKOFF_FACTOR,
+    _RETRY_BASE_DELAY,
+    _RETRY_MAX_DELAY,
+)
+
+logger = logging.getLogger("siyarix.engine")
 console = Console()
-
-# Maximum characters of output to include in model analysis context per step
-_MAX_CONTEXT_OUTPUT_LENGTH = 2000
-
-# Retry configuration
-_MAX_RETRIES = 3
-_RETRY_BACKOFF_FACTOR = 2.0
-_RETRY_BASE_DELAY = 1.0  # seconds
-_RETRY_MAX_DELAY = 30.0  # seconds
-
-
-class ExecutionMode(StrEnum):
-    """Execution mode for the engine."""
-
-    REGISTRY = "registry"  # Registry-only (no model-driven planning)
-    AUTONOMOUS = "autonomous"  # Model-driven planning and execution
-    INTEGRATED = "integrated"  # Model-driven planning with registry fallback
-
-
-@dataclass
-class EngineResult:
-    """Aggregate result of executing an entire plan."""
-
-    plan: ExecutionPlan
-    step_results: list[StepResult] = field(default_factory=list)
-    total_duration_ms: float = 0.0
-    mode: ExecutionMode = ExecutionMode.INTEGRATED
-    all_findings: list[dict[str, Any]] = field(default_factory=list)
-    plan_id: str | None = None  # Plan ID for persistence
-    retries_performed: int = 0  # Total retries across all steps
-
-    @property
-    def success(self) -> bool:
-        return all(
-            r.status in (StepStatus.SUCCESS, StepStatus.SKIPPED)
-            for r in self.step_results
-        )
-
-    @property
-    def summary(self) -> dict[str, int]:
-        counts: dict[str, int] = {}
-        for r in self.step_results:
-            counts[r.status.value] = counts.get(r.status.value, 0) + 1
-        return counts
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for storage/serialization."""
-        return {
-            "plan_id": self.plan_id,
-            "plan": self.plan.to_dict(),
-            "step_results": [
-                {
-                    "step_id": r.step_id,
-                    "status": r.status.value,
-                    "output": r.output[:1000],  # Truncate for storage
-                    "error": r.error,
-                    "duration_ms": r.duration_ms,
-                    "findings": r.findings,
-                    "retry_count": r.retry_count,
-                    "exit_code": r.exit_code,
-                }
-                for r in self.step_results
-            ],
-            "total_duration_ms": self.total_duration_ms,
-            "mode": self.mode.value,
-            "success": self.success,
-            "retries_performed": self.retries_performed,
-        }
 
 
 class ExecutionEngine:
@@ -317,12 +260,12 @@ class ExecutionEngine:
             )
         elif system == "darwin":
             install_commands.append(["brew", "install", package])
-        else:  # Linux (Debian, Ubuntu, Kali, etc.)
+        else:
             install_commands.append(["sudo", "apt-get", "update", "-y"])
             install_commands.append(["sudo", "apt-get", "install", "-y", package])
             install_commands.append(["apt-get", "install", "-y", package])
 
-        from .output import output
+        from ..output import output
 
         valid_installers = []
         for cmd in install_commands:
@@ -353,7 +296,8 @@ class ExecutionEngine:
         for cmd in valid_installers:
             console.print(f"[dim]Running: {' '.join(cmd)}[/dim]")
             try:
-                result = await run_tool_complete(cmd[0], cmd[1:], timeout=300)
+                from siyarix.engine import run_tool_complete as _run_tool_complete
+                result = await _run_tool_complete(cmd[0], cmd[1:], timeout=300)
                 if result.exit_code == 0:
                     success = True
                     console.print(
@@ -380,184 +324,7 @@ class ExecutionEngine:
 
     def _setup_providers(self) -> None:
         """Configure model providers based on available configuration."""
-        # Instantiate adapters from the global provider registry
-        preferred = str(self._config.get("model_provider", "auto")).strip().lower()
-        preference_map = {
-            "gemini": [
-                "gemini",
-                "openai",
-                "anthropic",
-                "groq",
-                "together",
-                "ollama",
-                "lmstudio",
-                "cloud",
-                "noop",
-            ],
-            "openai": [
-                "openai",
-                "gemini",
-                "anthropic",
-                "groq",
-                "together",
-                "ollama",
-                "lmstudio",
-                "cloud",
-                "noop",
-            ],
-            "ollama": [
-                "ollama",
-                "lmstudio",
-                "gemini",
-                "openai",
-                "anthropic",
-                "groq",
-                "together",
-                "cloud",
-                "noop",
-            ],
-            "cloud": [
-                "cloud",
-                "gemini",
-                "openai",
-                "anthropic",
-                "groq",
-                "together",
-                "ollama",
-                "lmstudio",
-                "noop",
-            ],
-            "groq": [
-                "groq",
-                "openai",
-                "gemini",
-                "anthropic",
-                "together",
-                "ollama",
-                "lmstudio",
-                "cloud",
-                "noop",
-            ],
-            "together": [
-                "together",
-                "groq",
-                "openai",
-                "gemini",
-                "anthropic",
-                "ollama",
-                "lmstudio",
-                "cloud",
-                "noop",
-            ],
-            "lmstudio": [
-                "lmstudio",
-                "ollama",
-                "gemini",
-                "openai",
-                "anthropic",
-                "groq",
-                "together",
-                "cloud",
-                "noop",
-            ],
-            "anthropic": [
-                "anthropic",
-                "openai",
-                "gemini",
-                "groq",
-                "together",
-                "ollama",
-                "lmstudio",
-                "cloud",
-                "noop",
-            ],
-            "auto": [
-                "gemini",
-                "openai",
-                "anthropic",
-                "groq",
-                "together",
-                "ollama",
-                "lmstudio",
-                "cloud",
-                "noop",
-            ],
-        }
-
-        order = preference_map.get(preferred, preference_map["auto"])
-
-        for name in order:
-            try:
-                if name == "openai":
-                    api_key = self._config.get("openai_api_key", "")
-                    model = self._config.get("openai_model", "gpt-4o")
-                    prov = provider_registry.get("openai", api_key=api_key, model=model)
-                    available = bool(api_key)
-                elif name == "gemini":
-                    api_key = self._config.get(
-                        "gemini_api_key", ""
-                    ) or self._config.get("google_api_key", "")
-                    model = self._config.get("gemini_model", "gemini-1.5-pro")
-                    prov = provider_registry.get("gemini", api_key=api_key, model=model)
-                    available = bool(api_key)
-                elif name == "ollama":
-                    url = self._config.get("ollama_url", "http://localhost:11434")
-                    model = self._config.get("ollama_model", "llama3.1")
-                    prov = provider_registry.get("ollama", base_url=url, model=model)
-                    available = True
-                elif name == "cloud":
-                    server = self._config.get("server_url", "")
-                    key = self._config.get("api_key", "")
-                    prov = provider_registry.get(
-                        "cloud", server_url=server, api_key=key
-                    )
-                    available = bool(server and key)
-                elif name == "groq":
-                    api_key = self._config.get("groq_api_key", "")
-                    model = self._config.get("groq_model", "llama3-70b-8192")
-                    prov = provider_registry.get("groq", api_key=api_key, model=model)
-                    available = bool(api_key)
-                elif name == "together":
-                    api_key = self._config.get("together_api_key", "")
-                    model = self._config.get(
-                        "together_model", "mistralai/Mixtral-8x7B-Instruct-v0.1"
-                    )
-                    prov = provider_registry.get(
-                        "together", api_key=api_key, model=model
-                    )
-                    available = bool(api_key)
-                elif name == "lmstudio":
-                    url = self._config.get("lmstudio_url", "http://localhost:1234")
-                    model = self._config.get("lmstudio_model", "")
-                    prov = provider_registry.get("lmstudio", base_url=url, model=model)
-                    available = True
-                elif name == "anthropic":
-                    api_key = self._config.get("anthropic_api_key", "")
-                    model = self._config.get(
-                        "anthropic_model", "claude-3-opus-20240229"
-                    )
-                    prov = provider_registry.get(
-                        "anthropic", api_key=api_key, model=model
-                    )
-                    available = bool(api_key)
-                else:  # noop or unknown
-                    prov = provider_registry.get("noop")
-                    available = True
-
-                if not available:
-                    continue
-
-                # Attach an availability attribute for backward compatibility
-                try:
-                    setattr(prov, "available", available)
-                except Exception:
-                    pass
-
-                self._planner.add_provider(prov)
-            except Exception:
-                logger.debug(
-                    "Failed to instantiate provider adapter: %s", name, exc_info=True
-                )
+        _setup_providers(self._planner, self._config)
 
     @property
     def graph(self) -> KnowledgeGraph:
@@ -583,7 +350,6 @@ class ExecutionEngine:
             findings_count=self._xi_tracker.total_findings,
         )
 
-        # Skill profiler context
         sp = self._get_skill_profiler()
         xi_skill = {
             "level": sp.profile.level,
@@ -592,12 +358,11 @@ class ExecutionEngine:
             "score": sp.profile.score,
         }
 
-        # XI core service recommendations
         xi_recs: list[dict[str, str]] = []
         try:
             xics = self._get_xi_core_service()
-            from .core.intent_router import IntentRoute
-            from .core.session_kernel import SessionContext
+            from ..core.intent_router import IntentRoute
+            from ..core.session_kernel import SessionContext
 
             session = SessionContext(session_id="engine", objective="")
             route = IntentRoute(instruction="", mode=self._mode.value)
@@ -634,7 +399,6 @@ class ExecutionEngine:
         This is the planning phase — no execution happens here.
         """
         context = self._build_context()
-        # Compress context to stay within token limits
         context = self.compress_context(context)
         force_mode = None
         if self._mode == ExecutionMode.REGISTRY:
@@ -667,7 +431,6 @@ class ExecutionEngine:
         store = self._get_offline_store() if persist_workflow else None
         plan_id: str | None = None
 
-        # Check kill switch before execution
         if self._kill_switch.state == KillSwitchState.TRIGGERED:
             logger.warning("Execution aborted: kill switch triggered")
             return EngineResult(
@@ -677,7 +440,6 @@ class ExecutionEngine:
                 total_duration_ms=0.0,
             )
 
-        # Phase 1: Plan
         plan = await self.plan(instruction)
 
         if interactive:
@@ -685,7 +447,6 @@ class ExecutionEngine:
 
         if persist_workflow:
             plan_id = str(uuid.uuid4())
-            # Narrow type for mypy: ensure store is not None before calling persistence API
             assert store is not None
             store.save_plan(
                 plan_id=plan_id,
@@ -694,7 +455,6 @@ class ExecutionEngine:
                 status="planned",
             )
 
-        # Create session log for this execution
         if self._session_logger is not None:
             log_id = plan_id or str(uuid.uuid4())[:12]
             self._session_logger.create_log(
@@ -704,7 +464,6 @@ class ExecutionEngine:
                 llm_model=self._config.get("gemini_model", ""),
             )
             self._current_log_session_id = log_id
-            # Log the input instruction
             self._session_logger.add_command(
                 session_id=log_id,
                 input_text=instruction,
@@ -729,7 +488,6 @@ class ExecutionEngine:
             result.plan_id = plan_id
             return result
 
-        # Phase 2: Execute
         self._completed_steps.clear()
         self._replan_attempts = 0
         result = EngineResult(plan=plan, mode=self._mode)
@@ -756,7 +514,6 @@ class ExecutionEngine:
 
         result.total_duration_ms = (time.monotonic() - start_time) * 1000
 
-        # Record metrics
         metrics = get_metrics()
         total_findings = len(result.all_findings)
         metrics.record_scan(
@@ -773,11 +530,9 @@ class ExecutionEngine:
                 completed=True,
             )
 
-        # Phase 3: Summary
         if interactive:
             self._display_summary(result)
 
-        # Finalize session log
         if self._session_logger is not None and self._current_log_session_id:
             self._session_logger.update_end_time(self._current_log_session_id)
             for sr in result.step_results:
@@ -800,7 +555,6 @@ class ExecutionEngine:
         plan_data = json.loads(plan_record.get("plan_json", "{}"))
         plan = self._plan_from_dict(plan_data)
 
-        # Preload completed steps
         self._completed_steps.clear()
         self._replan_attempts = 0
         for row in plan_record.get("steps", []):
@@ -834,7 +588,6 @@ class ExecutionEngine:
         result.total_duration_ms = (time.monotonic() - start_time) * 1000
         result.plan_id = plan_id
 
-        # Record metrics
         metrics = get_metrics()
         metrics.record_scan(
             duration=result.total_duration_ms / 1000,
@@ -905,12 +658,10 @@ class ExecutionEngine:
         pending = list(plan.steps)
 
         while pending:
-            # Find steps whose dependencies are all satisfied
             ready: list[ExecutionStep] = []
             still_pending: list[ExecutionStep] = []
 
             for step in pending:
-                # Already completed (resume support)
                 if step.id in self._completed_steps:
                     sr = self._completed_steps[step.id]
                     result.step_results.append(sr)
@@ -924,7 +675,6 @@ class ExecutionEngine:
                     still_pending.append(step)
 
             if not ready:
-                # Remaining steps have unmet deps — mark them blocked
                 for step in still_pending:
                     sr = StepResult(
                         step_id=step.id,
@@ -936,7 +686,6 @@ class ExecutionEngine:
                     self._persist_step(store, plan_id, sr)
                 break
 
-            # Execute ready steps — parallel if >1, sequential if 1
             if len(ready) > 1:
                 logger.info(
                     "Parallel wave: executing %d steps concurrently: %s",
@@ -945,14 +694,12 @@ class ExecutionEngine:
                 )
 
             async def _run_one(step: ExecutionStep) -> StepResult:
-                # Check kill switch
                 if self._kill_switch.state == KillSwitchState.TRIGGERED:
                     return StepResult(
                         step_id=step.id,
                         status=StepStatus.SKIPPED,
                         output="Skipped: kill switch triggered",
                     )
-                # Check condition
                 if step.condition and not self._evaluate_condition(step.condition):
                     sr = StepResult(
                         step_id=step.id,
@@ -975,7 +722,6 @@ class ExecutionEngine:
                 self._persist_step(store, plan_id, sr)
                 self._record_step_feedback(step, sr)
 
-                # Dynamically mutate the remaining plan steps based on this step's output
                 self._adapt_plan_on_step_result(step, sr, plan, still_pending)
                 await self._replan_from_feedback(step, sr, plan, still_pending)
 
@@ -988,7 +734,6 @@ class ExecutionEngine:
                     )
                 return sr
 
-            # Submit to bounded worker pool to control concurrency and cancellation
             tasks = [self._pool.submit(_run_one, s) for s in ready]
             wave_results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -1009,7 +754,6 @@ class ExecutionEngine:
 
             pending = still_pending
 
-        # Reset worker pool for next execution (cancel pending, keep pool alive)
         try:
             await self._pool.cancel_pending()
         except Exception:
@@ -1038,13 +782,7 @@ class ExecutionEngine:
 
     async def _calculate_backoff_delay(self, attempt: int) -> float:
         """Calculate exponential backoff delay with jitter."""
-        delay = _RETRY_BASE_DELAY * (_RETRY_BACKOFF_FACTOR**attempt)
-        delay = min(delay, _RETRY_MAX_DELAY)  # Cap maximum delay
-        # Add jitter (±10%)
-        import random
-
-        jitter = delay * random.uniform(0.9, 1.1)
-        return jitter
+        return await _calculate_backoff_delay_impl(attempt)
 
     async def _execute_step_with_retry(
         self, step: ExecutionStep, interactive: bool
@@ -1053,7 +791,6 @@ class ExecutionEngine:
         retry_count = 0
         last_error = None
 
-        # Don't retry certain step types
         no_retry_types = {StepType.REPORT, StepType.ANALYSIS}
         if step.step_type in no_retry_types:
             return await self._execute_step(step, interactive)
@@ -1062,16 +799,13 @@ class ExecutionEngine:
             try:
                 result = await self._execute_step(step, interactive)
 
-                # Success - return immediately
                 if result.status == StepStatus.SUCCESS:
                     result.retry_count = retry_count
                     return result
 
-                # Failure - check if retryable
                 if result.status == StepStatus.FAILED and retry_count < _MAX_RETRIES:
                     last_error = result.error
-                    # Check if error is transient (retryable)
-                    if self._is_transient_error(result.error):
+                    if _is_transient_error_impl(result.error):
                         retry_count += 1
                         delay = await self._calculate_backoff_delay(retry_count - 1)
                         logger.warning(
@@ -1085,13 +819,12 @@ class ExecutionEngine:
                         await asyncio.sleep(delay)
                         continue
 
-                # Non-retryable or final attempt
                 result.retry_count = retry_count
                 return result
 
             except Exception as e:
                 last_error = str(e)
-                if retry_count < _MAX_RETRIES and self._is_transient_error(last_error):
+                if retry_count < _MAX_RETRIES and _is_transient_error_impl(last_error):
                     retry_count += 1
                     delay = await self._calculate_backoff_delay(retry_count - 1)
                     logger.warning(
@@ -1105,7 +838,6 @@ class ExecutionEngine:
                     await asyncio.sleep(delay)
                     continue
                 else:
-                    # Non-retryable exception or max retries exceeded
                     return StepResult(
                         step_id=step.id,
                         status=StepStatus.FAILED,
@@ -1113,7 +845,6 @@ class ExecutionEngine:
                         retry_count=retry_count,
                     )
 
-        # Max retries exceeded
         return StepResult(
             step_id=step.id,
             status=StepStatus.FAILED,
@@ -1123,22 +854,7 @@ class ExecutionEngine:
 
     def _is_transient_error(self, error: str) -> bool:
         """Check if error is transient and retryable."""
-        transient_indicators = [
-            "timeout",
-            "temporarily unavailable",
-            "connection refused",
-            "connection reset",
-            "connection timeout",
-            "temporarily",
-            "busy",
-            "try again",
-            "server is unavailable",
-            "gateway timeout",
-            "internal server error",
-        ]
-
-        error_lower = str(error).lower()
-        return any(indicator in error_lower for indicator in transient_indicators)
+        return _is_transient_error_impl(error)
 
     async def _execute_step(self, step: ExecutionStep, interactive: bool) -> StepResult:
         """Execute a single step based on its type, routing through engine lifecycle hooks."""
@@ -1146,7 +862,6 @@ class ExecutionEngine:
             return await self._run_tool_step(step, interactive)
         if step.step_type == StepType.SHELL_CMD:
             return await self._run_shell_step(step, interactive)
-        # ANALYSIS, REPORT, PARALLEL_GROUP: delegate directly to executor
         return await self._executor.execute_step(step, interactive)
 
     async def _run_tool_step(
@@ -1155,7 +870,6 @@ class ExecutionEngine:
         """Execute a registered security tool — delegates to ToolExecutor with lifecycle hooks."""
         tool_name = step.tool or ""
 
-        # Check install-and-retry for missing tools
         if tool_name != "__all__":
             resolved = self._resolver.resolve(tool_name, step.args)
             if not resolved.is_safe and any(
@@ -1171,12 +885,11 @@ class ExecutionEngine:
                         | {t.name: t.path for t in self._discovered_tools}
                     )
 
-        # Permission gate
         original_args_str = " ".join(step.args)
         confirmed_str = await self._apply_permission_gate(
             step, tool_name, original_args_str, interactive
         )
-        if confirmed_str == "__forbidden__":
+        if confirmed_str == _FORBIDDEN_MARKER:
             return StepResult(
                 step_id=step.id,
                 status=StepStatus.BLOCKED,
@@ -1197,10 +910,8 @@ class ExecutionEngine:
                 metadata=step.metadata,
             )
 
-        # Delegate core execution to ToolExecutor
         sr = await self._executor.execute_step(step, interactive)
 
-        # Engine-level extras: notifications, learning, session log
         if sr.findings:
             for f in sr.findings:
                 notification_center.finding(
@@ -1259,7 +970,6 @@ class ExecutionEngine:
                 output="No command specified",
             )
 
-        # Check install for missing base command
         parts = command.split()
         base_cmd = parts[0]
         resolved = self._resolver.resolve(base_cmd, parts[1:] + list(step.args))
@@ -1275,11 +985,10 @@ class ExecutionEngine:
                     | {t.name: t.path for t in self._discovered_tools}
                 )
 
-        # Permission gate
         confirmed_str = await self._apply_permission_gate(
             step, command, command, interactive
         )
-        if confirmed_str == "__forbidden__":
+        if confirmed_str == _FORBIDDEN_MARKER:
             return StepResult(
                 step_id=step.id,
                 status=StepStatus.BLOCKED,
@@ -1300,10 +1009,8 @@ class ExecutionEngine:
                 metadata=step.metadata,
             )
 
-        # Delegate to ToolExecutor
         sr = await self._executor.execute_step(step, interactive)
 
-        # Learning memory
         if self._learning_memory is not None and command != confirmed_str:
             try:
                 self._learning_memory.record_with_correction(
@@ -1318,7 +1025,6 @@ class ExecutionEngine:
             except Exception as exc:
                 logger.debug("Failed to record shell correction: %s", exc)
 
-        # Session log
         if self._session_logger is not None and self._current_log_session_id:
             try:
                 self._session_logger.add_command(
@@ -1343,25 +1049,12 @@ class ExecutionEngine:
         interactive: bool,
     ) -> str:
         """Check permission gate; return confirmed value, original, or '__forbidden__'."""
-        try:
-            from .permission_gate import PermissionGate
-
-            gate = PermissionGate()
-            gate_result = gate.check(value, tool=step.tool or display_name)
-            if gate_result.stage == "forbidden":
-                return "__forbidden__"
-            if gate_result.requires_review and interactive:
-                from .shell_review import review_and_confirm
-
-                confirmed = review_and_confirm(
-                    value, step.tool or display_name, gate_result.reason
-                )
-                if confirmed is None:
-                    return "__forbidden__"
-                return confirmed
-        except Exception as exc:
-            logger.warning("Permission gate check failed, blocking: %s", exc)
-            return "__forbidden__"
+        result = await _check_permission_gate(
+            value,
+            tool_name=step.tool or display_name,
+            interactive=interactive,
+        )
+        return result
 
     def _check_dependencies(self, step: ExecutionStep) -> bool:
         """Check if all dependencies have completed successfully."""
@@ -1381,7 +1074,6 @@ class ExecutionEngine:
         """
         condition = condition.strip()
 
-        # 1. Parse negations like not (...)
         if condition.startswith("not ") or condition.startswith("not("):
             if condition.startswith("not "):
                 sub = condition[4:].strip()
@@ -1391,30 +1083,26 @@ class ExecutionEngine:
                 sub = sub[1:-1].strip()
             return not self._evaluate_condition(sub)
 
-        # 2. Check for step_X.success
         if condition.endswith(".success"):
             step_id = condition[:-8].strip()
             res = self._completed_steps.get(step_id)
             return res is not None and res.status == StepStatus.SUCCESS
 
-        # 3. Check for step_X.failed
         if condition.endswith(".failed"):
             step_id = condition[:-8].strip()
             res = self._completed_steps.get(step_id)
             return res is not None and res.status == StepStatus.FAILED
 
-        # 4. Check for findings count
         if "findings.count > 0" in condition:
             total_findings = sum(
                 len(r.findings) for r in self._completed_steps.values()
             )
             return total_findings > 0
 
-        # 5. Check for port_X_open
         port_match = re.match(r"^port_(\d+)_open$", condition)
         if port_match:
             port_num = int(port_match.group(1))
-            from siyarix.knowledge_graph import NodeType
+            from ..knowledge_graph import NodeType
 
             ports = self._graph.find_nodes(NodeType.PORT)
             for p in ports:
@@ -1422,11 +1110,10 @@ class ExecutionEngine:
                     return True
             return False
 
-        # 6. Check for service_Y_running
         service_match = re.match(r"^service_([a-zA-Z0-9_\-]+)_running$", condition)
         if service_match:
             svc_name = service_match.group(1).lower()
-            from siyarix.knowledge_graph import NodeType
+            from ..knowledge_graph import NodeType
 
             services = self._graph.find_nodes(NodeType.SERVICE)
             for s in services:
@@ -1434,14 +1121,13 @@ class ExecutionEngine:
                     return True
             return False
 
-        # 7. Check for vulnerability_found
         if condition == "vulnerability_found":
-            from siyarix.knowledge_graph import NodeType
+            from ..knowledge_graph import NodeType
 
             vulns = self._graph.find_nodes(NodeType.VULNERABILITY)
             return len(vulns) > 0
 
-        return True  # Default: execute
+        return True
 
     def _record_step_feedback(self, step: ExecutionStep, sr: StepResult) -> None:
         """Feed step outcomes into XI context/predictor and skill profiler."""
@@ -1464,7 +1150,6 @@ class ExecutionEngine:
         else:
             cmd = ""
 
-        # Feed into SkillProfiler
         self._get_skill_profiler().record_command(
             command=cmd or "",
             tool=tool_name,
@@ -1548,7 +1233,6 @@ class ExecutionEngine:
         Analyzes the result of a completed step and mutates remaining/pending steps
         to inject retries, fallbacks, or privilege checks at runtime.
         """
-        # Heuristic 1: Nmap Host Down / Ping blocked -> Inject -Pn and retry nmap
         if step.tool == "nmap" and (
             "Host seems down" in (sr.error or "")
             or "Host seems down" in (sr.output or "")
@@ -1567,7 +1251,6 @@ class ExecutionEngine:
                 description=f"Retry nmap with -Pn (ping bypass) for {step.target}",
                 timeout=step.timeout,
             )
-            # Find any steps that depended on the failed step, and update their dependency
             for s in still_pending:
                 if step.id in s.depends_on:
                     s.depends_on.remove(step.id)
@@ -1577,7 +1260,6 @@ class ExecutionEngine:
                 "Dynamic Mutation: Injected nmap -Pn retry step %s", retry_step.id
             )
 
-        # Heuristic 2: Nikto Failure Fallback -> nuclei scan
         elif step.tool == "nikto" and sr.status == StepStatus.FAILED:
             fallback_step = ExecutionStep(
                 id=f"{step.id}_fallback_nuclei",
@@ -1595,7 +1277,6 @@ class ExecutionEngine:
                 "Dynamic Mutation: Swapped/added nuclei fallback %s", fallback_step.id
             )
 
-        # Heuristic 3: Gobuster Zero-findings Fallback -> nikto scan
         elif (
             step.tool == "gobuster"
             and sr.status == StepStatus.SUCCESS
@@ -1618,7 +1299,6 @@ class ExecutionEngine:
                 fallback_step.id,
             )
 
-        # Heuristic 4: Shell Permission Error -> privilege check
         elif step.step_type == StepType.SHELL_CMD:
             is_permission_denied = False
             err_msg = ((sr.error or "") + (sr.output or "")).lower()
@@ -1656,7 +1336,7 @@ class ExecutionEngine:
         interactive: bool = False,
     ) -> dict[str, Any]:
         """Execute a high-level objective through the multi-agent coordinator."""
-        from .agents.coordinator import CoordinatorAgent
+        from ..agents.coordinator import CoordinatorAgent
 
         coordinator = CoordinatorAgent(engine=self)
         return await coordinator.execute_objective(
@@ -1664,10 +1344,6 @@ class ExecutionEngine:
             target=target,
             interactive=interactive,
         )
-
-    # ------------------------------------------------------------------
-    # Display helpers
-    # ------------------------------------------------------------------
 
     def _display_plan(self, plan: ExecutionPlan) -> None:
         """Display the execution plan to the user."""
@@ -1710,7 +1386,6 @@ class ExecutionEngine:
             )
         )
 
-        # Chain-of-thought reasoning display
         if plan.reasoning:
             console.print(
                 Panel(
@@ -1727,38 +1402,12 @@ class ExecutionEngine:
         max_tokens: int = 8000,
     ) -> dict[str, Any]:
         """Compress context window by summarizing verbose fields.
-        
-        Truncates large tool descriptions, conversation history, and 
-        XI context when approaching LLM token limits. Preserves the 
+
+        Truncates large tool descriptions, conversation history, and
+        XI context when approaching LLM token limits. Preserves the
         most recent and highest-priority information.
         """
-        compressed = dict(context)
-
-        # Compress available_tools — keep names, truncate descriptions
-        tools = compressed.get("available_tools", [])
-        if isinstance(tools, list) and len(tools) > 20:
-            compressed["available_tools"] = tools[:20]
-            compressed["_tools_truncated"] = len(tools) - 20
-
-        # Compress conversation_history — keep last 5 turns only
-        history = compressed.get("conversation_history", "")
-        if isinstance(history, str) and len(history) > max_tokens:
-            lines = history.split("\n")
-            compressed["conversation_history"] = "\n".join(lines[-40:])
-            compressed["_history_truncated"] = len(lines) - 40
-
-        # Compress xi_context summary
-        xi = compressed.get("xi_context", {})
-        if isinstance(xi, dict) and xi.get("recent_executions"):
-            xi["recent_executions"] = xi["recent_executions"][-10:]
-            compressed["xi_context"] = xi
-
-        # Compress xi_recommendations — keep top 5
-        recs = compressed.get("xi_recommendations", [])
-        if isinstance(recs, list) and len(recs) > 5:
-            compressed["xi_recommendations"] = recs[:5]
-
-        return compressed
+        return _compress_context(context, max_tokens)
 
     def _display_summary(self, result: EngineResult) -> None:
         """Display the execution summary."""
@@ -1793,8 +1442,3 @@ class ExecutionEngine:
                 ),
             )
         )
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# Agentic Loop has been moved to siyarix.core.agentic_loop
-# ═══════════════════════════════════════════════════════════════════════════

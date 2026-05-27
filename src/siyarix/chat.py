@@ -173,90 +173,59 @@ class ChatSession:
 # Slash command registry
 # ---------------------------------------------------------------------------
 
-_SLASH_HELP = {
-    "/help": "Show available slash commands (alias: /?)",
-    "/exit": "Exit chat mode (aliases: /quit, /bye, /leave, /end)",
-    "/clear": "Clear the screen and conversation history (aliases: /clean, /cls)",
-    "/new": "Start a fresh conversation (aliases: /fresh)",
-    "/history": "Show recent conversation history",
-    "/history <n>": "Show the last n messages",
-    "/tools": "List discovered security tools",
-    "/platform": "Show platform and shell information",
-    "/status": "Show session and runtime status",
-    "/session": "Show detailed session metadata",
-    "/uptime": "Show chat session uptime",
-    "/env": "Show safe terminal environment summary",
-    "/intents [filter]": "List cross-platform command intents",
-    "/shells": "List supported shells",
-    "/search <text>": "Search chat history for a keyword",
-    "/examples": "Show practical prompt examples",
-    "/reset": "Reset mode and target to defaults",
-    "/palette": "Open an interactive command palette to pick an intent",
-    "/savecmd <name> <command>": "Save a reusable command profile",
-    "/cmds": "List saved command profiles",
-    "/cmd <name>": "Show or run a saved command profile",
-    "/key set <provider> <api_key>": "Store an API key in .env and the credential vault",
-    "/key list": "Show configured AI/API keys",
-    "/theme mode <system|dark|light|minimal|neon>": "Change the UI theme",
-    "/theme appearance": "Preview the UI appearance",
-    "/target <host>": "Set the current target for commands",
-    "/mode <mode>": "Switch execution mode (registry|autonomous|integrated)",
-    "/save": "Save current session to ~/.siyarix/sessions/",
-    "/translate <intent>": "Translate a command intent to all shells",
-    "/security-cmds": "Show security commands for current platform",
-    "/run <command>": "Run a tool or shell command",
-    "/model <provider>": "Show/switch AI model provider",
-    "/context": "Show current session context",
-    "/version": "Show Siyarix version",
-    "/report [format]": "Generate an executive report (markdown or html)",
-    "/work-mode": "Switch persona: offensive, defensive, bug_hunter, pentester, soc_analyst, none, auto",
-    "/work-mode create": "Create a custom persona with interactive builder",
-    "/work-mode list": "List all available personas (built-in + custom)",
-    "/work-mode auto": "Enable auto persona detection mode",
-    "/config": "Open the interactive configuration panel",
+# ── Help category definitions ─────────────────────────────────────────────
+_HELP_CATEGORIES = [
+    ("Session & Navigation", {
+        "/help": "Show available slash commands (alias: /?)",
+        "/exit": "Exit chat mode (aliases: /quit, /bye)",
+        "/clear": "Clear screen and conversation history (aliases: /clean, /cls)",
+        "/new": "Start a fresh conversation",
+        "/history [n]": "Show recent conversation history",
+        "/search <text>": "Search chat history for a keyword",
+        "/cancel": "Cancel current task without exiting (ESC key also works)",
+    }),
+    ("Configuration", {
+        "/config": "Open the interactive configuration panel",
+        "/config tools": "Manage discovered security tools",
+        "/key": "Manage API keys for AI providers",
+        "/mode <mode>": "Switch execution mode (autonomous|integrated|registry)",
+        "/work-mode [name]": "Switch persona (offensive, defensive, pentester, etc.)",
+        "/model [provider]": "Show or switch AI model provider",
+        "/theme mode|appearance": "Change UI theme or preview appearance",
+        "/target <host>": "Set the current target",
+        "/learning profile|patterns|level": "User learning profile and experience level",
+    }),
+    ("Information", {
+        "/tools": "List discovered security tools",
+        "/platform": "Show platform and shell information",
+        "/status": "Show session and runtime status",
+        "/session": "Show detailed session metadata",
+        "/uptime": "Show chat session uptime",
+        "/env": "Show terminal environment summary",
+        "/context": "Show current session context",
+        "/version": "Show Siyarix version",
+        "/shells": "List supported shells",
+    }),
+    ("Execution", {
+        "/run <command>": "Run a tool or shell command",
+        "/security-cmds": "Show security commands for current platform",
+        "/intents [filter]": "List cross-platform command intents",
+        "/translate <intent>": "Translate a command intent to all shells",
+        "/save": "Save current session",
+    }),
+    ("Session Management", {
+        "/log list|show|export": "Manage session logs",
+        "/diff <id_a> <id_b>": "Compare two sessions",
+        "/reset": "Reset mode and target to defaults",
+        "/examples": "Show practical prompt examples",
+        "/palette": "Open interactive command palette",
+    }),
+]
 
-    "/coder generate <prompt>": "Generate code using AI provider",
-    "/coder review <file>": "Review a code file for issues",
-    "/mcp connect <url>": "Connect to an MCP server",
-    "/mcp call <tool> <args>": "Call a tool on the MCP server",
-    "/mcp disconnect": "Disconnect from MCP server",
-    "/agent spawn <name> <task>": "Spawn a new sub-agent",
-    "/agent list": "List all active sub-agents",
-    "/agent kill <id>": "Kill a specific sub-agent",
-    "/learning profile": "Show user learning profile",
-    "/learning patterns": "Show learned tool patterns",
-    "/learning level <novice|intermediate|advanced|expert>": "Set experience level",
-    "/esc": "Emergency stop / cancel current task (ESC key also works)",
-    "/cancel": "Cancel current task without exiting (same as ESC once)",
-    "/log list": "List all session logs",
-    "/log show <id>": "Show a session log",
-    "/log export <id> --format <fmt> --output <file>": "Export session log (markdown|json|sarif)",
-    "/diff <id_a> <id_b>": "Compare two sessions",
-    "/schedule list": "List scheduled scan jobs",
-    "/schedule add <name> <cron|daily|weekly|hourly> <command>": "Add a scheduled job",
-    "/schedule remove <name>": "Remove a scheduled job",
-    "/batch run <file>": "Execute batch commands from file",
-    "/work-mode export <name>": "Export a persona to file",
-    "/mode research": "Switch to research mode (MCP)",
-    "/hsm configure|status|disconnect": "Hardware Security Module integration",
-    "/compliance run --framework <fw> <target>": "Compliance framework assessment (pci-dss|iso-27001|nist-800-53|soc2|gdpr|hipaa)",
-    "/opsec isolate|burn|status|disable": "Operational security measures",
-    "/siem connect|status|forward <platform> <url>": "SIEM/SOAR integration",
-
-    "/performance status|tune|configure": "Performance optimization",
-    "/cache status|clear|invalidate [domain]": "Cache management",
-    "/distributed status|configure|nodes": "Multi-node distributed execution",
-    "/import <nessus|burp|metasploit|stix|auto> <file>": "Import external scan results",
-    "/playbook list|create|show|delete": "Workflow playbook management",
-    "/campaign list|create|status": "Multi-target campaign management",
-    "/kb search|list": "Knowledge base search and query",
-    "/ticket create|list": "Create and track tickets",
-    "/retest schedule|status": "Schedule and monitor retests",
-    "/intel search|mitre|feeds": "Threat intelligence and MITRE ATT&CK lookup",
-    "/canary deploy|list|status": "Deploy and monitor canary deception tokens",
-    "/stealth status|on|off|level <l>": "Evasion and stealth configuration",
-    "/audit export|status|verify": "Audit log export and chain verification",
-}
+# Flat lookup for command dispatch (includes all commands, including hidden ones)
+_SLASH_HELP = {}
+for _cat_name, _cmds in _HELP_CATEGORIES:
+    _SLASH_HELP.update(_cmds)
 
 # ---------------------------------------------------------------------------
 # The Siyarix Chat REPL
@@ -508,7 +477,6 @@ class SiyarixChat:
             "/theme": self._cmd_theme,
             "/target": self._cmd_target,
             "/mode": self._cmd_mode,
-            "/split": self._cmd_split,
             "/save": self._cmd_save,
             "/translate": self._cmd_translate,
             "/security-cmds": self._cmd_security_cmds,
@@ -516,36 +484,14 @@ class SiyarixChat:
             "/model": self._cmd_model,
             "/context": self._cmd_context,
             "/version": self._cmd_version,
-            "/report": self._cmd_report,
             "/work-mode": self._cmd_work_mode,
             "/config": self._cmd_config,
-            "/coder": self._cmd_coder,
-            "/mcp": self._cmd_mcp,
-            "/agent": self._cmd_agent,
             "/learning": self._cmd_learning,
             "/esc": self._cmd_esc,
             "/cancel": self._cmd_esc,
             "/log": self._cmd_log,
             "/diff": self._cmd_diff,
             "/schedule": self._cmd_schedule,
-            "/batch": self._cmd_batch,
-            "/hsm": self._cmd_hsm,
-            "/compliance": self._cmd_compliance,
-            "/opsec": self._cmd_opsec,
-            "/siem": self._cmd_siem,
-            "/performance": self._cmd_performance,
-            "/cache": self._cmd_cache,
-            "/distributed": self._cmd_distributed,
-            "/import": self._cmd_import,
-            "/playbook": self._cmd_playbook,
-            "/campaign": self._cmd_campaign,
-            "/kb": self._cmd_kb,
-            "/ticket": self._cmd_ticket,
-            "/retest": self._cmd_retest,
-            "/intel": self._cmd_intel,
-            "/canary": self._cmd_canary,
-            "/stealth": self._cmd_stealth,
-            "/audit": self._cmd_audit,
         }
 
         handler = handlers.get(command)
@@ -564,14 +510,21 @@ class SiyarixChat:
             )
 
     def _cmd_help(self, _: str) -> None:
-        table = Table(
-            title="Siyarix Chat Commands", show_header=True, header_style="bold cyan"
-        )
-        table.add_column("Command", style="cyan", no_wrap=True)
-        table.add_column("Description", style="white")
-        for cmd, desc in _SLASH_HELP.items():
-            table.add_row(cmd, desc)
-        console.print(table)
+        """Show categorized help."""
+        console.print(Panel(
+            "[bold cyan]Siyarix Chat Commands[/bold cyan]\n"
+            "Type [cyan]/command[/cyan] to execute. "
+            "Press [cyan]?[/cyan] at any time to see this help.",
+            border_style="cyan",
+        ))
+        for category, cmds in _HELP_CATEGORIES:
+            table = Table(title=category, padding=(0, 2))
+            table.add_column("Command", style="cyan", no_wrap=True)
+            table.add_column("Description", style="white")
+            for cmd, desc in cmds.items():
+                table.add_row(cmd, desc)
+            console.print(table)
+            console.print()
 
     def _cmd_exit(self, _: str) -> None:
         self._running = False
@@ -739,6 +692,7 @@ class SiyarixChat:
 
     def _show_key_status(self) -> None:
         from .credential_store import CredentialStore
+        from .providers import registry as provider_registry
 
         try:
             vault = CredentialStore()
@@ -751,7 +705,12 @@ class SiyarixChat:
         table.add_column("Status", justify="center")
         table.add_column("Source")
 
-        for provider in ("openai", "gemini", "anthropic", "cloud"):
+        # Get registered provider names from the registry
+        # Filter out 'noop' and sort alphabetically
+        prov_names = sorted(
+            n for n in provider_registry.list_providers() if n != "noop"
+        )
+        for provider in prov_names:
             env_key = provider_env_var(provider)
             from_env = bool(os.getenv(env_key))
             from_creds = bool(vault and vault.retrieve(provider, "api_key"))
@@ -1170,23 +1129,17 @@ class SiyarixChat:
         console.print(f"[green]✓ Target set to: {args}[/green]")
 
     def _cmd_mode(self, args: str) -> None:
-        valid = ("registry", "autonomous", "integrated", "research")
+        valid = ("autonomous", "integrated", "registry")
         if not args:
             console.print(
                 f"Current mode: [cyan]{self._mode}[/cyan] (valid: {', '.join(valid)})"
             )
             return
-        if args == "research":
-            self._mode = "integrated"
-            console.print(
-                "[green]✓ Research mode enabled (MCP integration active)[/green]"
-            )
-            console.print("[dim]Use /mcp connect <url> to connect to MCP servers[/dim]")
-            return
         if args not in valid:
             console.print(
-                f"[red]Invalid mode: {args}. Choose: {', '.join(valid)}[/red]"
+                f"[red]Invalid mode: {args}. Valid modes: {', '.join(valid)}[/red]"
             )
+            console.print("[dim]Use /work-mode to switch security persona[/dim]")
             return
         self._mode = args
         self._session.mode = args
@@ -1401,7 +1354,11 @@ class SiyarixChat:
         """Open the interactive configuration panel."""
         from .ux.config_panel import ConfigPanel
 
-        ConfigPanel().run()
+        sub = args.strip().lower() if args else ""
+        if sub == "tools":
+            ConfigPanel()._section_tools()
+        else:
+            ConfigPanel().run()
 
     async def _cmd_coder(self, args: str) -> None:
         """Handle /coder command for code generation and review."""

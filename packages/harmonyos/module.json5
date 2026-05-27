@@ -1,0 +1,37 @@
+{
+  "app": {
+    "bundleName": "com.mufthakherul.siyarix",
+    "vendor": "MD MUFTHAKHERUL ISLAM MIRAZ",
+    "version": {
+      "code": 1000013,
+      "name": "0.1.3"
+    }
+  },
+  "module": {
+    "name": "siyarix-cli",
+    "type": "entry",
+    "description": "Siyarix — AI Cybersecurity Orchestration Agent",
+    "mainAbility": ".MainAbility",
+    "deviceTypes": [
+      "default",
+      "tablet",
+      "phone",
+      "smartVision"
+    ],
+    "installationFree": true,
+    "abilities": [
+      {
+        "name": ".MainAbility",
+        "description": "Siyarix CLI Launcher",
+        "icon": "$media:icon",
+        "label": "Siyarix",
+        "type": "service",
+        "visible": true
+      }
+    ],
+    "distro": {
+      "moduleName": "siyarix-cli",
+      "installationFree": true
+    }
+  }
+}

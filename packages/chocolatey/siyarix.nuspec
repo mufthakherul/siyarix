@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>siyarix</id>
+    <version>0.1.3</version>
+    <title>Siyarix</title>
+    <authors>MD MUFTHAKHERUL ISLAM MIRAZ</authors>
+    <owners>mufthakherul</owners>
+    <summary>AI Cybersecurity Orchestration Agent</summary>
+    <description>
+Siyarix is an AI-native cybersecurity operations platform with autonomous execution, multi-agent framework, intelligent workflow orchestration, and advanced security tooling for offensive and defensive cybersecurity operations.
+
+## Features
+- Autonomous AI-driven penetration testing
+- Multi-agent coordination for complex security workflows
+- 25+ security tool parsers (nmap, nuclei, metasploit, etc.)
+- Built-in OPSEC, stealth, and kill-switch mechanisms
+- Advanced reporting and compliance frameworks
+- Distributed orchestration with worker pools
+
+## Package Notes
+This package installs Siyarix via pip. Python 3.11+ is required.
+    </description>
+    <projectUrl>https://github.com/mufthakherul/siyarix</projectUrl>
+    <packageSourceUrl>https://github.com/mufthakherul/siyarix</packageSourceUrl>
+    <projectSourceUrl>https://github.com/mufthakherul/siyarix</projectSourceUrl>
+    <docsUrl>https://github.com/mufthakherul/siyarix</docsUrl>
+    <bugTrackerUrl>https://github.com/mufthakherul/siyarix/issues</bugTrackerUrl>
+    <tags>siyarix cybersecurity security agent cli pentest ai automation</tags>
+    <copyright>2024 MD MUFTHAKHERUL ISLAM MIRAZ</copyright>
+    <licenseUrl>https://github.com/mufthakherul/siyarix/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <iconUrl>https://raw.githubusercontent.com/mufthakherul/siyarix/main/docs/logo.png</iconUrl>
+    <dependencies>
+      <dependency id="python" version="[3.11,)" />
+      <dependency id="pip" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

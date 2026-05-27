@@ -1,0 +1,26 @@
+#!/bin/bash
+set -e
+
+case "$1" in
+  configure)
+    # Create config directory
+    if [ ! -d /root/.siyarix ]; then
+      mkdir -p /root/.siyarix
+    fi
+
+    # Install/upgrade via pip in isolated venv if needed
+    if command -v siyarix &>/dev/null; then
+      echo "Siyarix installed via pip. Run 'pip install --upgrade siyarix' for updates."
+    else
+      echo "Siyarix installed. Run 'siyarix --help' to get started."
+    fi
+    ;;
+  abort-upgrade|abort-remove|abort-deconfigure)
+    ;;
+  *)
+    echo "postinst called with unknown argument '$1'" >&2
+    exit 1
+    ;;
+esac
+
+exit 0

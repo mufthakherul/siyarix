@@ -95,3 +95,7 @@ If you distribute Siyarix (or a modified version), you must:
 ---
 
 *This document is maintained manually. If you believe a license is missing or incorrect, please open an issue or pull request.*
+
+---
+
+*SPDX-License-Identifier: AGPL-3.0-only*

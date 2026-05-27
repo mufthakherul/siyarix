@@ -53,3 +53,7 @@ Found a bug? Have an idea? See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get
 ---
 
 *We are a small team responding in our spare time. Please be patient and kind — we are doing our best.*
+
+---
+
+*SPDX-License-Identifier: AGPL-3.0-only*

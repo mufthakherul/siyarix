@@ -1,0 +1,55 @@
+Siyarix - AI Cybersecurity Orchestration Agent
+Copyright (C) 2026  MD MUFTHAKHERUL ISLAM MIRAZ
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+---
+
+Third-Party Notices
+===================
+
+This software includes third-party components with separate copyright
+notices and license terms. See THIRD_PARTY_LICENSES.md for details.
+
+The following are major dependencies and their copyright holders:
+
+  Python (https://python.org)                    PSF License
+  cryptography                                    Apache-2.0 / BSD
+  httpx                                           BSD-3-Clause
+  rich                                            MIT
+  pydantic                                        MIT
+  typer                                           MIT
+  tenacity                                        Apache-2.0
+  psutil                                          BSD-3-Clause
+  keyring                                         MIT
+  defusedxml                                      Python-2.0
+  aiofiles                                        Apache-2.0
+  google-generativeai                              Apache-2.0
+
+Full license texts and dependency information are available in
+THIRD_PARTY_LICENSES.md.
+
+---
+
+AI Model Providers
+==================
+When using cloud AI providers (OpenAI, Google Gemini, Anthropic, etc.),
+your interactions are subject to that provider's terms of service and
+privacy policy. Siyarix is not affiliated with or endorsed by these
+providers.
+
+---
+
+Project Homepage: https://github.com/mufthakherul/phalanx
+SPDX-License-Identifier: AGPL-3.0-only

@@ -126,3 +126,7 @@ This governance document may be amended by maintainer consensus. Significant cha
 ## 10. Acknowledgments
 
 This governance model draws inspiration from established open-source projects and community best practices, including the [GitHub Minimum Viable Governance](https://github.com/github/MVG) model.
+
+---
+
+*SPDX-License-Identifier: AGPL-3.0-only*

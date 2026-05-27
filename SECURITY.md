@@ -136,3 +136,7 @@ For security-related inquiries not involving vulnerability disclosure:
 - Security Advisories: GitHub Security tab on the repository
 
 *We appreciate the security community's help in keeping Siyarix safe for everyone.*
+
+---
+
+*SPDX-License-Identifier: AGPL-3.0-only*

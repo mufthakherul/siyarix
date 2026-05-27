@@ -251,3 +251,7 @@ By contributing to Siyarix, you agree that your contributions will be licensed u
 ---
 
 *Happy hacking, and thank you for helping make Siyarix better.*
+
+---
+
+*SPDX-License-Identifier: AGPL-3.0-only*

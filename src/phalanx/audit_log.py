@@ -240,8 +240,8 @@ class AuditLogger:
             self._save_events()
         try:
             siem_forwarder.close_all()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Failed to close SIEM forwarder: %s", exc)
 
     def _startup_event(self) -> None:
         """Log system startup — uses the correct SYSTEM_START type."""

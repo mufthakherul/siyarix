@@ -2713,8 +2713,8 @@ class PhalanxChat:
             stats = store.stats()
             scans_count = stats.get("total_scans", 0)
             findings_count = stats.get("total_findings", 0)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to read offline store stats: %s", exc)
 
         console.print(
             Panel(

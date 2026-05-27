@@ -194,8 +194,8 @@ def setup_providers(
 
             try:
                 setattr(prov, "available", available)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed to set availability on %s: %s", name, exc)
 
             planner.add_provider(prov)
         except Exception:

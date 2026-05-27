@@ -123,7 +123,7 @@ class MultiModelEnsemble:
         self,
         task: str,
         complexity: str = "medium",
-        max_budget: float = 0.05,
+        _max_budget: float = 0.05,
     ) -> list[str]:
         tier = _COMPLEXITY_TIERS.get(complexity, _COMPLEXITY_TIERS["medium"])
         available = [p for p in tier if p in self._providers]

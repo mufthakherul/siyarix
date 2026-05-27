@@ -51,7 +51,6 @@ from .safety import FORBIDDEN_MARKER as _FORBIDDEN_MARKER
 from .steps import (
     EngineResult,
     ExecutionMode,
-    _MAX_CONTEXT_OUTPUT_LENGTH,
     _MAX_RETRIES,
     _RETRY_BACKOFF_FACTOR,
     _RETRY_BASE_DELAY,
@@ -370,8 +369,8 @@ class ExecutionEngine:
                 {"title": r.title, "reason": r.reason, "priority": r.priority}
                 for r in xics.recommend(session, route)
             ]
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to get XI recommendations: %s", exc)
 
         return {
             "available_tools": [

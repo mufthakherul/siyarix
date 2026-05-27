@@ -14,8 +14,6 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from ..multi_agent import Agent, AgentRole, AgentTeam
-from .dfir_agent import DFIRAgent
-from .soc_agent import SOCAgent
 
 if TYPE_CHECKING:
     from ..engine import ExecutionEngine
@@ -86,11 +84,6 @@ class CoordinatorAgent:
         for agent in (recon, scanner, enumerator, exploiter, reporter):
             agent.set_task_handler(_delegate)
             self._team.add_agent(agent)
-
-        soc = SOCAgent()
-        dfir = DFIRAgent()
-        self._team.add_agent(soc)
-        self._team.add_agent(dfir)
 
     async def execute_objective(
         self,
@@ -320,7 +313,7 @@ class CoordinatorAgent:
             has_scan = True
 
         if has_recon:
-            phases["recon"] = {"agents": ["recon-1", "soc-analyst-1"], "depends_on": []}
+            phases["recon"] = {"agents": ["recon-1"], "depends_on": []}
         if has_scan:
             phases["scanning"] = {
                 "agents": ["scanner-1", "enum-1"],

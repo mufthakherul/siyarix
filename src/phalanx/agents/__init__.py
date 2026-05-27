@@ -1,7 +1,5 @@
 """Specialized Autonomous Agents for Phalanx."""
 
 from .coordinator import CoordinatorAgent
-from .dfir_agent import DFIRAgent
-from .soc_agent import SOCAgent
 
-__all__ = ["CoordinatorAgent", "DFIRAgent", "SOCAgent"]
+__all__ = ["CoordinatorAgent"]

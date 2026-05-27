@@ -1,1 +1,1 @@
-"""Phalanx test suite."""
+"""Siyarix test suite."""

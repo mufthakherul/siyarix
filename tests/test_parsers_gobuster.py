@@ -1,4 +1,4 @@
-from phalanx.parsers.gobuster_parser import GobusterParser
+from siyarix.parsers.gobuster_parser import GobusterParser
 
 
 def test_gobuster_parser_basic():

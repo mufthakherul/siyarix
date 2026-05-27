@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from phalanx.tool_installer import ToolInstaller, ToolInstallResult
+from siyarix.tool_installer import ToolInstaller, ToolInstallResult
 
 pytestmark = pytest.mark.tool_installer
 

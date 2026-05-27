@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from phalanx.multi_model_ensemble import (EnsembleResult, ModelResponse,
+from siyarix.multi_model_ensemble import (EnsembleResult, ModelResponse,
                                           MultiModelEnsemble)
 
 pytestmark = pytest.mark.ensemble

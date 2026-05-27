@@ -1,4 +1,4 @@
-from phalanx.parsers.nmap_parser import NmapParser
+from siyarix.parsers.nmap_parser import NmapParser
 
 
 def test_nmap_parser_text():

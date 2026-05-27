@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phalanx.xi.predictor import Prediction, Predictor
+from siyarix.xi.predictor import Prediction, Predictor
 
 
 class TestPredictor:

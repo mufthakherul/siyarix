@@ -17,7 +17,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "src" / "phalanx" / "data"
+DATA_DIR = Path(__file__).resolve().parent.parent / "src" / "siyarix" / "data"
 OUTPUT = DATA_DIR / "tool_metadata.json"
 
 

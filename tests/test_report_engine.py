@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from phalanx.report_engine import (Report, ReportConfig, ReportEngine,
+from siyarix.report_engine import (Report, ReportConfig, ReportEngine,
                                    ReportFormat)
 
 pytestmark = pytest.mark.report

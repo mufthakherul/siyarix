@@ -46,7 +46,7 @@ source:
   - changed-files:
       - any-glob-to-any-file:
           - 'src/**/*.py'
-          - 'phalanx/**/*.py'
+          - 'siyarix/**/*.py'
           - '!**/__pycache__/**'
           - '!**/*.pyc'
 
@@ -111,19 +111,19 @@ packaging:
 parsers:
   - changed-files:
       - any-glob-to-any-file:
-          - 'src/phalanx/parsers/**'
+          - 'src/siyarix/parsers/**'
           - '**/parser*.py'
 
 # Engine
 engine:
   - changed-files:
       - any-glob-to-any-file:
-          - 'src/phalanx/engine.py'
-          - 'src/phalanx/engine/**'
+          - 'src/siyarix/engine.py'
+          - 'src/siyarix/engine/**'
 
 # CLI
 cli:
   - changed-files:
       - any-glob-to-any-file:
-          - 'src/phalanx/main.py'
-          - 'src/phalanx/cli/**'
+          - 'src/siyarix/main.py'
+          - 'src/siyarix/cli/**'

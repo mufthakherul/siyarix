@@ -1,8 +1,8 @@
 import asyncio
 
-from phalanx.engine_types import StepResult, StepStatus
-from phalanx.planner import ExecutionStep, StepType
-from phalanx.tool_executor import ToolExecutor
+from siyarix.engine_types import StepResult, StepStatus
+from siyarix.planner import ExecutionStep, StepType
+from siyarix.tool_executor import ToolExecutor
 
 
 class DummyResolver:

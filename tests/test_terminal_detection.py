@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from phalanx.terminal_detection import (ShellType, TerminalDetector,
+from siyarix.terminal_detection import (ShellType, TerminalDetector,
                                         TerminalInfo, TerminalType)
 
 pytestmark = pytest.mark.terminal

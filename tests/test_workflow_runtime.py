@@ -2,8 +2,8 @@ import asyncio
 
 import pytest
 
-from phalanx.offline_store import OfflineStore
-from phalanx.orchestration.workflow_runtime import (WorkflowRuntime,
+from siyarix.offline_store import OfflineStore
+from siyarix.orchestration.workflow_runtime import (WorkflowRuntime,
                                                     WorkflowState)
 
 pytestmark = pytest.mark.workflow

@@ -2,12 +2,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from phalanx.core.agentic_loop import AgenticLoop
-from phalanx.engine import (ExecutionEngine, ExecutionStep, StepResult,
+from siyarix.core.agentic_loop import AgenticLoop
+from siyarix.engine import (ExecutionEngine, ExecutionStep, StepResult,
                             StepStatus)
-from phalanx.interpreter import RuleInterpreter, TaskCategory
-from phalanx.knowledge_graph import KnowledgeGraph
-from phalanx.planner import StepType, TaskPlanner
+from siyarix.interpreter import RuleInterpreter, TaskCategory
+from siyarix.knowledge_graph import KnowledgeGraph
+from siyarix.planner import StepType, TaskPlanner
 
 
 @pytest.mark.asyncio
@@ -154,9 +154,9 @@ async def test_tool_auto_installation():
     with (
         patch("shutil.which", side_effect=mock_which),
         patch(
-            "phalanx.output.output.prompt_confirm", return_value=True
+            "siyarix.output.output.prompt_confirm", return_value=True
         ) as mock_confirm,
-        patch("phalanx.engine.run_tool_complete", new_callable=AsyncMock) as mock_run,
+        patch("siyarix.engine.run_tool_complete", new_callable=AsyncMock) as mock_run,
     ):
         mock_run.return_value.exit_code = 0
         mock_run.return_value.stdout = "Successfully installed"

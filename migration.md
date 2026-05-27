@@ -1,6 +1,6 @@
-# Phalanx Security Agent — Comprehensive Master Documentation
+# Siyarix Security Agent — Comprehensive Master Documentation
 
-> **Project:** github.com/mufthakherul/phalanx
+> **Project:** github.com/mufthakherul/siyarix
 > **Classification:** Cybersecurity-Native AI Agent & Universal Tool Orchestrator
 > **Maintainer:** mufthakherul & Contributing Team
 > **License:** MIT+custom sensors as this is a sencetive
@@ -44,13 +44,13 @@ Changelog (automated agent):
 
   - **Chapter 8 (Agent Lifecycle):** Created `agent_lifecycle.py` with spawn/list/kill sub-agent management and Rich table display. Added `/agent spawn|list|kill` slash commands to chat REPL.
 
-  - **Chapter 9 (Collaboration):** Created `collaboration.py` with team session management (create/join/list/send), member roles, and JSON persistence in `~/.phalanx/collab/`. Created `coder_bridge.py` with AI code generation and review capabilities. Created `mcp_integration.py` with MCPClient for connecting to Model Context Protocol servers. Added `/collab`, `/coder`, and `/mcp` slash commands to chat REPL.
+  - **Chapter 9 (Collaboration):** Created `collaboration.py` with team session management (create/join/list/send), member roles, and JSON persistence in `~/.siyarix/collab/`. Created `coder_bridge.py` with AI code generation and review capabilities. Created `mcp_integration.py` with MCPClient for connecting to Model Context Protocol servers. Added `/collab`, `/coder`, and `/mcp` slash commands to chat REPL.
 
-  - **Chapter 10 (Learning):** Created `learning_memory.py` for persistent tool pattern recording, auto-suggestion, and JSON persistence in `~/.phalanx/learning/tool_patterns.json`. Created `user_learning.py` with adaptive pedagogical output, experience levels (novice/intermediate/advanced/expert), verbosity control, and explanation toggling. Added `/learning profile|patterns|level` commands to chat REPL.
+  - **Chapter 10 (Learning):** Created `learning_memory.py` for persistent tool pattern recording, auto-suggestion, and JSON persistence in `~/.siyarix/learning/tool_patterns.json`. Created `user_learning.py` with adaptive pedagogical output, experience levels (novice/intermediate/advanced/expert), verbosity control, and explanation toggling. Added `/learning profile|patterns|level` commands to chat REPL.
 
   - **Integration & Testing:** Updated `__init__.py` with 18 new exports. All 490 existing tests pass without regressions. Engine kill switch integrated with pool cancellation. Permission gate wired into tool and shell step execution. Chat REPL enhanced with 15 new slash commands.
 
-  - **Persona Engine (Chapter 4):** Created `src/phalanx/persona_engine.py` — full `PersonaEngine` with 7 built-in personas (Offensive, Defensive, Bug Hunter, Pentester, SOC Analyst, None, Auto), tool ACL filtering, workflow templates, hot-swap (~200ms context switch), custom persona creation/storage in `~/.phalanx/personas/custom/*.yaml`, auto intent classification with 30+ keyword patterns, and confidence scoring.
+  - **Persona Engine (Chapter 4):** Created `src/siyarix/persona_engine.py` — full `PersonaEngine` with 7 built-in personas (Offensive, Defensive, Bug Hunter, Pentester, SOC Analyst, None, Auto), tool ACL filtering, workflow templates, hot-swap (~200ms context switch), custom persona creation/storage in `~/.siyarix/personas/custom/*.yaml`, auto intent classification with 30+ keyword patterns, and confidence scoring.
   - **AI Providers (Chapter 5):** Added 4 new provider models — `GroqModel`, `TogetherModel`, `LMStudioModel`, `CustomModel` in `planner.py`. Added adapters `GroqAdapter`, `TogetherAdapter`, `LMStudioAdapter`, `CustomAdapter`, `AnthropicAdapter` in `provider_adapters.py`. All registered in provider registry.
   - **Credential Vault AES-256-GCM (Chapter 5.4):** Added AES-256-GCM encryption with `_encrypt_aesgcm`/`_decrypt_aesgcm` methods, key rotation via `rotate_key()`, migration path from Fernet via `migrate_to_aesgcm()`, and HKDF key derivation. Added `/key rotate` slash command.
   - **Bootstrap Enhancements (Chapter 2):** Added T7 database backend check, T9 interactive install prompt, T10 auto-install packages, T3 terminal/shell detection integration with `terminal_detection.py`. Added `check_database_backend()`, `prompt_install_missing()`, `auto_install_packages()`.
@@ -70,7 +70,7 @@ Changelog (automated agent):
   - **Infrastructure & Tooling (Phase A):**
     - Fixed `pyproject.toml` typo: `autonomous` → `autonomous`; added `siem` optional dependency group
     - Created `tests/__init__.py`, `tests/conftest.py` (15 shared fixtures), `tests/pytest.ini` with markers
-    - Created `Dockerfile` (multi-stage: production/development), `docker-compose.yml` (phalanx, worker, dashboard, redis, otel-collector)
+    - Created `Dockerfile` (multi-stage: production/development), `docker-compose.yml` (siyarix, worker, dashboard, redis, otel-collector)
     - Created `Makefile` (15 targets: install, test, lint, typecheck, build, docker, coverage, benchmark)
     - Created `.env.example` documenting all 25+ environment variables
     - Created `otel-collector-config.yaml` for OpenTelemetry infrastructure
@@ -114,14 +114,14 @@ Changelog (automated agent):
     - Enhanced `CoordinatorAgent` with intelligent task decomposition, parallel agent execution, dependency resolution, and adaptive workflow based on findings.
     - Upgraded `SOCAgent` with real-time log analysis pipeline, 8 detection rules, automated triage ticket generation, MITRE ATT&CK mapping, and threat level assessment.
     - Upgraded `DFIRAgent` with memory forensics workflows (Volatility3), timeline generation, IOC extraction (9 pattern types), chain of custody tracking.
-    - Added `src/phalanx/exploitation.py` — Exploit Chain Automation Framework with `ExploitChainBuilder`, `ExploitChainExecutor`, msfvenom payload generation, dependency-linked step chains.
-    - Added `src/phalanx/ml_anomaly.py` — ML-based Anomaly Detection Engine with statistical baseline computation, z-score analysis, frequency analysis, temporal pattern deviation, and alert generation.
-    - Added `src/phalanx/threat_intel.py` — Threat Intelligence Ingestion with STIX/TAXII support, MISP feed ingestion, MITRE ATT&CK DB (25+ techniques mapped), CVE-to-MITRE mapping, finding enrichment.
-    - Added `src/phalanx/deception.py` — Deception Tactics Module with honeypot detection (7 signatures), canary token detection (5 patterns), fake banner generation, trapdoor credential manager with alert callbacks.
+    - Added `src/siyarix/exploitation.py` — Exploit Chain Automation Framework with `ExploitChainBuilder`, `ExploitChainExecutor`, msfvenom payload generation, dependency-linked step chains.
+    - Added `src/siyarix/ml_anomaly.py` — ML-based Anomaly Detection Engine with statistical baseline computation, z-score analysis, frequency analysis, temporal pattern deviation, and alert generation.
+    - Added `src/siyarix/threat_intel.py` — Threat Intelligence Ingestion with STIX/TAXII support, MISP feed ingestion, MITRE ATT&CK DB (25+ techniques mapped), CVE-to-MITRE mapping, finding enrichment.
+    - Added `src/siyarix/deception.py` — Deception Tactics Module with honeypot detection (7 signatures), canary token detection (5 patterns), fake banner generation, trapdoor credential manager with alert callbacks.
   - **Distributed & Scaling Infrastructure:**
-    - Added `src/phalanx/distributed.py` — Distributed multi-agent deployment with `TaskQueueBackend` (memory/Redis), `DistributedOrchestrator`, worker heartbeat, task handling.
-    - Added `src/phalanx/telemetry/opentelemetry.py` — OpenTelemetry instrumentation with `OpenTelemetryCollector`, Span/Trace management, tracer decorator, `OpenTelemetryMiddleware`, exporter registration.
-    - Added `src/phalanx/dashboard.py` — Web Dashboard infrastructure with `DashboardService`, `DashboardSnapshot`, REST API endpoint definitions, WebSocket live update support.
+    - Added `src/siyarix/distributed.py` — Distributed multi-agent deployment with `TaskQueueBackend` (memory/Redis), `DistributedOrchestrator`, worker heartbeat, task handling.
+    - Added `src/siyarix/telemetry/opentelemetry.py` — OpenTelemetry instrumentation with `OpenTelemetryCollector`, Span/Trace management, tracer decorator, `OpenTelemetryMiddleware`, exporter registration.
+    - Added `src/siyarix/dashboard.py` — Web Dashboard infrastructure with `DashboardService`, `DashboardSnapshot`, REST API endpoint definitions, WebSocket live update support.
   - **Security & Hardening (Part VI):**
     - Fixed missing `__init__.py` files in `output/` and `security/` packages.
     - Enhanced `providers.py` with abstract `Provider` base class, better type annotations, `clear()` method.
@@ -141,12 +141,12 @@ Changelog (automated agent):
   - **Status (global): ~65%** — All Phase 2-8 major modules implemented with full test coverage.
 
 - 2026-05-24: Phase 1 feedback-loop + multi-agent wiring
-  - Fixed provider subsystem merge regression by consolidating `src/phalanx/providers.py` into a single compatible registry/protocol implementation.
-  - Fixed `src/phalanx/tool_executor.py` import/runtime defects (`ResolveResult` import mismatch and shell-step duration calculation).
-  - Fixed `ExecutionEngine` initialization ordering in `src/phalanx/engine.py` (resolver/graph created before `ToolExecutor`), and unified runtime step types by removing duplicated local `StepStatus`/`StepResult` definitions.
+  - Fixed provider subsystem merge regression by consolidating `src/siyarix/providers.py` into a single compatible registry/protocol implementation.
+  - Fixed `src/siyarix/tool_executor.py` import/runtime defects (`ResolveResult` import mismatch and shell-step duration calculation).
+  - Fixed `ExecutionEngine` initialization ordering in `src/siyarix/engine.py` (resolver/graph created before `ToolExecutor`), and unified runtime step types by removing duplicated local `StepStatus`/`StepResult` definitions.
   - Added XI runtime integration in `ExecutionEngine` context building and step feedback tracking (`ContextTracker` + `Predictor`).
   - Added adaptive re-plan trigger path: failed/zero-finding step outcomes now feed back into planner (`TaskPlanner.replan`) and can inject corrective next steps dynamically.
-  - Added coordinator wiring for multi-agent objective dispatch in `src/phalanx/agents/coordinator.py` and `ExecutionEngine.execute_objective(...)`, connecting `AgentTeam` with `SOCAgent` and `DFIRAgent`.
+  - Added coordinator wiring for multi-agent objective dispatch in `src/siyarix/agents/coordinator.py` and `ExecutionEngine.execute_objective(...)`, connecting `AgentTeam` with `SOCAgent` and `DFIRAgent`.
   - Added tests:
     - `tests/test_adaptive_replan.py`
     - `tests/test_multi_agent_coordinator.py`
@@ -159,19 +159,19 @@ Changelog (automated agent):
   - Added `Migration Execution Plan` and progress tracker section (this file).
   - Created `MIGRATION_PLAN.md` with phased roadmap and immediate next steps.
   - Added `tool.mypy` configuration to `pyproject.toml` to enable type checks in CI.
-  - Introduced lightweight structured logging helper at `src/phalanx/logging_config.py`.
-  - Initialized centralized logging in `src/phalanx/main.py` using configured `log_level`.
+  - Introduced lightweight structured logging helper at `src/siyarix/logging_config.py`.
+  - Initialized centralized logging in `src/siyarix/main.py` using configured `log_level`.
   - Created CI improvements note; existing CI workflow detected and will be leveraged.
   - Status (global): ~2% — Baseline hardening started (static config + logging).
 
 - 2026-05-24: Masking engine
-  - Added session-scoped masking engine at `src/phalanx/masking.py` implementing deterministic mask/unmask and exportable mapping.
+  - Added session-scoped masking engine at `src/siyarix/masking.py` implementing deterministic mask/unmask and exportable mapping.
   - Added unit tests at `tests/test_masking.py` covering domain and API key masking and reset behavior.
   - Status (global): ~3% — Safety primitives in place.
 
 - 2026-05-24: Provider abstraction
-  - Added `src/phalanx/providers.py` with `Provider` protocol, `ProviderRegistry`, and `NoopProvider` fallback.
-  - Updated `src/phalanx/engine.py` to register providers through `ProviderRegistry` and add `NoopProvider` as a safe fallback.
+  - Added `src/siyarix/providers.py` with `Provider` protocol, `ProviderRegistry`, and `NoopProvider` fallback.
+  - Updated `src/siyarix/engine.py` to register providers through `ProviderRegistry` and add `NoopProvider` as a safe fallback.
   - Added unit tests at `tests/test_providers.py`.
   - Status (global): ~6% — Provider seam introduced and engine wired to registry.
 
@@ -180,17 +180,17 @@ Changelog (automated agent):
   - Status (global): ~7% — Engine validates provider wiring in unit tests (CI will verify).
 
 - 2026-05-24: Worker pool
-  - Added bounded async worker pool at `src/phalanx/worker_pool.py` (already present) and unit tests at `tests/test_worker_pool.py`.
+  - Added bounded async worker pool at `src/siyarix/worker_pool.py` (already present) and unit tests at `tests/test_worker_pool.py`.
   - Status (global): ~8% — Concurrency primitives tested and integrated into ExecutionEngine.
 
 - 2026-05-24: Response sensor & redaction
-  - Added `src/phalanx/response_sensor.py` to centralize masking/unmasking and redaction for model interactions.
-  - Integrated `ResponseSensor` into `src/phalanx/planner.py` model call flow with fallback to legacy masking.
+  - Added `src/siyarix/response_sensor.py` to centralize masking/unmasking and redaction for model interactions.
+  - Integrated `ResponseSensor` into `src/siyarix/planner.py` model call flow with fallback to legacy masking.
   - Added unit tests at `tests/test_response_sensor.py`.
   - Status (global): ~9% — Sensitive data handling centralized; planner uses redaction before exposing outputs.
 
 - 2026-05-24: Provider adapters
-  - Added `src/phalanx/provider_adapters.py` which wraps existing planner model classes into the `Provider` ABC and registers adapters (`openai`, `gemini`, `ollama`, `cloud`) with the provider registry.
+  - Added `src/siyarix/provider_adapters.py` which wraps existing planner model classes into the `Provider` ABC and registers adapters (`openai`, `gemini`, `ollama`, `cloud`) with the provider registry.
   - Status (global): ~10% — Model providers unified behind a single registry-driven interface.
 
 - 2026-05-24: CI workflow
@@ -198,13 +198,13 @@ Changelog (automated agent):
   - Status (global): ~11% — Automated test runs configured; CI will validate environment-sensitive tests.
 
 - 2026-05-24: Engine registry integration
-  - Updated `src/phalanx/engine.py` to instantiate model provider adapters from the central `providers.registry` (adapters live in `src/phalanx/provider_adapters.py`).
+  - Updated `src/siyarix/engine.py` to instantiate model provider adapters from the central `providers.registry` (adapters live in `src/siyarix/provider_adapters.py`).
   - Engines now respect `model_provider` preference and attach availability flags to adapters when possible.
   - Status (global): ~12% — Engine uses registry-driven provider adapters for unified provider handling.
 
 - 2026-05-24: ToolExecutor extraction
-  - Extracted execution responsibilities into `src/phalanx/tool_executor.py` and centralised step execution there. Introduced `src/phalanx/engine_types.py` for shared `StepResult`/`StepStatus` types.
-  - Updated `src/phalanx/engine.py` to delegate step execution to `ToolExecutor` and added unit test at `tests/test_tool_executor.py`.
+  - Extracted execution responsibilities into `src/siyarix/tool_executor.py` and centralised step execution there. Introduced `src/siyarix/engine_types.py` for shared `StepResult`/`StepStatus` types.
+  - Updated `src/siyarix/engine.py` to delegate step execution to `ToolExecutor` and added unit test at `tests/test_tool_executor.py`.
   - Status (global): ~14% — Execution logic separated, enabling DI and easier unit testing.
 
 - 2026-05-24: Findings parsing & ingestion
@@ -216,7 +216,7 @@ Changelog (automated agent):
   - Status (global): ~16% — Parser coverage increased for core tools.
 
 - 2026-05-24: Provider abstraction
-  - Added provider interface and registry at `src/phalanx/providers.py`.
+  - Added provider interface and registry at `src/siyarix/providers.py`.
   - Added `NoopProvider` scaffold and registered it as `noop` for offline/testing.
   - Added unit tests at `tests/test_providers.py`.
   - Status (global): ~4% — LLM provider seam established.
@@ -232,7 +232,7 @@ Changelog (automated agent):
   - Status (global): ~5% — OPSEC masking integrated into planning path.
 
 - 2026-05-24: Async worker pool
-  - Added `AsyncWorkerPool` at `src/phalanx/worker_pool.py` to provide bounded concurrency for sub-agents.
+  - Added `AsyncWorkerPool` at `src/siyarix/worker_pool.py` to provide bounded concurrency for sub-agents.
   - Added unit tests at `tests/test_worker_pool.py`.
   - Status (global): ~6% — Execution concurrency primitives added.
 
@@ -272,7 +272,7 @@ Change policy and traceability:
 │ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬─────────┘       │
 │        └────────────────┴────────────────┴────────────────┘                 │
 │                              │                                              │
-│ LAYER 6: PHALANX CORE ENGINE │                                              │
+│ LAYER 6: SIYARIX CORE ENGINE │                                              │
 │ ┌─────────────────────────────────────────────────────────────────────────┐ │
 │ │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────────┐   │ │
 │ │  │   Persona    │  │   Planner    │  │     Execution Engine         │   │ │
@@ -405,35 +405,35 @@ User Input
 
 | Method | Command | Use Case |
 |--------|---------|----------|
-| PyPI (Stable) | `pip install phalanx` | End users, quick start |
+| PyPI (Stable) | `pip install siyarix` | End users, quick start |
 | Source (Dev) | `git clone ... && pip install .` | Contributors, latest features |
-| Container | `docker pull phalanx` *(suggested)* | Isolated environments |
-| Package Manager | `apt install phalanx` *(suggested)* | System-wide Linux installs |
+| Container | `docker pull siyarix` *(suggested)* | Isolated environments |
+| Package Manager | `apt install siyarix` *(suggested)* | System-wide Linux installs |
 
 ### 2.2 The Bootstrap Process (First-Run Magic)
 
-**Trigger:** Running `phalanx` for the first time (no config marker found).
+**Trigger:** Running `siyarix` for the first time (no config marker found).
 
 **Detailed Sequence:**
 
 | Phase | Action | Platform Detection |
 |-------|--------|-------------------|
-| **T1** | Check first-run marker (`~/.phalanx/.initialized` or registry key) | Universal |
+| **T1** | Check first-run marker (`~/.siyarix/.initialized` or registry key) | Universal |
 | **T2** | Detect OS: Linux/macOS/Windows/HarmonyOS/Cloud | `platform.system()` + environment variables |
 | **T3** | Detect terminal: Bash/Zsh/Fish/CMD/PowerShell/WSL | `SHELL` env var + `ps` detection |
-| **T4** | Execute bootstrap script to install all necessary applicactions, packages, and other to run phalanx: `.sh` / `.bat` / `.ps1` | Platform-matched extension |
+| **T4** | Execute bootstrap script to install all necessary applicactions, packages, and other to run siyarix: `.sh` / `.bat` / `.ps1` | Platform-matched extension |
 | **T5** | Check Python ≥3.11 | `sys.version_info` |
 | **T6** | Verify pip dependencies from `requirements.txt` | `pkg_resources` or `importlib.metadata` |
 | **T7** | Check database backend  | Connection test + schema initialization |
 | **T8** | Verify runtime dependencies  | PATH scan for auxiliary compilers |
 | **T9** | Prompt for missing dependency installation | Interactive Y/n per package |
 | **T10** | Auto-install approved packages | `subprocess.run([pip, install, ...])` |
-| **T11** | Write first-run marker | `~/.phalanx/.initialized` |
+| **T11** | Write first-run marker | `~/.siyarix/.initialized` |
 | **T12** | Display completion message | *"All done! Please restart your terminal."* |
 
 **Second Run Behavior:**
 - Reads first-run marker → skips bootstrap entirely
-- Loads `~/.phalanx/config.yaml` (or equivalent)
+- Loads `~/.siyarix/config.yaml` (or equivalent)
 - Initializes main engine directly
 - Scans PATH for tools
 - Displays tool inventory
@@ -447,11 +447,11 @@ class ProviderManager:
     def __init__(self):
         self.loaded_providers = {}
         self.available_providers = {
-            'openai': 'phalanx-openai',
-            'gemini': 'phalanx-gemini',
-            'ollama': 'phalanx-ollama',
-            'groq': 'phalanx-groq',
-            'together': 'phalanx-together',
+            'openai': 'siyarix-openai',
+            'gemini': 'siyarix-gemini',
+            'ollama': 'siyarix-ollama',
+            'groq': 'siyarix-groq',
+            'together': 'siyarix-together',
         }
 
     def load_provider(self, name):
@@ -475,7 +475,7 @@ class ProviderManager:
 
 ### 3.2 Hybride Interactive with Chat Mode (Default)
 
-**Launch:** `phalanx` (no arguments)
+**Launch:** `siyarix` (no arguments)
 
 **UI Features:**
 - Syntax-highlighted output (if terminal supports it)
@@ -494,13 +494,13 @@ class ProviderManager:
 **Quick Tasks:**
 ```bash
 # Network scan
-phalanx scan 192.168.1.1
+siyarix scan 192.168.1.1
 
 # Natural language task
-phalanx run "find subdomains of example.com"
+siyarix run "find subdomains of example.com"
 
 # Tool registry direct
-phalanx tool-registry run nmap -sV target.com
+siyarix tool-registry run nmap -sV target.com
 ```
 
 **Exit Codes:**
@@ -558,7 +558,7 @@ User Prompt: "Check if this server is vulnerable to Log4j"
 ### 4.3 Custom Persona Creation (Verified)
 
 ```
-phalanx> /work-mode custom
+siyarix> /work-mode custom
 
 [Persona Builder]
 Name: cloud-pentester
@@ -581,13 +581,13 @@ Safety profile: cautious
 ```
 
 **Custom Persona Storage:**
-- Saved to `~/.phalanx/personas/<name>.yaml`
+- Saved to `~/.siyarix/personas/<name>.yaml`
 - Shareable between team members
 - Can inherit from built-in personas
 
 ### 4.4 Persona Context Retargeting
 
-When switching personas mid-session, Phalanx **hot-swaps**:
+When switching personas mid-session, Siyarix **hot-swaps**:
 
 | Component | What Changes | Latency |
 |-----------|-------------|---------|
@@ -639,11 +639,11 @@ When switching personas mid-session, Phalanx **hot-swaps**:
 ### 5.3 Custom Provider Configuration
 
 ```
-phalanx> /key set custom https://my-llm.company.com/v1 sk-abc123 my-model-v1
+siyarix> /key set custom https://my-llm.company.com/v1 sk-abc123 my-model-v1
 
-[Phalanx] Custom provider configured.
-[Phalanx] Testing connection...
-[Phalanx] Custom provider ready. Model: my-model-v1
+[Siyarix] Custom provider configured.
+[Siyarix] Testing connection...
+[Siyarix] Custom provider ready. Model: my-model-v1
 ```
 
 **Use Cases for Custom Providers:**
@@ -662,14 +662,14 @@ phalanx> /key set custom https://my-llm.company.com/v1 sk-abc123 my-model-v1
 **Transmission:**
 - HTTPS/TLS 1.3 to provider endpoints
 - Keys never logged, never displayed in output
-- No proxying through Phalanx servers (direct to provider)
+- No proxying through Siyarix servers (direct to provider)
 
 **Rotation:**
 ```
-phalanx> /key rotate openai
-[Phalanx] Old key invalidated. Enter new key: sk-...
-[Phalanx] Key updated. Testing...
-[Phalanx] Rotation complete.
+siyarix> /key rotate openai
+[Siyarix] Old key invalidated. Enter new key: sk-...
+[Siyarix] Key updated. Testing...
+[Siyarix] Rotation complete.
 ```
 
 ---
@@ -732,7 +732,7 @@ def discover_tools():
 
 **Configuration Interface:**
 ```
-phalanx> /config tool access
+siyarix> /config tool access
 
 Global Settings:
   Auto-approve timeout: 10s → [Change]
@@ -762,8 +762,8 @@ AI Plan: "Use nuclei to scan for CVEs"
 Not Found
     │
     ▼
-[Phalanx] "nuclei required but not found."
-[Phalanx] "Install nuclei? [Y/n/a(always)/N(never)]: Y"
+[Siyarix] "nuclei required but not found."
+[Siyarix] "Install nuclei? [Y/n/a(always)/N(never)]: Y"
     │
     ▼
 Platform Detection → Select Install Method:
@@ -772,9 +772,9 @@ Platform Detection → Select Install Method:
     • Windows: `choco install nuclei` or manual
     │
     ▼
-[Phalanx] Installing...
-[Phalanx] nuclei v3.1.0 installed successfully.
-[Phalanx] Resuming task...
+[Siyarix] Installing...
+[Siyarix] nuclei v3.1.0 installed successfully.
+[Siyarix] Resuming task...
 ```
 
 **Install Methods (Platform-Matched):**
@@ -791,7 +791,7 @@ Platform Detection → Select Install Method:
 
 **The Problem:** Sending real target names to cloud LLMs leaks operational security (OPSEC) information.
 
-**Phalanx Solution:**
+**Siyarix Solution:**
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -837,14 +837,14 @@ Platform Detection → Select Install Method:
 
 **Custom Masking Rules:**
 ```
-phalanx> /config masking add
+siyarix> /config masking add
 
 Pattern name: internal-domain
 Regex: int\.company\.local
 Replacement: internal.example.local
 Scope: all          # all / offensive-only / defensive-only
 
-[Phalanx] Masking rule added. 47 patterns active.
+[Siyarix] Masking rule added. 47 patterns active.
 ```
 
 ### 7.2 Response Sensor & Permission Gates
@@ -883,7 +883,7 @@ LLM Response (with masked data)
 **For complex multi-step operations:**
 
 ```bash
-[Phalanx] Generated execution plan (5 steps):
+[Siyarix] Generated execution plan (5 steps):
 
 #!/bin/bash
 # Step 1: Reconnaissance
@@ -909,7 +909,7 @@ cat *.txt | tee report.md
 
 Choice: E
 [User edits in VS Code / nano / vim...]
-[Phalanx] Detected modifications. Diff:
+[Siyarix] Detected modifications. Diff:
   - nuclei -l live.txt -t cves/ -severity critical,high
   + nuclei -l live.txt -t cves/ -severity critical,high,medium
 
@@ -927,7 +927,7 @@ Choice: E
 
 **Scope:**
 - Kills current command chain only
-- Does not exit Phalanx session
+- Does not exit Siyarix session
 - Does not affect other running `/collab` sessions
 
 ---
@@ -1022,17 +1022,17 @@ commands:
 ### 9.1 Team Collaboration (`/collab`)
 
 ```
-phalanx> /collab ssh user@teammate-server
+siyarix> /collab ssh user@teammate-server
 
-[Phalanx] Establishing secure collaborative session...
-[Phalanx] Connected to teammate-server.
-[Phalanx] Synchronized contexts:
+[Siyarix] Establishing secure collaborative session...
+[Siyarix] Connected to teammate-server.
+[Siyarix] Synchronized contexts:
   • Tool registry (47 tools)
   • Persona: Bug Hunter
   • Session: sess_abc123
 
 [Teammate] joined the session.
-phalanx [collab]> scan xyz.com
+siyarix [collab]> scan xyz.com
 ```
 
 **Collaboration Features:**
@@ -1050,16 +1050,16 @@ phalanx [collab]> scan xyz.com
 ### 9.2 VS Code Integration (`/coder`)
 
 ```
-phalanx> /coder
+siyarix> /coder
 
-[Phalanx] VS Code bridge active.
-[Phalanx] Workspace: /home/user/phalanx-session-abc123
-[Phalanx] File watcher initialized.
+[Siyarix] VS Code bridge active.
+[Siyarix] Workspace: /home/user/siyarix-session-abc123
+[Siyarix] File watcher initialized.
 ```
 
 **Capabilities:**
 - Generated scripts open in VS Code editor
-- Real-time file sync between Phalanx and VS Code
+- Real-time file sync between Siyarix and VS Code
 - Diff review before execution
 - Multi-file project generation
 - Syntax highlighting for generated code
@@ -1068,17 +1068,17 @@ phalanx> /coder
 ### 9.3 MCP Server Integration (Research Mode)
 
 ```
-phalanx> /work-mode research
+siyarix> /work-mode research
 
-[Phalanx] MCP (Model Context Protocol) servers enabled.
-[Phalanx] Available MCP servers:
+[Siyarix] MCP (Model Context Protocol) servers enabled.
+[Siyarix] Available MCP servers:
   1. vuln-db (local CVE database)
   2. threat-intel (MISP feed)
   3. exploit-db (Exploit-DB mirror)
   4. custom-corp (Company internal KB)
 
-[Phalanx] Connecting to configured endpoints...
-[Phalanx] Research mode active. External intelligence available.
+[Siyarix] Connecting to configured endpoints...
+[Siyarix] Research mode active. External intelligence available.
 ```
 
 **MCP Use Cases:**
@@ -1104,17 +1104,17 @@ phalanx> /work-mode research
 - Execution timing (fast vs. thorough)
 
 **Storage:**
-- Local SQLite database: `~/.phalanx/memory/tool_patterns.db`
+- Local SQLite database: `~/.siyarix/memory/tool_patterns.db`
 - Pattern format: `{task_type, persona, input_pattern, command, success_rate, user_correction}`
 
 **Example Learning Event:**
 ```
-[Phalanx] Task: "Scan xyz.com for web vulns"
-[Phalanx] Generated: nuclei -u xyz.com
-[Phalanx] User modified: nuclei -u xyz.com -t ~/custom-templates/
-[Phalanx] Result: 3 more findings than default.
-[Phalanx] Learning: "Custom templates improve web vuln detection"
-[Phalanx] Pattern saved. Future similar tasks will suggest custom templates.
+[Siyarix] Task: "Scan xyz.com for web vulns"
+[Siyarix] Generated: nuclei -u xyz.com
+[Siyarix] User modified: nuclei -u xyz.com -t ~/custom-templates/
+[Siyarix] Result: 3 more findings than default.
+[Siyarix] Learning: "Custom templates improve web vuln detection"
+[Siyarix] Pattern saved. Future similar tasks will suggest custom templates.
 ```
 
 ### 10.2 User Learning Mode (Pedagogical)
@@ -1123,7 +1123,7 @@ phalanx> /work-mode research
 
 **Teaching Output Example:**
 ```
-[Phalanx] Task complete. Educational breakdown:
+[Siyarix] Task complete. Educational breakdown:
 
 ═══════════════════════════════════════════════════
 STEP 1: Host Discovery (nmap -sn 192.168.1.0/24)
@@ -1165,7 +1165,7 @@ What it means:
   • Next step: Verify with manual testing or search for PoC
 
 ═══════════════════════════════════════════════════
-[Phalanx] Would you like a detailed explanation of any step? [1/2/3/n]:
+[Siyarix] Would you like a detailed explanation of any step? [1/2/3/n]:
 ```
 
 ---
@@ -1213,10 +1213,10 @@ What it means:
 ### 11.2 Log Export Formats
 
 ```
-phalanx> /log export sess_abc123 --format markdown --output report.md
-phalanx> /log export sess_abc123 --format json --output audit.json
-phalanx> /log export sess_abc123 --format pdf --output client_report.pdf
-phalanx> /log export sess_abc123 --format sarif --output findings.sarif
+siyarix> /log export sess_abc123 --format markdown --output report.md
+siyarix> /log export sess_abc123 --format json --output audit.json
+siyarix> /log export sess_abc123 --format pdf --output client_report.pdf
+siyarix> /log export sess_abc123 --format sarif --output findings.sarif
 ```
 
 **Format Use Cases:**
@@ -1226,9 +1226,9 @@ phalanx> /log export sess_abc123 --format sarif --output findings.sarif
 - **SARIF:** Static analysis results interchange format (industry standard)
 
 
-| Cloud Platforms | phalanx-aws, phalanx-azure, phalanx-gcp | ⚠️ Suggested |
-| Container Security | phalanx-docker, phalanx-kubernetes | ⚠️ Suggested |
-| Compliance | phalanx-pci-dss, phalanx-iso27001 | ⚠️ Suggested |
+| Cloud Platforms | siyarix-aws, siyarix-azure, siyarix-gcp | ⚠️ Suggested |
+| Container Security | siyarix-docker, siyarix-kubernetes | ⚠️ Suggested |
+| Compliance | siyarix-pci-dss, siyarix-iso27001 | ⚠️ Suggested |
 | Custom Parsers | User-created tool output parsers | ⚠️ Suggested |
 
 ---
@@ -1289,15 +1289,15 @@ def detect_terminal():
 **User:** Bug hunter persona, Gemini provider, Kali Linux
 
 ```
-phalanx> /work-mode bug hunter
-[Phalanx] Persona: Bug Hunter
-[Phalanx] Tool filter: 23 web-focused tools active
+siyarix> /work-mode bug hunter
+[Siyarix] Persona: Bug Hunter
+[Siyarix] Tool filter: 23 web-focused tools active
 
-phalanx> scan xyz.com for vulnerabilities
+siyarix> scan xyz.com for vulnerabilities
 
-[Phalanx] Task received. Planning...
-[Phalanx] Masking: xyz.com → example.com
-[Phalanx] Sending to Gemini...
+[Siyarix] Task received. Planning...
+[Siyarix] Masking: xyz.com → example.com
+[Siyarix] Sending to Gemini...
 
 [AI Plan - Masked]:
   1. subfinder -d example.com -o subs.txt
@@ -1305,10 +1305,10 @@ phalanx> scan xyz.com for vulnerabilities
   3. nuclei -l live.txt -t cves/ -severity critical,high
   4. ffuf -u http://example.com/FUZZ -w wordlist.txt
 
-[Phalanx] Response sensor: All commands allowed
-[Phalanx] Unmasking: example.com → xyz.com
+[Siyarix] Response sensor: All commands allowed
+[Siyarix] Unmasking: example.com → xyz.com
 
-[Phalanx] Spawning sub-agents...
+[Siyarix] Spawning sub-agents...
 [Agent 01] subfinder -d xyz.com -o subs.txt
 [Agent 01] Found: 15 subdomains
 
@@ -1324,9 +1324,9 @@ phalanx> scan xyz.com for vulnerabilities
 [Agent 04] /api/v1 [200]
 [Agent 04] /.env [200] ⚠️
 
-[Phalanx] Task complete. 2 CVEs, 1 exposed .env file found.
-[Phalanx] Learning mode: Storing patterns...
-[Phalanx] Log saved: sess_def456
+[Siyarix] Task complete. 2 CVEs, 1 exposed .env file found.
+[Siyarix] Learning mode: Storing patterns...
+[Siyarix] Log saved: sess_def456
 ```
 
 ### 14.2 Scenario: Incident Response (SOC Mode)
@@ -1334,14 +1334,14 @@ phalanx> scan xyz.com for vulnerabilities
 **User:** SOC analyst persona, local Ollama, Ubuntu
 
 ```
-phalanx> /work-mode soc
-[Phalanx] Persona: SOC Analyst
-[Phalanx] Tool filter: 18 monitoring/forensics tools active
+siyarix> /work-mode soc
+[Siyarix] Persona: SOC Analyst
+[Siyarix] Tool filter: 18 monitoring/forensics tools active
 
-phalanx> investigate alert ALERT-2026-001
+siyarix> investigate alert ALERT-2026-001
 
-[Phalanx] Loading alert context...
-[Phalanx] Plan:
+[Siyarix] Loading alert context...
+[Siyarix] Plan:
   1. Query SIEM for related events
   2. Check endpoint EDR logs
   3. Analyze suspicious process
@@ -1357,8 +1357,8 @@ phalanx> investigate alert ALERT-2026-001
 [Agent 03] volatility -f memory.dump pslist
 [Agent 03] Suspicious: powershell.exe PID 4521 (injected)
 
-[Phalanx] Escalation recommended: Confirmed compromise
-[Phalanx] Timeline generated. Report: /tmp/incident_ALERT-001.md
+[Siyarix] Escalation recommended: Confirmed compromise
+[Siyarix] Timeline generated. Report: /tmp/incident_ALERT-001.md
 ```
 
 ---
@@ -1369,7 +1369,7 @@ phalanx> investigate alert ALERT-2026-001
 
 | Feature | How to Access | Documantation | Complexity |
 |---------|--------------|---------------|------------|
-| First-run bootstrap | Just run `phalanx` | README | Low |
+| First-run bootstrap | Just run `siyarix` | README | Low |
 | Custom persona builder | `/work-mode create` | User | Medium |
 | Auto persona detection | `/work-mode auto` | User | Low |
 | Tool ACL config | `/config tool access` | User | Medium |
@@ -1380,16 +1380,16 @@ phalanx> investigate alert ALERT-2026-001
 | Session logging | `/log <id>` | User | Low |
 | ESC kill switch | Press `ESC` | User | Low |
 | Custom masking rules | `/config masking` | Inferred | Medium |
-| Batch mode / scripting | `phalanx --batch` or `/batch` | Try `phalanx --help` for hidden flags |
-| Configuration profiles | `~/.phalanx/profiles/` | Check directory structure |
-| Environment variables | `.env` support | Create `.env` with `PHALANX_DEBUG=1` |
-| API mode (REST) | `phalanx --server` or similar | Try port scanning localhost after launch |
+| Batch mode / scripting | `siyarix --batch` or `/batch` | Try `siyarix --help` for hidden flags |
+| Configuration profiles | `~/.siyarix/profiles/` | Check directory structure |
+| Environment variables | `.env` support | Create `.env` with `SIYARIX_DEBUG=1` |
+| API mode (REST) | `siyarix --server` or similar | Try port scanning localhost after launch |
 | Scheduled tasks | `/schedule` or cron integration | Try `/schedule` command |
 | Import/export personas | `/work-mode export` | Try `/work-mode export my-persona` |
 | Diff mode (compare scans) | `/diff` or `--compare` | Try `/diff sess_abc123 sess_def456` |
 | Stealth/Evasion mode | `/config stealth` or similar | Try `/config` and look for stealth options |
-| Reporting templates | `~/.phalanx/templates/` | Check for template directory |
-| Multi-target mode | `@targets.txt` syntax | Try `phalanx scan @targets.txt` |
+| Reporting templates | `~/.siyarix/templates/` | Check for template directory |
+| Multi-target mode | `@targets.txt` syntax | Try `siyarix scan @targets.txt` |
 
 # PART III: SUGGESTED ENHANCEMENTS & ROADMAP
 
@@ -1428,7 +1428,7 @@ User: "Scan xyz.com"
 **Feature:** Show the AI's reasoning process in real-time.
 
 ```
-[Phalanx] Thinking...
+[Siyarix] Thinking...
   ├─→ "User wants vulnerability assessment"
   ├─→ "Target is a domain (xyz.com)"
   ├─→ "Bug Hunter persona active"
@@ -1436,7 +1436,7 @@ User: "Scan xyz.com"
   ├─→ "Plan: subdomain enum → live check → CVE scan → content discovery"
   └─→ "Estimated time: 5 minutes"
 
-[Phalanx] Plan confirmed. Executing...
+[Siyarix] Plan confirmed. Executing...
 ```
 
 ### 16.3 Adversarial Testing Mode (Suggested)
@@ -1444,13 +1444,13 @@ User: "Scan xyz.com"
 **Concept:** AI actively tries to find flaws in its own plan before execution.
 
 ```
-[Phalanx] Plan generated. Running adversarial review...
+[Siyarix] Plan generated. Running adversarial review...
   ⚠️ "nmap -sV may trigger IDS — suggest stealth scan?"
   ⚠️ "ffuf rate not limited — may cause DoS"
   ✓ "nuclei templates cover latest CVEs"
 
-[Phalanx] Apply adversarial suggestions? [Y/n]: Y
-[Phalanx] Plan updated: Added `-T2` to nmap, added `-rate 100` to ffuf
+[Siyarix] Apply adversarial suggestions? [Y/n]: Y
+[Siyarix] Plan updated: Added `-T2` to nmap, added `-rate 100` to ffuf
 ```
 
 ### 16.4 Context Window Compression (Suggested)
@@ -1460,8 +1460,8 @@ User: "Scan xyz.com"
 **Solution:** Automatic summarization of session history.
 
 ```
-[Phalanx] Context window 85% full. Compressing history...
-[Phalanx] Summary: "So far: discovered 15 subdomains, found 2 CVEs,
+[Siyarix] Context window 85% full. Compressing history...
+[Siyarix] Summary: "So far: discovered 15 subdomains, found 2 CVEs,
           currently fuzzing directories. Next: verify findings."
 ```
 
@@ -1470,9 +1470,9 @@ User: "Scan xyz.com"
 **Concept:** Opt-in sharing of successful command patterns (anonymized).
 
 ```
-[Phalanx] Community insight: 847 users found that adding
+[Siyarix] Community insight: 847 users found that adding
           `--tags cve` to nuclei improves CVE detection by 23%.
-[Phalanx] Apply this insight? [Y/n]: Y
+[Siyarix] Apply this insight? [Y/n]: Y
 ```
 
 ---
@@ -1484,15 +1484,15 @@ User: "Scan xyz.com"
 **Concept:** Save and replay complex multi-step workflows.
 
 ```
-phalanx> /playbook save bugbounty-recon
+siyarix> /playbook save bugbounty-recon
 
-[Phalanx] Playbook "bugbounty-recon" saved:
+[Siyarix] Playbook "bugbounty-recon" saved:
   Step 1: subfinder -d {target}
   Step 2: httpx -l subs.txt
   Step 3: nuclei -l live.txt -t cves/
   Step 4: ffuf -u {target}/FUZZ
 
-phalanx> /playbook run bugbounty-recon --target xyz.com
+siyarix> /playbook run bugbounty-recon --target xyz.com
 ```
 
 **Playbook Features:**
@@ -1504,7 +1504,7 @@ phalanx> /playbook run bugbounty-recon --target xyz.com
 ### 17.2 Scheduled / Recurring Scans (Suggested)
 
 ```
-phalanx> /schedule create daily-health-check
+siyarix> /schedule create daily-health-check
 
 Target: xyz.com
 Frequency: Daily at 02:00 UTC
@@ -1513,7 +1513,7 @@ Command: "run basic health check on xyz.com"
 Alert on: New open ports, new CVEs, SSL expiry < 30 days
 Notify: /notify email security@company.com
 
-[Phalanx] Scheduled. Next run: 2026-05-25 02:00 UTC
+[Siyarix] Scheduled. Next run: 2026-05-25 02:00 UTC
 ```
 
 ### 17.3 Baseline Deviation Detection (Suggested)
@@ -1521,17 +1521,17 @@ Notify: /notify email security@company.com
 **Concept:** Learn "normal" state, alert on changes.
 
 ```
-[Phalanx] Baseline established for xyz.com:
+[Siyarix] Baseline established for xyz.com:
   • Ports: 80, 443
   • Technologies: nginx 1.18, PHP 7.4
   • Headers: X-Frame-Options present
 
-[Phalanx] Daily scan deviation detected:
+[Siyarix] Daily scan deviation detected:
   • NEW: Port 8080 open (Tomcat)
   • NEW: Header X-Frame-Options missing
   • CHANGED: nginx 1.18 → 1.19
 
-[Phalanx] Alert: 3 deviations from baseline. Review? [Y/n]: Y
+[Siyarix] Alert: 3 deviations from baseline. Review? [Y/n]: Y
 ```
 
 ### 17.4 Evidence Preservation Chain (Suggested)
@@ -1539,7 +1539,7 @@ Notify: /notify email security@company.com
 **For professional engagements:**
 
 ```
-[Phalanx] Evidence mode enabled.
+[Siyarix] Evidence mode enabled.
 
 All outputs will be:
   • Cryptographically hashed (SHA-256)
@@ -1554,7 +1554,7 @@ Court-admissible: Yes
 ### 17.5 Multi-Target Campaign Mode (Suggested)
 
 ```
-phalanx> /campaign create client-assessment
+siyarix> /campaign create client-assessment
 
 Targets: @client-targets.txt (50 domains)
 Persona: Pentester
@@ -1563,8 +1563,8 @@ Rate limit: 1 request/second per target
 Concurrent targets: 5
 Report template: /templates/pentest-report.md
 
-[Phalanx] Campaign launched. 50 targets queued.
-[Phalanx] Progress: [=====>    ] 12/50 complete
+[Siyarix] Campaign launched. 50 targets queued.
+[Siyarix] Progress: [=====>    ] 12/50 complete
 ```
 
 ---
@@ -1574,7 +1574,7 @@ Report template: /templates/pentest-report.md
 ### 18.1 Report Templates (Suggested)
 
 ```
-phalanx> /report generate --template bugbounty
+siyarix> /report generate --template bugbounty
 
 Sections:
   1. Executive Summary
@@ -1591,8 +1591,8 @@ Format: PDF | HTML | DOCX
 ### 18.2 CVSS Auto-Scoring (Suggested)
 
 ```
-[Phalanx] Finding: SQL Injection in search parameter
-[Phalanx] Auto-calculating CVSS 3.1...
+[Siyarix] Finding: SQL Injection in search parameter
+[Siyarix] Auto-calculating CVSS 3.1...
   • Attack Vector: Network → AV:N
   • Attack Complexity: Low → AC:L
   • Privileges Required: None → PR:N
@@ -1602,13 +1602,13 @@ Format: PDF | HTML | DOCX
   • Integrity: High → I:H
   • Availability: Low → A:L
 
-[Phalanx] CVSS Score: 9.9 (Critical)
+[Siyarix] CVSS Score: 9.9 (Critical)
 ```
 
 ### 18.3 Remediation Guidance Generation (Suggested)
 
 ```
-[Phalanx] Remediation for CVE-2023-XXXX:
+[Siyarix] Remediation for CVE-2023-XXXX:
 
 Priority: CRITICAL
 Effort: Low (1-2 hours)
@@ -1631,13 +1631,13 @@ Verification command:
 ### 18.4 Client Portal Integration (Suggested)
 
 ```
-phalanx> /report publish --portal client-portal
+siyarix> /report publish --portal client-portal
 
-[Phalanx] Uploading to client portal...
-[Phalanx] Report ID: RPT-2026-001
-[Phalanx] Client access: https://portal.company.com/reports/RPT-2026-001
-[Phalanx] Expires: 30 days
-[Phalanx] Password protected: Yes
+[Siyarix] Uploading to client portal...
+[Siyarix] Report ID: RPT-2026-001
+[Siyarix] Client access: https://portal.company.com/reports/RPT-2026-001
+[Siyarix] Expires: 30 days
+[Siyarix] Password protected: Yes
 ```
 
 ---
@@ -1647,7 +1647,7 @@ phalanx> /report publish --portal client-portal
 ### 19.1 Role-Based Access Control (RBAC) (Suggested)
 
 ```
-phalanx> /team rbac create-role junior-analyst
+siyarix> /team rbac create-role junior-analyst
 
 Permissions:
   • Personas: bug_hunter, defensive
@@ -1656,16 +1656,16 @@ Permissions:
   • Can view logs: Own only
   • Can collaborate: Yes
 
-phalanx> /team rbac assign junior-analyst @alice
+siyarix> /team rbac assign junior-analyst @alice
 ```
 
 ### 19.2 Team Dashboard (Suggested)
 
 ```
-phalanx> /team dashboard
+siyarix> /team dashboard
 
 ┌──────────────────────────────────────────────┐
-│  Phalanx Team Dashboard - Security Ops       │
+│  Siyarix Team Dashboard - Security Ops       │
 ├──────────────────────────────────────────────┤
 │ Active Sessions: 4                           │
 │ Active Campaigns: 1 (client-assessment)      │
@@ -1683,7 +1683,7 @@ phalanx> /team dashboard
 ### 19.3 Knowledge Base Sharing (Suggested)
 
 ```
-phalanx> /kb share --team security-ops
+siyarix> /kb share --team security-ops
 
 Sharing:
   • Custom personas (3)
@@ -1691,34 +1691,34 @@ Sharing:
   • Successful patterns (47)
   • Custom masking rules (5)
 
-[Phalanx] Knowledge base synchronized.
-[Phalanx] 4 team members updated.
+[Siyarix] Knowledge base synchronized.
+[Siyarix] 4 team members updated.
 ```
 
 ### 19.4 Integration with Ticketing Systems (Suggested)
 
 ```
-phalanx> /ticket create --jira
+siyarix> /ticket create --jira
 
 Project: SEC
 Issue Type: Vulnerability
 Summary: [CRITICAL] SQL Injection in xyz.com/search
 Priority: P1
 Assignee: @security-team
-Labels: auto-discovered, phalanx, needs-triage
+Labels: auto-discovered, siyarix, needs-triage
 
-[Phalanx] Jira ticket SEC-2847 created.
-[Phalanx] Link: https://jira.company.com/browse/SEC-2847
+[Siyarix] Jira ticket SEC-2847 created.
+[Siyarix] Link: https://jira.company.com/browse/SEC-2847
 ```
 
 ### 19.5 SSO & Authentication (Suggested)
 
 ```
-phalanx> /auth sso configure --provider okta
+siyarix> /auth sso configure --provider okta
 
-[Phalanx] SSO enabled.
-[Phalanx] MFA required for destructive operations.
-[Phalanx] Session timeout: 8 hours.
+[Siyarix] SSO enabled.
+[Siyarix] MFA required for destructive operations.
+[Siyarix] Session timeout: 8 hours.
 ```
 
 ---
@@ -1728,7 +1728,7 @@ phalanx> /auth sso configure --provider okta
 ### 20.1 Deception & Evasion Mode (Suggested)
 
 ```
-phalanx> /config stealth on
+siyarix> /config stealth on
 
 Stealth features activated:
   • Randomized User-Agent rotation
@@ -1738,26 +1738,26 @@ Stealth features activated:
   • Timing randomization between sub-agents
   • Decoy traffic generation (noise)
 
-[Phalanx] Stealth score: 8.5/10 (IDS evasion likely)
+[Siyarix] Stealth score: 8.5/10 (IDS evasion likely)
 ```
 
 ### 20.2 Canary Token Integration (Suggested)
 
 ```
-phalanx> /canary deploy --target xyz.com
+siyarix> /canary deploy --target xyz.com
 
 Deployed:
   • /admin.bak (fake backup, alerts on access)
   • /config.json (fake AWS keys, alerts on use)
   • /debug.php (fake debug endpoint, alerts on visit)
 
-[Phalanx] Canary tokens active. Alerts to: security@company.com
+[Siyarix] Canary tokens active. Alerts to: security@company.com
 ```
 
 ### 20.3 Threat Intelligence Correlation (Suggested)
 
 ```
-phalanx> /intel query --ioc 192.168.1.100
+siyarix> /intel query --ioc 192.168.1.100
 
 Threat Intelligence Correlation:
   • AbuseIPDB: Reported 47 times (Brute force)
@@ -1765,20 +1765,20 @@ Threat Intelligence Correlation:
   • AlienVault OTX: Linked to APT29
   • MISP: Matches campaign "Winter-2026"
 
-[Phalanx] HIGH CONFIDENCE: Malicious IP. Block recommended.
+[Siyarix] HIGH CONFIDENCE: Malicious IP. Block recommended.
 ```
 
 ### 20.4 Automated Retest & Regression (Suggested)
 
 ```
-phalanx> /retest schedule --finding CVE-2023-XXXX
+siyarix> /retest schedule --finding CVE-2023-XXXX
 
 Target: xyz.com
 Frequency: Weekly
 Alert on: Still vulnerable
 Auto-close: If fixed for 4 consecutive weeks
 
-[Phalanx] Retest scheduled. Next: 2026-05-31
+[Siyarix] Retest scheduled. Next: 2026-05-31
 ```
 
 ### 20.5 Secure Multi-Party Computation (Suggested)
@@ -1786,12 +1786,12 @@ Auto-close: If fixed for 4 consecutive weeks
 **For sensitive collaborative assessments:**
 
 ```
-phalanx> /collab mpc --parties 3
+siyarix> /collab mpc --parties 3
 
 Secure MPC session:
   • Party 1: Client (shares target list)
   • Party 2: Auditor (shares methodology)
-  • Party 3: Phalanx (orchestrates)
+  • Party 3: Siyarix (orchestrates)
 
 No single party sees full picture.
 Results computed cryptographically.
@@ -1805,30 +1805,30 @@ Results computed cryptographically.
 
 | Provider | Integration | Commands |
 |----------|-------------|----------|
-| **AWS** | IAM role assumption, CloudTrail analysis | `phalanx cloud aws scan --account 123456` |
-| **Azure** | AAD integration, Activity Log analysis | `phalanx cloud azure scan --subscription xxx` |
-| **GCP** | Service account auth, Cloud Audit Logs | `phalanx cloud gcp scan --project my-project` |
-| **Kubernetes** | In-cluster scanning, RBAC analysis | `phalanx k8s scan --namespace default` |
-| **Docker** | Image scanning, runtime analysis | `phalanx docker scan --image nginx:latest` |
+| **AWS** | IAM role assumption, CloudTrail analysis | `siyarix cloud aws scan --account 123456` |
+| **Azure** | AAD integration, Activity Log analysis | `siyarix cloud azure scan --subscription xxx` |
+| **GCP** | Service account auth, Cloud Audit Logs | `siyarix cloud gcp scan --project my-project` |
+| **Kubernetes** | In-cluster scanning, RBAC analysis | `siyarix k8s scan --namespace default` |
+| **Docker** | Image scanning, runtime analysis | `siyarix docker scan --image nginx:latest` |
 
 ### 21.2 Infrastructure as Code Security (Suggested)
 
 ```
-phalanx> /iac scan --path ./terraform/
+siyarix> /iac scan --path ./terraform/
 
 Scanning:
   • main.tf: S3 bucket public access detected
   • security.tf: Security group allows 0.0.0.0/0:22
   • iam.tf: Overly permissive IAM policy
 
-[Phalanx] 3 misconfigurations. Fix suggestions available.
+[Siyarix] 3 misconfigurations. Fix suggestions available.
 ```
 
 ### 21.3 CI/CD Pipeline Integration (Suggested)
 
 ```yaml
 # .github/workflows/security.yml
-name: Phalanx Security Scan
+name: Siyarix Security Scan
 on: [push, pull_request]
 
 jobs:
@@ -1836,8 +1836,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run Phalanx
-        uses: phalanx/action@v1
+      - name: Run Siyarix
+        uses: siyarix/action@v1
         with:
           persona: 'defensive'
           target: 'http://localhost:8080'
@@ -1851,26 +1851,26 @@ jobs:
 ### 22.1 Mobile Application Testing (Suggested)
 
 ```
-phalanx> /mobile android --apk app.apk
+siyarix> /mobile android --apk app.apk
 
-[Phalanx] Decompiling APK...
-[Phalanx] Running static analysis...
-[Phalanx] Findings:
+[Siyarix] Decompiling APK...
+[Siyarix] Running static analysis...
+[Siyarix] Findings:
   • Hardcoded API key in strings.xml
   • Insecure network security config
   • Debug flag enabled in release build
 
-[Phalanx] Dynamic testing with Frida hooks available.
+[Siyarix] Dynamic testing with Frida hooks available.
 ```
 
 ### 22.2 IoT & Embedded Device Testing (Suggested)
 
 ```
-phalanx> /iot scan --device /dev/ttyUSB0
+siyarix> /iot scan --device /dev/ttyUSB0
 
-[Phalanx] Detected: ESP32 device
-[Phalanx] Firmware extraction...
-[Phalanx] Findings:
+[Siyarix] Detected: ESP32 device
+[Siyarix] Firmware extraction...
+[Siyarix] Findings:
   • UART debug interface active
   • Hardcoded credentials: admin/admin
   • No secure boot enabled
@@ -1880,11 +1880,11 @@ phalanx> /iot scan --device /dev/ttyUSB0
 ### 22.3 Hardware Security Module (HSM) Integration (Suggested)
 
 ```
-phalanx> /hsm configure --provider yubikey
+siyarix> /hsm configure --provider yubikey
 
-[Phalanx] YubiKey detected.
-[Phalanx] API key storage moved to HSM.
-[Phalanx] All cryptographic operations now hardware-backed.
+[Siyarix] YubiKey detected.
+[Siyarix] API key storage moved to HSM.
+[Siyarix] All cryptographic operations now hardware-backed.
 ```
 
 ---
@@ -1894,28 +1894,28 @@ phalanx> /hsm configure --provider yubikey
 ### 23.1 Achievement System (Suggested)
 
 ```
-[Phalanx] 🏆 Achievement Unlocked: "First Blood"
+[Siyarix] 🏆 Achievement Unlocked: "First Blood"
     Discovered your first critical vulnerability!
 
-[Phalanx] 🏆 Achievement Unlocked: "Tool Master"
+[Siyarix] 🏆 Achievement Unlocked: "Tool Master"
     Used 50+ different security tools.
 
-[Phalanx] 🏆 Achievement Unlocked: "Stealth Operator"
+[Siyarix] 🏆 Achievement Unlocked: "Stealth Operator"
     Completed 10 scans without triggering IDS.
 ```
 
 ### 23.2 Community Challenges (Suggested)
 
 ```
-phalanx> /challenge join weekly-ctf
+siyarix> /challenge join weekly-ctf
 
-[Phalanx] Weekly CTF Challenge:
-    Target: ctf.phalanx.community
+[Siyarix] Weekly CTF Challenge:
+    Target: ctf.siyarix.community
     Goal: Find the flag
     Time limit: 48 hours
     Hints: 3 available
 
-[Phalanx] Your rank: #23 / 1,247 participants
+[Siyarix] Your rank: #23 / 1,247 participants
 ```
 
 ---
@@ -1935,16 +1935,16 @@ phalanx> /challenge join weekly-ctf
 | NIST 800-53 | RA-5, SI-4 |
 | SOC 2 | CC7.1, CC7.2 |
 | GDPR | Article 32 |
-| HIPAA | phalanx-hipaa | 164.308, 164.312 |
+| HIPAA | siyarix-hipaa | 164.308, 164.312 |
 
 ```
-phalanx> /compliance run --framework pci-dss --target xyz.com
+siyarix> /compliance run --framework pci-dss --target xyz.com
 
-[Phalanx] PCI-DSS Assessment initiated.
-[Phalanx] Checking Requirement 6.5 (Address common coding vulnerabilities)...
-[Phalanx] Checking Requirement 11.3 (Penetration testing)...
+[Siyarix] PCI-DSS Assessment initiated.
+[Siyarix] Checking Requirement 6.5 (Address common coding vulnerabilities)...
+[Siyarix] Checking Requirement 11.3 (Penetration testing)...
 
-[Phalanx] Compliance Report:
+[Siyarix] Compliance Report:
   • Compliant: 8/12 requirements
   • Non-compliant: 3/12 (with remediation)
   • Not applicable: 1/12
@@ -1953,7 +1953,7 @@ phalanx> /compliance run --framework pci-dss --target xyz.com
 ### 24.2 Audit Trail & Non-Repudiation (Suggested)
 
 ```
-phalanx> /audit export --case legal-proceeding-2026
+siyarix> /audit export --case legal-proceeding-2026
 
 Export includes:
   • All commands with cryptographic hashes
@@ -1974,7 +1974,7 @@ Admissible in court: Yes (with notarization)
 ### 25.1 Target Isolation (Suggested)
 
 ```
-phalanx> /opsec isolate --target xyz.com
+siyarix> /opsec isolate --target xyz.com
 
 Isolation measures:
   • Dedicated network namespace
@@ -1988,15 +1988,15 @@ Isolation measures:
 ### 25.2 Burn After Reading (Suggested)
 
 ```
-phalanx> /opsec burn --session sess_abc123
+siyarix> /opsec burn --session sess_abc123
 
-[Phalanx] Secure deletion initiated...
+[Siyarix] Secure deletion initiated...
   • Log files: 37 files shredded (3-pass Gutmann)
   • Memory: Secure zeroization
   • Disk cache: Flushed and overwritten
   • Network traces: Cleared
 
-[Phalanx] Session sess_abc123 irrecoverably destroyed.
+[Siyarix] Session sess_abc123 irrecoverably destroyed.
 ```
 
 ---
@@ -2010,27 +2010,27 @@ phalanx> /opsec burn --session sess_abc123
 ### 26.1 Bug Bounty Platforms (Suggested)
 
 ```
-phalanx> /platform connect --hackerone
+siyarix> /platform connect --hackerone
 
-[Phalanx] OAuth to HackerOne...
-[Phalanx] Connected as: @your-handle
+[Siyarix] OAuth to HackerOne...
+[Siyarix] Connected as: @your-handle
 
-phalanx> /platform submit --program target-com --finding finding_001
+siyarix> /platform submit --program target-com --finding finding_001
 
-[Phalanx] Submitting to HackerOne...
-[Phalanx] Report ID: H1-284756
-[Phalanx] Status: Triaged
+[Siyarix] Submitting to HackerOne...
+[Siyarix] Report ID: H1-284756
+[Siyarix] Status: Triaged
 ```
 
 ### 26.2 SIEM & SOAR Integration (Suggested)
 
 ```
-phalanx> /siem connect --splunk https://splunk.company.com:8089
+siyarix> /siem connect --splunk https://splunk.company.com:8089
 
-[Phalanx] Connected to Splunk.
-[Phalanx] Forwarding findings in real-time...
+[Siyarix] Connected to Splunk.
+[Siyarix] Forwarding findings in real-time...
 
-[Phalanx] SOAR playbook triggered:
+[Siyarix] SOAR playbook triggered:
   • High-severity finding → Auto-create ticket
   • Critical finding → Page on-call engineer
   • Confirmed breach → Isolate endpoint
@@ -2045,7 +2045,7 @@ phalanx> /siem connect --splunk https://splunk.company.com:8089
 | Microsoft Teams | Enterprise notifications |
 | Telegram | Mobile alerts |
 | PagerDuty | On-call paging |
-| Email | phalanx-email | Formal reporting |
+| Email | siyarix-email | Formal reporting |
 
 ---
 
@@ -2077,7 +2077,7 @@ phalanx> /siem connect --splunk https://splunk.company.com:8089
 ### 28.1 Resource-Based Agent Scaling (Suggested)
 
 ```
-phalanx> /performance configure
+siyarix> /performance configure
 
 System Resources:
   • CPU: 16 cores detected
@@ -2090,13 +2090,13 @@ Agent Pool Configuration:
   • CPU affinity: Auto-balanced
   • Network throttling: Disabled
 
-[Phalanx] Optimized for your hardware.
+[Siyarix] Optimized for your hardware.
 ```
 
 ### 28.2 Distributed Execution (Suggested)
 
 ```
-phalanx> /distributed configure
+siyarix> /distributed configure
 
 Worker Nodes:
   • localhost (16 cores, 32GB)
@@ -2109,13 +2109,13 @@ Task Distribution:
   • Web scanning → localhost
   • Report generation → localhost
 
-[Phalanx] Distributed cluster active. 40 cores available.
+[Siyarix] Distributed cluster active. 40 cores available.
 ```
 
 ### 28.3 Caching & Memoization (Suggested)
 
 ```
-phalanx> /cache status
+siyarix> /cache status
 
 Cache Statistics:
   • Tool output cache: 1.2GB (234 entries)
@@ -2138,14 +2138,14 @@ Hit rate: 67% (saving ~45 minutes per session)
 
 | Command | Arguments | Description |
 |---------|-----------|-------------|
-| `phalanx` | None | Launch interactive chat mode |
-| `phalanx scan` | `<target>` | Quick network scan |
-| `phalanx run` | `"<natural language>"` | Execute NL task |
-| `phalanx tool-registry` | `list/run <tool>` | Direct tool access |
-| `phalanx --version` | None | Show version |
-| `phalanx --help` | None | Show help (may have hidden flags) |
-| `phalanx --config` | `<path>` | Specify config file |
-| `phalanx --batch` | `<script>` | *(Suggested)* Batch mode |
+| `siyarix` | None | Launch interactive chat mode |
+| `siyarix scan` | `<target>` | Quick network scan |
+| `siyarix run` | `"<natural language>"` | Execute NL task |
+| `siyarix tool-registry` | `list/run <tool>` | Direct tool access |
+| `siyarix --version` | None | Show version |
+| `siyarix --help` | None | Show help (may have hidden flags) |
+| `siyarix --config` | `<path>` | Specify config file |
+| `siyarix --batch` | `<script>` | *(Suggested)* Batch mode |
 
 ### A.2 Interactive Slash Commands (Necessary)
 
@@ -2202,22 +2202,22 @@ Hit rate: 67% (saving ~45 minutes per session)
 
 | Variable | Purpose | Example |
 |----------|---------|---------|
-| `PHALANX_CONFIG` | Config file path | `~/.phalanx/config.yaml` |
-| `PHALANX_HOME` | Data directory | `~/.phalanx/` |
-| `PHALANX_DEBUG` | Debug mode | `1` |
-| `PHALANX_PERSONA` | Default persona | `bug_hunter` |
-| `PHALANX_PROVIDER` | Default AI provider | `ollama` |
-| `PHALANX_TIMEOUT` | Global timeout | `300` (seconds) |
-| `PHALANX_LOG_LEVEL` | Logging verbosity | `INFO` |
-| `PHALANX_NO_TELEMETRY` | Disable analytics | `1` |
-| `PHALANX_SAFE_MODE` | Paranoid safety profile | `1` |
+| `SIYARIX_CONFIG` | Config file path | `~/.siyarix/config.yaml` |
+| `SIYARIX_HOME` | Data directory | `~/.siyarix/` |
+| `SIYARIX_DEBUG` | Debug mode | `1` |
+| `SIYARIX_PERSONA` | Default persona | `bug_hunter` |
+| `SIYARIX_PROVIDER` | Default AI provider | `ollama` |
+| `SIYARIX_TIMEOUT` | Global timeout | `300` (seconds) |
+| `SIYARIX_LOG_LEVEL` | Logging verbosity | `INFO` |
+| `SIYARIX_NO_TELEMETRY` | Disable analytics | `1` |
+| `SIYARIX_SAFE_MODE` | Paranoid safety profile | `1` |
 
 ---
 
 ## Appendix C: File Structure
 
 ```
-~/.phalanx/
+~/.siyarix/
 ├── config.yaml              # Main configuration
 ├── .initialized             # First-run marker
 ├── personas/
@@ -2259,7 +2259,7 @@ Hit rate: 67% (saving ~45 minutes per session)
 | **ACL** | Access Control List — permissions for tools |
 | **MCP** | Model Context Protocol — external tool integration standard |
 | **OPSEC** | Operational Security — protecting sensitive information |
-| **Persona** | Behavioral profile defining how Phalanx operates |
+| **Persona** | Behavioral profile defining how Siyarix operates |
 | **REPL** | Read-Eval-Print Loop — interactive command interface |
 | **SARIF** | Static Analysis Results Interchange Format |
 | **Sub-Agent** | Worker process executing a specific task |
@@ -2276,8 +2276,8 @@ Hit rate: 67% (saving ~45 minutes per session)
 | Commands not executing | Tool ACL set to OFF | `/config tool access` → enable |
 | Real targets in LLM logs | Masking not configured | `/config masking` → add rules |
 | ESC not working | Terminal capture issue | Try `Ctrl+C` as fallback |
-| Session not saving | Disk space/permissions | Check `~/.phalanx/logs/` writable |
-| VS Code not connecting | Extension missing | Install Phalanx VS Code extension |
+| Session not saving | Disk space/permissions | Check `~/.siyarix/logs/` writable |
+| VS Code not connecting | Extension missing | Install Siyarix VS Code extension |
 | Collaboration timeout | SSH/firewall | Check port 22 and network |
 
 ---

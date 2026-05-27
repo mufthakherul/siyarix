@@ -1,4 +1,4 @@
-"""End-to-End (E2E) and Live Testing Suite for Phalanx Agentic Engine.
+"""End-to-End (E2E) and Live Testing Suite for Siyarix Agentic Engine.
 
 This test suite validates full execution pipelines under mock environments:
 1. CLI scans: Target validation, parsing, planning.
@@ -15,11 +15,11 @@ import pytest
 from click.testing import CliRunner
 from typer.main import get_command
 
-from phalanx.engine import (ExecutionEngine, ExecutionMode, ExecutionStep,
+from siyarix.engine import (ExecutionEngine, ExecutionMode, ExecutionStep,
                             StepResult, StepStatus)
-from phalanx.knowledge_graph import KnowledgeGraph
-from phalanx.main import app
-from phalanx.planner import StepType
+from siyarix.knowledge_graph import KnowledgeGraph
+from siyarix.main import app
+from siyarix.planner import StepType
 
 
 def test_cli_scan_dry_run() -> None:
@@ -79,9 +79,9 @@ async def test_interactive_installation_confirm() -> None:
         patch("platform.system", return_value="Windows"),
         patch("shutil.which", side_effect=mock_which_installer),
         patch(
-            "phalanx.output.output.prompt_confirm", return_value=True
+            "siyarix.output.output.prompt_confirm", return_value=True
         ) as mock_confirm,
-        patch("phalanx.engine.run_tool_complete", new_callable=AsyncMock) as mock_run,
+        patch("siyarix.engine.run_tool_complete", new_callable=AsyncMock) as mock_run,
     ):
         mock_run.return_value.exit_code = 0
         mock_run.return_value.stdout = "Successfully installed gobuster via winget"
@@ -98,9 +98,9 @@ async def test_interactive_installation_confirm() -> None:
         patch("platform.system", return_value="Windows"),
         patch("shutil.which", side_effect=mock_which_installer),
         patch(
-            "phalanx.output.output.prompt_confirm", return_value=False
+            "siyarix.output.output.prompt_confirm", return_value=False
         ) as mock_confirm,
-        patch("phalanx.engine.run_tool_complete", new_callable=AsyncMock) as mock_run,
+        patch("siyarix.engine.run_tool_complete", new_callable=AsyncMock) as mock_run,
     ):
         success = await engine._try_install_tool("gobuster")
 

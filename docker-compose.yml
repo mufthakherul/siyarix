@@ -1,70 +1,70 @@
 version: "3.9"
 
 services:
-  phalanx:
+  siyarix:
     build:
       context: .
       target: production
-    image: phalanx:latest
-    container_name: phalanx
+    image: siyarix:latest
+    container_name: siyarix
     environment:
-      - PHALANX_LOG_LEVEL=${PHALANX_LOG_LEVEL:-INFO}
-      - PHALANX_PERSONA=${PHALANX_PERSONA:-bug_hunter}
-      - PHALANX_PROVIDER=${PHALANX_PROVIDER:-noop}
-      - PHALANX_NO_TELEMETRY=${PHALANX_NO_TELEMETRY:-1}
+      - SIYARIX_LOG_LEVEL=${SIYARIX_LOG_LEVEL:-INFO}
+      - SIYARIX_PERSONA=${SIYARIX_PERSONA:-bug_hunter}
+      - SIYARIX_PROVIDER=${SIYARIX_PROVIDER:-noop}
+      - SIYARIX_NO_TELEMETRY=${SIYARIX_NO_TELEMETRY:-1}
     volumes:
-      - phalanx_data:/root/.phalanx
+      - siyarix_data:/root/.siyarix
       - ./src:/app/src:ro
     stdin_open: true
     tty: true
     networks:
-      - phalanx_net
+      - siyarix_net
 
-  phalanx-worker:
+  siyarix-worker:
     build:
       context: .
       target: production
-    image: phalanx:latest
-    container_name: phalanx-worker
+    image: siyarix:latest
+    container_name: siyarix-worker
     environment:
-      - PHALANX_MODE=worker
+      - SIYARIX_MODE=worker
       - REDIS_URL=redis://redis:6379
     depends_on:
       - redis
     volumes:
-      - phalanx_data:/root/.phalanx
+      - siyarix_data:/root/.siyarix
     networks:
-      - phalanx_net
+      - siyarix_net
     deploy:
       replicas: 3
 
-  phalanx-dashboard:
+  siyarix-dashboard:
     build:
       context: .
       target: production
-    image: phalanx:latest
-    container_name: phalanx-dashboard
-    command: ["phalanx", "dashboard"]
+    image: siyarix:latest
+    container_name: siyarix-dashboard
+    command: ["siyarix", "dashboard"]
     ports:
       - "8090:8090"
     environment:
-      - PHALANX_DASHBOARD_PORT=8090
-      - PHALANX_DASHBOARD_HOST=0.0.0.0
+      - SIYARIX_DASHBOARD_PORT=8090
+      - SIYARIX_DASHBOARD_HOST=0.0.0.0
       - REDIS_URL=redis://redis:6379
     depends_on:
       - redis
     networks:
-      - phalanx_net
+      - siyarix_net
 
   redis:
     image: redis:7-alpine
-    container_name: phalanx-redis
+    container_name: siyarix-redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
-      - phalanx_net
+      - siyarix_net
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -73,7 +73,7 @@ services:
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
-    container_name: phalanx-otel
+    container_name: siyarix-otel
     environment:
       - TZ=UTC
     volumes:
@@ -81,14 +81,14 @@ services:
     ports:
       - "4318:4318"
     networks:
-      - phalanx_net
+      - siyarix_net
     profiles:
       - telemetry
 
 networks:
-  phalanx_net:
+  siyarix_net:
     driver: bridge
 
 volumes:
-  phalanx_data:
+  siyarix_data:
   redis_data:

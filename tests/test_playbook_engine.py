@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from phalanx.playbook_engine import (Playbook, PlaybookEngine, PlaybookStep,
+from siyarix.playbook_engine import (Playbook, PlaybookEngine, PlaybookStep,
                                      PlaybookStepType)
 
 pytestmark = pytest.mark.playbook

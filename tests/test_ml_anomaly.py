@@ -2,7 +2,7 @@
 
 import pytest
 
-from phalanx.ml_anomaly import AnomalyDetector
+from siyarix.ml_anomaly import AnomalyDetector
 
 pytestmark = pytest.mark.anomaly
 

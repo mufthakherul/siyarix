@@ -1,8 +1,8 @@
 import asyncio
 
-from phalanx.engine import ExecutionEngine
-from phalanx.engine_types import StepResult, StepStatus
-from phalanx.planner import ExecutionPlan, ExecutionStep, StepType
+from siyarix.engine import ExecutionEngine
+from siyarix.engine_types import StepResult, StepStatus
+from siyarix.planner import ExecutionPlan, ExecutionStep, StepType
 
 
 def test_planner_replan_fallback_for_zero_findings() -> None:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from phalanx.cloud_scanner import CloudProvider, CloudScanner, CloudScanResult
+from siyarix.cloud_scanner import CloudProvider, CloudScanner, CloudScanResult
 
 pytestmark = pytest.mark.cloud
 

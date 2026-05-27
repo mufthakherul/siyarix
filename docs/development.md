@@ -1,8 +1,8 @@
 # Local Development Guide
 
-Want to hack on Phalanx locally? Awesome! We've tried to make the setup as painless as possible for contributors of all skill levels.
+Want to hack on Siyarix locally? Awesome! We've tried to make the setup as painless as possible for contributors of all skill levels.
 
-Phalanx is built with Python, and we target Python 3.11+ to take advantage of modern features like robust `asyncio` and advanced type hinting.
+Siyarix is built with Python, and we target Python 3.11+ to take advantage of modern features like robust `asyncio` and advanced type hinting.
 
 ---
 
@@ -12,8 +12,8 @@ The easiest way to get started is by using standard Python tools. We use `hatchl
 
 1. **Clone the repo and enter the folder**
    ```bash
-   git clone https://github.com/CosmicSec-Lab/phalanx.git
-   cd phalanx
+   git clone https://github.com/Mufthakherul/siyarix.git
+   cd siyarix
    ```
 
 2. **Create a virtual environment**
@@ -43,28 +43,28 @@ The easiest way to get started is by using standard Python tools. We use `hatchl
 
 To test the AI task planner, you'll need a valid API key (e.g., Gemini, OpenAI). We made a safe way to handle this so you don't accidentally commit your keys to GitHub:
 
-Run `phalanx` in your terminal to open the interactive shell, and type:
+Run `siyarix` in your terminal to open the interactive shell, and type:
 ```text
 /key set gemini your-api-key
 ```
-Phalanx will encrypt it in your local `~/.phalanx/` directory and also generate a `.env` file in the project root for local development convenience. **The `.env` file is in our `.gitignore`, so you are perfectly safe from accidentally leaking it!**
+Siyarix will encrypt it in your local `~/.siyarix/` directory and also generate a `.env` file in the project root for local development convenience. **The `.env` file is in our `.gitignore`, so you are perfectly safe from accidentally leaking it!**
 
 ---
 
 ## 🏗️ Code Organization
 
 If you're wondering where to look, here's a quick map of the codebase:
-- `src/phalanx/main.py`: The Typer entry point for the CLI. Start here to see how commands are routed.
-- `src/phalanx/chat.py`: Where the interactive UI and slash commands live.
-- `src/phalanx/core/`: The "brains" of the operation. This holds the task planner (which talks to the LLMs) and the execution engine (which spawns subprocesses).
-- `src/phalanx/parsers/`: Small scripts that take the raw stdout of tools like `nmap` and convert them into structured JSON.
+- `src/siyarix/main.py`: The Typer entry point for the CLI. Start here to see how commands are routed.
+- `src/siyarix/chat.py`: Where the interactive UI and slash commands live.
+- `src/siyarix/core/`: The "brains" of the operation. This holds the task planner (which talks to the LLMs) and the execution engine (which spawns subprocesses).
+- `src/siyarix/parsers/`: Small scripts that take the raw stdout of tools like `nmap` and convert them into structured JSON.
 - `tests/`: Where all our `pytest` unit tests live.
 
 ---
 
 ## 🧪 Running E2E and Live Tests
 
-To guarantee that the Phalanx agent operates reliably across different environments and operating system backends, we have developed a high-fidelity **End-to-End (E2E) and Live Testing Suite** located at [test_e2e.py](file:///d:/Miraz_Work/CosmicSec-Lab/nexsec/tests/test_e2e.py).
+To guarantee that the Siyarix agent operates reliably across different environments and operating system backends, we have developed a high-fidelity **End-to-End (E2E) and Live Testing Suite** located at [test_e2e.py](file:///d:/Miraz_Work/Mufthakherul/siyarix/tests/test_e2e.py).
 
 Unlike standard unit tests, these E2E tests execute entire orchestration flows, planning passes, and interpreter pipelines inside **secure, mock-sandboxed environments**. This design allows you to run all tests fully offline in secure environments without making active network requests, installing package dependencies, or making modifications to your host operating system.
 

@@ -1,4 +1,4 @@
-from phalanx.response_sensor import ResponseSensor
+from siyarix.response_sensor import ResponseSensor
 
 
 def test_mask_unmask_and_redact_simple():

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from phalanx.shell_knowledge import (INTENT_METADATA, ShellType,
+from siyarix.shell_knowledge import (INTENT_METADATA, ShellType,
                                      build_platform_context,
                                      detect_device_type, list_supported_shells,
                                      normalize_shell, render_intent, shell_key,

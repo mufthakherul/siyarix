@@ -1,6 +1,6 @@
 import asyncio
 
-from phalanx.agents.coordinator import CoordinatorAgent
+from siyarix.agents.coordinator import CoordinatorAgent
 
 
 class _FakeEngineResult:
@@ -25,7 +25,7 @@ def test_coordinator_dispatches_objective() -> None:
         coordinator.execute_objective("full recon and scan", target="example.com")
     )
 
-    assert result["team"] == "phalanx-hybrid-team"
+    assert result["team"] == "siyarix-hybrid-team"
     assert result["target"] == "example.com"
     assert result["agents_used"] >= 5
     assert isinstance(result["results"], list)

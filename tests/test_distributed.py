@@ -2,7 +2,7 @@
 
 import pytest
 
-from phalanx.distributed import (DistributedOrchestrator, DistributedTask,
+from siyarix.distributed import (DistributedOrchestrator, DistributedTask,
                                  TaskQueueBackend)
 
 pytestmark = pytest.mark.distributed

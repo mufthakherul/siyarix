@@ -1,6 +1,6 @@
 # Architecture & Internals
 
-Phalanx follows a **7-layer Clean Architecture** with modular, event-driven design. Each layer has distinct responsibilities, enabling independent evolution, testing, and deployment.
+Siyarix follows a **7-layer Clean Architecture** with modular, event-driven design. Each layer has distinct responsibilities, enabling independent evolution, testing, and deployment.
 
 ---
 

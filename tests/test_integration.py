@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from phalanx.offline_store import OfflineStore
+from siyarix.offline_store import OfflineStore
 
 
 def _make_store(tmp_dir: str) -> OfflineStore:

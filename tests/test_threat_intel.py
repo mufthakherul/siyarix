@@ -2,7 +2,7 @@
 
 import pytest
 
-from phalanx.threat_intel import MITREAttackDB, ThreatIntelFeed
+from siyarix.threat_intel import MITREAttackDB, ThreatIntelFeed
 
 pytestmark = pytest.mark.threat_intel
 

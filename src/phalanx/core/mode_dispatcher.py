@@ -1,4 +1,4 @@
-"""Unified Mode Dispatcher for Siyarix v2.0.
+"""Unified Mode Dispatcher for Siyarix v0.1.3.
 
 Detects the optimal interaction mode based on CLI context, environment variables,
 TTY availability, and user preferences.

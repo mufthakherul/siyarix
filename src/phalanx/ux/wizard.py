@@ -1,4 +1,4 @@
-"""Guided Onboarding Wizard for Siyarix v2.0.
+"""Guided Onboarding Wizard for Siyarix v0.1.3.
 
 Provides an interactive step-by-step onboarding wizard using Rich console prompting
 to set up AI model providers, discover local security tools, choose color themes,

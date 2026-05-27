@@ -241,7 +241,7 @@ def print_banner(
         _ver = _pkg_version("siyarix")
     except Exception as exc:
         logger.debug("Failed to resolve package version: %s", exc)
-        _ver = "0.1.3-beta"
+        _ver = "0.1.3"
 
     import platform as _platform
 

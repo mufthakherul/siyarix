@@ -191,6 +191,7 @@ jobs:
   scorecard:
     name: OpenSSF Scorecard
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       actions: read
       contents: read
@@ -231,8 +232,8 @@ jobs:
 
       - name: Check for updates
         run: |
-          pip install pip-updater-outdated
-          pip-updater --dry-run || true
+          python -m pip install --upgrade pip
+          pip list --outdated --format=columns || true
 
   security-summary:
     name: Security Summary

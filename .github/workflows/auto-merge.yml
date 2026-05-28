@@ -105,26 +105,34 @@ jobs:
             const approved = reviews.some(r => r.state === 'APPROVED');
 
             // Check if all checks passed
-            const { data: checks } = await github.rest.checks.listForRef({
-              owner,
-              repo,
-              ref: pr.head.sha,
-              status: 'completed'
-            });
+            let allPassed = false;
+            try {
+              const { data: checks } = await github.rest.checks.listForRef({
+                owner,
+                repo,
+                ref: pr.head.sha,
+                status: 'completed'
+              });
+              allPassed = checks.check_runs.length > 0 && checks.check_runs.every(c => c.conclusion === 'success');
+            } catch (error) {
+              core.warning(`Could not read check runs: ${error.message}`);
+            }
 
-            const allPassed = checks.check_runs.every(c => c.conclusion === 'success');
-
-            // Check for required approvals
-            const { data: protected } = await github.rest.repos.getBranchProtection({
-              owner,
-              repo,
-              branch: pr.base.ref
-            });
-
-            const hasRequiredApprovals = approved || (protected && protected.required_status_checks === null);
+            // Check for required approvals (fall back when branch protection API is not accessible)
+            let hasRequiredApprovals = approved;
+            try {
+              const { data: protectedBranch } = await github.rest.repos.getBranchProtection({
+                owner,
+                repo,
+                branch: pr.base.ref
+              });
+              hasRequiredApprovals = approved || (protectedBranch && protectedBranch.required_status_checks === null);
+            } catch (error) {
+              core.warning(`Branch protection is not accessible with current token: ${error.message}`);
+            }
 
             // Check if we can auto-merge
-            const canAutoMerge = pr.mergeable && pr.mergeable_state === 'clean' && hasRequiredApprovals;
+            const canAutoMerge = pr.mergeable && pr.mergeable_state === 'clean' && hasRequiredApprovals && allPassed;
 
             console.log(`Approved: ${approved}`);
             console.log(`All Passed: ${allPassed}`);

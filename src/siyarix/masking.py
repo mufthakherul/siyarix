@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Session-scoped masking engine for bidirectional data masking.
 
 Provides simple, deterministic masking and unmasking for sensitive

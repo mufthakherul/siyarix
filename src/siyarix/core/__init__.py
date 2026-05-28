@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Core platform kernel primitives for Siyarix."""
 
 from .agentic_loop import AgenticLoop

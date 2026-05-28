@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """OpenTelemetry Instrumentation for Siyarix.
 
 Adds structured traces and metrics to the execution engine, planner, and

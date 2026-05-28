@@ -102,10 +102,9 @@ All content files consistently use **Siyarix** as the project name. The director
 
 | Risk | Severity | Notes |
 |------|----------|-------|
-| `.py` source files lack SPDX headers | Medium | `LEGAL_AUDIT_REPORT.md` defers this to v0.2.0; 142 source files affected |
-| No PyPI publication yet | Low | `pyproject.toml` is configured and valid; no credentials set up |
-| No npm publication yet | Low | `packages/npm/` is configured; no npm token set up |
-| No Docker image published | Low | Dockerfile verified; no registry configured |
+| No PyPI publication yet | Low | Packaging metadata is complete; release credentials are still required |
+| No npm publication yet | Low | npm package metadata is complete; publish token is still required |
+| No Docker image published | Low | Docker image metadata includes AGPL-3.0-or-later license label and bundled notices; registry publish pending |
 
 ---
 
@@ -136,7 +135,7 @@ Both missing README files have been created.
 Zero MIT, AGPL-3.0-only, or phalanx URL references remain in project content.  
 All 20 SPDX-License-Identifier declarations consistently use `AGPL-3.0-or-later`.
 
-The only deferred item is adding SPDX short-form headers to `.py` source files (142 files, planned for v0.2.0), which is a best-practice enhancement rather than a blocking issue.
+SPDX short-form headers are now present across Python source/test files; remaining items are external publication steps rather than repository compliance gaps.
 
 ---
 

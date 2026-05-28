@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """CVSS 3.1 auto-scoring engine.
 
 Automatically calculates CVSS scores based on finding characteristics

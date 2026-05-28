@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Playbook engine for saving and replaying multi-step workflows.
 
 Enables users to create, save, load, and execute reusable workflow

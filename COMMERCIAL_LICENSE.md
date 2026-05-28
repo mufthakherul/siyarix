@@ -1,6 +1,6 @@
 # Commercial Licensing for Siyarix
 
-Siyarix is primarily distributed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. For organizations that cannot comply with AGPL-3.0 requirements, alternative commercial licenses are available.
+Siyarix is primarily distributed under the **GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)**. For organizations that cannot comply with AGPL-3.0-or-later requirements, alternative commercial licenses are available.
 
 ---
 
@@ -61,14 +61,14 @@ Commercial licensing is negotiated on a case-by-case basis. Factors include:
 
 ## Relationship to Open Source
 
-- The AGPL-3.0-licensed version remains fully open-source and free to use for all permitted purposes.
+- The AGPL-3.0-or-later licensed version remains fully open-source and free to use for all permitted purposes.
 - Commercial licenses are additive — they provide additional permissions, not restrictions.
 - We are committed to keeping Siyarix open-source long-term.
 - Commercial revenue supports ongoing development, infrastructure, and community growth.
 
 ---
 
-*For license compliance questions regarding AGPL-3.0, we recommend consulting with legal counsel familiar with open-source licensing.*
+*For license compliance questions regarding AGPL-3.0-or-later, we recommend consulting with legal counsel familiar with open-source licensing.*
 
 ---
 

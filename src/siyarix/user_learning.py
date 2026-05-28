@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """
 User Learning — Pedagogical output engine per Chapter 10.2.
 

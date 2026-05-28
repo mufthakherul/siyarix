@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Report generation engine.
 
 Generates formatted security assessment reports in multiple formats

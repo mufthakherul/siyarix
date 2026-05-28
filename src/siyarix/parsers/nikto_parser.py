@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Nikto output parser — parses nikto plain-text output."""
 
 from __future__ import annotations

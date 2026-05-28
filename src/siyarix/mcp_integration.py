@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """
 MCP (Model Context Protocol) integration for research mode.
 

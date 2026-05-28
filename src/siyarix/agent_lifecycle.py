@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """
 Agent lifecycle commands for managing sub-agents in runtime.
 Provides spawn/list/kill functionality.

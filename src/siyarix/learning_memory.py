@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """
 Learning Memory — Complete tool learning system per Chapter 10.1.
 

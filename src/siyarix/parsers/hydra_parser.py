@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Hydra output parser — parses hydra text output for credential findings."""
 
 from __future__ import annotations

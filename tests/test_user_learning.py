@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for siyarix.user_learning — user profile learning & adaptation."""
 
 from __future__ import annotations

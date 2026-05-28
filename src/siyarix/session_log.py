@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Session logging — structured session logs per Chapter 11 spec.
 
 SessionLogger delegates persistence to the enterprise AuditLogger for

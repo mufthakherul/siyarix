@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Siyarix Scan Scheduler — Persistent background cron and recurring scan coordinator."""
 
 from __future__ import annotations

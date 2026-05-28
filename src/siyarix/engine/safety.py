@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Safety and security checks that happen within the engine flow."""
 
 from __future__ import annotations

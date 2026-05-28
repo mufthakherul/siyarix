@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for tool_registry.py — ToolRegistry (234 stmts, ~46% covered)."""
 
 from __future__ import annotations

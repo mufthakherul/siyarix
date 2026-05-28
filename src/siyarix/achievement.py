@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Achievement & gamification system — tracks user milestones, unlocks, and progress.
 
 Awards badges for tool usage, finding severity milestones, learning progress,

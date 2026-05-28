@@ -2,6 +2,10 @@ FROM python:3.11-slim AS base
 
 WORKDIR /app
 
+LABEL org.opencontainers.image.licenses="AGPL-3.0-or-later" \
+      org.opencontainers.image.source="https://github.com/mufthakherul/siyarix" \
+      org.opencontainers.image.title="siyarix"
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -13,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install siyarix
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md LICENSE NOTICE ./
 COPY src/ src/
 RUN pip install -e ".[all,cli,siem]"
 

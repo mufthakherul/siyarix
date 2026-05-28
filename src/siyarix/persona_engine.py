@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Persona Engine — behavioral profiles for Siyarix operations.
 
 As described in Chapter 4 of the architecture:

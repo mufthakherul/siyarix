@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Optional Rust acceleration hooks (CA-10.3).
 
 This module is intentionally lightweight: if the extension module is absent,

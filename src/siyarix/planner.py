@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Task planner — converts natural language instructions into structured execution plans.
 
 This component provides dynamic planning capabilities by using language

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Provider abstraction and registry for AI backends.
 
 Provides a unified interface for all AI model providers with:

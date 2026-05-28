@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Siyarix Shell Knowledge — Cross-platform terminal command awareness.
 
 Knows the commands for:

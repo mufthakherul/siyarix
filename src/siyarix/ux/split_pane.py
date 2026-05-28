@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Split Pane Layout for Siyarix v0.1.3.
 
 Leverages Rich Layouts to split the terminal screen side-by-side:

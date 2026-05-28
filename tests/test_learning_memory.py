@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for siyarix.learning_memory — tool learning system."""
 
 from __future__ import annotations

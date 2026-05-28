@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Bounded asynchronous worker pool for running sub-agent tasks.
 
 Provides a simple concurrency limiter with submit/close APIs suitable for

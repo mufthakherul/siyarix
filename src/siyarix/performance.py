@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Performance optimization and resource profiling module.
 
 Monitors system resources, auto-tunes agent pool sizes, memory limits,

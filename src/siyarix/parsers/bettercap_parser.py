@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Bettercap output parser — MITM attack results."""
 
 from __future__ import annotations

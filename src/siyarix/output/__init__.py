@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Premium Output Engine — Rich tables, panels, progress, colors, exports.
 
 Features:

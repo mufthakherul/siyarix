@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Amass output parser — parses amass JSONL output."""
 
 from __future__ import annotations

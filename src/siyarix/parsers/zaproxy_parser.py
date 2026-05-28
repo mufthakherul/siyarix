@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """ZAP output parser — parses OWASP ZAP CLI output lines."""
 
 from __future__ import annotations

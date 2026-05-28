@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for knowledge_graph.py — KnowledgeGraph (229 stmts, ~58% covered)."""
 
 from __future__ import annotations

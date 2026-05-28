@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Command interpreter — classifies natural language instructions into structured tasks.
 
 Provides heuristic-based rule interpretation for the execution engine.

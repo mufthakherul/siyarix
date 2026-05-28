@@ -104,7 +104,7 @@ Siyarix follows [Semantic Versioning 2.0.0](https://semver.org/):
 
 ## 7. Licensing Governance
 
-- Siyarix is licensed under AGPL-3.0.
+- Siyarix is licensed under AGPL-3.0-or-later.
 - License changes require community discussion and maintainer consensus.
 - All contributions are made under the same license (inbound = outbound).
 - Commercial licensing options are available separately (see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)).

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Cloud provider security scanning module.
 
 Integrates with AWS, Azure, GCP, Kubernetes, and Docker for

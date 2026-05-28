@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Manage reusable command profiles / templates for Siyarix."""
 
 from __future__ import annotations

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tool registry — discovers locally installed security tools and probes their versions.
 
 Supports both static (built-in) and autonomous (plugin/registry-registered) tool registration.

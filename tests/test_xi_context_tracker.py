@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for the XI ContextTracker module."""
 
 from __future__ import annotations

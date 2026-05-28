@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Siyarix Premium UX & Interactive Layout System.
 
 Exposes next-generation terminal interfaces, split-pane timelines,

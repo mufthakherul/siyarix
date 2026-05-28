@@ -49,6 +49,10 @@ mkdir -p "${BUILD_DIR}/usr/lib/python3/dist-packages"
 echo "/usr/lib/${PKG_NAME}" > "${BUILD_DIR}/usr/lib/python3/dist-packages/${PKG_NAME}.pth"
 
 # Create conffiles
+cat > "${BUILD_DIR}/etc/${PKG_NAME}/config.yaml" << 'CONF'
+# Siyarix system configuration
+theme: default
+CONF
 echo "/etc/${PKG_NAME}/config.yaml" > "${BUILD_DIR}/DEBIAN/conffiles"
 
 # Build .deb

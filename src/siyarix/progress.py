@@ -68,7 +68,7 @@ async def run_tools_with_progress(
     tools: list[dict[str, Any]],
     target: str,
     max_parallel: int = 4,
-    timeout: int = 300,
+    timeout: int = 300,  # noqa: ARG001
 ) -> tuple[list[dict[str, Any]], ScanProgressState]:
     """Run tools concurrently while updating shared progress state."""
 
@@ -85,7 +85,7 @@ async def run_tools_with_progress(
         display.tool_started(name)
         async with semaphore:
             try:
-                execution = await executor.run_tool_complete(path, args, timeout=timeout)
+                execution = await executor.run_tool_complete(path, args)
                 result = {
                     "name": name,
                     "path": path,
@@ -93,7 +93,7 @@ async def run_tools_with_progress(
                     "exit_code": execution.exit_code,
                     "stdout": execution.stdout,
                     "stderr": execution.stderr,
-                    "duration_ms": execution.duration_ms,
+                    "duration_ms": getattr(execution, "duration_ms", 0.0),
                 }
                 results.append(result)
                 if execution.exit_code == 0:

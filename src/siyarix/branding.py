@@ -310,6 +310,3 @@ def print_theme_preview(console: Console, theme: str) -> None:
     table.add_row("Error", severity_label(safe_theme, "critical"))
     table.add_row("Success", severity_label(safe_theme, "success"))
     console.print(table)
-
-
-

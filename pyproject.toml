@@ -14,7 +14,7 @@ classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Information Technology",
   "Intended Audience :: System Administrators",
-  "License :: OSI Approved :: GNU Affero General Public License v3 or later",
+  "License :: OSI Approved :: GNU Affero General Public License v3",
   "Natural Language :: English",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
@@ -75,7 +75,7 @@ dev = [
 siyarix = "siyarix.main:app"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.21.1"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]

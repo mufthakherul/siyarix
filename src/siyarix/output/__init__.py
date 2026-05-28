@@ -114,7 +114,13 @@ class OutputEngine:
             theme_key = OutputTheme(theme)
         except Exception:
             theme_key = OutputTheme.DEFAULT
-        self.theme = THEMES.get(theme_key, THEMES[OutputTheme.DEFAULT])
+        self.theme = dict(THEMES.get(theme_key, THEMES[OutputTheme.DEFAULT]))
+        self.theme.setdefault("error", self.theme.get("critical", "red"))
+        self.theme.setdefault("warning", self.theme.get("medium", "yellow"))
+        self.theme.setdefault("success", self.theme.get("success", "green"))
+        self.theme.setdefault("info", self.theme.get("info", "cyan"))
+        self.theme.setdefault("primary", self.theme.get("primary", "cyan"))
+        self.theme.setdefault("muted", self.theme.get("muted", "bright_black"))
         self.format = OutputFormat(output_format)
         self.console: Any = Console() if RICH_AVAILABLE else None
 

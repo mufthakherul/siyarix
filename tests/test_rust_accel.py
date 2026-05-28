@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for rust_accel.py — Rust acceleration hooks (28 stmts, ~46% covered)."""
 
 from __future__ import annotations

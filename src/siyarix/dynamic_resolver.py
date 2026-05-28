@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Dynamic tool/command resolver with safety validation.
 
 Resolves autonomous task suggestions and shell commands to safe, executable

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """masscan output parser — parses masscan text output lines."""
 
 from __future__ import annotations

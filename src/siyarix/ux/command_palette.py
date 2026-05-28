@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Command Palette for Siyarix v0.1.3.
 
 Provides a fuzzy-search interface to quickly search and select core commands,

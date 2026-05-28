@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for OutputFormatter, SettingsStore, and OfflineStore history extensions."""
 
 from __future__ import annotations

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Execution engine — combines autonomous task planning with registry-based
 tool execution.
 

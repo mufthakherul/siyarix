@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for the XI SkillProfiler module."""
 
 from __future__ import annotations

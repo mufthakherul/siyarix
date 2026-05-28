@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """End-to-End (E2E) and Live Testing Suite for Siyarix Agentic Engine.
 
 This test suite validates full execution pipelines under mock environments:

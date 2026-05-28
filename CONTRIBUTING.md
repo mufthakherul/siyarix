@@ -131,6 +131,16 @@ test: add regression test for issue #142
 security: fix credential vault AES-GCM padding
 ```
 
+### DCO Sign-off
+
+To keep contribution provenance clear, sign commits off with:
+
+```bash
+git commit -s -m "type(scope): message"
+```
+
+This adds a `Signed-off-by:` trailer (Developer Certificate of Origin).
+
 ---
 
 ## Issue Reporting
@@ -246,7 +256,7 @@ We strive to be responsive and kind. There are no stupid questions.
 
 ## Licensing
 
-By contributing to Siyarix, you agree that your contributions will be licensed under the [GNU Affero General Public License v3.0](LICENSE). You must have the right to license your contributions under these terms.
+By contributing to Siyarix, you agree that your contributions will be licensed under the [GNU Affero General Public License v3.0 or later](LICENSE) (SPDX: `AGPL-3.0-or-later`). You must have the right to license your contributions under these terms.
 
 ---
 

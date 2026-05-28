@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Canary token deployment and management.
 
 Creates and manages deception tokens (canary tokens) to detect

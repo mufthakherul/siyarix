@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """WPScan output parser — parses WPScan text output lines."""
 
 from __future__ import annotations

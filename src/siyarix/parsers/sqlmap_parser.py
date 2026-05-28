@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """sqlmap output parser — parses sqlmap plain-text output."""
 
 from __future__ import annotations

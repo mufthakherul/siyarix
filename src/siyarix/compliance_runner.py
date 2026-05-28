@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Compliance framework assessment runner.
 
 Evaluates targets against industry compliance frameworks including

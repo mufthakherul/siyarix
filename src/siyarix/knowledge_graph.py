@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Siyarix Knowledge Graph — In-memory graph of targets, findings, and relationships.
 
 Provides:

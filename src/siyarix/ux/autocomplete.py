@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Smart Autocomplete System for Siyarix.
 
 Provides three-tier autocompletion (static, context-aware, and AI/MITRE-predicted)

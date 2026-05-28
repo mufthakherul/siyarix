@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for persona_engine.py — PersonaEngine (172 stmts, ~44% covered)."""
 
 from __future__ import annotations

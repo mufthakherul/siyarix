@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Coordinator agent that wires AgentTeam + specialized agents to the engine.
 
 Provides objective-driven multi-agent orchestration with intelligent task

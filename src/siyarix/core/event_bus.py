@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Lightweight in-process event bus for operation-level signaling."""
 
 from __future__ import annotations

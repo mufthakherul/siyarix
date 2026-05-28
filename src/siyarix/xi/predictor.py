@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """XI Predictor — Predictive action engine for Siyarix.
 
 Analyzes user behaviour patterns and current context to suggest:

@@ -15,14 +15,14 @@ This report documents the licensing architecture, governance framework, and lega
 
 | Component | License |
 |-----------|---------|
-| Core platform | **GNU AGPL v3.0** |
+| Core platform | **GNU AGPL v3.0 or later** |
 | Third-party dependencies | MIT / Apache-2.0 / BSD-3-Clause / Python-2.0 |
-| Documentation | AGPL-3.0 (same as code) |
-| Configuration files | AGPL-3.0 (same as code) |
+| Documentation | AGPL-3.0-or-later (same as code) |
+| Configuration files | AGPL-3.0-or-later (same as code) |
 
-### Rationale for AGPL-3.0
+### Rationale for AGPL-3.0-or-later
 
-| Requirement | How AGPL-3.0 Addresses It |
+| Requirement | How AGPL-3.0-or-later Addresses It |
 |-------------|---------------------------|
 | Prevent SaaS exploitation | Section 13 requires source disclosure for network services |
 | Protect community contributions | Copyleft ensures modifications remain open |
@@ -32,7 +32,7 @@ This report documents the licensing architecture, governance framework, and lega
 
 ### License File Structure
 
-- `/LICENSE` — Unmodified AGPL-3.0 legal text
+- `/LICENSE` — Unmodified AGPL-3.0 legal text (licensed as AGPL-3.0-or-later)
 - `/LICENSE_SUMMARY.md` — Plain English summary
 - `/COMMERCIAL_LICENSE.md` — Commercial licensing pathway
 - `/THIRD_PARTY_LICENSES.md` — Third-party dependency licenses
@@ -43,10 +43,10 @@ This report documents the licensing architecture, governance framework, and lega
 
 | Protection | Mechanism |
 |------------|-----------|
-| **Copyleft enforcement** | AGPL-3.0 Section 5 — modified versions must be licensed under AGPL |
-| **Network disclosure** | AGPL-3.0 Section 13 — SaaS/cloud deployments must provide source |
-| **Patent grant** | AGPL-3.0 Section 11 — contributors grant patent licenses |
-| **No warranty** | AGPL-3.0 Section 15-16 — clear disclaimer of liability |
+| **Copyleft enforcement** | AGPL-3.0-or-later Section 5 — modified versions must be licensed under AGPL |
+| **Network disclosure** | AGPL-3.0-or-later Section 13 — SaaS/cloud deployments must provide source |
+| **Patent grant** | AGPL-3.0-or-later Section 11 — contributors grant patent licenses |
+| **No warranty** | AGPL-3.0-or-later Section 15-16 — clear disclaimer of liability |
 | **Trademark protection** | Separate `/TRADEMARK_POLICY.md` — brand misuse deterrence |
 | **Ethical boundaries** | `/ETHICAL_USE.md` — prohibits weaponization, unauthorized access |
 | **AI governance** | `/RESPONSIBLE_AI_USE.md` — safe AI deployment framework |
@@ -65,7 +65,7 @@ This report documents the licensing architecture, governance framework, and lega
 | Security research | ✅ | Safe harbor policy in SECURITY.md |
 | AI-generated code | ✅ | Disclosure policy without prohibition |
 | Plugin ecosystem | ✅ | Documented expectations for module contributions |
-| Licensing clarity | ✅ | Inbound = outbound (AGPL-3.0) |
+| Licensing clarity | ✅ | Inbound = outbound (AGPL-3.0-or-later) |
 | No CLA overhead | ✅ | Contributions are licensed under project license |
 
 ---
@@ -74,7 +74,7 @@ This report documents the licensing architecture, governance framework, and lega
 
 | Requirement | Status | Notes |
 |-------------|--------|-------|
-| Clear licensing | ✅ | AGPL-3.0 with commercial alternative |
+| Clear licensing | ✅ | AGPL-3.0-or-later with commercial alternative |
 | Compliance documentation | ✅ | LICENSE_SUMMARY.md, THIRD_PARTY_LICENSES.md |
 | Security policy | ✅ | Disclosure process, CVE coordination, embargo |
 | Code of conduct | ✅ | Contributor Covenant v2.1 |
@@ -120,7 +120,7 @@ This report documents the licensing architecture, governance framework, and lega
 
 | File | Purpose | Status |
 |------|---------|--------|
-| `/LICENSE` | AGPL-3.0 legal text | ✅ Created |
+| `/LICENSE` | AGPL-3.0 legal text (distributed as AGPL-3.0-or-later) | ✅ Created |
 | `/LICENSE_SUMMARY.md` | Plain English license summary | ✅ Created |
 | `/ETHICAL_USE.md` | Permitted and prohibited use | ✅ Created |
 | `/RESPONSIBLE_AI_USE.md` | AI governance policy | ✅ Created |
@@ -143,23 +143,23 @@ This report documents the licensing architecture, governance framework, and lega
 
 ## 8. Remaining Risks & Recommendations
 
-### Medium Priority
+### Resolved in Repository
 
-| Risk | Recommendation | Timeline |
-|------|----------------|----------|
-| README.md absent | Create README with license badge, attribution, and usage examples | Before next release |
-| No CONTRIBUTORS file | Add AUTHORS or CONTRIBUTORS file for contributor recognition | Next release |
-| DCO not implemented | Consider adding Developer Certificate of Origin (DCO) to PR process | v0.2.0 |
-| Source-file SPDX headers | Add `# SPDX-License-Identifier: AGPL-3.0-or-later` to all `.py` source files | v0.2.0 |
+| Prior Risk | Resolution |
+|------------|------------|
+| README.md absent | README exists with license badge, attribution, and usage examples |
+| No CONTRIBUTORS file | `CONTRIBUTORS.md` added for contributor recognition |
+| Source-file SPDX headers | AGPL-3.0-or-later SPDX headers added across Python source and tests |
+| PyPI long description | README exists and is referenced by `pyproject.toml` |
+| Docker image licensing | Dockerfile now includes AGPL-3.0-or-later OCI license label and bundles `LICENSE`/`NOTICE` |
 
-### Low Priority
+### Ongoing Governance Notes
 
-| Risk | Recommendation | Timeline |
-|------|----------------|----------|
-| PyPI long description | README must exist for PyPI package description | Before next release |
-| Docker image licensing | Ensure Docker images display AGPL notice | Before Docker publish |
-| Plugin licensing docs | Add plugin licensing section if plugin API is stabilized | v0.2.0 |
-| LTS policy | Define LTS release policy at v1.0.0 | v1.0.0 |
+| Note | Status |
+|------|--------|
+| DCO process | Added contributor sign-off guidance and PR checklist item; optional enforcement workflow may be added later |
+| Plugin licensing docs | Already documented in CONTRIBUTING plugin/module contribution section |
+| LTS policy | Still planned for v1.0.0 release governance milestone |
 
 ### No Immediate Action Needed
 
@@ -175,7 +175,7 @@ This report documents the licensing architecture, governance framework, and lega
 
 The Siyarix project now has a complete, professionally structured legal and governance framework. The architecture:
 
-- Protects the open-source community through AGPL-3.0 copyleft enforcement
+- Protects the open-source community through AGPL-3.0-or-later copyleft enforcement
 - Provides a clear commercial pathway for enterprise adoption
 - Establishes ethical boundaries for cybersecurity software
 - Implements AI governance aligned with emerging regulatory frameworks

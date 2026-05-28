@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Gobuster output parser — parses gobuster dir/dns plain-text output."""
 
 from __future__ import annotations

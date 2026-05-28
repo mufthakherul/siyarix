@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """ToolExecutor: encapsulates execution logic for plan steps.
 
 This class isolates tool/shell execution so ExecutionEngine can delegate

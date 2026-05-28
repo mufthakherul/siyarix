@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """ML-Based Anomaly Detection Engine.
 
 Builds a local behavioral baseline using scikit-learn (or ONNX) that learns

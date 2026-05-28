@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Siyarix Security Hardening — Input Validation, Secret Redaction, Danger Analysis.
 
 Provides three production-grade security primitives:

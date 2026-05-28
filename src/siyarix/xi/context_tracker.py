@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """XI Context Tracker — Real-time awareness of user operations and environment.
 
 Tracks:

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for ML-based anomaly detection engine."""
 
 import pytest

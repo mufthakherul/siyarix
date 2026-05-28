@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 from pathlib import Path
 
 from siyarix.core.session_kernel import SessionKernel, SessionPersistenceLevel

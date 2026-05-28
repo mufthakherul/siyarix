@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """
 Emergency Stop (ESC) kill-switch for the Siyarix execution engine.
 Wires into chat._running and engine._pool.cancel_pending().

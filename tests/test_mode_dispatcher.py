@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for core/mode_dispatcher.py — ModeDispatcher (71 stmts, ~59% covered)."""
 
 from __future__ import annotations

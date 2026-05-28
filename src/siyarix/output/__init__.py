@@ -80,7 +80,7 @@ class OutputFormat(StrEnum):
 
 
 class OutputTheme(StrEnum):
-    DEFAULT = "cyber-noir"
+    """Output theme names — delegates to branding module for actual style data."""
     CYBER_NOIR = "cyber-noir"
     MATRIX = "matrix"
     BLOODMOON = "bloodmoon"
@@ -92,66 +92,16 @@ class OutputTheme(StrEnum):
     LIGHT = "arctic"
     NEON = "synthwave"
     MINIMAL = "eclipse"
+    DEFAULT = "cyber-noir"
 
 
-THEMES = {
-    OutputTheme.CYBER_NOIR: {
-        "primary": "cyan", "secondary": "magenta",
-        "success": "bright_green", "warning": "bright_yellow",
-        "error": "bright_red", "info": "bright_black", "muted": "bright_black",
-        "border": "cyan", "accent": "bright_cyan",
-        "critical": "bold bright_red", "high": "bold red",
-        "medium": "bright_yellow", "low": "bright_cyan",
-    },
-    OutputTheme.MATRIX: {
-        "primary": "green", "secondary": "bright_green",
-        "success": "bright_green", "warning": "bright_yellow",
-        "error": "bold bright_red", "info": "green", "muted": "dark_green",
-        "border": "green", "accent": "bright_green",
-        "critical": "bold bright_red", "high": "bold red",
-        "medium": "bright_yellow", "low": "bright_green",
-    },
-    OutputTheme.BLOODMOON: {
-        "primary": "red", "secondary": "bright_red",
-        "success": "dark_orange", "warning": "red",
-        "error": "bold bright_red", "info": "bright_black", "muted": "bright_black",
-        "border": "red", "accent": "bright_red",
-        "critical": "bold bright_red", "high": "bright_red",
-        "medium": "red", "low": "dark_orange",
-    },
-    OutputTheme.ARCTIC: {
-        "primary": "blue", "secondary": "bright_blue",
-        "success": "green", "warning": "dark_orange",
-        "error": "bold red", "info": "bright_black", "muted": "grey70",
-        "border": "bright_blue", "accent": "bright_blue",
-        "critical": "bold red", "high": "red",
-        "medium": "dark_orange", "low": "blue",
-    },
-    OutputTheme.GOLDENROD: {
-        "primary": "yellow", "secondary": "bright_yellow",
-        "success": "bright_green", "warning": "bright_yellow",
-        "error": "bold bright_red", "info": "bright_black", "muted": "dark_orange",
-        "border": "yellow", "accent": "bright_yellow",
-        "critical": "bold bright_red", "high": "red",
-        "medium": "bright_yellow", "low": "yellow",
-    },
-    OutputTheme.ECLIPSE: {
-        "primary": "white", "secondary": "white",
-        "success": "bold", "warning": "",
-        "error": "bold", "info": "dim", "muted": "dim",
-        "border": "white", "accent": "bold",
-        "critical": "bold", "high": "bold",
-        "medium": "", "low": "",
-    },
-    OutputTheme.SYNTHWAVE: {
-        "primary": "magenta", "secondary": "bright_magenta",
-        "success": "bright_cyan", "warning": "bright_yellow",
-        "error": "bright_red", "info": "magenta", "muted": "purple4",
-        "border": "bright_magenta", "accent": "bright_magenta",
-        "critical": "bold bright_magenta", "high": "bright_red",
-        "medium": "bright_yellow", "low": "bright_cyan",
-    },
-}
+def _load_branding_themes() -> dict[str, dict[str, str]]:
+    """Load theme data from the canonical branding module."""
+    from ..branding import _SEVERITY_STYLES
+    return dict(_SEVERITY_STYLES)
+
+
+THEMES = _load_branding_themes()
 
 
 class OutputEngine:

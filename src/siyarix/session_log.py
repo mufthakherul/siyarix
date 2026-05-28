@@ -1,7 +1,8 @@
 """Session logging — structured session logs per Chapter 11 spec.
 
-Provides SessionLog dataclass matching the spec JSON schema and
-SessionLogger manager for persistence, listing, and export.
+SessionLogger delegates persistence to the enterprise AuditLogger for
+tamper-evident compliance while maintaining session-specific context
+(persona, LLM provider, command history, tool usage).
 """
 
 from __future__ import annotations
@@ -13,6 +14,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from .audit_log import AuditEventType, AuditSeverity, audit
 
 logger = logging.getLogger(__name__)
 
@@ -265,6 +268,22 @@ class SessionLogger:
             )
         )
         self.save(log)
+        try:
+            audit.log(
+                event_type=AuditEventType.SCAN_COMPLETE,
+                severity=AuditSeverity.INFO,
+                user=log.user or "session",
+                action=log.persona or "interactive",
+                result="completed" if approved else "blocked",
+                target=session_id,
+                details={
+                    "command": input_text[:500],
+                    "duration_ms": execution_time_ms,
+                    "output": output_summary[:200],
+                },
+            )
+        except Exception as exc:
+            logger.debug("Failed to record audit event for command: %s", exc)
         return True
 
     def track_tool_usage(self, session_id: str, tool: str, count: int = 1) -> bool:

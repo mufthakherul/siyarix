@@ -38,9 +38,9 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.prompt import Prompt
 from rich.table import Table
 
-__version__ = "0.1.3"
-
 from typing import Any, cast
+
+from . import __version__
 
 from .audit_log import AuditEventType, AuditSeverity, audit
 from .branding import available_themes, print_banner
@@ -2256,9 +2256,6 @@ def tool_registry_update_metadata(
     output_path: str = typer.Argument(..., help="Path to save the tool metadata JSON")
 ) -> None:
     """Regenerate the tool metadata file by scanning all binaries on PATH."""
-    from siyarix.tool_registry import ToolRegistry
-    from pathlib import Path
-    
     reg = ToolRegistry()
     count = reg.update_metadata(Path(output_path))
     print(f"Successfully updated metadata: {count} tools recorded.")

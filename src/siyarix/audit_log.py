@@ -28,7 +28,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from siyarix.telemetry.siem import siem_forwarder
+from .telemetry.siem import siem_forwarder
 
 try:
     import tomllib  # Python 3.11+

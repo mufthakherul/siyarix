@@ -28,7 +28,7 @@ from .core import IntentRouter, SessionKernel
 from .core.session_kernel import SessionContext
 from .credential_store import CredentialStore
 from .cvss_scorer import CVSSResult, CVSSScorer, CVSSVector, Severity
-from .dashboard import DashboardConfig, DashboardSnapshot
+from .dashboard import DashboardConfig, DashboardService, DashboardSnapshot
 from .deception import (FakeBannerGenerator, HoneypotDetector,
                         TrapdoorCredentialManager)
 from .distributed import (DistributedOrchestrator, DistributedTask,
@@ -103,6 +103,7 @@ from .platform_integration import (BOUNTY_PLATFORMS, COMMS_PLATFORMS, SIEM_PLATF
                                    NotificationChannel, PlatformConnection,
                                    PlatformIntegrationService, SubmissionResult,
                                    platform_integration)
+from .scheduler import SiyarixScheduler, ScheduledJob
 from .validators import validate_target
 from .worker_pool import AsyncWorkerPool
 from .xi import ContextTracker, Predictor, XICoreService
@@ -189,8 +190,11 @@ __all__ = [
     "OpenTelemetryMiddleware",
     "get_collector",
 
+    "SiyarixScheduler",
+    "ScheduledJob",
     "DashboardSnapshot",
     "DashboardConfig",
+    "DashboardService",
     "DistributedOrchestrator",
     "TaskQueueBackend",
     "DistributedTask",

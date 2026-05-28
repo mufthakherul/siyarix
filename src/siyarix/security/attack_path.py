@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Siyarix Attack Path Analyzer — Identifies exploit paths from the Knowledge Graph."""
 
 from __future__ import annotations

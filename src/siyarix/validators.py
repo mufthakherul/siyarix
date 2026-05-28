@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Input validation utilities with comprehensive checks."""
 
 from __future__ import annotations

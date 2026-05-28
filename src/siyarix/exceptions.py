@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Siyarix custom exceptions with rich error messages and context."""
 
 from __future__ import annotations

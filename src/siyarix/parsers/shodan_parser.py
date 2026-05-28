@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Shodan output parser — parses Shodan CLI JSON output."""
 
 from __future__ import annotations

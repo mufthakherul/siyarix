@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Ettercap output parser — MITM and packet sniffing results."""
 
 from __future__ import annotations

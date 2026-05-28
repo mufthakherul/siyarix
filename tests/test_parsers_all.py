@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Comprehensive tests for all tool output parsers."""
 
 from __future__ import annotations

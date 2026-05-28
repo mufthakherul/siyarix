@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Mobile application security testing — Android APK analysis, iOS IPA inspection.
 
 Provides static analysis of mobile app packages for hardcoded secrets,

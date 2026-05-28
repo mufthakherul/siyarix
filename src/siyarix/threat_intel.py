@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Threat Intelligence Ingestion Module.
 
 Ingests MISP feeds, OpenCTI, STIX/TAXII sources into the Knowledge Graph.

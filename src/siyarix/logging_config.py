@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Centralized logging configuration for Siyarix.
 
 Provides a minimal, dependency-free JSON-style logger with UTC timestamps

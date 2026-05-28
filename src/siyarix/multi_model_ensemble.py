@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Multi-model ensemble for AI-driven task planning.
 
 Routes tasks to multiple LLM providers simultaneously and aggregates

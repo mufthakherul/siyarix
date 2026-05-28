@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Auto-installation of missing security tools.
 
 Detects missing tools and installs them using the appropriate package manager

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Terminal and shell detection logic.
 
 Detects the current terminal emulator and shell for cross-platform

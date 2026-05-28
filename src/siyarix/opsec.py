@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Operational Security (OPSEC) module — target isolation, burn-after-reading, and stealth cleanup.
 
 Provides network namespace isolation, secure data destruction,

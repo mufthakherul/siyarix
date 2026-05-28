@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Nuclei output parser — parses nuclei JSONL output."""
 
 from __future__ import annotations

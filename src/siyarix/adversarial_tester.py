@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Adversarial testing and plan validation module.
 
 Analyzes AI-generated plans for potential issues before execution,

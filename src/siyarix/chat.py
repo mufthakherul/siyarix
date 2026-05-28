@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Siyarix Chat — Interactive REPL / Conversation Mode.
 
 A full-featured interactive shell for Siyarix, similar to Claude CLI and

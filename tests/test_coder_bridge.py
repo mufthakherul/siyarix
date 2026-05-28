@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for siyarix.coder_bridge — AI code generation and review."""
 
 from __future__ import annotations

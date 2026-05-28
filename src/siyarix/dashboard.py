@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Dashboard data models and live snapshot service for Siyarix CLI.
 
 Provides data models for real-time operational dashboards and a

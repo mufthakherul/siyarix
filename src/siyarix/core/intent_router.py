@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Intent routing for mode selection and risk-aware execution hints.
 
 Upgraded to Semantic Intent Router v2 supporting multi-stage classification:

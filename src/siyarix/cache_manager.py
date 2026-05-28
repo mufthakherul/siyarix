@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Intelligent caching system — tool output, AI plans, DNS lookups, WHOIS data.
 
 Provides TTL-based caching with LRU eviction, size tracking,

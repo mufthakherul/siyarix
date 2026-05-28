@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """XI Skill Profiler — Detects user expertise level and adapts UX accordingly.
 
 Tracks:

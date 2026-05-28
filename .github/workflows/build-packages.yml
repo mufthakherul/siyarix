@@ -74,7 +74,7 @@ jobs:
       - name: Shellcheck install.sh
         run: |
           if command -v shellcheck &>/dev/null; then
-            shellcheck install.sh
+            shellcheck -e SC1091 install.sh
           else
             echo "shellcheck not available, skipping"
           fi

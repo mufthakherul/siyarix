@@ -92,7 +92,7 @@ jobs:
         id: ollama
         run: |
           echo "Checking Ollama at: $OLLAMA_HOST"
-          RESPONSE=$(curl -s -w "%{http_code}" "$OLLAMA_HOST/api/tags" --max-time 10)
+          RESPONSE=$(curl -s -w "%{http_code}" "$OLLAMA_HOST/api/tags" --max-time 10 || true)
           HTTP_CODE="${RESPONSE: -3}"
 
           if [ "$HTTP_CODE" == "200" ]; then

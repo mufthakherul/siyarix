@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for siyarix.logging_config — centralized logging configuration."""
 
 from __future__ import annotations

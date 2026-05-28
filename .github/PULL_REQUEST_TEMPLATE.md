@@ -41,6 +41,7 @@ Fixes #(issue)
 - [ ] I have read the [Contributing Guide](../CONTRIBUTING.md)
 - [ ] I have reviewed my own code before submitting
 - [ ] I have disclosed AI assistance (if applicable)
+- [ ] I used commit sign-off (`Signed-off-by:`) for DCO compliance
 
 ## Additional Notes
 

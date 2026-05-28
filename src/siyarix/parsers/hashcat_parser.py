@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Hashcat output parser."""
 
 from __future__ import annotations

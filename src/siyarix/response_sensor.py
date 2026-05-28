@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Response sensor utilities: masking before model calls, unmasking and redaction after."""
 
 from __future__ import annotations

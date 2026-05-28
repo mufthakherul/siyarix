@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 from siyarix.audit_log import AuditEventType, AuditLogger, AuditSeverity
 
 

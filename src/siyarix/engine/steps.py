@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Engine step types, result tracking, and execution mode constants."""
 
 from __future__ import annotations

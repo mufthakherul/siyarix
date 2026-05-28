@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Data format import module — imports findings from Nessus, Burp Suite, Metasploit,
 STIX/TAXII, OpenIOC, and other security tool output formats.
 

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Hardware Security Module (HSM) integration — YubiKey, TPM, PKCS#11 devices.
 
 Provides secure key storage, cryptographic operations, and hardware-backed

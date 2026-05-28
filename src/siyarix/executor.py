@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Async executor for running security tools as subprocesses."""
 
 from __future__ import annotations

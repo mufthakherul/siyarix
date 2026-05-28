@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for planner.py — TaskPlanner (515 stmts, ~50% covered)."""
 
 from __future__ import annotations

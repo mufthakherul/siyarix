@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Infrastructure as Code security scanning — Terraform, CloudFormation, Helm, Dockerfile.
 
 Analyzes IaC templates for misconfigurations, hardcoded secrets,

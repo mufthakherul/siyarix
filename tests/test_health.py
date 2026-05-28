@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for siyarix.health — system health checks."""
 
 from __future__ import annotations

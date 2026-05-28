@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for the execution engine, task planner, rule interpreter, and dynamic resolver."""
 
 from __future__ import annotations

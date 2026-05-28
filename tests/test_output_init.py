@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for output/__init__.py — OutputEngine / OutputFormatter (281 stmts, ~51%)."""
 
 from __future__ import annotations

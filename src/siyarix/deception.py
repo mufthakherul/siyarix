@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Deception Tactics Module.
 
 Implements the attacker-facing side of defensive AI: delayed/falsified responses

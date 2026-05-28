@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for siyarix.security.attack_path — attack path analysis."""
 
 from __future__ import annotations

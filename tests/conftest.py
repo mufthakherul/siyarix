@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Shared test fixtures and configuration for the Siyarix test suite."""
 
 from __future__ import annotations

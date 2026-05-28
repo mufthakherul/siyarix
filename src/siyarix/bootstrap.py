@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """First-run bootstrap system for Siyarix.
 
 Handles initial setup, platform detection, dependency verification,

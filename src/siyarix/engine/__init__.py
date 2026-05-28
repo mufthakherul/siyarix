@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Execution engine package.
 
 Re-exports everything from the original engine module for API compatibility.

@@ -38,12 +38,22 @@ dependencies = [
   "defusedxml>=0.7",
   "tenacity>=8.2.0",
   "psutil>=5.9.0",
-  "google-generativeai>=0.8.0",
 ]
 
 [project.optional-dependencies]
 autonomous = [
+  "anthropic>=0.40.0",
+  "google-generativeai>=0.8.0",
   "openai>=2.31.0",
+]
+openai = [
+  "openai>=2.31.0",
+]
+gemini = [
+  "google-generativeai>=0.8.0",
+]
+anthropic = [
+  "anthropic>=0.40.0",
 ]
 siem = [
   "httpx>=0.27",
@@ -52,6 +62,8 @@ fast = [
   "maturin>=1.7",
 ]
 all = [
+  "anthropic>=0.40.0",
+  "google-generativeai>=0.8.0",
   "openai>=2.31.0",
   "pyyaml>=6.0",
   "maturin>=1.7",

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for core/agentic_loop.py — AgenticLoop (112 stmts, ~48% covered)."""
 
 from __future__ import annotations

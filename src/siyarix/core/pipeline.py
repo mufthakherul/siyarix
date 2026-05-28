@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Siyarix Command Pipeline System — Executing chained operations.
 
 Supports piping operations with '|' or sequential steps with 'then'.

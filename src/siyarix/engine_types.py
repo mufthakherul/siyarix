@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Shared engine types used by ExecutionEngine and ToolExecutor."""
 
 from __future__ import annotations

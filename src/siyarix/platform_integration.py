@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """External platform integrations — bug bounty (HackerOne/Bugcrowd), SIEM,
 communication platforms (Slack/Discord/Teams/Telegram), and ticketing (Jira).
 

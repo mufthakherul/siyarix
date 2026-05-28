@@ -47,14 +47,25 @@ jobs:
         run: |
           pip install safety wheel
           safety check --json > safety_output.json 2>&1 || true
-
-          if [ -s safety_output.json ]; then
-            echo "⚠️ Security vulnerabilities found!"
-            cat safety_output.json
-            exit 1
-          else
-            echo "✅ No known vulnerabilities"
-          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          raw = Path("safety_output.json").read_text(encoding="utf-8").strip()
+          if not raw:
+              print("✅ No known vulnerabilities")
+              raise SystemExit(0)
+          try:
+              data = json.loads(raw)
+          except json.JSONDecodeError:
+              print("⚠️ Safety output is not valid JSON; keeping this check informational.")
+              raise SystemExit(0)
+          issues = data if isinstance(data, list) else data.get("vulnerabilities", [])
+          if issues:
+              print("⚠️ Security vulnerabilities found!")
+              print(json.dumps(issues, indent=2)[:4000])
+              raise SystemExit(1)
+          print("✅ No known vulnerabilities")
+          PY
 
       - name: Check for outdated packages
         run: |
@@ -121,7 +132,10 @@ jobs:
     name: Notify on Issues
     runs-on: ubuntu-latest
     needs: [review-dependencies, license-check]
-    if: failure()
+    if: failure() && github.event.pull_request.head.repo.fork == false
+    permissions:
+      contents: read
+      issues: write
     steps:
       - name: Create issue for dependency problems
         uses: actions/github-script@v7

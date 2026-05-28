@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """
 Coder Bridge -- AI code generation and review facilitator.
 

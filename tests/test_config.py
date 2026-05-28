@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tests for config.py — SettingsStore (140 stmts, ~56% covered)."""
 
 from __future__ import annotations

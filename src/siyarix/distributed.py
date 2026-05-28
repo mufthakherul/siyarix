@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Distributed Multi-Agent Deployment.
 
 Replaces the in-process AgentTeam with a Redis/RQ-backed task queue so

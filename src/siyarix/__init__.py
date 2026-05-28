@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Siyarix — AI-native cybersecurity operations platform.
 
 Provides autonomous execution, multi-agent framework, intelligent workflow

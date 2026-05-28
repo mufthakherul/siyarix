@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 from unittest.mock import patch
 
 from rich.console import Console

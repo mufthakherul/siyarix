@@ -212,16 +212,18 @@ class OutputEngine:
 
     def print_error(self, message: str) -> None:
         if RICH_AVAILABLE and self.console is not None:
+            error_style = self.theme.get("error", self.theme.get("critical", "red"))
             self.console.print(
-                f"[{self.theme['error']}]✗ {message}[/{self.theme['error']}]"
+                f"[{error_style}]✗ {message}[/{error_style}]"
             )
         else:
             self._raw_print(f"✗ Error: {message}")
 
     def print_warning(self, message: str) -> None:
         if RICH_AVAILABLE and self.console is not None:
+            warning_style = self.theme.get("warning", self.theme.get("medium", "yellow"))
             self.console.print(
-                f"[{self.theme['warning']}]⚠ {message}[/{self.theme['warning']}]"
+                f"[{warning_style}]⚠ {message}[/{warning_style}]"
             )
         else:
             self._raw_print(f"⚠ Warning: {message}")

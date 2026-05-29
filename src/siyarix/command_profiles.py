@@ -9,7 +9,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -91,7 +91,7 @@ class CommandProfileStore:
 
     def save(self, profile: CommandProfile) -> CommandProfile:
         data = self._load()
-        profile.created_at = profile.created_at or datetime.utcnow().isoformat()
+        profile.created_at = profile.created_at or datetime.now(timezone.utc).isoformat()
         data[profile.name] = {
             "command": profile.command,
             "description": profile.description,

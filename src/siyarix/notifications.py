@@ -135,7 +135,15 @@ class NotificationCenter:
         ):
             for url in self._webhooks:
                 try:
-                    asyncio.get_event_loop().create_task(self._forward_webhook(n, url))
+                    loop = asyncio.get_event_loop()
+                    coro = self._forward_webhook(n, url)
+                    try:
+                        task = loop.create_task(coro)
+                        if not isinstance(task, asyncio.Task):
+                            coro.close()
+                    except Exception:
+                        coro.close()
+                        raise
                 except RuntimeError:
                     pass  # No event loop — skip forwarding
 

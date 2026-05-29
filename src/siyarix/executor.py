@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 import os
 import subprocess
@@ -110,13 +111,13 @@ async def run_tool(
         while True:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                proc.kill()
+                await _kill_process(proc)
                 await proc.wait()
                 return
             try:
                 line = await asyncio.wait_for(proc.stdout.readline(), timeout=remaining)
             except TimeoutError:
-                proc.kill()
+                await _kill_process(proc)
                 await proc.wait()
                 return
             if not line:
@@ -124,7 +125,7 @@ async def run_tool(
             yield line.decode(errors="replace").rstrip("\n")
     finally:
         if proc.returncode is None:
-            proc.kill()
+            await _kill_process(proc)
             await proc.wait()
 
 
@@ -153,7 +154,7 @@ async def run_tool_complete(
         )
         exit_code = proc.returncode if proc.returncode is not None else 0
     except TimeoutError:
-        proc.kill()
+        await _kill_process(proc)
         stdout_bytes, stderr_bytes = await proc.communicate()
         exit_code = -1
 
@@ -167,6 +168,13 @@ async def run_tool_complete(
 
 
 logger = logging.getLogger(__name__)
+
+
+async def _kill_process(proc: asyncio.subprocess.Process) -> None:
+    """Terminate a process, supporting both sync and async mock implementations."""
+    result = proc.kill()
+    if inspect.isawaitable(result):
+        await result
 
 
 def _validate_cmd_list(cmd: list[str]) -> None:
@@ -219,7 +227,7 @@ async def safe_run_async(cmd: list[str], timeout: int = 10) -> ExecutionResult:
         )
         exit_code = proc.returncode if proc.returncode is not None else 0
     except asyncio.TimeoutError:
-        proc.kill()
+        await _kill_process(proc)
         stdout_bytes, stderr_bytes = await proc.communicate()
         exit_code = -1
 

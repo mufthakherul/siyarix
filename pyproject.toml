@@ -114,3 +114,25 @@ strict_optional = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+markers = [
+  "adversarial: adversarial behavior and prompt-attack tests",
+  "anomaly: anomaly-detection related tests",
+  "bootstrap: bootstrap lifecycle and startup tests",
+  "canary: canary and safety-check tests",
+  "cloud: cloud security scanner tests",
+  "compliance: compliance framework tests",
+  "cvss: CVSS scoring tests",
+  "deception: deception and honeypot tests",
+  "distributed: distributed runtime tests",
+  "ensemble: multi-model ensemble tests",
+  "exploitation: exploitation chain tests",
+  "opentelemetry: OpenTelemetry instrumentation tests",
+  "playbook: playbook engine tests",
+  "report: reporting engine tests",
+  "siem: SIEM telemetry tests",
+  "stealth: stealth mode behavior tests",
+  "terminal: terminal detection tests",
+  "threat_intel: threat intelligence tests",
+  "tool_installer: tool installer tests",
+  "workflow: workflow runtime tests",
+]

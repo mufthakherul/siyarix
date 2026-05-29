@@ -23,6 +23,7 @@ fi
 # Copy .deb into pool for each distro
 for dist in stable kali; do
   mkdir -p "${REPO_DIR}/pool/${dist}/"
+  mkdir -p "${REPO_DIR}/dists/${dist}/main/binary-amd64/"
   cp "${DEB_FILE}" "${REPO_DIR}/pool/${dist}/"
 done
 

@@ -15,7 +15,7 @@
     <img src="https://img.shields.io/github/stars/mufthakherul/siyarix?style=flat-square&label=Stars&logo=github" alt="Stars"/>
   </a>
   <a href="https://github.com/mufthakherul/siyarix/releases">
-    <img src="https://img.shields.io/github/v/release/mufthakherul/siyarix?style=flat-square&label=Release&logo=github" alt="Release"/>
+    <img src="https://img.shields.io/badge/Release-pre--release-orange?style=flat-square&logo=github" alt="Release"/>
   </a>
   <a href="https://github.com/mufthakherul/siyarix/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/mufthakherul/siyarix?style=flat-square&label=License&logo=gnu" alt="License"/>
@@ -23,11 +23,11 @@
   <a href="https://github.com/mufthakherul/siyarix/actions/workflows/ci.yml">
     <img src="https://img.shields.io/github/actions/workflow/status/mufthakherul/siyarix/ci.yml?style=flat-square&label=CI&logo=githubactions" alt="CI"/>
   </a>
-  <a href="https://pypi.org/project/siyarix/">
-    <img src="https://img.shields.io/pypi/v/siyarix?style=flat-square&label=PyPI&logo=pypi" alt="PyPI"/>
+  <a href="https://github.com/mufthakherul/siyarix/blob/main/pyproject.toml">
+    <img src="https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square&logo=python" alt="Python"/>
   </a>
-  <a href="https://pypi.org/project/siyarix/">
-    <img src="https://img.shields.io/pypi/pyversions/siyarix?style=flat-square&label=Python&logo=python" alt="Python"/>
+  <a href="https://github.com/mufthakherul/siyarix/releases">
+    <img src="https://img.shields.io/badge/PyPI-pending-lightgrey?style=flat-square&logo=pypi" alt="PyPI"/>
   </a>
   <a href="https://github.com/mufthakherul/siyarix/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/SPDX-AGPL--3.0--or--later-blue?style=flat-square" alt="SPDX"/>
@@ -54,11 +54,12 @@ Siyarix is an experimental project exploring how multi-provider AI orchestration
 ## CLI Banner
 
 ```
-    ▟█████▙      ▟████▙     ▟█████▙   ███▙  ▟███   ███    ▟█████▙     ▟█████▙    ▟███████▙   ███       ███
-   ███▀  ▀▀     ███▀  ▀██   ███▀  ▀▀   ████▙▟████   ███   ███▀  ▀▀    ███▀  ▀▀    ███▀▀▀▀▀▀   ███       ███
-   ███          ███    ███  ▀█████▙    ███▀███▀██   ███   ███         ▀█████▙     ███████▙    ███       ███
-   ███▄  ▄▄     ███▄  ▄██   ▄▄  ▀███   ███ ▀█▀ ██   ███   ███▄  ▄▄    ▄▄  ▀███    ███▄▄▄▄▄▄   ███▄▄▄▄▄  ███▄▄▄▄▄
-    ▀█████▀      ▀████▀     ▀█████▀    ███     ██   ███    ▀█████▀    ▀█████▀     ▀███████▀   ▀███████  ▀███████
+   ███████╗██╗██╗   ██╗ █████╗ ██████╗ ██╗██╗  ██╗
+   ██╔════╝██║╚██╗ ██╔╝██╔══██╗██╔══██╗██║╚██╗██╔╝
+   ███████╗██║ ╚████╔╝ ███████║██████╔╝██║ ╚███╔╝
+   ╚════██║██║  ╚██╔╝  ██╔══██║██╔══██╗██║ ██╔██╗
+   ███████║██║   ██║   ██║  ██║██║  ██║██║██╔╝ ██╗
+   ╚══════╝╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝
 
                              S I Y A R I X
 ```
@@ -151,28 +152,6 @@ siyarix run "enumerate services on 10.0.0.1"
 ```
 
 Set at least one AI provider API key (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`) or run local models via Ollama/LM Studio. See the [setup guide](docs/getting-started/setup.md) for details.
-
----
-
-## Repository
-
-<p align="center">
-  <a href="https://github.com/mufthakherul/siyarix">
-    <img src="https://github-readme-stats.vercel.app/api/pin/?username=mufthakherul&repo=siyarix&theme=radical&hide_border=true" alt="Siyarix repo card"/>
-  </a>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/github/last-commit/mufthakherul/siyarix?style=flat-square&label=Last%20commit&logo=git" alt="Last commit"/>
-  <img src="https://img.shields.io/github/issues/mufthakherul/siyarix?style=flat-square&label=Issues&logo=github" alt="Issues"/>
-  <img src="https://img.shields.io/github/issues-pr/mufthakherul/siyarix?style=flat-square&label=Pull%20requests&logo=github" alt="PRs"/>
-  <img src="https://img.shields.io/github/repo-size/mufthakherul/siyarix?style=flat-square&label=Size&logo=files" alt="Repo size"/>
-  <a href="https://pypi.org/project/siyarix/"><img src="https://img.shields.io/pypi/dm/siyarix?style=flat-square&label=PyPI%20downloads&logo=pypi" alt="Downloads"/></a>
-  <img src="https://img.shields.io/codecov/c/github/mufthakherul/siyarix?style=flat-square&label=Coverage&logo=codecov" alt="Coverage"/>
-  <a href="https://github.com/mufthakherul/siyarix/blob/main/LEGAL_AUDIT_REPORT.md"><img src="https://img.shields.io/badge/legal-audited-brightgreen?style=flat-square" alt="Legal audit"/></a>
-</p>
-
----
 
 ## Documentation
 

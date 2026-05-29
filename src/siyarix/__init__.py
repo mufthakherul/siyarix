@@ -105,6 +105,7 @@ from .platform_integration import (BOUNTY_PLATFORMS, COMMS_PLATFORMS, SIEM_PLATF
                                    NotificationChannel, PlatformConnection,
                                    PlatformIntegrationService, SubmissionResult,
                                    platform_integration)
+from . import progress
 from .scheduler import SiyarixScheduler, ScheduledJob
 from .validators import validate_target
 from .worker_pool import AsyncWorkerPool
@@ -319,4 +320,5 @@ __all__ = [
     "BOUNTY_PLATFORMS",
     "SIEM_PLATFORMS",
     "COMMS_PLATFORMS",
+    "progress",
 ]

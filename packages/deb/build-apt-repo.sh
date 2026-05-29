@@ -40,7 +40,7 @@ done
 for dist in stable kali; do
   echo "==> Generating Release for ${dist}"
   cd "${REPO_DIR}/dists/${dist}"
-  
+
   cat > Release << EOF
 Origin: Siyarix
 Label: Siyarix APT Repository

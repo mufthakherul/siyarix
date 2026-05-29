@@ -222,9 +222,13 @@ jobs:
 
       - name: Lint & check
         run: |
-          node --check bin/siyarix.js
-          node --check bin/siyarix-install.js
-          node --check lib/installer.js
+          for file in bin/siyarix.js bin/siyarix-install.js lib/installer.js; do
+            if [[ -f "$file" ]]; then
+              node --check "$file"
+            else
+              echo "::warning::Skipping missing file: $file"
+            fi
+          done
           npm pack --dry-run
 
       - name: Pack

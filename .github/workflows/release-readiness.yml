@@ -1,0 +1,89 @@
+name: Release Readiness
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/release.yml'
+      - 'pyproject.toml'
+      - 'src/siyarix/__init__.py'
+      - 'packages/npm/package.json'
+      - 'install.ps1'
+      - 'packages/deb/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  version-sync:
+    name: Version Synchronization
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate version consistency
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          import tomllib
+          from pathlib import Path
+
+          pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+          pyproject_version = pyproject["project"]["version"]
+
+          init_text = Path("src/siyarix/__init__.py").read_text(encoding="utf-8")
+          init_match = re.search(r'__version__\s*=\s*"([^"]+)"', init_text)
+          if not init_match:
+            raise SystemExit("Unable to find __version__ in src/siyarix/__init__.py")
+          init_version = init_match.group(1)
+
+          npm_package = json.loads(Path("packages/npm/package.json").read_text(encoding="utf-8"))
+          npm_version = npm_package["version"]
+
+          install_ps1 = Path("install.ps1").read_text(encoding="utf-8")
+          ps1_match = re.search(r'\$__script_version\s*=\s*"([^"]+)"', install_ps1)
+          if not ps1_match:
+            raise SystemExit("Unable to find $__script_version in install.ps1")
+          ps1_version = ps1_match.group(1)
+
+          versions = {
+              "pyproject.toml": pyproject_version,
+              "src/siyarix/__init__.py": init_version,
+              "packages/npm/package.json": npm_version,
+              "install.ps1": ps1_version,
+          }
+          unique_versions = set(versions.values())
+          if len(unique_versions) != 1:
+              raise SystemExit(f"Version mismatch detected: {versions}")
+          print(f"Version synchronized: {pyproject_version}")
+          PY
+
+  build-python-release-assets:
+    name: Python Release Assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --upgrade pip build twine check-wheel-contents
+      - run: python -m build
+      - run: twine check dist/*
+      - run: check-wheel-contents dist/
+
+  build-npm-release-asset:
+    name: NPM Release Asset
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/npm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm pack --dry-run

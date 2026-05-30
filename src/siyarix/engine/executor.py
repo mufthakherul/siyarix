@@ -13,7 +13,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import platform
-import re
 import shutil
 import time
 import uuid

@@ -7,7 +7,7 @@ orchestration, and advanced security tooling for offensive and defensive
 cybersecurity operations.
 """
 
-__version__ = "1.0.0-beta.1"
+__version__ = "1.0.0"
 __author__ = "MD MUFTHAKHERUL ISLAM MIRAZ"
 __license__ = "AGPL-3.0-or-later"
 
@@ -56,6 +56,8 @@ from .validators import validate_target
 from .worker_pool import AsyncWorkerPool
 
 __all__ = [
+    "available_themes",
+    "print_banner",
     "ExecutionEngine",
     "ExecutionMode",
     "EngineResult",

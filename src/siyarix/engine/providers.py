@@ -135,7 +135,7 @@ def setup_providers(
                 api_key = config.get(
                     "gemini_api_key", ""
                 ) or config.get("google_api_key", "")
-                model = config.get("gemini_model", "gemini-1.5-pro")
+                model = config.get("gemini_model", "gemini-2.0-flash")
                 prov = provider_registry.get(
                     "gemini", api_key=api_key, model=model
                 )

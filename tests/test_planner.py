@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import importlib
+
 import pytest
 
 from siyarix.planner import (
@@ -147,8 +149,11 @@ class TestOpenAIModel:
             result = await model.plan("test", {})
             assert result == {}
 
-    @pytest.mark.skip(reason="requires openai package")
     @pytest.mark.asyncio
+    @pytest.mark.skipif(
+        importlib.util.find_spec("openai") is None,
+        reason="requires openai package",
+    )
     async def test_plan_success(self):
         model = OpenAIModel(api_key="sk-test", model="gpt-4o")
         mock_client = MagicMock()
@@ -169,8 +174,11 @@ class TestOpenAIModel:
         model = OpenAIModel(api_key="sk-test", base_url="https://custom.api.com")
         assert model._base_url == "https://custom.api.com"
 
-    @pytest.mark.skip(reason="requires openai package")
     @pytest.mark.asyncio
+    @pytest.mark.skipif(
+        importlib.util.find_spec("openai") is None,
+        reason="requires openai package",
+    )
     async def test_plan_exception_returns_empty(self):
         model = OpenAIModel(api_key="sk-test")
         mock_client = MagicMock()
@@ -676,41 +684,6 @@ class TestTaskPlanner:
         planner.add_provider(provider)
         result = await planner._plan_from_model("test", {})
         assert result is None
-
-    @pytest.mark.skip(reason="response_sensor/masking removed for v1.0")
-    @pytest.mark.asyncio
-    async def test_plan_from_model_response_sensor(self):
-        planner = TaskPlanner()
-        provider = MagicMock(spec=ModelProvider)
-        provider.available = True
-        provider.plan = AsyncMock(return_value={
-            "steps": [{"id": "s1", "step_type": "tool_run", "tool": "nmap"}],
-        })
-        planner.add_provider(provider)
-        mock_rs = MagicMock()
-        mock_rs.mask_for_model.return_value = ("masked", MagicMock())
-        mock_rs.unmask_and_redact.return_value = {
-            "steps": [{"id": "s1", "step_type": "tool_run", "tool": "nmap"}],
-        }
-        with patch("siyarix.response_sensor.ResponseSensor", return_value=mock_rs):
-            result = await planner._plan_from_model("scan 10.0.0.1", {})
-            assert result is not None
-            assert len(result.steps) == 1
-
-    @pytest.mark.skip(reason="response_sensor/masking removed for v1.0")
-    @pytest.mark.asyncio
-    async def test_plan_from_model_masking_engine_fallback(self):
-        planner = TaskPlanner()
-        provider = MagicMock(spec=ModelProvider)
-        provider.available = True
-        provider.plan = AsyncMock(return_value={
-            "steps": [{"id": "s1", "step_type": "tool_run", "tool": "nmap",
-                        "target": "10.0.0.1"}],
-        })
-        planner.add_provider(provider)
-        with patch("siyarix.response_sensor.ResponseSensor", side_effect=ImportError()):
-            result = await planner._plan_from_model("scan 10.0.0.1", {})
-            assert result is not None
 
     # ── _parse_model_response ──────────────────────────────────────────
 

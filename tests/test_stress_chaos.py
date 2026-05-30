@@ -67,7 +67,7 @@ class TestPhase1_ChaosSimulation:
             return n
 
         for i in range(100):
-            pool.submit(slow_task, i)
+            asyncio.create_task(pool.submit(slow_task, i))
         await asyncio.sleep(0.05)
 
         await pool.cancel_pending()
@@ -89,7 +89,6 @@ class TestPhase1_ChaosSimulation:
         ok, _ = validator.validate_ip("192.168.1.1")
         assert ok
 
-    @pytest.mark.skip(reason="agents/coordinator removed for v1.0")
     @pytest.mark.asyncio
     async def test_1d_malformed_tool_outputs(self):
         from siyarix.parsers.nmap_parser import NmapParser
@@ -255,69 +254,7 @@ class TestPhase2_AdversarialInput:
             assert found, f"Arg injection not detected: {args!r}"
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# PHASE 3: ORCHESTRATION BREAKDOWN
-# ═════════════════════════════════════════════════════════════════════════════
 
-
-class TestPhase3_OrchestrationBreakdown:
-
-    @pytest.mark.skip(reason="agents/coordinator removed for v1.0")
-    @pytest.mark.asyncio
-    async def test_3a_agent_team_broadcast_under_stress(self):
-        from siyarix.multi_agent import Agent, AgentRole, AgentTeam, AgentMessage
-
-        team = AgentTeam(name="stress-team")
-        agents = [Agent(name=f"agent-{i}", role=AgentRole.RECON) for i in range(10)]
-        for a in agents:
-            team.add_agent(a)
-
-        async def send_batch(sender: str, n: int) -> list[str]:
-            msgs = []
-            for i in range(n):
-                msg = AgentMessage(
-                    sender=sender,
-                    recipient=f"agent-{i % 10}",
-                    content=f"msg-{i}",
-                    msg_type="task",
-                )
-                await team.send_message(msg)
-                msgs.append(msg.message_id)
-            return msgs
-
-        results = await asyncio.gather(
-            *[send_batch("coordinator", 30) for _ in range(5)],
-            return_exceptions=True,
-        )
-        successes = [r for r in results if not isinstance(r, Exception)]
-        assert len(successes) >= 4, f"Only {len(successes)} of 5 batches succeeded"
-
-    @pytest.mark.skip(reason="agents/coordinator removed for v1.0")
-    @pytest.mark.asyncio
-    async def test_3b_no_message_id_collision(self):
-        from siyarix.multi_agent import AgentMessage
-
-        ids = {AgentMessage(sender="a", recipient="b", content="c").message_id
-               for _ in range(1000)}
-        assert len(ids) == 1000, "Message ID collision detected"
-
-    @pytest.mark.skip(reason="agents/coordinator removed for v1.0")
-    @pytest.mark.asyncio
-    async def test_3c_coordinator_dependency_resolution(self):
-        from siyarix.agents import CoordinatorAgent
-        from unittest.mock import AsyncMock
-
-        engine = AsyncMock()
-        coordinator = CoordinatorAgent(engine=engine)
-
-        dag = {
-            "a": {"agents": ["recon-1"], "depends_on": ["b"]},
-            "b": {"agents": ["recon-1"], "depends_on": ["c"]},
-            "c": {"agents": ["recon-1"], "depends_on": ["a"]},
-        }
-        resolved = coordinator.resolve_dependencies(dag)
-        assert len(resolved) == 3
-        assert set(resolved) == {"a", "b", "c"}
 
 
 # ═════════════════════════════════════════════════════════════════════════════

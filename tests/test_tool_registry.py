@@ -96,10 +96,10 @@ class TestResolveToolPath:
             assert path == "/usr/bin/wsl"
             assert wsl is True
 
-    @pytest.mark.skip(reason="pre-existing WSL test, not a v1.0 regression")
     def test_wsl_fallback_no_wsl_binary(self, reg):
         reg._wsl_binary = None
-        path, wsl = reg._resolve_tool_path("nmap")
+        with patch("siyarix.tool_registry.shutil.which", return_value=None):
+            path, wsl = reg._resolve_tool_path("nmap")
         assert path is None
 
     def test_wsl_fallback_bad_tool_name(self, reg):
@@ -293,10 +293,6 @@ class TestManifestAndScan:
             manifest = reg.to_manifest()
             assert "tools" in manifest
             assert len(manifest["tools"]) == 1
-
-    @pytest.mark.skip(reason="Writes to real PATH, not suitable for unit test")
-    def test_scan_path(self, reg):
-        pass
 
     def test_update_metadata(self, reg, tmp_path):
         with patch.object(reg, "scan_path", return_value=["new_tool"]), \

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import csv
 import io
+import getpass as _getpass
 import json
 import logging
 from enum import StrEnum
@@ -273,12 +274,10 @@ class OutputEngine:
     def prompt_input(
         self, message: str, default: str = "", password: bool = False
     ) -> str:
-        if RICH_AVAILABLE:
+        if RICH_AVAILABLE and self.console is not None:
             return Prompt.ask(message, default=default, password=password)
         if password:
-            import getpass
-
-            return getpass.getpass(f"{message}: ")
+            return _getpass.getpass(f"{message}: ")
         return input(f"{message} [{default}]: ").strip() or default
 
     def _export_data(self, data: list[dict]) -> None:

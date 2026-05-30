@@ -7,16 +7,23 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import warnings
 from collections.abc import Generator
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from getpass import GetPassWarning
 
 from siyarix.engine_types import StepResult, StepStatus
 from siyarix.planner import ExecutionPlan, ExecutionStep, StepType
 from siyarix.providers import NoopProvider, ProviderRegistry
 from siyarix.tool_registry import ToolInfo, ToolRegistry
+
+# ── Warning Filters ─────────────────────────────────────────────────
+
+warnings.filterwarnings("ignore", category=GetPassWarning)
+
 
 # ── Provider Fixtures ────────────────────────────────────────────────
 

@@ -18,13 +18,10 @@ Core commands:
 from __future__ import annotations
 
 import asyncio
-import csv
 import json
 import os
 import platform
-import shutil
 import sys
-import time
 from datetime import datetime
 from pathlib import Path
 
@@ -35,13 +32,13 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.prompt import Prompt
 from rich.table import Table
 
-from typing import Any, cast
+from typing import Any
 
 from . import __version__
 
 from .audit_log import AuditEventType, AuditSeverity, audit
 from .branding import available_themes, print_banner
-from .chat import start_chat
+from .chat import start_chat, CommandProfile, CommandProfileStore, CROSS_PLATFORM_COMMANDS
 from .config import SettingsStore
 from .core import IntentRouter, SessionKernel
 from .core.agentic_loop import AgenticLoop
@@ -217,7 +214,7 @@ def init_wizard(
     home_dir.mkdir(parents=True, exist_ok=True)
     console.print(f"[green]✓ Created {home_dir}[/green]")
 
-    from .config import DEFAULTS, DESCRIPTIONS, SettingsStore
+    from .config import SettingsStore
     settings = SettingsStore()
 
     console.print("\n[bold]Select your default AI provider:[/bold]")
@@ -784,6 +781,11 @@ def run(
 
     # Handle --resume
     if resume_plan:
+        try:
+            from .offline_store import OfflineStore
+        except ModuleNotFoundError:
+            console.print("[yellow]Plan persistence not available in this version[/yellow]")
+            raise typer.Exit(1)
         store = OfflineStore()
         resolved_id = resume_plan
         if resume_plan.lower() == "latest":
@@ -994,29 +996,38 @@ def metrics_show(
     console.print(table)
 
 
+@app.command("ci-gate")
+def ci_gate(
+    allow_degraded: bool = typer.Option(
+        False, "--allow-degraded", help="Pass even if health is degraded"
+    ),
+) -> None:
+    """CI gate — verify system health and critical findings before deployment."""
+    try:
+        from .offline_store import OfflineStore
+    except ModuleNotFoundError:
+        console.print("[yellow]Offline store not available — skipping finding check[/yellow]")
+        health = asyncio.run(get_health().check_all())
+    else:
+        store = OfflineStore()
+        health = asyncio.run(get_health().check_all())
+        critical = store.search_findings(severity="critical", limit=1)
 
-    store = OfflineStore()
-    health = asyncio.run(get_health().check_all())
-    critical = store.search_findings(severity="critical", limit=1)
+        if health.state.value == "unhealthy":
+            console.print("[red]Health check failed: UNHEALTHY[/red]")
+            raise typer.Exit(2)
 
-    if health.state.value == "unhealthy":
-        console.print("[red]Health check failed: UNHEALTHY[/red]")
-        raise typer.Exit(2)
+        if health.state.value == "degraded" and not allow_degraded:
+            console.print(
+                "[yellow]Health check is DEGRADED (use --allow-degraded to pass).[/yellow]"
+            )
+            raise typer.Exit(2)
 
-    if health.state.value == "degraded" and not allow_degraded:
-        console.print(
-            "[yellow]Health check is DEGRADED (use --allow-degraded to pass).[/yellow]"
-        )
-        raise typer.Exit(2)
-
-    if critical:
-        console.print("[red]Critical findings detected. Failing gate.[/red]")
-        raise typer.Exit(3)
+        if critical:
+            console.print("[red]Critical findings detected. Failing gate.[/red]")
+            raise typer.Exit(3)
 
     console.print("[green]✓ CI gate passed[/green]")
-
-
-
 
 
 # ---------------------------------------------------------------------------

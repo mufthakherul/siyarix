@@ -629,14 +629,11 @@ class SiyarixChat:
             "/model": self._cmd_model,
             "/context": self._cmd_context,
             "/version": self._cmd_version,
-            "/work-mode": self._cmd_work_mode,
             "/config": self._cmd_config,
-            "/learning": self._cmd_learning,
             "/esc": self._cmd_esc,
             "/cancel": self._cmd_esc,
             "/log": self._cmd_log,
             "/diff": self._cmd_diff,
-            "/schedule": self._cmd_schedule,
         }
 
         handler = handlers.get(command)
@@ -1398,107 +1395,6 @@ class SiyarixChat:
             return
         console.print(Panel(summary, title="Session Context", border_style="dim"))
 
-    def _cmd_work_mode(self, args: str) -> None:
-        """Handle /work-mode persona switching and management."""
-        try:
-            from .persona_engine import (Persona, PersonaEngine, ToolACL)
-        except ModuleNotFoundError:
-            console.print("[yellow]Persona engine is not available in this version[/yellow]")
-            return
-
-        engine = PersonaEngine()
-        tokens = args.split() if args else []
-        action = tokens[0].lower() if tokens else ""
-
-        if action == "list":
-            personas = engine.persona_list
-            table = Table(
-                title=f"Available Personas ({len(personas)})", header_style="bold cyan"
-            )
-            table.add_column("Name", style="cyan")
-            table.add_column("Description", style="white")
-            table.add_column("Bias", style="magenta")
-            table.add_column("Type", style="dim")
-            for p in personas:
-                ptype = "Custom" if p.is_custom else "Built-in"
-                table.add_row(p.name, p.description, p.learning_bias.value, ptype)
-            console.print(table)
-            if engine.active_persona:
-                console.print(
-                    f"\n[dim]Active: [cyan]{engine.active_persona.name}[/cyan][/dim]"
-                )
-            return
-
-        if action == "create":
-            from rich.prompt import Prompt as RichPrompt
-
-            name = RichPrompt.ask("Persona name").strip().lower().replace(" ", "_")
-            if not name:
-                console.print("[red]Name required.[/red]")
-                return
-            desc = RichPrompt.ask("Description")
-            system_prompt = RichPrompt.ask("System prompt")
-            allowed_tools = RichPrompt.ask(
-                "Allowed tools (comma-separated, * for all)", default="*"
-            )
-            forbidden_tools = RichPrompt.ask(
-                "Forbidden tools (comma-separated)", default=""
-            )
-            acl = ToolACL(
-                allowed=[t.strip() for t in allowed_tools.split(",") if t.strip()],
-                forbidden=[t.strip() for t in forbidden_tools.split(",") if t.strip()],
-            )
-            persona = Persona(
-                name=name,
-                description=desc,
-                system_prompt=system_prompt,
-                tool_acl=acl,
-                is_custom=True,
-            )
-            path = engine.save_custom_persona(persona)
-            console.print(f"[green]✓ Custom persona '{name}' saved to {path}[/green]")
-            engine.switch_to(name)
-            console.print(f"[green]✓ Switched to persona: {name}[/green]")
-            return
-
-        if action == "auto":
-            engine.switch_to("auto")
-            self._session.context["persona"] = "auto"
-            console.print("[green]✓ Auto persona detection enabled[/green]")
-            return
-
-        if action == "export":
-            if len(tokens) < 2:
-                console.print("[yellow]Usage: /work-mode export <name>[/yellow]")
-                return
-            export_persona: Persona | None = engine.get_persona(tokens[1])
-            if not export_persona:
-                console.print(f"[red]Persona not found: {tokens[1]}[/red]")
-                return
-            path = engine.save_custom_persona(export_persona)
-            console.print(f"[green]✓ Persona '{tokens[1]}' exported to {path}[/green]")
-            return
-
-        if action:
-            try:
-                engine.switch_to(action)
-                self._session.context["persona"] = action
-                switched_persona = engine.get_persona(action)
-                console.print(f"[green]✓ Switched to persona: {action}[/green]")
-                if switched_persona:
-                    console.print(f"[dim]{switched_persona.description}[/dim]")
-            except ValueError as exc:
-                console.print(f"[red]{exc}[/red]")
-            return
-
-        current = engine.active_persona
-        if current:
-            console.print(f"[cyan]Current persona: {current.name}[/cyan]")
-            console.print(f"[dim]{current.description}[/dim]")
-        console.print(
-            "[dim]Use /work-mode <name>, /work-mode list, or /work-mode create[/dim]"
-        )
-
     async def _cmd_config(self, args: str) -> None:
         """Open the interactive configuration panel."""
         sub = args.strip().lower() if args else ""
@@ -1632,274 +1528,6 @@ class SiyarixChat:
                 console.print(f"[red]Agent not found: {tokens[1]}[/red]")
         else:
             console.print("[yellow]Usage: /agent spawn|list|kill[/yellow]")
-
-    async def _cmd_learning(self, args: str) -> None:
-        """Handle /learning command for user learning and patterns."""
-        import json
-
-        from rich.panel import Panel
-        from rich.prompt import Prompt as RichPrompt
-        from rich.syntax import Syntax
-        from rich.table import Table
-
-        try:
-            from .learning_memory import LearningMemory
-            from .user_learning import UserLearning
-        except ModuleNotFoundError:
-            console.print("[yellow]Learning features are not available in this version[/yellow]")
-            return
-
-        tokens = args.split() if args else []
-        action = tokens[0].lower() if tokens else ""
-        ul = UserLearning()
-        lm = LearningMemory()
-
-        if action == "profile":
-            console.print(ul.get_profile_panel())
-            improve_suggestions = ul.get_improvement_suggestions()
-            if improve_suggestions:
-                console.print(
-                    Panel(
-                        "\n".join(f"  {s}" for s in improve_suggestions),
-                        title="Improvement Suggestions",
-                        border_style="yellow",
-                    )
-                )
-
-        elif action == "milestones":
-            console.print(ul.get_milestones_panel())
-
-        elif action == "sessions":
-            console.print(ul.get_sessions_panel())
-
-        elif action == "patterns":
-            patterns = lm.top_patterns(10)
-            if not patterns:
-                console.print("[dim]No learned patterns yet.[/dim]")
-                return
-            table = Table(
-                title=f"Learned Tool Patterns ({lm.total_records} total)",
-                header_style="bold cyan",
-            )
-            table.add_column("Pattern Chain", style="green")
-            table.add_column("Uses", style="yellow", justify="right")
-            table.add_column("Confidence", style="magenta", justify="right")
-            table.add_column("Success", style="cyan", justify="right")
-            table.add_column("Avg Dur", style="dim", justify="right")
-            table.add_column("Phase", style="blue")
-            for pat in patterns:
-                chain = " -> ".join(pat.ngram)
-                dur = f"{pat.avg_duration_ms:.0f}ms" if pat.avg_duration_ms else "-"
-                table.add_row(
-                    chain,
-                    str(pat.count),
-                    f"{pat.confidence:.0%}",
-                    f"{pat.success_rate:.0%}",
-                    dur,
-                    pat.phase or "-",
-                )
-            console.print(table)
-
-        elif action == "anti-patterns":
-            anti = lm.top_anti_patterns(10)
-            if not anti:
-                console.print("[green]No anti-patterns detected![/green]")
-                return
-            table = Table(title=f"Anti-Patterns ({len(anti)})", header_style="bold red")
-            table.add_column("Failed Chain", style="red")
-            table.add_column("Attempts", style="yellow", justify="right")
-            table.add_column("Confidence", style="magenta", justify="right")
-            for p in anti:
-                chain = " -> ".join(p.ngram)
-                table.add_row(chain, str(p.count), f"{p.confidence:.0%}")
-            console.print(table)
-
-        elif action == "network":
-            network = lm.pattern_network()
-            if not network:
-                console.print(
-                    "[dim]No pattern network data yet. Run some commands first.[/dim]"
-                )
-                return
-            table = Table(title="Tool Transition Network", header_style="bold cyan")
-            table.add_column("From", style="green")
-            table.add_column("To (confidence)", style="white")
-            for src, edges in sorted(network.items())[:15]:
-                targets = ", ".join(f"{dst} ({conf:.1f})" for dst, conf in edges[:4])
-                table.add_row(src, targets)
-            console.print(table)
-
-        elif action == "phase-distribution":
-            dist = lm.phase_distribution()
-            if not dist:
-                console.print("[dim]No phase data yet.[/dim]")
-                return
-            table = Table(title="Pattern Phase Distribution", header_style="bold cyan")
-            table.add_column("Phase", style="green")
-            table.add_column("Patterns", style="yellow", justify="right")
-            for phase, count in sorted(dist.items(), key=lambda x: x[1], reverse=True):
-                table.add_row(phase, str(count))
-            console.print(table)
-
-        elif action == "suggest":
-            tool = tokens[1] if len(tokens) > 1 else ""
-            if not tool:
-                tool = RichPrompt.ask("Suggest next tool after")
-            tool_suggestions = lm.suggest(tool, max_suggestions=8)
-            if not tool_suggestions:
-                console.print(
-                    f"[dim]No suggestions for '{tool}'. Try using it more.[/dim]"
-                )
-                return
-            table = Table(title=f"Suggestions after '{tool}'", header_style="bold cyan")
-            table.add_column("Next Tool", style="green")
-            table.add_column("Confidence", style="magenta", justify="right")
-            table.add_column("Reason", style="white")
-            table.add_column("Phase", style="blue")
-            for s in tool_suggestions:
-                table.add_row(
-                    s["tool"],
-                    f"{s['confidence']:.0%}",
-                    s.get("reason", "")[:50],
-                    s.get("phase", "-"),
-                )
-            console.print(table)
-
-        elif action == "level":
-            if len(tokens) < 2 or tokens[1] not in (
-                "novice",
-                "intermediate",
-                "advanced",
-                "expert",
-            ):
-                console.print(
-                    "[yellow]Usage: /learning level <novice|intermediate|advanced|expert>[/yellow]"
-                )
-                return
-            ul.experience = tokens[1]
-            console.print(f"[green]✓ Experience level set to: {tokens[1]}[/green]")
-            console.print(
-                "[dim]Auto-detect disabled. Use /learning auto to re-enable.[/dim]"
-            )
-
-        elif action == "auto":
-            ul.enable_auto_detect()
-            console.print(
-                f"[green]✓ Auto-detection enabled. Current level: {ul.experience}[/green]"
-            )
-
-        elif action == "pref" or action == "preferences":
-            if len(tokens) < 2:
-                prefs = ul.preferences
-                table = Table(title="User Preferences", header_style="bold cyan")
-                table.add_column("Key", style="green")
-                table.add_column("Value", style="white")
-                for k, v in prefs.items():
-                    table.add_row(k, str(v))
-                console.print(table)
-                return
-            if len(tokens) >= 3:
-                key, val = tokens[1], " ".join(tokens[2:])
-                ul.set_preference(key, val)
-                console.print(f"[green]✓ Preference set: {key} = {val}[/green]")
-
-        elif action == "export":
-            filepath = tokens[1] if len(tokens) > 1 else ""
-            if filepath:
-                data = lm.export_patterns(filepath)
-                console.print(
-                    f"[green]✓ Exported {data['pattern_count']} patterns to {filepath}[/green]"
-                )
-            else:
-                data = lm.export_patterns()
-                console.print(
-                    Panel(
-                        Syntax(json.dumps(data, indent=2, default=str), "json"),
-                        title="Exported Patterns",
-                        border_style="green",
-                    )
-                )
-
-        elif action == "import":
-            filepath = tokens[1] if len(tokens) > 1 else ""
-            if not filepath:
-                console.print("[yellow]Usage: /learning import <filepath>[/yellow]")
-                return
-            count = lm.import_patterns(filepath)
-            console.print(f"[green]✓ Imported {count} patterns from {filepath}[/green]")
-
-        elif action == "clear":
-            confirm = RichPrompt.ask(
-                "[red]Clear ALL learning data? (yes/no)[/red]", default="no"
-            )
-            if confirm.lower() == "yes":
-                lm.clear()
-                ul.clear_history()
-                console.print("[red]✓ All learning data cleared[/red]")
-
-        elif action == "summary":
-            prof = ul.profile
-            ls = lm.summary
-            console.print(
-                Panel(
-                    f"[bold]User:[/bold] {prof.username or 'anonymous'} | "
-                    f"[bold]Level:[/bold] {prof.experience} "
-                    f"{'(auto)' if prof.auto_detect else ''}\n"
-                    f"[bold]Commands:[/bold] {prof.total_commands} | "
-                    f"[bold]Tools:[/bold] {prof.unique_tools} | "
-                    f"[bold]Categories:[/bold] {prof.category_count}\n"
-                    f"[bold]Patterns:[/bold] {ls['total_patterns']} | "
-                    f"[bold]Anti-patterns:[/bold] {ls['total_anti_patterns']} | "
-                    f"[bold]Phases:[/bold] {', '.join(ls['phase_coverage'].keys()) or 'none'}",
-                    title="Learning Summary",
-                    border_style="cyan",
-                )
-            )
-
-        elif action == "chain":
-            tool = tokens[1] if len(tokens) > 1 else ""
-            if not tool:
-                console.print(
-                    "[yellow]Usage: /learning chain <tool> [tool2 ...][/yellow]"
-                )
-                return
-            partial = tokens[1:]
-            completions = lm.suggest_chain(partial)
-            if not completions:
-                console.print(
-                    f"[dim]No chain completions for: {' -> '.join(partial)}[/dim]"
-                )
-                return
-            table = Table(
-                title=f"Chain Completions for '{' -> '.join(partial)}'",
-                header_style="bold cyan",
-            )
-            table.add_column("Complete Chain", style="green")
-            for c in completions:
-                table.add_row(" -> ".join(c))
-            console.print(table)
-
-        else:
-            console.print(
-                "[yellow]Usage: /learning <subcommand>\n"
-                "  profile        — show user learning profile\n"
-                "  sessions       — show session history\n"
-                "  milestones     — show learning milestones\n"
-                "  summary        — show learning summary\n"
-                "  patterns       — show top learned tool patterns\n"
-                "  anti-patterns  — show failed tool chains\n"
-                "  suggest <tool> — suggest next tools after <tool>\n"
-                "  chain <t>...   — suggest chain completions\n"
-                "  network        — show tool transition network graph\n"
-                "  phase-distribution — show patterns per phase\n"
-                "  level <lvl>    — set experience level (disables auto)\n"
-                "  auto           — enable auto-detection of experience level\n"
-                "  pref [k v]     — view or set preferences\n"
-                "  export [path]  — export learned patterns\n"
-                "  import <path>  — import patterns from file\n"
-                "  clear          — clear all learning data\n"
-                "[/yellow]"
-            )
 
     def _cmd_esc(self, _: str) -> None:
         """Emergency stop - cancel all pending execution."""
@@ -2085,69 +1713,6 @@ class SiyarixChat:
     # ──────────────────────────────────────────────────────────────────────
     # Schedule commands
     # ──────────────────────────────────────────────────────────────────────
-
-    def _cmd_schedule(self, args: str) -> None:
-        """Handle /schedule command for recurring scan jobs."""
-        from rich.table import Table
-
-        try:
-            from .scheduler import SiyarixScheduler
-        except ModuleNotFoundError:
-            console.print("[yellow]Scheduler is not available in this version[/yellow]")
-            return
-
-        tokens = args.split() if args else []
-        action = tokens[0].lower() if tokens else "list"
-        sched = SiyarixScheduler()
-
-        if action == "list":
-            jobs = sched.list_all()
-            if not jobs:
-                console.print(
-                    "[dim]No scheduled jobs. Use /schedule add to create one.[/dim]"
-                )
-                return
-            table = Table(
-                title=f"Scheduled Jobs ({len(jobs)})", header_style="bold cyan"
-            )
-            table.add_column("Name", style="cyan")
-            table.add_column("Cron", style="yellow")
-            table.add_column("Command", style="white")
-            table.add_column("Active", justify="center")
-            table.add_column("Last Run", style="dim")
-            for j in jobs:
-                active = "[green]✓[/green]" if j.active else "[dim]✗[/dim]"
-                table.add_row(
-                    j.name,
-                    j.cron,
-                    j.command[:40],
-                    active,
-                    j.last_run[:16] if j.last_run else "-",
-                )
-            console.print(table)
-
-        elif action == "add":
-            if len(tokens) < 4:
-                console.print(
-                    "[yellow]Usage: /schedule add <name> <cron|daily|weekly|hourly> <command>[/yellow]"
-                )
-                return
-            name = tokens[1]
-            cron = tokens[2].lower()
-            command = " ".join(tokens[3:])
-            sched.create(name=name, target="", cron=cron, command=command)
-            console.print(f"[green]✓ Scheduled job added: {name} ({cron})[/green]")
-
-        elif action == "remove":
-            if len(tokens) < 2:
-                console.print("[yellow]Usage: /schedule remove <name>[/yellow]")
-                return
-            if sched.delete(tokens[1]):
-                console.print(f"[green]✓ Scheduled job removed: {tokens[1]}[/green]")
-            else:
-                console.print(f"[red]Scheduled job not found: {tokens[1]}[/red]")
-        else:
-            console.print("[yellow]Usage: /schedule list|add|remove[/yellow]")
 
     # ──────────────────────────────────────────────────────────────────────
     # Batch command
@@ -2425,18 +1990,6 @@ class SiyarixChat:
             domain = tokens[1] if len(tokens) > 1 else ""
             count = cache_manager.invalidate(domain)
             console.print(f"[green]{count} entries invalidated[/green]")
-
-    async def _cmd_distributed(self, args: str) -> None:
-        """Handle /distributed command for multi-node execution."""
-        from .distributed import DistributedOrchestrator
-        tokens = args.split() if args else []
-        if not tokens or tokens[0] not in ("status", "configure", "nodes"):
-            console.print("[yellow]Usage: /distributed status|configure|nodes[/yellow]")
-            return
-        orch = DistributedOrchestrator()
-        if tokens[0] == "status":
-            summary = orch.summary()
-            console.print(f"Distributed: {summary.get('total_workers', 1)} workers, {summary.get('total_cores', 0)} cores, {summary.get('total_ram_gb', 0)}GB RAM")
 
     async def _cmd_import(self, args: str) -> None:
         """Handle /import command for importing scan results."""
@@ -2786,11 +2339,7 @@ class SiyarixChat:
         # Multi-model ensemble voting (available providers > 1)
         try:
             from .multi_model_ensemble import MultiModelEnsemble, VotingStrategy
-        except ModuleNotFoundError:
-            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
-            return
 
-        try:
             ensemble = MultiModelEnsemble()
             registered_count = 0
             for p in getattr(getattr(engine, "_planner", None), "_providers", []):
@@ -2814,17 +2363,15 @@ class SiyarixChat:
                             border_style="cyan",
                         )
                     )
+        except ModuleNotFoundError:
+            pass
         except Exception as exc:
             logger.debug("Ensemble integration skipped: %s", exc)
 
         # Adversarial plan review
         try:
             from .adversarial_tester import AdversarialTester, AdversarialSeverity
-        except ModuleNotFoundError:
-            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
-            return
 
-        try:
             tester = AdversarialTester()
             plan_lines = [
                 f"{s.tool or ''} {' '.join(s.args)} {s.target or ''}".strip()
@@ -2850,6 +2397,8 @@ class SiyarixChat:
                         border_style="red" if critical else "yellow",
                     )
                 )
+        except ModuleNotFoundError:
+            pass
         except Exception as exc:
             logger.debug("Adversarial review skipped: %s", exc)
 
@@ -2893,29 +2442,28 @@ class SiyarixChat:
         # Pedagogical output: educational breakdown after task completion
         try:
             from .user_learning import UserLearning
-        except ModuleNotFoundError:
-            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
-            return
 
-        ul = UserLearning()
-        step_results_by_id = {sr.step_id: sr for sr in result.step_results}
-        steps_for_pedagogical = []
-        for s in plan.steps:
-            sr = step_results_by_id.get(s.id)
-            steps_for_pedagogical.append(
-                {
-                    "tool": s.tool or "",
-                    "command": s.command or s.description or "",
-                    "output": sr.output if sr and sr.output else "",
-                    "step_type": (
-                        s.step_type.value
-                        if hasattr(s.step_type, "value")
-                        else str(s.step_type)
-                    ),
-                    "description": s.description or "",
-                }
-            )
-        ul.generate_pedagogical_output(steps_for_pedagogical, result.all_findings)
+            ul = UserLearning()
+            step_results_by_id = {sr.step_id: sr for sr in result.step_results}
+            steps_for_pedagogical = []
+            for s in plan.steps:
+                sr = step_results_by_id.get(s.id)
+                steps_for_pedagogical.append(
+                    {
+                        "tool": s.tool or "",
+                        "command": s.command or s.description or "",
+                        "output": sr.output if sr and sr.output else "",
+                        "step_type": (
+                            s.step_type.value
+                            if hasattr(s.step_type, "value")
+                            else str(s.step_type)
+                        ),
+                        "description": s.description or "",
+                    }
+                )
+            ul.generate_pedagogical_output(steps_for_pedagogical, result.all_findings)
+        except ModuleNotFoundError:
+            pass
 
     def _generate_text_response(self, user_input: str) -> str:
         """Generate a helpful text response when no tool execution is needed."""
@@ -2979,14 +2527,13 @@ class SiyarixChat:
         findings_count = 0
         try:
             from .offline_store import OfflineStore
-        except ModuleNotFoundError:
-            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
-            return
-        try:
+
             store = OfflineStore()
             stats = store.stats()
             scans_count = stats.get("total_scans", 0)
             findings_count = stats.get("total_findings", 0)
+        except ModuleNotFoundError:
+            pass
         except Exception as exc:
             logger.debug("Failed to read offline store stats: %s", exc)
 

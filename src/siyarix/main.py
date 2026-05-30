@@ -51,6 +51,7 @@ from .metrics import get_metrics
 from .security_commands import security_app
 from .tool_registry import ToolRegistry
 
+from .output import OutputEngine
 from .validators import validate_target
 
 # ---------------------------------------------------------------------------
@@ -84,6 +85,31 @@ def _upsert_env_vars(env_map: dict[str, str], env_file: str | None = None) -> No
         os.environ[k] = v
 
 
+def _display_findings_table(findings: list[dict]) -> None:
+    """Render scan findings as a Rich table."""
+    ftable = Table(title="Findings", header_style="bold red")
+    ftable.add_column("Severity", width=8)
+    ftable.add_column("Type", style="cyan")
+    ftable.add_column("Detail", style="white")
+    for f in findings[:20]:
+        sev = f.get("severity", "info")
+        sev_color = {
+            "critical": "red",
+            "high": "orange1",
+            "medium": "yellow",
+            "low": "cyan",
+            "info": "white",
+        }.get(sev, "white")
+        ftable.add_row(
+            f"[{sev_color}]{sev}[/{sev_color}]",
+            f.get("type", "—"),
+            str(f.get("detail", f.get("description", "")))[:80],
+        )
+    if len(findings) > 20:
+        ftable.add_row("", f"[dim]… and {len(findings) - 20} more[/dim]", "")
+    console.print(ftable)
+
+
 # ---------------------------------------------------------------------------
 # Initialize core systems
 # ---------------------------------------------------------------------------
@@ -99,6 +125,16 @@ config = SettingsStore()
 configure_logging(config.get("log_level"))
 creds = CredentialStore()
 _load_dotenv()
+
+# Load API keys from encrypted credential store into environment
+for provider, env_var in [("gemini", "GEMINI_API_KEY"), ("openai", "OPENAI_API_KEY"), ("anthropic", "ANTHROPIC_API_KEY")]:
+    if not os.environ.get(env_var):
+        try:
+            key = creds.retrieve(provider, "api_key")
+            if key:
+                os.environ[env_var] = key
+        except Exception:
+            pass
 intent_router = IntentRouter()
 session_kernel = SessionKernel()
 
@@ -297,9 +333,10 @@ def _run_batch_lines(lines: list[str]) -> None:
         else:
             reply = responder.respond(line)
             if reply:
-                console.print(Panel(reply, title="Siyarix", border_style="green"))
+                console.print(reply)
             else:
                 asyncio.run(chat._handle_natural_language(line))
+        console.print()
 
 
 def _show_version() -> None:
@@ -721,6 +758,21 @@ def scan(
     if dry_run:
         console.print("[yellow]Dry run complete — no commands executed.[/yellow]")
         return
+
+    # Display findings according to the requested output format
+    if result.all_findings:
+        output = output.lower()
+        if output in ("json", "yaml", "csv"):
+            output_engine = OutputEngine(output_format=output)
+            if output == "json":
+                output_engine.print_json(result.all_findings)
+            elif output == "yaml":
+                output_engine.print_yaml(result.all_findings)
+            else:
+                console.print("[yellow]CSV output not yet supported, falling back to table[/yellow]")
+                _display_findings_table(result.all_findings)
+        else:
+            _display_findings_table(result.all_findings)
 
     audit.log(
         event_type=AuditEventType.SCAN_COMPLETE,

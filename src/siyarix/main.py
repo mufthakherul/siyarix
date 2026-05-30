@@ -1,23 +1,18 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Siyarix CLI — Premium Enterprise Entry Point.
+"""Siyarix CLI — Cybersecurity Command Center.
 
-Features:
-  • Multi-level command routing with nested Typer apps
-  • Premium Rich console with themes, panels, banners
-  • Smart mode detection (registry/autonomous/integrated)
-  • Plugin ecosystem with auto-discovery
-  • Autonomous task planner & natural language
-  • Enterprise audit logging & compliance
-  • Bulk operations & watch mode
-  • Multi-environment & profile support
-  • Offline-first with sync capabilities
-  • CI/CD integration & policy gates
-
-  • Advanced output formats (JSON/YAML/CSV/Table/Rich)
-  • Secure credential & API key management
-  • Real-time progress & live dashboards
-  • Context-aware help & examples
+Core commands:
+  scan       — Run security scans against targets
+  run        — Natural language → execution
+  agent      — Goal-driven autonomous agent
+  discover   — Asset and service discovery
+  auth       — Authentication & API keys
+  init       — Initialize configuration wizard
+  config     — CLI configuration
+  cache      — Cache management
+  report     — Report generation
+  health     — System health checks
 """
 
 from __future__ import annotations
@@ -142,19 +137,17 @@ app = typer.Typer(
 [dim]Version: {__version__} | Platform: {platform.system()} | Python: {platform.python_version()}[/dim]
 
 [bold]Quick Start:[/bold]
-  [green]siyarix[/green]                          — Interactive shell (chat / TUI)
   [green]siyarix scan 192.168.1.0/24[/green]      — Direct command execution
-  [green]echo "scan 10.0.0.1" | siyarix[/green]  — Pipe commands via stdin
   [green]siyarix run "scan my network"[/green]    — Natural language command
-  [green]siyarix discover example.com[/green]     — Asset & service discovery
+  [green]echo "scan 10.0.0.1" | siyarix[/green]  — Pipe commands via stdin
 
 [bold]Key Commands:[/bold]
-  • [magenta]siyarix scan[/magenta]         — Network / port scanning
+  • [magenta]siyarix scan[/magenta]         — Security scanning
   • [magenta]siyarix run[/magenta]          — Natural language → execution
   • [magenta]siyarix agent[/magenta]        — Goal-driven autonomous agent
-  • [magenta]siyarix shell[/magenta]        — Cross-platform shell helper
-  • [magenta]siyarix workflow[/magenta]     — Workflow orchestration
-  • [magenta]siyarix auth set-key[/magenta] — Configure AI model API keys
+  • [magenta]siyarix discover[/magenta]     — Asset & service discovery
+  • [magenta]siyarix auth[/magenta]         — Authentication & API keys
+  • [magenta]siyarix init[/magenta]         — Initialize configuration
   • [magenta]siyarix --help[/magenta]       — Full command reference
     """,
     add_completion=False,
@@ -290,13 +283,12 @@ def main_callback(
         "", "--target", "-t", help="Set initial target for the session"
     ),
 ) -> None:
-    """Siyarix CLI — the unified entry point.
+    """Siyarix CLI — unified entry point.
 
-    \b
-    Three usage modes:
-      1) [green]siyarix[/green]              — Interactive shell (chat + TUI)
-      2) [green]siyarix <command>[/green]    — Direct command execution
-      3) [green]echo ... | siyarix[/green]   — Pipe commands via stdin
+    Usage:
+      siyarix <command> [options]    — Direct command execution
+      echo "<cmd>" | siyarix         — Pipe commands via stdin
+      siyarix                        — Launch interactive chat
     """
     if config:
         resolved = Path(config).expanduser().resolve()
@@ -599,16 +591,14 @@ def scan(
         help="Persona: offensive|defensive|bug_hunter|pentester|soc_analyst|none|auto",
     ),
 ) -> None:
-    """Run security scans against target(s) using the execution engine.
+    """Run security scans against one or more targets.
 
-    Supports @targets.txt multi-target mode: prefix a path with @ to load targets from file.
+    Supports @targets.txt multi-target mode. Prefix a file path with @ to load targets.
 
     Examples:
       siyarix scan 192.168.1.1
       siyarix scan 10.0.0.0/24 --tool nmap --mode registry
       siyarix scan @targets.txt --parallel 5
-      siyarix scan example.com --dry-run
-      siyarix scan example.com --work-mode bug_hunter
     """
     if not no_banner and not _CI_MODE:
         print_banner(console, _active_theme)
@@ -751,12 +741,11 @@ def run(
     ),
     no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
 ) -> None:
-    """Run a natural language command through the autonomous execution engine.
+    """Run a natural language instruction through the execution engine.
 
     Examples:
-      siyarix run "scan example.com with nmap and nuclei then generate report"
+      siyarix run "scan example.com with nmap and nuclei"
       siyarix run "enumerate subdomains of target.com" --mode autonomous
-      siyarix run "check for sql injection on http://site.com/login" --dry-run
       siyarix run --resume latest
     """
     if not no_banner and not _CI_MODE:
@@ -864,13 +853,13 @@ def agent(
 ) -> None:
     """Launch a goal-driven autonomous agent (observe → reason → act loop).
 
-    The agent will continuously plan, execute, and re-plan until the goal
+    The agent continuously plans, executes, and adapts until the goal
     is achieved or max iterations are reached.
 
     Examples:
       siyarix agent "Perform full recon on target.com" --target target.com
-      siyarix agent "Find all SQL injection vulnerabilities" -t http://app.local -n 5
-      siyarix agent "Enumerate and scan the 10.0.0.0/24 network" --max-iter 15
+      siyarix agent "Find SQL injection vulnerabilities" -t http://app.local -n 5
+      siyarix agent "Enumerate and scan 10.0.0.0/24" --max-iter 15
     """
     if not no_banner and not _CI_MODE:
         print_banner(console, _active_theme)

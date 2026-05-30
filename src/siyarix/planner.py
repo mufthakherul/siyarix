@@ -1,13 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Task planner — converts natural language instructions into structured execution plans.
+"""Task planner — converts natural language instructions into execution plans.
 
-This component provides dynamic planning capabilities by using language
-models (OpenAI, Ollama, or Cloud-based) to interpret complex instructions
-and produce structured execution plans.
-
-When no model provider is available, it automatically falls back to
-the local heuristic-based interpreter.
+Uses language models (OpenAI, Gemini, Anthropic, Ollama, etc.) to interpret
+complex instructions and produce structured plans. Falls back to a local
+heuristic-based interpreter when no model provider is available.
 """
 
 from __future__ import annotations

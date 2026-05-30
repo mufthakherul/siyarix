@@ -11,7 +11,7 @@ urls = { "Homepage" = "https://github.com/mufthakherul/siyarix", "Repository" = 
 license = { text = "AGPL-3.0-or-later" }
 keywords = ["cybersecurity", "agent", "siyarix", "ai", "pentest", "automation", "nmap", "scanner", "autonomous", "orchestration"]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Information Technology",
   "Intended Audience :: System Administrators",
   "License :: OSI Approved :: GNU Affero General Public License v3",

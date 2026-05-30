@@ -13,9 +13,7 @@ from siyarix.core.agentic_loop import AgenticLoop
 
 @pytest.fixture
 def engine():
-    eng = MagicMock()
-    eng.graph = MagicMock()
-    return eng
+    return MagicMock()
 
 
 @pytest.fixture
@@ -58,126 +56,13 @@ class TestObserve:
 
 
 # ---------------------------------------------------------------------------
-# _reflect
+# _reflect (deferred to v2.0 — currently a no-op)
 # ---------------------------------------------------------------------------
 
 class TestReflect:
-    def test_reflect_no_nodes(self, loop):
-        loop._engine.graph.find_nodes.return_value = []
+    def test_reflect_does_nothing(self, loop):
         loop._reflect()
         assert loop._reflection_queue == []
-
-    def test_reflect_host_with_ssh(self, loop):
-        host_mock = MagicMock()
-        host_mock.node_id = "host_1"
-        host_mock.label = "10.0.0.1"
-
-        port_mock = MagicMock()
-        port_mock.node_id = "port_22"
-        port_mock.properties = {"port": 22}
-
-        svc_mock = MagicMock()
-        svc_mock.node_id = "svc_ssh"
-        svc_mock.label = "ssh"
-
-        loop._engine.graph.find_nodes.side_effect = [
-            [host_mock],  # HOST
-            [],           # SUBDOMAIN
-            [],           # VULNERABILITY
-        ]
-        loop._engine.graph.get_edges.side_effect = [
-            [MagicMock(target_id="port_22")],  # port edges
-            [MagicMock(target_id="svc_ssh")],  # service edges
-        ]
-        loop._engine.graph.get_node.side_effect = [port_mock, svc_mock]
-
-        loop._reflect()
-        assert any("hydra" in q for q in loop._reflection_queue)
-
-    def test_reflect_subdomain(self, loop):
-        sub_mock = MagicMock()
-        sub_mock.label = "sub.example.com"
-
-        loop._engine.graph.find_nodes.side_effect = [
-            [],                    # HOST
-            [sub_mock],            # SUBDOMAIN
-            [],                    # VULNERABILITY
-        ]
-
-        loop._reflect()
-        assert any("port scan" in q for q in loop._reflection_queue)
-
-    def test_reflect_critical_vuln(self, loop):
-        vuln_mock = MagicMock()
-        vuln_mock.label = "CVE-2023-1234"
-        vuln_mock.properties = {"severity": "critical"}
-
-        loop._target = "10.0.0.1"
-        loop._engine.graph.find_nodes.side_effect = [
-            [],           # HOST
-            [],           # SUBDOMAIN
-            [vuln_mock],  # VULNERABILITY
-        ]
-
-        loop._reflect()
-        assert any("verify" in q for q in loop._reflection_queue)
-
-    def test_reflect_http_service(self, loop):
-        host_mock = MagicMock()
-        host_mock.node_id = "host_1"
-        host_mock.label = "example.com"
-
-        port_mock = MagicMock()
-        port_mock.node_id = "port_80"
-        port_mock.properties = {"port": 80}
-
-        svc_mock = MagicMock()
-        svc_mock.node_id = "svc_http"
-        svc_mock.label = "http"
-
-        loop._engine.graph.find_nodes.side_effect = [
-            [host_mock],  # HOST
-            [],           # SUBDOMAIN
-            [],           # VULNERABILITY
-        ]
-        loop._engine.graph.get_edges.side_effect = [
-            [MagicMock(target_id="port_80")],
-            [MagicMock(target_id="svc_http")],
-        ]
-        loop._engine.graph.get_node.side_effect = [port_mock, svc_mock]
-
-        loop._reflect()
-        queues = [q.lower() for q in loop._reflection_queue]
-        assert any("nuclei" in q for q in queues)
-        assert any("gobuster" in q for q in queues)
-
-    def test_reflect_no_duplicates(self, loop):
-        host_mock = MagicMock()
-        host_mock.node_id = "host_1"
-        host_mock.label = "10.0.0.1"
-
-        port_mock = MagicMock()
-        port_mock.node_id = "port_22"
-        port_mock.properties = {"port": 22}
-
-        svc_mock = MagicMock()
-        svc_mock.node_id = "svc_ssh"
-        svc_mock.label = "ssh"
-
-        loop._engine.graph.find_nodes.side_effect = [
-            [host_mock],  # HOST
-            [],           # SUBDOMAIN
-            [],           # VULNERABILITY
-        ]
-        loop._engine.graph.get_edges.side_effect = [
-            [MagicMock(target_id="port_22")],
-            [MagicMock(target_id="svc_ssh"), MagicMock(target_id="svc_ssh")],
-        ]
-        loop._engine.graph.get_node.side_effect = [port_mock, svc_mock, svc_mock]
-
-        loop._reflect()
-        hydra_count = sum(1 for q in loop._reflection_queue if "hydra" in q)
-        assert hydra_count == 1
 
 
 # ---------------------------------------------------------------------------

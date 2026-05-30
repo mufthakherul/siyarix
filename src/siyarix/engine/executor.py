@@ -34,15 +34,11 @@ from rich.table import Table
 from ..dynamic_resolver import DynamicResolver
 from ..engine_types import StepResult, StepStatus
 from ..kill_switch import KillSwitch, KillSwitchState
-from ..knowledge_graph import KnowledgeGraph
 from ..metrics import get_metrics
-from ..notifications import notification_center
-from ..offline_store import OfflineStore
 from ..planner import ExecutionPlan, ExecutionStep, StepType, TaskPlanner
 from ..tool_executor import ToolExecutor
 from ..tool_registry import ToolInfo, ToolRegistry
 from ..worker_pool import AsyncWorkerPool
-from ..xi import ContextTracker, Predictor, SkillProfiler, XICoreService
 
 from .context import compress_context as _compress_context
 from .providers import setup_providers as _setup_providers
@@ -98,9 +94,6 @@ class ExecutionEngine:
         self._planner = TaskPlanner()
         self._setup_providers()
 
-        # Runtime intelligence services (XI)
-        self._xi_tracker = ContextTracker()
-        self._xi_predictor = Predictor()
         self._replan_attempts = 0
         self._max_replans = int(self._config.get("max_replans", 3))
 
@@ -113,19 +106,14 @@ class ExecutionEngine:
         registered.update({t.name: t.path for t in self._discovered_tools})
         self._resolver = DynamicResolver(registered_tools=registered)
 
-        # Shared graph and step state
-        self._graph = KnowledgeGraph()
-
         # Tool executor (delegates actual tool/shell runs)
         self._executor = ToolExecutor(
             resolver=self._resolver,
             discovered_tools=self._discovered_tools,
-            graph=self._graph,
         )
 
         # Step results for tracking
         self._completed_steps: dict[str, StepResult] = {}
-        self._offline_store: OfflineStore | None = None
 
         # Learning memory for correction tracking
         self._learning_memory = learning_memory
@@ -133,10 +121,6 @@ class ExecutionEngine:
         # Session logger for structured audit logging
         self._session_logger = session_logger
         self._current_log_session_id: str | None = None
-
-        # Lazy XI services (SkillProfiler & XICoreService)
-        self._xi_skill_profiler: SkillProfiler | None = None
-        self._xi_core_service: XICoreService | None = None
 
         # Kill switch for emergency stop
         self._kill_switch = KillSwitch()
@@ -153,22 +137,6 @@ class ExecutionEngine:
             asyncio.create_task(self._pool.cancel_pending())
         except Exception as exc:
             logger.exception("Pool cancellation failed: %s", exc)
-
-    def _get_offline_store(self) -> OfflineStore:
-        """Get or create offline store instance."""
-        if self._offline_store is None:
-            self._offline_store = OfflineStore()
-        return self._offline_store
-
-    def _get_skill_profiler(self) -> SkillProfiler:
-        if self._xi_skill_profiler is None:
-            self._xi_skill_profiler = SkillProfiler()
-        return self._xi_skill_profiler
-
-    def _get_xi_core_service(self) -> XICoreService:
-        if self._xi_core_service is None:
-            self._xi_core_service = XICoreService()
-        return self._xi_core_service
 
     def _refresh_tools(self) -> None:
         """Force rediscovery of installed tools and rebuild the resolver."""
@@ -325,11 +293,6 @@ class ExecutionEngine:
         _setup_providers(self._planner, self._config)
 
     @property
-    def graph(self) -> KnowledgeGraph:
-        """Get the live knowledge graph of findings."""
-        return self._graph
-
-    @property
     def mode(self) -> ExecutionMode:
         return self._mode
 
@@ -339,38 +302,6 @@ class ExecutionEngine:
 
     def _build_context(self) -> dict[str, Any]:
         """Build context dict for the task planner."""
-        recent_execs = self._xi_tracker.recent_executions
-        last_tool = recent_execs[-1].tool if recent_execs else ""
-        prediction_objs = self._xi_predictor.predict_next(
-            phase=self._xi_tracker.phase,
-            last_tool=last_tool,
-            target="",
-            findings_count=self._xi_tracker.total_findings,
-        )
-
-        sp = self._get_skill_profiler()
-        xi_skill = {
-            "level": sp.profile.level,
-            "verbosity": sp.profile.verbosity,
-            "show_hints": sp.profile.show_hints,
-            "score": sp.profile.score,
-        }
-
-        xi_recs: list[dict[str, str]] = []
-        try:
-            xics = self._get_xi_core_service()
-            from ..core.intent_router import IntentRoute
-            from ..core.session_kernel import SessionContext
-
-            session = SessionContext(session_id="engine", objective="")
-            route = IntentRoute(instruction="", mode=self._mode.value)
-            xi_recs = [
-                {"title": r.title, "reason": r.reason, "priority": r.priority}
-                for r in xics.recommend(session, route)
-            ]
-        except Exception as exc:
-            logger.debug("Failed to get XI recommendations: %s", exc)
-
         return {
             "available_tools": [
                 {
@@ -382,13 +313,6 @@ class ExecutionEngine:
                 for t in self._discovered_tools
             ],
             "mode": self._mode.value,
-            "xi_context": self._xi_tracker.summary(),
-            "xi_predictions": [
-                {"action": p.action, "confidence": p.confidence, "reason": p.reason}
-                for p in prediction_objs
-            ],
-            "xi_skill": xi_skill,
-            "xi_recommendations": xi_recs,
         }
 
     async def plan(self, instruction: str) -> ExecutionPlan:
@@ -425,8 +349,6 @@ class ExecutionEngine:
             If True, plan only — don't execute.
         """
         start_time = time.monotonic()
-        persist_workflow = persist or bool(self._config.get("persist_workflows"))
-        store = self._get_offline_store() if persist_workflow else None
         plan_id: str | None = None
 
         if self._kill_switch.state == KillSwitchState.TRIGGERED:
@@ -545,64 +467,7 @@ class ExecutionEngine:
 
     async def resume(self, plan_id: str, interactive: bool = True) -> EngineResult:
         """Resume a previously persisted execution plan."""
-        store = self._get_offline_store()
-        plan_record = store.get_plan(plan_id)
-        if not plan_record:
-            raise ValueError(f"Plan not found: {plan_id}")
-
-        plan_data = json.loads(plan_record.get("plan_json", "{}"))
-        plan = self._plan_from_dict(plan_data)
-
-        self._completed_steps.clear()
-        self._replan_attempts = 0
-        for row in plan_record.get("steps", []):
-            findings = json.loads(row.get("findings_json") or "[]")
-            sr = StepResult(
-                step_id=row.get("step_id", ""),
-                status=StepStatus(row.get("status", StepStatus.FAILED.value)),
-                output=row.get("output", "") or "",
-                error=row.get("error", "") or "",
-                duration_ms=float(row.get("duration_ms") or 0.0),
-                findings=findings,
-                retry_count=int(row.get("retry_count") or 0),
-                exit_code=row.get("exit_code"),
-            )
-            self._completed_steps[sr.step_id] = sr
-
-        start_time = time.monotonic()
-        store.update_plan_status(plan_id, status="running")
-        if interactive:
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[bold cyan]{task.description}"),
-                TimeElapsedColumn(),
-                console=console,
-            ) as progress:
-                result = await self._execute_plan(
-                    plan, progress, interactive, plan_id, store
-                )
-        else:
-            result = await self._execute_plan(plan, None, interactive, plan_id, store)
-        result.total_duration_ms = (time.monotonic() - start_time) * 1000
-        result.plan_id = plan_id
-
-        metrics = get_metrics()
-        metrics.record_scan(
-            duration=result.total_duration_ms / 1000,
-            successful=result.success,
-            findings_count=len(result.all_findings),
-        )
-
-        store.update_plan_status(
-            plan_id,
-            status="completed" if result.success else "failed",
-            completed=True,
-        )
-
-        if interactive:
-            self._display_summary(result)
-
-        return result
+        raise NotImplementedError("Plan persistence is deferred to v2.0")
 
     def _plan_from_dict(self, data: dict[str, Any]) -> ExecutionPlan:
         """Reconstruct an ExecutionPlan from stored JSON data."""
@@ -643,7 +508,7 @@ class ExecutionEngine:
         progress: Progress | None,
         interactive: bool,
         plan_id: str | None,
-        store: OfflineStore | None,
+        store: Any | None,
     ) -> EngineResult:
         """Execute all steps in the plan respecting dependencies.
 
@@ -760,7 +625,7 @@ class ExecutionEngine:
 
     def _persist_step(
         self,
-        store: OfflineStore | None,
+        store: Any | None,
         plan_id: str | None,
         sr: StepResult,
     ) -> None:
@@ -912,14 +777,7 @@ class ExecutionEngine:
 
         if sr.findings:
             for f in sr.findings:
-                notification_center.finding(
-                    tool=tool_name,
-                    severity=f.get("severity", "info"),
-                    description=f.get("description", str(f)),
-                    target=step.target or "",
-                )
-            for f in sr.findings:
-                self._graph.ingest_finding(f, tool=tool_name)
+                pass  # finding notification deferred to v2.0
 
         if self._learning_memory is not None and confirmed_str != original_args_str:
             try:
@@ -1097,63 +955,10 @@ class ExecutionEngine:
             )
             return total_findings > 0
 
-        port_match = re.match(r"^port_(\d+)_open$", condition)
-        if port_match:
-            port_num = int(port_match.group(1))
-            from ..knowledge_graph import NodeType
-
-            ports = self._graph.find_nodes(NodeType.PORT)
-            for p in ports:
-                if p.properties.get("port") == port_num:
-                    return True
-            return False
-
-        service_match = re.match(r"^service_([a-zA-Z0-9_\-]+)_running$", condition)
-        if service_match:
-            svc_name = service_match.group(1).lower()
-            from ..knowledge_graph import NodeType
-
-            services = self._graph.find_nodes(NodeType.SERVICE)
-            for s in services:
-                if s.label.lower() == svc_name:
-                    return True
-            return False
-
-        if condition == "vulnerability_found":
-            from ..knowledge_graph import NodeType
-
-            vulns = self._graph.find_nodes(NodeType.VULNERABILITY)
-            return len(vulns) > 0
-
         return True
 
     def _record_step_feedback(self, step: ExecutionStep, sr: StepResult) -> None:
-        """Feed step outcomes into XI context/predictor and skill profiler."""
-        tool_name = step.tool or (
-            step.command.split()[0] if step.command else "analysis"
-        )
-        target = step.target or ""
-        self._xi_tracker.record_execution(
-            tool=tool_name,
-            target=target,
-            duration_ms=sr.duration_ms,
-            success=sr.status == StepStatus.SUCCESS,
-            findings_count=len(sr.findings),
-        )
-        if step.command:
-            cmd = step.command
-            self._xi_predictor.learn(cmd)
-        elif step.tool:
-            cmd = " ".join([step.tool, *step.args, step.target or ""]).strip()
-            self._xi_predictor.learn(cmd)
-        else:
-            cmd = ""
-
-        self._get_skill_profiler().record_command(
-            command=cmd or "",
-            tool=tool_name,
-            success=sr.status == StepStatus.SUCCESS,
-        )
+        """Record step feedback for learning (deferred to v2.0)."""
 
     async def _replan_from_feedback(
         self,
@@ -1334,15 +1139,8 @@ class ExecutionEngine:
         *,
         interactive: bool = False,
     ) -> dict[str, Any]:
-        """Execute a high-level objective through the multi-agent coordinator."""
-        from ..agents.coordinator import CoordinatorAgent
-
-        coordinator = CoordinatorAgent(engine=self)
-        return await coordinator.execute_objective(
-            objective=objective,
-            target=target,
-            interactive=interactive,
-        )
+        """Execute a high-level objective (deferred to v2.0 multi-agent)."""
+        raise NotImplementedError("Multi-agent execution deferred to v2.0")
 
     def _display_plan(self, plan: ExecutionPlan) -> None:
         """Display the execution plan to the user."""

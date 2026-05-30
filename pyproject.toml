@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 [project]
 name = "siyarix"
-version = "0.1.3"
+version = "1.0.0-beta.1"
 description = "Siyarix — AI Cybersecurity Orchestration Agent"
 description-content-type = "text/markdown"
 readme = "README.md"
@@ -11,7 +11,7 @@ urls = { "Homepage" = "https://github.com/mufthakherul/siyarix", "Repository" = 
 license = { text = "AGPL-3.0-or-later" }
 keywords = ["cybersecurity", "agent", "siyarix", "ai", "pentest", "automation", "nmap", "scanner", "autonomous", "orchestration"]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 4 - Beta",
   "Intended Audience :: Information Technology",
   "Intended Audience :: System Administrators",
   "License :: OSI Approved :: GNU Affero General Public License v3",
@@ -30,6 +30,8 @@ dependencies = [
   "typer>=0.12",
   "click>=8.1",
   "rich>=13",
+  "prompt_toolkit>=3.0",
+  "jinja2>=3.0",
 
   "httpx>=0.27",
   "pydantic>=2.5",
@@ -55,23 +57,6 @@ gemini = [
 ]
 anthropic = [
   "anthropic>=0.40.0",
-]
-siem = [
-  "httpx>=0.27",
-]
-fast = [
-  "maturin>=1.7",
-]
-all = [
-  "anthropic>=0.40.0",
-  "google-generativeai>=0.8.0",
-  "openai>=2.31.0",
-  "pyyaml>=6.0",
-  "maturin>=1.7",
-]
-cli = [
-  "prompt_toolkit>=3.0",
-  "jinja2>=3.0",
 ]
 dev = [
   "pytest>=8.0",
@@ -115,24 +100,10 @@ strict_optional = true
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 markers = [
-  "adversarial: adversarial behavior and prompt-attack tests",
-  "anomaly: anomaly-detection related tests",
   "bootstrap: bootstrap lifecycle and startup tests",
-  "canary: canary and safety-check tests",
-  "cloud: cloud security scanner tests",
-  "compliance: compliance framework tests",
   "cvss: CVSS scoring tests",
-  "deception: deception and honeypot tests",
-  "distributed: distributed runtime tests",
-  "ensemble: multi-model ensemble tests",
-  "exploitation: exploitation chain tests",
-  "opentelemetry: OpenTelemetry instrumentation tests",
-  "playbook: playbook engine tests",
   "report: reporting engine tests",
-  "siem: SIEM telemetry tests",
   "stealth: stealth mode behavior tests",
   "terminal: terminal detection tests",
-  "threat_intel: threat intelligence tests",
   "tool_installer: tool installer tests",
-  "workflow: workflow runtime tests",
 ]

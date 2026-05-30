@@ -1,17 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Secure Credential & API Key Management — enterprise-grade vault.
+"""Secure Credential & API Key Management.
 
-Features:
-  • Encrypted credential storage (Fernet symmetric encryption)
-  • Environment-scoped credentials (dev/staging/prod)
-  • API key rotation & expiration
-  • Cloud provider integration (AWS, Azure, GCP)
-  • Team sharing with RBAC
-  • Audit trail for all access
-  • Auto-injection into tool environments
-  • Secure export/import (encrypted backups)
-  • Hardware Security Module (HSM) integration ready
+Encrypted credential storage using Fernet / AES-256-GCM with optional
+KMS envelope encryption and OS keyring integration.
 """
 
 from __future__ import annotations
@@ -433,7 +425,7 @@ class CredentialStore:
             for cred_data in data:
                 if "value_encrypted" not in cred_data:
                     logger.error(
-                        f"DEBUG: Missing value_encrypted in cred_data: {cred_data}"
+                        "Credential entry missing value_encrypted"
                     )
                 cred = Credential(
                     cred_id=cred_data["cred_id"],
@@ -533,7 +525,7 @@ class CredentialStore:
 
         # Check expiration
         if cred.expires_at and cred.expires_at < datetime.now():
-            logger.warning(f"Credential {cred.name} has expired")
+            logger.warning("Credential %s has expired", cred.name)
             return None
 
         if update_usage:

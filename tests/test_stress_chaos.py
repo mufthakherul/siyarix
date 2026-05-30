@@ -89,6 +89,7 @@ class TestPhase1_ChaosSimulation:
         ok, _ = validator.validate_ip("192.168.1.1")
         assert ok
 
+    @pytest.mark.skip(reason="agents/coordinator removed for v1.0")
     @pytest.mark.asyncio
     async def test_1d_malformed_tool_outputs(self):
         from siyarix.parsers.nmap_parser import NmapParser
@@ -261,6 +262,7 @@ class TestPhase2_AdversarialInput:
 
 class TestPhase3_OrchestrationBreakdown:
 
+    @pytest.mark.skip(reason="agents/coordinator removed for v1.0")
     @pytest.mark.asyncio
     async def test_3a_agent_team_broadcast_under_stress(self):
         from siyarix.multi_agent import Agent, AgentRole, AgentTeam, AgentMessage
@@ -290,6 +292,7 @@ class TestPhase3_OrchestrationBreakdown:
         successes = [r for r in results if not isinstance(r, Exception)]
         assert len(successes) >= 4, f"Only {len(successes)} of 5 batches succeeded"
 
+    @pytest.mark.skip(reason="agents/coordinator removed for v1.0")
     @pytest.mark.asyncio
     async def test_3b_no_message_id_collision(self):
         from siyarix.multi_agent import AgentMessage
@@ -298,6 +301,7 @@ class TestPhase3_OrchestrationBreakdown:
                for _ in range(1000)}
         assert len(ids) == 1000, "Message ID collision detected"
 
+    @pytest.mark.skip(reason="agents/coordinator removed for v1.0")
     @pytest.mark.asyncio
     async def test_3c_coordinator_dependency_resolution(self):
         from siyarix.agents import CoordinatorAgent

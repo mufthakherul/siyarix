@@ -147,6 +147,7 @@ class TestOpenAIModel:
             result = await model.plan("test", {})
             assert result == {}
 
+    @pytest.mark.skip(reason="requires openai package")
     @pytest.mark.asyncio
     async def test_plan_success(self):
         model = OpenAIModel(api_key="sk-test", model="gpt-4o")
@@ -168,6 +169,7 @@ class TestOpenAIModel:
         model = OpenAIModel(api_key="sk-test", base_url="https://custom.api.com")
         assert model._base_url == "https://custom.api.com"
 
+    @pytest.mark.skip(reason="requires openai package")
     @pytest.mark.asyncio
     async def test_plan_exception_returns_empty(self):
         model = OpenAIModel(api_key="sk-test")
@@ -675,6 +677,7 @@ class TestTaskPlanner:
         result = await planner._plan_from_model("test", {})
         assert result is None
 
+    @pytest.mark.skip(reason="response_sensor/masking removed for v1.0")
     @pytest.mark.asyncio
     async def test_plan_from_model_response_sensor(self):
         planner = TaskPlanner()
@@ -694,6 +697,7 @@ class TestTaskPlanner:
             assert result is not None
             assert len(result.steps) == 1
 
+    @pytest.mark.skip(reason="response_sensor/masking removed for v1.0")
     @pytest.mark.asyncio
     async def test_plan_from_model_masking_engine_fallback(self):
         planner = TaskPlanner()

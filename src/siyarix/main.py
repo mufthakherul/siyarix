@@ -57,6 +57,37 @@ from .tool_registry import ToolRegistry
 from .validators import validate_target
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _load_dotenv(path: Path | None = None) -> None:
+    """Load environment variables from .env file (simple key=value parser)."""
+    env_path = path or Path.cwd() / ".env"
+    if not env_path.exists():
+        env_path = Path.home() / ".siyarix" / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key = key.strip()
+        val = val.strip().strip("'").strip('"')
+        if key and not os.environ.get(key):
+            os.environ[key] = val
+
+
+def _provider_env_var(provider: str) -> str:
+    return f"{provider.upper()}_API_KEY"
+
+
+def _upsert_env_vars(env_map: dict[str, str], env_file: str | None = None) -> None:
+    for k, v in env_map.items():
+        os.environ[k] = v
+
+
+# ---------------------------------------------------------------------------
 # Initialize core systems
 # ---------------------------------------------------------------------------
 
@@ -70,7 +101,7 @@ registry = ToolRegistry()
 config = SettingsStore()
 configure_logging(config.get("log_level"))
 creds = CredentialStore()
-load_env_file()
+_load_dotenv()
 intent_router = IntentRouter()
 session_kernel = SessionKernel()
 
@@ -1184,8 +1215,8 @@ def auth_set_key(
     """
     creds.delete(provider, "api_key")
     creds.store(provider, api_key, "api_key")
-    env_key = provider_env_var(provider)
-    upsert_env_vars({env_key: api_key}, ensure_env_file())
+    env_key = _provider_env_var(provider)
+    _upsert_env_vars({env_key: api_key})
     os.environ[env_key] = api_key
     console.print(f"[green]✓ API key stored for provider: {provider}[/green]")
     console.print(
@@ -1205,7 +1236,7 @@ def auth_show() -> None:
     table.add_column("Source")
 
     for prov in providers:
-        env_key = provider_env_var(prov)
+        env_key = _provider_env_var(prov)
         from_env = bool(os.getenv(env_key))
         from_creds = bool(creds.retrieve(prov, "api_key"))
         if from_env:

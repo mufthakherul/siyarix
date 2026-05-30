@@ -977,9 +977,9 @@ class ToolRegistry:
 
     def update_metadata(self, output_path: Path) -> int:
         """Scan PATH and generate a new metadata file."""
-        print("Scanning PATH and inferring capabilities from --help ...")
+        logger.info("Scanning PATH and inferring capabilities from --help ...")
         scanned = self.scan_path()
-        print(f"  Found {len(scanned)} tools with inferable metadata")
+        logger.info("Found %d tools with inferable metadata", len(scanned))
 
         merged = dict(_KNOWN_TOOLS)
         for tool_name in scanned:
@@ -996,7 +996,7 @@ class ToolRegistry:
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(json.dumps(merged, indent=2), encoding="utf-8")
-        print(f"\nWrote {len(merged)} entries to {output_path}")
+        logger.info("Wrote %d entries to %s", len(merged), output_path)
         return len(merged)
 
     def scan_path(self, timeout: float = 5.0) -> list[str]:

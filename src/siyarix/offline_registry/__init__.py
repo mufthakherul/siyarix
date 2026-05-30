@@ -31,21 +31,14 @@ class OfflineResponder:
         self._registry = ResponseRegistry(pack_dir=pack_dir)
         self._registry.load()
 
-    def respond(self, text: str, threshold: float = 0.75) -> str:
-        """Return the best matching response for *text*, or a fallback message."""
+    def respond(self, text: str, threshold: float = 0.75) -> str | None:
+        """Return the best matching response for *text*, or ``None`` to let the
+        execution pipeline handle the query as a tool command."""
         self._registry.reload_if_changed()
         entry = best_match(text, self._registry.entries, threshold=threshold)
         if entry is not None:
             return resolve(entry.template)
-        return resolve(
-            "I don't have enough offline knowledge to answer that request.\n\n"
-            "You can:\n\n"
-            "* Connect an AI provider.\n"
-            "* Search documentation.\n"
-            "* Use available CLI commands.\n"
-            "* Try a different question.\n\n"
-            "Documentation:\n\n{docs_url}"
-        )
+        return None
 
     def reload_if_changed(self) -> bool:
         """Check for pack file changes and reload if needed. Returns True if reloaded."""

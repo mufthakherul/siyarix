@@ -177,8 +177,8 @@ class HealthChecker:
                                 if available
                                 else "Ollama not responding"
                             )
-                    except Exception as exc:
-                        logger.exception("Ollama check failed: %s", exc)
+                    except Exception:
+                        logger.debug("Ollama check failed — not running")
                         available = False
                         message = "Ollama not running"
 

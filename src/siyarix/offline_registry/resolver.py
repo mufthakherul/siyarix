@@ -34,11 +34,13 @@ def _get_version() -> str:
 
 def _time_of_day() -> str:
     hour = _datetime.now().hour
-    if hour < 12:
+    if 5 <= hour < 12:
         return "morning"
-    if hour < 17:
+    if 12 <= hour < 13:
+        return "noon"
+    if 13 <= hour < 17:
         return "afternoon"
-    if hour < 21:
+    if 17 <= hour < 21:
         return "evening"
     return "night"
 

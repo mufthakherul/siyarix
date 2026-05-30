@@ -45,6 +45,7 @@ CROSS_PLATFORM_COMMANDS: dict[str, dict[str, str]] = {}
 def build_platform_context() -> dict[str, Any]:
     uname = _platform.uname()
     return {
+        "platform": uname.system,
         "platform_pretty": f"{uname.system} {uname.release}",
         "platform_release": uname.release,
         "arch": uname.machine,
@@ -2321,8 +2322,9 @@ class SiyarixChat:
 
         if not plan.steps:
             response = self._generate_text_response(instruction)
-            self._print_assistant(response)
-            self._session.add_message("assistant", response)
+            if response:
+                self._print_assistant(response)
+                self._session.add_message("assistant", response)
             return
 
         # Show plan if requested
@@ -2432,8 +2434,8 @@ class SiyarixChat:
             "assistant", summary, findings=len(result.all_findings)
         )
 
-    def _generate_text_response(self, user_input: str) -> str:
-        """Generate a response using the offline registry."""
+    def _generate_text_response(self, user_input: str) -> str | None:
+        """Return a registry response or ``None`` to let the pipeline proceed."""
         if self._offline_responder is None:
             from .offline_registry import OfflineResponder
             self._offline_responder = OfflineResponder()

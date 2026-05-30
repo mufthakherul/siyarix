@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install siyarix
 COPY pyproject.toml README.md LICENSE NOTICE ./
 COPY src/ src/
-RUN pip install -e ".[all,cli,siem]"
+RUN pip install -e ".[all]"
 
 # Runtime deps for security tools (optional, for full functionality)
 RUN apt-get update && apt-get install -y --no-install-recommends \

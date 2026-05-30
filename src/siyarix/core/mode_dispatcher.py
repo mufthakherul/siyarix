@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Unified Mode Dispatcher for Siyarix v0.1.3.
+"""Unified Mode Dispatcher for Siyarix v1.0.0.
 
 Detects the optimal interaction mode based on CLI context, environment variables,
 TTY availability, and user preferences.

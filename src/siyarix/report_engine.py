@@ -96,7 +96,7 @@ class ReportEngine:
             "target": target,
             "total_findings": len(sorted_findings),
             "severity_counts": self._count_severities(sorted_findings),
-            "generated_by": "Siyarix Report Engine v0.1.3",
+            "generated_by": "Siyarix Report Engine v1.0.0",
         }
 
         sections = []
@@ -428,7 +428,7 @@ class ReportEngine:
             "version": "2.1.0",
             "runs": [
                 {
-                    "tool": {"driver": {"name": "Siyarix", "version": "0.1.3"}},
+                    "tool": {"driver": {"name": "Siyarix", "version": "1.0.0"}},
                     "results": results,
                     "properties": {
                         "report_id": report.report_id,

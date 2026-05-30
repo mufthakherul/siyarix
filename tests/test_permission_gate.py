@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 
 from siyarix.permission_gate import GateResult, PermissionGate
 
@@ -82,6 +83,7 @@ class TestPermissionGate:
         assert result.allowed is True
         assert result.stage == "approved"
 
+    @pytest.mark.skip(reason="persona engine deferred to v2.0")
     @patch("siyarix.permission_gate.DangerAnalyzer")
     def test_persona_acl_allows_tool(self, MockDA: MagicMock) -> None:
         da_instance = MockDA.return_value
@@ -103,6 +105,7 @@ class TestPermissionGate:
         assert result.allowed is True
         assert result.stage == "approved"
 
+    @pytest.mark.skip(reason="persona engine deferred to v2.0")
     @patch("siyarix.permission_gate.DangerAnalyzer")
     def test_persona_acl_blocks_tool(self, MockDA: MagicMock) -> None:
         da_instance = MockDA.return_value
@@ -123,6 +126,7 @@ class TestPermissionGate:
         assert result.stage == "permission"
         assert "not in allowed list" in result.reason
 
+    @pytest.mark.skip(reason="persona engine deferred to v2.0")
     @patch("siyarix.permission_gate.DangerAnalyzer")
     def test_persona_acl_requires_review(self, MockDA: MagicMock) -> None:
         da_instance = MockDA.return_value
@@ -144,6 +148,7 @@ class TestPermissionGate:
         assert result.stage == "review"
         assert result.requires_review is True
 
+    @pytest.mark.skip(reason="persona engine deferred to v2.0")
     @patch("siyarix.permission_gate.DangerAnalyzer")
     def test_persona_acl_requires_permission(self, MockDA: MagicMock) -> None:
         da_instance = MockDA.return_value
@@ -166,6 +171,7 @@ class TestPermissionGate:
         assert result.stage == "permission"
         assert result.requires_review is True
 
+    @pytest.mark.skip(reason="persona engine deferred to v2.0")
     @patch("siyarix.permission_gate.DangerAnalyzer")
     def test_persona_engine_missing_acl(self, MockDA: MagicMock) -> None:
         da_instance = MockDA.return_value

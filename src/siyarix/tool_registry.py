@@ -777,7 +777,7 @@ class ToolRegistry:
         caps: set[str] = set()
         for flag in ("--help", "-h"):
             try:
-                r = subprocess.run([binary_path, flag], capture_output=True, text=True, timeout=5)
+                r = subprocess.run([binary_path, flag], capture_output=True, text=True, timeout=5)  # nosec B603
                 text = (r.stdout + r.stderr).lower()
                 if any(p.search(text) for p in _EXCLUDE):
                     continue

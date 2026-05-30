@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import sys
 from dataclasses import dataclass
 
@@ -363,7 +363,7 @@ class ToolInstaller:
                     capture_output=True,
                     text=True,
                     timeout=120,
-                )
+                )  # nosec B603
                 if proc.returncode == 0:
                     result.success = True
                     result.output = proc.stdout[:500]

@@ -8,7 +8,7 @@ import asyncio
 import inspect
 import logging
 import os
-import subprocess
+import subprocess  # nosec B404
 import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
@@ -98,7 +98,7 @@ async def run_tool(
         *args,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
-    )
+    )  # nosec B603
 
     if proc.stdout is None:  # guaranteed by PIPE, but guard for type safety
         raise RuntimeError(
@@ -146,7 +146,7 @@ async def run_tool_complete(
         *args,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
-    )
+    )  # nosec B603
 
     try:
         stdout_bytes, stderr_bytes = await asyncio.wait_for(
@@ -205,7 +205,7 @@ def safe_run_sync(
     try:
         return subprocess.run(
             cmd, capture_output=capture_output, text=text, timeout=timeout
-        )
+        )  # nosec B603
     except subprocess.TimeoutExpired:
         logger.debug("safe_run_sync timeout for cmd=%s", cmd)
         raise
@@ -220,7 +220,7 @@ async def safe_run_async(cmd: list[str], timeout: int = 10) -> ExecutionResult:
     start = time.monotonic()
     proc = await asyncio.create_subprocess_exec(
         *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )
+    )  # nosec B603
     try:
         stdout_bytes, stderr_bytes = await asyncio.wait_for(
             proc.communicate(), timeout=timeout

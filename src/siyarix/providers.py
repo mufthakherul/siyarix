@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import time
+from abc import ABC, abstractmethod
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -84,7 +85,7 @@ class CircuitBreaker:
         self._failure_count = 0
 
 
-class Provider:
+class Provider(ABC):
     """Common provider interface used by planner and engine.
 
     All model providers should implement this protocol.
@@ -92,14 +93,17 @@ class Provider:
 
     available: bool = False
 
+    @abstractmethod
     async def plan(
         self, prompt: str, context: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         raise NotImplementedError
 
+    @abstractmethod
     async def validate(self) -> bool:
         raise NotImplementedError
 
+    @abstractmethod
     async def chat(
         self,
         messages: list[dict[str, Any]],
@@ -108,6 +112,7 @@ class Provider:
     ) -> dict[str, Any]:
         raise NotImplementedError
 
+    @abstractmethod
     async def close(self) -> None:
         raise NotImplementedError
 

@@ -76,7 +76,6 @@ class TestHealthChecker:
     @pytest.fixture
     def checker_with_mocks(self) -> HealthChecker:
         c = HealthChecker()
-        c._check_offline_store = AsyncMock()
         c._check_model_providers = AsyncMock()
         c._check_tool_registry = AsyncMock()
         c._check_system_resources = AsyncMock()
@@ -107,7 +106,7 @@ class TestHealthChecker:
         async def add_degraded(status: HealthStatus) -> None:
             status.components.append(ComponentHealth(name="Test2", state=HealthState.DEGRADED))
 
-        checker_with_mocks._check_offline_store = add_unhealthy  # type: ignore
+        checker_with_mocks._check_system_resources = add_unhealthy  # type: ignore
         checker_with_mocks._check_tool_registry = add_degraded  # type: ignore
         status = await checker_with_mocks.check_all()
         assert status.state == HealthState.UNHEALTHY
@@ -117,53 +116,9 @@ class TestHealthChecker:
         async def add_degraded(status: HealthStatus) -> None:
             status.components.append(ComponentHealth(name="Test", state=HealthState.DEGRADED))
 
-        checker_with_mocks._check_offline_store = add_degraded  # type: ignore
+        checker_with_mocks._check_system_resources = add_degraded  # type: ignore
         status = await checker_with_mocks.check_all()
         assert status.state == HealthState.DEGRADED
-
-    # ── Offline Store ──────────────────────────────────────────────────
-
-    @pytest.mark.asyncio
-    async def test_check_offline_store_exists_readable(self, checker: HealthChecker) -> None:
-        mock_db = MagicMock()
-        mock_db.exists.return_value = True
-        with patch("pathlib.Path.home") as mh, \
-             patch("siyarix.health.os.access", return_value=True):
-            mh.return_value.__truediv__.return_value.__truediv__.return_value = mock_db
-            status = HealthStatus(state=HealthState.HEALTHY)
-            await checker._check_offline_store(status)
-            assert len(status.components) == 1
-            assert status.components[0].name == "OfflineStore"
-            assert status.components[0].state == HealthState.HEALTHY
-
-    @pytest.mark.asyncio
-    async def test_check_offline_store_not_found(self, checker: HealthChecker) -> None:
-        mock_db = MagicMock()
-        mock_db.exists.return_value = False
-        with patch("pathlib.Path.home") as mh:
-            mh.return_value.__truediv__.return_value.__truediv__.return_value = mock_db
-            status = HealthStatus(state=HealthState.HEALTHY)
-            await checker._check_offline_store(status)
-            assert status.components[0].state == HealthState.DEGRADED
-
-    @pytest.mark.asyncio
-    async def test_check_offline_store_not_writable(self, checker: HealthChecker) -> None:
-        mock_db = MagicMock()
-        mock_db.exists.return_value = True
-        with patch("pathlib.Path.home") as mh, \
-             patch("siyarix.health.os.access", return_value=False):
-            mh.return_value.__truediv__.return_value.__truediv__.return_value = mock_db
-            status = HealthStatus(state=HealthState.HEALTHY)
-            await checker._check_offline_store(status)
-            assert status.components[0].state == HealthState.UNHEALTHY
-
-    @pytest.mark.asyncio
-    async def test_check_offline_store_exception(self, checker: HealthChecker) -> None:
-        with patch("pathlib.Path.home", side_effect=Exception("boom")):
-            status = HealthStatus(state=HealthState.HEALTHY)
-            await checker._check_offline_store(status)
-            assert status.components[0].state == HealthState.UNHEALTHY
-            assert "Error checking offline store" in status.components[0].message
 
     # ── Model Providers ────────────────────────────────────────────────
 

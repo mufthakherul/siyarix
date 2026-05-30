@@ -179,11 +179,44 @@ class SplitPane:
 class ConfigPanel:
     @staticmethod
     def run() -> None:
-        pass
+        from .config import SettingsStore
+
+        s = SettingsStore()
+        keys = [
+            "color_theme", "model_provider", "gemini_model", "openai_model",
+            "anthropic_model", "ollama_model", "ollama_url", "log_level",
+        ]
+        console.print("[bold cyan]Configuration[/bold cyan]")
+        for k in keys:
+            v = s.get(k)
+            if v is not None:
+                console.print(f"  [cyan]{k}:[/cyan] {v}")
+            else:
+                console.print(f"  [cyan]{k}:[/cyan] [dim](not set)[/dim]")
+        console.print("\n[dim]Use /model, /theme, /mode, /key to change settings.[/dim]")
 
     @staticmethod
     def _section_tools() -> None:
-        pass
+        try:
+            from .tool_registry import ToolRegistry
+
+            reg = ToolRegistry()
+            tools = reg.discover()
+            if tools:
+                from rich.table import Table
+                table = Table(title=f"{len(tools)} Security Tools", header_style="bold cyan")
+                table.add_column("Name", style="cyan")
+                table.add_column("Category", style="magenta")
+                table.add_column("Version", style="dim")
+                for t in sorted(tools, key=lambda x: x.category)[:20]:
+                    table.add_row(t.name, t.category, t.version[:20])
+                if len(tools) > 20:
+                    table.add_row("", f"[dim]… and {len(tools) - 20} more[/dim]", "")
+                console.print(table)
+            else:
+                console.print("[yellow]No tools found on PATH.[/yellow]")
+        except Exception as exc:
+            console.print(f"[red]Tool discovery error: {exc}[/red]")
 
 
 Console: Any = None
@@ -1341,7 +1374,7 @@ class SiyarixChat:
         if tokens:
             selected = tokens[0].strip().lower()
             # If a provider is given and an additional token is provided, treat it as a model name
-            if selected in {"auto", "openai", "gemini", "ollama", "cloud", "anthropic"}:
+            if selected in {"auto", "openai", "gemini", "ollama", "cloud", "anthropic", "groq", "together", "lmstudio", "custom", "opencode"}:
                 self._settings.set("model_provider", selected)
                 if len(tokens) > 1:
                     model_name = tokens[1].strip()
@@ -1372,17 +1405,24 @@ class SiyarixChat:
                 )
                 return
 
-        # Show current provider and per-provider models/status
+        # Show all providers and their status
         openai_key = os.environ.get("OPENAI_API_KEY", "")
         gemini_key = os.environ.get("GEMINI_API_KEY", "")
         anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        groq_key = os.environ.get("GROQ_API_KEY", "")
+        together_key = os.environ.get("TOGETHER_API_KEY", "")
         panel_text = (
             f"[bold]Preferred:[/bold] {self._settings.get('model_provider')}\n"
-            f"[bold]OpenAI:[/bold]  {'✓ Configured' if openai_key else '✗ Not set'} ({self._settings.get('openai_model')})\n"
-            f"[bold]Gemini:[/bold]  {'✓ Configured' if gemini_key else '✗ Not set'} ({self._settings.get('gemini_model')})\n"
-            f"[bold]Anthropic:[/bold]  {'✓ Configured' if anthropic_key else '✗ Not set'} ({self._settings.get('anthropic_model')})\n"
-            f"[bold]Ollama:[/bold]  Available (lazy check on first use) ({self._settings.get('ollama_model')})\n"
-            f"[bold]Cloud:[/bold]   Requires SIYARIX_SERVER_URL + SIYARIX_API_KEY\n\n"
+            f"[bold]OpenAI:[/bold]  {'✓ Configured' if openai_key else '✗ Not set'} ({self._settings.get('openai_model') or 'gpt-4o'})\n"
+            f"[bold]Gemini:[/bold]  {'✓ Configured' if gemini_key else '✗ Not set'} ({self._settings.get('gemini_model') or 'gemini-2.0-flash'})\n"
+            f"[bold]Anthropic:[/bold]  {'✓ Configured' if anthropic_key else '✗ Not set'} ({self._settings.get('anthropic_model') or 'claude-3-opus-20240229'})\n"
+            f"[bold]Groq:[/bold]  {'✓ Configured' if groq_key else '✗ Not set'} ({self._settings.get('groq_model') or 'llama3-70b-8192'})\n"
+            f"[bold]Together:[/bold]  {'✓ Configured' if together_key else '✗ Not set'} ({self._settings.get('together_model') or 'mistralai/Mixtral-8x7B-Instruct-v0.1'})\n"
+            f"[bold]Ollama:[/bold]  Available (lazy check on first use) ({self._settings.get('ollama_model') or 'llama3.1'})\n"
+            f"[bold]Cloud:[/bold]   Requires SIYARIX_SERVER_URL + SIYARIX_API_KEY\n"
+            f"[bold]LM Studio:[/bold] Available (lazy check on first use)\n"
+            f"[bold]Custom:[/bold]  Requires CUSTOM_API_KEY\n"
+            f"[bold]opencode:[/bold]  Requires OPENCODE_API_KEY\n\n"
             f"[dim]Use /key <provider> <value> to store credentials and /model <provider> <model-name> to select models.[/dim]"
         )
         console.print(

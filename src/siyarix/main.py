@@ -78,8 +78,6 @@ creds = CredentialStore()
 load_env_file()
 intent_router = IntentRouter()
 session_kernel = SessionKernel()
-xi_core = XICoreService()
-
 
 def _get_engine(mode: str = "integrated") -> ExecutionEngine:
     """Build an ExecutionEngine with API keys from config/credentials."""
@@ -163,6 +161,103 @@ app = typer.Typer(
     rich_markup_mode="rich",
     invoke_without_command=True,  # launch chat when called with no subcommand
 )
+
+
+@app.command("init")
+def init_wizard(
+    force: bool = typer.Option(False, "--force", "-f", help="Re-run wizard even if already configured"),
+) -> None:
+    """Initialize Siyarix configuration and API keys.
+
+    Creates ~/.siyarix/, interactively sets up your default AI provider,
+    and validates the environment.
+    """
+    from pathlib import Path
+
+    home_dir = Path.home() / ".siyarix"
+    if home_dir.exists() and not force:
+        console.print("[green]✓ Siyarix is already initialized.[/green]")
+        console.print("  Run [cyan]siyarix init --force[/cyan] to re-run the wizard.")
+        return
+
+    console.print(Panel.fit(
+        "[bold cyan]Siyarix Setup Wizard[/bold cyan]\n\n"
+        "This will guide you through:\n"
+        "  • Creating the [bold]~/.siyarix[/bold] configuration directory\n"
+        "  • Selecting and configuring your AI provider\n"
+        "  • Setting up API credentials\n"
+        "  • Verifying your environment",
+        border_style="cyan",
+    ))
+
+    home_dir.mkdir(parents=True, exist_ok=True)
+    console.print(f"[green]✓ Created {home_dir}[/green]")
+
+    from .config import DEFAULTS, DESCRIPTIONS, SettingsStore
+    settings = SettingsStore()
+
+    console.print("\n[bold]Select your default AI provider:[/bold]")
+    providers = ["auto", "openai", "gemini", "anthropic", "ollama", "groq", "lmstudio"]
+    for i, p in enumerate(providers, 1):
+        tag = " (recommended)" if p == "auto" else ""
+        console.print(f"  {i}. {p}{tag}")
+
+    choice = Prompt.ask(
+        "Choose", default="1"
+    )
+    try:
+        idx = int(choice) - 1
+        provider = providers[idx] if 0 <= idx < len(providers) else "auto"
+    except (ValueError, IndexError):
+        provider = "auto"
+
+    settings.set("model_provider", provider)
+    console.print(f"[green]✓ Provider set to: {provider}[/green]")
+
+    api_key_providers = {
+        "openai": "OPENAI_API_KEY",
+        "gemini": "GEMINI_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "groq": "GROQ_API_KEY",
+    }
+    if provider in api_key_providers or provider == "auto":
+        env_var = api_key_providers.get(provider, "OPENAI_API_KEY")
+        existing = os.environ.get(env_var) or creds.retrieve(provider, "api_key") or ""
+        if existing:
+            console.print(f"[dim]API key for {provider} already configured.[/dim]")
+        else:
+            key = Prompt.ask(
+                f"Enter your {provider.upper()} API key",
+                password=True,
+                default="",
+            )
+            if key:
+                creds.store(provider, "api_key", key)
+                console.print(f"[green]✓ {provider.upper()} API key saved.[/green]")
+
+    if provider == "auto":
+        for prov, var in api_key_providers.items():
+            if not (os.environ.get(var) or creds.retrieve(prov, "api_key")):
+                key = Prompt.ask(
+                    f"Enter your {prov.upper()} API key (or leave blank to skip)",
+                    password=True,
+                    default="",
+                )
+                if key:
+                    creds.store(prov, "api_key", key)
+                    console.print(f"[green]✓ {prov.upper()} API key saved.[/green]")
+
+    console.print("\n[bold yellow]Configuration Summary:[/bold yellow]")
+    summary_table = Table(show_header=False, box=None)
+    summary_table.add_column("Key", style="cyan")
+    summary_table.add_column("Value", style="white")
+    summary_table.add_row("Provider", settings.get("model_provider"))
+    summary_table.add_row("Config Dir", str(home_dir))
+    summary_table.add_row("Settings File", str(home_dir / "settings.toml"))
+    console.print(summary_table)
+
+    console.print("\n[green]✓ Siyarix initialized successfully![/green]")
+    console.print("  Run [cyan]siyarix[/cyan] to start the interactive shell.")
 
 
 def _run_batch_lines(lines: list[str]) -> None:
@@ -698,16 +793,6 @@ def run(
         mode=route.mode,
         risk_tier=route.risk_tier.value,
     )
-
-    recommendations = xi_core.recommend(session, route)
-    if recommendations:
-        table = Table(title="XI Recommendations", header_style="bold cyan")
-        table.add_column("Priority", style="magenta", no_wrap=True)
-        table.add_column("Recommendation", style="white")
-        table.add_column("Reason", style="dim")
-        for rec in recommendations:
-            table.add_row(rec.priority, rec.title, rec.reason)
-        console.print(table)
 
     if route.requires_confirmation and not dry_run:
         proceed = Prompt.ask(

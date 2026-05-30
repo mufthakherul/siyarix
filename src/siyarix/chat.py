@@ -336,11 +336,9 @@ _HELP_CATEGORIES = [
         "/config tools": "Manage discovered security tools",
         "/key": "Manage API keys for AI providers",
         "/mode <mode>": "Switch execution mode (autonomous|integrated|registry)",
-        "/work-mode [name]": "Switch persona (offensive, defensive, pentester, etc.)",
         "/model [provider]": "Show or switch AI model provider",
         "/theme mode|appearance": "Change UI theme or preview appearance",
         "/target <host>": "Set the current target",
-        "/learning profile|patterns|level": "User learning profile and experience level",
     }),
     ("Information", {
         "/tools": "List discovered security tools",
@@ -1287,7 +1285,6 @@ class SiyarixChat:
             console.print(
                 f"[red]Invalid mode: {args}. Valid modes: {', '.join(valid)}[/red]"
             )
-            console.print("[dim]Use /work-mode to switch security persona[/dim]")
             return
         self._mode = args
         self._session.mode = args
@@ -2544,7 +2541,7 @@ class SiyarixChat:
             else:
                 console.print("[dim]No knowledge base results.[/dim]")
         elif action == "list":
-            console.print("[yellow]Use /learning patterns to see tool patterns or /history for session history.[/yellow]")
+            console.print("[yellow]Use /history to see session history.[/yellow]")
         else:
             console.print("[yellow]Usage: /kb search|list[/yellow]")
 
@@ -2748,12 +2745,12 @@ class SiyarixChat:
         reg = ToolRegistry()
         try:
             from .learning_memory import LearningMemory
+
+            lm = LearningMemory()
         except ModuleNotFoundError:
-            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
-            return
+            lm = None
         from .session_log import session_logger
 
-        lm = LearningMemory()
         engine = ExecutionEngine(
             mode=exec_mode,
             registry=reg,

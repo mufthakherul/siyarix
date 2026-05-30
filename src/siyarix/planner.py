@@ -841,7 +841,7 @@ class TaskPlanner:
                         breaker.record_success()
                     _provider_registry.record_success(provider_name)
                     return self._parse_model_response(raw, instruction)
-            except Exception as exc:
+            except Exception:
                 logger.warning("Provider %s failed, trying next ...", provider_name)
                 if breaker:
                     breaker.record_failure()
@@ -879,7 +879,7 @@ class TaskPlanner:
                     if breaker:
                         breaker.record_success()
                     return self._parse_model_response(raw, instruction)
-            except Exception as exc:
+            except Exception:
                 logger.warning("Provider %s failed, trying next ...", provider_name)
                 if breaker:
                     breaker.record_failure()
@@ -1121,18 +1121,20 @@ class TaskPlanner:
         elif task.category == TaskCategory.CUSTOM:
             intent = task.flags.get("intent")
             if intent:
-                try:
-                    from . import shell_knowledge
+                import importlib
 
-                    kwargs = {}
+                if importlib.util.find_spec("siyarix.shell_knowledge"):
+                    from . import shell_knowledge as _shell_knowledge  # type: ignore[attr-defined]
+
+                    kwargs: dict[str, str] = {}
                     if primary_target:
                         kwargs["target"] = primary_target
                         kwargs["file"] = primary_target
-                    cmd = shell_knowledge.render_intent(intent, **kwargs)
-                    desc = shell_knowledge.INTENT_METADATA.get(intent, {}).get(
+                    cmd = _shell_knowledge.render_intent(intent, **kwargs)
+                    desc = _shell_knowledge.INTENT_METADATA.get(intent, {}).get(
                         "description", f"Execute {intent}"
                     )
-                except ModuleNotFoundError:
+                else:
                     cmd = ""
                     desc = ""
                 steps.append(

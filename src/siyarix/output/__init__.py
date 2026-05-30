@@ -26,14 +26,15 @@ from typing import Any, Callable
 logger = logging.getLogger(__name__)
 
 YAML_AVAILABLE = False
+_yaml: Any = None
 try:
     import yaml as _yaml
 
     YAML_AVAILABLE = True
 except ImportError:
-    _yaml = None
+    pass
 
-yaml: Any = _yaml
+yaml = _yaml
 
 Align: Any = None
 Console: Any = None

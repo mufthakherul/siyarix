@@ -172,7 +172,7 @@ logger = logging.getLogger(__name__)
 
 async def _kill_process(proc: asyncio.subprocess.Process) -> None:
     """Terminate a process, supporting both sync and async mock implementations."""
-    result = proc.kill()
+    result = proc.kill()  # type: ignore[func-returns-value]
     if inspect.isawaitable(result):
         await result
 

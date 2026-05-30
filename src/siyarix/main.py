@@ -284,6 +284,8 @@ def init_wizard(
 def _run_batch_lines(lines: list[str]) -> None:
     """Execute a list of command lines through the chat REPL handler."""
     from .chat import SiyarixChat
+    from .offline_registry import OfflineResponder
+    responder = OfflineResponder()
     chat = SiyarixChat(mode="integrated")
     for line in lines:
         line = line.strip()
@@ -293,7 +295,21 @@ def _run_batch_lines(lines: list[str]) -> None:
         if line.startswith("/"):
             asyncio.run(chat._handle_slash(line))
         else:
-            asyncio.run(chat._handle_natural_language(line))
+            reply = responder.respond(line)
+            if reply:
+                console.print(Panel(reply, title="Siyarix", border_style="green"))
+            else:
+                asyncio.run(chat._handle_natural_language(line))
+
+
+def _show_version() -> None:
+    from importlib.metadata import version as _v
+    try:
+        ver = _v("siyarix")
+    except Exception:
+        ver = "1.0.0"
+    console.print(f"[bold cyan]Siyarix[/bold cyan] [green]v{ver}[/green]")
+    console.print(f"Platform: {sys.platform}  Python: {sys.version.split()[0]}")
 
 
 @app.callback(invoke_without_command=True)
@@ -310,7 +326,11 @@ def main_callback(
     target: str = typer.Option(
         "", "--target", "-t", help="Set initial target for the session"
     ),
+    version: bool = typer.Option(False, "--version", help="Show version information"),
 ) -> None:
+    if version:
+        _show_version()
+        raise typer.Exit()
     """Siyarix CLI — unified entry point.
 
     Usage:
@@ -1197,7 +1217,7 @@ def tool_registry_update_metadata(
     """Regenerate the tool metadata file by scanning all binaries on PATH."""
     reg = ToolRegistry()
     count = reg.update_metadata(Path(output_path))
-    print(f"Successfully updated metadata: {count} tools recorded.")
+    console.print(f"[green]Successfully updated metadata: {count} tools recorded.[/green]")
 
 
 # ---------------------------------------------------------------------------

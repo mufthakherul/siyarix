@@ -306,19 +306,21 @@ class TestGenerateTextResponse:
 
     def test_hello(self, chat: SiyarixChat) -> None:
         response = chat._generate_text_response("hello")
+        assert response is not None
         assert "Hello" in response
 
     def test_help(self, chat: SiyarixChat) -> None:
         response = chat._generate_text_response("help")
+        assert response is not None
         assert "Registry Mode" in response
 
     def test_generic(self, chat: SiyarixChat) -> None:
         response = chat._generate_text_response("some random query")
-        assert "don't have enough offline knowledge" in response
+        assert response is None
 
     def test_how_to(self, chat: SiyarixChat) -> None:
         response = chat._generate_text_response("how to scan a network")
-        assert isinstance(response, str)
+        assert response is None
 
 
 class TestProviderStatus:

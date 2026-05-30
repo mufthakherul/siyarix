@@ -87,6 +87,7 @@ class TestVariableResolver:
         result = resolve("Good {time_of_day}")
         assert result in (
             "Good morning",
+            "Good noon",
             "Good afternoon",
             "Good evening",
             "Good night",
@@ -242,24 +243,26 @@ class TestOfflineResponder:
     def test_respond_greeting_exact(self, pack_dir: Path) -> None:
         r = OfflineResponder(pack_dir=str(pack_dir))
         reply = r.respond("hello")
+        assert reply is not None
         assert reply.startswith("Hello ")
         assert "Good " in reply
 
     def test_respond_fuzzy_match(self, pack_dir: Path) -> None:
         r = OfflineResponder(pack_dir=str(pack_dir))
         reply = r.respond("helo")
+        assert reply is not None
         assert reply.startswith("Hello ")
 
     def test_respond_regex_match(self, pack_dir: Path) -> None:
         r = OfflineResponder(pack_dir=str(pack_dir))
         reply = r.respond("great job")
+        assert reply is not None
         assert reply == "Regex matched!"
 
-    def test_respond_fallback_on_no_match(self, pack_dir: Path) -> None:
+    def test_respond_none_on_no_match(self, pack_dir: Path) -> None:
         r = OfflineResponder(pack_dir=str(pack_dir))
         reply = r.respond("some random unheard-of query")
-        assert "don't have enough offline knowledge" in reply.lower()
-        assert "{docs_url}" not in reply
+        assert reply is None
 
     def test_reload_if_changed(self, pack_dir: Path) -> None:
         r = OfflineResponder(pack_dir=str(pack_dir))
@@ -272,41 +275,49 @@ class TestOfflineResponder:
 
         assert r.reload_if_changed() is True
         reply = r.respond("howdy")
+        assert reply is not None
         assert reply.startswith("Hello ")
 
     def test_default_pack_loaded(self) -> None:
         r = OfflineResponder()
         reply = r.respond("hello")
+        assert reply is not None
         assert "Siyarix" in reply
 
     def test_identity_response(self) -> None:
         r = OfflineResponder()
         reply = r.respond("who are you")
+        assert reply is not None
         assert "Siyarix" in reply
 
     def test_creator_response(self) -> None:
         r = OfflineResponder()
         reply = r.respond("who created you")
+        assert reply is not None
         assert "MUFTHAKHERUL" in reply
 
     def test_thanks_response(self) -> None:
         r = OfflineResponder()
         reply = r.respond("thanks")
+        assert reply is not None
         assert "welcome" in reply.lower()
 
     def test_goodbye_response(self) -> None:
         r = OfflineResponder()
         reply = r.respond("bye")
+        assert reply is not None
         assert "Goodbye" in reply
 
     def test_version_response(self) -> None:
         r = OfflineResponder()
         reply = r.respond("version")
+        assert reply is not None
         assert "Version" in reply or "Registry Mode" in reply
 
     def test_status_response(self) -> None:
         r = OfflineResponder()
         reply = r.respond("status")
+        assert reply is not None
         assert "Registry Mode" in reply or "Status Report" in reply
 
 
@@ -319,4 +330,5 @@ class TestCommunityPack:
     def test_loads_community_pack(self) -> None:
         r = OfflineResponder()
         reply = r.respond("community")
+        assert reply is not None
         assert "community" in reply.lower() or "contributors" in reply.lower()

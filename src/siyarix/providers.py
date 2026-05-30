@@ -295,7 +295,7 @@ class OpenAIAdapter(Provider):
 
 class GeminiAdapter(OpenAIAdapter):
     def __init__(
-        self, api_key: str | None = None, model: str = "gemini-1.5-pro"
+        self, api_key: str | None = None, model: str = "gemini-2.0-flash"
     ) -> None:
         model_cls = _PlannerModelLazy.get("GeminiModel")
         self._impl = model_cls(api_key=api_key, model=model)

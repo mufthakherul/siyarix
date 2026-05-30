@@ -51,7 +51,7 @@ DEFAULTS: dict[str, Any] = {
     "tls_verify": True,
     "history_retention_days": 90,
     "model_provider": "auto",
-    "gemini_model": "gemini-1.5-pro",
+    "gemini_model": "gemini-2.0-flash",
     "openai_model": "gpt-4o",
     "anthropic_model": "claude-3-opus-20240229",
     "groq_model": "llama3-70b-8192",

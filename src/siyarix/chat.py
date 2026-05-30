@@ -535,12 +535,18 @@ class SiyarixChat:
 
     def _prompt(self) -> str:
         """Display the input prompt and read a line."""
+        if not sys.stdin.isatty():
+            try:
+                return input().strip()
+            except (EOFError, KeyboardInterrupt):
+                return ""
+
         esc_bindings = self._make_esc_bindings() if PTK_AVAILABLE else None
+        prompt_label = Text.assemble(
+            ("❯ ", "bold cyan"), ("Type your message or @path/to/file", "dim")
+        )
 
         if self._split_pane_enabled:
-            prompt_label = Text.assemble(
-                ("❯ ", "bold cyan"), ("Type command / slash command", "dim")
-            )
             if PTK_AVAILABLE:
                 try:
                     return ptk_prompt(
@@ -553,7 +559,7 @@ class SiyarixChat:
             else:
                 return Prompt.ask(prompt_label, default="").strip()
 
-        # Show concise status in the prompt like modern agent CLIs
+        # Show compact status line above prompt
         target_str = f" ({self._session.target})" if self._session.target else ""
         mode_color = {
             "registry": "yellow",
@@ -562,8 +568,6 @@ class SiyarixChat:
         }.get(self._mode, "cyan")
         theme = self._settings.get("color_theme") or "cyber-noir"
         provider = self._settings.get("model_provider") or "auto"
-
-        # Display a compact inline status line above the prompt
         status = Text.assemble(
             (f"{provider}", "bold cyan"),
             (f" · {theme}", "dim white"),
@@ -573,11 +577,6 @@ class SiyarixChat:
             ("? for shortcuts · /help for all commands", "dim"),
         )
         console.print(status)
-
-        # Primary input prompt placeholder
-        prompt_label = Text.assemble(
-            ("❯ ", "bold cyan"), ("Type your message or @path/to/file", "dim")
-        )
 
         if PTK_AVAILABLE:
             try:
@@ -2492,18 +2491,15 @@ class SiyarixChat:
         except Exception:
             ver = "1.0.0"
 
+        provider_status = self._gather_provider_status()
         shell_info = get_shell_platform()
         theme = self._settings.get("color_theme")
         provider = self._settings.get("model_provider")
 
-        provider_status = self._gather_provider_status()
-
-        # Gather system stats from offline store
         scans_count = 0
         findings_count = 0
         try:
             from .offline_store import OfflineStore
-
             store = OfflineStore()
             stats = store.stats()
             scans_count = stats.get("total_scans", 0)
@@ -2522,7 +2518,6 @@ class SiyarixChat:
                 padding=(1, 2),
             )
         )
-
         console.print(
             Columns(
                 [
@@ -2570,7 +2565,6 @@ class SiyarixChat:
                 expand=True,
             )
         )
-
         console.print(
             Panel(
                 "[bold cyan]Type natural language[/bold cyan] to plan work, or use slash commands.\n"

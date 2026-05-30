@@ -194,7 +194,7 @@ class AuditLogger:
             try:
                 config = tomllib.loads(config_file.read_text())
                 self._RETENTION_DAYS = config.get("retention_days", 365)
-            except Exception as exc:  # nosec B110
+            except (tomllib.TOMLDecodeError, OSError, ValueError) as exc:
                 logger.exception("Failed to load audit config: %s", exc)
 
     def _load_events(self) -> None:

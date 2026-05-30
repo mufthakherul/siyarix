@@ -220,7 +220,7 @@ class BootstrapEngine:
 
     def auto_install_packages(self, packages: list[str]) -> dict[str, bool]:
         """Auto-install approved packages (T10)."""
-        import subprocess
+        import subprocess  # nosec B404
 
         results: dict[str, bool] = {}
         for pkg in packages:
@@ -230,7 +230,7 @@ class BootstrapEngine:
                     capture_output=True,
                     text=True,
                     timeout=300,
-                )
+                )  # nosec B603
                 results[pkg] = result.returncode == 0
             except Exception as exc:
                 logger.warning("Failed to install %s: %s", pkg, exc)

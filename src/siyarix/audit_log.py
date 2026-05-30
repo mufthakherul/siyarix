@@ -237,13 +237,8 @@ class AuditLogger:
             logger.error("Failed to save audit events: %s", exc)
 
     def _flush_on_exit(self) -> None:
-        """Flush unsaved events on process exit."""
         if self._dirty:
             self._save_events()
-        try:
-            pass
-        except Exception as exc:
-            logger.warning("Failed to close SIEM forwarder: %s", exc)
 
     def _startup_event(self) -> None:
         """Log system startup — uses the correct SYSTEM_START type."""
@@ -338,11 +333,7 @@ class AuditLogger:
                 f"{event.user} | {event.action} | {event.target}[/{color}]"
             )
 
-        # Dispatch to SIEM
-        try:
-            pass  # SIEM dispatch deferred to v2.0
-        except Exception as exc:
-            logger.debug("SIEM dispatch error: %s", exc)
+        # SIEM dispatch deferred to v2.0
 
         # Persist every 10 events or on critical/high severity
         if len(self._events) % 10 == 0 or severity in (

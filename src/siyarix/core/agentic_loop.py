@@ -155,7 +155,7 @@ class AgenticLoop:
         }
 
     def _reflect(self) -> None:
-        """Phase 2: Placeholder for tactical reflection (deferred to v2.0)."""
+        logger.debug("Tactical reflection deferred to v2.0")
 
     def _reason(self, context: dict[str, Any]) -> str | None:
         """Phase 3: Determine next action using AI planner."""

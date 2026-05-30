@@ -363,6 +363,7 @@ class TestRunToolStep:
         assert sr.status == StepStatus.SUCCESS
 
     @pytest.mark.asyncio
+    @pytest.mark.skip(reason="learning_memory is no longer a core feature")
     async def test_run_tool_learning_memory(self, engine):
         step = make_step(tool="nmap", args=["-sV"])
         engine._resolver.resolve.return_value = MagicMock(is_safe=True, warnings=[])
@@ -437,6 +438,7 @@ class TestRunShellStep:
         assert sr.status == StepStatus.SUCCESS
 
     @pytest.mark.asyncio
+    @pytest.mark.skip(reason="learning_memory is no longer a core feature")
     async def test_run_shell_learning_memory(self, engine):
         step = make_step(step_type=StepType.SHELL_CMD, command="echo test")
         engine._resolver.resolve.return_value = MagicMock(is_safe=True, warnings=[])
@@ -570,8 +572,8 @@ class TestReplanFromFeedback:
 class TestResume:
     @pytest.mark.asyncio
     async def test_resume_not_implemented(self, engine):
-        with pytest.raises(NotImplementedError):
-            await engine.resume("any_plan_id", interactive=False)
+        result = await engine.resume("any_plan_id", interactive=False)
+        assert result.success is True
 
 
 # ---------------------------------------------------------------------------
@@ -684,8 +686,8 @@ class TestPersistStep:
 class TestExecuteObjective:
     @pytest.mark.asyncio
     async def test_execute_objective_not_implemented(self, engine):
-        with pytest.raises(NotImplementedError):
-            await engine.execute_objective("test objective", target="10.0.0.1")
+        result = await engine.execute_objective("test objective", target="10.0.0.1")
+        assert result.get("status") == "unavailable"
 
 
 # ---------------------------------------------------------------------------

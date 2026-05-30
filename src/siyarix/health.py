@@ -88,7 +88,6 @@ class HealthChecker:
     def __init__(self) -> None:
         self.start_time = time.time()
         self.last_check: HealthStatus | None = None
-        self.offline_store_available = False
         self.model_providers_available: dict[str, bool] = {}
         self.tools_available: dict[str, bool] = {}
 
@@ -103,9 +102,6 @@ class HealthChecker:
         """Perform comprehensive health check."""
         status = HealthStatus(state=HealthState.HEALTHY)
         status.uptime_seconds = time.time() - self.start_time
-
-        # Check offline store
-        await self._check_offline_store(status)
 
         # Check model providers
         await self._check_model_providers(status)
@@ -134,44 +130,6 @@ class HealthChecker:
 
         self.last_check = status
         return status
-
-    async def _check_offline_store(self, status: HealthStatus) -> None:
-        """Check offline store health."""
-        start = time.time()
-        try:
-            from pathlib import Path
-
-            db_path = Path.home() / ".siyarix" / "offline.db"
-
-            if db_path.exists():
-                # Check if readable
-                if os.access(db_path, os.R_OK | os.W_OK):
-                    state = HealthState.HEALTHY
-                    message = "SQLite database accessible"
-                    self.offline_store_available = True
-                else:
-                    state = HealthState.UNHEALTHY
-                    message = "SQLite database not readable/writable"
-                    self.offline_store_available = False
-            else:
-                state = HealthState.DEGRADED
-                message = "SQLite database not found (will be created)"
-                self.offline_store_available = False
-        except Exception as exc:
-            logger.exception("Error checking offline store")
-            state = HealthState.UNHEALTHY
-            message = f"Error checking offline store: {str(exc)}"
-            self.offline_store_available = False
-
-        latency = (time.time() - start) * 1000
-        status.components.append(
-            ComponentHealth(
-                name="OfflineStore",
-                state=state,
-                message=message,
-                latency_ms=latency,
-            )
-        )
 
     async def _check_model_providers(self, status: HealthStatus) -> None:
         """Check model provider health."""

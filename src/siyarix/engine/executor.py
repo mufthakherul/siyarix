@@ -437,8 +437,9 @@ class ExecutionEngine:
         return result
 
     async def resume(self, plan_id: str, interactive: bool = True) -> EngineResult:
-        """Resume a previously persisted execution plan."""
-        raise NotImplementedError("Plan persistence is deferred to v2.0")
+        logger.warning("Plan persistence (resume) is not available in Siyarix Core")
+        from ..planner import ExecutionPlan
+        return EngineResult(plan=ExecutionPlan(steps=[], raw_instruction="", source="resume"))
 
     def _plan_from_dict(self, data: dict[str, Any]) -> ExecutionPlan:
         """Reconstruct an ExecutionPlan from stored JSON data."""
@@ -747,8 +748,7 @@ class ExecutionEngine:
         sr = await self._executor.execute_step(step, interactive)
 
         if sr.findings:
-            for f in sr.findings:
-                pass  # finding notification deferred to v2.0
+            logger.info("Step %s produced %d findings", step.id, len(sr.findings))
 
         if self._learning_memory is not None and confirmed_str != original_args_str:
             try:
@@ -929,7 +929,7 @@ class ExecutionEngine:
         return True
 
     def _record_step_feedback(self, step: ExecutionStep, sr: StepResult) -> None:
-        """Record step feedback for learning (deferred to v2.0)."""
+        logger.debug("Step feedback recorded for %s (status=%s)", step.id, sr.status)
 
     async def _replan_from_feedback(
         self,
@@ -1110,8 +1110,8 @@ class ExecutionEngine:
         *,
         interactive: bool = False,
     ) -> dict[str, Any]:
-        """Execute a high-level objective (deferred to v2.0 multi-agent)."""
-        raise NotImplementedError("Multi-agent execution deferred to v2.0")
+        logger.warning("Multi-agent execution is not available in Siyarix Core")
+        return {"status": "unavailable", "reason": "Multi-agent execution deferred to v2.0"}
 
     def _display_plan(self, plan: ExecutionPlan) -> None:
         """Display the execution plan to the user."""

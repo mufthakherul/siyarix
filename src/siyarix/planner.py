@@ -1121,16 +1121,20 @@ class TaskPlanner:
         elif task.category == TaskCategory.CUSTOM:
             intent = task.flags.get("intent")
             if intent:
-                from . import shell_knowledge
+                try:
+                    from . import shell_knowledge
 
-                kwargs = {}
-                if primary_target:
-                    kwargs["target"] = primary_target
-                    kwargs["file"] = primary_target
-                cmd = shell_knowledge.render_intent(intent, **kwargs)
-                desc = shell_knowledge.INTENT_METADATA.get(intent, {}).get(
-                    "description", f"Execute {intent}"
-                )
+                    kwargs = {}
+                    if primary_target:
+                        kwargs["target"] = primary_target
+                        kwargs["file"] = primary_target
+                    cmd = shell_knowledge.render_intent(intent, **kwargs)
+                    desc = shell_knowledge.INTENT_METADATA.get(intent, {}).get(
+                        "description", f"Execute {intent}"
+                    )
+                except ModuleNotFoundError:
+                    cmd = ""
+                    desc = ""
                 steps.append(
                     ExecutionStep(
                         id=f"step_{offset + 1}",

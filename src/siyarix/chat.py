@@ -687,17 +687,16 @@ class SiyarixChat:
             return
 
         try:
-            from .knowledge_graph import KnowledgeGraph
-            from .report_engine import ReportGenerator
+            try:
+                from .knowledge_graph import KnowledgeGraph
+                from .report_engine import ReportGenerator
+            except ModuleNotFoundError:
+                console.print("[yellow]Report generation is not available in this version[/yellow]")
+                return
 
-            # Since graph might be shared/global or attached to session context, we try to load it
-            # For simplicity, if engine is accessible, we could pull it from there
-            # Since we don't have direct access to engine here, we create a mock one or rely on local JSON
-            # We'll just instantiate the generator for the structure since this is a demonstration
             console.print("[dim]Generating premium report...[/dim]")
 
             graph = KnowledgeGraph()
-            # If we had persisted graph to context, load it here.
 
             generator = ReportGenerator(graph)
             path = generator.save_report(format=fmt)
@@ -1393,7 +1392,11 @@ class SiyarixChat:
 
     def _cmd_work_mode(self, args: str) -> None:
         """Handle /work-mode persona switching and management."""
-        from .persona_engine import (Persona, PersonaEngine, ToolACL)
+        try:
+            from .persona_engine import (Persona, PersonaEngine, ToolACL)
+        except ModuleNotFoundError:
+            console.print("[yellow]Persona engine is not available in this version[/yellow]")
+            return
 
         engine = PersonaEngine()
         tokens = args.split() if args else []
@@ -1498,7 +1501,11 @@ class SiyarixChat:
 
     async def _cmd_coder(self, args: str) -> None:
         """Handle /coder command for code generation and review."""
-        from .coder_bridge import CoderBridge
+        try:
+            from .coder_bridge import CoderBridge
+        except ModuleNotFoundError:
+            console.print("[yellow]Coder Bridge is not available in this version[/yellow]")
+            return
 
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else ""
@@ -1535,7 +1542,11 @@ class SiyarixChat:
 
     async def _cmd_mcp(self, args: str) -> None:
         """Handle /mcp command for MCP server interaction."""
-        from .mcp_integration import MCPClient
+        try:
+            from .mcp_integration import MCPClient
+        except ModuleNotFoundError:
+            console.print("[yellow]MCP integration is not available in this version[/yellow]")
+            return
 
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else ""
@@ -1623,8 +1634,12 @@ class SiyarixChat:
         from rich.syntax import Syntax
         from rich.table import Table
 
-        from .learning_memory import LearningMemory
-        from .user_learning import UserLearning
+        try:
+            from .learning_memory import LearningMemory
+            from .user_learning import UserLearning
+        except ModuleNotFoundError:
+            console.print("[yellow]Learning features are not available in this version[/yellow]")
+            return
 
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else ""
@@ -2002,7 +2017,11 @@ class SiyarixChat:
         from rich.panel import Panel
         from rich.table import Table
 
-        from .offline_store import OfflineStore
+        try:
+            from .offline_store import OfflineStore
+        except ModuleNotFoundError:
+            console.print("[yellow]Offline store is not available in this version[/yellow]")
+            return
 
         tokens = args.split() if args else []
         if len(tokens) < 2:
@@ -2063,7 +2082,11 @@ class SiyarixChat:
         """Handle /schedule command for recurring scan jobs."""
         from rich.table import Table
 
-        from .scheduler import SiyarixScheduler
+        try:
+            from .scheduler import SiyarixScheduler
+        except ModuleNotFoundError:
+            console.print("[yellow]Scheduler is not available in this version[/yellow]")
+            return
 
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "list"
@@ -2153,7 +2176,11 @@ class SiyarixChat:
 
     async def _cmd_cloud(self, args: str) -> None:
         """Handle /cloud command for cloud provider scanning."""
-        from .cloud_scanner import CloudProvider, CloudScanner
+        try:
+            from .cloud_scanner import CloudProvider, CloudScanner
+        except ModuleNotFoundError:
+            console.print("[yellow]Cloud scanner is not available in this version[/yellow]")
+            return
         tokens = args.split() if args else []
         if not tokens or tokens[0] not in ("aws", "azure", "gcp", "scan"):
             console.print("[yellow]Usage: /cloud <aws|azure|gcp> <target>[/yellow]")
@@ -2167,7 +2194,11 @@ class SiyarixChat:
 
     async def _cmd_k8s(self, args: str) -> None:
         """Handle /k8s command for Kubernetes security scanning."""
-        from .cloud_scanner import CloudScanner
+        try:
+            from .cloud_scanner import CloudScanner
+        except ModuleNotFoundError:
+            console.print("[yellow]Kubernetes scanner is not available in this version[/yellow]")
+            return
         tokens = args.split() if args else []
         if not tokens or tokens[0] not in ("scan", "audit", "rbac"):
             console.print("[yellow]Usage: /k8s scan|audit|rbac <namespace>[/yellow]")
@@ -2179,7 +2210,11 @@ class SiyarixChat:
 
     async def _cmd_docker(self, args: str) -> None:
         """Handle /docker command for container scanning."""
-        from .cloud_scanner import CloudScanner
+        try:
+            from .cloud_scanner import CloudScanner
+        except ModuleNotFoundError:
+            console.print("[yellow]Docker scanner is not available in this version[/yellow]")
+            return
         tokens = args.split() if args else []
         if not tokens or tokens[0] not in ("scan", "image", "ps"):
             console.print("[yellow]Usage: /docker scan|image|ps <image>[/yellow]")
@@ -2191,7 +2226,11 @@ class SiyarixChat:
 
     async def _cmd_iac(self, args: str) -> None:
         """Handle /iac command for Infrastructure as Code scanning."""
-        from .iac_scanner import IaCScanner
+        try:
+            from .iac_scanner import IaCScanner
+        except ModuleNotFoundError:
+            console.print("[yellow]IaC scanner is not available in this version[/yellow]")
+            return
         tokens = args.split() if args else []
         if len(tokens) < 2 or tokens[0] not in ("scan",):
             console.print("[yellow]Usage: /iac scan --path <directory>[/yellow]")
@@ -2206,7 +2245,11 @@ class SiyarixChat:
 
     async def _cmd_mobile(self, args: str) -> None:
         """Handle /mobile command for mobile app testing."""
-        from .mobile_scanner import MobileScanner
+        try:
+            from .mobile_scanner import MobileScanner
+        except ModuleNotFoundError:
+            console.print("[yellow]Mobile scanner is not available in this version[/yellow]")
+            return
         tokens = args.split() if args else []
         if len(tokens) < 2 or tokens[0] not in ("android", "apk", "ios", "ipa"):
             console.print("[yellow]Usage: /mobile android --apk <path>[/yellow]")
@@ -2224,7 +2267,11 @@ class SiyarixChat:
 
     async def _cmd_iot(self, args: str) -> None:
         """Handle /iot command for IoT device testing."""
-        from .iot_scanner import IoTScanner
+        try:
+            from .iot_scanner import IoTScanner
+        except ModuleNotFoundError:
+            console.print("[yellow]IoT scanner is not available in this version[/yellow]")
+            return
         tokens = args.split() if args else []
         if len(tokens) < 2 or tokens[0] not in ("scan", "firmware", "serial"):
             console.print("[yellow]Usage: /iot scan|firmware|serial <device|path>[/yellow]")
@@ -2242,7 +2289,11 @@ class SiyarixChat:
 
     async def _cmd_hsm(self, args: str) -> None:
         """Handle /hsm command for hardware security module integration."""
-        from .hsm_manager import HSMService
+        try:
+            from .hsm_manager import HSMService
+        except ModuleNotFoundError:
+            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
+            return
         tokens = args.split() if args else []
         if not tokens or tokens[0] not in ("configure", "status", "disconnect"):
             console.print("[yellow]Usage: /hsm configure|status|disconnect [--provider yubikey|pkcs11|tpm][/yellow]")
@@ -2263,7 +2314,11 @@ class SiyarixChat:
 
     async def _cmd_compliance(self, args: str) -> None:
         """Handle /compliance command for framework assessment."""
-        from .compliance_runner import ComplianceRunner
+        try:
+            from .compliance_runner import ComplianceRunner
+        except ModuleNotFoundError:
+            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
+            return
         tokens = args.split() if args else []
         if len(tokens) < 2 or tokens[0] not in ("run",):
             console.print("[yellow]Usage: /compliance run --framework pci-dss|iso-27001|nist-800-53|soc2|gdpr|hipaa <target>[/yellow]")
@@ -2305,7 +2360,11 @@ class SiyarixChat:
 
     async def _cmd_siem(self, args: str) -> None:
         """Handle /siem command for SIEM/SOAR integration."""
-        from .platform_integration import platform_integration
+        try:
+            from .platform_integration import platform_integration
+        except ModuleNotFoundError:
+            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
+            return
         tokens = args.split() if args else []
         if not tokens or tokens[0] not in ("connect", "status", "forward"):
             console.print("[yellow]Usage: /siem connect|status|forward <platform> <url>[/yellow]")
@@ -2321,7 +2380,11 @@ class SiyarixChat:
 
     async def _cmd_performance(self, args: str) -> None:
         """Handle /performance command for resource optimization."""
-        from .performance import performance_optimizer
+        try:
+            from .performance import performance_optimizer
+        except ModuleNotFoundError:
+            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
+            return
         tokens = args.split() if args else []
         if not tokens or tokens[0] not in ("status", "tune", "configure"):
             console.print("[yellow]Usage: /performance status|tune|configure[/yellow]")
@@ -2369,7 +2432,11 @@ class SiyarixChat:
 
     async def _cmd_import(self, args: str) -> None:
         """Handle /import command for importing scan results."""
-        from .importer import security_importer
+        try:
+            from .importer import security_importer
+        except ModuleNotFoundError:
+            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
+            return
         tokens = args.split() if args else []
         if len(tokens) < 2 or tokens[0] not in ("nessus", "burp", "metasploit", "stix", "auto"):
             console.print("[yellow]Usage: /import <nessus|burp|metasploit|stix|auto> <file>[/yellow]")
@@ -2393,7 +2460,11 @@ class SiyarixChat:
 
     async def _cmd_playbook(self, args: str) -> None:
         """Handle /playbook command for workflow playbooks."""
-        from .playbook_engine import PlaybookEngine
+        try:
+            from .playbook_engine import PlaybookEngine
+        except ModuleNotFoundError:
+            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
+            return
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "list"
         engine = PlaybookEngine()
@@ -2449,8 +2520,12 @@ class SiyarixChat:
             if not query:
                 console.print("[yellow]Usage: /kb search <query>[/yellow]")
                 return
-            from .knowledge_graph import KnowledgeGraph
-            kg = KnowledgeGraph()
+                try:
+                    from .knowledge_graph import KnowledgeGraph
+                except ModuleNotFoundError:
+                    console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
+                    return
+                kg = KnowledgeGraph()
             results = kg.search(query)
             if results:
                 for r in results[:10]:
@@ -2464,7 +2539,11 @@ class SiyarixChat:
 
     async def _cmd_ticket(self, args: str) -> None:
         """Handle /ticket command for external ticket creation."""
-        from .platform_integration import platform_integration
+        try:
+            from .platform_integration import platform_integration
+        except ModuleNotFoundError:
+            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
+            return
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "create"
         if action == "create":
@@ -2492,7 +2571,11 @@ class SiyarixChat:
 
     async def _cmd_intel(self, args: str) -> None:
         """Handle /intel command for threat intelligence queries."""
-        from .threat_intel import ThreatIntelFeed, MITREAttackDB
+        try:
+            from .threat_intel import ThreatIntelFeed, MITREAttackDB
+        except ModuleNotFoundError:
+            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
+            return
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "search"
         if action == "search":
@@ -2523,7 +2606,11 @@ class SiyarixChat:
 
     async def _cmd_canary(self, args: str) -> None:
         """Handle /canary command for deception token deployment."""
-        from .canary import CanaryTokenManager, CanaryTokenType
+        try:
+            from .canary import CanaryTokenManager, CanaryTokenType
+        except ModuleNotFoundError:
+            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
+            return
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "list"
         mgr = CanaryTokenManager()
@@ -2648,7 +2735,11 @@ class SiyarixChat:
         }
 
         reg = ToolRegistry()
-        from .learning_memory import LearningMemory
+        try:
+            from .learning_memory import LearningMemory
+        except ModuleNotFoundError:
+            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
+            return
         from .session_log import session_logger
 
         lm = LearningMemory()
@@ -2687,7 +2778,11 @@ class SiyarixChat:
         # Multi-model ensemble voting (available providers > 1)
         try:
             from .multi_model_ensemble import MultiModelEnsemble, VotingStrategy
+        except ModuleNotFoundError:
+            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
+            return
 
+        try:
             ensemble = MultiModelEnsemble()
             registered_count = 0
             for p in getattr(getattr(engine, "_planner", None), "_providers", []):
@@ -2717,7 +2812,11 @@ class SiyarixChat:
         # Adversarial plan review
         try:
             from .adversarial_tester import AdversarialTester, AdversarialSeverity
+        except ModuleNotFoundError:
+            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
+            return
 
+        try:
             tester = AdversarialTester()
             plan_lines = [
                 f"{s.tool or ''} {' '.join(s.args)} {s.target or ''}".strip()
@@ -2784,7 +2883,11 @@ class SiyarixChat:
         )
 
         # Pedagogical output: educational breakdown after task completion
-        from .user_learning import UserLearning
+        try:
+            from .user_learning import UserLearning
+        except ModuleNotFoundError:
+            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
+            return
 
         ul = UserLearning()
         step_results_by_id = {sr.step_id: sr for sr in result.step_results}
@@ -2868,6 +2971,10 @@ class SiyarixChat:
         findings_count = 0
         try:
             from .offline_store import OfflineStore
+        except ModuleNotFoundError:
+            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
+            return
+        try:
             store = OfflineStore()
             stats = store.stats()
             scans_count = stats.get("total_scans", 0)

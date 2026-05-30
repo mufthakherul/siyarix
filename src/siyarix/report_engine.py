@@ -2,8 +2,7 @@
 
 """Report generation engine.
 
-Generates formatted security assessment reports in multiple formats
-as described in Chapter 18. Supports Markdown, HTML, JSON, and SARIF.
+Generates security assessment reports in Markdown, HTML, JSON, and SARIF formats.
 """
 
 from __future__ import annotations

@@ -525,12 +525,11 @@ class TestTaskPlanner:
             assert len(plan.steps) > 0
 
     @pytest.mark.asyncio
-    async def test_plan_autonomous_mode_fails(self):
+    async def test_plan_autonomous_mode_falls_back(self):
         planner = TaskPlanner()
         plan = await planner.plan("scan", force_mode="autonomous")
-        assert plan.source == "autonomous"
-        assert plan.confidence == 0.0
-        assert len(plan.steps) == 0
+        assert plan.source == "autonomous-fallback"
+        assert len(plan.steps) > 0
 
     @pytest.mark.asyncio
     async def test_plan_integrated_high_confidence_interpreter(self):

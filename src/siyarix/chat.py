@@ -133,8 +133,15 @@ class CommandProfileStore:
     def list_credentials(self) -> list[CommandProfile]:
         return []
 
-    def delete(self, name: str) -> None:
-        pass
+    def delete(self, name: str) -> bool:
+        return False
+
+    def render(self, command: str, params: dict[str, str]) -> str:
+        """Render a command template with key=value parameters."""
+        rendered = command
+        for k, v in params.items():
+            rendered = rendered.replace(f"{{{k}}}", v).replace(f"${{{k}}}", v)
+        return rendered
 
 
 class SmartAutocomplete:
@@ -680,31 +687,35 @@ class SiyarixChat:
         console.print("[green]✓ Started a new conversation context.[/green]")
 
     def _cmd_report(self, args: str) -> None:
-        """Generate an executive report based on current session graph."""
+        """Generate an executive report based on current session findings."""
         fmt = args.strip().lower() if args else "markdown"
         if fmt not in ("markdown", "html"):
             console.print("[yellow]Invalid format. Use 'markdown' or 'html'.[/yellow]")
             return
 
         try:
-            try:
-                from .knowledge_graph import KnowledgeGraph
-                from .report_engine import ReportGenerator
-            except ModuleNotFoundError:
-                console.print("[yellow]Report generation is not available in this version[/yellow]")
-                return
+            from .report_engine import ReportEngine, ReportConfig, ReportFormat
+        except ModuleNotFoundError:
+            console.print("[yellow]Report generation is not available in this version[/yellow]")
+            return
 
-            console.print("[dim]Generating premium report...[/dim]")
+        console.print("[dim]Generating report...[/dim]")
 
-            graph = KnowledgeGraph()
+        findings = self._session.context.get("findings", [])
+        config = ReportConfig()
+        engine = ReportEngine()
+        report = engine.build_report(findings, target=self._session.target, config=config)
 
-            generator = ReportGenerator(graph)
-            path = generator.save_report(format=fmt)
-            console.print(
-                f"[bold green]✓ Report generated successfully at: {path}[/bold green]"
-            )
-        except Exception as exc:
-            console.print(f"[bold red]Failed to generate report: {exc}[/bold red]")
+        output_dir = self._SESSIONS_DIR / "reports"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        fmt_enum = ReportFormat.MARKDOWN if fmt == "markdown" else ReportFormat.HTML
+        path = engine.save(report, output_dir / f"report_{self._session.session_id[:8]}", fmt=fmt_enum)
+        console.print(
+            f"[bold green]✓ Report generated successfully at: {path}[/bold green]"
+        )
+        console.print(
+            f"[dim]Findings: {len(findings)} | Format: {fmt}[/dim]"
+        )
 
     async def _cmd_palette(self, _: str) -> None:
         """Open the fuzzy command palette overlay."""
@@ -1916,7 +1927,7 @@ class SiyarixChat:
             ver = _pv("siyarix")
         except Exception as exc:
             logger.debug("Failed to resolve package version: %s", exc)
-            ver = "0.1.3"
+            ver = "1.0.0"
         console.print(f"[bold cyan]Siyarix[/bold cyan] [green]v{ver}[/green]")
 
     # ──────────────────────────────────────────────────────────────────────
@@ -2520,12 +2531,12 @@ class SiyarixChat:
             if not query:
                 console.print("[yellow]Usage: /kb search <query>[/yellow]")
                 return
-                try:
-                    from .knowledge_graph import KnowledgeGraph
-                except ModuleNotFoundError:
-                    console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
-                    return
-                kg = KnowledgeGraph()
+            try:
+                from .knowledge_graph import KnowledgeGraph
+            except ModuleNotFoundError:
+                console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
+                return
+            kg = KnowledgeGraph()
             results = kg.search(query)
             if results:
                 for r in results[:10]:
@@ -2958,7 +2969,7 @@ class SiyarixChat:
             from importlib.metadata import version as _pv
             ver = _pv("siyarix")
         except Exception:
-            ver = "0.1.3"
+            ver = "1.0.0"
 
         shell_info = get_shell_platform()
         theme = self._settings.get("color_theme")

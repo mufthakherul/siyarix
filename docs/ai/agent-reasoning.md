@@ -10,7 +10,7 @@ User Goal → Task Decomposition → Tool Selection → Dependency Resolution �
 
 ### 1. Goal decomposition
 
-The `CoordinatorAgent` breaks down complex goals:
+The system breaks down complex goals:
 
 ```
 Input: "Find all vulnerabilities on the web server and generate a report"

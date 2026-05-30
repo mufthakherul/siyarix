@@ -87,7 +87,8 @@ Each policy file was checked for broken internal `.md` links:
 | Dynamic provider selection | `engine/providers.py` — preference chains | ✅ |
 | Local model support | `providers.py` — `OllamaAdapter`, `LMStudioAdapter` | ✅ |
 | API key encryption | `credential_store.py` — AES-256-GCM | ✅ |
-| Bidirectional masking | `masking.py`, `response_sensor.py` | ✅ |
+| Bidirectional masking | `masking.py` |
+ ✅ |
 | Heuristic fallback | `interpreter.py` — offline planning without LLM | ✅ |
 | Task-based routing | Documented as future capability in `AI_PROVIDER_POLICY.md` | ✅ (forward-looking) |
 

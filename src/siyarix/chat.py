@@ -2124,7 +2124,6 @@ class SiyarixChat:
         if action == "schedule":
             finding_id = tokens[1] if len(tokens) > 1 else ""
             console.print(f"[green]✓ Retest scheduled for finding: {finding_id or 'all pending'}[/green]")
-            console.print("[yellow]Use /schedule add to create recurring retest jobs[/yellow]")
         elif action == "status":
             console.print("[dim]No pending retests.[/dim]")
         else:
@@ -2296,19 +2295,12 @@ class SiyarixChat:
         }
 
         reg = ToolRegistry()
-        try:
-            from .learning_memory import LearningMemory
-
-            lm = LearningMemory()
-        except ModuleNotFoundError:
-            lm = None
         from .session_log import session_logger
 
         engine = ExecutionEngine(
             mode=exec_mode,
             registry=reg,
             config=engine_config,
-            learning_memory=lm,
             session_logger=session_logger,
         )
         self._engine_kill_switch = getattr(engine, "_kill_switch", None)
@@ -2438,32 +2430,6 @@ class SiyarixChat:
         self._session.add_message(
             "assistant", summary, findings=len(result.all_findings)
         )
-
-        # Pedagogical output: educational breakdown after task completion
-        try:
-            from .user_learning import UserLearning
-
-            ul = UserLearning()
-            step_results_by_id = {sr.step_id: sr for sr in result.step_results}
-            steps_for_pedagogical = []
-            for s in plan.steps:
-                sr = step_results_by_id.get(s.id)
-                steps_for_pedagogical.append(
-                    {
-                        "tool": s.tool or "",
-                        "command": s.command or s.description or "",
-                        "output": sr.output if sr and sr.output else "",
-                        "step_type": (
-                            s.step_type.value
-                            if hasattr(s.step_type, "value")
-                            else str(s.step_type)
-                        ),
-                        "description": s.description or "",
-                    }
-                )
-            ul.generate_pedagogical_output(steps_for_pedagogical, result.all_findings)
-        except ModuleNotFoundError:
-            pass
 
     def _generate_text_response(self, user_input: str) -> str:
         """Generate a helpful text response when no tool execution is needed."""

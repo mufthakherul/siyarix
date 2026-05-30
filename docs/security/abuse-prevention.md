@@ -7,10 +7,10 @@ Siyarix implements multiple layers of abuse prevention to stop malicious or acci
 ```
 ┌─────────────────────────────────────────┐
 │    Command-level prevention             │
-│  ┌──────────┐  ┌──────────┐  ┌──────┐ │
-│  │  Danger  │  │  Syntax  │  │ ACL │ │
-│  │ Analysis │  │  Check   │  │ Gate│ │
-│  └──────────┘  └──────────┘  └──────┘ │
+│  ┌──────────┐  ┌──────────┐ │
+│  │  Danger  │  │  Syntax  │ │
+│  │ Analysis │  │  Check   │ │
+│  └──────────┘  └──────────┘ │
 ├─────────────────────────────────────────┤
 │    System-level prevention              │
 │  ┌──────────┐  ┌──────────┐  ┌──────┐ │
@@ -43,10 +43,10 @@ PATTERNS = {
 
 ## 2. Permission gate
 
-Three-stage gate per command:
+Two-stage gate per command:
 
 ```
-Command → Syntax Check → Danger Analysis → Persona ACL → Result
+Command → Syntax Check → Danger Analysis → Result
 ```
 
 Each stage returns `ALLOW`, `FLAG`, or `DENY`.
@@ -123,14 +123,4 @@ All safety events are logged to the tamper-evident audit log:
 | Safe mode violation | command, persona, target |
 | Permission gate | gate stage, result, user action |
 
-## 8. Persona-based restrictions
 
-Each persona has an ACL that restricts tool access:
-
-| Persona | Permitted | Blocked |
-|---------|-----------|---------|
-| `defensive` | nmap, nuclei (passive), nikto | metasploit, sqlmap, hydra |
-| `soc_analyst` | Monitoring tools only | All exploitation, scanning limited |
-| `offensive` | All tools | Nothing |
-| `pentester` | All standard tools | Destructive system commands |
-| `bug_hunter` | Vuln scanners only | Exploitation |

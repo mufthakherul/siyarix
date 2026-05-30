@@ -16,7 +16,6 @@ Siyarix uses a layered configuration system: defaults, environment variables, se
 | `SIYARIX_CONFIG` | `_config_path` | Path to custom config file |
 | `SIYARIX_HOME` | `_home_dir` | Override `~/.siyarix/` directory |
 | `SIYARIX_DEBUG` | `log_level` | Enable debug logging (set to `debug`) |
-| `SIYARIX_PERSONA` | `persona` | Active persona name |
 | `SIYARIX_PROVIDER` | `model_provider` | AI provider override |
 | `SIYARIX_TIMEOUT` | `scan_timeout` | Tool timeout in seconds |
 | `SIYARIX_LOG_LEVEL` | `log_level` | Logging level |

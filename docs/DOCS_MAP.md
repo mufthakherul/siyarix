@@ -36,7 +36,6 @@ Start here:
 - `user/threat-intelligence.md` — MITRE ATT&CK, MISP, STIX feeds
 - `user/playbooks.md` — reusable incident response workflows
 - `user/workflow-files.md` — YAML/JSON DAG workflow reference
-- `user/scheduled-scans.md` — cron-based recurring scans
 - `user/deception-and-canary-tokens.md` — honeypot detection, canary tokens
 - `user/importing-findings.md` — import Nessus, Burp, Metasploit results
 - `user/iac-scanning.md` — Terraform, CloudFormation, Helm, Dockerfile scanning
@@ -59,7 +58,6 @@ Start here:
 - `architecture/execution-engine.md` — plan execution
 - `architecture/memory-and-state.md` — persistence and caching
 - `architecture/security-model.md` — security architecture
-- `architecture/multi-agent-framework.md` — AgentTeam, CoordinatorAgent, message protocol
 - `architecture/experience-intelligence.md` — context tracking, skill profiling, predictions
 - `architecture/interaction-modes.md` — 9 interaction modes reference
 - `architecture/intent-routing.md` — 4-stage semantic routing pipeline
@@ -91,10 +89,6 @@ Start here:
 - `legal/trademark-policy.md` — trademark usage
 - `legal/responsible-ai-usage.md` — AI governance
 
-### DevOps / deployment
-
-- `deployment/distributed-mode.md` — Redis/RQ multi-node task distribution
-
 ## Documentation tree
 
 ```
@@ -117,7 +111,6 @@ docs/
 │   ├── threat-intelligence.md   # MITRE ATT&CK, MISP, STIX feed ingestion
 │   ├── playbooks.md             # Reusable incident response workflows
 │   ├── workflow-files.md        # YAML/JSON DAG workflow format reference
-│   ├── scheduled-scans.md       # Cron-based recurring scan scheduler
 │   ├── deception-and-canary-tokens.md  # Honeypot detection, canary tokens
 │   ├── importing-findings.md    # Nessus, Burp, Metasploit, STIX import
 │   ├── iac-scanning.md          # Terraform, CloudFormation, Helm, Dockerfile
@@ -138,7 +131,6 @@ docs/
 │   ├── execution-engine.md      # Step execution, dependency resolution
 │   ├── memory-and-state.md      # Knowledge graph, persistence, caching
 │   ├── security-model.md        # Permission gate, masking, audit
-│   ├── multi-agent-framework.md # AgentTeam, CoordinatorAgent, roles
 │   ├── experience-intelligence.md  # XI subsystem — context, skills, predictions
 │   ├── interaction-modes.md     # 9 interaction modes reference
 │   └── intent-routing.md        # 4-stage semantic routing pipeline
@@ -160,9 +152,6 @@ docs/
 │   ├── operational-security.md     # TOR, proxy rotation, stealth
 │   └── hsm-integration.md          # YubiKey, PKCS#11, TPM support
 │
-├── deployment/
-│   └── distributed-mode.md         # Redis/RQ multi-node task distribution
-│
 └── legal/
     ├── agpl-license-guide.md       # AGPL-3.0-or-later explained
     ├── note-file-explained.md      # NOTICE structure and purpose
@@ -181,7 +170,6 @@ docs/
 | `architecture/` | System design, data flow, security model | Architects |
 | `ai/` | AI provider system, agent reasoning | AI engineers |
 | `security/` | Ethics, safety, threat model, OPSEC | Security team |
-| `deployment/` | Distributed deployment, multi-node, Redis/RQ | DevOps |
 | `legal/` | Licensing, trademark, governance | Legal/compliance |
 
 ## Scalability plan
@@ -197,7 +185,7 @@ docs/
 └── contributing/  → Expanded contributor guides
 ```
 
-The `deployment/` section has been started with `distributed-mode.md`. Each new section can be added without breaking the existing structure.
+Each new section can be added without breaking the existing structure.
 
 ## Conventions
 

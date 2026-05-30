@@ -88,7 +88,6 @@ The knowledge graph maintains discovered entities (hosts, ports, vulns, credenti
 
 ## Scalability
 
-- **Distributed mode** (`distributed.py`): Optional Redis/RQ-backed task queue for multi-node execution
 - **Worker pool** (`worker_pool.py`): Bounded asyncio worker pool for concurrent operations
 - **Cache** (`cache_manager.py`): LRU cache with TTL for tool outputs and provider responses
 - **Offline store** (`offline_store.py`): SQLite with WAL mode for concurrent reads

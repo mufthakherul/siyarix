@@ -7,10 +7,10 @@ Siyarix implements defense-in-depth with multiple security layers controlling co
 ```
 ┌─────────────────────────────────────────┐
 │          Permission Gate                │
-│  ┌──────────┐  ┌──────────┐  ┌──────┐ │
-│  │  Syntax  │→│  Danger  │→│ ACL │ │
-│  │  Check   │  │ Analysis │  │     │ │
-│  └──────────┘  └──────────┘  └──────┘ │
+│  ┌──────────┐  ┌──────────┐ │
+│  │  Syntax  │→│  Danger  │ │
+│  │  Check   │  │ Analysis │ │
+│  └──────────┘  └──────────┘ │
 ├─────────────────────────────────────────┤
 │         Data Protection                 │
 │  ┌──────────┐  ┌──────────┐  ┌──────┐ │
@@ -29,7 +29,7 @@ Siyarix implements defense-in-depth with multiple security layers controlling co
 
 ## 1. Permission gate (`permission_gate.py`)
 
-Three stages, evaluated in order:
+Two stages, evaluated in order:
 
 ### Stage 1: Syntax check
 
@@ -52,16 +52,6 @@ Pattern-matches against 38 dangerous command signatures:
 | Network flooding | `ping -f`, `hping3 --flood` | FLAG |
 | Privilege escalation | `sudo !!`, `su -` | FLAG |
 | Data exfiltration | `nc -e`, `curl --data @/etc` | FLAG |
-
-### Stage 3: Persona ACL
-
-Each persona (`PersonaEngine`) defines a tool ACL:
-
-- **offensive**: Full access, all tools
-- **pentester**: Standard tools, suspicious patterns flagged
-- **defensive**: Scan-only, no exploitation tools
-- **soc_analyst**: Read-only tools, monitoring only
-- **bug_hunter**: Vulnerability detection only
 
 Commands failing any stage return `DENY` or `FLAG` (user confirmation required).
 

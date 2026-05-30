@@ -2,40 +2,6 @@
 
 Siyarix implements multiple safeguards to prevent AI hallucination, dangerous command generation, and output fabrication.
 
-## Hallucination detection (`response_sensor.py`)
-
-The `ResponseSensor` validates AI outputs before execution:
-
-### Confidence scoring
-
-Each AI response is scored on:
-
-- **Structure compliance**: Does the response match expected JSON format?
-- **Tool existence**: Does the proposed tool exist in the registry?
-- **Command plausibility**: Is the command well-formed and realistic?
-- **Target validity**: Does the target match expected patterns (IP, hostname, URL)?
-
-### Cross-validation
-
-The sensor cross-references AI output against:
-
-```python
-# Example validation
-if response.get("tool") not in registry.list_tools():
-    return ValidationResult.FAIL("Tool not found in registry")
-
-if not validate_target(response.get("target", "")):
-    return ValidationResult.FAIL("Invalid target format")
-```
-
-### Fallback for low confidence
-
-When confidence is below threshold:
-
-1. The AI result is rejected
-2. Heuristic routing (`RuleInterpreter`) is used instead
-3. The user is notified of the fallback
-
 ## Command safety (`security_hardening.py`)
 
 ### Danger analysis
@@ -79,15 +45,6 @@ Pre-execution validation:
 - JWT tokens (`eyJ...`)
 - Bearer tokens
 - Database URLs (`postgres://user:pass@...`)
-
-## Persona-based safety
-
-Each persona defines allowed operations:
-
-```python
-persona = persona_engine.get("defensive")
-# ACL: scan tools only, no exploit, no shell commands
-```
 
 ## Safe mode
 

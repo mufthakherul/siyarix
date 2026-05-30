@@ -76,7 +76,6 @@ The project is organized around three intersecting concerns:
 |------|-------|
 | **AI orchestration** | Provider-agnostic task planning, failover routing, multi-model voting |
 | **Security tooling** | Unified CLI interface over 100+ open-source security tools |
-| **Learning** | Understanding LLM performance at cybersecurity task decomposition |
 
 ---
 
@@ -89,7 +88,7 @@ Intent Router (4-stage: exact match, heuristic, keyword, LLM fallback)
         |
 Task Planner (provider registry with automatic failover, circuit breakers)
         |
-Permission Gate (syntax check / danger analysis / persona ACL)
+Permission Gate (syntax check / danger analysis)
         |
 Execution Engine (parallel step execution, tool parsing, result aggregation)
 ```
@@ -98,7 +97,7 @@ Key architectural decisions:
 
 - **Provider abstraction**: 10 provider adapters registered, preference-ordered fallback chains, no hard SDK dependency
 - **Offline fallback**: Heuristic planner when no AI provider is available; local models via Ollama/LM Studio
-- **Safety**: Three-stage permission gate, 38 dangerous-command patterns, persona-based tool ACLs, kill switch
+- **Safety**: Two-stage permission gate, 38 dangerous-command patterns, kill switch
 
 ---
 
@@ -108,16 +107,13 @@ Key architectural decisions:
 - Interactive chat REPL with slash commands, multi-turn context, and SQLite-backed session persistence
 - Multi-provider AI routing with automatic failover and circuit breakers
 - Security tool integration — 100+ tools discovered on PATH, 18+ output parsers
-- Multi-agent framework — role-based agents (recon, scanner, exploiter, reporter) with message-passing coordination
 - Credential management — encrypted vault (AES-256-GCM), keyring integration, key rotation
 - Knowledge graph — in-memory entity relationship modeling with BFS traversal
 - Cloud/IoT/IaC/mobile scanning — built-in checks for AWS, Azure, GCP, firmware, APKs, Terraform
 - Compliance frameworks — SOC2, ISO27001, NIST, PCI-DSS, GDPR, HIPAA automated assessments
 - Playbook engine — reusable workflows with variables, conditionals, loops, and error handling
-- Scheduled scans — cron-based recurring job scheduler
 - Threat intelligence — MITRE ATT&CK mapping, MISP/STIX feed ingestion
 - Deception — honeypot detection (9 signatures), canary tokens (7 types), trapdoor credentials
-- Distributed task queue — Redis/RQ-backed for multi-node operation (experimental)
 
 ---
 
@@ -160,13 +156,12 @@ The full documentation lives in [`docs/`](docs/DOCS_MAP.md).
 | Section | Contents |
 |---------|----------|
 | `getting-started/` | Installation, setup, configuration, troubleshooting |
-| `user/` | CLI reference, security workflows, AI workflows, reporting, cloud/IaC/mobile/IoT scanning, compliance, playbooks, scheduled scans, threat intel, deception, importing |
+| `user/` | CLI reference, security workflows, AI workflows, reporting, cloud/IaC/mobile/IoT scanning, compliance, playbooks, threat intel, deception, importing |
 | `developer/` | Codebase overview, contribution guide, module architecture, testing, building |
-| `architecture/` | System overview, AI agent pipeline, provider abstraction, execution engine, memory/state, security model, multi-agent framework, experience intelligence, interaction modes, intent routing |
+| `architecture/` | System overview, AI agent pipeline, provider abstraction, execution engine, memory/state, security model, experience intelligence, interaction modes, intent routing |
 | `ai/` | Multi-provider routing, prompt architecture, agent reasoning, tool execution, safety/hallucination handling, multi-model ensemble, MCP integration |
 | `security/` | Ethical hacking policy, abuse prevention, threat model, vulnerability reporting, OPSEC, HSM integration |
 | `legal/` | AGPL-3.0 license guide, NOTICE explanation, disclaimer, trademark policy, responsible AI usage |
-| `deployment/` | Distributed mode (Redis/RQ) |
 
 Start with the [installation guide](docs/getting-started/installation.md).
 
@@ -195,7 +190,6 @@ Siyarix is designed for **authorized security testing, research, and defensive o
 - Safe mode (`SIYARIX_SAFE_MODE=1`) restricts operations to reconnaissance only
 - The permission gate blocks 38 dangerous command patterns
 - All actions are logged to a tamper-evident SHA-256 chained audit trail
-- Persona-based tool ACLs scope what tools are available per profile
 
 See [ETHICAL_USE.md](ETHICAL_USE.md) and [RESPONSIBLE_AI_USE.md](RESPONSIBLE_AI_USE.md).
 

@@ -86,22 +86,6 @@ SQLite-backed at `~/.siyarix/sessions.db`:
 - **Session metadata**: Start/end time, target, mode
 - **Session registry**: Active/archived sessions
 
-### Learning memory (`learning_memory.py`)
-
-Records user corrections and tool adjustments for adaptive behavior:
-
-- Corrected commands (user changed the tool selection)
-- Tool failure patterns
-- Usage frequency per tool
-
-### User learning (`user_learning.py`)
-
-Skill profiling and adaptive teaching:
-
-- `UserProfile`: Experience level, strengths, weaknesses
-- `PedagogicalEngine`: Generates teaching steps based on user skill gaps
-- `SessionRecord`: Interaction patterns for analysis
-
 ## State lifecycle
 
 ```

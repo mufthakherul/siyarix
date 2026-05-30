@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """
-Three-stage permission gate for runtime safety enforcement.
+Two-stage permission gate for runtime safety enforcement.
 
-Syntax Check -> Danger Analysis -> Permission ACL
+Syntax Check -> Danger Analysis
 """
 
 from __future__ import annotations
@@ -28,8 +28,7 @@ class GateResult:
 
 
 class PermissionGate:
-    def __init__(self, persona_engine: Any = None) -> None:
-        self._persona_engine = persona_engine
+    def __init__(self) -> None:
         self._danger_analyzer = DangerAnalyzer()
 
     def check(
@@ -58,37 +57,4 @@ class PermissionGate:
                 command=command,
                 requires_review=True,
             )
-
-        # Stage 3: Permission check via ACL
-        if self._persona_engine and tool:
-            persona = getattr(self._persona_engine, "active_persona", None)
-            if persona and hasattr(persona, "tool_acl"):
-                acl = persona.tool_acl
-                if not acl.is_allowed(tool):
-                    return GateResult(
-                        False,
-                        "permission",
-                        f"Tool '{tool}' not in allowed list",
-                        tool=tool,
-                        command=command,
-                    )
-                if acl.requires_review(tool):
-                    return GateResult(
-                        True,
-                        "review",
-                        f"Tool '{tool}' requires review",
-                        tool=tool,
-                        command=command,
-                        requires_review=True,
-                    )
-                if acl.requires_permission(tool):
-                    return GateResult(
-                        True,
-                        "permission",
-                        f"Tool '{tool}' requires permission",
-                        tool=tool,
-                        command=command,
-                        requires_review=True,
-                    )
-
         return GateResult(True, "approved", "", tool=tool, command=command)

@@ -55,7 +55,6 @@ Three-stage access control for every command:
 
 1. **Syntax gate**: Parses the command, checks for valid structure
 2. **Danger analysis**: Pattern-matches against 38 dangerous command patterns (dd, format, rm -rf, etc.)
-3. **Persona ACL**: Checks if the current persona allows the tool/command
 
 Each stage can allow, deny, or flag for user confirmation.
 

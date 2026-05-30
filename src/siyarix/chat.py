@@ -947,37 +947,36 @@ class SiyarixChat:
 
         # If user set Gemini key and the client package is missing, offer to install it
         if provider == "gemini":
+            pkg_name = "google-genai"
             try:
-                __import__("google.generativeai")
-
+                from google import genai as _test_genai  # noqa: F401
                 gemini_pkg_installed = True
             except Exception:
                 gemini_pkg_installed = False
 
             if not gemini_pkg_installed:
                 ans = Prompt.ask(
-                    "google-generativeai package not installed — install now? (y/N)",
+                    f"{pkg_name} not installed — install now? (y/N)",
                     default="N",
                 )
                 if ans.lower().startswith("y"):
                     console.print(
-                        "[dim]Installing google-generativeai — this may take a moment...[/dim]"
+                        f"[dim]Installing {pkg_name} — this may take a moment...[/dim]"
                     )
                     try:
-                        # Use the safe runner which validates command lists
                         res = safe_run_sync(
                             [
                                 sys.executable,
                                 "-m",
                                 "pip",
                                 "install",
-                                "google-generativeai>=0.8.0",
+                                pkg_name,
                             ],
                             timeout=600,
                         )
                         if res.returncode == 0:
                             console.print(
-                                "[green]✓ google-generativeai installed — Gemini should be available now.[/green]"
+                                f"[green]✓ {pkg_name} installed — Gemini should be available now.[/green]"
                             )
                         else:
                             console.print(
@@ -985,7 +984,7 @@ class SiyarixChat:
                             )
                     except Exception as exc:
                         logger.exception(
-                            "Failed to run pip install for google-generativeai: %s", exc
+                            "Failed to run pip install for %s: %s", pkg_name, exc
                         )
 
     def _cmd_theme(self, args: str) -> None:
@@ -2563,10 +2562,9 @@ class SiyarixChat:
         else:
             status["openai"] = ("✓", "configured")
 
-        # Gemini
+        # Gemini (google-genai package)
         try:
-            __import__("google.generativeai")
-
+            from google import genai as _test_genai  # noqa: F401
             gemini_installed = True
         except Exception:
             gemini_installed = False

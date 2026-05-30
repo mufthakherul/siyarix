@@ -13,6 +13,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
@@ -240,6 +241,8 @@ class OllamaModel:
     blocking the CLI startup with a synchronous HTTP call.
     """
 
+    _CACHE_TTL: float = 30.0  # seconds
+
     def __init__(
         self,
         base_url: str = "http://localhost:11434",
@@ -248,15 +251,21 @@ class OllamaModel:
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._available: bool | None = None  # None = not yet checked
+        self._cache_expiry: float = 0.0
 
     @property
     def available(self) -> bool:
-        """Return cached availability (does NOT make a network call at startup)."""
-        # Return True optimistically — the actual check happens during plan()
-        return True
+        """Return cached availability with TTL."""
+        if self._available is not None and time.monotonic() < self._cache_expiry:
+            return self._available
+        return True  # optimistic — actual check in plan()
 
     async def _check_available(self) -> bool:
         """Async availability check — run this lazily before planning."""
+        now = time.monotonic()
+        # Respect existing cache
+        if self._available is not None and now < self._cache_expiry:
+            return bool(self._available)
         try:
             import httpx
 
@@ -264,9 +273,9 @@ class OllamaModel:
                 resp = await client.get(f"{self._base_url}/api/tags")
                 self._available = resp.status_code == 200
         except Exception as exc:
-            # Avoid dumping full stack traces for transient network failures; log a concise warning
-            logger.warning("Ollama availability check failed: %s", exc)
+            logger.debug("Ollama check failed: %s", exc)
             self._available = False
+        self._cache_expiry = time.monotonic() + self._CACHE_TTL
         return bool(self._available)
 
     async def plan(self, prompt: str, context: dict[str, Any]) -> dict[str, Any]:
@@ -282,7 +291,11 @@ class OllamaModel:
             if not ok:
                 return {}
         elif not self._available:
-            return {}
+            if time.monotonic() < self._cache_expiry:
+                return {}
+            ok = await self._check_available()
+            if not ok:
+                return {}
 
         system_prompt = _build_system_prompt(context)
 

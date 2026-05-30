@@ -8,6 +8,7 @@ Provides a unified interface for all AI model providers with:
 - Built-in NoopProvider for offline/testing
 - Adapter classes wrapping planner models into the Provider ABC
 - Automatic fallback chain configuration
+- Circuit breaker per provider for graceful failure handling
 """
 
 from __future__ import annotations
@@ -16,9 +17,71 @@ import asyncio
 import json
 import logging
 import os
+import time
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Circuit Breaker — lightweight implementation for provider failure handling
+# ---------------------------------------------------------------------------
+
+
+class CircuitBreaker:
+    """Simple circuit breaker for model providers.
+
+    States:
+      CLOSED  → requests pass through (normal)
+      OPEN    → requests short-circuited (provider failing)
+      HALF    → single test request allowed after reset_timeout
+    """
+
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
+
+    def __init__(
+        self,
+        failure_threshold: int = 3,
+        reset_timeout: float = 60.0,
+        name: str = "unknown",
+    ) -> None:
+        self.failure_threshold = failure_threshold
+        self.reset_timeout = reset_timeout
+        self.name = name
+        self._state = self.CLOSED
+        self._failure_count = 0
+        self._last_failure_time: float = 0.0
+
+    @property
+    def state(self) -> str:
+        if self._state == self.OPEN:
+            if time.monotonic() - self._last_failure_time >= self.reset_timeout:
+                self._state = self.HALF_OPEN
+        return self._state
+
+    @property
+    def is_available(self) -> bool:
+        return self.state != self.OPEN
+
+    def record_success(self) -> None:
+        self._failure_count = 0
+        self._state = self.CLOSED
+
+    def record_failure(self) -> None:
+        self._failure_count += 1
+        self._last_failure_time = time.monotonic()
+        if self._failure_count >= self.failure_threshold:
+            self._state = self.OPEN
+            logger.warning(
+                "Circuit breaker OPEN for %s after %d failures",
+                self.name,
+                self._failure_count,
+            )
+
+    def reset(self) -> None:
+        self._state = self.CLOSED
+        self._failure_count = 0
 
 
 class Provider:
@@ -94,6 +157,7 @@ class ProviderRegistry:
     def __init__(self) -> None:
         self._providers: dict[str, Any] = {}
         self._ordered: list[tuple[str, Provider]] = []
+        self._circuit_breakers: dict[str, CircuitBreaker] = {}
 
     def register(self, name: str, provider: Any) -> None:
         if name in self._providers:
@@ -101,6 +165,9 @@ class ProviderRegistry:
         self._providers[name] = provider
         if not isinstance(provider, type):
             self._ordered.append((name, provider))
+            self._circuit_breakers[name] = CircuitBreaker(
+                failure_threshold=3, reset_timeout=60.0, name=name
+            )
 
     def get(self, name: str, **kwargs: Any) -> Provider:
         provider = self._providers.get(name)
@@ -117,7 +184,18 @@ class ProviderRegistry:
         return [p for _, p in self._ordered]
 
     def available(self) -> list[Provider]:
-        return [p for _, p in self._ordered if getattr(p, "available", False)]
+        result: list[Provider] = []
+        for name, p in self._ordered:
+            if not getattr(p, "available", False):
+                continue
+            cb = self._circuit_breakers.get(name)
+            if cb is not None and not cb.is_available:
+                logger.debug(
+                    "Circuit breaker OPEN for %s — skipping in available()", name
+                )
+                continue
+            result.append(p)
+        return result
 
     def ordered_by_preference(
         self, preferred: list[str] | None = None
@@ -135,9 +213,22 @@ class ProviderRegistry:
         ordered.extend(others)
         return ordered
 
+    def record_failure(self, name: str) -> None:
+        """Record a failure for the given provider name's circuit breaker."""
+        cb = self._circuit_breakers.get(name)
+        if cb is not None:
+            cb.record_failure()
+
+    def record_success(self, name: str) -> None:
+        """Record a success for the given provider name's circuit breaker."""
+        cb = self._circuit_breakers.get(name)
+        if cb is not None:
+            cb.record_success()
+
     def clear(self) -> None:
         self._providers.clear()
         self._ordered.clear()
+        self._circuit_breakers.clear()
 
 
 registry = ProviderRegistry()
@@ -347,7 +438,7 @@ registry.register("anthropic", AnthropicAdapter)
 registry.register("opencode", OpenCodeAdapter)
 
 __all__ = [
-    "Provider", "ProviderRegistry", "NoopProvider", "registry",
+    "Provider", "ProviderRegistry", "NoopProvider", "CircuitBreaker", "registry",
     "OpenAIAdapter", "GeminiAdapter", "OllamaAdapter", "CloudAdapter",
     "GroqAdapter", "TogetherAdapter", "LMStudioAdapter", "CustomAdapter",
     "AnthropicAdapter", "OpenCodeAdapter",

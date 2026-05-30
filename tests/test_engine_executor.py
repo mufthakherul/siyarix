@@ -363,20 +363,6 @@ class TestRunToolStep:
         assert sr.status == StepStatus.SUCCESS
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="learning_memory is no longer a core feature")
-    async def test_run_tool_learning_memory(self, engine):
-        step = make_step(tool="nmap", args=["-sV"])
-        engine._resolver.resolve.return_value = MagicMock(is_safe=True, warnings=[])
-        engine._learning_memory = MagicMock()
-        engine._executor.execute_step = AsyncMock(
-            return_value=make_sr("s1", StepStatus.SUCCESS))
-        with patch("siyarix.engine.executor._check_permission_gate",
-                   return_value="-sV --modified"):
-            sr = await engine._run_tool_step(step, False)
-        assert sr.status == StepStatus.SUCCESS
-        engine._learning_memory.record_with_correction.assert_called_once()
-
-    @pytest.mark.asyncio
     async def test_run_tool_session_logger(self, engine):
         step = make_step(tool="nmap", args=["-sV"])
         engine._resolver.resolve.return_value = MagicMock(is_safe=True, warnings=[])
@@ -436,19 +422,6 @@ class TestRunShellStep:
                 return_value=make_sr("s1", StepStatus.SUCCESS))
             sr = await engine._run_shell_step(step, False)
         assert sr.status == StepStatus.SUCCESS
-
-    @pytest.mark.asyncio
-    @pytest.mark.skip(reason="learning_memory is no longer a core feature")
-    async def test_run_shell_learning_memory(self, engine):
-        step = make_step(step_type=StepType.SHELL_CMD, command="echo test")
-        engine._resolver.resolve.return_value = MagicMock(is_safe=True, warnings=[])
-        engine._learning_memory = MagicMock()
-        engine._executor.execute_step = AsyncMock(
-            return_value=make_sr("s1", StepStatus.SUCCESS))
-        with patch("siyarix.engine.executor._check_permission_gate",
-                   return_value="echo modified"):
-            await engine._run_shell_step(step, False)
-        engine._learning_memory.record_with_correction.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_run_shell_session_logger(self, engine):

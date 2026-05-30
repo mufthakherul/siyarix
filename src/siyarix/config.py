@@ -44,7 +44,7 @@ DEFAULTS: dict[str, Any] = {
     "scan_timeout": 300,
     "auto_sync": True,
     "color_theme": "default",
-    "log_level": "info",
+    "log_level": "warning",
     "proxy": "",
     "proxy_pool": "",
     "client_profile": "desktop_chrome",

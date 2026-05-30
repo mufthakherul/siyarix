@@ -41,7 +41,9 @@ def test_run_tool_step_basic():
     resolver = DummyResolver()
     tools = [DummyToolInfo()]
     executor = ToolExecutor(
-        resolver=resolver, discovered_tools=tools, graph=None, run_tool_fn=fake_run_tool
+        resolver=resolver,
+        discovered_tools=tools,
+        run_tool_fn=fake_run_tool,
     )
 
     step = ExecutionStep(

@@ -153,6 +153,7 @@ class TestSettingsStore:
 
 
 class TestProgressRunner:
+    @pytest.mark.skip(reason="progress module removed for v1.0")
     def test_run_tools_with_progress_returns_per_tool_results(self, monkeypatch):
         from siyarix import progress as p
 

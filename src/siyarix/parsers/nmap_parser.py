@@ -56,11 +56,6 @@ class NmapParser:
 
         Falls back to text parsing if the input is not valid XML.
         """
-        rust_findings = rust_parse_nmap_xml(xml_output)
-        if rust_findings is not None:
-            for finding in rust_findings:
-                finding.setdefault("timestamp", _now_iso())
-            return rust_findings
         try:
             return self._parse_xml(xml_output)
         except ET.ParseError:

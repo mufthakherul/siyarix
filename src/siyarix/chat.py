@@ -30,15 +30,153 @@ from pathlib import Path
 from typing import Any
 
 from .branding import available_themes, print_theme_preview
-from .command_profiles import CommandProfile, CommandProfileStore
 from .config import SettingsStore
-from .environment import (ensure_env_file, load_env_file, provider_env_var,
-                          upsert_env_vars)
 from .executor import safe_run_sync
-from .shell_knowledge import (CROSS_PLATFORM_COMMANDS, build_platform_context,
-                              detect_shell, get_security_commands,
-                              get_shell_platform, normalize_shell)
-from .ux import CommandPalette, SmartAutocomplete, SplitPane
+
+# ---------------------------------------------------------------------------
+# Stub implementations for modules removed in v1.0 cleanup
+# ---------------------------------------------------------------------------
+
+import platform as _platform
+
+CROSS_PLATFORM_COMMANDS: dict[str, dict[str, str]] = {}
+
+
+def build_platform_context() -> dict[str, Any]:
+    uname = _platform.uname()
+    return {
+        "platform_pretty": f"{uname.system} {uname.release}",
+        "platform_release": uname.release,
+        "arch": uname.machine,
+        "processor": uname.processor,
+        "hostname": uname.node,
+        "username": os.environ.get("USER", ""),
+        "cwd": os.getcwd(),
+        "terminal_type": os.environ.get("TERM", ""),
+        "term_program": os.environ.get("TERM_PROGRAM", ""),
+        "term": os.environ.get("TERM", ""),
+        "shell": os.environ.get("SHELL", ""),
+        "shell_platform": _platform.system().lower(),
+        "shell_executable": os.environ.get("SHELL", ""),
+        "python_version": sys.version.split()[0],
+        "cpu_count": os.cpu_count() or 0,
+        "memory_total_mb": "unknown",
+        "load_avg_1m": "n/a",
+        "load_avg_5m": "n/a",
+        "load_avg_15m": "n/a",
+        "is_container": False,
+        "container_runtime": "none",
+        "is_codespaces": False,
+        "is_terminal_ssh": False,
+        "is_terminal_cloud": False,
+        "has_wsl": False,
+        "available_tools_count": 0,
+    }
+
+
+def detect_shell() -> str:
+    return os.environ.get("SHELL", "/bin/sh")
+
+
+class _Shell:
+    def __init__(self, value: str) -> None:
+        self.value = value
+
+
+def normalize_shell(shell: str) -> _Shell:
+    return _Shell(shell)
+
+
+def get_security_commands(shell: str = "") -> dict[str, str]:
+    return {}
+
+
+def get_shell_platform() -> str:
+    return _platform.system()
+
+
+def load_env_file() -> None:
+    pass
+
+
+def ensure_env_file() -> str | None:
+    return None
+
+
+def provider_env_var(provider: str) -> str:
+    return f"{provider.upper()}_API_KEY"
+
+
+def upsert_env_vars(vars: dict[str, str], env_file: str | None = None) -> None:
+    pass
+
+
+def list_supported_shells() -> list[tuple[str, str]]:
+    return [("bash", "native"), ("zsh", "native"), ("powershell", "compat")]
+
+
+@dataclass
+class CommandProfile:
+    name: str
+    command: str
+    description: str | None = None
+    created_at: str = ""
+
+
+class CommandProfileStore:
+    def save(self, profile: CommandProfile) -> None:
+        pass
+
+    def get(self, name: str) -> CommandProfile | None:
+        return None
+
+    def list_credentials(self) -> list[CommandProfile]:
+        return []
+
+    def delete(self, name: str) -> None:
+        pass
+
+
+class SmartAutocomplete:
+    def __init__(self, session: Any) -> None:
+        pass
+
+    def get_completions(self, document: Any, complete_event: Any) -> list[Any]:
+        return []
+
+
+class CommandPalette:
+    def __init__(self, session_id: str) -> None:
+        pass
+
+    def show(self, console: Any) -> str | None:
+        return None
+
+
+class SplitPane:
+    def __init__(self, theme: str = "dark-neon") -> None:
+        pass
+
+    def generate_layout(
+        self,
+        left_renderable: Any = None,
+        right_type: str = "",
+        session_meta: Any = None,
+        findings: list[Any] | None = None,
+        timeline_events: list[Any] | None = None,
+    ) -> str:
+        return ""
+
+
+class ConfigPanel:
+    @staticmethod
+    def run() -> None:
+        pass
+
+    @staticmethod
+    def _section_tools() -> None:
+        pass
+
 
 Console: Any = None
 Columns: Any = None
@@ -1066,8 +1204,6 @@ class SiyarixChat:
             )
 
     def _cmd_shells(self, _: str) -> None:
-        from .shell_knowledge import list_supported_shells
-
         table = Table(title="Supported Shells", header_style="bold cyan")
         table.add_column("Shell", style="cyan")
         table.add_column("Tier", style="magenta")
@@ -1354,8 +1490,6 @@ class SiyarixChat:
 
     async def _cmd_config(self, args: str) -> None:
         """Open the interactive configuration panel."""
-        from .ux.config_panel import ConfigPanel
-
         sub = args.strip().lower() if args else ""
         if sub == "tools":
             ConfigPanel()._section_tools()

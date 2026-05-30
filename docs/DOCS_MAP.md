@@ -38,6 +38,7 @@ Start here:
 - `user/workflow-files.md` — YAML/JSON DAG workflow reference
 - `user/deception-and-canary-tokens.md` — honeypot detection, canary tokens
 - `user/importing-findings.md` — import Nessus, Burp, Metasploit results
+- `user/offline-registry.md` — offline response system and registry packs
 - `user/iac-scanning.md` — Terraform, CloudFormation, Helm, Dockerfile scanning
 - `user/mobile-scanning.md` — Android APK security analysis
 - `user/iot-scanning.md` — firmware analysis, serial port scanning
@@ -113,6 +114,7 @@ docs/
 │   ├── workflow-files.md        # YAML/JSON DAG workflow format reference
 │   ├── deception-and-canary-tokens.md  # Honeypot detection, canary tokens
 │   ├── importing-findings.md    # Nessus, Burp, Metasploit, STIX import
+│   ├── offline-registry.md      # Offline response registry packs
 │   ├── iac-scanning.md          # Terraform, CloudFormation, Helm, Dockerfile
 │   ├── mobile-scanning.md       # Android APK static analysis
 │   └── iot-scanning.md          # Firmware analysis, serial port scanning

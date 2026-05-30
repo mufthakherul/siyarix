@@ -190,7 +190,8 @@ def _validate_cmd_list(cmd: list[str]) -> None:
         if not isinstance(part, str):
             raise ValueError("all command parts must be strings")
         # Reject obvious shell metacharacters
-        if any(ch in part for ch in [";", "|", "&", "`", "$", ">", "<"]):
+        cleaned = part.replace(">=", "").replace("<=", "").replace("==", "")
+        if any(ch in cleaned for ch in [";", "|", "&", "`", "$", ">", "<"]):
             raise ValueError(f"command part contains suspicious character: {part!r}")
 
 

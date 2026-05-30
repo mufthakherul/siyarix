@@ -407,6 +407,7 @@ class SiyarixChat:
         self._esc_press_count = 0
         self._esc_press_time = 0.0
         self._esc_window = 2.0
+        self._offline_responder: Any = None
 
     def _init_session(
         self, session_id: str | None, target: str, resume: bool
@@ -2432,43 +2433,11 @@ class SiyarixChat:
         )
 
     def _generate_text_response(self, user_input: str) -> str:
-        """Generate a helpful text response when no tool execution is needed."""
-        lower = user_input.lower()
-
-        # Platform-specific help
-        if any(
-            kw in lower
-            for kw in ("how to", "what is", "explain", "what command", "which command")
-        ):
-            # Try to suggest a relevant cross-platform command
-            for intent, shells in CROSS_PLATFORM_COMMANDS.items():
-                if any(word in lower for word in intent.split("_")):
-                    shell_key = normalize_shell(self._shell).value
-                    cmd = shells.get(shell_key, shells.get("bash", ""))
-                    if cmd:
-                        return (
-                            f"For **{intent}** on **{get_shell_platform()}**:\n"
-                            f"```\n{cmd}\n```\n"
-                            f"Use `/translate {intent}` to see all shell equivalents."
-                        )
-
-        # Generic response
-        responses = {
-            "hello": "Hello! I'm Siyarix, your cybersecurity AI agent. What would you like to do?\n\n"
-            "Try: `scan 192.168.1.1`, `enumerate subdomains of example.com`, or `/tools` to see available tools.",
-            "help": "I can help you with:\n- **Scanning** hosts and networks\n- **Enumerating** subdomains and services\n- **Vulnerability scanning** with nuclei, nikto\n- **Password attacks** with hydra, hashcat\n- **OSINT** with theHarvester, amass\n\nType a natural language command or use `/help` for slash commands.",
-        }
-        for key, response in responses.items():
-            if key in lower:
-                return response
-
-        return (
-            f"I understand you want to: **{user_input}**\n\n"
-            "I couldn't find a matching tool or command. Try being more specific, e.g.:\n"
-            "- `scan 10.0.0.1 with nmap`\n"
-            "- `enumerate directories on http://example.com`\n"
-            "- `/tools` to see what's available on this system"
-        )
+        """Generate a response using the offline registry."""
+        if self._offline_responder is None:
+            from .offline_registry import OfflineResponder
+            self._offline_responder = OfflineResponder()
+        return self._offline_responder.respond(user_input)
 
     # ──────────────────────────────────────────────────────────────────────
     # Display helpers
@@ -2540,7 +2509,8 @@ class SiyarixChat:
                         "[bold]/scan <tgt>[/bold] — run a scan\n"
                         "[bold]/run <cmd>[/bold] — natural language\n"
                         "[bold]/key set[/bold] — API key management\n"
-                        "[bold]/theme[/bold] — switch appearance",
+                        "[bold]/theme[/bold] — switch appearance\n"
+                        "[bold]Mode:[/bold] Registry (offline)",
                         title="Quick Actions",
                         border_style="magenta",
                         padding=(1, 2),

@@ -310,11 +310,11 @@ class TestGenerateTextResponse:
 
     def test_help(self, chat: SiyarixChat) -> None:
         response = chat._generate_text_response("help")
-        assert "help you with" in response
+        assert "Registry Mode" in response
 
     def test_generic(self, chat: SiyarixChat) -> None:
         response = chat._generate_text_response("some random query")
-        assert "I understand" in response
+        assert "don't have enough offline knowledge" in response
 
     def test_how_to(self, chat: SiyarixChat) -> None:
         response = chat._generate_text_response("how to scan a network")

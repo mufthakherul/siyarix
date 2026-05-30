@@ -16,75 +16,14 @@ import asyncio
 import json
 import logging
 import os
-import time
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 
 from .interpreter import InterpretedTask, RuleInterpreter, TaskCategory
+from .providers import CircuitBreaker, registry as _provider_registry
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Circuit Breaker — lightweight in-module implementation
-# ---------------------------------------------------------------------------
-
-
-class CircuitBreaker:
-    """Simple circuit breaker for model providers.
-
-    States:
-      CLOSED  → requests pass through (normal)
-      OPEN    → requests short-circuited (provider failing)
-      HALF    → single test request allowed after reset_timeout
-    """
-
-    CLOSED = "closed"
-    OPEN = "open"
-    HALF_OPEN = "half_open"
-
-    def __init__(
-        self,
-        failure_threshold: int = 3,
-        reset_timeout: float = 60.0,
-        name: str = "unknown",
-    ) -> None:
-        self.failure_threshold = failure_threshold
-        self.reset_timeout = reset_timeout
-        self.name = name
-        self._state = self.CLOSED
-        self._failure_count = 0
-        self._last_failure_time: float = 0.0
-
-    @property
-    def state(self) -> str:
-        if self._state == self.OPEN:
-            if time.monotonic() - self._last_failure_time >= self.reset_timeout:
-                self._state = self.HALF_OPEN
-        return self._state
-
-    @property
-    def is_available(self) -> bool:
-        return self.state != self.OPEN
-
-    def record_success(self) -> None:
-        self._failure_count = 0
-        self._state = self.CLOSED
-
-    def record_failure(self) -> None:
-        self._failure_count += 1
-        self._last_failure_time = time.monotonic()
-        if self._failure_count >= self.failure_threshold:
-            self._state = self.OPEN
-            logger.warning(
-                "Circuit breaker OPEN for %s after %d failures",
-                self.name,
-                self._failure_count,
-            )
-
-    def reset(self) -> None:
-        self._state = self.CLOSED
-        self._failure_count = 0
 
 
 # ---------------------------------------------------------------------------
@@ -882,6 +821,9 @@ class TaskPlanner:
 
         Uses a circuit breaker per provider to avoid hammering failing endpoints.
         """
+        tried_any = False
+
+        # Phase 1 — try configured providers in order
         for provider in self._providers:
             if not getattr(provider, "available", True):
                 continue
@@ -893,16 +835,62 @@ class TaskPlanner:
                 logger.debug("Circuit breaker OPEN for %s — skipping", provider_name)
                 continue
 
+            tried_any = True
+            logger.info("Trying provider %s ...", provider_name)
             try:
                 raw = await provider.plan(instruction, context)
                 if raw and raw.get("steps"):
                     if breaker:
                         breaker.record_success()
+                    _provider_registry.record_success(provider_name)
                     return self._parse_model_response(raw, instruction)
             except Exception as exc:
-                logger.warning("Model provider %s failed: %s", provider_name, exc)
+                logger.warning("Provider %s failed, trying next ...", provider_name)
                 if breaker:
                     breaker.record_failure()
+                _provider_registry.record_failure(provider_name)
+
+        # Phase 2 — try providers from global registry that weren't already tried
+        for reg_name in _provider_registry.list_providers():
+            try:
+                reg_prov = _provider_registry.get(reg_name)
+            except KeyError:
+                continue
+            if not isinstance(reg_prov, type):
+                continue  # skip instances, already in self._providers
+            if any(type(p).__name__ == reg_prov.__name__ for p in self._providers):
+                continue  # already tried as a configured provider
+
+            provider_name = reg_prov.__name__
+            breaker = self._circuit_breakers.get(provider_name)
+            if breaker and not breaker.is_available:
+                continue
+
+            # Build a minimal instance (no config — just check availability)
+            try:
+                prov_instance = reg_prov()
+            except Exception:
+                continue
+            if not getattr(prov_instance, "available", True):
+                continue
+
+            tried_any = True
+            logger.info("Trying fallback provider %s from registry ...", provider_name)
+            try:
+                raw = await prov_instance.plan(instruction, context)
+                if raw and raw.get("steps"):
+                    if breaker:
+                        breaker.record_success()
+                    return self._parse_model_response(raw, instruction)
+            except Exception as exc:
+                logger.warning("Provider %s failed, trying next ...", provider_name)
+                if breaker:
+                    breaker.record_failure()
+
+        if not tried_any:
+            logger.warning("No model providers available for planning")
+        else:
+            logger.info("All model providers exhausted — falling back to interpreter")
 
         return None
 

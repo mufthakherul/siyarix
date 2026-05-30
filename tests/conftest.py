@@ -13,6 +13,15 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
+# Suppress system-level gi deprecation warning (PyGIDeprecationWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="gi")
+try:
+    from gi import PyGIDeprecationWarning as _GiDep
+    warnings.filterwarnings("ignore", category=_GiDep)
+except ImportError:
+    pass
+
 from getpass import GetPassWarning
 
 from siyarix.engine_types import StepResult, StepStatus

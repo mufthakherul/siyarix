@@ -30,7 +30,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from .telemetry.siem import siem_forwarder
+# SIEM forwarding deferred to v2.0
 
 try:
     import tomllib  # Python 3.11+
@@ -241,7 +241,7 @@ class AuditLogger:
         if self._dirty:
             self._save_events()
         try:
-            siem_forwarder.close_all()
+            pass
         except Exception as exc:
             logger.warning("Failed to close SIEM forwarder: %s", exc)
 
@@ -340,7 +340,7 @@ class AuditLogger:
 
         # Dispatch to SIEM
         try:
-            siem_forwarder.dispatch(event.to_dict())
+            pass  # SIEM dispatch deferred to v2.0
         except Exception as exc:
             logger.debug("SIEM dispatch error: %s", exc)
 

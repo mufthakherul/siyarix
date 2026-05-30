@@ -9,7 +9,6 @@ from . import _now_iso
 import re
 import xml.etree.ElementTree as ET  # nosec B405
 
-from ..rust_accel import parse_nmap_xml as rust_parse_nmap_xml
 
 # Severity mapping based on port number / service risk
 _PORT_SEVERITY: dict[int, str] = {

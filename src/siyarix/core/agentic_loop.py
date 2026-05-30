@@ -155,77 +155,7 @@ class AgenticLoop:
         }
 
     def _reflect(self) -> None:
-        """Phase 2: Live Graph-driven tactical reflection.
-        Queries the KnowledgeGraph to traverse hosts, ports, services,
-        subdomains, and vulnerabilities, then queues targeted follow-up actions.
-        """
-        from siyarix.knowledge_graph import EdgeType, NodeType
-
-        graph = self._engine.graph
-
-        # 1. Traverse all HOST nodes
-        hosts = graph.find_nodes(NodeType.HOST)
-        for host in hosts:
-            host_label = host.label
-
-            # Find all port edges for this host
-            port_edges = graph.get_edges(
-                source_id=host.node_id, edge_type=EdgeType.HAS_PORT
-            )
-            for port_edge in port_edges:
-                port_node = graph.get_node(port_edge.target_id)
-                if not port_node:
-                    continue
-
-                port_val = port_node.properties.get("port")
-
-                # Find all services running on this port
-                svc_edges = graph.get_edges(
-                    source_id=port_node.node_id, edge_type=EdgeType.RUNS_SERVICE
-                )
-                for svc_edge in svc_edges:
-                    svc_node = graph.get_node(svc_edge.target_id)
-                    if not svc_node:
-                        continue
-
-                    svc_name = svc_node.label.lower()
-
-                    # Heuristic A: Weak auth services (SSH, FTP, Telnet) -> Hydra Brute Force
-                    if svc_name in ("ssh", "ftp", "telnet"):
-                        action = f"run hydra brute force on {host_label} {svc_name} using common credentials"
-                        if action not in self._reflection_queue:
-                            self._reflection_queue.append(action)
-
-                    # Heuristic B: HTTP / HTTPS services -> Nuclei scanner + directory enum
-                    elif (
-                        svc_name in ("http", "https")
-                        or "http" in svc_name
-                        or port_val in (80, 443, 8080, 8443)
-                    ):
-                        action = f"run nuclei vulnerability scan against {host_label}"
-                        if action not in self._reflection_queue:
-                            self._reflection_queue.append(action)
-
-                        # Add a directory enumeration follow-up if not already queued
-                        dir_action = f"run gobuster directory scan on {host_label}"
-                        if dir_action not in self._reflection_queue:
-                            self._reflection_queue.append(dir_action)
-
-        # 2. Traverse all SUBDOMAIN nodes
-        subdomains = graph.find_nodes(NodeType.SUBDOMAIN)
-        for sub in subdomains:
-            action = f"run fast port scan on {sub.label}"
-            if action not in self._reflection_queue:
-                self._reflection_queue.append(action)
-
-        # 3. Traverse all VULNERABILITY nodes for deep exploits / validation
-        vulns = graph.find_nodes(NodeType.VULNERABILITY)
-        for vuln in vulns:
-            severity = vuln.properties.get("severity", "info").lower()
-            if severity in ("critical", "high"):
-                action = f"verify vulnerability {vuln.label} on {self._target}"
-                if action not in self._reflection_queue:
-                    self._reflection_queue.append(action)
+        """Phase 2: Placeholder for tactical reflection (deferred to v2.0)."""
 
     def _reason(self, context: dict[str, Any]) -> str | None:
         """Phase 3: Determine next action using AI planner."""

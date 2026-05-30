@@ -31,12 +31,10 @@ class ToolExecutor:
         self,
         resolver: Any,
         discovered_tools: list[Any],
-        graph: Any,
         run_tool_fn: Callable[..., Any] | None = None,
     ) -> None:
         self._resolver = resolver
         self._discovered_tools = discovered_tools
-        self._graph = graph
         self._run_tool = run_tool_fn or run_tool_complete
 
     async def execute_step(

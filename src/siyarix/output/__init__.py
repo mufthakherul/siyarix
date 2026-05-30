@@ -23,8 +23,6 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Callable
 
-from ..report_engine import ReportGenerator
-
 logger = logging.getLogger(__name__)
 
 YAML_AVAILABLE = False
@@ -428,7 +426,6 @@ __all__ = [
     "EXIT_ERROR",
     "EXIT_AUTH_ERROR",
     "OutputFormatter",
-    "ReportGenerator",
     "OutputFormat",
     "OutputTheme",
     "THEMES",

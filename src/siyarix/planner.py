@@ -133,7 +133,7 @@ class OpenAIModel:
     def __init__(
         self, api_key: str | None = None, model: str = "gpt-4o", base_url: str | None = None
     ) -> None:
-        self._api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
+        self._api_key = api_key if api_key is not None else os.environ.get("OPENAI_API_KEY", "")
         self._model = model
         self._base_url = base_url
 
@@ -179,11 +179,10 @@ class GeminiModel:
     """Model provider using Google Gemini."""
 
     def __init__(
-        self, api_key: str | None = None, model: str = "gemini-1.5-pro"
+        self, api_key: str | None = None, model: str = "gemini-2.0-flash"
     ) -> None:
-        self._api_key = (
-            api_key
-            or os.environ.get("GEMINI_API_KEY", "")
+        self._api_key = api_key if api_key is not None else (
+            os.environ.get("GEMINI_API_KEY", "")
             or os.environ.get("GOOGLE_API_KEY", "")
         )
         self._model = model
@@ -195,12 +194,17 @@ class GeminiModel:
     async def plan(self, prompt: str, context: dict[str, Any]) -> dict[str, Any]:
         """Generate an execution plan via Gemini."""
         try:
-            import google.generativeai as genai
+            from google import genai
         except ImportError:
-            logger.warning(
-                "google-generativeai package not installed; Gemini unavailable"
-            )
-            return {}
+            try:
+                import google.generativeai as _old_genai  # noqa: F401
+                logger.warning(
+                    "Deprecated google.generativeai found; install google-genai instead"
+                )
+                return {}
+            except ImportError:
+                logger.warning("google-genai package not installed; Gemini unavailable")
+                return {}
 
         if not self._api_key:
             return {}
@@ -208,22 +212,31 @@ class GeminiModel:
         system_prompt = _build_system_prompt(context)
 
         def _generate() -> str:
-            genai.configure(
-                api_key=self._api_key
-            )  # pyright: ignore[reportPrivateImportUsage]
-            model = genai.GenerativeModel(
-                self._model
-            )  # pyright: ignore[reportPrivateImportUsage]
-            response = model.generate_content(
-                [system_prompt, prompt],
-                generation_config={"temperature": 0.1, "max_output_tokens": 2048},
+            client = genai.Client(api_key=self._api_key)
+            resp = client.models.generate_content(
+                model=self._model,
+                contents=f"{system_prompt}\n\n{prompt}",
+                config={"temperature": 0.1, "max_output_tokens": 2048},
             )
-            text = getattr(response, "text", "") or "{}"
+            try:
+                text = resp.text
+            except (ValueError, AttributeError) as _e:
+                logger.debug("Gemini response missing text: %s", _e)
+                text = ""
+            if not text or text.isspace():
+                return "{}"
             return text
 
         try:
             content = await asyncio.to_thread(_generate)
+            if not content or content.isspace():
+                logger.warning("Gemini returned empty response")
+                return {}
             return json.loads(content)
+        except json.JSONDecodeError as exc:
+            _raw = content[:200] if content else "(empty)"
+            logger.warning("Gemini returned non-JSON response: %s — raw: %s", exc, _raw)
+            return {}
         except Exception as exc:
             logger.warning("Gemini planning failed: %s", exc)
             return {}

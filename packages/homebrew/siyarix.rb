@@ -3,7 +3,7 @@ class Siyarix < Formula
 
   desc "Siyarix — AI Cybersecurity Orchestration Agent"
   homepage "https://github.com/mufthakherul/siyarix"
-  url "https://github.com/mufthakherul/siyarix/archive/refs/tags/v0.1.3.tar.gz"
+  url "https://github.com/mufthakherul/siyarix/archive/refs/tags/v1.0.0.tar.gz"
   sha256 "SKIP_AUTO"  # Auto-populated by `brew audit --strict --online`
   license "AGPL-3.0-or-later"
 

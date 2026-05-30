@@ -860,18 +860,6 @@ class TestTaskPlanner:
         assert len(plan.steps) > 0
         assert plan.steps[0].step_type == StepType.REPORT
 
-    def test_build_plan_from_task_custom_with_intent(self):
-        planner = TaskPlanner()
-        task = InterpretedTask(action="custom", category=TaskCategory.CUSTOM,
-                               confidence=0.8, flags={"intent": "enum_dns"},
-                               targets=["example.com"])
-        with patch("siyarix.shell_knowledge.render_intent", return_value="dig example.com"):
-            with patch("siyarix.shell_knowledge.INTENT_METADATA",
-                       {"enum_dns": {"description": "DNS enumeration"}}):
-                plan = planner._build_plan_from_task(task, "custom")
-                assert len(plan.steps) > 0
-                assert plan.steps[0].step_type == StepType.SHELL_CMD
-
     def test_build_plan_from_task_custom_no_intent(self):
         planner = TaskPlanner()
         task = InterpretedTask(action="custom", category=TaskCategory.CUSTOM,

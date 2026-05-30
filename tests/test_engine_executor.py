@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -36,16 +35,10 @@ def mock_registry():
 def engine(mock_registry):
     with patch("siyarix.engine.executor.ToolRegistry", return_value=mock_registry), \
          patch("siyarix.engine.executor.KillSwitch"), \
-         patch("siyarix.engine.executor.ContextTracker"), \
-         patch("siyarix.engine.executor.Predictor"), \
          patch("siyarix.engine.executor.AsyncWorkerPool"), \
          patch("siyarix.engine.executor.DynamicResolver"), \
          patch("siyarix.engine.executor.ToolExecutor"), \
-         patch("siyarix.engine.executor.KnowledgeGraph"), \
-         patch("siyarix.engine.executor.TaskPlanner"), \
-         patch("siyarix.engine.executor.SkillProfiler"), \
-         patch("siyarix.engine.executor.XICoreService"), \
-         patch("siyarix.engine.executor.OfflineStore"):
+         patch("siyarix.engine.executor.TaskPlanner"):
             eng = ExecutionEngine(config={"fast_discovery": True})
             eng._kill_switch = MagicMock(spec=KillSwitch)
             eng._kill_switch.state = KillSwitchState.ARMED
@@ -81,9 +74,6 @@ class TestInit:
     def test_default_mode(self, engine):
         assert engine.mode == ExecutionMode.INTEGRATED
 
-    def test_graph_property(self, engine):
-        assert engine.graph is not None
-
     def test_discovered_tools(self, engine):
         assert len(engine.discovered_tools) == 2
 
@@ -100,37 +90,6 @@ class TestOnKill:
         engine._pool = MagicMock()
         engine._on_kill()
         engine._pool.cancel_pending.assert_called_once()
-
-
-# ---------------------------------------------------------------------------
-# _get_offline_store / _get_skill_profiler / _get_xi_core_service
-# ---------------------------------------------------------------------------
-
-class TestLazyServices:
-    def test_get_offline_store_creates(self, engine):
-        with patch("siyarix.engine.executor.OfflineStore") as m:
-            engine._offline_store = None
-            store = engine._get_offline_store()
-            m.assert_called_once()
-            assert store is not None
-
-    def test_get_offline_store_cached(self, engine):
-        mock = MagicMock()
-        engine._offline_store = mock
-        with patch("siyarix.engine.executor.OfflineStore") as m:
-            store = engine._get_offline_store()
-            m.assert_not_called()
-            assert store is mock
-
-    def test_get_skill_profiler(self, engine):
-        with patch("siyarix.engine.executor.SkillProfiler") as m:
-            _sp = engine._get_skill_profiler()
-            m.assert_called_once()
-
-    def test_get_xi_core_service(self, engine):
-        with patch("siyarix.engine.executor.XICoreService") as m:
-            _xics = engine._get_xi_core_service()
-            m.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -155,24 +114,6 @@ class TestBuildContext:
         assert isinstance(ctx, dict)
         assert "available_tools" in ctx
         assert "mode" in ctx
-        assert "xi_context" in ctx
-        assert "xi_predictions" in ctx
-        assert "xi_skill" in ctx
-        assert "xi_recommendations" in ctx
-
-    def test_build_context_with_xi_recs(self, engine):
-        mock_xics = MagicMock()
-        mock_xics.recommend.return_value = [
-            MagicMock(title="rec1", reason="test", priority="high")
-        ]
-        engine._xi_core_service = mock_xics
-        ctx = engine._build_context()
-        assert len(ctx["xi_recommendations"]) == 1
-
-    def test_build_context_recs_failure(self, engine):
-        engine._xi_core_service = None
-        ctx = engine._build_context()
-        assert ctx["xi_recommendations"] == []
 
 
 # ---------------------------------------------------------------------------
@@ -235,34 +176,6 @@ class TestEvaluateCondition:
 
     def test_findings_count_zero(self, engine):
         assert engine._evaluate_condition("findings.count > 0") is False
-
-    def test_port_open_match(self, engine):
-        mock_node = MagicMock()
-        mock_node.properties = {"port": 80}
-        engine._graph.find_nodes.return_value = [mock_node]
-        assert engine._evaluate_condition("port_80_open") is True
-
-    def test_port_open_no_match(self, engine):
-        engine._graph.find_nodes.return_value = []
-        assert engine._evaluate_condition("port_80_open") is False
-
-    def test_service_running_match(self, engine):
-        mock_node = MagicMock()
-        mock_node.label = "ssh"
-        engine._graph.find_nodes.return_value = [mock_node]
-        assert engine._evaluate_condition("service_ssh_running") is True
-
-    def test_service_running_no_match(self, engine):
-        engine._graph.find_nodes.return_value = []
-        assert engine._evaluate_condition("service_ssh_running") is False
-
-    def test_vulnerability_found(self, engine):
-        engine._graph.find_nodes.return_value = [MagicMock()]
-        assert engine._evaluate_condition("vulnerability_found") is True
-
-    def test_vulnerability_not_found(self, engine):
-        engine._graph.find_nodes.return_value = []
-        assert engine._evaluate_condition("vulnerability_found") is False
 
     def test_unknown_condition_defaults_true(self, engine):
         assert engine._evaluate_condition("some_unknown_condition") is True
@@ -337,23 +250,6 @@ class TestExecute:
             result = await engine.execute("test", interactive=False)
             assert isinstance(result, EngineResult)
             assert len(result.step_results) == 0
-
-    @pytest.mark.asyncio
-    async def test_execute_persist_workflow(self, engine):
-        engine._config["persist_workflows"] = True
-        engine._offline_store = MagicMock()
-        engine._planner = MagicMock()
-        engine._planner.plan = AsyncMock(return_value=ExecutionPlan(
-            steps=[make_step()], raw_instruction="test"))
-        engine._pool.submit = MagicMock()
-        with patch.object(engine, "_execute_plan") as mock_exec:
-            mock_exec.return_value = EngineResult(
-                plan=ExecutionPlan(steps=[make_step()], raw_instruction="test"),
-                mode=engine._mode,
-            )
-            result = await engine.execute("test", interactive=False)
-            assert result.plan_id is not None
-
 
 # ---------------------------------------------------------------------------
 # _execute_plan
@@ -667,61 +563,15 @@ class TestReplanFromFeedback:
 # _record_step_feedback
 # ---------------------------------------------------------------------------
 
-class TestRecordStepFeedback:
-    def test_records_xi_tracker_tool(self, engine):
-        step = make_step("s1", tool="nmap", target="10.0.0.1")
-        sr = make_sr("s1", StepStatus.SUCCESS, duration_ms=50.0)
-        engine._record_step_feedback(step, sr)
-        engine._xi_tracker.record_execution.assert_called_once_with(
-            tool="nmap", target="10.0.0.1", duration_ms=50.0,
-            success=True, findings_count=0,
-        )
-
-    def test_records_xi_tracker_cmd(self, engine):
-        step = make_step("s1", step_type=StepType.SHELL_CMD, command="echo hi")
-        sr = make_sr("s1", StepStatus.SUCCESS)
-        engine._record_step_feedback(step, sr)
-        engine._xi_tracker.record_execution.assert_called_once()
-
-    def test_skill_profiler_called(self, engine):
-        step = make_step("s1", tool="nmap")
-        sr = make_sr("s1", StepStatus.SUCCESS)
-        engine._xi_skill_profiler = MagicMock()
-        engine._record_step_feedback(step, sr)
-        engine._xi_skill_profiler.record_command.assert_called_once()
-
-
 # ---------------------------------------------------------------------------
 # resume
 # ---------------------------------------------------------------------------
 
 class TestResume:
     @pytest.mark.asyncio
-    async def test_resume_plan_not_found(self, engine):
-        engine._offline_store = MagicMock()
-        engine._offline_store.get_plan.return_value = None
-        with pytest.raises(ValueError, match="Plan not found"):
-            await engine.resume("nonexistent")
-
-    @pytest.mark.asyncio
-    async def test_resume_success(self, engine):
-        engine._offline_store = MagicMock()
-        engine._offline_store.get_plan.return_value = {
-            "plan_json": json.dumps({
-                "steps": [],
-                "source": "registry",
-                "confidence": 1.0,
-                "raw_instruction": "test",
-            }),
-            "steps": [],
-        }
-        with patch.object(engine, "_execute_plan") as mock_exec:
-            mock_exec.return_value = EngineResult(
-                plan=ExecutionPlan(steps=[], raw_instruction="test"),
-                mode=engine._mode,
-            )
-            result = await engine.resume("plan_1", interactive=False)
-            assert result is not None
+    async def test_resume_not_implemented(self, engine):
+        with pytest.raises(NotImplementedError):
+            await engine.resume("any_plan_id", interactive=False)
 
 
 # ---------------------------------------------------------------------------
@@ -833,13 +683,9 @@ class TestPersistStep:
 
 class TestExecuteObjective:
     @pytest.mark.asyncio
-    async def test_execute_objective(self, engine):
-        with patch("siyarix.agents.coordinator.CoordinatorAgent") as MockCoord:
-            coord = MagicMock()
-            coord.execute_objective = AsyncMock(return_value={"result": "ok"})
-            MockCoord.return_value = coord
-            result = await engine.execute_objective("test objective", target="10.0.0.1")
-            assert result == {"result": "ok"}
+    async def test_execute_objective_not_implemented(self, engine):
+        with pytest.raises(NotImplementedError):
+            await engine.execute_objective("test objective", target="10.0.0.1")
 
 
 # ---------------------------------------------------------------------------

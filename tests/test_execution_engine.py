@@ -200,9 +200,9 @@ class TestTaskPlanner:
 
     def test_dynamic_plan_no_providers(self) -> None:
         plan = _run(self.planner.plan("scan something", force_mode="autonomous"))
-        # No providers → empty plan
-        assert plan.source == "autonomous"
-        assert plan.confidence == 0.0
+        # No providers → fallback to interpreter
+        assert plan.source == "autonomous-fallback"
+        assert len(plan.steps) > 0
 
     def test_integrated_plan_high_confidence(self) -> None:
         """With a high-confidence local interpretation, integrated should use static."""

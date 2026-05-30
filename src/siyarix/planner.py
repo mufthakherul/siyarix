@@ -726,12 +726,16 @@ class TaskPlanner:
         if force_mode == "static":
             return self._plan_from_interpretation(instruction)
 
-        # --- Autonomous-only mode ---
+        # --- Autonomous-only mode (model-first, interpreter fallback) ---
         if force_mode == "autonomous":
             plan = await self._plan_from_model(instruction, ctx)
             if plan and plan.steps:
                 return plan
-            logger.warning("Autonomous planning failed; no model providers available")
+            logger.warning("Autonomous model failed — falling back to interpreter")
+            fallback = self._plan_from_interpretation(instruction)
+            if fallback and fallback.steps:
+                fallback.source = "autonomous-fallback"
+                return fallback
             return ExecutionPlan(
                 raw_instruction=instruction,
                 source="autonomous",

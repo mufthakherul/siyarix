@@ -43,7 +43,6 @@ Multi-turn context including:
 
 - Previous commands and their results
 - Current knowledge graph state (hosts, ports, vulns discovered)
-- Active persona
 - Current target
 
 ```json
@@ -55,8 +54,7 @@ Multi-turn context including:
   "knowledge_graph": {
     "hosts": ["10.0.0.1"],
     "ports": {"10.0.0.1": [22, 80, 443]}
-  },
-  "persona": "pentester"
+  }
 }
 ```
 
@@ -67,8 +65,7 @@ Attached to every prompt:
 ```json
 {
   "forbidden_commands": ["rm -rf", "dd", "format"],
-  "safe_mode": false,
-  "persona_restrictions": ["no_exploit"]
+  "safe_mode": false
 }
 ```
 
@@ -108,7 +105,6 @@ Used by the interactive chat REPL:
 
 ```
 You are Siyarix, an AI cybersecurity operations assistant.
-Current persona: {persona}
 Session findings: {findings_summary}
 User: {message}
 ```

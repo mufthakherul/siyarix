@@ -65,7 +65,6 @@ class ExecutionEngine:
         mode: ExecutionMode = ExecutionMode.INTEGRATED,
         registry: ToolRegistry | None = None,
         config: dict[str, Any] | None = None,
-        learning_memory: Any = None,
         session_logger: Any = None,
     ) -> None:
         self._mode = mode
@@ -106,9 +105,6 @@ class ExecutionEngine:
 
         # Step results for tracking
         self._completed_steps: dict[str, StepResult] = {}
-
-        # Learning memory for correction tracking
-        self._learning_memory = learning_memory
 
         # Session logger for structured audit logging
         self._session_logger = session_logger
@@ -749,21 +745,6 @@ class ExecutionEngine:
         if sr.findings:
             logger.info("Step %s produced %d findings", step.id, len(sr.findings))
 
-        if self._learning_memory is not None and confirmed_str != original_args_str:
-            try:
-                self._learning_memory.record_with_correction(
-                    tools=[tool_name],
-                    original=f"{tool_name} {original_args_str}",
-                    corrected=confirmed_str,
-                    task=step.description or "",
-                    findings_after=len(sr.findings),
-                    duration_ms=sr.duration_ms,
-                    success=sr.status == StepStatus.SUCCESS,
-                    target=step.target or "",
-                )
-            except Exception as exc:
-                logger.debug("Failed to record tool correction: %s", exc)
-
         if self._session_logger is not None and self._current_log_session_id:
             try:
                 self._session_logger.add_command(
@@ -836,20 +817,6 @@ class ExecutionEngine:
             )
 
         sr = await self._executor.execute_step(step, interactive)
-
-        if self._learning_memory is not None and command != confirmed_str:
-            try:
-                self._learning_memory.record_with_correction(
-                    tools=[base_cmd],
-                    original=command,
-                    corrected=confirmed_str,
-                    task=step.description or "",
-                    duration_ms=sr.duration_ms,
-                    success=sr.status == StepStatus.SUCCESS,
-                    target=step.target or "",
-                )
-            except Exception as exc:
-                logger.debug("Failed to record shell correction: %s", exc)
 
         if self._session_logger is not None and self._current_log_session_id:
             try:

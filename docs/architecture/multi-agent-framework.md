@@ -5,27 +5,18 @@ Siyarix includes a full multi-agent framework for collaborative autonomous secur
 ## Architecture
 
 ```
-                    ┌──────────────────┐
-                    │ CoordinatorAgent │
-                    │  (decomposes     │
-                    │   objectives)    │
-                    └────────┬─────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              │              │              │
-              ▼              ▼              ▼
-        ┌──────────┐  ┌──────────┐  ┌──────────┐
-        │  Recon   │  │ Scanner  │  │Exploiter │  ...
-        │  Agent   │  │  Agent   │  │  Agent   │
-        └──────────┘  └──────────┘  └──────────┘
-              │              │              │
-              └──────────────┼──────────────┘
-                             │
-                             ▼
-                    ┌──────────────────┐
-                    │   Reporter       │
-                    │   Agent          │
-                    └──────────────────┘
+         ┌──────────┐  ┌──────────┐  ┌──────────┐
+         │  Recon   │  │ Scanner  │  │Exploiter │  ...
+         │  Agent   │  │  Agent   │  │  Agent   │
+         └──────────┘  └──────────┘  └──────────┘
+               │              │              │
+               └──────────────┼──────────────┘
+                              │
+                              ▼
+                     ┌──────────────────┐
+                     │   Reporter       │
+                     │   Agent          │
+                     └──────────────────┘
 ```
 
 ## Agent roles
@@ -37,7 +28,6 @@ Siyarix includes a full multi-agent framework for collaborative autonomous secur
 | `ENUMERATOR` | Enumeration | Directory brute-force, technology fingerprinting |
 | `EXPLOITER` | Exploitation | Vulnerability verification, proof-of-concept |
 | `REPORTER` | Reporting | Result aggregation, report generation |
-| `COORDINATOR` | Orchestration | Task decomposition, role assignment |
 | `SOC` | Monitoring | Log analysis, alert triage |
 | `DFIR` | Forensics | Evidence collection, timeline analysis |
 
@@ -105,25 +95,4 @@ result = await team.execute_goal(
 4. Results are broadcast to the team via `team.broadcast(message)`
 5. Final results are aggregated and returned
 
-## CoordinatorAgent
 
-The `CoordinatorAgent` (`agents/coordinator.py`) adds intelligent task decomposition:
-
-1. **Goal analysis**: Breaks the objective into phases
-2. **Phase detection**: 8 phase groups — recon, network_scan, web_scan, service_enum, vuln_scan, exploitation, post_exploit, report
-3. **Agent creation**: Creates role-appropriate agents for each phase
-4. **Dependency resolution**: Orders phases by logical dependency
-5. **Execution**: Wires the AgentTeam to the ExecutionEngine
-6. **Re-tasking**: On partial completion, adjusts remaining tasks
-
-### Default agent setup
-
-The Coordinator creates 5 default agents:
-
-| Name | Role | Purpose |
-|------|------|---------|
-| `recon-1` | RECON | Target reconnaissance |
-| `scanner-1` | SCANNER | Port/service scanning |
-| `enum-1` | ENUMERATOR | Service enumeration |
-| `exploit-1` | EXPLOITER | Vulnerability exploitation |
-| `report-1` | REPORTER | Result synthesis |

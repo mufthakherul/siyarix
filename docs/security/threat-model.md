@@ -99,7 +99,7 @@ This document outlines the security threat model for Siyarix, identifying assets
 |-----------|--------|
 | **Threat** | AI provider returns malicious output or is compromised |
 | **Impact** | HIGH — command injection, data exfiltration |
-| **Mitigation** | Output validation via ResponseSensor. Permission gate blocks malformed commands. Noop provider as always-available fallback. |
+| **Mitigation** | Permission gate blocks malformed commands. Noop provider as always-available fallback. |
 
 ## Security assumptions
 

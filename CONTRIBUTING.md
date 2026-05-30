@@ -124,7 +124,6 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 ### Examples
 
 ```
-feat(chat): add /work-mode persona switching
 fix(executor): handle tool-not-found gracefully
 docs: update installation guide for Windows
 test: add regression test for issue #142

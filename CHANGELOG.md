@@ -13,7 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 50+ CLI commands across scan, recon, exploit, report, config, and security groups.
 - Interactive chat REPL with SQLite-backed session persistence.
 - 100+ security tool integration with 18+ output parsers.
-- Multi-agent framework with role-based persona engine.
 - Encrypted credential vault (AES-256-GCM, Fernet, KMS).
 - Three-stage permission gate with danger analysis.
 - Tamper-evident SHA-256 chained audit trail.

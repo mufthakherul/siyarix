@@ -42,11 +42,10 @@ The planner tries AI providers in order of preference. If all fail, the `RuleInt
 
 ### 4. Permission gating
 
-Every step passes through the three-stage gate:
+Every step passes through the two-stage gate:
 
 1. **Syntax validation**: Is the command well-formed?
 2. **Danger analysis**: Does it match dangerous patterns (rm -rf, dd, format)?
-3. **Persona ACL**: Does the active persona permit this tool?
 
 Gates return: `ALLOW`, `DENY`, or `FLAG` (requires user confirmation).
 
@@ -87,17 +86,6 @@ For autonomous agent mode (`siyarix agent "..."`), the system uses an Observe-Re
 - **Act**: Execute selected commands, run tools
 
 The loop continues until the objective is achieved or the max iteration limit is reached.
-
-## Multi-agent coordination
-
-For complex objectives, the `CoordinatorAgent`:
-
-1. Decomposes the goal into sub-tasks
-2. Creates role-specific agents (recon, scanner, enumerator, exploiter, reporter)
-3. Assigns tasks based on agent role
-4. Executes with `asyncio.gather()` for parallel work
-5. Broadcasts findings across the team
-6. Synthesizes results into a final report
 
 ## Execution modes
 

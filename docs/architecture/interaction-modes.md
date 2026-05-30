@@ -48,7 +48,7 @@ siyarix run "scan 10.0.0.1 for open ports"
 
 ### 4. AutonomousAgent
 
-Goal-driven reasoning loop. The CoordinatorAgent decomposes the objective and executes sub-tasks autonomously.
+Goal-driven reasoning loop. The system decomposes the objective and executes sub-tasks autonomously.
 
 ```bash
 siyarix agent "enumerate the network and find vulnerabilities"

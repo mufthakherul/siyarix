@@ -22,13 +22,6 @@ The AI planner (`TaskPlanner`) converts natural language into structured executi
 siyarix agent "enumerate all subdomains, find live hosts, scan for vulns, and report"
 ```
 
-The `CoordinatorAgent` orchestrates multi-agent execution:
-
-1. **Decomposition**: Goal is split into sub-tasks
-2. **Assignment**: Tasks are assigned to role-based agents (recon, scanner, enumerator, exploiter, reporter)
-3. **Execution**: Agents work in parallel with dependency resolution
-4. **Synthesis**: Results are combined into a final report
-
 ## Multi-provider failover
 
 If the primary AI provider fails:
@@ -78,13 +71,6 @@ The AI context window is managed to prevent overflow:
 - Large result sets are stored in the offline store and referenced by ID
 
 ## Response quality
-
-The `ResponseSensor` validates AI outputs:
-
-- Checks for hallucinations (confidence scoring)
-- Validates command syntax before execution
-- Flags dangerous or out-of-scope commands
-- Ensures structured output format compliance
 
 ## Offline operation
 

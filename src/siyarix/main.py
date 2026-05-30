@@ -613,11 +613,6 @@ def scan(
     dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
     no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
     profile: str = typer.Option("", "--profile", help="Use specific profile"),
-    work_mode: str = typer.Option(
-        "",
-        "--work-mode",
-        help="Persona: offensive|defensive|bug_hunter|pentester|soc_analyst|none|auto",
-    ),
 ) -> None:
     """Run security scans against one or more targets.
 

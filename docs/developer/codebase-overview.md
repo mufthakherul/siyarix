@@ -28,9 +28,6 @@ src/siyarix/
 │   ├── safety.py            # Permission gating integration
 │   └── steps.py             # Execution modes & result aggregation
 │
-├── agents/                  # Multi-agent coordination
-│   └── coordinator.py       # CoordinatorAgent for goal decomposition
-│
 ├── security/                # Security analysis
 │   └── attack_path.py       # Attack path discovery from knowledge graph
 │
@@ -72,19 +69,12 @@ src/siyarix/
 ├── providers.py             # AI provider abstraction (10 providers)
 ├── planner.py               # Task planner (NL → structured commands)
 ├── tool_registry.py         # Tool discovery (100+ tools)
-├── multi_agent.py           # Multi-agent framework
 ├── credential_store.py      # Encrypted credential vault
 ├── audit_log.py             # Tamper-evident audit logging
 ├── knowledge_graph.py       # In-memory relationship graph
 ├── masking.py               # Bidirectional token masking
 ├── permission_gate.py       # Three-stage permission control
-├── persona_engine.py        # Behavior profiles
-├── session_manager.py       # SQLite-backed session persistence
-├── offline_store.py         # SQLite persistent storage
-├── report_engine.py         # Report generation
-├── scheduler.py             # Cron-based scheduling
 ├── playbook_engine.py       # Incident response playbooks
-├── compliance_runner.py     # SOC2/ISO27001/NIST compliance
 ├── health.py                # System health checks
 ├── metrics.py               # Performance metrics
 └── ... (30+ additional modules)

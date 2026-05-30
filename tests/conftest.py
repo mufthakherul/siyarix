@@ -14,8 +14,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from siyarix.engine_types import StepResult, StepStatus
-from siyarix.knowledge_graph import KnowledgeGraph
-from siyarix.masking import MaskingEngine
 from siyarix.planner import ExecutionPlan, ExecutionStep, StepType
 from siyarix.providers import NoopProvider, ProviderRegistry
 from siyarix.tool_registry import ToolInfo, ToolRegistry
@@ -37,15 +35,6 @@ def provider_registry() -> ProviderRegistry:
     return registry
 
 
-# ── Masking Engine Fixtures ──────────────────────────────────────────
-
-
-@pytest.fixture
-def masking_engine() -> MaskingEngine:
-    """Return a fresh MaskingEngine instance."""
-    return MaskingEngine()
-
-
 # ── Tool Registry Fixtures ───────────────────────────────────────────
 
 
@@ -65,15 +54,6 @@ def tool_registry() -> ToolRegistry:
         ),
     }
     return registry
-
-
-# ── Knowledge Graph Fixtures ─────────────────────────────────────────
-
-
-@pytest.fixture
-def knowledge_graph() -> KnowledgeGraph:
-    """Return a fresh KnowledgeGraph instance."""
-    return KnowledgeGraph()
 
 
 # ── Step Result Fixtures ─────────────────────────────────────────────

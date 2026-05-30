@@ -19,7 +19,6 @@ from typer.main import get_command
 
 from siyarix.engine import (ExecutionEngine, ExecutionMode, ExecutionStep,
                             StepResult, StepStatus)
-from siyarix.knowledge_graph import KnowledgeGraph
 from siyarix.main import app
 from siyarix.planner import StepType
 
@@ -115,7 +114,6 @@ async def test_interactive_installation_confirm() -> None:
 async def test_live_tool_fallback_recovery() -> None:
     """E2E Test 4: Validate live-like execution self-correction and mutator pivoting."""
     engine = ExecutionEngine(mode=ExecutionMode.INTEGRATED)
-    engine._graph = KnowledgeGraph()
 
     # Define a target step that fails due to host detection / ping block
     step_nmap = ExecutionStep(

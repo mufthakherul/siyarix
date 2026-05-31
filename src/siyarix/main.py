@@ -575,10 +575,11 @@ def theme_list() -> None:
 @theme_app.command("set")
 def theme_set(name: str = typer.Argument(..., help="Theme name to set")) -> None:
     """Set the default color theme in configuration."""
+    global _active_theme
     try:
-        # Use config store
         config.set("color_theme", name)
-        console.print(f"[green]✓ Theme set to: {name}[/green]")
+        _active_theme = name
+        console.print(f"[green]Theme set to: {name}[/green]")
     except Exception as exc:
         console.print(f"[red]Failed to set theme: {exc}[/red]")
 
@@ -649,7 +650,7 @@ def list_providers() -> None:
 # State
 # ---------------------------------------------------------------------------
 _active_profile: str | None = None
-_active_theme: str = "default"
+_active_theme: str = config.get("color_theme") or "default"
 
 
 
@@ -778,9 +779,12 @@ def scan(
                 output_engine.print_json(result.all_findings)
             elif output == "yaml":
                 output_engine.print_yaml(result.all_findings)
-            else:
-                console.print("[yellow]CSV output not yet supported, falling back to table[/yellow]")
-                _display_findings_table(result.all_findings)
+            elif output == "csv":
+                if result.all_findings:
+                    findings_dicts = [f.to_dict() if hasattr(f, "to_dict") else vars(f) for f in result.all_findings]
+                    output_engine.print_csv(findings_dicts)
+                else:
+                    console.print("[yellow]No findings to export.[/yellow]")
         else:
             _display_findings_table(result.all_findings)
 
@@ -940,6 +944,23 @@ def run(
         result = asyncio.run(
             engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save)
         )
+
+    # Display results
+    if result.success:
+        if result.all_findings:
+            console.print(f"\n[green]Found {len(result.all_findings)} finding(s):[/green]")
+            for f in result.all_findings[:20]:
+                severity = getattr(f, "severity", "info") if hasattr(f, "severity") else "info"
+                title = getattr(f, "title", str(f)) if hasattr(f, "title") else str(f)
+                console.print(f"  [{severity}] {title}")
+            if len(result.all_findings) > 20:
+                console.print(f"  ... and {len(result.all_findings) - 20} more")
+        else:
+            console.print("\n[green]Execution completed successfully.[/green]")
+    else:
+        error_msg = getattr(result, "error_message", "Unknown error") if hasattr(result, "error_message") else "Unknown error"
+        console.print(f"\n[red]Execution failed: {error_msg}[/red]")
+
     final_state = "completed" if result.success else "failed"
     session_kernel.update_operation(
         session=session,
@@ -1315,7 +1336,7 @@ def auth_set_key(
 @auth_app.command("show")
 def auth_show() -> None:
     """Show configured API key providers."""
-    providers = ["openai", "gemini", "anthropic", "cloud"]
+    providers = ["openai", "gemini", "anthropic", "groq", "openrouter"]
     table = Table(
         title="Configured API Keys", show_header=True, header_style="bold green"
     )

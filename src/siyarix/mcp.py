@@ -112,10 +112,12 @@ class MCPManager:
     async def register_with_registry(self, registry: ToolRegistry) -> int:
         count = 0
         for tool in self._client.list_tools():
+            def _make_handler(t: MCPTool) -> Any:
+                return lambda **kw: self._client.call_tool(t.name, kw)
             registry.register(
                 ToolCapability(name=tool.name, description=tool.description,
                     category=ToolCategory.UTILITY, risk_level=RiskLevel.MEDIUM, tags=["mcp", tool.server]),
-                handler=lambda **kw: self._client.call_tool(tool.name, kw))
+                handler=_make_handler(tool))
             count += 1
         return count
 

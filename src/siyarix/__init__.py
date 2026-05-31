@@ -7,7 +7,7 @@ orchestration, and advanced security tooling for offensive and defensive
 cybersecurity operations.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.0-beta"
 __author__ = "MD MUFTHAKHERUL ISLAM MIRAZ"
 __license__ = "AGPL-3.0-or-later"
 

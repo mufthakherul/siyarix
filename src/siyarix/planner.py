@@ -1268,18 +1268,53 @@ class TaskPlanner:
                     desc = _shell_knowledge.INTENT_METADATA.get(intent, {}).get(
                         "description", f"Execute {intent}"
                     )
-                else:
-                    cmd = ""
-                    desc = ""
-                steps.append(
-                    ExecutionStep(
-                        id=f"step_{offset + 1}",
-                        step_type=StepType.SHELL_CMD,
-                        command=cmd,
-                        description=desc,
-                        depends_on=depends_on,
+                    steps.append(
+                        ExecutionStep(
+                            id=f"step_{offset + 1}",
+                            step_type=StepType.SHELL_CMD,
+                            command=cmd,
+                            description=desc,
+                            depends_on=depends_on,
+                        )
                     )
-                )
+                else:
+                    # shell_knowledge not available — extract tool from raw text
+                    from .interpreter import RuleInterpreter
+                    _interp = RuleInterpreter()
+                    _parsed = _interp.interpret(task.raw_text)
+                    if _parsed.tools:
+                        steps.append(
+                            ExecutionStep(
+                                id=f"step_{offset + 1}",
+                                step_type=StepType.TOOL_RUN,
+                                tool=_parsed.tools[0],
+                                target=primary_target,
+                                depends_on=depends_on,
+                                timeout=300,
+                                description=f"Auto-detected tool: {_parsed.tools[0]}",
+                            )
+                        )
+                    elif primary_target:
+                        steps.append(
+                            ExecutionStep(
+                                id=f"step_{offset + 1}",
+                                step_type=StepType.TOOL_RUN,
+                                tool="nmap",
+                                target=primary_target,
+                                depends_on=depends_on,
+                                timeout=300,
+                                description="Default: port scan with nmap",
+                            )
+                        )
+                    else:
+                        steps.append(
+                            ExecutionStep(
+                                id=f"step_{offset + 1}",
+                                step_type=StepType.ANALYSIS,
+                                description=f"Intent recognized: {intent} (no shell_knowledge module)",
+                                depends_on=depends_on,
+                            )
+                        )
             else:
                 steps.append(
                     ExecutionStep(
@@ -1292,15 +1327,43 @@ class TaskPlanner:
                 )
 
         else:
-            # Unknown — create a placeholder shell step
-            steps.append(
-                ExecutionStep(
-                    id=f"step_{offset + 1}",
-                    step_type=StepType.SHELL_CMD,
-                    description=f"Execute: {task.raw_text}",
-                    depends_on=depends_on,
+            # Unknown category — try to extract a tool from the raw text
+            from .interpreter import RuleInterpreter
+            _interp = RuleInterpreter()
+            _parsed = _interp.interpret(task.raw_text)
+            if _parsed.tools:
+                steps.append(
+                    ExecutionStep(
+                        id=f"step_{offset + 1}",
+                        step_type=StepType.TOOL_RUN,
+                        tool=_parsed.tools[0],
+                        target=primary_target,
+                        depends_on=depends_on,
+                        timeout=300,
+                        description=f"Auto-detected tool: {_parsed.tools[0]}",
+                    )
                 )
-            )
+            elif primary_target:
+                steps.append(
+                    ExecutionStep(
+                        id=f"step_{offset + 1}",
+                        step_type=StepType.TOOL_RUN,
+                        tool="nmap",
+                        target=primary_target,
+                        depends_on=depends_on,
+                        timeout=300,
+                        description="Default: port scan with nmap",
+                    )
+                )
+            else:
+                steps.append(
+                    ExecutionStep(
+                        id=f"step_{offset + 1}",
+                        step_type=StepType.ANALYSIS,
+                        description=f"Cannot auto-plan: {task.raw_text}",
+                        depends_on=depends_on,
+                    )
+                )
 
         return steps
 

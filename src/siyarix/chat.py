@@ -2523,7 +2523,13 @@ class SiyarixChat:
                     description=instruction_with_target,
                     target=target,
                 )
-                result = await agent.execute_goal(goal)
+                result = await asyncio.wait_for(
+                    agent.execute_goal(goal),
+                    timeout=60.0,
+                )
+        except asyncio.TimeoutError:
+            console.print("[yellow]Agent timed out after 60s — showing whatever we have[/yellow]")
+            return False
         except Exception as exc:
             logger.warning("Agent loop failed: %s", exc)
             return False
@@ -2573,9 +2579,17 @@ class SiyarixChat:
             for s in (result.plan.steps if result.plan else [])
         )
 
-        llm_response = await self._synthesize_agent_response(
-            instruction, result, provider_name, has_any_success
-        )
+        with console.status("[bold green]Synthesising response...[/bold green]", spinner="dots"):
+            try:
+                llm_response = await asyncio.wait_for(
+                    self._synthesize_agent_response(
+                        instruction, result, provider_name, has_any_success
+                    ),
+                    timeout=30.0,
+                )
+            except asyncio.TimeoutError:
+                logger.debug("LLM synthesis timed out after 30s")
+                llm_response = None
 
         if llm_response:
             self._session.add_message("assistant", llm_response)

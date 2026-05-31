@@ -188,18 +188,31 @@ class ToolRegistry:
 
     def discover_from_path(self) -> int:
         count = 0
+        _handler_map = {
+            "nmap": _make_nmap_handler, "nikto": _make_web_handler, "nuclei": _make_web_handler,
+            "gobuster": _make_web_handler, "ffuf": _make_web_handler, "hydra": _make_brute_handler,
+            "masscan": _make_portscan_handler, "amass": _make_recon_handler, "subfinder": _make_recon_handler,
+            "wpscan": _make_web_handler, "sqlmap": _make_web_handler, "shodan": _make_recon_handler,
+            "bettercap": _make_network_handler, "ettercap": _make_network_handler,
+            "aircrack-ng": _make_network_handler, "hashcat": _make_crypto_handler,
+            "john": _make_crypto_handler, "burpsuite": _make_web_handler, "zaproxy": _make_web_handler,
+            "whatweb": _make_web_handler, "curl": _make_curl_handler, "wget": _make_curl_handler,
+            "dig": _make_dns_handler, "whois": _make_whois_handler,
+        }
         for name in ("nmap", "nikto", "nuclei", "gobuster", "ffuf", "hydra", "masscan",
                       "amass", "subfinder", "wpscan", "sqlmap", "shodan", "bettercap",
-                      "ettercap", "aircrack-ng", "hashcat", "john", "burpsuite", "zaproxy"):
+                      "ettercap", "aircrack-ng", "hashcat", "john", "burpsuite", "zaproxy",
+                      "whatweb", "curl", "wget", "dig", "whois"):
             binary = shutil.which(name)
             if binary:
+                handler_factory = _handler_map.get(name)
                 self.register(ToolCapability(
                     name=name, binary=name, installed=True,
                     category=_categorize_tool(name),
                     risk_level=_risk_for_tool(name),
                     description=_describe_tool(name),
                     tags=_tags_for_tool(name),
-                ))
+                ), handler=handler_factory(name) if handler_factory else None)
                 count += 1
         for name in ("python3", "python", "node", "go", "rustc", "gcc", "g++", "java", "ruby", "bash"):
             binary = shutil.which(name)
@@ -333,3 +346,132 @@ def _tags_for_tool(name: str) -> list[str]:
         "zaproxy": ["proxy", "web", "scan"],
     }
     return tag_map.get(name, [name])
+
+
+def _make_nmap_handler(tool_name: str) -> ToolHandler:
+    async def handler(**kwargs: Any) -> dict[str, Any]:
+        from .subprocess_utils import safe_run_async
+        target = kwargs.get("target", "")
+        flags = kwargs.get("flags", "-sT -T4 --top-ports 100")
+        cmd = [tool_name] + flags.split() + [target]
+        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 120))
+        return {"status": "success" if result.exit_code == 0 else "error",
+                "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
+    return handler
+
+
+def _make_web_handler(tool_name: str) -> ToolHandler:
+    async def handler(**kwargs: Any) -> dict[str, Any]:
+        from .subprocess_utils import safe_run_async
+        target = kwargs.get("target", "")
+        extra_args = kwargs.get("args", [])
+        if isinstance(extra_args, str):
+            extra_args = extra_args.split()
+        cmd = [tool_name] + extra_args
+        if target:
+            if tool_name in ("nikto",):
+                cmd += ["-h", target]
+            elif tool_name in ("nuclei",):
+                cmd += ["-u", target]
+            elif tool_name in ("gobuster",):
+                cmd += ["-u", target]
+            elif tool_name in ("ffuf",):
+                cmd += ["-u", target]
+            elif tool_name in ("wpscan",):
+                cmd += ["--url", target]
+            elif tool_name in ("sqlmap",):
+                cmd += ["-u", target]
+            elif tool_name in ("whatweb",):
+                cmd += [target]
+            else:
+                cmd += [target]
+        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 300))
+        return {"status": "success" if result.exit_code == 0 else "error",
+                "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
+    return handler
+
+
+def _make_portscan_handler(tool_name: str) -> ToolHandler:
+    async def handler(**kwargs: Any) -> dict[str, Any]:
+        from .subprocess_utils import safe_run_async
+        target = kwargs.get("target", "")
+        flags = kwargs.get("flags", "-T4 --top-ports 100")
+        cmd = [tool_name] + flags.split() + [target]
+        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 120))
+        return {"status": "success" if result.exit_code == 0 else "error",
+                "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
+    return handler
+
+
+def _make_recon_handler(tool_name: str) -> ToolHandler:
+    async def handler(**kwargs: Any) -> dict[str, Any]:
+        from .subprocess_utils import safe_run_async
+        target = kwargs.get("target", "")
+        cmd = [tool_name, "-d", target] if tool_name == "amass" else [tool_name, "-d", target]
+        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 120))
+        return {"status": "success" if result.exit_code == 0 else "error",
+                "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
+    return handler
+
+
+def _make_brute_handler(tool_name: str) -> ToolHandler:
+    async def handler(**kwargs: Any) -> dict[str, Any]:
+        from .subprocess_utils import safe_run_async
+        target = kwargs.get("target", "")
+        cmd = [tool_name, "-l", target]
+        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 120))
+        return {"status": "success" if result.exit_code == 0 else "error",
+                "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
+    return handler
+
+
+def _make_network_handler(tool_name: str) -> ToolHandler:
+    async def handler(**kwargs: Any) -> dict[str, Any]:
+        from .subprocess_utils import safe_run_async
+        cmd = [tool_name, "--help"]
+        result = await safe_run_async(cmd, timeout=10)
+        return {"status": "success", "output": result.stdout[:500], "error": result.stderr[:200]}
+    return handler
+
+
+def _make_crypto_handler(tool_name: str) -> ToolHandler:
+    async def handler(**kwargs: Any) -> dict[str, Any]:
+        from .subprocess_utils import safe_run_async
+        cmd = [tool_name, "--help"]
+        result = await safe_run_async(cmd, timeout=10)
+        return {"status": "success", "output": result.stdout[:500], "error": result.stderr[:200]}
+    return handler
+
+
+def _make_curl_handler(tool_name: str) -> ToolHandler:
+    async def handler(**kwargs: Any) -> dict[str, Any]:
+        from .subprocess_utils import safe_run_async
+        target = kwargs.get("target", "")
+        flags = kwargs.get("flags", "-sI")
+        cmd = [tool_name] + flags.split() + [target]
+        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 30))
+        return {"status": "success" if result.exit_code == 0 else "error",
+                "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
+    return handler
+
+
+def _make_dns_handler(tool_name: str) -> ToolHandler:
+    async def handler(**kwargs: Any) -> dict[str, Any]:
+        from .subprocess_utils import safe_run_async
+        target = kwargs.get("target", "")
+        cmd = [tool_name, target]
+        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 30))
+        return {"status": "success" if result.exit_code == 0 else "error",
+                "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
+    return handler
+
+
+def _make_whois_handler(tool_name: str) -> ToolHandler:
+    async def handler(**kwargs: Any) -> dict[str, Any]:
+        from .subprocess_utils import safe_run_async
+        target = kwargs.get("target", "")
+        cmd = [tool_name, target]
+        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 30))
+        return {"status": "success" if result.exit_code == 0 else "error",
+                "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
+    return handler

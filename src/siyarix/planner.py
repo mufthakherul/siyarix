@@ -24,6 +24,12 @@ from .providers import CircuitBreaker, registry as _provider_registry
 logger = logging.getLogger(__name__)
 
 
+def _is_rate_limit_error(exc: Exception) -> bool:
+    """Check if an exception is a rate limit (429) error."""
+    msg = str(exc).lower()
+    return "429" in msg or "rate limit" in msg or "ratelimit" in msg
+
+
 # ---------------------------------------------------------------------------
 # Execution Plan data model
 # ---------------------------------------------------------------------------
@@ -171,7 +177,10 @@ class OpenAIModel:
             content = response.choices[0].message.content or "{}"
             return json.loads(content)
         except Exception as exc:
-            logger.warning("OpenAI planning failed: %s", exc)
+            if _is_rate_limit_error(exc):
+                logger.debug("OpenAI rate limited — skipping")
+            else:
+                logger.warning("OpenAI planning failed: %s", exc)
             return {}
 
     async def chat(self, messages: list[dict[str, Any]]) -> dict[str, str] | None:
@@ -263,7 +272,10 @@ class GeminiModel:
             logger.warning("Gemini returned non-JSON response: %s — raw: %s", exc, _raw)
             return {}
         except Exception as exc:
-            logger.warning("Gemini planning failed: %s", exc)
+            if _is_rate_limit_error(exc):
+                logger.debug("Gemini rate limited — skipping")
+            else:
+                logger.warning("Gemini planning failed: %s", exc)
             return {}
 
     async def chat(self, messages: list[dict[str, Any]]) -> dict[str, str] | None:
@@ -404,7 +416,10 @@ class OllamaModel:
                     content = data.get("message", {}).get("content", "{}")
                     return json.loads(content)
         except Exception as exc:
-            logger.warning("Ollama planning failed: %s", exc)
+            if _is_rate_limit_error(exc):
+                logger.debug("Ollama rate limited — skipping")
+            else:
+                logger.warning("Ollama planning failed: %s", exc)
             self._available = False
 
         return {}
@@ -480,7 +495,10 @@ class CloudModel:
                 if resp.status_code == 200:
                     return resp.json()
         except Exception as exc:
-            logger.warning("Cloud planning failed: %s", exc)
+            if _is_rate_limit_error(exc):
+                logger.debug("Cloud rate limited — skipping")
+            else:
+                logger.warning("Cloud planning failed: %s", exc)
 
         return {}
 
@@ -591,7 +609,10 @@ class _OpenAICompatibleModel:
                     )
                     return json.loads(content)
         except Exception as exc:
-            logger.warning("%s planning failed: %s", self._name, exc)
+            if _is_rate_limit_error(exc):
+                logger.debug("%s rate limited — skipping", self._name)
+            else:
+                logger.warning("%s planning failed: %s", self._name, exc)
             if self._lazy_check:
                 self._available = False
         return {}
@@ -975,8 +996,11 @@ class TaskPlanner:
                         breaker.record_success()
                     _provider_registry.record_success(provider_name)
                     return self._parse_model_response(raw, instruction)
-            except Exception:
-                logger.warning("Provider %s failed, trying next ...", provider_name)
+            except Exception as exc:
+                if _is_rate_limit_error(exc):
+                    logger.debug("Provider %s rate limited — skipping", provider_name)
+                else:
+                    logger.info("Provider %s failed, trying next ...", provider_name)
                 if breaker:
                     breaker.record_failure()
                 _provider_registry.record_failure(provider_name)
@@ -1013,8 +1037,11 @@ class TaskPlanner:
                     if breaker:
                         breaker.record_success()
                     return self._parse_model_response(raw, instruction)
-            except Exception:
-                logger.warning("Provider %s failed, trying next ...", provider_name)
+            except Exception as exc:
+                if _is_rate_limit_error(exc):
+                    logger.debug("Fallback provider %s rate limited — skipping", provider_name)
+                else:
+                    logger.info("Fallback provider %s failed, trying next ...", provider_name)
                 if breaker:
                     breaker.record_failure()
 

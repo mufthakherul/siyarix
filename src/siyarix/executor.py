@@ -182,17 +182,20 @@ def _validate_cmd_list(cmd: list[str]) -> None:
 
     This enforces a few simple rules: it must be a non-empty list of strings
     and no argument may contain characters that indicate shell metacharacters
-    such as ; | & ` > < $( ) unless they are obviously intended (best-effort).
+    such as ; | & ` > < $( ) or injection vectors like newlines and null bytes.
     """
     if not isinstance(cmd, list) or not cmd:
         raise ValueError("cmd must be a non-empty list of strings")
     for part in cmd:
         if not isinstance(part, str):
             raise ValueError("all command parts must be strings")
-        # Reject obvious shell metacharacters
+        # Reject obvious shell metacharacters and injection vectors
         cleaned = part.replace(">=", "").replace("<=", "").replace("==", "")
         if any(ch in cleaned for ch in [";", "|", "&", "`", "$", ">", "<"]):
             raise ValueError(f"command part contains suspicious character: {part!r}")
+        # Block newline and null byte injection
+        if "\n" in part or "\r" in part or "\x00" in part:
+            raise ValueError(f"command part contains injection character: {part!r}")
 
 
 def safe_run_sync(

@@ -215,6 +215,22 @@ def run_command_sync(command: str, timeout: int = 60) -> str:
         return "Error: empty command"
 
     binary = parts[0]
+
+    # Security: block dangerous commands
+    _dangerous_bins = {
+        "rm", "dd", "mkfs", "format", "del", "rd",
+        "shutdown", "reboot", "init", "halt", "poweroff",
+        "chmod", "chown", "passwd", "useradd", "userdel",
+        "mount", "umount", "fdisk", "parted",
+    }
+    if binary in _dangerous_bins:
+        return f"Error: command '{binary}' is blocked for safety"
+
+    # Security: block injection characters
+    for part in parts:
+        if any(ch in part for ch in [";", "|", "&", "`", "$", ">", "<", "\n", "\r", "\x00"]):
+            return "Error: command contains blocked characters"
+
     found = False
     for d in __import__("os").environ.get("PATH", "").split(__import__("os").pathsep):
         p = __import__("os").path.join(d, binary)
@@ -244,12 +260,46 @@ def run_command_sync(command: str, timeout: int = 60) -> str:
         return f"Error: {exc}"
 
 
+# Sensitive paths that must never be read via LLM tool calls
+_SENSITIVE_PATHS: set[str] = {
+    "/etc/shadow",
+    "/etc/gshadow",
+    "/etc/master.passwd",
+}
+
+_SENSITIVE_PREFIXES: tuple[str, ...] = (
+    "/etc/pki", "/etc/ssl/private",
+)
+
+
 def read_file_sync(path: str, max_lines: int = 200) -> str:
-    """Read a file and return its contents."""
+    """Read a file and return its contents.
+
+    Security: blocks access to sensitive system files and paths.
+    """
     import os as _os
 
     if not _os.path.isfile(path):
         return f"Error: file not found: {path}"
+
+    # Security: block sensitive paths
+    resolved = _os.path.realpath(path)
+    if resolved in _SENSITIVE_PATHS:
+        return "Error: access denied — sensitive system file"
+    for prefix in _SENSITIVE_PREFIXES:
+        if resolved.startswith(prefix):
+            return "Error: access denied — sensitive path"
+    # Block home directory sensitive files
+    home = _os.path.expanduser("~")
+    sensitive_home = (
+        ".ssh/id_", ".ssh/id_rsa", ".ssh/id_ed25519",
+        ".gnupg/", ".siyarix/.vault_key", ".aws/credentials",
+        ".env",
+    )
+    for sh in sensitive_home:
+        if resolved.startswith(_os.path.join(home, sh.rstrip("/"))):
+            return "Error: access denied — sensitive credential file"
+
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
             lines: list[str] = []

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from siyarix.core.mode_dispatcher import (
+pass  # mode_dispatcher removed (
     AIConversationalMode,
     AutonomousAgentMode,
     BaseMode,

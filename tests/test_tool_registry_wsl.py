@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import subprocess
 
-from siyarix.tool_registry import ToolRegistry
+from siyarix.registry import ToolRegistry
 
 
 def test_discover_uses_wsl_fallback_on_windows(monkeypatch):

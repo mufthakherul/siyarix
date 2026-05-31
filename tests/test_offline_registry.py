@@ -11,10 +11,10 @@ from unittest.mock import patch
 
 import pytest
 
-from siyarix.offline_registry import OfflineResponder
-from siyarix.offline_registry.matcher import best_match, match_entry
-from siyarix.offline_registry.registry import ResponseEntry, ResponseRegistry
-from siyarix.offline_registry.resolver import known_variables, resolve
+pass  # offline_registry removed OfflineResponder
+pass  # removed best_match, match_entry
+pass  # removed ResponseEntry, ResponseRegistry
+pass  # removed known_variables, resolve
 
 
 # ---------------------------------------------------------------------------

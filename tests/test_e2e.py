@@ -17,7 +17,7 @@ import pytest
 from click.testing import CliRunner
 from typer.main import get_command
 
-from siyarix.engine import (ExecutionEngine, ExecutionMode, ExecutionStep,
+from siyarix.compat import (ExecutionEngine, ExecutionMode, ExecutionStep,
                             StepResult, StepStatus)
 from siyarix.main import app
 from siyarix.planner import StepType

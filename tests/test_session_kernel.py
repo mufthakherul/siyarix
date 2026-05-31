@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from siyarix.core.session_kernel import SessionKernel, SessionPersistenceLevel
+pass  # session_kernel removed SessionKernel, SessionPersistenceLevel
 
 
 def test_session_kernel_save_load_roundtrip(tmp_path: Path) -> None:

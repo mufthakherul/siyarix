@@ -266,7 +266,7 @@ class TestPhase4_SelfHealing:
 
     @pytest.mark.asyncio
     async def test_4a_calculate_backoff_delay(self):
-        from siyarix.engine.recovery import calculate_backoff_delay
+        pass  # recovery removed calculate_backoff_delay
 
         for attempt in range(0, 20):
             delay = await calculate_backoff_delay(attempt)
@@ -276,7 +276,7 @@ class TestPhase4_SelfHealing:
 
     @pytest.mark.asyncio
     async def test_4b_is_transient_error(self):
-        from siyarix.engine.recovery import is_transient_error
+        pass  # recovery removed is_transient_error
 
         for msg in [
             "Connection refused",

@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
-from siyarix.tool_registry import (
+from siyarix.registry import (
     CAPABILITY_CATEGORIES,
     ToolInfo,
     ToolRegistry,

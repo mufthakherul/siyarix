@@ -26,7 +26,7 @@ class ContextChunk:
 
 @dataclass
 class ContextWindow:
-    max_tokens: int = 128000
+    max_tokens: int = 1_000_000
     system_prompt_tokens: int = 0
     history_tokens: int = 0
     tool_output_tokens: int = 0
@@ -50,7 +50,7 @@ class ContextWindow:
 
 
 class ContextManager:
-    def __init__(self, max_tokens: int = 128000) -> None:
+    def __init__(self, max_tokens: int = 1_000_000) -> None:
         self._window = ContextWindow(max_tokens=max_tokens)
         self._chunks: list[ContextChunk] = []
         self._compressed_summaries: list[str] = []
@@ -141,3 +141,35 @@ class ContextManager:
         return {"total_chunks": len(self._chunks), "total_tokens": self._total_tokens,
                 "usage_pct": round(self._window.usage_pct, 1), "needs_compression": self._window.needs_compression,
                 "compressions": self._compression_count}
+
+
+def compress_context(ctx: dict[str, Any], max_tokens: int = 8000) -> dict[str, Any]:
+    """Compress a context dict by truncating oversized fields."""
+    result = dict(ctx)
+
+    tools = result.get("available_tools")
+    if isinstance(tools, list) and len(tools) > 20:
+        truncated = len(tools) - 20
+        result["available_tools"] = tools[:20]
+        result["_tools_truncated"] = truncated
+
+    history = result.get("conversation_history")
+    if isinstance(history, str):
+        lines = history.split("\n")
+        if len(lines) > max_tokens:
+            keep = max_tokens * 4 // 5
+            truncated_count = len(lines) - keep
+            result["conversation_history"] = "\n".join(lines[-keep:])
+            result["_history_truncated"] = truncated_count
+
+    xi = result.get("xi_context")
+    if isinstance(xi, dict):
+        execs = xi.get("recent_executions")
+        if isinstance(execs, list) and len(execs) > 10:
+            result["xi_context"] = {**xi, "recent_executions": execs[:10]}
+
+    recs = result.get("xi_recommendations")
+    if isinstance(recs, list) and len(recs) > 5:
+        result["xi_recommendations"] = recs[:5]
+
+    return result

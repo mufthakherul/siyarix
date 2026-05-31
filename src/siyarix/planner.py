@@ -113,7 +113,7 @@ class ExecutionPlan:
     def get_ready_steps(self) -> list[PlanStep]:
         ready = []
         for step in self.steps:
-            if step.status != StepStatus.PENDING:
+            if step.status not in (StepStatus.PENDING, StepStatus.READY):
                 continue
             deps_met = all(
                 self.get_step(dep) is not None and self.get_step(dep).status == StepStatus.COMPLETED
@@ -176,18 +176,23 @@ class Planner:
 
     def create_from_template(self, template_name: str, target: str,
                              overrides: dict[str, Any] | None = None) -> ExecutionPlan:
+        import re
         template = self._templates.get(template_name)
         if not template:
             raise ValueError(f"Unknown template: {template_name}")
+        url_match = re.search(r'https?://[^\s]+', target)
+        host_match = re.search(r'\b(?:[\w-]+\.)+[a-z]{2,}\b', target.lower())
+        clean_target = url_match.group(0) if url_match else (host_match.group(0) if host_match else target)
         steps = []
         for step_def in template:
-            step = {**step_def, "args": {**step_def.get("args", {}), "target": target}}
+            step = {**step_def, "args": {**step_def.get("args", {}), "target": clean_target}}
             if overrides:
                 step["args"].update(overrides.get("args", {}))
             steps.append(step)
-        return self.create_plan(goal=f"{template_name} on {target}", steps=steps, context={"target": target, "template": template_name})
+        return self.create_plan(goal=f"{template_name} on {clean_target}", steps=steps, context={"target": clean_target, "template": template_name})
 
     def decompose_goal(self, goal: str, available_tools: list[str] | None = None) -> ExecutionPlan:
+        import re
         goal_lower = goal.lower()
         if any(kw in goal_lower for kw in ("recon", "reconnaissance", "enumerate", "discover")):
             return self.create_from_template("recon_full", goal)
@@ -197,7 +202,26 @@ class Planner:
             return self.create_from_template("brute_force", goal)
         if any(kw in goal_lower for kw in ("wifi", "wireless", "wpa")):
             return self.create_from_template("wifi_audit", goal)
-        return self.create_plan(goal=goal, steps=[{"description": f"Execute: {goal}", "tool": "auto", "args": {"goal": goal}}])
+        url_match = re.search(r'https?://[^\s]+', goal)
+        host_match = re.search(r'\b(?:[\w-]+\.)+[a-z]{2,}\b', goal_lower)
+        target = ""
+        if url_match:
+            target = url_match.group(0)
+        elif host_match:
+            target = host_match.group(0)
+        tool_match = None
+        if available_tools:
+            for t in available_tools:
+                if t.lower() in goal_lower:
+                    tool_match = t
+                    break
+        if tool_match:
+            return self.create_plan(goal=goal, steps=[{
+                "description": f"Execute {tool_match} on {target}",
+                "tool": tool_match,
+                "args": {"target": target, "flags": "-sT -T4 --top-ports 100" if tool_match == "nmap" else ""},
+            }])
+        return self.create_plan(goal=goal, steps=[{"description": f"Execute: {goal}", "tool": "curl", "args": {"target": target, "flags": "-sI"}}])
 
     def adapt_plan(self, plan: ExecutionPlan, failed_step: PlanStep, error: str) -> ExecutionPlan:
         if failed_step.tool == "nmap" and "filtered" in error.lower():

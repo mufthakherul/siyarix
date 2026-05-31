@@ -194,10 +194,6 @@ class Planner:
     def decompose_goal(self, goal: str, available_tools: list[str] | None = None) -> ExecutionPlan:
         import re
         goal_lower = goal.lower()
-        if any(kw in goal_lower for kw in ("recon", "reconnaissance", "enumerate", "discover")):
-            return self.create_from_template("recon_full", goal)
-        if any(kw in goal_lower for kw in ("web", "http", "website", "server")):
-            return self.create_from_template("web_audit", goal)
         if any(kw in goal_lower for kw in ("brute", "crack", "password", "credential")):
             return self.create_from_template("brute_force", goal)
         if any(kw in goal_lower for kw in ("wifi", "wireless", "wpa")):
@@ -221,6 +217,12 @@ class Planner:
                 "tool": tool_match,
                 "args": {"target": target, "flags": "-sT -T4 --top-ports 100" if tool_match == "nmap" else ""},
             }])
+        if target:
+            return self.create_plan(goal=goal, steps=[
+                {"description": "HTTP headers check", "tool": "curl", "args": {"target": target, "flags": "-sI"}},
+                {"description": "Technology fingerprinting", "tool": "whatweb", "args": {"target": target}},
+                {"description": "DNS enumeration", "tool": "dig", "args": {"target": target.replace("https://", "").replace("http://", "").split("/")[0]}},
+            ])
         return self.create_plan(goal=goal, steps=[{"description": f"Execute: {goal}", "tool": "curl", "args": {"target": target, "flags": "-sI"}}])
 
     def adapt_plan(self, plan: ExecutionPlan, failed_step: PlanStep, error: str) -> ExecutionPlan:

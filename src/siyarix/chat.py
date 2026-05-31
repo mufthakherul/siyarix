@@ -184,7 +184,7 @@ class ConfigPanel:
         s = SettingsStore()
         keys = [
             "color_theme", "model_provider", "gemini_model", "openai_model",
-            "anthropic_model", "ollama_model", "ollama_url", "log_level",
+            "anthropic_model", "openrouter_model", "ollama_model", "ollama_url", "log_level",
         ]
         console.print("[bold cyan]Configuration[/bold cyan]")
         for k in keys:
@@ -1373,7 +1373,7 @@ class SiyarixChat:
         if tokens:
             selected = tokens[0].strip().lower()
             # If a provider is given and an additional token is provided, treat it as a model name
-            if selected in {"auto", "openai", "gemini", "ollama", "cloud", "anthropic", "groq", "together", "lmstudio", "custom", "opencode"}:
+            if selected in {"auto", "openai", "gemini", "ollama", "cloud", "anthropic", "groq", "together", "lmstudio", "custom", "opencode", "openrouter"}:
                 self._settings.set("model_provider", selected)
                 if len(tokens) > 1:
                     model_name = tokens[1].strip()
@@ -1400,7 +1400,7 @@ class SiyarixChat:
                 console.print(f"[green]✓ Model provider set to: {selected}[/green]")
             else:
                 console.print(
-                    "[yellow]Usage: /model [auto|openai|gemini|ollama|anthropic|cloud] [model-name][/yellow]"
+                    "[yellow]Usage: /model [auto|openai|gemini|ollama|anthropic|cloud|openrouter] [model-name][/yellow]"
                 )
                 return
 
@@ -1410,6 +1410,7 @@ class SiyarixChat:
         anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
         groq_key = os.environ.get("GROQ_API_KEY", "")
         together_key = os.environ.get("TOGETHER_API_KEY", "")
+        openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
         panel_text = (
             f"[bold]Preferred:[/bold] {self._settings.get('model_provider')}\n"
             f"[bold]OpenAI:[/bold]  {'✓ Configured' if openai_key else '✗ Not set'} ({self._settings.get('openai_model') or 'gpt-4o'})\n"
@@ -1417,6 +1418,7 @@ class SiyarixChat:
             f"[bold]Anthropic:[/bold]  {'✓ Configured' if anthropic_key else '✗ Not set'} ({self._settings.get('anthropic_model') or 'claude-3-opus-20240229'})\n"
             f"[bold]Groq:[/bold]  {'✓ Configured' if groq_key else '✗ Not set'} ({self._settings.get('groq_model') or 'llama3-70b-8192'})\n"
             f"[bold]Together:[/bold]  {'✓ Configured' if together_key else '✗ Not set'} ({self._settings.get('together_model') or 'mistralai/Mixtral-8x7B-Instruct-v0.1'})\n"
+            f"[bold]OpenRouter:[/bold]  {'✓ Configured' if openrouter_key else '✗ Not set'} ({self._settings.get('openrouter_model') or 'nvidia/nemotron-3-super-120b-a12b:free'})\n"
             f"[bold]Ollama:[/bold]  Available (lazy check on first use) ({self._settings.get('ollama_model') or 'llama3.1'})\n"
             f"[bold]Cloud:[/bold]   Requires SIYARIX_SERVER_URL + SIYARIX_API_KEY\n"
             f"[bold]LM Studio:[/bold] Available (lazy check on first use)\n"
@@ -2311,9 +2313,25 @@ class SiyarixChat:
         target: str = "",
         show_plan: bool = False,
     ) -> None:
-        """Execute an instruction through the engine with live feedback."""
-        from .engine import ExecutionEngine, ExecutionMode
+        """Execute an instruction — AgentLoop for LLM modes, engine for registry modes."""
         from .tool_registry import ToolRegistry
+
+        # ── Determine if we should try the agent loop ──
+        should_try_agent = self._mode == "autonomous" or (
+            self._mode == "integrated" and self._llm_available()
+        )
+
+        if should_try_agent:
+            ok = await self._execute_agent(instruction, target)
+            if ok or self._mode == "autonomous":
+                return  # autonomous mode stops here even on failure
+            # Integrated mode: agent failed → fall through to registry with message
+            console.print(
+                "[yellow]⚠ AI provider unavailable — falling back to offline registry mode[/yellow]"
+            )
+
+        # ── Registry / integrated fallback: traditional plan → execute pipeline ──
+        from .engine import ExecutionEngine, ExecutionMode
 
         try:
             exec_mode = ExecutionMode(self._mode)
@@ -2479,6 +2497,119 @@ class SiyarixChat:
             self._offline_responder = OfflineResponder()
         return self._offline_responder.respond(user_input)
 
+    async def _execute_agent(self, instruction: str, target: str = "") -> bool:
+        """Run the LLM agent loop. Returns True if agent produced a response."""
+        from .tool_registry import ToolRegistry
+        from .agent import AgentLoop
+
+        reg = ToolRegistry()
+
+        provider_name = self._settings.get("model_provider") or "gemini"
+        model = self._build_agent_model(provider_name)
+        if model is None:
+            return False
+        if hasattr(model, "available") and not model.available:
+            logger.debug("Provider %s is not available", provider_name)
+            return False
+
+        instruction_with_target = instruction
+        if target and target not in instruction:
+            instruction_with_target = f"{instruction} on {target}"
+
+        console.print(f"[dim]Agent mode — using {provider_name}[/dim]")
+
+        loop = AgentLoop(model=model, registry=reg, console=console)
+        try:
+            with console.status("[bold green]Agent thinking...[/bold green]", spinner="dots"):
+                result = await loop.run(instruction_with_target)
+        except Exception as exc:
+            logger.warning("Agent loop failed: %s", exc)
+            return False
+
+        if result and result.content:
+            self._session.add_message("assistant", result.content)
+            if result.tools_called:
+                self._session.add_message(
+                    "assistant",
+                    f"Agent called tools: {', '.join(result.tools_called)} ({result.iterations} rounds)",
+                )
+            return True
+        return False
+
+    def _llm_available(self) -> bool:
+        """Check if an LLM provider is configured and available."""
+        provider = (self._settings.get("model_provider") or "gemini").lower().strip()
+        if provider == "anthropic":
+            return bool(os.getenv("ANTHROPIC_API_KEY"))
+        if provider == "gemini":
+            return bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
+        if provider == "openai":
+            return bool(os.getenv("OPENAI_API_KEY"))
+        if provider in ("groq", "together", "custom", "opencode"):
+            return bool(os.getenv(f"{provider.upper()}_API_KEY"))
+        if provider == "openrouter":
+            return bool(os.getenv("OPENROUTER_API_KEY"))
+        if provider == "ollama":
+            return True  # optimistic — checked lazily
+        if provider == "cloud":
+            return bool(os.getenv("SIYARIX_SERVER_URL"))
+        return False
+
+    def _build_agent_model(self, provider: str) -> Any | None:
+        """Build a model provider instance for the agent loop."""
+        from .planner import GeminiModel, OpenAIModel
+
+        provider = provider.lower().strip()
+        if provider == "openai":
+            model_name = self._settings.get("openai_model") or "gpt-4o"
+            return OpenAIModel(api_key=os.getenv("OPENAI_API_KEY"), model=model_name)
+        if provider == "gemini":
+            model_name = self._settings.get("gemini_model") or "gemini-2.0-flash"
+            return GeminiModel(
+                api_key=os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"),
+                model=model_name,
+            )
+        if provider == "anthropic":
+            model_name = self._settings.get("anthropic_model") or "claude-3-opus-20240229"
+            model = OpenAIModel(
+                api_key=os.getenv("ANTHROPIC_API_KEY"),
+                model=model_name,
+                base_url=os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1"),
+            )
+
+            return model
+        if provider == "openrouter":
+            model_name = self._settings.get("openrouter_model") or "nvidia/nemotron-3-super-120b-a12b:free"
+            return OpenAIModel(
+                api_key=os.getenv("OPENROUTER_API_KEY"),
+                model=model_name,
+                base_url="https://openrouter.ai/api/v1",
+            )
+        if provider in ("groq", "together", "custom", "opencode"):
+            env_key = f"{provider.upper()}_API_KEY"
+            model_name = self._settings.get(f"{provider}_model") or "default"
+            base_url = os.getenv(f"{provider.upper()}_BASE_URL")
+            return OpenAIModel(
+                api_key=os.getenv(env_key),
+                model=model_name,
+                base_url=base_url,
+            )
+        if provider == "ollama":
+            model_name = self._settings.get("ollama_model") or "llama3.1"
+            from .planner import OllamaModel
+            return OllamaModel(
+                base_url=os.getenv("SIYARIX_OLLAMA_URL", "http://localhost:11434"),
+                model=model_name,
+            )
+        if provider == "cloud":
+            from .planner import CloudModel
+            return CloudModel(
+                server_url=os.getenv("SIYARIX_SERVER_URL", ""),
+                api_key=os.getenv("CLOUD_API_KEY", ""),
+            )
+        logger.warning("Unsupported provider for agent mode: %s", provider)
+        return None
+
     # ──────────────────────────────────────────────────────────────────────
     # Display helpers
     # ──────────────────────────────────────────────────────────────────────
@@ -2555,7 +2686,8 @@ class SiyarixChat:
                         f"[bold]OpenAI:[/bold] {provider_status.get('openai', ('✗', ''))[0]}\n"
                         f"[bold]Gemini:[/bold] {provider_status.get('gemini', ('✗', ''))[0]}\n"
                         f"[bold]Ollama:[/bold] {provider_status.get('ollama', ('✗', ''))[0]}\n"
-                        f"[bold]Claude:[/bold] {provider_status.get('anthropic', ('✗', ''))[0]}",
+                        f"[bold]Claude:[/bold] {provider_status.get('anthropic', ('✗', ''))[0]}\n"
+                        f"[bold]OpenRouter:[/bold] {provider_status.get('openrouter', ('✗', ''))[0]}",
                         title="Runtime",
                         border_style="yellow",
                         padding=(1, 2),
@@ -2624,6 +2756,13 @@ class SiyarixChat:
             status["anthropic"] = ("⚠", "key missing")
         else:
             status["anthropic"] = ("✓", "configured")
+
+        # OpenRouter (uses openai-compatible API)
+        openrouter_key = bool(os.getenv("OPENROUTER_API_KEY"))
+        if not openrouter_key:
+            status["openrouter"] = ("⚠", "key missing")
+        else:
+            status["openrouter"] = ("✓", "configured")
 
         # Ollama (don't attempt network checks here)
         ollama_url = os.getenv("SIYARIX_OLLAMA_URL") or os.getenv("OLLAMA_URL")

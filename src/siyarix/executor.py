@@ -1,244 +1,191 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-
-"""Async executor for running security tools as subprocesses."""
+"""Execution engine with guardrails, recovery, and tool dispatch."""
 
 from __future__ import annotations
 
 import asyncio
-import inspect
 import logging
-import os
-import subprocess  # nosec B404
 import time
-from collections.abc import AsyncGenerator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any, Callable, Coroutine
+
+from .planner import ExecutionPlan, PlanStep, StepStatus, PlanStatus
+from .registry import ToolRegistry
+from .events import Event, EventType, get_event_bus
+
+logger = logging.getLogger(__name__)
+StepExecutor = Callable[[PlanStep], Coroutine[Any, Any, dict[str, Any]]]
 
 
 @dataclass
-class ExecutionResult:
-    """Result of a completed tool execution."""
+class ExecutionBudget:
+    max_iterations: int = 50
+    max_tool_calls: int = 100
+    max_duration_s: float = 600.0
+    _iterations: int = field(default=0, repr=False)
+    _tool_calls: int = field(default=0, repr=False)
+    _start_time: float = field(default_factory=time.time, repr=False)
 
-    exit_code: int
-    stdout: str
-    stderr: str
-    duration_ms: float
+    @property
+    def remaining_iterations(self) -> int:
+        return max(0, self.max_iterations - self._iterations)
 
+    @property
+    def remaining_tool_calls(self) -> int:
+        return max(0, self.max_tool_calls - self._tool_calls)
 
-async def _apply_stealth_modifications(
-    tool_path: str, args: list[str]
-) -> tuple[str, list[str]]:
-    """Rewrite tool arguments and add delay jitter when stealth mode is enabled."""
-    from siyarix.config import SettingsStore
+    @property
+    def elapsed(self) -> float:
+        return time.time() - self._start_time
 
-    try:
-        config = SettingsStore()
-        if not config.get("stealth_mode"):
-            return tool_path, args
-    except Exception:
-        return tool_path, args
+    @property
+    def is_exhausted(self) -> bool:
+        return self._iterations >= self.max_iterations or self._tool_calls >= self.max_tool_calls or self.elapsed >= self.max_duration_s
 
-    import random
+    def consume_iteration(self) -> bool:
+        if self.is_exhausted:
+            return False
+        self._iterations += 1
+        return True
 
-    # Timing Jitter: sleep between 100ms and 500ms to mimic human typing / evade threshold detection
-    delay = random.uniform(0.1, 0.5)
-    await asyncio.sleep(delay)
-
-    name = os.path.basename(tool_path).lower()
-    new_args = list(args)
-
-    # 1. Evasive rewriting for nmap
-    if "nmap" in name:
-        # Inject stealth scan -sS and polite speed T2 if not specified, randomize hosts
-        if not any(arg.startswith("-T") for arg in new_args):
-            new_args.append("-T2")
-        if not any(arg.startswith("-s") for arg in new_args):
-            new_args.append("-sS")
-        if "-f" not in new_args:
-            new_args.append("-f")  # Fragment packets
-
-    # 2. Evasive rewriting for ffuf
-    elif "ffuf" in name:
-        # Rate limit to 50 requests/sec
-        if "-rate" not in new_args:
-            new_args.extend(["-rate", "50"])
-        # Rotate user agent
-        if "-H" not in new_args:
-            new_args.extend(
-                [
-                    "-H",
-                    "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                ]
-            )
-
-    # 3. Evasive rewriting for nuclei
-    elif "nuclei" in name:
-        if "-rate-limit" not in new_args:
-            new_args.extend(["-rate-limit", "10"])
-        if "-H" not in new_args:
-            new_args.extend(
-                ["-H", "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"]
-            )
-
-    return tool_path, new_args
+    def consume_tool_call(self) -> bool:
+        if self.is_exhausted:
+            return False
+        self._tool_calls += 1
+        return True
 
 
-async def run_tool(
-    tool_path: str,
-    args: list[str],
-    timeout: int = 300,
-) -> AsyncGenerator[str, None]:
-    """Run *tool_path* with *args*, yielding stdout lines as they arrive.
+@dataclass
+class GuardrailConfig:
+    exact_failure_warn_after: int = 2
+    exact_failure_block_after: int = 5
+    same_tool_failure_halt_after: int = 8
+    no_progress_block_after: int = 5
 
-    Handles timeout gracefully by terminating the subprocess.
-    """
-    tool_path, args = await _apply_stealth_modifications(tool_path, args)
-    _validate_cmd_list([tool_path, *args])
-    proc = await asyncio.create_subprocess_exec(
-        tool_path,
-        *args,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )  # nosec B603
 
-    if proc.stdout is None:  # guaranteed by PIPE, but guard for type safety
-        raise RuntimeError(
-            "subprocess stdout is None despite PIPE — this should never happen"
-        )
+class ToolCallTracker:
+    def __init__(self, config: GuardrailConfig | None = None) -> None:
+        self._config = config or GuardrailConfig()
+        self._failure_counts: dict[str, int] = {}
+        self._consecutive_same: dict[str, int] = {}
+        self._no_progress_count = 0
+        self._last_mutation = ""
 
-    deadline = time.monotonic() + timeout
+    def record(self, tool: str, args_key: str, success: bool) -> str | None:
+        if success:
+            self._failure_counts[tool] = 0
+            self._no_progress_count = 0
+            self._consecutive_same[tool] = 0
+            self._last_mutation = f"{tool}:{args_key}"
+        else:
+            self._failure_counts[tool] = self._failure_counts.get(tool, 0) + 1
+            if self._last_mutation == f"{tool}:{args_key}":
+                self._no_progress_count += 1
+            self._consecutive_same[tool] = self._consecutive_same.get(tool, 0) + 1
+        if self._failure_counts.get(tool, 0) >= self._config.exact_failure_block_after:
+            return f"BLOCKED: {tool} failed {self._failure_counts[tool]} times"
+        if self._consecutive_same.get(tool, 0) >= self._config.same_tool_failure_halt_after:
+            return f"HALTED: {tool} called {self._consecutive_same[tool]} times consecutively"
+        if self._no_progress_count >= self._config.no_progress_block_after:
+            return f"BLOCKED: No progress for {self._no_progress_count} calls"
+        return None
 
-    try:
-        while True:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                await _kill_process(proc)
-                await proc.wait()
-                return
-            try:
-                line = await asyncio.wait_for(proc.stdout.readline(), timeout=remaining)
-            except TimeoutError:
-                await _kill_process(proc)
-                await proc.wait()
-                return
-            if not line:
+    def reset(self) -> None:
+        self._failure_counts.clear()
+        self._consecutive_same.clear()
+        self._no_progress_count = 0
+
+
+class Executor:
+    def __init__(self, registry: ToolRegistry | None = None) -> None:
+        self._registry = registry
+        self._budget = ExecutionBudget()
+        self._tracker = ToolCallTracker()
+        self._custom_executors: dict[str, StepExecutor] = {}
+        self._event_bus = get_event_bus()
+
+    @property
+    def budget(self) -> ExecutionBudget:
+        return self._budget
+
+    def register_executor(self, tool: str, executor: StepExecutor) -> None:
+        self._custom_executors[tool] = executor
+
+    async def execute_plan(self, plan: ExecutionPlan, executor_fn: StepExecutor | None = None) -> ExecutionPlan:
+        plan.status = PlanStatus.ACTIVE
+        await self._event_bus.emit(Event(type=EventType.PLAN_CREATED, source="executor",
+            data={"plan_id": plan.id, "goal": plan.goal, "steps": len(plan.steps)}))
+        while not plan.is_complete:
+            if self._budget.is_exhausted:
                 break
-            yield line.decode(errors="replace").rstrip("\n")
-    finally:
-        if proc.returncode is None:
-            await _kill_process(proc)
-            await proc.wait()
+            ready_steps = plan.get_ready_steps()
+            if not ready_steps:
+                if plan.pending_steps:
+                    blocked = all(
+                        any(s.status == StepStatus.FAILED for s in plan.steps if s.id == dep)
+                        for step in plan.pending_steps for dep in step.dependencies
+                    )
+                    if blocked:
+                        break
+                else:
+                    break
+                break
+            if plan.plan_type.value in ("parallel", "dag"):
+                await asyncio.gather(*[self._execute_step(s, executor_fn) for s in ready_steps], return_exceptions=True)
+            else:
+                await self._execute_step(ready_steps[0], executor_fn)
+        plan.status = PlanStatus.COMPLETED if not plan.has_failures else PlanStatus.FAILED
+        await self._event_bus.emit(Event(type=EventType.PLAN_COMPLETE, source="executor",
+            data={"plan_id": plan.id, "status": plan.status.value, "progress": plan.progress_pct}))
+        return plan
 
+    async def _execute_step(self, step: PlanStep, executor_fn: StepExecutor | None) -> None:
+        if not self._budget.consume_iteration():
+            return
+        step.status = StepStatus.RUNNING
+        await self._event_bus.emit(Event(type=EventType.PLAN_STEP_START, source="executor",
+            data={"step_id": step.id, "tool": step.tool}))
+        start = time.time()
+        try:
+            if executor_fn:
+                result = await executor_fn(step)
+            elif step.tool in self._custom_executors:
+                result = await self._custom_executors[step.tool](step)
+            elif self._registry and step.tool:
+                if not self._budget.consume_tool_call():
+                    result = {"status": "error", "error": "Tool call budget exhausted"}
+                else:
+                    guardrail = self._tracker.record(step.tool, str(sorted(step.args.items())), True)
+                    if guardrail and "BLOCKED" in guardrail:
+                        result = {"status": "error", "error": guardrail}
+                    else:
+                        result = await self._registry.execute(step.tool, **step.args)
+            else:
+                result = {"status": "error", "error": f"No executor for: {step.tool}"}
+            step.duration_ms = (time.time() - start) * 1000
+            step.result = result
+            if result.get("status") == "error":
+                step.status = StepStatus.FAILED
+                self._tracker.record(step.tool, str(sorted(step.args.items())), False)
+                await self._event_bus.emit(Event(type=EventType.PLAN_STEP_FAILED, source="executor",
+                    data={"step_id": step.id, "error": result.get("error", "")}))
+            else:
+                step.status = StepStatus.COMPLETED
+                await self._event_bus.emit(Event(type=EventType.PLAN_STEP_COMPLETE, source="executor",
+                    data={"step_id": step.id, "duration_ms": step.duration_ms}))
+        except asyncio.CancelledError:
+            step.status = StepStatus.SKIPPED
+            raise
+        except Exception as e:
+            step.duration_ms = (time.time() - start) * 1000
+            step.status = StepStatus.FAILED
+            step.result = {"status": "error", "error": str(e)}
+            self._tracker.record(step.tool, str(sorted(step.args.items())), False)
 
-async def run_tool_complete(
-    tool_path: str,
-    args: list[str],
-    timeout: int = 300,
-) -> ExecutionResult:
-    """Run *tool_path* with *args* to completion and return an :class:`ExecutionResult`.
+    def reset(self) -> None:
+        self._budget = ExecutionBudget()
+        self._tracker.reset()
 
-    Kills the process and returns a partial result on timeout.
-    """
-    tool_path, args = await _apply_stealth_modifications(tool_path, args)
-    _validate_cmd_list([tool_path, *args])
-    start = time.monotonic()
-    proc = await asyncio.create_subprocess_exec(
-        tool_path,
-        *args,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )  # nosec B603
-
-    try:
-        stdout_bytes, stderr_bytes = await asyncio.wait_for(
-            proc.communicate(), timeout=timeout
-        )
-        exit_code = proc.returncode if proc.returncode is not None else 0
-    except TimeoutError:
-        await _kill_process(proc)
-        stdout_bytes, stderr_bytes = await proc.communicate()
-        exit_code = -1
-
-    duration_ms = (time.monotonic() - start) * 1000
-    return ExecutionResult(
-        exit_code=exit_code,
-        stdout=stdout_bytes.decode(errors="replace"),
-        stderr=stderr_bytes.decode(errors="replace"),
-        duration_ms=duration_ms,
-    )
-
-
-logger = logging.getLogger(__name__)
-
-
-async def _kill_process(proc: asyncio.subprocess.Process) -> None:
-    """Terminate a process, supporting both sync and async mock implementations."""
-    result = proc.kill()  # type: ignore[func-returns-value]
-    if inspect.isawaitable(result):
-        await result
-
-
-def _validate_cmd_list(cmd: list[str]) -> None:
-    """Validate a command list to avoid shell-injection patterns.
-
-    This enforces a few simple rules: it must be a non-empty list of strings
-    and no argument may contain characters that indicate shell metacharacters
-    such as ; | & ` > < $( ) or injection vectors like newlines and null bytes.
-    """
-    if not isinstance(cmd, list) or not cmd:
-        raise ValueError("cmd must be a non-empty list of strings")
-    for part in cmd:
-        if not isinstance(part, str):
-            raise ValueError("all command parts must be strings")
-        # Reject obvious shell metacharacters and injection vectors
-        cleaned = part.replace(">=", "").replace("<=", "").replace("==", "")
-        if any(ch in cleaned for ch in [";", "|", "&", "`", "$", ">", "<"]):
-            raise ValueError(f"command part contains suspicious character: {part!r}")
-        # Block newline and null byte injection
-        if "\n" in part or "\r" in part or "\x00" in part:
-            raise ValueError(f"command part contains injection character: {part!r}")
-
-
-def safe_run_sync(
-    cmd: list[str], timeout: int = 10, capture_output: bool = True, text: bool = True
-) -> subprocess.CompletedProcess:
-    """Run a subprocess safely (sync).
-
-    Validates the command list and runs subprocess.run. Returns CompletedProcess.
-    """
-    _validate_cmd_list(cmd)
-    try:
-        return subprocess.run(
-            cmd, capture_output=capture_output, text=text, timeout=timeout
-        )  # nosec B603
-    except subprocess.TimeoutExpired:
-        logger.debug("safe_run_sync timeout for cmd=%s", cmd)
-        raise
-    except Exception as exc:
-        logger.exception("safe_run_sync failed for cmd=%s: %s", cmd, exc)
-        raise
-
-
-async def safe_run_async(cmd: list[str], timeout: int = 10) -> ExecutionResult:
-    """Run a subprocess safely (async) and return ExecutionResult."""
-    _validate_cmd_list(cmd)
-    start = time.monotonic()
-    proc = await asyncio.create_subprocess_exec(
-        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )  # nosec B603
-    try:
-        stdout_bytes, stderr_bytes = await asyncio.wait_for(
-            proc.communicate(), timeout=timeout
-        )
-        exit_code = proc.returncode if proc.returncode is not None else 0
-    except asyncio.TimeoutError:
-        await _kill_process(proc)
-        stdout_bytes, stderr_bytes = await proc.communicate()
-        exit_code = -1
-
-    duration_ms = (time.monotonic() - start) * 1000
-    return ExecutionResult(
-        exit_code=exit_code,
-        stdout=stdout_bytes.decode(errors="replace"),
-        stderr=stderr_bytes.decode(errors="replace"),
-        duration_ms=duration_ms,
-    )
+    def stats(self) -> dict[str, Any]:
+        return {"budget": {"iterations": self._budget._iterations, "tool_calls": self._budget._tool_calls, "elapsed_s": round(self._budget.elapsed, 1)},
+                "tracker": {"failures": dict(self._tracker._failure_counts), "no_progress": self._tracker._no_progress_count}}

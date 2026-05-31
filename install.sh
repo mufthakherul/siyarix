@@ -8,7 +8,7 @@
 # =============================================================================
 set -euo pipefail
 
-SIYARIX_VERSION="${SIYARIX_VERSION:-1.0.0}"
+SIYARIX_VERSION="${SIYARIX_VERSION:-1.0.0-beta}"
 PYTHON_MIN_MAJOR=3
 PYTHON_MIN_MINOR=11
 

@@ -5,7 +5,7 @@
 # =============================================================================
 set -euo pipefail
 
-SIYARIX_VERSION="1.0.0"
+SIYARIX_VERSION="1.0.0-beta"
 
 echo "==> Installing Siyarix v${SIYARIX_VERSION} for HarmonyOS"
 

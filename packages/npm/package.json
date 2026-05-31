@@ -1,6 +1,6 @@
 {
   "name": "@mufthakherul/siyarix",
-  "version": "1.0.0",
+  "version": "1.0.0-beta",
   "description": "Official npm launcher for Siyarix — AI Cybersecurity Orchestration Agent",
   "license": "AGPL-3.0-or-later",
   "repository": {

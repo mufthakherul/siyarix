@@ -2525,7 +2525,7 @@ class SiyarixChat:
                 )
                 result = await asyncio.wait_for(
                     agent.execute_goal(goal),
-                    timeout=60.0,
+                    timeout=self._settings.get("agent_timeout", 120),
                 )
         except asyncio.TimeoutError:
             console.print("[yellow]Agent timed out after 60s — showing whatever we have[/yellow]")

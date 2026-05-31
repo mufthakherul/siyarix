@@ -2568,15 +2568,101 @@ class SiyarixChat:
                     )
                 )
 
-        if result.summary:
+        has_any_success = any(
+            s.status in (StepStatus.SUCCESS, StepStatus.COMPLETED)
+            for s in (result.plan.steps if result.plan else [])
+        )
+
+        llm_response = await self._synthesize_agent_response(
+            instruction, result, provider_name, has_any_success
+        )
+
+        if llm_response:
+            self._session.add_message("assistant", llm_response)
+            self._print_assistant(llm_response)
+        elif result.summary:
             self._session.add_message("assistant", result.summary)
             self._print_assistant(result.summary)
+
+        timing = f" in {result.duration_ms / 1000:.1f}s" if result.duration_ms else ""
         if result.findings:
             self._session.add_message(
                 "assistant",
-                f"Agent found {len(result.findings)} result(s) in {result.duration_ms/1000:.1f}s",
+                f"Agent found {len(result.findings)} result(s){timing}",
             )
         return True
+
+    async def _synthesize_agent_response(
+        self,
+        instruction: str,
+        result: Any,
+        provider_name: str,
+        has_any_success: bool,
+    ) -> str | None:
+        """Call the LLM to synthesize tool results into a natural-language response.
+
+        When tools succeeded the LLM summarises findings; otherwise it answers
+        the query as a general chatbot.
+        """
+        api_key = os.environ.get(f"{provider_name.upper()}_API_KEY")
+        if not api_key:
+            return None
+
+        if has_any_success and result.plan:
+            parts: list[str] = []
+            for step in result.plan.steps:
+                if step.status not in ("completed", "success"):
+                    continue
+                output = (step.result.get("output", "") or "")[:2000] if step.result else ""
+                parts.append(f"• {step.tool} ({step.description}):\n{output}\n")
+            system_prompt = (
+                "You are Siyarix, an AI cybersecurity assistant. "
+                "The user asked a security task and the following tools were executed.\n\n"
+                "Summarise what was done, the key findings, and any security-relevant "
+                "information. Be concise and technical."
+            )
+            user_prompt = f"User request: {instruction}\n\nTool results:\n\n" + "\n".join(parts)
+        else:
+            system_prompt = (
+                "You are Siyarix, an AI cybersecurity assistant. "
+                "The user asked a general question. Answer helpfully and conversationally."
+            )
+            user_prompt = instruction
+
+        try:
+            from openai import AsyncOpenAI
+
+            if provider_name == "openrouter":
+                client = AsyncOpenAI(
+                    api_key=api_key,
+                    base_url="https://openrouter.ai/api/v1",
+                )
+                model = self._settings.get("openrouter_model") or "nvidia/nemotron-3-super-120b-a12b:free"
+            elif provider_name == "openai":
+                client = AsyncOpenAI(api_key=api_key)
+                model = self._settings.get("openai_model") or "gpt-4o"
+            elif provider_name == "gemini":
+                client = AsyncOpenAI(
+                    api_key=api_key,
+                    base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                )
+                model = self._settings.get("gemini_model") or "gemini-2.0-flash"
+            else:
+                return None
+
+            response = await client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=2000,
+                temperature=0.7,
+            )
+            return response.choices[0].message.content
+        except Exception as exc:
+            logger.warning("LLM synthesis failed: %s", exc)
+            return None
 
     def _llm_available(self) -> bool:
         """Check if an LLM provider is configured and available."""

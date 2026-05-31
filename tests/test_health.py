@@ -191,7 +191,7 @@ class TestHealthChecker:
         with patch.dict(os.environ, {}, clear=True):
             status = HealthStatus(state=HealthState.HEALTHY)
             await checker._check_model_providers(status)
-            assert len(status.components) == 4
+            assert len(status.components) == 5
 
     # ── Tool Registry ──────────────────────────────────────────────────
 

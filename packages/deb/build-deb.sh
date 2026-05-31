@@ -7,7 +7,7 @@ set -euo pipefail
 # ================================================================
 
 PKG_NAME="siyarix"
-PKG_VERSION="${1:-1.0.0}"
+PKG_VERSION="${1:-1.0.0-beta}"
 BUILD_DIR="build/deb/${PKG_NAME}_${PKG_VERSION}_all"
 DEB_FILE="${PKG_NAME}_${PKG_VERSION}_all.deb"
 

@@ -181,16 +181,23 @@ def _clean_tool_output(text: str, max_chars: int = 15000) -> str:
 
 def _should_block_command(cmd: list[str]) -> bool:
     """Block dangerous commands that could harm the system."""
-    dangerous = {"rm", "dd", "mkfs", "format", "del", "rd", "shutdown", "reboot", "init"}
+    dangerous = {
+        "rm", "dd", "mkfs", "format", "del", "rd",
+        "shutdown", "reboot", "init", "halt", "poweroff",
+        "chmod", "chown", "passwd", "useradd", "userdel",
+        "mount", "umount", "fdisk", "parted",
+    }
     if cmd and cmd[0] in dangerous:
         return True
+    # Also block if any part contains injection characters
+    for part in cmd:
+        if any(ch in part for ch in [";", "|", "&", "`", "$", ">", "<", "\n", "\r", "\x00"]):
+            return True
     return False
 
 
 class ToolRunner:
     """Execute tools safely and return their output."""
-
-    BLOCKLIST = {"rm", "dd", "mkfs", "format", "shutdown", "reboot", "init 0", "init 6"}
 
     def __init__(self, registry: ToolRegistry) -> None:
         self._registry = registry

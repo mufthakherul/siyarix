@@ -3,7 +3,7 @@
 import subprocess
 import sys
 
-from siyarix.executor import safe_run_sync
+from siyarix.subprocess_utils import safe_run_sync
 
 
 def test_safe_run_sync_basic():

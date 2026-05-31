@@ -2,8 +2,8 @@
 
 import asyncio
 
-from siyarix.engine import ExecutionEngine
-from siyarix.engine_types import StepResult, StepStatus
+from siyarix.compat import ExecutionEngine
+from siyarix.planner import StepResult, StepStatus
 from siyarix.planner import ExecutionPlan, ExecutionStep, StepType
 
 

@@ -7,7 +7,7 @@ from __future__ import annotations
 import asyncio
 
 from siyarix.dynamic_resolver import DynamicResolver
-from siyarix.engine import EngineResult, ExecutionEngine, ExecutionMode
+from siyarix.compat import EngineResult, ExecutionEngine, ExecutionMode
 from siyarix.interpreter import RuleInterpreter, TaskCategory
 from siyarix.planner import ExecutionPlan, ExecutionStep, StepType, TaskPlanner
 

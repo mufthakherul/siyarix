@@ -8,11 +8,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from siyarix.engine.executor import ExecutionEngine
-from siyarix.engine.steps import EngineResult, ExecutionMode
-from siyarix.engine_types import StepResult, StepStatus
+from siyarix.compat import ExecutionEngine
+from siyarix.compat import EngineResult, ExecutionMode
+from siyarix.planner import StepResult, StepStatus
 from siyarix.planner import ExecutionPlan, ExecutionStep, StepType
-from siyarix.tool_registry import ToolInfo, ToolRegistry
+from siyarix.registry import ToolInfo, ToolRegistry
 from siyarix.kill_switch import KillSwitch, KillSwitchState
 
 

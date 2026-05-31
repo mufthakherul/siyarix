@@ -2,7 +2,7 @@
 
 import asyncio
 
-from siyarix.engine_types import StepResult, StepStatus
+from siyarix.planner import StepResult, StepStatus
 from siyarix.planner import ExecutionStep, StepType
 from siyarix.tool_executor import ToolExecutor
 

@@ -1,13 +1,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Tool registry with capability graph and dynamic discovery."""
+"""Tool registry with capability graph and dynamic discovery.
+
+Supports both curated security-tool metadata and arbitrary-PATH-executable
+discovery, with a generic fallback handler for unknown tools."""
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
+import os
 import shutil
-import time
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
@@ -225,6 +227,52 @@ class ToolRegistry:
                     tags=["language", name],
                 ))
                 count += 1
+        self._loaded = True
+        return count
+
+    def register_handler(self, name: str, handler: ToolHandler) -> None:
+        """Register (or override) a handler for a given tool."""
+        self._handlers[name] = handler
+
+    def scan_path(self) -> int:
+        """Discover *every* executable on ``$PATH`` and register it.
+
+        Tools that already have a custom handler keep their handler;
+        everything else gets ``_make_generic_handler`` which simply
+        passes the call arguments as CLI flags.
+
+        Returns the number of newly registered tools.
+        """
+        count = 0
+        seen: set[str] = set()
+        for path_dir in os.environ.get("PATH", "").split(os.pathsep):
+            if not path_dir:
+                continue
+            try:
+                for entry in os.listdir(path_dir):
+                    if entry in seen:
+                        continue
+                    seen.add(entry)
+                    full = os.path.join(path_dir, entry)
+                    if not (os.path.isfile(full) and os.access(full, os.X_OK)):
+                        continue
+                    if self._graph.get_tool(entry):
+                        continue  # already registered
+                    self.register(
+                        ToolCapability(
+                            name=entry,
+                            binary=entry,
+                            installed=True,
+                            category=ToolCategory.UTILITY,
+                            risk_level=RiskLevel.LOW,
+                            description=_describe_tool(entry),
+                            tags=_tags_for_tool(entry),
+                        ),
+                        handler=_make_generic_handler(entry),
+                    )
+                    count += 1
+            except OSError:
+                continue
         self._loaded = True
         return count
 
@@ -481,4 +529,36 @@ def _make_whois_handler(tool_name: str) -> ToolHandler:
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 30))
         return {"status": "success" if result.exit_code == 0 else "error",
                 "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
+    return handler
+
+
+def _make_generic_handler(tool_name: str) -> ToolHandler:
+    """Build a generic handler that passes kwargs as CLI arguments.
+
+    Translates:
+      handler(target="example.com", flags="-sV")  →  tool_name -sV example.com
+    """
+    async def handler(**kwargs: Any) -> dict[str, Any]:
+        from .subprocess_utils import safe_run_async
+        cmd = [tool_name]
+        target = kwargs.get("target", "")
+        args_raw = kwargs.get("args", [])
+        flags = kwargs.get("flags", "")
+        if isinstance(args_raw, str):
+            import shlex
+            cmd.extend(shlex.split(args_raw))
+        elif isinstance(args_raw, (list, tuple)):
+            cmd.extend(str(a) for a in args_raw)
+        if flags:
+            cmd.extend(flags.split())
+        if target:
+            cmd.append(target)
+        timeout = kwargs.get("timeout", 120)
+        try:
+            result = await safe_run_async(cmd, timeout=timeout)
+            return {"status": "success" if result.exit_code == 0 else "error",
+                    "output": result.stdout, "error": result.stderr,
+                    "exit_code": result.exit_code, "tool": tool_name}
+        except Exception as exc:
+            return {"status": "error", "error": str(exc), "tool": tool_name}
     return handler

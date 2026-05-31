@@ -5,13 +5,98 @@
 Converts locally discovered tools into OpenAI-compatible
 ``tools`` parameter definitions for function/tool calling,
 enabling the LLM to call tools directly.
+
+For large tool sets (>200) the ``build_tool_schemas_ranked`` variant
+selects only the *top-k* most relevant tools for a given user query,
+avoiding prompt bloat and API enum limits.
 """
 
 from __future__ import annotations
 
+import re
 import shlex
 import subprocess  # nosec B404
 from typing import Any
+
+# ── Tool ranking for top-k retrieval ───────────────────────────────────
+
+_KEYWORD_CACHE: dict[str, set[str]] = {}
+_TOOL_METADATA_CACHE: dict[str, dict[str, Any]] = {}
+
+
+def index_tool_metadata(tools: list[dict[str, Any]]) -> None:
+    """Pre-compute keyword index for all tools.
+
+    Call once when tools change; the index is reused by
+    ``rank_tools_for_query`` for O(|query|) lookup.
+    """
+    _KEYWORD_CACHE.clear()
+    _TOOL_METADATA_CACHE.clear()
+    for t in tools:
+        name: str = t.get("name", "")
+        if not name:
+            continue
+        _TOOL_METADATA_CACHE[name] = t
+        words = set()
+        # Name parts
+        name_lower = name.lower()
+        words.add(name_lower)
+        words.update(re.split(r"[-_.]+", name_lower))
+        # Tags
+        for tag in t.get("tags", []):
+            words.add(tag.lower())
+        # Description
+        desc = t.get("description", "")
+        if desc and desc != name:
+            words.update(w for w in desc.lower().split() if len(w) > 2)
+        # Category
+        cat = t.get("category", "")
+        if cat:
+            words.add(cat.lower())
+        for w in words:
+            if len(w) > 1:
+                _KEYWORD_CACHE.setdefault(w, set()).add(name)
+
+
+def rank_tools_for_query(
+    query: str, tools: list[dict[str, Any]], top_k: int = 30
+) -> list[dict[str, Any]]:
+    """Return the *top-k* tools most relevant to ``query``.
+
+    Scoring is based on how many query words appear in the tool's
+    name, tags, description, and category.  Tools with no match are
+    excluded unless *fewer than* ``top_k`` tools have a positive score.
+    """
+    if not _KEYWORD_CACHE:
+        index_tool_metadata(tools)
+
+    query_words = {w for w in re.split(r"[^\w]+", query.lower()) if len(w) > 1}
+    if not query_words:
+        return tools[:top_k]
+
+    scores: dict[str, int] = {}
+    for w in query_words:
+        for name in _KEYWORD_CACHE.get(w, []):
+            scores[name] = scores.get(name, 0) + 1
+    # Substring fallback for multi-word compounds
+    if not scores:
+        for key, names in _KEYWORD_CACHE.items():
+            if key in query.lower():
+                for n in names:
+                    scores[n] = scores.get(n, 0) + 1
+
+    ranked = sorted(scores, key=lambda n: -scores[n])
+    # Map back to full dicts, preserving the original order for equal scores
+    name_map = {t.get("name", ""): t for t in tools if t.get("name", "") in scores}
+    result = [name_map[n] for n in ranked if n in name_map]
+    # Pad with remaining tools if score > 0 produced fewer than top_k
+    if len(result) < top_k:
+        seen = {r.get("name") for r in result}
+        result.extend(t for t in tools if t.get("name") not in seen)
+    return result[:top_k]
+
+
+# ── Schema builders ────────────────────────────────────────────────────
 
 
 def build_tool_schemas(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -138,6 +223,114 @@ def build_tool_schemas(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
                             "items": {"type": "string"},
                             "description": "List of findings or vulnerabilities discovered",
                         },
+                    },
+                    "required": ["answer"],
+                },
+            },
+        },
+    ]
+
+
+def build_tool_schemas_ranked(
+    query: str,
+    tools: list[dict[str, Any]],
+    top_k: int = 30,
+) -> list[dict[str, Any]]:
+    """Build LLM tool schemas using *only the top-k* tools relevant to *query*.
+
+    For large tool sets (100s–10000s) the full-schema ``build_tool_schemas``
+    is impractical because the ``enum`` would exceed token limits.  This
+    variant ranks tools by keyword relevance and injects only the most
+    relevant ones into the ``run_tool`` function definition.
+    """
+    relevant = rank_tools_for_query(query, tools, top_k=top_k)
+    return _build_schemas_from_tool_list(relevant)
+
+
+def _build_schemas_from_tool_list(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Internal: produce the ``run_tool`` + helpers schema for a concrete tool list."""
+    tool_names = sorted({t["name"] for t in tools})
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": "run_tool",
+                "description": (
+                    "Run a security tool or system command on a target. "
+                    "Use this for ANY command execution."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "tool": {
+                            "type": "string",
+                            "description": "Name of the tool to execute",
+                            "enum": tool_names if tool_names else ["(none discovered)"],
+                        },
+                        "args": {
+                            "type": "string",
+                            "description": (
+                                "Command-line arguments. Include the target "
+                                "or domain here (e.g. '-sV scanme.nmap.org')"
+                            ),
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": (
+                                "Brief note explaining why this tool is "
+                                "being run and what you expect to learn"
+                            ),
+                        },
+                        "timeout": {
+                            "type": "integer",
+                            "description": "Maximum execution time in seconds",
+                            "default": 120,
+                        },
+                    },
+                    "required": ["tool", "args"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "run_command",
+                "description": "Run an arbitrary shell command (not a registered tool).",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "command": {"type": "string", "description": "Full shell command to execute"},
+                        "timeout": {"type": "integer", "description": "Max seconds", "default": 60},
+                    },
+                    "required": ["command"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "read_file",
+                "description": "Read the contents of a file on the local system",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string", "description": "Absolute path to the file"},
+                        "max_lines": {"type": "integer", "description": "Max lines to read", "default": 200},
+                    },
+                    "required": ["path"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "final_answer",
+                "description": "Present the final answer to the user.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "answer": {"type": "string", "description": "Your complete response"},
+                        "findings": {"type": "array", "items": {"type": "string"}, "description": "List of findings"},
                     },
                     "required": ["answer"],
                 },

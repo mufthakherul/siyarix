@@ -138,6 +138,7 @@ class HealthChecker:
             "Gemini": {"requires_env": "GEMINI_API_KEY"},
             "Ollama": {"requires_running": True},
             "Cloud": {"requires_config": True},
+            "OpenRouter": {"requires_env": "OPENROUTER_API_KEY"},
         }
 
         for provider_name, config in providers_to_check.items():
@@ -189,6 +190,14 @@ class HealthChecker:
                     )
                     message = (
                         "Cloud configured" if available else "Cloud not configured"
+                    )
+
+                elif provider_name == "OpenRouter":
+                    available = bool(os.getenv("OPENROUTER_API_KEY"))
+                    message = (
+                        "OpenRouter API key configured"
+                        if available
+                        else "OpenRouter not configured"
                     )
 
                 self.model_providers_available[provider_name] = available

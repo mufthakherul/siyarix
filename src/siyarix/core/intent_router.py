@@ -108,7 +108,16 @@ class IntentRouter:
         # Stage 3: Heuristic semantic word similarity
         # Check keyword overlaps with known security domains
         words = set(instruction_clean.split())
-        sec_keywords = {"cve", "vuln", "exploit", "nmap", "port", "nuclei", "hack"}
+        sec_keywords = {
+            "cve", "vuln", "vulnerability", "vulnerabilities", "exploit",
+            "nmap", "port", "nuclei", "hack", "whois", "enumeration",
+            "enumerate", "recon", "scan", "pentest", "subdomain",
+            "bruteforce", "brute", "injection", "gobuster", "hydra",
+            "nikto", "sqlmap", "ffuf", "burp", "zap", "osint",
+            "credential", "password", "hash", "crack", "exploit",
+            "shellcode", "payload", "backdoor", "rootkit", "malware",
+            "phishing", "trojan", "ransomware", "botnet", "ddos",
+        }
         if words & sec_keywords:
             risk = RiskTier.MEDIUM
             return IntentRoute(

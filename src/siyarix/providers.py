@@ -1,468 +1,203 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-
-"""Provider abstraction and registry for AI backends.
-
-Provides a unified interface for all AI model providers with:
-- Provider protocol with async plan/chat/validate/close methods
-- ProviderRegistry with preference ordering
-- Built-in NoopProvider for offline/testing
-- Adapter classes wrapping planner models into the Provider ABC
-- Automatic fallback chain configuration
-- Circuit breaker per provider for graceful failure handling
-"""
+"""Multi-provider LLM abstraction with fallback and credential pooling."""
 
 from __future__ import annotations
 
-import asyncio
-import json
+import enum
 import logging
 import os
 import time
-from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "default"
 
-# ---------------------------------------------------------------------------
-# Circuit Breaker — lightweight implementation for provider failure handling
-# ---------------------------------------------------------------------------
+class FailoverReason(enum.Enum):
+    AUTH = "auth"
+    RATE_LIMIT = "rate_limit"
+    BILLING = "billing"
+    TIMEOUT = "timeout"
+    SERVER_ERROR = "server_error"
+    CONTEXT_OVERFLOW = "context_overflow"
+    MODEL_NOT_FOUND = "model_not_found"
+    UNKNOWN = "unknown"
 
 
-class CircuitBreaker:
-    """Simple circuit breaker for model providers.
+@dataclass
+class ClassifiedError:
+    reason: FailoverReason
+    retryable: bool = True
+    should_rotate_credential: bool = False
+    should_fallback: bool = False
+    should_compress: bool = False
+    message: str = ""
 
-    States:
-      CLOSED  → requests pass through (normal)
-      OPEN    → requests short-circuited (provider failing)
-      HALF    → single test request allowed after reset_timeout
-    """
 
-    CLOSED = "closed"
-    OPEN = "open"
-    HALF_OPEN = "half_open"
-
-    def __init__(
-        self,
-        failure_threshold: int = 3,
-        reset_timeout: float = 60.0,
-        name: str = "unknown",
-    ) -> None:
-        self.failure_threshold = failure_threshold
-        self.reset_timeout = reset_timeout
-        self.name = name
-        self._state = self.CLOSED
-        self._failure_count = 0
-        self._last_failure_time: float = 0.0
-
-    @property
-    def state(self) -> str:
-        if self._state == self.OPEN:
-            if time.monotonic() - self._last_failure_time >= self.reset_timeout:
-                self._state = self.HALF_OPEN
-        return self._state
+@dataclass
+class ProviderCredential:
+    provider: str
+    api_key: str = ""
+    base_url: str = ""
+    status: str = "active"
+    cooldown_until: float = 0.0
+    failure_count: int = 0
+    last_used: float = 0.0
 
     @property
     def is_available(self) -> bool:
-        return self.state != self.OPEN
-
-    def record_success(self) -> None:
-        self._failure_count = 0
-        self._state = self.CLOSED
-
-    def record_failure(self) -> None:
-        self._failure_count += 1
-        self._last_failure_time = time.monotonic()
-        if self._failure_count >= self.failure_threshold:
-            self._state = self.OPEN
-            logger.warning(
-                "Circuit breaker OPEN for %s after %d failures",
-                self.name,
-                self._failure_count,
-            )
-
-    def reset(self) -> None:
-        self._state = self.CLOSED
-        self._failure_count = 0
+        if self.status == "dead":
+            return False
+        if self.cooldown_until > time.time():
+            return False
+        return bool(self.api_key) or bool(self.base_url)
 
 
-class Provider(ABC):
-    """Common provider interface used by planner and engine.
+@dataclass
+class ProviderProfile:
+    name: str
+    display_name: str = ""
+    models: list[str] = field(default_factory=list)
+    default_model: str = ""
+    api_key_env: str = ""
+    base_url: str = ""
+    supports_streaming: bool = True
+    supports_tools: bool = True
+    supports_vision: bool = False
+    max_tokens: int = 4096
+    priority: int = 0
+    fallback_models: list[str] = field(default_factory=list)
 
-    All model providers should implement this protocol.
-    """
-
-    available: bool = False
-
-    @abstractmethod
-    async def plan(
-        self, prompt: str, context: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def validate(self) -> bool:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def chat(
-        self,
-        messages: list[dict[str, Any]],
-        *,
-        max_tokens: int = 1024,
-    ) -> dict[str, Any]:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def close(self) -> None:
-        raise NotImplementedError
+    def __post_init__(self) -> None:
+        if not self.display_name:
+            self.display_name = self.name.title()
 
 
-class NoopProvider(Provider):
-    """No-op provider for offline/testing scenarios."""
-
-    def __init__(self, *, response: str | None = None) -> None:
-        self.available = True
-        self.response = response
-        self._name = "noop"
-
-    async def plan(
-        self, prompt: str, context: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        await asyncio.sleep(0)
-        if self.response is None:
-            return {}
-        return {"plan": [f"noop: {prompt}"], "context": context or {}}
-
-    async def validate(self) -> bool:
-        return True
-
-    async def chat(
-        self,
-        messages: list[dict[str, Any]],
-        *,
-        max_tokens: int = 1024,
-    ) -> dict[str, Any]:
-        last = None
-        for m in messages:
-            last = m
-        return {"reply": self.response or "(noop)", "last_message": last}
-
-    async def close(self) -> None:
-        return None
-
-
-class ProviderRegistry:
-    """Registry for provider factories and/or instances.
-
-    Supports both class-based (factory) and instance-based registration.
-    Providers can be queried by name, ordered by preference, and filtered
-    by availability.
-    """
-
+class ProviderManager:
     def __init__(self) -> None:
-        self._providers: dict[str, Any] = {}
-        self._ordered: list[tuple[str, Provider]] = []
-        self._circuit_breakers: dict[str, CircuitBreaker] = {}
+        self._profiles: dict[str, ProviderProfile] = {}
+        self._credentials: dict[str, list[ProviderCredential]] = {}
+        self._error_counts: dict[str, int] = {}
+        self._init_default_profiles()
 
-    def register(self, name: str, provider: Any) -> None:
-        if name in self._providers:
-            logger.warning("Overwriting provider registration for %s", name)
-        self._providers[name] = provider
-        if not isinstance(provider, type):
-            self._ordered.append((name, provider))
-            self._circuit_breakers[name] = CircuitBreaker(
-                failure_threshold=3, reset_timeout=60.0, name=name
-            )
+    def _init_default_profiles(self) -> None:
+        self.register(ProviderProfile(name="openai", display_name="OpenAI",
+            models=["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini", "o3-mini"],
+            default_model="gpt-4o", api_key_env="OPENAI_API_KEY", supports_vision=True, priority=10))
+        self.register(ProviderProfile(name="anthropic", display_name="Anthropic",
+            models=["claude-sonnet-4-20250514", "claude-3-5-haiku-20241022", "claude-opus-4-20250514"],
+            default_model="claude-sonnet-4-20250514", api_key_env="ANTHROPIC_API_KEY", supports_vision=True, priority=10))
+        self.register(ProviderProfile(name="gemini", display_name="Google Gemini",
+            models=["gemini-2.5-pro-preview-05-06", "gemini-2.5-flash-preview-04-17", "gemini-2.0-flash"],
+            default_model="gemini-2.0-flash", api_key_env="GEMINI_API_KEY", supports_vision=True, priority=9))
+        self.register(ProviderProfile(name="groq", display_name="Groq",
+            models=["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
+            default_model="llama-3.3-70b-versatile", api_key_env="GROQ_API_KEY", priority=7))
+        self.register(ProviderProfile(name="together", display_name="Together AI",
+            models=["mistralai/Mixtral-8x7B-Instruct-v0.1", "meta-llama/Llama-3-70b-chat-hf"],
+            default_model="meta-llama/Llama-3-70b-chat-hf", api_key_env="TOGETHER_API_KEY", priority=6))
+        self.register(ProviderProfile(name="ollama", display_name="Ollama (Local)",
+            models=["llama3.1", "mistral", "codellama", "phi3"],
+            default_model="llama3.1", base_url="http://localhost:11434", supports_streaming=False, priority=5))
+        self.register(ProviderProfile(name="openrouter", display_name="OpenRouter",
+            models=["nvidia/nemotron-3-super-120b-a12b:free", "meta-llama/llama-3.3-70b-instruct:free"],
+            default_model="meta-llama/llama-3.3-70b-instruct:free", api_key_env="OPENROUTER_API_KEY", priority=6))
+        self.register(ProviderProfile(name="lmstudio", display_name="LM Studio (Local)",
+            models=[], default_model="", base_url="http://localhost:1234", supports_streaming=False, priority=4))
 
-    def get(self, name: str, **kwargs: Any) -> Provider:
-        provider = self._providers.get(name)
-        if provider is None:
-            raise KeyError(f"Unknown provider: {name}")
-        if isinstance(provider, type):
-            return provider(**kwargs)
-        return provider
+    def register(self, profile: ProviderProfile) -> None:
+        self._profiles[profile.name] = profile
 
-    def list_providers(self) -> list[str]:
-        return list(self._providers.keys())
+    def get_profile(self, name: str) -> ProviderProfile | None:
+        return self._profiles.get(name)
 
-    def get_list(self) -> list[Provider]:
-        return [p for _, p in self._ordered]
+    def list_profiles(self) -> list[ProviderProfile]:
+        return sorted(self._profiles.values(), key=lambda p: -p.priority)
 
-    def available(self) -> list[Provider]:
-        result: list[Provider] = []
-        for name, p in self._ordered:
-            if not getattr(p, "available", False):
-                continue
-            cb = self._circuit_breakers.get(name)
-            if cb is not None and not cb.is_available:
-                logger.debug(
-                    "Circuit breaker OPEN for %s — skipping in available()", name
-                )
-                continue
-            result.append(p)
-        return result
+    def add_credential(self, credential: ProviderCredential) -> None:
+        self._credentials.setdefault(credential.provider, []).append(credential)
 
-    def ordered_by_preference(
-        self, preferred: list[str] | None = None
-    ) -> list[Provider]:
-        if not preferred:
-            return self.get_list()
-        preferred_lower = [p.lower() for p in preferred]
-        ordered: list[Provider] = []
-        others: list[Provider] = []
-        for key, prov in self._ordered:
-            if key.lower() in preferred_lower:
-                ordered.append(prov)
-            else:
-                others.append(prov)
-        ordered.extend(others)
-        return ordered
+    def get_credential(self, provider: str) -> ProviderCredential | None:
+        creds = self._credentials.get(provider, [])
+        available = [c for c in creds if c.is_available]
+        return min(available, key=lambda c: c.failure_count) if available else None
 
-    def record_failure(self, name: str) -> None:
-        """Record a failure for the given provider name's circuit breaker."""
-        cb = self._circuit_breakers.get(name)
-        if cb is not None:
-            cb.record_failure()
+    def get_api_key(self, provider: str) -> str:
+        cred = self.get_credential(provider)
+        if cred and cred.api_key:
+            return cred.api_key
+        profile = self._profiles.get(provider)
+        return os.getenv(profile.api_key_env, "") if profile and profile.api_key_env else ""
 
-    def record_success(self, name: str) -> None:
-        """Record a success for the given provider name's circuit breaker."""
-        cb = self._circuit_breakers.get(name)
-        if cb is not None:
-            cb.record_success()
+    def get_base_url(self, provider: str) -> str:
+        cred = self.get_credential(provider)
+        if cred and cred.base_url:
+            return cred.base_url
+        profile = self._profiles.get(provider)
+        return profile.base_url if profile else ""
 
-    def clear(self) -> None:
-        self._providers.clear()
-        self._ordered.clear()
-        self._circuit_breakers.clear()
-
-
-registry = ProviderRegistry()
-registry.register("noop", NoopProvider)
-
-
-# ---------------------------------------------------------------------------
-# Adapter classes — wrap planner model classes into the Provider ABC
-# ---------------------------------------------------------------------------
-
-class _PlannerModelLazy:
-    """Lazy import of planner models to avoid circular imports at module level."""
-
-    _models: dict[str, type] | None = None
-
-    @classmethod
-    def _ensure(cls) -> dict[str, type]:
-        if cls._models is None:
-            from . import planner as _p
-            cls._models = {
-                "OpenAIModel": _p.OpenAIModel,
-                "GeminiModel": _p.GeminiModel,
-                "OllamaModel": _p.OllamaModel,
-                "CloudModel": _p.CloudModel,
-                "GroqModel": _p.GroqModel,
-                "TogetherModel": _p.TogetherModel,
-                "LMStudioModel": _p.LMStudioModel,
-                "CustomModel": _p.CustomModel,
-            }
-        return cls._models
-
-    @classmethod
-    def get(cls, name: str) -> type:
-        return cls._ensure()[name]
-
-
-class OpenAIAdapter(Provider):
-    def __init__(self, api_key: str | None = None, model: str = "gpt-4o") -> None:
-        model_cls = _PlannerModelLazy.get("OpenAIModel")
-        self._impl: Any = model_cls(api_key=api_key, model=model)
-
-    async def validate(self) -> bool:
-        return bool(getattr(self._impl, "available", False))
-
-    async def plan(
-        self, prompt: str, context: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        return await self._impl.plan(prompt, context or {})
-
-    async def chat(
-        self, messages: list[dict[str, Any]], *, max_tokens: int = 1024
-    ) -> dict[str, Any]:
-        joined = "\n".join(m.get("content", "") for m in messages)
-        return await self._impl.plan(joined, {})
-
-    async def close(self) -> None:
+    def auto_detect_provider(self) -> str | None:
+        for profile in sorted(self._profiles.values(), key=lambda p: -p.priority):
+            if profile.api_key_env and os.getenv(profile.api_key_env):
+                return profile.name
+            if profile.base_url and profile.name in ("ollama", "lmstudio"):
+                return profile.name
         return None
 
+    def classify_error(self, provider: str, error: Exception) -> ClassifiedError:
+        error_str = str(error).lower()
+        if "401" in error_str or "403" in error_str or "unauthorized" in error_str:
+            return ClassifiedError(FailoverReason.AUTH, should_rotate_credential=True, message=str(error))
+        if "429" in error_str or "rate" in error_str:
+            return ClassifiedError(FailoverReason.RATE_LIMIT, message=str(error))
+        if "402" in error_str or "billing" in error_str or "quota" in error_str:
+            return ClassifiedError(FailoverReason.BILLING, should_rotate_credential=True, message=str(error))
+        if "timeout" in error_str or "timed out" in error_str:
+            return ClassifiedError(FailoverReason.TIMEOUT, message=str(error))
+        if "500" in error_str or "502" in error_str or "503" in error_str:
+            return ClassifiedError(FailoverReason.SERVER_ERROR, message=str(error))
+        if "context" in error_str and ("too long" in error_str or "overflow" in error_str):
+            return ClassifiedError(FailoverReason.CONTEXT_OVERFLOW, should_compress=True, message=str(error))
+        if "404" in error_str or "not found" in error_str:
+            return ClassifiedError(FailoverReason.MODEL_NOT_FOUND, should_fallback=True, message=str(error))
+        return ClassifiedError(FailoverReason.UNKNOWN, message=str(error))
 
-class GeminiAdapter(OpenAIAdapter):
-    def __init__(
-        self, api_key: str | None = None, model: str = "gemini-2.0-flash"
-    ) -> None:
-        model_cls = _PlannerModelLazy.get("GeminiModel")
-        self._impl = model_cls(api_key=api_key, model=model)
+    def record_failure(self, provider: str, reason: FailoverReason) -> None:
+        self._error_counts[provider] = self._error_counts.get(provider, 0) + 1
+        for cred in self._credentials.get(provider, []):
+            if cred.is_available:
+                cred.failure_count += 1
+                if reason in (FailoverReason.AUTH, FailoverReason.BILLING):
+                    cred.status = "dead"
+                elif reason == FailoverReason.RATE_LIMIT:
+                    cred.cooldown_until = time.time() + 60
+                break
 
+    def record_success(self, provider: str) -> None:
+        self._error_counts[provider] = 0
+        for cred in self._credentials.get(provider, []):
+            if cred.is_available:
+                cred.failure_count = 0
+                cred.last_used = time.time()
+                break
 
-class OllamaAdapter(OpenAIAdapter):
-    def __init__(
-        self, base_url: str = "http://localhost:11434", model: str = "llama3.1"
-    ) -> None:
-        model_cls = _PlannerModelLazy.get("OllamaModel")
-        self._impl = model_cls(base_url=base_url, model=model)
+    def select_provider(self, preferred: str | None = None) -> tuple[str, str]:
+        if preferred and preferred in self._profiles:
+            profile = self._profiles[preferred]
+            if self.get_api_key(preferred) or profile.base_url:
+                return preferred, profile.default_model
+        detected = self.auto_detect_provider()
+        if detected:
+            profile = self._profiles[detected]
+            return detected, profile.default_model
+        for profile in sorted(self._profiles.values(), key=lambda p: -p.priority):
+            if self.get_api_key(profile.name) or profile.base_url:
+                return profile.name, profile.default_model
+        return "ollama", "llama3.1"
 
-
-class CloudAdapter(OpenAIAdapter):
-    def __init__(self, server_url: str = "", api_key: str = "") -> None:
-        model_cls = _PlannerModelLazy.get("CloudModel")
-        self._impl = model_cls(server_url=server_url, api_key=api_key)
-
-
-class GroqAdapter(OpenAIAdapter):
-    def __init__(
-        self, api_key: str | None = None, model: str = "llama3-70b-8192"
-    ) -> None:
-        model_cls = _PlannerModelLazy.get("GroqModel")
-        self._impl = model_cls(api_key=api_key, model=model)
-
-
-class TogetherAdapter(OpenAIAdapter):
-    def __init__(
-        self,
-        api_key: str | None = None,
-        model: str = "mistralai/Mixtral-8x7B-Instruct-v0.1",
-    ) -> None:
-        model_cls = _PlannerModelLazy.get("TogetherModel")
-        self._impl = model_cls(api_key=api_key, model=model)
-
-
-class LMStudioAdapter(OpenAIAdapter):
-    def __init__(
-        self, base_url: str = "http://localhost:1234", model: str = ""
-    ) -> None:
-        model_cls = _PlannerModelLazy.get("LMStudioModel")
-        self._impl = model_cls(base_url=base_url, model=model)
-
-
-class CustomAdapter(OpenAIAdapter):
-    def __init__(
-        self, server_url: str = "", api_key: str = "", model: str = ""
-    ) -> None:
-        model_cls = _PlannerModelLazy.get("CustomModel")
-        self._impl = model_cls(server_url=server_url, api_key=api_key, model=model)
-
-
-class AnthropicAdapter(Provider):
-    """Adapter for Anthropic Claude models."""
-
-    def __init__(
-        self, api_key: str | None = None, model: str = "claude-3-opus-20240229"
-    ) -> None:
-        self._api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
-        self._model = model
-        self.available = bool(self._api_key)
-
-    async def validate(self) -> bool:
-        return self.available
-
-    async def plan(
-        self, prompt: str, context: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        from .planner import _build_system_prompt
-
-        if not self.available:
-            return {}
-        try:
-            import anthropic
-        except ImportError:
-            return {}
-        system_prompt = _build_system_prompt(context or {})
-        try:
-            client = anthropic.AsyncAnthropic(api_key=self._api_key)
-            response = await client.messages.create(
-                model=self._model,
-                max_tokens=2048,
-                temperature=0.1,
-                system=system_prompt,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            content = response.content[0].text if response.content else "{}"
-            return json.loads(content)
-        except Exception as exc:
-            logger.warning("Anthropic planning failed: %s", exc)
-            return {}
-
-    async def chat(
-        self, messages: list[dict[str, Any]], *, max_tokens: int = 1024
-    ) -> dict[str, Any]:
-        if not self.available:
-            return {}
-        try:
-            import anthropic
-        except ImportError:
-            return {}
-        try:
-            client = anthropic.AsyncAnthropic(api_key=self._api_key)
-            response = await client.messages.create(
-                model=self._model,
-                max_tokens=max_tokens,
-                messages=[
-                    {"role": m.get("role", "user"), "content": m.get("content", "")}
-                    for m in messages
-                ],
-            )
-            return {"reply": response.content[0].text if response.content else ""}
-        except Exception as exc:
-            logger.warning("Anthropic chat failed: %s", exc)
-            return {}
-
-    async def close(self) -> None:
-        return None
-
-
-class OpenCodeAdapter(OpenAIAdapter):
-    """Adapter for OpenCode provider."""
-
-    BASE_URL: str = ""
-
-    def __init__(
-        self, api_key: str | None = None, model: str = DEFAULT_MODEL
-    ) -> None:
-        model_cls = _PlannerModelLazy.get("OpenAIModel")
-        self._impl = model_cls(api_key=api_key, model=model, base_url=self.BASE_URL)
-
-
-class OpenRouterAdapter(OpenAIAdapter):
-    """Adapter for OpenRouter (OpenAI-compatible API)."""
-
-    def __init__(
-        self,
-        api_key: str | None = None,
-        model: str = "nvidia/nemotron-3-super-120b-a12b:free",
-    ) -> None:
-        model_cls = _PlannerModelLazy.get("OpenAIModel")
-        self._impl = model_cls(
-            api_key=api_key,
-            model=model,
-            base_url="https://openrouter.ai/api/v1",
-        )
-
-
-# Register adapter classes in the registry
-registry.register("openai", OpenAIAdapter)
-registry.register("gemini", GeminiAdapter)
-registry.register("ollama", OllamaAdapter)
-registry.register("cloud", CloudAdapter)
-registry.register("groq", GroqAdapter)
-registry.register("together", TogetherAdapter)
-registry.register("lmstudio", LMStudioAdapter)
-registry.register("custom", CustomAdapter)
-registry.register("anthropic", AnthropicAdapter)
-registry.register("opencode", OpenCodeAdapter)
-registry.register("openrouter", OpenRouterAdapter)
-
-__all__ = [
-    "Provider", "ProviderRegistry", "NoopProvider", "CircuitBreaker", "registry",
-    "OpenAIAdapter", "GeminiAdapter", "OllamaAdapter", "CloudAdapter",
-    "GroqAdapter", "TogetherAdapter", "LMStudioAdapter", "CustomAdapter",
-    "AnthropicAdapter", "OpenCodeAdapter", "OpenRouterAdapter",
-]
+    def stats(self) -> dict[str, Any]:
+        return {
+            "total_providers": len(self._profiles),
+            "credentials": {p: len(c) for p, c in self._credentials.items()},
+            "error_counts": dict(self._error_counts),
+        }

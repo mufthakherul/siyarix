@@ -2521,6 +2521,7 @@ class SiyarixChat:
 
         if result and result.summary:
             self._session.add_message("assistant", result.summary)
+            self._print_assistant(result.summary)
             if result.findings:
                 self._session.add_message(
                     "assistant",

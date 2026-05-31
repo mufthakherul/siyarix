@@ -609,7 +609,8 @@ def cache_status() -> None:
     """Show cache statistics."""
     from .cache_manager import cache_manager
     stats = cache_manager.stats()
-    console.print(f"Entries: {stats['total_entries']} | Size: {stats['total_size_mb']}MB | Hit rate: {stats['hit_rate']:.0%}")
+    size_mb = stats.get('total_size_bytes', 0) / (1024 * 1024)
+    console.print(f"Entries: {stats['total_entries']} | Size: {size_mb:.2f}MB | Hit rate: {stats['hit_rate']:.0%}")
     console.print(f"Domains: {', '.join(stats.get('domains', []))}")
 
 @cache_app.command("clear")

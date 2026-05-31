@@ -23,6 +23,7 @@ class StepStatus(StrEnum):
     PENDING = "pending"
     READY = "ready"
     RUNNING = "running"
+    SUCCESS = "success"
     COMPLETED = "completed"
     FAILED = "failed"
     SKIPPED = "skipped"
@@ -36,6 +37,29 @@ class PlanType(StrEnum):
     DAG = "dag"
     REACT = "react"
     ADAPTIVE = "adaptive"
+
+
+class StepType(StrEnum):
+    TOOL_RUN = "tool_run"
+    SHELL_CMD = "shell_cmd"
+    ANALYSIS = "analysis"
+    REPORT = "report"
+    NETWORK = "network"
+    WEB = "web"
+
+
+@dataclass
+class ExecutionStep:
+    id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    step_type: StepType = StepType.TOOL_RUN
+    tool: str = ""
+    args: list[str] = field(default_factory=list)
+    target: str = ""
+    depends_on: list[str] = field(default_factory=list)
+    command: str | None = None
+    description: str = ""
+    timeout: float = 300.0
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -67,6 +91,18 @@ class PlanStep:
 
 
 @dataclass
+class StepResult:
+    step_id: str = ""
+    status: StepStatus = StepStatus.PENDING
+    output: str = ""
+    error: str = ""
+    findings: list[dict[str, Any]] = field(default_factory=list)
+    retry_count: int = 0
+    exit_code: int | None = None
+    duration_ms: float = 0.0
+
+
+@dataclass
 class ExecutionPlan:
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     goal: str = ""
@@ -76,6 +112,9 @@ class ExecutionPlan:
     context: dict[str, Any] = field(default_factory=dict)
     created_at: float = field(default_factory=time.time)
     metadata: dict[str, Any] = field(default_factory=dict)
+    raw_instruction: str = ""
+    source: str = ""
+    confidence: float = 1.0
 
     @property
     def completed_steps(self) -> list[PlanStep]:

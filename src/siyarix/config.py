@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from siyarix.executor import safe_run_sync
+from siyarix.subprocess_utils import safe_run_sync
 
 logger = logging.getLogger(__name__)
 

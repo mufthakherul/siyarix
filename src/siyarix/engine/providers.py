@@ -18,6 +18,7 @@ PREFERENCE_MAP: dict[str, list[str]] = {
         "anthropic",
         "groq",
         "together",
+        "openrouter",
         "ollama",
         "lmstudio",
         "cloud",
@@ -29,6 +30,7 @@ PREFERENCE_MAP: dict[str, list[str]] = {
         "anthropic",
         "groq",
         "together",
+        "openrouter",
         "ollama",
         "lmstudio",
         "cloud",
@@ -42,6 +44,7 @@ PREFERENCE_MAP: dict[str, list[str]] = {
         "anthropic",
         "groq",
         "together",
+        "openrouter",
         "cloud",
         "noop",
     ],
@@ -52,6 +55,7 @@ PREFERENCE_MAP: dict[str, list[str]] = {
         "anthropic",
         "groq",
         "together",
+        "openrouter",
         "ollama",
         "lmstudio",
         "noop",
@@ -62,6 +66,7 @@ PREFERENCE_MAP: dict[str, list[str]] = {
         "gemini",
         "anthropic",
         "together",
+        "openrouter",
         "ollama",
         "lmstudio",
         "cloud",
@@ -73,6 +78,19 @@ PREFERENCE_MAP: dict[str, list[str]] = {
         "openai",
         "gemini",
         "anthropic",
+        "openrouter",
+        "ollama",
+        "lmstudio",
+        "cloud",
+        "noop",
+    ],
+    "openrouter": [
+        "openrouter",
+        "openai",
+        "gemini",
+        "anthropic",
+        "groq",
+        "together",
         "ollama",
         "lmstudio",
         "cloud",
@@ -86,6 +104,7 @@ PREFERENCE_MAP: dict[str, list[str]] = {
         "anthropic",
         "groq",
         "together",
+        "openrouter",
         "cloud",
         "noop",
     ],
@@ -95,6 +114,7 @@ PREFERENCE_MAP: dict[str, list[str]] = {
         "gemini",
         "groq",
         "together",
+        "openrouter",
         "ollama",
         "lmstudio",
         "cloud",
@@ -106,6 +126,7 @@ PREFERENCE_MAP: dict[str, list[str]] = {
         "anthropic",
         "groq",
         "together",
+        "openrouter",
         "ollama",
         "lmstudio",
         "cloud",
@@ -185,6 +206,15 @@ def setup_providers(
                 )
                 prov = provider_registry.get(
                     "anthropic", api_key=api_key, model=model
+                )
+                available = bool(api_key)
+            elif name == "openrouter":
+                api_key = config.get("openrouter_api_key", "")
+                model = config.get(
+                    "openrouter_model", "nvidia/nemotron-3-super-120b-a12b:free"
+                )
+                prov = provider_registry.get(
+                    "openrouter", api_key=api_key, model=model
                 )
                 available = bool(api_key)
             else:

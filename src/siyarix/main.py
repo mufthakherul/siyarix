@@ -127,7 +127,7 @@ creds = CredentialStore()
 _load_dotenv()
 
 # Load API keys from encrypted credential store into environment
-for provider, env_var in [("gemini", "GEMINI_API_KEY"), ("openai", "OPENAI_API_KEY"), ("anthropic", "ANTHROPIC_API_KEY")]:
+for provider, env_var in [("gemini", "GEMINI_API_KEY"), ("openai", "OPENAI_API_KEY"), ("anthropic", "ANTHROPIC_API_KEY"), ("openrouter", "OPENROUTER_API_KEY")]:
     if not os.environ.get(env_var):
         try:
             key = creds.retrieve(provider, "api_key")
@@ -166,6 +166,11 @@ def _get_engine(mode: str = "integrated") -> ExecutionEngine:
         or creds.retrieve("together", "api_key")
         or ""
     )
+    openrouter_key = (
+        os.environ.get("OPENROUTER_API_KEY", "")
+        or creds.retrieve("openrouter", "api_key")
+        or ""
+    )
     if openai_key:
         engine_config["openai_api_key"] = openai_key
     if gemini_key:
@@ -176,10 +181,13 @@ def _get_engine(mode: str = "integrated") -> ExecutionEngine:
         engine_config["groq_api_key"] = groq_key
     if together_key:
         engine_config["together_api_key"] = together_key
+    if openrouter_key:
+        engine_config["openrouter_api_key"] = openrouter_key
     engine_config["model_provider"] = config.get("model_provider")
     engine_config["gemini_model"] = config.get("gemini_model")
     engine_config["openai_model"] = config.get("openai_model")
     engine_config["anthropic_model"] = config.get("anthropic_model")
+    engine_config["openrouter_model"] = config.get("openrouter_model")
     engine_config["ollama_url"] = config.get("ollama_url")
     engine_config["ollama_model"] = config.get("ollama_model")
     engine_config["lmstudio_url"] = config.get("lmstudio_url")
@@ -254,7 +262,7 @@ def init_wizard(
     settings = SettingsStore()
 
     console.print("\n[bold]Select your default AI provider:[/bold]")
-    providers = ["auto", "openai", "gemini", "anthropic", "ollama", "groq", "lmstudio"]
+    providers = ["auto", "openai", "gemini", "anthropic", "ollama", "groq", "lmstudio", "openrouter"]
     for i, p in enumerate(providers, 1):
         tag = " (recommended)" if p == "auto" else ""
         console.print(f"  {i}. {p}{tag}")
@@ -276,6 +284,7 @@ def init_wizard(
         "gemini": "GEMINI_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
         "groq": "GROQ_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
     }
     if provider in api_key_providers or provider == "auto":
         env_var = api_key_providers.get(provider, "OPENAI_API_KEY")

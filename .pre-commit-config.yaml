@@ -8,18 +8,8 @@ repos:
     rev: v0.8.0
     hooks:
       - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
-
-  - repo: https://github.com/psf/black
-    rev: 24.10.0
-    hooks:
-      - id: black
-        language_version: python3.12
-
-  - repo: https://github.com/pre-commit/mirrors-isort
-    rev: v5.9.3
-    hooks:
-      - id: isort
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.13.0
@@ -42,4 +32,4 @@ repos:
 default_install_hook_types: [pre-commit, commit-msg]
 default_stages: [pre-commit]
 default_language_version:
-  python: python3.12
+  python: python3

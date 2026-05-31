@@ -174,6 +174,31 @@ class OpenAIModel:
             logger.warning("OpenAI planning failed: %s", exc)
             return {}
 
+    async def chat(self, messages: list[dict[str, Any]]) -> dict[str, str] | None:
+        """Multi-turn chat for the agent loop."""
+        try:
+            import openai
+        except ImportError:
+            logger.warning("openai package not installed; chat unavailable")
+            return None
+
+        if not self._api_key:
+            return None
+
+        client = openai.AsyncOpenAI(api_key=self._api_key, base_url=self._base_url) if self._base_url else openai.AsyncOpenAI(api_key=self._api_key)
+        try:
+            response = await client.chat.completions.create(
+                model=self._model,
+                messages=messages,  # type: ignore[arg-type]
+                temperature=0.1,
+                max_tokens=4096,
+            )
+            content = response.choices[0].message.content or ""
+            return {"content": content}
+        except Exception as exc:
+            logger.warning("OpenAI chat failed: %s", exc)
+            return None
+
 
 class GeminiModel:
     """Model provider using Google Gemini."""
@@ -240,6 +265,54 @@ class GeminiModel:
         except Exception as exc:
             logger.warning("Gemini planning failed: %s", exc)
             return {}
+
+    async def chat(self, messages: list[dict[str, Any]]) -> dict[str, str] | None:
+        """Multi-turn chat for the agent loop."""
+        try:
+            from google import genai
+        except ImportError:
+            try:
+                import google.generativeai as _old_genai  # noqa: F401
+                logger.warning("Deprecated google.generativeai found; install google-genai instead")
+                return None
+            except ImportError:
+                logger.warning("google-genai package not installed")
+                return None
+
+        if not self._api_key:
+            return None
+
+        def _generate() -> str:
+            client = genai.Client(api_key=self._api_key)
+            # Convert messages to Gemini format
+            contents: list[dict[str, Any]] = []
+            for msg in messages:
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                if role == "system":
+                    contents.insert(0, {"role": "user", "parts": [{"text": f"[System instruction]: {content}"}]})
+                elif role == "tool":
+                    contents.append({"role": "user", "parts": [{"text": f"[Tool output]:\n{content}"}]})
+                else:
+                    contents.append({"role": role, "parts": [{"text": content}]})
+
+            combined = "\n".join(m.get("parts", [{}])[0].get("text", "") for m in contents if m.get("parts"))
+            resp = client.models.generate_content(
+                model=self._model,
+                contents=combined,
+                config={"temperature": 0.1, "max_output_tokens": 4096},
+            )
+            try:
+                return resp.text or ""
+            except (ValueError, AttributeError):
+                return ""
+
+        try:
+            content = await asyncio.to_thread(_generate)
+            return {"content": content or ""}
+        except Exception as exc:
+            logger.warning("Gemini chat failed: %s", exc)
+            return None
 
 
 # ---------------------------------------------------------------------------
@@ -335,6 +408,37 @@ class OllamaModel:
             self._available = False
 
         return {}
+
+    async def chat(self, messages: list[dict[str, Any]]) -> dict[str, str] | None:
+        """Multi-turn chat for the agent loop via Ollama."""
+        try:
+            import httpx
+        except ImportError:
+            return None
+
+        if self._available is False and time.monotonic() >= self._cache_expiry:
+            ok = await self._check_available()
+            if not ok:
+                return None
+
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                resp = await client.post(
+                    f"{self._base_url}/api/chat",
+                    json={
+                        "model": self._model,
+                        "messages": messages,
+                        "stream": False,
+                    },
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    content = data.get("message", {}).get("content", "")
+                    return {"content": content}
+        except Exception as exc:
+            logger.warning("Ollama chat failed: %s", exc)
+
+        return None
 
 
 # ---------------------------------------------------------------------------

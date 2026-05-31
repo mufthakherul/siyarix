@@ -3,15 +3,141 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import json
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from enum import StrEnum
+from pathlib import Path
 from typing import Any
-
+from uuid import uuid4
 
 class ExecutionMode(StrEnum):
     REGISTRY = "registry"
     AUTONOMOUS = "autonomous"
     INTEGRATED = "integrated"
+
+
+class SessionPersistenceLevel(StrEnum):
+    """Session persistence boundary."""
+    EPHEMERAL = "ephemeral"
+    WORKSPACE = "workspace"
+    ORG_SHARED = "org_shared"
+
+
+@dataclass
+class OperationCard:
+    """Operation tracking card for UX timeline/state."""
+    operation_id: str
+    instruction: str
+    state: str = "planned"
+    mode: str = "integrated"
+    risk_tier: str = "low"
+    retries: int = 0
+    artifacts: list[str] = field(default_factory=list)
+    audit_hash: str = ""
+    created_at: str = field(default_factory=lambda: datetime.now(tz=UTC).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(tz=UTC).isoformat())
+
+
+@dataclass
+class SessionContext:
+    """Canonical session context for routing, policy, and UX rendering."""
+    session_id: str
+    identity: str = "local-user"
+    objective: str = ""
+    scope: str = ""
+    policy_context: dict[str, Any] = field(default_factory=dict)
+    model_context: dict[str, Any] = field(default_factory=dict)
+    tool_context: dict[str, Any] = field(default_factory=dict)
+    persistence: SessionPersistenceLevel = SessionPersistenceLevel.WORKSPACE
+    operations: list[OperationCard] = field(default_factory=list)
+
+
+class SessionKernel:
+    """Manage session state and operation cards."""
+
+    def __init__(self, base_dir: Path | None = None) -> None:
+        root = base_dir or Path.home() / ".siyarix" / "kernel_sessions"
+        root.mkdir(parents=True, exist_ok=True)
+        self._root = root
+
+    def start(
+        self,
+        objective: str = "",
+        scope: str = "",
+        identity: str = "local-user",
+        persistence: SessionPersistenceLevel = SessionPersistenceLevel.WORKSPACE,
+    ) -> SessionContext:
+        return SessionContext(
+            session_id=str(uuid4())[:12],
+            identity=identity,
+            objective=objective,
+            scope=scope,
+            persistence=persistence,
+        )
+
+    def add_operation(
+        self, session: SessionContext, instruction: str, mode: str, risk_tier: str
+    ) -> OperationCard:
+        op = OperationCard(
+            operation_id=str(uuid4())[:12],
+            instruction=instruction,
+            mode=mode,
+            risk_tier=risk_tier,
+        )
+        session.operations.append(op)
+        return op
+
+    def update_operation(
+        self,
+        session: SessionContext,
+        operation_id: str,
+        *,
+        state: str | None = None,
+        retries: int | None = None,
+        artifact: str | None = None,
+        audit_hash: str | None = None,
+    ) -> OperationCard | None:
+        target = next(
+            (o for o in session.operations if o.operation_id == operation_id), None
+        )
+        if not target:
+            return None
+        if state is not None:
+            target.state = state
+        if retries is not None:
+            target.retries = retries
+        if artifact:
+            target.artifacts.append(artifact)
+        if audit_hash is not None:
+            target.audit_hash = audit_hash
+        target.updated_at = datetime.now(tz=UTC).isoformat()
+        return target
+
+    def save(self, session: SessionContext) -> Path:
+        path = self._root / f"{session.session_id}.json"
+        data = asdict(session)
+        data["persistence"] = session.persistence.value
+        path.write_text(json.dumps(data, indent=2))
+        return path
+
+    def load(self, session_id: str) -> SessionContext | None:
+        path = self._root / f"{session_id}.json"
+        if not path.exists():
+            return None
+        data = json.loads(path.read_text())
+        operations = [OperationCard(**row) for row in data.get("operations", [])]
+        return SessionContext(
+            session_id=data["session_id"],
+            identity=data.get("identity", "local-user"),
+            objective=data.get("objective", ""),
+            scope=data.get("scope", ""),
+            policy_context=data.get("policy_context", {}) or {},
+            model_context=data.get("model_context", {}) or {},
+            tool_context=data.get("tool_context", {}) or {},
+            persistence=SessionPersistenceLevel(data.get("persistence", "workspace")),
+            operations=operations,
+        )
 
 
 @dataclass
@@ -21,14 +147,30 @@ class EngineResult:
     all_findings: list[dict[str, Any]] = field(default_factory=list)
     raw_output: str = ""
     duration_ms: float = 0.0
+    retries_performed: int = 0
+    plan_id: str = ""
+    error_message: str = ""
 
 
 class ExecutionEngine:
     def __init__(self, mode: ExecutionMode = ExecutionMode.INTEGRATED,
-                 registry: Any = None, config: dict[str, Any] | None = None) -> None:
+                 registry: Any = None, config: dict[str, Any] | None = None,
+                 session_logger: Any = None) -> None:
         self._mode = mode
         self._registry = registry
         self._config = config or {}
+        self._session_logger = session_logger
+        self._kill_switch = None
+        self._planner = None
+
+    def _build_context(self) -> dict[str, Any]:
+        return {"mode": self._mode.value if hasattr(self._mode, 'value') else str(self._mode)}
+
+    async def plan(self, instruction: str) -> Any:
+        from .planner import Planner
+        planner = Planner()
+        tools = [t.name for t in self._registry.list_tools()] if self._registry else []
+        return planner.decompose_goal(instruction, tools)
 
     async def execute(self, goal: str, **kwargs: Any) -> EngineResult:
         from .core import AgentCore, AgentMode, AgentGoal
@@ -53,13 +195,25 @@ class ExecutionEngine:
 class IntentRoute:
     def __init__(self, mode: str = "general", risk_tier: Any = None, requires_confirmation: bool = False) -> None:
         self.mode = mode
-        self.risk_tier = risk_tier or _RiskTier("low")
+        self.risk_tier = risk_tier or RiskTier("low")
         self.requires_confirmation = requires_confirmation
 
 
-class _RiskTier:
+class RiskTier:
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
     def __init__(self, value: str = "low") -> None:
         self.value = value
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, RiskTier):
+            return self.value == other.value
+        if isinstance(other, str):
+            return self.value == other
+        return NotImplemented
 
 
 class IntentRouter:
@@ -69,36 +223,13 @@ class IntentRouter:
     def route(self, text: str, **kwargs: Any) -> IntentRoute:
         text_lower = text.lower()
         if any(kw in text_lower for kw in ("scan", "nmap", "port scan")):
-            return IntentRoute(mode="scan", risk_tier=_RiskTier("medium"))
+            return IntentRoute(mode="scan", risk_tier=RiskTier("medium"))
         if any(kw in text_lower for kw in ("recon", "enumerate", "discover")):
-            return IntentRoute(mode="recon", risk_tier=_RiskTier("low"))
+            return IntentRoute(mode="recon", risk_tier=RiskTier("low"))
         if any(kw in text_lower for kw in ("web", "http", "nikto", "nuclei")):
-            return IntentRoute(mode="web", risk_tier=_RiskTier("medium"))
+            return IntentRoute(mode="web", risk_tier=RiskTier("medium"))
         if any(kw in text_lower for kw in ("brute", "crack", "password")):
-            return IntentRoute(mode="brute", risk_tier=_RiskTier("high"), requires_confirmation=True)
-        return IntentRoute(mode="general", risk_tier=_RiskTier("low"))
-
-
-class SessionKernel:
-    def __init__(self) -> None:
-        self._context: dict[str, Any] = {}
-        self._sessions: dict[str, dict[str, Any]] = {}
-
-    def get(self, key: str) -> Any:
-        return self._context.get(key)
-
-    def set(self, key: str, value: Any) -> None:
-        self._context[key] = value
-
-    def clear(self) -> None:
-        self._context.clear()
-
-    def start(self, **kwargs: Any) -> dict[str, Any]:
-        import uuid
-        session_id = str(uuid.uuid4())[:8]
-        session = {"id": session_id, **kwargs}
-        self._sessions[session_id] = session
-        return session
-
-    def add_operation(self, **kwargs: Any) -> dict[str, Any]:
-        return {"id": str(__import__("uuid").uuid4())[:8], **kwargs}
+            return IntentRoute(mode="brute", risk_tier=RiskTier("high"), requires_confirmation=True)
+        if any(kw in text_lower for kw in ("exploit", "metasploit", "attack")):
+            return IntentRoute(mode="exploit", risk_tier=RiskTier("high"), requires_confirmation=True)
+        return IntentRoute(mode="general", risk_tier=RiskTier("low"))

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Tests for siyarix.engine.context — context compression."""
+"""Tests for siyarix.context — context compression."""
 
 from __future__ import annotations
 
-pass  # context removed compress_context
+from siyarix.context import compress_context
 
 
 class TestCompressContext:

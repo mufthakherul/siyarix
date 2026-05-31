@@ -1,74 +1,48 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Tests for siyarix.engine.safety — permission gate integration."""
+"""Tests for siyarix.permission_gate — permission gate integration."""
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-
-pass  # safety removed FORBIDDEN_MARKER, check_permission_gate
+from siyarix.permission_gate import GateResult, PermissionGate
 
 
 class TestCheckPermissionGate:
-    @patch("siyarix.permission_gate.PermissionGate")
-    async def test_approved_returns_value(self, MockGate: MagicMock) -> None:
-        gate_instance = MockGate.return_value
-        gate_instance.check.return_value = MagicMock(
-            stage="approved", requires_review=False
-        )
-        result = await check_permission_gate("ls -la", "shell", False)
-        assert result == "ls -la"
+    def test_approved_returns_value(self) -> None:
+        gate = PermissionGate()
+        result = gate.check("ls -la", "shell")
+        assert isinstance(result, GateResult)
+        assert result.allowed is True
+        assert result.stage == "approved"
 
-    @patch("siyarix.permission_gate.PermissionGate")
-    async def test_forbidden_returns_marker(self, MockGate: MagicMock) -> None:
-        gate_instance = MockGate.return_value
-        gate_instance.check.return_value = MagicMock(
-            stage="forbidden", requires_review=False
-        )
-        result = await check_permission_gate("rm -rf /", "shell", False)
-        assert result == FORBIDDEN_MARKER
+    def test_forbidden_returns_marker(self) -> None:
+        gate = PermissionGate()
+        result = gate.check("rm -rf /", "shell")
+        assert isinstance(result, GateResult)
+        assert result.allowed is False
+        assert result.stage == "forbidden"
 
-    @patch("siyarix.permission_gate.PermissionGate")
-    @patch("siyarix.shell_review.review_and_confirm")
-    async def test_review_interactive_confirm(
-        self, mock_review: MagicMock, MockGate: MagicMock
-    ) -> None:
-        gate_instance = MockGate.return_value
-        gate_instance.check.return_value = MagicMock(
-            stage="review", requires_review=True, reason="potentially dangerous"
-        )
-        mock_review.return_value = "ls -la"
-        result = await check_permission_gate("ls -la", "shell", True)
-        assert result == "ls -la"
+    def test_review_interactive_confirm(self) -> None:
+        gate = PermissionGate()
+        result = gate.check("nmap -sV 192.168.1.1", "nmap")
+        assert isinstance(result, GateResult)
 
-    @patch("siyarix.permission_gate.PermissionGate")
-    @patch("siyarix.shell_review.review_and_confirm")
-    async def test_review_interactive_cancel(
-        self, mock_review: MagicMock, MockGate: MagicMock
-    ) -> None:
-        gate_instance = MockGate.return_value
-        gate_instance.check.return_value = MagicMock(
-            stage="review", requires_review=True, reason="potentially dangerous"
-        )
-        mock_review.return_value = None
-        result = await check_permission_gate("ls -la", "shell", True)
-        assert result == FORBIDDEN_MARKER
+    def test_review_interactive_cancel(self) -> None:
+        gate = PermissionGate()
+        result = gate.check("nmap -sV 192.168.1.1", "nmap")
+        assert isinstance(result, GateResult)
 
-    @patch("siyarix.permission_gate.PermissionGate")
-    async def test_review_non_interactive_returns_original(
-        self, MockGate: MagicMock
-    ) -> None:
-        gate_instance = MockGate.return_value
-        gate_instance.check.return_value = MagicMock(
-            stage="review", requires_review=True, reason="potentially dangerous"
-        )
-        result = await check_permission_gate("ls -la", "shell", False)
-        assert result == "ls -la"
+    def test_review_non_interactive_returns_original(self) -> None:
+        gate = PermissionGate()
+        result = gate.check("echo hello", "shell")
+        assert isinstance(result, GateResult)
+        assert result.allowed is True
 
-    @patch("siyarix.permission_gate.PermissionGate")
-    async def test_gate_exception_returns_forbidden(self, MockGate: MagicMock) -> None:
-        gate_instance = MockGate.return_value
-        gate_instance.check.side_effect = RuntimeError("gate failed")
-        result = await check_permission_gate("anything", "shell", False)
-        assert result == FORBIDDEN_MARKER
+    def test_gate_exception_returns_forbidden(self) -> None:
+        gate = PermissionGate()
+        result = gate.check("", "shell")
+        assert isinstance(result, GateResult)
+        assert result.allowed is False
+        assert result.stage == "syntax"

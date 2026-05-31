@@ -1,26 +1,19 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import asyncio
-
-from siyarix.compat import ExecutionEngine
-from siyarix.planner import StepResult, StepStatus
-from siyarix.planner import ExecutionPlan, ExecutionStep, StepType
+from siyarix.planner import ExecutionPlan, PlanStep, Planner, StepStatus
 
 
-def test_planner_replan_fallback_for_zero_findings() -> None:
-    engine = ExecutionEngine()
-    step = ExecutionStep(
-        id="scan_1",
-        step_type=StepType.TOOL_RUN,
-        tool="gobuster",
-        target="example.com",
+def test_planner_adapt_plan_for_zero_findings() -> None:
+    planner = Planner()
+    step = PlanStep(id="scan_1", tool="gobuster", args={"target": "example.com"})
+    plan = ExecutionPlan(
+        steps=[step],
+        raw_instruction="scan example.com",
     )
-    sr = StepResult(step_id="scan_1", status=StepStatus.SUCCESS, findings=[])
-    plan = ExecutionPlan(steps=[step], raw_instruction="scan example.com")
-    pending: list[ExecutionStep] = []
+    step.status = StepStatus.COMPLETED
+    step.result = {"output": ""}
 
-    asyncio.run(engine._replan_from_feedback(step, sr, plan, pending))
+    adapted = planner.adapt_plan(plan, step, "404")
 
-    assert pending
-    assert any("adaptive" in s.id for s in pending)
-    assert pending[0].depends_on == ["scan_1"]
+    adapted_step = adapted.steps[0]
+    assert adapted_step.retry_count > 0 or "extensions" in adapted_step.args

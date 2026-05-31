@@ -160,6 +160,42 @@ _TOOL_ALIASES: dict[str, str] = {
     "azure": "az",
     "az": "az",
     "gcloud": "gcloud",
+    # Whois / DNS recon
+    "whois": "whois",
+    "whois lookup": "whois",
+    "whois check": "whois",
+    "whois domain": "whois",
+    # Directory enumeration
+    "directory enumeration": "gobuster",
+    "directory enum": "gobuster",
+    "dir enumeration": "gobuster",
+    "dir busting": "gobuster",
+    # Web vulnerability scanning
+    "web vulnerability": "nuclei",
+    "web vulnerabilities": "nuclei",
+    "vulnerability check": "nuclei",
+    "web app scan": "nikto",
+    "web application scan": "nikto",
+    "web security scan": "nikto",
+    "web security check": "nikto",
+    # Network tools
+    "ifconfig": "ifconfig",
+    "ip addr": "ip",
+    "network interface": "ifconfig",
+    "traceroute": "traceroute",
+    "trace route": "traceroute",
+    "dig": "dig",
+    "dns lookup": "dig",
+    "nslookup": "nslookup",
+    # System tools
+    "uname": "uname",
+    "system info": "uname",
+    "system information": "uname",
+    "uptime": "uptime",
+    "disk usage": "df",
+    "memory usage": "free",
+    "process list": "ps",
+    "running processes": "ps",
 }
 
 _SCAN_KEYWORDS = {
@@ -374,6 +410,71 @@ _INTENT_PATTERNS: dict[str, list[str]] = {
     "python_version": ["python version"],
     "node_version": ["node version"],
     "pip_list": ["pip list", "python packages"],
+    "whois_lookup": [
+        "whois",
+        "whois lookup",
+        "whois check",
+        "whois domain",
+        "domain info",
+        "domain registration",
+    ],
+    "dir_enum": [
+        "directory enumeration",
+        "directory enum",
+        "dir enumeration",
+        "dirbusting",
+        "directory busting",
+        "web directory scan",
+        "directory brute force",
+    ],
+    "web_vuln_scan": [
+        "web vulnerabilities",
+        "web vulnerability",
+        "web vulnerability check",
+        "web app vulnerabilities",
+        "web security check",
+        "web security scan",
+        "check web vulnerabilities",
+        "find web vulnerabilities",
+    ],
+    "subdomain_enum": [
+        "subdomain enumeration",
+        "subdomain enum",
+        "subdomain scan",
+        "subdomain discovery",
+        "find subdomains",
+        "enumerate subdomains",
+    ],
+    "password_crack": [
+        "password crack",
+        "crack password",
+        "hash crack",
+        "crack hash",
+        "brute force password",
+    ],
+    "sql_injection": [
+        "sql injection",
+        "sqli test",
+        "sql injection test",
+        "sqli scan",
+        "sql vulnerability",
+    ],
+}
+
+
+_INTENT_TOOLS: dict[str, str] = {
+    "whois_lookup": "whois",
+    "dir_enum": "gobuster",
+    "web_vuln_scan": "nuclei",
+    "subdomain_enum": "subfinder",
+    "sql_injection": "sqlmap",
+    "password_crack": "john",
+    "dns_lookup": "dig",
+    "open_ports": "nmap",
+    "network_interfaces": "ifconfig",
+    "system_info": "uname",
+    "traceroute": "traceroute",
+    "ping": "ping",
 }
 
 
@@ -501,11 +602,14 @@ class RuleInterpreter:
         intent, intent_conf = self._match_custom_intent(text_lower)
         if intent:
             targets = self._extract_targets(raw)
+            # Map intent to tool if available
+            intent_tool = _INTENT_TOOLS.get(intent)
+            tools = [intent_tool] if intent_tool else self._extract_tools(text_lower)
             return InterpretedTask(
                 category=TaskCategory.CUSTOM,
                 action=intent,
                 targets=targets,
-                tools=[],
+                tools=tools,
                 flags={"intent": intent},
                 raw_text=raw,
                 confidence=intent_conf,
@@ -534,7 +638,39 @@ class RuleInterpreter:
         """Classify the instruction into a high-level task category."""
         words = set(text_lower.split())
 
-        # Check in priority order
+        # First check multi-word keywords via substring matching (priority order)
+        for kw in _WORKFLOW_KEYWORDS:
+            if " " in kw and kw in text_lower:
+                return TaskCategory.WORKFLOW
+        for kw in _RECON_KEYWORDS:
+            if " " in kw and kw in text_lower:
+                return TaskCategory.RECON
+        for kw in _SCAN_KEYWORDS:
+            if " " in kw and kw in text_lower:
+                return TaskCategory.SCAN
+        for kw in _EXPLOIT_KEYWORDS:
+            if " " in kw and kw in text_lower:
+                return TaskCategory.EXPLOIT
+        for kw in _ANALYZE_KEYWORDS:
+            if " " in kw and kw in text_lower:
+                return TaskCategory.ANALYZE
+        for kw in _REPORT_KEYWORDS:
+            if " " in kw and kw in text_lower:
+                return TaskCategory.REPORT
+        for kw in _MONITOR_KEYWORDS:
+            if " " in kw and kw in text_lower:
+                return TaskCategory.MONITOR
+        for kw in _COMPLIANCE_KEYWORDS:
+            if " " in kw and kw in text_lower:
+                return TaskCategory.COMPLIANCE
+        for kw in _CLOUD_KEYWORDS:
+            if " " in kw and kw in text_lower:
+                return TaskCategory.CLOUD
+        for kw in _CONFIG_KEYWORDS:
+            if " " in kw and kw in text_lower:
+                return TaskCategory.CONFIG
+
+        # Then check single-word keywords via set intersection
         if words & _WORKFLOW_KEYWORDS:
             return TaskCategory.WORKFLOW
         if words & _EXPLOIT_KEYWORDS:
@@ -640,12 +776,12 @@ class RuleInterpreter:
         score = 0.0
 
         if category != TaskCategory.UNKNOWN:
-            score += 0.3
+            score += 0.45
         if targets:
-            score += 0.3
-        if tools:
             score += 0.25
+        if tools:
+            score += 0.2
         if flags:
-            score += 0.15
+            score += 0.1
 
         return min(score, 1.0)

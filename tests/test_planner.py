@@ -862,7 +862,8 @@ class TestTaskPlanner:
         task = InterpretedTask(action="unknown", category=TaskCategory.UNKNOWN,
                                confidence=0.3, raw_text="weird command")
         plan = planner._build_plan_from_task(task, "weird")
-        assert plan.steps[0].step_type == StepType.SHELL_CMD
+        # Unknown category with no tools/targets produces ANALYSIS step
+        assert plan.steps[0].step_type == StepType.ANALYSIS
 
     # ── _plan_from_interpretation ──────────────────────────────────────
 

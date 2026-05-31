@@ -23,6 +23,7 @@ import logging
 import os
 import sys
 import time
+import warnings
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -32,6 +33,13 @@ from typing import Any
 from .branding import available_themes, print_theme_preview
 from .config import SettingsStore
 from .subprocess_utils import safe_run_sync
+
+# Suppress prompt_toolkit's unawaited-coroutine warning emitted on GC
+warnings.filterwarnings(
+    "ignore",
+    message="coroutine 'Application.run_async' was never awaited",
+    category=RuntimeWarning,
+)
 
 # ---------------------------------------------------------------------------
 # Platform helpers (replaces removed cross_platform module)
@@ -2497,6 +2505,7 @@ class SiyarixChat:
     async def _execute_agent(self, instruction: str, target: str = "") -> bool:
         """Run the agent loop via AgentCore. Returns True if agent produced a response."""
         from .core import AgentCore, AgentMode, AgentGoal
+        from .planner import StepStatus
 
         provider_name = self._settings.get("model_provider") or "gemini"
 
@@ -2519,16 +2528,55 @@ class SiyarixChat:
             logger.warning("Agent loop failed: %s", exc)
             return False
 
-        if result and result.summary:
+        if not result:
+            return False
+
+        _step_icons = {
+            "success": "✓",
+            "completed": "✓",
+            "failed": "✗",
+            "skipped": "—",
+            "running": "·",
+            "retrying": "↻",
+            "pending": "○",
+            "blocked": "⊘",
+            "ready": "●",
+        }
+        if result.plan and result.plan.steps:
+            for step in result.plan.steps:
+                icon = _step_icons.get(step.status, "·")
+                if step.status in (StepStatus.SUCCESS, StepStatus.COMPLETED):
+                    color = "green"
+                elif step.status == StepStatus.FAILED:
+                    color = "red"
+                else:
+                    color = "dim"
+                label = step.tool or step.command or "—"
+                output = step.result.get("output", "") if step.result else ""
+                error = step.result.get("error", "") if step.result else ""
+                lines = [f"[{color}]{icon} {step.status.upper()}[/{color}]  [bold]{label}[/bold] — {step.description}"]
+                if output:
+                    lines.append(f"[dim]{output[:600]}[/dim]")
+                if error:
+                    lines.append(f"[red]{error[:300]}[/red]")
+                console.print(
+                    Panel(
+                        "\n".join(lines),
+                        title=f"Step {step.id}",
+                        border_style=color if color != "dim" else "grey58",
+                        padding=(0, 2),
+                    )
+                )
+
+        if result.summary:
             self._session.add_message("assistant", result.summary)
             self._print_assistant(result.summary)
-            if result.findings:
-                self._session.add_message(
-                    "assistant",
-                    f"Agent found {len(result.findings)} result(s) in {result.duration_ms/1000:.1f}s",
-                )
-            return True
-        return False
+        if result.findings:
+            self._session.add_message(
+                "assistant",
+                f"Agent found {len(result.findings)} result(s) in {result.duration_ms/1000:.1f}s",
+            )
+        return True
 
     def _llm_available(self) -> bool:
         """Check if an LLM provider is configured and available."""

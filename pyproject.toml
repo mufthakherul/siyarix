@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 [project]
 name = "siyarix"
-version = "2.0.0-alpha"
+version = "2.0.0"
 description = "Siyarix — AI Cybersecurity Orchestration Agent"
 description-content-type = "text/markdown"
 readme = "README.md"

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from siyarix.engine import ExecutionEngine
+from siyarix.compat import ExecutionEngine
 
 
 def test_engine_registers_providers():

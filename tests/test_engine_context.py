@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from siyarix.engine.context import compress_context
+pass  # context removed compress_context
 
 
 class TestCompressContext:

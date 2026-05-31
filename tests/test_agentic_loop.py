@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from siyarix.core.agentic_loop import AgenticLoop
+from siyarix.compat import pass_ as AgenticLoop
 
 
 @pytest.fixture

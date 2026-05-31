@@ -1,45 +1,35 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import asyncio
-
-from siyarix.providers import NoopProvider, ProviderRegistry, registry
+from siyarix.providers import ProviderManager, ProviderProfile
 
 
-def test_provider_registry_ordering():
-    reg = ProviderRegistry()
-    reg.register("a", NoopProvider())
-    reg.register("b", NoopProvider())
-    reg.register("c", NoopProvider())
-
-    ordered = reg.ordered_by_preference(["b", "c"])
-    assert len(ordered) == 3
-    assert ordered[0].available
-    assert ordered[1].available
+def test_provider_manager_profiles():
+    pm = ProviderManager()
+    profiles = pm.list_profiles()
+    assert len(profiles) >= 4
+    names = [p.name for p in profiles]
+    assert "openai" in names
+    assert "anthropic" in names
+    assert "gemini" in names
 
 
-def test_noop_provider_plan_returns_empty():
-    noop = NoopProvider()
-
-    async def _run():
-        res = await noop.plan("hello", {})
-        assert res == {}
-
-    asyncio.run(_run())
+def test_provider_select():
+    pm = ProviderManager()
+    provider, model = pm.select_provider()
+    assert isinstance(provider, str)
+    assert isinstance(model, str)
 
 
-def test_noop_provider_registered():
-    assert "noop" in registry.list_providers()
+def test_provider_classify_error():
+    pm = ProviderManager()
+    from siyarix.providers import FailoverReason
+    err = Exception("429 rate limit exceeded")
+    result = pm.classify_error("openai", err)
+    assert result.reason == FailoverReason.RATE_LIMIT
 
 
-def test_noop_provider_behaviour():
-    p = registry.get("noop", response="hello")
-
-    async def _run():
-        assert await p.validate() is True
-        plan = await p.plan("scan example.com")
-        assert isinstance(plan, dict) and "plan" in plan
-        chat = await p.chat([{"role": "user", "content": "hi"}])
-        assert chat["reply"] == "hello"
-        await p.close()
-
-    asyncio.run(_run())
+def test_provider_stats():
+    pm = ProviderManager()
+    stats = pm.stats()
+    assert "total_providers" in stats
+    assert stats["total_providers"] >= 4

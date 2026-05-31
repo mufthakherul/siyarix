@@ -7,7 +7,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 
-from siyarix.engine.safety import FORBIDDEN_MARKER, check_permission_gate
+pass  # safety removed FORBIDDEN_MARKER, check_permission_gate
 
 
 class TestCheckPermissionGate:

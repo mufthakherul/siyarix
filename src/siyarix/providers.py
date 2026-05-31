@@ -23,6 +23,8 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_MODEL = "default"
+
 # ---------------------------------------------------------------------------
 # Circuit Breaker — lightweight implementation for provider failure handling
 # ---------------------------------------------------------------------------
@@ -418,16 +420,31 @@ class AnthropicAdapter(Provider):
 
 
 class OpenCodeAdapter(OpenAIAdapter):
-    """Adapter for OpenCode API (OpenAI-compatible)."""
+    """Adapter for OpenCode provider."""
 
-    BASE_URL = "https://api.opencode.ai/v1"
-    DEFAULT_MODEL = "deepseek-v4-flash-free"
+    BASE_URL: str = ""
 
     def __init__(
         self, api_key: str | None = None, model: str = DEFAULT_MODEL
     ) -> None:
         model_cls = _PlannerModelLazy.get("OpenAIModel")
         self._impl = model_cls(api_key=api_key, model=model, base_url=self.BASE_URL)
+
+
+class OpenRouterAdapter(OpenAIAdapter):
+    """Adapter for OpenRouter (OpenAI-compatible API)."""
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        model: str = "nvidia/nemotron-3-super-120b-a12b:free",
+    ) -> None:
+        model_cls = _PlannerModelLazy.get("OpenAIModel")
+        self._impl = model_cls(
+            api_key=api_key,
+            model=model,
+            base_url="https://openrouter.ai/api/v1",
+        )
 
 
 # Register adapter classes in the registry
@@ -441,10 +458,11 @@ registry.register("lmstudio", LMStudioAdapter)
 registry.register("custom", CustomAdapter)
 registry.register("anthropic", AnthropicAdapter)
 registry.register("opencode", OpenCodeAdapter)
+registry.register("openrouter", OpenRouterAdapter)
 
 __all__ = [
     "Provider", "ProviderRegistry", "NoopProvider", "CircuitBreaker", "registry",
     "OpenAIAdapter", "GeminiAdapter", "OllamaAdapter", "CloudAdapter",
     "GroqAdapter", "TogetherAdapter", "LMStudioAdapter", "CustomAdapter",
-    "AnthropicAdapter", "OpenCodeAdapter",
+    "AnthropicAdapter", "OpenCodeAdapter", "OpenRouterAdapter",
 ]

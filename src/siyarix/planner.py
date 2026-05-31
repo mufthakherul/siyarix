@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -172,6 +173,8 @@ class ExecutionPlan:
 
 
 class Planner:
+    """Plan decomposer with an inverted-index strategy for scalable tool lookup."""
+
     def __init__(self) -> None:
         self._plans: dict[str, ExecutionPlan] = {}
         self._templates: dict[str, list[dict[str, Any]]] = {
@@ -196,6 +199,92 @@ class Planner:
                 {"description": "WPA handshake crack", "tool": "aircrack-ng", "args": {"mode": "crack"}},
             ],
         }
+        # Inverted index: keyword → set of tool names
+        self._keyword_index: dict[str, set[str]] = {}
+
+    # ── Index builder ─────────────────────────────────────────────────────
+
+    def build_index(self, available_tools: list[str],
+                    tool_registry: Any = None) -> None:
+        """Build an inverted keyword index from available tool names & metadata.
+
+        ``tool_registry`` is any object that provides ``.get_tool(name)``
+        returning an object with ``.tags``, ``.description``, ``.category``.
+        """
+        self._keyword_index.clear()
+        for name in available_tools:
+            name_lower = name.lower()
+            # Index the full name
+            self._add_to_index(name_lower, name)
+            # Index each word in the name (split on "-", "_", ".")
+            for part in re.split(r"[-_.]+", name_lower):
+                if len(part) > 1:
+                    self._add_to_index(part, name)
+            # Index tags and description when a registry is available
+            if tool_registry is not None:
+                try:
+                    tool = tool_registry.get_tool(name) if hasattr(tool_registry, "get_tool") else None
+                    if tool is None and hasattr(tool_registry, "_graph"):
+                        tool = tool_registry._graph.get_tool(name)
+                    if tool:
+                        for tag in getattr(tool, "tags", []):
+                            self._add_to_index(tag.lower(), name)
+                        desc = getattr(tool, "description", "")
+                        if desc and desc != name:
+                            for word in desc.lower().split():
+                                if len(word) > 2:
+                                    self._add_to_index(word, name)
+                except Exception:
+                    pass
+
+    def _add_to_index(self, keyword: str, tool_name: str) -> None:
+        if keyword not in self._keyword_index:
+            self._keyword_index[keyword] = set()
+        self._keyword_index[keyword].add(tool_name)
+
+    def _search_index(self, query: str) -> list[str]:
+        """Return tool names matching the query, ranked by relevance.
+
+        Scoring (higher = better):
+          - Tool name is literally in the query        → +500  (exact charter)
+          - A name-part (split on ``-_.``) is in query  → +50
+          - A tag word matches                          → +10
+          - A description word matches                  → +3
+
+        Returns only tools with a positive score,
+        ordered by score descending.
+        """
+        words = {w for w in re.split(r"[^\w]+", query.lower()) if len(w) > 1}
+        if not words:
+            return []
+
+        scores: dict[str, int] = {}
+        for w in words:
+            for tool_name in self._keyword_index.get(w, []):
+                scores[tool_name] = scores.get(tool_name, 0) + 1
+
+        # Fallback: if no word matched, try substring match of index keys
+        if not scores:
+            for key, names in self._keyword_index.items():
+                if key in query.lower():
+                    for n in names:
+                        scores[n] = scores.get(n, 0) + 1
+
+        # Boost exact and part matches
+        for t in list(scores.keys()):
+            t_lower = t.lower()
+            if t_lower in words:
+                scores[t] += 500  # exact name matched literally
+            else:
+                for part in re.split(r"[-_.]+", t_lower):
+                    if part in words and len(part) > 2:
+                        scores[t] += 50
+                        break
+
+        ranked = sorted(scores, key=lambda n: -scores[n])
+        return ranked
+
+    # ── Existing API ──
 
     def create_plan(self, goal: str, plan_type: PlanType = PlanType.SEQUENTIAL,
                     steps: list[dict[str, Any]] | None = None,
@@ -231,7 +320,6 @@ class Planner:
         return self.create_plan(goal=f"{template_name} on {clean_target}", steps=steps, context={"target": clean_target, "template": template_name})
 
     def decompose_goal(self, goal: str, available_tools: list[str] | None = None) -> ExecutionPlan:
-        import re
         goal_lower = goal.lower()
         if any(kw in goal_lower for kw in ("brute", "crack", "password", "credential")):
             return self.create_from_template("brute_force", goal)
@@ -244,12 +332,23 @@ class Planner:
             target = url_match.group(0)
         elif host_match:
             target = host_match.group(0)
+
+        # Use the inverted index for O(|query_words|) tool lookup
         tool_match = None
         if available_tools:
-            for t in available_tools:
-                if t.lower() in goal_lower:
-                    tool_match = t
-                    break
+            if self._keyword_index:
+                # Prefer tools whose full name appears literally in the query
+                candidates = self._search_index(goal)
+                for c in candidates:
+                    if c in available_tools and c.lower() in goal_lower:
+                        tool_match = c
+                        break
+            if not tool_match:
+                # Fallback: literal substring scan
+                for t in available_tools:
+                    if t.lower() in goal_lower:
+                        tool_match = t
+                        break
         if tool_match:
             return self.create_plan(goal=goal, steps=[{
                 "description": f"Execute {tool_match} on {target}",

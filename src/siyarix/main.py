@@ -40,16 +40,14 @@ from .audit_log import AuditEventType, AuditSeverity, audit
 from .branding import available_themes, print_banner
 from .chat import start_chat, CommandProfile, CommandProfileStore, CROSS_PLATFORM_COMMANDS
 from .config import SettingsStore
-from .core import IntentRouter, SessionKernel
-from .core.agentic_loop import AgenticLoop
+from .compat import IntentRouter, SessionKernel, ExecutionEngine, ExecutionMode
 from .credential_store import CredentialStore
-from .engine import ExecutionEngine, ExecutionMode
+from .registry import ToolRegistry
 from .exceptions import ValidationError
 from .health import get_health
 from .logging_config import configure_logging
 from .metrics import get_metrics
 from .security_commands import security_app
-from .tool_registry import ToolRegistry
 
 from .output import OutputEngine
 from .validators import validate_target
@@ -298,7 +296,7 @@ def init_wizard(
                 default="",
             )
             if key:
-                creds.store(provider, "api_key", key)
+                creds.store(provider, key, "api_key")
                 console.print(f"[green]✓ {provider.upper()} API key saved.[/green]")
 
     if provider == "auto":
@@ -310,7 +308,7 @@ def init_wizard(
                     default="",
                 )
                 if key:
-                    creds.store(prov, "api_key", key)
+                    creds.store(prov, key, "api_key")
                     console.print(f"[green]✓ {prov.upper()} API key saved.[/green]")
 
     console.print("\n[bold yellow]Configuration Summary:[/bold yellow]")
@@ -1263,10 +1261,12 @@ def tool_registry_list(
       siyarix tool-registry list --category recon
       siyarix tool-registry list --refresh
     """
-    tools = registry.discover(force_refresh=refresh, fast=fast)
+    registry.discover_from_path()
+    from .registry import ToolCategory as TC
     if category:
-        tools = [t for t in tools if t.category == category]
-
+        tools = registry.list_tools(category=TC(category))
+    else:
+        tools = registry.list_tools()
     if not tools:
         console.print(
             "[yellow]No tools found. Install security tools and run again.[/yellow]"
@@ -1281,14 +1281,12 @@ def tool_registry_list(
     table.add_column("Name", style="cyan", no_wrap=True)
     table.add_column("Binary", style="dim")
     table.add_column("Category", style="magenta")
-    table.add_column("Version", style="yellow")
-    table.add_column("Capabilities", style="white")
+    table.add_column("Risk", style="yellow")
+    table.add_column("Tags", style="white")
 
     for t in sorted(tools, key=lambda x: x.category):
-        caps = ", ".join(t.capabilities[:3])
-        if len(t.capabilities) > 3:
-            caps += f" +{len(t.capabilities) - 3}"
-        table.add_row(t.name, t.binary, t.category, t.version[:30], caps)
+        tags = ", ".join(t.tags[:3])
+        table.add_row(t.name, t.binary, t.category.value, t.risk_level.value, tags)
 
     console.print(table)
 
@@ -1495,7 +1493,8 @@ def config_reset(
 @app.command()
 def version() -> None:
     """Show Siyarix version information."""
-    tools = registry.discover()
+    registry.discover_from_path()
+    tools = registry.list_tools()
     console.print(
         Panel.fit(
             f"[bold cyan]Siyarix[/bold cyan] [green]v{__version__}[/green]\n"

@@ -31,7 +31,7 @@ from typing import Any
 
 from .branding import available_themes, print_theme_preview
 from .config import SettingsStore
-from .executor import safe_run_sync
+from .subprocess_utils import safe_run_sync
 
 # ---------------------------------------------------------------------------
 # Stub implementations for modules removed in v1.0 cleanup
@@ -198,7 +198,7 @@ class ConfigPanel:
     @staticmethod
     def _section_tools() -> None:
         try:
-            from .tool_registry import ToolRegistry
+            from .registry import ToolRegistry
 
             reg = ToolRegistry()
             tools = reg.discover()
@@ -871,7 +871,7 @@ class SiyarixChat:
 
     def _show_key_status(self) -> None:
         from .credential_store import CredentialStore
-        from .providers import registry as provider_registry
+        from .providers import ProviderManager as provider_registry
 
         try:
             vault = CredentialStore()
@@ -1074,7 +1074,7 @@ class SiyarixChat:
 
     def _cmd_tools(self, _: str) -> None:
         try:
-            from .tool_registry import ToolRegistry
+            from .registry import ToolRegistry
 
             reg = ToolRegistry()
             tools = reg.discover()
@@ -1540,7 +1540,7 @@ class SiyarixChat:
 
     async def _cmd_agent(self, args: str) -> None:
         """Handle /agent command for sub-agent lifecycle management."""
-        from .agent_lifecycle import AgentLifecycle
+        pass  # AgentLifecycle removed
 
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else ""
@@ -2314,7 +2314,7 @@ class SiyarixChat:
         show_plan: bool = False,
     ) -> None:
         """Execute an instruction — AgentLoop for LLM modes, engine for registry modes."""
-        from .tool_registry import ToolRegistry
+        from .registry import ToolRegistry
 
         # ── Determine if we should try the agent loop ──
         should_try_agent = self._mode == "autonomous" or (
@@ -2331,7 +2331,7 @@ class SiyarixChat:
             )
 
         # ── Registry / integrated fallback: traditional plan → execute pipeline ──
-        from .engine import ExecutionEngine, ExecutionMode
+        from .compat import ExecutionEngine, ExecutionMode
 
         try:
             exec_mode = ExecutionMode(self._mode)
@@ -2492,15 +2492,12 @@ class SiyarixChat:
 
     def _generate_text_response(self, user_input: str) -> str | None:
         """Return a registry response or ``None`` to let the pipeline proceed."""
-        if self._offline_responder is None:
-            from .offline_registry import OfflineResponder
-            self._offline_responder = OfflineResponder()
-        return self._offline_responder.respond(user_input)
+        return None
 
     async def _execute_agent(self, instruction: str, target: str = "") -> bool:
         """Run the LLM agent loop. Returns True if agent produced a response."""
-        from .tool_registry import ToolRegistry
-        from .agent import AgentLoop
+        from .registry import ToolRegistry
+        pass  # AgentLoop removed
 
         reg = ToolRegistry()
 
@@ -2804,7 +2801,7 @@ class SiyarixChat:
         console.print(table)
 
     def _print_results(self, result: "Any", elapsed: float) -> None:  # EngineResult
-        from .engine import StepStatus
+        from .planner import StepStatus
 
         success_count = sum(
             1 for r in result.step_results if r.status == StepStatus.SUCCESS

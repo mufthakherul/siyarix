@@ -536,6 +536,8 @@ class SiyarixChat:
 
     def _prompt(self) -> str:
         """Display the input prompt and read a line."""
+        import warnings
+
         if not sys.stdin.isatty():
             try:
                 return input().strip()
@@ -581,7 +583,6 @@ class SiyarixChat:
 
         if PTK_AVAILABLE:
             try:
-                import warnings
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore", RuntimeWarning)
                     answer = ptk_prompt(
@@ -591,9 +592,13 @@ class SiyarixChat:
                 raise
             except Exception as exc:
                 logger.debug("prompt_toolkit failed: %s", exc)
-                answer = Prompt.ask(prompt_label, default="").strip()
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", RuntimeWarning)
+                    answer = Prompt.ask(prompt_label, default="").strip()
         else:
-            answer = Prompt.ask(prompt_label, default="").strip()
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                answer = Prompt.ask(prompt_label, default="").strip()
         return answer
 
     def _make_esc_bindings(self) -> Any:
@@ -2490,16 +2495,10 @@ class SiyarixChat:
         return None
 
     async def _execute_agent(self, instruction: str, target: str = "") -> bool:
-        """Run the LLM agent loop. Returns True if agent produced a response."""
+        """Run the agent loop via AgentCore. Returns True if agent produced a response."""
         from .core import AgentCore, AgentMode, AgentGoal
 
         provider_name = self._settings.get("model_provider") or "gemini"
-        model = self._build_agent_model(provider_name)
-        if model is None:
-            return False
-        if hasattr(model, "available") and not model.available:
-            logger.debug("Provider %s is not available", provider_name)
-            return False
 
         instruction_with_target = instruction
         if target and target not in instruction:
@@ -2548,61 +2547,6 @@ class SiyarixChat:
         if provider == "cloud":
             return bool(os.getenv("SIYARIX_SERVER_URL"))
         return False
-
-    def _build_agent_model(self, provider: str) -> Any | None:
-        """Build a model provider instance for the agent loop."""
-        from .planner import GeminiModel, OpenAIModel
-
-        provider = provider.lower().strip()
-        if provider == "openai":
-            model_name = self._settings.get("openai_model") or "gpt-4o"
-            return OpenAIModel(api_key=os.getenv("OPENAI_API_KEY"), model=model_name)
-        if provider == "gemini":
-            model_name = self._settings.get("gemini_model") or "gemini-2.0-flash"
-            return GeminiModel(
-                api_key=os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"),
-                model=model_name,
-            )
-        if provider == "anthropic":
-            model_name = self._settings.get("anthropic_model") or "claude-3-opus-20240229"
-            model = OpenAIModel(
-                api_key=os.getenv("ANTHROPIC_API_KEY"),
-                model=model_name,
-                base_url=os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1"),
-            )
-
-            return model
-        if provider == "openrouter":
-            model_name = self._settings.get("openrouter_model") or "nvidia/nemotron-3-super-120b-a12b:free"
-            return OpenAIModel(
-                api_key=os.getenv("OPENROUTER_API_KEY"),
-                model=model_name,
-                base_url="https://openrouter.ai/api/v1",
-            )
-        if provider in ("groq", "together", "custom", "opencode"):
-            env_key = f"{provider.upper()}_API_KEY"
-            model_name = self._settings.get(f"{provider}_model") or "default"
-            base_url = os.getenv(f"{provider.upper()}_BASE_URL")
-            return OpenAIModel(
-                api_key=os.getenv(env_key),
-                model=model_name,
-                base_url=base_url,
-            )
-        if provider == "ollama":
-            model_name = self._settings.get("ollama_model") or "llama3.1"
-            from .planner import OllamaModel
-            return OllamaModel(
-                base_url=os.getenv("SIYARIX_OLLAMA_URL", "http://localhost:11434"),
-                model=model_name,
-            )
-        if provider == "cloud":
-            from .planner import CloudModel
-            return CloudModel(
-                server_url=os.getenv("SIYARIX_SERVER_URL", ""),
-                api_key=os.getenv("CLOUD_API_KEY", ""),
-            )
-        logger.warning("Unsupported provider for agent mode: %s", provider)
-        return None
 
     # ──────────────────────────────────────────────────────────────────────
     # Display helpers

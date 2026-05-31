@@ -581,9 +581,12 @@ class SiyarixChat:
 
         if PTK_AVAILABLE:
             try:
-                answer = ptk_prompt(
-                    "❯ ", key_bindings=esc_bindings, completer=SmartAutocomplete(self._session)
-                ).strip()
+                import warnings
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", RuntimeWarning)
+                    answer = ptk_prompt(
+                        "❯ ", key_bindings=esc_bindings, completer=SmartAutocomplete(self._session)
+                    ).strip()
             except KeyboardInterrupt:
                 raise
             except Exception as exc:

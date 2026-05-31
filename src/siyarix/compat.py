@@ -145,6 +145,7 @@ class EngineResult:
     success: bool = False
     summary: str = ""
     all_findings: list[dict[str, Any]] = field(default_factory=list)
+    step_results: list[Any] = field(default_factory=list)
     raw_output: str = ""
     duration_ms: float = 0.0
     retries_performed: int = 0
@@ -174,6 +175,7 @@ class ExecutionEngine:
 
     async def execute(self, goal: str, **kwargs: Any) -> EngineResult:
         from .core import AgentCore, AgentMode, AgentGoal
+        from .planner import StepResult, StepStatus
         mode_map = {
             ExecutionMode.REGISTRY: AgentMode.REGISTRY,
             ExecutionMode.AUTONOMOUS: AgentMode.AUTONOMOUS,
@@ -183,9 +185,19 @@ class ExecutionEngine:
         await agent.initialize()
         agent_goal = AgentGoal(description=goal)
         result = await agent.execute_goal(agent_goal)
+        step_results = []
+        if result.plan:
+            for i, step in enumerate(result.plan.steps):
+                sr = StepResult(
+                    step_id=str(i + 1),
+                    status=step.status,
+                    output=step.result.get("output", "") if step.result else "",
+                    error=step.result.get("error", "") if step.result else "",
+                )
+                step_results.append(sr)
         return EngineResult(
             success=result.success, summary=result.summary,
-            all_findings=result.findings,
+            all_findings=result.findings, step_results=step_results,
         )
 
     async def run(self, goal: str, **kwargs: Any) -> EngineResult:

@@ -1,25 +1,26 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Tests for core/agentic_loop.py — AgenticLoop (112 stmts, ~48% covered)."""
+"""Tests for core/__init__.py — AgentCore (v2 goal decomposition & execution)."""
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from siyarix.compat import pass_ as AgenticLoop
+from siyarix.core import AgentCore, AgentGoal, AgentResult, AgentMode, AgentStatus
+from siyarix.planner import ExecutionPlan, PlanStep, PlanStatus, StepStatus
+from siyarix.validator import RecoveryAction, RecoveryPlan
 
 
 @pytest.fixture
-def engine():
-    return MagicMock()
+def agent():
+    return AgentCore(mode=AgentMode.REGISTRY)
 
 
 @pytest.fixture
-def loop(engine):
-    return AgenticLoop(engine=engine, goal="test goal", target="10.0.0.1",
-                        max_iterations=3, interactive=False)
+def goal():
+    return AgentGoal(description="Scan target with nmap", target="10.0.0.1", priority=3)
 
 
 # ---------------------------------------------------------------------------
@@ -27,157 +28,278 @@ def loop(engine):
 # ---------------------------------------------------------------------------
 
 class TestInit:
-    def test_init_defaults(self, engine):
-        loop = AgenticLoop(engine=engine, goal="goal")
-        assert loop._goal == "goal"
-        assert loop._target == ""
-        assert loop._max_iterations == 10
-        assert loop._interactive is True
+    def test_init_defaults(self):
+        agent = AgentCore()
+        assert agent.mode == AgentMode.REGISTRY
+        assert agent.status == AgentStatus.IDLE
+        assert agent.registry is not None
+        assert agent.planner is not None
+        assert agent.executor is not None
+        assert agent.validator is not None
 
-    def test_init_custom(self, loop):
-        assert loop._goal == "test goal"
-        assert loop._target == "10.0.0.1"
-        assert loop._max_iterations == 3
-        assert loop._interactive is False
+    def test_init_registry_mode(self):
+        agent = AgentCore(mode=AgentMode.REGISTRY)
+        assert agent.mode == AgentMode.REGISTRY
 
+    def test_init_autonomous_mode(self):
+        agent = AgentCore(mode=AgentMode.AUTONOMOUS)
+        assert agent.mode == AgentMode.AUTONOMOUS
 
-# ---------------------------------------------------------------------------
-# _observe
-# ---------------------------------------------------------------------------
+    def test_init_hybrid_mode(self):
+        agent = AgentCore(mode=AgentMode.HYBRID)
+        assert agent.mode == AgentMode.HYBRID
 
-class TestObserve:
-    def test_observe_returns_context(self, loop):
-        ctx = loop._observe()
-        assert ctx["goal"] == "test goal"
-        assert ctx["target"] == "10.0.0.1"
-        assert ctx["iteration"] == 0
-        assert ctx["findings_so_far"] == 0
-        assert ctx["recent_observations"] == []
+    def test_init_interactive_mode(self):
+        agent = AgentCore(mode=AgentMode.INTERACTIVE)
+        assert agent.mode == AgentMode.INTERACTIVE
 
-
-# ---------------------------------------------------------------------------
-# _reflect (deferred to v2.0 — currently a no-op)
-# ---------------------------------------------------------------------------
-
-class TestReflect:
-    def test_reflect_does_nothing(self, loop):
-        loop._reflect()
-        assert loop._reflection_queue == []
+    def test_properties_expose_internals(self):
+        agent = AgentCore()
+        assert agent.memory is not None
+        assert agent.providers is not None
+        assert agent.context is not None
 
 
 # ---------------------------------------------------------------------------
-# _reason
+# AgentGoal
 # ---------------------------------------------------------------------------
 
-class TestReason:
-    def test_reason_first_iteration(self, loop):
-        loop._iteration = 1
-        result = loop._reason({"dummy": True})
-        assert "test goal" in result
-        assert "10.0.0.1" in result
+class TestAgentGoal:
+    def test_goal_defaults(self):
+        goal = AgentGoal()
+        assert goal.description == ""
+        assert goal.target == ""
+        assert goal.constraints == {}
+        assert goal.priority == 5
+        assert goal.timeout == 600.0
 
-    def test_reason_with_findings(self, loop):
-        loop._iteration = 2
-        loop._all_findings = [{"severity": "high", "description": "Port 22 open"}]
-        result = loop._reason({"dummy": True})
-        assert "Findings" in result
-
-    def test_reason_with_errors(self, loop):
-        loop._iteration = 2
-        loop._observations = [{"error": "timeout"}]
-        result = loop._reason({"dummy": True})
-        assert "errors" in result.lower()
-
-    def test_reason_no_target(self, loop):
-        loop._target = ""
-        loop._iteration = 1
-        result = loop._reason({})
-        assert "on" not in result
+    def test_goal_custom(self):
+        goal = AgentGoal(description="hack the planet", target="10.0.0.1", priority=1, timeout=30.0)
+        assert goal.description == "hack the planet"
+        assert goal.priority == 1
 
 
 # ---------------------------------------------------------------------------
-# _evaluate
+# AgentResult
 # ---------------------------------------------------------------------------
 
-class TestEvaluate:
-    def test_evaluate_success(self, loop):
-        mock_result = MagicMock()
-        mock_result.success = True
-        mock_result.step_results = [MagicMock()]
-        mock_result.all_findings = [{"sev": "low"}]
-        mock_result.total_duration_ms = 100.0
+class TestAgentResult:
+    def test_result_defaults(self):
+        result = AgentResult()
+        assert result.goal == ""
+        assert result.success is False
+        assert result.summary == ""
+        assert result.plan is None
+        assert result.duration_ms == 0.0
+        assert result.findings == []
+        assert result.metadata == {}
 
-        loop._evaluate(mock_result)
-        assert len(loop._observations) == 1
-        assert loop._observations[0]["success"] is True
-        assert len(loop._all_findings) == 1
-
-    def test_evaluate_consecutive_failures(self, loop):
-        loop._iteration = 3
-        for _ in range(3):
-            mock_result = MagicMock()
-            mock_result.success = False
-            mock_result.step_results = []
-            mock_result.all_findings = []
-            mock_result.total_duration_ms = 0
-            loop._evaluate(mock_result)
-        assert loop._completed is True
+    def test_result_fields(self):
+        plan = ExecutionPlan(goal="test")
+        result = AgentResult(
+            goal="scan target",
+            success=True,
+            summary="All done",
+            plan=plan,
+            duration_ms=123.4,
+            findings=[{"tool": "nmap", "description": "port scan", "output_preview": "..."}],
+        )
+        assert result.goal == "scan target"
+        assert result.success is True
+        assert result.plan is plan
+        assert len(result.findings) == 1
 
 
 # ---------------------------------------------------------------------------
-# run
+# AgentStatus
 # ---------------------------------------------------------------------------
 
-class TestRun:
+class TestAgentStatus:
+    def test_status_values(self):
+        assert AgentStatus.IDLE == "idle"
+        assert AgentStatus.PLANNING == "planning"
+        assert AgentStatus.EXECUTING == "executing"
+        assert AgentStatus.VALIDATING == "validating"
+        assert AgentStatus.RECOVERING == "recovering"
+        assert AgentStatus.REFLECTING == "reflecting"
+        assert AgentStatus.COMPLETED == "completed"
+        assert AgentStatus.FAILED == "failed"
+
+    def test_status_transitions_on_success(self, agent):
+        assert agent.status == AgentStatus.IDLE
+
+
+# ---------------------------------------------------------------------------
+# initialize
+# ---------------------------------------------------------------------------
+
+class TestInitialize:
     @pytest.mark.asyncio
-    async def test_run_completes(self, loop):
-        loop._engine.execute = AsyncMock(return_value=MagicMock(
-            success=True, step_results=[], all_findings=[], total_duration_ms=0))
-        result = await loop.run()
-        assert result["goal"] == "test goal"
-        assert result["iterations"] >= 1
+    async def test_initialize_sets_up_registry(self, agent):
+        with patch.object(agent._registry, "discover_from_path") as mock_discover, \
+             patch.object(agent._event_bus, "emit", new_callable=AsyncMock) as mock_emit:
+            await agent.initialize()
+            mock_discover.assert_called_once()
 
-    @pytest.mark.asyncio
-    async def test_run_from_reflection_queue(self, loop):
-        loop._reflection_queue = ["run nmap scan"]
-        loop._engine.execute = AsyncMock(return_value=MagicMock(
-            success=True, step_results=[], all_findings=[], total_duration_ms=0))
-        result = await loop.run()
-        assert result["iterations"] >= 1
 
-    @pytest.mark.asyncio
-    async def test_run_done_signal(self, loop):
-        loop._reflection_queue = ["done"]
-        loop._engine.execute = AsyncMock()
-        result = await loop.run()
-        assert result["completed"] is True
+# ---------------------------------------------------------------------------
+# execute_goal
+# ---------------------------------------------------------------------------
 
+class TestExecuteGoal:
     @pytest.mark.asyncio
-    async def test_run_max_iterations(self, loop):
-        loop._max_iterations = 0
-        loop._engine.execute = AsyncMock()
-        result = await loop.run()
-        assert result["iterations"] == 0
+    async def test_execute_goal_success(self, agent, goal):
+        step = PlanStep(tool="nmap", args={"target": "10.0.0.1"}, description="Port scan",
+                        status=StepStatus.COMPLETED, result={"output": "22/tcp open ssh"})
+        plan = ExecutionPlan(goal="Scan target with nmap", steps=[step], status=PlanStatus.COMPLETED)
 
-    @pytest.mark.asyncio
-    async def test_run_error_in_execute(self, loop):
-        loop._engine.execute = AsyncMock(side_effect=RuntimeError("execution failed"))
-        loop._max_iterations = 1
-        result = await loop.run()
-        assert result["iterations"] == 1
-        assert len(result["observations"]) > 0
+        agent._planner.decompose_goal = MagicMock(return_value=plan)
+        agent._validator.validate_plan = AsyncMock(return_value=[])
+        agent._executor.execute_plan = AsyncMock(return_value=plan)
+
+        result = await agent.execute_goal(goal)
+
+        assert result.success is True
+        assert result.goal == "Scan target with nmap"
+        assert result.plan is plan
+        assert result.duration_ms >= 0
+        assert agent.status == AgentStatus.COMPLETED
 
     @pytest.mark.asyncio
-    async def test_run_empty_string_instruction(self, loop):
-        loop._reflection_queue = [""]
-        loop._engine.execute = AsyncMock()
-        result = await loop.run()
-        assert result["iterations"] >= 1
+    async def test_execute_goal_failure(self, agent, goal):
+        step = PlanStep(tool="nmap", args={}, description="Port scan")
+        plan = ExecutionPlan(goal="Scan target with nmap", steps=[step], status=PlanStatus.ACTIVE)
+
+        agent._planner.decompose_goal = MagicMock(return_value=plan)
+        agent._validator.validate_plan = AsyncMock(return_value=[])
+        agent._executor.execute_plan = AsyncMock(return_value=plan)
+
+        with patch.object(agent._executor, "execute_plan", new_callable=AsyncMock) as mock_exec:
+            failed_step = PlanStep(tool="nmap", args={}, description="Port scan",
+                                   status=StepStatus.FAILED, result={"error": "connection refused"})
+            failed_plan = ExecutionPlan(goal="Scan target with nmap", steps=[failed_step],
+                                        status=PlanStatus.FAILED)
+            mock_exec.return_value = failed_plan
+            agent._validator.plan_recovery = AsyncMock(
+                return_value=RecoveryPlan(original_step=failed_step, action=RecoveryAction.SKIP))
+
+            result = await agent.execute_goal(goal)
+
+            assert result.success is False
+            assert agent.status == AgentStatus.FAILED
 
     @pytest.mark.asyncio
-    async def test_run_finished_signal_variants(self, loop):
-        for signal in ["complete", "finished"]:
-            loop._reflection_queue = [signal]
-            loop._engine.execute = AsyncMock()
-            result = await loop.run()
-            assert result["completed"] is True
+    async def test_execute_goal_exception(self, agent, goal):
+        agent._planner.decompose_goal = MagicMock(side_effect=RuntimeError("planner crashed"))
+
+        result = await agent.execute_goal(goal)
+
+        assert result.success is False
+        assert "Agent failed" in result.summary
+        assert agent.status == AgentStatus.FAILED
+
+    @pytest.mark.asyncio
+    async def test_execute_goal_records_history(self, agent, goal):
+        step = PlanStep(tool="nmap", args={}, description="Scan")
+        plan = ExecutionPlan(goal="Scan target with nmap", steps=[step], status=PlanStatus.ACTIVE)
+
+        agent._planner.decompose_goal = MagicMock(return_value=plan)
+        agent._validator.validate_plan = AsyncMock(return_value=[])
+        agent._executor.execute_plan = AsyncMock(return_value=plan)
+
+        result = await agent.execute_goal(goal)
+
+        assert len(agent._history) == 1
+        assert agent._history[0] is result
+
+    @pytest.mark.asyncio
+    async def test_execute_goal_sets_planning_status(self, agent, goal):
+        status_during = []
+
+        original_validate = agent._validator.validate_plan
+
+        async def track_validate(steps):
+            status_during.append(agent.status)
+            return await original_validate(steps)
+
+        step = PlanStep(tool="nmap", args={}, description="Scan")
+        plan = ExecutionPlan(goal="Scan target with nmap", steps=[step], status=PlanStatus.ACTIVE)
+
+        agent._planner.decompose_goal = MagicMock(return_value=plan)
+        agent._validator.validate_plan = track_validate
+        agent._executor.execute_plan = AsyncMock(return_value=plan)
+
+        await agent.execute_goal(goal)
+
+        assert AgentStatus.PLANNING in status_during
+
+    @pytest.mark.asyncio
+    async def test_execute_goal_finds_completed_steps(self, agent, goal):
+        step = PlanStep(tool="nmap", args={}, description="Port scan",
+                        status=StepStatus.COMPLETED, result={"output": "22/tcp open ssh"})
+        plan = ExecutionPlan(goal="Scan target with nmap", steps=[step], status=PlanStatus.ACTIVE)
+
+        agent._planner.decompose_goal = MagicMock(return_value=plan)
+        agent._validator.validate_plan = AsyncMock(return_value=[])
+        agent._executor.execute_plan = AsyncMock(return_value=plan)
+
+        result = await agent.execute_goal(goal)
+
+        assert len(result.findings) == 1
+        assert result.findings[0]["tool"] == "nmap"
+        assert "22/tcp open ssh" in result.findings[0]["output_preview"]
+
+    @pytest.mark.asyncio
+    async def test_execute_goal_empty_plan(self, agent, goal):
+        plan = ExecutionPlan(goal="Scan target with nmap", steps=[], status=PlanStatus.COMPLETED)
+
+        agent._planner.decompose_goal = MagicMock(return_value=plan)
+        agent._validator.validate_plan = AsyncMock(return_value=[])
+        agent._executor.execute_plan = AsyncMock(return_value=plan)
+
+        result = await agent.execute_goal(goal)
+
+        assert result.success is True
+        assert "0 steps" in result.summary
+
+    @pytest.mark.asyncio
+    async def test_execute_goal_recovery_retries(self, agent, goal):
+        failed_step = PlanStep(tool="nmap", args={"target": "10.0.0.1"}, description="Port scan",
+                               status=StepStatus.FAILED, result={"error": "filtered"})
+        failed_plan = ExecutionPlan(goal="Scan", steps=[failed_step], status=PlanStatus.ACTIVE)
+
+        recovered_step = PlanStep(tool="nmap", args={"target": "10.0.0.1", "flags": "-Pn"},
+                                  description="Port scan", status=StepStatus.COMPLETED,
+                                  result={"output": "22/tcp open ssh"})
+        recovered_plan = ExecutionPlan(goal="Scan", steps=[recovered_step], status=PlanStatus.COMPLETED)
+
+        agent._planner.decompose_goal = MagicMock(return_value=failed_plan)
+        agent._validator.validate_plan = AsyncMock(return_value=[])
+        agent._executor.execute_plan = AsyncMock(side_effect=[failed_plan, recovered_plan])
+        agent._validator.plan_recovery = AsyncMock(
+            return_value=RecoveryPlan(original_step=failed_step, action=RecoveryAction.RETRY,
+                                      modified_step=recovered_step))
+
+        result = await agent.execute_goal(goal)
+
+        assert result.success is True
+        assert agent._executor.execute_plan.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# stats
+# ---------------------------------------------------------------------------
+
+class TestStats:
+    def test_stats_returns_dict(self, agent):
+        stats = agent.stats()
+        assert "mode" in stats
+        assert "status" in stats
+        assert "registry" in stats
+        assert "history" in stats
+
+    def test_stats_initial(self, agent):
+        stats = agent.stats()
+        assert stats["mode"] == "registry"
+        assert stats["status"] == "idle"
+        assert stats["history"] == 0

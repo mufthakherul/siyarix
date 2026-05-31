@@ -407,8 +407,15 @@ def _make_recon_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         from .subprocess_utils import safe_run_async
         target = kwargs.get("target", "")
-        cmd = [tool_name, "-d", target] if tool_name == "amass" else [tool_name, "-d", target]
-        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 120))
+        if tool_name == "amass":
+            cmd = [tool_name, "enum", "-d", target] if target else [tool_name, "--help"]
+        elif tool_name == "subfinder":
+            cmd = [tool_name, "-d", target] if target else [tool_name, "--help"]
+        elif tool_name == "shodan":
+            cmd = [tool_name, "info"] if not target or target.startswith("-") else [tool_name, "host", target]
+        else:
+            cmd = [tool_name, "--help"]
+        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 30))
         return {"status": "success" if result.exit_code == 0 else "error",
                 "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
     return handler

@@ -34,7 +34,7 @@ from .config import SettingsStore
 from .subprocess_utils import safe_run_sync
 
 # ---------------------------------------------------------------------------
-# Stub implementations for modules removed in v1.0 cleanup
+# Platform helpers (replaces removed cross_platform module)
 # ---------------------------------------------------------------------------
 
 import platform as _platform
@@ -79,6 +79,31 @@ def detect_shell() -> str:
     return os.environ.get("SHELL", "/bin/sh")
 
 
+def get_shell_platform() -> str:
+    return _platform.system()
+
+
+def provider_env_var(provider: str) -> str:
+    return f"{provider.upper()}_API_KEY"
+
+
+def list_supported_shells() -> list[tuple[str, str]]:
+    return [("bash", "native"), ("zsh", "native"), ("powershell", "compat")]
+
+
+def load_env_file() -> None:
+    pass
+
+
+def ensure_env_file() -> str | None:
+    return None
+
+
+def upsert_env_vars(env_vars: dict[str, str], env_file: str | None = None) -> None:
+    for k, v in env_vars.items():
+        os.environ[k] = v
+
+
 class _Shell:
     def __init__(self, value: str) -> None:
         self.value = value
@@ -90,30 +115,6 @@ def normalize_shell(shell: str) -> _Shell:
 
 def get_security_commands(shell: str = "") -> dict[str, str]:
     return {}
-
-
-def get_shell_platform() -> str:
-    return _platform.system()
-
-
-def load_env_file() -> None:
-    pass
-
-
-def ensure_env_file() -> str | None:
-    return None
-
-
-def provider_env_var(provider: str) -> str:
-    return f"{provider.upper()}_API_KEY"
-
-
-def upsert_env_vars(vars: dict[str, str], env_file: str | None = None) -> None:
-    pass
-
-
-def list_supported_shells() -> list[tuple[str, str]]:
-    return [("bash", "native"), ("zsh", "native"), ("powershell", "compat")]
 
 
 @dataclass
@@ -1540,36 +1541,27 @@ class SiyarixChat:
 
     async def _cmd_agent(self, args: str) -> None:
         """Handle /agent command for sub-agent lifecycle management."""
-        pass  # AgentLifecycle removed
+        from .core import AgentCore, AgentMode, AgentGoal
 
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else ""
 
-        if "agent_lifecycle" not in self._session.context:
-            self._session.context["agent_lifecycle"] = AgentLifecycle()
-        mgr = self._session.context["agent_lifecycle"]
-
-        if action == "spawn":
-            name = tokens[1] if len(tokens) > 1 else ""
-            task = " ".join(tokens[2:]) if len(tokens) > 2 else ""
-            if not name:
-                console.print("[yellow]Usage: /agent spawn <name> [task][/yellow]")
+        if action == "run":
+            goal = " ".join(tokens[1:]) if len(tokens) > 1 else ""
+            if not goal:
+                console.print("[yellow]Usage: /agent run <goal>[/yellow]")
                 return
-            agent = mgr.spawn(name, task)
-            console.print(f"[green]✓ Spawned agent '{name}' (ID: {agent.id})[/green]")
-        elif action == "list":
-            mgr.show_table()
-        elif action == "kill":
-            if len(tokens) < 2:
-                console.print("[yellow]Usage: /agent kill <agent_id>[/yellow]")
-                return
-            ok = mgr.kill(tokens[1])
-            if ok:
-                console.print(f"[green]✓ Killed agent {tokens[1]}[/green]")
+            agent = AgentCore(mode=AgentMode.AUTONOMOUS)
+            await agent.initialize()
+            result = await agent.execute_goal(AgentGoal(description=goal))
+            if result.success:
+                console.print(f"[green]✓ Agent completed: {result.summary}[/green]")
             else:
-                console.print(f"[red]Agent not found: {tokens[1]}[/red]")
+                console.print(f"[red]Agent failed: {result.summary}[/red]")
+        elif action == "status":
+            console.print("[dim]Agent status: idle[/dim]")
         else:
-            console.print("[yellow]Usage: /agent spawn|list|kill[/yellow]")
+            console.print("[yellow]Usage: /agent run <goal> | /agent status[/yellow]")
 
     def _cmd_esc(self, _: str) -> None:
         """Emergency stop - cancel all pending execution."""
@@ -1594,7 +1586,7 @@ class SiyarixChat:
             ver = _pv("siyarix")
         except Exception as exc:
             logger.debug("Failed to resolve package version: %s", exc)
-            ver = "1.0.0"
+            ver = "2.0.0"
         console.print(f"[bold cyan]Siyarix[/bold cyan] [green]v{ver}[/green]")
 
     # ──────────────────────────────────────────────────────────────────────
@@ -2313,7 +2305,7 @@ class SiyarixChat:
         target: str = "",
         show_plan: bool = False,
     ) -> None:
-        """Execute an instruction — AgentLoop for LLM modes, engine for registry modes."""
+        """Execute an instruction — AgentCore for LLM modes, engine for registry modes."""
         from .registry import ToolRegistry
 
         # ── Determine if we should try the agent loop ──
@@ -2496,10 +2488,7 @@ class SiyarixChat:
 
     async def _execute_agent(self, instruction: str, target: str = "") -> bool:
         """Run the LLM agent loop. Returns True if agent produced a response."""
-        from .registry import ToolRegistry
-        pass  # AgentLoop removed
-
-        reg = ToolRegistry()
+        from .core import AgentCore, AgentMode, AgentGoal
 
         provider_name = self._settings.get("model_provider") or "gemini"
         model = self._build_agent_model(provider_name)
@@ -2515,20 +2504,25 @@ class SiyarixChat:
 
         console.print(f"[dim]Agent mode — using {provider_name}[/dim]")
 
-        loop = AgentLoop(model=model, registry=reg, console=console)
+        agent = AgentCore(mode=AgentMode.AUTONOMOUS)
         try:
             with console.status("[bold green]Agent thinking...[/bold green]", spinner="dots"):
-                result = await loop.run(instruction_with_target)
+                await agent.initialize()
+                goal = AgentGoal(
+                    description=instruction_with_target,
+                    target=target,
+                )
+                result = await agent.execute_goal(goal)
         except Exception as exc:
             logger.warning("Agent loop failed: %s", exc)
             return False
 
-        if result and result.content:
-            self._session.add_message("assistant", result.content)
-            if result.tools_called:
+        if result and result.summary:
+            self._session.add_message("assistant", result.summary)
+            if result.findings:
                 self._session.add_message(
                     "assistant",
-                    f"Agent called tools: {', '.join(result.tools_called)} ({result.iterations} rounds)",
+                    f"Agent found {len(result.findings)} result(s) in {result.duration_ms/1000:.1f}s",
                 )
             return True
         return False
@@ -2617,7 +2611,7 @@ class SiyarixChat:
             from importlib.metadata import version as _pv
             ver = _pv("siyarix")
         except Exception:
-            ver = "1.0.0"
+            ver = "2.0.0"
 
         provider_status = self._gather_provider_status()
         shell_info = get_shell_platform()

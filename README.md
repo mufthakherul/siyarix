@@ -15,7 +15,7 @@
     <img src="https://img.shields.io/github/stars/mufthakherul/siyarix?style=flat-square&label=Stars&logo=github" alt="Stars"/>
   </a>
   <a href="https://github.com/mufthakherul/siyarix/releases">
-    <img src="https://img.shields.io/badge/Release-pre--release-orange?style=flat-square&logo=github" alt="Release"/>
+    <img src="https://img.shields.io/badge/Release-v2.0.0-blue?style=flat-square&logo=github" alt="Release"/>
   </a>
   <a href="https://github.com/mufthakherul/siyarix/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/mufthakherul/siyarix?style=flat-square&label=License&logo=gnu" alt="License"/>

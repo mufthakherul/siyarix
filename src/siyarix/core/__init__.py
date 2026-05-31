@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
@@ -15,7 +14,7 @@ from ..planner import Planner, ExecutionPlan, PlanStatus, StepStatus
 from ..executor import Executor
 from ..validator import Validator, RecoveryAction
 from ..context import ContextManager
-from ..memory import MemoryManager, MemoryLayer
+from ..memory import MemoryManager
 from ..providers import ProviderManager
 from ..workflow import WorkflowEngine
 from ..events import Event, EventType, get_event_bus
@@ -114,6 +113,11 @@ class AgentCore:
 
     async def initialize(self) -> None:
         self._registry.discover_from_path()
+        self._registry.scan_path()
+        self._planner.build_index(
+            [t.name for t in self._registry._graph.all_tools()],
+            tool_registry=self._registry,
+        )
         await self._event_bus.emit(Event(
             type=EventType.AGENT_START, source="agent",
             data={"mode": self._mode.value, "tools": self._registry.stats()["total"]},
@@ -128,7 +132,7 @@ class AgentCore:
                 goal.description, [t.name for t in self._registry.list_tools()])
             result.plan = plan
             self._context.add_history(f"Goal: {goal.description}", "user")
-            validation_results = await self._validator.validate_plan(plan.steps)
+            await self._validator.validate_plan(plan.steps)
             plan = await self._executor.execute_plan(plan)
             if plan.has_failures:
                 for step in plan.failed_steps:

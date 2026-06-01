@@ -180,15 +180,15 @@ class Planner:
         self._templates: dict[str, list[dict[str, Any]]] = {
             "recon_full": [
                 {"description": "Port scan with nmap", "tool": "nmap", "args": {"flags": "-sV -sC -T4"}},
-                {"description": "Web technology detection", "tool": "nuclei", "args": {"tags": "tech"}},
+                {"description": "Web technology detection", "tool": "whatweb", "args": {}},
                 {"description": "Directory brute force", "tool": "gobuster", "args": {"mode": "dir"}},
                 {"description": "Subdomain enumeration", "tool": "subfinder", "args": {}},
             ],
             "web_audit": [
-                {"description": "Nikto web server scan", "tool": "nikto", "args": {}},
-                {"description": "Nuclei vulnerability scan", "tool": "nuclei", "args": {"severity": "medium,high,critical"}},
-                {"description": "SQL injection test", "tool": "sqlmap", "args": {"batch": True}},
-                {"description": "Directory enumeration", "tool": "ffuf", "args": {"wordlist": "common.txt"}},
+                {"description": "HTTP headers & response analysis", "tool": "curl", "args": {"flags": "-sI"}},
+                {"description": "Web technology fingerprinting", "tool": "whatweb", "args": {}},
+                {"description": "Vulnerability scan with nuclei", "tool": "nuclei", "args": {"severity": "medium,high,critical"}},
+                {"description": "Directory/file enumeration", "tool": "ffuf", "args": {"wordlist": "common.txt"}},
             ],
             "brute_force": [
                 {"description": "Service enumeration", "tool": "nmap", "args": {"flags": "-sV"}},
@@ -198,7 +198,32 @@ class Planner:
                 {"description": "Capture WiFi traffic", "tool": "aircrack-ng", "args": {"mode": "capture"}},
                 {"description": "WPA handshake crack", "tool": "aircrack-ng", "args": {"mode": "crack"}},
             ],
+            "network_scan": [
+                {"description": "TCP/UDP port discovery", "tool": "nmap", "args": {"flags": "-sS -T4 -p- --min-rate 1000"}},
+                {"description": "Service version detection", "tool": "nmap", "args": {"flags": "-sV -T4 --top-ports 1000"}},
+                {"description": "DNS resolution & record lookup", "tool": "dig", "args": {}},
+                {"description": "WHOIS domain information", "tool": "whois", "args": {}},
+            ],
+            "cloud_audit": [
+                {"description": "HTTP security headers check", "tool": "curl", "args": {"flags": "-sI"}},
+                {"description": "Web technology stack detection", "tool": "whatweb", "args": {}},
+                {"description": "DNS record analysis", "tool": "dig", "args": {"flags": "ANY"}},
+                {"description": "SSL/TLS certificate check", "tool": "openssl", "args": {"flags": "s_client -servername"}},
+            ],
+            "ad_assessment": [
+                {"description": "Domain controller port scan", "tool": "nmap", "args": {"flags": "-sS -sV -T4 -p 53,88,135,139,389,445,464,636,3268,3269,3389"}},
+                {"description": "SMB protocol detection", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-protocols"}},
+                {"description": "LDAP anonymous bind check", "tool": "nmap", "args": {"flags": "-sV -p 389 --script ldap-rootdse"}},
+            ],
+            "linux_privesc": [
+                {"description": "OS and kernel version enumeration", "tool": "uname", "args": {"flags": "-a"}},
+                {"description": "SUID binary discovery", "tool": "find", "args": {"flags": "/ -perm -4000 -type f 2>/dev/null"}},
+                {"description": "Writable directory search", "tool": "find", "args": {"flags": "/ -writable -type d 2>/dev/null"}},
+                {"description": "Cron job inspection", "tool": "cat", "args": {"flags": "/etc/crontab"}},
+            ],
         }
+        # Inverted index: keyword → set of tool names
+        self._keyword_index: dict[str, set[str]] = {}
         # Inverted index: keyword → set of tool names
         self._keyword_index: dict[str, set[str]] = {}
 
@@ -325,6 +350,14 @@ class Planner:
             return self.create_from_template("brute_force", goal)
         if any(kw in goal_lower for kw in ("wifi", "wireless", "wpa")):
             return self.create_from_template("wifi_audit", goal)
+        if any(kw in goal_lower for kw in ("ad ", "active directory", "domain controller", "kerberos", "ldap", "smb")):
+            return self.create_from_template("ad_assessment", goal)
+        if any(kw in goal_lower for kw in ("cloud", "aws", "s3 ", "azure", "gcp")):
+            return self.create_from_template("cloud_audit", goal)
+        if any(kw in goal_lower for kw in ("privesc", "privilege escalation", "root", "suid", "linux audit")):
+            return self.create_from_template("linux_privesc", goal)
+        if any(kw in goal_lower for kw in ("network scan", "infrastructure", "port scan", "full scan", "open ports")):
+            return self.create_from_template("network_scan", goal)
         url_match = re.search(r'https?://[^\s]+', goal)
         host_match = re.search(r'\b(?:[\w-]+\.)+[a-z]{2,}\b', goal_lower)
         target = ""
@@ -340,13 +373,19 @@ class Planner:
                 # Prefer tools whose full name appears literally in the query
                 candidates = self._search_index(goal)
                 for c in candidates:
-                    if c in available_tools and c.lower() in goal_lower:
-                        tool_match = c
-                        break
+                    if c in available_tools:
+                        # Require tool name to appear as a whole word in the query
+                        pattern = r"(?<!\w)" + re.escape(c.lower()) + r"(?!\w)"
+                        if re.search(pattern, goal_lower):
+                            tool_match = c
+                            break
             if not tool_match:
-                # Fallback: literal substring scan
+                # Fallback: whole-word substring scan (min 3 chars)
                 for t in available_tools:
-                    if t.lower() in goal_lower:
+                    if len(t) < 3:
+                        continue
+                    pattern = r"(?<!\w)" + re.escape(t.lower()) + r"(?!\w)"
+                    if re.search(pattern, goal_lower):
                         tool_match = t
                         break
         if tool_match:

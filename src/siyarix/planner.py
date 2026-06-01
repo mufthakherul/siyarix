@@ -319,6 +319,7 @@ class Planner:
         available_tools: list[str],
         llm_call,
         tool_schemas: list[dict] | None = None,
+        system_prompt: str | None = None,
     ) -> ExecutionPlan:
         """Use an LLM to analyse the user's goal and produce a tool plan.
 
@@ -335,6 +336,9 @@ class Planner:
         tool_schemas:
             Optional list of tool dicts with ``name``, ``description``,
             ``tags``, ``category`` to give the LLM richer context.
+        system_prompt:
+            Optional external system prompt. When provided the tools list
+            is appended; when omitted the old inline prompt is used.
         """
         # Build a compact tool list for the prompt
         if tool_schemas:
@@ -358,44 +362,36 @@ class Planner:
 
         tools_text = "\n".join(tool_lines) if tool_lines else "  (none discovered)"
 
-        system_prompt = f"""You are a senior red-team operator and penetration testing specialist. Your mission is to analyse the user's request with expert precision and produce an optimal execution plan.
+        if system_prompt:
+            full_prompt = system_prompt + f"\n\n## Available Tools\n{tools_text}\n\nSelect tools from this list or use raw shell commands via the command field."
+        else:
+            full_prompt = f"""You are a senior red-team operator and penetration testing specialist.
 
-Core methodology:
-1. **Deep intent analysis** — Parse the user's request to understand the real objective. Users may describe goals casually ("scan that box", "check for SQLi", "enumerate the domain") — infer the actual attack phase and required depth.
-2. **Attack chain reasoning** — Think in terms of kill-chain phases (reconnaissance → enumeration → vulnerability detection → exploitation → post-exploitation → exfiltration) and select tools/commands that build on each other.
-3. **Context-aware tool selection** — Choose the right tool for each job considering the target type (web app, network service, AD domain, cloud endpoint, wireless), the attack surface, and the desired intelligence depth. Prefer modern, purpose-built tools over generic ones.
-4. **Advanced flag selection** — Construct flags that maximise useful output: enable service detection, safe scripts, aggressive timing where appropriate, OS fingerprinting, and common vulnerability checks. Never settle for default scan profiles.
-
-Available tools on this system (use tool+args or raw command):
+Available tools on this system:
 {tools_text}
 
-Respond with ONLY valid JSON — no markdown fences, no commentary:
+Respond with ONLY valid JSON:
 {{{{
   "needs_tools": true or false,
-  "reasoning": "Strategic rationale — explain your attack logic and what you aim to uncover",
+  "reasoning": "Strategic rationale",
   "steps": [
     {{{{
-      "tool": "tool_name (or empty string for raw command)",
-      "command": "exact shell command (leave blank if using tool+args)",
-      "args": {{{{"target": "...", "flags": "...", ...}}}} or omit,
-      "description": "What this step accomplishes and why it matters"
+      "tool": "tool_name or empty",
+      "command": "raw shell command (omit if using tool+args)",
+      "args": {{{{"target": "...", "flags": "...", ...}}}},
+      "description": "What this step does"
     }}}}
   ]
 }}}}
 
-Rules:
-- **needs_tools=false** — when the user is chatting conceptually, asking for explanations, requesting guidance, or no actionable technical action is warranted.
-- **needs_tools=true** — when the user describes an attack, scan, enumeration, or any security operation.
-- **Raw commands** — Set "tool": "" and put the full shell command in "command". This is the escape hatch for anything not in the tool list.
-- **Tool-based steps** — Use "tool" + "args" for registered tools. Include target, flags, and any relevant parameters.
-- **Always include reasoning** — Explain your attacker mindset: why this step, what Intel you expect, and how it feeds the next phase.
-- **Stealth awareness** — If the user mentions stealth, evasion, or OPSEC, consider rate-limiting, randomised delays, proxy chains, and quieter scan profiles.
-- You are a professional adversary emulator — plan like one."""
+- needs_tools=true for security operations, false for chat/explanation
+- Use "tool": "" + "command" for raw shell commands
+- You are not limited to the listed tools"""
 
         user_prompt = goal
 
         try:
-            raw = await llm_call(system_prompt, user_prompt)
+            raw = await llm_call(full_prompt, user_prompt)
             response = raw.get("content", "") if isinstance(raw, dict) else str(raw)
         except Exception as exc:
             raise RuntimeError(f"LLM planning call failed: {exc}") from exc

@@ -578,7 +578,7 @@ class SiyarixChat:
             "integrated": "cyan",
         }.get(self._mode, "cyan")
         theme = self._settings.get("color_theme") or "cyber-noir"
-        provider = self._settings.get("model_provider") or "auto"
+        provider = self._settings.get("model_provider") or "openrouter"
         status = Text.assemble(
             (f"{provider}", "bold cyan"),
             (f" · {theme}", "dim white"),
@@ -2533,7 +2533,7 @@ class SiyarixChat:
                 "and keep me relevant, check out the repository and contribution guide:\n"
                 "- Repo: https://github.com/mufthakherul/siyarix\n"
                 "- Contributing: https://github.com/mufthakherul/siyarix/blob/main/CONTRIBUTING.md\n\n"
-                "For the best experience, connect an **LLM provider** — OpenAI, Gemini, OpenRouter, "
+                "For the best experience, connect an **LLM provider** — OpenRouter, OpenAI, Gemini, "
                 "Anthropic, Groq, Together, Ollama (local), or any OpenAI-compatible endpoint. "
                 "Without one, I use my built-in heuristic knowledge to plan and execute tasks.\n\n"
                 "Type **`/help`** or **`--help`** to see available commands, or visit the docs:\n"
@@ -2843,10 +2843,11 @@ class SiyarixChat:
     def _resolve_provider(self) -> tuple[str | None, str | None]:
         """Return ``(provider_name, api_key)`` for the active provider.
 
-        When ``model_provider`` is ``"auto"``, scan known providers and
-        return the first one with a configured API key.
+        When ``model_provider`` is set to a specific name, use that;
+        when ``"auto"`` (legacy), scan known providers and return
+        the first one with a configured API key.
         """
-        configured = self._settings.get("model_provider") or "auto"
+        configured = self._settings.get("model_provider") or "openrouter"
         if configured != "auto":
             key = os.environ.get(f"{configured.upper()}_API_KEY")
             return (configured, key)

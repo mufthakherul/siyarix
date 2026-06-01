@@ -12,16 +12,16 @@
 
 <p align="center">
   <a href="https://github.com/mufthakherul/siyarix">
-    <img src="https://img.shields.io/github/stars/mufthakherul/siyarix?style=flat-square&label=Stars&logo=github" alt="Stars"/>
+    <img src="https://img.shields.io/badge/Stars-See%20GitHub-blue?style=flat-square&logo=github" alt="Stars"/>
   </a>
   <a href="https://github.com/mufthakherul/siyarix/releases">
     <img src="https://img.shields.io/badge/Release-v2.0.0-blue?style=flat-square&logo=github" alt="Release"/>
   </a>
   <a href="https://github.com/mufthakherul/siyarix/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/mufthakherul/siyarix?style=flat-square&label=License&logo=gnu" alt="License"/>
+    <img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-blue?style=flat-square&logo=gnu" alt="License"/>
   </a>
   <a href="https://github.com/mufthakherul/siyarix/actions/workflows/ci.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/mufthakherul/siyarix/ci.yml?style=flat-square&label=CI&logo=githubactions" alt="CI"/>
+    <img src="https://github.com/mufthakherul/siyarix/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"/>
   </a>
   <a href="https://github.com/mufthakherul/siyarix/blob/main/pyproject.toml">
     <img src="https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square&logo=python" alt="Python"/>

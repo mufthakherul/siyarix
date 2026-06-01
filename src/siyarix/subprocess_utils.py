@@ -8,6 +8,7 @@ import inspect
 import logging
 import subprocess
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -60,8 +61,9 @@ def safe_run_sync(
         raise
 
 
-async def safe_run_async(cmd: list[str], timeout: int = 10) -> ExecutionResult:
-    _validate_cmd_list(cmd)
+async def safe_run_async(cmd: list[str], timeout: int = 10, validate: bool = True) -> ExecutionResult:
+    if validate:
+        _validate_cmd_list(cmd)
     start = time.monotonic()
     proc = await asyncio.create_subprocess_exec(
         *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
@@ -80,5 +82,75 @@ async def safe_run_async(cmd: list[str], timeout: int = 10) -> ExecutionResult:
         exit_code=exit_code,
         stdout=stdout_bytes.decode(errors="replace"),
         stderr=stderr_bytes.decode(errors="replace"),
+        duration_ms=duration_ms,
+    )
+
+
+async def safe_run_async_stream(
+    cmd: list[str],
+    timeout: int = 10,
+    validate: bool = True,
+    on_stdout: Callable[[str], None] | None = None,
+    on_stderr: Callable[[str], None] | None = None,
+) -> ExecutionResult:
+    """Run a command and stream output line-by-line via callbacks."""
+    if validate:
+        _validate_cmd_list(cmd)
+    start = time.monotonic()
+    proc = await asyncio.create_subprocess_exec(
+        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    )  # nosec B603
+
+    stdout_lines: list[str] = []
+    stderr_lines: list[str] = []
+
+    async def _read_stream(
+        stream: asyncio.StreamReader,
+        lines: list[str],
+        callback: Callable[[str], None] | None,
+    ) -> None:
+        while True:
+            raw = await stream.readline()
+            if not raw:
+                break
+            line = raw.decode(errors="replace").rstrip("\n")
+            lines.append(line)
+            if callback:
+                callback(line)
+
+    try:
+        await asyncio.wait_for(
+            asyncio.gather(
+                _read_stream(proc.stdout, stdout_lines, on_stdout),
+                _read_stream(proc.stderr, stderr_lines, on_stderr),
+            ),
+            timeout=timeout,
+        )
+        exit_code = proc.returncode if proc.returncode is not None else 0
+    except asyncio.TimeoutError:
+        await _kill_process(proc)
+        # Read remaining buffer
+        async def _drain(s: asyncio.StreamReader | None, cb: Callable[[str], None] | None) -> list[str]:
+            if not s:
+                return []
+            out: list[str] = []
+            while True:
+                raw = await s.readline()
+                if not raw:
+                    break
+                line = raw.decode(errors="replace").rstrip("\n")
+                out.append(line)
+                if cb:
+                    cb(line)
+            return out
+        stdout_lines += await _drain(proc.stdout, on_stdout)
+        stderr_lines += await _drain(proc.stderr, on_stderr)
+        exit_code = -1
+
+    duration_ms = (time.monotonic() - start) * 1000
+    return ExecutionResult(
+        exit_code=exit_code,
+        stdout="\n".join(stdout_lines),
+        stderr="\n".join(stderr_lines),
         duration_ms=duration_ms,
     )

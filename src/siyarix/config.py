@@ -50,7 +50,7 @@ DEFAULTS: dict[str, Any] = {
     "client_profile": "desktop_chrome",
     "tls_verify": True,
     "history_retention_days": 90,
-    "model_provider": "openrouter",
+    "model_provider": "auto",
     "gemini_model": "gemini-2.0-flash",
     "openai_model": "gpt-4o",
     "anthropic_model": "claude-3-opus-20240229",
@@ -64,7 +64,7 @@ DEFAULTS: dict[str, Any] = {
     "agent_timeout": 1740,
     "notifications_enabled": True,
     "stealth_mode": False,
-    "persona": "none",
+    "persona": "auto",
     "command_review": True,
 }
 
@@ -81,7 +81,7 @@ DESCRIPTIONS: dict[str, str] = {
     "client_profile": "Preferred profile: desktop_chrome | desktop_firefox | android_mobile | ios_safari",
     "tls_verify": "Verify TLS certificates on HTTPS requests",
     "history_retention_days": "Days to keep scan history (0 = forever)",
-    "model_provider": "Preferred model provider: openrouter | openai | gemini | ollama | anthropic | groq | together | lmstudio",
+    "model_provider": "Preferred model provider: auto | openai | gemini | openrouter | anthropic | groq | together | ollama",
     "gemini_model": "Gemini model name (default: gemini-1.5-pro)",
     "openai_model": "OpenAI model name (default: gpt-4o)",
     "anthropic_model": "Anthropic/Claude model name (default: claude-3-opus-20240229)",
@@ -95,7 +95,7 @@ DESCRIPTIONS: dict[str, str] = {
     "agent_timeout": "Max seconds for agent execution (default: 1740 / 29 min)",
     "notifications_enabled": "Show Rich panel notifications for key events",
     "stealth_mode": "Enable advanced stealth and command argument evasion",
-    "persona": "Active persona name (default: none)",
+    "persona": "Active persona name (default: auto)",
     "command_review": "Prompt before executing raw shell commands (default: true)",
 }
 

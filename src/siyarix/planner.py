@@ -387,7 +387,8 @@ Respond in this JSON format (and ONLY valid JSON — no markdown, no extra text)
         user_prompt = goal
 
         try:
-            response = await llm_call(system_prompt, user_prompt)
+            raw = await llm_call(system_prompt, user_prompt)
+            response = raw.get("content", "") if isinstance(raw, dict) else str(raw)
         except Exception as exc:
             raise RuntimeError(f"LLM planning call failed: {exc}") from exc
 

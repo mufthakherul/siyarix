@@ -2516,15 +2516,50 @@ class SiyarixChat:
         console.print(f"[dim]Agent mode — using {provider_name}[/dim]")
 
         agent = AgentCore(mode=AgentMode.AUTONOMOUS)
-        try:
-            with console.status("[bold green]Agent thinking...[/bold green]", spinner="dots"):
-                await agent.initialize()
-                goal = AgentGoal(
-                    description=instruction_with_target,
-                    target=target,
+        with console.status("[bold green]Initializing...[/bold green]", spinner="dots"):
+            await agent.initialize()
+
+        all_tools = agent._registry.list_tools()
+        tool_names = [t.name for t in all_tools]
+
+        # ── Step 1: Try LLM-driven planning ──
+        llm_plan: Any = None
+        llm_reasoning: str | None = None
+        api_key = os.environ.get(f"{provider_name.upper()}_API_KEY")
+
+        if api_key:
+            tool_dicts = [
+                {"name": t.name, "description": t.description,
+                 "tags": t.tags, "category": t.category.value if hasattr(t.category, 'value') else str(t.category)}
+                for t in all_tools
+            ]
+            try:
+                llm_plan = await asyncio.wait_for(
+                    agent._planner.llm_decompose_goal(
+                        instruction_with_target,
+                        tool_names,
+                        llm_call=self._make_llm_call(provider_name, api_key),
+                        tool_schemas=tool_dicts,
+                    ),
+                    timeout=30.0,
                 )
+                llm_reasoning = llm_plan.context.get("reasoning", "")
+            except (asyncio.TimeoutError, RuntimeError, ValueError) as exc:
+                logger.debug("LLM planning failed (%s), falling back to heuristic planner", exc)
+
+        # ── Step 2: If LLM says no tools needed — respond directly ──
+        if llm_plan and not llm_plan.steps:
+            response = llm_reasoning or "I understood your request but no tools were needed."
+            self._session.add_message("assistant", response)
+            self._print_assistant(response)
+            return True
+
+        # ── Step 3: Execute plan (LLM-generated or heuristic) ──
+        try:
+            with console.status("[bold green]Executing...[/bold green]", spinner="dots"):
+                goal = AgentGoal(description=instruction_with_target, target=target)
                 result = await asyncio.wait_for(
-                    agent.execute_goal(goal),
+                    agent.execute_goal(goal, plan=llm_plan),
                     timeout=self._settings.get("agent_timeout", 1200),
                 )
         except asyncio.TimeoutError:
@@ -2540,16 +2575,11 @@ class SiyarixChat:
         if not result:
             return False
 
+        # ── Step 4: Show step panels ──
         _step_icons = {
-            "success": "✓",
-            "completed": "✓",
-            "failed": "✗",
-            "skipped": "—",
-            "running": "·",
-            "retrying": "↻",
-            "pending": "○",
-            "blocked": "⊘",
-            "ready": "●",
+            "success": "✓", "completed": "✓", "failed": "✗",
+            "skipped": "—", "running": "·", "retrying": "↻",
+            "pending": "○", "blocked": "⊘", "ready": "●",
         }
         if result.plan and result.plan.steps:
             for step in result.plan.steps:
@@ -2577,11 +2607,11 @@ class SiyarixChat:
                     )
                 )
 
+        # ── Step 5: LLM synthesis of results ──
         has_any_success = any(
             s.status in (StepStatus.SUCCESS, StepStatus.COMPLETED)
             for s in (result.plan.steps if result.plan else [])
         )
-
         with console.status("[bold green]Synthesising response...[/bold green]", spinner="dots"):
             try:
                 llm_response = await asyncio.wait_for(
@@ -2647,26 +2677,6 @@ class SiyarixChat:
             user_prompt = instruction
 
         try:
-            from openai import AsyncOpenAI
-
-            if provider_name == "openrouter":
-                client = AsyncOpenAI(
-                    api_key=api_key,
-                    base_url="https://openrouter.ai/api/v1",
-                )
-                model = self._settings.get("openrouter_model") or "nvidia/nemotron-3-super-120b-a12b:free"
-            elif provider_name == "openai":
-                client = AsyncOpenAI(api_key=api_key)
-                model = self._settings.get("openai_model") or "gpt-4o"
-            elif provider_name == "gemini":
-                client = AsyncOpenAI(
-                    api_key=api_key,
-                    base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-                )
-                model = self._settings.get("gemini_model") or "gemini-2.0-flash"
-            else:
-                return None
-
             llm_fn = self._make_llm_call(provider_name, api_key)
             return await llm_fn(system_prompt, user_prompt)
         except Exception as exc:

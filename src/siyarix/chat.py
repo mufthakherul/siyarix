@@ -42,16 +42,17 @@ warnings.filterwarnings(
 )
 
 # ── Unified system prompt: used for planning AND output analysis ─────────
-SIYARIX_SYSTEM_PROMPT = """You are Siyarix, an elite red-team operator and senior security researcher.
+SIYARIX_SYSTEM_PROMPT = """You are Siyarix, a senior cybersecurity professional with deep expertise across the entire security domain.
 
 ## Core Philosophy
-Think like a real penetration tester — you know what commands to run and how to chain them.
-You are NOT limited to any predefined tool list. You can construct and execute ANY shell command.
+Think like a well-rounded security professional — you know what commands to run, how to interpret results, and how to handle any security task. You are NOT limited to any predefined tool list. You can construct and execute ANY shell command.
 
 ## When You Receive a User Request
-Analyse the request at depth:
-- If asking for knowledge, explanation, or guidance — respond directly with your expertise.
+Analyse the request within cybersecurity, hacking, and security-adjacent fields:
+- If the user wants a general chat, explanation, or conceptual discussion — respond directly with your expertise.
+- If asking about a specific tool — consider running its `--help` or man page to give an accurate answer.
 - If describing a security operation (scan, enumerate, exploit, audit, recon, bruteforce, etc.) — plan the exact shell commands to run.
+- If the request is unrelated to cybersecurity — politely decline and steer back to security topics.
 
 ## Output Format — Always Return Valid JSON
 {
@@ -85,11 +86,54 @@ When the user message contains tool execution results:
 - Suggest next-phase testing if relevant
 
 ## Core Rules
-- needs_tools=true  → when a security operation is described
-- needs_tools=false → when the user asks a question, wants explanations, or after tool results
-- Always include reasoning to show your attacker mindset
-- Be technical, precise, and thorough
-- Reference CVEs and real attack techniques where applicable"""
+- needs_tools=true  → when a security operation is described, or when answering about a tool
+- needs_tools=false → for general chat, explanations, planning, conceptual discussions, or after tool results
+- Only operate within cybersecurity, hacking, and security-adjacent fields; politely decline off-topic requests
+- Always include reasoning to show your thought process
+- Be technical, precise, professional, and thorough
+- Cover both offensive and defensive perspectives where relevant
+- Reference CVEs, real attack techniques, and defensive mitigations where applicable"""
+
+NEUTRAL_SYSTEM_PROMPT = """You are Siyarix, a cybersecurity assistant.
+
+## Core Philosophy
+You know what commands to run and how to interpret results. You are NOT limited to any predefined tool list. You can construct and execute ANY shell command.
+
+## When You Receive a User Request
+Analyse the request within cybersecurity, hacking, and security-adjacent fields:
+- If the user wants a general chat, explanation, or conceptual discussion — respond directly.
+- If asking about a specific tool — consider running its `--help` or man page.
+- If describing a security operation (scan, enumerate, exploit, audit, recon, bruteforce, etc.) — plan the exact shell commands to run.
+- If the request is unrelated to cybersecurity — politely decline and steer back to security topics.
+
+## Output Format — Always Return Valid JSON
+{
+  "needs_tools": true or false,
+  "reasoning": "Explain your analysis and decision",
+  "response": "Your text answer when needs_tools=false, or analysis after tool execution",
+  "steps": []
+}
+
+## Tool Execution Steps (needs_tools=true)
+Each step is a raw shell command. You decide what to run — any binary, script, or pipeline:
+{
+  "tool": "",
+  "command": "your exact shell command here — any flags, pipes, redirects, subshells",
+  "description": "What this command does and why"
+}
+
+Prefer the `command` field — it runs directly on the shell.
+You can use ANY tool on the system.
+
+## Output Analysis (needs_tools=false with response)
+When the user message contains tool execution results, analyse them thoroughly.
+
+## Core Rules
+- needs_tools=true  → when a security operation is described, or when answering about a tool
+- needs_tools=false → for general chat, explanations, planning, conceptual discussions, or after tool results
+- Only operate within cybersecurity, hacking, and security-adjacent fields; politely decline off-topic requests
+- Always include reasoning to show your thought process
+- Be technical, precise, professional, and thorough"""
 
 
 
@@ -503,6 +547,7 @@ class SiyarixChat:
         self._esc_press_time = 0.0
         self._esc_window = 2.0
         self._offline_responder: Any = None
+        self._disabled_providers: set[str] = set()
 
     def _init_session(
         self, session_id: str | None, target: str, resume: bool
@@ -739,6 +784,8 @@ class SiyarixChat:
             "/diff": self._cmd_diff,
             "/mcp": self._cmd_mcp,
             "/agent": self._cmd_agent,
+            "/command": self._cmd_command,
+            "/persona": self._cmd_persona,
         }
 
         handler = handlers.get(command)
@@ -1148,9 +1195,10 @@ class SiyarixChat:
             from .registry import ToolRegistry
 
             reg = ToolRegistry()
-            tools = reg.discover()
+            reg.scan_path()
+            tools = reg.list_tools()
             if not tools:
-                console.print("[yellow]No tools found on PATH.[/yellow]")
+                console.print("[yellow]No tools registered.[/yellow]")
                 return
             table = Table(
                 title=f"{len(tools)} Security Tools Found", header_style="bold cyan"
@@ -1160,7 +1208,7 @@ class SiyarixChat:
             table.add_column("Version", style="dim")
             table.add_column("Capabilities", style="white")
             for t in sorted(tools, key=lambda x: x.category):
-                caps = ", ".join(t.capabilities[:3])
+                caps = ", ".join(t.tags[:3])
                 table.add_row(t.name, t.category, t.version[:20], caps)
             console.print(table)
         except Exception as exc:
@@ -1633,6 +1681,51 @@ class SiyarixChat:
             console.print("[dim]Agent status: idle[/dim]")
         else:
             console.print("[yellow]Usage: /agent run <goal> | /agent status[/yellow]")
+
+    def _cmd_command(self, args: str) -> None:
+        """Toggle shell command review prompt."""
+        current = self._settings.get("command_review", True)
+        tokens = args.split() if args else []
+        if not tokens:
+            status = "on" if current else "off"
+            console.print(f"[dim]Command review is [bold]{status}[/bold]. Usage: /command on|off[/dim]")
+            return
+        new_val = tokens[0].lower() in ("on", "1", "yes", "true", "enable")
+        self._settings.set("command_review", new_val)
+        status = "on" if new_val else "off"
+        console.print(f"[green]Command review turned [bold]{status}[/bold][/green]")
+
+    def _cmd_persona(self, args: str) -> None:
+        """Switch mindset/persona: /persona list, /persona <name>, /persona."""
+        from .personas import get_persona, list_personas
+        from rich.table import Table
+
+        tokens = args.split() if args else []
+        current = self._settings.get("persona") or "none"
+        if not tokens:
+            p = get_persona(current)
+            label = p["label"] if p else current
+            console.print(f"[dim]Current persona: [bold]{label}[/bold]. Usage: /persona list | /persona <name>[/dim]")
+            return
+        action = tokens[0].lower()
+        if action == "list":
+            table = Table(title="Available Personas", header_style="bold cyan")
+            table.add_column("Name", style="cyan")
+            table.add_column("Label", style="green")
+            table.add_column("Description", style="dim")
+            for p in list_personas():
+                table.add_row(p["name"], p["label"], p["description"])
+            table.add_row("auto", "Auto (Smart Select)", "Analyse and choose the best-fit persona")
+            table.add_row("universal", "Universal / All-in-One", "Full-spectrum cybersecurity professional")
+            table.add_row("none", "None", "No persona framing — LLM decides its own voice")
+            console.print(table)
+            return
+        p = get_persona(action)
+        if not p:
+            console.print(f"[yellow]Unknown persona: {action}. Use /persona list to see available options.[/yellow]")
+            return
+        self._settings.set("persona", p["name"])
+        console.print(f"[green]Persona switched to [bold]{p['label']}[/bold][/green]")
 
     def _cmd_esc(self, _: str) -> None:
         """Emergency stop - cancel all pending execution."""
@@ -2581,27 +2674,43 @@ class SiyarixChat:
                 tod = "night"
             return (
                 f"Good **{tod}**, **{username}**.\n\n"
-                "I'm **Siyarix** — an advanced red-team operations engine and cybersecurity intelligence system. "
-                "I specialise in reconnaissance, vulnerability discovery, exploitation planning, "
-                "network enumeration, web application assessment, and threat analysis.\n\n"
-                "**Capabilities:**\n"
-                "- Full-spectrum attack surface mapping — ports, services, subdomains, tech stacks\n"
-                "- Vulnerability detection — web (SQLi, XSS, SSRF, RCE), network (misconfigs, weak crypto), AD (attack paths)\n"
-                "- Cloud security assessment — IAM analysis, bucket enumeration, serverless review\n"
-                "- Wireless and infrastructure auditing\n"
-                "- Custom exploitation chains — raw shell commands for any binary on the system\n"
-                "- Post-exploitation and lateral movement planning\n\n"
-                "I'm built by **Mufthakherul** as an open-source project. "
-                "Contributions and issue reports are welcome:\n"
+                "I'm **Siyarix** — your cybersecurity intelligence system. "
+                "I'm here to help with any security task, whether offensive, defensive, "
+                "investigative, or advisory.\n\n"
+                "**Areas of expertise:**\n"
+                "- Reconnaissance and attack surface mapping — ports, services, subdomains, technologies\n"
+                "- Vulnerability detection — web, network, cloud, Active Directory, wireless\n"
+                "- Defensive analysis — detection engineering, log analysis, hardening, IR\n"
+                "- Cloud security assessment — IAM, storage, containers, serverless\n"
+                "- Threat intelligence — TTP mapping, IoC analysis, adversary profiling\n"
+                "- Forensics and incident response — timeline reconstruction, artefact analysis\n"
+                "- Governance and compliance — framework assessment, policy review, risk analysis\n\n"
+                "I am built and sustained by an incredible community of security researchers, "
+                "developers, and practitioners from around the world. Every contribution, "
+                "bug report, feature suggestion, and pull request makes me better at what I do. "
+                "I am deeply grateful to everyone who has helped shape this project.\n\n"
+                "If you'd like to join them, contributions and issue reports are always welcome:\n"
                 "- Repo: https://github.com/mufthakherul/siyarix\n"
                 "- Contributing: https://github.com/mufthakherul/siyarix/blob/main/CONTRIBUTING.md\n\n"
                 "For maximum capability, connect an **LLM provider** — OpenRouter, OpenAI, Gemini, "
                 "Anthropic, Groq, Together, or Ollama (local). "
                 "Without one, I use built-in heuristic planning.\n\n"
-                "Just tell me what you want to accomplish — I'll handle the rest.\n"
+                "Just tell me what you'd like to accomplish — I'll handle the rest.\n"
                 "Type **`/help`** for all commands."
             )
         return None
+
+    def _build_system_prompt(self) -> str:
+        """Build the full system prompt by prepending the active persona preamble."""
+        from .personas import build_persona_prompt
+
+        persona_name = self._settings.get("persona") or "none"
+        if persona_name == "none":
+            return NEUTRAL_SYSTEM_PROMPT
+        preamble = build_persona_prompt(persona_name)
+        if preamble:
+            return preamble + "\n\n" + SIYARIX_SYSTEM_PROMPT
+        return SIYARIX_SYSTEM_PROMPT
 
     async def _execute_agent(self, instruction: str, target: str = "", require_llm: bool = False) -> bool:
         """Agent loop: LLM-first planning → parallel execution → LLM synthesis.
@@ -2610,8 +2719,8 @@ class SiyarixChat:
         if no LLM is available — no heuristic fallback.
         """
         from .core import AgentCore, AgentMode
-        from rich.panel import Panel
-
+        # ── Resolve provider with auto fallback ──────────────────────────
+        is_auto = self._settings.get("model_provider") == "auto"
         provider_name, api_key = self._resolve_provider()
         if not provider_name:
             if require_llm:
@@ -2623,8 +2732,6 @@ class SiyarixChat:
         instruction_with_target = instruction
         if target and target not in instruction:
             instruction_with_target = f"{instruction} on {target}"
-
-        console.print(f"[dim]Agent mode — using {provider_name}[/dim]")
 
         agent = AgentCore(mode=AgentMode.AUTONOMOUS)
         with console.status("[bold green]Initializing...[/bold green]", spinner="dots"):
@@ -2643,17 +2750,13 @@ class SiyarixChat:
         llm_plan: Any = None
         llm_reasoning: str | None = None
         llm_connected = False
-        llm_model = provider_name
+        llm_model = provider_name if provider_name else "none"
         total_input_tokens = 0
         total_output_tokens = 0
         llm_call_fn = None
 
-        if not api_key:
-            if require_llm:
-                console.print("[red]✗ No API key configured for autonomous mode[/red]")
-                return False
-            console.print("[yellow]⚠ No API key configured — using local planner[/yellow]")
-        else:
+        while api_key and not llm_connected:
+            console.print(f"[dim]Agent mode — trying {provider_name}[/dim]")
             try:
                 llm_call_fn = self._make_llm_call(provider_name, api_key)
                 ping = await asyncio.wait_for(
@@ -2663,24 +2766,44 @@ class SiyarixChat:
                 if ping.get("content", "").strip() != "OK":
                     raise RuntimeError(f"LLM ping failed: {ping.get('content', '')[:100]}")
                 llm_connected = True
+                break
             except asyncio.TimeoutError:
-                msg = "[yellow]⚠ LLM request timed out"
-                msg += " — autonomous mode unavailable[/red]" if require_llm else " — using local planner[/yellow]"
-                console.print(msg)
-                if require_llm:
-                    return False
+                icon = "⚠"
+                msg = f"{icon} LLM request timed out"
             except Exception as exc:
                 msg = str(exc)
                 if "429" in msg or "rate_limit" in msg.lower() or "quota" in msg.lower():
-                    display = "⚠ LLM rate limit reached"
+                    icon = "⚠"
+                    msg = f"{icon} LLM rate limit reached"
+                    self._disabled_providers.add(provider_name)
                 elif "401" in msg or "unauthorized" in msg.lower() or "invalid" in msg.lower():
-                    display = "⚠ LLM authentication failed"
+                    icon = "⚠"
+                    msg = f"{icon} LLM authentication failed"
+                    self._disabled_providers.add(provider_name)
                 else:
-                    display = f"⚠ LLM unavailable ({exc})"
-                suffix = " — autonomous mode unavailable[/red]" if require_llm else " — using local planner[/yellow]"
-                console.print(f"[yellow]{display}{suffix}")
+                    icon = "⚠"
+                    msg = f"{icon} LLM unavailable ({type(exc).__name__}: {exc})"
+                    self._disabled_providers.add(provider_name)
+
+            console.print(f"[yellow]{msg}[/yellow]")
+
+            if not is_auto:
+                # Non-auto mode: give up after first failure
                 if require_llm:
                     return False
+                llm_call_fn = None
+                break
+
+            # Auto mode: try next provider
+            provider_name, api_key = self._resolve_provider()
+            if not provider_name:
+                console.print("[yellow]⚠ All providers exhausted — using local planner[/yellow]")
+                break
+
+        if not llm_connected:
+            if require_llm:
+                console.print("[red]✗ No working LLM provider for autonomous mode[/red]")
+                return False
 
         # ── Planning ─────────────────────────────────────────────────────
         if llm_connected:
@@ -2690,7 +2813,7 @@ class SiyarixChat:
                         agent._planner.llm_decompose_goal(
                             instruction_with_target, tool_names,
                             llm_call=llm_call_fn, tool_schemas=tool_dicts,
-                            system_prompt=SIYARIX_SYSTEM_PROMPT,
+                            system_prompt=self._build_system_prompt(),
                         ),
                         timeout=30.0,
                     )
@@ -2714,8 +2837,10 @@ class SiyarixChat:
             self._session.add_message("assistant", response)
             self._print_assistant(response)
             duration = time.time() - total_start
+            persona_name = self._settings.get("persona") or "none"
             console.print(
                 f"[dim]Time: {duration:.1f}s | Mode: {self._mode} | "
+                f"Persona: {persona_name} | "
                 f"LLM: {'connected' if llm_connected else 'offline'}[/dim]"
             )
             return True
@@ -2729,86 +2854,172 @@ class SiyarixChat:
                 tool_labels.append(f"[bold]{s.tool}[/bold]")
         console.print(f"[cyan]→ Executing:[/cyan] {', '.join(tool_labels)}")
 
-        # ── Execute all tools in parallel with live output ───────────────
-        _step_icons = {"success": "✓", "completed": "✓", "failed": "✗",
-                       "skipped": "—", "running": "·", "retrying": "↻",
-                       "pending": "○", "blocked": "⊘", "ready": "●"}
+        # ── Multi-wave execution loop ─────────────────────────────────────
+        max_waves = 5
+        all_outputs: list[str] = []
+        plan: Any = llm_plan
 
-        async def run_one_tool(step: Any) -> tuple[Any, dict]:
-            if step.command:
+        for wave in range(max_waves):
+            if not plan or not plan.steps:
+                break
+
+            # Announce
+            tool_labels = []
+            for s in plan.steps:
+                if s.command:
+                    tool_labels.append(f"[bold]$ {s.command}[/bold]")
+                else:
+                    tool_labels.append(f"[bold]{s.tool}[/bold]")
+            if wave == 0:
+                console.print(f"[cyan]→ Executing:[/cyan] {', '.join(tool_labels)}")
+            else:
+                console.print(f"[cyan]→ Wave {wave + 1}:[/cyan] {', '.join(tool_labels)}")
+
+            # Execute all steps in parallel with a single live display
+            from .subprocess_utils import safe_run_async_stream
+
+            @dataclass
+            class _CmdState:
+                label: str
+                lines: list[str] = field(default_factory=list)
+                exit_code: int | None = None
+                done: bool = False
+
+            cmd_states: list[_CmdState] = []
+            for s in plan.steps:
+                if s.command:
+                    cmd_states.append(_CmdState(label=f"$ {s.command}"))
+                else:
+                    cmd_states.append(_CmdState(label=s.tool))
+
+            async def _exec_one(step: Any, state: _CmdState) -> tuple[Any, dict]:
+                if not step.command:
+                    result = await agent._registry.execute(step.tool, **step.args)
+                    state.exit_code = 0 if result.get("status") == "success" else 1
+                    out = (result.get("output") or "").strip()
+                    err = (result.get("error") or "").strip()
+                    if out:
+                        state.lines.extend(out.split("\n"))
+                    if err:
+                        state.lines.extend(err.split("\n"))
+                    state.done = True
+                    return step, result
+
                 from .shell_review import review_and_confirm
-                from .subprocess_utils import safe_run_async
                 reviewed = review_and_confirm(step.command, "raw", "Raw shell command from LLM plan")
                 if reviewed is None:
+                    state.done = True
                     return step, {"status": "error", "output": "", "error": "Cancelled by user", "exit_code": -1}
+
                 cmd_timeout = self._settings.get("agent_timeout") or 1740
-                result = await safe_run_async(
+                result = await safe_run_async_stream(
                     ["sh", "-c", reviewed],
                     timeout=cmd_timeout,
+                    validate=False,
+                    on_stdout=lambda line: state.lines.append(line),
+                    on_stderr=lambda line: state.lines.append(line),
                 )
+                state.exit_code = result.exit_code
+                state.done = True
                 return step, {"status": "success" if result.exit_code == 0 else "error",
                               "output": result.stdout, "error": result.stderr,
                               "exit_code": result.exit_code}
-            result = await agent._registry.execute(step.tool, **step.args)
-            return step, result
 
-        tasks = [run_one_tool(s) for s in llm_plan.steps]
-        raw_results = await asyncio.gather(*tasks)
+            exec_tasks = [_exec_one(s, st) for s, st in zip(plan.steps, cmd_states)]
+            exec_task = asyncio.ensure_future(asyncio.gather(*exec_tasks))
 
-        # Show live output panels per tool
-        for step, result in raw_results:
-            status = "success" if result.get("status") == "success" else "failed"
-            icon = _step_icons.get(status, "·")
-            color = "green" if status == "success" else "red"
-            output = (result.get("output") or "").strip()
-            error = (result.get("error") or "").strip()
-            display_cmd = f"$ {step.command}" if step.command else step.tool
-            lines = [
-                f"[{color}]{icon} {result.get('exit_code', 0)}[/{color}]  "
-                f"[bold]{display_cmd}[/bold] — {step.description}"
-            ]
-            if output:
-                lines.append(f"[dim]{output[:800]}[/dim]")
-            if error:
-                lines.append(f"[red]{error[:300]}[/red]")
-            console.print(Panel("\n".join(lines), title=f"Output: {display_cmd}",
-                                border_style=color, padding=(0, 2)))
+            from rich.live import Live
+            from rich.panel import Panel as RichPanel
 
-        # ── LLM analysis of all outputs ──────────────────────────────────
-        if llm_connected and llm_call_fn:
-            parts: list[str] = []
-            for step, result in raw_results:
-                output = (result.get("output") or "")[:3000]
-                cmd_label = f"$ {step.command}" if step.command else step.tool
-                parts.append(f"• {cmd_label} ({step.description}):\n{output}\n")
-            user_prompt = f"User request: {instruction_with_target}\n\nTool outputs:\n\n" + "\n".join(parts)
-            with console.status("[bold cyan]LLM analysing results...[/bold cyan]", spinner="dots"):
-                try:
-                    syn = await asyncio.wait_for(
-                        llm_call_fn(SIYARIX_SYSTEM_PROMPT, user_prompt),
-                        timeout=60.0,
+            if cmd_states:
+                focus_idx = 0
+                done_set = False
+                with Live(console=console, refresh_per_second=10, screen=False) as live:
+                    while not done_set:
+                        await asyncio.sleep(0.1)
+                        if cmd_states[focus_idx].done:
+                            unfinished = [i for i, st in enumerate(cmd_states) if not st.done]
+                            if unfinished:
+                                focus_idx = unfinished[0]
+                            else:
+                                done_set = True
+                        st = cmd_states[focus_idx]
+                        icon = "·" if st.exit_code is None else ("✓" if st.exit_code == 0 else "✗")
+                        border = "cyan" if st.exit_code is None else ("green" if st.exit_code == 0 else "red")
+                        live.update(
+                            RichPanel(
+                                "\n".join(st.lines[-200:]),
+                                title=f"{icon} {st.label}",
+                                border_style=border,
+                            )
+                        )
+
+            raw_results = await exec_task
+
+            # Show summary for this wave
+            for (step, result), st in zip(raw_results, cmd_states):
+                out = (result.get("output") or "").strip()
+                err = (result.get("error") or "").strip()
+                display_lines = out.split("\n") if out else (err.split("\n") if err else st.lines)
+                if display_lines:
+                    icon = "✓" if st.exit_code == 0 else "✗"
+                    border = "green" if st.exit_code == 0 else "red"
+                    console.print(
+                        RichPanel(
+                            "\n".join(display_lines[-200:]),
+                            title=f"{icon} {st.label}",
+                            border_style=border,
+                        )
                     )
-                    raw = syn.get("content", "")
+
+            # Store outputs for next wave context
+            for step, result in raw_results:
+                output = (result.get("output") or "").strip()[:2000]
+                cmd_label = f"$ {step.command}" if step.command else step.tool
+                all_outputs.append(f"• {cmd_label} ({step.description}):\n{output}\n")
+
+            # Ask LLM: are we done, or need another wave?
+            if llm_connected and llm_call_fn:
+                wave_goal = (
+                    f"Original request: {instruction_with_target}\n\n"
+                    f"Completed execution wave {wave + 1}. Results so far:\n\n"
+                    f"{''.join(all_outputs)}\n\n"
+                    "Analyse these results. If the original request is fully satisfied, "
+                    "set needs_tools=false and provide the final response. "
+                    "If more commands are needed (e.g. missing data, tool not found, "
+                    "need deeper recon), set needs_tools=true and provide the next steps."
+                )
+                with console.status("[bold cyan]LLM analysing wave results...[/bold cyan]", spinner="dots"):
                     try:
-                        data = json.loads(raw)
-                        summary = data.get("response", raw)
-                    except json.JSONDecodeError:
-                        summary = raw
-                    llm_model = syn.get("model", provider_name)
-                    total_input_tokens += syn.get("input_tokens", 0)
-                    total_output_tokens += syn.get("output_tokens", 0)
-                except asyncio.TimeoutError:
-                    summary = ""
-                    console.print("[yellow]⚠ LLM analysis timed out[/yellow]")
-            if summary:
-                self._session.add_message("assistant", summary)
-                self._print_assistant(summary)
+                        plan = await asyncio.wait_for(
+                            agent._planner.llm_decompose_goal(
+                                wave_goal, tool_names,
+                                llm_call=llm_call_fn, tool_schemas=tool_dicts,
+                            system_prompt=self._build_system_prompt(),
+                            ),
+                            timeout=60.0,
+                        )
+                        llm_model = provider_name
+                        if plan.steps:
+                            console.print(f"[cyan]→ LLM decided more work needed — wave {wave + 2}[/cyan]")
+                        else:
+                            # Done — show final response
+                            summary = plan.context.get("reasoning", "") or "Done."
+                            self._session.add_message("assistant", summary)
+                            self._print_assistant(summary)
+                    except asyncio.TimeoutError:
+                        console.print("[yellow]⚠ LLM analysis timed out — moving on[/yellow]")
+                        plan = None
+            else:
+                plan = None
 
         # ── Bottom stats line ────────────────────────────────────────────
         total_duration = time.time() - total_start
+        persona_name = self._settings.get("persona") or "none"
         stats_parts = [
             f"Time: {total_duration:.1f}s",
             f"Mode: {self._mode}",
+            f"Persona: {persona_name}",
         ]
         if llm_connected:
             stats_parts.append(f"Model: {llm_model}")
@@ -2882,16 +3093,16 @@ class SiyarixChat:
     def _resolve_provider(self) -> tuple[str | None, str | None]:
         """Return ``(provider_name, api_key)`` for the active provider.
 
-        When ``model_provider`` is set to a specific name, use that;
-        when ``"auto"`` (legacy), scan known providers and return
-        the first one with a configured API key.
+        When ``model_provider`` is set to a specific name, use that.
+        When ``"auto"``, scan known providers in priority order, skipping
+        any that were disabled this session due to rate-limit/auth errors.
         """
         configured = self._settings.get("model_provider") or "openrouter"
         if configured != "auto":
             key = os.environ.get(f"{configured.upper()}_API_KEY")
             return (configured, key)
 
-        # Auto-detect: check providers in priority order
+        # Auto mode: scan providers, skip session-disabled ones
         for name, env_var in [
             ("openai", "OPENAI_API_KEY"),
             ("gemini", "GEMINI_API_KEY"),
@@ -2900,8 +3111,10 @@ class SiyarixChat:
             ("anthropic", "ANTHROPIC_API_KEY"),
             ("groq", "GROQ_API_KEY"),
             ("together", "TOGETHER_API_KEY"),
-            ("ollama", None),  # no key needed
+            ("ollama", None),
         ]:
+            if name in self._disabled_providers:
+                continue
             if env_var is None:
                 return (name, "")
             key = os.environ.get(env_var)
@@ -2930,6 +3143,7 @@ class SiyarixChat:
         findings_count = 0
         try:
             from .offline_store import OfflineStore
+
             store = OfflineStore()
             stats = store.stats()
             scans_count = stats.get("total_scans", 0)
@@ -2938,6 +3152,21 @@ class SiyarixChat:
             pass
         except Exception as exc:
             logger.debug("Failed to read offline store stats: %s", exc)
+
+        # Live tool & command counts
+        tool_count = 0
+        try:
+            from .registry import ToolRegistry
+
+            reg = ToolRegistry()
+            reg.scan_path()
+            tool_count = len(reg.list_tools())
+        except Exception:
+            pass
+
+        command_count = sum(
+            1 for m in self._session.messages if m.role == "user"
+        )
 
         console.print(
             Panel(
@@ -2963,8 +3192,8 @@ class SiyarixChat:
                     Panel(
                         f"[bold]Scans:[/bold] {scans_count}\n"
                         f"[bold]Findings:[/bold] {findings_count}\n"
-                        f"[bold]Tools:[/bold] {len(self._tools)}\n"
-                        f"[bold]Commands:[/bold] {len(self._commands)}\n"
+                        f"[bold]Tools:[/bold] {tool_count}\n"
+                        f"[bold]Commands:[/bold] {command_count}\n"
                         f"[bold]Hotkeys:[/bold] /help · /exit",
                         title="System",
                         border_style="blue",

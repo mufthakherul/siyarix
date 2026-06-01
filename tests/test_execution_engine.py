@@ -218,7 +218,7 @@ class TestPlanner:
 
     def test_decompose_goal_no_target(self) -> None:
         plan = self.planner.decompose_goal("do something random")
-        assert len(plan.steps) == 1
+        assert len(plan.steps) == 0  # no target + no goal keywords → empty plan
 
     def test_adapt_plan_nmap_filtered(self) -> None:
         plan = self.planner.create_plan("test", steps=[{"tool": "nmap", "args": {"flags": "-sV"}}])

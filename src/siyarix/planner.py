@@ -531,7 +531,15 @@ Respond in this JSON format (and ONLY valid JSON — no markdown, no extra text)
                 {"description": "Technology fingerprinting", "tool": "whatweb", "args": {"target": target}},
                 {"description": "DNS enumeration", "tool": "dig", "args": {"target": target.replace("https://", "").replace("http://", "").split("/")[0]}},
             ])
-        return self.create_plan(goal=goal, steps=[{"description": f"Execute: {goal}", "tool": "curl", "args": {"target": target, "flags": "-sI"}}])
+        # Check if the query sounds like a security/recon goal (no target given)
+        goal_keywords = {"scan", "recon", "audit", "check", "enum", "analyze", "analyse",
+                         "explore", "map", "discover", "probe", "test", "hack", "pentest"}
+        if any(kw in goal_lower.split() for kw in goal_keywords):
+            return self.create_plan(goal=goal, steps=[{
+                "description": f"Execute: {goal}",
+                "tool": "curl", "args": {},
+            }])
+        return self.create_plan(goal=goal)
 
     def adapt_plan(self, plan: ExecutionPlan, failed_step: PlanStep, error: str) -> ExecutionPlan:
         if failed_step.tool == "nmap" and "filtered" in error.lower():

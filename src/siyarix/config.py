@@ -65,6 +65,7 @@ DEFAULTS: dict[str, Any] = {
     "notifications_enabled": True,
     "stealth_mode": False,
     "persona": "none",
+    "command_review": True,
 }
 
 # Human-readable descriptions
@@ -95,6 +96,7 @@ DESCRIPTIONS: dict[str, str] = {
     "notifications_enabled": "Show Rich panel notifications for key events",
     "stealth_mode": "Enable advanced stealth and command argument evasion",
     "persona": "Active persona name (default: none)",
+    "command_review": "Prompt before executing raw shell commands (default: true)",
 }
 
 

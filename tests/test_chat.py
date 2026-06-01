@@ -306,12 +306,13 @@ class TestGenerateTextResponse:
 
     def test_hello(self, chat: SiyarixChat) -> None:
         response = chat._generate_text_response("hello")
-        assert response is None  # OfflineResponder removed
-        pass  # OfflineResponder removed
+        assert response is not None
+        assert "Siyarix" in response
 
     def test_help(self, chat: SiyarixChat) -> None:
         response = chat._generate_text_response("help")
-        assert response is None  # OfflineResponder removed
+        assert response is not None
+        assert "Siyarix" in response
 
     def test_generic(self, chat: SiyarixChat) -> None:
         response = chat._generate_text_response("some random query")

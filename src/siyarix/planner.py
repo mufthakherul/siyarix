@@ -363,12 +363,11 @@ class Planner:
         tools_text = "\n".join(tool_lines) if tool_lines else "  (none discovered)"
 
         if system_prompt:
-            full_prompt = system_prompt + f"\n\n## Available Tools\n{tools_text}\n\nSelect tools from this list or use raw shell commands via the command field."
+            full_prompt = system_prompt + "\n\nCommands you construct will execute via `sh -c` — use proper quoting, pipes, and flags. You have full access to every binary on the system."
         else:
             full_prompt = f"""You are a senior red-team operator and penetration testing specialist.
 
-Available tools on this system:
-{tools_text}
+You have full access to every binary on this system. Construct exact shell commands.
 
 Respond with ONLY valid JSON:
 {{{{
@@ -376,17 +375,15 @@ Respond with ONLY valid JSON:
   "reasoning": "Strategic rationale",
   "steps": [
     {{{{
-      "tool": "tool_name or empty",
-      "command": "raw shell command (omit if using tool+args)",
-      "args": {{{{"target": "...", "flags": "...", ...}}}},
-      "description": "What this step does"
+      "tool": "",
+      "command": "exact shell command with all flags and arguments",
+      "description": "What this does"
     }}}}
   ]
 }}}}
 
 - needs_tools=true for security operations, false for chat/explanation
-- Use "tool": "" + "command" for raw shell commands
-- You are not limited to the listed tools"""
+- Always use the "command" field for raw shell execution"""
 
         user_prompt = goal
 

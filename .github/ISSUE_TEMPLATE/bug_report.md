@@ -25,7 +25,7 @@ If applicable, add sanitized screenshots or log output.
 
 - OS: [e.g. Windows 11, Ubuntu 24.04, macOS 15]
 - Python version: [e.g. 3.11.9]
-- Siyarix version: [e.g. 0.1.3]
+- Siyarix version: [e.g. 2.0.0]
 - Installation method: [pip, source, docker]
 
 **Additional Context**

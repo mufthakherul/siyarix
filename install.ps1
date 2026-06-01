@@ -6,7 +6,7 @@
 # Supports: Windows 10/11, Windows Server
 # Package managers: pip, winget, chocolatey, npm
 # =============================================================================
-$__script_version = "0.1.3"
+$__script_version = "2.0.0"
 
 function Write-Banner {
   @"

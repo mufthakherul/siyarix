@@ -16,16 +16,16 @@ At startup, the `ToolRegistry` scans PATH for 100+ known security tools.
 
 ```python
 registry = ToolRegistry()
-registry.discover()  # Scans PATH, checks versions
+registry.scan_path()  # Scans PATH, checks versions
 ```
 
 For each tool:
 
 1. Check if binary exists on PATH
 2. Run `--version` to verify and extract version
-3. Record tool info: name, capabilities, platform, binary path
+3. Record tool info: name, tags, platform, binary path
 
-### Capability categories
+### Tag categories
 
 | Category | Tools |
 |----------|-------|
@@ -41,12 +41,12 @@ For each tool:
 
 ## Tool selection
 
-The planner selects tools by capability:
+The planner selects tools by tag:
 
 ```python
 def select_tools(intent: str, target: str) -> list[str]:
-    capabilities = INTENT_TO_CAPABILITIES[intent]
-    tools = registry.find_by_capabilities(capabilities)
+    tags = INTENT_TO_TAGS[intent]
+    tools = registry.find_by_tags(tags)
     return filter_by_platform(tools)
 ```
 

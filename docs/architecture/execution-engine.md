@@ -137,7 +137,7 @@ The `ToolRegistry` (`tool_registry.py`) maintains metadata for 100+ tools:
 @dataclass
 class ToolInfo:
     name: str
-    capabilities: list[str]    # ["port_scan", "vuln_scan", "web_scan"]
+    tags: list[str]    # ["port_scan", "vuln_scan", "web_scan"]
     platforms: list[str]       # ["linux", "darwin", "win32"]
     binary: str                # Expected binary name
     install_hints: str         # How to install
@@ -145,7 +145,7 @@ class ToolInfo:
     default_args: dict         # Default arguments
 ```
 
-Discovery happens at startup: the registry scans PATH for known binaries and records their capabilities.
+Discovery happens at startup: the registry scans PATH for known binaries and records their tags.
 
 ## Result collection
 

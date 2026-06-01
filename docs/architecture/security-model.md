@@ -96,13 +96,13 @@ Tamper-evident log with SHA-256 hash chain:
 - Entries cannot be modified without breaking the chain
 - SIEM forwarding (Splunk, ELK, Azure Sentinel)
 
-### Kill switch (`kill_switch.py`)
+### Emergency stop
 
-Emergency stop mechanism:
+All running commands can be stopped immediately:
 
-- States: ARMED → TRIGGERED → DISARMED
-- Callback-based notification on trigger
-- Can be integrated with monitoring systems
+- Press **Ctrl+C** once to cancel the current task
+- Press **Ctrl+C** twice to exit Siyarix entirely
+- The execution engine halts all subprocesses and cleans up
 
 ### OPSEC (`opsec.py`)
 

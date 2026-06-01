@@ -70,7 +70,7 @@ Settings are stored in `~/.siyarix/settings.toml` (TOML format, human-editable).
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `model_provider` | `auto` | Preferred AI provider: `auto`, `openai`, `gemini`, `ollama`, `anthropic`, `groq`, `together`, `lmstudio` |
+| `model_provider` | `openrouter` | Preferred AI provider: `auto`, `openai`, `gemini`, `openrouter`, `anthropic`, `groq`, `together`, `ollama` |
 | `default_output_format` | `table` | Output format: `table`, `json`, `yaml`, `csv` |
 | `default_parallel` | `3` | Max parallel tool executions |
 | `scan_timeout` | `300` | Seconds before a tool is killed |

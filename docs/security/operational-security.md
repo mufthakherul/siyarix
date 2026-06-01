@@ -110,7 +110,7 @@ When conducting red team exercises:
 1. Define the rules of engagement in a workflow file
 2. Use persona `pentester` for standard assessment rules
 3. Enable safe mode for initial reconnaissance
-4. Use kill switch for emergency stop
+4. Press Ctrl+C for emergency stop
 5. Log all actions to the audit trail
 6. Generate comprehensive report after completion
 

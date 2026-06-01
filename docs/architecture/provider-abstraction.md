@@ -72,7 +72,7 @@ PREFERENCE_MAP = {
 }
 ```
 
-When `model_provider = "auto"`, the system tries providers in order of availability (API key present + reachable).
+When `model_provider = "auto"`, the system scans configured providers in priority order, skipping any that were disabled this session due to rate-limit/auth errors. Providers are tried one at a time until one responds successfully or all are exhausted.
 
 ## Provider selection
 

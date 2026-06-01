@@ -181,47 +181,47 @@ class Planner:
         self._plans: dict[str, ExecutionPlan] = {}
         self._templates: dict[str, list[dict[str, Any]]] = {
             "recon_full": [
-                {"description": "Port scan with nmap", "tool": "nmap", "args": {"flags": "-sV -sC -T4"}},
-                {"description": "Web technology detection", "tool": "whatweb", "args": {}},
-                {"description": "Directory brute force", "tool": "gobuster", "args": {"mode": "dir"}},
-                {"description": "Subdomain enumeration", "tool": "subfinder", "args": {}},
+                {"description": "Full port scan with service/OS detection and default scripts", "tool": "nmap", "args": {"flags": "-sV -sC -T4"}},
+                {"description": "Web technology stack fingerprinting", "tool": "whatweb", "args": {}},
+                {"description": "Directory and file brute-force enumeration", "tool": "gobuster", "args": {"mode": "dir"}},
+                {"description": "Passive subdomain enumeration", "tool": "subfinder", "args": {}},
             ],
             "web_audit": [
-                {"description": "HTTP headers & response analysis", "tool": "curl", "args": {"flags": "-sI"}},
-                {"description": "Web technology fingerprinting", "tool": "whatweb", "args": {}},
-                {"description": "Vulnerability scan with nuclei", "tool": "nuclei", "args": {"severity": "medium,high,critical"}},
-                {"description": "Directory/file enumeration", "tool": "ffuf", "args": {"wordlist": "common.txt"}},
+                {"description": "HTTP security headers and response analysis", "tool": "curl", "args": {"flags": "-sI"}},
+                {"description": "Web application technology fingerprinting", "tool": "whatweb", "args": {}},
+                {"description": "Template-based vulnerability scanning (medium+ severity)", "tool": "nuclei", "args": {"severity": "medium,high,critical"}},
+                {"description": "Content discovery and directory/file enumeration", "tool": "ffuf", "args": {"wordlist": "common.txt"}},
             ],
             "brute_force": [
-                {"description": "Service enumeration", "tool": "nmap", "args": {"flags": "-sV"}},
-                {"description": "Credential brute force", "tool": "hydra", "args": {}},
+                {"description": "Target service discovery and version identification", "tool": "nmap", "args": {"flags": "-sV"}},
+                {"description": "Multi-protocol credential brute-force attack", "tool": "hydra", "args": {}},
             ],
             "wifi_audit": [
-                {"description": "Capture WiFi traffic", "tool": "aircrack-ng", "args": {"mode": "capture"}},
-                {"description": "WPA handshake crack", "tool": "aircrack-ng", "args": {"mode": "crack"}},
+                {"description": "Wireless traffic capture and handshake collection", "tool": "aircrack-ng", "args": {"mode": "capture"}},
+                {"description": "WPA/WPA2 PSK handshake offline crack", "tool": "aircrack-ng", "args": {"mode": "crack"}},
             ],
             "network_scan": [
-                {"description": "TCP/UDP port discovery", "tool": "nmap", "args": {"flags": "-sS -T4 -p- --min-rate 1000"}},
-                {"description": "Service version detection", "tool": "nmap", "args": {"flags": "-sV -T4 --top-ports 1000"}},
-                {"description": "DNS resolution & record lookup", "tool": "dig", "args": {}},
-                {"description": "WHOIS domain information", "tool": "whois", "args": {}},
+                {"description": "Full TCP SYN sweep with high-rate discovery", "tool": "nmap", "args": {"flags": "-sS -T4 -p- --min-rate 1000"}},
+                {"description": "Service version detection on top 1000 ports", "tool": "nmap", "args": {"flags": "-sV -T4 --top-ports 1000"}},
+                {"description": "DNS record resolution and zone analysis", "tool": "dig", "args": {}},
+                {"description": "WHOIS registration and IP ownership lookup", "tool": "whois", "args": {}},
             ],
             "cloud_audit": [
-                {"description": "HTTP security headers check", "tool": "curl", "args": {"flags": "-sI"}},
-                {"description": "Web technology stack detection", "tool": "whatweb", "args": {}},
-                {"description": "DNS record analysis", "tool": "dig", "args": {"flags": "ANY"}},
-                {"description": "SSL/TLS certificate check", "tool": "openssl", "args": {"flags": "s_client -servername"}},
+                {"description": "HTTP security headers and CORS policy analysis", "tool": "curl", "args": {"flags": "-sI"}},
+                {"description": "Web application stack and framework detection", "tool": "whatweb", "args": {}},
+                {"description": "Full DNS record enumeration (A, AAAA, MX, TXT, NS, CNAME)", "tool": "dig", "args": {"flags": "ANY"}},
+                {"description": "SSL/TLS certificate chain and cipher suite validation", "tool": "openssl", "args": {"flags": "s_client -servername"}},
             ],
             "ad_assessment": [
-                {"description": "Domain controller port scan", "tool": "nmap", "args": {"flags": "-sS -sV -T4 -p 53,88,135,139,389,445,464,636,3268,3269,3389"}},
-                {"description": "SMB protocol detection", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-protocols"}},
-                {"description": "LDAP anonymous bind check", "tool": "nmap", "args": {"flags": "-sV -p 389 --script ldap-rootdse"}},
+                {"description": "Domain controller critical port scan (Kerberos, LDAP, SMB, RPC, GC)", "tool": "nmap", "args": {"flags": "-sS -sV -T4 -p 53,88,135,139,389,445,464,636,3268,3269,3389"}},
+                {"description": "SMB protocol version and dialect negotiation analysis", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-protocols"}},
+                {"description": "LDAP anonymous bind and root DSE information disclosure check", "tool": "nmap", "args": {"flags": "-sV -p 389 --script ldap-rootdse"}},
             ],
             "linux_privesc": [
-                {"description": "OS and kernel version enumeration", "tool": "uname", "args": {"flags": "-a"}},
-                {"description": "SUID binary discovery", "tool": "find", "args": {"flags": "/ -perm -4000 -type f 2>/dev/null"}},
-                {"description": "Writable directory search", "tool": "find", "args": {"flags": "/ -writable -type d 2>/dev/null"}},
-                {"description": "Cron job inspection", "tool": "cat", "args": {"flags": "/etc/crontab"}},
+                {"description": "Kernel and OS version identification for known exploit matching", "tool": "uname", "args": {"flags": "-a"}},
+                {"description": "SUID and SGID binary discovery for privilege escalation vectors", "tool": "find", "args": {"flags": "/ -perm -4000 -type f 2>/dev/null"}},
+                {"description": "World-writable directory search for dropper placements", "tool": "find", "args": {"flags": "/ -writable -type d 2>/dev/null"}},
+                {"description": "Scheduled task and cron job inspection for persistence", "tool": "cat", "args": {"flags": "/etc/crontab"}},
             ],
         }
         # Inverted index: keyword → set of tool names
@@ -358,42 +358,39 @@ class Planner:
 
         tools_text = "\n".join(tool_lines) if tool_lines else "  (none discovered)"
 
-        system_prompt = f"""You are a cybersecurity tool planner. Your job:
-1. Read the user's request.
-2. Decide if any tools need to be executed.
-3. If tools are needed, select the most appropriate tools or construct the exact shell command.
+        system_prompt = f"""You are a senior red-team operator and penetration testing specialist. Your mission is to analyse the user's request with expert precision and produce an optimal execution plan.
 
-Available tools on this system:
+Core methodology:
+1. **Deep intent analysis** — Parse the user's request to understand the real objective. Users may describe goals casually ("scan that box", "check for SQLi", "enumerate the domain") — infer the actual attack phase and required depth.
+2. **Attack chain reasoning** — Think in terms of kill-chain phases (reconnaissance → enumeration → vulnerability detection → exploitation → post-exploitation → exfiltration) and select tools/commands that build on each other.
+3. **Context-aware tool selection** — Choose the right tool for each job considering the target type (web app, network service, AD domain, cloud endpoint, wireless), the attack surface, and the desired intelligence depth. Prefer modern, purpose-built tools over generic ones.
+4. **Advanced flag selection** — Construct flags that maximise useful output: enable service detection, safe scripts, aggressive timing where appropriate, OS fingerprinting, and common vulnerability checks. Never settle for default scan profiles.
+
+Available tools on this system (use tool+args or raw command):
 {tools_text}
 
-Respond in this JSON format (and ONLY valid JSON — no markdown, no extra text):
-{{
+Respond with ONLY valid JSON — no markdown fences, no commentary:
+{{{{
   "needs_tools": true or false,
-  "reasoning": "Brief explanation of your decision",
+  "reasoning": "Strategic rationale — explain your attack logic and what you aim to uncover",
   "steps": [
-    {{
-      "tool": "tool_name",
-      "args": {{ "target": "...", "flags": "...", ... }},
-      "description": "What this step does"
-    }}
+    {{{{
+      "tool": "tool_name (or empty string for raw command)",
+      "command": "exact shell command (leave blank if using tool+args)",
+      "args": {{{{"target": "...", "flags": "...", ...}}}} or omit,
+      "description": "What this step accomplishes and why it matters"
+    }}}}
   ]
-}}
-
-When you want to run a raw shell command (any tool or script not in the list), use:
-{{
-  "tool": "",
-  "command": "the exact shell command to execute",
-  "description": "What this command does"
-}}
+}}}}
 
 Rules:
-- Set ``needs_tools`` to **false** if the user is just chatting, asking a knowledge question, or no tool/command on the list fits.
-- Set ``needs_tools`` to **true** if one or more commands should be run.
-- For a raw shell command, set ``tool`` to empty string and put the full command in ``command``.
-- For tools from the available list, use ``tool`` + ``args`` (do NOT use ``command``).
-- If a target domain/IP/host is mentioned, include it in ``args.target``.
-- The ``command`` field will be executed exactly as written — use proper quoting and flags.
-- You are not limited to the listed tools — you can use ``command`` for anything on the system."""
+- **needs_tools=false** — when the user is chatting conceptually, asking for explanations, requesting guidance, or no actionable technical action is warranted.
+- **needs_tools=true** — when the user describes an attack, scan, enumeration, or any security operation.
+- **Raw commands** — Set "tool": "" and put the full shell command in "command". This is the escape hatch for anything not in the tool list.
+- **Tool-based steps** — Use "tool" + "args" for registered tools. Include target, flags, and any relevant parameters.
+- **Always include reasoning** — Explain your attacker mindset: why this step, what Intel you expect, and how it feeds the next phase.
+- **Stealth awareness** — If the user mentions stealth, evasion, or OPSEC, consider rate-limiting, randomised delays, proxy chains, and quieter scan profiles.
+- You are a professional adversary emulator — plan like one."""
 
         user_prompt = goal
 

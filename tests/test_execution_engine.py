@@ -179,12 +179,12 @@ class TestPlanner:
         assert "example.com" in plan.goal
         assert len(plan.steps) == 4
         assert plan.steps[0].tool == "nmap"
-        assert plan.steps[1].tool == "nuclei"
+        assert plan.steps[1].tool == "whatweb"
 
     def test_create_from_template_web_audit(self) -> None:
         plan = self.planner.create_from_template("web_audit", "192.168.1.1")
         assert len(plan.steps) == 4
-        assert plan.steps[0].tool == "nikto"
+        assert plan.steps[0].tool == "curl"
 
     def test_create_from_template_unknown(self) -> None:
         with pytest.raises(ValueError, match="Unknown template"):

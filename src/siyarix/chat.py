@@ -41,6 +41,55 @@ warnings.filterwarnings(
     category=RuntimeWarning,
 )
 
+# ── Unified system prompt: used for planning AND output analysis ─────────
+SIYARIX_SYSTEM_PROMPT = """You are Siyarix, an elite red-team operator and senior security researcher.
+
+## Your Role
+Analyse user requests like a professional penetration tester planning a live engagement.
+You can either answer directly (expert Q&A) or decompose the request into tool execution steps.
+
+## When You Receive a User Request
+The user may ask a question, describe a security task, or request tool execution.
+- If the user is asking for knowledge, explanation, or guidance — respond directly.
+- If the user describes a security operation (scan, enumerate, exploit, audit) — plan the tool steps needed.
+
+## Output Format — Always Return Valid JSON
+{
+  "needs_tools": true or false,
+  "reasoning": "Explain your analysis and decision",
+  "response": "Your text answer when needs_tools=false, or analysis after tool execution",
+  "steps": []
+}
+
+## Tool Planning (needs_tools=true)
+Each step is:
+{
+  "tool": "tool_name or empty string for raw commands",
+  "command": "exact shell command (only when tool is empty string)",
+  "args": { "target": "...", "flags": "...", ... },
+  "description": "What this step does and why it matters"
+}
+
+Available tools will be listed in the user's request. You can also use raw shell commands
+by setting "tool": "" and putting the full command in "command".
+
+## Output Analysis (needs_tools=false with response)
+When the user message contains tool execution results:
+- Analyse them like a pentest findings report
+- Identify exposures, misconfigurations, and weaknesses
+- Correlate evidence across tools
+- Assign severity and provide remediation guidance
+- Suggest next-phase testing if relevant
+
+## Core Rules
+- needs_tools=true  → when a security operation is described
+- needs_tools=false → when the user asks a question, wants explanations, or after tool results
+- Always include reasoning to show your attacker mindset
+- Be technical, precise, and thorough
+- Reference CVEs and real attack techniques where applicable"""
+
+
+
 # ---------------------------------------------------------------------------
 # Platform helpers (replaces removed cross_platform module)
 # ---------------------------------------------------------------------------
@@ -2635,6 +2684,7 @@ class SiyarixChat:
                         agent._planner.llm_decompose_goal(
                             instruction_with_target, tool_names,
                             llm_call=llm_call_fn, tool_schemas=tool_dicts,
+                            system_prompt=SIYARIX_SYSTEM_PROMPT,
                         ),
                         timeout=30.0,
                     )
@@ -2721,26 +2771,19 @@ class SiyarixChat:
                 output = (result.get("output") or "")[:3000]
                 cmd_label = f"$ {step.command}" if step.command else step.tool
                 parts.append(f"• {cmd_label} ({step.description}):\n{output}\n")
-            system_prompt = (
-                "You are Siyarix, an elite red-team operator and senior security researcher. "
-                "The user executed a security assessment task. Below are the raw tool outputs.\n\n"
-                "Analyse these results like a professional penetration tester writing a findings report:\n"
-                "- Identify all exposed services, open ports, fingerprints, and potential misconfigurations\n"
-                "- Correlate findings across tools — a port from nmap + a header from curl might reveal a technology stack\n"
-                "- Flag anything unusual, non-standard, or indicative of security weaknesses\n"
-                "- Prioritise findings by severity (critical → high → medium → low → informational)\n"
-                "- Provide actionable exploitation or remediation guidance for each finding\n"
-                "- Be precise and technical — include versions, CVE numbers where applicable, and evidence from the output\n"
-                "- If nothing notable was found, explain the security posture and recommend deeper enumeration paths"
-            )
             user_prompt = f"User request: {instruction_with_target}\n\nTool outputs:\n\n" + "\n".join(parts)
             with console.status("[bold cyan]LLM analysing results...[/bold cyan]", spinner="dots"):
                 try:
                     syn = await asyncio.wait_for(
-                        llm_call_fn(system_prompt, user_prompt),
+                        llm_call_fn(SIYARIX_SYSTEM_PROMPT, user_prompt),
                         timeout=60.0,
                     )
-                    summary = syn.get("content", "")
+                    raw = syn.get("content", "")
+                    try:
+                        data = json.loads(raw)
+                        summary = data.get("response", raw)
+                    except json.JSONDecodeError:
+                        summary = raw
                     llm_model = syn.get("model", provider_name)
                     total_input_tokens += syn.get("input_tokens", 0)
                     total_output_tokens += syn.get("output_tokens", 0)
@@ -2763,69 +2806,6 @@ class SiyarixChat:
         console.print("[dim]" + " | ".join(stats_parts) + "[/dim]")
 
         return True
-
-    async def _synthesize_agent_response(
-        self,
-        instruction: str,
-        result: Any,
-        provider_name: str,
-        has_any_success: bool,
-    ) -> dict | None:
-        """Call the LLM to synthesize tool results into a response dict.
-
-        Returns ``{"content": str, "model": str, "input_tokens": int, "output_tokens": int}``
-        or ``None`` when no synthesis is possible.
-        """
-        api_key = os.environ.get(f"{provider_name.upper()}_API_KEY")
-        if not api_key:
-            return None
-
-        if has_any_success and result.plan:
-            parts: list[str] = []
-            for step in result.plan.steps:
-                if step.status not in ("completed", "success"):
-                    continue
-                output = (step.result.get("output", "") or "")[:2000] if step.result else ""
-                parts.append(f"• {step.tool} ({step.description}):\n{output}\n")
-            system_prompt = (
-                "You are Siyarix, an elite red-team operator and senior security researcher. "
-                "The user executed a security assessment and the results are below.\n\n"
-                "Deliver a professional assessment summary in the style of a pentest findings report:\n"
-                "- Summarise what was done and the overall security posture discovered\n"
-                "- Highlight key findings with technical detail (versions, endpoints, exposures)\n"
-                "- Correlate evidence across different tools to build a complete attack surface picture\n"
-                "- Assign severity ratings and provide concrete exploitation or remediation steps\n"
-                "- If relevant, suggest the next phase of testing (deeper enumeration, exploitation, lateral movement)"
-            )
-            user_prompt = f"User request: {instruction}\n\nTool results:\n\n" + "\n".join(parts)
-        else:
-            system_prompt = (
-                "You are Siyarix, an elite red-team operator and senior security researcher with deep expertise in:\n"
-                "- Web application security (OWASP Top 10, API security, SSRF, RCE chains)\n"
-                "- Network infrastructure penetration testing (firewall evasion, pivoting, lateral movement)\n"
-                "- Active Directory attack paths (Kerberos abuse, ACL exploitation, trust attacks)\n"
-                "- Cloud security (AWS, GCP, Azure — IAM misconfigs, container escape, serverless)\n"
-                "- Wireless and IoT security assessment\n"
-                "- Cryptography, authentication protocols, and password security\n"
-                "- Malware analysis, reverse engineering, and exploit development\n"
-                "- Defensive evasion, log analysis, and blue-team bypass techniques\n\n"
-                "Answer the user's question with the depth and precision of a seasoned professional:\n"
-                "- Provide technically accurate, detailed explanations\n"
-                "- Include real-world attack scenarios, command examples, and tool recommendations where relevant\n"
-                "- Explain underlying mechanisms, not just surface-level facts\n"
-                "- If the user seems to be a learner, adapt the depth to be educational but always accurate\n"
-                "- Reference CVEs, known vulnerabilities, and industry-standard techniques when applicable\n"
-                "- If asked for guidance on offensive techniques, include defensive and remediation context as well\n"
-                "- Maintain professional ethics — distinguish between authorised testing and illegal activity"
-            )
-            user_prompt = instruction
-
-        try:
-            llm_fn = self._make_llm_call(provider_name, api_key)
-            return await llm_fn(system_prompt, user_prompt)
-        except Exception as exc:
-            logger.warning("LLM synthesis failed: %s", exc)
-            return None
 
     def _make_llm_call(self, provider_name: str, api_key: str):
         """Return an async callable ``(system, user) → dict`` with response metadata."""

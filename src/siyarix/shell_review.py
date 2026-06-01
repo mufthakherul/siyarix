@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """
-Shell-injection review loop for suspicious commands.
-Provides interactive EDIT / RUN / STEP / CANCEL prompts.
+Interactive review loop for LLM-generated shell commands.
+Provides EDIT / RUN / STEP / CANCEL prompts before execution.
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ def review_command(original: str, tool: str, reason: str) -> ReviewResult:
                 Text(""),
                 syntax,
             ),
-            title="Shell Injection Review",
+            title="Command Execution Review",
             border_style="yellow",
         )
     )

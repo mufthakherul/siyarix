@@ -2905,15 +2905,9 @@ class SiyarixChat:
                     state.done = True
                     return step, result
 
-                from .shell_review import review_and_confirm
-                reviewed = review_and_confirm(step.command, "raw", "Raw shell command from LLM plan")
-                if reviewed is None:
-                    state.done = True
-                    return step, {"status": "error", "output": "", "error": "Cancelled by user", "exit_code": -1}
-
                 cmd_timeout = self._settings.get("agent_timeout") or 1740
                 result = await safe_run_async_stream(
-                    ["sh", "-c", reviewed],
+                    ["sh", "-c", step.command],
                     timeout=cmd_timeout,
                     validate=False,
                     on_stdout=lambda line: state.lines.append(line),
@@ -2924,6 +2918,20 @@ class SiyarixChat:
                 return step, {"status": "success" if result.exit_code == 0 else "error",
                               "output": result.stdout, "error": result.stderr,
                               "exit_code": result.exit_code}
+
+            # Pre-review all shell commands before starting Live display
+            from .shell_review import review_and_confirm
+            command_review = self._settings.get("command_review", True)
+            for s in plan.steps:
+                if not s.command:
+                    continue
+                if not command_review:
+                    break
+                reviewed = review_and_confirm(s.command, "raw", "Raw shell command from LLM plan")
+                if reviewed is None:
+                    console.print("[yellow]⚠ Command cancelled by user[/yellow]")
+                    return True
+                s.command = reviewed
 
             exec_tasks = [_exec_one(s, st) for s, st in zip(plan.steps, cmd_states)]
             exec_task = asyncio.ensure_future(asyncio.gather(*exec_tasks))

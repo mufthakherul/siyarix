@@ -39,7 +39,7 @@ done
 # Generate Release files
 for dist in stable kali; do
   echo "==> Generating Release for ${dist}"
-  cd "${REPO_DIR}/dists/${dist}"
+  pushd "${REPO_DIR}/dists/${dist}" >/dev/null
 
   cat > Release << EOF
 Origin: Siyarix
@@ -73,7 +73,7 @@ EOF
   fi
 
   echo "==> Release for ${dist} generated at ${REPO_DIR}/dists/${dist}/"
-  cd ../../..
+  popd >/dev/null
 done
 
 echo "==> APT repository ready at ${REPO_DIR}"

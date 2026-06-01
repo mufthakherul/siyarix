@@ -70,6 +70,7 @@ class PlanStep:
     description: str = ""
     tool: str = ""
     args: dict[str, Any] = field(default_factory=dict)
+    command: str | None = None
     status: StepStatus = StepStatus.PENDING
     result: dict[str, Any] = field(default_factory=dict)
     dependencies: list[str] = field(default_factory=list)
@@ -360,8 +361,7 @@ class Planner:
         system_prompt = f"""You are a cybersecurity tool planner. Your job:
 1. Read the user's request.
 2. Decide if any tools need to be executed.
-3. If tools are needed, select the most appropriate tools from the available list.
-4. Choose the correct flags/arguments for each tool.
+3. If tools are needed, select the most appropriate tools or construct the exact shell command.
 
 Available tools on this system:
 {tools_text}
@@ -379,10 +379,21 @@ Respond in this JSON format (and ONLY valid JSON — no markdown, no extra text)
   ]
 }}
 
-- Set ``needs_tools`` to **false** if the user is just chatting, asking a knowledge question, or no tool on the list fits.
-- Set ``needs_tools`` to **true** if one or more tools should be run.
+When you want to run a raw shell command (any tool or script not in the list), use:
+{{
+  "tool": "",
+  "command": "the exact shell command to execute",
+  "description": "What this command does"
+}}
+
+Rules:
+- Set ``needs_tools`` to **false** if the user is just chatting, asking a knowledge question, or no tool/command on the list fits.
+- Set ``needs_tools`` to **true** if one or more commands should be run.
+- For a raw shell command, set ``tool`` to empty string and put the full command in ``command``.
+- For tools from the available list, use ``tool`` + ``args`` (do NOT use ``command``).
 - If a target domain/IP/host is mentioned, include it in ``args.target``.
-- Only use tool names that appear in the list above."""
+- The ``command`` field will be executed exactly as written — use proper quoting and flags.
+- You are not limited to the listed tools — you can use ``command`` for anything on the system."""
 
         user_prompt = goal
 
@@ -416,17 +427,13 @@ Respond in this JSON format (and ONLY valid JSON — no markdown, no extra text)
         steps_raw = data.get("steps", [])
         steps = []
         for i, s in enumerate(steps_raw):
-            tool_name = s.get("tool", "")
-            if tool_name not in available_tools:
-                raise ValueError(
-                    f"LLM selected unknown tool '{tool_name}' — "
-                    f"not in available list"
-                )
-            steps.append({
+            step_def: dict[str, Any] = {
                 "description": s.get("description", f"LLM step {i+1}"),
-                "tool": tool_name,
+                "tool": s.get("tool", ""),
+                "command": s.get("command"),
                 "args": s.get("args", {}),
-            })
+            }
+            steps.append(step_def)
 
         if not steps:
             # LLM said needs_tools but gave no steps — treat as chat
@@ -452,6 +459,7 @@ Respond in this JSON format (and ONLY valid JSON — no markdown, no extra text)
                 plan_steps.append(PlanStep(
                     id=f"step_{i:03d}", description=step_def.get("description", f"Step {i+1}"),
                     tool=step_def.get("tool", ""), args=step_def.get("args", {}),
+                    command=step_def.get("command"),
                     dependencies=step_def.get("dependencies", []),
                     timeout=step_def.get("timeout", 300.0),
                 ))

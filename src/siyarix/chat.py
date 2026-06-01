@@ -2550,8 +2550,13 @@ class SiyarixChat:
         from .core import AgentCore, AgentMode
         from rich.panel import Panel
 
-        provider_name = self._settings.get("model_provider") or "gemini"
-        api_key = os.environ.get(f"{provider_name.upper()}_API_KEY")
+        provider_name, api_key = self._resolve_provider()
+        if not provider_name:
+            if require_llm:
+                console.print("[red]✗ No LLM provider configured for autonomous mode[/red]")
+                return False
+            console.print("[yellow]⚠ No LLM provider configured — using local planner[/yellow]")
+            provider_name = "none"
 
         instruction_with_target = instruction
         if target and target not in instruction:
@@ -2641,7 +2646,8 @@ class SiyarixChat:
 
         # ── No tools needed ──────────────────────────────────────────────
         if not llm_plan.steps:
-            response = llm_reasoning or "I understood your request but no tools were needed."
+            greeting = self._generate_text_response(instruction)
+            response = greeting or llm_reasoning or "I understood your request but no tools were needed."
             self._session.add_message("assistant", response)
             self._print_assistant(response)
             duration = time.time() - total_start
@@ -2833,6 +2839,35 @@ class SiyarixChat:
         if provider == "cloud":
             return bool(os.getenv("SIYARIX_SERVER_URL"))
         return False
+
+    def _resolve_provider(self) -> tuple[str | None, str | None]:
+        """Return ``(provider_name, api_key)`` for the active provider.
+
+        When ``model_provider`` is ``"auto"``, scan known providers and
+        return the first one with a configured API key.
+        """
+        configured = self._settings.get("model_provider") or "auto"
+        if configured != "auto":
+            key = os.environ.get(f"{configured.upper()}_API_KEY")
+            return (configured, key)
+
+        # Auto-detect: check providers in priority order
+        for name, env_var in [
+            ("openai", "OPENAI_API_KEY"),
+            ("gemini", "GEMINI_API_KEY"),
+            ("gemini", "GOOGLE_API_KEY"),
+            ("openrouter", "OPENROUTER_API_KEY"),
+            ("anthropic", "ANTHROPIC_API_KEY"),
+            ("groq", "GROQ_API_KEY"),
+            ("together", "TOGETHER_API_KEY"),
+            ("ollama", None),  # no key needed
+        ]:
+            if env_var is None:
+                return (name, "")
+            key = os.environ.get(env_var)
+            if key:
+                return (name, key)
+        return (None, None)
 
     # ──────────────────────────────────────────────────────────────────────
     # Display helpers

@@ -194,13 +194,17 @@ class SettingsStore:
     # Core API
     # ------------------------------------------------------------------
 
-    def get(self, key: str) -> Any:
-        """Return value for *key*, falling back to default."""
+    def get(self, key: str, default: Any = None) -> Any:
+        """Return value for *key* or *default* if set, else DEFAULTS[key]."""
+        if key in self._data:
+            return self._data[key]
+        if default is not None:
+            return default
         if key not in DEFAULTS:
             raise KeyError(
                 f"Unknown setting: '{key}'. Run 'config list' to see valid keys."
             )
-        return self._data.get(key, DEFAULTS[key])
+        return DEFAULTS[key]
 
     def set(self, key: str, value: str) -> Any:
         """Set *key* to *value* (string input is coerced to the correct type)."""

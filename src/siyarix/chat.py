@@ -2917,16 +2917,15 @@ class SiyarixChat:
             title="Execution Plan", show_header=True, header_style="bold magenta"
         )
         table.add_column("#", style="dim", width=3)
-        table.add_column("Type", style="cyan", width=12)
-        table.add_column("Tool/Command", style="green")
+        table.add_column("Tool", style="green")
         table.add_column("Target", style="yellow")
         table.add_column("Description", style="white")
         for i, step in enumerate(plan.steps, 1):
+            target = step.args.get("target", "") if isinstance(step.args, dict) else ""
             table.add_row(
                 str(i),
-                step.step_type.value,
-                step.tool or step.command or "—",
-                step.target or "—",
+                step.tool or "—",
+                target or "—",
                 step.description[:50],
             )
         console.print(table)

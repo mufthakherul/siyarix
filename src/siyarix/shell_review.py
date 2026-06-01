@@ -34,12 +34,17 @@ class ReviewResult:
 
 def review_command(original: str, tool: str, reason: str) -> ReviewResult:
     """Interactive review loop for potentially dangerous commands."""
+    from rich.console import Group
+    from rich.text import Text
+    syntax = Syntax(original, "bash", theme="monokai")
     console.print(
         Panel(
-            f"[bold yellow]Command Review Required[/bold yellow]\n"
-            f"[bold]Tool:[/bold] {tool}\n"
-            f"[bold]Reason:[/bold] {reason}\n"
-            f"{Syntax(original, 'bash', theme='monokai')}",
+            Group(
+                Text(f"Tool: {tool}", style="bold"),
+                Text(f"Reason: {reason}", style="bold"),
+                Text(""),
+                syntax,
+            ),
             title="Shell Injection Review",
             border_style="yellow",
         )
@@ -49,7 +54,7 @@ def review_command(original: str, tool: str, reason: str) -> ReviewResult:
         choice = Prompt.ask(
             "[yellow]Review command[/yellow]",
             choices=["edit", "run", "step", "cancel"],
-            default="edit",
+            default="run",
         )
 
         if choice == "edit":

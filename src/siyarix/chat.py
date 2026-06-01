@@ -2658,8 +2658,13 @@ class SiyarixChat:
             return True
 
         # ── Announce which tools will run ───────────────────────────────
-        tool_labels = [f"[bold]{s.tool}[/bold]" for s in llm_plan.steps]
-        console.print(f"[cyan]→ I need to execute:[/cyan] {', '.join(tool_labels)}")
+        tool_labels = []
+        for s in llm_plan.steps:
+            if s.command:
+                tool_labels.append(f"[bold]$ {s.command}[/bold]")
+            else:
+                tool_labels.append(f"[bold]{s.tool}[/bold]")
+        console.print(f"[cyan]→ Executing:[/cyan] {', '.join(tool_labels)}")
 
         # ── Execute all tools in parallel with live output ───────────────
         _step_icons = {"success": "✓", "completed": "✓", "failed": "✗",
@@ -2667,6 +2672,16 @@ class SiyarixChat:
                        "pending": "○", "blocked": "⊘", "ready": "●"}
 
         async def run_one_tool(step: Any) -> tuple[Any, dict]:
+            if step.command:
+                from .subprocess_utils import safe_run_async
+                cmd_timeout = self._settings.get("agent_timeout") or 1740
+                result = await safe_run_async(
+                    ["sh", "-c", step.command],
+                    timeout=cmd_timeout,
+                )
+                return step, {"status": "success" if result.exit_code == 0 else "error",
+                              "output": result.stdout, "error": result.stderr,
+                              "exit_code": result.exit_code}
             result = await agent._registry.execute(step.tool, **step.args)
             return step, result
 
@@ -2680,15 +2695,16 @@ class SiyarixChat:
             color = "green" if status == "success" else "red"
             output = (result.get("output") or "").strip()
             error = (result.get("error") or "").strip()
+            display_cmd = f"$ {step.command}" if step.command else step.tool
             lines = [
                 f"[{color}]{icon} {result.get('exit_code', 0)}[/{color}]  "
-                f"[bold]{step.tool}[/bold] — {step.description}"
+                f"[bold]{display_cmd}[/bold] — {step.description}"
             ]
             if output:
                 lines.append(f"[dim]{output[:800]}[/dim]")
             if error:
                 lines.append(f"[red]{error[:300]}[/red]")
-            console.print(Panel("\n".join(lines), title=f"Output of {step.tool} {step.description}",
+            console.print(Panel("\n".join(lines), title=f"Output: {display_cmd}",
                                 border_style=color, padding=(0, 2)))
 
         # ── LLM analysis of all outputs ──────────────────────────────────
@@ -2696,7 +2712,8 @@ class SiyarixChat:
             parts: list[str] = []
             for step, result in raw_results:
                 output = (result.get("output") or "")[:3000]
-                parts.append(f"• {step.tool} ({step.description}):\n{output}\n")
+                cmd_label = f"$ {step.command}" if step.command else step.tool
+                parts.append(f"• {cmd_label} ({step.description}):\n{output}\n")
             system_prompt = (
                 "You are Siyarix, an AI cybersecurity assistant. "
                 "The user asked a security task. Below are the raw outputs of the executed tools.\n\n"

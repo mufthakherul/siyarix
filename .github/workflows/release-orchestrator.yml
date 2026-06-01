@@ -1,0 +1,147 @@
+name: Release Orchestrator
+
+on:
+  push:
+    tags:
+      - "v*"
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version number (e.g., 2.0.1 or v2.0.1)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: release-orchestrator-${{ github.event.release.tag_name || github.ref_name || github.event.inputs.version }}
+  cancel-in-progress: true
+
+jobs:
+  sync-versions:
+    name: Sync Version Files
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      branch: ${{ steps.resolve.outputs.branch }}
+    steps:
+      - name: Resolve version and target branch
+        id: resolve
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.version }}"
+            BRANCH="${{ github.event.repository.default_branch }}"
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+            BRANCH="${{ github.event.release.target_commitish || github.event.repository.default_branch }}"
+          else
+            TAG="${{ github.ref_name }}"
+            BRANCH="${{ github.event.repository.default_branch }}"
+          fi
+          VER="${TAG#v}"
+          echo "version=${VER}" >> "$GITHUB_OUTPUT"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.resolve.outputs.branch }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Synchronize versioned files
+        run: |
+          VERSION="${{ steps.resolve.outputs.version }}"
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          version = "${{ steps.resolve.outputs.version }}"
+          tag = f"v{version}"
+
+          files = {
+              "pyproject.toml": lambda t: re.sub(r'(?m)^version = "[^"]+"$', f'version = "{version}"', t, count=1),
+              "src/siyarix/__init__.py": lambda t: re.sub(r'(?m)^__version__ = "[^"]+"$', f'__version__ = "{version}"', t, count=1),
+              "install.ps1": lambda t: re.sub(r'(?m)^\\$__script_version = "[^"]+"$', f'$__script_version = "{version}"', t, count=1),
+              "install.sh": lambda t: re.sub(r'(?m)^SIYARIX_VERSION="\\$\\{SIYARIX_VERSION:-[^"]+\\}"$', f'SIYARIX_VERSION="${{SIYARIX_VERSION:-{version}}}"', t, count=1),
+              "packages/harmonyos/install-harmonyos.sh": lambda t: re.sub(r'(?m)^SIYARIX_VERSION="[^"]+"$', f'SIYARIX_VERSION="{version}"', t, count=1),
+              "packages/chocolatey/tools/chocolateyinstall.ps1": lambda t: re.sub(r"(?m)^\\$version = '[^']+'$", f"$version = '{version}'", re.sub(r"(?m)^\\$url = 'https://github.com/mufthakherul/siyarix/archive/refs/tags/v[^']+\\.tar\\.gz'$", f"$url = 'https://github.com/mufthakherul/siyarix/archive/refs/tags/{tag}.tar.gz'", t, count=1), count=1),
+              "README.md": lambda t: re.sub(r'https://img\\.shields\\.io/badge/Release-v[0-9A-Za-z\\.-]+-blue\\?style=flat-square&logo=github', f'https://img.shields.io/badge/Release-v{version}-blue?style=flat-square&logo=github', t, count=1),
+          }
+
+          for path, transform in files.items():
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              p.write_text(transform(text), encoding="utf-8")
+
+          npm_file = Path("packages/npm/package.json")
+          npm = json.loads(npm_file.read_text(encoding="utf-8"))
+          npm["version"] = version
+          npm_file.write_text(json.dumps(npm, indent=2) + "\n", encoding="utf-8")
+
+          winget_files = [
+              Path("packages/winget/Mufthakherul.Siyarix.yaml"),
+              Path("packages/winget/Mufthakherul.Siyarix.installer.yaml"),
+              Path("packages/winget/Mufthakherul.Siyarix.locale.en-US.yaml"),
+          ]
+          for p in winget_files:
+              manifest = json.loads(p.read_text(encoding="utf-8"))
+              manifest["PackageVersion"] = version
+              for installer in manifest.get("Installers", []):
+                  url = installer.get("InstallerUrl")
+                  if isinstance(url, str):
+                      installer["InstallerUrl"] = re.sub(r"/download/v[^/]+/", f"/download/{tag}/", url)
+              if "InstallerUrl" in manifest:
+                  manifest["InstallerUrl"] = re.sub(r"/download/v[^/]+/", f"/download/{tag}/", manifest["InstallerUrl"])
+              if "ReleaseNotesUrl" in manifest:
+                  manifest["ReleaseNotesUrl"] = re.sub(r"/tag/v[^/]+$", f"/tag/{tag}", manifest["ReleaseNotesUrl"])
+              p.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          PY
+
+      - name: Commit synced versions
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No version updates needed."
+            exit 0
+          fi
+          git add pyproject.toml src/siyarix/__init__.py install.ps1 install.sh \
+            packages/harmonyos/install-harmonyos.sh packages/chocolatey/tools/chocolateyinstall.ps1 \
+            packages/npm/package.json packages/winget/Mufthakherul.Siyarix.yaml \
+            packages/winget/Mufthakherul.Siyarix.installer.yaml \
+            packages/winget/Mufthakherul.Siyarix.locale.en-US.yaml README.md
+          git commit -m "chore: sync all version references to ${{ steps.resolve.outputs.version }}"
+          git push origin "HEAD:${{ steps.resolve.outputs.branch }}"
+
+  run-release-workflow:
+    name: Dispatch Release Workflow
+    runs-on: ubuntu-latest
+    needs: sync-versions
+    steps:
+      - name: Trigger release.yml
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: "release.yml",
+              ref: "${{ needs.sync-versions.outputs.branch }}",
+              inputs: {
+                version: "${{ needs.sync-versions.outputs.version }}",
+                publish_pypi: "true",
+                publish_npm: "true",
+                publish_apt: "true",
+                publish_docker: "true",
+                publish_winget: "true"
+              }
+            });

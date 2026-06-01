@@ -72,12 +72,11 @@ class TestToolMetrics:
 
 class TestPlannerMetrics:
     def test_to_metrics(self):
-        pm = PlannerMetrics(plans_generated=5, plans_successful=3, plans_failed=2, model_calls=10, model_errors=1, interpreter_fallbacks=2)
+        pm = PlannerMetrics(plans_generated=5, plans_successful=3, plans_failed=2, model_calls=10, model_errors=1)
         metrics = pm.to_metrics()
-        assert len(metrics) == 6
+        assert len(metrics) == 5
         names = [m.name for m in metrics]
         assert "siyarix_plans_generated" in names
-        assert "siyarix_interpreter_fallbacks" in names
 
 
 class TestMetricsCollector:
@@ -144,10 +143,6 @@ class TestMetricsCollector:
     def test_record_model_error(self, collector):
         collector.record_model_error()
         assert collector.planner.model_errors == 1
-
-    def test_record_interpreter_fallback(self, collector):
-        collector.record_interpreter_fallback()
-        assert collector.planner.interpreter_fallbacks == 1
 
     def test_to_prometheus(self, collector):
         collector.record_scan(duration=1.0, successful=True, findings_count=3)

@@ -130,7 +130,6 @@ class PlannerMetrics:
     plans_failed: int = 0
     model_calls: int = 0
     model_errors: int = 0
-    interpreter_fallbacks: int = 0
 
     def to_metrics(self) -> list[Metric]:
         """Convert to Prometheus metrics."""
@@ -140,11 +139,6 @@ class PlannerMetrics:
             Metric("siyarix_plans_failed", MetricType.GAUGE, self.plans_failed),
             Metric("siyarix_model_calls", MetricType.COUNTER, self.model_calls),
             Metric("siyarix_model_errors", MetricType.COUNTER, self.model_errors),
-            Metric(
-                "siyarix_interpreter_fallbacks",
-                MetricType.COUNTER,
-                self.interpreter_fallbacks,
-            ),
         ]
 
 
@@ -224,10 +218,6 @@ class MetricsCollector:
         """Record model provider error."""
         self.planner.model_errors += 1
 
-    def record_interpreter_fallback(self) -> None:
-        """Record fallback to interpreter."""
-        self.planner.interpreter_fallbacks += 1
-
     def to_prometheus(self) -> str:
         """Export metrics in Prometheus text format."""
         lines = [
@@ -278,7 +268,6 @@ class MetricsCollector:
                 "plans_failed": self.planner.plans_failed,
                 "model_calls": self.planner.model_calls,
                 "model_errors": self.planner.model_errors,
-                "interpreter_fallbacks": self.planner.interpreter_fallbacks,
             },
             "tools": {
                 name: {

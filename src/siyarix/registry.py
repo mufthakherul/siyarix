@@ -420,7 +420,7 @@ def _make_web_handler(tool_name: str) -> ToolHandler:
             if tool_name in ("nikto",):
                 cmd += ["-h", target]
             elif tool_name in ("nuclei",):
-                cmd += ["-u", target]
+                cmd += ["-duc", "-u", target]
             elif tool_name in ("gobuster",):
                 cmd += ["-u", target]
             elif tool_name in ("ffuf",):

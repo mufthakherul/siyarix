@@ -734,6 +734,8 @@ class SiyarixChat:
             "/cancel": self._cmd_esc,
             "/log": self._cmd_log,
             "/diff": self._cmd_diff,
+            "/mcp": self._cmd_mcp,
+            "/agent": self._cmd_agent,
         }
 
         handler = handlers.get(command)
@@ -1554,11 +1556,7 @@ class SiyarixChat:
 
     async def _cmd_mcp(self, args: str) -> None:
         """Handle /mcp command for MCP server interaction."""
-        try:
-            from .mcp_integration import MCPClient
-        except ModuleNotFoundError:
-            console.print("[yellow]MCP integration is not available in this version[/yellow]")
-            return
+        from .mcp import MCPClient, MCPServerConfig
 
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else ""
@@ -1568,7 +1566,12 @@ class SiyarixChat:
             if not url:
                 url = Prompt.ask("MCP server URL")
             client = MCPClient()
-            ok = await client.connect(url)
+            ok = await client.connect(MCPServerConfig(name="default", url=url))
+            if ok:
+                self._session.context["mcp_client"] = client
+                console.print(f"[green]✓ Connected to MCP server at {url}[/green]")
+            else:
+                console.print(f"[red]Failed to connect to {url}[/red]")
             if ok:
                 self._session.context["mcp_client"] = client
                 console.print(f"[green]✓ Connected to MCP server at {url}[/green]")
@@ -2730,10 +2733,14 @@ class SiyarixChat:
 
         async def run_one_tool(step: Any) -> tuple[Any, dict]:
             if step.command:
+                from .shell_review import review_and_confirm
                 from .subprocess_utils import safe_run_async
+                reviewed = review_and_confirm(step.command, "raw", "Raw shell command from LLM plan")
+                if reviewed is None:
+                    return step, {"status": "error", "output": "", "error": "Cancelled by user", "exit_code": -1}
                 cmd_timeout = self._settings.get("agent_timeout") or 1740
                 result = await safe_run_async(
-                    ["sh", "-c", step.command],
+                    ["sh", "-c", reviewed],
                     timeout=cmd_timeout,
                 )
                 return step, {"status": "success" if result.exit_code == 0 else "error",

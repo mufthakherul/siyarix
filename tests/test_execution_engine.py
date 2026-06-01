@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Tests for the v2 execution engine: interpreter, planner, security hardening,
+"""Tests for the execution engine: planner, security hardening,
 execution engine, and data models."""
 
 from __future__ import annotations
@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from siyarix.compat import EngineResult, ExecutionEngine, ExecutionMode
-from siyarix.interpreter import RuleInterpreter, TaskCategory
 from siyarix.planner import (
     ExecutionPlan,
     PlanStep,
@@ -27,116 +26,6 @@ from siyarix.security_hardening import DangerAnalyzer, InputValidator
 def _run(coro):
     return asyncio.run(coro)
 
-
-# ---------------------------------------------------------------------------
-# Rule Interpreter tests
-# ---------------------------------------------------------------------------
-
-
-class TestRuleInterpreter:
-    """Tests for the heuristic-based RuleInterpreter."""
-
-    def setup_method(self) -> None:
-        self.interpreter = RuleInterpreter()
-
-    def test_interpret_simple_scan(self) -> None:
-        result = self.interpreter.interpret("scan 192.168.1.1 with nmap")
-        assert result.category == TaskCategory.SCAN
-        assert "192.168.1.1" in result.targets
-        assert "nmap" in result.tools
-
-    def test_interpret_multi_tool(self) -> None:
-        result = self.interpreter.interpret("scan 10.0.0.1 with nmap and nuclei")
-        assert result.category == TaskCategory.SCAN
-        assert "10.0.0.1" in result.targets
-        assert "nmap" in result.tools
-        assert "nuclei" in result.tools
-
-    def test_interpret_workflow(self) -> None:
-        result = self.interpreter.interpret("scan 192.168.1.1 then analyze the results")
-        assert result.category == TaskCategory.WORKFLOW
-        assert len(result.sub_tasks) == 2
-        assert result.sub_tasks[0].category == TaskCategory.SCAN
-        assert result.sub_tasks[1].category == TaskCategory.ANALYZE
-
-    def test_interpret_url_target(self) -> None:
-        result = self.interpreter.interpret("scan https://example.com with nikto")
-        assert "https://example.com" in result.targets or any(
-            "example.com" in t for t in result.targets
-        )
-        assert "nikto" in result.tools
-
-    def test_interpret_analyze_task(self) -> None:
-        result = self.interpreter.interpret("analyze the scan results")
-        assert result.category == TaskCategory.ANALYZE
-
-    def test_interpret_report_task(self) -> None:
-        result = self.interpreter.interpret("generate a pdf report")
-        assert result.category == TaskCategory.REPORT
-
-    def test_interpret_unknown_task(self) -> None:
-        result = self.interpreter.interpret("hello world")
-        assert result.category == TaskCategory.UNKNOWN
-        assert result.confidence < 0.5
-
-    def test_interpret_cidr_target(self) -> None:
-        result = self.interpreter.interpret("scan 10.0.0.0/24")
-        assert any("10.0.0.0/24" in t for t in result.targets)
-
-    def test_interpret_intensity_flags(self) -> None:
-        result = self.interpreter.interpret("deep scan 192.168.1.1")
-        assert result.flags.get("depth") == "thorough"
-
-    def test_interpret_all_tools_flag(self) -> None:
-        result = self.interpreter.interpret("scan with all tools")
-        assert result.flags.get("all_tools") is True
-
-    def test_confidence_increases_with_detail(self) -> None:
-        vague = self.interpreter.interpret("check something")
-        detailed = self.interpreter.interpret("scan 192.168.1.1 with nmap")
-        assert detailed.confidence > vague.confidence
-
-    def test_interpret_exploit_task(self) -> None:
-        result = self.interpreter.interpret("exploit the target")
-        assert result.category == TaskCategory.EXPLOIT
-
-    def test_interpret_monitor_task(self) -> None:
-        result = self.interpreter.interpret("monitor the dashboard")
-        assert result.category == TaskCategory.MONITOR
-
-    def test_to_dict(self) -> None:
-        result = self.interpreter.interpret("scan 192.168.1.1 with nmap")
-        d = result.to_dict()
-        assert "category" in d
-        assert "targets" in d
-        assert "tools" in d
-        assert d["category"] == "scan"
-
-    def test_multi_step_workflow_connectors(self) -> None:
-        result = self.interpreter.interpret("scan the host and then generate report")
-        assert result.category == TaskCategory.WORKFLOW
-        assert len(result.sub_tasks) >= 2
-
-    def test_conditional_workflow(self) -> None:
-        result = self.interpreter.interpret(
-            "if host is up then scan with nmap else run nuclei"
-        )
-        assert result.category == TaskCategory.WORKFLOW
-        assert result.action == "conditional"
-        assert len(result.sub_tasks) == 2
-
-    def test_logic_chain_workflow(self) -> None:
-        result = self.interpreter.interpret(
-            "scan with nmap || scan with nuclei"
-        )
-        assert result.category == TaskCategory.WORKFLOW
-        assert result.action == "chain"
-        assert len(result.sub_tasks) == 2
-
-
-# ---------------------------------------------------------------------------
-# Planner tests
-# ---------------------------------------------------------------------------
 
 
 class TestPlanner:

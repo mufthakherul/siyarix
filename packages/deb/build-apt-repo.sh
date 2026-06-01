@@ -9,7 +9,7 @@ set -euo pipefail
 
 REPO_DIR="packages/deb/apt-repo"
 GPG_KEY="${GPG_KEY:-}"
-PKG_VERSION="${1:-1.0.0-beta}"
+PKG_VERSION="${1:-2.0.0}"
 
 echo "==> Building APT repository at ${REPO_DIR}"
 

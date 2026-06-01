@@ -59,19 +59,15 @@ In safe mode:
 - All destructive commands are denied
 - Only reconnaissance and scanning permitted
 - Permission gate enforces maximum strictness
-- Kill switch pre-armed
+- Emergency stop via Ctrl+C
 
-## Kill switch (`kill_switch.py`)
+## Emergency stop
 
-Emergency stop for autonomous operations:
+All running commands can be stopped immediately:
 
-```
-States: ARMED → TRIGGERED → DISARMED
-```
-
-Triggering the kill switch:
-
-- Immediately halts all execution
+- Press **Ctrl+C** once to cancel the current task
+- Press **Ctrl+C** twice to exit Siyarix entirely
+- The execution engine halts all subprocesses and cleans up
 - Logs the stop event to audit trail
 - Cannot be re-armed without explicit user action
 

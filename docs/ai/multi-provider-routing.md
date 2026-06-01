@@ -87,7 +87,18 @@ CLOSED (normal)
 3. **Provider validation**: `validate()` checks endpoint reachability
 4. **Task type**: Some providers preferred for specific operations
 
-## Fallback chain behavior
+## Auto mode: provider scan order
+
+When `model_provider = "auto"`, providers are tried in this priority order:
+
+1. OpenAI (`OPENAI_API_KEY`)
+2. Gemini (`GEMINI_API_KEY` / `GOOGLE_API_KEY`)
+3. OpenRouter (`OPENROUTER_API_KEY`)
+4. Anthropic (`ANTHROPIC_API_KEY`)
+5. Groq (`GROQ_API_KEY`)
+6. Together (`TOGETHER_API_KEY`)
+7. Ollama (no key needed — local endpoint)
+8. Noop (offline fallback — always succeeds)
 
 ```
 Request (model_provider = "auto")
@@ -100,10 +111,47 @@ Request (model_provider = "auto")
   │     ├── Success → done
   │     └── Fail → next
   │
-  ├── ... (anthropic, groq, together, ollama, lmstudio, cloud)
+  ├── Try openrouter
+  │     ├── Success → done
+  │     └── Fail → next
   │
-  └── Try noop (always succeeds, offline fallback)
+  ├── ... (anthropic, groq, together, ollama)
+  │
+  └── No provider available → offline/local planner
 ```
+
+## Session-disabled providers
+
+When a provider fails during a session, it is automatically **disabled for the rest of the session**. This prevents repeated retries against a failing provider.
+
+### What triggers a disable
+
+| Error | Example | Disabled? |
+|-------|---------|-----------|
+| Rate limit (429) | `429 Too Many Requests` | Yes |
+| Auth failure (401) | `401 Unauthorized` | Yes |
+| Generic error | `Connection error`, timeout | Yes |
+
+### How it works
+
+A per-session set (`self._disabled_providers`) tracks failed providers:
+
+```python
+class SiyarixChat:
+    def __init__(self):
+        self._disabled_providers: set[str] = set()
+
+    def _resolve_provider(self):
+        for name, env_var in PROVIDER_SCAN_ORDER:
+            if name in self._disabled_providers:
+                continue  # Skip this provider for the rest of the session
+            if key := os.environ.get(env_var):
+                return (name, key)
+```
+
+- The disabled set is **never persisted** — a fresh session starts with a clean slate
+- In auto mode, the system tries the next available provider in the scan order
+- In single-provider mode, the session stops after the first failure
 
 ## Provider health
 

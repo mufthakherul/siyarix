@@ -51,26 +51,13 @@ Command → Syntax Check → Danger Analysis → Result
 
 Each stage returns `ALLOW`, `FLAG`, or `DENY`.
 
-## 3. Kill switch
+## 3. Emergency stop
 
-Emergency stop mechanism:
+All running commands can be stopped immediately:
 
-```python
-kill_switch = KillSwitch()
-kill_switch.arm()
-
-# On dangerous condition:
-kill_switch.trigger()
-# All execution halts, state is logged
-```
-
-States:
-
-| State | Behavior |
-|-------|----------|
-| `ARMED` | System running, kill switch can be triggered |
-| `TRIGGERED` | All execution stopped, requires explicit disarm |
-| `DISARMED` | Normal operation (cannot re-arm without restart) |
+- Press **Ctrl+C** once to cancel the current task
+- Press **Ctrl+C** twice to exit Siyarix entirely
+- The execution engine halts all subprocesses and cleans up
 
 ## 4. Safe mode
 
@@ -84,7 +71,7 @@ Restricts all operations to reconnaissance only:
 - No exploitation (metasploit, sqlmap active)
 - No destructive commands (dd, rm, format)
 - Permission gate at maximum strictness
-- Kill switch pre-armed on startup
+- Emergency stop via Ctrl+C
 
 ## 5. OPSEC controls
 
@@ -119,7 +106,7 @@ All safety events are logged to the tamper-evident audit log:
 | Event | Logged data |
 |-------|-------------|
 | Command blocked | command, reason, pattern matched |
-| Kill switch triggered | trigger reason, timestamp |
+| Emergency stop | trigger reason, timestamp |
 | Safe mode violation | command, persona, target |
 | Permission gate | gate stage, result, user action |
 

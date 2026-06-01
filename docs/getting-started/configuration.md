@@ -27,9 +27,10 @@ Siyarix uses a layered configuration system: defaults, environment variables, se
 Each supported provider has a configurable model name:
 
 ```toml
-model_provider = "auto"
-gemini_model = "gemini-1.5-pro"
+model_provider = "openrouter"
+gemini_model = "gemini-2.0-flash"
 openai_model = "gpt-4o"
+openrouter_model = "nvidia/nemotron-3-super-120b-a12b:free"
 anthropic_model = "claude-3-opus-20240229"
 groq_model = "llama3-70b-8192"
 together_model = "mistralai/Mixtral-8x7B-Instruct-v0.1"

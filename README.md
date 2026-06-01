@@ -97,7 +97,7 @@ Key architectural decisions:
 
 - **Provider abstraction**: 10 provider adapters registered, preference-ordered fallback chains, no hard SDK dependency
 - **Offline fallback**: Heuristic planner when no AI provider is available; local models via Ollama/LM Studio
-- **Safety**: Two-stage permission gate, 38 dangerous-command patterns, kill switch
+- **Safety**: Two-stage permission gate, 38 dangerous-command patterns, emergency stop
 
 ---
 
@@ -105,7 +105,10 @@ Key architectural decisions:
 
 - CLI with 50+ commands across scan, recon, exploit, report, config, and security groups
 - Interactive chat REPL with slash commands, multi-turn context, and SQLite-backed session persistence
-- Multi-provider AI routing with automatic failover and circuit breakers
+- Multi-provider AI routing with automatic failover, circuit breakers, and session-disabled provider tracking
+- Persona system — 10 security mindsets (red team, blue team, DFIR, cloud, appsec, etc.) plus auto and universal modes
+- Multi-wave execution — LLM-driven iterative workflows with up to 5 waves and real-time streaming output
+- Command review — interactive edit/run/step/cancel prompt before executing any shell command
 - Security tool integration — 100+ tools discovered on PATH, 18+ output parsers
 - Credential management — encrypted vault (AES-256-GCM), keyring integration, key rotation
 - Knowledge graph — in-memory entity relationship modeling with BFS traversal

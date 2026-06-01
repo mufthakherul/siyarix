@@ -65,7 +65,9 @@ Start here:
 
 ### AI engineers
 
-- `ai/multi-provider-routing.md` — provider registration and failover
+- `ai/multi-provider-routing.md` — provider registration, failover, session-disabled providers
+- `ai/persona-system.md` — persona switching, system prompts, available personas
+- `ai/multi-wave-execution.md` — iterative execution, live streaming, command review
 - `ai/prompt-architecture.md` — prompt construction
 - `ai/agent-reasoning.md` — planning and reasoning pipeline
 - `ai/tool-execution.md` — tool lifecycle and parsing
@@ -139,6 +141,8 @@ docs/
 │
 ├── ai/
 │   ├── multi-provider-routing.md  # 10 providers, preference chains, CB
+│   ├── persona-system.md          # Persona switching, system prompts
+│   ├── multi-wave-execution.md    # Iterative execution, live streaming
 │   ├── prompt-architecture.md     # System context, safety constraints
 │   ├── agent-reasoning.md         # Goal decomposition, multi-agent
 │   ├── tool-execution.md          # Tool discovery, parsing, errors
@@ -148,7 +152,7 @@ docs/
 │
 ├── security/
 │   ├── ethical-hacking-policy.md   # Authorized use, scope, compliance
-│   ├── abuse-prevention.md         # Danger analysis, kill switch, OPSEC
+│   ├── abuse-prevention.md         # Danger analysis, emergency stop, OPSEC
 │   ├── threat-model.md             # Assets, boundaries, mitigations
 │   ├── vulnerability-reporting.md  # Reporting process, disclosure
 │   ├── operational-security.md     # TOR, proxy rotation, stealth

@@ -123,13 +123,14 @@ class AgentCore:
             data={"mode": self._mode.value, "tools": self._registry.stats()["total"]},
         ))
 
-    async def execute_goal(self, goal: AgentGoal) -> AgentResult:
+    async def execute_goal(self, goal: AgentGoal, plan: ExecutionPlan | None = None) -> AgentResult:
         self._status = AgentStatus.PLANNING
         start = time.time()
         result = AgentResult(goal=goal.description)
         try:
-            plan = self._planner.decompose_goal(
-                goal.description, [t.name for t in self._registry.list_tools()])
+            if plan is None:
+                plan = self._planner.decompose_goal(
+                    goal.description, [t.name for t in self._registry.list_tools()])
             result.plan = plan
             self._context.add_history(f"Goal: {goal.description}", "user")
             await self._validator.validate_plan(plan.steps)

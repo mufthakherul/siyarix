@@ -541,12 +541,9 @@ class SiyarixChat:
         self._engine_kill_switch = None
         self._split_pane_enabled = False
         self._split_pane_type = "attack_map"
-        self._tools: list[str] = []
-        self._commands: list[str] = []
         self._esc_press_count = 0
         self._esc_press_time = 0.0
         self._esc_window = 2.0
-        self._offline_responder: Any = None
         self._disabled_providers: set[str] = set()
 
     def _init_session(

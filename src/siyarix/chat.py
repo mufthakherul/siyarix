@@ -2503,11 +2503,12 @@ class SiyarixChat:
         return None
 
     async def _execute_agent(self, instruction: str, target: str = "") -> bool:
-        """Run the agent loop via AgentCore. Returns True if agent produced a response."""
-        from .core import AgentCore, AgentMode, AgentGoal
-        from .planner import StepStatus
+        """Agent loop: LLM-first planning → parallel execution → LLM synthesis."""
+        from .core import AgentCore, AgentMode
+        from rich.panel import Panel
 
         provider_name = self._settings.get("model_provider") or "gemini"
+        api_key = os.environ.get(f"{provider_name.upper()}_API_KEY")
 
         instruction_with_target = instruction
         if target and target not in instruction:
@@ -2521,122 +2522,154 @@ class SiyarixChat:
 
         all_tools = agent._registry.list_tools()
         tool_names = [t.name for t in all_tools]
+        tool_dicts = [
+            {"name": t.name, "description": t.description,
+             "tags": t.tags, "category": t.category.value if hasattr(t.category, 'value') else str(t.category)}
+            for t in all_tools
+        ]
 
-        # ── Step 1: Try LLM-driven planning ──
+        # ── Decision maker ───────────────────────────────────────────────
+        total_start = time.time()
         llm_plan: Any = None
         llm_reasoning: str | None = None
-        api_key = os.environ.get(f"{provider_name.upper()}_API_KEY")
+        llm_connected = False
+        llm_model = provider_name
+        total_input_tokens = 0
+        total_output_tokens = 0
+        llm_call_fn = None
 
-        if api_key:
-            tool_dicts = [
-                {"name": t.name, "description": t.description,
-                 "tags": t.tags, "category": t.category.value if hasattr(t.category, 'value') else str(t.category)}
-                for t in all_tools
-            ]
+        if not api_key:
+            console.print("[yellow]⚠ No API key configured — using local planner[/yellow]")
+        else:
             try:
-                llm_plan = await asyncio.wait_for(
-                    agent._planner.llm_decompose_goal(
-                        instruction_with_target,
-                        tool_names,
-                        llm_call=self._make_llm_call(provider_name, api_key),
-                        tool_schemas=tool_dicts,
-                    ),
-                    timeout=30.0,
+                llm_call_fn = self._make_llm_call(provider_name, api_key)
+                # Test connectivity with a quick ping
+                ping = await asyncio.wait_for(
+                    llm_call_fn("Respond with exactly: OK", "ping"),
+                    timeout=15.0,
                 )
-                llm_reasoning = llm_plan.context.get("reasoning", "")
-            except (asyncio.TimeoutError, RuntimeError, ValueError) as exc:
-                logger.debug("LLM planning failed (%s), falling back to heuristic planner", exc)
+                if ping.get("content", "").strip() != "OK":
+                    raise RuntimeError(f"LLM ping failed: {ping.get('content', '')[:100]}")
+                llm_connected = True
+            except asyncio.TimeoutError:
+                console.print("[yellow]⚠ LLM request timed out — using local planner[/yellow]")
+            except Exception as exc:
+                msg = str(exc)
+                if "429" in msg or "rate_limit" in msg.lower() or "quota" in msg.lower():
+                    console.print("[yellow]⚠ LLM rate limit reached — using local planner[/yellow]")
+                elif "401" in msg or "unauthorized" in msg.lower() or "invalid" in msg.lower():
+                    console.print("[yellow]⚠ LLM authentication failed — using local planner[/yellow]")
+                else:
+                    console.print(f"[yellow]⚠ LLM unavailable ({exc}) — using local planner[/yellow]")
 
-        # ── Step 2: If LLM says no tools needed — respond directly ──
-        if llm_plan and not llm_plan.steps:
+        # ── Planning ─────────────────────────────────────────────────────
+        if llm_connected:
+            with console.status("[bold cyan]LLM analysing request...[/bold cyan]", spinner="dots"):
+                try:
+                    plan_result = await asyncio.wait_for(
+                        agent._planner.llm_decompose_goal(
+                            instruction_with_target, tool_names,
+                            llm_call=llm_call_fn, tool_schemas=tool_dicts,
+                        ),
+                        timeout=30.0,
+                    )
+                    llm_plan = plan_result
+                    llm_reasoning = plan_result.context.get("reasoning", "")
+                except (asyncio.TimeoutError, RuntimeError, ValueError) as exc:
+                    console.print(f"[yellow]⚠ LLM planning failed ({exc}) — using local planner[/yellow]")
+
+        if not llm_plan:
+            with console.status("[bold green]Planning...[/bold green]", spinner="dots"):
+                llm_plan = agent._planner.decompose_goal(
+                    instruction_with_target, tool_names)
+
+        # ── No tools needed ──────────────────────────────────────────────
+        if not llm_plan.steps:
             response = llm_reasoning or "I understood your request but no tools were needed."
             self._session.add_message("assistant", response)
             self._print_assistant(response)
+            duration = time.time() - total_start
+            console.print(
+                f"[dim]Time: {duration:.1f}s | Mode: {self._mode} | "
+                f"LLM: {'connected' if llm_connected else 'offline'}[/dim]"
+            )
             return True
 
-        # ── Step 3: Execute plan (LLM-generated or heuristic) ──
-        try:
-            with console.status("[bold green]Executing...[/bold green]", spinner="dots"):
-                goal = AgentGoal(description=instruction_with_target, target=target)
-                result = await asyncio.wait_for(
-                    agent.execute_goal(goal, plan=llm_plan),
-                    timeout=self._settings.get("agent_timeout", 1200),
-                )
-        except asyncio.TimeoutError:
-            console.print(
-                f"[yellow]Agent timed out after {self._settings.get('agent_timeout', 1200)}s — "
-                "use '/config set agent_timeout <secs>' to adjust[/yellow]"
+        # ── Announce which tools will run ───────────────────────────────
+        tool_labels = [f"[bold]{s.tool}[/bold]" for s in llm_plan.steps]
+        console.print(f"[cyan]→ I need to execute:[/cyan] {', '.join(tool_labels)}")
+
+        # ── Execute all tools in parallel with live output ───────────────
+        _step_icons = {"success": "✓", "completed": "✓", "failed": "✗",
+                       "skipped": "—", "running": "·", "retrying": "↻",
+                       "pending": "○", "blocked": "⊘", "ready": "●"}
+
+        async def run_one_tool(step: Any) -> tuple[Any, dict]:
+            result = await agent._registry.execute(step.tool, **step.args)
+            return step, result
+
+        tasks = [run_one_tool(s) for s in llm_plan.steps]
+        raw_results = await asyncio.gather(*tasks)
+
+        # Show live output panels per tool
+        for step, result in raw_results:
+            status = "success" if result.get("status") == "success" else "failed"
+            icon = _step_icons.get(status, "·")
+            color = "green" if status == "success" else "red"
+            output = (result.get("output") or "").strip()
+            error = (result.get("error") or "").strip()
+            lines = [
+                f"[{color}]{icon} {result.get('exit_code', 0)}[/{color}]  "
+                f"[bold]{step.tool}[/bold] — {step.description}"
+            ]
+            if output:
+                lines.append(f"[dim]{output[:800]}[/dim]")
+            if error:
+                lines.append(f"[red]{error[:300]}[/red]")
+            console.print(Panel("\n".join(lines), title=f"Output of {step.tool} {step.description}",
+                                border_style=color, padding=(0, 2)))
+
+        # ── LLM analysis of all outputs ──────────────────────────────────
+        if llm_connected and llm_call_fn:
+            parts: list[str] = []
+            for step, result in raw_results:
+                output = (result.get("output") or "")[:3000]
+                parts.append(f"• {step.tool} ({step.description}):\n{output}\n")
+            system_prompt = (
+                "You are Siyarix, an AI cybersecurity assistant. "
+                "The user asked a security task. Below are the raw outputs of the executed tools.\n\n"
+                "Analyse these results and provide a concise summary of the key findings "
+                "relevant to the user's original request. Be technical and specific."
             )
-            return False
-        except Exception as exc:
-            logger.warning("Agent loop failed: %s", exc)
-            return False
-
-        if not result:
-            return False
-
-        # ── Step 4: Show step panels ──
-        _step_icons = {
-            "success": "✓", "completed": "✓", "failed": "✗",
-            "skipped": "—", "running": "·", "retrying": "↻",
-            "pending": "○", "blocked": "⊘", "ready": "●",
-        }
-        if result.plan and result.plan.steps:
-            for step in result.plan.steps:
-                icon = _step_icons.get(step.status, "·")
-                if step.status in (StepStatus.SUCCESS, StepStatus.COMPLETED):
-                    color = "green"
-                elif step.status == StepStatus.FAILED:
-                    color = "red"
-                else:
-                    color = "dim"
-                label = step.tool or step.command or "—"
-                output = step.result.get("output", "") if step.result else ""
-                error = step.result.get("error", "") if step.result else ""
-                lines = [f"[{color}]{icon} {step.status.upper()}[/{color}]  [bold]{label}[/bold] — {step.description}"]
-                if output:
-                    lines.append(f"[dim]{output[:600]}[/dim]")
-                if error:
-                    lines.append(f"[red]{error[:300]}[/red]")
-                console.print(
-                    Panel(
-                        "\n".join(lines),
-                        title=f"Step {step.id}",
-                        border_style=color if color != "dim" else "grey58",
-                        padding=(0, 2),
+            user_prompt = f"User request: {instruction_with_target}\n\nTool outputs:\n\n" + "\n".join(parts)
+            with console.status("[bold cyan]LLM analysing results...[/bold cyan]", spinner="dots"):
+                try:
+                    syn = await asyncio.wait_for(
+                        llm_call_fn(system_prompt, user_prompt),
+                        timeout=60.0,
                     )
-                )
+                    summary = syn.get("content", "")
+                    llm_model = syn.get("model", provider_name)
+                    total_input_tokens += syn.get("input_tokens", 0)
+                    total_output_tokens += syn.get("output_tokens", 0)
+                except asyncio.TimeoutError:
+                    summary = ""
+                    console.print("[yellow]⚠ LLM analysis timed out[/yellow]")
+            if summary:
+                self._session.add_message("assistant", summary)
+                self._print_assistant(summary)
 
-        # ── Step 5: LLM synthesis of results ──
-        has_any_success = any(
-            s.status in (StepStatus.SUCCESS, StepStatus.COMPLETED)
-            for s in (result.plan.steps if result.plan else [])
-        )
-        with console.status("[bold green]Synthesising response...[/bold green]", spinner="dots"):
-            try:
-                llm_response = await asyncio.wait_for(
-                    self._synthesize_agent_response(
-                        instruction, result, provider_name, has_any_success
-                    ),
-                    timeout=30.0,
-                )
-            except asyncio.TimeoutError:
-                logger.debug("LLM synthesis timed out after 30s")
-                llm_response = None
+        # ── Bottom stats line ────────────────────────────────────────────
+        total_duration = time.time() - total_start
+        stats_parts = [
+            f"Time: {total_duration:.1f}s",
+            f"Mode: {self._mode}",
+        ]
+        if llm_connected:
+            stats_parts.append(f"Model: {llm_model}")
+            stats_parts.append(f"Tokens: {total_input_tokens}↑ {total_output_tokens}↓")
+        console.print("[dim]" + " | ".join(stats_parts) + "[/dim]")
 
-        if llm_response:
-            self._session.add_message("assistant", llm_response)
-            self._print_assistant(llm_response)
-        elif result.summary:
-            self._session.add_message("assistant", result.summary)
-            self._print_assistant(result.summary)
-
-        timing = f" in {result.duration_ms / 1000:.1f}s" if result.duration_ms else ""
-        if result.findings:
-            self._session.add_message(
-                "assistant",
-                f"Agent found {len(result.findings)} result(s){timing}",
-            )
         return True
 
     async def _synthesize_agent_response(
@@ -2645,11 +2678,11 @@ class SiyarixChat:
         result: Any,
         provider_name: str,
         has_any_success: bool,
-    ) -> str | None:
-        """Call the LLM to synthesize tool results into a natural-language response.
+    ) -> dict | None:
+        """Call the LLM to synthesize tool results into a response dict.
 
-        When tools succeeded the LLM summarises findings; otherwise it answers
-        the query as a general chatbot.
+        Returns ``{"content": str, "model": str, "input_tokens": int, "output_tokens": int}``
+        or ``None`` when no synthesis is possible.
         """
         api_key = os.environ.get(f"{provider_name.upper()}_API_KEY")
         if not api_key:
@@ -2684,7 +2717,7 @@ class SiyarixChat:
             return None
 
     def _make_llm_call(self, provider_name: str, api_key: str):
-        """Return an async callable ``(system, user) → str`` for the given provider."""
+        """Return an async callable ``(system, user) → dict`` with response metadata."""
         from openai import AsyncOpenAI
 
         if provider_name == "openrouter":
@@ -2705,7 +2738,7 @@ class SiyarixChat:
         else:
             raise ValueError(f"Unsupported provider: {provider_name}")
 
-        async def call(system_prompt: str, user_prompt: str) -> str:
+        async def call(system_prompt: str, user_prompt: str) -> dict:
             response = await client.chat.completions.create(
                 model=model,
                 messages=[
@@ -2715,7 +2748,14 @@ class SiyarixChat:
                 max_tokens=2000,
                 temperature=0.3,
             )
-            return response.choices[0].message.content or ""
+            choice = response.choices[0]
+            usage = response.usage
+            return {
+                "content": choice.message.content or "",
+                "model": response.model or model,
+                "input_tokens": usage.prompt_tokens if usage else 0,
+                "output_tokens": usage.completion_tokens if usage else 0,
+            }
 
         return call
 

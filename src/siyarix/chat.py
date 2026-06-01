@@ -672,7 +672,7 @@ class SiyarixChat:
             "integrated": "cyan",
         }.get(self._mode, "cyan")
         theme = self._settings.get("color_theme") or "cyber-noir"
-        provider = self._settings.get("model_provider") or "openrouter"
+        provider = self._settings.get("model_provider") or "auto"
         status = Text.assemble(
             (f"{provider}", "bold cyan"),
             (f" · {theme}", "dim white"),
@@ -782,6 +782,7 @@ class SiyarixChat:
             "/mcp": self._cmd_mcp,
             "/agent": self._cmd_agent,
             "/command": self._cmd_command,
+            "/review": self._cmd_command,
             "/persona": self._cmd_persona,
         }
 
@@ -1698,7 +1699,7 @@ class SiyarixChat:
         from rich.table import Table
 
         tokens = args.split() if args else []
-        current = self._settings.get("persona") or "none"
+        current = self._settings.get("persona") or "auto"
         if not tokens:
             p = get_persona(current)
             label = p["label"] if p else current
@@ -2682,10 +2683,12 @@ class SiyarixChat:
                 "- Threat intelligence — TTP mapping, IoC analysis, adversary profiling\n"
                 "- Forensics and incident response — timeline reconstruction, artefact analysis\n"
                 "- Governance and compliance — framework assessment, policy review, risk analysis\n\n"
-                "I am built and sustained by an incredible community of security researchers, "
-                "developers, and practitioners from around the world. Every contribution, "
-                "bug report, feature suggestion, and pull request makes me better at what I do. "
-                "I am deeply grateful to everyone who has helped shape this project.\n\n"
+                "I am an ongoing under-development project, and my knowledge base is improving "
+                "day by day. I am built and sustained by an incredible community of security "
+                "researchers, developers, and practitioners from around the world. Every "
+                "contribution, bug report, feature suggestion, and pull request helps me "
+                "serve you better. I am deeply grateful to everyone who has helped shape "
+                "this project.\n\n"
                 "If you'd like to join them, contributions and issue reports are always welcome:\n"
                 "- Repo: https://github.com/mufthakherul/siyarix\n"
                 "- Contributing: https://github.com/mufthakherul/siyarix/blob/main/CONTRIBUTING.md\n\n"
@@ -2701,7 +2704,7 @@ class SiyarixChat:
         """Build the full system prompt by prepending the active persona preamble."""
         from .personas import build_persona_prompt
 
-        persona_name = self._settings.get("persona") or "none"
+        persona_name = self._settings.get("persona") or "auto"
         if persona_name == "none":
             return NEUTRAL_SYSTEM_PROMPT
         preamble = build_persona_prompt(persona_name)
@@ -2834,7 +2837,7 @@ class SiyarixChat:
             self._session.add_message("assistant", response)
             self._print_assistant(response)
             duration = time.time() - total_start
-            persona_name = self._settings.get("persona") or "none"
+            persona_name = self._settings.get("persona") or "auto"
             console.print(
                 f"[dim]Time: {duration:.1f}s | Mode: {self._mode} | "
                 f"Persona: {persona_name} | "

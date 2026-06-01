@@ -75,6 +75,7 @@ dev = [
   "pre-commit>=3.7",
   "build>=1.2",
   "twine>=5.0",
+  "click>=8.0",
 ]
 
 [project.scripts]

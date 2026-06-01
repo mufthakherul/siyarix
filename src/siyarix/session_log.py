@@ -109,13 +109,13 @@ class SessionLogger:
 
     def load(self, session_id: str) -> SessionLog | None:
         path = self._path(session_id)
-        if not path.exists():
+        if not path.exists() or path.stat().st_size == 0:
             return None
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             return SessionLog.from_dict(data)
-        except Exception as exc:
-            logger.warning("Failed to load session log %s: %s", session_id, exc)
+        except Exception:
+            logger.debug("Failed to load session log %s (corrupt)", session_id)
             return None
 
     def list_logs(self) -> list[dict[str, Any]]:
@@ -125,6 +125,10 @@ class SessionLogger:
         for path in sorted(
             self._log_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
         ):
+            if path.stat().st_size == 0:
+                logger.debug("Skipping empty session log: %s", path)
+                path.unlink(missing_ok=True)
+                continue
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
                 logs.append(
@@ -139,8 +143,8 @@ class SessionLogger:
                         "safety_events": len(data.get("safety_events", [])),
                     }
                 )
-            except Exception as exc:
-                logger.warning("Failed to parse session log %s: %s", path, exc)
+            except Exception:
+                logger.debug("Skipping unparseable session log: %s", path)
                 continue
         return logs
 

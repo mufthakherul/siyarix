@@ -124,7 +124,7 @@ Users can force a provider switch at any time:
 
 If no AI provider is available:
 
-- Siyarix falls back to **heuristic planning** (`interpreter.py`)
+- Siyarix falls back to **local heuristic planning** (no LLM required)
 - Tool execution continues without AI assistance
 - Users receive a clear notification that AI features are unavailable
 

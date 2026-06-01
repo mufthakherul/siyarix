@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import time
 import uuid
@@ -308,6 +309,136 @@ class Planner:
 
         ranked = sorted(scores, key=lambda n: -scores[n])
         return ranked
+
+    # ── LLM-driven planning ─────────────────────────────────────────────
+
+    async def llm_decompose_goal(
+        self,
+        goal: str,
+        available_tools: list[str],
+        llm_call,
+        tool_schemas: list[dict] | None = None,
+    ) -> ExecutionPlan:
+        """Use an LLM to analyse the user's goal and produce a tool plan.
+
+        The LLM decides:
+        1. Whether tools are needed at all
+        2. Which tools from *available_tools* are suitable
+        3. What arguments each tool should receive
+
+        Parameters
+        ----------
+        llm_call:
+            An async callable ``(system_prompt: str, user_prompt: str) → str``
+            that returns the LLM's response text.
+        tool_schemas:
+            Optional list of tool dicts with ``name``, ``description``,
+            ``tags``, ``category`` to give the LLM richer context.
+        """
+        # Build a compact tool list for the prompt
+        if tool_schemas:
+            tool_lines = []
+            for t in tool_schemas:
+                name = t.get("name", "")
+                desc = t.get("description", "")
+                tags = t.get("tags", [])
+                cat = t.get("category", "")
+                if name in available_tools:
+                    meta = f"  - {name}"
+                    if desc and desc != name:
+                        meta += f": {desc}"
+                    if tags:
+                        meta += f" [{', '.join(tags[:5])}]"
+                    if cat:
+                        meta += f" ({cat})"
+                    tool_lines.append(meta)
+        else:
+            tool_lines = [f"  - {t}" for t in available_tools]
+
+        tools_text = "\n".join(tool_lines) if tool_lines else "  (none discovered)"
+
+        system_prompt = f"""You are a cybersecurity tool planner. Your job:
+1. Read the user's request.
+2. Decide if any tools need to be executed.
+3. If tools are needed, select the most appropriate tools from the available list.
+4. Choose the correct flags/arguments for each tool.
+
+Available tools on this system:
+{tools_text}
+
+Respond in this JSON format (and ONLY valid JSON — no markdown, no extra text):
+{{
+  "needs_tools": true or false,
+  "reasoning": "Brief explanation of your decision",
+  "steps": [
+    {{
+      "tool": "tool_name",
+      "args": {{ "target": "...", "flags": "...", ... }},
+      "description": "What this step does"
+    }}
+  ]
+}}
+
+- Set ``needs_tools`` to **false** if the user is just chatting, asking a knowledge question, or no tool on the list fits.
+- Set ``needs_tools`` to **true** if one or more tools should be run.
+- If a target domain/IP/host is mentioned, include it in ``args.target``.
+- Only use tool names that appear in the list above."""
+
+        user_prompt = goal
+
+        try:
+            response = await llm_call(system_prompt, user_prompt)
+        except Exception as exc:
+            raise RuntimeError(f"LLM planning call failed: {exc}") from exc
+
+        # Parse JSON response
+        # Strip any markdown fences the LLM might add
+        cleaned = response.strip()
+        if cleaned.startswith("```"):
+            # Remove ```json … ``` fences
+            cleaned = cleaned.split("\n", 1)[-1]
+            cleaned = cleaned.rsplit("```", 1)[0]
+        cleaned = cleaned.strip()
+        try:
+            data = json.loads(cleaned)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                f"LLM returned invalid JSON:\n{cleaned[:500]}"
+            ) from exc
+
+        if not data.get("needs_tools"):
+            return self.create_plan(
+                goal=goal,
+                context={"reasoning": data.get("reasoning", ""), "llm_planned": True},
+            )
+
+        steps_raw = data.get("steps", [])
+        steps = []
+        for i, s in enumerate(steps_raw):
+            tool_name = s.get("tool", "")
+            if tool_name not in available_tools:
+                raise ValueError(
+                    f"LLM selected unknown tool '{tool_name}' — "
+                    f"not in available list"
+                )
+            steps.append({
+                "description": s.get("description", f"LLM step {i+1}"),
+                "tool": tool_name,
+                "args": s.get("args", {}),
+            })
+
+        if not steps:
+            # LLM said needs_tools but gave no steps — treat as chat
+            return self.create_plan(
+                goal=goal,
+                context={"reasoning": data.get("reasoning", ""), "llm_planned": True},
+            )
+
+        return self.create_plan(
+            goal=goal,
+            steps=steps,
+            context={"reasoning": data.get("reasoning", ""), "llm_planned": True},
+        )
 
     # ── Existing API ──
 

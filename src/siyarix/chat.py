@@ -2667,6 +2667,35 @@ class SiyarixChat:
             else:
                 return None
 
+            llm_fn = self._make_llm_call(provider_name, api_key)
+            return await llm_fn(system_prompt, user_prompt)
+        except Exception as exc:
+            logger.warning("LLM synthesis failed: %s", exc)
+            return None
+
+    def _make_llm_call(self, provider_name: str, api_key: str):
+        """Return an async callable ``(system, user) → str`` for the given provider."""
+        from openai import AsyncOpenAI
+
+        if provider_name == "openrouter":
+            client = AsyncOpenAI(
+                api_key=api_key,
+                base_url="https://openrouter.ai/api/v1",
+            )
+            model = self._settings.get("openrouter_model") or "nvidia/nemotron-3-super-120b-a12b:free"
+        elif provider_name == "openai":
+            client = AsyncOpenAI(api_key=api_key)
+            model = self._settings.get("openai_model") or "gpt-4o"
+        elif provider_name == "gemini":
+            client = AsyncOpenAI(
+                api_key=api_key,
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            )
+            model = self._settings.get("gemini_model") or "gemini-2.0-flash"
+        else:
+            raise ValueError(f"Unsupported provider: {provider_name}")
+
+        async def call(system_prompt: str, user_prompt: str) -> str:
             response = await client.chat.completions.create(
                 model=model,
                 messages=[
@@ -2674,12 +2703,11 @@ class SiyarixChat:
                     {"role": "user", "content": user_prompt},
                 ],
                 max_tokens=2000,
-                temperature=0.7,
+                temperature=0.3,
             )
-            return response.choices[0].message.content
-        except Exception as exc:
-            logger.warning("LLM synthesis failed: %s", exc)
-            return None
+            return response.choices[0].message.content or ""
+
+        return call
 
     def _llm_available(self) -> bool:
         """Check if an LLM provider is configured and available."""

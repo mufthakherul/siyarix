@@ -2324,14 +2324,27 @@ class SiyarixChat:
         """Execute an instruction — AgentCore for LLM modes, engine for registry modes."""
         from .registry import ToolRegistry
 
-        # ── Try the unified agent loop (heuristic fallback when no LLM) ──
-        ok = await self._execute_agent(instruction, target)
-        if ok or self._mode == "autonomous":
-            return  # autonomous mode stops here even on failure
-        # Integrated mode: agent failed → fall through to registry with message
-        console.print(
-            "[yellow]⚠ AI provider unavailable — falling back to offline registry mode[/yellow]"
-        )
+        # ── Route by mode ──
+        if self._mode == "registry":
+            pass  # skip agent, go straight to registry engine below
+        elif self._mode == "autonomous":
+            ok = await self._execute_agent(instruction, target, require_llm=True)
+            if ok:
+                return
+            # Autonomous: agent failed → show error, stop
+            console.print(
+                "[red]Autonomous mode requires an LLM provider. "
+                "Use /config set model_provider <name> and set the corresponding API key.[/red]"
+            )
+            return
+        else:  # integrated
+            ok = await self._execute_agent(instruction, target, require_llm=False)
+            if ok:
+                return
+            # Integrated: agent failed → fall through to registry
+            console.print(
+                "[yellow]⚠ Falling back to offline registry mode[/yellow]"
+            )
 
         # ── Registry / integrated fallback: traditional plan → execute pipeline ──
         from .compat import ExecutionEngine, ExecutionMode
@@ -2528,8 +2541,12 @@ class SiyarixChat:
             )
         return None
 
-    async def _execute_agent(self, instruction: str, target: str = "") -> bool:
-        """Agent loop: LLM-first planning → parallel execution → LLM synthesis."""
+    async def _execute_agent(self, instruction: str, target: str = "", require_llm: bool = False) -> bool:
+        """Agent loop: LLM-first planning → parallel execution → LLM synthesis.
+
+        When *require_llm* is True (autonomous mode), the method returns False
+        if no LLM is available — no heuristic fallback.
+        """
         from .core import AgentCore, AgentMode
         from rich.panel import Panel
 
@@ -2565,11 +2582,13 @@ class SiyarixChat:
         llm_call_fn = None
 
         if not api_key:
+            if require_llm:
+                console.print("[red]✗ No API key configured for autonomous mode[/red]")
+                return False
             console.print("[yellow]⚠ No API key configured — using local planner[/yellow]")
         else:
             try:
                 llm_call_fn = self._make_llm_call(provider_name, api_key)
-                # Test connectivity with a quick ping
                 ping = await asyncio.wait_for(
                     llm_call_fn("Respond with exactly: OK", "ping"),
                     timeout=15.0,
@@ -2578,15 +2597,23 @@ class SiyarixChat:
                     raise RuntimeError(f"LLM ping failed: {ping.get('content', '')[:100]}")
                 llm_connected = True
             except asyncio.TimeoutError:
-                console.print("[yellow]⚠ LLM request timed out — using local planner[/yellow]")
+                msg = "[yellow]⚠ LLM request timed out"
+                msg += " — autonomous mode unavailable[/red]" if require_llm else " — using local planner[/yellow]"
+                console.print(msg)
+                if require_llm:
+                    return False
             except Exception as exc:
                 msg = str(exc)
                 if "429" in msg or "rate_limit" in msg.lower() or "quota" in msg.lower():
-                    console.print("[yellow]⚠ LLM rate limit reached — using local planner[/yellow]")
+                    display = "⚠ LLM rate limit reached"
                 elif "401" in msg or "unauthorized" in msg.lower() or "invalid" in msg.lower():
-                    console.print("[yellow]⚠ LLM authentication failed — using local planner[/yellow]")
+                    display = "⚠ LLM authentication failed"
                 else:
-                    console.print(f"[yellow]⚠ LLM unavailable ({exc}) — using local planner[/yellow]")
+                    display = f"⚠ LLM unavailable ({exc})"
+                suffix = " — autonomous mode unavailable[/red]" if require_llm else " — using local planner[/yellow]"
+                console.print(f"[yellow]{display}{suffix}")
+                if require_llm:
+                    return False
 
         # ── Planning ─────────────────────────────────────────────────────
         if llm_connected:
@@ -2605,6 +2632,9 @@ class SiyarixChat:
                     console.print(f"[yellow]⚠ LLM planning failed ({exc}) — using local planner[/yellow]")
 
         if not llm_plan:
+            if require_llm:
+                console.print("[red]✗ LLM planning failed — autonomous mode cannot proceed[/red]")
+                return False
             with console.status("[bold green]Planning...[/bold green]", spinner="dots"):
                 llm_plan = agent._planner.decompose_goal(
                     instruction_with_target, tool_names)

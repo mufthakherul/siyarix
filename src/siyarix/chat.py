@@ -2499,7 +2499,37 @@ class SiyarixChat:
         )
 
     def _generate_text_response(self, user_input: str) -> str | None:
-        """Return a registry response or ``None`` to let the pipeline proceed."""
+        """Return a text response for non-tool queries, or ``None`` to let the pipeline proceed."""
+        lowered = user_input.strip().lower()
+        greetings = {"hello", "hi", "hey", "sup", "what's up", "help",
+                      "good morning", "good evening", "good afternoon"}
+        if lowered in greetings or lowered.startswith(("hello ", "hi ", "hey ")):
+            import getpass
+            from datetime import datetime
+            username = getpass.getuser()
+            hour = datetime.now().hour
+            if hour < 12:
+                tod = "morning"
+            elif hour < 17:
+                tod = "afternoon"
+            elif hour < 21:
+                tod = "evening"
+            else:
+                tod = "night"
+            return (
+                f"Hello **{username}**. Good **{tod}**.\n\n"
+                "I'm **Siyarix** — an open-source cybersecurity assistant "
+                "built to help with reconnaissance, vulnerability assessment, and security auditing.\n\n"
+                "I'm primarily developed by **Mufthakherul**, but as an open-source project "
+                "I welcome contributions from the community. If you'd like to help build me "
+                "and keep me relevant, check out the repository and contribution guide:\n"
+                "- Repo: https://github.com/anomalyco/siyarix\n"
+                "- Contributing: https://github.com/anomalyco/siyarix/blob/main/CONTRIBUTING.md\n\n"
+                "For the best experience, connect an **LLM provider** (OpenAI, Gemini, or OpenRouter). "
+                "Without one, I use my built-in heuristic knowledge to plan and execute tasks.\n\n"
+                "Type **`/help`** or **`--help`** to see available commands, or visit the docs:\n"
+                "https://opencode.ai\n"
+            )
         return None
 
     async def _execute_agent(self, instruction: str, target: str = "") -> bool:

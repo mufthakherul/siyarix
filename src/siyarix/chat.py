@@ -2324,19 +2324,14 @@ class SiyarixChat:
         """Execute an instruction — AgentCore for LLM modes, engine for registry modes."""
         from .registry import ToolRegistry
 
-        # ── Determine if we should try the agent loop ──
-        should_try_agent = self._mode == "autonomous" or (
-            self._mode == "integrated" and self._llm_available()
+        # ── Try the unified agent loop (heuristic fallback when no LLM) ──
+        ok = await self._execute_agent(instruction, target)
+        if ok or self._mode == "autonomous":
+            return  # autonomous mode stops here even on failure
+        # Integrated mode: agent failed → fall through to registry with message
+        console.print(
+            "[yellow]⚠ AI provider unavailable — falling back to offline registry mode[/yellow]"
         )
-
-        if should_try_agent:
-            ok = await self._execute_agent(instruction, target)
-            if ok or self._mode == "autonomous":
-                return  # autonomous mode stops here even on failure
-            # Integrated mode: agent failed → fall through to registry with message
-            console.print(
-                "[yellow]⚠ AI provider unavailable — falling back to offline registry mode[/yellow]"
-            )
 
         # ── Registry / integrated fallback: traditional plan → execute pipeline ──
         from .compat import ExecutionEngine, ExecutionMode

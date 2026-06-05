@@ -1,17 +1,38 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Safe subprocess execution utilities."""
+"""Safe subprocess execution utilities.
+
+Supports sync and async subprocess execution with:
+- Input validation against shell injection
+- Timeout enforcement with forced process termination
+- Streaming output via callbacks
+- Cross-platform process cleanup (or child process tracking)
+"""
 
 from __future__ import annotations
 
 import asyncio
 import inspect
 import logging
+import os
+import signal
 import subprocess
+import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# Track orphan child processes for cleanup on parent crash
+_ORPHAN_TRACKER: set[int] = set()
+import atexit as _atexit
+
+
+@_atexit.register
+def _cleanup_orphans_atexit() -> None:
+    """Clean up orphaned child processes on interpreter exit."""
+    _cleanup_orphans()
 
 
 @dataclass
@@ -26,29 +47,59 @@ class ExecutionResult:
         return self.exit_code == 0
 
 
+def _cleanup_orphans() -> None:
+    """Attempt to kill orphaned child processes."""
+    for pid in list(_ORPHAN_TRACKER):
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except (OSError, PermissionError):
+            pass
+        _ORPHAN_TRACKER.discard(pid)
+
+
 async def _kill_process(proc: asyncio.subprocess.Process) -> None:
-    result = proc.kill()
-    if inspect.isawaitable(result):
-        await result
+    """Force-kill a subprocess and all children."""
+    try:
+        if sys.platform == "win32":
+            proc.kill()
+        else:
+            pgid = None
+            try:
+                pgid = os.getpgid(proc.pid)
+            except (OSError, ProcessLookupError):
+                pass
+            if pgid and pgid > 1:
+                os.killpg(pgid, signal.SIGKILL)
+            else:
+                proc.kill()
+    except ProcessLookupError:
+        pass
+    except Exception:
+        proc.kill()
 
 
 def _validate_cmd_list(cmd: list[str]) -> None:
     if not isinstance(cmd, list) or not cmd:
         raise ValueError("cmd must be a non-empty list of strings")
-    for part in cmd:
+    for i, part in enumerate(cmd):
         if not isinstance(part, str):
-            raise ValueError("all command parts must be strings")
+            raise ValueError(f"all command parts must be strings, got {type(part).__name__} at index {i}")
+        if not part:
+            raise ValueError(f"command part at index {i} is empty")
         cleaned = part.replace(">=", "").replace("<=", "").replace("==", "")
-        if any(ch in cleaned for ch in [";", "|", "&", "`", "$", ">", "<"]):
-            raise ValueError(f"command part contains suspicious character: {part!r}")
-        if "\n" in part or "\r" in part or "\x00" in part:
-            raise ValueError(f"command part contains injection character: {part!r}")
+        for ch in [";", "|", "&", "`", "$", ">", "<"]:
+            if ch in cleaned:
+                raise ValueError(f"command part at index {i} contains suspicious character {ch!r}: {part!r}")
+        for ch in ["\n", "\r", "\x00", "\x1b"]:
+            if ch in part:
+                raise ValueError(f"command part at index {i} contains injection character {ch!r}: {part!r}")
 
 
 def safe_run_sync(
     cmd: list[str], timeout: int = 10, capture_output: bool = True, text: bool = True
 ) -> subprocess.CompletedProcess:
     _validate_cmd_list(cmd)
+    _cleanup_orphans()
     try:
         return subprocess.run(
             cmd, capture_output=capture_output, text=text, timeout=timeout
@@ -68,6 +119,8 @@ async def safe_run_async(cmd: list[str], timeout: int = 10, validate: bool = Tru
     proc = await asyncio.create_subprocess_exec(
         *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )  # nosec B603
+    if proc.pid is not None:
+        _ORPHAN_TRACKER.add(proc.pid)
     try:
         stdout_bytes, stderr_bytes = await asyncio.wait_for(
             proc.communicate(), timeout=timeout
@@ -77,6 +130,9 @@ async def safe_run_async(cmd: list[str], timeout: int = 10, validate: bool = Tru
         await _kill_process(proc)
         stdout_bytes, stderr_bytes = await proc.communicate()
         exit_code = -1
+    finally:
+        if proc.pid:
+            _ORPHAN_TRACKER.discard(proc.pid)
     duration_ms = (time.monotonic() - start) * 1000
     return ExecutionResult(
         exit_code=exit_code,
@@ -100,6 +156,8 @@ async def safe_run_async_stream(
     proc = await asyncio.create_subprocess_exec(
         *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )  # nosec B603
+    if proc.pid is not None:
+        _ORPHAN_TRACKER.add(proc.pid)
 
     stdout_lines: list[str] = []
     stderr_lines: list[str] = []
@@ -129,7 +187,6 @@ async def safe_run_async_stream(
         exit_code = proc.returncode if proc.returncode is not None else 0
     except asyncio.TimeoutError:
         await _kill_process(proc)
-        # Read remaining buffer
         async def _drain(s: asyncio.StreamReader | None, cb: Callable[[str], None] | None) -> list[str]:
             if not s:
                 return []
@@ -146,6 +203,9 @@ async def safe_run_async_stream(
         stdout_lines += await _drain(proc.stdout, on_stdout)
         stderr_lines += await _drain(proc.stderr, on_stderr)
         exit_code = -1
+    finally:
+        if proc.pid:
+            _ORPHAN_TRACKER.discard(proc.pid)
 
     duration_ms = (time.monotonic() - start) * 1000
     return ExecutionResult(

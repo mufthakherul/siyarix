@@ -1,15 +1,33 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Backward-compatible wrappers for old module names."""
+"""Backward-compatible wrappers for old module names.
+
+DEPRECATED: This module exists only for backward compatibility with
+code that imports the legacy API (SessionKernel, IntentRouter,
+ExecutionEngine, etc.). New code should use the direct imports:
+
+  - AgentCore / AgentGoal from siyarix.core
+  - Planner from siyarix.planner
+
+This module will be removed in Siyarix v3.0.0.
+"""
 
 from __future__ import annotations
 
 import json
+import warnings
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
+
+warnings.warn(
+    "siyarix.compat is deprecated. Use siyarix.core, siyarix.planner directly. "
+    "This module will be removed in v3.0.0.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 class ExecutionMode(StrEnum):
     REGISTRY = "registry"

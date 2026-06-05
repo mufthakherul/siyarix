@@ -1,10 +1,24 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+"""Parser protocol and base utilities for all tool output parsers.
+
+All parsers implement the ``Parser`` protocol and should use the
+``BaseParser`` mixin for consistent error handling, logging, and
+finding field population.
+"""
+
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from typing import Any, Protocol, runtime_checkable
 
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Protocol — all parsers must implement ``parse``
+# ---------------------------------------------------------------------------
 
 @runtime_checkable
 class Parser(Protocol):
@@ -14,6 +28,56 @@ class Parser(Protocol):
         """Parse raw tool output into normalized finding dicts."""
         ...
 
+
+# ---------------------------------------------------------------------------
+# Base parser — provides consistent error handling, logging, and helpers
+# ---------------------------------------------------------------------------
+
+class BaseParser:
+    """Mixin for parsers that provides consistent error handling & logging.
+
+    Usage::
+
+        class MyParser(BaseParser):
+            def parse(self, output: str) -> list[dict[str, Any]]:
+                ...
+    """
+
+    def _parse_safe(self, output: str) -> list[dict[str, Any]]:
+        """Wrap ``parse`` in try/except so callers get empty list on failure."""
+        try:
+            result = self.parse(output)  # type: ignore
+            if not isinstance(result, list):
+                logger.warning("%s.parse returned non-list", type(self).__name__)
+                return []
+            return result
+        except Exception:
+            logger.exception(
+                "Parser %s failed on %d-byte input",
+                type(self).__name__,
+                len(output),
+            )
+            return []
+
+    def _ensure_fields(self, finding: dict[str, Any]) -> dict[str, Any]:
+        """Normalize finding fields with defaults for any missing keys."""
+        defaults = {
+            "title": "Unknown finding",
+            "severity": "info",
+            "description": "",
+            "evidence": "",
+            "tool": "unknown",
+            "target": "",
+            "timestamp": _now_iso(),
+        }
+        for k, v in defaults.items():
+            finding.setdefault(k, v)
+        return finding
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def _now_iso() -> str:
     """Return current UTC timestamp as ISO string."""
@@ -41,6 +105,10 @@ def build_finding(
     }
 
 
+# ---------------------------------------------------------------------------
+# Auto-import all parser classes
+# ---------------------------------------------------------------------------
+
 from .aircrack_parser import AircrackParser  # noqa: F401, E402
 from .amass_parser import AmassParser  # noqa: F401, E402
 from .bettercap_parser import BettercapParser  # noqa: F401, E402
@@ -65,6 +133,7 @@ from .zaproxy_parser import ZaproxyParser  # noqa: F401, E402
 
 __all__ = [
     "Parser",
+    "BaseParser",
     "build_finding",
     "_now_iso",
     "AircrackParser",

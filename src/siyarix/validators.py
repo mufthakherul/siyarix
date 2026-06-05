@@ -1,6 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Input validation utilities with comprehensive checks."""
+"""Input validation utilities with comprehensive checks.
+
+NOTE: This differs from ``validator.py`` which handles self-validation,
+verification, and recovery. This module contains input format validators
+(targets, ports, URLs, etc.) for user-supplied data.
+"""
 
 from __future__ import annotations
 

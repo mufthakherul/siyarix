@@ -5,6 +5,14 @@
 A full-featured interactive shell for Siyarix, similar to Claude CLI and
 Gemini CLI, specialized for cybersecurity workflows.
 
+TODO(v3.0): Refactor into ``chat/`` package:
+  - chat/__init__.py     — backward-compatible re-exports
+  - chat/session.py      — ChatSession, ChatMessage data models & persistence
+  - chat/prompts.py      — System prompt definitions
+  - chat/commands.py     — Slash command handlers & command registry
+  - chat/ui.py           — Rich console helpers, SplitPane, ConfigPanel
+  - chat/providers.py    — LLM provider integration helpers
+
 Features:
   • Multi-turn conversation with session history
   • Context-aware suggestions and command recall
@@ -401,9 +409,15 @@ class ChatSession:
     mode: str = "integrated"
 
     def add_message(self, role: str, content: str, **metadata: Any) -> ChatMessage:
+        # Enforce per-message content size limit
+        if len(content) > 50000:
+            content = content[:50000] + "\n...[truncated]"
         msg = ChatMessage(role=role, content=content, metadata=metadata)
         self.messages.append(msg)
         self.last_active = datetime.now()
+        # Enforce message count limit (memory bound)
+        if len(self.messages) > 200:
+            self.messages = self.messages[-200:]
         return msg
 
     def last_n(self, n: int = 10) -> list[ChatMessage]:
@@ -523,6 +537,8 @@ class SiyarixChat:
         Path(os.getenv("SIYARIX_CONFIG_DIR", str(Path.home() / ".siyarix")))
         / "sessions"
     )
+    MAX_CONTEXT_MESSAGES = 200  # memory bound to prevent unbounded growth
+    MAX_MESSAGE_CHARS = 50000  # per-message content limit
 
     def __init__(
         self,

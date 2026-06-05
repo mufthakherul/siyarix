@@ -38,8 +38,11 @@ typecheck: ## Run mypy type checker
 format: ## Run ruff formatter
 	ruff format src/siyarix/ tests/
 
-security: ## Run security checks
+security: ## Run security checks (Bandit + TruffleHog + GitLeaks + pip-audit)
 	bandit -r src/siyarix/ -f json -o bandit-report.json || true
+	@echo "--- TruffleHog ---"; trufflehog filesystem . --no-verification --max-depth 5 2>/dev/null || echo "trufflehog not installed (CI uses it separately)"
+	@echo "--- GitLeaks ---"; gitleaks detect --no-git -v 2>/dev/null || echo "gitleaks not installed (CI uses it separately)"
+	@echo "--- pip-audit ---"; pip-audit 2>/dev/null || echo "pip-audit not installed (CI uses it separately)"
 
 coverage: ## Run tests with coverage report
 	python -m pytest tests/ -v --tb=short --cov=siyarix --cov-report=term-missing --cov-fail-under=50

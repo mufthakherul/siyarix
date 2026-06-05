@@ -296,5 +296,58 @@ class SettingsStore:
                 raise ValueError(f"'{key}' expects a number, got '{value}'.") from exc
         return value  # string
 
+    def backup(self) -> Path | None:
+        """Backup current config to timestamped file. Returns backup path or None."""
+        if not self._path.exists():
+            return None
+        from datetime import datetime
+        backup_dir = self._path.parent / "backups"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = backup_dir / f"settings_{ts}.toml"
+        try:
+            import shutil
+            shutil.copy2(self._path, backup_path)
+            logger.info("Config backed up to %s", backup_path)
+            return backup_path
+        except OSError as exc:
+            logger.warning("Config backup failed: %s", exc)
+            return None
+
     def _save(self) -> None:
+        # Backup previous config (keep last 5)
+        if self._path.exists():
+            self.backup()
         _write_toml(self._path, self._data)
+        self._cleanup_old_backups(5)
+
+    def _cleanup_old_backups(self, keep: int = 5) -> None:
+        """Remove oldest backups beyond keep count."""
+        backup_dir = self._path.parent / "backups"
+        if not backup_dir.exists():
+            return
+        backups = sorted(backup_dir.glob("settings_*.toml"))
+        for old in backups[:-keep]:
+            try:
+                old.unlink()
+            except OSError:
+                pass
+
+    @classmethod
+    def restore_latest(cls) -> Path | None:
+        """Restore from latest backup. Returns restored path or None."""
+        backup_dir = _CONFIG_DIR / "backups"
+        if not backup_dir.exists():
+            return None
+        backups = sorted(backup_dir.glob("settings_*.toml"))
+        if not backups:
+            return None
+        latest = backups[-1]
+        try:
+            import shutil
+            shutil.copy2(latest, _SETTINGS_FILE)
+            logger.info("Config restored from %s", latest)
+            return _SETTINGS_FILE
+        except OSError as exc:
+            logger.warning("Config restore failed: %s", exc)
+            return None

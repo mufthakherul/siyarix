@@ -144,3 +144,4 @@ coverage.xml
 pip-audit.json
 tests/.pytest_cache/
 tests/__pycache__/
+Project-Report/

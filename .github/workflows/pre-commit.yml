@@ -47,7 +47,7 @@ jobs:
             FROM_REF="HEAD"
             TO_REF="HEAD"
           fi
-          SKIP=ruff-format,black,isort,mypy pre-commit run --from-ref "$FROM_REF" --to-ref "$TO_REF" --show-diff-on-failure
+          pre-commit run --from-ref "$FROM_REF" --to-ref "$TO_REF" --show-diff-on-failure
 
       - name: Fail if changes detected
         if: github.event_name == 'pull_request'

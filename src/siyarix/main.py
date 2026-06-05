@@ -13,6 +13,14 @@ Core commands:
   cache      — Cache management
   report     — Report generation
   health     — System health checks
+
+TODO(v3.0): Refactor into ``cli/`` package:
+  - cli/__init__.py      — backward-compatible re-exports
+  - cli/app.py           — Main Typer app, core commands
+  - cli/auth.py          — Authentication & API key commands
+  - cli/config_cmd.py    — Configuration commands
+  - cli/report_cmd.py    — Report generation commands
+  - cli/health.py        — Health check & metrics commands
 """
 
 from __future__ import annotations

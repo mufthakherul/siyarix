@@ -3,6 +3,13 @@
 """Report generation engine.
 
 Generates security assessment reports in Markdown, HTML, JSON, and SARIF formats.
+
+TODO(v3.0): Refactor into ``report/`` package:
+  - report/__init__.py     — backward-compatible re-exports
+  - report/models.py       — Report, ReportConfig, ReportSection, ReportFormat
+  - report/builder.py      — ReportEngine.build_report section builders
+  - report/renderers.py    — Markdown, HTML, JSON, SARIF renderers
+  - report/cvss.py         — CVSS enrichment utilities
 """
 
 from __future__ import annotations

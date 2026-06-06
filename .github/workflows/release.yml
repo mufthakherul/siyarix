@@ -105,7 +105,7 @@ jobs:
           echo "wheel=$(basename ${WHL})" >> $GITHUB_OUTPUT
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dist-python
           path: dist/
@@ -236,7 +236,7 @@ jobs:
         run: npm pack
 
       - name: Upload npm package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dist-npm
           path: packages/npm/*.tgz
@@ -316,7 +316,7 @@ jobs:
           bash packages/deb/build-apt-repo.sh "${{ needs.validate-tag.outputs.version }}"
 
       - name: Upload .deb
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dist-deb
           path: |
@@ -374,7 +374,7 @@ jobs:
           cp packages/winget/Mufthakherul.Siyarix.locale.en-US.yaml dist-installers/
 
       - name: Upload installer assets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dist-installers
           path: dist-installers/

@@ -393,7 +393,7 @@ jobs:
           python process_code.py > result_${{ hashFiles(matrix.file) }}.json 2>&1
 
       - name: Save result
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: result-${{ hashFiles(matrix.file) }}
           path: result_*.json

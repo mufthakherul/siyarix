@@ -88,39 +88,46 @@ class InputValidator:
         value = value.strip()
         if not value or len(value) > 253:
             return False, "Hostname empty or exceeds 253 characters"
-        if _HOSTNAME_RE.match(value):
+        from .validators import validate_hostname as _validate_hostname
+
+        try:
+            _validate_hostname(value)
             return True, ""
-        return False, f"Invalid hostname: {value!r}"
+        except Exception as exc:
+            return False, str(exc)
 
     def validate_url(self, value: str) -> tuple[bool, str]:
         """Validate an HTTP/HTTPS URL."""
+        from .validators import validate_url as _validate_url
+
         value = value.strip()
-        if _URL_RE.match(value):
+        try:
+            _validate_url(value)
             return True, ""
-        return False, f"Invalid URL: {value!r}"
+        except Exception as exc:
+            return False, str(exc)
 
     def validate_target(self, value: str) -> tuple[bool, str]:
         """Auto-detect and validate a target (IP, hostname, or URL)."""
+        from .validators import validate_target as _validate_target
+
         value = value.strip()
         if not value:
             return False, "Empty target"
+        if len(value) > 4096:
+            return False, "Target exceeds maximum length (4096 characters)"
 
         # Check for injection first
         has_inj, pattern = self.has_injection(value)
         if has_inj:
             return False, f"Injection detected ({pattern}): {value!r}"
 
-        # Try IP
-        ok, _ = self.validate_ip(value)
-        if ok:
+        # Delegate to validators.py for target type detection
+        try:
+            _validate_target(value)
             return True, ""
-        # Try URL
-        ok, _ = self.validate_url(value)
-        if ok:
-            return True, ""
-        # Try hostname
-        ok, reason = self.validate_hostname(value)
-        return ok, reason
+        except Exception as exc:
+            return False, str(exc)
 
     def sanitize_arg(self, value: str) -> str:
         """Strip dangerous characters from a single argument."""

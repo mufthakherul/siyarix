@@ -50,6 +50,8 @@ DEFAULTS: dict[str, Any] = {
     "client_profile": "desktop_chrome",
     "tls_verify": True,
     "history_retention_days": 90,
+    "onboarding_complete": False,
+    "onboarding_skipped": False,
     "model_provider": "auto",
     # Cloud provider models
     "openai_model": "gpt-5.4",
@@ -60,6 +62,10 @@ DEFAULTS: dict[str, Any] = {
     "gemini_model": "gemini-3.5-flash",
     "gemini_vision_model": "gemini-3.5-pro",
     "gemini_fast_model": "gemini-2.5-flash",
+    "gemini_30_pro": "gemini-3.0-pro",
+    "gemini_30_flash": "gemini-3.0-flash",
+    "gemini_31_pro": "gemini-3.1-pro",
+    "gemini_31_flash": "gemini-3.1-flash",
     "groq_model": "llama-4-scout-17b-16e-instruct",
     "together_model": "meta-llama/Llama-4-Scout-17B-16E-Instruct-FP8",
     "openrouter_model": "openai/gpt-5.4",
@@ -81,12 +87,22 @@ DEFAULTS: dict[str, Any] = {
     "vllm_model": "",
     "localai_url": "http://localhost:8080",
     "localai_model": "",
+    "_start_ollama_on_launch": False,
+    # Vault
+    "vault_initialized": False,
+    # Shell & PATH
+    "shell_completion_installed": False,
+    "path_setup_done": False,
+    # Update
+    "auto_update_check": True,
     # Agent settings
     "agent_timeout": 1740,
+    "default_mode": "integrated",
     "notifications_enabled": True,
     "stealth_mode": False,
     "persona": "auto",
     "command_review": True,
+    "additional_system_message": "",
 }
 
 # Human-readable descriptions
@@ -111,6 +127,10 @@ DESCRIPTIONS: dict[str, str] = {
     "gemini_model": "Gemini model name (default: gemini-3.5-flash)",
     "gemini_vision_model": "Gemini vision-capable model (default: gemini-3.5-pro)",
     "gemini_fast_model": "Gemini fast model (default: gemini-2.5-flash)",
+    "gemini_30_pro": "Gemini 3.0 Pro model name",
+    "gemini_30_flash": "Gemini 3.0 Flash model name",
+    "gemini_31_pro": "Gemini 3.1 Pro model name",
+    "gemini_31_flash": "Gemini 3.1 Flash model name",
     "groq_model": "Groq model name (default: llama-4-scout-17b-16e-instruct)",
     "together_model": "Together AI model name (default: meta-llama/Llama-4-Scout-17B-16E-Instruct-FP8)",
     "openrouter_model": "OpenRouter model name (default: openai/gpt-5.4)",

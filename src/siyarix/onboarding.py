@@ -656,13 +656,21 @@ class OnboardingWizard:
             return
 
         # Check if vault already exists
-        vault_path = Path.home() / ".siyarix" / "vault.json"
+        vault_path = Path.home() / ".siyarix" / "vault.encrypted"
         vault_exists = vault_path.exists()
 
         if vault_exists:
             self._console.print("[green]Vault file already exists.[/green]")
             if Confirm.ask("Re-initialize (overwrite existing vault)?", default=False):
                 vault_path.unlink(missing_ok=True)
+                # Also clean up old format
+                old = Path.home() / ".siyarix" / "vault.json"
+                if old.exists():
+                    old.unlink()
+                # Clean up vault key too
+                keyf = Path.home() / ".siyarix" / ".vault_key"
+                if keyf.exists():
+                    keyf.unlink()
             else:
                 self._console.print("[yellow]Using existing vault.[/yellow]")
                 self._choices["vault_initialized"] = True

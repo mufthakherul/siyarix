@@ -211,19 +211,11 @@ def _resolve_key(provider: str) -> str:
                 os.environ[env_var] = val
         except Exception:
             pass
-    if not val:
-        try:
-            from ..config import SettingsStore
-            val = SettingsStore().get(f"api_key_{provider}") or ""
-            if val:
-                os.environ[env_var] = val
-        except Exception:
-            pass
     return val
 
 
 def _store_key(provider: str, key: str) -> None:
-    """Store API key in vault (primary) and config settings (fallback)."""
+    """Store API key in vault (primary) and legacy CredentialStore (fallback)."""
     env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
     os.environ[env_var] = key
     try:
@@ -237,15 +229,10 @@ def _store_key(provider: str, key: str) -> None:
             creds.store(provider, key, "api_key")
         except Exception:
             pass
-    try:
-        from ..config import SettingsStore
-        SettingsStore().set(f"api_key_{provider}", key)
-    except Exception:
-        pass
 
 
 def _delete_key(provider: str) -> None:
-    """Delete API key from vault, config, and legacy CredentialStore."""
+    """Delete API key from vault and legacy CredentialStore."""
     env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
     os.environ.pop(env_var, None)
     try:
@@ -259,11 +246,6 @@ def _delete_key(provider: str) -> None:
             creds.delete(provider, "api_key")
         except Exception:
             pass
-    try:
-        from ..config import SettingsStore
-        SettingsStore().delete(f"api_key_{provider}")
-    except Exception:
-        pass
 
 
 def _get_engine(mode: str = "integrated") -> ExecutionEngine:
@@ -502,24 +484,55 @@ def main_callback(
             return
 
         _ensure_ollama_running()
-        _ensure_vault_unsealed()
+        _ensure_vault_ready()
         start_chat(mode=mode, target=target)
 
 
-def _ensure_vault_unsealed() -> None:
-    """Auto-unseal vault from stored passphrase so API keys in vault work."""
+def _ensure_vault_ready() -> None:
+    """Auto-unseal vault on startup or prompt for passphrase on device change."""
     try:
-        from ..credential_vault import CredentialVault, get_vault
-
-        vault = get_vault(create=False)
-        if not vault or not vault.status.sealed:
-            return
+        from ..credential_vault import CredentialVault, VaultDeviceMismatchError, VaultEnvironmentMismatchError
         from ..config import SettingsStore
-        passphrase = SettingsStore().get("vault_passphrase")
-        if passphrase:
-            vault.unseal(passphrase)
+        from rich.console import Console
+
+        _console = Console()
+
+        if not SettingsStore().get("vault_initialized"):
+            return
+
+        vault = CredentialVault(passphrase="", skip_unseal=True)
+        if not vault._vault_path.exists():
+            return
+
+        key = vault._read_auto_unseal_key()
+        if key:
+            try:
+                vault.unseal(key)
+                return
+            except VaultDeviceMismatchError:
+                pass
+            except VaultEnvironmentMismatchError:
+                pass
+            except Exception:
+                vault._clear_auto_unseal_key()
+
+        if key:
+            msg = "Device or environment changed. Enter your vault passphrase to re-bind."
+        else:
+            msg = "Enter your vault passphrase to unlock."
+
+        from rich.prompt import Prompt
+
+        _console.print(f"[yellow]Vault sealed: {msg}[/yellow]")
+        for _ in range(3):
+            pp = Prompt.ask("Vault passphrase", password=True)
+            if vault.reconfirm_device(pp):
+                _console.print("[green]✓ Vault unsealed and re-bound to current device[/green]")
+                return
+            _console.print("[red]Wrong passphrase. Try again.[/red]")
+        _console.print("[yellow]Could not unseal vault. Keys stored in vault unavailable.[/yellow]")
     except Exception as exc:
-        logger.debug("Could not auto-unseal vault: %s", exc)
+        logger.debug("Vault auto-unseal skipped: %s", exc)
 
 
 def _ensure_ollama_running() -> None:

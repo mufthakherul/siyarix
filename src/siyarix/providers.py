@@ -308,6 +308,10 @@ class ProviderManager:
             models=[
                 ModelInfo("gemini-3.5-pro", supports_vision=True, supports_structured_output=True, context_window=2000000, cost_tier=CostTier.HIGH),
                 ModelInfo("gemini-3.5-flash", supports_vision=True, supports_structured_output=True, context_window=1000000, cost_tier=CostTier.MEDIUM),
+                ModelInfo("gemini-3.1-pro", supports_vision=True, supports_structured_output=True, context_window=2000000, cost_tier=CostTier.HIGH),
+                ModelInfo("gemini-3.1-flash", supports_vision=True, supports_structured_output=True, context_window=1048576, cost_tier=CostTier.MEDIUM),
+                ModelInfo("gemini-3.0-pro", supports_vision=True, supports_structured_output=True, context_window=1048576, cost_tier=CostTier.MEDIUM),
+                ModelInfo("gemini-3.0-flash", supports_vision=True, supports_structured_output=True, context_window=1048576, cost_tier=CostTier.LOW),
                 ModelInfo("gemini-2.5-pro", supports_vision=True, supports_structured_output=True, context_window=1048576, cost_tier=CostTier.MEDIUM),
                 ModelInfo("gemini-2.5-flash", supports_vision=True, supports_structured_output=True, context_window=1048576, cost_tier=CostTier.LOW),
                 ModelInfo("gemini-2.0-flash", supports_vision=True, supports_structured_output=True, context_window=1048576, cost_tier=CostTier.FREE),

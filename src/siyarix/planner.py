@@ -491,6 +491,7 @@ class Planner:
         llm_call: Any,
         tool_schemas: list[dict] | None = None,
         system_prompt: str | None = None,
+        history: list[dict] | None = None,
     ) -> ExecutionPlan:
         """Use an LLM to analyse the user's goal and produce a tool plan.
 
@@ -502,7 +503,7 @@ class Planner:
         Parameters
         ----------
         llm_call:
-            An async callable ``(system_prompt: str, user_prompt: str) → str``
+            An async callable ``(system_prompt: str, user_prompt: str, *, history: list[dict] | None = None) → str``
             that returns the LLM's response text.
         tool_schemas:
             Optional list of tool dicts with ``name``, ``description``,
@@ -510,6 +511,8 @@ class Planner:
         system_prompt:
             Optional external system prompt. When provided the tools list
             is appended; when omitted the old inline prompt is used.
+        history:
+            Optional list of ``{"role": ..., "content": ...}`` dicts from prior conversation.
         """
         # Build a compact tool list for the prompt
         if tool_schemas:
@@ -560,7 +563,7 @@ Respond with ONLY valid JSON:
         user_prompt = goal
 
         try:
-            raw = await llm_call(full_prompt, user_prompt)
+            raw = await llm_call(full_prompt, user_prompt, history=history)
             response = raw.get("content", "") if isinstance(raw, dict) else str(raw)
         except Exception as exc:
             raise RuntimeError(f"LLM planning call failed: {exc}") from exc

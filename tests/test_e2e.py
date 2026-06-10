@@ -10,7 +10,7 @@ import pytest
 from click.testing import CliRunner
 from typer.main import get_command
 
-from siyarix.main import app
+from siyarix.cli import app
 from siyarix.planner import (
     ExecutionPlan,
     PlanStep,

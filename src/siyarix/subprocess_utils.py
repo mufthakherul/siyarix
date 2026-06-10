@@ -51,7 +51,7 @@ def _cleanup_orphans() -> None:
         try:
             os.kill(pid, signal.SIGTERM)
         except (OSError, PermissionError):
-            pass
+            logger.debug("Failed to kill orphan PID %d (already exited)", pid)
         _ORPHAN_TRACKER.discard(pid)
 
 
@@ -65,13 +65,13 @@ async def _kill_process(proc: asyncio.subprocess.Process) -> None:
             try:
                 pgid = os.getpgid(proc.pid)
             except (OSError, ProcessLookupError):
-                pass
+                logger.debug("Could not get pgid for PID %s (may have exited)", proc.pid)
             if pgid and pgid > 1:
                 os.killpg(pgid, signal.SIGKILL)
             else:
                 proc.kill()
     except ProcessLookupError:
-        pass
+        logger.debug("Process PID %s already exited during kill", proc.pid)
     except Exception:
         proc.kill()
 

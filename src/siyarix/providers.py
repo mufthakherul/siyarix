@@ -404,6 +404,27 @@ class ProviderManager:
             priority=4, cost_tier=CostTier.FREE, provider_type=ProviderType.LOCAL,
             docs_url="https://lmstudio.ai/docs"))
 
+        # ── llama.cpp (Local) ─────────────────────────────────────────
+        self.register(ProviderProfile(name="llamacpp", display_name="llama.cpp",
+            models=[], base_url="http://localhost:8080", max_context_tokens=8192,
+            supports_streaming=True, supports_tools=False,
+            priority=4, cost_tier=CostTier.FREE, provider_type=ProviderType.LOCAL,
+            docs_url="https://github.com/ggml-org/llama.cpp"))
+
+        # ── vLLM (Local) ──────────────────────────────────────────────
+        self.register(ProviderProfile(name="vllm", display_name="vLLM",
+            models=[], base_url="http://localhost:8000", max_context_tokens=32768,
+            supports_streaming=True, supports_tools=True,
+            priority=3, cost_tier=CostTier.FREE, provider_type=ProviderType.LOCAL,
+            docs_url="https://docs.vllm.ai"))
+
+        # ── LocalAI (Local) ──────────────────────────────────────────
+        self.register(ProviderProfile(name="localai", display_name="LocalAI",
+            models=[], base_url="http://localhost:8080", max_context_tokens=8192,
+            supports_streaming=True, supports_tools=False,
+            priority=3, cost_tier=CostTier.FREE, provider_type=ProviderType.LOCAL,
+            docs_url="https://localai.io"))
+
     def register(self, profile: ProviderProfile) -> None:
         self._profiles[profile.name] = profile
 

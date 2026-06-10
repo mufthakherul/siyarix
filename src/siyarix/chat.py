@@ -3216,7 +3216,7 @@ class SiyarixChat:
         result: dict = {}
 
         # ── Providers using OpenAI-compatible SDK ──────────────────────
-        if provider_name in ("openai", "openrouter", "gemini", "deepseek", "xai", "perplexity", "azure"):
+        if provider_name in ("openai", "openrouter", "gemini", "deepseek", "xai", "perplexity", "azure", "llamacpp", "vllm", "localai"):
             from openai import AsyncOpenAI
 
             base_urls = {
@@ -3227,6 +3227,9 @@ class SiyarixChat:
                 "xai": "https://api.x.ai",
                 "perplexity": "https://api.perplexity.ai",
                 "azure": self._settings.get("azure_endpoint") or os.getenv("AZURE_OPENAI_ENDPOINT", ""),
+                "llamacpp": self._settings.get("llamacpp_url") or os.getenv("SIYARIX_LLAMACPP_URL", "http://localhost:8080"),
+                "vllm": self._settings.get("vllm_url") or os.getenv("SIYARIX_VLLM_URL", "http://localhost:8000"),
+                "localai": self._settings.get("localai_url") or os.getenv("SIYARIX_LOCALAI_URL", "http://localhost:8080"),
             }
             model_keys = {
                 "openai": "openai_model",
@@ -3236,6 +3239,9 @@ class SiyarixChat:
                 "xai": "xai_model",
                 "perplexity": "perplexity_model",
                 "azure": "azure_model",
+                "llamacpp": "llamacpp_model",
+                "vllm": "vllm_model",
+                "localai": "localai_model",
             }
             model_defaults = {
                 "openai": "gpt-4.1",
@@ -3245,6 +3251,9 @@ class SiyarixChat:
                 "xai": "grok-3",
                 "perplexity": "sonar-pro",
                 "azure": "gpt-4.1",
+                "llamacpp": "",
+                "vllm": "",
+                "localai": "",
             }
             base_url = base_urls[provider_name]
             model = self._settings.get(model_keys[provider_name]) or model_defaults[provider_name]

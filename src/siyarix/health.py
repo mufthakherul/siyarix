@@ -157,10 +157,16 @@ class HealthChecker:
                     message = f"{provider_name.capitalize()} not running"
                     try:
                         import httpx
-                        ports = {"ollama": 11434, "lmstudio": 1234}
-                        port = ports.get(provider_name, 11434)
+                        endpoints = {
+                            "ollama": (11434, "/api/tags"),
+                            "lmstudio": (1234, "/v1/models"),
+                            "llamacpp": (8080, "/health"),
+                            "vllm": (8000, "/health"),
+                            "localai": (8080, "/readyz"),
+                        }
+                        port, path = endpoints.get(provider_name, (11434, "/api/tags"))
                         async with httpx.AsyncClient(timeout=2.0) as client:
-                            resp = await client.get(f"http://localhost:{port}/api/tags")
+                            resp = await client.get(f"http://localhost:{port}{path}")
                             available = resp.status_code == 200
                             message = (
                                 f"{provider_name.capitalize()} responsive"

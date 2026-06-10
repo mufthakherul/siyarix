@@ -16,6 +16,7 @@ import logging
 import os
 import signal
 import subprocess
+import shutil
 import sys
 import time
 from collections.abc import Callable
@@ -79,6 +80,17 @@ async def _kill_process(proc: asyncio.subprocess.Process) -> None:
         logger.debug("Process PID %s already exited during kill", proc.pid)
     except Exception:
         proc.kill()
+
+
+def get_platform_shell_cmd(command: str) -> list[str]:
+    """Return a platform-appropriate shell command list for *command*.
+
+    - Windows: ``["cmd", "/c", command]``
+    - Unix:    ``["sh",  "-c", command]``
+    """
+    if sys.platform == "win32":
+        return ["cmd", "/c", command]
+    return ["sh", "-c", command]
 
 
 def _validate_cmd_list(cmd: list[str]) -> None:

@@ -5,11 +5,12 @@
 from __future__ import annotations
 
 from typing import Any
+from prompt_toolkit.completion import Completer
 
 from ..output import output as _output_engine
 
 
-class SmartAutocomplete:
+class SmartAutocomplete(Completer):
     def __init__(self, session: Any) -> None:
         pass
 

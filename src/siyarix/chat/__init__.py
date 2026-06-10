@@ -186,15 +186,15 @@ try:
 
     RICH_AVAILABLE = True
 except ImportError:
-    Columns = None
-    Console = None
-    Markdown = None
-    Panel = None
-    Prompt = None
-    Rule = None
-    Syntax = None
-    Table = None
-    Text = None
+    Columns = None  # type: ignore[assignment,misc]
+    Console = None  # type: ignore[assignment,misc]
+    Markdown = None  # type: ignore[assignment,misc]
+    Panel = None  # type: ignore[assignment,misc]
+    Prompt = None  # type: ignore[assignment,misc]
+    Rule = None  # type: ignore[assignment,misc]
+    Syntax = None  # type: ignore[assignment,misc]
+    Table = None  # type: ignore[assignment,misc]
+    Text = None  # type: ignore[assignment,misc]
 
 logger = logging.getLogger(__name__)
 
@@ -206,8 +206,8 @@ try:
     PTK_AVAILABLE = True
 except Exception as exc:
     logger.debug("prompt_toolkit not available: %s", exc)
-    ptk_prompt = None
-    KeyBindings = None
+    ptk_prompt = None  # type: ignore[assignment]
+    KeyBindings = None  # type: ignore[assignment,misc]
 
 console = Console()
 load_env_file()
@@ -1386,6 +1386,10 @@ class SiyarixChat:
                                     bench_fn("Respond with exactly: OK", "ping"),
                                     timeout=15.0,
                                 )
+                                if not isinstance(result, dict):
+                                    raise RuntimeError(
+                                        f"LLM returned unexpected type: {type(result).__name__}"
+                                    )
                                 content = result.get("content", "").strip()
                                 if content == "OK":
                                     console.print(
@@ -2947,6 +2951,8 @@ Each step is a raw shell command running directly on the shell:
                     llm_call_fn("Respond with exactly: OK", "ping"),
                     timeout=15.0,
                 )
+                if not isinstance(ping, dict):
+                    raise RuntimeError(f"LLM returned unexpected type: {type(ping).__name__}")
                 if ping.get("content", "").strip() != "OK":
                     raise RuntimeError(f"LLM ping failed: {ping.get('content', '')[:100]}")
                 llm_connected = True
@@ -3358,7 +3364,7 @@ Each step is a raw shell command running directly on the shell:
             client_kwargs = {"api_key": api_key}
             if base_url:
                 client_kwargs["base_url"] = base_url
-            client = AsyncOpenAI(**client_kwargs)
+            client = AsyncOpenAI(**client_kwargs)  # type: ignore[arg-type]
 
             async def call_openai(
                 system_prompt: str,
@@ -3372,12 +3378,12 @@ Each step is a raw shell command running directly on the shell:
                     async def _gen() -> Any:
                         response = await client.chat.completions.create(
                             model=model,
-                            messages=self._build_messages(system_prompt, user_prompt, history),
+                            messages=self._build_messages(system_prompt, user_prompt, history),  # type: ignore[arg-type]
                             max_tokens=2000,
                             temperature=0.3,
                             stream=True,
                         )
-                        async for chunk in response:
+                        async for chunk in response:  # type: ignore[union-attr]
                             delta = chunk.choices[0].delta if chunk.choices else None
                             if delta and delta.content:
                                 yield delta.content
@@ -3385,7 +3391,7 @@ Each step is a raw shell command running directly on the shell:
                     return _gen()
                 response = await client.chat.completions.create(
                     model=model,
-                    messages=self._build_messages(system_prompt, user_prompt, history),
+                    messages=self._build_messages(system_prompt, user_prompt, history),  # type: ignore[arg-type]
                     max_tokens=2000,
                     temperature=0.3,
                 )
@@ -3425,7 +3431,7 @@ Each step is a raw shell command running directly on the shell:
                         async with anthropic_client.messages.stream(
                             model=model,
                             system=system_prompt,
-                            messages=msgs,
+                            messages=msgs,  # type: ignore[arg-type]
                             max_tokens=2000,
                             temperature=0.3,
                         ) as stream_ctx:
@@ -3438,7 +3444,7 @@ Each step is a raw shell command running directly on the shell:
                 msg = await anthropic_client.messages.create(
                     model=model,
                     system=system_prompt,
-                    messages=msgs,
+                    messages=msgs,  # type: ignore[arg-type]
                     max_tokens=2000,
                     temperature=0.3,
                 )
@@ -3471,12 +3477,12 @@ Each step is a raw shell command running directly on the shell:
                     async def _gen() -> Any:
                         response = await client.chat.completions.create(
                             model=model,
-                            messages=self._build_messages(system_prompt, user_prompt, history),
+                            messages=self._build_messages(system_prompt, user_prompt, history),  # type: ignore[arg-type]
                             max_tokens=2000,
                             temperature=0.3,
                             stream=True,
                         )
-                        async for chunk in response:
+                        async for chunk in response:  # type: ignore[union-attr]
                             delta = chunk.choices[0].delta if chunk.choices else None
                             if delta and delta.content:
                                 yield delta.content
@@ -3484,7 +3490,7 @@ Each step is a raw shell command running directly on the shell:
                     return _gen()
                 response = await client.chat.completions.create(
                     model=model,
-                    messages=self._build_messages(system_prompt, user_prompt, history),
+                    messages=self._build_messages(system_prompt, user_prompt, history),  # type: ignore[arg-type]
                     max_tokens=2000,
                     temperature=0.3,
                 )
@@ -3521,12 +3527,12 @@ Each step is a raw shell command running directly on the shell:
                     async def _gen() -> Any:
                         response = await client.chat.completions.create(
                             model=model,
-                            messages=self._build_messages(system_prompt, user_prompt, history),
+                            messages=self._build_messages(system_prompt, user_prompt, history),  # type: ignore[arg-type]
                             max_tokens=2000,
                             temperature=0.3,
                             stream=True,
                         )
-                        async for chunk in response:
+                        async for chunk in response:  # type: ignore[union-attr]
                             delta = chunk.choices[0].delta if chunk.choices else None
                             if delta and delta.content:
                                 yield delta.content
@@ -3534,7 +3540,7 @@ Each step is a raw shell command running directly on the shell:
                     return _gen()
                 response = await client.chat.completions.create(
                     model=model,
-                    messages=self._build_messages(system_prompt, user_prompt, history),
+                    messages=self._build_messages(system_prompt, user_prompt, history),  # type: ignore[arg-type]
                     max_tokens=2000,
                     temperature=0.3,
                 )
@@ -3568,7 +3574,7 @@ Each step is a raw shell command running directly on the shell:
                 if stream:
 
                     async def _gen() -> Any:
-                        response = await client.chat.stream_async(
+                        response = await client.chat.stream_async(  # type: ignore[attr-defined]
                             model=model,
                             messages=self._build_messages(system_prompt, user_prompt, history),
                             max_tokens=2000,
@@ -3581,7 +3587,7 @@ Each step is a raw shell command running directly on the shell:
                                     yield delta.content
 
                     return _gen()
-                response = await client.chat.complete_async(
+                response = await client.chat.complete_async(  # type: ignore[attr-defined]
                     model=model,
                     messages=self._build_messages(system_prompt, user_prompt, history),
                     max_tokens=2000,

@@ -31,7 +31,7 @@ class ToolInstallResult:
 
 
 # Known tool → install mappings
-_TOOL_INSTALL_MAP: dict[str, dict[str, list[str]]] = {
+_TOOL_INSTALL_MAP: dict[str, dict[str, list[str] | str]] = {
     "nmap": {
         "apt": ["apt-get", "install", "-y", "nmap"],
         "brew": ["brew", "install", "nmap"],
@@ -360,7 +360,7 @@ class ToolInstaller:
 
     @staticmethod
     def _needs_sudo() -> bool:
-        return os.name != "nt" and os.geteuid() != 0
+        return os.name != "nt" and hasattr(os, "geteuid") and os.geteuid() != 0
 
     def _ensure_apt_updated(self) -> None:
         if self._apt_updated or self._package_manager not in ("apt", "apt-get"):

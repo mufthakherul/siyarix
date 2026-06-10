@@ -247,7 +247,7 @@ class Executor:
                 alt_tools = TOOL_ALTERNATIVES.get(step.tool, [])
                 for alt in alt_tools:
                     if alt in self._custom_executors or (
-                        self._registry and self._registry.get_tool(alt)
+                        self._registry and self._registry.graph.get_tool(alt)
                     ):
                         guardrail = self._tracker.record(alt, str(sorted(step.args.items())), True)
                         if guardrail and "BLOCKED" in guardrail:

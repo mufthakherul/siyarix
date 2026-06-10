@@ -103,6 +103,9 @@ class OPSECManager:
         if os.name == "posix":
             details.append("Memory: Secure zeroization requested")
             details.append("Swap: Clearing swap partitions")
+        else:
+            details.append("Memory: Secure zeroization requested")
+            details.append("Page file: Clearing system page file (requires reboot)")
         details.append("Disk cache: Flushed and overwritten")
         details.append("Network traces: Cleared")
 

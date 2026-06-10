@@ -49,8 +49,11 @@ def _cleanup_orphans() -> None:
     """Attempt to kill orphaned child processes."""
     for pid in list(_ORPHAN_TRACKER):
         try:
-            os.kill(pid, signal.SIGTERM)
-        except (OSError, PermissionError):
+            if sys.platform == "win32":
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, timeout=5)
+            else:
+                os.kill(pid, signal.SIGTERM)
+        except (OSError, PermissionError, subprocess.SubprocessError):
             logger.debug("Failed to kill orphan PID %d (already exited)", pid)
         _ORPHAN_TRACKER.discard(pid)
 
@@ -134,8 +137,8 @@ async def safe_run_async(cmd: list[str], timeout: int = 10, validate: bool = Tru
     duration_ms = (time.monotonic() - start) * 1000
     return ExecutionResult(
         exit_code=exit_code,
-        stdout=stdout_bytes.decode(errors="replace"),
-        stderr=stderr_bytes.decode(errors="replace"),
+        stdout=stdout_bytes.decode("utf-8", errors="replace"),
+        stderr=stderr_bytes.decode("utf-8", errors="replace"),
         duration_ms=duration_ms,
     )
 

@@ -65,15 +65,16 @@ class BootstrapEngine:
         return not (self._home / ".initialized").exists()
 
     def detect_platform(self) -> PlatformInfo:
+        _sys = platform.system()
         info = PlatformInfo(
-            system=platform.system(),
+            system=_sys,
             release=platform.release(),
-            shell=os.environ.get("SHELL", ""),
+            shell=self._detect_shell(),
             terminal=os.environ.get("TERM", "unknown"),
             python_version=sys.version,
         )
         # Detect WSL
-        if (
+        if _sys == "Linux" and (
             "microsoft" in platform.release().lower()
             or "wsl" in platform.release().lower()
         ):
@@ -83,12 +84,18 @@ class BootstrapEngine:
             info.package_manager = "apt"
         elif shutil.which("brew"):
             info.package_manager = "brew"
+        elif shutil.which("pkg"):
+            info.package_manager = "pkg"
         elif shutil.which("choco"):
             info.package_manager = "choco"
+        elif shutil.which("winget"):
+            info.package_manager = "winget"
         elif shutil.which("pacman"):
             info.package_manager = "pacman"
         elif shutil.which("dnf"):
             info.package_manager = "dnf"
+        elif shutil.which("apk"):
+            info.package_manager = "apk"
         return info
 
     def check_python_version(self) -> bool:
@@ -121,8 +128,9 @@ class BootstrapEngine:
         return deps
 
     def _detect_shell(self) -> str:
-        """Detect shell from environment."""
-        return os.environ.get("SHELL", "").lower()
+        if os.name == "nt":
+            return os.environ.get("COMSPEC", "cmd.exe").lower()
+        return os.environ.get("SHELL", "/bin/sh").lower()
 
     def _detect_terminal_from_env(self) -> str:
         """Detect terminal emulator."""

@@ -72,14 +72,14 @@ def build_platform_context() -> dict[str, Any]:
         "arch": uname.machine,
         "processor": uname.processor,
         "hostname": uname.node,
-        "username": os.environ.get("USER", ""),
+        "username": os.environ.get("USER") or os.environ.get("USERNAME") or "",
         "cwd": os.getcwd(),
         "terminal_type": os.environ.get("TERM", ""),
         "term_program": os.environ.get("TERM_PROGRAM", ""),
         "term": os.environ.get("TERM", ""),
-        "shell": os.environ.get("SHELL", ""),
-        "shell_platform": _platform.system().lower(),
-        "shell_executable": os.environ.get("SHELL", ""),
+        "shell": detect_shell(),
+        "shell_platform": get_shell_platform(),
+        "shell_executable": detect_shell(),
         "python_version": sys.version.split()[0],
         "cpu_count": os.cpu_count() or 0,
         "memory_total_mb": "unknown",
@@ -97,6 +97,8 @@ def build_platform_context() -> dict[str, Any]:
 
 
 def detect_shell() -> str:
+    if os.name == "nt":
+        return os.environ.get("COMSPEC", "cmd.exe")
     return os.environ.get("SHELL", "/bin/sh")
 
 
@@ -1404,7 +1406,7 @@ class SiyarixChat:
                 console.print("[yellow]Usage: /coder review <file_path>[/yellow]")
                 return
             try:
-                with open(path) as f:
+                with open(path, encoding="utf-8") as f:
                     code = f.read()
                 review = await bridge.review(path, code)
                 console.print(review.to_panel())

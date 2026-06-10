@@ -28,6 +28,10 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+
+# Windows event loop policy for subprocess compatibility
+if os.name == "nt" and hasattr(asyncio, "WindowsSelectorEventLoopPolicy"):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 import platform
 import sys
 from datetime import datetime

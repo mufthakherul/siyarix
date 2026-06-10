@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
+from .events import Event, EventType, emit_sync
+
 
 class PlanStatus(StrEnum):
     DRAFT = "draft"
@@ -453,6 +455,8 @@ Respond with ONLY valid JSON:
                 ))
         plan = ExecutionPlan(goal=goal, plan_type=plan_type, steps=plan_steps, context=context or {}, status=PlanStatus.ACTIVE)
         self._plans[plan.id] = plan
+        emit_sync(Event(type=EventType.PLAN_CREATED, source="planner",
+            data={"plan_id": plan.id, "goal": goal, "steps": len(plan_steps)}))
         return plan
 
     def create_from_template(self, template_name: str, target: str,

@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .events import Event, EventType, emit_sync
+
 logger = logging.getLogger(__name__)
 
 
@@ -252,11 +254,15 @@ class ProviderStateManager:
         self._failure_counts[provider] = self._failure_counts.get(provider, 0) + 1
         self._last_fail_time[provider] = time.time()
         self.save()
+        emit_sync(Event(type=EventType.PROVIDER_ERROR, source="providers",
+            data={"provider": provider, "failure_count": self._failure_counts[provider]}))
 
     def record_success(self, provider: str) -> None:
         self._disabled.discard(provider)
         self._failure_counts[provider] = 0
         self.save()
+        emit_sync(Event(type=EventType.PROVIDER_SELECTED, source="providers",
+            data={"provider": provider, "status": "recovered"}))
 
 
 class ProviderManager:

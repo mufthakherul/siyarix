@@ -458,7 +458,7 @@ jobs:
           git log --pretty=format:"- %s (%h)" ${{ needs.validate-tag.outputs.semver }}^..HEAD >> release_notes.md || true
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.validate-tag.outputs.version }}
           name: Release v${{ needs.validate-tag.outputs.version }}

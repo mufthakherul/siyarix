@@ -493,7 +493,9 @@ def _ensure_ollama_running() -> None:
         from ..config import SettingsStore
 
         settings = SettingsStore()
-        if not settings.get("_start_ollama_on_launch"):
+        provider = settings.get("model_provider") or ""
+        should_start = settings.get("_start_ollama_on_launch") or provider == "ollama"
+        if not should_start:
             return
         ollama_url = settings.get("ollama_url") or "http://localhost:11434"
         import httpx

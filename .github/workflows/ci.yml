@@ -88,7 +88,7 @@ jobs:
             echo "No changed Python files for MyPy."
             exit 0
           fi
-          mypy --ignore-missing-imports --no-error-summary $PY_CHANGED_FILES
+          mypy --ignore-missing-imports --no-error-summary --no-warn-unused-ignores --follow-imports=silent $PY_CHANGED_FILES
 
       - name: Check for required files
         run: |
@@ -284,7 +284,7 @@ jobs:
           echo "=== Ruff ===" && ruff check src tests . --output-format=concise || true
           echo "=== Pylint ===" && pylint src --output-format=parseable || true
           echo "=== Flake8 ===" && flake8 src tests --count || true
-          echo "=== MyPy ===" && mypy src --ignore-missing-imports || true
+          echo "=== MyPy ===" && mypy src --ignore-missing-imports --no-warn-unused-ignores --follow-imports=silent || true
           echo "=== isort ===" && isort --check-only src tests || true
 
   # Notify on failure

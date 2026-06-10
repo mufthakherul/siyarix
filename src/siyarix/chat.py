@@ -203,7 +203,19 @@ def list_supported_shells() -> list[tuple[str, str]]:
 
 
 def load_env_file() -> None:
-    pass
+    """Load environment variables from ~/.siyarix/.env (simple key=value parser)."""
+    env_path = Path.home() / ".siyarix" / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key = key.strip()
+        val = val.strip().strip("'").strip('"')
+        if key and not os.environ.get(key):
+            os.environ[key] = val
 
 
 def ensure_env_file() -> str | None:
@@ -1881,13 +1893,9 @@ class SiyarixChat:
             )
 
     def _cmd_version(self, _: str) -> None:
-        try:
-            from importlib.metadata import version as _pv
+        from .branding import resolve_version
 
-            ver = _pv("siyarix")
-        except Exception as exc:
-            logger.debug("Failed to resolve package version: %s", exc)
-            ver = "2.0.0"
+        ver = resolve_version()
         console.print(f"[bold cyan]Siyarix[/bold cyan] [green]v{ver}[/green]")
 
     # ──────────────────────────────────────────────────────────────────────
@@ -3641,12 +3649,9 @@ class SiyarixChat:
 
     def _print_welcome(self) -> None:
         """Print the welcome banner with system status overview."""
-        try:
-            from importlib.metadata import version as _pv
-            ver = _pv("siyarix")
-        except Exception:
-            ver = "2.0.0"
+        from .branding import resolve_version
 
+        ver = resolve_version()
         provider_status = self._gather_provider_status()
         shell_info = get_shell_platform()
         theme = self._settings.get("color_theme")

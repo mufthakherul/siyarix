@@ -286,6 +286,7 @@ class ToolInstaller:
     def __init__(self) -> None:
         self._package_manager: str = self._detect_package_manager()
         self._install_history: list[ToolInstallResult] = []
+        self._apt_updated: bool = False
 
     @staticmethod
     def _platform_tag() -> str:
@@ -356,6 +357,20 @@ class ToolInstaller:
 
     def is_installed(self, tool: str) -> bool:
         return shutil.which(tool) is not None
+
+    def _ensure_apt_updated(self) -> None:
+        if self._apt_updated or self._package_manager not in ("apt", "apt-get"):
+            return
+        try:
+            subprocess.run(
+                ["apt-get", "update", "-qq"],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+        except Exception:
+            pass
+        self._apt_updated = True
 
     def check_many(self, tools: list[str]) -> dict[str, bool]:
         return {tool: self.is_installed(tool) for tool in tools}
@@ -454,6 +469,9 @@ class ToolInstaller:
                 continue
             if not cmd:
                 continue
+
+            if method in ("apt", "apt-get"):
+                self._ensure_apt_updated()
 
             logger.info("Installing %s via %s: %s", tool, method, " ".join(cmd))
             result.method = method

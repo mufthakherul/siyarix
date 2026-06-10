@@ -536,6 +536,8 @@ class CredentialVault:
         self._config_dir.mkdir(parents=True, exist_ok=True)
         if not skip_unseal and self._vault_path.exists():
             self._unseal()
+        elif not skip_unseal and self._passphrase:
+            self._unsealed = True
 
     # ── Public API ─────────────────────────────────────────────────────────
 

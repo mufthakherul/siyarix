@@ -157,10 +157,12 @@ class ExecutionPlan:
         for step in self.steps:
             if step.status not in (StepStatus.PENDING, StepStatus.READY):
                 continue
-            deps_met = all(
-                self.get_step(dep) is not None and self.get_step(dep).status == StepStatus.COMPLETED
-                for dep in step.dependencies
-            )
+            deps_met = True
+            for dep in step.dependencies:
+                dep_step = self.get_step(dep)
+                if dep_step is None or dep_step.status != StepStatus.COMPLETED:
+                    deps_met = False
+                    break
             if deps_met:
                 step.status = StepStatus.READY
                 ready.append(step)
@@ -224,8 +226,6 @@ class Planner:
                 {"description": "Scheduled task and cron job inspection for persistence", "tool": "cat", "args": {"flags": "/etc/crontab"}},
             ],
         }
-        # Inverted index: keyword → set of tool names
-        self._keyword_index: dict[str, set[str]] = {}
         # Inverted index: keyword → set of tool names
         self._keyword_index: dict[str, set[str]] = {}
 
@@ -317,7 +317,7 @@ class Planner:
         self,
         goal: str,
         available_tools: list[str],
-        llm_call,
+        llm_call: Any,
         tool_schemas: list[dict] | None = None,
         system_prompt: str | None = None,
     ) -> ExecutionPlan:
@@ -360,27 +360,25 @@ class Planner:
         else:
             tool_lines = [f"  - {t}" for t in available_tools]
 
-        tools_text = "\n".join(tool_lines) if tool_lines else "  (none discovered)"
-
         if system_prompt:
             full_prompt = system_prompt + "\n\nCommands you construct will execute via `sh -c` — use proper quoting, pipes, and flags. You have full access to every binary on the system."
         else:
-            full_prompt = f"""You are a senior red-team operator and penetration testing specialist.
+            full_prompt = """You are a senior red-team operator and penetration testing specialist.
 
 You have full access to every binary on this system. Construct exact shell commands.
 
 Respond with ONLY valid JSON:
-{{{{
+{{
   "needs_tools": true or false,
   "reasoning": "Strategic rationale",
   "steps": [
-    {{{{
+    {{
       "tool": "",
       "command": "exact shell command with all flags and arguments",
       "description": "What this does"
-    }}}}
+    }}
   ]
-}}}}
+}}
 
 - needs_tools=true for security operations, false for chat/explanation
 - Always use the "command" field for raw shell execution"""

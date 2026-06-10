@@ -523,6 +523,7 @@ class SiyarixChat:
             "/diff": self._cmd_diff,
             "/mcp": self._cmd_mcp,
             "/agent": self._cmd_agent,
+            "/vault": self._cmd_vault,
             "/review": self._cmd_review,
             "/persona": self._cmd_persona,
         }
@@ -891,6 +892,65 @@ class SiyarixChat:
                         logger.exception(
                             "Failed to run pip install for %s: %s", pkg_name, exc
                         )
+
+    def _cmd_vault(self, args: str) -> None:
+        tokens = args.split() if args else []
+        action = tokens[0].lower() if tokens else "status"
+        from ..credential_vault import CredentialVault, get_vault
+
+        if action == "status":
+            try:
+                vault = get_vault(create=False)
+                s = vault.status
+                console.print("[bold]🔐 Vault Status[/bold]")
+                console.print(f"  State:     {'🟢 Unsealed' if not s.sealed else '🔴 Sealed'}")
+                console.print(f"  Device:    {'✓ Bound + Match' if s.device_match else '✗ Mismatch' if s.device_match is False else '—'}")
+                console.print(f"  Env:       {'✓ Bound + Match' if s.env_match else '✗ Mismatch' if s.env_match is False else '—'}")
+                console.print(f"  Creds:     {s.credential_count} total, {s.expired_entries} expired")
+                console.print(f"  Iter:      {s.iterations:,}")
+                console.print(f"  Lockout:   {'⚠ Active' if s.lockout_active else '✓ None'}")
+                console.print(f"  Health:    {s.health}")
+                if s.warnings:
+                    for w in s.warnings:
+                        console.print(f"  [yellow]⚠ {w}[/yellow]")
+            except FileNotFoundError:
+                console.print("[yellow]No vault exists. Set a key with /key set <provider> <key> to create one.[/yellow]")
+            except Exception as exc:
+                console.print(f"[red]Vault error: {exc}[/red]")
+
+        elif action == "seal":
+            try:
+                get_vault(create=False).seal()
+                console.print("[green]✓ Vault sealed[/green]")
+            except Exception as exc:
+                console.print(f"[red]{exc}[/red]")
+
+        elif action == "health":
+            try:
+                h = get_vault(create=False).health_check()
+                icons = {"healthy": "🟢", "degraded": "🟡", "unhealthy": "🔴"}
+                console.print(f"Health: {icons.get(h.state, '❓')} {h.state.upper()}")
+                for w in h.warnings:
+                    console.print(f"  [yellow]⚠ {w}[/yellow]")
+            except Exception as exc:
+                console.print(f"[red]{exc}[/red]")
+
+        elif action == "history":
+            try:
+                entries = get_vault(create=False).audit_log(limit=20)
+                if not entries:
+                    console.print("[yellow]No audit entries[/yellow]")
+                    return
+                for e in entries:
+                    icons = {"success": "🟢", "denied": "🔴", "error": "🟡", "info": "🔵"}
+                    op_icon = icons.get(e.get("outcome", ""), "•")
+                    ts = e.get("timestamp", "")[11:19]
+                    console.print(f"  {op_icon} [{ts}] {e.get('operation','')} [{e.get('provider','')}] {e.get('detail','')}")
+            except Exception as exc:
+                console.print(f"[red]{exc}[/red]")
+
+        else:
+            console.print("[yellow]Usage: /vault [status|seal|health|history][/yellow]")
 
     def _cmd_theme(self, args: str) -> None:
         tokens = args.split(maxsplit=1) if args else []

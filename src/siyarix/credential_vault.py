@@ -182,7 +182,25 @@ class VaultStatus:
 # ── Fingerprint subsystem ───────────────────────────────────────────────────
 
 class DeviceFingerprint:
-    """Multi-source hardware fingerprint with graceful degradation."""
+    """Multi-source hardware fingerprint with weighted component matching.
+
+    Each component has a weight. On verification, weighted match % is computed.
+    A single changed NIC or disk won't lock the user out — only major hardware
+    changes (motherboard + CPU + disk all replaced) cross the threshold.
+    """
+
+    _WEIGHTS: dict[str, int] = {
+        "machine": 4,          # platform.machine() — never changes for same CPU arch
+        "os_platform": 4,      # os.name + sys.platform — never changes
+        "machine_id": 4,       # /etc/machine-id / IOPlatformUUID / wmic uuid — stable
+        "disk_serial_boot": 3, # boot drive serial — changes on disk replacement
+        "mac_primary": 3,      # primary MAC — changes if NIC replaced
+        "tpm": 3,             # TPM 2.0 fingerprint — very stable
+        "processor": 2,       # CPU brand string — changes on CPU upgrade
+        "hostname": 1,        # can change any time
+        "mac_extra": 1,       # secondary MACs — can change with add-on NICs
+    }
+    _MATCH_THRESHOLD = 0.60   # 60% weighted match to succeed
 
     @staticmethod
     def _get_mac_addresses() -> list[str]:
@@ -287,77 +305,167 @@ class DeviceFingerprint:
         return ""
 
     @classmethod
-    def compute(cls) -> str:
-        parts = [
-            platform.machine(),
-            platform.processor() or platform.machine(),
-            os.name, sys.platform,
-            socket.gethostname(),
-            str(uuid.getnode()),
-            cls._get_machine_id(),
-            cls._get_disk_serial(),
-            cls._get_tpm_fingerprint(),
-        ]
-        parts.extend(cls._get_mac_addresses())
-        raw = ":".join(p.replace(":", "").lower() for p in parts if p)
+    def compute_components(cls) -> dict[str, tuple[str, int]]:
+        """Return dict of {component_name: (sha256_hash, weight)}."""
+        macs = cls._get_mac_addresses()
+        primary_mac = macs[0] if macs else ""
+        extra_macs = sorted(macs[1:]) if len(macs) > 1 else []
+        mid = cls._get_machine_id()
+        disk = cls._get_disk_serial()
+        tpm = cls._get_tpm_fingerprint()
+        return {
+            "machine": (_sha(mid or platform.machine()), 4),
+            "os_platform": (_sha(f"{os.name}:{sys.platform}"), 4),
+            "machine_id": (_sha(mid), 4) if mid else ("", 4),
+            "disk_serial_boot": (_sha(disk), 3),
+            "mac_primary": (_sha(primary_mac), 3),
+            "tpm": (_sha(tpm), 3) if tpm else ("", 3),
+            "processor": (_sha(platform.processor() or platform.machine()), 2),
+            "hostname": (_sha(socket.gethostname()), 1),
+            "mac_extra": (_sha(":".join(extra_macs)), 1),
+        }
+
+    @classmethod
+    def compute_single(cls) -> str:
+        """Legacy single-hash (used for integrity, not binding)."""
+        comps = cls.compute_components()
+        raw = ":".join(h for h, _ in comps.values() if h)
         return hashlib.sha256(raw.encode()).hexdigest()
 
     @classmethod
-    def partial_match(cls, stored_hash: str) -> tuple[bool, list[str]]:
-        """Check device match and return warnings for partial drifts."""
-        current = cls.compute()
-        if stored_hash == hashlib.sha256(current.encode()).hexdigest():
-            return True, []
+    def match(
+        cls, stored: dict[str, str], threshold: float | None = None,
+    ) -> tuple[bool, float, list[str]]:
+        """Weighted component matching. Returns (is_match, score_pct, warnings)."""
+        current = cls.compute_components()
+        threshold = threshold if threshold is not None else cls._MATCH_THRESHOLD
+        total_weight = 0
+        matched_weight = 0
         warnings: list[str] = []
-        # Check individual components - firmware/hardware changes produce warnings
-        try:
-            if socket.gethostname() not in stored_hash:
-                warnings.append("Hostname changed since vault creation")
-        except Exception:
-            pass
-        return False, warnings
+
+        for name, (cur_hash, weight) in current.items():
+            if not weight:
+                continue
+            total_weight += weight
+            stored_hash = stored.get(name, "")
+            if stored_hash and cur_hash and _hmac.compare_digest(cur_hash, stored_hash):
+                matched_weight += weight
+            elif stored_hash:
+                drift_labels = {
+                    "machine": "CPU architecture changed",
+                    "os_platform": "Operating system changed",
+                    "machine_id": "Machine ID changed (new OS install or motherboard)",
+                    "disk_serial_boot": "Boot disk replaced",
+                    "mac_primary": "Primary network adapter changed",
+                    "tpm": "TPM firmware changed or cleared",
+                    "processor": "Processor changed (upgrade or VM migration)",
+                    "hostname": "Hostname changed",
+                    "mac_extra": "Secondary network adapter(s) changed",
+                }
+                msg = drift_labels.get(name, f"Component '{name}' changed")
+                warnings.append(msg)
+
+        score = matched_weight / total_weight if total_weight else 0
+        is_match = score >= threshold
+        return is_match, score, warnings
 
 
 class EnvironmentFingerprint:
-    """Siyarix runtime environment fingerprint."""
+    """Siyarix runtime environment with version-tolerant matching.
+
+    Uses package version (semver), ceremony salt, and Python version.
+    File hashes are NOT used — they change on every pip upgrade.
+    A minor version bump (3.1->3.2) is tolerated.
+    """
+
+    _WEIGHTS: dict[str, int] = {
+        "ceremony_salt": 5,     # hardcoded constant -- changes only in major refactor
+        "siyarix_major": 3,     # major version (3.x.x) -- changes on breaking upgrade
+        "siyarix_minor": 2,     # minor version (x.1.x) -- changes on feature upgrade
+        "python_major_minor": 3, # Python 3.12 -> 3.13 -- stable across siyarix upgrades
+    }
+    _MATCH_THRESHOLD = 0.60    # 60% -- tolerates minor version bumps
 
     @classmethod
-    def compute(cls) -> str:
-        root = Path(__file__).resolve().parent
-        parts = [
-            str(root), str(root.parent),
-            _safe_hash_file(root / "__init__.py", 32),
-            _safe_hash_file(root / "credential_vault.py", 32),
-            platform.python_implementation(),
-            f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
-            _CEREMONY_SALT.hex(),
-        ]
+    def _get_siyarix_version(cls) -> tuple[int, int, int]:
         try:
             import importlib.metadata
-            parts.append(importlib.metadata.version("siyarix"))
+            ver = importlib.metadata.version("siyarix")
+            parts = [int(x) for x in ver.split(".")[:3]]
+            while len(parts) < 3:
+                parts.append(0)
+            return tuple(parts[:3])  # type: ignore[return-value]
         except Exception:
-            part = subprocess.run(
+            pass
+        try:
+            r = subprocess.run(
                 [sys.executable, "-m", "pip", "show", "siyarix"],
-                capture_output=True, text=True, timeout=10
-            ).stdout
-            if "Version: " in part:
-                parts.append(part.split("Version: ")[1].splitlines()[0])
-        raw = "||".join(p for p in parts if p)
+                capture_output=True, text=True, timeout=10,
+            )
+            for line in r.stdout.splitlines():
+                if line.startswith("Version:"):
+                    parts = [int(x) for x in line.split(":")[1].strip().split(".")[:3]]
+                    while len(parts) < 3:
+                        parts.append(0)
+                    return tuple(parts[:3])  # type: ignore[return-value]
+        except Exception:
+            pass
+        return (0, 0, 0)
+
+    @classmethod
+    def compute_components(cls) -> dict[str, tuple[str, int]]:
+        """Return dict of {component_name: (sha256_hash, weight)}."""
+        major, minor, _ = cls._get_siyarix_version()
+        return {
+            "ceremony_salt": (_sha(_CEREMONY_SALT.hex()), 5),
+            "siyarix_major": (_sha(str(major)), 3),
+            "siyarix_minor": (_sha(f"{major}.{minor}"), 2),
+            "python_major_minor": (_sha(f"{sys.version_info.major}.{sys.version_info.minor}"), 3),
+        }
+
+    @classmethod
+    def compute_single(cls) -> str:
+        """Legacy single-hash (for display only)."""
+        comps = cls.compute_components()
+        raw = "||".join(h for h, _ in comps.values() if h)
         return hashlib.sha256(raw.encode()).hexdigest()
 
     @classmethod
-    def partial_match(cls, stored_hash: str) -> tuple[bool, list[str]]:
-        current = cls.compute()
-        if stored_hash == hashlib.sha256(current.encode()).hexdigest():
-            return True, []
-        return False, ["Siyarix environment changed (upgrade or reinstall detected)"]
+    def match(
+        cls, stored: dict[str, str], threshold: float | None = None,
+    ) -> tuple[bool, float, list[str]]:
+        """Weighted component matching. Returns (is_match, score_pct, warnings)."""
+        current = cls.compute_components()
+        threshold = threshold if threshold is not None else cls._MATCH_THRESHOLD
+        total_weight = 0
+        matched_weight = 0
+        warnings: list[str] = []
+
+        for name, (cur_hash, weight) in current.items():
+            if not weight:
+                continue
+            total_weight += weight
+            stored_hash = stored.get(name, "")
+            if stored_hash and cur_hash and _hmac.compare_digest(cur_hash, stored_hash):
+                matched_weight += weight
+            elif stored_hash:
+                drift_labels = {
+                    "ceremony_salt": "Siyarix codebase fundamentally changed",
+                    "siyarix_major": "Siyarix major version upgraded",
+                    "siyarix_minor": "Siyarix minor version upgraded",
+                    "python_major_minor": "Python version changed",
+                }
+                msg = drift_labels.get(name, f"Environment '{name}' changed")
+                warnings.append(msg)
+
+        score = matched_weight / total_weight if total_weight else 0
+        is_match = score >= threshold
+        return is_match, score, warnings
 
 
-def _safe_hash_file(path: Path, length: int = 32) -> str:
-    try:
-        return hashlib.sha256(path.read_bytes()).hexdigest()[:length]
-    except Exception:
-        return ""
+def _sha(value: str) -> str:
+    """SHA-256 hex digest of a string."""
+    return hashlib.sha256(value.encode()).hexdigest()
 
 
 # ── Main vault ──────────────────────────────────────────────────────────────

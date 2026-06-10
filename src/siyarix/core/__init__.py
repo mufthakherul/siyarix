@@ -127,6 +127,39 @@ class AgentCore:
         self._status = AgentStatus.PLANNING
         start = time.time()
         result = AgentResult(goal=goal.description)
+
+        if self._mode == AgentMode.REGISTRY:
+            return await self._execute_registry(goal, plan, start, result)
+        elif self._mode == AgentMode.AUTONOMOUS:
+            return await self._execute_autonomous(goal, plan, start, result)
+        elif self._mode == AgentMode.HYBRID:
+            return await self._execute_hybrid(goal, plan, start, result)
+        else:
+            return await self._execute_interactive(goal, plan, start, result)
+
+    async def _execute_registry(self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult) -> AgentResult:
+        """Registry mode: heuristic planning with validation, no LLM, no reflection."""
+        try:
+            if plan is None:
+                plan = self._planner.decompose_goal(
+                    goal.description, [t.name for t in self._registry.list_tools()])
+            result.plan = plan
+            await self._validator.validate_plan(plan.steps)
+            plan = await self._executor.execute_plan(plan)
+            result.success = plan.status == PlanStatus.COMPLETED
+            result.summary = self._generate_summary(plan)
+            result.findings = self._extract_findings(plan)
+        except Exception as e:
+            result.success = False
+            result.summary = f"Registry agent failed: {e}"
+            logger.exception("Registry agent execution failed")
+        result.duration_ms = (time.time() - start) * 1000
+        self._status = AgentStatus.COMPLETED if result.success else AgentStatus.FAILED
+        self._history.append(result)
+        return result
+
+    async def _execute_autonomous(self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult) -> AgentResult:
+        """Autonomous mode: LLM-first planning, reflection, recovery."""
         try:
             if plan is None:
                 plan = self._planner.decompose_goal(
@@ -148,8 +181,58 @@ class AgentCore:
             result.findings = self._extract_findings(plan)
         except Exception as e:
             result.success = False
-            result.summary = f"Agent failed: {e}"
-            logger.exception("Agent execution failed")
+            result.summary = f"Autonomous agent failed: {e}"
+            logger.exception("Autonomous agent execution failed")
+        result.duration_ms = (time.time() - start) * 1000
+        self._status = AgentStatus.COMPLETED if result.success else AgentStatus.FAILED
+        self._history.append(result)
+        return result
+
+    async def _execute_hybrid(self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult) -> AgentResult:
+        """Hybrid mode: try LLM planning, fall back to heuristic."""
+        try:
+            if plan is None:
+                plan = self._planner.decompose_goal(
+                    goal.description, [t.name for t in self._registry.list_tools()])
+            result.plan = plan
+            self._context.add_history(f"Goal: {goal.description}", "user")
+            await self._validator.validate_plan(plan.steps)
+            plan = await self._executor.execute_plan(plan)
+            if plan.has_failures:
+                for step in plan.failed_steps:
+                    recovery = await self._validator.plan_recovery(step, step.result.get("error", ""))
+                    if recovery.action == RecoveryAction.RETRY and recovery.modified_step:
+                        idx = plan.steps.index(step)
+                        plan.steps[idx] = recovery.modified_step
+                        plan = await self._executor.execute_plan(plan)
+                        break
+            result.success = plan.status == PlanStatus.COMPLETED
+            result.summary = self._generate_summary(plan)
+            result.findings = self._extract_findings(plan)
+        except Exception as e:
+            result.success = False
+            result.summary = f"Hybrid agent failed: {e}"
+            logger.exception("Hybrid agent execution failed")
+        result.duration_ms = (time.time() - start) * 1000
+        self._status = AgentStatus.COMPLETED if result.success else AgentStatus.FAILED
+        self._history.append(result)
+        return result
+
+    async def _execute_interactive(self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult) -> AgentResult:
+        """Interactive mode: lightweight, user-in-the-loop, minimal automation."""
+        try:
+            if plan is None:
+                plan = self._planner.decompose_goal(
+                    goal.description, [t.name for t in self._registry.list_tools()])
+            result.plan = plan
+            plan = await self._executor.execute_plan(plan)
+            result.success = plan.status == PlanStatus.COMPLETED
+            result.summary = self._generate_summary(plan)
+            result.findings = self._extract_findings(plan)
+        except Exception as e:
+            result.success = False
+            result.summary = f"Interactive agent failed: {e}"
+            logger.exception("Interactive agent execution failed")
         result.duration_ms = (time.time() - start) * 1000
         self._status = AgentStatus.COMPLETED if result.success else AgentStatus.FAILED
         self._history.append(result)

@@ -581,7 +581,7 @@ Respond with ONLY valid JSON:
         if not data.get("needs_tools"):
             return self.create_plan(
                 goal=goal,
-                context={"reasoning": data.get("reasoning", ""), "llm_planned": True},
+                context={"reasoning": data.get("reasoning", ""), "response": data.get("response", ""), "llm_planned": True},
             )
 
         steps_raw = data.get("steps", [])
@@ -599,13 +599,13 @@ Respond with ONLY valid JSON:
             # LLM said needs_tools but gave no steps — treat as chat
             return self.create_plan(
                 goal=goal,
-                context={"reasoning": data.get("reasoning", ""), "llm_planned": True},
+                context={"reasoning": data.get("reasoning", ""), "response": data.get("response", ""), "llm_planned": True},
             )
 
         return self.create_plan(
             goal=goal,
             steps=steps,
-            context={"reasoning": data.get("reasoning", ""), "llm_planned": True},
+            context={"reasoning": data.get("reasoning", ""), "response": data.get("response", ""), "llm_planned": True},
         )
 
     # ── Existing API ──

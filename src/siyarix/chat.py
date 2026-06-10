@@ -28,6 +28,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import platform as _platform
 import os
 import sys
 import time
@@ -148,8 +149,6 @@ When the user message contains tool execution results, analyse them thoroughly.
 # ---------------------------------------------------------------------------
 # Platform helpers (replaces removed cross_platform module)
 # ---------------------------------------------------------------------------
-
-import platform as _platform
 
 CROSS_PLATFORM_COMMANDS: dict[str, dict[str, str]] = {}
 
@@ -314,10 +313,11 @@ class ConfigPanel:
             from .registry import ToolRegistry
 
             reg = ToolRegistry()
-            tools = reg.discover()
+            count = reg.discover_from_path()
+            tools = reg.list_tools()
             if tools:
                 from rich.table import Table
-                table = Table(title=f"{len(tools)} Security Tools", header_style="bold cyan")
+                table = Table(title=f"{count} Security Tools", header_style="bold cyan")
                 table.add_column("Name", style="cyan")
                 table.add_column("Category", style="magenta")
                 table.add_column("Version", style="dim")
@@ -1050,8 +1050,9 @@ class SiyarixChat:
 
     def _show_key_status(self) -> None:
         from .credential_store import CredentialStore
-        from .providers import ProviderManager as provider_registry
+        from .providers import ProviderManager
 
+        provider_registry = ProviderManager()
         try:
             vault = CredentialStore()
         except Exception:
@@ -1063,19 +1064,18 @@ class SiyarixChat:
         table.add_column("Status", justify="center")
         table.add_column("Source")
 
-        prov_names = sorted(provider_registry.list_providers())
-        for provider in prov_names:
-            profile = provider_registry.get_profile(provider)
-            env_key = profile.api_key_env if profile else provider_env_var(provider)
+        for prov_name in provider_registry.list_providers():
+            profile = provider_registry.get_profile(prov_name)
+            env_key = profile.api_key_env if profile else provider_env_var(prov_name)
             from_env = bool(os.getenv(env_key)) if env_key else False
-            from_creds = bool(vault and vault.retrieve(provider, "api_key"))
+            from_creds = bool(vault and vault.retrieve(prov_name, "api_key"))
             if from_env:
                 status, source = "✓ Set", "Environment"
             elif from_creds:
                 status, source = "✓ Set", "Saved"
             else:
                 status, source = "✗ Missing", "—"
-            table.add_row(provider, env_key or "—", status, source)
+            table.add_row(prov_name, env_key or "—", status, source)
 
         console.print(table)
 
@@ -1546,7 +1546,7 @@ class SiyarixChat:
         await self._execute_instruction(args)
 
     async def _cmd_model(self, args: str) -> None:
-        from .providers import ProviderManager, CostTier
+        from .providers import ProviderManager
         tokens = args.split(maxsplit=1) if args else []
         pm = ProviderManager()
         all_providers = pm.list_providers()
@@ -1597,7 +1597,6 @@ class SiyarixChat:
                             except Exception as exc:
                                 console.print(f"[red]  ✗ {selected} validation failed: {exc}[/red]")
             else:
-                valid_list = " | ".join(sorted(valid_providers))
                 console.print(f"[yellow]Usage: /model <{'|'.join(valid_providers)}> [model-name][/yellow]")
                 return
 
@@ -1613,10 +1612,10 @@ class SiyarixChat:
             cost_label = f"[dim]${profile.cost_tier.value}[/dim]" if profile.cost_tier else ""
             lines.append(f"[bold]{profile.display_name}:[/bold] {status} ({model_setting}) {cost_label}\n")
 
-        lines.append(f"[bold]Cloud:[/bold]  Requires SIYARIX_SERVER_URL + SIYARIX_API_KEY\n")
-        lines.append(f"[bold]Custom:[/bold]  Requires CUSTOM_API_KEY\n")
-        lines.append(f"[bold]opencode:[/bold]  Requires OPENCODE_API_KEY\n\n")
-        lines.append(f"[dim]Use /key <provider> <value> to store credentials and /model <provider> <model-name> to select models.[/dim]")
+        lines.append("[bold]Cloud:[/bold]  Requires SIYARIX_SERVER_URL + SIYARIX_API_KEY\n")
+        lines.append("[bold]Custom:[/bold]  Requires CUSTOM_API_KEY\n")
+        lines.append("[bold]opencode:[/bold]  Requires OPENCODE_API_KEY\n\n")
+        lines.append("[dim]Use /key <provider> <value> to store credentials and /model <provider> <model-name> to select models.[/dim]")
         usage_summary = self._usage_tracker.summary()
         if usage_summary:
             lines.append(f"\n[dim]{usage_summary}[/dim]")
@@ -1764,14 +1763,11 @@ class SiyarixChat:
             if not url:
                 url = Prompt.ask("MCP server URL")
             client = MCPClient()
-            ok = await client.connect(MCPServerConfig(name="default", url=url))
+            server_name = tokens[2] if len(tokens) > 2 else "default"
+            ok = await client.connect(MCPServerConfig(name=server_name, url=url))
             if ok:
                 self._session.context["mcp_client"] = client
-                console.print(f"[green]✓ Connected to MCP server at {url}[/green]")
-            else:
-                console.print(f"[red]Failed to connect to {url}[/red]")
-            if ok:
-                self._session.context["mcp_client"] = client
+                self._session.context["mcp_server"] = server_name
                 console.print(f"[green]✓ Connected to MCP server at {url}[/green]")
             else:
                 console.print(f"[red]Failed to connect to {url}[/red]")
@@ -1797,8 +1793,9 @@ class SiyarixChat:
             )
         elif action == "disconnect":
             client = self._session.context.pop("mcp_client", None)
+            server_name = self._session.context.pop("mcp_server", "default")
             if client:
-                await client.disconnect()
+                await client.disconnect(server_name)
                 console.print("[green]✓ Disconnected from MCP server.[/green]")
             else:
                 console.print("[dim]Not connected to any MCP server.[/dim]")
@@ -2694,9 +2691,9 @@ class SiyarixChat:
                 sys_prompt = self._build_system_prompt()
                 response = await self._stream_assistant_response(sys_prompt, instruction, prov_name, api_key)
             else:
-                response = self._generate_text_response(instruction)
+                response = self._generate_text_response(instruction) or ""
             if response:
-                self._session.add_message("assistant", response)
+                self._session.add_message("assistant", response or "")
             return
 
         # Show plan if requested
@@ -2922,13 +2919,14 @@ class SiyarixChat:
                 llm_connected = True
                 total_input_tokens += ping.get("input_tokens", 0)
                 total_output_tokens += ping.get("output_tokens", 0)
-                from .providers import ProviderManager
+                from .providers import CostTier, ProviderManager
                 _pm = ProviderManager()
                 _profile = _pm.get_profile(provider_name) if provider_name else None
+                cost_tier = _profile.cost_tier if _profile else CostTier.MEDIUM
                 self._usage_tracker.record_call(
                     provider_name or "unknown", ping.get("model", ""),
                     ping.get("input_tokens", 0), ping.get("output_tokens", 0),
-                    cost_tier=_profile.cost_tier if _profile else None,
+                    cost_tier=cost_tier,
                 )
                 self._provider_state.record_success(provider_name or "")
                 break
@@ -3075,18 +3073,18 @@ class SiyarixChat:
                     return step, result
 
                 cmd_timeout = self._settings.get("agent_timeout") or 1740
-                result = await safe_run_async_stream(
+                exec_result = await safe_run_async_stream(
                     ["sh", "-c", step.command],
                     timeout=cmd_timeout,
                     validate=False,
                     on_stdout=lambda line: state.lines.append(line),
                     on_stderr=lambda line: state.lines.append(line),
                 )
-                state.exit_code = result.exit_code
+                state.exit_code = exec_result.exit_code
                 state.done = True
-                return step, {"status": "success" if result.exit_code == 0 else "error",
-                              "output": result.stdout, "error": result.stderr,
-                              "exit_code": result.exit_code}
+                return step, {"status": "success" if exec_result.exit_code == 0 else "error",
+                              "output": exec_result.stdout, "error": exec_result.stderr,
+                              "exit_code": exec_result.exit_code}
 
             # Pre-review all shell commands before starting Live display
             from .shell_review import review_and_confirm
@@ -3176,12 +3174,12 @@ class SiyarixChat:
                             ),
                             timeout=60.0,
                         )
-                        llm_model = provider_name
+                        llm_model = provider_name or "none"
                         if plan.steps:
                             console.print(f"[cyan]→ LLM decided more work needed — wave {wave + 2}[/cyan]")
                         else:
                             # Done — show final response
-                            summary = plan.context.get("reasoning", "") or "Done."
+                            summary = (plan.context.get("reasoning", "") if plan.context else "") or "Done."
                             self._session.add_message("assistant", summary)
                             self._print_assistant(summary)
                     except asyncio.TimeoutError:
@@ -3205,7 +3203,7 @@ class SiyarixChat:
 
         return True
 
-    def _make_llm_call(self, provider_name: str, api_key: str):
+    def _make_llm_call(self, provider_name: str, api_key: str) -> Any:
         """Return an async callable ``(system, user, *, stream=False) → dict | AsyncGenerator``.
 
         Supports all 13 registered providers via native SDK or OpenAI-compatible API.
@@ -3213,7 +3211,7 @@ class SiyarixChat:
         an async generator yielding content tokens.
         """
         model = ""
-        result: dict = {}
+        result: Any = None
 
         # ── Providers using OpenAI-compatible SDK ──────────────────────
         if provider_name in ("openai", "openrouter", "gemini", "deepseek", "xai", "perplexity", "azure", "llamacpp", "vllm", "localai"):
@@ -3244,13 +3242,13 @@ class SiyarixChat:
                 "localai": "localai_model",
             }
             model_defaults = {
-                "openai": "gpt-4.1",
-                "openrouter": "openai/gpt-4.1",
-                "gemini": "gemini-2.5-pro-05-06",
-                "deepseek": "deepseek-chat",
-                "xai": "grok-3",
-                "perplexity": "sonar-pro",
-                "azure": "gpt-4.1",
+                "openai": "gpt-5.4",
+                "openrouter": "openai/gpt-5.4",
+                "gemini": "gemini-3.5-flash",
+                "deepseek": "deepseek-v4-flash",
+                "xai": "grok-4.3",
+                "perplexity": "sonar",
+                "azure": "gpt-5.4",
                 "llamacpp": "",
                 "vllm": "",
                 "localai": "",
@@ -3260,11 +3258,11 @@ class SiyarixChat:
             client_kwargs = {"api_key": api_key}
             if base_url:
                 client_kwargs["base_url"] = base_url
-            client = AsyncOpenAI(**client_kwargs)
+            client = AsyncOpenAI(**client_kwargs)  # type: ignore[arg-type]
 
-            async def call_openai(system_prompt: str, user_prompt: str, *, stream: bool = False):
+            async def call_openai(system_prompt: str, user_prompt: str, *, stream: bool = False) -> dict[str, Any]:
                 if stream:
-                    async def _gen():
+                    async def _gen() -> Any:
                         response = await client.chat.completions.create(
                             model=model,
                             messages=[
@@ -3304,13 +3302,13 @@ class SiyarixChat:
             except ImportError:
                 raise ValueError("anthropic package not installed. Run: pip install anthropic")
 
-            client = AsyncAnthropic(api_key=api_key)
-            model = self._settings.get("anthropic_model") or "claude-sonnet-4-20250514"
+            anthropic_client = AsyncAnthropic(api_key=api_key)
+            model = self._settings.get("anthropic_model") or "claude-sonnet-4-6"
 
-            async def call_anthropic(system_prompt: str, user_prompt: str, *, stream: bool = False):
+            async def call_anthropic(system_prompt: str, user_prompt: str, *, stream: bool = False) -> dict[str, Any]:
                 if stream:
-                    async def _gen():
-                        async with client.messages.stream(
+                    async def _gen() -> Any:
+                        async with anthropic_client.messages.stream(
                             model=model, system=system_prompt,
                             messages=[{"role": "user", "content": user_prompt}],
                             max_tokens=2000, temperature=0.3,
@@ -3318,13 +3316,14 @@ class SiyarixChat:
                             async for text in stream_ctx.text_stream:
                                 yield text
                     return _gen()
-                msg = await client.messages.create(
+                msg = await anthropic_client.messages.create(
                     model=model, system=system_prompt,
                     messages=[{"role": "user", "content": user_prompt}],
                     max_tokens=2000, temperature=0.3,
                 )
+                content_block = msg.content[0] if msg.content else None
                 return {
-                    "content": msg.content[0].text if msg.content else "",
+                    "content": getattr(content_block, 'text', ""),
                     "model": msg.model or model,
                     "input_tokens": msg.usage.input_tokens if msg.usage else 0,
                     "output_tokens": msg.usage.output_tokens if msg.usage else 0,
@@ -3338,9 +3337,9 @@ class SiyarixChat:
             client = AsyncOpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
             model = self._settings.get("groq_model") or "llama-4-scout-17b-16e-instruct"
 
-            async def call_groq(system_prompt: str, user_prompt: str, *, stream: bool = False):
+            async def call_groq(system_prompt: str, user_prompt: str, *, stream: bool = False) -> dict[str, Any]:
                 if stream:
-                    async def _gen():
+                    async def _gen() -> Any:
                         response = await client.chat.completions.create(
                             model=model,
                             messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
@@ -3371,11 +3370,11 @@ class SiyarixChat:
         elif provider_name == "together":
             from openai import AsyncOpenAI
             client = AsyncOpenAI(api_key=api_key, base_url="https://api.together.xyz/v1")
-            model = self._settings.get("together_model") or "meta-llama/Llama-4-Together-17B-16E-Instruct"
+            model = self._settings.get("together_model") or "meta-llama/Llama-4-Scout-17B-16E-Instruct-FP8"
 
-            async def call_together(system_prompt: str, user_prompt: str, *, stream: bool = False):
+            async def call_together(system_prompt: str, user_prompt: str, *, stream: bool = False) -> dict[str, Any]:
                 if stream:
-                    async def _gen():
+                    async def _gen() -> Any:
                         response = await client.chat.completions.create(
                             model=model,
                             messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
@@ -3409,12 +3408,12 @@ class SiyarixChat:
             except ImportError:
                 raise ValueError("mistralai package not installed. Run: pip install mistralai")
             client = Mistral(api_key=api_key)
-            model = self._settings.get("mistral_model") or "mistral-large-2506"
+            model = self._settings.get("mistral_model") or "mistral-large-3"
 
-            async def call_mistral(system_prompt: str, user_prompt: str, *, stream: bool = False):
+            async def call_mistral(system_prompt: str, user_prompt: str, *, stream: bool = False) -> dict[str, Any]:
                 if stream:
-                    async def _gen():
-                        response = await client.chat.stream_async(
+                    async def _gen() -> Any:
+                        response = await client.chat.stream_async(  # type: ignore[attr-defined]
                             model=model,
                             messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
                             max_tokens=2000, temperature=0.3,
@@ -3425,7 +3424,7 @@ class SiyarixChat:
                                 if delta and delta.content:
                                     yield delta.content
                     return _gen()
-                response = await client.chat.complete_async(
+                response = await client.chat.complete_async(  # type: ignore[attr-defined]
                     model=model,
                     messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
                     max_tokens=2000, temperature=0.3,
@@ -3453,9 +3452,9 @@ class SiyarixChat:
                 _ollama_client = None
                 use_sdk = False
 
-            async def call_ollama(system_prompt: str, user_prompt: str, *, stream: bool = False):
+            async def call_ollama(system_prompt: str, user_prompt: str, *, stream: bool = False) -> dict[str, Any]:
                 if use_sdk and stream:
-                    async def _gen():
+                    async def _gen() -> Any:
                         async for chunk in await _ollama_client.chat(
                             model=model,
                             messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
@@ -3478,7 +3477,7 @@ class SiyarixChat:
                         "output_tokens": response.get("eval_count", 0),
                     }
                 if stream:
-                    async def _gen():
+                    async def _gen() -> Any:
                         async with httpx.AsyncClient(timeout=60.0) as hclient:
                             payload = {
                                 "model": model,
@@ -3520,9 +3519,9 @@ class SiyarixChat:
             lmstudio_url = self._settings.get("lmstudio_url") or os.getenv("SIYARIX_LMSTUDIO_URL", "http://localhost:1234")
             model = self._settings.get("lmstudio_model") or ""
 
-            async def call_lmstudio(system_prompt: str, user_prompt: str, *, stream: bool = False):
+            async def call_lmstudio(system_prompt: str, user_prompt: str, *, stream: bool = False) -> dict[str, Any]:
                 if stream:
-                    async def _gen():
+                    async def _gen() -> Any:
                         async with httpx.AsyncClient(timeout=120.0) as hclient:
                             payload = {
                                 "model": model or "local-model",
@@ -3602,7 +3601,6 @@ class SiyarixChat:
         When ``"auto"``, scan known providers sorted by cost (cheapest first),
         skipping any that are disabled or in cooldown (persisted across restarts).
         """
-        import time
         from .providers import ProviderManager
         pm = ProviderManager()
 
@@ -3615,7 +3613,6 @@ class SiyarixChat:
                 key = os.environ.get("GOOGLE_API_KEY", "")
             return (configured, key or None)
 
-        now = time.time()
         candidates: list[tuple[int, str, str]] = []
 
         for prov_name in pm.list_providers():
@@ -3636,7 +3633,10 @@ class SiyarixChat:
             if key:
                 candidates.append((profile.cost_tier.sort_key, prov_name, key))
 
-        candidates.sort(key=lambda c: (c[0], -pm.get_profile(c[1]).priority if pm.get_profile(c[1]) else 0))
+        def _sort_key(c: tuple) -> tuple:
+            prof = pm.get_profile(c[1])
+            return (c[0], -(prof.priority if prof else 0))
+        candidates.sort(key=_sort_key)
         for _, name, key in candidates:
             return (name, key or None)
 
@@ -3814,7 +3814,6 @@ class SiyarixChat:
         from rich.live import Live
         from rich.markdown import Markdown
         from rich.panel import Panel
-        from rich.text import Text
 
         if not provider_name or not api_key:
             prov_name, api_key = self._resolve_provider()

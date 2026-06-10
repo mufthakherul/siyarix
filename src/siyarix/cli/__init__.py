@@ -211,11 +211,19 @@ def _resolve_key(provider: str) -> str:
                 os.environ[env_var] = val
         except Exception:
             pass
+    if not val:
+        try:
+            from ..config import SettingsStore
+            val = SettingsStore().get(f"api_key_{provider}") or ""
+            if val:
+                os.environ[env_var] = val
+        except Exception:
+            pass
     return val
 
 
 def _store_key(provider: str, key: str) -> None:
-    """Store API key in vault (primary) and legacy CredentialStore (fallback)."""
+    """Store API key in vault (primary) and config settings (fallback)."""
     env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
     os.environ[env_var] = key
     try:
@@ -229,10 +237,15 @@ def _store_key(provider: str, key: str) -> None:
             creds.store(provider, key, "api_key")
         except Exception:
             pass
+    try:
+        from ..config import SettingsStore
+        SettingsStore().set(f"api_key_{provider}", key)
+    except Exception:
+        pass
 
 
 def _delete_key(provider: str) -> None:
-    """Delete API key from vault and legacy CredentialStore."""
+    """Delete API key from vault, config, and legacy CredentialStore."""
     env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
     os.environ.pop(env_var, None)
     try:
@@ -246,6 +259,11 @@ def _delete_key(provider: str) -> None:
             creds.delete(provider, "api_key")
         except Exception:
             pass
+    try:
+        from ..config import SettingsStore
+        SettingsStore().delete(f"api_key_{provider}")
+    except Exception:
+        pass
 
 
 def _get_engine(mode: str = "integrated") -> ExecutionEngine:

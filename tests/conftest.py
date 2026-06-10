@@ -22,6 +22,7 @@ from siyarix.registry import ToolCapability, ToolCategory, ToolRegistry
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="gi")
 try:
     from gi import PyGIDeprecationWarning as _GiDep
+
     warnings.filterwarnings("ignore", category=_GiDep)
 except ImportError:
     pass
@@ -37,20 +38,54 @@ def provider_manager() -> ProviderManager:
 @pytest.fixture
 def tool_registry() -> ToolRegistry:
     registry = ToolRegistry()
-    registry.register(ToolCapability(name="nmap", binary="nmap", installed=True, category=ToolCategory.RECON, description="Port scanner"))
-    registry.register(ToolCapability(name="nuclei", binary="nuclei", installed=True, category=ToolCategory.SCANNING, description="Vuln scanner"))
-    registry.register(ToolCapability(name="gobuster", binary="gobuster", installed=True, category=ToolCategory.SCANNING, description="Dir buster"))
+    registry.register(
+        ToolCapability(
+            name="nmap",
+            binary="nmap",
+            installed=True,
+            category=ToolCategory.RECON,
+            description="Port scanner",
+        )
+    )
+    registry.register(
+        ToolCapability(
+            name="nuclei",
+            binary="nuclei",
+            installed=True,
+            category=ToolCategory.SCANNING,
+            description="Vuln scanner",
+        )
+    )
+    registry.register(
+        ToolCapability(
+            name="gobuster",
+            binary="gobuster",
+            installed=True,
+            category=ToolCategory.SCANNING,
+            description="Dir buster",
+        )
+    )
     return registry
 
 
 @pytest.fixture
 def step_result_success() -> PlanStep:
-    return PlanStep(tool="test_tool", status=StepStatus.COMPLETED, result={"output": "test output"}, duration_ms=100.0)
+    return PlanStep(
+        tool="test_tool",
+        status=StepStatus.COMPLETED,
+        result={"output": "test output"},
+        duration_ms=100.0,
+    )
 
 
 @pytest.fixture
 def step_result_failure() -> PlanStep:
-    return PlanStep(tool="test_tool", status=StepStatus.FAILED, result={"error": "Something went wrong"}, duration_ms=50.0)
+    return PlanStep(
+        tool="test_tool",
+        status=StepStatus.FAILED,
+        result={"error": "Something went wrong"},
+        duration_ms=50.0,
+    )
 
 
 @pytest.fixture
@@ -100,8 +135,20 @@ def mock_nmap_output() -> str:
 @pytest.fixture
 def mock_nuclei_output() -> str:
     lines = [
-        json.dumps({"template-id": "CVE-2023-1234", "info": {"name": "Test Vuln", "severity": "high"}, "host": "https://example.com"}),
-        json.dumps({"template-id": "tech-detect", "info": {"name": "Tech Detection", "severity": "info"}, "host": "https://example.com"}),
+        json.dumps(
+            {
+                "template-id": "CVE-2023-1234",
+                "info": {"name": "Test Vuln", "severity": "high"},
+                "host": "https://example.com",
+            }
+        ),
+        json.dumps(
+            {
+                "template-id": "tech-detect",
+                "info": {"name": "Tech Detection", "severity": "info"},
+                "host": "https://example.com",
+            }
+        ),
     ]
     return "\n".join(lines)
 
@@ -114,7 +161,9 @@ def mock_gobuster_output() -> str:
 @pytest.fixture
 def mock_async_tool_executor() -> MagicMock:
     mock = MagicMock()
-    mock.execute = AsyncMock(return_value={"status": "success", "output": "mock output", "tool": "mock_tool"})
+    mock.execute = AsyncMock(
+        return_value={"status": "success", "output": "mock output", "tool": "mock_tool"}
+    )
     return mock
 
 
@@ -124,8 +173,16 @@ def mock_execution_plan() -> ExecutionPlan:
         goal="Scan target with nmap and nuclei",
         plan_type=PlanType.SEQUENTIAL,
         steps=[
-            PlanStep(id="step_1", tool="nmap", args={"target": "target"}, description="Nmap version scan"),
-            PlanStep(id="step_2", tool="nuclei", args={"target": "target"}, description="Nuclei vuln scan", dependencies=["step_1"]),
+            PlanStep(
+                id="step_1", tool="nmap", args={"target": "target"}, description="Nmap version scan"
+            ),
+            PlanStep(
+                id="step_2",
+                tool="nuclei",
+                args={"target": "target"},
+                description="Nuclei vuln scan",
+                dependencies=["step_1"],
+            ),
             PlanStep(id="step_3", description="Generate report", dependencies=["step_2"]),
         ],
     )

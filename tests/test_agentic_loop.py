@@ -27,6 +27,7 @@ def goal():
 # Initialization
 # ---------------------------------------------------------------------------
 
+
 class TestInit:
     def test_init_defaults(self):
         agent = AgentCore()
@@ -64,6 +65,7 @@ class TestInit:
 # AgentGoal
 # ---------------------------------------------------------------------------
 
+
 class TestAgentGoal:
     def test_goal_defaults(self):
         goal = AgentGoal()
@@ -82,6 +84,7 @@ class TestAgentGoal:
 # ---------------------------------------------------------------------------
 # AgentResult
 # ---------------------------------------------------------------------------
+
 
 class TestAgentResult:
     def test_result_defaults(self):
@@ -114,6 +117,7 @@ class TestAgentResult:
 # AgentStatus
 # ---------------------------------------------------------------------------
 
+
 class TestAgentStatus:
     def test_status_values(self):
         assert AgentStatus.IDLE == "idle"
@@ -133,11 +137,14 @@ class TestAgentStatus:
 # initialize
 # ---------------------------------------------------------------------------
 
+
 class TestInitialize:
     @pytest.mark.asyncio
     async def test_initialize_sets_up_registry(self, agent):
-        with patch.object(agent._registry, "discover_from_path") as mock_discover, \
-             patch.object(agent._event_bus, "emit", new_callable=AsyncMock) as mock_emit:
+        with (
+            patch.object(agent._registry, "discover_from_path") as mock_discover,
+            patch.object(agent._event_bus, "emit", new_callable=AsyncMock) as mock_emit,
+        ):
             await agent.initialize()
             mock_discover.assert_called_once()
 
@@ -146,12 +153,20 @@ class TestInitialize:
 # execute_goal
 # ---------------------------------------------------------------------------
 
+
 class TestExecuteGoal:
     @pytest.mark.asyncio
     async def test_execute_goal_success(self, agent, goal):
-        step = PlanStep(tool="nmap", args={"target": "10.0.0.1"}, description="Port scan",
-                        status=StepStatus.COMPLETED, result={"output": "22/tcp open ssh"})
-        plan = ExecutionPlan(goal="Scan target with nmap", steps=[step], status=PlanStatus.COMPLETED)
+        step = PlanStep(
+            tool="nmap",
+            args={"target": "10.0.0.1"},
+            description="Port scan",
+            status=StepStatus.COMPLETED,
+            result={"output": "22/tcp open ssh"},
+        )
+        plan = ExecutionPlan(
+            goal="Scan target with nmap", steps=[step], status=PlanStatus.COMPLETED
+        )
 
         agent._planner.decompose_goal = MagicMock(return_value=plan)
         agent._validator.validate_plan = AsyncMock(return_value=[])
@@ -175,13 +190,20 @@ class TestExecuteGoal:
         agent._executor.execute_plan = AsyncMock(return_value=plan)
 
         with patch.object(agent._executor, "execute_plan", new_callable=AsyncMock) as mock_exec:
-            failed_step = PlanStep(tool="nmap", args={}, description="Port scan",
-                                   status=StepStatus.FAILED, result={"error": "connection refused"})
-            failed_plan = ExecutionPlan(goal="Scan target with nmap", steps=[failed_step],
-                                        status=PlanStatus.FAILED)
+            failed_step = PlanStep(
+                tool="nmap",
+                args={},
+                description="Port scan",
+                status=StepStatus.FAILED,
+                result={"error": "connection refused"},
+            )
+            failed_plan = ExecutionPlan(
+                goal="Scan target with nmap", steps=[failed_step], status=PlanStatus.FAILED
+            )
             mock_exec.return_value = failed_plan
             agent._validator.plan_recovery = AsyncMock(
-                return_value=RecoveryPlan(original_step=failed_step, action=RecoveryAction.SKIP))
+                return_value=RecoveryPlan(original_step=failed_step, action=RecoveryAction.SKIP)
+            )
 
             result = await agent.execute_goal(goal)
 
@@ -235,8 +257,13 @@ class TestExecuteGoal:
 
     @pytest.mark.asyncio
     async def test_execute_goal_finds_completed_steps(self, agent, goal):
-        step = PlanStep(tool="nmap", args={}, description="Port scan",
-                        status=StepStatus.COMPLETED, result={"output": "22/tcp open ssh"})
+        step = PlanStep(
+            tool="nmap",
+            args={},
+            description="Port scan",
+            status=StepStatus.COMPLETED,
+            result={"output": "22/tcp open ssh"},
+        )
         plan = ExecutionPlan(goal="Scan target with nmap", steps=[step], status=PlanStatus.ACTIVE)
 
         agent._planner.decompose_goal = MagicMock(return_value=plan)
@@ -265,21 +292,36 @@ class TestExecuteGoal:
     @pytest.mark.asyncio
     async def test_execute_goal_recovery_retries(self, goal):
         autonomous_agent = AgentCore(mode=AgentMode.AUTONOMOUS)
-        failed_step = PlanStep(tool="nmap", args={"target": "10.0.0.1"}, description="Port scan",
-                               status=StepStatus.FAILED, result={"error": "filtered"})
+        failed_step = PlanStep(
+            tool="nmap",
+            args={"target": "10.0.0.1"},
+            description="Port scan",
+            status=StepStatus.FAILED,
+            result={"error": "filtered"},
+        )
         failed_plan = ExecutionPlan(goal="Scan", steps=[failed_step], status=PlanStatus.ACTIVE)
 
-        recovered_step = PlanStep(tool="nmap", args={"target": "10.0.0.1", "flags": "-Pn"},
-                                  description="Port scan", status=StepStatus.COMPLETED,
-                                  result={"output": "22/tcp open ssh"})
-        recovered_plan = ExecutionPlan(goal="Scan", steps=[recovered_step], status=PlanStatus.COMPLETED)
+        recovered_step = PlanStep(
+            tool="nmap",
+            args={"target": "10.0.0.1", "flags": "-Pn"},
+            description="Port scan",
+            status=StepStatus.COMPLETED,
+            result={"output": "22/tcp open ssh"},
+        )
+        recovered_plan = ExecutionPlan(
+            goal="Scan", steps=[recovered_step], status=PlanStatus.COMPLETED
+        )
 
         autonomous_agent._planner.decompose_goal = MagicMock(return_value=failed_plan)
         autonomous_agent._validator.validate_plan = AsyncMock(return_value=[])
-        autonomous_agent._executor.execute_plan = AsyncMock(side_effect=[failed_plan, recovered_plan])
+        autonomous_agent._executor.execute_plan = AsyncMock(
+            side_effect=[failed_plan, recovered_plan]
+        )
         autonomous_agent._validator.plan_recovery = AsyncMock(
-            return_value=RecoveryPlan(original_step=failed_step, action=RecoveryAction.RETRY,
-                                      modified_step=recovered_step))
+            return_value=RecoveryPlan(
+                original_step=failed_step, action=RecoveryAction.RETRY, modified_step=recovered_step
+            )
+        )
 
         result = await autonomous_agent.execute_goal(goal)
 
@@ -290,6 +332,7 @@ class TestExecuteGoal:
 # ---------------------------------------------------------------------------
 # stats
 # ---------------------------------------------------------------------------
+
 
 class TestStats:
     def test_stats_returns_dict(self, agent):

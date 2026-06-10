@@ -67,7 +67,9 @@ class TestIncidentsCommand:
         assert len(lines) <= 2
 
     def test_filter_status_and_severity(self, cli: Typer, runner: CliRunner) -> None:
-        output = invoke_security(cli, runner, ["incidents", "--status", "open", "--severity", "critical"])
+        output = invoke_security(
+            cli, runner, ["incidents", "--status", "open", "--severity", "critical"]
+        )
         assert "INC-001" not in output
 
     def test_empty_filter_result(self, cli: Typer, runner: CliRunner) -> None:
@@ -88,23 +90,38 @@ class TestIncidentDetail:
 
 class TestCreateIncident:
     def test_create_incident_default_severity(self, cli: Typer, runner: CliRunner) -> None:
-        output = invoke_security(cli, runner, [
-            "incident-create",
-            "--title", "SQL Injection",
-            "--description", "SQLi on login",
-            "--category", "intrusion",
-        ])
+        output = invoke_security(
+            cli,
+            runner,
+            [
+                "incident-create",
+                "--title",
+                "SQL Injection",
+                "--description",
+                "SQLi on login",
+                "--category",
+                "intrusion",
+            ],
+        )
         assert "SQL Injection" in output
         assert "MEDIUM" in output
 
     def test_create_incident_custom_severity(self, cli: Typer, runner: CliRunner) -> None:
-        output = invoke_security(cli, runner, [
-            "incident-create",
-            "--title", "Ransomware",
-            "--description", "Encryption detected",
-            "--category", "malware",
-            "--severity", "critical",
-        ])
+        output = invoke_security(
+            cli,
+            runner,
+            [
+                "incident-create",
+                "--title",
+                "Ransomware",
+                "--description",
+                "Encryption detected",
+                "--category",
+                "malware",
+                "--severity",
+                "critical",
+            ],
+        )
         assert "CRITICAL" in output
 
 

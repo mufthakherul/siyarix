@@ -156,7 +156,18 @@ class TestBranding:
         print_theme_preview(console, "eclipse")
 
     def test_all_themes_have_required_keys(self):
-        required = {"critical", "high", "medium", "low", "info", "accent", "primary", "muted", "success", "border"}
+        required = {
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "info",
+            "accent",
+            "primary",
+            "muted",
+            "success",
+            "border",
+        }
         for theme, styles in _SEVERITY_STYLES.items():
             missing = required - set(styles.keys())
             assert not missing, f"Theme '{theme}' missing keys: {missing}"

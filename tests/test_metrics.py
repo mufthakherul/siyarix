@@ -28,12 +28,20 @@ def collector():
 
 class TestMetric:
     def test_to_prometheus_with_labels(self):
-        m = Metric("test_metric", MetricType.COUNTER, 42, labels={"env": "prod", "host": "h1"}, timestamp=datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC))
+        m = Metric(
+            "test_metric",
+            MetricType.COUNTER,
+            42,
+            labels={"env": "prod", "host": "h1"},
+            timestamp=datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC),
+        )
         result = m.to_prometheus()
         assert 'test_metric{env="prod",host="h1"} 42' in result
 
     def test_to_prometheus_without_labels(self):
-        m = Metric("simple", MetricType.GAUGE, 3.14, timestamp=datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC))
+        m = Metric(
+            "simple", MetricType.GAUGE, 3.14, timestamp=datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
+        )
         result = m.to_prometheus()
         assert "simple 3.14" in result
 
@@ -45,7 +53,14 @@ class TestMetric:
 
 class TestExecutionMetrics:
     def test_to_metrics(self):
-        em = ExecutionMetrics(total_scans=10, successful_scans=8, failed_scans=2, total_findings=25, total_duration_seconds=100.0, average_duration_seconds=10.0)
+        em = ExecutionMetrics(
+            total_scans=10,
+            successful_scans=8,
+            failed_scans=2,
+            total_findings=25,
+            total_duration_seconds=100.0,
+            average_duration_seconds=10.0,
+        )
         metrics = em.to_metrics()
         assert len(metrics) == 6
         names = [m.name for m in metrics]
@@ -59,7 +74,14 @@ class TestExecutionMetrics:
 
 class TestToolMetrics:
     def test_to_metrics(self):
-        tm = ToolMetrics(tool_name="nmap", executions=5, successful=3, failed=2, total_duration_seconds=50.0, findings_count=100)
+        tm = ToolMetrics(
+            tool_name="nmap",
+            executions=5,
+            successful=3,
+            failed=2,
+            total_duration_seconds=50.0,
+            findings_count=100,
+        )
         metrics = tm.to_metrics()
         assert len(metrics) == 4
         for m in metrics:
@@ -72,7 +94,9 @@ class TestToolMetrics:
 
 class TestPlannerMetrics:
     def test_to_metrics(self):
-        pm = PlannerMetrics(plans_generated=5, plans_successful=3, plans_failed=2, model_calls=10, model_errors=1)
+        pm = PlannerMetrics(
+            plans_generated=5, plans_successful=3, plans_failed=2, model_calls=10, model_errors=1
+        )
         metrics = pm.to_metrics()
         assert len(metrics) == 5
         names = [m.name for m in metrics]
@@ -115,7 +139,9 @@ class TestMetricsCollector:
         assert collector.execution.average_duration_seconds == 15.0
 
     def test_record_tool_execution_new_tool(self, collector):
-        collector.record_tool_execution(tool_name="nmap", duration=3.0, successful=True, findings_count=5)
+        collector.record_tool_execution(
+            tool_name="nmap", duration=3.0, successful=True, findings_count=5
+        )
         assert "nmap" in collector.tools
         assert collector.tools["nmap"].executions == 1
         assert collector.tools["nmap"].successful == 1
@@ -156,7 +182,9 @@ class TestMetricsCollector:
 
     def test_to_dict(self, collector):
         collector.record_scan(duration=1.0, successful=True)
-        collector.record_tool_execution(tool_name="test_tool", duration=0.5, successful=True, findings_count=7)
+        collector.record_tool_execution(
+            tool_name="test_tool", duration=0.5, successful=True, findings_count=7
+        )
         collector.record_plan_generation(successful=True)
         d = collector.to_dict()
         assert d["execution"]["total_scans"] == 1
@@ -169,7 +197,9 @@ class TestMetricsCollector:
         assert isinstance(m, MetricsCollector)
 
     def test_record_tool_with_findings(self, collector):
-        collector.record_tool_execution(tool_name="nuclei", duration=1.0, successful=True, findings_count=15)
+        collector.record_tool_execution(
+            tool_name="nuclei", duration=1.0, successful=True, findings_count=15
+        )
         assert collector.tools["nuclei"].findings_count == 15
 
     def test_to_prometheus_multiple_tools(self, collector):

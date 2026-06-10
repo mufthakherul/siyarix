@@ -5,9 +5,7 @@ from siyarix.compat import IntentRouter, RiskTier
 
 def test_intent_router_high_risk_for_exploit() -> None:
     router = IntentRouter()
-    route = router.route(
-        "exploit target.com using metasploit", preferred_mode="integrated"
-    )
+    route = router.route("exploit target.com using metasploit", preferred_mode="integrated")
     assert route.risk_tier.value == RiskTier.HIGH
     assert route.requires_confirmation is True
 

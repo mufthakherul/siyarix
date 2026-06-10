@@ -132,9 +132,7 @@ class TestConfigureLogging:
             configure_logging()
             configure_logging()  # second call should not add a duplicate
             root = logging.getLogger()
-            stream_handlers = [
-                h for h in root.handlers if isinstance(h, logging.StreamHandler)
-            ]
+            stream_handlers = [h for h in root.handlers if isinstance(h, logging.StreamHandler)]
             assert len(stream_handlers) == 1
         finally:
             root = logging.getLogger()

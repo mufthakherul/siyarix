@@ -107,9 +107,7 @@ class TestSafeRunAsync:
     @pytest.mark.asyncio
     async def test_timeout(self) -> None:
         mock_proc = AsyncMock()
-        mock_proc.communicate = AsyncMock(
-            side_effect=[asyncio.TimeoutError(), (b"partial", b"")]
-        )
+        mock_proc.communicate = AsyncMock(side_effect=[asyncio.TimeoutError(), (b"partial", b"")])
         mock_proc.kill = MagicMock()
 
         with (

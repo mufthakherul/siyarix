@@ -50,7 +50,9 @@ class TestOPSECManager:
 
     def test_isolate_with_target(self) -> None:
         mgr = OPSECManager()
-        result = mgr.isolate(target="example.com", use_tor=True, use_doh=True, randomize_mac=True, memory_only=True)
+        result = mgr.isolate(
+            target="example.com", use_tor=True, use_doh=True, randomize_mac=True, memory_only=True
+        )
         assert result.success is True
         assert result.action == "isolate"
         assert mgr.status.isolated is True

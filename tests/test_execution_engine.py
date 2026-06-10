@@ -27,7 +27,6 @@ def _run(coro):
     return asyncio.run(coro)
 
 
-
 class TestPlanner:
     """Tests for the Planner goal decomposition and plan creation."""
 
@@ -461,8 +460,12 @@ class TestExecutionModels:
             goal="scan target",
             plan_type=PlanType.SEQUENTIAL,
             steps=[
-                PlanStep(id="s1", description="Port scan", tool="nmap", status=StepStatus.COMPLETED),
-                PlanStep(id="s2", description="Vuln scan", tool="nuclei", status=StepStatus.PENDING),
+                PlanStep(
+                    id="s1", description="Port scan", tool="nmap", status=StepStatus.COMPLETED
+                ),
+                PlanStep(
+                    id="s2", description="Vuln scan", tool="nuclei", status=StepStatus.PENDING
+                ),
             ],
         )
         d = plan.to_dict()

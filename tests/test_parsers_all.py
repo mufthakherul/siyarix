@@ -95,9 +95,7 @@ class TestGobusterParser:
 class TestNiktoParser:
     def test_basic_parse(self):
         p = NiktoParser()
-        output = (
-            "+ /admin: OSVDB-1234: Admin login page found.\n+ Server: Apache/2.4.7\n"
-        )
+        output = "+ /admin: OSVDB-1234: Admin login page found.\n+ Server: Apache/2.4.7\n"
         findings = p.parse(output)
         assert len(findings) >= 1
         for f in findings:
@@ -111,9 +109,7 @@ class TestNiktoParser:
 class TestFfufParser:
     def test_basic_parse(self):
         p = FfufParser()
-        output = (
-            "admin                  [Status: 200, Size: 1234, Words: 100, Lines: 20]\n"
-        )
+        output = "admin                  [Status: 200, Size: 1234, Words: 100, Lines: 20]\n"
         findings = p.parse(output)
         assert len(findings) == 1
         _check_finding(findings[0], "ffuf")
@@ -126,7 +122,9 @@ class TestFfufParser:
 class TestAmassParser:
     def test_basic_parse(self):
         p = AmassParser()
-        output = '{"name":"sub.example.com","domain":"example.com","addresses":[{"ip":"1.2.3.4"}]}\n'
+        output = (
+            '{"name":"sub.example.com","domain":"example.com","addresses":[{"ip":"1.2.3.4"}]}\n'
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         _check_finding(findings[0], "amass")
@@ -352,8 +350,6 @@ class TestParserEdgeCases:
 
     def test_mixed_content(self):
         p = GobusterParser()
-        output = (
-            "Url: http://example.com\nsome noise here\n/admin (Status: 200)\n[Footer]\n"
-        )
+        output = "Url: http://example.com\nsome noise here\n/admin (Status: 200)\n[Footer]\n"
         findings = p.parse(output)
         assert len(findings) >= 1

@@ -51,9 +51,7 @@ class TestPermissionGate:
     @patch("siyarix.permission_gate.DangerAnalyzer")
     def test_high_danger_returns_review(self, MockDA: MagicMock) -> None:
         da_instance = MockDA.return_value
-        da_instance.analyze.return_value = MagicMock(
-            severity="high", reasons=["shutdown detected"]
-        )
+        da_instance.analyze.return_value = MagicMock(severity="high", reasons=["shutdown detected"])
         gate = PermissionGate()
         result = gate.check("shutdown -h now")
         assert result.allowed is True
@@ -63,9 +61,7 @@ class TestPermissionGate:
     @patch("siyarix.permission_gate.DangerAnalyzer")
     def test_medium_danger_returns_review(self, MockDA: MagicMock) -> None:
         da_instance = MockDA.return_value
-        da_instance.analyze.return_value = MagicMock(
-            severity="medium", reasons=["rm detected"]
-        )
+        da_instance.analyze.return_value = MagicMock(severity="medium", reasons=["rm detected"])
         gate = PermissionGate()
         result = gate.check("rm file.txt")
         assert result.allowed is True
@@ -75,12 +71,8 @@ class TestPermissionGate:
     @patch("siyarix.permission_gate.DangerAnalyzer")
     def test_safe_command_returns_approved(self, MockDA: MagicMock) -> None:
         da_instance = MockDA.return_value
-        da_instance.analyze.return_value = MagicMock(
-            severity="safe", reasons=[]
-        )
+        da_instance.analyze.return_value = MagicMock(severity="safe", reasons=[])
         gate = PermissionGate()
         result = gate.check("ls -la")
         assert result.allowed is True
         assert result.stage == "approved"
-
-

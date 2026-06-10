@@ -5,12 +5,12 @@
 from __future__ import annotations
 
 import platform
+import sys
 from pathlib import Path
 
 import pytest
 
-from siyarix.bootstrap import (SIYARIX_HOME, BootstrapEngine, BootstrapResult,
-                               PlatformInfo)
+from siyarix.bootstrap import SIYARIX_HOME, BootstrapEngine, BootstrapResult, PlatformInfo
 
 pytestmark = pytest.mark.bootstrap
 
@@ -29,7 +29,8 @@ class TestBootstrapEngine:
 
     def test_check_python_version(self):
         engine = BootstrapEngine()
-        assert engine.check_python_version() is True
+        expected = (sys.version_info.major, sys.version_info.minor) >= engine.REQUIRED_PYTHON
+        assert engine.check_python_version() is expected
 
     def test_check_dependencies(self):
         engine = BootstrapEngine()
@@ -56,7 +57,7 @@ class TestBootstrapEngine:
 
     @pytest.mark.asyncio
     async def test_run_skip_if_initialized(self, tmp_path: Path):
-        marker = tmp_path.parent / ".initialized"
+        marker = tmp_path / ".initialized"
         marker.write_text("initialized")
         engine = BootstrapEngine(siyarix_home=tmp_path)
         result = await engine.run()

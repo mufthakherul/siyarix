@@ -70,7 +70,12 @@ from ..validators import validate_target
 # ---------------------------------------------------------------------------
 
 def _load_dotenv(path: Path | None = None) -> None:
-    """Load environment variables from .env file (simple key=value parser)."""
+    """Load environment variables from .env file (simple key=value parser).
+
+    NOTE: API key env vars (*_API_KEY) are intentionally NOT loaded from .env
+    for security. Use the encrypted vault instead: `siyarix auth set`.
+    """
+    _api_key_patterns = ("_API_KEY", "_SECRET", "_PASSWORD", "_TOKEN")
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():
         env_path = Path.home() / ".siyarix" / ".env"
@@ -84,10 +89,14 @@ def _load_dotenv(path: Path | None = None) -> None:
         key = key.strip()
         val = val.strip().strip("'").strip('"')
         if key and not os.environ.get(key):
+            if any(p in key.upper() for p in _api_key_patterns):
+                logger.debug("Skipping %s from .env (use vault instead)", key)
+                continue
             os.environ[key] = val
 
 
 def _upsert_env_vars(env_map: dict[str, str], env_file: str | None = None) -> None:
+    """Set environment variables in-memory only (never writes to .env)."""
     for k, v in env_map.items():
         os.environ[k] = v
 
@@ -130,54 +139,110 @@ console = Console()
 registry = ToolRegistry()
 config = SettingsStore()
 configure_logging(config.get("log_level"))
-creds = CredentialStore()
 _load_dotenv()
 
-# Load API keys from encrypted credential store into environment
-for provider, env_var in [("gemini", "GEMINI_API_KEY"), ("openai", "OPENAI_API_KEY"), ("anthropic", "ANTHROPIC_API_KEY"), ("openrouter", "OPENROUTER_API_KEY")]:
-    if not os.environ.get(env_var):
-        try:
-            key = creds.retrieve(provider, "api_key")
+# Load API keys from the encrypted vault into environment (in-memory only)
+_VAULT_LOADED = False
+try:
+    from ..credential_vault import vault_get as _vault_get
+    _PROVIDER_ENV_MAP: dict[str, str] = {
+        "gemini": "GEMINI_API_KEY", "openai": "OPENAI_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY", "openrouter": "OPENROUTER_API_KEY",
+        "groq": "GROQ_API_KEY", "together": "TOGETHER_API_KEY",
+    }
+    for prov, env_var in _PROVIDER_ENV_MAP.items():
+        if not os.environ.get(env_var):
+            key = _vault_get(prov)
             if key:
                 os.environ[env_var] = key
-        except Exception:
-            pass
+    _VAULT_LOADED = True
+except Exception:
+    logger.debug("Vault unavailable; API keys from environment only")
+
+# Legacy CredentialStore fallback for backward compat
+try:
+    creds = CredentialStore()
+    for provider, env_var in [("gemini", "GEMINI_API_KEY"), ("openai", "OPENAI_API_KEY"), ("anthropic", "ANTHROPIC_API_KEY"), ("openrouter", "OPENROUTER_API_KEY")]:
+        if not os.environ.get(env_var):
+            try:
+                key = creds.retrieve(provider, "api_key")
+                if key:
+                    os.environ[env_var] = key
+            except Exception:
+                pass
+except Exception:
+    creds = None
 intent_router = IntentRouter()
 session_kernel = SessionKernel()
+
+
+def _resolve_key(provider: str) -> str:
+    """Resolve API key from vault, then CredentialStore, then environment."""
+    env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
+    val = os.environ.get(env_var, "")
+    if val:
+        return val
+    try:
+        from ..credential_vault import vault_get
+        val = vault_get(provider) or ""
+        if val:
+            os.environ[env_var] = val
+            return val
+    except Exception:
+        pass
+    if creds:
+        try:
+            val = creds.retrieve(provider, "api_key") or ""
+            if val:
+                os.environ[env_var] = val
+        except Exception:
+            pass
+    return val
+
+
+def _store_key(provider: str, key: str) -> None:
+    """Store API key in vault (primary) and legacy CredentialStore (fallback)."""
+    env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
+    os.environ[env_var] = key
+    try:
+        from ..credential_vault import vault_set
+        vault_set(provider, key)
+    except Exception:
+        logger.debug("Vault unavailable for storing key")
+    if creds:
+        try:
+            creds.store(provider, key, "api_key")
+        except Exception:
+            pass
+
+
+def _delete_key(provider: str) -> None:
+    """Delete API key from vault and legacy CredentialStore."""
+    env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
+    os.environ.pop(env_var, None)
+    try:
+        from ..credential_vault import vault_delete
+        vault_delete(provider)
+    except Exception:
+        pass
+    if creds:
+        try:
+            creds.delete(provider, "api_key")
+        except Exception:
+            pass
+
 
 def _get_engine(mode: str = "integrated") -> ExecutionEngine:
     """Build an ExecutionEngine with API keys from config/credentials."""
     engine_config: dict = {}
     if os.getenv("SIYARIX_FAST_DISCOVERY", "0") == "1":
         engine_config["fast_discovery"] = True
-    openai_key = (
-        os.environ.get("OPENAI_API_KEY", "")
-        or creds.retrieve("openai", "api_key")
-        or ""
-    )
-    gemini_key = (
-        os.environ.get("GEMINI_API_KEY", "")
-        or creds.retrieve("gemini", "api_key")
-        or ""
-    )
-    anthropic_key = (
-        os.environ.get("ANTHROPIC_API_KEY", "")
-        or creds.retrieve("anthropic", "api_key")
-        or ""
-    )
-    groq_key = (
-        os.environ.get("GROQ_API_KEY", "") or creds.retrieve("groq", "api_key") or ""
-    )
-    together_key = (
-        os.environ.get("TOGETHER_API_KEY", "")
-        or creds.retrieve("together", "api_key")
-        or ""
-    )
-    openrouter_key = (
-        os.environ.get("OPENROUTER_API_KEY", "")
-        or creds.retrieve("openrouter", "api_key")
-        or ""
-    )
+    openai_key = _resolve_key("openai")
+    gemini_key = _resolve_key("gemini")
+    anthropic_key = _resolve_key("anthropic")
+    groq_key = _resolve_key("groq")
+    together_key = _resolve_key("together")
+    openrouter_key = _resolve_key("openrouter")
     if openai_key:
         engine_config["openai_api_key"] = openai_key
     if gemini_key:
@@ -295,7 +360,7 @@ def init_wizard(
     }
     if provider in api_key_providers or provider == "auto":
         env_var = api_key_providers.get(provider, "OPENAI_API_KEY")
-        existing = os.environ.get(env_var) or creds.retrieve(provider, "api_key") or ""
+        existing = os.environ.get(env_var) or _resolve_key(provider)
         if existing:
             console.print(f"[dim]API key for {provider} already configured.[/dim]")
         else:
@@ -305,19 +370,19 @@ def init_wizard(
                 default="",
             )
             if key:
-                creds.store(provider, key, "api_key")
+                _store_key(provider, key)
                 console.print(f"[green]✓ {provider.upper()} API key saved.[/green]")
 
     if provider == "auto":
         for prov, var in api_key_providers.items():
-            if not (os.environ.get(var) or creds.retrieve(prov, "api_key")):
+            if not (os.environ.get(var) or _resolve_key(prov)):
                 key = Prompt.ask(
                     f"Enter your {prov.upper()} API key (or leave blank to skip)",
                     password=True,
                     default="",
                 )
                 if key:
-                    creds.store(prov, key, "api_key")
+                    _store_key(prov, key)
                     console.print(f"[green]✓ {prov.upper()} API key saved.[/green]")
 
     console.print("\n[bold yellow]Configuration Summary:[/bold yellow]")
@@ -1341,15 +1406,11 @@ def auth_set_key(
       siyarix auth set-key gemini --key AIz...
       siyarix auth set-key anthropic --key sk-ant-...
     """
-    creds.delete(provider, "api_key")
-    creds.store(provider, api_key, "api_key")
-    from siyarix.providers import get_provider_env_var
-    env_key = get_provider_env_var(provider)
-    _upsert_env_vars({env_key: api_key})
-    os.environ[env_key] = api_key
-    console.print(f"[green]✓ API key stored for provider: {provider}[/green]")
+    _store_key(provider, api_key)
+    console.print(f"[green]✓ API key encrypted and stored for provider: {provider}[/green]")
     console.print(
-        "[dim]Key is stored in the credential vault and synced to .env.[/dim]"
+        "[dim]Key is stored in the device-bound encrypted vault. "
+        "It can only be decrypted on this machine in the siyarix environment.[/dim]"
     )
 
 
@@ -1374,11 +1435,18 @@ def auth_show() -> None:
         from siyarix.providers import get_provider_env_var
         env_key = get_provider_env_var(prov)
         from_env = bool(os.getenv(env_key))
-        from_creds = bool(creds.retrieve(prov, "api_key"))
+        try:
+            from ..credential_vault import vault_get
+            from_vault = bool(vault_get(prov))
+        except Exception:
+            from_vault = False
+        from_creds = bool(creds.retrieve(prov, "api_key")) if creds else False
         if from_env:
             status, source = "✓ Set", "Environment variable"
+        elif from_vault:
+            status, source = "✓ Set", "Encrypted vault (device-bound)"
         elif from_creds:
-            status, source = "✓ Set", "Keyring"
+            status, source = "✓ Set", "Legacy keyring"
         else:
             status, source = "✗ Not set", "—"
         table.add_row(prov, status, source)

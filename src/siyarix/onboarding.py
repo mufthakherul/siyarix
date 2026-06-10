@@ -708,6 +708,7 @@ class OnboardingWizard:
                 self._vault = vault
                 self._choices["vault_initialized"] = True
                 self._settings.set("vault_initialized", True)
+                self._settings.set("vault_passphrase", passphrase)
 
                 # Store the vault reference globally for later use
                 try:

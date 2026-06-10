@@ -83,6 +83,14 @@ def _load_dotenv(path: Path | None = None) -> None:
 
 
 def _provider_env_var(provider: str) -> str:
+    try:
+        from siyarix.providers import ProviderManager
+        pm = ProviderManager()
+        profile = pm.get_profile(provider)
+        if profile and profile.api_key_env:
+            return profile.api_key_env
+    except Exception:
+        pass
     return f"{provider.upper()}_API_KEY"
 
 
@@ -1356,7 +1364,13 @@ def auth_set_key(
 @auth_app.command("show")
 def auth_show() -> None:
     """Show configured API key providers."""
-    providers = ["openai", "gemini", "anthropic", "groq", "openrouter"]
+    try:
+        from siyarix.providers import ProviderManager
+        pm = ProviderManager()
+        providers = pm.list_providers()
+    except Exception:
+        providers = ["openai", "gemini", "anthropic", "groq", "openrouter"]
+
     table = Table(
         title="Configured API Keys", show_header=True, header_style="bold green"
     )

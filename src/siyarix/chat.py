@@ -1000,6 +1000,16 @@ class SiyarixChat:
         if run.lower().startswith("y"):
             await self._execute_instruction(p.command)
 
+    @staticmethod
+    def _provider_env_var(provider: str) -> str:
+        """Resolve the environment variable name for a provider's API key."""
+        from .providers import ProviderManager
+        pm = ProviderManager()
+        profile = pm.get_profile(provider)
+        if profile and profile.api_key_env:
+            return profile.api_key_env
+        return f"{provider.upper()}_API_KEY"
+
     def _show_key_status(self) -> None:
         from .credential_store import CredentialStore
         from .providers import ProviderManager as provider_registry
@@ -1015,14 +1025,11 @@ class SiyarixChat:
         table.add_column("Status", justify="center")
         table.add_column("Source")
 
-        # Get registered provider names from the registry
-        # Filter out 'noop' and sort alphabetically
-        prov_names = sorted(
-            n for n in provider_registry.list_providers() if n != "noop"
-        )
+        prov_names = sorted(provider_registry.list_providers())
         for provider in prov_names:
-            env_key = provider_env_var(provider)
-            from_env = bool(os.getenv(env_key))
+            profile = provider_registry.get_profile(provider)
+            env_key = profile.api_key_env if profile else provider_env_var(provider)
+            from_env = bool(os.getenv(env_key)) if env_key else False
             from_creds = bool(vault and vault.retrieve(provider, "api_key"))
             if from_env:
                 status, source = "✓ Set", "Environment"
@@ -1030,7 +1037,7 @@ class SiyarixChat:
                 status, source = "✓ Set", "Saved"
             else:
                 status, source = "✗ Missing", "—"
-            table.add_row(provider, env_key, status, source)
+            table.add_row(provider, env_key or "—", status, source)
 
         console.print(table)
 
@@ -1077,7 +1084,7 @@ class SiyarixChat:
                 console.print("[yellow]Usage: /key remove <provider>[/yellow]")
                 return
             provider = tokens[1].lower()
-            env_key = provider_env_var(provider)
+            env_key = self._provider_env_var(provider)
             upsert_env_vars({env_key: ""}, ensure_env_file())
             os.environ.pop(env_key, None)
             from .credential_store import CredentialStore
@@ -1092,7 +1099,7 @@ class SiyarixChat:
 
         if not api_key:
             api_key = Prompt.ask(f"Enter {provider} API key", password=True)
-        env_key = provider_env_var(provider)
+        env_key = self._provider_env_var(provider)
         # persist to the encrypted vault and .env, then update the live environment
         try:
             from .credential_store import CredentialStore
@@ -1501,66 +1508,44 @@ class SiyarixChat:
         await self._execute_instruction(args)
 
     def _cmd_model(self, args: str) -> None:
+        from .providers import ProviderManager
         tokens = args.split(maxsplit=1) if args else []
+        pm = ProviderManager()
+        all_providers = pm.list_providers()
+
         if tokens:
             selected = tokens[0].strip().lower()
-            # If a provider is given and an additional token is provided, treat it as a model name
-            if selected in {"auto", "openai", "gemini", "ollama", "cloud", "anthropic", "groq", "together", "lmstudio", "custom", "opencode", "openrouter"}:
+            valid_providers = set(all_providers) | {"auto", "cloud", "custom", "opencode"}
+            if selected in valid_providers:
                 self._settings.set("model_provider", selected)
-                if len(tokens) > 1:
+                if len(tokens) > 1 and selected != "auto":
                     model_name = tokens[1].strip()
-                    # store provider-specific model key if exists in settings
                     model_key = f"{selected}_model"
                     try:
-                        # only set if the setting key exists; SettingsStore will raise if unknown
                         self._settings.set(model_key, model_name)
-                        console.print(
-                            f"[green]✓ Set {model_key} to: {model_name}[/green]"
-                        )
+                        console.print(f"[green]✓ Set {model_key} to: {model_name}[/green]")
                     except KeyError:
-                        # fallback: set gemini_model for gemini, ollama_model for ollama
-                        if selected == "gemini":
-                            self._settings.set("gemini_model", model_name)
-                        elif selected == "ollama":
-                            self._settings.set("ollama_model", model_name)
-                        else:
-                            # unknown model key — still inform the user
-                            console.print(
-                                f"[yellow]Note: saved provider '{selected}' but couldn't store model '{model_name}' in settings.[/yellow]"
-                            )
-
+                        console.print(f"[green]✓ Provider set to {selected} (model name ignored for this provider)[/green]")
                 console.print(f"[green]✓ Model provider set to: {selected}[/green]")
             else:
-                console.print(
-                    "[yellow]Usage: /model [auto|openai|gemini|ollama|anthropic|cloud|openrouter] [model-name][/yellow]"
-                )
+                valid_list = " | ".join(sorted(valid_providers))
+                console.print(f"[yellow]Usage: /model <{'|'.join(valid_providers)}> [model-name][/yellow]")
                 return
 
-        # Show all providers and their status
-        openai_key = os.environ.get("OPENAI_API_KEY", "")
-        gemini_key = os.environ.get("GEMINI_API_KEY", "")
-        anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
-        groq_key = os.environ.get("GROQ_API_KEY", "")
-        together_key = os.environ.get("TOGETHER_API_KEY", "")
-        openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
-        panel_text = (
-            f"[bold]Preferred:[/bold] {self._settings.get('model_provider')}\n"
-            f"[bold]OpenAI:[/bold]  {'✓ Configured' if openai_key else '✗ Not set'} ({self._settings.get('openai_model') or 'gpt-4o'})\n"
-            f"[bold]Gemini:[/bold]  {'✓ Configured' if gemini_key else '✗ Not set'} ({self._settings.get('gemini_model') or 'gemini-2.0-flash'})\n"
-            f"[bold]Anthropic:[/bold]  {'✓ Configured' if anthropic_key else '✗ Not set'} ({self._settings.get('anthropic_model') or 'claude-3-opus-20240229'})\n"
-            f"[bold]Groq:[/bold]  {'✓ Configured' if groq_key else '✗ Not set'} ({self._settings.get('groq_model') or 'llama3-70b-8192'})\n"
-            f"[bold]Together:[/bold]  {'✓ Configured' if together_key else '✗ Not set'} ({self._settings.get('together_model') or 'mistralai/Mixtral-8x7B-Instruct-v0.1'})\n"
-            f"[bold]OpenRouter:[/bold]  {'✓ Configured' if openrouter_key else '✗ Not set'} ({self._settings.get('openrouter_model') or 'nvidia/nemotron-3-super-120b-a12b:free'})\n"
-            f"[bold]Ollama:[/bold]  Available (lazy check on first use) ({self._settings.get('ollama_model') or 'llama3.1'})\n"
-            f"[bold]Cloud:[/bold]   Requires SIYARIX_SERVER_URL + SIYARIX_API_KEY\n"
-            f"[bold]LM Studio:[/bold] Available (lazy check on first use)\n"
-            f"[bold]Custom:[/bold]  Requires CUSTOM_API_KEY\n"
-            f"[bold]opencode:[/bold]  Requires OPENCODE_API_KEY\n\n"
-            f"[dim]Use /key <provider> <value> to store credentials and /model <provider> <model-name> to select models.[/dim]"
-        )
-        console.print(
-            Panel.fit(panel_text, title="Model Providers", border_style="cyan")
-        )
+        lines = [f"[bold]Preferred:[/bold] {self._settings.get('model_provider')}\n"]
+        for prov_name in all_providers:
+            env_var = pm.get_profile(prov_name).api_key_env if pm.get_profile(prov_name) else ""
+            key = os.environ.get(env_var, "") if env_var else ""
+            model_setting = self._settings.get(f"{prov_name}_model") or pm.get_profile(prov_name).default_model if pm.get_profile(prov_name) else ""
+            status = "✓ Configured" if key else ("✗ Not set" if env_var else "Available")
+            model_str = model_setting if model_setting else ""
+            lines.append(f"[bold]{pm.get_profile(prov_name).display_name if pm.get_profile(prov_name) else prov_name}:[/bold] {status} ({model_str})\n")
+
+        lines.append(f"[bold]Cloud:[/bold]  Requires SIYARIX_SERVER_URL + SIYARIX_API_KEY\n")
+        lines.append(f"[bold]Custom:[/bold]  Requires CUSTOM_API_KEY\n")
+        lines.append(f"[bold]opencode:[/bold]  Requires OPENCODE_API_KEY\n\n")
+        lines.append(f"[dim]Use /key <provider> <value> to store credentials and /model <provider> <model-name> to select models.[/dim]")
+        console.print(Panel.fit("".join(lines), title="Model Providers", border_style="cyan"))
 
     def _cmd_context(self, _: str) -> None:
         summary = self._session.get_context_summary()
@@ -3052,65 +3037,278 @@ class SiyarixChat:
         return True
 
     def _make_llm_call(self, provider_name: str, api_key: str):
-        """Return an async callable ``(system, user) → dict`` with response metadata."""
-        from openai import AsyncOpenAI
+        """Return an async callable ``(system, user) → dict`` with response metadata.
 
-        if provider_name == "openrouter":
+        Supports all 13 registered providers via native SDK or OpenAI-compatible API.
+        """
+        model = ""
+        result: dict = {}
+
+        # ── Providers using OpenAI-compatible SDK ──────────────────────
+        if provider_name in ("openai", "openrouter", "gemini", "deepseek", "xai", "perplexity", "azure"):
+            from openai import AsyncOpenAI
+
+            base_urls = {
+                "openai": None,
+                "openrouter": "https://openrouter.ai/api/v1",
+                "gemini": "https://generativelanguage.googleapis.com/v1beta/openai/",
+                "deepseek": "https://api.deepseek.com",
+                "xai": "https://api.x.ai",
+                "perplexity": "https://api.perplexity.ai",
+                "azure": self._settings.get("azure_endpoint") or os.getenv("AZURE_OPENAI_ENDPOINT", ""),
+            }
+            model_keys = {
+                "openai": "openai_model",
+                "openrouter": "openrouter_model",
+                "gemini": "gemini_model",
+                "deepseek": "deepseek_model",
+                "xai": "xai_model",
+                "perplexity": "perplexity_model",
+                "azure": "azure_model",
+            }
+            model_defaults = {
+                "openai": "gpt-4.1",
+                "openrouter": "openai/gpt-4.1",
+                "gemini": "gemini-2.5-pro-05-06",
+                "deepseek": "deepseek-chat",
+                "xai": "grok-3",
+                "perplexity": "sonar-pro",
+                "azure": "gpt-4.1",
+            }
+            base_url = base_urls[provider_name]
+            model = self._settings.get(model_keys[provider_name]) or model_defaults[provider_name]
+            client_kwargs = {"api_key": api_key}
+            if base_url:
+                client_kwargs["base_url"] = base_url
+            client = AsyncOpenAI(**client_kwargs)
+
+            async def call_openai(system_prompt: str, user_prompt: str) -> dict:
+                response = await client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    max_tokens=2000,
+                    temperature=0.3,
+                )
+                choice = response.choices[0]
+                usage = response.usage
+                return {
+                    "content": choice.message.content or "",
+                    "model": response.model or model,
+                    "input_tokens": usage.prompt_tokens if usage else 0,
+                    "output_tokens": usage.completion_tokens if usage else 0,
+                }
+
+            result = call_openai
+
+        # ── Anthropic (native SDK) ──────────────────────────────────────
+        elif provider_name == "anthropic":
+            try:
+                from anthropic import AsyncAnthropic
+            except ImportError:
+                raise ValueError("anthropic package not installed. Run: pip install anthropic")
+
+            client = AsyncAnthropic(api_key=api_key)
+            model = self._settings.get("anthropic_model") or "claude-sonnet-4-20250514"
+
+            async def call_anthropic(system_prompt: str, user_prompt: str) -> dict:
+                msg = await client.messages.create(
+                    model=model,
+                    system=system_prompt,
+                    messages=[{"role": "user", "content": user_prompt}],
+                    max_tokens=2000,
+                    temperature=0.3,
+                )
+                return {
+                    "content": msg.content[0].text if msg.content else "",
+                    "model": msg.model or model,
+                    "input_tokens": msg.usage.input_tokens if msg.usage else 0,
+                    "output_tokens": msg.usage.output_tokens if msg.usage else 0,
+                }
+
+            result = call_anthropic
+
+        # ── Groq (native SDK via openai-compatible) ─────────────────────
+        elif provider_name == "groq":
+            from openai import AsyncOpenAI
             client = AsyncOpenAI(
                 api_key=api_key,
-                base_url="https://openrouter.ai/api/v1",
+                base_url="https://api.groq.com/openai/v1",
             )
-            model = self._settings.get("openrouter_model") or "nvidia/nemotron-3-super-120b-a12b:free"
-        elif provider_name == "openai":
-            client = AsyncOpenAI(api_key=api_key)
-            model = self._settings.get("openai_model") or "gpt-4o"
-        elif provider_name == "gemini":
+            model = self._settings.get("groq_model") or "llama-4-scout-17b-16e-instruct"
+
+            async def call_groq(system_prompt: str, user_prompt: str) -> dict:
+                response = await client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    max_tokens=2000,
+                    temperature=0.3,
+                )
+                choice = response.choices[0]
+                usage = response.usage
+                return {
+                    "content": choice.message.content or "",
+                    "model": response.model or model,
+                    "input_tokens": usage.prompt_tokens if usage else 0,
+                    "output_tokens": usage.completion_tokens if usage else 0,
+                }
+
+            result = call_groq
+
+        # ── Together AI (openai-compatible) ────────────────────────────
+        elif provider_name == "together":
+            from openai import AsyncOpenAI
             client = AsyncOpenAI(
                 api_key=api_key,
-                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                base_url="https://api.together.xyz/v1",
             )
-            model = self._settings.get("gemini_model") or "gemini-2.0-flash"
+            model = self._settings.get("together_model") or "meta-llama/Llama-4-Together-17B-16E-Instruct"
+
+            async def call_together(system_prompt: str, user_prompt: str) -> dict:
+                response = await client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    max_tokens=2000,
+                    temperature=0.3,
+                )
+                choice = response.choices[0]
+                usage = response.usage
+                return {
+                    "content": choice.message.content or "",
+                    "model": response.model or model,
+                    "input_tokens": usage.prompt_tokens if usage else 0,
+                    "output_tokens": usage.completion_tokens if usage else 0,
+                }
+
+            result = call_together
+
+        # ── Mistral AI (native SDK) ────────────────────────────────────
+        elif provider_name == "mistral":
+            try:
+                from mistralai import Mistral
+            except ImportError:
+                raise ValueError("mistralai package not installed. Run: pip install mistralai")
+
+            client = Mistral(api_key=api_key)
+            model = self._settings.get("mistral_model") or "mistral-large-2506"
+
+            async def call_mistral(system_prompt: str, user_prompt: str) -> dict:
+                response = await client.chat.complete_async(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    max_tokens=2000,
+                    temperature=0.3,
+                )
+                choice = response.choices[0] if response.choices else None
+                return {
+                    "content": choice.message.content if choice and choice.message else "",
+                    "model": response.model or model,
+                    "input_tokens": response.usage.prompt_tokens if response.usage else 0,
+                    "output_tokens": response.usage.completion_tokens if response.usage else 0,
+                }
+
+            result = call_mistral
+
+        # ── Ollama (HTTP API, no SDK dependency) ───────────────────────
+        elif provider_name == "ollama":
+            import httpx
+            ollama_url = self._settings.get("ollama_url") or os.getenv("SIYARIX_OLLAMA_URL", "http://localhost:11434")
+            model = self._settings.get("ollama_model") or "llama3.1"
+
+            async def call_ollama(system_prompt: str, user_prompt: str) -> dict:
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    payload = {
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        "stream": False,
+                        "options": {"temperature": 0.3, "num_predict": 2000},
+                    }
+                    resp = await client.post(f"{ollama_url}/api/chat", json=payload)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    return {
+                        "content": data.get("message", {}).get("content", ""),
+                        "model": data.get("model", model),
+                        "input_tokens": data.get("prompt_eval_count", 0),
+                        "output_tokens": data.get("eval_count", 0),
+                    }
+
+            result = call_ollama
+
+        # ── LM Studio (OpenAI-compatible HTTP API) ─────────────────────
+        elif provider_name == "lmstudio":
+            import httpx
+            lmstudio_url = self._settings.get("lmstudio_url") or os.getenv("SIYARIX_LMSTUDIO_URL", "http://localhost:1234")
+            model = self._settings.get("lmstudio_model") or ""
+
+            async def call_lmstudio(system_prompt: str, user_prompt: str) -> dict:
+                async with httpx.AsyncClient(timeout=120.0) as client:
+                    payload = {
+                        "model": model or "local-model",
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        "max_tokens": 2000,
+                        "temperature": 0.3,
+                    }
+                    resp = await client.post(f"{lmstudio_url}/v1/chat/completions", json=payload)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    choice = data.get("choices", [{}])[0]
+                    usage = data.get("usage", {})
+                    return {
+                        "content": choice.get("message", {}).get("content", ""),
+                        "model": data.get("model", model or "local-model"),
+                        "input_tokens": usage.get("prompt_tokens", 0),
+                        "output_tokens": usage.get("completion_tokens", 0),
+                    }
+
+            result = call_lmstudio
+
         else:
             raise ValueError(f"Unsupported provider: {provider_name}")
 
-        async def call(system_prompt: str, user_prompt: str) -> dict:
-            response = await client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                max_tokens=2000,
-                temperature=0.3,
-            )
-            choice = response.choices[0]
-            usage = response.usage
-            return {
-                "content": choice.message.content or "",
-                "model": response.model or model,
-                "input_tokens": usage.prompt_tokens if usage else 0,
-                "output_tokens": usage.completion_tokens if usage else 0,
-            }
-
-        return call
+        return result
 
     def _llm_available(self) -> bool:
         """Check if an LLM provider is configured and available."""
         provider = (self._settings.get("model_provider") or "gemini").lower().strip()
-        if provider == "anthropic":
-            return bool(os.getenv("ANTHROPIC_API_KEY"))
-        if provider == "gemini":
-            return bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
-        if provider == "openai":
-            return bool(os.getenv("OPENAI_API_KEY"))
-        if provider in ("groq", "together", "custom", "opencode"):
-            return bool(os.getenv(f"{provider.upper()}_API_KEY"))
-        if provider == "openrouter":
-            return bool(os.getenv("OPENROUTER_API_KEY"))
+
+        from .providers import ProviderManager
+        pm = ProviderManager()
+        profile = pm.get_profile(provider)
+
         if provider == "ollama":
-            return True  # optimistic — checked lazily
+            return True
         if provider == "cloud":
             return bool(os.getenv("SIYARIX_SERVER_URL"))
+        if provider == "lmstudio":
+            return True
+        if provider == "custom":
+            return bool(os.getenv("CUSTOM_API_KEY"))
+        if provider == "opencode":
+            return bool(os.getenv("OPENCODE_API_KEY"))
+        if profile and profile.api_key_env:
+            key = os.getenv(profile.api_key_env)
+            # gemini also accepts GOOGLE_API_KEY
+            if provider == "gemini":
+                return bool(key or os.getenv("GOOGLE_API_KEY"))
+            return bool(key)
         return False
 
     def _resolve_provider(self) -> tuple[str | None, str | None]:
@@ -3120,29 +3318,35 @@ class SiyarixChat:
         When ``"auto"``, scan known providers in priority order, skipping
         any that were disabled this session due to rate-limit/auth errors.
         """
+        from .providers import ProviderManager
+        pm = ProviderManager()
+
         configured = self._settings.get("model_provider") or "openrouter"
         if configured != "auto":
-            key = os.environ.get(f"{configured.upper()}_API_KEY")
-            return (configured, key)
+            profile = pm.get_profile(configured)
+            env_var = profile.api_key_env if profile else ""
+            key = os.environ.get(env_var) if env_var else ""
+            # gemini fallback
+            if not key and configured == "gemini":
+                key = os.environ.get("GOOGLE_API_KEY", "")
+            return (configured, key or None)
 
         # Auto mode: scan providers, skip session-disabled ones
-        for name, env_var in [
-            ("openai", "OPENAI_API_KEY"),
-            ("gemini", "GEMINI_API_KEY"),
-            ("gemini", "GOOGLE_API_KEY"),
-            ("openrouter", "OPENROUTER_API_KEY"),
-            ("anthropic", "ANTHROPIC_API_KEY"),
-            ("groq", "GROQ_API_KEY"),
-            ("together", "TOGETHER_API_KEY"),
-            ("ollama", None),
-        ]:
-            if name in self._disabled_providers:
+        for prov_name in pm.list_providers():
+            if prov_name in self._disabled_providers:
                 continue
-            if env_var is None:
-                return (name, "")
-            key = os.environ.get(env_var)
+            profile = pm.get_profile(prov_name)
+            if not profile:
+                continue
+            # local providers (ollama, lmstudio) are always available
+            if not profile.api_key_env:
+                return (prov_name, "")
+            key = os.environ.get(profile.api_key_env)
+            # gemini also accepts GOOGLE_API_KEY
+            if not key and prov_name == "gemini":
+                key = os.environ.get("GOOGLE_API_KEY", "")
             if key:
-                return (name, key)
+                return (prov_name, key)
         return (None, None)
 
     # ──────────────────────────────────────────────────────────────────────
@@ -3234,11 +3438,10 @@ class SiyarixChat:
                         padding=(1, 2),
                     ),
                     Panel(
-                        f"[bold]OpenAI:[/bold] {provider_status.get('openai', ('✗', ''))[0]}\n"
-                        f"[bold]Gemini:[/bold] {provider_status.get('gemini', ('✗', ''))[0]}\n"
-                        f"[bold]Ollama:[/bold] {provider_status.get('ollama', ('✗', ''))[0]}\n"
-                        f"[bold]Claude:[/bold] {provider_status.get('anthropic', ('✗', ''))[0]}\n"
-                        f"[bold]OpenRouter:[/bold] {provider_status.get('openrouter', ('✗', ''))[0]}",
+                        "\n".join(
+                            f"[bold]{k.capitalize()}:[/bold] {v[0]}"
+                            for k, v in sorted(provider_status.items())
+                        ),
                         title="Runtime",
                         border_style="yellow",
                         padding=(1, 2),
@@ -3263,64 +3466,37 @@ class SiyarixChat:
 
         Map keys -> (icon, reason)
         """
+        from .providers import ProviderManager
+        pm = ProviderManager()
         status: dict[str, tuple[str, str]] = {}
-        # OpenAI
-        try:
-            __import__("openai")
 
-            openai_installed = True
-        except Exception:
-            openai_installed = False
-        openai_key = bool(os.getenv("OPENAI_API_KEY"))
-        if not openai_installed:
-            status["openai"] = ("✗", "pkg missing")
-        elif not openai_key:
-            status["openai"] = ("⚠", "key missing")
-        else:
-            status["openai"] = ("✓", "configured")
+        for prov_name in pm.list_providers():
+            profile = pm.get_profile(prov_name)
+            if not profile:
+                continue
 
-        # Gemini (google-genai package)
-        try:
-            from google import genai as _test_genai  # noqa: F401
-            gemini_installed = True
-        except Exception:
-            gemini_installed = False
-        gemini_key = bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
-        if not gemini_installed:
-            status["gemini"] = ("✗", "pkg missing")
-        elif not gemini_key:
-            status["gemini"] = ("⚠", "key missing")
-        else:
-            status["gemini"] = ("✓", "configured")
+            # Check SDK dependency
+            pkg_ok = True
+            if profile.sdk_dependency:
+                try:
+                    __import__(profile.sdk_dependency)
+                except Exception:
+                    pkg_ok = False
 
-        # Anthropic
-        try:
-            __import__("anthropic")
+            # Check key
+            key = os.getenv(profile.api_key_env) if profile.api_key_env else ""
+            if not key and prov_name == "gemini":
+                key = os.getenv("GOOGLE_API_KEY", "")
 
-            anthropic_installed = True
-        except Exception:
-            anthropic_installed = False
-        anthropic_key = bool(os.getenv("ANTHROPIC_API_KEY"))
-        if not anthropic_installed:
-            status["anthropic"] = ("✗", "pkg missing")
-        elif not anthropic_key:
-            status["anthropic"] = ("⚠", "key missing")
-        else:
-            status["anthropic"] = ("✓", "configured")
-
-        # OpenRouter (uses openai-compatible API)
-        openrouter_key = bool(os.getenv("OPENROUTER_API_KEY"))
-        if not openrouter_key:
-            status["openrouter"] = ("⚠", "key missing")
-        else:
-            status["openrouter"] = ("✓", "configured")
-
-        # Ollama (don't attempt network checks here)
-        ollama_url = os.getenv("SIYARIX_OLLAMA_URL") or os.getenv("OLLAMA_URL")
-        if not ollama_url:
-            status["ollama"] = ("✗", "not configured")
-        else:
-            status["ollama"] = ("⚠", "configured (connectivity unknown)")
+            if profile.api_key_env and not pkg_ok:
+                status[prov_name] = ("✗", f"pkg missing ({profile.sdk_dependency})")
+            elif profile.api_key_env and not key:
+                status[prov_name] = ("⚠", "key missing")
+            elif profile.api_key_env and key:
+                status[prov_name] = ("✓", "configured")
+            else:
+                # local providers (no api_key_env)
+                status[prov_name] = ("⚠", "available (local)")
 
         return status
 

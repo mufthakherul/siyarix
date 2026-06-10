@@ -225,7 +225,7 @@ class SiyarixChat:
     _SESSIONS_DIR = (
         Path(os.getenv("SIYARIX_CONFIG_DIR", str(Path.home() / ".siyarix"))) / "sessions"
     )
-    MAX_CONTEXT_MESSAGES = 200  # memory bound to prevent unbounded growth
+    MAX_CONTEXT_MESSAGES = 300  # memory bound to prevent unbounded growth
     MAX_MESSAGE_CHARS = 50000  # per-message content limit
 
     SYSTEM_REFRESH_INTERVAL = 15  # re-send full system prompt every N calls
@@ -3972,7 +3972,7 @@ Each step is a raw shell command running directly on the shell:
             pass
         return text
 
-    def _get_conversation_history(self, max_messages: int = 30) -> list[dict]:
+    def _get_conversation_history(self, max_messages: int = 50) -> list[dict]:
         """Extract recent conversation history from the session for LLM context."""
         msgs = self._session.messages
         if not msgs:

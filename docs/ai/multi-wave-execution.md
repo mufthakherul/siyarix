@@ -5,8 +5,8 @@ Siyarix uses a multi-wave execution loop that enables iterative, LLM-driven work
 ## Execution flow
 
 ```
-User request → LLM plans commands → Wave 1 executes → 
-  LLM analyses results → Wave 2 (if needed) → ... → 
+User request → LLM plans commands → Wave 1 executes →
+  LLM analyses results → Wave 2 (if needed) → ... →
   Final response
 ```
 

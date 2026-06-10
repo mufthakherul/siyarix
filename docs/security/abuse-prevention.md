@@ -109,5 +109,3 @@ All safety events are logged to the tamper-evident audit log:
 | Emergency stop | trigger reason, timestamp |
 | Safe mode violation | command, persona, target |
 | Permission gate | gate stage, result, user action |
-
-

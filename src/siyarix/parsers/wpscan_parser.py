@@ -13,6 +13,7 @@ _VULN_RE = re.compile(r"(?i)\b(vulnerable|vulnerability|CVE-\d{4}-\d+)\b")
 _WARN_RE = re.compile(r"^\[!\]\s*(?P<msg>.+)$")
 _PLUGIN_RE = re.compile(r"^\[\+\]\s*(?P<name>[^:]+):\s*(?P<value>.+)$")
 
+
 class WpscanParser:
     """Parse WPScan output into normalized finding dictionaries."""
 

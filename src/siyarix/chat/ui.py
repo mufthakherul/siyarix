@@ -47,8 +47,15 @@ class ConfigPanel:
 
         s = SettingsStore()
         keys = [
-            "color_theme", "model_provider", "gemini_model", "openai_model",
-            "anthropic_model", "openrouter_model", "ollama_model", "ollama_url", "log_level",
+            "color_theme",
+            "model_provider",
+            "gemini_model",
+            "openai_model",
+            "anthropic_model",
+            "openrouter_model",
+            "ollama_model",
+            "ollama_url",
+            "log_level",
         ]
         _output_engine.print_info("Configuration")
         for k in keys:

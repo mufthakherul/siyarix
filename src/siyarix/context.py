@@ -138,9 +138,13 @@ class ContextManager:
         self._total_tokens = 0
 
     def stats(self) -> dict[str, Any]:
-        return {"total_chunks": len(self._chunks), "total_tokens": self._total_tokens,
-                "usage_pct": round(self._window.usage_pct, 1), "needs_compression": self._window.needs_compression,
-                "compressions": self._compression_count}
+        return {
+            "total_chunks": len(self._chunks),
+            "total_tokens": self._total_tokens,
+            "usage_pct": round(self._window.usage_pct, 1),
+            "needs_compression": self._window.needs_compression,
+            "compressions": self._compression_count,
+        }
 
 
 def compress_context(ctx: dict[str, Any], max_tokens: int = 8000) -> dict[str, Any]:

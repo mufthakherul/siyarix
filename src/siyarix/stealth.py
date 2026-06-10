@@ -93,9 +93,7 @@ class StealthConfig:
     use_decoy_traffic: bool = False
     proxy_list: list[str] = field(default_factory=lambda: list(PROXY_CHAINS))
     user_agents: list[str] = field(default_factory=lambda: list(USER_AGENTS))
-    decoy_payloads: list[dict[str, Any]] = field(
-        default_factory=lambda: list(DECOY_PAYLOADS)
-    )
+    decoy_payloads: list[dict[str, Any]] = field(default_factory=lambda: list(DECOY_PAYLOADS))
     max_concurrent_decoy_requests: int = 2
     proxy_rotation_interval: int = 60  # seconds
 
@@ -140,9 +138,7 @@ class StealthEngine:
 
     def enable(self, level: str = "medium") -> None:
         self._config.apply_level(level)
-        logger.info(
-            "Stealth mode enabled: %s (score: %.1f/10)", level, self._config.score()
-        )
+        logger.info("Stealth mode enabled: %s (score: %.1f/10)", level, self._config.score())
 
     def disable(self) -> None:
         self._config.apply_level("none")
@@ -178,9 +174,7 @@ class StealthEngine:
     def get_decoy_requests(self, target: str) -> list[dict[str, Any]]:
         if not self._config.use_decoy_traffic:
             return []
-        count = min(
-            self._config.max_concurrent_decoy_requests, len(self._config.decoy_payloads)
-        )
+        count = min(self._config.max_concurrent_decoy_requests, len(self._config.decoy_payloads))
         selected = random.sample(self._config.decoy_payloads, count)
         return [
             {
@@ -213,9 +207,7 @@ class StealthEngine:
             "rotate_ua": self._config.rotate_user_agents,
             "proxy_chain": self._config.use_proxy_chain,
             "decoy_traffic": self._config.use_decoy_traffic,
-            "proxy_count": (
-                len(self._config.proxy_list) if self._config.use_proxy_chain else 0
-            ),
+            "proxy_count": (len(self._config.proxy_list) if self._config.use_proxy_chain else 0),
             "user_agents_pool": (
                 len(self._config.user_agents) if self._config.rotate_user_agents else 0
             ),

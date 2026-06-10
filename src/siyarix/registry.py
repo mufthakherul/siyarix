@@ -127,7 +127,9 @@ class ToolCapabilityGraph:
                     queue.append(path + [edge.source])
         return []
 
-    def find_optimal_tools(self, goal: str, available: list[str] | None = None) -> list[ToolCapability]:
+    def find_optimal_tools(
+        self, goal: str, available: list[str] | None = None
+    ) -> list[ToolCapability]:
         goal_lower = goal.lower()
         scored: list[tuple[float, ToolCapability]] = []
         for tool in self._nodes.values():
@@ -193,45 +195,101 @@ class ToolRegistry:
     def discover_from_path(self) -> int:
         count = 0
         _handler_map = {
-            "nmap": _make_nmap_handler, "nikto": _make_web_handler, "nuclei": _make_web_handler,
-            "gobuster": _make_web_handler, "ffuf": _make_web_handler, "hydra": _make_brute_handler,
-            "masscan": _make_portscan_handler, "amass": _make_recon_handler, "subfinder": _make_recon_handler,
-            "wpscan": _make_web_handler, "sqlmap": _make_web_handler, "shodan": _make_recon_handler,
-            "bettercap": _make_network_handler, "ettercap": _make_network_handler,
-            "aircrack-ng": _make_network_handler, "hashcat": _make_crypto_handler,
-            "john": _make_crypto_handler, "burpsuite": _make_web_handler, "zaproxy": _make_web_handler,
-            "whatweb": _make_web_handler, "curl": _make_curl_handler, "wget": _make_curl_handler,
-            "dig": _make_dns_handler, "whois": _make_whois_handler,
+            "nmap": _make_nmap_handler,
+            "nikto": _make_web_handler,
+            "nuclei": _make_web_handler,
+            "gobuster": _make_web_handler,
+            "ffuf": _make_web_handler,
+            "hydra": _make_brute_handler,
+            "masscan": _make_portscan_handler,
+            "amass": _make_recon_handler,
+            "subfinder": _make_recon_handler,
+            "wpscan": _make_web_handler,
+            "sqlmap": _make_web_handler,
+            "shodan": _make_recon_handler,
+            "bettercap": _make_network_handler,
+            "ettercap": _make_network_handler,
+            "aircrack-ng": _make_network_handler,
+            "hashcat": _make_crypto_handler,
+            "john": _make_crypto_handler,
+            "burpsuite": _make_web_handler,
+            "zaproxy": _make_web_handler,
+            "whatweb": _make_web_handler,
+            "curl": _make_curl_handler,
+            "wget": _make_curl_handler,
+            "dig": _make_dns_handler,
+            "whois": _make_whois_handler,
         }
-        for name in ("nmap", "nikto", "nuclei", "gobuster", "ffuf", "hydra", "masscan",
-                      "amass", "subfinder", "wpscan", "sqlmap", "shodan", "bettercap",
-                      "ettercap", "aircrack-ng", "hashcat", "john", "burpsuite", "zaproxy",
-                      "whatweb", "curl", "wget", "dig", "whois"):
+        for name in (
+            "nmap",
+            "nikto",
+            "nuclei",
+            "gobuster",
+            "ffuf",
+            "hydra",
+            "masscan",
+            "amass",
+            "subfinder",
+            "wpscan",
+            "sqlmap",
+            "shodan",
+            "bettercap",
+            "ettercap",
+            "aircrack-ng",
+            "hashcat",
+            "john",
+            "burpsuite",
+            "zaproxy",
+            "whatweb",
+            "curl",
+            "wget",
+            "dig",
+            "whois",
+        ):
             binary = shutil.which(name)
             if binary:
                 handler_factory = _handler_map.get(name)
-                self.register(ToolCapability(
-                    name=name, binary=name, installed=True,
-                    category=_categorize_tool(name),
-                    risk_level=_risk_for_tool(name),
-                    description=_describe_tool(name),
-                    tags=_tags_for_tool(name),
-                ), handler=handler_factory(name) if handler_factory else None)
+                self.register(
+                    ToolCapability(
+                        name=name,
+                        binary=name,
+                        installed=True,
+                        category=_categorize_tool(name),
+                        risk_level=_risk_for_tool(name),
+                        description=_describe_tool(name),
+                        tags=_tags_for_tool(name),
+                    ),
+                    handler=handler_factory(name) if handler_factory else None,
+                )
                 count += 1
-        for name in ("python3", "python", "node", "go", "rustc", "gcc", "g++", "java", "ruby", "bash"):
+        for name in (
+            "python3",
+            "python",
+            "node",
+            "go",
+            "rustc",
+            "gcc",
+            "g++",
+            "java",
+            "ruby",
+            "bash",
+        ):
             binary = shutil.which(name)
             if binary:
-                self.register(ToolCapability(
-                    name=name, binary=name, installed=True,
-                    category=ToolCategory.UTILITY,
-                    risk_level=RiskLevel.SAFE,
-                    description=f"{name} interpreter/compiler",
-                    tags=["language", name],
-                ))
+                self.register(
+                    ToolCapability(
+                        name=name,
+                        binary=name,
+                        installed=True,
+                        category=ToolCategory.UTILITY,
+                        risk_level=RiskLevel.SAFE,
+                        description=f"{name} interpreter/compiler",
+                        tags=["language", name],
+                    )
+                )
                 count += 1
         self._loaded = True
-        emit_sync(Event(type=EventType.TOOL_REGISTERED, source="registry",
-            data={"count": count}))
+        emit_sync(Event(type=EventType.TOOL_REGISTERED, source="registry", data={"count": count}))
         return count
 
     def update_metadata(self, output_path: Path) -> int:
@@ -244,8 +302,10 @@ class ToolRegistry:
             data[t.name] = {
                 "name": t.name,
                 "description": t.description,
-                "category": t.category.value if hasattr(t.category, 'value') else str(t.category),
-                "risk_level": t.risk_level.value if hasattr(t.risk_level, 'value') else str(t.risk_level),
+                "category": t.category.value if hasattr(t.category, "value") else str(t.category),
+                "risk_level": t.risk_level.value
+                if hasattr(t.risk_level, "value")
+                else str(t.risk_level),
                 "binary": t.binary,
                 "installed": t.installed,
                 "tags": t.tags,
@@ -279,7 +339,10 @@ class ToolRegistry:
                     full = os.path.join(path_dir, entry)
                     if os.name == "nt":
                         # On Windows os.X_OK is True for most files; filter by executable extensions
-                        if not (os.path.isfile(full) and full.endswith((".exe", ".bat", ".cmd", ".ps1", ".com"))):
+                        if not (
+                            os.path.isfile(full)
+                            and full.endswith((".exe", ".bat", ".cmd", ".ps1", ".com"))
+                        ):
                             continue
                     elif not (os.path.isfile(full) and os.access(full, os.X_OK)):
                         continue
@@ -310,21 +373,26 @@ class ToolRegistry:
         try:
             data = json.loads(path.read_text())
             for name, info in data.items():
-                self.register(ToolCapability(
-                    name=name, description=info.get("description", ""),
-                    category=ToolCategory(info.get("category", "utility")),
-                    risk_level=RiskLevel(info.get("risk_level", "safe")),
-                    aliases=info.get("aliases", []),
-                    tags=info.get("tags", []),
-                    binary=info.get("binary", ""),
-                    installed=info.get("installed", False),
-                ))
+                self.register(
+                    ToolCapability(
+                        name=name,
+                        description=info.get("description", ""),
+                        category=ToolCategory(info.get("category", "utility")),
+                        risk_level=RiskLevel(info.get("risk_level", "safe")),
+                        aliases=info.get("aliases", []),
+                        tags=info.get("tags", []),
+                        binary=info.get("binary", ""),
+                        installed=info.get("installed", False),
+                    )
+                )
                 count += 1
         except Exception:
             logger.exception("Failed to load tool registry from %s", path)
         return count
 
-    def list_tools(self, category: ToolCategory | None = None, available_only: bool = False) -> list[ToolCapability]:
+    def list_tools(
+        self, category: ToolCategory | None = None, available_only: bool = False
+    ) -> list[ToolCapability]:
         if category:
             tools = self._graph.get_tools_by_category(category)
         else:
@@ -348,17 +416,25 @@ class ToolRegistry:
 
 def _categorize_tool(name: str) -> ToolCategory:
     mapping = {
-        "nmap": ToolCategory.RECON, "masscan": ToolCategory.RECON,
-        "amass": ToolCategory.RECON, "subfinder": ToolCategory.RECON,
-        "shodan": ToolCategory.RECON, "bettercap": ToolCategory.NETWORK,
+        "nmap": ToolCategory.RECON,
+        "masscan": ToolCategory.RECON,
+        "amass": ToolCategory.RECON,
+        "subfinder": ToolCategory.RECON,
+        "shodan": ToolCategory.RECON,
+        "bettercap": ToolCategory.NETWORK,
         "ettercap": ToolCategory.NETWORK,
-        "nikto": ToolCategory.SCANNING, "nuclei": ToolCategory.SCANNING,
-        "wpscan": ToolCategory.SCANNING, "sqlmap": ToolCategory.SCANNING,
-        "gobuster": ToolCategory.SCANNING, "ffuf": ToolCategory.SCANNING,
+        "nikto": ToolCategory.SCANNING,
+        "nuclei": ToolCategory.SCANNING,
+        "wpscan": ToolCategory.SCANNING,
+        "sqlmap": ToolCategory.SCANNING,
+        "gobuster": ToolCategory.SCANNING,
+        "ffuf": ToolCategory.SCANNING,
         "hydra": ToolCategory.EXPLOITATION,
-        "hashcat": ToolCategory.CRYPTO, "john": ToolCategory.CRYPTO,
+        "hashcat": ToolCategory.CRYPTO,
+        "john": ToolCategory.CRYPTO,
         "aircrack-ng": ToolCategory.NETWORK,
-        "burpsuite": ToolCategory.WEB, "zaproxy": ToolCategory.WEB,
+        "burpsuite": ToolCategory.WEB,
+        "zaproxy": ToolCategory.WEB,
     }
     return mapping.get(name, ToolCategory.UTILITY)
 
@@ -426,18 +502,25 @@ def _tags_for_tool(name: str) -> list[str]:
 def _make_nmap_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         from .subprocess_utils import safe_run_async
+
         target = kwargs.get("target", "")
         flags = kwargs.get("flags", "-sT -T4 --top-ports 100")
         cmd = [tool_name] + flags.split() + [target]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 120))
-        return {"status": "success" if result.exit_code == 0 else "error",
-                "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
+        return {
+            "status": "success" if result.exit_code == 0 else "error",
+            "output": result.stdout,
+            "error": result.stderr,
+            "exit_code": result.exit_code,
+        }
+
     return handler
 
 
 def _make_web_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         from .subprocess_utils import safe_run_async
+
         target = kwargs.get("target", "")
         extra_args = kwargs.get("args", [])
         if isinstance(extra_args, str):
@@ -461,101 +544,150 @@ def _make_web_handler(tool_name: str) -> ToolHandler:
             else:
                 cmd += [target]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 300))
-        return {"status": "success" if result.exit_code == 0 else "error",
-                "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
+        return {
+            "status": "success" if result.exit_code == 0 else "error",
+            "output": result.stdout,
+            "error": result.stderr,
+            "exit_code": result.exit_code,
+        }
+
     return handler
 
 
 def _make_portscan_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         from .subprocess_utils import safe_run_async
+
         target = kwargs.get("target", "")
         flags = kwargs.get("flags", "-T4 --top-ports 100")
         cmd = [tool_name] + flags.split() + [target]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 120))
-        return {"status": "success" if result.exit_code == 0 else "error",
-                "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
+        return {
+            "status": "success" if result.exit_code == 0 else "error",
+            "output": result.stdout,
+            "error": result.stderr,
+            "exit_code": result.exit_code,
+        }
+
     return handler
 
 
 def _make_recon_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         from .subprocess_utils import safe_run_async
+
         target = kwargs.get("target", "")
         if tool_name == "amass":
             cmd = [tool_name, "enum", "-d", target] if target else [tool_name, "--help"]
         elif tool_name == "subfinder":
             cmd = [tool_name, "-d", target] if target else [tool_name, "--help"]
         elif tool_name == "shodan":
-            cmd = [tool_name, "info"] if not target or target.startswith("-") else [tool_name, "host", target]
+            cmd = (
+                [tool_name, "info"]
+                if not target or target.startswith("-")
+                else [tool_name, "host", target]
+            )
         else:
             cmd = [tool_name, "--help"]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 30))
-        return {"status": "success" if result.exit_code == 0 else "error",
-                "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
+        return {
+            "status": "success" if result.exit_code == 0 else "error",
+            "output": result.stdout,
+            "error": result.stderr,
+            "exit_code": result.exit_code,
+        }
+
     return handler
 
 
 def _make_brute_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         from .subprocess_utils import safe_run_async
+
         target = kwargs.get("target", "")
         cmd = [tool_name, "-l", target]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 120))
-        return {"status": "success" if result.exit_code == 0 else "error",
-                "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
+        return {
+            "status": "success" if result.exit_code == 0 else "error",
+            "output": result.stdout,
+            "error": result.stderr,
+            "exit_code": result.exit_code,
+        }
+
     return handler
 
 
 def _make_network_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         from .subprocess_utils import safe_run_async
+
         cmd = [tool_name, "--help"]
         result = await safe_run_async(cmd, timeout=10)
         return {"status": "success", "output": result.stdout[:500], "error": result.stderr[:200]}
+
     return handler
 
 
 def _make_crypto_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         from .subprocess_utils import safe_run_async
+
         cmd = [tool_name, "--help"]
         result = await safe_run_async(cmd, timeout=10)
         return {"status": "success", "output": result.stdout[:500], "error": result.stderr[:200]}
+
     return handler
 
 
 def _make_curl_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         from .subprocess_utils import safe_run_async
+
         target = kwargs.get("target", "")
         flags = kwargs.get("flags", "-sI")
         cmd = [tool_name] + flags.split() + [target]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 30))
-        return {"status": "success" if result.exit_code == 0 else "error",
-                "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
+        return {
+            "status": "success" if result.exit_code == 0 else "error",
+            "output": result.stdout,
+            "error": result.stderr,
+            "exit_code": result.exit_code,
+        }
+
     return handler
 
 
 def _make_dns_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         from .subprocess_utils import safe_run_async
+
         target = kwargs.get("target", "")
         cmd = [tool_name, target]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 30))
-        return {"status": "success" if result.exit_code == 0 else "error",
-                "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
+        return {
+            "status": "success" if result.exit_code == 0 else "error",
+            "output": result.stdout,
+            "error": result.stderr,
+            "exit_code": result.exit_code,
+        }
+
     return handler
 
 
 def _make_whois_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         from .subprocess_utils import safe_run_async
+
         target = kwargs.get("target", "")
         cmd = [tool_name, target]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 30))
-        return {"status": "success" if result.exit_code == 0 else "error",
-                "output": result.stdout, "error": result.stderr, "exit_code": result.exit_code}
+        return {
+            "status": "success" if result.exit_code == 0 else "error",
+            "output": result.stdout,
+            "error": result.stderr,
+            "exit_code": result.exit_code,
+        }
+
     return handler
 
 
@@ -565,14 +697,17 @@ def _make_generic_handler(tool_name: str) -> ToolHandler:
     Translates:
       handler(target="example.com", flags="-sV")  →  tool_name -sV example.com
     """
+
     async def handler(**kwargs: Any) -> dict[str, Any]:
         from .subprocess_utils import safe_run_async
+
         cmd = [tool_name]
         target = kwargs.get("target", "")
         args_raw = kwargs.get("args", [])
         flags = kwargs.get("flags", "")
         if isinstance(args_raw, str):
             import shlex
+
             cmd.extend(shlex.split(args_raw))
         elif isinstance(args_raw, (list, tuple)):
             cmd.extend(str(a) for a in args_raw)
@@ -583,9 +718,14 @@ def _make_generic_handler(tool_name: str) -> ToolHandler:
         timeout = kwargs.get("timeout", 120)
         try:
             result = await safe_run_async(cmd, timeout=timeout)
-            return {"status": "success" if result.exit_code == 0 else "error",
-                    "output": result.stdout, "error": result.stderr,
-                    "exit_code": result.exit_code, "tool": tool_name}
+            return {
+                "status": "success" if result.exit_code == 0 else "error",
+                "output": result.stdout,
+                "error": result.stderr,
+                "exit_code": result.exit_code,
+                "tool": tool_name,
+            }
         except Exception as exc:
             return {"status": "error", "error": str(exc), "tool": tool_name}
+
     return handler

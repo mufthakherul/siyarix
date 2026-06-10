@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 # Protocol — all parsers must implement ``parse``
 # ---------------------------------------------------------------------------
 
+
 @runtime_checkable
 class Parser(Protocol):
     """Protocol for output parsers — all parsers must implement ``parse``."""
@@ -32,6 +33,7 @@ class Parser(Protocol):
 # ---------------------------------------------------------------------------
 # Base parser — provides consistent error handling, logging, and helpers
 # ---------------------------------------------------------------------------
+
 
 class BaseParser:
     """Mixin for parsers that provides consistent error handling & logging.
@@ -78,6 +80,7 @@ class BaseParser:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _now_iso() -> str:
     """Return current UTC timestamp as ISO string."""

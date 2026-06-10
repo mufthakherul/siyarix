@@ -80,7 +80,7 @@ class EventBus:
     async def emit(self, event: Event) -> None:
         self._history.append(event)
         if len(self._history) > self._max_history:
-            self._history = self._history[-self._max_history:]
+            self._history = self._history[-self._max_history :]
         handlers = list(self._wildcard_handlers)
         if event.type in self._handlers:
             handlers.extend(self._handlers[event.type])

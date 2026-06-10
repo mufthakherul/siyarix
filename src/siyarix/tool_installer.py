@@ -292,7 +292,14 @@ class ToolInstaller:
         """Return OS/arch tag for download URLs: linux_amd64, darwin_arm64, windows_amd64, etc."""
         system = _platform.system().lower()
         machine = _platform.machine().lower()
-        arch_map = {"x86_64": "amd64", "amd64": "amd64", "aarch64": "arm64", "arm64": "arm64", "i386": "386", "i686": "386"}
+        arch_map = {
+            "x86_64": "amd64",
+            "amd64": "amd64",
+            "aarch64": "arm64",
+            "arm64": "arm64",
+            "i386": "386",
+            "i686": "386",
+        }
         arch = arch_map.get(machine, "amd64")
         if system == "linux":
             return f"linux_{arch}"
@@ -307,7 +314,9 @@ class ToolInstaller:
         """Return platform-appropriate directory for git-cloned tools."""
         system = _platform.system().lower()
         if system == "windows":
-            return os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "siyarix", "tools")
+            return os.path.join(
+                os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "siyarix", "tools"
+            )
         return "/opt"
 
     def _download_url(self, base: str, repo: str, asset_pattern: str) -> str:
@@ -320,15 +329,25 @@ class ToolInstaller:
     def _detect_package_manager(self) -> str:
         is_win = os.name == "nt"
         # Platform-adaptive ordering: Windows-first managers, then general
-        checks = [
-            ("winget", "winget"), ("choco", "choco"),
-        ] if is_win else [
-            ("apt-get", "apt"), ("apt", "apt"),
-        ]
+        checks = (
+            [
+                ("winget", "winget"),
+                ("choco", "choco"),
+            ]
+            if is_win
+            else [
+                ("apt-get", "apt"),
+                ("apt", "apt"),
+            ]
+        )
         checks += [
-            ("brew", "brew"), ("pkg", "pkg"),
-            ("pacman", "pacman"), ("dnf", "dnf"),
-            ("apk", "apk"), ("winget", "winget"), ("choco", "choco"),
+            ("brew", "brew"),
+            ("pkg", "pkg"),
+            ("pacman", "pacman"),
+            ("dnf", "dnf"),
+            ("apk", "apk"),
+            ("winget", "winget"),
+            ("choco", "choco"),
         ]
         for binary, name in checks:
             if shutil.which(binary):
@@ -380,7 +399,13 @@ class ToolInstaller:
         if not downloader:
             logger.warning("No download tool (curl/wget) found for %s", tool_key)
             return None
-        cmd = [downloader, "-sL", url, "-o", tool_key.split("_")[0] + (".exe" if _platform.system().lower() == "windows" else "")]
+        cmd = [
+            downloader,
+            "-sL",
+            url,
+            "-o",
+            tool_key.split("_")[0] + (".exe" if _platform.system().lower() == "windows" else ""),
+        ]
         return cmd
 
     def install(self, tool: str) -> ToolInstallResult:
@@ -398,7 +423,16 @@ class ToolInstaller:
             logger.warning(result.error)
             return result
 
-        preferred_order = [self._package_manager, "pip", "go", "download", "git", "curl", "apt", "brew"]
+        preferred_order = [
+            self._package_manager,
+            "pip",
+            "go",
+            "download",
+            "git",
+            "curl",
+            "apt",
+            "brew",
+        ]
         tried_methods = set()
 
         for method in preferred_order:

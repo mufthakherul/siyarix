@@ -40,9 +40,7 @@ def list_incidents(
         None, "--severity", help="Filter: critical|high|medium|low"
     ),
     limit: int = typer.Option(10, "--limit", help="Number of incidents to show"),
-    output: str = typer.Option(
-        "table", "--output", "-o", help="Output format: table|json"
-    ),
+    output: str = typer.Option("table", "--output", "-o", help="Output format: table|json"),
 ) -> None:
     """List security incidents with severity indicators.
 
@@ -140,9 +138,7 @@ def list_incidents(
         )
 
     console.print(table)
-    console.print(
-        "[dim]Use --server flag to connect to backend API for live data.[/dim]"
-    )
+    console.print("[dim]Use --server flag to connect to backend API for live data.[/dim]")
 
 
 @security_app.command(name="incident")
@@ -179,9 +175,7 @@ def create_incident(
     category: str = typer.Option(
         ..., "--category", help="Category: malware|phishing|breach|intrusion|other"
     ),
-    severity: str = typer.Option(
-        "medium", "--severity", help="Severity: critical|high|medium|low"
-    ),
+    severity: str = typer.Option("medium", "--severity", help="Severity: critical|high|medium|low"),
 ) -> None:
     """Create a new security incident.
 
@@ -219,9 +213,7 @@ def create_incident(
 @security_app.command(name="vulnerabilities")
 def list_vulnerabilities(
     status: Optional[str] = typer.Option(None, "--status", help="Filter by status"),
-    severity: Optional[str] = typer.Option(
-        None, "--severity", help="Filter by severity"
-    ),
+    severity: Optional[str] = typer.Option(None, "--severity", help="Filter by severity"),
     limit: int = typer.Option(15, "--limit", help="Number to show"),
     output: str = typer.Option("table", "--output", "-o", help="Output: table|json"),
 ) -> None:
@@ -313,9 +305,7 @@ def list_vulnerabilities(
         cvss_val = float(v.get("cvss", 0.0))
         sc = sev_colors.get(severity_val, "white")
         stc = status_colors.get(status_val, "white")
-        cvss_color = (
-            "red" if cvss_val >= 9 else "orange1" if cvss_val >= 7 else "yellow"
-        )
+        cvss_color = "red" if cvss_val >= 9 else "orange1" if cvss_val >= 7 else "yellow"
         table.add_row(
             str(v.get("id", "-")),
             str(v.get("title", "-")),
@@ -436,15 +426,9 @@ def list_queries(
     if tag:
         queries = [q for q in queries if tag in cast(list, q.get("tags", []))]
     if mitre_tactic:
-        queries = [
-            q
-            for q in queries
-            if mitre_tactic.lower() in str(q.get("tactic", "")).lower()
-        ]
+        queries = [q for q in queries if mitre_tactic.lower() in str(q.get("tactic", "")).lower()]
 
-    table = Table(
-        title="Threat Hunt Queries", show_header=True, header_style="bold magenta"
-    )
+    table = Table(title="Threat Hunt Queries", show_header=True, header_style="bold magenta")
     table.add_column("Query ID", style="cyan", no_wrap=True)
     table.add_column("Name", style="white")
     table.add_column("MITRE Tactic", style="yellow")
@@ -587,6 +571,3 @@ def list_playbooks() -> None:
         table.add_row(str(pid), str(name), str(ptype), str(mode))
 
     console.print(table)
-
-
-

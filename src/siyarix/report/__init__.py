@@ -41,9 +41,7 @@ class ReportEngine:
         config: ReportConfig | None = None,
     ) -> Report:
         cfg = config or ReportConfig()
-        cvss_scored = (
-            self._enrich_findings_with_cvss(findings) if cfg.cvss_scoring else findings
-        )
+        cvss_scored = self._enrich_findings_with_cvss(findings) if cfg.cvss_scoring else findings
         sorted_findings = self._sort_findings(cvss_scored)
 
         report = Report(config=cfg, findings=sorted_findings)
@@ -89,9 +87,7 @@ class ReportEngine:
             raise ValueError(f"Unsupported format: {fmt}")
         return renderer(report)
 
-    def save(
-        self, report: Report, path: Path, fmt: ReportFormat = ReportFormat.MARKDOWN
-    ) -> Path:
+    def save(self, report: Report, path: Path, fmt: ReportFormat = ReportFormat.MARKDOWN) -> Path:
         content = self.render(report, fmt)
         ext_map = {
             ReportFormat.MARKDOWN: ".md",
@@ -104,9 +100,7 @@ class ReportEngine:
         logger.info("Report saved to %s", output_path)
         return output_path
 
-    def _enrich_findings_with_cvss(
-        self, findings: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def _enrich_findings_with_cvss(self, findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         enriched = []
         for finding in findings:
             f = dict(finding)
@@ -121,9 +115,7 @@ class ReportEngine:
 
     def _sort_findings(self, findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         sev_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
-        return sorted(
-            findings, key=lambda f: sev_order.get(f.get("severity", "info"), 5)
-        )
+        return sorted(findings, key=lambda f: sev_order.get(f.get("severity", "info"), 5))
 
     def _count_severities(self, findings: list[dict[str, Any]]) -> dict[str, int]:
         counts: dict[str, int] = {}
@@ -132,9 +124,7 @@ class ReportEngine:
             counts[sev] = counts.get(sev, 0) + 1
         return counts
 
-    def _build_executive_summary(
-        self, findings: list[dict], target: str
-    ) -> ReportSection:
+    def _build_executive_summary(self, findings: list[dict], target: str) -> ReportSection:
         counts = self._count_severities(findings)
         total = len(findings)
         section = ReportSection(title="Executive Summary")
@@ -232,9 +222,7 @@ class ReportEngine:
             if evidence:
                 lines.append(f"{i}. **[{tool}]** `{target}` — `{evidence[:120]}`")
         if len(findings) > 20:
-            lines.append(
-                f"\n*{len(findings) - 20} additional findings omitted for brevity*"
-            )
+            lines.append(f"\n*{len(findings) - 20} additional findings omitted for brevity*")
         section.content = "\n".join(lines)
         return section
 
@@ -316,9 +304,7 @@ class ReportEngine:
             elif line.startswith("| "):
                 cells = [c.strip() for c in line.split("|")[1:-1]]
                 if "---" not in line:
-                    html_parts.append(
-                        f"<tr>{''.join(f'<td>{c}</td>' for c in cells)}</tr>"
-                    )
+                    html_parts.append(f"<tr>{''.join(f'<td>{c}</td>' for c in cells)}</tr>")
             elif line.startswith("---"):
                 pass
             elif line.startswith("```"):
@@ -361,9 +347,7 @@ class ReportEngine:
                     {
                         "physicalLocation": {
                             "artifactLocation": {"uri": f.get("target", "unknown")},
-                            "region": {
-                                "snippet": {"text": f.get("evidence", "")[:100]}
-                            },
+                            "region": {"snippet": {"text": f.get("evidence", "")[:100]}},
                         }
                     }
                 ],

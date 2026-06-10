@@ -102,9 +102,7 @@ class SessionLogger:
 
     def save(self, log: SessionLog) -> Path:
         path = self._path(log.session_id)
-        path.write_text(
-            json.dumps(log.to_dict(), indent=2, default=str), encoding="utf-8"
-        )
+        path.write_text(json.dumps(log.to_dict(), indent=2, default=str), encoding="utf-8")
         return path
 
     def load(self, session_id: str) -> SessionLog | None:

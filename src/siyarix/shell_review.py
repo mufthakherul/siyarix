@@ -36,6 +36,7 @@ def review_command(original: str, tool: str, reason: str) -> ReviewResult:
     """Interactive review loop for potentially dangerous commands."""
     from rich.console import Group
     from rich.text import Text
+
     syntax = Syntax(original, "bash", theme="monokai")
     console.print(
         Panel(

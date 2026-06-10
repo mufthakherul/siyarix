@@ -115,9 +115,7 @@ class HealthChecker:
         await self._check_system_resources(status)
 
         # Determine overall state
-        unhealthy = sum(
-            1 for c in status.components if c.state == HealthState.UNHEALTHY
-        )
+        unhealthy = sum(1 for c in status.components if c.state == HealthState.UNHEALTHY)
         degraded = sum(1 for c in status.components if c.state == HealthState.DEGRADED)
 
         if unhealthy > 0:
@@ -131,13 +129,22 @@ class HealthChecker:
         status.timestamp = datetime.now(UTC)
 
         self.last_check = status
-        emit_sync(Event(type=EventType.HEARTBEAT, source="health",
-            data={"healthy": status.state == HealthState.HEALTHY, "components": len(status.components)}))
+        emit_sync(
+            Event(
+                type=EventType.HEARTBEAT,
+                source="health",
+                data={
+                    "healthy": status.state == HealthState.HEALTHY,
+                    "components": len(status.components),
+                },
+            )
+        )
         return status
 
     async def _check_model_providers(self, status: HealthStatus) -> None:
         """Check model provider health (parallel)."""
         from .providers import ProviderManager
+
         pm = ProviderManager()
         entries: list[tuple[str, str | None, bool]] = []
         name_map: dict[str, str] = {}
@@ -153,20 +160,27 @@ class HealthChecker:
         name_map["cloud"] = "Cloud"
         name_map["custom"] = "Custom"
         name_map["opencode"] = "OpenCode"
-        entries.extend([
-            ("cloud", "SIYARIX_SERVER_URL", False),
-            ("custom", "CUSTOM_API_KEY", False),
-            ("opencode", "OPENCODE_API_KEY", False),
-        ])
+        entries.extend(
+            [
+                ("cloud", "SIYARIX_SERVER_URL", False),
+                ("custom", "CUSTOM_API_KEY", False),
+                ("opencode", "OPENCODE_API_KEY", False),
+            ]
+        )
 
-        async def check_one(provider_name: str, env_var: str | None, is_local: bool) -> ComponentHealth:
+        async def check_one(
+            provider_name: str, env_var: str | None, is_local: bool
+        ) -> ComponentHealth:
             start = time.time()
             try:
                 if is_local:
                     available = False
-                    message = f"{name_map.get(provider_name, provider_name.capitalize())} not running"
+                    message = (
+                        f"{name_map.get(provider_name, provider_name.capitalize())} not running"
+                    )
                     try:
                         import httpx
+
                         endpoints = {
                             "ollama": (11434, "/api/tags"),
                             "lmstudio": (1234, "/v1/models"),
@@ -190,7 +204,9 @@ class HealthChecker:
                     message = "Gemini API key configured" if available else "Gemini not configured"
                 elif provider_name == "azure":
                     available = bool(os.getenv(env_var or ""))
-                    message = "Azure OpenAI configured" if available else "Azure OpenAI not configured"
+                    message = (
+                        "Azure OpenAI configured" if available else "Azure OpenAI not configured"
+                    )
                 else:
                     available = bool(os.getenv(env_var or ""))
                     disp = name_map.get(provider_name, provider_name.capitalize())
@@ -217,6 +233,7 @@ class HealthChecker:
                 )
 
         import asyncio
+
         results = await asyncio.gather(*[check_one(p, e, item) for p, e, item in entries])
         status.components.extend(results)
 
@@ -243,9 +260,7 @@ class HealthChecker:
                 status.components.append(
                     ComponentHealth(
                         name=f"Tool/{tool}",
-                        state=(
-                            HealthState.HEALTHY if available else HealthState.DEGRADED
-                        ),
+                        state=(HealthState.HEALTHY if available else HealthState.DEGRADED),
                         message=(
                             f"{'Found' if available else 'Not found'} at {path}"
                             if available
@@ -295,11 +310,7 @@ class HealthChecker:
             mem_state = (
                 HealthState.HEALTHY
                 if memory.percent < 80
-                else (
-                    HealthState.DEGRADED
-                    if memory.percent < 95
-                    else HealthState.UNHEALTHY
-                )
+                else (HealthState.DEGRADED if memory.percent < 95 else HealthState.UNHEALTHY)
             )
             status.components.append(
                 ComponentHealth(
@@ -320,9 +331,7 @@ class HealthChecker:
             disk_state = (
                 HealthState.HEALTHY
                 if disk.percent < 80
-                else (
-                    HealthState.DEGRADED if disk.percent < 95 else HealthState.UNHEALTHY
-                )
+                else (HealthState.DEGRADED if disk.percent < 95 else HealthState.UNHEALTHY)
             )
             status.components.append(
                 ComponentHealth(
@@ -342,9 +351,7 @@ class HealthChecker:
             cpu_state = (
                 HealthState.HEALTHY
                 if cpu_percent < 80
-                else (
-                    HealthState.DEGRADED if cpu_percent < 95 else HealthState.UNHEALTHY
-                )
+                else (HealthState.DEGRADED if cpu_percent < 95 else HealthState.UNHEALTHY)
             )
             status.components.append(
                 ComponentHealth(

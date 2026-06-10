@@ -53,7 +53,11 @@ class WorkflowNode:
 
     @property
     def is_terminal(self) -> bool:
-        return self.status in (WorkflowStepStatus.COMPLETED, WorkflowStepStatus.FAILED, WorkflowStepStatus.SKIPPED)
+        return self.status in (
+            WorkflowStepStatus.COMPLETED,
+            WorkflowStepStatus.FAILED,
+            WorkflowStepStatus.SKIPPED,
+        )
 
 
 @dataclass
@@ -114,16 +118,35 @@ class WorkflowEngine:
     def register_step(self, name: str, fn: WorkflowStepFn) -> None:
         self._step_functions[name] = fn
 
-    def create_workflow(self, name: str, description: str = "",
-                        nodes: list[dict[str, Any]] | None = None,
-                        edges: list[dict[str, str]] | None = None,
-                        context: dict[str, Any] | None = None) -> Workflow:
-        wf_nodes = [WorkflowNode(id=n.get("id", f"node_{i:03d}"), name=n.get("name", f"Step {i+1}"),
-                    step_fn=n.get("step_fn", ""), args=n.get("args", {}), timeout=n.get("timeout", 300.0))
-                    for i, n in enumerate(nodes or [])]
-        wf_edges = [WorkflowEdge(source=e["source"], target=e["target"], condition=e.get("condition", ""))
-                    for e in (edges or [])]
-        workflow = Workflow(name=name, description=description, nodes=wf_nodes, edges=wf_edges, context=context or {})
+    def create_workflow(
+        self,
+        name: str,
+        description: str = "",
+        nodes: list[dict[str, Any]] | None = None,
+        edges: list[dict[str, str]] | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> Workflow:
+        wf_nodes = [
+            WorkflowNode(
+                id=n.get("id", f"node_{i:03d}"),
+                name=n.get("name", f"Step {i+1}"),
+                step_fn=n.get("step_fn", ""),
+                args=n.get("args", {}),
+                timeout=n.get("timeout", 300.0),
+            )
+            for i, n in enumerate(nodes or [])
+        ]
+        wf_edges = [
+            WorkflowEdge(source=e["source"], target=e["target"], condition=e.get("condition", ""))
+            for e in (edges or [])
+        ]
+        workflow = Workflow(
+            name=name,
+            description=description,
+            nodes=wf_nodes,
+            edges=wf_edges,
+            context=context or {},
+        )
         self._workflows[workflow.id] = workflow
         return workflow
 
@@ -139,9 +162,15 @@ class WorkflowEngine:
                     await asyncio.sleep(0.1)
                     continue
                 break
-            await asyncio.gather(*[self._run_node(workflow, n) for n in ready], return_exceptions=True)
+            await asyncio.gather(
+                *[self._run_node(workflow, n) for n in ready], return_exceptions=True
+            )
         workflow.completed_at = time.time()
-        workflow.status = WorkflowStatus.COMPLETED if all(n.status == WorkflowStepStatus.COMPLETED for n in workflow.nodes) else WorkflowStatus.FAILED
+        workflow.status = (
+            WorkflowStatus.COMPLETED
+            if all(n.status == WorkflowStepStatus.COMPLETED for n in workflow.nodes)
+            else WorkflowStatus.FAILED
+        )
         return workflow
 
     async def _run_node(self, workflow: Workflow, node: WorkflowNode) -> None:
@@ -153,7 +182,9 @@ class WorkflowEngine:
             return
         try:
             async with self._semaphore:
-                result = await asyncio.wait_for(step_fn({**node.args, **workflow.context}), timeout=node.timeout)
+                result = await asyncio.wait_for(
+                    step_fn({**node.args, **workflow.context}), timeout=node.timeout
+                )
                 node.result = result
                 node.status = WorkflowStepStatus.COMPLETED
                 workflow.context[f"result_{node.id}"] = result
@@ -176,6 +207,9 @@ class WorkflowEngine:
 
     def stats(self) -> dict[str, Any]:
         wfs = list(self._workflows.values())
-        return {"total": len(wfs), "running": len([w for w in wfs if w.status == WorkflowStatus.RUNNING]),
-                "completed": len([w for w in wfs if w.status == WorkflowStatus.COMPLETED]),
-                "registered_steps": list(self._step_functions.keys())}
+        return {
+            "total": len(wfs),
+            "running": len([w for w in wfs if w.status == WorkflowStatus.RUNNING]),
+            "completed": len([w for w in wfs if w.status == WorkflowStatus.COMPLETED]),
+            "registered_steps": list(self._step_functions.keys()),
+        }

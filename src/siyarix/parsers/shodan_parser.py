@@ -8,6 +8,7 @@ from . import _now_iso
 
 import json
 
+
 class ShodanParser:
     """Parses Shodan JSON output into finding dicts."""
 

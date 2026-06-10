@@ -112,9 +112,7 @@ class CredentialStore:
     _DEFAULT_CONFIG_DIR = Path.home() / ".siyarix"
 
     def __init__(self, master_password: str | None = None) -> None:
-        self._config_dir = Path(
-            os.getenv("SIYARIX_CONFIG_DIR", str(self._DEFAULT_CONFIG_DIR))
-        )
+        self._config_dir = Path(os.getenv("SIYARIX_CONFIG_DIR", str(self._DEFAULT_CONFIG_DIR)))
         self._config_dir.mkdir(parents=True, exist_ok=True)
         self._creds_file = self._config_dir / "credentials.enc"
         self._key_file = self._config_dir / ".vault_key"
@@ -177,9 +175,7 @@ class CredentialStore:
                 if stored:
                     key_material = base64.urlsafe_b64decode(stored)
             except Exception:
-                logger.debug(
-                    "Keyring unavailable or failed; falling back to file-based key"
-                )
+                logger.debug("Keyring unavailable or failed; falling back to file-based key")
 
         # If no key material from keyring, try local key file
         if key_material is None and self._key_file.exists():
@@ -247,7 +243,9 @@ class CredentialStore:
             if os.name != "nt":
                 os.chmod(self._key_file, 0o600)
             else:
-                logger.warning("Key file %s is not permission-restricted on Windows", self._key_file)
+                logger.warning(
+                    "Key file %s is not permission-restricted on Windows", self._key_file
+                )
         except Exception as exc:
             # best-effort; log but continue
             logger.exception("Failed to set permissions on vault key file: %s", exc)
@@ -370,9 +368,7 @@ class CredentialStore:
                     cred.value_encrypted = self._encrypt_aesgcm(plaintext)
                     cred.rotated = True
                 except Exception as exc:
-                    logger.warning(
-                        "Failed to rotate credential %s: %s", cred.cred_id, exc
-                    )
+                    logger.warning("Failed to rotate credential %s: %s", cred.cred_id, exc)
         self._save()
         logger.info("Master key rotated successfully")
         return True
@@ -394,12 +390,7 @@ class CredentialStore:
             except Exception:
                 obj = None
 
-            if (
-                obj
-                and isinstance(obj, dict)
-                and "encrypted_key" in obj
-                and "payload" in obj
-            ):
+            if obj and isinstance(obj, dict) and "encrypted_key" in obj and "payload" in obj:
                 # KMS envelope decryption using AWS KMS
                 if not self._kms_available():
                     raise RuntimeError(
@@ -426,9 +417,7 @@ class CredentialStore:
                 data = json.loads(decrypted)
             for cred_data in data:
                 if "value_encrypted" not in cred_data:
-                    logger.error(
-                        "Credential entry missing value_encrypted"
-                    )
+                    logger.error("Credential entry missing value_encrypted")
                 cred = Credential(
                     cred_id=cred_data["cred_id"],
                     name=cred_data["name"],
@@ -466,9 +455,7 @@ class CredentialStore:
                 kms = boto3.client("kms")
                 key_id = os.getenv("AWS_KMS_KEY_ID")
                 if not key_id:
-                    raise RuntimeError(
-                        "AWS_KMS_KEY_ID must be set when SIYARIX_KMS_PROVIDER=aws"
-                    )
+                    raise RuntimeError("AWS_KMS_KEY_ID must be set when SIYARIX_KMS_PROVIDER=aws")
                 # Generate a data key (plaintext + encrypted)
                 resp = kms.generate_data_key(KeyId=key_id, KeySpec="AES_256")
                 plaintext = resp.get("Plaintext")
@@ -485,9 +472,7 @@ class CredentialStore:
                 self._creds_file.write_text(json.dumps(out))
                 return
             except Exception:
-                logger.exception(
-                    "KMS envelope encryption failed; falling back to local encryption"
-                )
+                logger.exception("KMS envelope encryption failed; falling back to local encryption")
 
         # Default: local Fernet encryption
         encrypted = self._encrypt(raw)
@@ -616,9 +601,7 @@ class CredentialStore:
         # Encrypt with provided password
         if CRYPTO_AVAILABLE:
             salt = os.urandom(16)
-            kdf = PBKDF2HMAC(
-                algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000
-            )
+            kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000)
             key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
             fernet = Fernet(key)
             encrypted = fernet.encrypt(json.dumps(data).encode())
@@ -635,9 +618,7 @@ class CredentialStore:
         salt = data[:16]
         encrypted = data[16:]
 
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000
-        )
+        kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000)
         key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
         fernet = Fernet(key)
         decrypted = fernet.decrypt(encrypted)

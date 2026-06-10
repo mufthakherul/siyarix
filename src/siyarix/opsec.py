@@ -49,9 +49,20 @@ class OPSECManager:
     def status(self) -> OPSECStatus:
         return self._status
 
-    def isolate(self, target: str = "", use_tor: bool = False, use_doh: bool = True, randomize_mac: bool = False, memory_only: bool = False) -> OPSECActionResult:
+    def isolate(
+        self,
+        target: str = "",
+        use_tor: bool = False,
+        use_doh: bool = True,
+        randomize_mac: bool = False,
+        memory_only: bool = False,
+    ) -> OPSECActionResult:
         """Isolate scanning activity for a target."""
-        namespace = f"siyarix_{target.replace('.', '_').replace(':', '_')}_{random_string(8)}" if target else f"siyarix_isolated_{random_string(8)}"
+        namespace = (
+            f"siyarix_{target.replace('.', '_').replace(':', '_')}_{random_string(8)}"
+            if target
+            else f"siyarix_isolated_{random_string(8)}"
+        )
         self._status.isolated = True
         self._status.namespace = namespace
         self._status.tor_enabled = use_tor
@@ -69,7 +80,9 @@ class OPSECManager:
         if memory_only:
             details.append("Persistent logging disabled for this session")
 
-        logger.info("OPSEC isolation activated for target=%s namespace=%s", target or "unknown", namespace)
+        logger.info(
+            "OPSEC isolation activated for target=%s namespace=%s", target or "unknown", namespace
+        )
         return OPSECActionResult(action="isolate", success=True, detail="\n".join(details))
 
     def burn(self, session_id: str = "") -> OPSECActionResult:
@@ -109,9 +122,13 @@ class OPSECManager:
         details.append("Disk cache: Flushed and overwritten")
         details.append("Network traces: Cleared")
 
-        logger.info("OPSEC burn completed for session=%s items=%d", session_id or "all", items_destroyed)
+        logger.info(
+            "OPSEC burn completed for session=%s items=%d", session_id or "all", items_destroyed
+        )
         self._status = OPSECStatus()
-        return OPSECActionResult(action="burn", success=True, detail="\n".join(details), items_destroyed=items_destroyed)
+        return OPSECActionResult(
+            action="burn", success=True, detail="\n".join(details), items_destroyed=items_destroyed
+        )
 
     def _secure_delete(self, path: Path, passes: int = 3) -> None:
         """Overwrite file contents before deletion (Gutmann-like pattern)."""
@@ -133,7 +150,9 @@ class OPSECManager:
     def disable(self) -> OPSECActionResult:
         """Deactivate all OPSEC measures."""
         self._status = OPSECStatus()
-        return OPSECActionResult(action="disable", success=True, detail="OPSEC measures deactivated")
+        return OPSECActionResult(
+            action="disable", success=True, detail="OPSEC measures deactivated"
+        )
 
     def summary(self) -> dict[str, Any]:
         return {

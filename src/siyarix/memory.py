@@ -92,13 +92,25 @@ class MemoryStore:
         if not self._conn:
             return
         try:
-            self._conn.execute("""
+            self._conn.execute(
+                """
                 INSERT OR REPLACE INTO memories
                 (key, value, layer, tags, metadata, created_at, accessed_at, access_count, ttl, content_hash)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (entry.key, entry.value, entry.layer.value, json.dumps(entry.tags),
-                  json.dumps(entry.metadata), entry.created_at, entry.accessed_at,
-                  entry.access_count, entry.ttl, entry.content_hash))
+            """,
+                (
+                    entry.key,
+                    entry.value,
+                    entry.layer.value,
+                    json.dumps(entry.tags),
+                    json.dumps(entry.metadata),
+                    entry.created_at,
+                    entry.accessed_at,
+                    entry.access_count,
+                    entry.ttl,
+                    entry.content_hash,
+                ),
+            )
             self._conn.commit()
         except Exception:
             logger.exception("Failed to store memory: %s", entry.key)
@@ -116,28 +128,38 @@ class MemoryStore:
             return None
         try:
             if layer:
-                cursor = self._conn.execute("SELECT * FROM memories WHERE key = ? AND layer = ?", (key, layer.value))
+                cursor = self._conn.execute(
+                    "SELECT * FROM memories WHERE key = ? AND layer = ?", (key, layer.value)
+                )
             else:
-                cursor = self._conn.execute("SELECT * FROM memories WHERE key = ? ORDER BY created_at DESC LIMIT 1", (key,))
+                cursor = self._conn.execute(
+                    "SELECT * FROM memories WHERE key = ? ORDER BY created_at DESC LIMIT 1", (key,)
+                )
             row = cursor.fetchone()
             if not row:
                 return None
             entry = self._row_to_entry(row)
             if entry.expired:
-                self._conn.execute("DELETE FROM memories WHERE key = ? AND layer = ?", (key, entry.layer.value))
+                self._conn.execute(
+                    "DELETE FROM memories WHERE key = ? AND layer = ?", (key, entry.layer.value)
+                )
                 self._conn.commit()
                 return None
             entry.accessed_at = time.time()
             entry.access_count += 1
-            self._conn.execute("UPDATE memories SET accessed_at = ?, access_count = ? WHERE key = ? AND layer = ?",
-                               (entry.accessed_at, entry.access_count, key, entry.layer.value))
+            self._conn.execute(
+                "UPDATE memories SET accessed_at = ?, access_count = ? WHERE key = ? AND layer = ?",
+                (entry.accessed_at, entry.access_count, key, entry.layer.value),
+            )
             self._conn.commit()
             return entry
         except Exception:
             logger.exception("Failed to retrieve memory: %s", key)
             return None
 
-    def search(self, query: str, layer: MemoryLayer | None = None, limit: int = 10) -> list[MemoryEntry]:
+    def search(
+        self, query: str, layer: MemoryLayer | None = None, limit: int = 10
+    ) -> list[MemoryEntry]:
         results: list[MemoryEntry] = []
         query_lower = query.lower()
         for entry in self._session_memory.values():
@@ -150,11 +172,13 @@ class MemoryStore:
                 if layer:
                     cursor = self._conn.execute(
                         "SELECT * FROM memories WHERE layer = ? AND (key LIKE ? OR value LIKE ?) ORDER BY accessed_at DESC LIMIT ?",
-                        (layer.value, f"%{query}%", f"%{query}%", limit))
+                        (layer.value, f"%{query}%", f"%{query}%", limit),
+                    )
                 else:
                     cursor = self._conn.execute(
                         "SELECT * FROM memories WHERE key LIKE ? OR value LIKE ? ORDER BY accessed_at DESC LIMIT ?",
-                        (f"%{query}%", f"%{query}%", limit))
+                        (f"%{query}%", f"%{query}%", limit),
+                    )
                 for row in cursor.fetchall():
                     entry = self._row_to_entry(row)
                     if not entry.expired and entry.key not in {e.key for e in results}:
@@ -187,11 +211,15 @@ class MemoryStore:
 
     def _row_to_entry(self, row: sqlite3.Row) -> MemoryEntry:
         return MemoryEntry(
-            key=row["key"], value=row["value"], layer=MemoryLayer(row["layer"]),
+            key=row["key"],
+            value=row["value"],
+            layer=MemoryLayer(row["layer"]),
             tags=json.loads(row["tags"]) if row["tags"] else [],
             metadata=json.loads(row["metadata"]) if row["metadata"] else {},
-            created_at=row["created_at"], accessed_at=row["accessed_at"],
-            access_count=row["access_count"], ttl=row["ttl"],
+            created_at=row["created_at"],
+            accessed_at=row["accessed_at"],
+            access_count=row["access_count"],
+            ttl=row["ttl"],
         )
 
     def close(self) -> None:
@@ -206,12 +234,28 @@ class MemoryManager:
         self._stores: dict[MemoryLayer, MemoryStore] = {}
         self._stores[MemoryLayer.SESSION] = MemoryStore()
         db_path = self._base_path / "memory.db"
-        for layer in (MemoryLayer.PROJECT, MemoryLayer.PERSISTENT, MemoryLayer.TOOL, MemoryLayer.WORKFLOW):
+        for layer in (
+            MemoryLayer.PROJECT,
+            MemoryLayer.PERSISTENT,
+            MemoryLayer.TOOL,
+            MemoryLayer.WORKFLOW,
+        ):
             self._stores[layer] = MemoryStore(db_path)
 
-    def store(self, key: str, value: str, layer: MemoryLayer = MemoryLayer.SESSION,
-              tags: list[str] | None = None, ttl: float = 0.0, **metadata: Any) -> None:
-        self._stores[layer].store(MemoryEntry(key=key, value=value, layer=layer, tags=tags or [], ttl=ttl, metadata=metadata))
+    def store(
+        self,
+        key: str,
+        value: str,
+        layer: MemoryLayer = MemoryLayer.SESSION,
+        tags: list[str] | None = None,
+        ttl: float = 0.0,
+        **metadata: Any,
+    ) -> None:
+        self._stores[layer].store(
+            MemoryEntry(
+                key=key, value=value, layer=layer, tags=tags or [], ttl=ttl, metadata=metadata
+            )
+        )
 
     def retrieve(self, key: str, layer: MemoryLayer | None = None) -> MemoryEntry | None:
         if layer:
@@ -222,7 +266,9 @@ class MemoryManager:
                 return entry
         return None
 
-    def search(self, query: str, layer: MemoryLayer | None = None, limit: int = 10) -> list[MemoryEntry]:
+    def search(
+        self, query: str, layer: MemoryLayer | None = None, limit: int = 10
+    ) -> list[MemoryEntry]:
         if layer:
             return self._stores[layer].search(query, limit=limit)
         results: list[MemoryEntry] = []

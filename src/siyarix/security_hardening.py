@@ -173,9 +173,7 @@ _REDACT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("github_token", re.compile(r"gh[pousr]_[A-Za-z0-9_]{36,}")),
     (
         "generic_api_key",
-        re.compile(
-            r"(?i)(?:api[_-]?key|apikey)\s*[=:]\s*['\"]?[A-Za-z0-9_.~+/=-]{16,}['\"]?"
-        ),
+        re.compile(r"(?i)(?:api[_-]?key|apikey)\s*[=:]\s*['\"]?[A-Za-z0-9_.~+/=-]{16,}['\"]?"),
     ),
     # Passwords in URLs
     ("url_password", re.compile(r"://[^:]+:([^@]{3,})@")),
@@ -383,20 +381,52 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     (re.compile(r"\bcpuminer\b", re.I), "medium", "Cryptominer (cpuminer)"),
     # ── Windows-specific ──
     (re.compile(r"\bformat\s+[a-zA-Z]:", re.I), "critical", "Windows format disk"),
-    (re.compile(r"\bdel\s+/[fF]\s+[a-zA-Z]:\\", re.I), "critical", "Windows force delete system drive"),
+    (
+        re.compile(r"\bdel\s+/[fF]\s+[a-zA-Z]:\\", re.I),
+        "critical",
+        "Windows force delete system drive",
+    ),
     (re.compile(r"\breg\s+delete\s+HKLM", re.I), "critical", "Windows registry delete (HKLM)"),
-    (re.compile(r"\bbcdedit\s+/set\s+{default}\s+.*\b(?:boot|recovery)sequence", re.I), "critical", "Windows boot config tampering"),
+    (
+        re.compile(r"\bbcdedit\s+/set\s+{default}\s+.*\b(?:boot|recovery)sequence", re.I),
+        "critical",
+        "Windows boot config tampering",
+    ),
     (re.compile(r"\bdiskpart\b", re.I), "high", "Windows disk partition manipulation"),
-    (re.compile(r"\bvssadmin\s+delete\s+shadows", re.I), "high", "Windows volume shadow copy deletion"),
-    (re.compile(r"\bwmic\s+(?:shadowcopy|volume)\s+delete", re.I), "high", "Windows WMIC volume deletion"),
+    (
+        re.compile(r"\bvssadmin\s+delete\s+shadows", re.I),
+        "high",
+        "Windows volume shadow copy deletion",
+    ),
+    (
+        re.compile(r"\bwmic\s+(?:shadowcopy|volume)\s+delete", re.I),
+        "high",
+        "Windows WMIC volume deletion",
+    ),
     (re.compile(r"\bwevtutil\s+cl\b", re.I), "high", "Windows event log clearing"),
     (re.compile(r"\bcipher\s+/w:", re.I), "medium", "Windows disk overwrite (cipher /w)"),
-    (re.compile(r"\bnet\s+(?:user|localgroup)\s+/delete", re.I), "medium", "Windows user/group deletion"),
-    (re.compile(r"\bpowershell\s+.*-EncodedCommand\b", re.I), "medium", "PowerShell encoded command (obfuscation)"),
+    (
+        re.compile(r"\bnet\s+(?:user|localgroup)\s+/delete", re.I),
+        "medium",
+        "Windows user/group deletion",
+    ),
+    (
+        re.compile(r"\bpowershell\s+.*-EncodedCommand\b", re.I),
+        "medium",
+        "PowerShell encoded command (obfuscation)",
+    ),
     (re.compile(r"\bsc\s+(?:stop|delete)\s+\w+", re.I), "medium", "Windows service stop/delete"),
-    (re.compile(r"\breg\s+add\s+HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", re.I), "medium", "Windows registry persistence (Run key)"),
+    (
+        re.compile(r"\breg\s+add\s+HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", re.I),
+        "medium",
+        "Windows registry persistence (Run key)",
+    ),
     (re.compile(r"\bschtasks\s+/create\b", re.I), "medium", "Windows scheduled task creation"),
-    (re.compile(r"\bGet-WmiObject\s+Win32_ShadowCopy\b.*\bDelete\(\)", re.I), "medium", "PowerShell WMI shadow copy deletion"),
+    (
+        re.compile(r"\bGet-WmiObject\s+Win32_ShadowCopy\b.*\bDelete\(\)", re.I),
+        "medium",
+        "PowerShell WMI shadow copy deletion",
+    ),
     # ── LOW ──
     (re.compile(r"\bchmod\b", re.I), "low", "Permission change (chmod)"),
     (re.compile(r"\bchown\b", re.I), "low", "Ownership change (chown)"),
@@ -423,19 +453,17 @@ class DangerAnalyzer:
             if pattern.search(command):
                 reasons.append(f"[{severity.upper()}] {description}")
                 matched.append(pattern.pattern)
-                if _SEVERITY_RANK.get(severity, 0) > _SEVERITY_RANK.get(
-                    max_severity, 0
-                ):
+                if _SEVERITY_RANK.get(severity, 0) > _SEVERITY_RANK.get(max_severity, 0):
                     max_severity = severity
 
         is_dangerous = max_severity != "safe"
         recommendation = ""
         if max_severity == "critical":
-            recommendation = (
-                "⛔ BLOCK — This command is destructive and should NOT be executed."
-            )
+            recommendation = "⛔ BLOCK — This command is destructive and should NOT be executed."
         elif max_severity == "high":
-            recommendation = "⚠️  CONFIRM — This command is high-risk. Require explicit user confirmation."
+            recommendation = (
+                "⚠️  CONFIRM — This command is high-risk. Require explicit user confirmation."
+            )
         elif max_severity == "medium":
             recommendation = "⚡ CAUTION — Review this command before execution."
         elif max_severity == "low":
@@ -449,9 +477,7 @@ class DangerAnalyzer:
             matched_patterns=matched,
         )
 
-    def format_warning(
-        self, report: DangerReport, console: Console | None = None
-    ) -> None:
+    def format_warning(self, report: DangerReport, console: Console | None = None) -> None:
         """Print a formatted danger warning to a Rich console."""
         if not report.is_dangerous:
             return

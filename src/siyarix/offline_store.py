@@ -86,6 +86,7 @@ class OfflineStore:
         plan_id: str = "",
     ) -> str:
         import uuid
+
         scan_id = str(uuid.uuid4())[:12]
         now = datetime.now().isoformat()
         conn = self._conn()
@@ -115,7 +116,9 @@ class OfflineStore:
         logger.info("Saved scan %s for target %s (%d findings)", scan_id, target, len(findings))
         return scan_id
 
-    def save_plan(self, plan_id: str, goal: str, steps: list[dict[str, Any]], mode: str = "registry") -> None:
+    def save_plan(
+        self, plan_id: str, goal: str, steps: list[dict[str, Any]], mode: str = "registry"
+    ) -> None:
         conn = self._conn()
         completed = sum(1 for s in steps if s.get("status") == "completed")
         failed = sum(1 for s in steps if s.get("status") == "failed")
@@ -132,9 +135,16 @@ class OfflineStore:
         b = conn.execute("SELECT * FROM scans WHERE scan_id = ?", (scan_b_id,)).fetchone()
         if not a or not b:
             missing = scan_a_id if not a else scan_b_id
-            return {"error": f"Scan {missing!r} not found", "summary": {"new": 0, "resolved": 0, "changed": 0}}
-        findings_a = conn.execute("SELECT * FROM findings WHERE scan_id = ?", (scan_a_id,)).fetchall()
-        findings_b = conn.execute("SELECT * FROM findings WHERE scan_id = ?", (scan_b_id,)).fetchall()
+            return {
+                "error": f"Scan {missing!r} not found",
+                "summary": {"new": 0, "resolved": 0, "changed": 0},
+            }
+        findings_a = conn.execute(
+            "SELECT * FROM findings WHERE scan_id = ?", (scan_a_id,)
+        ).fetchall()
+        findings_b = conn.execute(
+            "SELECT * FROM findings WHERE scan_id = ?", (scan_b_id,)
+        ).fetchall()
         titles_a = {r["title"] for r in findings_a}
         titles_b = {r["title"] for r in findings_b}
         new_titles = titles_b - titles_a
@@ -143,14 +153,21 @@ class OfflineStore:
         for fb in findings_b:
             if fb["title"] in titles_a:
                 fa = conn.execute(
-                    "SELECT * FROM findings WHERE scan_id = ? AND title = ?", (scan_a_id, fb["title"])
+                    "SELECT * FROM findings WHERE scan_id = ? AND title = ?",
+                    (scan_a_id, fb["title"]),
                 ).fetchone()
-                if fa and (fa["severity"] != fb["severity"] or fa["description"] != fb["description"]):
+                if fa and (
+                    fa["severity"] != fb["severity"] or fa["description"] != fb["description"]
+                ):
                     changed += 1
         return {
             "scan_a": {"target": a["target"], "total": len(findings_a), "scan_id": scan_a_id},
             "scan_b": {"target": b["target"], "total": len(findings_b), "scan_id": scan_b_id},
-            "summary": {"new": len(new_titles), "resolved": len(resolved_titles), "changed": changed},
+            "summary": {
+                "new": len(new_titles),
+                "resolved": len(resolved_titles),
+                "changed": changed,
+            },
             "new_findings": sorted(new_titles)[:20],
             "resolved_findings": sorted(resolved_titles)[:20],
         }
@@ -194,7 +211,8 @@ class OfflineStore:
         if not row:
             return None
         result = dict(row)
-        result["findings"] = [dict(f) for f in conn.execute(
-            "SELECT * FROM findings WHERE scan_id = ?", (scan_id,)
-        ).fetchall()]
+        result["findings"] = [
+            dict(f)
+            for f in conn.execute("SELECT * FROM findings WHERE scan_id = ?", (scan_id,)).fetchall()
+        ]
         return result

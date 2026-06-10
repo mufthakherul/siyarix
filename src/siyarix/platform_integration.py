@@ -70,39 +70,80 @@ class PlatformIntegrationService:
                     self._bounty_connections[k] = PlatformConnection(**v)
                 for k, v in data.get("siem", {}).items():
                     self._siem_connections[k] = PlatformConnection(**v)
-                self._notification_channels = [NotificationChannel(**c) for c in data.get("notifications", [])]
+                self._notification_channels = [
+                    NotificationChannel(**c) for c in data.get("notifications", [])
+                ]
             except Exception as exc:
                 logger.error("Failed to load integrations: %s", exc)
 
     def _save(self) -> None:
         try:
             data = {
-                "bounty": {k: {"platform": v.platform, "connected": v.connected, "username": v.username, "error": v.error} for k, v in self._bounty_connections.items()},
-                "siem": {k: {"platform": v.platform, "connected": v.connected, "username": v.username, "error": v.error} for k, v in self._siem_connections.items()},
-                "notifications": [{"platform": c.platform, "enabled": c.enabled, "webhook_url": c.webhook_url, "config": c.config} for c in self._notification_channels],
+                "bounty": {
+                    k: {
+                        "platform": v.platform,
+                        "connected": v.connected,
+                        "username": v.username,
+                        "error": v.error,
+                    }
+                    for k, v in self._bounty_connections.items()
+                },
+                "siem": {
+                    k: {
+                        "platform": v.platform,
+                        "connected": v.connected,
+                        "username": v.username,
+                        "error": v.error,
+                    }
+                    for k, v in self._siem_connections.items()
+                },
+                "notifications": [
+                    {
+                        "platform": c.platform,
+                        "enabled": c.enabled,
+                        "webhook_url": c.webhook_url,
+                        "config": c.config,
+                    }
+                    for c in self._notification_channels
+                ],
             }
-            (self._dir / "integrations.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
+            (self._dir / "integrations.json").write_text(
+                json.dumps(data, indent=2), encoding="utf-8"
+            )
         except Exception as exc:
             logger.error("Failed to save integrations: %s", exc)
 
     # ── Bug Bounty ──
 
-    def connect_bounty(self, platform: str, api_key: str = "", username: str = "") -> PlatformConnection:
+    def connect_bounty(
+        self, platform: str, api_key: str = "", username: str = ""
+    ) -> PlatformConnection:
         platform = platform.lower()
         if platform not in BOUNTY_PLATFORMS:
-            return PlatformConnection(platform=platform, error=f"Unsupported bounty platform: {platform}")
-        conn = PlatformConnection(platform=platform, connected=True, username=username or "anonymous")
+            return PlatformConnection(
+                platform=platform, error=f"Unsupported bounty platform: {platform}"
+            )
+        conn = PlatformConnection(
+            platform=platform, connected=True, username=username or "anonymous"
+        )
         self._bounty_connections[platform] = conn
         self._save()
         logger.info("Connected to bounty platform: %s", platform)
         return conn
 
-    def submit_finding(self, platform: str, program: str, _finding_data: dict[str, Any] | None = None) -> SubmissionResult:
+    def submit_finding(
+        self, platform: str, program: str, _finding_data: dict[str, Any] | None = None
+    ) -> SubmissionResult:
         conn = self._bounty_connections.get(platform)
         if not conn or not conn.connected:
             return SubmissionResult(platform=platform, error=f"Not connected to {platform}")
         logger.info("Submitting finding to %s program=%s", platform, program)
-        return SubmissionResult(platform=platform, success=True, external_id=f"{platform[:2].upper()}-{random_id(6)}", status="Triaged")
+        return SubmissionResult(
+            platform=platform,
+            success=True,
+            external_id=f"{platform[:2].upper()}-{random_id(6)}",
+            status="Triaged",
+        )
 
     # ── SIEM ──
 
@@ -119,21 +160,31 @@ class PlatformIntegrationService:
     def forward_finding_to_siem(self, finding: dict[str, Any]) -> bool:
         for conn in self._siem_connections.values():
             if conn.connected:
-                logger.debug("Forwarding finding to SIEM %s: %s", conn.platform, finding.get("description", ""))
+                logger.debug(
+                    "Forwarding finding to SIEM %s: %s",
+                    conn.platform,
+                    finding.get("description", ""),
+                )
         return bool(self._siem_connections)
 
     # ── Communication Platforms ──
 
-    def add_notification_channel(self, platform: str, webhook_url: str = "", config: dict[str, str] | None = None) -> NotificationChannel:
+    def add_notification_channel(
+        self, platform: str, webhook_url: str = "", config: dict[str, str] | None = None
+    ) -> NotificationChannel:
         platform = platform.lower()
-        channel = NotificationChannel(platform=platform, enabled=True, webhook_url=webhook_url, config=config or {})
+        channel = NotificationChannel(
+            platform=platform, enabled=True, webhook_url=webhook_url, config=config or {}
+        )
         self._notification_channels.append(channel)
         self._save()
         return channel
 
     def remove_notification_channel(self, platform: str) -> bool:
         before = len(self._notification_channels)
-        self._notification_channels = [c for c in self._notification_channels if c.platform != platform.lower()]
+        self._notification_channels = [
+            c for c in self._notification_channels if c.platform != platform.lower()
+        ]
         if len(self._notification_channels) < before:
             self._save()
             return True
@@ -161,10 +212,20 @@ class PlatformIntegrationService:
 def random_id(length: int = 6) -> str:
     import random as _r
     import string as _s
+
     return "".join(_r.choices(_s.ascii_uppercase + _s.digits, k=length))
 
 
 platform_integration = PlatformIntegrationService()
 
 
-__all__ = ["PlatformIntegrationService", "PlatformConnection", "SubmissionResult", "NotificationChannel", "platform_integration", "BOUNTY_PLATFORMS", "SIEM_PLATFORMS", "COMMS_PLATFORMS"]
+__all__ = [
+    "PlatformIntegrationService",
+    "PlatformConnection",
+    "SubmissionResult",
+    "NotificationChannel",
+    "platform_integration",
+    "BOUNTY_PLATFORMS",
+    "SIEM_PLATFORMS",
+    "COMMS_PLATFORMS",
+]

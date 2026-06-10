@@ -7,7 +7,6 @@ from __future__ import annotations
 from . import _now_iso
 
 
-
 class JohnParser:
     """Parse john --show style lines into normalized findings."""
 

@@ -118,10 +118,13 @@ class AgentCore:
             [t.name for t in self._registry._graph.all_tools()],
             tool_registry=self._registry,
         )
-        await self._event_bus.emit(Event(
-            type=EventType.AGENT_START, source="agent",
-            data={"mode": self._mode.value, "tools": self._registry.stats()["total"]},
-        ))
+        await self._event_bus.emit(
+            Event(
+                type=EventType.AGENT_START,
+                source="agent",
+                data={"mode": self._mode.value, "tools": self._registry.stats()["total"]},
+            )
+        )
 
     async def execute_goal(self, goal: AgentGoal, plan: ExecutionPlan | None = None) -> AgentResult:
         self._status = AgentStatus.PLANNING
@@ -137,7 +140,9 @@ class AgentCore:
         else:
             return await self._execute_interactive(goal, plan, start, result)
 
-    async def _execute_registry(self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult) -> AgentResult:
+    async def _execute_registry(
+        self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult
+    ) -> AgentResult:
         """Registry mode: heuristic planning with validation, no LLM, no reflection."""
         try:
             tool_names = [t.name for t in self._registry.list_tools()]
@@ -153,9 +158,16 @@ class AgentCore:
                 if old_status != s.status.value:
                     step_progress[step_id] = s.status.value
                     from ..events import emit_sync
-                    emit_sync(Event(type=EventType.PLAN_STEP_START if s.status.value == "running"
-                        else EventType.PLAN_STEP_COMPLETE, source="core.registry",
-                        data={"step_id": step_id, "tool": s.tool, "status": s.status.value}))
+
+                    emit_sync(
+                        Event(
+                            type=EventType.PLAN_STEP_START
+                            if s.status.value == "running"
+                            else EventType.PLAN_STEP_COMPLETE,
+                            source="core.registry",
+                            data={"step_id": step_id, "tool": s.tool, "status": s.status.value},
+                        )
+                    )
 
             self._executor.set_progress_callback(on_step)
             await self._validator.validate_plan(plan.steps)
@@ -172,19 +184,24 @@ class AgentCore:
         self._history.append(result)
         return result
 
-    async def _execute_autonomous(self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult) -> AgentResult:
+    async def _execute_autonomous(
+        self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult
+    ) -> AgentResult:
         """Autonomous mode: LLM-first planning, reflection, recovery."""
         try:
             if plan is None:
                 plan = self._planner.decompose_goal(
-                    goal.description, [t.name for t in self._registry.list_tools()])
+                    goal.description, [t.name for t in self._registry.list_tools()]
+                )
             result.plan = plan
             self._context.add_history(f"Goal: {goal.description}", "user")
             await self._validator.validate_plan(plan.steps)
             plan = await self._executor.execute_plan(plan)
             if plan.has_failures:
                 for step in plan.failed_steps:
-                    recovery = await self._validator.plan_recovery(step, step.result.get("error", ""))
+                    recovery = await self._validator.plan_recovery(
+                        step, step.result.get("error", "")
+                    )
                     if recovery.action == RecoveryAction.RETRY and recovery.modified_step:
                         idx = plan.steps.index(step)
                         plan.steps[idx] = recovery.modified_step
@@ -202,19 +219,24 @@ class AgentCore:
         self._history.append(result)
         return result
 
-    async def _execute_hybrid(self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult) -> AgentResult:
+    async def _execute_hybrid(
+        self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult
+    ) -> AgentResult:
         """Hybrid mode: try LLM planning, fall back to heuristic."""
         try:
             if plan is None:
                 plan = self._planner.decompose_goal(
-                    goal.description, [t.name for t in self._registry.list_tools()])
+                    goal.description, [t.name for t in self._registry.list_tools()]
+                )
             result.plan = plan
             self._context.add_history(f"Goal: {goal.description}", "user")
             await self._validator.validate_plan(plan.steps)
             plan = await self._executor.execute_plan(plan)
             if plan.has_failures:
                 for step in plan.failed_steps:
-                    recovery = await self._validator.plan_recovery(step, step.result.get("error", ""))
+                    recovery = await self._validator.plan_recovery(
+                        step, step.result.get("error", "")
+                    )
                     if recovery.action == RecoveryAction.RETRY and recovery.modified_step:
                         idx = plan.steps.index(step)
                         plan.steps[idx] = recovery.modified_step
@@ -232,12 +254,15 @@ class AgentCore:
         self._history.append(result)
         return result
 
-    async def _execute_interactive(self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult) -> AgentResult:
+    async def _execute_interactive(
+        self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult
+    ) -> AgentResult:
         """Interactive mode: lightweight, user-in-the-loop, minimal automation."""
         try:
             if plan is None:
                 plan = self._planner.decompose_goal(
-                    goal.description, [t.name for t in self._registry.list_tools()])
+                    goal.description, [t.name for t in self._registry.list_tools()]
+                )
             result.plan = plan
             plan = await self._executor.execute_plan(plan)
             result.success = plan.status == PlanStatus.COMPLETED
@@ -264,7 +289,13 @@ class AgentCore:
             if step.status == StepStatus.COMPLETED and step.result:
                 output = step.result.get("output", "")
                 if output:
-                    findings.append({"tool": step.tool, "description": step.description, "output_preview": output[:500]})
+                    findings.append(
+                        {
+                            "tool": step.tool,
+                            "description": step.description,
+                            "output_preview": output[:500],
+                        }
+                    )
         return findings
 
     def stats(self) -> dict[str, Any]:

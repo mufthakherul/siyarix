@@ -11,9 +11,11 @@ from xml.etree.ElementTree import ParseError as _ParseError
 
 try:
     import defusedxml.ElementTree as _ET
+
     _DEFUSEDXML = True
 except ImportError:
     import xml.etree.ElementTree as _ET
+
     _DEFUSEDXML = False
 
 
@@ -54,6 +56,7 @@ _PORT_SEVERITY: dict[int, str] = {
 
 def _severity_for_port(port: int) -> str:
     return _PORT_SEVERITY.get(port, "info")
+
 
 class NmapParser:
     """Parses nmap XML (preferred) or plain-text output into normalised finding dicts."""
@@ -104,9 +107,7 @@ class NmapParser:
                     service_version = f"{product} {version}".strip()
 
                 severity = _severity_for_port(port_num)
-                description = (
-                    f"Port {port_num}/{protocol} is open — service: {service_name}"
-                )
+                description = f"Port {port_num}/{protocol} is open — service: {service_name}"
                 if service_version:
                     description += f" ({service_version})"
 

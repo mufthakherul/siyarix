@@ -858,7 +858,7 @@ class OnboardingWizard:
         self._settings.set("ollama_url", ollama_url)
         self._settings.set("ollama_model", model_name)
         self._settings.set("_start_ollama_on_launch", True)
-        self._console.print("[dim]Ollama will be started automatically when needed.[/dim]"
+        self._console.print("[dim]Ollama will be started automatically when needed.[/dim]")
         self._console.print(f"[green]\u2713 Provider configured: Ollama / {model_name}[/green]")
 
     async def _setup_online_provider(self) -> None:

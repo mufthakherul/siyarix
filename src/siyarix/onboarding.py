@@ -1076,17 +1076,33 @@ class OnboardingWizard:
 
         self._console.print("\n[bold]Additional System Instructions[/bold]")
         self._console.print(
-            "[dim]You can add custom instructions that Siyarix will\n"
-            "follow in every session (e.g., preferred output format,\n"
-            "specific tools to prioritize). Leave blank to skip.[/dim]"
+            "[dim]These instructions are appended to the Siyarix system\n"
+            "prompt in every session. The default system message is:\n"
+            "[/dim]"
         )
-        extra = Prompt.ask("Additional instructions", default="")
+        from siyarix.chat.prompts import SIYARIX_SYSTEM_PROMPT
+        self._console.print(
+            Panel(
+                textwrap.shorten(SIYARIX_SYSTEM_PROMPT, width=60, placeholder="..."),
+                border_style="dim",
+                title="Default System Message",
+                title_align="left",
+            )
+        )
+        self._console.print(
+            "[dim]You can add custom instructions that extend or override\n"
+            "the defaults (e.g., preferred output format, specific tools\n"
+            "to prioritize). Leave blank to keep the defaults.[/dim]"
+        )
+        existing = self._settings.get("additional_system_message")
+        extra = Prompt.ask("Additional instructions", default=existing or "")
         if extra.strip():
             self._choices["additional_sysmsg"] = extra.strip()
             self._settings.set("additional_system_message", extra.strip())
             self._console.print("[green]\u2713 Custom instructions saved[/green]")
         else:
-            self._console.print("[dim]No additional instructions set.[/dim]")
+            self._settings.set("additional_system_message", "")
+            self._console.print("[dim]Using default Siyarix system message.[/dim]")
 
         self._pause()
 

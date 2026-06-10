@@ -21,6 +21,7 @@ from siyarix.config import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def store(tmp_path):
     cfg = tmp_path / "settings.toml"
@@ -30,6 +31,7 @@ def store(tmp_path):
 # ---------------------------------------------------------------------------
 # _try_load_toml
 # ---------------------------------------------------------------------------
+
 
 class TestTryLoadToml:
     def test_file_not_found(self, tmp_path):
@@ -43,6 +45,7 @@ class TestTryLoadToml:
 
     def test_tomli_fallback(self, tmp_path):
         import builtins
+
         orig_import = builtins.__import__
         fp = tmp_path / "test.toml"
         fp.write_text('greeting = "hello"\n')
@@ -58,6 +61,7 @@ class TestTryLoadToml:
 
     def test_fallback_parser(self, tmp_path):
         import builtins
+
         orig_import = builtins.__import__
         fp = tmp_path / "test.toml"
         fp.write_text('# comment\nkey = "value"\ncount = 42\nflag = true\nrate = 3.14\n')
@@ -76,6 +80,7 @@ class TestTryLoadToml:
 
     def test_fallback_parser_float(self, tmp_path):
         import builtins
+
         orig_import = builtins.__import__
         fp = tmp_path / "test.toml"
         fp.write_text("pi = 3.14\n")
@@ -100,6 +105,7 @@ class TestTryLoadToml:
 # _write_toml
 # ---------------------------------------------------------------------------
 
+
 class TestWriteToml:
     def test_writes_file(self, tmp_path):
         fp = tmp_path / "out.toml"
@@ -120,6 +126,7 @@ class TestWriteToml:
 # ---------------------------------------------------------------------------
 # SettingsStore
 # ---------------------------------------------------------------------------
+
 
 class TestSettingsStore:
     def test_init_applies_defaults(self, store):
@@ -189,24 +196,30 @@ class TestSettingsStore:
 
     def test_edit(self, store):
         store._path.write_text('key = "value"\n')
-        with patch("siyarix.config.safe_run_sync") as mock_safe, \
-             patch("siyarix.config.os.getenv", return_value="editor"):
+        with (
+            patch("siyarix.config.safe_run_sync") as mock_safe,
+            patch("siyarix.config.os.getenv", return_value="editor"),
+        ):
             store.edit()
             assert mock_safe.called
 
     def test_edit_safe_run_fails(self, store):
         store._path.write_text('key = "value"\n')
-        with patch("siyarix.config.safe_run_sync", side_effect=Exception("fail")), \
-             patch("siyarix.config.os.getenv", return_value="editor"), \
-             patch("subprocess.run") as mock_run:
+        with (
+            patch("siyarix.config.safe_run_sync", side_effect=Exception("fail")),
+            patch("siyarix.config.os.getenv", return_value="editor"),
+            patch("subprocess.run") as mock_run,
+        ):
             store.edit()
             assert mock_run.called
 
     def test_edit_both_fail(self, store):
         store._path.write_text('key = "value"\n')
-        with patch("siyarix.config.safe_run_sync", side_effect=Exception("fail1")), \
-             patch("subprocess.run", side_effect=Exception("fail2")), \
-             patch("siyarix.config.os.getenv", return_value="editor"):
+        with (
+            patch("siyarix.config.safe_run_sync", side_effect=Exception("fail1")),
+            patch("subprocess.run", side_effect=Exception("fail2")),
+            patch("siyarix.config.os.getenv", return_value="editor"),
+        ):
             store.edit()
             # Should not raise — catches all exceptions
 
@@ -245,6 +258,7 @@ class TestSettingsStore:
 # _coerce
 # ---------------------------------------------------------------------------
 
+
 class TestCoerce:
     def test_coerce_bool_true(self, store):
         assert store._coerce("tls_verify", "true") is True
@@ -271,6 +285,7 @@ class TestCoerce:
 # ---------------------------------------------------------------------------
 # SettingsStore persistence
 # ---------------------------------------------------------------------------
+
 
 class TestPersistence:
     def test_save_load_roundtrip(self, tmp_path):

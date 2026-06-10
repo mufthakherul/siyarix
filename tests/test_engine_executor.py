@@ -23,6 +23,7 @@ from siyarix.registry import ToolRegistry
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def make_step(
     step_id: str = "s1",
     tool: str = "nmap",
@@ -68,6 +69,7 @@ def make_async_executor(return_val: dict | None = None):
 # TestExecutorInit
 # ---------------------------------------------------------------------------
 
+
 class TestExecutorInit:
     def test_default_budget(self):
         ex = Executor()
@@ -107,6 +109,7 @@ class TestExecutorInit:
 # ---------------------------------------------------------------------------
 # TestExecutePlan
 # ---------------------------------------------------------------------------
+
 
 class TestExecutePlan:
     @pytest.mark.asyncio
@@ -244,6 +247,7 @@ class TestExecutePlan:
 # TestExecuteStep
 # ---------------------------------------------------------------------------
 
+
 class TestExecuteStep:
     @pytest.mark.asyncio
     async def test_success(self):
@@ -311,6 +315,7 @@ class TestExecuteStep:
 # TestBudget
 # ---------------------------------------------------------------------------
 
+
 class TestBudget:
     def test_iteration_limit(self):
         b = ExecutionBudget(max_iterations=3)
@@ -371,6 +376,7 @@ class TestBudget:
 # ---------------------------------------------------------------------------
 # TestGuardrails
 # ---------------------------------------------------------------------------
+
 
 class TestGuardrails:
     def test_exact_failure_blocks(self):
@@ -459,6 +465,7 @@ class TestGuardrails:
 # TestReset
 # ---------------------------------------------------------------------------
 
+
 class TestReset:
     def test_reset_clears_budget(self):
         ex = Executor()
@@ -490,6 +497,7 @@ class TestReset:
 # ---------------------------------------------------------------------------
 # TestStats
 # ---------------------------------------------------------------------------
+
 
 class TestStats:
     def test_stats_structure(self):
@@ -532,6 +540,7 @@ class TestStats:
 # ---------------------------------------------------------------------------
 # TestEventEmission
 # ---------------------------------------------------------------------------
+
 
 class TestEventEmission:
     @pytest.mark.asyncio
@@ -605,6 +614,7 @@ class TestEventEmission:
 # ---------------------------------------------------------------------------
 # TestExecutionBudgetDuration
 # ---------------------------------------------------------------------------
+
 
 class TestExecutionBudgetDuration:
     def test_duration_exhaustion(self):

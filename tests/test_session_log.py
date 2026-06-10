@@ -29,7 +29,12 @@ def sample_log():
         llm_model="gpt-4",
         user="testuser",
         commands=[
-            CommandEntry(id=1, timestamp="2024-01-01T00:00:01", input="nmap -sV target", output_summary="open ports found"),
+            CommandEntry(
+                id=1,
+                timestamp="2024-01-01T00:00:01",
+                input="nmap -sV target",
+                output_summary="open ports found",
+            ),
         ],
         tool_usage={"nmap": 1, "gobuster": 2},
         safety_events=[

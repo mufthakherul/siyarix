@@ -25,6 +25,7 @@ from siyarix.credential_store import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def store(tmp_path, monkeypatch):
     monkeypatch.setenv("SIYARIX_CONFIG_DIR", str(tmp_path / "siyarix"))
@@ -36,6 +37,7 @@ def store(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 # Initialization
 # ---------------------------------------------------------------------------
+
 
 class TestInit:
     def test_raises_without_cryptography(self):
@@ -55,15 +57,20 @@ class TestInit:
 # Credential dataclass
 # ---------------------------------------------------------------------------
 
+
 class TestCredential:
     def test_to_dict(self):
         now = datetime.now()
         cred = Credential(
-            cred_id="c1", name="test", cred_type="api_key",
-            environment="development", value_encrypted="enc",
+            cred_id="c1",
+            name="test",
+            cred_type="api_key",
+            environment="development",
+            value_encrypted="enc",
             created_at=now,
             expires_at=now + timedelta(days=1),
-            tags=["web"], shared_with=["user1"],
+            tags=["web"],
+            shared_with=["user1"],
         )
         d = cred.to_dict()
         assert d["cred_id"] == "c1"
@@ -75,8 +82,12 @@ class TestCredential:
     def test_to_dict_no_expiry(self):
         now = datetime.now()
         cred = Credential(
-            cred_id="c2", name="test2", cred_type="api_key",
-            environment="prod", value_encrypted="enc", created_at=now,
+            cred_id="c2",
+            name="test2",
+            cred_type="api_key",
+            environment="prod",
+            value_encrypted="enc",
+            created_at=now,
         )
         d = cred.to_dict()
         assert d["expires_at"] is None
@@ -85,6 +96,7 @@ class TestCredential:
 # ---------------------------------------------------------------------------
 # store / get / get_by_name / delete / rotate
 # ---------------------------------------------------------------------------
+
 
 class TestStoreGetDelete:
     def test_store_and_get_by_name(self, store):
@@ -101,9 +113,14 @@ class TestStoreGetDelete:
         assert store.get_statistics()["total_credentials"] == 1
 
     def test_store_with_env_and_tags(self, store):
-        store.store(name="staging_key", value="staging_val",
-                     cred_type="api_key", environment="staging",
-                     expires_in_days=30, tags=["staging", "web"])
+        store.store(
+            name="staging_key",
+            value="staging_val",
+            cred_type="api_key",
+            environment="staging",
+            expires_in_days=30,
+            tags=["staging", "web"],
+        )
         creds = store.list_credentials(environment="staging")
         assert len(creds) == 1
 
@@ -153,8 +170,11 @@ class TestStoreGetDelete:
     def test_get_expired_credential(self, store):
         expired_id = "expired_1"
         store._credentials[expired_id] = Credential(
-            cred_id=expired_id, name="expired", cred_type="api_key",
-            environment="dev", value_encrypted=store._encrypt("old_value"),
+            cred_id=expired_id,
+            name="expired",
+            cred_type="api_key",
+            environment="dev",
+            value_encrypted=store._encrypt("old_value"),
             created_at=datetime.now() - timedelta(days=400),
             expires_at=datetime.now() - timedelta(days=1),
         )
@@ -165,6 +185,7 @@ class TestStoreGetDelete:
 # ---------------------------------------------------------------------------
 # list_credentials
 # ---------------------------------------------------------------------------
+
 
 class TestListCredentials:
     def test_list_all(self, store):
@@ -191,6 +212,7 @@ class TestListCredentials:
 # share / check_expiring
 # ---------------------------------------------------------------------------
 
+
 class TestShareAndExpiring:
     def test_share(self, store):
         _c = store.store(name="shared_key", value="shared_val")
@@ -213,8 +235,11 @@ class TestShareAndExpiring:
         store.store(name="valid", value="val", expires_in_days=365)
         expired_id = "exp_cred"
         store._credentials[expired_id] = Credential(
-            cred_id=expired_id, name="expiring", cred_type="api_key",
-            environment="dev", value_encrypted=store._encrypt("val"),
+            cred_id=expired_id,
+            name="expiring",
+            cred_type="api_key",
+            environment="dev",
+            value_encrypted=store._encrypt("val"),
             created_at=datetime.now() - timedelta(days=360),
             expires_at=datetime.now() + timedelta(days=3),
         )
@@ -226,6 +251,7 @@ class TestShareAndExpiring:
 # ---------------------------------------------------------------------------
 # get_statistics
 # ---------------------------------------------------------------------------
+
 
 class TestGetStatistics:
     def test_statistics(self, store):
@@ -242,6 +268,7 @@ class TestGetStatistics:
 # ---------------------------------------------------------------------------
 # export / import
 # ---------------------------------------------------------------------------
+
 
 class TestExportImport:
     def test_export_import(self, store, tmp_path):
@@ -272,6 +299,7 @@ class TestExportImport:
 # migrate_legacy_config
 # ---------------------------------------------------------------------------
 
+
 class TestMigrateLegacyConfig:
     def test_migrate_nonexistent(self, store, tmp_path):
         assert store.migrate_legacy_config(tmp_path / "nope.json") is False
@@ -288,6 +316,7 @@ class TestMigrateLegacyConfig:
 # ---------------------------------------------------------------------------
 # migrate_to_aesgcm / rotate_key
 # ---------------------------------------------------------------------------
+
 
 class TestMigration:
     def test_migrate_to_aesgcm_no_aesgcm(self, store):
@@ -323,6 +352,7 @@ class TestMigration:
 # retrieve (alias)
 # ---------------------------------------------------------------------------
 
+
 class TestRetrieve:
     def test_retrieve(self, store):
         store.store(name="alias_test", value="alias_val")
@@ -336,6 +366,7 @@ class TestRetrieve:
 # ---------------------------------------------------------------------------
 # Convenience functions
 # ---------------------------------------------------------------------------
+
 
 class TestConvenienceFunctions:
     def test_get_creds(self, tmp_path, monkeypatch):
@@ -363,6 +394,7 @@ class TestConvenienceFunctions:
 # _kms_available
 # ---------------------------------------------------------------------------
 
+
 class TestKMS:
     def test_kms_not_configured(self, store):
         assert store._kms_available() is False
@@ -381,6 +413,7 @@ class TestKMS:
 # ---------------------------------------------------------------------------
 # Encryption internals
 # ---------------------------------------------------------------------------
+
 
 class TestEncryptionInternals:
     def test_encrypt_decrypt_roundtrip(self, store):
@@ -407,6 +440,7 @@ class TestEncryptionInternals:
 # _normalize_fernet_key
 # ---------------------------------------------------------------------------
 
+
 class TestNormalizeKey:
     def test_normalize_raw_32_bytes(self):
         key = CredentialStore._normalize_fernet_key(b"k" * 32)
@@ -414,6 +448,7 @@ class TestNormalizeKey:
 
     def test_normalize_already_encoded(self):
         import base64
+
         encoded = base64.urlsafe_b64encode(b"k" * 32)
         key = CredentialStore._normalize_fernet_key(encoded)
         assert key == encoded

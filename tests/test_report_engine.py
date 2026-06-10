@@ -9,8 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from siyarix.report_engine import (Report, ReportConfig, ReportEngine,
-                                   ReportFormat)
+from siyarix.report_engine import Report, ReportConfig, ReportEngine, ReportFormat
 
 pytestmark = pytest.mark.report
 

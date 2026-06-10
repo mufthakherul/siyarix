@@ -150,6 +150,3 @@ class TestSettingsStore:
         s1.set("default_parallel", "7")
         s2 = SettingsStore(path=path)
         assert s2.get("default_parallel") == 7
-
-
-

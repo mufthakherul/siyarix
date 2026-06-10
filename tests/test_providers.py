@@ -23,6 +23,7 @@ def test_provider_select():
 def test_provider_classify_error():
     pm = ProviderManager()
     from siyarix.providers import FailoverReason
+
     err = Exception("429 rate limit exceeded")
     result = pm.classify_error("openai", err)
     assert result.reason == FailoverReason.RATE_LIMIT

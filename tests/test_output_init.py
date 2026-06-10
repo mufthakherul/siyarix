@@ -25,6 +25,7 @@ from siyarix.output import (
 # OutputEngine — initialization & theme
 # ---------------------------------------------------------------------------
 
+
 class TestEngineInit:
     def test_default_theme(self):
         engine = OutputEngine()
@@ -43,6 +44,7 @@ class TestEngineInit:
 # ---------------------------------------------------------------------------
 # OutputEngine — print methods
 # ---------------------------------------------------------------------------
+
 
 class TestEnginePrint:
     def test_print_banner_no_rich(self):
@@ -173,6 +175,7 @@ class TestEnginePrint:
 # OutputEngine — prompts
 # ---------------------------------------------------------------------------
 
+
 class TestEnginePrompts:
     def test_prompt_confirm_rich(self):
         engine = OutputEngine()
@@ -219,6 +222,7 @@ class TestEnginePrompts:
 # ---------------------------------------------------------------------------
 # OutputEngine — export methods
 # ---------------------------------------------------------------------------
+
 
 class TestEngineExport:
     def test_export_html(self):
@@ -339,6 +343,7 @@ class TestRawPrint:
 # OutputFormatter
 # ---------------------------------------------------------------------------
 
+
 class TestOutputFormatter:
     def test_init(self):
         f = OutputFormatter(fmt="json", no_color=True, verbose=2)
@@ -400,6 +405,7 @@ class TestOutputFormatter:
 # Module-level functions
 # ---------------------------------------------------------------------------
 
+
 class TestModuleFunctions:
     def test_get_formatter(self):
         f = get_formatter("json")
@@ -408,13 +414,15 @@ class TestModuleFunctions:
 
     def test_set_formatter_string(self):
         import sys
-        _out_mod = sys.modules['siyarix.output']
+
+        _out_mod = sys.modules["siyarix.output"]
         set_formatter("json", no_color=True, verbose=1)
         assert _out_mod.output.format == OutputFormat.JSON
 
     def test_set_formatter_object(self):
         import sys
-        _out_mod = sys.modules['siyarix.output']
+
+        _out_mod = sys.modules["siyarix.output"]
         f = OutputFormatter(fmt="yaml")
         set_formatter(f, no_color=True)
         assert _out_mod.output.format == OutputFormat.YAML

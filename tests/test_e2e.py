@@ -31,7 +31,11 @@ def test_cli_scan_dry_run() -> None:
     )
 
     assert result.exit_code == 0
-    assert "dry run" in result.output.lower() or "plan" in result.output.lower() or "target" in result.output.lower()
+    assert (
+        "dry run" in result.output.lower()
+        or "plan" in result.output.lower()
+        or "target" in result.output.lower()
+    )
 
 
 def test_cli_run_conditional_workflow() -> None:
@@ -101,7 +105,5 @@ async def test_live_tool_fallback_recovery() -> None:
 
     adapted = planner.adapt_plan(plan, failed_step, "Host seems down. If it is really up, try -Pn")
 
-    has_pn_retry = any(
-        "-Pn" in str(s.args) for s in adapted.steps if s.id != "step_nmap"
-    )
+    has_pn_retry = any("-Pn" in str(s.args) for s in adapted.steps if s.id != "step_nmap")
     assert has_pn_retry or adapted.steps[0].retry_count > 0

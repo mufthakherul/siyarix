@@ -74,7 +74,7 @@ _SIYARIX_LOGO = """
 _ONLINE_PROVIDERS = [
     ("openai", "OpenAI", "GPT-5 series, o-series"),
     ("anthropic", "Anthropic", "Claude Opus/Sonnet/Haiku"),
-    ("gemini", "Google Gemini", "Gemini 2.0/2.5/3.0/3.1/3.5 series"),
+    ("gemini", "Google Gemini", "Gemini 2.0/2.5/2.5-Lite/3.0/3.1/3.1-Lite/3.5 series"),
     ("groq", "Groq", "Llama, Mixtral \u2014 fast inference"),
     ("together", "Together AI", "Llama, DeepSeek, open models"),
     ("openrouter", "OpenRouter", "Unified API for 200+ models"),

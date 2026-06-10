@@ -509,7 +509,164 @@ app.add_typer(security_app, name="security")
 # ---------------------------------------------------------------------------
 
 auth_app = typer.Typer(help="🔑 Authentication & API keys")
+vault_app = typer.Typer(help="🔐 Encrypted credential vault management")
+
+
+@vault_app.command("status")
+def vault_status() -> None:
+    """Show vault status, binding info, and health."""
+    try:
+        from ..credential_vault import CredentialVault, get_vault
+        vault = get_vault(create=False)
+        s = vault.status
+        from rich.table import Table
+        t = Table(title="Vault Status", header_style="bold cyan")
+        t.add_column("Property", style="yellow")
+        t.add_column("Value")
+        t.add_row("State", "🔴 Sealed" if s.sealed else "🟢 Unsealed")
+        t.add_row("Device Bound", "✓ Yes" if s.device_bound else "✗ No")
+        t.add_row("Environment Bound", "✓ Yes" if s.environment_bound else "✗ No")
+        t.add_row("Device Match", "✓ Match" if s.device_match else ("✗ Mismatch" if s.device_match is False else "—"))
+        t.add_row("Env Match", "✓ Match" if s.env_match else ("✗ Mismatch" if s.env_match is False else "—"))
+        t.add_row("Tampered", "⚠ Yes" if s.tampered else "✓ No")
+        t.add_row("Credentials", str(s.credential_count))
+        t.add_row("Expired", str(s.expired_entries))
+        t.add_row("PBKDF2 Iterations", f"{s.iterations:,}")
+        t.add_row("Lockout", f"⚠ Active ({s.lockout_remaining_sec}s)" if s.lockout_active else "✓ None")
+        t.add_row("Health", {"healthy": "🟢 Healthy", "degraded": "🟡 Degraded", "unhealthy": "🔴 Unhealthy"}.get(s.health, s.health))
+        console.print(t)
+        if s.warnings:
+            for w in s.warnings:
+                console.print(f"[yellow]⚠ {w}[/yellow]")
+    except FileNotFoundError:
+        console.print("[yellow]No vault found. Create one with: siyarix auth set-key[/yellow]")
+    except Exception as exc:
+        console.print(f"[red]Vault error: {exc}[/red]")
+
+
+@vault_app.command("seal")
+def vault_seal() -> None:
+    """Seal the vault (clear all credentials from memory)."""
+    try:
+        from ..credential_vault import get_vault
+        get_vault(create=False).seal()
+        console.print("[green]✓ Vault sealed — credentials cleared from memory[/green]")
+    except Exception as exc:
+        console.print(f"[red]Failed: {exc}[/red]")
+
+
+@vault_app.command("unseal")
+def vault_unseal(
+    passphrase: str = typer.Option("", "--passphrase", "-p", help="Vault passphrase", hide_input=True),
+) -> None:
+    """Unseal the vault for credential access."""
+    try:
+        from ..credential_vault import get_vault
+        v = get_vault(create=False)
+        s = v.unseal(passphrase or None)
+        console.print(f"[green]✓ Vault unsealed — {s.credential_count} credentials available[/green]")
+    except Exception as exc:
+        console.print(f"[red]Failed: {exc}[/red]")
+
+
+@vault_app.command("backup")
+def vault_backup(
+    output: str = typer.Option("", "--output", "-o", help="Output file path"),
+    passphrase: str = typer.Option(
+        ..., "--passphrase", "-p", help="Backup passphrase (12+ chars, mixed case+digit+symbol)",
+        hide_input=True, prompt=True, confirmation_prompt=True,
+    ),
+) -> None:
+    """Export an encrypted disaster-recovery backup (no device binding)."""
+    try:
+        from ..credential_vault import get_vault
+        vault = get_vault(create=False)
+        blob = vault.export_backup(passphrase)
+        path = Path(output or Path.home() / ".siyarix" / f"vault_backup_{datetime.now():%Y%m%d}.bin")
+        path.write_bytes(blob)
+        console.print(f"[green]✓ Backup saved to {path}[/green]")
+        console.print("[yellow]⚠ This backup uses PASSPHRASE ONLY — no device binding.[/yellow]")
+        console.print("[yellow]  Store it securely. Anyone with this file + passphrase can decrypt.[/yellow]")
+    except Exception as exc:
+        console.print(f"[red]Backup failed: {exc}[/red]")
+
+
+@vault_app.command("restore")
+def vault_restore(
+    input_file: str = typer.Argument(..., help="Backup file path"),
+    passphrase: str = typer.Option(
+        ..., "--passphrase", "-p", help="Backup passphrase",
+        hide_input=True, prompt=True,
+    ),
+) -> None:
+    """Restore vault from a disaster-recovery backup (re-binds to this device)."""
+    try:
+        from ..credential_vault import CredentialVault
+        path = Path(input_file)
+        if not path.exists():
+            console.print(f"[red]File not found: {input_file}[/red]")
+            raise typer.Exit(1)
+        blob = path.read_bytes()
+        vault = CredentialVault.import_backup(blob, passphrase)
+        keys = vault.list_keys()
+        console.print(f"[green]✓ Restored {len(keys)} credentials from backup[/green]")
+        console.print("[yellow]⚠ Vault is now re-bound to THIS device + environment[/yellow]")
+    except Exception as exc:
+        console.print(f"[red]Restore failed: {exc}[/red]")
+
+
+@vault_app.command("verify")
+def vault_verify() -> None:
+    """Run a full health check on the vault."""
+    try:
+        from ..credential_vault import get_vault
+        vault = get_vault(create=False)
+        health = vault.health_check()
+        status_icon = {"healthy": "🟢", "degraded": "🟡", "unhealthy": "🔴"}
+        console.print(f"Health: {status_icon.get(health.state, '❓')} {health.state.upper()}")
+        if health.warnings:
+            for w in health.warnings:
+                console.print(f"[yellow]⚠ {w}[/yellow]")
+        if health.state == "healthy":
+            console.print("[green]✓ All checks passed[/green]")
+    except FileNotFoundError:
+        console.print("[yellow]No vault found[/yellow]")
+    except Exception as exc:
+        console.print(f"[red]Verification failed: {exc}[/red]")
+
+
+@vault_app.command("history")
+def vault_history(
+    limit: int = typer.Option(20, "--limit", "-n", help="Number of audit entries"),
+) -> None:
+    """Show recent vault audit log."""
+    try:
+        from ..credential_vault import get_vault
+        vault = get_vault(create=False)
+        entries = vault.audit_log(limit)
+        if not entries:
+            console.print("[yellow]No audit entries[/yellow]")
+            return
+        from rich.table import Table
+        t = Table(title=f"Vault Audit Log (last {len(entries)})", header_style="bold cyan")
+        t.add_column("Time", style="dim")
+        t.add_column("Operation")
+        t.add_column("Provider")
+        t.add_column("Outcome")
+        t.add_column("Detail")
+        for e in entries:
+            t.add_row(
+                e.get("timestamp", "")[11:19],
+                e.get("operation", ""),
+                e.get("provider", ""),
+                {"success": "🟢", "denied": "🔴", "error": "🟡", "info": "🔵"}.get(e.get("outcome", ""), e.get("outcome", "")),
+                e.get("detail", ""),
+            )
+        console.print(t)
+    except Exception as exc:
+        console.print(f"[red]Failed: {exc}[/red]")
 app.add_typer(auth_app, name="auth")
+app.add_typer(vault_app, name="vault")
 
 profile_app = typer.Typer(help="👤 Profile & workspace management")
 app.add_typer(profile_app, name="profile")

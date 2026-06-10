@@ -97,6 +97,9 @@ class ToolCallTracker:
         self._no_progress_count = 0
 
 
+StepCallback = Callable[[PlanStep], None]
+
+
 class Executor:
     def __init__(self, registry: ToolRegistry | None = None, max_workers: int = 10) -> None:
         self._registry = registry
@@ -105,6 +108,10 @@ class Executor:
         self._custom_executors: dict[str, StepExecutor] = {}
         self._event_bus = get_event_bus()
         self._pool = AsyncWorkerPool(max_workers=max_workers)
+        self._on_step_progress: StepCallback | None = None
+
+    def set_progress_callback(self, cb: StepCallback | None) -> None:
+        self._on_step_progress = cb
 
     @property
     def budget(self) -> ExecutionBudget:
@@ -132,11 +139,19 @@ class Executor:
                 else:
                     break
                 break
-            if plan.plan_type.value in ("parallel", "dag"):
+            # Auto-parallel: run independent steps concurrently
+            can_parallel = plan.plan_type.value in ("parallel", "dag") or (
+                plan.plan_type.value == "sequential" and len(ready_steps) > 1
+                and all(not s.dependencies for s in ready_steps)
+            )
+            if can_parallel:
                 tasks = [self._pool.submit(self._execute_step, s, executor_fn) for s in ready_steps]
                 await asyncio.gather(*tasks, return_exceptions=True)
             else:
-                await self._execute_step(ready_steps[0], executor_fn)
+                for s in ready_steps:
+                    await self._execute_step(s, executor_fn)
+                    if self._budget.is_exhausted:
+                        break
         plan.status = PlanStatus.COMPLETED if not plan.has_failures else PlanStatus.FAILED
         await self._event_bus.emit(Event(type=EventType.PLAN_COMPLETE, source="executor",
             data={"plan_id": plan.id, "status": plan.status.value, "progress": plan.progress_pct}))
@@ -148,23 +163,11 @@ class Executor:
         step.status = StepStatus.RUNNING
         await self._event_bus.emit(Event(type=EventType.PLAN_STEP_START, source="executor",
             data={"step_id": step.id, "tool": step.tool}))
+        if self._on_step_progress:
+            self._on_step_progress(step)
         start = time.time()
         try:
-            if executor_fn:
-                result = await executor_fn(step)
-            elif step.tool in self._custom_executors:
-                result = await self._custom_executors[step.tool](step)
-            elif self._registry and step.tool:
-                if not self._budget.consume_tool_call():
-                    result = {"status": "error", "error": "Tool call budget exhausted"}
-                else:
-                    guardrail = self._tracker.record(step.tool, str(sorted(step.args.items())), True)
-                    if guardrail and "BLOCKED" in guardrail:
-                        result = {"status": "error", "error": guardrail}
-                    else:
-                        result = await self._registry.execute(step.tool, **step.args)
-            else:
-                result = {"status": "error", "error": f"No executor for: {step.tool}"}
+            result = await self._try_execute(step, executor_fn)
             step.duration_ms = (time.time() - start) * 1000
             step.result = result
             if result.get("status") == "error":
@@ -184,6 +187,37 @@ class Executor:
             step.status = StepStatus.FAILED
             step.result = {"status": "error", "error": str(e)}
             self._tracker.record(step.tool, str(sorted(step.args.items())), False)
+        if self._on_step_progress:
+            self._on_step_progress(step)
+
+    async def _try_execute(self, step: PlanStep, executor_fn: StepExecutor | None) -> dict[str, Any]:
+        from .planner import TOOL_ALTERNATIVES
+        if executor_fn:
+            return await executor_fn(step)
+        if step.tool in self._custom_executors:
+            return await self._custom_executors[step.tool](step)
+        if self._registry and step.tool:
+            if not self._budget.consume_tool_call():
+                return {"status": "error", "error": "Tool call budget exhausted"}
+            guardrail = self._tracker.record(step.tool, str(sorted(step.args.items())), True)
+            if guardrail and "BLOCKED" in guardrail:
+                return {"status": "error", "error": guardrail}
+            result = await self._registry.execute(step.tool, **step.args)
+            if result.get("status") == "error":
+                alt_tools = TOOL_ALTERNATIVES.get(step.tool, [])
+                for alt in alt_tools:
+                    if alt in self._custom_executors or (
+                        self._registry and self._registry.get_tool(alt)
+                    ):
+                        guardrail = self._tracker.record(alt, str(sorted(step.args.items())), True)
+                        if guardrail and "BLOCKED" in guardrail:
+                            continue
+                        alt_result = await self._registry.execute(alt, **step.args)
+                        if alt_result.get("status") != "error":
+                            step.tool = alt
+                            return alt_result
+            return result
+        return {"status": "error", "error": f"No executor for: {step.tool}"}
 
     def reset(self) -> None:
         self._budget = ExecutionBudget()

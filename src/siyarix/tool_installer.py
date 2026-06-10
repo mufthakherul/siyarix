@@ -358,18 +358,23 @@ class ToolInstaller:
     def is_installed(self, tool: str) -> bool:
         return shutil.which(tool) is not None
 
+    @staticmethod
+    def _needs_sudo() -> bool:
+        return os.name != "nt" and os.geteuid() != 0
+
     def _ensure_apt_updated(self) -> None:
         if self._apt_updated or self._package_manager not in ("apt", "apt-get"):
             return
+        cmd = ["sudo"] + ["apt-get", "update", "-qq"] if self._needs_sudo() else ["apt-get", "update", "-qq"]
         try:
             subprocess.run(
-                ["apt-get", "update", "-qq"],
+                cmd,
                 capture_output=True,
                 text=True,
                 timeout=120,
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("apt-get update failed: %s", exc)
         self._apt_updated = True
 
     def check_many(self, tools: list[str]) -> dict[str, bool]:
@@ -472,6 +477,8 @@ class ToolInstaller:
 
             if method in ("apt", "apt-get"):
                 self._ensure_apt_updated()
+                if self._needs_sudo():
+                    cmd = ["sudo"] + cmd
 
             logger.info("Installing %s via %s: %s", tool, method, " ".join(cmd))
             result.method = method

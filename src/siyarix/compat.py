@@ -221,6 +221,10 @@ class ExecutionEngine:
     async def run(self, goal: str, **kwargs: Any) -> EngineResult:
         return await self.execute(goal)
 
+    async def resume(self, plan_id: str, interactive: bool = False) -> EngineResult:
+        """Resume execution of a previously saved plan."""
+        return await self.execute(f"Resume plan: {plan_id}")
+
 
 class IntentRoute:
     def __init__(self, mode: str = "general", risk_tier: Any = None, requires_confirmation: bool = False) -> None:

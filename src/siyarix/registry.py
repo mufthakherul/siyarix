@@ -230,6 +230,25 @@ class ToolRegistry:
         self._loaded = True
         return count
 
+    def update_metadata(self, output_path: Path) -> int:
+        """Scan PATH and write tool metadata to a JSON file, returning the count."""
+        self.discover_from_path()
+        self.scan_path()
+        tools = self.list_tools()
+        data: dict[str, Any] = {}
+        for t in tools:
+            data[t.name] = {
+                "name": t.name,
+                "description": t.description,
+                "category": t.category.value if hasattr(t.category, 'value') else str(t.category),
+                "risk_level": t.risk_level.value if hasattr(t.risk_level, 'value') else str(t.risk_level),
+                "binary": t.binary,
+                "installed": t.installed,
+                "tags": t.tags,
+            }
+        output_path.write_text(json.dumps(data, indent=2))
+        return len(tools)
+
     def register_handler(self, name: str, handler: ToolHandler) -> None:
         """Register (or override) a handler for a given tool."""
         self._handlers[name] = handler

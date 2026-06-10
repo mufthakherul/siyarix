@@ -561,6 +561,9 @@ class SiyarixChat:
         self._esc_press_time = 0.0
         self._esc_window = 2.0
         self._disabled_providers: set[str] = set()
+        self._provider_failure_counts: dict[str, int] = {}
+        self._provider_last_fail_time: dict[str, float] = {}
+        self._provider_cooldown_secs = 30.0
 
     def _init_session(
         self, session_id: str | None, target: str, resume: bool
@@ -1507,8 +1510,8 @@ class SiyarixChat:
             return
         await self._execute_instruction(args)
 
-    def _cmd_model(self, args: str) -> None:
-        from .providers import ProviderManager
+    async def _cmd_model(self, args: str) -> None:
+        from .providers import ProviderManager, CostTier
         tokens = args.split(maxsplit=1) if args else []
         pm = ProviderManager()
         all_providers = pm.list_providers()
@@ -1518,6 +1521,7 @@ class SiyarixChat:
             valid_providers = set(all_providers) | {"auto", "cloud", "custom", "opencode"}
             if selected in valid_providers:
                 self._settings.set("model_provider", selected)
+                model_name = ""
                 if len(tokens) > 1 and selected != "auto":
                     model_name = tokens[1].strip()
                     model_key = f"{selected}_model"
@@ -1527,6 +1531,36 @@ class SiyarixChat:
                     except KeyError:
                         console.print(f"[green]✓ Provider set to {selected} (model name ignored for this provider)[/green]")
                 console.print(f"[green]✓ Model provider set to: {selected}[/green]")
+
+                # ── Benchmark: quick validation call ──
+                if selected != "auto" and selected in all_providers:
+                    profile = pm.get_profile(selected)
+                    env_var = profile.api_key_env if profile else ""
+                    key = os.environ.get(env_var) if env_var else ""
+                    if selected == "gemini" and not key:
+                        key = os.environ.get("GOOGLE_API_KEY", "")
+                    if key or not env_var:
+                        with console.status(f"[dim]Validating {selected}...[/dim]", spinner="point"):
+                            try:
+                                import asyncio
+                                bench_fn = self._make_llm_call(selected, key or "")
+                                bench_key = f"{selected}_model"
+                                bench_model = self._settings.get(bench_key) or ""
+                                if not bench_model and profile:
+                                    bench_model = profile.default_model
+                                result = await asyncio.wait_for(
+                                    bench_fn("Respond with exactly: OK", "ping"),
+                                    timeout=15.0,
+                                )
+                                content = result.get("content", "").strip()
+                                if content == "OK":
+                                    console.print(f"[green]  ✓ {selected} responded correctly ({result.get('model', bench_model)})[/green]")
+                                else:
+                                    console.print(f"[yellow]  ⚠ {selected} responded but unexpected: {content[:50]}[/yellow]")
+                            except asyncio.TimeoutError:
+                                console.print(f"[red]  ✗ {selected} timed out after 15s[/red]")
+                            except Exception as exc:
+                                console.print(f"[red]  ✗ {selected} validation failed: {exc}[/red]")
             else:
                 valid_list = " | ".join(sorted(valid_providers))
                 console.print(f"[yellow]Usage: /model <{'|'.join(valid_providers)}> [model-name][/yellow]")
@@ -1534,12 +1568,15 @@ class SiyarixChat:
 
         lines = [f"[bold]Preferred:[/bold] {self._settings.get('model_provider')}\n"]
         for prov_name in all_providers:
-            env_var = pm.get_profile(prov_name).api_key_env if pm.get_profile(prov_name) else ""
+            profile = pm.get_profile(prov_name)
+            if not profile:
+                continue
+            env_var = profile.api_key_env or ""
             key = os.environ.get(env_var, "") if env_var else ""
-            model_setting = self._settings.get(f"{prov_name}_model") or pm.get_profile(prov_name).default_model if pm.get_profile(prov_name) else ""
+            model_setting = self._settings.get(f"{prov_name}_model") or profile.default_model or ""
             status = "✓ Configured" if key else ("✗ Not set" if env_var else "Available")
-            model_str = model_setting if model_setting else ""
-            lines.append(f"[bold]{pm.get_profile(prov_name).display_name if pm.get_profile(prov_name) else prov_name}:[/bold] {status} ({model_str})\n")
+            cost_label = f"[dim]${profile.cost_tier.value}[/dim]" if profile.cost_tier else ""
+            lines.append(f"[bold]{profile.display_name}:[/bold] {status} ({model_setting}) {cost_label}\n")
 
         lines.append(f"[bold]Cloud:[/bold]  Requires SIYARIX_SERVER_URL + SIYARIX_API_KEY\n")
         lines.append(f"[bold]Custom:[/bold]  Requires CUSTOM_API_KEY\n")
@@ -2539,9 +2576,14 @@ class SiyarixChat:
             plan = await engine.plan(instruction)
 
         if not plan.steps:
-            response = self._generate_text_response(instruction)
+            # Try streaming for direct responses
+            prov_name, api_key = self._resolve_provider()
+            if prov_name and api_key:
+                sys_prompt = self._build_system_prompt()
+                response = await self._stream_assistant_response(sys_prompt, instruction, prov_name, api_key)
+            else:
+                response = self._generate_text_response(instruction)
             if response:
-                self._print_assistant(response)
                 self._session.add_message("assistant", response)
             return
 
@@ -2775,15 +2817,18 @@ class SiyarixChat:
                 if "429" in msg or "rate_limit" in msg.lower() or "quota" in msg.lower():
                     icon = "⚠"
                     msg = f"{icon} LLM rate limit reached"
-                    self._disabled_providers.add(provider_name)
                 elif "401" in msg or "unauthorized" in msg.lower() or "invalid" in msg.lower():
                     icon = "⚠"
                     msg = f"{icon} LLM authentication failed"
-                    self._disabled_providers.add(provider_name)
                 else:
                     icon = "⚠"
                     msg = f"{icon} LLM unavailable ({type(exc).__name__}: {exc})"
-                    self._disabled_providers.add(provider_name)
+
+            # Track failure count and disable with cooldown
+            self._provider_failure_counts[provider_name] = self._provider_failure_counts.get(provider_name, 0) + 1
+            import time
+            self._provider_last_fail_time[provider_name] = time.time()
+            self._disabled_providers.add(provider_name)
 
             console.print(f"[yellow]{msg}[/yellow]")
 
@@ -2832,10 +2877,14 @@ class SiyarixChat:
 
         # ── No tools needed ──────────────────────────────────────────────
         if not llm_plan.steps:
-            greeting = self._generate_text_response(instruction)
-            response = greeting or llm_reasoning or "I understood your request but no tools were needed."
+            if llm_connected and llm_call_fn:
+                sys_prompt = self._build_system_prompt()
+                response = await self._stream_assistant_response(sys_prompt, instruction, provider_name, api_key)
+            else:
+                greeting = self._generate_text_response(instruction)
+                response = greeting or llm_reasoning or "I understood your request but no tools were needed."
+                self._print_assistant(response)
             self._session.add_message("assistant", response)
-            self._print_assistant(response)
             duration = time.time() - total_start
             persona_name = self._settings.get("persona") or "auto"
             console.print(
@@ -3037,9 +3086,11 @@ class SiyarixChat:
         return True
 
     def _make_llm_call(self, provider_name: str, api_key: str):
-        """Return an async callable ``(system, user) → dict`` with response metadata.
+        """Return an async callable ``(system, user, *, stream=False) → dict | AsyncGenerator``.
 
         Supports all 13 registered providers via native SDK or OpenAI-compatible API.
+        When ``stream=True``, call with ``await fn(system, user, stream=True)`` which returns
+        an async generator yielding content tokens.
         """
         model = ""
         result: dict = {}
@@ -3082,15 +3133,29 @@ class SiyarixChat:
                 client_kwargs["base_url"] = base_url
             client = AsyncOpenAI(**client_kwargs)
 
-            async def call_openai(system_prompt: str, user_prompt: str) -> dict:
+            async def call_openai(system_prompt: str, user_prompt: str, *, stream: bool = False):
+                if stream:
+                    async def _gen():
+                        response = await client.chat.completions.create(
+                            model=model,
+                            messages=[
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": user_prompt},
+                            ],
+                            max_tokens=2000, temperature=0.3, stream=True,
+                        )
+                        async for chunk in response:
+                            delta = chunk.choices[0].delta if chunk.choices else None
+                            if delta and delta.content:
+                                yield delta.content
+                    return _gen()
                 response = await client.chat.completions.create(
                     model=model,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
-                    max_tokens=2000,
-                    temperature=0.3,
+                    max_tokens=2000, temperature=0.3,
                 )
                 choice = response.choices[0]
                 usage = response.usage
@@ -3113,13 +3178,21 @@ class SiyarixChat:
             client = AsyncAnthropic(api_key=api_key)
             model = self._settings.get("anthropic_model") or "claude-sonnet-4-20250514"
 
-            async def call_anthropic(system_prompt: str, user_prompt: str) -> dict:
+            async def call_anthropic(system_prompt: str, user_prompt: str, *, stream: bool = False):
+                if stream:
+                    async def _gen():
+                        async with client.messages.stream(
+                            model=model, system=system_prompt,
+                            messages=[{"role": "user", "content": user_prompt}],
+                            max_tokens=2000, temperature=0.3,
+                        ) as stream_ctx:
+                            async for text in stream_ctx.text_stream:
+                                yield text
+                    return _gen()
                 msg = await client.messages.create(
-                    model=model,
-                    system=system_prompt,
+                    model=model, system=system_prompt,
                     messages=[{"role": "user", "content": user_prompt}],
-                    max_tokens=2000,
-                    temperature=0.3,
+                    max_tokens=2000, temperature=0.3,
                 )
                 return {
                     "content": msg.content[0].text if msg.content else "",
@@ -3130,24 +3203,29 @@ class SiyarixChat:
 
             result = call_anthropic
 
-        # ── Groq (native SDK via openai-compatible) ─────────────────────
+        # ── Groq (openai-compatible) ────────────────────────────────────
         elif provider_name == "groq":
             from openai import AsyncOpenAI
-            client = AsyncOpenAI(
-                api_key=api_key,
-                base_url="https://api.groq.com/openai/v1",
-            )
+            client = AsyncOpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
             model = self._settings.get("groq_model") or "llama-4-scout-17b-16e-instruct"
 
-            async def call_groq(system_prompt: str, user_prompt: str) -> dict:
+            async def call_groq(system_prompt: str, user_prompt: str, *, stream: bool = False):
+                if stream:
+                    async def _gen():
+                        response = await client.chat.completions.create(
+                            model=model,
+                            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                            max_tokens=2000, temperature=0.3, stream=True,
+                        )
+                        async for chunk in response:
+                            delta = chunk.choices[0].delta if chunk.choices else None
+                            if delta and delta.content:
+                                yield delta.content
+                    return _gen()
                 response = await client.chat.completions.create(
                     model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    max_tokens=2000,
-                    temperature=0.3,
+                    messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                    max_tokens=2000, temperature=0.3,
                 )
                 choice = response.choices[0]
                 usage = response.usage
@@ -3163,21 +3241,26 @@ class SiyarixChat:
         # ── Together AI (openai-compatible) ────────────────────────────
         elif provider_name == "together":
             from openai import AsyncOpenAI
-            client = AsyncOpenAI(
-                api_key=api_key,
-                base_url="https://api.together.xyz/v1",
-            )
+            client = AsyncOpenAI(api_key=api_key, base_url="https://api.together.xyz/v1")
             model = self._settings.get("together_model") or "meta-llama/Llama-4-Together-17B-16E-Instruct"
 
-            async def call_together(system_prompt: str, user_prompt: str) -> dict:
+            async def call_together(system_prompt: str, user_prompt: str, *, stream: bool = False):
+                if stream:
+                    async def _gen():
+                        response = await client.chat.completions.create(
+                            model=model,
+                            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                            max_tokens=2000, temperature=0.3, stream=True,
+                        )
+                        async for chunk in response:
+                            delta = chunk.choices[0].delta if chunk.choices else None
+                            if delta and delta.content:
+                                yield delta.content
+                    return _gen()
                 response = await client.chat.completions.create(
                     model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    max_tokens=2000,
-                    temperature=0.3,
+                    messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                    max_tokens=2000, temperature=0.3,
                 )
                 choice = response.choices[0]
                 usage = response.usage
@@ -3196,19 +3279,27 @@ class SiyarixChat:
                 from mistralai import Mistral
             except ImportError:
                 raise ValueError("mistralai package not installed. Run: pip install mistralai")
-
             client = Mistral(api_key=api_key)
             model = self._settings.get("mistral_model") or "mistral-large-2506"
 
-            async def call_mistral(system_prompt: str, user_prompt: str) -> dict:
+            async def call_mistral(system_prompt: str, user_prompt: str, *, stream: bool = False):
+                if stream:
+                    async def _gen():
+                        response = await client.chat.stream_async(
+                            model=model,
+                            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                            max_tokens=2000, temperature=0.3,
+                        )
+                        async for chunk in response:
+                            if chunk.data and chunk.data.choices:
+                                delta = chunk.data.choices[0].delta
+                                if delta and delta.content:
+                                    yield delta.content
+                    return _gen()
                 response = await client.chat.complete_async(
                     model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    max_tokens=2000,
-                    temperature=0.3,
+                    messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                    max_tokens=2000, temperature=0.3,
                 )
                 choice = response.choices[0] if response.choices else None
                 return {
@@ -3220,27 +3311,35 @@ class SiyarixChat:
 
             result = call_mistral
 
-        # ── Ollama (prefer native SDK, fall back to HTTP API) ────────
+        # ── Ollama (prefer native SDK, fall back to HTTP) ──────────────
         elif provider_name == "ollama":
             import httpx
             ollama_url = self._settings.get("ollama_url") or os.getenv("SIYARIX_OLLAMA_URL", "http://localhost:11434")
             model = self._settings.get("ollama_model") or "llama3.1"
-            use_sdk = False
             try:
                 from ollama import AsyncClient as OllamaAsyncClient
                 _ollama_client = OllamaAsyncClient(host=ollama_url)
                 use_sdk = True
             except Exception:
                 _ollama_client = None
+                use_sdk = False
 
-            if use_sdk:
-                async def call_ollama(system_prompt: str, user_prompt: str) -> dict:
+            async def call_ollama(system_prompt: str, user_prompt: str, *, stream: bool = False):
+                if use_sdk and stream:
+                    async def _gen():
+                        async for chunk in await _ollama_client.chat(
+                            model=model,
+                            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                            options={"temperature": 0.3, "num_predict": 2000}, stream=True,
+                        ):
+                            content = chunk.get("message", {}).get("content", "")
+                            if content:
+                                yield content
+                    return _gen()
+                if use_sdk:
                     response = await _ollama_client.chat(
                         model=model,
-                        messages=[
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_prompt},
-                        ],
+                        messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
                         options={"temperature": 0.3, "num_predict": 2000},
                     )
                     return {
@@ -3249,27 +3348,40 @@ class SiyarixChat:
                         "input_tokens": response.get("prompt_eval_count", 0),
                         "output_tokens": response.get("eval_count", 0),
                     }
-            else:
-                async def call_ollama(system_prompt: str, user_prompt: str) -> dict:
-                    async with httpx.AsyncClient(timeout=60.0) as client:
-                        payload = {
-                            "model": model,
-                            "messages": [
-                                {"role": "system", "content": system_prompt},
-                                {"role": "user", "content": user_prompt},
-                            ],
-                            "stream": False,
-                            "options": {"temperature": 0.3, "num_predict": 2000},
-                        }
-                        resp = await client.post(f"{ollama_url}/api/chat", json=payload)
-                        resp.raise_for_status()
-                        data = resp.json()
-                        return {
-                            "content": data.get("message", {}).get("content", ""),
-                            "model": data.get("model", model),
-                            "input_tokens": data.get("prompt_eval_count", 0),
-                            "output_tokens": data.get("eval_count", 0),
-                        }
+                if stream:
+                    async def _gen():
+                        async with httpx.AsyncClient(timeout=60.0) as hclient:
+                            payload = {
+                                "model": model,
+                                "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                                "stream": True,
+                                "options": {"temperature": 0.3, "num_predict": 2000},
+                            }
+                            async with hclient.stream("POST", f"{ollama_url}/api/chat", json=payload) as resp:
+                                async for line in resp.aiter_lines():
+                                    if line.strip():
+                                        import json as _json
+                                        data = _json.loads(line)
+                                        content = data.get("message", {}).get("content", "")
+                                        if content:
+                                            yield content
+                    return _gen()
+                async with httpx.AsyncClient(timeout=60.0) as hclient:
+                    payload = {
+                        "model": model,
+                        "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                        "stream": False,
+                        "options": {"temperature": 0.3, "num_predict": 2000},
+                    }
+                    resp = await hclient.post(f"{ollama_url}/api/chat", json=payload)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    return {
+                        "content": data.get("message", {}).get("content", ""),
+                        "model": data.get("model", model),
+                        "input_tokens": data.get("prompt_eval_count", 0),
+                        "output_tokens": data.get("eval_count", 0),
+                    }
 
             result = call_ollama
 
@@ -3279,18 +3391,37 @@ class SiyarixChat:
             lmstudio_url = self._settings.get("lmstudio_url") or os.getenv("SIYARIX_LMSTUDIO_URL", "http://localhost:1234")
             model = self._settings.get("lmstudio_model") or ""
 
-            async def call_lmstudio(system_prompt: str, user_prompt: str) -> dict:
-                async with httpx.AsyncClient(timeout=120.0) as client:
+            async def call_lmstudio(system_prompt: str, user_prompt: str, *, stream: bool = False):
+                if stream:
+                    async def _gen():
+                        async with httpx.AsyncClient(timeout=120.0) as hclient:
+                            payload = {
+                                "model": model or "local-model",
+                                "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                                "max_tokens": 2000, "temperature": 0.3, "stream": True,
+                            }
+                            async with hclient.stream("POST", f"{lmstudio_url}/v1/chat/completions", json=payload) as resp:
+                                async for line in resp.aiter_lines():
+                                    if line.startswith("data: "):
+                                        chunk = line[6:]
+                                        if chunk.strip() == "[DONE]":
+                                            break
+                                        try:
+                                            import json as _json
+                                            data = _json.loads(chunk)
+                                            delta = data.get("choices", [{}])[0].get("delta", {})
+                                            if delta.get("content"):
+                                                yield delta["content"]
+                                        except Exception:
+                                            pass
+                    return _gen()
+                async with httpx.AsyncClient(timeout=120.0) as hclient:
                     payload = {
                         "model": model or "local-model",
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_prompt},
-                        ],
-                        "max_tokens": 2000,
-                        "temperature": 0.3,
+                        "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                        "max_tokens": 2000, "temperature": 0.3,
                     }
-                    resp = await client.post(f"{lmstudio_url}/v1/chat/completions", json=payload)
+                    resp = await hclient.post(f"{lmstudio_url}/v1/chat/completions", json=payload)
                     resp.raise_for_status()
                     data = resp.json()
                     choice = data.get("choices", [{}])[0]
@@ -3339,9 +3470,10 @@ class SiyarixChat:
         """Return ``(provider_name, api_key)`` for the active provider.
 
         When ``model_provider`` is set to a specific name, use that.
-        When ``"auto"``, scan known providers in priority order, skipping
-        any that were disabled this session due to rate-limit/auth errors.
+        When ``"auto"``, scan known providers sorted by cost (cheapest first),
+        skipping any that were disabled this session or are in cooldown.
         """
+        import time
         from .providers import ProviderManager
         pm = ProviderManager()
 
@@ -3350,27 +3482,44 @@ class SiyarixChat:
             profile = pm.get_profile(configured)
             env_var = profile.api_key_env if profile else ""
             key = os.environ.get(env_var) if env_var else ""
-            # gemini fallback
             if not key and configured == "gemini":
                 key = os.environ.get("GOOGLE_API_KEY", "")
             return (configured, key or None)
 
-        # Auto mode: scan providers, skip session-disabled ones
+        # Auto mode: build sorted list (cheapest first), skip disabled/cooldown
+        now = time.time()
+        candidates: list[tuple[int, str, str, str | None]] = []  # (sort_key, name, key, env_var)
+
         for prov_name in pm.list_providers():
             if prov_name in self._disabled_providers:
-                continue
+                # Check cooldown expiry
+                last_fail = self._provider_last_fail_time.get(prov_name, 0.0)
+                if now - last_fail < self._provider_cooldown_secs:
+                    continue
+                # Cooldown expired — re-enable
+                self._disabled_providers.discard(prov_name)
+                self._provider_failure_counts[prov_name] = 0
+
             profile = pm.get_profile(prov_name)
             if not profile:
                 continue
-            # local providers (ollama, lmstudio) are always available
+
+            # local providers always available
             if not profile.api_key_env:
-                return (prov_name, "")
+                candidates.append((profile.cost_tier.sort_key, prov_name, "", None))
+                continue
+
             key = os.environ.get(profile.api_key_env)
-            # gemini also accepts GOOGLE_API_KEY
             if not key and prov_name == "gemini":
                 key = os.environ.get("GOOGLE_API_KEY", "")
             if key:
-                return (prov_name, key)
+                candidates.append((profile.cost_tier.sort_key, prov_name, key, profile.api_key_env))
+
+        # Sort by cost (cheapest first), then by profile priority (highest first)
+        candidates.sort(key=lambda c: (c[0], -pm.get_profile(c[1]).priority if pm.get_profile(c[1]) else 0))
+        for _, name, key, _ in candidates:
+            return (name, key or None)
+
         return (None, None)
 
     # ──────────────────────────────────────────────────────────────────────
@@ -3534,6 +3683,38 @@ class SiyarixChat:
                 padding=(0, 2),
             )
         )
+
+    async def _stream_assistant_response(
+        self, system_prompt: str, user_prompt: str, provider_name: str | None = None, api_key: str | None = None
+    ) -> str:
+        """Stream an LLM response token-by-token with a live updating display.
+
+        Returns the full response text.
+        """
+        from rich.live import Live
+        from rich.markdown import Markdown
+        from rich.panel import Panel
+        from rich.text import Text
+
+        if not provider_name or not api_key:
+            prov_name, api_key = self._resolve_provider()
+            if not prov_name or not api_key:
+                console.print("[yellow]⚠ No LLM provider available for streaming[/yellow]")
+                return ""
+
+        llm_fn = self._make_llm_call(provider_name or "", api_key or "")
+        gen = await llm_fn(system_prompt, user_prompt, stream=True)
+        full_text = ""
+        md = Markdown("")
+        panel = Panel(md, title="[bold green]◆ Siyarix[/bold green]", border_style="green", padding=(0, 2))
+        with Live(panel, refresh_per_second=12, transient=False) as live:
+            async for token in gen:
+                full_text += token
+                md = Markdown(full_text)
+                panel = Panel(md, title="[bold green]◆ Siyarix[/bold green]", border_style="green", padding=(0, 2))
+                live.update(panel)
+        console.print()
+        return full_text
 
     def _print_plan(self, plan: "Any") -> None:  # ExecutionPlan
         table = Table(

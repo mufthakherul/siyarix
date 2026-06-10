@@ -3107,7 +3107,7 @@ Each step is a raw shell command running directly on the shell:
                 console.print(f"[cyan]→ Wave {wave + 1}:[/cyan] {', '.join(tool_labels)}")
 
             # Execute all steps in parallel with a single live display
-            from ..subprocess_utils import safe_run_async_stream
+                from ..subprocess_utils import get_platform_shell_cmd, safe_run_async_stream
 
             @dataclass
             class _CmdState:
@@ -3138,7 +3138,7 @@ Each step is a raw shell command running directly on the shell:
 
                 cmd_timeout = self._settings.get("agent_timeout") or 1740
                 exec_result = await safe_run_async_stream(
-                    ["sh", "-c", step.command],
+                    get_platform_shell_cmd(step.command),
                     timeout=cmd_timeout,
                     validate=False,
                     on_stdout=lambda line: state.lines.append(line),
@@ -3629,7 +3629,7 @@ Each step is a raw shell command running directly on the shell:
             ) -> dict[str, Any]:
                 if use_sdk and stream:
 
-                    async def _gen() -> Any:
+                    async def _gen_sdk() -> Any:
                         async for chunk in await _ollama_client.chat(
                             model=model,
                             messages=self._build_messages(system_prompt, user_prompt, history),
@@ -3640,7 +3640,7 @@ Each step is a raw shell command running directly on the shell:
                             if content:
                                 yield content
 
-                    return _gen()
+                    return _gen_sdk()
                 if use_sdk:
                     response = await _ollama_client.chat(
                         model=model,
@@ -3655,7 +3655,7 @@ Each step is a raw shell command running directly on the shell:
                     }
                 if stream:
 
-                    async def _gen() -> Any:
+                    async def _gen_http() -> Any:
                         async with httpx.AsyncClient(timeout=60.0) as hclient:
                             payload = {
                                 "model": model,
@@ -3677,7 +3677,7 @@ Each step is a raw shell command running directly on the shell:
                                         if content:
                                             yield content
 
-                    return _gen()
+                    return _gen_http()
                 async with httpx.AsyncClient(timeout=60.0) as hclient:
                     payload = {
                         "model": model,

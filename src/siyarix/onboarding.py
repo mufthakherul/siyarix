@@ -38,19 +38,14 @@ try:
     from rich.console import Console
     from rich.panel import Panel
     from rich.prompt import Prompt, Confirm
-    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
     from rich.table import Table
-    from rich.text import Text
     from rich import box
-    from rich.markdown import Markdown
-    from rich.align import Align
-    from rich.syntax import Syntax
 except ImportError:
-    Console = None  # type: ignore
+    Console = None  # type: ignore[assignment]
 
-from siyarix.bootstrap import INITIALIZED_MARKER, BootstrapEngine
-from siyarix.config import SettingsStore
-from siyarix.providers import ProviderManager
+from siyarix.bootstrap import INITIALIZED_MARKER, BootstrapEngine  # noqa: E402
+from siyarix.config import SettingsStore  # noqa: E402
+from siyarix.providers import ProviderManager  # noqa: E402
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -338,7 +333,7 @@ class OnboardingWizard:
             if os.name == "nt":
                 import ctypes
 
-                kernel32 = ctypes.windll.kernel32  # type: ignore
+                kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
 
                 class MEMORYSTATUSEX(ctypes.Structure):
                     _fields_ = [
@@ -729,7 +724,7 @@ class OnboardingWizard:
                 if Confirm.ask("Test vault by storing and retrieving a sample?", default=False):
                     try:
                         vault.set("_test_key", "test_value")
-                        val = vault.get("_test_key")
+                        vault.get("_test_key")
                         vault.delete("_test_key")
                         self._console.print("[green]\u2713 Vault read/write test passed[/green]")
                     except Exception as exc:
@@ -1781,10 +1776,10 @@ class OnboardingWizard:
                 )
                 result = subprocess.run(
                     "curl -fsSL https://ollama.com/install.sh | sh",
-                    shell=True,
+                    shell=True,  # nosec B602
                     capture_output=True,
                     text=True,
-                    timeout=600,  # nosec B602
+                    timeout=600,
                 )
                 ok = result.returncode == 0
                 if ok:

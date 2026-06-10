@@ -894,7 +894,7 @@ class SiyarixChat:
     def _cmd_vault(self, args: str) -> None:
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "status"
-        from ..credential_vault import CredentialVault, get_vault
+        from ..credential_vault import get_vault
 
         if action == "status":
             try:

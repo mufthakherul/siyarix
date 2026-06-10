@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import shutil
 
@@ -64,6 +65,8 @@ from ..security_commands import security_app
 
 from ..output import OutputEngine
 from ..validators import validate_target
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -465,8 +468,7 @@ def main_callback(
     if ctx.invoked_subcommand is None and _IS_TTY:
         # Check if onboarding is needed
         try:
-            from siyarix.onboarding import OnboardingWizard, INITIALIZED_MARKER
-            from siyarix.bootstrap import SIYARIX_HOME
+            from siyarix.bootstrap import INITIALIZED_MARKER
             from siyarix.config import SettingsStore
 
             needs_onboarding = not INITIALIZED_MARKER.exists() or not SettingsStore().get(
@@ -499,7 +501,7 @@ vault_app = typer.Typer(help="🔐 Encrypted credential vault management")
 def vault_status() -> None:
     """Show vault status, binding info, and health."""
     try:
-        from ..credential_vault import CredentialVault, get_vault
+        from ..credential_vault import get_vault
 
         vault = get_vault(create=False)
         s = vault.status

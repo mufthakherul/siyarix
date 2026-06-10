@@ -3212,15 +3212,7 @@ When the user message contains tool execution results, analyse them thoroughly.
             "vllm",
             "localai",
         ):
-            try:
-                from openai import AsyncOpenAI
-            except ImportError:
-                import subprocess as _sp
-                _sp.run(
-                    [sys.executable, "-m", "pip", "install", "openai>=2.31.0", "-q"],
-                    capture_output=True, text=True, timeout=60,
-                )
-                from openai import AsyncOpenAI
+            from openai import AsyncOpenAI
 
             base_urls = {
                 "openai": None,

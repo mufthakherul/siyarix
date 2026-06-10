@@ -303,99 +303,28 @@ app = typer.Typer(
 @app.command("init")
 def init_wizard(
     force: bool = typer.Option(False, "--force", "-f", help="Re-run wizard even if already configured"),
+    skip_requirements: bool = typer.Option(False, "--skip-requirements", help="Skip requirements check"),
 ) -> None:
-    """Initialize Siyarix configuration and API keys.
+    """Initialize Siyarix — interactive setup wizard.
 
-    Creates ~/.siyarix/, interactively sets up your default AI provider,
-    and validates the environment.
+    Runs the full onboarding wizard: ethics pledge, requirements check,
+    provider setup, mode and persona configuration.
     """
-    from pathlib import Path
+    import asyncio
 
     home_dir = Path.home() / ".siyarix"
-    if home_dir.exists() and not force:
-        console.print("[green]✓ Siyarix is already initialized.[/green]")
+    marker = home_dir / ".initialized"
+    if marker.exists() and not force:
+        console.print("[green]\u2713 Siyarix is already initialized.[/green]")
         console.print("  Run [cyan]siyarix init --force[/cyan] to re-run the wizard.")
         return
 
-    console.print(Panel.fit(
-        "[bold cyan]Siyarix Setup Wizard[/bold cyan]\n\n"
-        "This will guide you through:\n"
-        "  • Creating the [bold]~/.siyarix[/bold] configuration directory\n"
-        "  • Selecting and configuring your AI provider\n"
-        "  • Setting up API credentials\n"
-        "  • Verifying your environment",
-        border_style="cyan",
-    ))
+    from siyarix.onboarding import OnboardingWizard
+    from siyarix.config import SettingsStore
 
-    home_dir.mkdir(parents=True, exist_ok=True)
-    console.print(f"[green]✓ Created {home_dir}[/green]")
-
-    from ..config import SettingsStore
     settings = SettingsStore()
-
-    console.print("\n[bold]Select your default AI provider:[/bold]")
-    providers = ["auto", "openai", "gemini", "anthropic", "ollama", "groq", "lmstudio", "openrouter"]
-    for i, p in enumerate(providers, 1):
-        tag = " (recommended)" if p == "auto" else ""
-        console.print(f"  {i}. {p}{tag}")
-
-    choice = Prompt.ask(
-        "Choose", default="1"
-    )
-    try:
-        idx = int(choice) - 1
-        provider = providers[idx] if 0 <= idx < len(providers) else "auto"
-    except (ValueError, IndexError):
-        provider = "auto"
-
-    settings.set("model_provider", provider)
-    console.print(f"[green]✓ Provider set to: {provider}[/green]")
-
-    api_key_providers = {
-        "openai": "OPENAI_API_KEY",
-        "gemini": "GEMINI_API_KEY",
-        "anthropic": "ANTHROPIC_API_KEY",
-        "groq": "GROQ_API_KEY",
-        "openrouter": "OPENROUTER_API_KEY",
-    }
-    if provider in api_key_providers or provider == "auto":
-        env_var = api_key_providers.get(provider, "OPENAI_API_KEY")
-        existing = os.environ.get(env_var) or _resolve_key(provider)
-        if existing:
-            console.print(f"[dim]API key for {provider} already configured.[/dim]")
-        else:
-            key = Prompt.ask(
-                f"Enter your {provider.upper()} API key",
-                password=True,
-                default="",
-            )
-            if key:
-                _store_key(provider, key)
-                console.print(f"[green]✓ {provider.upper()} API key saved.[/green]")
-
-    if provider == "auto":
-        for prov, var in api_key_providers.items():
-            if not (os.environ.get(var) or _resolve_key(prov)):
-                key = Prompt.ask(
-                    f"Enter your {prov.upper()} API key (or leave blank to skip)",
-                    password=True,
-                    default="",
-                )
-                if key:
-                    _store_key(prov, key)
-                    console.print(f"[green]✓ {prov.upper()} API key saved.[/green]")
-
-    console.print("\n[bold yellow]Configuration Summary:[/bold yellow]")
-    summary_table = Table(show_header=False, box=None)
-    summary_table.add_column("Key", style="cyan")
-    summary_table.add_column("Value", style="white")
-    summary_table.add_row("Provider", settings.get("model_provider"))
-    summary_table.add_row("Config Dir", str(home_dir))
-    summary_table.add_row("Settings File", str(home_dir / "settings.toml"))
-    console.print(summary_table)
-
-    console.print("\n[green]✓ Siyarix initialized successfully![/green]")
-    console.print("  Run [cyan]siyarix[/cyan] to start the interactive shell.")
+    wizard = OnboardingWizard(settings=settings)
+    asyncio.run(wizard.run())
 
 
 def _run_batch_lines(lines: list[str]) -> None:
@@ -439,6 +368,20 @@ def _show_version() -> None:
     ver = resolve_version()
     console.print(f"[bold cyan]Siyarix[/bold cyan] [green]v{ver}[/green]")
     console.print(f"Platform: {sys.platform}  Python: {sys.version.split()[0]}")
+
+
+async def _run_onboarding() -> None:
+    """Run the first-run onboarding wizard."""
+    from siyarix.onboarding import OnboardingWizard
+    from siyarix.config import SettingsStore
+
+    settings = SettingsStore()
+    wizard = OnboardingWizard(settings=settings)
+    completed = await wizard.run()
+    if completed:
+        console.print("[green]Setup complete! Restarting...[/green]")
+    else:
+        console.print("[yellow]Setup exited. Run 'siyarix init' to restart.[/yellow]")
 
 
 @app.callback(invoke_without_command=True)
@@ -498,6 +441,21 @@ def main_callback(
 
     # No subcommand + TTY: launch interactive UI
     if ctx.invoked_subcommand is None and _IS_TTY:
+        # Check if onboarding is needed
+        try:
+            from siyarix.onboarding import OnboardingWizard, INITIALIZED_MARKER
+            from siyarix.bootstrap import SIYARIX_HOME
+            from siyarix.config import SettingsStore
+
+            needs_onboarding = not INITIALIZED_MARKER.exists() or not SettingsStore().get("onboarding_complete")
+        except Exception:
+            needs_onboarding = False
+
+        if needs_onboarding:
+            import asyncio
+            asyncio.run(_run_onboarding())
+            return
+
         start_chat(mode=mode, target=target)
 
 

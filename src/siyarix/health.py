@@ -136,13 +136,19 @@ class HealthChecker:
         from .providers import ProviderManager
         pm = ProviderManager()
         entries: list[tuple[str, str | None, bool]] = []
+        name_map: dict[str, str] = {}
 
         for prov_name in pm.list_providers():
             profile = pm.get_profile(prov_name)
             if not profile:
                 continue
+            display = profile.display_name or prov_name.capitalize()
+            name_map[prov_name] = display
             entries.append((prov_name, profile.api_key_env, not bool(profile.api_key_env)))
 
+        name_map["cloud"] = "Cloud"
+        name_map["custom"] = "Custom"
+        name_map["opencode"] = "OpenCode"
         entries.extend([
             ("cloud", "SIYARIX_SERVER_URL", False),
             ("custom", "CUSTOM_API_KEY", False),
@@ -154,7 +160,7 @@ class HealthChecker:
             try:
                 if is_local:
                     available = False
-                    message = f"{provider_name.capitalize()} not running"
+                    message = f"{name_map.get(provider_name, provider_name.capitalize())} not running"
                     try:
                         import httpx
                         endpoints = {
@@ -169,9 +175,9 @@ class HealthChecker:
                             resp = await client.get(f"http://localhost:{port}{path}")
                             available = resp.status_code == 200
                             message = (
-                                f"{provider_name.capitalize()} responsive"
+                                f"{name_map.get(provider_name, provider_name.capitalize())} responsive"
                                 if available
-                                else f"{provider_name.capitalize()} not responding"
+                                else f"{name_map.get(provider_name, provider_name.capitalize())} not responding"
                             )
                     except Exception:
                         logger.debug("%s check failed — not running", provider_name)
@@ -183,9 +189,10 @@ class HealthChecker:
                     message = "Azure OpenAI configured" if available else "Azure OpenAI not configured"
                 else:
                     available = bool(os.getenv(env_var or ""))
-                    message = f"{provider_name.capitalize()} configured" if available else f"{provider_name.capitalize()} not configured"
+                    disp = name_map.get(provider_name, provider_name.capitalize())
+                    message = f"{disp} configured" if available else f"{disp} not configured"
 
-                display_name = provider_name.capitalize()
+                display_name = name_map.get(provider_name, provider_name.capitalize())
                 self.model_providers_available[display_name] = available
                 latency = (time.time() - start) * 1000
                 return ComponentHealth(
@@ -196,7 +203,7 @@ class HealthChecker:
                     details={"available": available},
                 )
             except Exception as exc:
-                display_name = provider_name.capitalize()
+                display_name = name_map.get(provider_name, provider_name.capitalize())
                 logger.exception("Model provider check failed for %s", provider_name)
                 return ComponentHealth(
                     name=f"ModelProvider/{display_name}",
@@ -206,7 +213,7 @@ class HealthChecker:
                 )
 
         import asyncio
-        results = await asyncio.gather(*[check_one(p, e, l) for p, e, l in entries])
+        results = await asyncio.gather(*[check_one(p, e, item) for p, e, item in entries])
         status.components.extend(results)
 
     async def _check_tool_registry(self, status: HealthStatus) -> None:

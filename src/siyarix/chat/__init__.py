@@ -754,19 +754,10 @@ class SiyarixChat:
             env_key = profile.api_key_env if profile else provider_env_var(prov_name)
             from_env = bool(os.getenv(env_key)) if env_key else False
             from_creds = bool(vault and vault.retrieve(prov_name, "api_key"))
-            from_settings = False
-            if not from_env and not from_creds:
-                try:
-                    from ..config import SettingsStore
-                    from_settings = bool(SettingsStore().get(f"api_key_{prov_name}"))
-                except Exception:
-                    pass
             if from_env:
                 status, source = "✓ Set", "Environment"
             elif from_creds:
                 status, source = "✓ Set", "Vault"
-            elif from_settings:
-                status, source = "✓ Set", "Config"
             else:
                 status, source = "✗ Missing", "—"
             table.add_row(prov_name, env_key or "—", status, source)
@@ -4112,5 +4103,15 @@ def start_chat(
     resume: bool = False,
 ) -> None:
     """Launch the Siyarix interactive chat REPL."""
+    import atexit
+
+    try:
+        from ..credential_vault import get_vault
+        vault = get_vault(create=False)
+        if vault:
+            atexit.register(vault.seal)
+    except Exception:
+        pass
+
     chat = SiyarixChat(mode=mode, target=target, session_id=session_id, resume=resume)
     chat.run()

@@ -67,6 +67,7 @@ _LOCKOUT_WINDOW_SEC = 300  # 5 min window
 _LOCKOUT_DURATION_BASE = 30  # 30 s → doubles per attempt
 _SESSION_TTL_SEC = 300  # 5 min auto-seal
 _MAX_AUDIT_ENTRIES = 5000
+_VAULT_KEY_FILE = ".vault_key"
 
 
 # ── Exception hierarchy ─────────────────────────────────────────────────────
@@ -349,6 +350,12 @@ class DeviceFingerprint:
         return hashlib.sha256(raw.encode()).hexdigest()
 
     @classmethod
+    def compute_single_from_comps(cls, comps: dict[str, str]) -> str:
+        """Reconstruct single-hash from stored components (for passphrase verification)."""
+        raw = ":".join(h for h in comps.values() if h)
+        return hashlib.sha256(raw.encode()).hexdigest()
+
+    @classmethod
     def match(
         cls,
         stored: dict[str, str],
@@ -446,9 +453,15 @@ class EnvironmentFingerprint:
 
     @classmethod
     def compute_single(cls) -> str:
-        """Legacy single-hash (for display only)."""
+        """Legacy single-hash (used for integrity, not binding)."""
         comps = cls.compute_components()
-        raw = "||".join(h for h, _ in comps.values() if h)
+        raw = ":".join(h for h, _ in comps.values() if h)
+        return hashlib.sha256(raw.encode()).hexdigest()
+
+    @classmethod
+    def compute_single_from_comps(cls, comps: dict[str, str]) -> str:
+        """Reconstruct single-hash from stored components."""
+        raw = ":".join(h for h in comps.values() if h)
         return hashlib.sha256(raw.encode()).hexdigest()
 
     @classmethod
@@ -514,6 +527,7 @@ class CredentialVault:
         self._config_dir = Path(os.getenv("SIYARIX_CONFIG_DIR", str(Path.home() / ".siyarix")))
         self._config_dir.mkdir(parents=True, exist_ok=True)
         self._vault_path = Path(vault_path or self._config_dir / "vault.encrypted")
+        self._vault_key_path = self._config_dir / _VAULT_KEY_FILE
         self._backup_dir = self._config_dir / "vault_backups"
         self._passphrase = passphrase or os.getenv("SIYARIX_VAULT_PASSPHRASE") or ""
         self._session_ttl = int(os.getenv("SIYARIX_VAULT_TTL", str(session_ttl)))
@@ -535,6 +549,10 @@ class CredentialVault:
 
         self._config_dir.mkdir(parents=True, exist_ok=True)
         if not skip_unseal and self._vault_path.exists():
+            if not self._passphrase:
+                key = self._read_auto_unseal_key()
+                if key:
+                    self._passphrase = key
             self._unseal()
         elif not skip_unseal and self._passphrase:
             self._unsealed = True
@@ -590,6 +608,119 @@ class CredentialVault:
             self._check_lockout()
         self._unseal()
         return self.status
+
+    # ── Auto-unseal via vault key ─────────────────────────────────────
+
+    @property
+    def _auto_unseal_path(self) -> Path:
+        return self._vault_key_path
+
+    def _write_auto_unseal_key(self) -> None:
+        """Store passphrase in a device-bound key file for auto-unseal."""
+        if not self._passphrase:
+            return
+        try:
+            data = {
+                "device_fp": self._device_fp,
+                "env_fp": self._env_fp,
+                "passphrase": self._passphrase,
+            }
+            self._vault_key_path.write_text(json.dumps(data, indent=2))
+            if os.name != "nt":
+                self._vault_key_path.chmod(0o600)
+        except Exception as exc:
+            logger.warning("Failed to write vault key: %s", exc)
+
+    def _read_auto_unseal_key(self) -> str | None:
+        """Read stored passphrase if device + environment match."""
+        try:
+            if not self._vault_key_path.exists():
+                return None
+            data = json.loads(self._vault_key_path.read_text())
+            if data.get("device_fp") != self._device_fp:
+                logger.info("Vault key bound to different device — ignoring")
+                return None
+            if data.get("env_fp") != self._env_fp:
+                logger.info("Vault key bound to different environment — ignoring")
+                return None
+            return data.get("passphrase") or None
+        except Exception as exc:
+            logger.debug("Could not read vault key: %s", exc)
+            return None
+
+    def _clear_auto_unseal_key(self) -> None:
+        try:
+            if self._vault_key_path.exists():
+                self._vault_key_path.unlink()
+        except Exception:
+            pass
+
+    def reconfirm_device(self, passphrase: str) -> bool:
+        """Re-bind vault to current device after passphrase confirmation.
+
+        Called when device/environment changed but user provides correct passphrase.
+        """
+        try:
+            self._passphrase = passphrase
+            old_fp = self._device_fp
+            old_env = self._env_fp
+            self._device_fp = DeviceFingerprint.compute_single()
+            self._env_fp = EnvironmentFingerprint.compute_single()
+            self._device_comps = {
+                k: h for k, (h, _) in DeviceFingerprint.compute_components().items()
+            }
+            self._env_comps = {
+                k: h for k, (h, _) in EnvironmentFingerprint.compute_components().items()
+            }
+            if not self._verify_passphrase(force=True):
+                self._device_fp = old_fp
+                self._env_fp = old_env
+                return False
+            self._unsealed = True
+            self._last_activity = time.time()
+            self._status.sealed = False
+            self._write_vault()
+            self._write_auto_unseal_key()
+            return True
+        except Exception as exc:
+            logger.warning("Device re-confirm failed: %s", exc)
+            return False
+
+    def _verify_passphrase(self, force: bool = False) -> bool:
+        """Verify passphrase by attempting decryption (bypasses device binding when force=True)."""
+        try:
+            raw = self._vault_path.read_bytes()
+            data = json.loads(raw)
+            vault_salt = base64.b64decode(data["salt"])
+            stored_iters = data.get("iterations", _PBKDF2_MIN_ITERATIONS)
+
+            old_device_comps = data.get("device_fp_components", {})
+            old_env_comps = data.get("env_fp_components", {})
+            if old_device_comps and force:
+                old_device_fp = DeviceFingerprint.compute_single_from_comps(old_device_comps)
+            else:
+                old_device_fp = self._device_fp
+            if old_env_comps and force:
+                old_env_fp = EnvironmentFingerprint.compute_single_from_comps(old_env_comps)
+            else:
+                old_env_fp = self._env_fp
+
+            material = f"{old_device_fp}:::{old_env_fp}:::{self._passphrase}"
+            kdf = _PBKDF2(
+                algorithm=_hashes.SHA256(),
+                length=_KEY_SIZE,
+                salt=vault_salt,
+                iterations=stored_iters,
+            )
+            ck = kdf.derive(material.encode())
+            cs = base64.b64decode(data["credentials"]["salt"])
+            cn = base64.b64decode(data["credentials"]["nonce"])
+            cc = base64.b64decode(data["credentials"]["ciphertext"])
+            _AESGCM(ck).decrypt(cn, cc, None)
+            self._zeroize(ck)
+            return True
+        except Exception:
+            return False
 
     def seal(self) -> None:
         """Seal the vault — clear all plaintext keys from memory."""
@@ -1204,6 +1335,7 @@ class CredentialVault:
         vault._status.sealed = False
         vault._audit("create", "*", "success", "vault ceremony completed")
         vault._write_vault()
+        vault._write_auto_unseal_key()
         logger.info("New vault created and bound to this device + environment")
         return vault
 

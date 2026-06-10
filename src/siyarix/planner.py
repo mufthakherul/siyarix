@@ -178,11 +178,30 @@ class ExecutionPlan:
         }
 
 
+TOOL_ALTERNATIVES: dict[str, list[str]] = {
+    "nmap": ["masscan", "rustscan", "naabu"],
+    "masscan": ["nmap", "rustscan"],
+    "gobuster": ["ffuf", "dirb", "dirsearch"],
+    "ffuf": ["gobuster", "dirb", "dirsearch"],
+    "whatweb": ["wappalyzer", "builtwith"],
+    "nuclei": ["nikto", "wapiti", "skipfish"],
+    "nikto": ["nuclei", "wapiti"],
+    "hydra": ["medusa", "ncrack", "patator"],
+    "subfinder": ["amass", "sublist3r", "assetfinder"],
+    "amass": ["subfinder", "sublist3r"],
+    "curl": ["wget", "httpie"],
+    "dig": ["nslookup", "host"],
+    "aircrack-ng": ["hashcat", "john"],
+    "sqlmap": ["jSQL", "sqlninja"],
+}
+
+
 class Planner:
     """Plan decomposer with an inverted-index strategy for scalable tool lookup."""
 
     def __init__(self) -> None:
         self._plans: dict[str, ExecutionPlan] = {}
+        self._auto_dag_templates: set[str] = {"recon_full", "web_audit", "network_scan", "cloud_audit"}
         self._templates: dict[str, list[dict[str, Any]]] = {
             "recon_full": [
                 {"description": "Full port scan with service/OS detection and default scripts", "tool": "nmap", "args": {"flags": "-sV -sC -T4"}},
@@ -265,6 +284,27 @@ class Planner:
                                     self._add_to_index(word, name)
                 except Exception:
                     pass
+
+    def resolve_alternatives(self, template_name: str, available_tools: set[str]) -> list[dict[str, Any]]:
+        """Resolve template steps, substituting missing tools with alternatives."""
+        steps = self._templates.get(template_name, [])
+        resolved = []
+        for step in steps:
+            tool = step["tool"]
+            if tool in available_tools:
+                resolved.append(step)
+            else:
+                alt_found = None
+                for alt in TOOL_ALTERNATIVES.get(tool, []):
+                    if alt in available_tools:
+                        alt_found = alt
+                        break
+                if alt_found:
+                    resolved.append({**step, "tool": alt_found,
+                        "description": f"{step['description']} (via {alt_found})"})
+                else:
+                    resolved.append(step)
+        return resolved
 
     def _add_to_index(self, keyword: str, tool_name: str) -> None:
         if keyword not in self._keyword_index:
@@ -460,11 +500,14 @@ Respond with ONLY valid JSON:
         return plan
 
     def create_from_template(self, template_name: str, target: str,
-                             overrides: dict[str, Any] | None = None) -> ExecutionPlan:
+                             overrides: dict[str, Any] | None = None,
+                             available_tools: set[str] | None = None) -> ExecutionPlan:
         import re
         template = self._templates.get(template_name)
         if not template:
             raise ValueError(f"Unknown template: {template_name}")
+        if available_tools:
+            template = self.resolve_alternatives(template_name, available_tools)
         url_match = re.search(r'https?://[^\s]+', target)
         host_match = re.search(r'\b(?:[\w-]+\.)+[a-z]{2,}\b', target.lower())
         clean_target = url_match.group(0) if url_match else (host_match.group(0) if host_match else target)
@@ -474,22 +517,24 @@ Respond with ONLY valid JSON:
             if overrides:
                 step["args"].update(overrides.get("args", {}))
             steps.append(step)
-        return self.create_plan(goal=f"{template_name} on {clean_target}", steps=steps, context={"target": clean_target, "template": template_name})
+        plan_type = PlanType.DAG if template_name in self._auto_dag_templates else PlanType.SEQUENTIAL
+        return self.create_plan(goal=f"{template_name} on {clean_target}", steps=steps,
+            context={"target": clean_target, "template": template_name}, plan_type=plan_type)
 
     def decompose_goal(self, goal: str, available_tools: list[str] | None = None) -> ExecutionPlan:
         goal_lower = goal.lower()
-        if any(kw in goal_lower for kw in ("brute", "crack", "password", "credential")):
-            return self.create_from_template("brute_force", goal)
-        if any(kw in goal_lower for kw in ("wifi", "wireless", "wpa")):
-            return self.create_from_template("wifi_audit", goal)
-        if any(kw in goal_lower for kw in ("ad ", "active directory", "domain controller", "kerberos", "ldap", "smb")):
-            return self.create_from_template("ad_assessment", goal)
-        if any(kw in goal_lower for kw in ("cloud", "aws", "s3 ", "azure", "gcp")):
-            return self.create_from_template("cloud_audit", goal)
-        if any(kw in goal_lower for kw in ("privesc", "privilege escalation", "root", "suid", "linux audit")):
-            return self.create_from_template("linux_privesc", goal)
-        if any(kw in goal_lower for kw in ("network scan", "infrastructure", "port scan", "full scan", "open ports")):
-            return self.create_from_template("network_scan", goal)
+        avail_set = set(available_tools or [])
+        kw_map = [
+            (("brute", "crack", "password", "credential"), "brute_force"),
+            (("wifi", "wireless", "wpa"), "wifi_audit"),
+            (("ad ", "active directory", "domain controller", "kerberos", "ldap", "smb"), "ad_assessment"),
+            (("cloud", "aws", "s3 ", "azure", "gcp"), "cloud_audit"),
+            (("privesc", "privilege escalation", "root", "suid", "linux audit"), "linux_privesc"),
+            (("network scan", "infrastructure", "port scan", "full scan", "open ports"), "network_scan"),
+        ]
+        for keywords, template_name in kw_map:
+            if any(kw in goal_lower for kw in keywords):
+                return self.create_from_template(template_name, goal, available_tools=avail_set)
         url_match = re.search(r'https?://[^\s]+', goal)
         host_match = re.search(r'\b(?:[\w-]+\.)+[a-z]{2,}\b', goal_lower)
         target = ""
@@ -498,21 +543,18 @@ Respond with ONLY valid JSON:
         elif host_match:
             target = host_match.group(0)
 
-        # Use the inverted index for O(|query_words|) tool lookup
+        # Availability-weighted index search
         tool_match = None
         if available_tools:
             if self._keyword_index:
-                # Prefer tools whose full name appears literally in the query
                 candidates = self._search_index(goal)
                 for c in candidates:
-                    if c in available_tools:
-                        # Require tool name to appear as a whole word in the query
+                    if c in avail_set:
                         pattern = r"(?<!\w)" + re.escape(c.lower()) + r"(?!\w)"
                         if re.search(pattern, goal_lower):
                             tool_match = c
                             break
             if not tool_match:
-                # Fallback: whole-word substring scan (min 3 chars)
                 for t in available_tools:
                     if len(t) < 3:
                         continue
@@ -527,19 +569,39 @@ Respond with ONLY valid JSON:
                 "args": {"target": target, "flags": "-sT -T4 --top-ports 100" if tool_match == "nmap" else ""},
             }])
         if target:
-            return self.create_plan(goal=goal, steps=[
-                {"description": "HTTP headers check", "tool": "curl", "args": {"target": target, "flags": "-sI"}},
-                {"description": "Technology fingerprinting", "tool": "whatweb", "args": {"target": target}},
-                {"description": "DNS enumeration", "tool": "dig", "args": {"target": target.replace("https://", "").replace("http://", "").split("/")[0]}},
-            ])
+            # Smart fallback: pick available tools from probe set
+            probe_steps = []
+            for tool, desc, flags in [
+                ("curl", "HTTP headers check", "-sI"),
+                ("whatweb", "Technology fingerprinting", ""),
+                ("dig", "DNS enumeration", ""),
+                ("nmap", "Port scan", "-sT -T4 --top-ports 100"),
+            ]:
+                actual_tool = tool
+                if tool not in avail_set and tool in TOOL_ALTERNATIVES:
+                    for alt in TOOL_ALTERNATIVES[tool]:
+                        if alt in avail_set:
+                            actual_tool = alt
+                            break
+                if actual_tool in avail_set or not avail_set:
+                    clean_target = target.replace("https://", "").replace("http://", "").split("/")[0]
+                    probe_steps.append({
+                        "description": desc + (f" (via {actual_tool})" if actual_tool != tool else ""),
+                        "tool": actual_tool,
+                        "args": {"target": clean_target, "flags": flags},
+                    })
+            if probe_steps:
+                plan_type = PlanType.DAG if len(probe_steps) > 2 else PlanType.SEQUENTIAL
+                return self.create_plan(goal=goal, steps=probe_steps, plan_type=plan_type)
+            return self.create_plan(goal=goal)
         # Check if the query sounds like a security/recon goal (no target given)
         goal_keywords = {"scan", "recon", "audit", "check", "enum", "analyze", "analyse",
                          "explore", "map", "discover", "probe", "test", "hack", "pentest"}
         if any(kw in goal_lower.split() for kw in goal_keywords):
-            return self.create_plan(goal=goal, steps=[{
-                "description": f"Execute: {goal}",
-                "tool": "curl", "args": {},
-            }])
+            return self.create_plan(goal=goal, steps=[
+                {"description": "Technology fingerprinting", "tool": "whatweb", "args": {}},
+                {"description": "Port scan", "tool": "nmap", "args": {"flags": "-sT -T4 --top-ports 100"}},
+            ])
         return self.create_plan(goal=goal)
 
     def adapt_plan(self, plan: ExecutionPlan, failed_step: PlanStep, error: str) -> ExecutionPlan:

@@ -46,8 +46,8 @@ class ChatSession:
         msg = ChatMessage(role=role, content=content, metadata=metadata)
         self.messages.append(msg)
         self.last_active = datetime.now()
-        if len(self.messages) > 200:
-            self.messages = self.messages[-200:]
+        if len(self.messages) > 300:
+            self.messages = self.messages[-300:]
         return msg
 
     def last_n(self, n: int = 10) -> list[ChatMessage]:

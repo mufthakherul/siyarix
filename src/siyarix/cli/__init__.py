@@ -502,7 +502,24 @@ def main_callback(
             return
 
         _ensure_ollama_running()
+        _ensure_vault_unsealed()
         start_chat(mode=mode, target=target)
+
+
+def _ensure_vault_unsealed() -> None:
+    """Auto-unseal vault from stored passphrase so API keys in vault work."""
+    try:
+        from ..credential_vault import CredentialVault, get_vault
+
+        vault = get_vault(create=False)
+        if not vault or not vault.status.sealed:
+            return
+        from ..config import SettingsStore
+        passphrase = SettingsStore().get("vault_passphrase")
+        if passphrase:
+            vault.unseal(passphrase)
+    except Exception as exc:
+        logger.debug("Could not auto-unseal vault: %s", exc)
 
 
 def _ensure_ollama_running() -> None:

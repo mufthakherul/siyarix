@@ -54,7 +54,7 @@ class BootstrapResult:
 class BootstrapEngine:
     """First-run bootstrap and platform detection engine."""
 
-    REQUIRED_PYTHON = (3, 11)
+    REQUIRED_PYTHON = (3, 12)
 
     def __init__(self, siyarix_home: Path | None = None) -> None:
         self._home = siyarix_home or SIYARIX_HOME

@@ -490,6 +490,7 @@ _HELP_CATEGORIES = [
         "/key": "Manage API keys for AI providers",
         "/mode <mode>": "Switch execution mode (autonomous|integrated|registry)",
         "/model [provider]": "Show or switch AI model provider",
+        "/provider [name]": "Show detailed provider info and available models",
         "/theme mode|appearance": "Change UI theme or preview appearance",
         "/target <host>": "Set the current target",
     }),
@@ -564,6 +565,39 @@ class SiyarixChat:
         self._provider_failure_counts: dict[str, int] = {}
         self._provider_last_fail_time: dict[str, float] = {}
         self._provider_cooldown_secs = 30.0
+        from .providers import UsageTracker, ProviderStateManager
+        state_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".siyarix")
+        self._provider_state = ProviderStateManager(path=os.path.join(state_dir, "provider_state.json"))
+        self._usage_tracker = UsageTracker(path=os.path.join(state_dir, "usage.json"))
+        self._validate_provider_config_on_startup()
+
+    def _validate_provider_config_on_startup(self) -> None:
+        """Check configured provider has valid API key / SDK / endpoint at startup."""
+        from .providers import ProviderManager
+        provider = (self._settings.get("model_provider") or "gemini").lower().strip()
+        if provider == "auto":
+            return  # auto mode checks at runtime
+        pm = ProviderManager()
+        profile = pm.get_profile(provider)
+        if not profile:
+            logger.warning("Unknown model_provider in settings: %s", provider)
+            return
+        if not profile.api_key_env:
+            return  # local provider
+
+        key = os.environ.get(profile.api_key_env)
+        if provider == "gemini" and not key:
+            key = os.environ.get("GOOGLE_API_KEY")
+        if not key:
+            logger.warning("Provider '%s' configured but %s is not set in environment", provider, profile.api_key_env)
+            console.print(f"[yellow]⚠ Provider '{provider}' configured but {profile.api_key_env} is not set.[/yellow]")
+
+        if profile.sdk_dependency:
+            try:
+                __import__(profile.sdk_dependency)
+            except ImportError:
+                logger.warning("Provider '%s' SDK '%s' not installed", provider, profile.sdk_dependency)
+                console.print(f"[yellow]⚠ Provider '{provider}' requires SDK: pip install {profile.sdk_dependency}[/yellow]")
 
     def _init_session(
         self, session_id: str | None, target: str, resume: bool
@@ -791,6 +825,7 @@ class SiyarixChat:
             "/security-cmds": self._cmd_security_cmds,
             "/run": self._cmd_run,
             "/model": self._cmd_model,
+            "/provider": self._cmd_provider,
             "/context": self._cmd_context,
             "/version": self._cmd_version,
             "/config": self._cmd_config,
@@ -1582,7 +1617,84 @@ class SiyarixChat:
         lines.append(f"[bold]Custom:[/bold]  Requires CUSTOM_API_KEY\n")
         lines.append(f"[bold]opencode:[/bold]  Requires OPENCODE_API_KEY\n\n")
         lines.append(f"[dim]Use /key <provider> <value> to store credentials and /model <provider> <model-name> to select models.[/dim]")
+        usage_summary = self._usage_tracker.summary()
+        if usage_summary:
+            lines.append(f"\n[dim]{usage_summary}[/dim]")
         console.print(Panel.fit("".join(lines), title="Model Providers", border_style="cyan"))
+
+    async def _cmd_provider(self, args: str) -> None:
+        """Show detailed provider info and available models."""
+        from .providers import ProviderManager
+        pm = ProviderManager()
+        name = args.strip().lower() if args else ""
+
+        if name:
+            profile = pm.get_profile(name)
+            if not profile:
+                console.print(f"[yellow]Unknown provider: {name}. Use /provider to list all.[/yellow]")
+                return
+            models = profile.get_model_names()
+            model_lines = "\n".join(
+                f"  [cyan]{m}[/cyan]" for m in models
+            ) if models else "  [dim]No models registered[/dim]"
+            cap_parts = []
+            if profile.supports_vision:
+                cap_parts.append("vision")
+            if profile.supports_tools:
+                cap_parts.append("tools")
+            if profile.supports_streaming:
+                cap_parts.append("streaming")
+            if profile.supports_structured_output:
+                cap_parts.append("structured_output")
+            info = (
+                f"[bold]Provider:[/bold] {profile.display_name}\n"
+                f"[bold]Type:[/bold] {profile.provider_type.value}\n"
+                f"[bold]Cost Tier:[/bold] {profile.cost_tier.value}\n"
+                f"[bold]Priority:[/bold] {profile.priority}\n"
+                f"[bold]Default Model:[/bold] {profile.default_model or '—'}\n"
+                f"[bold]Capabilities:[/bold] {', '.join(cap_parts) if cap_parts else '—'}\n"
+                f"[bold]Context Limit:[/bold] {profile.max_context_tokens:,} tokens\n"
+                f"[bold]API Key Env:[/bold] {profile.api_key_env or '—'}\n"
+                f"[bold]Base URL:[/bold] {profile.base_url or '—'}\n"
+                f"[bold]Models:[/bold]\n{model_lines}\n"
+            )
+            if profile.docs_url:
+                info += f"[dim]Docs: {profile.docs_url}[/dim]"
+            console.print(Panel(info, title=f"Provider: {profile.display_name}", border_style="cyan"))
+            return
+
+        # No provider arg: list all with quick summary
+        table = Table(title="Available Providers", header_style="bold cyan")
+        table.add_column("Name", style="cyan")
+        table.add_column("Type", style="dim")
+        table.add_column("Cost", style="green")
+        table.add_column("Models", style="yellow")
+        table.add_column("Capabilities")
+        table.add_column("Configured")
+
+        for prov_name in pm.list_providers():
+            profile = pm.get_profile(prov_name)
+            if not profile:
+                continue
+            env_var = profile.api_key_env or ""
+            key = bool(os.getenv(env_var)) if env_var else True
+            cap_list = []
+            if profile.supports_vision:
+                cap_list.append("👁")
+            if profile.supports_tools:
+                cap_list.append("🔧")
+            if profile.supports_streaming:
+                cap_list.append("📡")
+            models_count = len(profile.get_model_names())
+            table.add_row(
+                prov_name,
+                profile.provider_type.value,
+                profile.cost_tier.value,
+                str(models_count) if models_count else "—",
+                "".join(cap_list) if cap_list else "—",
+                "✓" if key else "✗",
+            )
+        console.print(table)
 
     def _cmd_context(self, _: str) -> None:
         summary = self._session.get_context_summary()
@@ -2808,6 +2920,17 @@ class SiyarixChat:
                 if ping.get("content", "").strip() != "OK":
                     raise RuntimeError(f"LLM ping failed: {ping.get('content', '')[:100]}")
                 llm_connected = True
+                total_input_tokens += ping.get("input_tokens", 0)
+                total_output_tokens += ping.get("output_tokens", 0)
+                from .providers import ProviderManager
+                _pm = ProviderManager()
+                _profile = _pm.get_profile(provider_name) if provider_name else None
+                self._usage_tracker.record_call(
+                    provider_name or "unknown", ping.get("model", ""),
+                    ping.get("input_tokens", 0), ping.get("output_tokens", 0),
+                    cost_tier=_profile.cost_tier if _profile else None,
+                )
+                self._provider_state.record_success(provider_name or "")
                 break
             except asyncio.TimeoutError:
                 icon = "⚠"
@@ -2824,11 +2947,7 @@ class SiyarixChat:
                     icon = "⚠"
                     msg = f"{icon} LLM unavailable ({type(exc).__name__}: {exc})"
 
-            # Track failure count and disable with cooldown
-            self._provider_failure_counts[provider_name] = self._provider_failure_counts.get(provider_name, 0) + 1
-            import time
-            self._provider_last_fail_time[provider_name] = time.time()
-            self._disabled_providers.add(provider_name)
+            self._provider_state.record_failure(provider_name or "")
 
             console.print(f"[yellow]{msg}[/yellow]")
 
@@ -2864,6 +2983,7 @@ class SiyarixChat:
                     )
                     llm_plan = plan_result
                     llm_reasoning = plan_result.context.get("reasoning", "")
+                    self._provider_state.record_success(provider_name or "")
                 except (asyncio.TimeoutError, RuntimeError, ValueError) as exc:
                     console.print(f"[yellow]⚠ LLM planning failed ({exc}) — using local planner[/yellow]")
 
@@ -3471,7 +3591,7 @@ class SiyarixChat:
 
         When ``model_provider`` is set to a specific name, use that.
         When ``"auto"``, scan known providers sorted by cost (cheapest first),
-        skipping any that were disabled this session or are in cooldown.
+        skipping any that are disabled or in cooldown (persisted across restarts).
         """
         import time
         from .providers import ProviderManager
@@ -3486,38 +3606,29 @@ class SiyarixChat:
                 key = os.environ.get("GOOGLE_API_KEY", "")
             return (configured, key or None)
 
-        # Auto mode: build sorted list (cheapest first), skip disabled/cooldown
         now = time.time()
-        candidates: list[tuple[int, str, str, str | None]] = []  # (sort_key, name, key, env_var)
+        candidates: list[tuple[int, str, str]] = []
 
         for prov_name in pm.list_providers():
-            if prov_name in self._disabled_providers:
-                # Check cooldown expiry
-                last_fail = self._provider_last_fail_time.get(prov_name, 0.0)
-                if now - last_fail < self._provider_cooldown_secs:
-                    continue
-                # Cooldown expired — re-enable
-                self._disabled_providers.discard(prov_name)
-                self._provider_failure_counts[prov_name] = 0
+            if self._provider_state.is_disabled(prov_name):
+                continue
 
             profile = pm.get_profile(prov_name)
             if not profile:
                 continue
 
-            # local providers always available
             if not profile.api_key_env:
-                candidates.append((profile.cost_tier.sort_key, prov_name, "", None))
+                candidates.append((profile.cost_tier.sort_key, prov_name, ""))
                 continue
 
             key = os.environ.get(profile.api_key_env)
             if not key and prov_name == "gemini":
                 key = os.environ.get("GOOGLE_API_KEY", "")
             if key:
-                candidates.append((profile.cost_tier.sort_key, prov_name, key, profile.api_key_env))
+                candidates.append((profile.cost_tier.sort_key, prov_name, key))
 
-        # Sort by cost (cheapest first), then by profile priority (highest first)
         candidates.sort(key=lambda c: (c[0], -pm.get_profile(c[1]).priority if pm.get_profile(c[1]) else 0))
-        for _, name, key, _ in candidates:
+        for _, name, key in candidates:
             return (name, key or None)
 
         return (None, None)

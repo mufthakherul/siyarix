@@ -4,6 +4,10 @@
 
 Rich-powered commands for incident management, vulnerability tracking,
 threat hunting, MITRE ATT&CK coverage, and security dashboards.
+
+NOTE: All commands currently render sample/demo data. Integration with
+a live SIEM backend (Splunk, ELK, etc.) is planned but not yet implemented.
+The UI scaffolding is complete and ready for backend wiring.
 """
 
 from __future__ import annotations

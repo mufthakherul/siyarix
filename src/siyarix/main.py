@@ -364,11 +364,9 @@ def _run_batch_lines(lines: list[str]) -> None:
 
 
 def _show_version() -> None:
-    from importlib.metadata import version as _v
-    try:
-        ver = _v("siyarix")
-    except Exception:
-        ver = "2.0.0"
+    from .branding import resolve_version
+
+    ver = resolve_version()
     console.print(f"[bold cyan]Siyarix[/bold cyan] [green]v{ver}[/green]")
     console.print(f"Platform: {sys.platform}  Python: {sys.version.split()[0]}")
 

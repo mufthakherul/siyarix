@@ -226,6 +226,17 @@ def severity_label(theme: str, severity: str) -> str:
 # ---------------------------------------------------------------------------
 
 
+def resolve_version() -> str:
+    """Resolve the installed Siyarix version via importlib.metadata with fallback."""
+    try:
+        from importlib.metadata import version as _pkg_version
+
+        return _pkg_version("siyarix")
+    except Exception as exc:
+        logger.debug("Failed to resolve package version: %s", exc)
+        return "2.0.0"
+
+
 def print_banner(
     console: Console,
     theme: str,
@@ -238,13 +249,7 @@ def print_banner(
     accent = style_map.get("accent", "bright_white")
     border = style_map.get("border", "cyan")
 
-    try:
-        from importlib.metadata import version as _pkg_version
-
-        _ver = _pkg_version("siyarix")
-    except Exception as exc:
-        logger.debug("Failed to resolve package version: %s", exc)
-        _ver = "1.0.0"
+    _ver = resolve_version()
 
     import platform as _platform
 

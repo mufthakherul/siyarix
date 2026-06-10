@@ -1791,10 +1791,10 @@ class OnboardingWizard:
                 self._console.print("  Installing via official script...")
                 result = subprocess.run(
                     "curl -fsSL https://ollama.com/install.sh | sh",
-                    shell=True,
+                    shell=True,  # nosec B602
                     capture_output=True,
                     text=True,
-                    timeout=600,  # nosec B602
+                    timeout=600,
                 )
                 ok = result.returncode == 0
                 if ok:

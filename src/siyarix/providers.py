@@ -7,10 +7,12 @@ Supports 13 providers with capability flags, cost tiers, and smart failover.
 from __future__ import annotations
 
 import enum
+import json
 import logging
 import os
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -112,6 +114,141 @@ class ProviderProfile:
 
     def get_model_names(self) -> list[str]:
         return [m.name for m in self.models]
+
+
+@dataclass
+class UsageRecord:
+    provider: str = ""
+    model: str = ""
+    input_tokens: int = 0
+    output_tokens: int = 0
+    call_count: int = 0
+    total_cost_estimated: float = 0.0
+
+    def record(self, input_tokens: int, output_tokens: int, cost_tier: CostTier = CostTier.MEDIUM) -> None:
+        self.input_tokens += input_tokens
+        self.output_tokens += output_tokens
+        self.call_count += 1
+        rates = {CostTier.FREE: 0.0, CostTier.LOW: 0.15e-6, CostTier.MEDIUM: 2.0e-6, CostTier.HIGH: 10.0e-6}
+        rate = rates.get(cost_tier, 2.0e-6)
+        self.total_cost_estimated += (input_tokens + output_tokens * 4) * rate
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"provider": self.provider, "model": self.model, "input_tokens": self.input_tokens,
+                "output_tokens": self.output_tokens, "call_count": self.call_count,
+                "total_cost_estimated": round(self.total_cost_estimated, 6)}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> UsageRecord:
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+
+class UsageTracker:
+    """Tracks token usage and cost per provider across a session."""
+
+    def __init__(self, path: str | None = None) -> None:
+        self._records: dict[str, UsageRecord] = {}
+        self._path = path
+
+    def record_call(self, provider: str, model: str, input_tokens: int, output_tokens: int,
+                    cost_tier: CostTier = CostTier.MEDIUM) -> None:
+        key = f"{provider}/{model}"
+        if key not in self._records:
+            self._records[key] = UsageRecord(provider=provider, model=model)
+        self._records[key].record(input_tokens, output_tokens, cost_tier)
+
+    def summary(self) -> str:
+        if not self._records:
+            return "No LLM usage this session."
+        total_cost = sum(r.total_cost_estimated for r in self._records.values())
+        total_in = sum(r.input_tokens for r in self._records.values())
+        total_out = sum(r.output_tokens for r in self._records.values())
+        total_calls = sum(r.call_count for r in self._records.values())
+        return (f"LLM calls: {total_calls} | Tokens: {total_in}↑ {total_out}↓ "
+                f"| Est. cost: ${total_cost:.4f}")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {k: v.to_dict() for k, v in self._records.items()}
+
+    def save(self) -> None:
+        if not self._path:
+            return
+        try:
+            Path(self._path).parent.mkdir(parents=True, exist_ok=True)
+            with open(self._path, "w") as f:
+                json.dump(self.to_dict(), f, indent=2)
+        except Exception as exc:
+            logger.debug("Failed to save usage tracker: %s", exc)
+
+    @classmethod
+    def load(cls, path: str) -> UsageTracker:
+        tracker = cls(path=path)
+        try:
+            with open(path) as f:
+                data = json.load(f)
+            for key, record in data.items():
+                tracker._records[key] = UsageRecord.from_dict(record)
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+        return tracker
+
+
+class ProviderStateManager:
+    """Persists provider cooldown/failure state across restarts."""
+
+    def __init__(self, path: str | None = None) -> None:
+        self.path = path
+        self._disabled: set[str] = set()
+        self._failure_counts: dict[str, int] = {}
+        self._last_fail_time: dict[str, float] = {}
+        self._cooldown_secs = 30.0
+        if path:
+            self._load()
+
+    def _load(self) -> None:
+        try:
+            with open(self.path) as f:
+                data = json.load(f)
+            self._disabled = set(data.get("disabled", []))
+            self._failure_counts = data.get("failure_counts", {})
+            self._last_fail_time = {k: float(v) for k, v in data.get("last_fail_time", {}).items()}
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+
+    def save(self) -> None:
+        if not self.path:
+            return
+        try:
+            Path(self.path).parent.mkdir(parents=True, exist_ok=True)
+            with open(self.path, "w") as f:
+                json.dump({
+                    "disabled": list(self._disabled),
+                    "failure_counts": self._failure_counts,
+                    "last_fail_time": self._last_fail_time,
+                }, f, indent=2)
+        except Exception as exc:
+            logger.debug("Failed to save provider state: %s", exc)
+
+    def is_disabled(self, provider: str) -> bool:
+        if provider not in self._disabled:
+            return False
+        last_fail = self._last_fail_time.get(provider, 0.0)
+        if time.time() - last_fail >= self._cooldown_secs:
+            self._disabled.discard(provider)
+            self._failure_counts[provider] = 0
+            return False
+        return True
+
+    def record_failure(self, provider: str) -> None:
+        self._disabled.add(provider)
+        self._failure_counts[provider] = self._failure_counts.get(provider, 0) + 1
+        self._last_fail_time[provider] = time.time()
+        self.save()
+
+    def record_success(self, provider: str) -> None:
+        self._disabled.discard(provider)
+        self._failure_counts[provider] = 0
+        self.save()
 
 
 class ProviderManager:

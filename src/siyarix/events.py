@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
@@ -101,6 +102,16 @@ class EventBus:
 
 
 _bus: EventBus | None = None
+
+
+def emit_sync(event: Event) -> None:
+    """Fire-and-forget event emission from synchronous code."""
+    bus = get_event_bus()
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(bus.emit(event))
+    except RuntimeError:
+        pass
 
 
 def get_event_bus() -> EventBus:

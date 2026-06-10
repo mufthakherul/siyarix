@@ -13,6 +13,8 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
+from .events import Event, EventType, emit_sync
+
 logger = logging.getLogger(__name__)
 
 __all__ = ["HealthStatus", "HealthChecker", "get_health"]
@@ -129,6 +131,8 @@ class HealthChecker:
         status.timestamp = datetime.now(UTC)
 
         self.last_check = status
+        emit_sync(Event(type=EventType.HEARTBEAT, source="health",
+            data={"healthy": status.state == HealthState.HEALTHY, "components": len(status.components)}))
         return status
 
     async def _check_model_providers(self, status: HealthStatus) -> None:

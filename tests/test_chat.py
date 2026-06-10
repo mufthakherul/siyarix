@@ -249,7 +249,7 @@ class TestSiyarixChatSlashCommands:
             chat._cmd_mode("invalid")
             assert chat._mode == "integrated"
             mock.print.assert_any_call(
-                "[red]Invalid mode: invalid. Valid modes: autonomous, integrated, registry[/red]"
+                "[red]Invalid mode: invalid. Valid modes: autonomous, integrated, registry, offline[/red]"
             )
 
     def test_cmd_uptime(self, chat: SiyarixChat) -> None:

@@ -56,6 +56,8 @@ class MemoryStore:
             self._init_db()
 
     def _init_db(self) -> None:
+        if not self._db_path:
+            return
         try:
             self._db_path.parent.mkdir(parents=True, exist_ok=True)
             self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)

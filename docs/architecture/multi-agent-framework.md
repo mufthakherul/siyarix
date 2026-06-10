@@ -94,5 +94,3 @@ result = await team.execute_goal(
 3. Within each role group, agents execute in parallel via `asyncio.gather()`
 4. Results are broadcast to the team via `team.broadcast(message)`
 5. Final results are aggregated and returned
-
-

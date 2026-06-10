@@ -21,7 +21,7 @@ siyarix health
 
 The `MCPClient`:
 
-1. **Connect**: Sends HTTP GET to `{endpoint}/health` 
+1. **Connect**: Sends HTTP GET to `{endpoint}/health`
 2. **Discover tools**: Queries `{endpoint}/tools` for available tools
 3. **Invoke tools**: Calls `{endpoint}/tools/{name}/call` with parameters
 4. **Monitor**: Periodic health checks maintain connection state

@@ -2864,7 +2864,7 @@ When the user message contains tool execution results, analyse them thoroughly.
         total_output_tokens = 0
         llm_call_fn = None
 
-        while api_key and not llm_connected:
+        while (api_key or provider_name in ("ollama", "lmstudio", "llamacpp", "vllm", "localai")) and not llm_connected:
             console.print(f"[dim]Agent mode — trying {provider_name}[/dim]")
             try:
                 llm_call_fn = self._make_llm_call(provider_name, api_key)

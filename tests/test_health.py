@@ -127,7 +127,7 @@ class TestHealthChecker:
         with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test"}, clear=True):
             status = HealthStatus(state=HealthState.HEALTHY)
             await checker._check_model_providers(status)
-            openai_comp = [c for c in status.components if "OpenAI" in c.name][0]
+            openai_comp = [c for c in status.components if c.name == "ModelProvider/OpenAI"][0]
             assert openai_comp.state == HealthState.HEALTHY
 
     @pytest.mark.asyncio
@@ -135,7 +135,7 @@ class TestHealthChecker:
         with patch.dict(os.environ, {}, clear=True):
             status = HealthStatus(state=HealthState.HEALTHY)
             await checker._check_model_providers(status)
-            openai_comp = [c for c in status.components if "OpenAI" in c.name][0]
+            openai_comp = [c for c in status.components if c.name == "ModelProvider/OpenAI"][0]
             assert openai_comp.state == HealthState.DEGRADED
 
     @pytest.mark.asyncio
@@ -191,7 +191,7 @@ class TestHealthChecker:
         with patch.dict(os.environ, {}, clear=True):
             status = HealthStatus(state=HealthState.HEALTHY)
             await checker._check_model_providers(status)
-            assert len(status.components) == 5
+            assert len(status.components) == 19
 
     # ── Tool Registry ──────────────────────────────────────────────────
 

@@ -302,7 +302,9 @@ class SiyarixChat:
                 __import__(profile.sdk_dependency)
             except ImportError:
                 logger.warning(
-                    "Provider '%s' SDK '%s' not installed", provider, profile.sdk_dependency
+                    "Provider '%s' SDK '%s' not installed",
+                    provider,
+                    profile.sdk_dependency,
                 )
                 console.print(
                     f"[yellow]⚠ Provider '{provider}' requires SDK: pip install {profile.sdk_dependency}[/yellow]"
@@ -440,7 +442,9 @@ class SiyarixChat:
             if PTK_AVAILABLE:
                 try:
                     return ptk_prompt(
-                        "❯ ", key_bindings=esc_bindings, completer=SmartAutocomplete(self._session)
+                        "❯ ",
+                        key_bindings=esc_bindings,
+                        completer=SmartAutocomplete(self._session),
                     ).strip()
                 except KeyboardInterrupt:
                     raise
@@ -473,7 +477,9 @@ class SiyarixChat:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore", RuntimeWarning)
                     answer = ptk_prompt(
-                        "❯ ", key_bindings=esc_bindings, completer=SmartAutocomplete(self._session)
+                        "❯ ",
+                        key_bindings=esc_bindings,
+                        completer=SmartAutocomplete(self._session),
                     ).strip()
             except KeyboardInterrupt:
                 raise
@@ -976,7 +982,12 @@ class SiyarixChat:
                     console.print("[yellow]No audit entries[/yellow]")
                     return
                 for e in entries:
-                    icons = {"success": "🟢", "denied": "🔴", "error": "🟡", "info": "🔵"}
+                    icons = {
+                        "success": "🟢",
+                        "denied": "🔴",
+                        "error": "🟡",
+                        "info": "🔵",
+                    }
                     op_icon = icons.get(e.get("outcome", ""), "•")
                     ts = e.get("timestamp", "")[11:19]
                     console.print(
@@ -1331,7 +1342,12 @@ class SiyarixChat:
 
         if tokens:
             selected = tokens[0].strip().lower()
-            valid_providers = set(all_providers) | {"auto", "cloud", "custom", "opencode"}
+            valid_providers = set(all_providers) | {
+                "auto",
+                "cloud",
+                "custom",
+                "opencode",
+            }
             if selected in valid_providers:
                 self._settings.set("model_provider", selected)
                 model_name = ""
@@ -1674,7 +1690,9 @@ class SiyarixChat:
                 table.add_row(p["name"], p["label"], p["description"])
             table.add_row("auto", "Auto (Smart Select)", "Analyse and choose the best-fit persona")
             table.add_row(
-                "universal", "Universal / All-in-One", "Full-spectrum cybersecurity professional"
+                "universal",
+                "Universal / All-in-One",
+                "Full-spectrum cybersecurity professional",
             )
             table.add_row("none", "None", "No persona framing — LLM decides its own voice")
             console.print(table)
@@ -2162,7 +2180,13 @@ class SiyarixChat:
             console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
             return
         tokens = args.split() if args else []
-        if len(tokens) < 2 or tokens[0] not in ("nessus", "burp", "metasploit", "stix", "auto"):
+        if len(tokens) < 2 or tokens[0] not in (
+            "nessus",
+            "burp",
+            "metasploit",
+            "stix",
+            "auto",
+        ):
             console.print(
                 "[yellow]Usage: /import <nessus|burp|metasploit|stix|auto> <file>[/yellow]"
             )
@@ -2639,7 +2663,11 @@ class SiyarixChat:
             store.save_scan(target or instruction, result.all_findings, mode=self._mode)
             if plan and plan.id:
                 step_dicts = [
-                    {"tool": s.tool, "status": s.status.value, "description": s.description}
+                    {
+                        "tool": s.tool,
+                        "status": s.status.value,
+                        "description": s.description,
+                    }
                     for s in plan.steps
                 ]
                 store.save_plan(plan.id, plan.goal, step_dicts, mode=self._mode)
@@ -2894,7 +2922,7 @@ Each step is a raw shell command running directly on the shell:
                 "name": t.name,
                 "description": t.description,
                 "tags": t.tags,
-                "category": t.category.value if hasattr(t.category, "value") else str(t.category),
+                "category": (t.category.value if hasattr(t.category, "value") else str(t.category)),
             }
             for t in all_tools
         ]
@@ -3203,7 +3231,8 @@ Each step is a raw shell command running directly on the shell:
                     "need deeper recon), set needs_tools=true and provide the next steps."
                 )
                 with console.status(
-                    "[bold cyan]LLM analysing wave results...[/bold cyan]", spinner="dots"
+                    "[bold cyan]LLM analysing wave results...[/bold cyan]",
+                    spinner="dots",
                 ):
                     try:
                         compact = self._should_use_compact()
@@ -3560,10 +3589,10 @@ Each step is a raw shell command running directly on the shell:
                 )
                 choice = response.choices[0] if response.choices else None
                 return {
-                    "content": choice.message.content if choice and choice.message else "",
+                    "content": (choice.message.content if choice and choice.message else ""),
                     "model": response.model or model,
-                    "input_tokens": response.usage.prompt_tokens if response.usage else 0,
-                    "output_tokens": response.usage.completion_tokens if response.usage else 0,
+                    "input_tokens": (response.usage.prompt_tokens if response.usage else 0),
+                    "output_tokens": (response.usage.completion_tokens if response.usage else 0),
                 }
 
             result = call_mistral
@@ -3692,7 +3721,9 @@ Each step is a raw shell command running directly on the shell:
                                 "stream": True,
                             }
                             async with hclient.stream(
-                                "POST", f"{lmstudio_url}/v1/chat/completions", json=payload
+                                "POST",
+                                f"{lmstudio_url}/v1/chat/completions",
+                                json=payload,
                             ) as resp:
                                 async for line in resp.aiter_lines():
                                     if line.startswith("data: "):
@@ -4013,7 +4044,10 @@ Each step is a raw shell command running directly on the shell:
             return []
         recent = msgs[-max_messages:] if len(msgs) > max_messages else msgs
         return [
-            {"role": m.role, "content": m.content[-4000:] if len(m.content) > 4000 else m.content}
+            {
+                "role": m.role,
+                "content": m.content[-4000:] if len(m.content) > 4000 else m.content,
+            }
             for m in recent
         ]
 
@@ -4044,7 +4078,10 @@ Each step is a raw shell command running directly on the shell:
         full_text = ""
         md = Markdown("")
         panel = Panel(
-            md, title="[bold green]◆ Siyarix[/bold green]", border_style="green", padding=(0, 2)
+            md,
+            title="[bold green]◆ Siyarix[/bold green]",
+            border_style="green",
+            padding=(0, 2),
         )
         with Live(panel, refresh_per_second=12, transient=False) as live:
             async for token in gen:

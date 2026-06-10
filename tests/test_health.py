@@ -206,8 +206,10 @@ class TestHealthChecker:
 
     @pytest.mark.asyncio
     async def test_check_tool_registry_partial(self, checker: HealthChecker) -> None:
+        import os
+        partial_tool = "python.exe" if os.name == "nt" else "bash"
         def which_side(tool: str) -> str | None:
-            return "/usr/bin/bash" if tool == "bash" else None
+            return f"/usr/bin/{partial_tool}" if tool == partial_tool else None
         with patch("shutil.which", side_effect=which_side):
             status = HealthStatus(state=HealthState.HEALTHY)
             await checker._check_tool_registry(status)

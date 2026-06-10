@@ -259,7 +259,7 @@ class SessionLogger:
         if not log:
             return False
         cmd_id = len(log.commands) + 1
-        ref = f"logs/{session_id}/cmd_{cmd_id:02d}_output.txt"
+        ref = os.path.join("logs", session_id, f"cmd_{cmd_id:02d}_output.txt").replace("\\", "/")
         log.commands.append(
             CommandEntry(
                 id=cmd_id,

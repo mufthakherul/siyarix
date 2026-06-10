@@ -28,6 +28,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import shutil
 
 # Windows event loop policy for subprocess compatibility
 if os.name == "nt" and hasattr(asyncio, "WindowsSelectorEventLoopPolicy"):
@@ -1401,9 +1402,24 @@ def completions_install(
       siyarix completions install powershell
     """
     if not shell:
-        shell = os.getenv("SHELL", "bash").split("/")[-1]
-        if platform.system().lower() == "windows":
-            shell = "powershell"
+        shell = os.getenv("SHELL", "")
+        if shell:
+            shell = os.path.basename(shell).lower()
+        elif platform.system().lower() == "windows":
+            # Detect PowerShell Core first, then Windows PowerShell, then cmd
+            if shutil.which("pwsh"):
+                shell = "powershell"
+            elif shutil.which("powershell"):
+                shell = "powershell"
+            else:
+                shell = "powershell"  # best default on Windows
+        else:
+            # Unix fallback: detect from PATH
+            for sh in ("pwsh", "bash", "zsh", "fish", "sh"):
+                if shutil.which(sh):
+                    shell = sh
+                    break
+            shell = shell or "bash"
 
     shell = shell.lower()
     completions_map = {

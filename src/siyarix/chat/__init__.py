@@ -172,20 +172,11 @@ def get_security_commands(shell: str = "") -> dict[str, str]:
     return {}
 
 
-Console: Any = None
-Columns: Any = None
-Markdown: Any = None
-Panel: Any = None
-Prompt: Any = None
-Rule: Any = None
-Syntax: Any = None
-Table: Any = None
-Text: Any = None
-ptk_prompt: Any = None
-
+RICH_AVAILABLE = False
 try:
     from rich.columns import Columns
     from rich.console import Console
+    from rich.markdown import Markdown
     from rich.panel import Panel
     from rich.prompt import Prompt
     from rich.rule import Rule
@@ -195,10 +186,19 @@ try:
 
     RICH_AVAILABLE = True
 except ImportError:
-    RICH_AVAILABLE = False
+    Columns = None
+    Console = None
+    Markdown = None
+    Panel = None
+    Prompt = None
+    Rule = None
+    Syntax = None
+    Table = None
+    Text = None
 
 logger = logging.getLogger(__name__)
 
+PTK_AVAILABLE = False
 try:
     from prompt_toolkit import prompt as ptk_prompt
     from prompt_toolkit.key_binding import KeyBindings
@@ -206,7 +206,8 @@ try:
     PTK_AVAILABLE = True
 except Exception as exc:
     logger.debug("prompt_toolkit not available: %s", exc)
-    PTK_AVAILABLE = False
+    ptk_prompt = None
+    KeyBindings = None
 
 console = Console()
 load_env_file()
@@ -340,9 +341,7 @@ class SiyarixChat:
                             f"Operation {op.operation_id} [{status}]\nArtifacts: {artifacts}",
                         )
                     session.save(self._SESSIONS_DIR / f"{session.session_id}.json")
-                    console.print(
-                        f"[dim]Restored legacy session {session.session_id[:8]}[/dim]"
-                    )
+                    console.print(f"[dim]Restored legacy session {session.session_id[:8]}[/dim]")
                     return session
             except Exception:
                 pass
@@ -866,8 +865,7 @@ class SiyarixChat:
 
             vault_set(provider, api_key)
             console.print(
-                f"[green]✓ Encrypted and stored {provider} API key "
-                f"in device-bound vault[/green]"
+                f"[green]✓ Encrypted and stored {provider} API key in device-bound vault[/green]"
             )
         except Exception:
             logger.exception("Failed to save credential to vault")
@@ -982,7 +980,7 @@ class SiyarixChat:
                     op_icon = icons.get(e.get("outcome", ""), "•")
                     ts = e.get("timestamp", "")[11:19]
                     console.print(
-                        f"  {op_icon} [{ts}] {e.get('operation','')} [{e.get('provider','')}] {e.get('detail','')}"
+                        f"  {op_icon} [{ts}] {e.get('operation', '')} [{e.get('provider', '')}] {e.get('detail', '')}"
                     )
             except Exception as exc:
                 console.print(f"[red]{exc}[/red]")
@@ -2182,7 +2180,7 @@ class SiyarixChat:
         for f in result.findings[:10]:
             console.print(f"  [{f.severity}] {f.title} @ {f.host or '?'}:{f.port}")
         if len(result.findings) > 10:
-            console.print(f"  ... and {len(result.findings)-10} more")
+            console.print(f"  ... and {len(result.findings) - 10} more")
 
     # ──────────────────────────────────────────────────────────────────────
     # Appendix A.3 slash commands
@@ -2204,7 +2202,7 @@ class SiyarixChat:
                 console.print("[dim]No playbooks. Use /playbook create <name> to make one.[/dim]")
                 return
             for pb in playbooks:
-                console.print(f"  • {pb.get('name','?')} ({pb.get('steps',0)} steps)")
+                console.print(f"  • {pb.get('name', '?')} ({pb.get('steps', 0)} steps)")
         elif action == "create":
             name = " ".join(tokens[1:]) if len(tokens) > 1 else Prompt.ask("Playbook name")
             engine.create(name)
@@ -2321,7 +2319,7 @@ class SiyarixChat:
             if intel_results:
                 for r in intel_results[:10]:
                     console.print(
-                        f"  [{r.get('severity','info')}] {r.get('indicator','?')} — {r.get('description','')[:80]}"
+                        f"  [{r.get('severity', 'info')}] {r.get('indicator', '?')} — {r.get('description', '')[:80]}"
                     )
             else:
                 console.print("[dim]No threat intelligence matches.[/dim]")
@@ -2333,13 +2331,13 @@ class SiyarixChat:
             )
             for r in mitre_results[:15]:
                 console.print(
-                    f"  • {r.get('id','?')} — {r.get('name','?')} ({r.get('tactic','?')})"
+                    f"  • {r.get('id', '?')} — {r.get('name', '?')} ({r.get('tactic', '?')})"
                 )
         elif action == "feeds":
             feed = ThreatIntelFeed()
             feeds = feed.list_feeds()
             for f in feeds:
-                console.print(f"  • {f.get('name','?')} — {f.get('status','?')}")
+                console.print(f"  • {f.get('name', '?')} — {f.get('status', '?')}")
         else:
             console.print("[yellow]Usage: /intel search|mitre|feeds[/yellow]")
 
@@ -2380,7 +2378,7 @@ class SiyarixChat:
         elif action == "status":
             canary_stats = mgr.summary()
             console.print(
-                f"Canary tokens: {canary_stats.get('total_tokens',0)} total, {canary_stats.get('triggered_tokens',0)} triggered"
+                f"Canary tokens: {canary_stats.get('total_tokens', 0)} total, {canary_stats.get('triggered_tokens', 0)} triggered"
             )
         else:
             console.print("[yellow]Usage: /canary deploy|list|status[/yellow]")
@@ -2540,7 +2538,10 @@ class SiyarixChat:
                 compact = self._should_use_compact()
                 sys_prompt = self._build_system_prompt(compact=compact)
                 response = await self._stream_assistant_response(
-                    sys_prompt, instruction, prov_name, api_key,
+                    sys_prompt,
+                    instruction,
+                    prov_name,
+                    api_key,
                     history=self._get_conversation_history(),
                 )
                 self._llm_calls += 1
@@ -2602,14 +2603,14 @@ class SiyarixChat:
                 console.print(
                     Panel(
                         "\n".join(
-                            f"[{'red' if f.severity in ('critical','high') else 'yellow'}]"
+                            f"[{'red' if f.severity in ('critical', 'high') else 'yellow'}]"
                             f"{'🔴' if f.severity == 'critical' else '⚠'} "
                             f"[{f.severity.upper()}] {f.message}[/]\n"
                             f"  [dim]Suggestion: {f.suggestion}[/dim]"
                             for f in findings[:5]
                         )
                         + (
-                            f"\n  [dim]... and {len(findings)-5} more[/dim]"
+                            f"\n  [dim]... and {len(findings) - 5} more[/dim]"
                             if len(findings) > 5
                             else ""
                         ),
@@ -2805,7 +2806,6 @@ When the user shares tool output or results:
 - If unsure, acknowledge the gap honestly and suggest how to close it
 - Steer off-topic requests back to security gracefully"""
 
-
         NEUTRAL_SYSTEM_PROMPT = """You are Siyarix, a cybersecurity professional in a terminal-driven environment.
 
 ## Approach
@@ -2833,7 +2833,6 @@ Each step is a raw shell command running directly on the shell:
 - When analysing results, identify exposures, correlate evidence, assign severity, and recommend remediation
 - Use Markdown for structured output where helpful
 - Decline off-topic requests gracefully and steer back to security"""
-
 
         persona_name = self._settings.get("persona") or "auto"
 
@@ -2910,10 +2909,12 @@ Each step is a raw shell command running directly on the shell:
         total_output_tokens = 0
         llm_call_fn = None
 
-        while (api_key or provider_name in ("ollama", "lmstudio", "llamacpp", "vllm", "localai")) and not llm_connected:
+        while (
+            api_key or provider_name in ("ollama", "lmstudio", "llamacpp", "vllm", "localai")
+        ) and not llm_connected:
             console.print(f"[dim]Agent mode — trying {provider_name}[/dim]")
             try:
-                llm_call_fn = self._make_llm_call(provider_name, api_key)
+                llm_call_fn = self._make_llm_call(provider_name, api_key or "")
                 ping = await asyncio.wait_for(
                     llm_call_fn("Respond with exactly: OK", "ping"),
                     timeout=15.0,
@@ -3016,7 +3017,10 @@ Each step is a raw shell command running directly on the shell:
                 compact = self._should_use_compact()
                 sys_prompt = self._build_system_prompt(compact=compact)
                 response = await self._stream_assistant_response(
-                    sys_prompt, instruction, provider_name, api_key,
+                    sys_prompt,
+                    instruction,
+                    provider_name,
+                    api_key,
                     history=self._get_conversation_history(),
                 )
                 self._llm_calls += 1
@@ -3220,9 +3224,7 @@ Each step is a raw shell command running directly on the shell:
                         else:
                             # Done — show final response
                             ctx = plan.context or {}
-                            summary = (
-                                ctx.get("response") or ctx.get("reasoning", "")
-                            ) or "Done."
+                            summary = (ctx.get("response") or ctx.get("reasoning", "")) or "Done."
                             self._session.add_message("assistant", summary)
                             self._print_assistant(summary)
                     except asyncio.TimeoutError:
@@ -3327,10 +3329,14 @@ Each step is a raw shell command running directly on the shell:
             client_kwargs = {"api_key": api_key}
             if base_url:
                 client_kwargs["base_url"] = base_url
-            client = AsyncOpenAI(**client_kwargs)  # type: ignore[arg-type]
+            client = AsyncOpenAI(**client_kwargs)
 
             async def call_openai(
-                system_prompt: str, user_prompt: str, *, stream: bool = False, history: list[dict] | None = None
+                system_prompt: str,
+                user_prompt: str,
+                *,
+                stream: bool = False,
+                history: list[dict] | None = None,
             ) -> dict[str, Any]:
                 if stream:
 
@@ -3376,7 +3382,11 @@ Each step is a raw shell command running directly on the shell:
             model = self._settings.get("anthropic_model") or "claude-sonnet-4-6"
 
             async def call_anthropic(
-                system_prompt: str, user_prompt: str, *, stream: bool = False, history: list[dict] | None = None
+                system_prompt: str,
+                user_prompt: str,
+                *,
+                stream: bool = False,
+                history: list[dict] | None = None,
             ) -> dict[str, Any]:
                 if stream:
 
@@ -3421,7 +3431,11 @@ Each step is a raw shell command running directly on the shell:
             model = self._settings.get("groq_model") or "llama-4-scout-17b-16e-instruct"
 
             async def call_groq(
-                system_prompt: str, user_prompt: str, *, stream: bool = False, history: list[dict] | None = None
+                system_prompt: str,
+                user_prompt: str,
+                *,
+                stream: bool = False,
+                history: list[dict] | None = None,
             ) -> dict[str, Any]:
                 if stream:
 
@@ -3467,7 +3481,11 @@ Each step is a raw shell command running directly on the shell:
             )
 
             async def call_together(
-                system_prompt: str, user_prompt: str, *, stream: bool = False, history: list[dict] | None = None
+                system_prompt: str,
+                user_prompt: str,
+                *,
+                stream: bool = False,
+                history: list[dict] | None = None,
             ) -> dict[str, Any]:
                 if stream:
 
@@ -3512,12 +3530,16 @@ Each step is a raw shell command running directly on the shell:
             model = self._settings.get("mistral_model") or "mistral-large-3"
 
             async def call_mistral(
-                system_prompt: str, user_prompt: str, *, stream: bool = False, history: list[dict] | None = None
+                system_prompt: str,
+                user_prompt: str,
+                *,
+                stream: bool = False,
+                history: list[dict] | None = None,
             ) -> dict[str, Any]:
                 if stream:
 
                     async def _gen() -> Any:
-                        response = await client.chat.stream_async(  # type: ignore[attr-defined]
+                        response = await client.chat.stream_async(
                             model=model,
                             messages=self._build_messages(system_prompt, user_prompt, history),
                             max_tokens=2000,
@@ -3530,7 +3552,7 @@ Each step is a raw shell command running directly on the shell:
                                     yield delta.content
 
                     return _gen()
-                response = await client.chat.complete_async(  # type: ignore[attr-defined]
+                response = await client.chat.complete_async(
                     model=model,
                     messages=self._build_messages(system_prompt, user_prompt, history),
                     max_tokens=2000,
@@ -3564,7 +3586,11 @@ Each step is a raw shell command running directly on the shell:
                 use_sdk = False
 
             async def call_ollama(
-                system_prompt: str, user_prompt: str, *, stream: bool = False, history: list[dict] | None = None
+                system_prompt: str,
+                user_prompt: str,
+                *,
+                stream: bool = False,
+                history: list[dict] | None = None,
             ) -> dict[str, Any]:
                 if use_sdk and stream:
 
@@ -3598,7 +3624,9 @@ Each step is a raw shell command running directly on the shell:
                         async with httpx.AsyncClient(timeout=60.0) as hclient:
                             payload = {
                                 "model": model,
-                                "messages": self._build_messages(system_prompt, user_prompt, history),
+                                "messages": self._build_messages(
+                                    system_prompt, user_prompt, history
+                                ),
                                 "stream": True,
                                 "options": {"temperature": 0.3, "num_predict": 2000},
                             }
@@ -3644,7 +3672,11 @@ Each step is a raw shell command running directly on the shell:
             model = self._settings.get("lmstudio_model") or ""
 
             async def call_lmstudio(
-                system_prompt: str, user_prompt: str, *, stream: bool = False, history: list[dict] | None = None
+                system_prompt: str,
+                user_prompt: str,
+                *,
+                stream: bool = False,
+                history: list[dict] | None = None,
             ) -> dict[str, Any]:
                 if stream:
 
@@ -3652,7 +3684,9 @@ Each step is a raw shell command running directly on the shell:
                         async with httpx.AsyncClient(timeout=120.0) as hclient:
                             payload = {
                                 "model": model or "local-model",
-                                "messages": self._build_messages(system_prompt, user_prompt, history),
+                                "messages": self._build_messages(
+                                    system_prompt, user_prompt, history
+                                ),
                                 "max_tokens": 2000,
                                 "temperature": 0.3,
                                 "stream": True,
@@ -4146,9 +4180,7 @@ Each step is a raw shell command running directly on the shell:
     def _print_goodbye(self) -> None:
         self._session.save(self._SESSIONS_DIR / f"{self._session.session_id}.json")
         self._output.print_info(f"Session saved: {self._session.session_id[:8]}")
-        self._output.print_info(
-            f"Resume with: siyarix --session {self._session.session_id}"
-        )
+        self._output.print_info(f"Resume with: siyarix --session {self._session.session_id}")
         self._output.print_info("Settings persist in config/.env — stay curious, stay ethical.")
 
 
@@ -4168,6 +4200,7 @@ def start_chat(
 
     try:
         from ..credential_vault import get_vault
+
         vault = get_vault(create=False)
         if vault:
             atexit.register(vault.seal)

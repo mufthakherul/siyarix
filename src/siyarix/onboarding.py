@@ -1095,7 +1095,8 @@ class OnboardingWizard:
             elif choice == "n":
                 persona = "none"
             else:
-                persona = personas[int(choice) - 1]
+                pdata = personas[int(choice) - 1]
+                persona = pdata.get("name") or pdata.get("label") or str(pdata)
         else:
             persona = "auto"
 

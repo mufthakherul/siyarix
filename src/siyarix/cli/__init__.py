@@ -491,7 +491,7 @@ def main_callback(
 def _ensure_vault_ready() -> None:
     """Auto-unseal vault on startup or prompt for passphrase on device change."""
     try:
-        from ..credential_vault import CredentialVault, VaultDeviceMismatchError, VaultEnvironmentMismatchError
+        from .. import credential_vault as cv_mod
         from ..config import SettingsStore
         from rich.console import Console
 
@@ -500,7 +500,7 @@ def _ensure_vault_ready() -> None:
         if not SettingsStore().get("vault_initialized"):
             return
 
-        vault = CredentialVault(passphrase="", skip_unseal=True)
+        vault = cv_mod.CredentialVault(passphrase="", skip_unseal=True)
         if not vault._vault_path.exists():
             return
 
@@ -508,10 +508,9 @@ def _ensure_vault_ready() -> None:
         if key:
             try:
                 vault.unseal(key)
+                cv_mod._vault_instance = vault
                 return
-            except VaultDeviceMismatchError:
-                pass
-            except VaultEnvironmentMismatchError:
+            except (cv_mod.VaultDeviceMismatchError, cv_mod.VaultEnvironmentMismatchError):
                 pass
             except Exception:
                 vault._clear_auto_unseal_key()
@@ -527,6 +526,7 @@ def _ensure_vault_ready() -> None:
         for _ in range(3):
             pp = Prompt.ask("Vault passphrase", password=True)
             if vault.reconfirm_device(pp):
+                cv_mod._vault_instance = vault
                 _console.print("[green]✓ Vault unsealed and re-bound to current device[/green]")
                 return
             _console.print("[red]Wrong passphrase. Try again.[/red]")

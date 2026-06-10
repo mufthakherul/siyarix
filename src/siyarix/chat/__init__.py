@@ -123,7 +123,12 @@ def list_supported_shells() -> list[tuple[str, str]]:
 
 
 def load_env_file() -> None:
-    """Load environment variables from ~/.siyarix/.env (simple key=value parser)."""
+    """Load environment variables from ~/.siyarix/.env (simple key=value parser).
+
+    NOTE: API key env vars (*_API_KEY) are intentionally NOT loaded from .env
+    for security. Use the encrypted vault instead: /key set <provider> <key>.
+    """
+    _api_key_patterns = ("_API_KEY", "_SECRET", "_PASSWORD", "_TOKEN")
     env_path = Path.home() / ".siyarix" / ".env"
     if not env_path.exists():
         return
@@ -135,6 +140,9 @@ def load_env_file() -> None:
         key = key.strip()
         val = val.strip().strip("'").strip('"')
         if key and not os.environ.get(key):
+            if any(p in key.upper() for p in _api_key_patterns):
+                logger.debug("Skipping %s from .env (use vault instead)", key)
+                continue
             os.environ[key] = val
 
 
@@ -143,6 +151,7 @@ def ensure_env_file() -> str | None:
 
 
 def upsert_env_vars(env_vars: dict[str, str], env_file: str | None = None) -> None:
+    """Set environment variables in-memory only (never writes to .env)."""
     for k, v in env_vars.items():
         os.environ[k] = v
 
@@ -794,35 +803,51 @@ class SiyarixChat:
             provider = tokens[1].lower()
             from ..providers import get_provider_env_var
             env_key = get_provider_env_var(provider)
-            upsert_env_vars({env_key: ""}, ensure_env_file())
             os.environ.pop(env_key, None)
-            from ..credential_store import CredentialStore
-
             try:
+                from ..credential_vault import vault_delete
+                vault_delete(provider)
+            except Exception:
+                logger.exception("Failed to remove credential from vault")
+            try:
+                from ..credential_store import CredentialStore
                 vault = CredentialStore()
                 vault.delete(provider, "api_key")
             except Exception:
-                logger.exception("Failed to remove credential from vault")
-            console.print(f"[green]✓ Cleared {provider} key from .env[/green]")
+                pass
+            console.print(f"[green]✓ Cleared {provider} key from encrypted vault[/green]")
             return
 
         if not api_key:
             api_key = Prompt.ask(f"Enter {provider} API key", password=True)
         from ..providers import get_provider_env_var
         env_key = get_provider_env_var(provider)
-        # persist to the encrypted vault and .env, then update the live environment
-        try:
-            from ..credential_store import CredentialStore
-
-            vault = CredentialStore()
-            vault.delete(provider, "api_key")
-            vault.store(provider, api_key, "api_key")
-        except Exception:
-            logger.exception("Failed to save credential to vault")
-        upsert_env_vars({env_key: api_key}, ensure_env_file())
         os.environ[env_key] = api_key
+        try:
+            from ..credential_vault import vault_set
+            vault_set(provider, api_key)
+            console.print(
+                f"[green]✓ Encrypted and stored {provider} API key "
+                f"in device-bound vault[/green]"
+            )
+        except Exception as exc:
+            logger.exception("Failed to save credential to vault")
+            # Fallback: legacy CredentialStore
+            try:
+                from ..credential_store import CredentialStore
+                vault = CredentialStore()
+                vault.delete(provider, "api_key")
+                vault.store(provider, api_key, "api_key")
+                console.print(
+                    f"[green]✓ Stored {provider} API key in legacy vault[/green]"
+                )
+            except Exception:
+                console.print(
+                    f"[green]✓ {provider} API key set in environment[/green]"
+                )
+            return
         console.print(
-            f"[green]✓ Stored {provider} API key in the vault and .env[/green]"
+            "[dim](encrypted, device-bound, tamper-protected)[/dim]"
         )
 
         # If user set Gemini key and the client package is missing, offer to install it

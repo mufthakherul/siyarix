@@ -1933,11 +1933,7 @@ class SiyarixChat:
 
     async def _cmd_siem(self, args: str) -> None:
         """Handle /siem command for SIEM/SOAR integration."""
-        try:
-            from ..platform_integration import platform_integration
-        except ModuleNotFoundError:
-            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
-            return
+        from ..platform_integration import platform_integration
         tokens = args.split() if args else []
         if not tokens or tokens[0] not in ("connect", "status", "forward"):
             console.print("[yellow]Usage: /siem connect|status|forward <platform> <url>[/yellow]")
@@ -1953,11 +1949,7 @@ class SiyarixChat:
 
     async def _cmd_performance(self, args: str) -> None:
         """Handle /performance command for resource optimization."""
-        try:
-            from ..performance import performance_optimizer
-        except ModuleNotFoundError:
-            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
-            return
+        from ..performance import performance_optimizer
         tokens = args.split() if args else []
         if not tokens or tokens[0] not in ("status", "tune", "configure"):
             console.print("[yellow]Usage: /performance status|tune|configure[/yellow]")
@@ -2081,11 +2073,7 @@ class SiyarixChat:
             if not query:
                 console.print("[yellow]Usage: /kb search <query>[/yellow]")
                 return
-            try:
-                from ..knowledge_graph import KnowledgeGraph
-            except ModuleNotFoundError:
-                console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
-                return
+            from ..knowledge_graph import KnowledgeGraph
             kg = KnowledgeGraph()
             results = kg.search(query)
             if results:
@@ -2100,11 +2088,7 @@ class SiyarixChat:
 
     async def _cmd_ticket(self, args: str) -> None:
         """Handle /ticket command for external ticket creation."""
-        try:
-            from ..platform_integration import platform_integration
-        except ModuleNotFoundError:
-            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
-            return
+        from ..platform_integration import platform_integration
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "create"
         if action == "create":

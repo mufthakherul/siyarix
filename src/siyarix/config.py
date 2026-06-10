@@ -288,14 +288,13 @@ class SettingsStore:
         """Open settings file in $EDITOR."""
         self._save()  # ensure file exists
         import platform as _platform
+        import shlex
 
         default_editor = (
             "notepad.exe" if _platform.system().lower() == "windows" else "nano"
         )
         editor = os.getenv("EDITOR", default_editor)
-        # Handle editor paths with spaces on Windows
-        editor_cmd = editor if _platform.system().lower() != "windows" else editor.split()
-        editor_cmd = [editor_cmd] if isinstance(editor_cmd, str) else editor_cmd
+        editor_cmd = shlex.split(editor) if _platform.system().lower() == "windows" else [editor]
         try:
             safe_run_sync(editor_cmd + [str(self._path)], timeout=0)
         except Exception:

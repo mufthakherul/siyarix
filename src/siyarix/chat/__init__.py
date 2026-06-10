@@ -30,6 +30,7 @@ import json
 import logging
 import platform as _platform
 import os
+import shutil
 import sys
 import time
 import warnings
@@ -99,7 +100,14 @@ def build_platform_context() -> dict[str, Any]:
 def detect_shell() -> str:
     if os.name == "nt":
         return os.environ.get("COMSPEC", "cmd.exe")
-    return os.environ.get("SHELL", "/bin/sh")
+    shell = os.environ.get("SHELL", "")
+    if shell:
+        return shell
+    for sh in ("pwsh", "powershell", "bash", "zsh", "fish", "sh"):
+        found = shutil.which(sh)
+        if found:
+            return found
+    return "/bin/sh"
 
 
 def get_shell_platform() -> str:

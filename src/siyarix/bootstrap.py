@@ -79,23 +79,22 @@ class BootstrapEngine:
             or "wsl" in platform.release().lower()
         ):
             info.is_wsl = True
-        # Detect package manager
-        if shutil.which("apt-get"):
-            info.package_manager = "apt"
-        elif shutil.which("brew"):
-            info.package_manager = "brew"
-        elif shutil.which("pkg"):
-            info.package_manager = "pkg"
-        elif shutil.which("choco"):
-            info.package_manager = "choco"
-        elif shutil.which("winget"):
-            info.package_manager = "winget"
-        elif shutil.which("pacman"):
-            info.package_manager = "pacman"
-        elif shutil.which("dnf"):
-            info.package_manager = "dnf"
-        elif shutil.which("apk"):
-            info.package_manager = "apk"
+        # Detect package manager (platform-adaptive ordering)
+        is_win = os.name == "nt"
+        pm_checks = [
+            ("winget", "winget"), ("choco", "choco"),
+        ] if is_win else [
+            ("apt-get", "apt"), ("apt", "apt"),
+        ]
+        pm_checks += [
+            ("brew", "brew"), ("pkg", "pkg"),
+            ("pacman", "pacman"), ("dnf", "dnf"),
+            ("apk", "apk"), ("winget", "winget"), ("choco", "choco"),
+        ]
+        for binary, name in pm_checks:
+            if shutil.which(binary):
+                info.package_manager = name
+                break
         return info
 
     def check_python_version(self) -> bool:
@@ -130,7 +129,15 @@ class BootstrapEngine:
     def _detect_shell(self) -> str:
         if os.name == "nt":
             return os.environ.get("COMSPEC", "cmd.exe").lower()
-        return os.environ.get("SHELL", "/bin/sh").lower()
+        shell = os.environ.get("SHELL", "")
+        if shell:
+            return shell.lower()
+        # Fallback: detect from PATH
+        for sh in ("pwsh", "powershell", "bash", "zsh", "fish", "sh"):
+            found = shutil.which(sh)
+            if found:
+                return found.lower()
+        return "/bin/sh"
 
     def _detect_terminal_from_env(self) -> str:
         """Detect terminal emulator."""

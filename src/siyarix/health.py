@@ -222,7 +222,11 @@ class HealthChecker:
 
     async def _check_tool_registry(self, status: HealthStatus) -> None:
         """Check tool registry health."""
-        critical_tools = ["bash", "sh", "python", "python3"]
+        critical_tools = (
+            ["pwsh", "powershell", "cmd", "python.exe"]
+            if os.name == "nt"
+            else ["bash", "sh", "python3", "python"]
+        )
         found_tools = []
 
         for tool in critical_tools:

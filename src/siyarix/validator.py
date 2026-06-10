@@ -6,9 +6,9 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Callable, Coroutine
+from typing import Any, Callable
 
-from .planner import PlanStep, StepStatus
+from .planner import PlanStep
 from .events import Event, EventType, get_event_bus
 
 logger = logging.getLogger(__name__)

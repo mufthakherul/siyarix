@@ -347,13 +347,19 @@ class SettingsStore:
         """Coerce string input to the expected type for *key*."""
         default = DEFAULTS[key]
         if isinstance(default, bool):
+            if isinstance(value, bool):
+                return value
             return value.lower() in ("true", "1", "yes", "on")
         if isinstance(default, int):
+            if isinstance(value, int):
+                return value
             try:
                 return int(value)
             except ValueError as exc:
                 raise ValueError(f"'{key}' expects an integer, got '{value}'.") from exc
         if isinstance(default, float):
+            if isinstance(value, float):
+                return value
             try:
                 return float(value)
             except ValueError as exc:

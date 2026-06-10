@@ -3220,32 +3220,56 @@ class SiyarixChat:
 
             result = call_mistral
 
-        # ── Ollama (HTTP API, no SDK dependency) ───────────────────────
+        # ── Ollama (prefer native SDK, fall back to HTTP API) ────────
         elif provider_name == "ollama":
             import httpx
             ollama_url = self._settings.get("ollama_url") or os.getenv("SIYARIX_OLLAMA_URL", "http://localhost:11434")
             model = self._settings.get("ollama_model") or "llama3.1"
+            use_sdk = False
+            try:
+                from ollama import AsyncClient as OllamaAsyncClient
+                _ollama_client = OllamaAsyncClient(host=ollama_url)
+                use_sdk = True
+            except Exception:
+                _ollama_client = None
 
-            async def call_ollama(system_prompt: str, user_prompt: str) -> dict:
-                async with httpx.AsyncClient(timeout=60.0) as client:
-                    payload = {
-                        "model": model,
-                        "messages": [
+            if use_sdk:
+                async def call_ollama(system_prompt: str, user_prompt: str) -> dict:
+                    response = await _ollama_client.chat(
+                        model=model,
+                        messages=[
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": user_prompt},
                         ],
-                        "stream": False,
-                        "options": {"temperature": 0.3, "num_predict": 2000},
-                    }
-                    resp = await client.post(f"{ollama_url}/api/chat", json=payload)
-                    resp.raise_for_status()
-                    data = resp.json()
+                        options={"temperature": 0.3, "num_predict": 2000},
+                    )
                     return {
-                        "content": data.get("message", {}).get("content", ""),
-                        "model": data.get("model", model),
-                        "input_tokens": data.get("prompt_eval_count", 0),
-                        "output_tokens": data.get("eval_count", 0),
+                        "content": response.get("message", {}).get("content", ""),
+                        "model": response.get("model", model),
+                        "input_tokens": response.get("prompt_eval_count", 0),
+                        "output_tokens": response.get("eval_count", 0),
                     }
+            else:
+                async def call_ollama(system_prompt: str, user_prompt: str) -> dict:
+                    async with httpx.AsyncClient(timeout=60.0) as client:
+                        payload = {
+                            "model": model,
+                            "messages": [
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": user_prompt},
+                            ],
+                            "stream": False,
+                            "options": {"temperature": 0.3, "num_predict": 2000},
+                        }
+                        resp = await client.post(f"{ollama_url}/api/chat", json=payload)
+                        resp.raise_for_status()
+                        data = resp.json()
+                        return {
+                            "content": data.get("message", {}).get("content", ""),
+                            "model": data.get("model", model),
+                            "input_tokens": data.get("prompt_eval_count", 0),
+                            "output_tokens": data.get("eval_count", 0),
+                        }
 
             result = call_ollama
 

@@ -175,6 +175,10 @@ class VaultStatus:
     iterations: int = _PBKDF2_CURRENT_ITERATIONS
     lockout_active: bool = False
     lockout_remaining_sec: int = 0
+    device_score: float | None = None
+    env_score: float | None = None
+    device_warnings: list[str] = field(default_factory=list)
+    env_warnings: list[str] = field(default_factory=list)
     health: str = "unknown"   # healthy / degraded / unhealthy
     warnings: list[str] = field(default_factory=list)
 
@@ -526,6 +530,10 @@ class CredentialVault:
                 environment_bound=self._status.environment_bound,
                 device_match=self._status.device_match,
                 env_match=self._status.env_match,
+                device_score=self._status.device_score,
+                env_score=self._status.env_score,
+                device_warnings=list(self._status.device_warnings),
+                env_warnings=list(self._status.env_warnings),
                 tampered=self._status.tampered,
                 credential_count=len(self._entries),
                 expired_entries=sum(1 for e in self._entries.values() if e.is_expired()),

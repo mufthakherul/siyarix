@@ -55,7 +55,7 @@ except ImportError:
 
 # ── Constants ───────────────────────────────────────────────────────────────
 
-_VAULT_VERSION = 3
+_VAULT_VERSION = 4
 _KEY_SIZE = 32                # AES-256
 _NONCE_SIZE = 12               # GCM nonce (96-bit)
 _PBKDF2_MIN_ITERATIONS = 600_000    # OWASP 2023 baseline
@@ -506,8 +506,10 @@ class CredentialVault:
         self._entries: dict[str, VaultEntry] = {}
         self._audit_log: list[AuditEntry] = []
         self._unsealed = False
-        self._device_fp = DeviceFingerprint.compute()
-        self._env_fp = EnvironmentFingerprint.compute()
+        self._device_fp = DeviceFingerprint.compute_single()
+        self._env_fp = EnvironmentFingerprint.compute_single()
+        self._device_comps = {k: h for k, (h, _) in DeviceFingerprint.compute_components().items()}
+        self._env_comps = {k: h for k, (h, _) in EnvironmentFingerprint.compute_components().items()}
         self._last_activity = 0.0
         self._lockout_attempts: list[float] = []
         self._lockout_until = 0.0
@@ -884,34 +886,65 @@ class CredentialVault:
         stored_iters = data.get("iterations", _PBKDF2_MIN_ITERATIONS)
         self._status.iterations = stored_iters
 
-        # ── Device binding ────────────────────────────────────────────────
-        stored_device = data.get("device_fp_hash", "")
-        current_device = hashlib.sha256(self._device_fp.encode()).hexdigest()
-        self._status.device_match = stored_device == current_device
-        self._status.device_bound = bool(stored_device)
-        if not self._status.device_match and stored_device:
-            self._audit("unseal", "*", "denied", "device mismatch")
-            raise VaultDeviceMismatchError(
-                "Vault bound to different device. Use export/import to migrate."
-            )
+        # ── Device binding (weighted component matching) ──────────────────
+        stored_device_comps = data.get("device_fp_components", {})
+        self._status.device_bound = bool(stored_device_comps)
+        if stored_device_comps:
+            is_match, score, dwarnings = DeviceFingerprint.match(stored_device_comps)
+            self._status.device_match = is_match
+            self._status.device_score = score
+            self._status.device_warnings = dwarnings
+            if not is_match:
+                self._audit("unseal", "*", "denied", f"device mismatch (score={score:.2f})")
+                raise VaultDeviceMismatchError(
+                    "Vault bound to different device. Use export/import to migrate."
+                )
+        # Fallback: legacy single-hash binding (pre-vault-upgrade)
+        elif data.get("device_fp_hash", ""):
+            stored_device = data["device_fp_hash"]
+            current_device = hashlib.sha256(self._device_fp.encode()).hexdigest()
+            self._status.device_match = stored_device == current_device
+            self._status.device_bound = True
+            if not self._status.device_match:
+                self._audit("unseal", "*", "denied", "device mismatch (legacy)")
+                raise VaultDeviceMismatchError(
+                    "Vault bound to different device. Use export/import to migrate."
+                )
 
-        # ── Environment binding ───────────────────────────────────────────
-        stored_env = data.get("env_fp_hash", "")
-        current_env = hashlib.sha256(self._env_fp.encode()).hexdigest()
-        self._status.env_match = stored_env == current_env
-        self._status.environment_bound = bool(stored_env)
-        if not self._status.env_match and stored_env:
-            self._audit("unseal", "*", "denied", "environment mismatch")
-            raise VaultEnvironmentMismatchError(
-                "Vault bound to different siyarix environment."
-            )
+        # ── Environment binding (weighted component matching) ─────────────
+        stored_env_comps = data.get("env_fp_components", {})
+        self._status.environment_bound = bool(stored_env_comps)
+        if stored_env_comps:
+            is_match, score, ewarnings = EnvironmentFingerprint.match(stored_env_comps)
+            self._status.env_match = is_match
+            self._status.env_score = score
+            self._status.env_warnings = ewarnings
+            if not is_match:
+                self._audit("unseal", "*", "denied", f"environment mismatch (score={score:.2f})")
+                raise VaultEnvironmentMismatchError(
+                    "Vault bound to different siyarix environment."
+                )
+        # Fallback: legacy single-hash binding
+        elif data.get("env_fp_hash", ""):
+            stored_env = data["env_fp_hash"]
+            current_env = hashlib.sha256(self._env_fp.encode()).hexdigest()
+            self._status.env_match = stored_env == current_env
+            self._status.environment_bound = True
+            if not self._status.env_match:
+                self._audit("unseal", "*", "denied", "environment mismatch (legacy)")
+                raise VaultEnvironmentMismatchError(
+                    "Vault bound to different siyarix environment."
+                )
 
-        # ── HMAC integrity ────────────────────────────────────────────────
+        # ── HMAC integrity (version-aware) ────────────────────────────────
         stored_hmac = data.get("hmac", "")
-        payload = {
-            k: data[k] for k in ("version", "iterations", "salt", "device_fp_hash",
-                                 "env_fp_hash", "created_at", "last_unsealed", "credentials")
-        }
+        if version <= 3:
+            payload_keys = ("version", "iterations", "salt", "device_fp_hash",
+                            "env_fp_hash", "created_at", "last_unsealed", "credentials")
+        else:
+            payload_keys = ("version", "iterations", "salt", "device_fp_components",
+                            "env_fp_components", "created_at", "last_unsealed", "credentials")
+        payload = {k: data[k] for k in payload_keys if k in data}
         payload_str = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         integrity_key = self._derive_no_passphrase(vault_salt)
         expected = _hmac.new(integrity_key, payload_str.encode(), hashlib.sha256).hexdigest()
@@ -1003,6 +1036,9 @@ class CredentialVault:
         # ── Vault header ─────────────────────────────────────────────────
         vs = os.urandom(_SALT_SIZE)
         now_stamp = datetime.now(timezone.utc).isoformat()
+        device_comps_hashes = {k: v for k, v in self._device_comps.items()}
+        env_comps_hashes = {k: v for k, v in self._env_comps.items()}
+        # Legacy single hashes for v3 compat
         device_hash = hashlib.sha256(self._device_fp.encode()).hexdigest()
         env_hash = hashlib.sha256(self._env_fp.encode()).hexdigest()
 
@@ -1010,6 +1046,8 @@ class CredentialVault:
             "version": _VAULT_VERSION,
             "iterations": self._status.iterations or _PBKDF2_CURRENT_ITERATIONS,
             "salt": base64.b64encode(vs).decode(),
+            "device_fp_components": device_comps_hashes,
+            "env_fp_components": env_comps_hashes,
             "device_fp_hash": device_hash,
             "env_fp_hash": env_hash,
             "created_at": self._status.created_at or now_stamp,
@@ -1017,8 +1055,18 @@ class CredentialVault:
             "credentials": creds_blob,
         }
         payload_str = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        # Build version-aware HMAC payload (must match _unseal logic)
+        current_version = _VAULT_VERSION
+        if current_version <= 3:
+            hmac_keys = ("version", "iterations", "salt", "device_fp_hash",
+                         "env_fp_hash", "created_at", "last_unsealed", "credentials")
+        else:
+            hmac_keys = ("version", "iterations", "salt", "device_fp_components",
+                         "env_fp_components", "created_at", "last_unsealed", "credentials")
+        hmac_payload = {k: payload[k] for k in hmac_keys}
+        hmac_str = json.dumps(hmac_payload, sort_keys=True, separators=(",", ":"))
         ik = self._derive_no_passphrase(vs)
-        hmac_val = _hmac.new(ik, payload_str.encode(), hashlib.sha256).hexdigest()
+        hmac_val = _hmac.new(ik, hmac_str.encode(), hashlib.sha256).hexdigest()
         self._zeroize(ik)
 
         full = json.loads(payload_str)

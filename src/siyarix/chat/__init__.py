@@ -3953,6 +3953,22 @@ When the user message contains tool execution results, analyse them thoroughly.
         else:
             self._output._raw_print(f"\u25c6 Siyarix: {message}")
 
+    @staticmethod
+    def _strip_json_wrapper(text: str) -> str:
+        """If text is JSON with a 'response' field, extract just the response text."""
+        cleaned = text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.split("\n", 1)[-1]
+            cleaned = cleaned.rsplit("```", 1)[0]
+            cleaned = cleaned.strip()
+        try:
+            data = json.loads(cleaned)
+            if isinstance(data, dict) and "response" in data:
+                return data["response"]
+        except (json.JSONDecodeError, ValueError, TypeError):
+            pass
+        return text
+
     async def _stream_assistant_response(
         self,
         system_prompt: str,
@@ -3962,7 +3978,7 @@ When the user message contains tool execution results, analyse them thoroughly.
     ) -> str:
         """Stream an LLM response token-by-token with a live updating display.
 
-        Returns the full response text.
+        Returns the clean response text (JSON wrapper stripped if present).
         """
         from rich.live import Live
         from rich.markdown import Markdown
@@ -3984,7 +4000,8 @@ When the user message contains tool execution results, analyse them thoroughly.
         with Live(panel, refresh_per_second=12, transient=False) as live:
             async for token in gen:
                 full_text += token
-                md = Markdown(full_text)
+                display_text = self._strip_json_wrapper(full_text)
+                md = Markdown(display_text)
                 panel = Panel(
                     md,
                     title="[bold green]◆ Siyarix[/bold green]",
@@ -3993,7 +4010,7 @@ When the user message contains tool execution results, analyse them thoroughly.
                 )
                 live.update(panel)
         console.print()
-        return full_text
+        return self._strip_json_wrapper(full_text)
 
     def _print_plan(self, plan: "Any") -> None:  # ExecutionPlan
         rows = []

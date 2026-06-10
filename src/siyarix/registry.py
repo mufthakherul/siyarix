@@ -15,6 +15,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Callable, Coroutine
 
+from .events import Event, EventType, emit_sync
+
 logger = logging.getLogger(__name__)
 
 ToolHandler = Callable[..., Coroutine[Any, Any, dict[str, Any]]]
@@ -228,6 +230,8 @@ class ToolRegistry:
                 ))
                 count += 1
         self._loaded = True
+        emit_sync(Event(type=EventType.TOOL_REGISTERED, source="registry",
+            data={"count": count}))
         return count
 
     def update_metadata(self, output_path: Path) -> int:

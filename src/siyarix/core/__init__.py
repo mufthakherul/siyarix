@@ -140,10 +140,24 @@ class AgentCore:
     async def _execute_registry(self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult) -> AgentResult:
         """Registry mode: heuristic planning with validation, no LLM, no reflection."""
         try:
+            tool_names = [t.name for t in self._registry.list_tools()]
             if plan is None:
-                plan = self._planner.decompose_goal(
-                    goal.description, [t.name for t in self._registry.list_tools()])
+                plan = self._planner.decompose_goal(goal.description, tool_names)
             result.plan = plan
+            # Progress tracking
+            step_progress: dict[str, str] = {}
+
+            def on_step(s):
+                step_id = s.id
+                old_status = step_progress.get(step_id, "pending")
+                if old_status != s.status.value:
+                    step_progress[step_id] = s.status.value
+                    from ..events import emit_sync
+                    emit_sync(Event(type=EventType.PLAN_STEP_START if s.status.value == "running"
+                        else EventType.PLAN_STEP_COMPLETE, source="core.registry",
+                        data={"step_id": step_id, "tool": s.tool, "status": s.status.value}))
+
+            self._executor.set_progress_callback(on_step)
             await self._validator.validate_plan(plan.steps)
             plan = await self._executor.execute_plan(plan)
             result.success = plan.status == PlanStatus.COMPLETED

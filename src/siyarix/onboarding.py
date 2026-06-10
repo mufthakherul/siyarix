@@ -1055,12 +1055,16 @@ class OnboardingWizard:
             self._console.print()
 
             choice = Prompt.ask(
-                "Select persona",
-                choices=[str(i) for i in range(1, len(personas) + 1)] + ["a"],
+                "Select persona ([a]uto / [u]niversal / [n]one / #)",
+                choices=[str(i) for i in range(1, len(personas) + 1)] + ["a", "u", "n"],
                 default="a",
             )
             if choice == "a":
                 persona = "auto"
+            elif choice == "u":
+                persona = "universal"
+            elif choice == "n":
+                persona = "none"
             else:
                 persona = personas[int(choice) - 1]
         else:

@@ -691,7 +691,6 @@ class CredentialVault:
         try:
             raw = self._vault_path.read_bytes()
             data = json.loads(raw)
-            vault_salt = base64.b64decode(data["salt"])
             stored_iters = data.get("iterations", _PBKDF2_MIN_ITERATIONS)
 
             old_device_comps = data.get("device_fp_components", {})
@@ -706,14 +705,14 @@ class CredentialVault:
                 old_env_fp = self._env_fp
 
             material = f"{old_device_fp}:::{old_env_fp}:::{self._passphrase}"
+            cs = base64.b64decode(data["credentials"]["salt"])
             kdf = _PBKDF2(
                 algorithm=_hashes.SHA256(),
                 length=_KEY_SIZE,
-                salt=vault_salt,
+                salt=cs,
                 iterations=stored_iters,
             )
             ck = kdf.derive(material.encode())
-            cs = base64.b64decode(data["credentials"]["salt"])
             cn = base64.b64decode(data["credentials"]["nonce"])
             cc = base64.b64decode(data["credentials"]["ciphertext"])
             _AESGCM(ck).decrypt(cn, cc, None)

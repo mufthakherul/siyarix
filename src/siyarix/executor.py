@@ -12,6 +12,7 @@ from typing import Any, Callable, Coroutine
 from .planner import ExecutionPlan, PlanStep, StepStatus, PlanStatus
 from .registry import ToolRegistry
 from .events import Event, EventType, get_event_bus
+from .worker_pool import AsyncWorkerPool
 
 logger = logging.getLogger(__name__)
 StepExecutor = Callable[[PlanStep], Coroutine[Any, Any, dict[str, Any]]]
@@ -97,12 +98,13 @@ class ToolCallTracker:
 
 
 class Executor:
-    def __init__(self, registry: ToolRegistry | None = None) -> None:
+    def __init__(self, registry: ToolRegistry | None = None, max_workers: int = 10) -> None:
         self._registry = registry
         self._budget = ExecutionBudget()
         self._tracker = ToolCallTracker()
         self._custom_executors: dict[str, StepExecutor] = {}
         self._event_bus = get_event_bus()
+        self._pool = AsyncWorkerPool(max_workers=max_workers)
 
     @property
     def budget(self) -> ExecutionBudget:
@@ -131,7 +133,8 @@ class Executor:
                     break
                 break
             if plan.plan_type.value in ("parallel", "dag"):
-                await asyncio.gather(*[self._execute_step(s, executor_fn) for s in ready_steps], return_exceptions=True)
+                tasks = [self._pool.submit(self._execute_step, s, executor_fn) for s in ready_steps]
+                await asyncio.gather(*tasks, return_exceptions=True)
             else:
                 await self._execute_step(ready_steps[0], executor_fn)
         plan.status = PlanStatus.COMPLETED if not plan.has_failures else PlanStatus.FAILED
@@ -185,6 +188,9 @@ class Executor:
     def reset(self) -> None:
         self._budget = ExecutionBudget()
         self._tracker.reset()
+
+    async def close(self, timeout: float | None = None) -> None:
+        await self._pool.close(timeout=timeout)
 
     def stats(self) -> dict[str, Any]:
         return {"budget": {"iterations": self._budget._iterations, "tool_calls": self._budget._tool_calls, "elapsed_s": round(self._budget.elapsed, 1)},

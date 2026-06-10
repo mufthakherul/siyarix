@@ -6,7 +6,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Coroutine
 
-from ..planner import ExecutionPlan, PlanStep, StepType
 
 
 @dataclass

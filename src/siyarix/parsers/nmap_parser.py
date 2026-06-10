@@ -13,7 +13,7 @@ try:
     import defusedxml.ElementTree as _ET
     _DEFUSEDXML = True
 except ImportError:
-    import xml.etree.ElementTree as _ET  # type: ignore[no-redef]
+    import xml.etree.ElementTree as _ET
     _DEFUSEDXML = False
 
 

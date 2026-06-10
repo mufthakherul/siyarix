@@ -9,10 +9,15 @@ import os
 import tempfile
 import warnings
 from collections.abc import Generator
+from getpass import GetPassWarning
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
+from siyarix.planner import ExecutionPlan, PlanStep, PlanType, PlanStatus, StepStatus
+from siyarix.providers import ProviderManager, ProviderProfile
+from siyarix.registry import ToolCapability, ToolCategory, ToolRegistry
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="gi")
 try:
@@ -20,12 +25,6 @@ try:
     warnings.filterwarnings("ignore", category=_GiDep)
 except ImportError:
     pass
-
-from getpass import GetPassWarning
-
-from siyarix.planner import ExecutionPlan, PlanStep, PlanType, PlanStatus, StepStatus
-from siyarix.providers import ProviderManager, ProviderProfile
-from siyarix.registry import ToolCapability, ToolCategory, ToolRegistry
 
 warnings.filterwarnings("ignore", category=GetPassWarning)
 

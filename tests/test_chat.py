@@ -27,6 +27,7 @@ from siyarix.chat import (
 
 # ── Data Model Tests ───────────────────────────────────────────────────
 
+
 class TestChatMessage:
     def test_create_message(self) -> None:
         msg = ChatMessage(role="user", content="scan 10.0.0.1")
@@ -107,6 +108,7 @@ class TestCommandProfileStore:
 
 # ── Helper Function Tests ──────────────────────────────────────────────
 
+
 class TestHelpers:
     def test_build_platform_context(self) -> None:
         ctx = build_platform_context()
@@ -126,6 +128,7 @@ class TestHelpers:
 
 
 # ── SiyarixChat Tests ──────────────────────────────────────────────────
+
 
 class TestSiyarixChatInit:
     def test_init_defaults(self) -> None:
@@ -284,9 +287,7 @@ class TestSiyarixChatSlashCommands:
         with patch("siyarix.chat.console") as mock:
             chat._cmd_esc("")
             assert chat._esc_press_count == 1
-            mock.print.assert_any_call(
-                "[bold red]⚠ EMERGENCY STOP TRIGGERED[/bold red]"
-            )
+            mock.print.assert_any_call("[bold red]⚠ EMERGENCY STOP TRIGGERED[/bold red]")
 
     def test_cmd_context_empty(self, chat: SiyarixChat) -> None:
         with patch("siyarix.chat.console") as mock:

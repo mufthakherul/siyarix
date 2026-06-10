@@ -103,6 +103,7 @@ class TestHealthChecker:
     async def test_check_all_unhealthy(self, checker_with_mocks: HealthChecker) -> None:
         async def add_unhealthy(status: HealthStatus) -> None:
             status.components.append(ComponentHealth(name="Test", state=HealthState.UNHEALTHY))
+
         async def add_degraded(status: HealthStatus) -> None:
             status.components.append(ComponentHealth(name="Test2", state=HealthState.DEGRADED))
 
@@ -131,7 +132,9 @@ class TestHealthChecker:
             assert openai_comp.state == HealthState.HEALTHY
 
     @pytest.mark.asyncio
-    async def test_check_model_providers_openai_not_configured(self, checker: HealthChecker) -> None:
+    async def test_check_model_providers_openai_not_configured(
+        self, checker: HealthChecker
+    ) -> None:
         with patch.dict(os.environ, {}, clear=True):
             status = HealthStatus(state=HealthState.HEALTHY)
             await checker._check_model_providers(status)
@@ -160,8 +163,10 @@ class TestHealthChecker:
         mock_response = AsyncMock()
         mock_response.status_code = 200
         mock_client.__aenter__.return_value.get.return_value = mock_response
-        with patch.dict(os.environ, {}, clear=True), \
-             patch("httpx.AsyncClient", return_value=mock_client):
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("httpx.AsyncClient", return_value=mock_client),
+        ):
             status = HealthStatus(state=HealthState.HEALTHY)
             await checker._check_model_providers(status)
             ollama_comp = [c for c in status.components if "Ollama" in c.name][0]
@@ -171,8 +176,10 @@ class TestHealthChecker:
     async def test_check_model_providers_ollama_not_running(self, checker: HealthChecker) -> None:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value.get.side_effect = Exception("Connection refused")
-        with patch.dict(os.environ, {}, clear=True), \
-             patch("httpx.AsyncClient", return_value=mock_client):
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("httpx.AsyncClient", return_value=mock_client),
+        ):
             status = HealthStatus(state=HealthState.HEALTHY)
             await checker._check_model_providers(status)
             ollama_comp = [c for c in status.components if "Ollama" in c.name][0]
@@ -180,7 +187,11 @@ class TestHealthChecker:
 
     @pytest.mark.asyncio
     async def test_check_model_providers_cloud_configured(self, checker: HealthChecker) -> None:
-        with patch.dict(os.environ, {"SIYARIX_SERVER_URL": "https://siyarix.cloud", "SIYARIX_API_KEY": "key"}, clear=True):
+        with patch.dict(
+            os.environ,
+            {"SIYARIX_SERVER_URL": "https://siyarix.cloud", "SIYARIX_API_KEY": "key"},
+            clear=True,
+        ):
             status = HealthStatus(state=HealthState.HEALTHY)
             await checker._check_model_providers(status)
             cloud_comp = [c for c in status.components if "Cloud" in c.name][0]
@@ -207,9 +218,12 @@ class TestHealthChecker:
     @pytest.mark.asyncio
     async def test_check_tool_registry_partial(self, checker: HealthChecker) -> None:
         import os
+
         partial_tool = "python.exe" if os.name == "nt" else "bash"
+
         def which_side(tool: str) -> str | None:
             return f"/usr/bin/{partial_tool}" if tool == partial_tool else None
+
         with patch("shutil.which", side_effect=which_side):
             status = HealthStatus(state=HealthState.HEALTHY)
             await checker._check_tool_registry(status)
@@ -246,9 +260,11 @@ class TestHealthChecker:
         mock_disk.percent = 60.0
         mock_disk.used = 100 * 1024**3
         mock_disk.total = 200 * 1024**3
-        with patch("psutil.virtual_memory", return_value=mock_memory), \
-             patch("psutil.disk_usage", return_value=mock_disk), \
-             patch("psutil.cpu_percent", return_value=50.0):
+        with (
+            patch("psutil.virtual_memory", return_value=mock_memory),
+            patch("psutil.disk_usage", return_value=mock_disk),
+            patch("psutil.cpu_percent", return_value=50.0),
+        ):
             status = HealthStatus(state=HealthState.HEALTHY)
             await checker._check_system_resources(status)
             assert len(status.components) == 3
@@ -263,9 +279,11 @@ class TestHealthChecker:
         mock_disk.percent = 50.0
         mock_disk.used = 100 * 1024**3
         mock_disk.total = 200 * 1024**3
-        with patch("psutil.virtual_memory", return_value=mock_memory), \
-             patch("psutil.disk_usage", return_value=mock_disk), \
-             patch("psutil.cpu_percent", return_value=50.0):
+        with (
+            patch("psutil.virtual_memory", return_value=mock_memory),
+            patch("psutil.disk_usage", return_value=mock_disk),
+            patch("psutil.cpu_percent", return_value=50.0),
+        ):
             status = HealthStatus(state=HealthState.HEALTHY)
             await checker._check_system_resources(status)
             mem_comp = [c for c in status.components if c.name == "SystemMemory"][0]
@@ -281,9 +299,11 @@ class TestHealthChecker:
         mock_disk.percent = 50.0
         mock_disk.used = 100 * 1024**3
         mock_disk.total = 200 * 1024**3
-        with patch("psutil.virtual_memory", return_value=mock_memory), \
-             patch("psutil.disk_usage", return_value=mock_disk), \
-             patch("psutil.cpu_percent", return_value=50.0):
+        with (
+            patch("psutil.virtual_memory", return_value=mock_memory),
+            patch("psutil.disk_usage", return_value=mock_disk),
+            patch("psutil.cpu_percent", return_value=50.0),
+        ):
             status = HealthStatus(state=HealthState.HEALTHY)
             await checker._check_system_resources(status)
             mem_comp = [c for c in status.components if c.name == "SystemMemory"][0]
@@ -291,7 +311,12 @@ class TestHealthChecker:
 
     @pytest.mark.asyncio
     async def test_check_system_resources_no_psutil(self, checker: HealthChecker) -> None:
-        old_import = __builtins__["__import__"] if isinstance(__builtins__, dict) else __builtins__.__import__  # type: ignore[union-attr]
+        old_import = (
+            __builtins__["__import__"]
+            if isinstance(__builtins__, dict)
+            else __builtins__.__import__
+        )  # type: ignore[union-attr]
+
         def fake_import(name: str, *args: object, **kwargs: object) -> object:
             if name == "psutil":
                 raise ImportError("no psutil")

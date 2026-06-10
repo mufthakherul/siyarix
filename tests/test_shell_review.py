@@ -33,18 +33,14 @@ class TestReviewResult:
 class TestReviewCommand:
     @patch("siyarix.shell_review.console")
     @patch("siyarix.shell_review.Prompt.ask", return_value="run")
-    def test_run_choice(
-        self, mock_ask: MagicMock, mock_console: MagicMock
-    ) -> None:
+    def test_run_choice(self, mock_ask: MagicMock, mock_console: MagicMock) -> None:
         result = review_command("ls -la", "shell", "review needed")
         assert result.decision == ReviewDecision.RUN
         assert result.edited_command == "ls -la"
 
     @patch("siyarix.shell_review.console")
     @patch("siyarix.shell_review.Prompt.ask")
-    def test_edit_choice(
-        self, mock_ask: MagicMock, mock_console: MagicMock
-    ) -> None:
+    def test_edit_choice(self, mock_ask: MagicMock, mock_console: MagicMock) -> None:
         mock_ask.side_effect = ["edit", "ls -Al"]
         result = review_command("ls -la", "shell", "review needed")
         assert result.decision == ReviewDecision.EDIT
@@ -52,27 +48,21 @@ class TestReviewCommand:
 
     @patch("siyarix.shell_review.console")
     @patch("siyarix.shell_review.Prompt.ask", return_value="step")
-    def test_step_choice(
-        self, mock_ask: MagicMock, mock_console: MagicMock
-    ) -> None:
+    def test_step_choice(self, mock_ask: MagicMock, mock_console: MagicMock) -> None:
         result = review_command("ls -la", "shell", "review needed")
         assert result.decision == ReviewDecision.STEP
         assert result.edited_command == "ls -la"
 
     @patch("siyarix.shell_review.console")
     @patch("siyarix.shell_review.Prompt.ask", return_value="cancel")
-    def test_cancel_choice(
-        self, mock_ask: MagicMock, mock_console: MagicMock
-    ) -> None:
+    def test_cancel_choice(self, mock_ask: MagicMock, mock_console: MagicMock) -> None:
         result = review_command("ls -la", "shell", "review needed")
         assert result.decision == ReviewDecision.CANCEL
         assert result.edited_command == ""
 
     @patch("siyarix.shell_review.console")
     @patch("siyarix.shell_review.Prompt.ask", return_value="run")
-    def test_displays_panel(
-        self, mock_ask: MagicMock, mock_console: MagicMock
-    ) -> None:
+    def test_displays_panel(self, mock_ask: MagicMock, mock_console: MagicMock) -> None:
         review_command("echo test", "test_tool", "dangerous command")
         mock_console.print.assert_called_once()
 
@@ -80,9 +70,7 @@ class TestReviewCommand:
 class TestReviewAndConfirm:
     @patch("siyarix.shell_review.review_command")
     def test_cancel_returns_none(self, mock_review: MagicMock) -> None:
-        mock_review.return_value = ReviewResult(
-            decision=ReviewDecision.CANCEL, edited_command=""
-        )
+        mock_review.return_value = ReviewResult(decision=ReviewDecision.CANCEL, edited_command="")
         result = review_and_confirm("rm -rf /", "shell", "destructive")
         assert result is None
 

@@ -7,7 +7,12 @@ from __future__ import annotations
 import pytest
 
 from siyarix.planner import (
-    ExecutionPlan, PlanStep, PlanType, PlanStatus, StepStatus, Planner,
+    ExecutionPlan,
+    PlanStep,
+    PlanType,
+    PlanStatus,
+    StepStatus,
+    Planner,
 )
 
 
@@ -37,11 +42,14 @@ class TestExecutionPlan:
         assert plan.progress_pct == 100.0
 
     def test_steps_tracking(self):
-        plan = ExecutionPlan(goal="Test", steps=[
-            PlanStep(tool="nmap", status=StepStatus.COMPLETED),
-            PlanStep(tool="nuclei", status=StepStatus.FAILED),
-            PlanStep(tool="gobuster"),
-        ])
+        plan = ExecutionPlan(
+            goal="Test",
+            steps=[
+                PlanStep(tool="nmap", status=StepStatus.COMPLETED),
+                PlanStep(tool="nuclei", status=StepStatus.FAILED),
+                PlanStep(tool="gobuster"),
+            ],
+        )
         assert len(plan.completed_steps) == 1
         assert len(plan.failed_steps) == 1
         assert len(plan.pending_steps) == 1
@@ -58,9 +66,12 @@ class TestExecutionPlan:
 class TestPlanner:
     def test_create_plan(self):
         p = Planner()
-        plan = p.create_plan("Scan target", steps=[
-            {"description": "Port scan", "tool": "nmap", "args": {"target": "10.0.0.1"}},
-        ])
+        plan = p.create_plan(
+            "Scan target",
+            steps=[
+                {"description": "Port scan", "tool": "nmap", "args": {"target": "10.0.0.1"}},
+            ],
+        )
         assert plan.goal == "Scan target"
         assert len(plan.steps) == 1
         assert plan.steps[0].tool == "nmap"

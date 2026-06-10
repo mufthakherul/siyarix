@@ -33,7 +33,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 
 class TestPhase1_ChaosSimulation:
-
     @pytest.mark.asyncio
     async def test_1a_high_concurrency_worker_pool(self):
         from siyarix.worker_pool import AsyncWorkerPool
@@ -75,6 +74,7 @@ class TestPhase1_ChaosSimulation:
 
         async def quick() -> int:
             return 42
+
         result = await pool.submit(quick)
         assert result == 42
         await pool.close()
@@ -116,8 +116,10 @@ class TestPhase1_ChaosSimulation:
         class _Switch:
             def __init__(self):
                 self.state = _State.ARMED
+
             def trigger(self):
                 self.state = _State.TRIGGERED
+
             @property
             def is_triggered(self):
                 return self.state == _State.TRIGGERED
@@ -174,7 +176,6 @@ class TestPhase1_ChaosSimulation:
 
 
 class TestPhase2_AdversarialInput:
-
     @pytest.mark.asyncio
     async def test_2a_extreme_payload_sizes(self):
         from siyarix.security_hardening import validator
@@ -210,8 +211,7 @@ class TestPhase2_AdversarialInput:
                     detected = True
                     break
             assert detected, (
-                f"Injection not detected: {payload!r} "
-                f"(expected pattern '{expected_name}')"
+                f"Injection not detected: {payload!r} " f"(expected pattern '{expected_name}')"
             )
 
     @pytest.mark.asyncio
@@ -235,9 +235,9 @@ class TestPhase2_AdversarialInput:
             report = danger_analyzer.analyze(cmd)
             min_rank = sev_rank.get(expected_min, 0)
             actual_rank = sev_rank.get(report.severity, 0)
-            assert actual_rank >= min_rank, (
-                f"{cmd!r} -> severity {report.severity} (expected >= {expected_min})"
-            )
+            assert (
+                actual_rank >= min_rank
+            ), f"{cmd!r} -> severity {report.severity} (expected >= {expected_min})"
 
     @pytest.mark.asyncio
     async def test_2d_conflicting_tasks_safe(self):
@@ -265,37 +265,39 @@ class TestPhase2_AdversarialInput:
             assert has_inj, f"Arg injection not detected: {args!r}"
 
 
-
-
-
 # ═════════════════════════════════════════════════════════════════════════════
 # PHASE 4: SELF-HEALING ACTIVATION
 # ═════════════════════════════════════════════════════════════════════════════
 
 
 class TestPhase4_SelfHealing:
-
     @pytest.mark.asyncio
     async def test_4a_calculate_backoff_delay(self):
         import random
 
         async def calculate_backoff_delay(attempt: int) -> float:
-            base = min(60.0, 0.01 * (2 ** attempt))
+            base = min(60.0, 0.01 * (2**attempt))
             jitter = random.uniform(0, base * 0.1)
             return min(60.0, base + jitter)
 
         for attempt in range(0, 20):
             delay = await calculate_backoff_delay(attempt)
-            assert 0.01 <= delay <= 60.0, (
-                f"Backoff delay {delay}s out of bounds for attempt {attempt}"
-            )
+            assert (
+                0.01 <= delay <= 60.0
+            ), f"Backoff delay {delay}s out of bounds for attempt {attempt}"
 
     @pytest.mark.asyncio
     async def test_4b_is_transient_error(self):
         def is_transient_error(msg: str) -> bool:
-            transient = ["connection refused", "timeout", "too many requests",
-                         "rate limit", "internal server error", "service unavailable",
-                         "connection reset"]
+            transient = [
+                "connection refused",
+                "timeout",
+                "too many requests",
+                "rate limit",
+                "internal server error",
+                "service unavailable",
+                "connection reset",
+            ]
             msg_lower = msg.lower()
             return any(t in msg_lower for t in transient)
 
@@ -339,7 +341,6 @@ class TestPhase4_SelfHealing:
 
 
 class TestPhase5_SecurityAudit:
-
     @pytest.mark.asyncio
     async def test_5a_no_unsafe_eval(self):
         src_dir = Path(__file__).resolve().parent.parent / "src" / "siyarix"
@@ -354,9 +355,7 @@ class TestPhase5_SecurityAudit:
                 if '"eval("' in stripped or "'eval('" in stripped:
                     continue
                 if re.search(r"\beval\s*\(", stripped) and "logger" not in stripped:
-                    pytest.fail(
-                        f"eval() in {pyfile.relative_to(src_dir)}:{i}: {stripped}"
-                    )
+                    pytest.fail(f"eval() in {pyfile.relative_to(src_dir)}:{i}: {stripped}")
 
     @pytest.mark.asyncio
     async def test_5b_no_subprocess_shell_true(self):
@@ -371,9 +370,7 @@ class TestPhase5_SecurityAudit:
                     continue
                 if "shell=True" in stripped and "nosec" not in stripped:
                     if "logger" not in stripped:
-                        pytest.fail(
-                            f"shell=True at {pyfile.relative_to(src_dir)}:{i}: {stripped}"
-                        )
+                        pytest.fail(f"shell=True at {pyfile.relative_to(src_dir)}:{i}: {stripped}")
 
     @pytest.mark.asyncio
     async def test_5c_no_hardcoded_credentials(self):
@@ -388,9 +385,7 @@ class TestPhase5_SecurityAudit:
                 r"AKIA[0-9A-Z]{16}\b",
             ]:
                 if re.search(pattern, content):
-                    pytest.fail(
-                        f"Hardcoded credential pattern in {pyfile.relative_to(src_dir)}"
-                    )
+                    pytest.fail(f"Hardcoded credential pattern in {pyfile.relative_to(src_dir)}")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -399,7 +394,6 @@ class TestPhase5_SecurityAudit:
 
 
 class TestPhase6_PerformanceLimit:
-
     @pytest.mark.asyncio
     async def test_6a_max_parallel_resolver(self):
         from siyarix.security_hardening import DangerAnalyzer
@@ -458,7 +452,6 @@ class TestPhase6_PerformanceLimit:
 
 
 class TestPhase7_FailureAutoFix:
-
     @pytest.mark.asyncio
     async def test_7a_worker_pool_correct_signature(self):
         from siyarix.worker_pool import AsyncWorkerPool
@@ -476,8 +469,12 @@ class TestPhase7_FailureAutoFix:
     async def test_7b_input_validator_empty_string(self):
         from siyarix.security_hardening import validator
 
-        for method in [validator.validate_ip, validator.validate_hostname,
-                       validator.validate_url, validator.validate_target]:
+        for method in [
+            validator.validate_ip,
+            validator.validate_hostname,
+            validator.validate_url,
+            validator.validate_target,
+        ]:
             ok, msg = method("")
             assert not ok
 
@@ -501,8 +498,10 @@ class TestPhase7_FailureAutoFix:
         class _Switch:
             def __init__(self):
                 self.state = _State.ARMED
+
             def trigger(self):
                 self.state = _State.TRIGGERED
+
             @property
             def is_triggered(self):
                 return self.state == _State.TRIGGERED

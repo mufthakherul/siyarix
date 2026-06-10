@@ -2536,7 +2536,8 @@ class SiyarixChat:
             if prov_name and api_key:
                 sys_prompt = self._build_system_prompt()
                 response = await self._stream_assistant_response(
-                    sys_prompt, instruction, prov_name, api_key
+                    sys_prompt, instruction, prov_name, api_key,
+                    history=self._get_conversation_history(),
                 )
             else:
                 response = self._generate_text_response(instruction) or ""
@@ -2955,6 +2956,7 @@ Each step is a raw shell command running directly on the shell:
                             llm_call=llm_call_fn,
                             tool_schemas=tool_dicts,
                             system_prompt=self._build_system_prompt(),
+                            history=self._get_conversation_history(),
                         ),
                         timeout=30.0,
                     )
@@ -2981,7 +2983,8 @@ Each step is a raw shell command running directly on the shell:
             elif llm_connected and llm_call_fn:
                 sys_prompt = self._build_system_prompt()
                 response = await self._stream_assistant_response(
-                    sys_prompt, instruction, provider_name, api_key
+                    sys_prompt, instruction, provider_name, api_key,
+                    history=self._get_conversation_history(),
                 )
             else:
                 greeting = self._generate_text_response(instruction)
@@ -3206,12 +3209,23 @@ Each step is a raw shell command running directly on the shell:
 
         return True
 
+    def _build_messages(
+        self, system: str, user: str, history: list[dict] | None = None
+    ) -> list[dict]:
+        """Build the messages array for an LLM call, injecting conversation history."""
+        messages = [{"role": "system", "content": system}]
+        if history:
+            messages.extend(history)
+        messages.append({"role": "user", "content": user})
+        return messages
+
     def _make_llm_call(self, provider_name: str, api_key: str) -> Any:
-        """Return an async callable ``(system, user, *, stream=False) → dict | AsyncGenerator``.
+        """Return an async callable ``(system, user, *, stream=False, history=None) → dict | AsyncGenerator``.
 
         Supports all 13 registered providers via native SDK or OpenAI-compatible API.
-        When ``stream=True``, call with ``await fn(system, user, stream=True)`` which returns
-        an async generator yielding content tokens.
+        When ``stream=True``, call with ``await fn(system, user, stream=True, history=history)``
+        which returns an async generator yielding content tokens.
+        history is a list of ``{"role": ..., "content": ...}`` dicts from prior conversation.
         """
         model = ""
         result: Any = None
@@ -3279,17 +3293,14 @@ Each step is a raw shell command running directly on the shell:
             client = AsyncOpenAI(**client_kwargs)  # type: ignore[arg-type]
 
             async def call_openai(
-                system_prompt: str, user_prompt: str, *, stream: bool = False
+                system_prompt: str, user_prompt: str, *, stream: bool = False, history: list[dict] | None = None
             ) -> dict[str, Any]:
                 if stream:
 
                     async def _gen() -> Any:
                         response = await client.chat.completions.create(
                             model=model,
-                            messages=[
-                                {"role": "system", "content": system_prompt},
-                                {"role": "user", "content": user_prompt},
-                            ],
+                            messages=self._build_messages(system_prompt, user_prompt, history),
                             max_tokens=2000,
                             temperature=0.3,
                             stream=True,
@@ -3302,10 +3313,7 @@ Each step is a raw shell command running directly on the shell:
                     return _gen()
                 response = await client.chat.completions.create(
                     model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
+                    messages=self._build_messages(system_prompt, user_prompt, history),
                     max_tokens=2000,
                     temperature=0.3,
                 )
@@ -3331,15 +3339,17 @@ Each step is a raw shell command running directly on the shell:
             model = self._settings.get("anthropic_model") or "claude-sonnet-4-6"
 
             async def call_anthropic(
-                system_prompt: str, user_prompt: str, *, stream: bool = False
+                system_prompt: str, user_prompt: str, *, stream: bool = False, history: list[dict] | None = None
             ) -> dict[str, Any]:
                 if stream:
 
                     async def _gen() -> Any:
+                        hist_msgs = [m for m in (history or []) if m.get("role") != "system"]
+                        msgs = hist_msgs + [{"role": "user", "content": user_prompt}]
                         async with anthropic_client.messages.stream(
                             model=model,
                             system=system_prompt,
-                            messages=[{"role": "user", "content": user_prompt}],
+                            messages=msgs,
                             max_tokens=2000,
                             temperature=0.3,
                         ) as stream_ctx:
@@ -3347,10 +3357,12 @@ Each step is a raw shell command running directly on the shell:
                                 yield text
 
                     return _gen()
+                hist_msgs = [m for m in (history or []) if m.get("role") != "system"]
+                msgs = hist_msgs + [{"role": "user", "content": user_prompt}]
                 msg = await anthropic_client.messages.create(
                     model=model,
                     system=system_prompt,
-                    messages=[{"role": "user", "content": user_prompt}],
+                    messages=msgs,
                     max_tokens=2000,
                     temperature=0.3,
                 )
@@ -3372,17 +3384,14 @@ Each step is a raw shell command running directly on the shell:
             model = self._settings.get("groq_model") or "llama-4-scout-17b-16e-instruct"
 
             async def call_groq(
-                system_prompt: str, user_prompt: str, *, stream: bool = False
+                system_prompt: str, user_prompt: str, *, stream: bool = False, history: list[dict] | None = None
             ) -> dict[str, Any]:
                 if stream:
 
                     async def _gen() -> Any:
                         response = await client.chat.completions.create(
                             model=model,
-                            messages=[
-                                {"role": "system", "content": system_prompt},
-                                {"role": "user", "content": user_prompt},
-                            ],
+                            messages=self._build_messages(system_prompt, user_prompt, history),
                             max_tokens=2000,
                             temperature=0.3,
                             stream=True,
@@ -3395,10 +3404,7 @@ Each step is a raw shell command running directly on the shell:
                     return _gen()
                 response = await client.chat.completions.create(
                     model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
+                    messages=self._build_messages(system_prompt, user_prompt, history),
                     max_tokens=2000,
                     temperature=0.3,
                 )
@@ -3424,17 +3430,14 @@ Each step is a raw shell command running directly on the shell:
             )
 
             async def call_together(
-                system_prompt: str, user_prompt: str, *, stream: bool = False
+                system_prompt: str, user_prompt: str, *, stream: bool = False, history: list[dict] | None = None
             ) -> dict[str, Any]:
                 if stream:
 
                     async def _gen() -> Any:
                         response = await client.chat.completions.create(
                             model=model,
-                            messages=[
-                                {"role": "system", "content": system_prompt},
-                                {"role": "user", "content": user_prompt},
-                            ],
+                            messages=self._build_messages(system_prompt, user_prompt, history),
                             max_tokens=2000,
                             temperature=0.3,
                             stream=True,
@@ -3447,10 +3450,7 @@ Each step is a raw shell command running directly on the shell:
                     return _gen()
                 response = await client.chat.completions.create(
                     model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
+                    messages=self._build_messages(system_prompt, user_prompt, history),
                     max_tokens=2000,
                     temperature=0.3,
                 )
@@ -3475,17 +3475,14 @@ Each step is a raw shell command running directly on the shell:
             model = self._settings.get("mistral_model") or "mistral-large-3"
 
             async def call_mistral(
-                system_prompt: str, user_prompt: str, *, stream: bool = False
+                system_prompt: str, user_prompt: str, *, stream: bool = False, history: list[dict] | None = None
             ) -> dict[str, Any]:
                 if stream:
 
                     async def _gen() -> Any:
                         response = await client.chat.stream_async(  # type: ignore[attr-defined]
                             model=model,
-                            messages=[
-                                {"role": "system", "content": system_prompt},
-                                {"role": "user", "content": user_prompt},
-                            ],
+                            messages=self._build_messages(system_prompt, user_prompt, history),
                             max_tokens=2000,
                             temperature=0.3,
                         )
@@ -3498,10 +3495,7 @@ Each step is a raw shell command running directly on the shell:
                     return _gen()
                 response = await client.chat.complete_async(  # type: ignore[attr-defined]
                     model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
+                    messages=self._build_messages(system_prompt, user_prompt, history),
                     max_tokens=2000,
                     temperature=0.3,
                 )
@@ -3533,17 +3527,14 @@ Each step is a raw shell command running directly on the shell:
                 use_sdk = False
 
             async def call_ollama(
-                system_prompt: str, user_prompt: str, *, stream: bool = False
+                system_prompt: str, user_prompt: str, *, stream: bool = False, history: list[dict] | None = None
             ) -> dict[str, Any]:
                 if use_sdk and stream:
 
                     async def _gen() -> Any:
                         async for chunk in await _ollama_client.chat(
                             model=model,
-                            messages=[
-                                {"role": "system", "content": system_prompt},
-                                {"role": "user", "content": user_prompt},
-                            ],
+                            messages=self._build_messages(system_prompt, user_prompt, history),
                             options={"temperature": 0.3, "num_predict": 2000},
                             stream=True,
                         ):
@@ -3555,10 +3546,7 @@ Each step is a raw shell command running directly on the shell:
                 if use_sdk:
                     response = await _ollama_client.chat(
                         model=model,
-                        messages=[
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_prompt},
-                        ],
+                        messages=self._build_messages(system_prompt, user_prompt, history),
                         options={"temperature": 0.3, "num_predict": 2000},
                     )
                     return {
@@ -3573,10 +3561,7 @@ Each step is a raw shell command running directly on the shell:
                         async with httpx.AsyncClient(timeout=60.0) as hclient:
                             payload = {
                                 "model": model,
-                                "messages": [
-                                    {"role": "system", "content": system_prompt},
-                                    {"role": "user", "content": user_prompt},
-                                ],
+                                "messages": self._build_messages(system_prompt, user_prompt, history),
                                 "stream": True,
                                 "options": {"temperature": 0.3, "num_predict": 2000},
                             }
@@ -3596,10 +3581,7 @@ Each step is a raw shell command running directly on the shell:
                 async with httpx.AsyncClient(timeout=60.0) as hclient:
                     payload = {
                         "model": model,
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_prompt},
-                        ],
+                        "messages": self._build_messages(system_prompt, user_prompt, history),
                         "stream": False,
                         "options": {"temperature": 0.3, "num_predict": 2000},
                     }
@@ -3625,7 +3607,7 @@ Each step is a raw shell command running directly on the shell:
             model = self._settings.get("lmstudio_model") or ""
 
             async def call_lmstudio(
-                system_prompt: str, user_prompt: str, *, stream: bool = False
+                system_prompt: str, user_prompt: str, *, stream: bool = False, history: list[dict] | None = None
             ) -> dict[str, Any]:
                 if stream:
 
@@ -3633,10 +3615,7 @@ Each step is a raw shell command running directly on the shell:
                         async with httpx.AsyncClient(timeout=120.0) as hclient:
                             payload = {
                                 "model": model or "local-model",
-                                "messages": [
-                                    {"role": "system", "content": system_prompt},
-                                    {"role": "user", "content": user_prompt},
-                                ],
+                                "messages": self._build_messages(system_prompt, user_prompt, history),
                                 "max_tokens": 2000,
                                 "temperature": 0.3,
                                 "stream": True,
@@ -3663,10 +3642,7 @@ Each step is a raw shell command running directly on the shell:
                 async with httpx.AsyncClient(timeout=120.0) as hclient:
                     payload = {
                         "model": model or "local-model",
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_prompt},
-                        ],
+                        "messages": self._build_messages(system_prompt, user_prompt, history),
                         "max_tokens": 2000,
                         "temperature": 0.3,
                     }
@@ -3959,12 +3935,24 @@ Each step is a raw shell command running directly on the shell:
             pass
         return text
 
+    def _get_conversation_history(self, max_messages: int = 30) -> list[dict]:
+        """Extract recent conversation history from the session for LLM context."""
+        msgs = self._session.messages
+        if not msgs:
+            return []
+        recent = msgs[-max_messages:] if len(msgs) > max_messages else msgs
+        return [
+            {"role": m.role, "content": m.content[-4000:] if len(m.content) > 4000 else m.content}
+            for m in recent
+        ]
+
     async def _stream_assistant_response(
         self,
         system_prompt: str,
         user_prompt: str,
         provider_name: str | None = None,
         api_key: str | None = None,
+        history: list[dict] | None = None,
     ) -> str:
         """Stream an LLM response token-by-token with a live updating display.
 
@@ -3981,7 +3969,7 @@ Each step is a raw shell command running directly on the shell:
                 return ""
 
         llm_fn = self._make_llm_call(provider_name or "", api_key or "")
-        gen = await llm_fn(system_prompt, user_prompt, stream=True)
+        gen = await llm_fn(system_prompt, user_prompt, stream=True, history=history)
         full_text = ""
         md = Markdown("")
         panel = Panel(

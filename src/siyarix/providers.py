@@ -62,6 +62,10 @@ class CostTier(enum.StrEnum):
     MEDIUM = "medium"
     HIGH = "high"
 
+    @property
+    def sort_key(self) -> int:
+        return {"free": 0, "low": 1, "medium": 2, "high": 3}.get(self.value, 99)
+
 
 class ProviderType(enum.StrEnum):
     CLOUD = "cloud"

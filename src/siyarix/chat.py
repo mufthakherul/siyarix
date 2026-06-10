@@ -1038,16 +1038,6 @@ class SiyarixChat:
         if run.lower().startswith("y"):
             await self._execute_instruction(p.command)
 
-    @staticmethod
-    def _provider_env_var(provider: str) -> str:
-        """Resolve the environment variable name for a provider's API key."""
-        from .providers import ProviderManager
-        pm = ProviderManager()
-        profile = pm.get_profile(provider)
-        if profile and profile.api_key_env:
-            return profile.api_key_env
-        return f"{provider.upper()}_API_KEY"
-
     def _show_key_status(self) -> None:
         from .credential_store import CredentialStore
         from .providers import ProviderManager
@@ -1055,7 +1045,8 @@ class SiyarixChat:
         provider_registry = ProviderManager()
         try:
             vault = CredentialStore()
-        except Exception:
+        except Exception as exc:
+            logger.warning("CredentialStore init failed: %s", exc)
             vault = None
 
         table = Table(title="Configured API Keys", header_style="bold green")
@@ -1122,7 +1113,8 @@ class SiyarixChat:
                 console.print("[yellow]Usage: /key remove <provider>[/yellow]")
                 return
             provider = tokens[1].lower()
-            env_key = self._provider_env_var(provider)
+            from .providers import get_provider_env_var
+            env_key = get_provider_env_var(provider)
             upsert_env_vars({env_key: ""}, ensure_env_file())
             os.environ.pop(env_key, None)
             from .credential_store import CredentialStore
@@ -1137,7 +1129,8 @@ class SiyarixChat:
 
         if not api_key:
             api_key = Prompt.ask(f"Enter {provider} API key", password=True)
-        env_key = self._provider_env_var(provider)
+        from .providers import get_provider_env_var
+        env_key = get_provider_env_var(provider)
         # persist to the encrypted vault and .env, then update the live environment
         try:
             from .credential_store import CredentialStore

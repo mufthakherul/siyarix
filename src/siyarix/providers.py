@@ -569,3 +569,12 @@ class ProviderManager:
             "credentials": {p: len(c) for p, c in self._credentials.items()},
             "error_counts": dict(self._error_counts),
         }
+
+
+def get_provider_env_var(provider: str) -> str:
+    """Resolve the environment variable name for a provider's API key."""
+    pm = ProviderManager()
+    profile = pm.get_profile(provider)
+    if profile and profile.api_key_env:
+        return profile.api_key_env
+    return f"{provider.upper()}_API_KEY"

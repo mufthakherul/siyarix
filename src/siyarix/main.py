@@ -82,18 +82,6 @@ def _load_dotenv(path: Path | None = None) -> None:
             os.environ[key] = val
 
 
-def _provider_env_var(provider: str) -> str:
-    try:
-        from siyarix.providers import ProviderManager
-        pm = ProviderManager()
-        profile = pm.get_profile(provider)
-        if profile and profile.api_key_env:
-            return profile.api_key_env
-    except Exception:
-        pass
-    return f"{provider.upper()}_API_KEY"
-
-
 def _upsert_env_vars(env_map: dict[str, str], env_file: str | None = None) -> None:
     for k, v in env_map.items():
         os.environ[k] = v
@@ -1352,7 +1340,8 @@ def auth_set_key(
     """
     creds.delete(provider, "api_key")
     creds.store(provider, api_key, "api_key")
-    env_key = _provider_env_var(provider)
+    from siyarix.providers import get_provider_env_var
+    env_key = get_provider_env_var(provider)
     _upsert_env_vars({env_key: api_key})
     os.environ[env_key] = api_key
     console.print(f"[green]✓ API key stored for provider: {provider}[/green]")
@@ -1379,7 +1368,8 @@ def auth_show() -> None:
     table.add_column("Source")
 
     for prov in providers:
-        env_key = _provider_env_var(prov)
+        from siyarix.providers import get_provider_env_var
+        env_key = get_provider_env_var(prov)
         from_env = bool(os.getenv(env_key))
         from_creds = bool(creds.retrieve(prov, "api_key"))
         if from_env:

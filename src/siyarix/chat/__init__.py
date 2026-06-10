@@ -3022,7 +3022,7 @@ When the user message contains tool execution results, analyse them thoroughly.
         console.print(f"[cyan]→ Executing:[/cyan] {', '.join(tool_labels)}")
 
         # ── Multi-wave execution loop ─────────────────────────────────────
-        max_waves = 5
+        max_waves = self._settings.get("max_waves") or 25
         all_outputs: list[str] = []
         plan: Any = llm_plan
 
@@ -3176,15 +3176,12 @@ When the user message contains tool execution results, analyse them thoroughly.
                     "[bold cyan]LLM analysing wave results...[/bold cyan]", spinner="dots"
                 ):
                     try:
-                        plan = await asyncio.wait_for(
-                            agent._planner.llm_decompose_goal(
-                                wave_goal,
-                                tool_names,
-                                llm_call=llm_call_fn,
-                                tool_schemas=tool_dicts,
-                                system_prompt=self._build_system_prompt(),
-                            ),
-                            timeout=60.0,
+                        plan = await agent._planner.llm_decompose_goal(
+                            wave_goal,
+                            tool_names,
+                            llm_call=llm_call_fn,
+                            tool_schemas=tool_dicts,
+                            system_prompt=self._build_system_prompt(),
                         )
                         llm_model = provider_name or "none"
                         if plan.steps:
@@ -3193,8 +3190,9 @@ When the user message contains tool execution results, analyse them thoroughly.
                             )
                         else:
                             # Done — show final response
+                            ctx = plan.context or {}
                             summary = (
-                                plan.context.get("reasoning", "") if plan.context else ""
+                                ctx.get("response") or ctx.get("reasoning", "")
                             ) or "Done."
                             self._session.add_message("assistant", summary)
                             self._print_assistant(summary)

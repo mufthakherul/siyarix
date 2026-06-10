@@ -9,6 +9,8 @@ based on the detected platform, as described in Chapter 6.4.
 from __future__ import annotations
 
 import logging
+import os
+import platform as _platform
 import shutil
 import subprocess  # nosec B404
 import sys
@@ -40,16 +42,13 @@ _TOOL_INSTALL_MAP: dict[str, dict[str, list[str]]] = {
     "nuclei": {
         "apt": ["apt-get", "install", "-y", "nuclei"],
         "brew": ["brew", "install", "nuclei"],
+        "pkg": ["pkg", "install", "-y", "nuclei"],
         "go": [
             "go",
             "install",
             "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest",
         ],
-        "curl": [
-            "curl",
-            "-s",
-            "https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei_linux_amd64.zip",
-        ],
+        "download": "nuclei_download",
     },
     "masscan": {
         "apt": ["apt-get", "install", "-y", "masscan"],
@@ -151,26 +150,17 @@ _TOOL_INSTALL_MAP: dict[str, dict[str, list[str]]] = {
     "setoolkit": {
         "apt": ["apt-get", "install", "-y", "set"],
         "brew": ["brew", "install", "set"],
-        "git": [
-            "git",
-            "clone",
-            "https://github.com/trustedsec/social-engineer-toolkit",
-            "/opt/set",
-        ],
+        "git": "setoolkit_git",
     },
     "beef": {
         "apt": ["apt-get", "install", "-y", "beef-xss"],
         "brew": ["brew", "install", "beef"],
-        "git": ["git", "clone", "https://github.com/beefproject/beef", "/opt/beef"],
+        "git": "beef_git",
     },
     "gophish": {
         "apt": ["apt-get", "install", "-y", "gophish"],
         "brew": ["brew", "install", "gophish"],
-        "wget": [
-            "wget",
-            "-q",
-            "https://github.com/gophish/gophish/releases/latest/download/gophish-linux-amd64.zip",
-        ],
+        "download": "gophish_download",
     },
     "reaver": {
         "apt": ["apt-get", "install", "-y", "reaver"],
@@ -180,7 +170,7 @@ _TOOL_INSTALL_MAP: dict[str, dict[str, list[str]]] = {
     "wifite": {
         "apt": ["apt-get", "install", "-y", "wifite"],
         "brew": ["brew", "install", "wifite"],
-        "git": ["git", "clone", "https://github.com/derv82/wifite2", "/opt/wifite2"],
+        "git": "wifite2_git",
     },
     "kismet": {
         "apt": ["apt-get", "install", "-y", "kismet"],
@@ -237,11 +227,7 @@ _TOOL_INSTALL_MAP: dict[str, dict[str, list[str]]] = {
     "cloudflared": {
         "apt": ["apt-get", "install", "-y", "cloudflared"],
         "brew": ["brew", "install", "cloudflared"],
-        "wget": [
-            "wget",
-            "-q",
-            "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64",
-        ],
+        "download": "cloudflared_download",
     },
     "bloodhound": {
         "apt": ["apt-get", "install", "-y", "bloodhound"],
@@ -251,12 +237,7 @@ _TOOL_INSTALL_MAP: dict[str, dict[str, list[str]]] = {
     "responder": {
         "apt": ["apt-get", "install", "-y", "responder"],
         "brew": ["brew", "install", "responder"],
-        "git": [
-            "git",
-            "clone",
-            "https://github.com/lgandx/Responder",
-            "/opt/responder",
-        ],
+        "git": "responder_git",
     },
     "crackmapexec": {
         "pip": [sys.executable, "-m", "pip", "install", "crackmapexec"],
@@ -271,7 +252,7 @@ _TOOL_INSTALL_MAP: dict[str, dict[str, list[str]]] = {
     "empire": {
         "pip": [sys.executable, "-m", "pip", "install", "empire"],
         "apt": ["apt-get", "install", "-y", "powershell-empire"],
-        "git": ["git", "clone", "https://github.com/BC-SECURITY/Empire", "/opt/empire"],
+        "git": "empire_git",
     },
     "pwncat": {
         "pip": [sys.executable, "-m", "pip", "install", "pwncat-cs"],
@@ -306,17 +287,53 @@ class ToolInstaller:
         self._package_manager: str = self._detect_package_manager()
         self._install_history: list[ToolInstallResult] = []
 
+    @staticmethod
+    def _platform_tag() -> str:
+        """Return OS/arch tag for download URLs: linux_amd64, darwin_arm64, windows_amd64, etc."""
+        system = _platform.system().lower()
+        machine = _platform.machine().lower()
+        arch_map = {"x86_64": "amd64", "amd64": "amd64", "aarch64": "arm64", "arm64": "arm64", "i386": "386", "i686": "386"}
+        arch = arch_map.get(machine, "amd64")
+        if system == "linux":
+            return f"linux_{arch}"
+        if system == "darwin":
+            return f"darwin_{arch}"
+        if system == "windows":
+            return f"windows_{arch}.exe" if arch == "amd64" else f"windows_{arch}.exe"
+        return f"linux_{arch}"
+
+    @staticmethod
+    def _platform_install_dir() -> str:
+        """Return platform-appropriate directory for git-cloned tools."""
+        system = _platform.system().lower()
+        if system == "windows":
+            return os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "siyarix", "tools")
+        return "/opt"
+
+    def _download_url(self, base: str, repo: str, asset_pattern: str) -> str:
+        """Construct platform-aware download URL for GitHub releases."""
+        tag = self._platform_tag()
+        ext = ".zip" if "windows" in tag else ".tar.gz"
+        filename = asset_pattern.format(tag=tag, ext=ext)
+        return f"{base.rstrip('/')}/releases/latest/download/{filename}"
+
     def _detect_package_manager(self) -> str:
         if shutil.which("apt-get"):
             return "apt"
         if shutil.which("brew"):
             return "brew"
+        if shutil.which("pkg"):
+            return "pkg"
         if shutil.which("choco"):
             return "choco"
+        if shutil.which("winget"):
+            return "winget"
         if shutil.which("pacman"):
             return "pacman"
         if shutil.which("dnf"):
             return "dnf"
+        if shutil.which("apk"):
+            return "apk"
         # Fallback: try pip for Python tools
         return "pip"
 
@@ -325,6 +342,48 @@ class ToolInstaller:
 
     def check_many(self, tools: list[str]) -> dict[str, bool]:
         return {tool: self.is_installed(tool) for tool in tools}
+
+    def _resolve_git_cmd(self, tool_key: str) -> list[str] | None:
+        """Resolve a git clone command with platform-aware install directory."""
+        _git_repos = {
+            "setoolkit_git": ("https://github.com/trustedsec/social-engineer-toolkit", "set"),
+            "beef_git": ("https://github.com/beefproject/beef", "beef"),
+            "wifite2_git": ("https://github.com/derv82/wifite2", "wifite2"),
+            "responder_git": ("https://github.com/lgandx/Responder", "Responder"),
+            "empire_git": ("https://github.com/BC-SECURITY/Empire", "Empire"),
+        }
+        repo = _git_repos.get(tool_key)
+        if not repo:
+            return None
+        dest = os.path.join(self._platform_install_dir(), repo[1])
+        return ["git", "clone", repo[0], dest]
+
+    def _resolve_download_cmd(self, tool_key: str) -> list[str] | None:
+        """Resolve a platform-aware download command."""
+        _downloads = {
+            "nuclei_download": (
+                "https://github.com/projectdiscovery/nuclei",
+                "nuclei_{tag}{ext}",
+            ),
+            "gophish_download": (
+                "https://github.com/gophish/gophish",
+                "gophish-{tag}{ext}",
+            ),
+            "cloudflared_download": (
+                "https://github.com/cloudflare/cloudflared",
+                "cloudflared-{tag}{ext}",
+            ),
+        }
+        info = _downloads.get(tool_key)
+        if not info:
+            return None
+        url = self._download_url(info[0], "", info[1])
+        downloader = shutil.which("curl") or shutil.which("wget")
+        if not downloader:
+            logger.warning("No download tool (curl/wget) found for %s", tool_key)
+            return None
+        cmd = [downloader, "-sL", url, "-o", tool_key.split("_")[0] + (".exe" if _platform.system().lower() == "windows" else "")]
+        return cmd
 
     def install(self, tool: str) -> ToolInstallResult:
         result = ToolInstallResult(tool=tool)
@@ -341,8 +400,7 @@ class ToolInstaller:
             logger.warning(result.error)
             return result
 
-        # Try preferred package manager first, then fallbacks
-        preferred_order = [self._package_manager, "pip", "go", "curl", "apt", "brew"]
+        preferred_order = [self._package_manager, "pip", "go", "download", "git", "curl", "apt", "brew"]
         tried_methods = set()
 
         for method in preferred_order:
@@ -350,7 +408,18 @@ class ToolInstaller:
                 continue
             tried_methods.add(method)
 
-            cmd = install_methods.get(method)
+            entry = install_methods.get(method)
+            if not entry:
+                continue
+
+            if method == "git" and isinstance(entry, str):
+                cmd = self._resolve_git_cmd(entry)
+            elif method == "download" and isinstance(entry, str):
+                cmd = self._resolve_download_cmd(entry)
+            elif isinstance(entry, list):
+                cmd = entry
+            else:
+                continue
             if not cmd:
                 continue
 

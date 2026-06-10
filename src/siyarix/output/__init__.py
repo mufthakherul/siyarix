@@ -327,7 +327,7 @@ class OutputEngine:
         elif fmt == OutputFormat.YAML and YAML_AVAILABLE:
             path.write_text(yaml.dump(data))
         elif fmt == OutputFormat.CSV and isinstance(data, list):
-            with path.open("w", newline="") as f:
+            with path.open("w", newline="", encoding="utf-8") as f:
                 writer = csv.DictWriter(f, fieldnames=data[0].keys())
                 writer.writeheader()
                 writer.writerows(data)

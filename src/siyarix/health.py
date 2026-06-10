@@ -311,7 +311,8 @@ class HealthChecker:
             )
 
             # Disk
-            disk = psutil.disk_usage("/")
+            disk_path = "/" if os.name != "nt" else os.environ.get("SYSTEMDRIVE", "C:") + "\\"
+            disk = psutil.disk_usage(disk_path)
             disk_state = (
                 HealthState.HEALTHY
                 if disk.percent < 80

@@ -290,11 +290,14 @@ class SettingsStore:
         import platform as _platform
 
         default_editor = (
-            "notepad" if _platform.system().lower() == "windows" else "nano"
+            "notepad.exe" if _platform.system().lower() == "windows" else "nano"
         )
         editor = os.getenv("EDITOR", default_editor)
+        # Handle editor paths with spaces on Windows
+        editor_cmd = editor if _platform.system().lower() != "windows" else editor.split()
+        editor_cmd = [editor_cmd] if isinstance(editor_cmd, str) else editor_cmd
         try:
-            safe_run_sync([editor, str(self._path)], timeout=0)
+            safe_run_sync(editor_cmd + [str(self._path)], timeout=0)
         except Exception:
             logger.exception(
                 "Opening editor failed with safe_run_sync for editor=%s path=%s",
@@ -304,7 +307,7 @@ class SettingsStore:
             try:
                 import subprocess
                 subprocess.run(  # nosec B603
-                    [editor, str(self._path)],
+                    editor_cmd + [str(self._path)],
                     capture_output=False,
                     timeout=30,
                 )

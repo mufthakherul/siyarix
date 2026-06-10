@@ -246,6 +246,8 @@ class CredentialStore:
             # restrict permissions to owner only where supported
             if os.name != "nt":
                 os.chmod(self._key_file, 0o600)
+            else:
+                logger.warning("Key file %s is not permission-restricted on Windows", self._key_file)
         except Exception as exc:
             # best-effort; log but continue
             logger.exception("Failed to set permissions on vault key file: %s", exc)

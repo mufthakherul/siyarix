@@ -136,14 +136,14 @@ class SessionKernel:
         path = self._root / f"{session.session_id}.json"
         data = asdict(session)
         data["persistence"] = session.persistence.value
-        path.write_text(json.dumps(data, indent=2))
+        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         return path
 
     def load(self, session_id: str) -> SessionContext | None:
         path = self._root / f"{session_id}.json"
         if not path.exists():
             return None
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
         operations = [OperationCard(**row) for row in data.get("operations", [])]
         return SessionContext(
             session_id=data["session_id"],

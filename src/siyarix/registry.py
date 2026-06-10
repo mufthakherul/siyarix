@@ -277,7 +277,11 @@ class ToolRegistry:
                         continue
                     seen.add(entry)
                     full = os.path.join(path_dir, entry)
-                    if not (os.path.isfile(full) and os.access(full, os.X_OK)):
+                    if os.name == "nt":
+                        # On Windows os.X_OK is True for most files; filter by executable extensions
+                        if not (os.path.isfile(full) and full.endswith((".exe", ".bat", ".cmd", ".ps1", ".com"))):
+                            continue
+                    elif not (os.path.isfile(full) and os.access(full, os.X_OK)):
                         continue
                     if self._graph.get_tool(entry):
                         continue  # already registered

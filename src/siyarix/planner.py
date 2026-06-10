@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 import uuid
@@ -202,6 +203,7 @@ class Planner:
     def __init__(self) -> None:
         self._plans: dict[str, ExecutionPlan] = {}
         self._auto_dag_templates: set[str] = {"recon_full", "web_audit", "network_scan", "cloud_audit"}
+        self._cron_path = "/etc/crontab" if os.name != "nt" else "C:\\Windows\\System32\\Tasks"
         self._templates: dict[str, list[dict[str, Any]]] = {
             "recon_full": [
                 {"description": "Full port scan with service/OS detection and default scripts", "tool": "nmap", "args": {"flags": "-sV -sC -T4"}},
@@ -244,7 +246,7 @@ class Planner:
                 {"description": "Kernel and OS version identification for known exploit matching", "tool": "uname", "args": {"flags": "-a"}},
                 {"description": "SUID and SGID binary discovery for privilege escalation vectors", "tool": "find", "args": {"flags": "/ -perm -4000 -type f 2>/dev/null"}},
                 {"description": "World-writable directory search for dropper placements", "tool": "find", "args": {"flags": "/ -writable -type d 2>/dev/null"}},
-                {"description": "Scheduled task and cron job inspection for persistence", "tool": "cat", "args": {"flags": "/etc/crontab"}},
+                {"description": "Scheduled task and cron job inspection for persistence", "tool": "cat", "args": {"flags": self._cron_path}},
             ],
         }
         # Inverted index: keyword → set of tool names

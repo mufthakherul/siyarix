@@ -183,7 +183,7 @@ class UsageTracker:
             return
         try:
             Path(self._path).parent.mkdir(parents=True, exist_ok=True)
-            with open(self._path, "w") as f:
+            with open(self._path, "w", encoding="utf-8") as f:
                 json.dump(self.to_dict(), f, indent=2)
         except Exception as exc:
             logger.debug("Failed to save usage tracker: %s", exc)
@@ -192,7 +192,7 @@ class UsageTracker:
     def load(cls, path: str) -> UsageTracker:
         tracker = cls(path=path)
         try:
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             for key, record in data.items():
                 tracker._records[key] = UsageRecord.from_dict(record)
@@ -217,7 +217,7 @@ class ProviderStateManager:
         if not self.path:
             return
         try:
-            with open(self.path) as f:
+            with open(self.path, encoding="utf-8") as f:
                 data = json.load(f)
             self._disabled = set(data.get("disabled", []))
             self._failure_counts = data.get("failure_counts", {})
@@ -230,7 +230,7 @@ class ProviderStateManager:
             return
         try:
             Path(self.path).parent.mkdir(parents=True, exist_ok=True)
-            with open(self.path, "w") as f:
+            with open(self.path, "w", encoding="utf-8") as f:
                 json.dump({
                     "disabled": list(self._disabled),
                     "failure_counts": self._failure_counts,

@@ -30,6 +30,7 @@ import json
 import logging
 import os
 import shutil
+import subprocess
 
 # Windows event loop policy for subprocess compatibility
 if os.name == "nt" and hasattr(asyncio, "WindowsSelectorEventLoopPolicy"):
@@ -168,6 +169,7 @@ except Exception:
     logger.debug("Vault unavailable; API keys from environment only")
 
 # Legacy CredentialStore fallback for backward compat
+creds: CredentialStore | None = None
 try:
     creds = CredentialStore()
     for provider, env_var in [
@@ -507,6 +509,7 @@ def _ensure_vault_ready() -> None:
             return
 
         key = vault._read_auto_unseal_key()
+        key_file_exists = vault._vault_key_path.exists()
         if key:
             try:
                 vault.unseal(key)
@@ -517,7 +520,7 @@ def _ensure_vault_ready() -> None:
             except Exception:
                 vault._clear_auto_unseal_key()
 
-        if key:
+        if key_file_exists:
             msg = "Device or environment changed. Enter your vault passphrase to re-bind."
         else:
             msg = "Enter your vault passphrase to unlock."

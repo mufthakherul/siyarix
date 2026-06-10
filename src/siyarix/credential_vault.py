@@ -312,11 +312,11 @@ class DeviceFingerprint:
                     "Get-WmiObject -Namespace Root/CIMv2/Security/MicrosoftTpm "
                     "-Class Win32_Tpm | Select-Object -ExpandProperty ManufacturerIdTxt"
                 )
-                r = subprocess.run(
+                r_win = subprocess.run(
                     ["powershell", "-Command", ps_cmd], capture_output=True, text=True, timeout=5
                 )
-                if r.returncode == 0 and r.stdout.strip():
-                    return hashlib.sha256(r.stdout.encode()).hexdigest()[:16]
+                if r_win.returncode == 0 and r_win.stdout.strip():
+                    return hashlib.sha256(r_win.stdout.encode()).hexdigest()[:16]
             except Exception:
                 pass
         return ""

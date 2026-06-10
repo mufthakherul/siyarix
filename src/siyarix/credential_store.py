@@ -126,6 +126,10 @@ class CredentialStore:
                 "cryptography package is required for CredentialStore. Install with: pip install cryptography"
             )
 
+        from .config import SettingsStore
+        if SettingsStore().get("vault_initialized"):
+            raise RuntimeError("Vault is initialized. Legacy CredentialStore is disabled.")
+
         self._init_encryption(master_password)
 
         self._load()

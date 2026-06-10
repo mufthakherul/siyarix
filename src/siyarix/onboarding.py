@@ -41,7 +41,7 @@ try:
     from rich.table import Table
     from rich import box
 except ImportError:
-    Console = None  # type: ignore[assignment]
+    Console = None  # type: ignore[assignment,misc]
 
 from siyarix.bootstrap import INITIALIZED_MARKER, BootstrapEngine  # noqa: E402
 from siyarix.config import SettingsStore  # noqa: E402
@@ -333,25 +333,27 @@ class OnboardingWizard:
             if os.name == "nt":
                 import ctypes
 
-                kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+                windll = getattr(ctypes, "windll", None)
+                if windll is not None:
+                    kernel32 = windll.kernel32
 
-                class MEMORYSTATUSEX(ctypes.Structure):
-                    _fields_ = [
-                        ("dwLength", ctypes.c_ulong),
-                        ("dwMemoryLoad", ctypes.c_ulong),
-                        ("ullTotalPhys", ctypes.c_ulonglong),
-                        ("ullAvailPhys", ctypes.c_ulonglong),
-                        ("ullTotalPageFile", ctypes.c_ulonglong),
-                        ("ullAvailPageFile", ctypes.c_ulonglong),
-                        ("ullTotalVirtual", ctypes.c_ulonglong),
-                        ("ullAvailVirtual", ctypes.c_ulonglong),
-                        ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
-                    ]
+                    class MEMORYSTATUSEX(ctypes.Structure):
+                        _fields_ = [
+                            ("dwLength", ctypes.c_ulong),
+                            ("dwMemoryLoad", ctypes.c_ulong),
+                            ("ullTotalPhys", ctypes.c_ulonglong),
+                            ("ullAvailPhys", ctypes.c_ulonglong),
+                            ("ullTotalPageFile", ctypes.c_ulonglong),
+                            ("ullAvailPageFile", ctypes.c_ulonglong),
+                            ("ullTotalVirtual", ctypes.c_ulonglong),
+                            ("ullAvailVirtual", ctypes.c_ulonglong),
+                            ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+                        ]
 
-                mem = MEMORYSTATUSEX()
-                mem.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
-                if kernel32.GlobalMemoryStatusEx(ctypes.byref(mem)):
-                    ram_total_gb = mem.ullTotalPhys / (1024**3)
+                    mem = MEMORYSTATUSEX()
+                    mem.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+                    if kernel32.GlobalMemoryStatusEx(ctypes.byref(mem)):
+                        ram_total_gb = mem.ullTotalPhys / (1024**3)
             elif system == "Linux":
                 with open("/proc/meminfo") as f:
                     for line in f:
@@ -379,12 +381,8 @@ class OnboardingWizard:
         try:
             siyarix_home = Path.home() / ".siyarix"
             siyarix_home.mkdir(parents=True, exist_ok=True)
-            if os.name == "nt":
-                free_bytes = shutil.disk_usage(siyarix_home).free
-                disk_free_gb = free_bytes / (1024**3)
-            else:
-                st = os.statvfs(str(siyarix_home))
-                disk_free_gb = (st.f_frsize * st.f_bavail) / (1024**3)
+            free_bytes = shutil.disk_usage(siyarix_home).free
+            disk_free_gb = free_bytes / (1024**3)
         except Exception:
             pass
 
@@ -721,7 +719,7 @@ class OnboardingWizard:
                 try:
                     from siyarix import credential_vault as cv
 
-                    cv._VAULT_INSTANCE = vault
+                    cv._vault_instance = vault
                 except Exception:
                     pass
 
@@ -1286,7 +1284,7 @@ class OnboardingWizard:
             try:
                 addrs = socket.getaddrinfo(host, 80, type=socket.SOCK_STREAM)
                 ok = len(addrs) > 0
-                detail = addrs[0][4][0] if addrs else ""
+                detail = str(addrs[0][4][0]) if addrs else ""
             except socket.gaierror:
                 detail = "DNS failure"
             except Exception as exc:
@@ -1331,9 +1329,10 @@ class OnboardingWizard:
                 self._console.print(f"  {provider_name}: {status_str} {detail}")
                 diag_results.append(("Provider API", ok, detail))
                 if not ok:
-                    all_ok = self._console.print(
+                    self._console.print(
                         "  [yellow]Key stored but API unreachable. Check endpoint or key.[/yellow]"
                     )
+                    all_ok = False
         else:
             self._console.print()
             self._console.print(
@@ -1853,10 +1852,11 @@ class OnboardingWizard:
     def _restart_siyarix() -> None:
         OnboardingWizard._clear_screen()
         if os.name == "nt":
+            creationflags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
             subprocess.Popen(
                 [sys.executable, "-m", "siyarix"] + sys.argv[1:],
                 shell=True,  # nosec B602
-                creationflags=subprocess.CREATE_NEW_CONSOLE,  # type: ignore[attr-defined]
+                creationflags=creationflags,
             )
         else:
             os.execv(sys.executable, [sys.executable, "-m", "siyarix"] + sys.argv[1:])

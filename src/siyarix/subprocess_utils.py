@@ -11,7 +11,7 @@ Supports sync and async subprocess execution with:
 from __future__ import annotations
 
 import asyncio
-import inspect
+import atexit as _atexit
 import logging
 import os
 import signal
@@ -20,13 +20,11 @@ import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # Track orphan child processes for cleanup on parent crash
 _ORPHAN_TRACKER: set[int] = set()
-import atexit as _atexit
 
 
 @_atexit.register
@@ -51,7 +49,7 @@ def _cleanup_orphans() -> None:
     """Attempt to kill orphaned child processes."""
     for pid in list(_ORPHAN_TRACKER):
         try:
-            os.kill(pid, signal.SIGKILL)
+            os.kill(pid, signal.SIGTERM)
         except (OSError, PermissionError):
             pass
         _ORPHAN_TRACKER.discard(pid)
@@ -176,11 +174,15 @@ async def safe_run_async_stream(
             if callback:
                 callback(line)
 
+    async def _safe_read(s: asyncio.StreamReader | None, lines: list[str], cb: Callable[[str], None] | None) -> None:
+        if s is not None:
+            await _read_stream(s, lines, cb)
+
     try:
         await asyncio.wait_for(
             asyncio.gather(
-                _read_stream(proc.stdout, stdout_lines, on_stdout),
-                _read_stream(proc.stderr, stderr_lines, on_stderr),
+                _safe_read(proc.stdout, stdout_lines, on_stdout),
+                _safe_read(proc.stderr, stderr_lines, on_stderr),
             ),
             timeout=timeout,
         )

@@ -317,6 +317,33 @@ class SiyarixChat:
                 console.print(f"[dim]Resumed session {session.session_id[:8]}[/dim]")
                 return session
 
+            # Try legacy SessionKernel format
+            try:
+                from ..compat import SessionKernel
+
+                legacy = SessionKernel().load(session_id)
+                if legacy:
+                    session = ChatSession(
+                        session_id=legacy.session_id,
+                        target=legacy.scope or target,
+                        mode=self._mode,
+                    )
+                    for op in legacy.operations:
+                        session.add_message("user", op.instruction)
+                        artifacts = ", ".join(op.artifacts) if op.artifacts else "—"
+                        status = f"{op.state} (retries: {op.retries})"
+                        session.add_message(
+                            "assistant",
+                            f"Operation {op.operation_id} [{status}]\nArtifacts: {artifacts}",
+                        )
+                    session.save(self._SESSIONS_DIR / f"{session.session_id}.json")
+                    console.print(
+                        f"[dim]Restored legacy session {session.session_id[:8]}[/dim]"
+                    )
+                    return session
+            except Exception:
+                pass
+
         # New session
         sid = session_id or str(uuid.uuid4())[:12]
         session = ChatSession(session_id=sid, target=target, mode=self._mode)

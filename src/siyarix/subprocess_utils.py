@@ -50,7 +50,9 @@ def _cleanup_orphans() -> None:
     for pid in list(_ORPHAN_TRACKER):
         try:
             if sys.platform == "win32":
-                subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, timeout=5)
+                subprocess.run(
+                    ["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, timeout=5
+                )
             else:
                 os.kill(pid, signal.SIGTERM)
         except (OSError, PermissionError, subprocess.SubprocessError):
@@ -84,16 +86,22 @@ def _validate_cmd_list(cmd: list[str]) -> None:
         raise ValueError("cmd must be a non-empty list of strings")
     for i, part in enumerate(cmd):
         if not isinstance(part, str):
-            raise ValueError(f"all command parts must be strings, got {type(part).__name__} at index {i}")
+            raise ValueError(
+                f"all command parts must be strings, got {type(part).__name__} at index {i}"
+            )
         if not part:
             raise ValueError(f"command part at index {i} is empty")
         cleaned = part.replace(">=", "").replace("<=", "").replace("==", "")
         for ch in [";", "|", "&", "`", "$", ">", "<"]:
             if ch in cleaned:
-                raise ValueError(f"command part at index {i} contains suspicious character {ch!r}: {part!r}")
+                raise ValueError(
+                    f"command part at index {i} contains suspicious character {ch!r}: {part!r}"
+                )
         for ch in ["\n", "\r", "\x00", "\x1b"]:
             if ch in part:
-                raise ValueError(f"command part at index {i} contains injection character {ch!r}: {part!r}")
+                raise ValueError(
+                    f"command part at index {i} contains injection character {ch!r}: {part!r}"
+                )
 
 
 def safe_run_sync(
@@ -102,9 +110,7 @@ def safe_run_sync(
     _validate_cmd_list(cmd)
     _cleanup_orphans()
     try:
-        return subprocess.run(
-            cmd, capture_output=capture_output, text=text, timeout=timeout
-        )  # nosec B603
+        return subprocess.run(cmd, capture_output=capture_output, text=text, timeout=timeout)  # nosec B603
     except subprocess.TimeoutExpired:
         logger.debug("safe_run_sync timeout for cmd=%s", cmd)
         raise
@@ -113,7 +119,9 @@ def safe_run_sync(
         raise
 
 
-async def safe_run_async(cmd: list[str], timeout: int = 10, validate: bool = True) -> ExecutionResult:
+async def safe_run_async(
+    cmd: list[str], timeout: int = 10, validate: bool = True
+) -> ExecutionResult:
     if validate:
         _validate_cmd_list(cmd)
     start = time.monotonic()
@@ -123,9 +131,7 @@ async def safe_run_async(cmd: list[str], timeout: int = 10, validate: bool = Tru
     if proc.pid is not None:
         _ORPHAN_TRACKER.add(proc.pid)
     try:
-        stdout_bytes, stderr_bytes = await asyncio.wait_for(
-            proc.communicate(), timeout=timeout
-        )
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         exit_code = proc.returncode if proc.returncode is not None else 0
     except asyncio.TimeoutError:
         await _kill_process(proc)
@@ -177,7 +183,9 @@ async def safe_run_async_stream(
             if callback:
                 callback(line)
 
-    async def _safe_read(s: asyncio.StreamReader | None, lines: list[str], cb: Callable[[str], None] | None) -> None:
+    async def _safe_read(
+        s: asyncio.StreamReader | None, lines: list[str], cb: Callable[[str], None] | None
+    ) -> None:
         if s is not None:
             await _read_stream(s, lines, cb)
 
@@ -192,7 +200,10 @@ async def safe_run_async_stream(
         exit_code = proc.returncode if proc.returncode is not None else 0
     except asyncio.TimeoutError:
         await _kill_process(proc)
-        async def _drain(s: asyncio.StreamReader | None, cb: Callable[[str], None] | None) -> list[str]:
+
+        async def _drain(
+            s: asyncio.StreamReader | None, cb: Callable[[str], None] | None
+        ) -> list[str]:
             if not s:
                 return []
             out: list[str] = []
@@ -205,6 +216,7 @@ async def safe_run_async_stream(
                 if cb:
                     cb(line)
             return out
+
         stdout_lines += await _drain(proc.stdout, on_stdout)
         stderr_lines += await _drain(proc.stderr, on_stderr)
         exit_code = -1

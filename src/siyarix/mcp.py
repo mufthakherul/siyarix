@@ -43,23 +43,39 @@ class MCPClient:
 
     async def connect(self, config: MCPServerConfig) -> bool:
         try:
-            client = httpx.AsyncClient(base_url=config.url, headers=config.headers, timeout=config.timeout)
+            client = httpx.AsyncClient(
+                base_url=config.url, headers=config.headers, timeout=config.timeout
+            )
             response = await client.get("/tools")
             if response.status_code == 200:
                 tools = response.json().get("tools", [])
                 self._servers[config.name] = config
                 self._clients[config.name] = client
                 for t in tools:
-                    tool = MCPTool(name=f"{config.name}:{t['name']}", description=t.get("description", ""),
-                                   input_schema=t.get("inputSchema", {}), server=config.name)
+                    tool = MCPTool(
+                        name=f"{config.name}:{t['name']}",
+                        description=t.get("description", ""),
+                        input_schema=t.get("inputSchema", {}),
+                        server=config.name,
+                    )
                     self._tools[tool.name] = tool
-                await self._event_bus.emit(Event(type=EventType.MCP_CONNECTED, source="mcp",
-                    data={"server": config.name, "tools": len(tools)}))
+                await self._event_bus.emit(
+                    Event(
+                        type=EventType.MCP_CONNECTED,
+                        source="mcp",
+                        data={"server": config.name, "tools": len(tools)},
+                    )
+                )
                 return True
         except Exception as e:
             logger.exception("Failed to connect to MCP server: %s", config.name)
-            await self._event_bus.emit(Event(type=EventType.MCP_DISCONNECTED, source="mcp",
-                data={"server": config.name, "error": str(e)}))
+            await self._event_bus.emit(
+                Event(
+                    type=EventType.MCP_DISCONNECTED,
+                    source="mcp",
+                    data={"server": config.name, "error": str(e)},
+                )
+            )
         return False
 
     async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
@@ -70,7 +86,9 @@ class MCPClient:
         if not client:
             return {"status": "error", "error": f"MCP server not connected: {tool.server}"}
         try:
-            response = await client.post("/call", json={"tool": tool_name.split(":", 1)[1], "params": arguments})
+            response = await client.post(
+                "/call", json={"tool": tool_name.split(":", 1)[1], "params": arguments}
+            )
             if response.status_code == 200:
                 result = response.json()
                 result.setdefault("status", "success")
@@ -112,12 +130,20 @@ class MCPManager:
     async def register_with_registry(self, registry: ToolRegistry) -> int:
         count = 0
         for tool in self._client.list_tools():
+
             def _make_handler(t: MCPTool) -> Any:
                 return lambda **kw: self._client.call_tool(t.name, kw)
+
             registry.register(
-                ToolCapability(name=tool.name, description=tool.description,
-                    category=ToolCategory.UTILITY, risk_level=RiskLevel.MEDIUM, tags=["mcp", tool.server]),
-                handler=_make_handler(tool))
+                ToolCapability(
+                    name=tool.name,
+                    description=tool.description,
+                    category=ToolCategory.UTILITY,
+                    risk_level=RiskLevel.MEDIUM,
+                    tags=["mcp", tool.server],
+                ),
+                handler=_make_handler(tool),
+            )
             count += 1
         return count
 
@@ -125,8 +151,13 @@ class MCPManager:
         count = 0
         for name, sc in config.items():
             if isinstance(sc, dict) and sc.get("enabled", True):
-                mc = MCPServerConfig(name=name, url=sc.get("url", ""), transport=sc.get("transport", "http"),
-                                     headers=sc.get("headers", {}), timeout=sc.get("timeout", 30.0))
+                mc = MCPServerConfig(
+                    name=name,
+                    url=sc.get("url", ""),
+                    transport=sc.get("transport", "http"),
+                    headers=sc.get("headers", {}),
+                    timeout=sc.get("timeout", 30.0),
+                )
                 asyncio.create_task(self.register_server(mc))
                 count += 1
         return count
@@ -135,4 +166,7 @@ class MCPManager:
         await self._client.shutdown()
 
     def stats(self) -> dict[str, Any]:
-        return {"servers": len(self._client.list_servers()), "tools": len(self._client.list_tools())}
+        return {
+            "servers": len(self._client.list_servers()),
+            "tools": len(self._client.list_tools()),
+        }

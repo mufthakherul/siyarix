@@ -74,11 +74,12 @@ class PerformanceOptimizer:
     def _detect_resources(self) -> SystemResources:
         try:
             import psutil
+
             cpu_logical = psutil.cpu_count(logical=True) or 1
             cpu_cores = psutil.cpu_count(logical=False) or 1
             mem = psutil.virtual_memory()
-            total_gb = mem.total / (1024 ** 3)
-            avail_gb = mem.available / (1024 ** 3)
+            total_gb = mem.total / (1024**3)
+            avail_gb = mem.available / (1024**3)
         except ImportError:
             cpu_logical = os.cpu_count() or 1
             cpu_cores = cpu_logical
@@ -120,7 +121,8 @@ class PerformanceOptimizer:
         for key, value in kwargs.items():
             if hasattr(self._config, key):
                 if key in (
-                    "max_concurrent_agents", "memory_limit_per_agent_mb",
+                    "max_concurrent_agents",
+                    "memory_limit_per_agent_mb",
                     "network_bandwidth_limit_mbps",
                 ):
                     if not isinstance(value, int) or value < 0:

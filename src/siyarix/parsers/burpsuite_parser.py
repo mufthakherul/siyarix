@@ -7,7 +7,6 @@ from __future__ import annotations
 from . import _now_iso
 
 
-
 class BurpsuiteParser:
     """Parse text exports/log snippets from Burp Suite into findings."""
 

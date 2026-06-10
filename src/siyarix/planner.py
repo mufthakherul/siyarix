@@ -146,7 +146,9 @@ class ExecutionPlan:
     def progress_pct(self) -> float:
         if not self.steps:
             return 100.0
-        done = len(self.completed_steps) + len([s for s in self.steps if s.status == StepStatus.SKIPPED])
+        done = len(self.completed_steps) + len(
+            [s for s in self.steps if s.status == StepStatus.SKIPPED]
+        )
         return (done / len(self.steps)) * 100.0
 
     def get_step(self, step_id: str) -> PlanStep | None:
@@ -173,9 +175,15 @@ class ExecutionPlan:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "id": self.id, "goal": self.goal, "type": self.plan_type.value,
-            "status": self.status.value, "progress": self.progress_pct,
-            "steps": [{"id": s.id, "description": s.description, "tool": s.tool, "status": s.status.value} for s in self.steps],
+            "id": self.id,
+            "goal": self.goal,
+            "type": self.plan_type.value,
+            "status": self.status.value,
+            "progress": self.progress_pct,
+            "steps": [
+                {"id": s.id, "description": s.description, "tool": s.tool, "status": s.status.value}
+                for s in self.steps
+            ],
         }
 
 
@@ -202,51 +210,162 @@ class Planner:
 
     def __init__(self) -> None:
         self._plans: dict[str, ExecutionPlan] = {}
-        self._auto_dag_templates: set[str] = {"recon_full", "web_audit", "network_scan", "cloud_audit"}
+        self._auto_dag_templates: set[str] = {
+            "recon_full",
+            "web_audit",
+            "network_scan",
+            "cloud_audit",
+        }
         self._cron_path = "/etc/crontab" if os.name != "nt" else "C:\\Windows\\System32\\Tasks"
         self._templates: dict[str, list[dict[str, Any]]] = {
             "recon_full": [
-                {"description": "Full port scan with service/OS detection and default scripts", "tool": "nmap", "args": {"flags": "-sV -sC -T4"}},
-                {"description": "Web technology stack fingerprinting", "tool": "whatweb", "args": {}},
-                {"description": "Directory and file brute-force enumeration", "tool": "gobuster", "args": {"mode": "dir"}},
+                {
+                    "description": "Full port scan with service/OS detection and default scripts",
+                    "tool": "nmap",
+                    "args": {"flags": "-sV -sC -T4"},
+                },
+                {
+                    "description": "Web technology stack fingerprinting",
+                    "tool": "whatweb",
+                    "args": {},
+                },
+                {
+                    "description": "Directory and file brute-force enumeration",
+                    "tool": "gobuster",
+                    "args": {"mode": "dir"},
+                },
                 {"description": "Passive subdomain enumeration", "tool": "subfinder", "args": {}},
             ],
             "web_audit": [
-                {"description": "HTTP security headers and response analysis", "tool": "curl", "args": {"flags": "-sI"}},
-                {"description": "Web application technology fingerprinting", "tool": "whatweb", "args": {}},
-                {"description": "Template-based vulnerability scanning (medium+ severity)", "tool": "nuclei", "args": {"severity": "medium,high,critical"}},
-                {"description": "Content discovery and directory/file enumeration", "tool": "ffuf", "args": {"wordlist": "common.txt"}},
+                {
+                    "description": "HTTP security headers and response analysis",
+                    "tool": "curl",
+                    "args": {"flags": "-sI"},
+                },
+                {
+                    "description": "Web application technology fingerprinting",
+                    "tool": "whatweb",
+                    "args": {},
+                },
+                {
+                    "description": "Template-based vulnerability scanning (medium+ severity)",
+                    "tool": "nuclei",
+                    "args": {"severity": "medium,high,critical"},
+                },
+                {
+                    "description": "Content discovery and directory/file enumeration",
+                    "tool": "ffuf",
+                    "args": {"wordlist": "common.txt"},
+                },
             ],
             "brute_force": [
-                {"description": "Target service discovery and version identification", "tool": "nmap", "args": {"flags": "-sV"}},
-                {"description": "Multi-protocol credential brute-force attack", "tool": "hydra", "args": {}},
+                {
+                    "description": "Target service discovery and version identification",
+                    "tool": "nmap",
+                    "args": {"flags": "-sV"},
+                },
+                {
+                    "description": "Multi-protocol credential brute-force attack",
+                    "tool": "hydra",
+                    "args": {},
+                },
             ],
             "wifi_audit": [
-                {"description": "Wireless traffic capture and handshake collection", "tool": "aircrack-ng", "args": {"mode": "capture"}},
-                {"description": "WPA/WPA2 PSK handshake offline crack", "tool": "aircrack-ng", "args": {"mode": "crack"}},
+                {
+                    "description": "Wireless traffic capture and handshake collection",
+                    "tool": "aircrack-ng",
+                    "args": {"mode": "capture"},
+                },
+                {
+                    "description": "WPA/WPA2 PSK handshake offline crack",
+                    "tool": "aircrack-ng",
+                    "args": {"mode": "crack"},
+                },
             ],
             "network_scan": [
-                {"description": "Full TCP SYN sweep with high-rate discovery", "tool": "nmap", "args": {"flags": "-sS -T4 -p- --min-rate 1000"}},
-                {"description": "Service version detection on top 1000 ports", "tool": "nmap", "args": {"flags": "-sV -T4 --top-ports 1000"}},
-                {"description": "DNS record resolution and zone analysis", "tool": "dig", "args": {}},
-                {"description": "WHOIS registration and IP ownership lookup", "tool": "whois", "args": {}},
+                {
+                    "description": "Full TCP SYN sweep with high-rate discovery",
+                    "tool": "nmap",
+                    "args": {"flags": "-sS -T4 -p- --min-rate 1000"},
+                },
+                {
+                    "description": "Service version detection on top 1000 ports",
+                    "tool": "nmap",
+                    "args": {"flags": "-sV -T4 --top-ports 1000"},
+                },
+                {
+                    "description": "DNS record resolution and zone analysis",
+                    "tool": "dig",
+                    "args": {},
+                },
+                {
+                    "description": "WHOIS registration and IP ownership lookup",
+                    "tool": "whois",
+                    "args": {},
+                },
             ],
             "cloud_audit": [
-                {"description": "HTTP security headers and CORS policy analysis", "tool": "curl", "args": {"flags": "-sI"}},
-                {"description": "Web application stack and framework detection", "tool": "whatweb", "args": {}},
-                {"description": "Full DNS record enumeration (A, AAAA, MX, TXT, NS, CNAME)", "tool": "dig", "args": {"flags": "ANY"}},
-                {"description": "SSL/TLS certificate chain and cipher suite validation", "tool": "openssl", "args": {"flags": "s_client -servername"}},
+                {
+                    "description": "HTTP security headers and CORS policy analysis",
+                    "tool": "curl",
+                    "args": {"flags": "-sI"},
+                },
+                {
+                    "description": "Web application stack and framework detection",
+                    "tool": "whatweb",
+                    "args": {},
+                },
+                {
+                    "description": "Full DNS record enumeration (A, AAAA, MX, TXT, NS, CNAME)",
+                    "tool": "dig",
+                    "args": {"flags": "ANY"},
+                },
+                {
+                    "description": "SSL/TLS certificate chain and cipher suite validation",
+                    "tool": "openssl",
+                    "args": {"flags": "s_client -servername"},
+                },
             ],
             "ad_assessment": [
-                {"description": "Domain controller critical port scan (Kerberos, LDAP, SMB, RPC, GC)", "tool": "nmap", "args": {"flags": "-sS -sV -T4 -p 53,88,135,139,389,445,464,636,3268,3269,3389"}},
-                {"description": "SMB protocol version and dialect negotiation analysis", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-protocols"}},
-                {"description": "LDAP anonymous bind and root DSE information disclosure check", "tool": "nmap", "args": {"flags": "-sV -p 389 --script ldap-rootdse"}},
+                {
+                    "description": "Domain controller critical port scan (Kerberos, LDAP, SMB, RPC, GC)",
+                    "tool": "nmap",
+                    "args": {
+                        "flags": "-sS -sV -T4 -p 53,88,135,139,389,445,464,636,3268,3269,3389"
+                    },
+                },
+                {
+                    "description": "SMB protocol version and dialect negotiation analysis",
+                    "tool": "nmap",
+                    "args": {"flags": "-sV -p 445 --script smb-protocols"},
+                },
+                {
+                    "description": "LDAP anonymous bind and root DSE information disclosure check",
+                    "tool": "nmap",
+                    "args": {"flags": "-sV -p 389 --script ldap-rootdse"},
+                },
             ],
             "linux_privesc": [
-                {"description": "Kernel and OS version identification for known exploit matching", "tool": "uname", "args": {"flags": "-a"}},
-                {"description": "SUID and SGID binary discovery for privilege escalation vectors", "tool": "find", "args": {"flags": "/ -perm -4000 -type f 2>/dev/null"}},
-                {"description": "World-writable directory search for dropper placements", "tool": "find", "args": {"flags": "/ -writable -type d 2>/dev/null"}},
-                {"description": "Scheduled task and cron job inspection for persistence", "tool": "cat", "args": {"flags": self._cron_path}},
+                {
+                    "description": "Kernel and OS version identification for known exploit matching",
+                    "tool": "uname",
+                    "args": {"flags": "-a"},
+                },
+                {
+                    "description": "SUID and SGID binary discovery for privilege escalation vectors",
+                    "tool": "find",
+                    "args": {"flags": "/ -perm -4000 -type f 2>/dev/null"},
+                },
+                {
+                    "description": "World-writable directory search for dropper placements",
+                    "tool": "find",
+                    "args": {"flags": "/ -writable -type d 2>/dev/null"},
+                },
+                {
+                    "description": "Scheduled task and cron job inspection for persistence",
+                    "tool": "cat",
+                    "args": {"flags": self._cron_path},
+                },
             ],
         }
         # Inverted index: keyword → set of tool names
@@ -254,8 +373,7 @@ class Planner:
 
     # ── Index builder ─────────────────────────────────────────────────────
 
-    def build_index(self, available_tools: list[str],
-                    tool_registry: Any = None) -> None:
+    def build_index(self, available_tools: list[str], tool_registry: Any = None) -> None:
         """Build an inverted keyword index from available tool names & metadata.
 
         ``tool_registry`` is any object that provides ``.get_tool(name)``
@@ -273,7 +391,9 @@ class Planner:
             # Index tags and description when a registry is available
             if tool_registry is not None:
                 try:
-                    tool = tool_registry.get_tool(name) if hasattr(tool_registry, "get_tool") else None
+                    tool = (
+                        tool_registry.get_tool(name) if hasattr(tool_registry, "get_tool") else None
+                    )
                     if tool is None and hasattr(tool_registry, "_graph"):
                         tool = tool_registry._graph.get_tool(name)
                     if tool:
@@ -287,7 +407,9 @@ class Planner:
                 except Exception:
                     pass
 
-    def resolve_alternatives(self, template_name: str, available_tools: set[str]) -> list[dict[str, Any]]:
+    def resolve_alternatives(
+        self, template_name: str, available_tools: set[str]
+    ) -> list[dict[str, Any]]:
         """Resolve template steps, substituting missing tools with alternatives."""
         steps = self._templates.get(template_name, [])
         resolved = []
@@ -302,8 +424,13 @@ class Planner:
                         alt_found = alt
                         break
                 if alt_found:
-                    resolved.append({**step, "tool": alt_found,
-                        "description": f"{step['description']} (via {alt_found})"})
+                    resolved.append(
+                        {
+                            **step,
+                            "tool": alt_found,
+                            "description": f"{step['description']} (via {alt_found})",
+                        }
+                    )
                 else:
                     resolved.append(step)
         return resolved
@@ -405,7 +532,10 @@ class Planner:
             tool_lines = [f"  - {t}" for t in available_tools]
 
         if system_prompt:
-            full_prompt = system_prompt + "\n\nCommands you construct will execute via `sh -c` — use proper quoting, pipes, and flags. You have full access to every binary on the system."
+            full_prompt = (
+                system_prompt
+                + "\n\nCommands you construct will execute via `sh -c` — use proper quoting, pipes, and flags. You have full access to every binary on the system."
+            )
         else:
             full_prompt = """You are a senior red-team operator and penetration testing specialist.
 
@@ -446,9 +576,7 @@ Respond with ONLY valid JSON:
         try:
             data = json.loads(cleaned)
         except json.JSONDecodeError as exc:
-            raise RuntimeError(
-                f"LLM returned invalid JSON:\n{cleaned[:500]}"
-            ) from exc
+            raise RuntimeError(f"LLM returned invalid JSON:\n{cleaned[:500]}") from exc
 
         if not data.get("needs_tools"):
             return self.create_plan(
@@ -482,46 +610,78 @@ Respond with ONLY valid JSON:
 
     # ── Existing API ──
 
-    def create_plan(self, goal: str, plan_type: PlanType = PlanType.SEQUENTIAL,
-                    steps: list[dict[str, Any]] | None = None,
-                    context: dict[str, Any] | None = None) -> ExecutionPlan:
+    def create_plan(
+        self,
+        goal: str,
+        plan_type: PlanType = PlanType.SEQUENTIAL,
+        steps: list[dict[str, Any]] | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> ExecutionPlan:
         plan_steps = []
         if steps:
             for i, step_def in enumerate(steps):
-                plan_steps.append(PlanStep(
-                    id=f"step_{i:03d}", description=step_def.get("description", f"Step {i+1}"),
-                    tool=step_def.get("tool", ""), args=step_def.get("args", {}),
-                    command=step_def.get("command"),
-                    dependencies=step_def.get("dependencies", []),
-                    timeout=step_def.get("timeout", 300.0),
-                ))
-        plan = ExecutionPlan(goal=goal, plan_type=plan_type, steps=plan_steps, context=context or {}, status=PlanStatus.ACTIVE)
+                plan_steps.append(
+                    PlanStep(
+                        id=f"step_{i:03d}",
+                        description=step_def.get("description", f"Step {i+1}"),
+                        tool=step_def.get("tool", ""),
+                        args=step_def.get("args", {}),
+                        command=step_def.get("command"),
+                        dependencies=step_def.get("dependencies", []),
+                        timeout=step_def.get("timeout", 300.0),
+                    )
+                )
+        plan = ExecutionPlan(
+            goal=goal,
+            plan_type=plan_type,
+            steps=plan_steps,
+            context=context or {},
+            status=PlanStatus.ACTIVE,
+        )
         self._plans[plan.id] = plan
-        emit_sync(Event(type=EventType.PLAN_CREATED, source="planner",
-            data={"plan_id": plan.id, "goal": goal, "steps": len(plan_steps)}))
+        emit_sync(
+            Event(
+                type=EventType.PLAN_CREATED,
+                source="planner",
+                data={"plan_id": plan.id, "goal": goal, "steps": len(plan_steps)},
+            )
+        )
         return plan
 
-    def create_from_template(self, template_name: str, target: str,
-                             overrides: dict[str, Any] | None = None,
-                             available_tools: set[str] | None = None) -> ExecutionPlan:
+    def create_from_template(
+        self,
+        template_name: str,
+        target: str,
+        overrides: dict[str, Any] | None = None,
+        available_tools: set[str] | None = None,
+    ) -> ExecutionPlan:
         import re
+
         template = self._templates.get(template_name)
         if not template:
             raise ValueError(f"Unknown template: {template_name}")
         if available_tools:
             template = self.resolve_alternatives(template_name, available_tools)
-        url_match = re.search(r'https?://[^\s]+', target)
-        host_match = re.search(r'\b(?:[\w-]+\.)+[a-z]{2,}\b', target.lower())
-        clean_target = url_match.group(0) if url_match else (host_match.group(0) if host_match else target)
+        url_match = re.search(r"https?://[^\s]+", target)
+        host_match = re.search(r"\b(?:[\w-]+\.)+[a-z]{2,}\b", target.lower())
+        clean_target = (
+            url_match.group(0) if url_match else (host_match.group(0) if host_match else target)
+        )
         steps = []
         for step_def in template:
             step = {**step_def, "args": {**step_def.get("args", {}), "target": clean_target}}
             if overrides:
                 step["args"].update(overrides.get("args", {}))
             steps.append(step)
-        plan_type = PlanType.DAG if template_name in self._auto_dag_templates else PlanType.SEQUENTIAL
-        return self.create_plan(goal=f"{template_name} on {clean_target}", steps=steps,
-            context={"target": clean_target, "template": template_name}, plan_type=plan_type)
+        plan_type = (
+            PlanType.DAG if template_name in self._auto_dag_templates else PlanType.SEQUENTIAL
+        )
+        return self.create_plan(
+            goal=f"{template_name} on {clean_target}",
+            steps=steps,
+            context={"target": clean_target, "template": template_name},
+            plan_type=plan_type,
+        )
 
     def decompose_goal(self, goal: str, available_tools: list[str] | None = None) -> ExecutionPlan:
         goal_lower = goal.lower()
@@ -529,16 +689,22 @@ Respond with ONLY valid JSON:
         kw_map = [
             (("brute", "crack", "password", "credential"), "brute_force"),
             (("wifi", "wireless", "wpa"), "wifi_audit"),
-            (("ad ", "active directory", "domain controller", "kerberos", "ldap", "smb"), "ad_assessment"),
+            (
+                ("ad ", "active directory", "domain controller", "kerberos", "ldap", "smb"),
+                "ad_assessment",
+            ),
             (("cloud", "aws", "s3 ", "azure", "gcp"), "cloud_audit"),
             (("privesc", "privilege escalation", "root", "suid", "linux audit"), "linux_privesc"),
-            (("network scan", "infrastructure", "port scan", "full scan", "open ports"), "network_scan"),
+            (
+                ("network scan", "infrastructure", "port scan", "full scan", "open ports"),
+                "network_scan",
+            ),
         ]
         for keywords, template_name in kw_map:
             if any(kw in goal_lower for kw in keywords):
                 return self.create_from_template(template_name, goal, available_tools=avail_set)
-        url_match = re.search(r'https?://[^\s]+', goal)
-        host_match = re.search(r'\b(?:[\w-]+\.)+[a-z]{2,}\b', goal_lower)
+        url_match = re.search(r"https?://[^\s]+", goal)
+        host_match = re.search(r"\b(?:[\w-]+\.)+[a-z]{2,}\b", goal_lower)
         target = ""
         if url_match:
             target = url_match.group(0)
@@ -565,11 +731,19 @@ Respond with ONLY valid JSON:
                         tool_match = t
                         break
         if tool_match:
-            return self.create_plan(goal=goal, steps=[{
-                "description": f"Execute {tool_match} on {target}",
-                "tool": tool_match,
-                "args": {"target": target, "flags": "-sT -T4 --top-ports 100" if tool_match == "nmap" else ""},
-            }])
+            return self.create_plan(
+                goal=goal,
+                steps=[
+                    {
+                        "description": f"Execute {tool_match} on {target}",
+                        "tool": tool_match,
+                        "args": {
+                            "target": target,
+                            "flags": "-sT -T4 --top-ports 100" if tool_match == "nmap" else "",
+                        },
+                    }
+                ],
+            )
         if target:
             # Smart fallback: pick available tools from probe set
             probe_steps = []
@@ -586,24 +760,50 @@ Respond with ONLY valid JSON:
                             actual_tool = alt
                             break
                 if actual_tool in avail_set or not avail_set:
-                    clean_target = target.replace("https://", "").replace("http://", "").split("/")[0]
-                    probe_steps.append({
-                        "description": desc + (f" (via {actual_tool})" if actual_tool != tool else ""),
-                        "tool": actual_tool,
-                        "args": {"target": clean_target, "flags": flags},
-                    })
+                    clean_target = (
+                        target.replace("https://", "").replace("http://", "").split("/")[0]
+                    )
+                    probe_steps.append(
+                        {
+                            "description": desc
+                            + (f" (via {actual_tool})" if actual_tool != tool else ""),
+                            "tool": actual_tool,
+                            "args": {"target": clean_target, "flags": flags},
+                        }
+                    )
             if probe_steps:
                 plan_type = PlanType.DAG if len(probe_steps) > 2 else PlanType.SEQUENTIAL
                 return self.create_plan(goal=goal, steps=probe_steps, plan_type=plan_type)
             return self.create_plan(goal=goal)
         # Check if the query sounds like a security/recon goal (no target given)
-        goal_keywords = {"scan", "recon", "audit", "check", "enum", "analyze", "analyse",
-                         "explore", "map", "discover", "probe", "test", "hack", "pentest"}
+        goal_keywords = {
+            "scan",
+            "recon",
+            "audit",
+            "check",
+            "enum",
+            "analyze",
+            "analyse",
+            "explore",
+            "map",
+            "discover",
+            "probe",
+            "test",
+            "hack",
+            "pentest",
+        }
         if any(kw in goal_lower.split() for kw in goal_keywords):
-            return self.create_plan(goal=goal, steps=[
-                {"description": "Technology fingerprinting", "tool": "whatweb", "args": {}},
-                {"description": "Port scan", "tool": "nmap", "args": {"flags": "-sT -T4 --top-ports 100"}},
-            ])
+            return self.create_plan(
+                goal=goal,
+                steps=[
+                    {"description": "Technology fingerprinting", "tool": "whatweb", "args": {}},
+                    {
+                        "description": "Port scan",
+                        "tool": "nmap",
+                        "args": {"flags": "-sT -T4 --top-ports 100"},
+                    },
+                ],
+            )
         return self.create_plan(goal=goal)
 
     def adapt_plan(self, plan: ExecutionPlan, failed_step: PlanStep, error: str) -> ExecutionPlan:
@@ -613,10 +813,15 @@ Respond with ONLY valid JSON:
             failed_step.retry_count += 1
         elif failed_step.tool in ("nikto", "nuclei") and "refused" in error.lower():
             idx = plan.steps.index(failed_step)
-            plan.steps.insert(idx + 1, PlanStep(
-                id=f"adapted_{idx}", description="Fallback scan", tool="nuclei",
-                args={"target": failed_step.args.get("target", "")},
-            ))
+            plan.steps.insert(
+                idx + 1,
+                PlanStep(
+                    id=f"adapted_{idx}",
+                    description="Fallback scan",
+                    tool="nuclei",
+                    args={"target": failed_step.args.get("target", "")},
+                ),
+            )
             failed_step.status = StepStatus.SKIPPED
         elif failed_step.tool in ("gobuster", "ffuf") and "404" in error:
             failed_step.args["extensions"] = "php,html,js,txt"
@@ -640,6 +845,9 @@ Respond with ONLY valid JSON:
 
     def stats(self) -> dict[str, Any]:
         plans = list(self._plans.values())
-        return {"total_plans": len(plans), "active": len([p for p in plans if p.status == PlanStatus.ACTIVE]),
-                "completed": len([p for p in plans if p.status == PlanStatus.COMPLETED]),
-                "templates": list(self._templates.keys())}
+        return {
+            "total_plans": len(plans),
+            "active": len([p for p in plans if p.status == PlanStatus.ACTIVE]),
+            "completed": len([p for p in plans if p.status == PlanStatus.COMPLETED]),
+            "templates": list(self._templates.keys()),
+        }

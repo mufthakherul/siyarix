@@ -41,7 +41,11 @@ class ExecutionBudget:
 
     @property
     def is_exhausted(self) -> bool:
-        return self._iterations >= self.max_iterations or self._tool_calls >= self.max_tool_calls or self.elapsed >= self.max_duration_s
+        return (
+            self._iterations >= self.max_iterations
+            or self._tool_calls >= self.max_tool_calls
+            or self.elapsed >= self.max_duration_s
+        )
 
     def consume_iteration(self) -> bool:
         if self.is_exhausted:
@@ -120,10 +124,17 @@ class Executor:
     def register_executor(self, tool: str, executor: StepExecutor) -> None:
         self._custom_executors[tool] = executor
 
-    async def execute_plan(self, plan: ExecutionPlan, executor_fn: StepExecutor | None = None) -> ExecutionPlan:
+    async def execute_plan(
+        self, plan: ExecutionPlan, executor_fn: StepExecutor | None = None
+    ) -> ExecutionPlan:
         plan.status = PlanStatus.ACTIVE
-        await self._event_bus.emit(Event(type=EventType.PLAN_CREATED, source="executor",
-            data={"plan_id": plan.id, "goal": plan.goal, "steps": len(plan.steps)}))
+        await self._event_bus.emit(
+            Event(
+                type=EventType.PLAN_CREATED,
+                source="executor",
+                data={"plan_id": plan.id, "goal": plan.goal, "steps": len(plan.steps)},
+            )
+        )
         while not plan.is_complete:
             if self._budget.is_exhausted:
                 break
@@ -132,7 +143,8 @@ class Executor:
                 if plan.pending_steps:
                     blocked = all(
                         any(s.status == StepStatus.FAILED for s in plan.steps if s.id == dep)
-                        for step in plan.pending_steps for dep in step.dependencies
+                        for step in plan.pending_steps
+                        for dep in step.dependencies
                     )
                     if blocked:
                         break
@@ -141,7 +153,8 @@ class Executor:
                 break
             # Auto-parallel: run independent steps concurrently
             can_parallel = plan.plan_type.value in ("parallel", "dag") or (
-                plan.plan_type.value == "sequential" and len(ready_steps) > 1
+                plan.plan_type.value == "sequential"
+                and len(ready_steps) > 1
                 and all(not s.dependencies for s in ready_steps)
             )
             if can_parallel:
@@ -153,16 +166,30 @@ class Executor:
                     if self._budget.is_exhausted:
                         break
         plan.status = PlanStatus.COMPLETED if not plan.has_failures else PlanStatus.FAILED
-        await self._event_bus.emit(Event(type=EventType.PLAN_COMPLETE, source="executor",
-            data={"plan_id": plan.id, "status": plan.status.value, "progress": plan.progress_pct}))
+        await self._event_bus.emit(
+            Event(
+                type=EventType.PLAN_COMPLETE,
+                source="executor",
+                data={
+                    "plan_id": plan.id,
+                    "status": plan.status.value,
+                    "progress": plan.progress_pct,
+                },
+            )
+        )
         return plan
 
     async def _execute_step(self, step: PlanStep, executor_fn: StepExecutor | None) -> None:
         if not self._budget.consume_iteration():
             return
         step.status = StepStatus.RUNNING
-        await self._event_bus.emit(Event(type=EventType.PLAN_STEP_START, source="executor",
-            data={"step_id": step.id, "tool": step.tool}))
+        await self._event_bus.emit(
+            Event(
+                type=EventType.PLAN_STEP_START,
+                source="executor",
+                data={"step_id": step.id, "tool": step.tool},
+            )
+        )
         if self._on_step_progress:
             self._on_step_progress(step)
         start = time.time()
@@ -173,12 +200,22 @@ class Executor:
             if result.get("status") == "error":
                 step.status = StepStatus.FAILED
                 self._tracker.record(step.tool, str(sorted(step.args.items())), False)
-                await self._event_bus.emit(Event(type=EventType.PLAN_STEP_FAILED, source="executor",
-                    data={"step_id": step.id, "error": result.get("error", "")}))
+                await self._event_bus.emit(
+                    Event(
+                        type=EventType.PLAN_STEP_FAILED,
+                        source="executor",
+                        data={"step_id": step.id, "error": result.get("error", "")},
+                    )
+                )
             else:
                 step.status = StepStatus.COMPLETED
-                await self._event_bus.emit(Event(type=EventType.PLAN_STEP_COMPLETE, source="executor",
-                    data={"step_id": step.id, "duration_ms": step.duration_ms}))
+                await self._event_bus.emit(
+                    Event(
+                        type=EventType.PLAN_STEP_COMPLETE,
+                        source="executor",
+                        data={"step_id": step.id, "duration_ms": step.duration_ms},
+                    )
+                )
         except asyncio.CancelledError:
             step.status = StepStatus.SKIPPED
             raise
@@ -190,8 +227,11 @@ class Executor:
         if self._on_step_progress:
             self._on_step_progress(step)
 
-    async def _try_execute(self, step: PlanStep, executor_fn: StepExecutor | None) -> dict[str, Any]:
+    async def _try_execute(
+        self, step: PlanStep, executor_fn: StepExecutor | None
+    ) -> dict[str, Any]:
         from .planner import TOOL_ALTERNATIVES
+
         if executor_fn:
             return await executor_fn(step)
         if step.tool in self._custom_executors:
@@ -227,5 +267,14 @@ class Executor:
         await self._pool.close(timeout=timeout)
 
     def stats(self) -> dict[str, Any]:
-        return {"budget": {"iterations": self._budget._iterations, "tool_calls": self._budget._tool_calls, "elapsed_s": round(self._budget.elapsed, 1)},
-                "tracker": {"failures": dict(self._tracker._failure_counts), "no_progress": self._tracker._no_progress_count}}
+        return {
+            "budget": {
+                "iterations": self._budget._iterations,
+                "tool_calls": self._budget._tool_calls,
+                "elapsed_s": round(self._budget.elapsed, 1),
+            },
+            "tracker": {
+                "failures": dict(self._tracker._failure_counts),
+                "no_progress": self._tracker._no_progress_count,
+            },
+        }

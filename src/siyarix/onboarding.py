@@ -23,7 +23,6 @@ import json
 import logging
 import os
 import platform
-import shlex
 import shutil
 import socket
 import subprocess
@@ -49,7 +48,7 @@ try:
 except ImportError:
     Console = None  # type: ignore
 
-from siyarix.bootstrap import SIYARIX_HOME, INITIALIZED_MARKER, BootstrapEngine
+from siyarix.bootstrap import INITIALIZED_MARKER, BootstrapEngine
 from siyarix.config import SettingsStore
 from siyarix.providers import ProviderManager
 
@@ -118,20 +117,32 @@ _CYBER_TOOL_HOMEPAGES = {
 }
 
 _ARCH_MAP: dict[str, str] = {
-    "AMD64": "x86_64 (64-bit)", "x86_64": "x86_64 (64-bit)",
-    "x86": "x86 (32-bit)", "i386": "x86 (32-bit)", "i686": "x86 (32-bit)",
-    "arm64": "ARM64 (AArch64)", "aarch64": "ARM64 (AArch64)",
-    "armv7l": "ARM (32-bit)", "armv6l": "ARM (32-bit)",
+    "AMD64": "x86_64 (64-bit)",
+    "x86_64": "x86_64 (64-bit)",
+    "x86": "x86 (32-bit)",
+    "i386": "x86 (32-bit)",
+    "i686": "x86 (32-bit)",
+    "arm64": "ARM64 (AArch64)",
+    "aarch64": "ARM64 (AArch64)",
+    "armv7l": "ARM (32-bit)",
+    "armv6l": "ARM (32-bit)",
     "ARM64": "ARM64 (AArch64)",
 }
 
 _PM_CHECKS: list[tuple[str, str]] = [
-    ("winget", "winget"), ("choco", "choco"),
-    ("apt-get", "apt"), ("apt", "apt"),
-    ("brew", "brew"), ("pkg", "pkg"),
-    ("pacman", "pacman"), ("dnf", "dnf"), ("yum", "yum"),
-    ("apk", "apk"), ("port", "macports"),
-    ("nix-env", "nix"), ("scoop", "scoop"),
+    ("winget", "winget"),
+    ("choco", "choco"),
+    ("apt-get", "apt"),
+    ("apt", "apt"),
+    ("brew", "brew"),
+    ("pkg", "pkg"),
+    ("pacman", "pacman"),
+    ("dnf", "dnf"),
+    ("yum", "yum"),
+    ("apk", "apk"),
+    ("port", "macports"),
+    ("nix-env", "nix"),
+    ("scoop", "scoop"),
 ]
 
 _DEFAULT_PREFERENCES = {
@@ -147,6 +158,7 @@ _DEFAULT_PREFERENCES = {
 
 
 # ── OnboardingWizard ────────────────────────────────────────────────────────
+
 
 class OnboardingWizard:
     """Interactive first-run setup wizard for Siyarix."""
@@ -266,7 +278,9 @@ class OnboardingWizard:
     def _step_platform_detection(self) -> None:
         """Detect OS, architecture, hardware, shell, package managers, and environment."""
         self._step_header("Platform Detection")
-        self._console.print("Siyarix detects your environment to adapt installation\nand configuration for your platform.\n")
+        self._console.print(
+            "Siyarix detects your environment to adapt installation\nand configuration for your platform.\n"
+        )
 
         system = platform.system()
         release = platform.release()
@@ -289,7 +303,11 @@ class OnboardingWizard:
         if os.name == "nt":
             is_desktop = not bool(os.environ.get("SIYARIX_HEADLESS"))
         else:
-            is_desktop = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY") or os.environ.get("DESKTOP_SESSION"))
+            is_desktop = bool(
+                os.environ.get("DISPLAY")
+                or os.environ.get("WAYLAND_DISPLAY")
+                or os.environ.get("DESKTOP_SESSION")
+            )
 
         # Shell detection
         shell_path = (os.environ.get("SHELL") or os.environ.get("ComSpec") or "").lower()
@@ -319,13 +337,22 @@ class OnboardingWizard:
         try:
             if os.name == "nt":
                 import ctypes
+
                 kernel32 = ctypes.windll.kernel32  # type: ignore
+
                 class MEMORYSTATUSEX(ctypes.Structure):
-                    _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
-                                ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
-                                ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
-                                ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
-                                ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+                    _fields_ = [
+                        ("dwLength", ctypes.c_ulong),
+                        ("dwMemoryLoad", ctypes.c_ulong),
+                        ("ullTotalPhys", ctypes.c_ulonglong),
+                        ("ullAvailPhys", ctypes.c_ulonglong),
+                        ("ullTotalPageFile", ctypes.c_ulonglong),
+                        ("ullAvailPageFile", ctypes.c_ulonglong),
+                        ("ullTotalVirtual", ctypes.c_ulonglong),
+                        ("ullAvailVirtual", ctypes.c_ulonglong),
+                        ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+                    ]
+
                 mem = MEMORYSTATUSEX()
                 mem.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
                 if kernel32.GlobalMemoryStatusEx(ctypes.byref(mem)):
@@ -341,7 +368,9 @@ class OnboardingWizard:
             elif system == "Darwin":
                 result = subprocess.run(
                     ["sysctl", "-n", "hw.memsize"],
-                    capture_output=True, text=True, timeout=5,
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
                 )
                 if result.returncode == 0:
                     ram_total_gb = int(result.stdout.strip()) / (1024**3)
@@ -469,9 +498,7 @@ class OnboardingWizard:
             dir_writable = False
         checks.append(("Config dir writable", dir_writable))
         if not dir_writable:
-            self._console.print(
-                f"[red]Cannot write to {config_dir}[/red]"
-            )
+            self._console.print(f"[red]Cannot write to {config_dir}[/red]")
             self._console.print("[yellow]Check permissions and try again.[/yellow]")
             Confirm.ask("[dim]Press Enter to exit[/dim]")
             sys.exit(1)
@@ -551,17 +578,13 @@ class OnboardingWizard:
         self._console.print()
 
         if missing:
-            self._console.print(
-                f"[yellow]{len(missing)} package(s) need installation.[/yellow]"
-            )
+            self._console.print(f"[yellow]{len(missing)} package(s) need installation.[/yellow]")
             if Confirm.ask("Install missing packages automatically?", default=True):
                 for pkg in missing:
                     self._pip_install(pkg)
                 self._console.print("[green]\u2713 Packages installed[/green]")
             else:
-                self._console.print(
-                    "[yellow]Skipping. Some features may be unavailable.[/yellow]"
-                )
+                self._console.print("[yellow]Skipping. Some features may be unavailable.[/yellow]")
 
         self._console.print("[green]\u2713 Dependencies check complete[/green]")
         self._pause()
@@ -598,9 +621,7 @@ class OnboardingWizard:
             self._pause()
             return
 
-        self._console.print(
-            f"[yellow]{len(missing)} security tool(s) not found.[/yellow]"
-        )
+        self._console.print(f"[yellow]{len(missing)} security tool(s) not found.[/yellow]")
         self._console.print("[dim]These tools extend Siyarix's capabilities.[/dim]\n")
 
         install_choices = {}
@@ -634,7 +655,9 @@ class OnboardingWizard:
         )
 
         if not Confirm.ask("Set up the credential vault now?", default=True):
-            self._console.print("[yellow]Vault setup skipped. Secrets will not be stored securely.[/yellow]")
+            self._console.print(
+                "[yellow]Vault setup skipped. Secrets will not be stored securely.[/yellow]"
+            )
             return
 
         # Check if vault already exists
@@ -685,6 +708,7 @@ class OnboardingWizard:
             # Attempt vault initialization
             try:
                 from siyarix.credential_vault import CredentialVault
+
                 vault = CredentialVault(passphrase=passphrase)
                 self._vault = vault
                 self._choices["vault_initialized"] = True
@@ -693,14 +717,13 @@ class OnboardingWizard:
                 # Store the vault reference globally for later use
                 try:
                     from siyarix import credential_vault as cv
+
                     cv._VAULT_INSTANCE = vault
                 except Exception:
                     pass
 
                 self._console.print("[green]\u2713 Vault initialized successfully[/green]")
-                self._console.print(
-                    "[dim]Your secrets are now stored encrypted at rest.[/dim]"
-                )
+                self._console.print("[dim]Your secrets are now stored encrypted at rest.[/dim]")
 
                 # Offer to test
                 if Confirm.ask("Test vault by storing and retrieving a sample?", default=False):
@@ -708,13 +731,9 @@ class OnboardingWizard:
                         vault.set("_test_key", "test_value")
                         val = vault.get("_test_key")
                         vault.delete("_test_key")
-                        self._console.print(
-                            "[green]\u2713 Vault read/write test passed[/green]"
-                        )
+                        self._console.print("[green]\u2713 Vault read/write test passed[/green]")
                     except Exception as exc:
-                        self._console.print(
-                            f"[red]Vault test failed: {exc}[/red]"
-                        )
+                        self._console.print(f"[red]Vault test failed: {exc}[/red]")
 
                 break
             except Exception as exc:
@@ -723,7 +742,9 @@ class OnboardingWizard:
                     self._console.print("[yellow]Please try again.[/yellow]")
                 else:
                     self._console.print("[red]Vault setup failed after 3 attempts.[/red]")
-                    self._console.print("[yellow]You can configure the vault later with: siyarix auth set-key[/yellow]")
+                    self._console.print(
+                        "[yellow]You can configure the vault later with: siyarix auth set-key[/yellow]"
+                    )
                 continue
         else:
             self._console.print("[yellow]Vault setup abandoned.[/yellow]")
@@ -735,17 +756,25 @@ class OnboardingWizard:
     async def _step_provider(self) -> None:
         self._step_header("Provider Configuration")
         self._console.print(
-            "Siyarix needs an AI provider to power its autonomous\n"
-            "and integrated modes.\n"
+            "Siyarix needs an AI provider to power its autonomous\n" "and integrated modes.\n"
         )
 
         options = Table(box=box.ROUNDED, show_header=False)
         options.add_column("Option", style="yellow", width=8)
         options.add_column("Description")
-        options.add_row("[bold]0[/bold]", "[bold]Recommended[/bold] \u2014 Install Ollama + WhiteRabbitNeo model")
-        options.add_row("[bold]1[/bold]", "Online Provider \u2014 cloud API (OpenAI, Anthropic, Gemini...)")
-        options.add_row("[bold]2[/bold]", "Offline Provider \u2014 run locally (Ollama, LM Studio...)")
-        options.add_row("[bold]3[/bold]", "Custom Provider \u2014 your own endpoint / private model")
+        options.add_row(
+            "[bold]0[/bold]",
+            "[bold]Recommended[/bold] \u2014 Install Ollama + WhiteRabbitNeo model",
+        )
+        options.add_row(
+            "[bold]1[/bold]", "Online Provider \u2014 cloud API (OpenAI, Anthropic, Gemini...)"
+        )
+        options.add_row(
+            "[bold]2[/bold]", "Offline Provider \u2014 run locally (Ollama, LM Studio...)"
+        )
+        options.add_row(
+            "[bold]3[/bold]", "Custom Provider \u2014 your own endpoint / private model"
+        )
         options.add_row("[bold]4[/bold]", "Skip \u2014 configure later")
         self._console.print(options)
         self._console.print()
@@ -798,6 +827,7 @@ class OnboardingWizard:
             if Confirm.ask("Start Ollama now?", default=True):
                 self._start_ollama_service()
                 import asyncio
+
                 await asyncio.sleep(3)
                 running = self._check_ollama_running(ollama_url)
 
@@ -810,7 +840,9 @@ class OnboardingWizard:
             try:
                 result = subprocess.run(
                     ["ollama", "pull", model_name],
-                    capture_output=True, text=True, timeout=3600,
+                    capture_output=True,
+                    text=True,
+                    timeout=3600,
                 )
                 if result.returncode == 0:
                     self._console.print("[green]\u2713 Model downloaded[/green]")
@@ -992,23 +1024,21 @@ class OnboardingWizard:
             self._choices["api_keys"][name.lower()] = api_key.strip()
             self._store_api_key(name.lower(), api_key.strip())
 
-        self._console.print(
-            f"[green]\u2713 Custom provider configured: {name} / {model}[/green]"
-        )
+        self._console.print(f"[green]\u2713 Custom provider configured: {name} / {model}[/green]")
 
     # ── Step 7: Mode Selection ───────────────────────────────────────────
 
     def _step_mode(self) -> None:
         self._step_header("Mode Configuration")
-        self._console.print(
-            "Siyarix has three operating modes:\n"
-        )
+        self._console.print("Siyarix has three operating modes:\n")
 
         mode_table = Table(box=box.SIMPLE, show_header=True)
         mode_table.add_column("#", style="yellow", width=4)
         mode_table.add_column("Mode", style="cyan")
         mode_table.add_column("Description")
-        mode_table.add_row("1", "Autonomous", "Full LLM-driven agent \u2014 requires an AI provider")
+        mode_table.add_row(
+            "1", "Autonomous", "Full LLM-driven agent \u2014 requires an AI provider"
+        )
         mode_table.add_row("2", "Integrated", "Hybrid: tries LLM first, falls back to registry")
         mode_table.add_row("3", "Registry", "Offline mode \u2014 tool-based only, no LLM needed")
         mode_table.add_row("4", "Skip", "Keep default (Integrated)")
@@ -1023,9 +1053,7 @@ class OnboardingWizard:
         mode_map = {"1": "autonomous", "2": "integrated", "3": "registry", "4": "integrated"}
         self._choices["mode"] = mode_map[choice]
         self._settings.set("default_mode", self._choices["mode"])
-        self._console.print(
-            f"[green]\u2713 Mode set to: {self._choices['mode']}[/green]"
-        )
+        self._console.print(f"[green]\u2713 Mode set to: {self._choices['mode']}[/green]")
         self._pause()
 
     # ── Step 8: Persona + System Message ─────────────────────────────────
@@ -1036,6 +1064,7 @@ class OnboardingWizard:
 
         try:
             from siyarix.personas import list_personas, get_persona
+
             personas = list_personas()
         except ImportError:
             personas = []
@@ -1081,6 +1110,7 @@ class OnboardingWizard:
             "[/dim]"
         )
         from siyarix.chat.prompts import SIYARIX_SYSTEM_PROMPT
+
         self._console.print(
             Panel(
                 textwrap.shorten(SIYARIX_SYSTEM_PROMPT, width=60, placeholder="..."),
@@ -1111,9 +1141,7 @@ class OnboardingWizard:
     def _step_preferences(self) -> None:
         """Configure theme, security defaults, output, notifications, history, log level."""
         self._step_header("Preferences & Security Defaults")
-        self._console.print(
-            "Configure Siyarix behavior, appearance, and security.\n"
-        )
+        self._console.print("Configure Siyarix behavior, appearance, and security.\n")
 
         prefs = self._choices["preferences"]
 
@@ -1223,6 +1251,7 @@ class OnboardingWizard:
             detail = ""
             try:
                 import httpx
+
                 r = httpx.get(url, timeout=5)
                 ok = r.status_code < 500
                 detail = f"{r.elapsed.total_seconds():.1f}s"
@@ -1271,6 +1300,7 @@ class OnboardingWizard:
                 detail = ""
                 try:
                     import httpx
+
                     headers = {"Authorization": f"Bearer {test_key}"}
                     api_urls = {
                         "openai": "https://api.openai.com/v1/models",
@@ -1293,11 +1323,13 @@ class OnboardingWizard:
                 diag_results.append(("Provider API", ok, detail))
                 if not ok:
                     all_ok = self._console.print(
-                        f"  [yellow]Key stored but API unreachable. Check endpoint or key.[/yellow]"
+                        "  [yellow]Key stored but API unreachable. Check endpoint or key.[/yellow]"
                     )
         else:
             self._console.print()
-            self._console.print("[bold]3. Provider API Test[/bold] [dim](no provider configured, skipped)[/dim]")
+            self._console.print(
+                "[bold]3. Provider API Test[/bold] [dim](no provider configured, skipped)[/dim]"
+            )
 
         self._choices["network_ok"] = all_ok
 
@@ -1333,14 +1365,20 @@ class OnboardingWizard:
         summary.add_row("Model", self._choices["provider_model"] or "-")
         summary.add_row("Mode", self._choices["mode"])
         summary.add_row("Persona", self._choices["persona"])
-        summary.add_row("Vault", "\u2713 Initialized" if self._choices["vault_initialized"] else "\u2717 Skipped")
+        summary.add_row(
+            "Vault",
+            "\u2713 Initialized" if self._choices["vault_initialized"] else "\u2717 Skipped",
+        )
         summary.add_row("Theme", self._choices["preferences"]["theme"])
         summary.add_row("Log Level", self._choices["preferences"]["log_level"])
         summary.add_row("Output Format", self._choices["preferences"]["output_format"])
         summary.add_row("Command Review", str(self._choices["preferences"]["command_review"]))
         summary.add_row("Stealth Mode", str(self._choices["preferences"]["stealth_mode"]))
         if self._choices["additional_sysmsg"]:
-            summary.add_row("Custom Instructions", textwrap.shorten(self._choices["additional_sysmsg"], width=40))
+            summary.add_row(
+                "Custom Instructions",
+                textwrap.shorten(self._choices["additional_sysmsg"], width=40),
+            )
         summary.add_row("Tools Found", str(len(self._choices.get("tools_installed", []))))
         summary.add_row("Network", "\u2713 OK" if self._choices["network_ok"] else "\u26a0 Issues")
         self._console.print(summary)
@@ -1351,6 +1389,7 @@ class OnboardingWizard:
         health_warnings: list[str] = []
         try:
             from siyarix.health import get_health
+
             health = await get_health().check_all()
             for comp in health.components:
                 if comp.state.value != "healthy":
@@ -1368,7 +1407,9 @@ class OnboardingWizard:
         # ── .env migration ─────────────────────────────────────────────
         dotenv_path = Path.home() / ".siyarix" / ".env"
         alt_path = Path.cwd() / ".env"
-        found_env = dotenv_path if dotenv_path.exists() else (alt_path if alt_path.exists() else None)
+        found_env = (
+            dotenv_path if dotenv_path.exists() else (alt_path if alt_path.exists() else None)
+        )
         if found_env and self._choices["vault_initialized"]:
             self._console.print("[bold].env Migration[/bold]")
             self._console.print(
@@ -1378,7 +1419,9 @@ class OnboardingWizard:
                 migrated = self._migrate_from_dotenv(found_env)
                 if migrated:
                     self._choices["env_migrated"] = True
-                    self._console.print(f"[green]\u2713 Migrated {migrated} key(s) from .env[/green]")
+                    self._console.print(
+                        f"[green]\u2713 Migrated {migrated} key(s) from .env[/green]"
+                    )
                 else:
                     self._console.print("[dim]No API keys found in .env to migrate.[/dim]")
             self._console.print()
@@ -1443,11 +1486,16 @@ class OnboardingWizard:
     def _step_header(self, title: str) -> None:
         self._clear_screen()
         step_num = {
-            "Platform Detection": 1, "Requirements Check": 2,
-            "Dependencies & Python Packages": 3, "Cybersecurity Tool Discovery": 4,
-            "Credential Vault Setup": 5, "Provider Configuration": 6,
-            "Mode Configuration": 7, "Persona & System Message": 8,
-            "Preferences & Security Defaults": 9, "Network Diagnostics": 10,
+            "Platform Detection": 1,
+            "Requirements Check": 2,
+            "Dependencies & Python Packages": 3,
+            "Cybersecurity Tool Discovery": 4,
+            "Credential Vault Setup": 5,
+            "Provider Configuration": 6,
+            "Mode Configuration": 7,
+            "Persona & System Message": 8,
+            "Preferences & Security Defaults": 9,
+            "Network Diagnostics": 10,
         }.get(title, "")
         prefix = f"[{step_num}/10] " if step_num else ""
         self._console.print(f"\n[bold cyan]== {prefix}{title} ==[/bold cyan]\n")
@@ -1470,6 +1518,7 @@ class OnboardingWizard:
                 pass
         try:
             from siyarix.credential_vault import vault_set
+
             vault_set(provider, key)
         except Exception:
             pass
@@ -1521,7 +1570,12 @@ class OnboardingWizard:
                 }
                 rc_file = rc_files.get(shell)
                 if os.name == "nt" and shell in ("pwsh", "powershell"):
-                    rc_file = Path.home() / "Documents" / "PowerShell" / "Microsoft.PowerShell_profile.ps1"
+                    rc_file = (
+                        Path.home()
+                        / "Documents"
+                        / "PowerShell"
+                        / "Microsoft.PowerShell_profile.ps1"
+                    )
 
                 if rc_file and rc_file.parent.exists():
                     completion_cmd = f'eval "$(siyarix completion {shell})"'
@@ -1530,13 +1584,19 @@ class OnboardingWizard:
                         if completion_cmd not in existing:
                             with rc_file.open("a", encoding="utf-8") as f:
                                 f.write(f"\n# Siyarix completions\n{completion_cmd}\n")
-                            self._console.print(f"  [green]\u2713 Completions added to {rc_file}[/green]")
+                            self._console.print(
+                                f"  [green]\u2713 Completions added to {rc_file}[/green]"
+                            )
                         else:
                             self._console.print(f"  [dim]Completions already in {rc_file}[/dim]")
                     else:
                         rc_file.parent.mkdir(parents=True, exist_ok=True)
-                        rc_file.write_text(f"# Siyarix completions\n{completion_cmd}\n", encoding="utf-8")
-                        self._console.print(f"  [green]\u2713 Completions file created: {rc_file}[/green]")
+                        rc_file.write_text(
+                            f"# Siyarix completions\n{completion_cmd}\n", encoding="utf-8"
+                        )
+                        self._console.print(
+                            f"  [green]\u2713 Completions file created: {rc_file}[/green]"
+                        )
 
                     self._choices["shell_completion_done"] = True
                     self._settings.set("shell_completion_installed", True)
@@ -1559,10 +1619,14 @@ class OnboardingWizard:
                             f'$oldPath = [Environment]::GetEnvironmentVariable("PATH", "User"); '
                             f'if ($oldPath -notlike "*{escaped}*") {{ '
                             f'  [Environment]::SetEnvironmentVariable("PATH", "$oldPath;{escaped}", "User") '
-                            f'}}'
+                            f"}}"
                         )
-                        subprocess.run(["powershell", "-Command", script], capture_output=True, timeout=30)
-                        self._console.print(f"  [green]\u2713 Added to user PATH: {siyarix_bin}[/green]")
+                        subprocess.run(
+                            ["powershell", "-Command", script], capture_output=True, timeout=30
+                        )
+                        self._console.print(
+                            f"  [green]\u2713 Added to user PATH: {siyarix_bin}[/green]"
+                        )
                     else:
                         self._console.print("  [dim]Already in PATH[/dim]")
                 else:
@@ -1589,7 +1653,9 @@ class OnboardingWizard:
         try:
             result = subprocess.run(
                 [sys.executable, "-m", "pip", "install", package, "--quiet"],
-                capture_output=True, text=True, timeout=300,
+                capture_output=True,
+                text=True,
+                timeout=300,
             )
             if result.returncode == 0:
                 self._console.print(f"  [green]\u2713 {package} installed[/green]")
@@ -1617,7 +1683,9 @@ class OnboardingWizard:
                 script = f'Start-Process -FilePath "winget" -ArgumentList "install --silent {pkg}" -Verb RunAs -Wait'
                 subprocess.run(
                     ["powershell", "-Command", script],
-                    capture_output=True, text=True, timeout=300,
+                    capture_output=True,
+                    text=True,
+                    timeout=300,
                 )
                 if shutil.which(tool):
                     self._console.print(f"  [green]\u2713 {tool} installed via winget[/green]")
@@ -1629,16 +1697,16 @@ class OnboardingWizard:
                 script = f'Start-Process -FilePath "choco" -ArgumentList "install -y {pkg}" -Verb RunAs -Wait'
                 subprocess.run(
                     ["powershell", "-Command", script],
-                    capture_output=True, text=True, timeout=300,
+                    capture_output=True,
+                    text=True,
+                    timeout=300,
                 )
                 if shutil.which(tool):
                     self._console.print(f"  [green]\u2713 {tool} installed via choco[/green]")
                     return True
             except Exception:
                 pass
-        self._console.print(
-            f"  [yellow]Could not auto-install {tool}.[/yellow]"
-        )
+        self._console.print(f"  [yellow]Could not auto-install {tool}.[/yellow]")
         self._console.print(f"  [dim]Install manually: winget install {pkg}[/dim]")
         return False
 
@@ -1661,7 +1729,9 @@ class OnboardingWizard:
             self._console.print(f"  Running: sudo {' '.join(install_cmd)}")
             result = subprocess.run(
                 ["sudo", "-p", "Password required for installation: "] + install_cmd,
-                capture_output=True, text=True, timeout=300,
+                capture_output=True,
+                text=True,
+                timeout=300,
             )
             if result.returncode == 0:
                 if shutil.which(tool):
@@ -1690,22 +1760,31 @@ class OnboardingWizard:
                 )
                 subprocess.run(
                     ["powershell", "-Command", script],
-                    capture_output=True, text=True, timeout=600,
+                    capture_output=True,
+                    text=True,
+                    timeout=600,
                 )
                 if shutil.which("ollama"):
                     self._console.print("  [green]\u2713 Ollama installed[/green]")
                     return True
-                self._console.print("  [yellow]Ollama installer may need user interaction.[/yellow]")
+                self._console.print(
+                    "  [yellow]Ollama installer may need user interaction.[/yellow]"
+                )
                 return shutil.which("ollama") is not None
             elif sys.platform == "darwin":
                 self._console.print("  Downloading Ollama for macOS...")
                 subprocess.run(
                     ["curl", "-fsSL", "https://ollama.com/install.sh"],
-                    capture_output=True, text=True, timeout=60,
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
                 )
                 result = subprocess.run(
-                    'curl -fsSL https://ollama.com/install.sh | sh',
-                    shell=True, capture_output=True, text=True, timeout=600,  # nosec B602
+                    "curl -fsSL https://ollama.com/install.sh | sh",
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=600,  # nosec B602
                 )
                 ok = result.returncode == 0
                 if ok:
@@ -1716,8 +1795,11 @@ class OnboardingWizard:
             else:
                 self._console.print("  Installing via official script...")
                 result = subprocess.run(
-                    'curl -fsSL https://ollama.com/install.sh | sh',
-                    shell=True, capture_output=True, text=True, timeout=600,  # nosec B602
+                    "curl -fsSL https://ollama.com/install.sh | sh",
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=600,  # nosec B602
                 )
                 ok = result.returncode == 0
                 if ok:
@@ -1733,6 +1815,7 @@ class OnboardingWizard:
     def _check_ollama_running(url: str) -> bool:
         try:
             import httpx
+
             r = httpx.get(f"{url}/api/tags", timeout=5)
             return r.status_code < 500
         except Exception:

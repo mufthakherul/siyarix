@@ -26,18 +26,16 @@ import json
 import logging
 import os
 import platform
-import shutil
 import socket
 import subprocess
 import sys
 import threading
 import time
 import uuid
-from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -56,22 +54,23 @@ except ImportError:
 # ── Constants ───────────────────────────────────────────────────────────────
 
 _VAULT_VERSION = 4
-_KEY_SIZE = 32                # AES-256
-_NONCE_SIZE = 12               # GCM nonce (96-bit)
-_PBKDF2_MIN_ITERATIONS = 600_000    # OWASP 2023 baseline
+_KEY_SIZE = 32  # AES-256
+_NONCE_SIZE = 12  # GCM nonce (96-bit)
+_PBKDF2_MIN_ITERATIONS = 600_000  # OWASP 2023 baseline
 _PBKDF2_CURRENT_ITERATIONS = 1_200_000  # current target
 _SALT_SIZE = 32
 _ENTRY_SALT_SIZE = 16
 _CEREMONY_SALT = b"siyarix::vault::ceremony::a7f3c9e2b1d4"
 _BACKUP_KEEP = 10
 _LOCKOUT_THRESHOLD = 5
-_LOCKOUT_WINDOW_SEC = 300      # 5 min window
-_LOCKOUT_DURATION_BASE = 30    # 30 s → doubles per attempt
-_SESSION_TTL_SEC = 300          # 5 min auto-seal
+_LOCKOUT_WINDOW_SEC = 300  # 5 min window
+_LOCKOUT_DURATION_BASE = 30  # 30 s → doubles per attempt
+_SESSION_TTL_SEC = 300  # 5 min auto-seal
 _MAX_AUDIT_ENTRIES = 5000
 
 
 # ── Exception hierarchy ─────────────────────────────────────────────────────
+
 
 class VaultError(Exception):
     """Base vault exception."""
@@ -111,6 +110,7 @@ class VaultPassphraseWeakError(VaultError):
 
 # ── Data structures ─────────────────────────────────────────────────────────
 
+
 @dataclass
 class VaultEntry:
     provider: str
@@ -144,9 +144,9 @@ class VaultEntry:
 @dataclass
 class AuditEntry:
     timestamp: str
-    operation: str          # unseal / get / set / delete / rekey / export / import / fail
+    operation: str  # unseal / get / set / delete / rekey / export / import / fail
     provider: str
-    outcome: str            # success / denied / error
+    outcome: str  # success / denied / error
     detail: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -179,11 +179,12 @@ class VaultStatus:
     env_score: float | None = None
     device_warnings: list[str] = field(default_factory=list)
     env_warnings: list[str] = field(default_factory=list)
-    health: str = "unknown"   # healthy / degraded / unhealthy
+    health: str = "unknown"  # healthy / degraded / unhealthy
     warnings: list[str] = field(default_factory=list)
 
 
 # ── Fingerprint subsystem ───────────────────────────────────────────────────
+
 
 class DeviceFingerprint:
     """Multi-source hardware fingerprint with weighted component matching.
@@ -194,17 +195,17 @@ class DeviceFingerprint:
     """
 
     _WEIGHTS: dict[str, int] = {
-        "machine": 4,          # platform.machine() — never changes for same CPU arch
-        "os_platform": 4,      # os.name + sys.platform — never changes
-        "machine_id": 4,       # /etc/machine-id / IOPlatformUUID / wmic uuid — stable
-        "disk_serial_boot": 3, # boot drive serial — changes on disk replacement
-        "mac_primary": 3,      # primary MAC — changes if NIC replaced
-        "tpm": 3,             # TPM 2.0 fingerprint — very stable
-        "processor": 2,       # CPU brand string — changes on CPU upgrade
-        "hostname": 1,        # can change any time
-        "mac_extra": 1,       # secondary MACs — can change with add-on NICs
+        "machine": 4,  # platform.machine() — never changes for same CPU arch
+        "os_platform": 4,  # os.name + sys.platform — never changes
+        "machine_id": 4,  # /etc/machine-id / IOPlatformUUID / wmic uuid — stable
+        "disk_serial_boot": 3,  # boot drive serial — changes on disk replacement
+        "mac_primary": 3,  # primary MAC — changes if NIC replaced
+        "tpm": 3,  # TPM 2.0 fingerprint — very stable
+        "processor": 2,  # CPU brand string — changes on CPU upgrade
+        "hostname": 1,  # can change any time
+        "mac_extra": 1,  # secondary MACs — can change with add-on NICs
     }
-    _MATCH_THRESHOLD = 0.60   # 60% weighted match to succeed
+    _MATCH_THRESHOLD = 0.60  # 60% weighted match to succeed
 
     @staticmethod
     def _get_mac_addresses() -> list[str]:
@@ -217,6 +218,7 @@ class DeviceFingerprint:
             pass
         try:
             import psutil
+
             for _, info in psutil.net_if_addrs().items():
                 for addr in info:
                     if addr.family == -1:
@@ -234,8 +236,12 @@ class DeviceFingerprint:
                 pass
         if sys.platform == "darwin":
             try:
-                r = subprocess.run(["ioreg", "-rd1", "-c", "IOPlatformExpertDevice"],
-                                   capture_output=True, text=True, timeout=5)
+                r = subprocess.run(
+                    ["ioreg", "-rd1", "-c", "IOPlatformExpertDevice"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
                 for line in r.stdout.splitlines():
                     if "IOPlatformUUID" in line:
                         return line.split('"')[3]
@@ -243,8 +249,9 @@ class DeviceFingerprint:
                 pass
         if os.name == "nt":
             try:
-                r = subprocess.run(["wmic", "csproduct", "get", "uuid"],
-                                   capture_output=True, text=True, timeout=5)
+                r = subprocess.run(
+                    ["wmic", "csproduct", "get", "uuid"], capture_output=True, text=True, timeout=5
+                )
                 for line in r.stdout.splitlines():
                     line = line.strip()
                     if "-" in line:
@@ -257,8 +264,12 @@ class DeviceFingerprint:
     def _get_disk_serial() -> str:
         if os.name == "nt":
             try:
-                r = subprocess.run(["wmic", "diskdrive", "get", "serialnumber"],
-                                   capture_output=True, text=True, timeout=5)
+                r = subprocess.run(
+                    ["wmic", "diskdrive", "get", "serialnumber"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
                 for line in r.stdout.splitlines():
                     line = line.strip()
                     if line and "SerialNumber" not in line:
@@ -275,8 +286,9 @@ class DeviceFingerprint:
                     pass
         elif sys.platform == "darwin":
             try:
-                r = subprocess.run(["diskutil", "info", "/"],
-                                   capture_output=True, text=True, timeout=5)
+                r = subprocess.run(
+                    ["diskutil", "info", "/"], capture_output=True, text=True, timeout=5
+                )
                 for line in r.stdout.splitlines():
                     if "Serial Number" in line or "Device UUID" in line:
                         return line.split(":")[-1].strip()
@@ -288,8 +300,7 @@ class DeviceFingerprint:
     def _get_tpm_fingerprint() -> str:
         for tool in ("tpm2_getekcertificate", "tpm2_createek"):
             try:
-                r = subprocess.run([tool, "-c", "-o", "/dev/null"],
-                                   capture_output=True, timeout=5)
+                r = subprocess.run([tool, "-c", "-o", "/dev/null"], capture_output=True, timeout=5)
                 if r.returncode == 0:
                     return hashlib.sha256(r.stderr + r.stdout).hexdigest()[:16]
             except Exception:
@@ -300,8 +311,9 @@ class DeviceFingerprint:
                     "Get-WmiObject -Namespace Root/CIMv2/Security/MicrosoftTpm "
                     "-Class Win32_Tpm | Select-Object -ExpandProperty ManufacturerIdTxt"
                 )
-                r = subprocess.run(["powershell", "-Command", ps_cmd],
-                                   capture_output=True, text=True, timeout=5)
+                r = subprocess.run(
+                    ["powershell", "-Command", ps_cmd], capture_output=True, text=True, timeout=5
+                )
                 if r.returncode == 0 and r.stdout.strip():
                     return hashlib.sha256(r.stdout.encode()).hexdigest()[:16]
             except Exception:
@@ -338,7 +350,9 @@ class DeviceFingerprint:
 
     @classmethod
     def match(
-        cls, stored: dict[str, str], threshold: float | None = None,
+        cls,
+        stored: dict[str, str],
+        threshold: float | None = None,
     ) -> tuple[bool, float, list[str]]:
         """Weighted component matching. Returns (is_match, score_pct, warnings)."""
         current = cls.compute_components()
@@ -383,17 +397,18 @@ class EnvironmentFingerprint:
     """
 
     _WEIGHTS: dict[str, int] = {
-        "ceremony_salt": 5,     # hardcoded constant -- changes only in major refactor
-        "siyarix_major": 3,     # major version (3.x.x) -- changes on breaking upgrade
-        "siyarix_minor": 2,     # minor version (x.1.x) -- changes on feature upgrade
-        "python_major_minor": 3, # Python 3.12 -> 3.13 -- stable across siyarix upgrades
+        "ceremony_salt": 5,  # hardcoded constant -- changes only in major refactor
+        "siyarix_major": 3,  # major version (3.x.x) -- changes on breaking upgrade
+        "siyarix_minor": 2,  # minor version (x.1.x) -- changes on feature upgrade
+        "python_major_minor": 3,  # Python 3.12 -> 3.13 -- stable across siyarix upgrades
     }
-    _MATCH_THRESHOLD = 0.60    # 60% -- tolerates minor version bumps
+    _MATCH_THRESHOLD = 0.60  # 60% -- tolerates minor version bumps
 
     @classmethod
     def _get_siyarix_version(cls) -> tuple[int, int, int]:
         try:
             import importlib.metadata
+
             ver = importlib.metadata.version("siyarix")
             parts = [int(x) for x in ver.split(".")[:3]]
             while len(parts) < 3:
@@ -404,7 +419,9 @@ class EnvironmentFingerprint:
         try:
             r = subprocess.run(
                 [sys.executable, "-m", "pip", "show", "siyarix"],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             for line in r.stdout.splitlines():
                 if line.startswith("Version:"):
@@ -436,7 +453,9 @@ class EnvironmentFingerprint:
 
     @classmethod
     def match(
-        cls, stored: dict[str, str], threshold: float | None = None,
+        cls,
+        stored: dict[str, str],
+        threshold: float | None = None,
     ) -> tuple[bool, float, list[str]]:
         """Weighted component matching. Returns (is_match, score_pct, warnings)."""
         current = cls.compute_components()
@@ -474,6 +493,7 @@ def _sha(value: str) -> str:
 
 # ── Main vault ──────────────────────────────────────────────────────────────
 
+
 class CredentialVault:
     """Enterprise device-bound credential vault with hardware binding.
 
@@ -488,14 +508,10 @@ class CredentialVault:
         session_ttl: int = _SESSION_TTL_SEC,
     ) -> None:
         if not HAS_CRYPTO:
-            raise RuntimeError(
-                "cryptography is required. Install: pip install cryptography"
-            )
+            raise RuntimeError("cryptography is required. Install: pip install cryptography")
 
         self._lock = threading.Lock()
-        self._config_dir = Path(
-            os.getenv("SIYARIX_CONFIG_DIR", str(Path.home() / ".siyarix"))
-        )
+        self._config_dir = Path(os.getenv("SIYARIX_CONFIG_DIR", str(Path.home() / ".siyarix")))
         self._config_dir.mkdir(parents=True, exist_ok=True)
         self._vault_path = Path(vault_path or self._config_dir / "vault.encrypted")
         self._backup_dir = self._config_dir / "vault_backups"
@@ -509,7 +525,9 @@ class CredentialVault:
         self._device_fp = DeviceFingerprint.compute_single()
         self._env_fp = EnvironmentFingerprint.compute_single()
         self._device_comps = {k: h for k, (h, _) in DeviceFingerprint.compute_components().items()}
-        self._env_comps = {k: h for k, (h, _) in EnvironmentFingerprint.compute_components().items()}
+        self._env_comps = {
+            k: h for k, (h, _) in EnvironmentFingerprint.compute_components().items()
+        }
         self._last_activity = 0.0
         self._lockout_attempts: list[float] = []
         self._lockout_until = 0.0
@@ -626,9 +644,12 @@ class CredentialVault:
                     old.expires_at = expires
             else:
                 self._entries[entry_id] = VaultEntry(
-                    provider=provider, key_name=key_name,
-                    value_encrypted=encrypted, created_at=now,
-                    last_used=now, expires_at=expires,
+                    provider=provider,
+                    key_name=key_name,
+                    value_encrypted=encrypted,
+                    created_at=now,
+                    last_used=now,
+                    expires_at=expires,
                 )
             self._last_activity = time.time()
             self._audit("set", provider, "success")
@@ -692,8 +713,10 @@ class CredentialVault:
             }
             salt = os.urandom(_SALT_SIZE)
             kdf = _PBKDF2(
-                algorithm=_hashes.SHA256(), length=_KEY_SIZE,
-                salt=salt, iterations=_PBKDF2_CURRENT_ITERATIONS,
+                algorithm=_hashes.SHA256(),
+                length=_KEY_SIZE,
+                salt=salt,
+                iterations=_PBKDF2_CURRENT_ITERATIONS,
             )
             key = kdf.derive(passphrase.encode())
             nonce = os.urandom(_NONCE_SIZE)
@@ -703,17 +726,21 @@ class CredentialVault:
 
     @classmethod
     def import_backup(
-        cls, blob: bytes, passphrase: str,
+        cls,
+        blob: bytes,
+        passphrase: str,
         vault_path: str | Path | None = None,
     ) -> CredentialVault:
         """Import a disaster-recovery backup into a new vault on this device."""
         validate_passphrase_strength(passphrase)
         salt = blob[:_SALT_SIZE]
-        nonce = blob[_SALT_SIZE:_SALT_SIZE + _NONCE_SIZE]
-        ct = blob[_SALT_SIZE + _NONCE_SIZE:]
+        nonce = blob[_SALT_SIZE : _SALT_SIZE + _NONCE_SIZE]
+        ct = blob[_SALT_SIZE + _NONCE_SIZE :]
         kdf = _PBKDF2(
-            algorithm=_hashes.SHA256(), length=_KEY_SIZE,
-            salt=salt, iterations=_PBKDF2_CURRENT_ITERATIONS,
+            algorithm=_hashes.SHA256(),
+            length=_KEY_SIZE,
+            salt=salt,
+            iterations=_PBKDF2_CURRENT_ITERATIONS,
         )
         key = kdf.derive(passphrase.encode())
         decrypted = _AESGCM(key).decrypt(nonce, ct, None).decode()
@@ -744,6 +771,7 @@ class CredentialVault:
                 self._vault_path.unlink()
             if self._backup_dir.exists():
                 import shutil as _shutil
+
                 _shutil.rmtree(self._backup_dir)
             logger.warning("Vault and all backups destroyed permanently")
 
@@ -770,8 +798,7 @@ class CredentialVault:
             self._unsealed = False
             self._entries.clear()
             raise VaultLockedError(
-                "Vault session expired — auto-sealed after inactivity. "
-                "Call unseal() to re-open."
+                "Vault session expired — auto-sealed after inactivity. " "Call unseal() to re-open."
             )
 
     def _check_lockout(self) -> None:
@@ -791,11 +818,14 @@ class CredentialVault:
             t for t in self._lockout_attempts if now - t < _LOCKOUT_WINDOW_SEC
         ]
         if len(self._lockout_attempts) >= _LOCKOUT_THRESHOLD:
-            duration = _LOCKOUT_DURATION_BASE * (2 ** (len(self._lockout_attempts) - _LOCKOUT_THRESHOLD))
+            duration = _LOCKOUT_DURATION_BASE * (
+                2 ** (len(self._lockout_attempts) - _LOCKOUT_THRESHOLD)
+            )
             self._lockout_until = now + min(duration, 3600)  # cap at 1h
             logger.warning(
                 "Vault lockout activated for %ds after %d failures",
-                int(self._lockout_until - now), len(self._lockout_attempts),
+                int(self._lockout_until - now),
+                len(self._lockout_attempts),
             )
 
     def _refresh_lockout(self) -> None:
@@ -856,7 +886,11 @@ class CredentialVault:
 
     def _decrypt_value(self, encrypted: str) -> str:
         raw = base64.b64decode(encrypted)
-        salt, nonce, ct = raw[:_ENTRY_SALT_SIZE], raw[_ENTRY_SALT_SIZE:_ENTRY_SALT_SIZE + _NONCE_SIZE], raw[_ENTRY_SALT_SIZE + _NONCE_SIZE:]
+        salt, nonce, ct = (
+            raw[:_ENTRY_SALT_SIZE],
+            raw[_ENTRY_SALT_SIZE : _ENTRY_SALT_SIZE + _NONCE_SIZE],
+            raw[_ENTRY_SALT_SIZE + _NONCE_SIZE :],
+        )
         key = self._derive_key(salt)
         result = _AESGCM(key).decrypt(nonce, ct, None).decode()
         self._zeroize(key)
@@ -921,9 +955,7 @@ class CredentialVault:
             self._status.env_warnings = ewarnings
             if not is_match:
                 self._audit("unseal", "*", "denied", f"environment mismatch (score={score:.2f})")
-                raise VaultEnvironmentMismatchError(
-                    "Vault bound to different siyarix environment."
-                )
+                raise VaultEnvironmentMismatchError("Vault bound to different siyarix environment.")
         # Fallback: legacy single-hash binding
         elif data.get("env_fp_hash", ""):
             stored_env = data["env_fp_hash"]
@@ -932,18 +964,32 @@ class CredentialVault:
             self._status.environment_bound = True
             if not self._status.env_match:
                 self._audit("unseal", "*", "denied", "environment mismatch (legacy)")
-                raise VaultEnvironmentMismatchError(
-                    "Vault bound to different siyarix environment."
-                )
+                raise VaultEnvironmentMismatchError("Vault bound to different siyarix environment.")
 
         # ── HMAC integrity (version-aware) ────────────────────────────────
         stored_hmac = data.get("hmac", "")
         if version <= 3:
-            payload_keys = ("version", "iterations", "salt", "device_fp_hash",
-                            "env_fp_hash", "created_at", "last_unsealed", "credentials")
+            payload_keys = (
+                "version",
+                "iterations",
+                "salt",
+                "device_fp_hash",
+                "env_fp_hash",
+                "created_at",
+                "last_unsealed",
+                "credentials",
+            )
         else:
-            payload_keys = ("version", "iterations", "salt", "device_fp_components",
-                            "env_fp_components", "created_at", "last_unsealed", "credentials")
+            payload_keys = (
+                "version",
+                "iterations",
+                "salt",
+                "device_fp_components",
+                "env_fp_components",
+                "created_at",
+                "last_unsealed",
+                "credentials",
+            )
         payload = {k: data[k] for k in payload_keys if k in data}
         payload_str = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         integrity_key = self._derive_no_passphrase(vault_salt)
@@ -966,7 +1012,9 @@ class CredentialVault:
         except Exception as exc:
             self._audit("unseal", "*", "error", f"decrypt failed: {exc}")
             self._record_failure()
-            raise VaultCorruptError(f"Decryption failed — wrong passphrase or corrupt: {exc}") from exc
+            raise VaultCorruptError(
+                f"Decryption failed — wrong passphrase or corrupt: {exc}"
+            ) from exc
 
         for ed in entries_data:
             eid = f"{ed['provider']}:{ed['key_name']}"
@@ -984,7 +1032,8 @@ class CredentialVault:
         if stored_iters < _PBKDF2_CURRENT_ITERATIONS:
             logger.info(
                 "Migrating vault PBKDF2 iterations from %s to %s",
-                stored_iters, _PBKDF2_CURRENT_ITERATIONS,
+                stored_iters,
+                _PBKDF2_CURRENT_ITERATIONS,
             )
             self._status.iterations = _PBKDF2_CURRENT_ITERATIONS
             self._write_vault()
@@ -1058,11 +1107,27 @@ class CredentialVault:
         # Build version-aware HMAC payload (must match _unseal logic)
         current_version = _VAULT_VERSION
         if current_version <= 3:
-            hmac_keys = ("version", "iterations", "salt", "device_fp_hash",
-                         "env_fp_hash", "created_at", "last_unsealed", "credentials")
+            hmac_keys = (
+                "version",
+                "iterations",
+                "salt",
+                "device_fp_hash",
+                "env_fp_hash",
+                "created_at",
+                "last_unsealed",
+                "credentials",
+            )
         else:
-            hmac_keys = ("version", "iterations", "salt", "device_fp_components",
-                         "env_fp_components", "created_at", "last_unsealed", "credentials")
+            hmac_keys = (
+                "version",
+                "iterations",
+                "salt",
+                "device_fp_components",
+                "env_fp_components",
+                "created_at",
+                "last_unsealed",
+                "credentials",
+            )
         hmac_payload = {k: payload[k] for k in hmac_keys}
         hmac_str = json.dumps(hmac_payload, sort_keys=True, separators=(",", ":"))
         ik = self._derive_no_passphrase(vs)
@@ -1120,9 +1185,7 @@ class CredentialVault:
         skip_if_exists: bool = True,
     ) -> CredentialVault:
         """Create a new vault (key ceremony) bound to this device + environment."""
-        config_dir = Path(
-            os.getenv("SIYARIX_CONFIG_DIR", str(Path.home() / ".siyarix"))
-        )
+        config_dir = Path(os.getenv("SIYARIX_CONFIG_DIR", str(Path.home() / ".siyarix")))
         config_dir.mkdir(parents=True, exist_ok=True)
         vp = Path(vault_path or config_dir / "vault.encrypted")
         if skip_if_exists and vp.exists():
@@ -1145,20 +1208,20 @@ class CredentialVault:
 
 # ── Health data ─────────────────────────────────────────────────────────────
 
+
 @dataclass
 class VaultHealth:
-    state: str = "healthy"          # healthy / degraded / unhealthy
+    state: str = "healthy"  # healthy / degraded / unhealthy
     warnings: list[str] = field(default_factory=list)
 
 
 # ── Passphrase policy ───────────────────────────────────────────────────────
 
+
 def validate_passphrase_strength(passphrase: str) -> None:
     """Validate passphrase meets minimum complexity."""
     if len(passphrase) < 12:
-        raise VaultPassphraseWeakError(
-            "Passphrase must be at least 12 characters"
-        )
+        raise VaultPassphraseWeakError("Passphrase must be at least 12 characters")
     checks = 0
     if any(c.isupper() for c in passphrase):
         checks += 1

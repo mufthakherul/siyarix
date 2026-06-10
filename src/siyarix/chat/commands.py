@@ -9,50 +9,65 @@ from dataclasses import dataclass
 
 # ── Help category definitions ─────────────────────────────────────────────
 HELP_CATEGORIES = [
-    ("Session & Navigation", {
-        "/help": "Show available slash commands (alias: /?)",
-        "/exit": "Exit chat mode (aliases: /quit, /bye)",
-        "/clear": "Clear screen and conversation history (aliases: /clean, /cls)",
-        "/new": "Start a fresh conversation",
-        "/history [n]": "Show recent conversation history",
-        "/search <text>": "Search chat history for a keyword",
-        "/cancel": "Cancel current task without exiting (ESC key also works)",
-    }),
-    ("Configuration", {
-        "/config": "Open the interactive configuration panel",
-        "/config tools": "Manage discovered security tools",
-        "/key": "Manage API keys for AI providers",
-        "/mode <mode>": "Switch execution mode (autonomous|integrated|registry|offline)",
-        "/model [provider]": "Show or switch AI model provider",
-        "/provider [name]": "Show detailed provider info and available models",
-        "/theme mode|appearance": "Change UI theme or preview appearance",
-        "/target <host>": "Set the current target",
-    }),
-    ("Information", {
-        "/tools": "List discovered security tools",
-        "/platform": "Show platform and shell information",
-        "/status": "Show session and runtime status",
-        "/session": "Show detailed session metadata",
-        "/uptime": "Show chat session uptime",
-        "/env": "Show terminal environment summary",
-        "/context": "Show current session context",
-        "/version": "Show Siyarix version",
-        "/shells": "List supported shells",
-    }),
-    ("Execution", {
-        "/run <command>": "Run a tool or shell command",
-        "/security-cmds": "Show security commands for current platform",
-        "/intents [filter]": "List cross-platform command intents",
-        "/translate <intent>": "Translate a command intent to all shells",
-        "/save": "Save current session",
-    }),
-    ("Session Management", {
-        "/log list|show|export": "Manage session logs",
-        "/diff <id_a> <id_b>": "Compare two sessions",
-        "/reset": "Reset mode and target to defaults",
-        "/examples": "Show practical prompt examples",
-        "/palette": "Open interactive command palette",
-    }),
+    (
+        "Session & Navigation",
+        {
+            "/help": "Show available slash commands (alias: /?)",
+            "/exit": "Exit chat mode (aliases: /quit, /bye)",
+            "/clear": "Clear screen and conversation history (aliases: /clean, /cls)",
+            "/new": "Start a fresh conversation",
+            "/history [n]": "Show recent conversation history",
+            "/search <text>": "Search chat history for a keyword",
+            "/cancel": "Cancel current task without exiting (ESC key also works)",
+        },
+    ),
+    (
+        "Configuration",
+        {
+            "/config": "Open the interactive configuration panel",
+            "/config tools": "Manage discovered security tools",
+            "/key": "Manage API keys for AI providers",
+            "/mode <mode>": "Switch execution mode (autonomous|integrated|registry|offline)",
+            "/model [provider]": "Show or switch AI model provider",
+            "/provider [name]": "Show detailed provider info and available models",
+            "/theme mode|appearance": "Change UI theme or preview appearance",
+            "/target <host>": "Set the current target",
+        },
+    ),
+    (
+        "Information",
+        {
+            "/tools": "List discovered security tools",
+            "/platform": "Show platform and shell information",
+            "/status": "Show session and runtime status",
+            "/session": "Show detailed session metadata",
+            "/uptime": "Show chat session uptime",
+            "/env": "Show terminal environment summary",
+            "/context": "Show current session context",
+            "/version": "Show Siyarix version",
+            "/shells": "List supported shells",
+        },
+    ),
+    (
+        "Execution",
+        {
+            "/run <command>": "Run a tool or shell command",
+            "/security-cmds": "Show security commands for current platform",
+            "/intents [filter]": "List cross-platform command intents",
+            "/translate <intent>": "Translate a command intent to all shells",
+            "/save": "Save current session",
+        },
+    ),
+    (
+        "Session Management",
+        {
+            "/log list|show|export": "Manage session logs",
+            "/diff <id_a> <id_b>": "Compare two sessions",
+            "/reset": "Reset mode and target to defaults",
+            "/examples": "Show practical prompt examples",
+            "/palette": "Open interactive command palette",
+        },
+    ),
 ]
 
 # Flat lookup for command dispatch (includes all commands, including hidden ones)

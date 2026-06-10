@@ -52,9 +52,15 @@ Table: Any = None
 
 try:
     from rich.console import Console
-    from rich.progress import (BarColumn, Progress, SpinnerColumn,
-                               TaskProgressColumn, TextColumn,
-                               TimeRemainingColumn, TransferSpeedColumn)
+    from rich.progress import (
+        BarColumn,
+        Progress,
+        SpinnerColumn,
+        TaskProgressColumn,
+        TextColumn,
+        TimeRemainingColumn,
+        TransferSpeedColumn,
+    )
     from rich.prompt import Confirm, Prompt
     from rich.syntax import Syntax
     from rich.table import Table
@@ -77,6 +83,7 @@ class OutputFormat(StrEnum):
 
 class OutputTheme(StrEnum):
     """Output theme names — delegates to branding module for actual style data."""
+
     CYBER_NOIR = "cyber-noir"
     MATRIX = "matrix"
     BLOODMOON = "bloodmoon"
@@ -94,6 +101,7 @@ class OutputTheme(StrEnum):
 def _load_branding_themes() -> dict[str, dict[str, str]]:
     """Load theme data from the canonical branding module."""
     from ..branding import _SEVERITY_STYLES
+
     return dict(_SEVERITY_STYLES)
 
 
@@ -112,11 +120,10 @@ class OutputEngine:
         self.format = OutputFormat(output_format)
         self.console: Any = Console() if RICH_AVAILABLE else None
 
-    def print_banner(
-        self, title: str, subtitle: str = "", style: str = "primary"
-    ) -> None:
+    def print_banner(self, title: str, subtitle: str = "", style: str = "primary") -> None:
         if RICH_AVAILABLE and self.console is not None:
             from ..branding import print_banner as _print_branding_banner
+
             _print_branding_banner(
                 console=self.console,
                 theme=list(THEMES.keys())[0] if THEMES else "default",
@@ -144,9 +151,7 @@ class OutputEngine:
                 header_style=f"bold {self.theme['primary']}",
             )
             for col in columns:
-                table.add_column(
-                    col.replace("_", " ").title(), style=self.theme["info"]
-                )
+                table.add_column(col.replace("_", " ").title(), style=self.theme["info"])
             for row in data:
                 table.add_row(*[str(row.get(col, "")) for col in columns])
             if self.console is not None:
@@ -194,35 +199,27 @@ class OutputEngine:
 
     def print_success(self, message: str) -> None:
         if RICH_AVAILABLE and self.console is not None:
-            self.console.print(
-                f"[{self.theme['success']}]✓ {message}[/{self.theme['success']}]"
-            )
+            self.console.print(f"[{self.theme['success']}]✓ {message}[/{self.theme['success']}]")
         else:
             self._raw_print(f"✓ {message}")
 
     def print_error(self, message: str) -> None:
         if RICH_AVAILABLE and self.console is not None:
             error_style = self.theme.get("error", self.theme.get("critical", "red"))
-            self.console.print(
-                f"[{error_style}]✗ {message}[/{error_style}]"
-            )
+            self.console.print(f"[{error_style}]✗ {message}[/{error_style}]")
         else:
             self._raw_print(f"✗ Error: {message}")
 
     def print_warning(self, message: str) -> None:
         if RICH_AVAILABLE and self.console is not None:
             warning_style = self.theme.get("warning", self.theme.get("medium", "yellow"))
-            self.console.print(
-                f"[{warning_style}]⚠ {message}[/{warning_style}]"
-            )
+            self.console.print(f"[{warning_style}]⚠ {message}[/{warning_style}]")
         else:
             self._raw_print(f"⚠ Warning: {message}")
 
     def print_info(self, message: str) -> None:
         if RICH_AVAILABLE and self.console is not None:
-            self.console.print(
-                f"[{self.theme['info']}]ℹ {message}[/{self.theme['info']}]"
-            )
+            self.console.print(f"[{self.theme['info']}]ℹ {message}[/{self.theme['info']}]")
         else:
             self._raw_print(f"ℹ {message}")
 
@@ -254,16 +251,12 @@ class OutputEngine:
     def prompt_confirm(self, message: str, default: bool = False) -> bool:
         if RICH_AVAILABLE:
             return Confirm.ask(message, default=default)
-        response = (
-            input(f"{message} (y/n) [{'Y' if default else 'n'}]: ").strip().lower()
-        )
+        response = input(f"{message} (y/n) [{'Y' if default else 'n'}]: ").strip().lower()
         if not response:
             return default
         return response in ("y", "yes")
 
-    def prompt_input(
-        self, message: str, default: str = "", password: bool = False
-    ) -> str:
+    def prompt_input(self, message: str, default: str = "", password: bool = False) -> str:
         if RICH_AVAILABLE and self.console is not None:
             return Prompt.ask(message, default=default, password=password)
         if password:

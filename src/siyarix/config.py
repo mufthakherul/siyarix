@@ -30,8 +30,9 @@ _ENV_TO_CONFIG: dict[str, str] = {
     "SIYARIX_SAFE_MODE": "_safe_mode",
 }
 
-_CONFIG_DIR = Path(os.getenv("SIYARIX_CONFIG_DIR",
-                 os.getenv("SIYARIX_HOME", str(Path.home() / ".siyarix"))))
+_CONFIG_DIR = Path(
+    os.getenv("SIYARIX_CONFIG_DIR", os.getenv("SIYARIX_HOME", str(Path.home() / ".siyarix")))
+)
 _SETTINGS_FILE = _CONFIG_DIR / "settings.toml"
 
 # ---------------------------------------------------------------------------
@@ -206,9 +207,7 @@ def _try_load_toml(path: Path) -> dict[str, Any]:
 def _write_toml(path: Path, data: dict[str, Any]) -> None:
     """Write dict as TOML (simple key = value format)."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    lines = [
-        "# Siyarix Settings\n# Edit directly or use: siyarix config set <key> <value>\n"
-    ]
+    lines = ["# Siyarix Settings\n# Edit directly or use: siyarix config set <key> <value>\n"]
     for key, value in sorted(data.items()):
         desc = DESCRIPTIONS.get(key, "")
         if desc:
@@ -265,17 +264,13 @@ class SettingsStore:
         if default is not None:
             return default
         if key not in DEFAULTS:
-            raise KeyError(
-                f"Unknown setting: '{key}'. Run 'config list' to see valid keys."
-            )
+            raise KeyError(f"Unknown setting: '{key}'. Run 'config list' to see valid keys.")
         return DEFAULTS[key]
 
     def set(self, key: str, value: Any) -> Any:
         """Set *key* to *value* (string input is coerced to the correct type)."""
         if key not in DEFAULTS:
-            raise KeyError(
-                f"Unknown setting: '{key}'. Run 'config list' to see valid keys."
-            )
+            raise KeyError(f"Unknown setting: '{key}'. Run 'config list' to see valid keys.")
         coerced = self._coerce(key, value)
         self._data[key] = coerced
         self._save()
@@ -314,9 +309,7 @@ class SettingsStore:
         import platform as _platform
         import shlex
 
-        default_editor = (
-            "notepad.exe" if _platform.system().lower() == "windows" else "nano"
-        )
+        default_editor = "notepad.exe" if _platform.system().lower() == "windows" else "nano"
         editor = os.getenv("EDITOR", default_editor)
         editor_cmd = shlex.split(editor) if _platform.system().lower() == "windows" else [editor]
         try:
@@ -329,6 +322,7 @@ class SettingsStore:
             )
             try:
                 import subprocess
+
                 subprocess.run(  # nosec B603
                     editor_cmd + [str(self._path)],
                     capture_output=False,
@@ -371,12 +365,14 @@ class SettingsStore:
         if not self._path.exists():
             return None
         from datetime import datetime
+
         backup_dir = self._path.parent / "backups"
         backup_dir.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_path = backup_dir / f"settings_{ts}.toml"
         try:
             import shutil
+
             shutil.copy2(self._path, backup_path)
             logger.info("Config backed up to %s", backup_path)
             return backup_path
@@ -415,6 +411,7 @@ class SettingsStore:
         latest = backups[-1]
         try:
             import shutil
+
             shutil.copy2(latest, _SETTINGS_FILE)
             logger.info("Config restored from %s", latest)
             return _SETTINGS_FILE

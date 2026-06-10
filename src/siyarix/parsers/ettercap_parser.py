@@ -7,7 +7,6 @@ from __future__ import annotations
 from . import _now_iso
 
 
-
 class EttercapParser:
     """Parse ettercap output into normalized findings."""
 

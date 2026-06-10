@@ -28,6 +28,7 @@ def _severity_for_osvdb(osvdb_id: int) -> str:
             return sev
     return "info"
 
+
 class NiktoParser:
     """Parses nikto text output (lines starting with ``+``) into finding dicts."""
 

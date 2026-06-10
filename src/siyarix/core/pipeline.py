@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Coroutine
 
 
-
 @dataclass
 class PipelineStep:
     instruction: str

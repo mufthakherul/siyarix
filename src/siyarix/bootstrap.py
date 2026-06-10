@@ -75,21 +75,30 @@ class BootstrapEngine:
         )
         # Detect WSL
         if _sys == "Linux" and (
-            "microsoft" in platform.release().lower()
-            or "wsl" in platform.release().lower()
+            "microsoft" in platform.release().lower() or "wsl" in platform.release().lower()
         ):
             info.is_wsl = True
         # Detect package manager (platform-adaptive ordering)
         is_win = os.name == "nt"
-        pm_checks = [
-            ("winget", "winget"), ("choco", "choco"),
-        ] if is_win else [
-            ("apt-get", "apt"), ("apt", "apt"),
-        ]
+        pm_checks = (
+            [
+                ("winget", "winget"),
+                ("choco", "choco"),
+            ]
+            if is_win
+            else [
+                ("apt-get", "apt"),
+                ("apt", "apt"),
+            ]
+        )
         pm_checks += [
-            ("brew", "brew"), ("pkg", "pkg"),
-            ("pacman", "pacman"), ("dnf", "dnf"),
-            ("apk", "apk"), ("winget", "winget"), ("choco", "choco"),
+            ("brew", "brew"),
+            ("pkg", "pkg"),
+            ("pacman", "pacman"),
+            ("dnf", "dnf"),
+            ("apk", "apk"),
+            ("winget", "winget"),
+            ("choco", "choco"),
         ]
         for binary, name in pm_checks:
             if shutil.which(binary):
@@ -210,9 +219,7 @@ class BootstrapEngine:
             found[tool] = shutil.which(tool) is not None
         return found
 
-    def prompt_install_missing(
-        self, missing: list[str], interactive: bool
-    ) -> list[str]:
+    def prompt_install_missing(self, missing: list[str], interactive: bool) -> list[str]:
         """Prompt user for missing dependency installation (T9)."""
         if not interactive or not missing:
             return []
@@ -224,9 +231,7 @@ class BootstrapEngine:
             c.print(f"[yellow]Missing dependencies: {', '.join(missing)}[/yellow]")
             approved = []
             for dep in missing:
-                answer = Prompt.ask(
-                    f"Install {dep}?", choices=["y", "n", "a"], default="y"
-                )
+                answer = Prompt.ask(f"Install {dep}?", choices=["y", "n", "a"], default="y")
                 if answer.lower() in ("y", "a"):
                     approved.append(dep)
             return approved
@@ -336,9 +341,7 @@ class BootstrapEngine:
         # T7: Database backend check
         db_status = self.check_database_backend()
         if not db_status.get("sqlite", False):
-            self._result.warnings.append(
-                "SQLite not available — session persistence disabled"
-            )
+            self._result.warnings.append("SQLite not available — session persistence disabled")
 
         # T8: Runtime tools check
         tools = self.check_runtime_tools()
@@ -346,9 +349,7 @@ class BootstrapEngine:
         self._result.runtime_ok = self._result.tools_found >= 2
         missing_tools = [k for k, v in tools.items() if not v]
         if missing_tools:
-            self._result.warnings.append(
-                f"Missing recommended tools: {', '.join(missing_tools)}"
-            )
+            self._result.warnings.append(f"Missing recommended tools: {', '.join(missing_tools)}")
 
         # T9-T10: Interactive install prompt for missing deps
         if missing_deps and interactive:
@@ -359,9 +360,7 @@ class BootstrapEngine:
                 fail_count = len(approved) - success_count
                 if fail_count > 0:
                     failed = [p for p, s in install_results.items() if not s]
-                    self._result.warnings.append(
-                        f"Failed to auto-install: {', '.join(failed)}"
-                    )
+                    self._result.warnings.append(f"Failed to auto-install: {', '.join(failed)}")
 
         # Directory setup (T4)
         self.ensure_directory_structure()

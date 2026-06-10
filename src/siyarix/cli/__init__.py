@@ -69,6 +69,7 @@ from ..validators import validate_target
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _load_dotenv(path: Path | None = None) -> None:
     """Load environment variables from .env file (simple key=value parser).
 
@@ -145,10 +146,14 @@ _load_dotenv()
 _VAULT_LOADED = False
 try:
     from ..credential_vault import vault_get as _vault_get
+
     _PROVIDER_ENV_MAP: dict[str, str] = {
-        "gemini": "GEMINI_API_KEY", "openai": "OPENAI_API_KEY",
-        "anthropic": "ANTHROPIC_API_KEY", "openrouter": "OPENROUTER_API_KEY",
-        "groq": "GROQ_API_KEY", "together": "TOGETHER_API_KEY",
+        "gemini": "GEMINI_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "together": "TOGETHER_API_KEY",
     }
     for prov, env_var in _PROVIDER_ENV_MAP.items():
         if not os.environ.get(env_var):
@@ -162,7 +167,12 @@ except Exception:
 # Legacy CredentialStore fallback for backward compat
 try:
     creds = CredentialStore()
-    for provider, env_var in [("gemini", "GEMINI_API_KEY"), ("openai", "OPENAI_API_KEY"), ("anthropic", "ANTHROPIC_API_KEY"), ("openrouter", "OPENROUTER_API_KEY")]:
+    for provider, env_var in [
+        ("gemini", "GEMINI_API_KEY"),
+        ("openai", "OPENAI_API_KEY"),
+        ("anthropic", "ANTHROPIC_API_KEY"),
+        ("openrouter", "OPENROUTER_API_KEY"),
+    ]:
         if not os.environ.get(env_var):
             try:
                 key = creds.retrieve(provider, "api_key")
@@ -184,6 +194,7 @@ def _resolve_key(provider: str) -> str:
         return val
     try:
         from ..credential_vault import vault_get
+
         val = vault_get(provider) or ""
         if val:
             os.environ[env_var] = val
@@ -206,6 +217,7 @@ def _store_key(provider: str, key: str) -> None:
     os.environ[env_var] = key
     try:
         from ..credential_vault import vault_set
+
         vault_set(provider, key)
     except Exception:
         logger.debug("Vault unavailable for storing key")
@@ -222,6 +234,7 @@ def _delete_key(provider: str) -> None:
     os.environ.pop(env_var, None)
     try:
         from ..credential_vault import vault_delete
+
         vault_delete(provider)
     except Exception:
         pass
@@ -302,8 +315,12 @@ app = typer.Typer(
 
 @app.command("init")
 def init_wizard(
-    force: bool = typer.Option(False, "--force", "-f", help="Re-run wizard even if already configured"),
-    skip_requirements: bool = typer.Option(False, "--skip-requirements", help="Skip requirements check"),
+    force: bool = typer.Option(
+        False, "--force", "-f", help="Re-run wizard even if already configured"
+    ),
+    skip_requirements: bool = typer.Option(
+        False, "--skip-requirements", help="Skip requirements check"
+    ),
 ) -> None:
     """Initialize Siyarix — interactive setup wizard.
 
@@ -330,7 +347,7 @@ def init_wizard(
 def _run_batch_lines(lines: list[str]) -> None:
     """Execute a list of command lines through the chat REPL handler."""
     from ..chat import SiyarixChat
-    
+
     chat = SiyarixChat(mode="integrated")
     for line in lines:
         line = line.strip()
@@ -349,6 +366,7 @@ def _run_batch_lines(lines: list[str]) -> None:
                     console.print("Goodbye! Stay secure!")
                 elif line == "version":
                     from .. import __version__
+
                     console.print(f"Siyarix version {__version__}")
                 elif line in ["help", "/help"]:
                     asyncio.run(chat._handle_slash("/help"))
@@ -356,7 +374,9 @@ def _run_batch_lines(lines: list[str]) -> None:
                     asyncio.run(chat._handle_slash("/status"))
                 else:
                     console.print(f"[dim]Command not recognized in offline mode: {line}[/dim]")
-                    console.print("[dim]Try '/help' for available commands or use AI mode for natural language processing.[/dim]")
+                    console.print(
+                        "[dim]Try '/help' for available commands or use AI mode for natural language processing.[/dim]"
+                    )
             except Exception as e:
                 console.print(f"[dim]Error processing command: {e}[/dim]")
         console.print()
@@ -387,7 +407,9 @@ async def _run_onboarding() -> None:
 @app.callback(invoke_without_command=True)
 def main_callback(
     ctx: typer.Context,
-    config: str = typer.Option(None, "--config", "-c", help="Path to custom config file (YAML/JSON)"),
+    config: str = typer.Option(
+        None, "--config", "-c", help="Path to custom config file (YAML/JSON)"
+    ),
     batch: str = typer.Option(None, "--batch", "-b", help="Path to batch script file to execute"),
     mode: str = typer.Option(
         "integrated",
@@ -395,9 +417,7 @@ def main_callback(
         "-m",
         help="Execution mode: registry|autonomous|integrated|offline",
     ),
-    target: str = typer.Option(
-        "", "--target", "-t", help="Set initial target for the session"
-    ),
+    target: str = typer.Option("", "--target", "-t", help="Set initial target for the session"),
     version: bool = typer.Option(False, "--version", help="Show version information"),
 ) -> None:
     if version:
@@ -425,7 +445,9 @@ def main_callback(
         resolved = Path(batch).expanduser().resolve()
         if resolved.exists():
             script_lines = resolved.read_text(encoding="utf-8").splitlines()
-            console.print(f"[dim]Executing batch script: {resolved} ({len(script_lines)} commands)[/dim]")
+            console.print(
+                f"[dim]Executing batch script: {resolved} ({len(script_lines)} commands)[/dim]"
+            )
             _run_batch_lines(script_lines)
         else:
             console.print(f"[red]Batch script not found: {resolved}[/red]")
@@ -447,12 +469,15 @@ def main_callback(
             from siyarix.bootstrap import SIYARIX_HOME
             from siyarix.config import SettingsStore
 
-            needs_onboarding = not INITIALIZED_MARKER.exists() or not SettingsStore().get("onboarding_complete")
+            needs_onboarding = not INITIALIZED_MARKER.exists() or not SettingsStore().get(
+                "onboarding_complete"
+            )
         except Exception:
             needs_onboarding = False
 
         if needs_onboarding:
             import asyncio
+
             asyncio.run(_run_onboarding())
             return
 
@@ -475,23 +500,38 @@ def vault_status() -> None:
     """Show vault status, binding info, and health."""
     try:
         from ..credential_vault import CredentialVault, get_vault
+
         vault = get_vault(create=False)
         s = vault.status
         from rich.table import Table
+
         t = Table(title="Vault Status", header_style="bold cyan")
         t.add_column("Property", style="yellow")
         t.add_column("Value")
         t.add_row("State", "🔴 Sealed" if s.sealed else "🟢 Unsealed")
         t.add_row("Device Bound", "✓ Yes" if s.device_bound else "✗ No")
         t.add_row("Environment Bound", "✓ Yes" if s.environment_bound else "✗ No")
-        t.add_row("Device Match", "✓ Match" if s.device_match else ("✗ Mismatch" if s.device_match is False else "—"))
-        t.add_row("Env Match", "✓ Match" if s.env_match else ("✗ Mismatch" if s.env_match is False else "—"))
+        t.add_row(
+            "Device Match",
+            "✓ Match" if s.device_match else ("✗ Mismatch" if s.device_match is False else "—"),
+        )
+        t.add_row(
+            "Env Match",
+            "✓ Match" if s.env_match else ("✗ Mismatch" if s.env_match is False else "—"),
+        )
         t.add_row("Tampered", "⚠ Yes" if s.tampered else "✓ No")
         t.add_row("Credentials", str(s.credential_count))
         t.add_row("Expired", str(s.expired_entries))
         t.add_row("PBKDF2 Iterations", f"{s.iterations:,}")
-        t.add_row("Lockout", f"⚠ Active ({s.lockout_remaining_sec}s)" if s.lockout_active else "✓ None")
-        t.add_row("Health", {"healthy": "🟢 Healthy", "degraded": "🟡 Degraded", "unhealthy": "🔴 Unhealthy"}.get(s.health, s.health))
+        t.add_row(
+            "Lockout", f"⚠ Active ({s.lockout_remaining_sec}s)" if s.lockout_active else "✓ None"
+        )
+        t.add_row(
+            "Health",
+            {"healthy": "🟢 Healthy", "degraded": "🟡 Degraded", "unhealthy": "🔴 Unhealthy"}.get(
+                s.health, s.health
+            ),
+        )
         console.print(t)
         if s.warnings:
             for w in s.warnings:
@@ -507,6 +547,7 @@ def vault_seal() -> None:
     """Seal the vault (clear all credentials from memory)."""
     try:
         from ..credential_vault import get_vault
+
         get_vault(create=False).seal()
         console.print("[green]✓ Vault sealed — credentials cleared from memory[/green]")
     except Exception as exc:
@@ -515,14 +556,19 @@ def vault_seal() -> None:
 
 @vault_app.command("unseal")
 def vault_unseal(
-    passphrase: str = typer.Option("", "--passphrase", "-p", help="Vault passphrase", hide_input=True),
+    passphrase: str = typer.Option(
+        "", "--passphrase", "-p", help="Vault passphrase", hide_input=True
+    ),
 ) -> None:
     """Unseal the vault for credential access."""
     try:
         from ..credential_vault import get_vault
+
         v = get_vault(create=False)
         s = v.unseal(passphrase or None)
-        console.print(f"[green]✓ Vault unsealed — {s.credential_count} credentials available[/green]")
+        console.print(
+            f"[green]✓ Vault unsealed — {s.credential_count} credentials available[/green]"
+        )
     except Exception as exc:
         console.print(f"[red]Failed: {exc}[/red]")
 
@@ -531,20 +577,30 @@ def vault_unseal(
 def vault_backup(
     output: str = typer.Option("", "--output", "-o", help="Output file path"),
     passphrase: str = typer.Option(
-        ..., "--passphrase", "-p", help="Backup passphrase (12+ chars, mixed case+digit+symbol)",
-        hide_input=True, prompt=True, confirmation_prompt=True,
+        ...,
+        "--passphrase",
+        "-p",
+        help="Backup passphrase (12+ chars, mixed case+digit+symbol)",
+        hide_input=True,
+        prompt=True,
+        confirmation_prompt=True,
     ),
 ) -> None:
     """Export an encrypted disaster-recovery backup (no device binding)."""
     try:
         from ..credential_vault import get_vault
+
         vault = get_vault(create=False)
         blob = vault.export_backup(passphrase)
-        path = Path(output or Path.home() / ".siyarix" / f"vault_backup_{datetime.now():%Y%m%d}.bin")
+        path = Path(
+            output or Path.home() / ".siyarix" / f"vault_backup_{datetime.now():%Y%m%d}.bin"
+        )
         path.write_bytes(blob)
         console.print(f"[green]✓ Backup saved to {path}[/green]")
         console.print("[yellow]⚠ This backup uses PASSPHRASE ONLY — no device binding.[/yellow]")
-        console.print("[yellow]  Store it securely. Anyone with this file + passphrase can decrypt.[/yellow]")
+        console.print(
+            "[yellow]  Store it securely. Anyone with this file + passphrase can decrypt.[/yellow]"
+        )
     except Exception as exc:
         console.print(f"[red]Backup failed: {exc}[/red]")
 
@@ -553,13 +609,18 @@ def vault_backup(
 def vault_restore(
     input_file: str = typer.Argument(..., help="Backup file path"),
     passphrase: str = typer.Option(
-        ..., "--passphrase", "-p", help="Backup passphrase",
-        hide_input=True, prompt=True,
+        ...,
+        "--passphrase",
+        "-p",
+        help="Backup passphrase",
+        hide_input=True,
+        prompt=True,
     ),
 ) -> None:
     """Restore vault from a disaster-recovery backup (re-binds to this device)."""
     try:
         from ..credential_vault import CredentialVault
+
         path = Path(input_file)
         if not path.exists():
             console.print(f"[red]File not found: {input_file}[/red]")
@@ -578,6 +639,7 @@ def vault_verify() -> None:
     """Run a full health check on the vault."""
     try:
         from ..credential_vault import get_vault
+
         vault = get_vault(create=False)
         health = vault.health_check()
         status_icon = {"healthy": "🟢", "degraded": "🟡", "unhealthy": "🔴"}
@@ -600,12 +662,14 @@ def vault_history(
     """Show recent vault audit log."""
     try:
         from ..credential_vault import get_vault
+
         vault = get_vault(create=False)
         entries = vault.audit_log(limit)
         if not entries:
             console.print("[yellow]No audit entries[/yellow]")
             return
         from rich.table import Table
+
         t = Table(title=f"Vault Audit Log (last {len(entries)})", header_style="bold cyan")
         t.add_column("Time", style="dim")
         t.add_column("Operation")
@@ -617,12 +681,16 @@ def vault_history(
                 e.get("timestamp", "")[11:19],
                 e.get("operation", ""),
                 e.get("provider", ""),
-                {"success": "🟢", "denied": "🔴", "error": "🟡", "info": "🔵"}.get(e.get("outcome", ""), e.get("outcome", "")),
+                {"success": "🟢", "denied": "🔴", "error": "🟡", "info": "🔵"}.get(
+                    e.get("outcome", ""), e.get("outcome", "")
+                ),
                 e.get("detail", ""),
             )
         console.print(t)
     except Exception as exc:
         console.print(f"[red]Failed: {exc}[/red]")
+
+
 app.add_typer(auth_app, name="auth")
 app.add_typer(vault_app, name="vault")
 
@@ -733,9 +801,7 @@ def profile_list_cmds() -> None:
 
 
 @profile_app.command("rm-cmd")
-def profile_rm_cmd(
-    name: str = typer.Argument(..., help="Profile name to remove")
-) -> None:
+def profile_rm_cmd(name: str = typer.Argument(..., help="Profile name to remove")) -> None:
     """Remove a saved command profile."""
     store = CommandProfileStore()
     ok = store.delete(name)
@@ -803,19 +869,25 @@ app.add_typer(report_app, name="report")
 tool_registry_app = typer.Typer(help="🛠 Tool discovery & registry")
 app.add_typer(tool_registry_app, name="tool-registry")
 
+
 @cache_app.command("status")
 def cache_status() -> None:
     """Show cache statistics."""
     from ..cache_manager import cache_manager
+
     stats = cache_manager.stats()
-    size_mb = stats.get('total_size_bytes', 0) / (1024 * 1024)
-    console.print(f"Entries: {stats['total_entries']} | Size: {size_mb:.2f}MB | Hit rate: {stats['hit_rate']:.0%}")
+    size_mb = stats.get("total_size_bytes", 0) / (1024 * 1024)
+    console.print(
+        f"Entries: {stats['total_entries']} | Size: {size_mb:.2f}MB | Hit rate: {stats['hit_rate']:.0%}"
+    )
     console.print(f"Domains: {', '.join(stats.get('domains', []))}")
+
 
 @cache_app.command("clear")
 def cache_clear() -> None:
     """Clear all cached data."""
     from ..cache_manager import cache_manager
+
     count = cache_manager.clear()
     console.print(f"[green]Cache cleared: {count} entries[/green]")
 
@@ -851,15 +923,12 @@ _active_profile: str | None = None
 _active_theme: str = config.get("color_theme") or "default"
 
 
-
 # ---------------------------------------------------------------------------
 # Premium: Main entry with enhanced output
 # ---------------------------------------------------------------------------
 @app.command()
 def scan(
-    targets: list[str] = typer.Argument(
-        help="Target(s): IP, CIDR, URL, hostname, or @file.txt"
-    ),
+    targets: list[str] = typer.Argument(help="Target(s): IP, CIDR, URL, hostname, or @file.txt"),
     tool: str = typer.Option("", "--tool", "-t", help="Specific tool to use"),
     mode: str = typer.Option(
         "integrated",
@@ -867,15 +936,11 @@ def scan(
         "-m",
         help="Execution mode: registry|autonomous|integrated|offline",
     ),
-    output: str = typer.Option(
-        "table", "--output", "-o", help="Output: table|json|yaml|csv"
-    ),
+    output: str = typer.Option("table", "--output", "-o", help="Output: table|json|yaml|csv"),
     parallel: int = typer.Option(3, "--parallel", "-p", help="Parallel workers"),
     timeout: int = typer.Option(300, "--timeout", help="Timeout per tool (seconds)"),
     save: bool = typer.Option(False, "--save", "-s", help="Save results to database"),
-    notify: bool = typer.Option(
-        False, "--notify", "-n", help="Send notification on completion"
-    ),
+    notify: bool = typer.Option(False, "--notify", "-n", help="Send notification on completion"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
     no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
     profile: str = typer.Option("", "--profile", help="Use specific profile"),
@@ -899,14 +964,10 @@ def scan(
             target_file = Path(t[1:])
             if target_file.exists():
                 lines = [
-                    line.strip()
-                    for line in target_file.read_text().splitlines()
-                    if line.strip()
+                    line.strip() for line in target_file.read_text().splitlines() if line.strip()
                 ]
                 expanded_targets.extend(lines)
-                console.print(
-                    f"[dim]Loaded {len(lines)} targets from {target_file}[/dim]"
-                )
+                console.print(f"[dim]Loaded {len(lines)} targets from {target_file}[/dim]")
             else:
                 console.print(f"[red]Target file not found: {target_file}[/red]")
                 raise typer.Exit(3)
@@ -914,9 +975,7 @@ def scan(
             expanded_targets.append(t)
 
     if not expanded_targets:
-        console.print(
-            "[red]No targets specified. Use siyarix scan <target> or @file.txt[/red]"
-        )
+        console.print("[red]No targets specified. Use siyarix scan <target> or @file.txt[/red]")
         raise typer.Exit(1)
 
     for target in expanded_targets:
@@ -953,9 +1012,7 @@ def scan(
             )
             engine = _get_engine(mode)
             result = asyncio.run(
-                engine.execute(
-                    instruction, interactive=True, dry_run=dry_run, persist=save
-                )
+                engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save)
             )
             progress.update(task_id, advance=len(expanded_targets))
     else:
@@ -979,7 +1036,10 @@ def scan(
                 output_engine.print_yaml(result.all_findings)
             elif output == "csv":
                 if result.all_findings:
-                    findings_dicts = [f.to_dict() if hasattr(f, "to_dict") else vars(f) for f in result.all_findings]
+                    findings_dicts = [
+                        f.to_dict() if hasattr(f, "to_dict") else vars(f)
+                        for f in result.all_findings
+                    ]
                     output_engine.print_csv(findings_dicts)
                 else:
                     console.print("[yellow]No findings to export.[/yellow]")
@@ -1000,9 +1060,7 @@ def scan(
 @app.command()
 def discover(
     target: str = typer.Argument(help="Target network or host"),
-    deep: bool = typer.Option(
-        False, "--deep", "-d", help="Deep discovery (OS, services, vulns)"
-    ),
+    deep: bool = typer.Option(False, "--deep", "-d", help="Deep discovery (OS, services, vulns)"),
     export: str = typer.Option("", "--export", "-e", help="Export to file (JSON/YAML)"),
     no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
 ) -> None:
@@ -1156,7 +1214,11 @@ def run(
         else:
             console.print("\n[green]Execution completed successfully.[/green]")
     else:
-        error_msg = getattr(result, "error_message", "Unknown error") if hasattr(result, "error_message") else "Unknown error"
+        error_msg = (
+            getattr(result, "error_message", "Unknown error")
+            if hasattr(result, "error_message")
+            else "Unknown error"
+        )
         console.print(f"\n[red]Execution failed: {error_msg}[/red]")
 
     final_state = "completed" if result.success else "failed"
@@ -1174,9 +1236,7 @@ def run(
 def agent(
     goal: str = typer.Argument(help="The goal for the autonomous agent to achieve"),
     target: str = typer.Option("", "--target", "-t", help="Target host/IP/URL"),
-    max_iterations: int = typer.Option(
-        10, "--max-iter", "-n", help="Maximum agent iterations"
-    ),
+    max_iterations: int = typer.Option(10, "--max-iter", "-n", help="Maximum agent iterations"),
     mode: str = typer.Option("autonomous", "--mode", "-m", help="Execution mode"),
     no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
 ) -> None:
@@ -1201,6 +1261,7 @@ def agent(
             raise typer.Exit(1)
 
     from ..core import AgentCore, AgentMode, AgentGoal
+
     mode_map = {
         "registry": AgentMode.REGISTRY,
         "autonomous": AgentMode.AUTONOMOUS,
@@ -1210,9 +1271,6 @@ def agent(
     asyncio.run(agent.initialize())
     agent_goal = AgentGoal(description=goal, target=target)
     asyncio.run(agent.execute_goal(agent_goal))
-
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -1251,9 +1309,7 @@ def health_check(
 
 @app.command("metrics")
 def metrics_show(
-    output: str = typer.Option(
-        "table", "--output", "-o", help="Output: table|json|prometheus"
-    ),
+    output: str = typer.Option("table", "--output", "-o", help="Output: table|json|prometheus"),
     export: str = typer.Option("", "--export", "-e", help="Export metrics to file"),
 ) -> None:
     """Show metrics from the current session."""
@@ -1464,14 +1520,13 @@ def tool_registry_list(
     """
     registry.discover_from_path()
     from ..registry import ToolCategory as TC
+
     if category:
         tools = registry.list_tools(category=TC(category))
     else:
         tools = registry.list_tools()
     if not tools:
-        console.print(
-            "[yellow]No tools found. Install security tools and run again.[/yellow]"
-        )
+        console.print("[yellow]No tools found. Install security tools and run again.[/yellow]")
         return
 
     table = Table(
@@ -1494,7 +1549,7 @@ def tool_registry_list(
 
 @tool_registry_app.command("update-metadata")
 def tool_registry_update_metadata(
-    output_path: str = typer.Argument(..., help="Path to save the tool metadata JSON")
+    output_path: str = typer.Argument(..., help="Path to save the tool metadata JSON"),
 ) -> None:
     """Regenerate the tool metadata file by scanning all binaries on PATH."""
     reg = ToolRegistry()
@@ -1507,12 +1562,8 @@ def tool_registry_update_metadata(
 # ---------------------------------------------------------------------------
 @auth_app.command("set-key")
 def auth_set_key(
-    provider: str = typer.Argument(
-        help="Provider: openai | gemini | anthropic | custom"
-    ),
-    api_key: str = typer.Option(
-        ..., "--key", "-k", help="API key value", hide_input=True
-    ),
+    provider: str = typer.Argument(help="Provider: openai | gemini | anthropic | custom"),
+    api_key: str = typer.Option(..., "--key", "-k", help="API key value", hide_input=True),
 ) -> None:
     """Store an API key for a model provider.
 
@@ -1534,24 +1585,25 @@ def auth_show() -> None:
     """Show configured API key providers."""
     try:
         from siyarix.providers import ProviderManager
+
         pm = ProviderManager()
         providers = pm.list_providers()
     except Exception:
         providers = ["openai", "gemini", "anthropic", "groq", "openrouter"]
 
-    table = Table(
-        title="Configured API Keys", show_header=True, header_style="bold green"
-    )
+    table = Table(title="Configured API Keys", show_header=True, header_style="bold green")
     table.add_column("Provider", style="cyan")
     table.add_column("Status", justify="center")
     table.add_column("Source")
 
     for prov in providers:
         from siyarix.providers import get_provider_env_var
+
         env_key = get_provider_env_var(prov)
         from_env = bool(os.getenv(env_key))
         try:
             from ..credential_vault import vault_get
+
             from_vault = bool(vault_get(prov))
         except Exception:
             from_vault = False
@@ -1574,9 +1626,7 @@ def auth_show() -> None:
 # ---------------------------------------------------------------------------
 @completions_app.command("install")
 def completions_install(
-    shell: str = typer.Argument(
-        default="", help="Shell: bash | zsh | fish | powershell"
-    ),
+    shell: str = typer.Argument(default="", help="Shell: bash | zsh | fish | powershell"),
 ) -> None:
     """Install shell completions for Siyarix.
 
@@ -1625,9 +1675,7 @@ def completions_install(
     }
 
     if shell not in completions_map:
-        console.print(
-            f"[red]Unsupported shell: {shell}. Choose: bash, zsh, fish, powershell[/red]"
-        )
+        console.print(f"[red]Unsupported shell: {shell}. Choose: bash, zsh, fish, powershell[/red]")
         raise typer.Exit(1)
 
     target, instructions = completions_map[shell]
@@ -1649,9 +1697,7 @@ def completions_install(
 def config_list() -> None:
     """List all configuration settings."""
     rows = config.list_all()
-    table = Table(
-        title="Siyarix Configuration", show_header=True, header_style="bold cyan"
-    )
+    table = Table(title="Siyarix Configuration", show_header=True, header_style="bold cyan")
     table.add_column("Key", style="cyan", no_wrap=True)
     table.add_column("Value", style="green")
     table.add_column("Default", style="dim")
@@ -1694,9 +1740,7 @@ def config_get(key: str = typer.Argument(help="Setting key")) -> None:
 
 
 @config_app.command("reset")
-def config_reset(
-    key: str = typer.Argument(default="", help="Key to reset (empty = all)")
-) -> None:
+def config_reset(key: str = typer.Argument(default="", help="Key to reset (empty = all)")) -> None:
     """Reset a setting (or all settings) to defaults."""
     try:
         config.reset(key or None)

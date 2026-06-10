@@ -13,6 +13,7 @@ _ALERT_RE = re.compile(
 )
 _TARGET_RE = re.compile(r"(?i)\bhttps?://\S+")
 
+
 class ZaproxyParser:
     """Parse ZAP output into normalized finding dictionaries."""
 

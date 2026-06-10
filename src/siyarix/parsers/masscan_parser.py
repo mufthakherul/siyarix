@@ -8,9 +8,8 @@ from . import _now_iso
 
 import re
 
-_OPEN_RE = re.compile(
-    r"^Discovered open port (?P<port>\d+)/(?P<proto>\w+) on (?P<host>\S+)"
-)
+_OPEN_RE = re.compile(r"^Discovered open port (?P<port>\d+)/(?P<proto>\w+) on (?P<host>\S+)")
+
 
 class MasscanParser:
     """Parse masscan output into normalized finding dictionaries."""

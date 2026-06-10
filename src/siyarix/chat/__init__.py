@@ -43,7 +43,12 @@ from typing import Any
 from ..branding import available_themes, print_theme_preview
 from .commands import CommandProfile, CommandProfileStore, HELP_CATEGORIES, SLASH_HELP
 from .session import ChatMessage as ChatMessage, ChatSession as ChatSession
-from .ui import SmartAutocomplete as SmartAutocomplete, CommandPalette as CommandPalette, SplitPane as SplitPane, ConfigPanel as ConfigPanel
+from .ui import (
+    SmartAutocomplete as SmartAutocomplete,
+    CommandPalette as CommandPalette,
+    SplitPane as SplitPane,
+    ConfigPanel as ConfigPanel,
+)
 from ..config import SettingsStore
 from ..subprocess_utils import safe_run_sync
 
@@ -53,8 +58,6 @@ warnings.filterwarnings(
     message="coroutine 'Application.run_async' was never awaited",
     category=RuntimeWarning,
 )
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -220,8 +223,7 @@ class SiyarixChat:
     """Interactive REPL for Siyarix — the cybersecurity AI assistant."""
 
     _SESSIONS_DIR = (
-        Path(os.getenv("SIYARIX_CONFIG_DIR", str(Path.home() / ".siyarix")))
-        / "sessions"
+        Path(os.getenv("SIYARIX_CONFIG_DIR", str(Path.home() / ".siyarix"))) / "sessions"
     )
     MAX_CONTEXT_MESSAGES = 200  # memory bound to prevent unbounded growth
     MAX_MESSAGE_CHARS = 50000  # per-message content limit
@@ -251,10 +253,14 @@ class SiyarixChat:
         self._provider_last_fail_time: dict[str, float] = {}
         self._provider_cooldown_secs = 30.0
         from ..providers import UsageTracker, ProviderStateManager
+
         state_dir = str(Path.home() / ".siyarix")
-        self._provider_state = ProviderStateManager(path=os.path.join(state_dir, "provider_state.json"))
+        self._provider_state = ProviderStateManager(
+            path=os.path.join(state_dir, "provider_state.json")
+        )
         self._usage_tracker = UsageTracker(path=os.path.join(state_dir, "usage.json"))
         from ..output import OutputEngine
+
         self._output = OutputEngine()
         self._con = self._output.console
         self._validate_provider_config_on_startup()
@@ -262,6 +268,7 @@ class SiyarixChat:
     def _validate_provider_config_on_startup(self) -> None:
         """Check configured provider has valid API key / SDK / endpoint at startup."""
         from ..providers import ProviderManager
+
         provider = (self._settings.get("model_provider") or "gemini").lower().strip()
         if provider == "auto":
             return  # auto mode checks at runtime
@@ -277,19 +284,27 @@ class SiyarixChat:
         if provider == "gemini" and not key:
             key = os.environ.get("GOOGLE_API_KEY")
         if not key:
-            logger.warning("Provider '%s' configured but %s is not set in environment", provider, profile.api_key_env)
-            console.print(f"[yellow]⚠ Provider '{provider}' configured but {profile.api_key_env} is not set.[/yellow]")
+            logger.warning(
+                "Provider '%s' configured but %s is not set in environment",
+                provider,
+                profile.api_key_env,
+            )
+            console.print(
+                f"[yellow]⚠ Provider '{provider}' configured but {profile.api_key_env} is not set.[/yellow]"
+            )
 
         if profile.sdk_dependency:
             try:
                 __import__(profile.sdk_dependency)
             except ImportError:
-                logger.warning("Provider '%s' SDK '%s' not installed", provider, profile.sdk_dependency)
-                console.print(f"[yellow]⚠ Provider '{provider}' requires SDK: pip install {profile.sdk_dependency}[/yellow]")
+                logger.warning(
+                    "Provider '%s' SDK '%s' not installed", provider, profile.sdk_dependency
+                )
+                console.print(
+                    f"[yellow]⚠ Provider '{provider}' requires SDK: pip install {profile.sdk_dependency}[/yellow]"
+                )
 
-    def _init_session(
-        self, session_id: str | None, target: str, resume: bool
-    ) -> ChatSession:
+    def _init_session(self, session_id: str | None, target: str, resume: bool) -> ChatSession:
         """Initialize or resume a chat session."""
         import uuid
 
@@ -337,7 +352,9 @@ class SiyarixChat:
                             self._esc_press_time = now
                         if self._engine_kill_switch:
                             self._engine_kill_switch.trigger()
-                            console.print("[dim]Current task cancelled. Press ESC again to exit.[/dim]")
+                            console.print(
+                                "[dim]Current task cancelled. Press ESC again to exit.[/dim]"
+                            )
                         else:
                             console.print("[dim]No active task. Press ESC again to exit.[/dim]")
                         continue
@@ -363,9 +380,7 @@ class SiyarixChat:
                 else:
                     if self._engine_kill_switch:
                         self._engine_kill_switch.trigger()
-                    console.print(
-                        "[dim]Task cancelled. Press Ctrl+C again to exit.[/dim]"
-                    )
+                    console.print("[dim]Task cancelled. Press Ctrl+C again to exit.[/dim]")
             except EOFError:
                 self._running = False
             except Exception as exc:
@@ -539,18 +554,18 @@ class SiyarixChat:
             hint = ""
             if suggestions:
                 hint = f"  Did you mean: {', '.join(suggestions)}"
-            console.print(
-                f"[red]Unknown command: {command}[/red] — type [cyan]/help[/cyan]{hint}"
-            )
+            console.print(f"[red]Unknown command: {command}[/red] — type [cyan]/help[/cyan]{hint}")
 
     def _cmd_help(self, _: str) -> None:
         """Show categorized help."""
-        console.print(Panel(
-            "[bold cyan]Siyarix Chat Commands[/bold cyan]\n"
-            "Type [cyan]/command[/cyan] to execute. "
-            "Press [cyan]?[/cyan] at any time to see this help.",
-            border_style="cyan",
-        ))
+        console.print(
+            Panel(
+                "[bold cyan]Siyarix Chat Commands[/bold cyan]\n"
+                "Type [cyan]/command[/cyan] to execute. "
+                "Press [cyan]?[/cyan] at any time to see this help.",
+                border_style="cyan",
+            )
+        )
         for category, cmds in HELP_CATEGORIES:
             table = Table(title=category, padding=(0, 2))
             table.add_column("Command", style="cyan", no_wrap=True)
@@ -596,13 +611,11 @@ class SiyarixChat:
         output_dir = self._SESSIONS_DIR / "reports"
         output_dir.mkdir(parents=True, exist_ok=True)
         fmt_enum = ReportFormat.MARKDOWN if fmt == "markdown" else ReportFormat.HTML
-        path = engine.save(report, output_dir / f"report_{self._session.session_id[:8]}", fmt=fmt_enum)
-        console.print(
-            f"[bold green]✓ Report generated successfully at: {path}[/bold green]"
+        path = engine.save(
+            report, output_dir / f"report_{self._session.session_id[:8]}", fmt=fmt_enum
         )
-        console.print(
-            f"[dim]Findings: {len(findings)} | Format: {fmt}[/dim]"
-        )
+        console.print(f"[bold green]✓ Report generated successfully at: {path}[/bold green]")
+        console.print(f"[dim]Findings: {len(findings)} | Format: {fmt}[/dim]")
 
     async def _cmd_palette(self, _: str) -> None:
         """Open the fuzzy command palette overlay."""
@@ -625,9 +638,7 @@ class SiyarixChat:
         if args_clean in ("timeline", "metrics", "cheatsheet", "attack_map"):
             self._split_pane_type = args_clean
             self._split_pane_enabled = True
-            console.print(
-                f"[green]Split Pane enabled. System view: {args_clean.upper()}[/green]"
-            )
+            console.print(f"[green]Split Pane enabled. System view: {args_clean.upper()}[/green]")
         else:
             self._split_pane_enabled = not self._split_pane_enabled
             status_str = "ENABLED" if self._split_pane_enabled else "DISABLED"
@@ -647,17 +658,13 @@ class SiyarixChat:
             # Build a nice scroll of recent conversation/messages
             left_text = Text()
             if not self._session.messages:
-                left_text.append(
-                    "Welcome to Siyarix Cyber Command.\n", style="bold cyan"
-                )
+                left_text.append("Welcome to Siyarix Cyber Command.\n", style="bold cyan")
                 left_text.append("Mode: ")
                 left_text.append(f"{self._mode}\n", style="bold green")
                 left_text.append("\nReady for input. Type your instruction below.\n\n")
                 left_text.append("Examples:\n")
                 left_text.append("  • scan 127.0.0.1\n", style="yellow")
-                left_text.append(
-                    "  • enumerate subdomains of siyarix.local\n", style="yellow"
-                )
+                left_text.append("  • enumerate subdomains of siyarix.local\n", style="yellow")
             else:
                 for msg in self._session.last_n(6):
                     role_color = "cyan" if msg.role == "user" else "green"
@@ -720,9 +727,7 @@ class SiyarixChat:
         if not p:
             console.print(f"[red]Profile not found: {name}[/red]")
             return
-        console.print(
-            Panel.fit(p.command, title=f"Profile: {p.name}", border_style="cyan")
-        )
+        console.print(Panel.fit(p.command, title=f"Profile: {p.name}", border_style="cyan"))
         run = Prompt.ask("Run this command? (y/N)", default="N")
         if run.lower().startswith("y"):
             await self._execute_instruction(p.command)
@@ -783,9 +788,7 @@ class SiyarixChat:
                     "Enter new master password (optional)", password=True, default=""
                 )
                 if vault.rotate_key(new_password or None):
-                    console.print(
-                        "[green]✓ Master encryption key rotated successfully[/green]"
-                    )
+                    console.print("[green]✓ Master encryption key rotated successfully[/green]")
                 else:
                     console.print(
                         "[yellow]Key rotation requires AES-256-GCM; ensure cryptography is up to date[/yellow]"
@@ -803,15 +806,18 @@ class SiyarixChat:
                 return
             provider = tokens[1].lower()
             from ..providers import get_provider_env_var
+
             env_key = get_provider_env_var(provider)
             os.environ.pop(env_key, None)
             try:
                 from ..credential_vault import vault_delete
+
                 vault_delete(provider)
             except Exception:
                 logger.exception("Failed to remove credential from vault")
             try:
                 from ..credential_store import CredentialStore
+
                 vault = CredentialStore()
                 vault.delete(provider, "api_key")
             except Exception:
@@ -822,40 +828,38 @@ class SiyarixChat:
         if not api_key:
             api_key = Prompt.ask(f"Enter {provider} API key", password=True)
         from ..providers import get_provider_env_var
+
         env_key = get_provider_env_var(provider)
         os.environ[env_key] = api_key
         try:
             from ..credential_vault import vault_set
+
             vault_set(provider, api_key)
             console.print(
                 f"[green]✓ Encrypted and stored {provider} API key "
                 f"in device-bound vault[/green]"
             )
-        except Exception as exc:
+        except Exception:
             logger.exception("Failed to save credential to vault")
             # Fallback: legacy CredentialStore
             try:
                 from ..credential_store import CredentialStore
+
                 vault = CredentialStore()
                 vault.delete(provider, "api_key")
                 vault.store(provider, api_key, "api_key")
-                console.print(
-                    f"[green]✓ Stored {provider} API key in legacy vault[/green]"
-                )
+                console.print(f"[green]✓ Stored {provider} API key in legacy vault[/green]")
             except Exception:
-                console.print(
-                    f"[green]✓ {provider} API key set in environment[/green]"
-                )
+                console.print(f"[green]✓ {provider} API key set in environment[/green]")
             return
-        console.print(
-            "[dim](encrypted, device-bound, tamper-protected)[/dim]"
-        )
+        console.print("[dim](encrypted, device-bound, tamper-protected)[/dim]")
 
         # If user set Gemini key and the client package is missing, offer to install it
         if provider == "gemini":
             pkg_name = "google-genai"
             try:
                 from google import genai as _test_genai  # noqa: F401
+
                 gemini_pkg_installed = True
             except Exception:
                 gemini_pkg_installed = False
@@ -866,9 +870,7 @@ class SiyarixChat:
                     default="N",
                 )
                 if ans.lower().startswith("y"):
-                    console.print(
-                        f"[dim]Installing {pkg_name} — this may take a moment...[/dim]"
-                    )
+                    console.print(f"[dim]Installing {pkg_name} — this may take a moment...[/dim]")
                     try:
                         res = safe_run_sync(
                             [
@@ -885,13 +887,9 @@ class SiyarixChat:
                                 f"[green]✓ {pkg_name} installed — Gemini should be available now.[/green]"
                             )
                         else:
-                            console.print(
-                                f"[red]Failed to install package: {res.stderr}[/red]"
-                            )
+                            console.print(f"[red]Failed to install package: {res.stderr}[/red]")
                     except Exception as exc:
-                        logger.exception(
-                            "Failed to run pip install for %s: %s", pkg_name, exc
-                        )
+                        logger.exception("Failed to run pip install for %s: %s", pkg_name, exc)
 
     def _cmd_vault(self, args: str) -> None:
         tokens = args.split() if args else []
@@ -904,9 +902,15 @@ class SiyarixChat:
                 s = vault.status
                 console.print("[bold]🔐 Vault Status[/bold]")
                 console.print(f"  State:     {'🟢 Unsealed' if not s.sealed else '🔴 Sealed'}")
-                console.print(f"  Device:    {'✓ Bound + Match' if s.device_match else '✗ Mismatch' if s.device_match is False else '—'}")
-                console.print(f"  Env:       {'✓ Bound + Match' if s.env_match else '✗ Mismatch' if s.env_match is False else '—'}")
-                console.print(f"  Creds:     {s.credential_count} total, {s.expired_entries} expired")
+                console.print(
+                    f"  Device:    {'✓ Bound + Match' if s.device_match else '✗ Mismatch' if s.device_match is False else '—'}"
+                )
+                console.print(
+                    f"  Env:       {'✓ Bound + Match' if s.env_match else '✗ Mismatch' if s.env_match is False else '—'}"
+                )
+                console.print(
+                    f"  Creds:     {s.credential_count} total, {s.expired_entries} expired"
+                )
                 console.print(f"  Iter:      {s.iterations:,}")
                 console.print(f"  Lockout:   {'⚠ Active' if s.lockout_active else '✓ None'}")
                 console.print(f"  Health:    {s.health}")
@@ -914,7 +918,9 @@ class SiyarixChat:
                     for w in s.warnings:
                         console.print(f"  [yellow]⚠ {w}[/yellow]")
             except FileNotFoundError:
-                console.print("[yellow]No vault exists. Set a key with /key set <provider> <key> to create one.[/yellow]")
+                console.print(
+                    "[yellow]No vault exists. Set a key with /key set <provider> <key> to create one.[/yellow]"
+                )
             except Exception as exc:
                 console.print(f"[red]Vault error: {exc}[/red]")
 
@@ -945,7 +951,9 @@ class SiyarixChat:
                     icons = {"success": "🟢", "denied": "🔴", "error": "🟡", "info": "🔵"}
                     op_icon = icons.get(e.get("outcome", ""), "•")
                     ts = e.get("timestamp", "")[11:19]
-                    console.print(f"  {op_icon} [{ts}] {e.get('operation','')} [{e.get('provider','')}] {e.get('detail','')}")
+                    console.print(
+                        f"  {op_icon} [{ts}] {e.get('operation','')} [{e.get('provider','')}] {e.get('detail','')}"
+                    )
             except Exception as exc:
                 console.print(f"[red]{exc}[/red]")
 
@@ -1015,9 +1023,7 @@ class SiyarixChat:
             if not tools:
                 console.print("[yellow]No tools registered.[/yellow]")
                 return
-            table = Table(
-                title=f"{len(tools)} Security Tools Found", header_style="bold cyan"
-            )
+            table = Table(title=f"{len(tools)} Security Tools Found", header_style="bold cyan")
             table.add_column("Name", style="cyan")
             table.add_column("Category", style="magenta")
             table.add_column("Version", style="dim")
@@ -1084,12 +1090,8 @@ class SiyarixChat:
     def _cmd_status(self, _: str) -> None:
         counts = {
             "messages": len(self._session.messages),
-            "user_messages": len(
-                [m for m in self._session.messages if m.role == "user"]
-            ),
-            "assistant_messages": len(
-                [m for m in self._session.messages if m.role == "assistant"]
-            ),
+            "user_messages": len([m for m in self._session.messages if m.role == "user"]),
+            "assistant_messages": len([m for m in self._session.messages if m.role == "assistant"]),
         }
         console.print(
             Panel.fit(
@@ -1127,9 +1129,7 @@ class SiyarixChat:
         seconds = int(delta.total_seconds())
         hours, rem = divmod(seconds, 3600)
         minutes, secs = divmod(rem, 60)
-        console.print(
-            f"Session uptime: [cyan]{hours:02d}:{minutes:02d}:{secs:02d}[/cyan]"
-        )
+        console.print(f"Session uptime: [cyan]{hours:02d}:{minutes:02d}:{secs:02d}[/cyan]")
 
     def _cmd_env(self, _: str) -> None:
         keys = [
@@ -1158,9 +1158,7 @@ class SiyarixChat:
         intents = sorted(CROSS_PLATFORM_COMMANDS.keys())
         if filter_str:
             intents = [i for i in intents if filter_str in i.lower()]
-        table = Table(
-            title=f"Command Intents ({len(intents)})", header_style="bold cyan"
-        )
+        table = Table(title=f"Command Intents ({len(intents)})", header_style="bold cyan")
         table.add_column("Intent", style="cyan")
         table.add_column("Shell Example", style="green")
         current_shell = normalize_shell(self._shell).value
@@ -1198,9 +1196,7 @@ class SiyarixChat:
             console.print(f"[dim]No matches for '{needle}'.[/dim]")
             return
 
-        console.print(
-            Rule(f"[bold]Search results for '{needle}' ({len(results)})[/bold]")
-        )
+        console.print(Rule(f"[bold]Search results for '{needle}' ({len(results)})[/bold]"))
         for msg in results[-15:]:
             ts = msg.timestamp.strftime("%H:%M:%S")
             role_color = "cyan" if msg.role == "user" else "green"
@@ -1241,14 +1237,10 @@ class SiyarixChat:
     def _cmd_mode(self, args: str) -> None:
         valid = ("autonomous", "integrated", "registry", "offline")
         if not args:
-            console.print(
-                f"Current mode: [cyan]{self._mode}[/cyan] (valid: {', '.join(valid)})"
-            )
+            console.print(f"Current mode: [cyan]{self._mode}[/cyan] (valid: {', '.join(valid)})")
             return
         if args not in valid:
-            console.print(
-                f"[red]Invalid mode: {args}. Valid modes: {', '.join(valid)}[/red]"
-            )
+            console.print(f"[red]Invalid mode: {args}. Valid modes: {', '.join(valid)}[/red]")
             return
         self._mode = args
         self._session.mode = args
@@ -1304,6 +1296,7 @@ class SiyarixChat:
 
     async def _cmd_model(self, args: str) -> None:
         from ..providers import ProviderManager
+
         tokens = args.split(maxsplit=1) if args else []
         pm = ProviderManager()
         all_providers = pm.list_providers()
@@ -1321,7 +1314,9 @@ class SiyarixChat:
                         self._settings.set(model_key, model_name)
                         console.print(f"[green]✓ Set {model_key} to: {model_name}[/green]")
                     except KeyError:
-                        console.print(f"[green]✓ Provider set to {selected} (model name ignored for this provider)[/green]")
+                        console.print(
+                            f"[green]✓ Provider set to {selected} (model name ignored for this provider)[/green]"
+                        )
                 console.print(f"[green]✓ Model provider set to: {selected}[/green]")
 
                 # ── Benchmark: quick validation call ──
@@ -1332,9 +1327,12 @@ class SiyarixChat:
                     if selected == "gemini" and not key:
                         key = os.environ.get("GOOGLE_API_KEY", "")
                     if key or not env_var:
-                        with console.status(f"[dim]Validating {selected}...[/dim]", spinner="point"):
+                        with console.status(
+                            f"[dim]Validating {selected}...[/dim]", spinner="point"
+                        ):
                             try:
                                 import asyncio
+
                                 bench_fn = self._make_llm_call(selected, key or "")
                                 bench_key = f"{selected}_model"
                                 bench_model = self._settings.get(bench_key) or ""
@@ -1346,15 +1344,21 @@ class SiyarixChat:
                                 )
                                 content = result.get("content", "").strip()
                                 if content == "OK":
-                                    console.print(f"[green]  ✓ {selected} responded correctly ({result.get('model', bench_model)})[/green]")
+                                    console.print(
+                                        f"[green]  ✓ {selected} responded correctly ({result.get('model', bench_model)})[/green]"
+                                    )
                                 else:
-                                    console.print(f"[yellow]  ⚠ {selected} responded but unexpected: {content[:50]}[/yellow]")
+                                    console.print(
+                                        f"[yellow]  ⚠ {selected} responded but unexpected: {content[:50]}[/yellow]"
+                                    )
                             except asyncio.TimeoutError:
                                 console.print(f"[red]  ✗ {selected} timed out after 15s[/red]")
                             except Exception as exc:
                                 console.print(f"[red]  ✗ {selected} validation failed: {exc}[/red]")
             else:
-                console.print(f"[yellow]Usage: /model <{'|'.join(valid_providers)}> [model-name][/yellow]")
+                console.print(
+                    f"[yellow]Usage: /model <{'|'.join(valid_providers)}> [model-name][/yellow]"
+                )
                 return
 
         lines = [f"[bold]Preferred:[/bold] {self._settings.get('model_provider')}\n"]
@@ -1367,12 +1371,16 @@ class SiyarixChat:
             model_setting = self._settings.get(f"{prov_name}_model") or profile.default_model or ""
             status = "✓ Configured" if key else ("✗ Not set" if env_var else "Available")
             cost_label = f"[dim]${profile.cost_tier.value}[/dim]" if profile.cost_tier else ""
-            lines.append(f"[bold]{profile.display_name}:[/bold] {status} ({model_setting}) {cost_label}\n")
+            lines.append(
+                f"[bold]{profile.display_name}:[/bold] {status} ({model_setting}) {cost_label}\n"
+            )
 
         lines.append("[bold]Cloud:[/bold]  Requires SIYARIX_SERVER_URL + SIYARIX_API_KEY\n")
         lines.append("[bold]Custom:[/bold]  Requires CUSTOM_API_KEY\n")
         lines.append("[bold]opencode:[/bold]  Requires OPENCODE_API_KEY\n\n")
-        lines.append("[dim]Use /key <provider> <value> to store credentials and /model <provider> <model-name> to select models.[/dim]")
+        lines.append(
+            "[dim]Use /key <provider> <value> to store credentials and /model <provider> <model-name> to select models.[/dim]"
+        )
         usage_summary = self._usage_tracker.summary()
         if usage_summary:
             lines.append(f"\n[dim]{usage_summary}[/dim]")
@@ -1381,18 +1389,23 @@ class SiyarixChat:
     async def _cmd_provider(self, args: str) -> None:
         """Show detailed provider info and available models."""
         from ..providers import ProviderManager
+
         pm = ProviderManager()
         name = args.strip().lower() if args else ""
 
         if name:
             profile = pm.get_profile(name)
             if not profile:
-                console.print(f"[yellow]Unknown provider: {name}. Use /provider to list all.[/yellow]")
+                console.print(
+                    f"[yellow]Unknown provider: {name}. Use /provider to list all.[/yellow]"
+                )
                 return
             models = profile.get_model_names()
-            model_lines = "\n".join(
-                f"  [cyan]{m}[/cyan]" for m in models
-            ) if models else "  [dim]No models registered[/dim]"
+            model_lines = (
+                "\n".join(f"  [cyan]{m}[/cyan]" for m in models)
+                if models
+                else "  [dim]No models registered[/dim]"
+            )
             cap_parts = []
             if profile.supports_vision:
                 cap_parts.append("vision")
@@ -1416,7 +1429,9 @@ class SiyarixChat:
             )
             if profile.docs_url:
                 info += f"[dim]Docs: {profile.docs_url}[/dim]"
-            console.print(Panel(info, title=f"Provider: {profile.display_name}", border_style="cyan"))
+            console.print(
+                Panel(info, title=f"Provider: {profile.display_name}", border_style="cyan")
+            )
             return
 
         # No provider arg: list all with quick summary
@@ -1598,7 +1613,9 @@ class SiyarixChat:
         tokens = args.split() if args else []
         if not tokens:
             status = "on" if current else "off"
-            console.print(f"[dim]Command review is [bold]{status}[/bold]. Usage: /command on|off[/dim]")
+            console.print(
+                f"[dim]Command review is [bold]{status}[/bold]. Usage: /command on|off[/dim]"
+            )
             return
         new_val = tokens[0].lower() in ("on", "1", "yes", "true", "enable")
         self._settings.set("command_review", new_val)
@@ -1615,7 +1632,9 @@ class SiyarixChat:
         if not tokens:
             p = get_persona(current)
             label = p["label"] if p else current
-            console.print(f"[dim]Current persona: [bold]{label}[/bold]. Usage: /persona list | /persona <name>[/dim]")
+            console.print(
+                f"[dim]Current persona: [bold]{label}[/bold]. Usage: /persona list | /persona <name>[/dim]"
+            )
             return
         action = tokens[0].lower()
         if action == "list":
@@ -1626,13 +1645,17 @@ class SiyarixChat:
             for p in list_personas():
                 table.add_row(p["name"], p["label"], p["description"])
             table.add_row("auto", "Auto (Smart Select)", "Analyse and choose the best-fit persona")
-            table.add_row("universal", "Universal / All-in-One", "Full-spectrum cybersecurity professional")
+            table.add_row(
+                "universal", "Universal / All-in-One", "Full-spectrum cybersecurity professional"
+            )
             table.add_row("none", "None", "No persona framing — LLM decides its own voice")
             console.print(table)
             return
         p = get_persona(action)
         if not p:
-            console.print(f"[yellow]Unknown persona: {action}. Use /persona list to see available options.[/yellow]")
+            console.print(
+                f"[yellow]Unknown persona: {action}. Use /persona list to see available options.[/yellow]"
+            )
             return
         self._settings.set("persona", p["name"])
         console.print(f"[green]Persona switched to [bold]{p['label']}[/bold][/green]")
@@ -1645,13 +1668,9 @@ class SiyarixChat:
         self._running = False
         if self._engine_kill_switch:
             self._engine_kill_switch.trigger()
-            console.print(
-                "[dim]Kill switch triggered: all pending operations cancelled.[/dim]"
-            )
+            console.print("[dim]Kill switch triggered: all pending operations cancelled.[/dim]")
         else:
-            console.print(
-                "[dim]No active engine to cancel.[/dim]"
-            )
+            console.print("[dim]No active engine to cancel.[/dim]")
 
     def _cmd_version(self, _: str) -> None:
         from ..branding import resolve_version
@@ -1742,9 +1761,7 @@ class SiyarixChat:
             else:
                 console.print(content[:2000])
                 if len(content) > 2000:
-                    console.print(
-                        "[dim]... (truncated, use --output to save to file)[/dim]"
-                    )
+                    console.print("[dim]... (truncated, use --output to save to file)[/dim]")
         else:
             console.print("[yellow]Usage: /log list|show|export[/yellow]")
 
@@ -1798,9 +1815,7 @@ class SiyarixChat:
             nt.add_column("Severity", style="yellow")
             nt.add_column("Tool", style="white")
             for f in result["new_findings"]:
-                nt.add_row(
-                    f.get("title", "?"), f.get("severity", "?"), f.get("tool", "?")
-                )
+                nt.add_row(f.get("title", "?"), f.get("severity", "?"), f.get("tool", "?"))
             console.print(nt)
 
         if result.get("resolved_findings"):
@@ -1835,9 +1850,7 @@ class SiyarixChat:
             return
 
         lines = batch_file.read_text(encoding="utf-8").strip().split("\n")
-        console.print(
-            f"[bold]Running batch:[/bold] {batch_file.name} ({len(lines)} commands)"
-        )
+        console.print(f"[bold]Running batch:[/bold] {batch_file.name} ({len(lines)} commands)")
         for i, line in enumerate(lines, 1):
             line = line.strip()
             if not line or line.startswith("#"):
@@ -1973,7 +1986,9 @@ class SiyarixChat:
             return
         tokens = args.split() if args else []
         if not tokens or tokens[0] not in ("configure", "status", "disconnect"):
-            console.print("[yellow]Usage: /hsm configure|status|disconnect [--provider yubikey|pkcs11|tpm][/yellow]")
+            console.print(
+                "[yellow]Usage: /hsm configure|status|disconnect [--provider yubikey|pkcs11|tpm][/yellow]"
+            )
             return
         hsm = HSMService()
         if tokens[0] == "configure":
@@ -1998,7 +2013,9 @@ class SiyarixChat:
             return
         tokens = args.split() if args else []
         if len(tokens) < 2 or tokens[0] not in ("run",):
-            console.print("[yellow]Usage: /compliance run --framework pci-dss|iso-27001|nist-800-53|soc2|gdpr|hipaa <target>[/yellow]")
+            console.print(
+                "[yellow]Usage: /compliance run --framework pci-dss|iso-27001|nist-800-53|soc2|gdpr|hipaa <target>[/yellow]"
+            )
             return
         framework = "pci-dss"
         target = ""
@@ -2013,9 +2030,12 @@ class SiyarixChat:
     async def _cmd_opsec(self, args: str) -> None:
         """Handle /opsec command for operational security."""
         from ..opsec import opsec_manager
+
         tokens = args.split() if args else []
         if not tokens or tokens[0] not in ("isolate", "burn", "status", "disable"):
-            console.print("[yellow]Usage: /opsec isolate|burn|status|disable [--target <target>][/yellow]")
+            console.print(
+                "[yellow]Usage: /opsec isolate|burn|status|disable [--target <target>][/yellow]"
+            )
             return
         if tokens[0] == "isolate":
             target = ""
@@ -2030,7 +2050,9 @@ class SiyarixChat:
             console.print(f"[red]{result.detail}[/red]")
         elif tokens[0] == "status":
             s = opsec_manager.status
-            console.print(f"Isolated: {s.isolated} | TOR: {s.tor_enabled} | DoH: {s.doh_enabled} | Memory-only: {s.memory_only}")
+            console.print(
+                f"Isolated: {s.isolated} | TOR: {s.tor_enabled} | DoH: {s.doh_enabled} | Memory-only: {s.memory_only}"
+            )
         elif tokens[0] == "disable":
             opsec_manager.disable()
             console.print("[green]OPSEC deactivated[/green]")
@@ -2038,6 +2060,7 @@ class SiyarixChat:
     async def _cmd_siem(self, args: str) -> None:
         """Handle /siem command for SIEM/SOAR integration."""
         from ..platform_integration import platform_integration
+
         tokens = args.split() if args else []
         if not tokens or tokens[0] not in ("connect", "status", "forward"):
             console.print("[yellow]Usage: /siem connect|status|forward <platform> <url>[/yellow]")
@@ -2046,7 +2069,11 @@ class SiyarixChat:
             platform = tokens[1] if len(tokens) > 1 else "splunk"
             url = tokens[2] if len(tokens) > 2 else ""
             result = platform_integration.connect_siem(platform, url=url)
-            console.print(f"[green]SIEM connected: {result.platform}[/green]" if result.connected else f"[red]{result.error}[/red]")
+            console.print(
+                f"[green]SIEM connected: {result.platform}[/green]"
+                if result.connected
+                else f"[red]{result.error}[/red]"
+            )
         elif tokens[0] == "status":
             summary = platform_integration.summary()
             console.print(f"SIEM connections: {summary.get('siem_connections', 0)}")
@@ -2054,30 +2081,42 @@ class SiyarixChat:
     async def _cmd_performance(self, args: str) -> None:
         """Handle /performance command for resource optimization."""
         from ..performance import performance_optimizer
+
         tokens = args.split() if args else []
         if not tokens or tokens[0] not in ("status", "tune", "configure"):
             console.print("[yellow]Usage: /performance status|tune|configure[/yellow]")
             return
         if tokens[0] == "tune":
             config = performance_optimizer.auto_tune()
-            console.print(f"[green]Auto-tuned: {config.max_concurrent_agents} agents, {config.memory_limit_per_agent_mb}MB each[/green]")
+            console.print(
+                f"[green]Auto-tuned: {config.max_concurrent_agents} agents, {config.memory_limit_per_agent_mb}MB each[/green]"
+            )
         elif tokens[0] == "status":
             s = performance_optimizer.summary()
             r = s["resources"]
-            console.print(f"CPU: {r['cpu_cores']}C/{r['cpu_logical']}T | RAM: {r['ram_gb']}GB | Platform: {r['platform']}")
-            console.print(f"Agents: {s['config']['max_concurrent_agents']} | Memory/agent: {s['config']['memory_per_agent_mb']}MB")
-            console.print(f"Recommended: {s['recommended']['max_agents']} agents, {s['recommended']['memory_per_agent_mb']}MB/agent")
+            console.print(
+                f"CPU: {r['cpu_cores']}C/{r['cpu_logical']}T | RAM: {r['ram_gb']}GB | Platform: {r['platform']}"
+            )
+            console.print(
+                f"Agents: {s['config']['max_concurrent_agents']} | Memory/agent: {s['config']['memory_per_agent_mb']}MB"
+            )
+            console.print(
+                f"Recommended: {s['recommended']['max_agents']} agents, {s['recommended']['memory_per_agent_mb']}MB/agent"
+            )
 
     async def _cmd_cache(self, args: str) -> None:
         """Handle /cache command for cache management."""
         from ..cache_manager import cache_manager
+
         tokens = args.split() if args else []
         if not tokens or tokens[0] not in ("status", "clear", "invalidate"):
             console.print("[yellow]Usage: /cache status|clear|invalidate [domain][/yellow]")
             return
         if tokens[0] == "status":
             stats = cache_manager.stats()
-            console.print(f"Cache: {stats['total_entries']} entries, {stats['total_size_mb']}MB, hit rate: {stats['hit_rate']:.0%}")
+            console.print(
+                f"Cache: {stats['total_entries']} entries, {stats['total_size_mb']}MB, hit rate: {stats['hit_rate']:.0%}"
+            )
             console.print(f"Domains: {', '.join(stats.get('domains', []))}")
         elif tokens[0] == "clear":
             count = cache_manager.clear()
@@ -2096,7 +2135,9 @@ class SiyarixChat:
             return
         tokens = args.split() if args else []
         if len(tokens) < 2 or tokens[0] not in ("nessus", "burp", "metasploit", "stix", "auto"):
-            console.print("[yellow]Usage: /import <nessus|burp|metasploit|stix|auto> <file>[/yellow]")
+            console.print(
+                "[yellow]Usage: /import <nessus|burp|metasploit|stix|auto> <file>[/yellow]"
+            )
             return
         fmt = tokens[0]
         path = tokens[1]
@@ -2105,7 +2146,9 @@ class SiyarixChat:
             result = importer_fn(path)
         else:
             result = security_importer.auto_import(path)
-        console.print(f"Imported {result.total_imported} findings from {fmt} ({len(result.errors)} errors)")
+        console.print(
+            f"Imported {result.total_imported} findings from {fmt} ({len(result.errors)} errors)"
+        )
         for f in result.findings[:10]:
             console.print(f"  [{f.severity}] {f.title} @ {f.host or '?'}:{f.port}")
         if len(result.findings) > 10:
@@ -2158,13 +2201,19 @@ class SiyarixChat:
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "list"
         if action == "list":
-            console.print("[dim]No active campaigns. Use /campaign create <name> --targets <file>[/dim]")
+            console.print(
+                "[dim]No active campaigns. Use /campaign create <name> --targets <file>[/dim]"
+            )
         elif action == "create":
             name = tokens[1] if len(tokens) > 1 else Prompt.ask("Campaign name")
             console.print(f"[green]✓ Campaign created: {name}[/green]")
-            console.print("[yellow]Tip: Use /batch run <targets_file> to execute across targets[/yellow]")
+            console.print(
+                "[yellow]Tip: Use /batch run <targets_file> to execute across targets[/yellow]"
+            )
         elif action == "status":
-            console.print("[yellow]Campaign tracking requires the workflow runtime. Run /batch to execute targets.[/yellow]")
+            console.print(
+                "[yellow]Campaign tracking requires the workflow runtime. Run /batch to execute targets.[/yellow]"
+            )
         else:
             console.print("[yellow]Usage: /campaign list|create|status[/yellow]")
 
@@ -2178,6 +2227,7 @@ class SiyarixChat:
                 console.print("[yellow]Usage: /kb search <query>[/yellow]")
                 return
             from ..knowledge_graph import KnowledgeGraph
+
             kg = KnowledgeGraph()
             results = kg.search(query)
             if results:
@@ -2193,6 +2243,7 @@ class SiyarixChat:
     async def _cmd_ticket(self, args: str) -> None:
         """Handle /ticket command for external ticket creation."""
         from ..platform_integration import platform_integration
+
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "create"
         if action == "create":
@@ -2201,7 +2252,9 @@ class SiyarixChat:
             console.print(f"[green]✓ Ticket created: {title} ({sent} notification(s))[/green]")
             console.print("[yellow]Note: Jira/GitHub integration is not yet available[/yellow]")
         elif action == "list":
-            console.print("[yellow]Use /findings list to see findings that can be converted to tickets[/yellow]")
+            console.print(
+                "[yellow]Use /findings list to see findings that can be converted to tickets[/yellow]"
+            )
         else:
             console.print("[yellow]Usage: /ticket create|list[/yellow]")
 
@@ -2211,7 +2264,9 @@ class SiyarixChat:
         action = tokens[0].lower() if tokens else "schedule"
         if action == "schedule":
             finding_id = tokens[1] if len(tokens) > 1 else ""
-            console.print(f"[green]✓ Retest scheduled for finding: {finding_id or 'all pending'}[/green]")
+            console.print(
+                f"[green]✓ Retest scheduled for finding: {finding_id or 'all pending'}[/green]"
+            )
         elif action == "status":
             console.print("[dim]No pending retests.[/dim]")
         else:
@@ -2235,15 +2290,21 @@ class SiyarixChat:
             intel_results = feed.search(query)
             if intel_results:
                 for r in intel_results[:10]:
-                    console.print(f"  [{r.get('severity','info')}] {r.get('indicator','?')} — {r.get('description','')[:80]}")
+                    console.print(
+                        f"  [{r.get('severity','info')}] {r.get('indicator','?')} — {r.get('description','')[:80]}"
+                    )
             else:
                 console.print("[dim]No threat intelligence matches.[/dim]")
         elif action == "mitre":
             tac = tokens[1] if len(tokens) > 1 else ""
             db = MITREAttackDB()
-            mitre_results: list[dict[str, str]] = db.search(tactic=tac) if tac else db.list_techniques()[:15]
+            mitre_results: list[dict[str, str]] = (
+                db.search(tactic=tac) if tac else db.list_techniques()[:15]
+            )
             for r in mitre_results[:15]:
-                console.print(f"  • {r.get('id','?')} — {r.get('name','?')} ({r.get('tactic','?')})")
+                console.print(
+                    f"  • {r.get('id','?')} — {r.get('name','?')} ({r.get('tactic','?')})"
+                )
         elif action == "feeds":
             feed = ThreatIntelFeed()
             feeds = feed.list_feeds()
@@ -2267,11 +2328,15 @@ class SiyarixChat:
             try:
                 ttype = CanaryTokenType(token_type)
             except ValueError:
-                console.print(f"[red]Invalid token type: {token_type} (web|dns|aws_key|credential|file|api_key)[/red]")
+                console.print(
+                    f"[red]Invalid token type: {token_type} (web|dns|aws_key|credential|file|api_key)[/red]"
+                )
                 return
             target = tokens[2] if len(tokens) > 2 else Prompt.ask("Deployment target")
             deployment = mgr.deploy_to_target(target, token_types=[ttype])
-            console.print(f"[green]✓ Deployed {len(deployment.tokens)} canary token(s) to {target}[/green]")
+            console.print(
+                f"[green]✓ Deployed {len(deployment.tokens)} canary token(s) to {target}[/green]"
+            )
             for t in deployment.tokens:
                 console.print(f"    {t.token_type}: {t.value[:60]}...")
         elif action == "list":
@@ -2284,19 +2349,24 @@ class SiyarixChat:
                 console.print(f"  {triggered} [{t.token_type}] {t.location} ({t.created_at[:19]})")
         elif action == "status":
             canary_stats = mgr.summary()
-            console.print(f"Canary tokens: {canary_stats.get('total_tokens',0)} total, {canary_stats.get('triggered_tokens',0)} triggered")
+            console.print(
+                f"Canary tokens: {canary_stats.get('total_tokens',0)} total, {canary_stats.get('triggered_tokens',0)} triggered"
+            )
         else:
             console.print("[yellow]Usage: /canary deploy|list|status[/yellow]")
 
     async def _cmd_stealth(self, args: str) -> None:
         """Handle /stealth command for evasion configuration."""
         from ..stealth import StealthEngine
+
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "status"
         engine = StealthEngine()
         if action == "status":
             cfg = engine.get_config()
-            console.print(f"Stealth level: {cfg.evasion_level} | Jitter: {cfg.jitter_percentage}% | UA rotate: {cfg.rotate_user_agents} | Proxy: {cfg.use_proxy_chain} | Decoy: {cfg.use_decoy_traffic}")
+            console.print(
+                f"Stealth level: {cfg.evasion_level} | Jitter: {cfg.jitter_percentage}% | UA rotate: {cfg.rotate_user_agents} | Proxy: {cfg.use_proxy_chain} | Decoy: {cfg.use_decoy_traffic}"
+            )
         elif action in ("on", "enable"):
             engine.set_level("light")
             console.print("[green]✓ Stealth mode enabled (light)[/green]")
@@ -2311,11 +2381,14 @@ class SiyarixChat:
             else:
                 console.print("[yellow]Level must be: none|light|medium|heavy|paranoid[/yellow]")
         else:
-            console.print("[yellow]Usage: /stealth status|on|off|level <none|light|medium|heavy|paranoid>[/yellow]")
+            console.print(
+                "[yellow]Usage: /stealth status|on|off|level <none|light|medium|heavy|paranoid>[/yellow]"
+            )
 
     async def _cmd_audit(self, args: str) -> None:
         """Handle /audit command for compliance and legal export."""
         from ..audit_log import audit
+
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "status"
         if action == "export":
@@ -2330,10 +2403,14 @@ class SiyarixChat:
             console.print(f"Exported audit log ({len(data)} bytes)")
         elif action == "status":
             audit_stats = audit.stats()
-            console.print(f"Audit events: {audit_stats.get('total_events', 0)} | Chain verified: {audit_stats.get('chain_integrity', 'intact')}")
+            console.print(
+                f"Audit events: {audit_stats.get('total_events', 0)} | Chain verified: {audit_stats.get('chain_integrity', 'intact')}"
+            )
         elif action == "verify":
             valid = audit.verify_chain()
-            console.print(f"[{'green' if valid else 'red'}]Chain integrity: {'VALID' if valid else 'COMPROMISED'}[/]")
+            console.print(
+                f"[{'green' if valid else 'red'}]Chain integrity: {'VALID' if valid else 'COMPROMISED'}[/]"
+            )
         else:
             console.print("[yellow]Usage: /audit export|status|verify[/yellow]")
 
@@ -2380,9 +2457,7 @@ class SiyarixChat:
             if ok:
                 return
             # Integrated: agent failed → fall through to registry
-            console.print(
-                "[yellow]⚠ Falling back to offline registry mode[/yellow]"
-            )
+            console.print("[yellow]⚠ Falling back to offline registry mode[/yellow]")
 
         # ── Registry / integrated fallback: traditional plan → execute pipeline ──
         from ..compat import ExecutionEngine, ExecutionMode
@@ -2399,9 +2474,7 @@ class SiyarixChat:
         engine_config: dict[str, Any] = {
             "openai_api_key": os.environ.get("OPENAI_API_KEY", ""),
             "gemini_api_key": os.environ.get("GEMINI_API_KEY", ""),
-            "ollama_url": os.environ.get(
-                "SIYARIX_OLLAMA_URL", "http://localhost:11434"
-            ),
+            "ollama_url": os.environ.get("SIYARIX_OLLAMA_URL", "http://localhost:11434"),
             "model_provider": self._settings.get("model_provider"),
             "gemini_model": self._settings.get("gemini_model"),
         }
@@ -2435,7 +2508,9 @@ class SiyarixChat:
             prov_name, api_key = self._resolve_provider()
             if prov_name and api_key:
                 sys_prompt = self._build_system_prompt()
-                response = await self._stream_assistant_response(sys_prompt, instruction, prov_name, api_key)
+                response = await self._stream_assistant_response(
+                    sys_prompt, instruction, prov_name, api_key
+                )
             else:
                 response = self._generate_text_response(instruction) or ""
             if response:
@@ -2484,8 +2559,7 @@ class SiyarixChat:
 
             tester = AdversarialTester()
             plan_lines = [
-                f"{s.tool or ''} {' '.join(s.args)} {s.target or ''}".strip()
-                or s.command or ""
+                f"{s.tool or ''} {' '.join(s.args)} {s.target or ''}".strip() or s.command or ""
                 for s in plan.steps
             ]
             findings = tester.review_plan(plan_lines)
@@ -2500,7 +2574,12 @@ class SiyarixChat:
                             f"[{f.severity.upper()}] {f.message}[/]\n"
                             f"  [dim]Suggestion: {f.suggestion}[/dim]"
                             for f in findings[:5]
-                        ) + (f"\n  [dim]... and {len(findings)-5} more[/dim]" if len(findings) > 5 else ""),
+                        )
+                        + (
+                            f"\n  [dim]... and {len(findings)-5} more[/dim]"
+                            if len(findings) > 5
+                            else ""
+                        ),
                         title=f"[bold {'red' if critical else 'yellow'}]🔍 Adversarial Review ({len(findings)} findings)"
                         f"{' — ' + str(len(critical)) + ' critical' if critical else ''}"
                         f"{' — ' + str(len(high)) + ' high' if high else ''}[/bold {'red' if critical else 'yellow'}]",
@@ -2520,11 +2599,15 @@ class SiyarixChat:
         # Save to offline store
         try:
             from ..offline_store import OfflineStore
+
             store = OfflineStore()
             target = self._session.target or ""
             store.save_scan(target or instruction, result.all_findings, mode=self._mode)
             if plan and plan.id:
-                step_dicts = [{"tool": s.tool, "status": s.status.value, "description": s.description} for s in plan.steps]
+                step_dicts = [
+                    {"tool": s.tool, "status": s.status.value, "description": s.description}
+                    for s in plan.steps
+                ]
                 store.save_plan(plan.id, plan.goal, step_dicts, mode=self._mode)
         except Exception as exc:
             logger.debug("Failed to persist to offline store: %s", exc)
@@ -2557,18 +2640,26 @@ class SiyarixChat:
         summary = f"Executed {len(result.step_results)} steps in {elapsed:.1f}s. "
         summary += f"Found {len(result.all_findings)} findings. "
         summary += "Success." if result.success else "Some steps failed."
-        self._session.add_message(
-            "assistant", summary, findings=len(result.all_findings)
-        )
+        self._session.add_message("assistant", summary, findings=len(result.all_findings))
 
     def _generate_text_response(self, user_input: str) -> str | None:
         """Return a text response for non-tool queries, or ``None`` to let the pipeline proceed."""
         lowered = user_input.strip().lower()
-        greetings = {"hello", "hi", "hey", "sup", "what's up", "help",
-                      "good morning", "good evening", "good afternoon"}
+        greetings = {
+            "hello",
+            "hi",
+            "hey",
+            "sup",
+            "what's up",
+            "help",
+            "good morning",
+            "good evening",
+            "good afternoon",
+        }
         if lowered in greetings or lowered.startswith(("hello ", "hi ", "hey ")):
             import getpass
             from datetime import datetime
+
             username = getpass.getuser()
             hour = datetime.now().hour
             if hour < 12:
@@ -2714,13 +2805,16 @@ When the user message contains tool execution results, analyse them thoroughly.
             return preamble + "\n\n" + SIYARIX_SYSTEM_PROMPT
         return SIYARIX_SYSTEM_PROMPT
 
-    async def _execute_agent(self, instruction: str, target: str = "", require_llm: bool = False) -> bool:
+    async def _execute_agent(
+        self, instruction: str, target: str = "", require_llm: bool = False
+    ) -> bool:
         """Agent loop: LLM-first planning → parallel execution → LLM synthesis.
 
         When *require_llm* is True (autonomous mode), the method returns False
         if no LLM is available — no heuristic fallback.
         """
         from ..core import AgentCore, AgentMode
+
         # ── Resolve provider with auto fallback ──────────────────────────
         is_auto = self._settings.get("model_provider") == "auto"
         provider_name, api_key = self._resolve_provider()
@@ -2751,8 +2845,12 @@ When the user message contains tool execution results, analyse them thoroughly.
         all_tools = agent._registry.list_tools()
         tool_names = [t.name for t in all_tools]
         tool_dicts = [
-            {"name": t.name, "description": t.description,
-             "tags": t.tags, "category": t.category.value if hasattr(t.category, 'value') else str(t.category)}
+            {
+                "name": t.name,
+                "description": t.description,
+                "tags": t.tags,
+                "category": t.category.value if hasattr(t.category, "value") else str(t.category),
+            }
             for t in all_tools
         ]
 
@@ -2780,12 +2878,15 @@ When the user message contains tool execution results, analyse them thoroughly.
                 total_input_tokens += ping.get("input_tokens", 0)
                 total_output_tokens += ping.get("output_tokens", 0)
                 from ..providers import CostTier, ProviderManager
+
                 _pm = ProviderManager()
                 _profile = _pm.get_profile(provider_name) if provider_name else None
                 cost_tier = _profile.cost_tier if _profile else CostTier.MEDIUM
                 self._usage_tracker.record_call(
-                    provider_name or "unknown", ping.get("model", ""),
-                    ping.get("input_tokens", 0), ping.get("output_tokens", 0),
+                    provider_name or "unknown",
+                    ping.get("model", ""),
+                    ping.get("input_tokens", 0),
+                    ping.get("output_tokens", 0),
                     cost_tier=cost_tier,
                 )
                 self._provider_state.record_success(provider_name or "")
@@ -2833,8 +2934,10 @@ When the user message contains tool execution results, analyse them thoroughly.
                 try:
                     plan_result = await asyncio.wait_for(
                         agent._planner.llm_decompose_goal(
-                            instruction_with_target, tool_names,
-                            llm_call=llm_call_fn, tool_schemas=tool_dicts,
+                            instruction_with_target,
+                            tool_names,
+                            llm_call=llm_call_fn,
+                            tool_schemas=tool_dicts,
                             system_prompt=self._build_system_prompt(),
                         ),
                         timeout=30.0,
@@ -2843,24 +2946,31 @@ When the user message contains tool execution results, analyse them thoroughly.
                     llm_reasoning = plan_result.context.get("reasoning", "")
                     self._provider_state.record_success(provider_name or "")
                 except (asyncio.TimeoutError, RuntimeError, ValueError) as exc:
-                    console.print(f"[yellow]⚠ LLM planning failed ({exc}) — using local planner[/yellow]")
+                    console.print(
+                        f"[yellow]⚠ LLM planning failed ({exc}) — using local planner[/yellow]"
+                    )
 
         if not llm_plan:
             if require_llm:
                 console.print("[red]✗ LLM planning failed — autonomous mode cannot proceed[/red]")
                 return False
             with console.status("[bold green]Planning...[/bold green]", spinner="dots"):
-                llm_plan = agent._planner.decompose_goal(
-                    instruction_with_target, tool_names)
+                llm_plan = agent._planner.decompose_goal(instruction_with_target, tool_names)
 
         # ── No tools needed ──────────────────────────────────────────────
         if not llm_plan.steps:
             if llm_connected and llm_call_fn:
                 sys_prompt = self._build_system_prompt()
-                response = await self._stream_assistant_response(sys_prompt, instruction, provider_name, api_key)
+                response = await self._stream_assistant_response(
+                    sys_prompt, instruction, provider_name, api_key
+                )
             else:
                 greeting = self._generate_text_response(instruction)
-                response = greeting or llm_reasoning or "I understood your request but no tools were needed."
+                response = (
+                    greeting
+                    or llm_reasoning
+                    or "I understood your request but no tools were needed."
+                )
                 self._print_assistant(response)
             self._session.add_message("assistant", response)
             duration = time.time() - total_start
@@ -2942,12 +3052,16 @@ When the user message contains tool execution results, analyse them thoroughly.
                 )
                 state.exit_code = exec_result.exit_code
                 state.done = True
-                return step, {"status": "success" if exec_result.exit_code == 0 else "error",
-                              "output": exec_result.stdout, "error": exec_result.stderr,
-                              "exit_code": exec_result.exit_code}
+                return step, {
+                    "status": "success" if exec_result.exit_code == 0 else "error",
+                    "output": exec_result.stdout,
+                    "error": exec_result.stderr,
+                    "exit_code": exec_result.exit_code,
+                }
 
             # Pre-review all shell commands before starting Live display
             from ..shell_review import review_and_confirm
+
             command_review = self._settings.get("command_review", True)
             for s in plan.steps:
                 if not s.command:
@@ -2980,7 +3094,11 @@ When the user message contains tool execution results, analyse them thoroughly.
                                 done_set = True
                         st = cmd_states[focus_idx]
                         icon = "·" if st.exit_code is None else ("✓" if st.exit_code == 0 else "✗")
-                        border = "cyan" if st.exit_code is None else ("green" if st.exit_code == 0 else "red")
+                        border = (
+                            "cyan"
+                            if st.exit_code is None
+                            else ("green" if st.exit_code == 0 else "red")
+                        )
                         live.update(
                             RichPanel(
                                 "\n".join(st.lines[-200:]),
@@ -3024,22 +3142,30 @@ When the user message contains tool execution results, analyse them thoroughly.
                     "If more commands are needed (e.g. missing data, tool not found, "
                     "need deeper recon), set needs_tools=true and provide the next steps."
                 )
-                with console.status("[bold cyan]LLM analysing wave results...[/bold cyan]", spinner="dots"):
+                with console.status(
+                    "[bold cyan]LLM analysing wave results...[/bold cyan]", spinner="dots"
+                ):
                     try:
                         plan = await asyncio.wait_for(
                             agent._planner.llm_decompose_goal(
-                                wave_goal, tool_names,
-                                llm_call=llm_call_fn, tool_schemas=tool_dicts,
-                            system_prompt=self._build_system_prompt(),
+                                wave_goal,
+                                tool_names,
+                                llm_call=llm_call_fn,
+                                tool_schemas=tool_dicts,
+                                system_prompt=self._build_system_prompt(),
                             ),
                             timeout=60.0,
                         )
                         llm_model = provider_name or "none"
                         if plan.steps:
-                            console.print(f"[cyan]→ LLM decided more work needed — wave {wave + 2}[/cyan]")
+                            console.print(
+                                f"[cyan]→ LLM decided more work needed — wave {wave + 2}[/cyan]"
+                            )
                         else:
                             # Done — show final response
-                            summary = (plan.context.get("reasoning", "") if plan.context else "") or "Done."
+                            summary = (
+                                plan.context.get("reasoning", "") if plan.context else ""
+                            ) or "Done."
                             self._session.add_message("assistant", summary)
                             self._print_assistant(summary)
                     except asyncio.TimeoutError:
@@ -3074,7 +3200,18 @@ When the user message contains tool execution results, analyse them thoroughly.
         result: Any = None
 
         # ── Providers using OpenAI-compatible SDK ──────────────────────
-        if provider_name in ("openai", "openrouter", "gemini", "deepseek", "xai", "perplexity", "azure", "llamacpp", "vllm", "localai"):
+        if provider_name in (
+            "openai",
+            "openrouter",
+            "gemini",
+            "deepseek",
+            "xai",
+            "perplexity",
+            "azure",
+            "llamacpp",
+            "vllm",
+            "localai",
+        ):
             from openai import AsyncOpenAI
 
             base_urls = {
@@ -3084,10 +3221,14 @@ When the user message contains tool execution results, analyse them thoroughly.
                 "deepseek": "https://api.deepseek.com",
                 "xai": "https://api.x.ai",
                 "perplexity": "https://api.perplexity.ai",
-                "azure": self._settings.get("azure_endpoint") or os.getenv("AZURE_OPENAI_ENDPOINT", ""),
-                "llamacpp": self._settings.get("llamacpp_url") or os.getenv("SIYARIX_LLAMACPP_URL", "http://localhost:8080"),
-                "vllm": self._settings.get("vllm_url") or os.getenv("SIYARIX_VLLM_URL", "http://localhost:8000"),
-                "localai": self._settings.get("localai_url") or os.getenv("SIYARIX_LOCALAI_URL", "http://localhost:8080"),
+                "azure": self._settings.get("azure_endpoint")
+                or os.getenv("AZURE_OPENAI_ENDPOINT", ""),
+                "llamacpp": self._settings.get("llamacpp_url")
+                or os.getenv("SIYARIX_LLAMACPP_URL", "http://localhost:8080"),
+                "vllm": self._settings.get("vllm_url")
+                or os.getenv("SIYARIX_VLLM_URL", "http://localhost:8000"),
+                "localai": self._settings.get("localai_url")
+                or os.getenv("SIYARIX_LOCALAI_URL", "http://localhost:8080"),
             }
             model_keys = {
                 "openai": "openai_model",
@@ -3120,8 +3261,11 @@ When the user message contains tool execution results, analyse them thoroughly.
                 client_kwargs["base_url"] = base_url
             client = AsyncOpenAI(**client_kwargs)  # type: ignore[arg-type]
 
-            async def call_openai(system_prompt: str, user_prompt: str, *, stream: bool = False) -> dict[str, Any]:
+            async def call_openai(
+                system_prompt: str, user_prompt: str, *, stream: bool = False
+            ) -> dict[str, Any]:
                 if stream:
+
                     async def _gen() -> Any:
                         response = await client.chat.completions.create(
                             model=model,
@@ -3129,12 +3273,15 @@ When the user message contains tool execution results, analyse them thoroughly.
                                 {"role": "system", "content": system_prompt},
                                 {"role": "user", "content": user_prompt},
                             ],
-                            max_tokens=2000, temperature=0.3, stream=True,
+                            max_tokens=2000,
+                            temperature=0.3,
+                            stream=True,
                         )
                         async for chunk in response:
                             delta = chunk.choices[0].delta if chunk.choices else None
                             if delta and delta.content:
                                 yield delta.content
+
                     return _gen()
                 response = await client.chat.completions.create(
                     model=model,
@@ -3142,7 +3289,8 @@ When the user message contains tool execution results, analyse them thoroughly.
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
-                    max_tokens=2000, temperature=0.3,
+                    max_tokens=2000,
+                    temperature=0.3,
                 )
                 choice = response.choices[0]
                 usage = response.usage
@@ -3165,25 +3313,33 @@ When the user message contains tool execution results, analyse them thoroughly.
             anthropic_client = AsyncAnthropic(api_key=api_key)
             model = self._settings.get("anthropic_model") or "claude-sonnet-4-6"
 
-            async def call_anthropic(system_prompt: str, user_prompt: str, *, stream: bool = False) -> dict[str, Any]:
+            async def call_anthropic(
+                system_prompt: str, user_prompt: str, *, stream: bool = False
+            ) -> dict[str, Any]:
                 if stream:
+
                     async def _gen() -> Any:
                         async with anthropic_client.messages.stream(
-                            model=model, system=system_prompt,
+                            model=model,
+                            system=system_prompt,
                             messages=[{"role": "user", "content": user_prompt}],
-                            max_tokens=2000, temperature=0.3,
+                            max_tokens=2000,
+                            temperature=0.3,
                         ) as stream_ctx:
                             async for text in stream_ctx.text_stream:
                                 yield text
+
                     return _gen()
                 msg = await anthropic_client.messages.create(
-                    model=model, system=system_prompt,
+                    model=model,
+                    system=system_prompt,
                     messages=[{"role": "user", "content": user_prompt}],
-                    max_tokens=2000, temperature=0.3,
+                    max_tokens=2000,
+                    temperature=0.3,
                 )
                 content_block = msg.content[0] if msg.content else None
                 return {
-                    "content": getattr(content_block, 'text', ""),
+                    "content": getattr(content_block, "text", ""),
                     "model": msg.model or model,
                     "input_tokens": msg.usage.input_tokens if msg.usage else 0,
                     "output_tokens": msg.usage.output_tokens if msg.usage else 0,
@@ -3194,26 +3350,40 @@ When the user message contains tool execution results, analyse them thoroughly.
         # ── Groq (openai-compatible) ────────────────────────────────────
         elif provider_name == "groq":
             from openai import AsyncOpenAI
+
             client = AsyncOpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
             model = self._settings.get("groq_model") or "llama-4-scout-17b-16e-instruct"
 
-            async def call_groq(system_prompt: str, user_prompt: str, *, stream: bool = False) -> dict[str, Any]:
+            async def call_groq(
+                system_prompt: str, user_prompt: str, *, stream: bool = False
+            ) -> dict[str, Any]:
                 if stream:
+
                     async def _gen() -> Any:
                         response = await client.chat.completions.create(
                             model=model,
-                            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-                            max_tokens=2000, temperature=0.3, stream=True,
+                            messages=[
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": user_prompt},
+                            ],
+                            max_tokens=2000,
+                            temperature=0.3,
+                            stream=True,
                         )
                         async for chunk in response:
                             delta = chunk.choices[0].delta if chunk.choices else None
                             if delta and delta.content:
                                 yield delta.content
+
                     return _gen()
                 response = await client.chat.completions.create(
                     model=model,
-                    messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-                    max_tokens=2000, temperature=0.3,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    max_tokens=2000,
+                    temperature=0.3,
                 )
                 choice = response.choices[0]
                 usage = response.usage
@@ -3229,26 +3399,43 @@ When the user message contains tool execution results, analyse them thoroughly.
         # ── Together AI (openai-compatible) ────────────────────────────
         elif provider_name == "together":
             from openai import AsyncOpenAI
-            client = AsyncOpenAI(api_key=api_key, base_url="https://api.together.xyz/v1")
-            model = self._settings.get("together_model") or "meta-llama/Llama-4-Scout-17B-16E-Instruct-FP8"
 
-            async def call_together(system_prompt: str, user_prompt: str, *, stream: bool = False) -> dict[str, Any]:
+            client = AsyncOpenAI(api_key=api_key, base_url="https://api.together.xyz/v1")
+            model = (
+                self._settings.get("together_model")
+                or "meta-llama/Llama-4-Scout-17B-16E-Instruct-FP8"
+            )
+
+            async def call_together(
+                system_prompt: str, user_prompt: str, *, stream: bool = False
+            ) -> dict[str, Any]:
                 if stream:
+
                     async def _gen() -> Any:
                         response = await client.chat.completions.create(
                             model=model,
-                            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-                            max_tokens=2000, temperature=0.3, stream=True,
+                            messages=[
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": user_prompt},
+                            ],
+                            max_tokens=2000,
+                            temperature=0.3,
+                            stream=True,
                         )
                         async for chunk in response:
                             delta = chunk.choices[0].delta if chunk.choices else None
                             if delta and delta.content:
                                 yield delta.content
+
                     return _gen()
                 response = await client.chat.completions.create(
                     model=model,
-                    messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-                    max_tokens=2000, temperature=0.3,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    max_tokens=2000,
+                    temperature=0.3,
                 )
                 choice = response.choices[0]
                 usage = response.usage
@@ -3270,24 +3457,36 @@ When the user message contains tool execution results, analyse them thoroughly.
             client = Mistral(api_key=api_key)
             model = self._settings.get("mistral_model") or "mistral-large-3"
 
-            async def call_mistral(system_prompt: str, user_prompt: str, *, stream: bool = False) -> dict[str, Any]:
+            async def call_mistral(
+                system_prompt: str, user_prompt: str, *, stream: bool = False
+            ) -> dict[str, Any]:
                 if stream:
+
                     async def _gen() -> Any:
                         response = await client.chat.stream_async(  # type: ignore[attr-defined]
                             model=model,
-                            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-                            max_tokens=2000, temperature=0.3,
+                            messages=[
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": user_prompt},
+                            ],
+                            max_tokens=2000,
+                            temperature=0.3,
                         )
                         async for chunk in response:
                             if chunk.data and chunk.data.choices:
                                 delta = chunk.data.choices[0].delta
                                 if delta and delta.content:
                                     yield delta.content
+
                     return _gen()
                 response = await client.chat.complete_async(  # type: ignore[attr-defined]
                     model=model,
-                    messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-                    max_tokens=2000, temperature=0.3,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    max_tokens=2000,
+                    temperature=0.3,
                 )
                 choice = response.choices[0] if response.choices else None
                 return {
@@ -3302,32 +3501,47 @@ When the user message contains tool execution results, analyse them thoroughly.
         # ── Ollama (prefer native SDK, fall back to HTTP) ──────────────
         elif provider_name == "ollama":
             import httpx
-            ollama_url = self._settings.get("ollama_url") or os.getenv("SIYARIX_OLLAMA_URL", "http://localhost:11434")
+
+            ollama_url = self._settings.get("ollama_url") or os.getenv(
+                "SIYARIX_OLLAMA_URL", "http://localhost:11434"
+            )
             model = self._settings.get("ollama_model") or "llama3.1"
             try:
                 from ollama import AsyncClient as OllamaAsyncClient
+
                 _ollama_client = OllamaAsyncClient(host=ollama_url)
                 use_sdk = True
             except Exception:
                 _ollama_client = None
                 use_sdk = False
 
-            async def call_ollama(system_prompt: str, user_prompt: str, *, stream: bool = False) -> dict[str, Any]:
+            async def call_ollama(
+                system_prompt: str, user_prompt: str, *, stream: bool = False
+            ) -> dict[str, Any]:
                 if use_sdk and stream:
+
                     async def _gen() -> Any:
                         async for chunk in await _ollama_client.chat(
                             model=model,
-                            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-                            options={"temperature": 0.3, "num_predict": 2000}, stream=True,
+                            messages=[
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": user_prompt},
+                            ],
+                            options={"temperature": 0.3, "num_predict": 2000},
+                            stream=True,
                         ):
                             content = chunk.get("message", {}).get("content", "")
                             if content:
                                 yield content
+
                     return _gen()
                 if use_sdk:
                     response = await _ollama_client.chat(
                         model=model,
-                        messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
                         options={"temperature": 0.3, "num_predict": 2000},
                     )
                     return {
@@ -3337,27 +3551,38 @@ When the user message contains tool execution results, analyse them thoroughly.
                         "output_tokens": response.get("eval_count", 0),
                     }
                 if stream:
+
                     async def _gen() -> Any:
                         async with httpx.AsyncClient(timeout=60.0) as hclient:
                             payload = {
                                 "model": model,
-                                "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                                "messages": [
+                                    {"role": "system", "content": system_prompt},
+                                    {"role": "user", "content": user_prompt},
+                                ],
                                 "stream": True,
                                 "options": {"temperature": 0.3, "num_predict": 2000},
                             }
-                            async with hclient.stream("POST", f"{ollama_url}/api/chat", json=payload) as resp:
+                            async with hclient.stream(
+                                "POST", f"{ollama_url}/api/chat", json=payload
+                            ) as resp:
                                 async for line in resp.aiter_lines():
                                     if line.strip():
                                         import json as _json
+
                                         data = _json.loads(line)
                                         content = data.get("message", {}).get("content", "")
                                         if content:
                                             yield content
+
                     return _gen()
                 async with httpx.AsyncClient(timeout=60.0) as hclient:
                     payload = {
                         "model": model,
-                        "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
                         "stream": False,
                         "options": {"temperature": 0.3, "num_predict": 2000},
                     }
@@ -3376,19 +3601,32 @@ When the user message contains tool execution results, analyse them thoroughly.
         # ── LM Studio (OpenAI-compatible HTTP API) ─────────────────────
         elif provider_name == "lmstudio":
             import httpx
-            lmstudio_url = self._settings.get("lmstudio_url") or os.getenv("SIYARIX_LMSTUDIO_URL", "http://localhost:1234")
+
+            lmstudio_url = self._settings.get("lmstudio_url") or os.getenv(
+                "SIYARIX_LMSTUDIO_URL", "http://localhost:1234"
+            )
             model = self._settings.get("lmstudio_model") or ""
 
-            async def call_lmstudio(system_prompt: str, user_prompt: str, *, stream: bool = False) -> dict[str, Any]:
+            async def call_lmstudio(
+                system_prompt: str, user_prompt: str, *, stream: bool = False
+            ) -> dict[str, Any]:
                 if stream:
+
                     async def _gen() -> Any:
                         async with httpx.AsyncClient(timeout=120.0) as hclient:
                             payload = {
                                 "model": model or "local-model",
-                                "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-                                "max_tokens": 2000, "temperature": 0.3, "stream": True,
+                                "messages": [
+                                    {"role": "system", "content": system_prompt},
+                                    {"role": "user", "content": user_prompt},
+                                ],
+                                "max_tokens": 2000,
+                                "temperature": 0.3,
+                                "stream": True,
                             }
-                            async with hclient.stream("POST", f"{lmstudio_url}/v1/chat/completions", json=payload) as resp:
+                            async with hclient.stream(
+                                "POST", f"{lmstudio_url}/v1/chat/completions", json=payload
+                            ) as resp:
                                 async for line in resp.aiter_lines():
                                     if line.startswith("data: "):
                                         chunk = line[6:]
@@ -3396,18 +3634,24 @@ When the user message contains tool execution results, analyse them thoroughly.
                                             break
                                         try:
                                             import json as _json
+
                                             data = _json.loads(chunk)
                                             delta = data.get("choices", [{}])[0].get("delta", {})
                                             if delta.get("content"):
                                                 yield delta["content"]
                                         except Exception:
                                             pass
+
                     return _gen()
                 async with httpx.AsyncClient(timeout=120.0) as hclient:
                     payload = {
                         "model": model or "local-model",
-                        "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-                        "max_tokens": 2000, "temperature": 0.3,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        "max_tokens": 2000,
+                        "temperature": 0.3,
                     }
                     resp = await hclient.post(f"{lmstudio_url}/v1/chat/completions", json=payload)
                     resp.raise_for_status()
@@ -3433,6 +3677,7 @@ When the user message contains tool execution results, analyse them thoroughly.
         provider = (self._settings.get("model_provider") or "gemini").lower().strip()
 
         from ..providers import ProviderManager
+
         pm = ProviderManager()
         profile = pm.get_profile(provider)
 
@@ -3462,6 +3707,7 @@ When the user message contains tool execution results, analyse them thoroughly.
         skipping any that are disabled or in cooldown (persisted across restarts).
         """
         from ..providers import ProviderManager
+
         pm = ProviderManager()
 
         configured = self._settings.get("model_provider") or "openrouter"
@@ -3496,6 +3742,7 @@ When the user message contains tool execution results, analyse them thoroughly.
         def _sort_key(c: tuple) -> tuple:
             prof = pm.get_profile(c[1])
             return (c[0], -(prof.priority if prof else 0))
+
         candidates.sort(key=_sort_key)
         for _, name, key in candidates:
             return (name, key or None)
@@ -3541,9 +3788,7 @@ When the user message contains tool execution results, analyse them thoroughly.
         except Exception:
             pass
 
-        command_count = sum(
-            1 for m in self._session.messages if m.role == "user"
-        )
+        command_count = sum(1 for m in self._session.messages if m.role == "user")
 
         console.print(
             Panel(
@@ -3617,6 +3862,7 @@ When the user message contains tool execution results, analyse them thoroughly.
         Map keys -> (icon, reason)
         """
         from ..providers import ProviderManager
+
         pm = ProviderManager()
         status: dict[str, tuple[str, str]] = {}
 
@@ -3653,8 +3899,7 @@ When the user message contains tool execution results, analyse them thoroughly.
     def _gather_mode_label(self, provider_status: dict[str, tuple[str, str]]) -> str:
         """Build a human-readable mode label showing LLM connectivity state."""
         has_llm = any(
-            icon == "✓" and label == "configured"
-            for icon, label in provider_status.values()
+            icon == "✓" and label == "configured" for icon, label in provider_status.values()
         )
         mode_display = self._mode.capitalize()
         if has_llm:
@@ -3669,12 +3914,24 @@ When the user message contains tool execution results, analyse them thoroughly.
         if self._con is not None:
             from rich.markdown import Markdown
             from rich.panel import Panel
-            self._con.print(Panel(Markdown(message), title="[bold green]\u25c6 Siyarix[/bold green]", border_style="green", padding=(0, 2)))
+
+            self._con.print(
+                Panel(
+                    Markdown(message),
+                    title="[bold green]\u25c6 Siyarix[/bold green]",
+                    border_style="green",
+                    padding=(0, 2),
+                )
+            )
         else:
             self._output._raw_print(f"\u25c6 Siyarix: {message}")
 
     async def _stream_assistant_response(
-        self, system_prompt: str, user_prompt: str, provider_name: str | None = None, api_key: str | None = None
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        provider_name: str | None = None,
+        api_key: str | None = None,
     ) -> str:
         """Stream an LLM response token-by-token with a live updating display.
 
@@ -3694,12 +3951,19 @@ When the user message contains tool execution results, analyse them thoroughly.
         gen = await llm_fn(system_prompt, user_prompt, stream=True)
         full_text = ""
         md = Markdown("")
-        panel = Panel(md, title="[bold green]◆ Siyarix[/bold green]", border_style="green", padding=(0, 2))
+        panel = Panel(
+            md, title="[bold green]◆ Siyarix[/bold green]", border_style="green", padding=(0, 2)
+        )
         with Live(panel, refresh_per_second=12, transient=False) as live:
             async for token in gen:
                 full_text += token
                 md = Markdown(full_text)
-                panel = Panel(md, title="[bold green]◆ Siyarix[/bold green]", border_style="green", padding=(0, 2))
+                panel = Panel(
+                    md,
+                    title="[bold green]◆ Siyarix[/bold green]",
+                    border_style="green",
+                    padding=(0, 2),
+                )
                 live.update(panel)
         console.print()
         return full_text
@@ -3708,7 +3972,14 @@ When the user message contains tool execution results, analyse them thoroughly.
         rows = []
         for i, step in enumerate(plan.steps, 1):
             target = step.args.get("target", "") if isinstance(step.args, dict) else ""
-            rows.append({"#": str(i), "Tool": step.tool or "—", "Target": target or "—", "Description": step.description[:50]})
+            rows.append(
+                {
+                    "#": str(i),
+                    "Tool": step.tool or "—",
+                    "Target": target or "—",
+                    "Description": step.description[:50],
+                }
+            )
         self._output.print_table(rows, title="Execution Plan")
 
     def _print_results(self, result: "Any", elapsed: float) -> None:  # EngineResult
@@ -3717,9 +3988,7 @@ When the user message contains tool execution results, analyse them thoroughly.
         from rich.panel import Panel
         from rich.columns import Columns
 
-        success_count = sum(
-            1 for r in result.step_results if r.status == StepStatus.SUCCESS
-        )
+        success_count = sum(1 for r in result.step_results if r.status == StepStatus.SUCCESS)
         failed_count = len(result.step_results) - success_count
 
         # Step timeline panel
@@ -3732,8 +4001,14 @@ When the user message contains tool execution results, analyse them thoroughly.
             step_lines.append(f"  [{style}]{icon} [bold]{tool}[/bold][/] [dim]{detail}[/dim]")
 
         if step_lines:
-            console.print(Panel("\n".join(step_lines), title="[bold]Step Results[/bold]",
-                border_style="blue", padding=(1, 2)))
+            console.print(
+                Panel(
+                    "\n".join(step_lines),
+                    title="[bold]Step Results[/bold]",
+                    border_style="blue",
+                    padding=(1, 2),
+                )
+            )
 
         # Findings table grouped by severity
         if result.all_findings:
@@ -3747,8 +4022,12 @@ When the user message contains tool execution results, analyse them thoroughly.
                 if sev not in sev_groups:
                     continue
                 items = sev_groups[sev][:15]
-                sev_table = Table(title=f"{sev.upper()} Findings ({len(items)})",
-                    header_style=sev.upper(), border_style=sev.upper(), box=None)
+                sev_table = Table(
+                    title=f"{sev.upper()} Findings ({len(items)})",
+                    header_style=sev.upper(),
+                    border_style=sev.upper(),
+                    box=None,
+                )
                 sev_table.add_column("Tool", style="cyan")
                 sev_table.add_column("Detail", style="white")
                 for f in items:
@@ -3758,28 +4037,50 @@ When the user message contains tool execution results, analyse them thoroughly.
                 console.print(sev_table)
 
             if len(result.all_findings) > 20:
-                remaining = len(result.all_findings) - sum(len(v) for v in sev_groups.values() if len(v) > 15)
+                remaining = len(result.all_findings) - sum(
+                    len(v) for v in sev_groups.values() if len(v) > 15
+                )
                 if remaining > 0:
                     console.print(f"  [dim]… and {remaining} more findings[/dim]")
 
         # Executive summary bar
         summary_panels = []
-        summary_panels.append(Panel(
-            f"[bold]{'✓' if result.success else '✗'} {'Success' if result.success else 'Partial'}[/bold]\n[dim]Status[/dim]",
-            border_style="green" if result.success else "red", padding=(1, 2)))
-        summary_panels.append(Panel(
-            f"[bold]{success_count}/{len(result.step_results)}[/bold]\n[dim]Steps[/dim]",
-            border_style="blue", padding=(1, 2)))
-        summary_panels.append(Panel(
-            f"[bold]{len(result.all_findings)}[/bold]\n[dim]Findings[/dim]",
-            border_style="yellow", padding=(1, 2)))
-        summary_panels.append(Panel(
-            f"[bold]{elapsed:.1f}s[/bold]\n[dim]Duration[/dim]",
-            border_style="cyan", padding=(1, 2)))
+        summary_panels.append(
+            Panel(
+                f"[bold]{'✓' if result.success else '✗'} {'Success' if result.success else 'Partial'}[/bold]\n[dim]Status[/dim]",
+                border_style="green" if result.success else "red",
+                padding=(1, 2),
+            )
+        )
+        summary_panels.append(
+            Panel(
+                f"[bold]{success_count}/{len(result.step_results)}[/bold]\n[dim]Steps[/dim]",
+                border_style="blue",
+                padding=(1, 2),
+            )
+        )
+        summary_panels.append(
+            Panel(
+                f"[bold]{len(result.all_findings)}[/bold]\n[dim]Findings[/dim]",
+                border_style="yellow",
+                padding=(1, 2),
+            )
+        )
+        summary_panels.append(
+            Panel(
+                f"[bold]{elapsed:.1f}s[/bold]\n[dim]Duration[/dim]",
+                border_style="cyan",
+                padding=(1, 2),
+            )
+        )
         if failed_count:
-            summary_panels.append(Panel(
-                f"[bold red]{failed_count}[/bold red]\n[dim]Failed[/dim]",
-                border_style="red", padding=(1, 2)))
+            summary_panels.append(
+                Panel(
+                    f"[bold red]{failed_count}[/bold red]\n[dim]Failed[/dim]",
+                    border_style="red",
+                    padding=(1, 2),
+                )
+            )
 
         console.print(Columns(summary_panels, equal=False, padding=(0, 1)))
 

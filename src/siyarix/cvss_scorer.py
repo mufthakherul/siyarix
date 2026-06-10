@@ -189,9 +189,7 @@ class CVSSScorer:
         )
 
     def score_from_finding(self, finding: dict[str, Any]) -> CVSSResult:
-        title = (
-            finding.get("title", "") + " " + finding.get("description", "")
-        ).lower()
+        title = (finding.get("title", "") + " " + finding.get("description", "")).lower()
         severity = finding.get("severity", "medium").lower()
 
         # Auto-infer CVSS metrics from text

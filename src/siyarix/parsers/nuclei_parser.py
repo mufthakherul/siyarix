@@ -17,6 +17,7 @@ _SEVERITY_MAP: dict[str, str] = {
     "unknown": "info",
 }
 
+
 class NucleiParser:
     """Parses nuclei JSONL output (one JSON object per line) into finding dicts."""
 
@@ -50,9 +51,7 @@ class NucleiParser:
                 evidence_parts.append(f"matcher: {matcher_name}")
             extracted = record.get("extracted-results", [])
             if extracted:
-                evidence_parts.append(
-                    f"extracted: {', '.join(str(e) for e in extracted[:3])}"
-                )
+                evidence_parts.append(f"extracted: {', '.join(str(e) for e in extracted[:3])}")
 
             findings.append(
                 {

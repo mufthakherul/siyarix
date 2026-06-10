@@ -29,6 +29,7 @@ warnings.warn(
     stacklevel=2,
 )
 
+
 class ExecutionMode(StrEnum):
     REGISTRY = "registry"
     AUTONOMOUS = "autonomous"
@@ -37,6 +38,7 @@ class ExecutionMode(StrEnum):
 
 class SessionPersistenceLevel(StrEnum):
     """Session persistence boundary."""
+
     EPHEMERAL = "ephemeral"
     WORKSPACE = "workspace"
     ORG_SHARED = "org_shared"
@@ -45,6 +47,7 @@ class SessionPersistenceLevel(StrEnum):
 @dataclass
 class OperationCard:
     """Operation tracking card for UX timeline/state."""
+
     operation_id: str
     instruction: str
     state: str = "planned"
@@ -60,6 +63,7 @@ class OperationCard:
 @dataclass
 class SessionContext:
     """Canonical session context for routing, policy, and UX rendering."""
+
     session_id: str
     identity: str = "local-user"
     objective: str = ""
@@ -116,9 +120,7 @@ class SessionKernel:
         artifact: str | None = None,
         audit_hash: str | None = None,
     ) -> OperationCard | None:
-        target = next(
-            (o for o in session.operations if o.operation_id == operation_id), None
-        )
+        target = next((o for o in session.operations if o.operation_id == operation_id), None)
         if not target:
             return None
         if state is not None:
@@ -172,9 +174,13 @@ class EngineResult:
 
 
 class ExecutionEngine:
-    def __init__(self, mode: ExecutionMode = ExecutionMode.INTEGRATED,
-                 registry: Any = None, config: dict[str, Any] | None = None,
-                 session_logger: Any = None) -> None:
+    def __init__(
+        self,
+        mode: ExecutionMode = ExecutionMode.INTEGRATED,
+        registry: Any = None,
+        config: dict[str, Any] | None = None,
+        session_logger: Any = None,
+    ) -> None:
         self._mode = mode
         self._registry = registry
         self._config = config or {}
@@ -183,10 +189,11 @@ class ExecutionEngine:
         self._planner = None
 
     def _build_context(self) -> dict[str, Any]:
-        return {"mode": self._mode.value if hasattr(self._mode, 'value') else str(self._mode)}
+        return {"mode": self._mode.value if hasattr(self._mode, "value") else str(self._mode)}
 
     async def plan(self, instruction: str) -> Any:
         from .planner import Planner
+
         planner = Planner()
         tools = [t.name for t in self._registry.list_tools()] if self._registry else []
         return planner.decompose_goal(instruction, tools)
@@ -194,6 +201,7 @@ class ExecutionEngine:
     async def execute(self, goal: str, **kwargs: Any) -> EngineResult:
         from .core import AgentCore, AgentMode, AgentGoal
         from .planner import StepResult
+
         mode_map = {
             ExecutionMode.REGISTRY: AgentMode.REGISTRY,
             ExecutionMode.AUTONOMOUS: AgentMode.AUTONOMOUS,
@@ -214,8 +222,10 @@ class ExecutionEngine:
                 )
                 step_results.append(sr)
         return EngineResult(
-            success=result.success, summary=result.summary,
-            all_findings=result.findings, step_results=step_results,
+            success=result.success,
+            summary=result.summary,
+            all_findings=result.findings,
+            step_results=step_results,
         )
 
     async def run(self, goal: str, **kwargs: Any) -> EngineResult:
@@ -227,7 +237,9 @@ class ExecutionEngine:
 
 
 class IntentRoute:
-    def __init__(self, mode: str = "general", risk_tier: Any = None, requires_confirmation: bool = False) -> None:
+    def __init__(
+        self, mode: str = "general", risk_tier: Any = None, requires_confirmation: bool = False
+    ) -> None:
         self.mode = mode
         self.risk_tier = risk_tier or RiskTier("low")
         self.requires_confirmation = requires_confirmation
@@ -265,5 +277,7 @@ class IntentRouter:
         if any(kw in text_lower for kw in ("brute", "crack", "password")):
             return IntentRoute(mode="brute", risk_tier=RiskTier("high"), requires_confirmation=True)
         if any(kw in text_lower for kw in ("exploit", "metasploit", "attack")):
-            return IntentRoute(mode="exploit", risk_tier=RiskTier("high"), requires_confirmation=True)
+            return IntentRoute(
+                mode="exploit", risk_tier=RiskTier("high"), requires_confirmation=True
+            )
         return IntentRoute(mode="general", risk_tier=RiskTier("low"))

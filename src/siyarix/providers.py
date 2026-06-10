@@ -133,18 +133,30 @@ class UsageRecord:
     call_count: int = 0
     total_cost_estimated: float = 0.0
 
-    def record(self, input_tokens: int, output_tokens: int, cost_tier: CostTier = CostTier.MEDIUM) -> None:
+    def record(
+        self, input_tokens: int, output_tokens: int, cost_tier: CostTier = CostTier.MEDIUM
+    ) -> None:
         self.input_tokens += input_tokens
         self.output_tokens += output_tokens
         self.call_count += 1
-        rates = {CostTier.FREE: 0.0, CostTier.LOW: 0.15e-6, CostTier.MEDIUM: 2.0e-6, CostTier.HIGH: 10.0e-6}
+        rates = {
+            CostTier.FREE: 0.0,
+            CostTier.LOW: 0.15e-6,
+            CostTier.MEDIUM: 2.0e-6,
+            CostTier.HIGH: 10.0e-6,
+        }
         rate = rates.get(cost_tier, 2.0e-6)
         self.total_cost_estimated += (input_tokens + output_tokens * 4) * rate
 
     def to_dict(self) -> dict[str, Any]:
-        return {"provider": self.provider, "model": self.model, "input_tokens": self.input_tokens,
-                "output_tokens": self.output_tokens, "call_count": self.call_count,
-                "total_cost_estimated": round(self.total_cost_estimated, 6)}
+        return {
+            "provider": self.provider,
+            "model": self.model,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "call_count": self.call_count,
+            "total_cost_estimated": round(self.total_cost_estimated, 6),
+        }
 
     @classmethod
     def from_dict(cls, d: dict) -> UsageRecord:
@@ -158,8 +170,14 @@ class UsageTracker:
         self._records: dict[str, UsageRecord] = {}
         self._path = path
 
-    def record_call(self, provider: str, model: str, input_tokens: int, output_tokens: int,
-                    cost_tier: CostTier = CostTier.MEDIUM) -> None:
+    def record_call(
+        self,
+        provider: str,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+        cost_tier: CostTier = CostTier.MEDIUM,
+    ) -> None:
         key = f"{provider}/{model}"
         if key not in self._records:
             self._records[key] = UsageRecord(provider=provider, model=model)
@@ -172,8 +190,10 @@ class UsageTracker:
         total_in = sum(r.input_tokens for r in self._records.values())
         total_out = sum(r.output_tokens for r in self._records.values())
         total_calls = sum(r.call_count for r in self._records.values())
-        return (f"LLM calls: {total_calls} | Tokens: {total_in}↑ {total_out}↓ "
-                f"| Est. cost: ${total_cost:.4f}")
+        return (
+            f"LLM calls: {total_calls} | Tokens: {total_in}↑ {total_out}↓ "
+            f"| Est. cost: ${total_cost:.4f}"
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {k: v.to_dict() for k, v in self._records.items()}
@@ -231,11 +251,15 @@ class ProviderStateManager:
         try:
             Path(self.path).parent.mkdir(parents=True, exist_ok=True)
             with open(self.path, "w", encoding="utf-8") as f:
-                json.dump({
-                    "disabled": list(self._disabled),
-                    "failure_counts": self._failure_counts,
-                    "last_fail_time": self._last_fail_time,
-                }, f, indent=2)
+                json.dump(
+                    {
+                        "disabled": list(self._disabled),
+                        "failure_counts": self._failure_counts,
+                        "last_fail_time": self._last_fail_time,
+                    },
+                    f,
+                    indent=2,
+                )
         except Exception as exc:
             logger.debug("Failed to save provider state: %s", exc)
 
@@ -254,15 +278,25 @@ class ProviderStateManager:
         self._failure_counts[provider] = self._failure_counts.get(provider, 0) + 1
         self._last_fail_time[provider] = time.time()
         self.save()
-        emit_sync(Event(type=EventType.PROVIDER_ERROR, source="providers",
-            data={"provider": provider, "failure_count": self._failure_counts[provider]}))
+        emit_sync(
+            Event(
+                type=EventType.PROVIDER_ERROR,
+                source="providers",
+                data={"provider": provider, "failure_count": self._failure_counts[provider]},
+            )
+        )
 
     def record_success(self, provider: str) -> None:
         self._disabled.discard(provider)
         self._failure_counts[provider] = 0
         self.save()
-        emit_sync(Event(type=EventType.PROVIDER_SELECTED, source="providers",
-            data={"provider": provider, "status": "recovered"}))
+        emit_sync(
+            Event(
+                type=EventType.PROVIDER_SELECTED,
+                source="providers",
+                data={"provider": provider, "status": "recovered"},
+            )
+        )
 
 
 class ProviderManager:
@@ -274,195 +308,674 @@ class ProviderManager:
 
     def _init_default_profiles(self) -> None:
         # ── OpenAI ──────────────────────────────────────────────────────
-        self.register(ProviderProfile(name="openai", display_name="OpenAI",
-            models=[
-                ModelInfo("gpt-5.5", supports_vision=True, supports_structured_output=True, context_window=1100000, cost_tier=CostTier.HIGH),
-                ModelInfo("gpt-5.5-pro", supports_vision=True, supports_structured_output=False, context_window=1100000, cost_tier=CostTier.HIGH),
-                ModelInfo("gpt-5.4", supports_vision=True, supports_structured_output=True, context_window=1050000, cost_tier=CostTier.HIGH),
-                ModelInfo("gpt-5.4-mini", supports_vision=True, supports_structured_output=True, context_window=400000, cost_tier=CostTier.MEDIUM),
-                ModelInfo("gpt-5.4-nano", supports_vision=True, supports_structured_output=True, context_window=400000, cost_tier=CostTier.LOW),
-                ModelInfo("gpt-5.2", supports_vision=True, supports_structured_output=True, context_window=400000, cost_tier=CostTier.MEDIUM),
-                ModelInfo("gpt-4.1", supports_vision=True, supports_structured_output=True, context_window=1000000, cost_tier=CostTier.MEDIUM),
-                ModelInfo("gpt-4.1-mini", supports_vision=True, supports_structured_output=True, context_window=1000000, cost_tier=CostTier.LOW),
-                ModelInfo("gpt-4.1-nano", supports_vision=True, supports_structured_output=True, context_window=1000000, cost_tier=CostTier.LOW),
-                ModelInfo("o4-mini", supports_vision=True, supports_structured_output=False, context_window=200000, cost_tier=CostTier.MEDIUM),
-                ModelInfo("o3", supports_vision=True, supports_structured_output=False, context_window=200000, cost_tier=CostTier.HIGH),
-            ],
-            api_key_env="OPENAI_API_KEY", max_context_tokens=1100000,
-            supports_streaming=True, supports_vision=True, priority=10, cost_tier=CostTier.HIGH,
-            docs_url="https://platform.openai.com/docs/models"))
+        self.register(
+            ProviderProfile(
+                name="openai",
+                display_name="OpenAI",
+                models=[
+                    ModelInfo(
+                        "gpt-5.5",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1100000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "gpt-5.5-pro",
+                        supports_vision=True,
+                        supports_structured_output=False,
+                        context_window=1100000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "gpt-5.4",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1050000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "gpt-5.4-mini",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=400000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "gpt-5.4-nano",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=400000,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "gpt-5.2",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=400000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "gpt-4.1",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1000000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "gpt-4.1-mini",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1000000,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "gpt-4.1-nano",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1000000,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "o4-mini",
+                        supports_vision=True,
+                        supports_structured_output=False,
+                        context_window=200000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "o3",
+                        supports_vision=True,
+                        supports_structured_output=False,
+                        context_window=200000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                ],
+                api_key_env="OPENAI_API_KEY",
+                max_context_tokens=1100000,
+                supports_streaming=True,
+                supports_vision=True,
+                priority=10,
+                cost_tier=CostTier.HIGH,
+                docs_url="https://platform.openai.com/docs/models",
+            )
+        )
 
         # ── Anthropic ───────────────────────────────────────────────────
-        self.register(ProviderProfile(name="anthropic", display_name="Anthropic",
-            models=[
-                ModelInfo("claude-opus-4-8", supports_vision=True, supports_structured_output=True, context_window=1000000, cost_tier=CostTier.HIGH),
-                ModelInfo("claude-sonnet-4-6", supports_vision=True, supports_structured_output=True, context_window=200000, cost_tier=CostTier.HIGH),
-                ModelInfo("claude-haiku-4-5", supports_vision=True, supports_structured_output=True, context_window=200000, cost_tier=CostTier.MEDIUM),
-            ],
-            api_key_env="ANTHROPIC_API_KEY", max_context_tokens=1000000,
-            supports_streaming=True, supports_vision=True, priority=10, cost_tier=CostTier.HIGH,
-            docs_url="https://docs.anthropic.com/en/docs/about-claude/models"))
+        self.register(
+            ProviderProfile(
+                name="anthropic",
+                display_name="Anthropic",
+                models=[
+                    ModelInfo(
+                        "claude-opus-4-8",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1000000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "claude-sonnet-4-6",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=200000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "claude-haiku-4-5",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=200000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                ],
+                api_key_env="ANTHROPIC_API_KEY",
+                max_context_tokens=1000000,
+                supports_streaming=True,
+                supports_vision=True,
+                priority=10,
+                cost_tier=CostTier.HIGH,
+                docs_url="https://docs.anthropic.com/en/docs/about-claude/models",
+            )
+        )
 
         # ── Google Gemini ──────────────────────────────────────────────
-        self.register(ProviderProfile(name="gemini", display_name="Google Gemini",
-            models=[
-                ModelInfo("gemini-3.5-pro", supports_vision=True, supports_structured_output=True, context_window=2000000, cost_tier=CostTier.HIGH),
-                ModelInfo("gemini-3.5-flash", supports_vision=True, supports_structured_output=True, context_window=1000000, cost_tier=CostTier.MEDIUM),
-                ModelInfo("gemini-3.1-pro", supports_vision=True, supports_structured_output=True, context_window=2000000, cost_tier=CostTier.HIGH),
-                ModelInfo("gemini-3.1-flash", supports_vision=True, supports_structured_output=True, context_window=1048576, cost_tier=CostTier.MEDIUM),
-                ModelInfo("gemini-3.1-flash-lite", supports_vision=True, supports_structured_output=True, context_window=1048576, cost_tier=CostTier.LOW),
-                ModelInfo("gemini-3.0-pro", supports_vision=True, supports_structured_output=True, context_window=1048576, cost_tier=CostTier.MEDIUM),
-                ModelInfo("gemini-3.0-flash", supports_vision=True, supports_structured_output=True, context_window=1048576, cost_tier=CostTier.LOW),
-                ModelInfo("gemini-2.5-pro", supports_vision=True, supports_structured_output=True, context_window=1048576, cost_tier=CostTier.MEDIUM),
-                ModelInfo("gemini-2.5-flash", supports_vision=True, supports_structured_output=True, context_window=1048576, cost_tier=CostTier.LOW),
-                ModelInfo("gemini-2.5-flash-lite", supports_vision=True, supports_structured_output=True, context_window=1048576, cost_tier=CostTier.FREE),
-                ModelInfo("gemini-2.0-flash", supports_vision=True, supports_structured_output=True, context_window=1048576, cost_tier=CostTier.FREE),
-            ],
-            api_key_env="GEMINI_API_KEY", max_context_tokens=2000000,
-            supports_streaming=True, supports_vision=True, priority=9, cost_tier=CostTier.LOW,
-            docs_url="https://ai.google.dev/gemini-api/docs/models"))
+        self.register(
+            ProviderProfile(
+                name="gemini",
+                display_name="Google Gemini",
+                models=[
+                    ModelInfo(
+                        "gemini-3.5-pro",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=2000000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "gemini-3.5-flash",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1000000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "gemini-3.1-pro",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=2000000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "gemini-3.1-flash",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1048576,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "gemini-3.1-flash-lite",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1048576,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "gemini-3.0-pro",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1048576,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "gemini-3.0-flash",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1048576,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "gemini-2.5-pro",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1048576,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "gemini-2.5-flash",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1048576,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "gemini-2.5-flash-lite",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1048576,
+                        cost_tier=CostTier.FREE,
+                    ),
+                    ModelInfo(
+                        "gemini-2.0-flash",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1048576,
+                        cost_tier=CostTier.FREE,
+                    ),
+                ],
+                api_key_env="GEMINI_API_KEY",
+                max_context_tokens=2000000,
+                supports_streaming=True,
+                supports_vision=True,
+                priority=9,
+                cost_tier=CostTier.LOW,
+                docs_url="https://ai.google.dev/gemini-api/docs/models",
+            )
+        )
 
         # ── Groq ───────────────────────────────────────────────────────
-        self.register(ProviderProfile(name="groq", display_name="Groq",
-            models=[
-                ModelInfo("llama-4-scout-17b-16e-instruct", supports_vision=True, context_window=262144, cost_tier=CostTier.FREE),
-                ModelInfo("llama-4-maverick-17b-128e-instruct", supports_vision=True, context_window=131072, cost_tier=CostTier.LOW),
-                ModelInfo("llama-3.3-70b-versatile", context_window=32768, cost_tier=CostTier.LOW),
-                ModelInfo("llama-3.1-8b-instant", context_window=128000, cost_tier=CostTier.FREE),
-                ModelInfo("mixtral-8x7b-32768", context_window=32768, cost_tier=CostTier.FREE),
-            ],
-            api_key_env="GROQ_API_KEY", max_context_tokens=262144,
-            supports_streaming=True, priority=8, cost_tier=CostTier.FREE,
-            docs_url="https://console.groq.com/docs/models"))
+        self.register(
+            ProviderProfile(
+                name="groq",
+                display_name="Groq",
+                models=[
+                    ModelInfo(
+                        "llama-4-scout-17b-16e-instruct",
+                        supports_vision=True,
+                        context_window=262144,
+                        cost_tier=CostTier.FREE,
+                    ),
+                    ModelInfo(
+                        "llama-4-maverick-17b-128e-instruct",
+                        supports_vision=True,
+                        context_window=131072,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "llama-3.3-70b-versatile", context_window=32768, cost_tier=CostTier.LOW
+                    ),
+                    ModelInfo(
+                        "llama-3.1-8b-instant", context_window=128000, cost_tier=CostTier.FREE
+                    ),
+                    ModelInfo("mixtral-8x7b-32768", context_window=32768, cost_tier=CostTier.FREE),
+                ],
+                api_key_env="GROQ_API_KEY",
+                max_context_tokens=262144,
+                supports_streaming=True,
+                priority=8,
+                cost_tier=CostTier.FREE,
+                docs_url="https://console.groq.com/docs/models",
+            )
+        )
 
         # ── Together AI ────────────────────────────────────────────────
-        self.register(ProviderProfile(name="together", display_name="Together AI",
-            models=[
-                ModelInfo("meta-llama/Llama-4-Scout-17B-16E-Instruct-FP8", supports_vision=True, context_window=512000, cost_tier=CostTier.LOW),
-                ModelInfo("meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8", supports_vision=True, context_window=131072, cost_tier=CostTier.LOW),
-                ModelInfo("meta-llama/Llama-3.3-70B-Instruct-Turbo", context_window=131072, cost_tier=CostTier.LOW),
-                ModelInfo("deepseek-ai/DeepSeek-V3.1", context_window=128000, cost_tier=CostTier.LOW),
-            ],
-            api_key_env="TOGETHER_API_KEY", max_context_tokens=512000,
-            supports_streaming=True, supports_vision=True, priority=7, cost_tier=CostTier.LOW,
-            docs_url="https://docs.together.ai/docs/inference-models"))
+        self.register(
+            ProviderProfile(
+                name="together",
+                display_name="Together AI",
+                models=[
+                    ModelInfo(
+                        "meta-llama/Llama-4-Scout-17B-16E-Instruct-FP8",
+                        supports_vision=True,
+                        context_window=512000,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+                        supports_vision=True,
+                        context_window=131072,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+                        context_window=131072,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "deepseek-ai/DeepSeek-V3.1", context_window=128000, cost_tier=CostTier.LOW
+                    ),
+                ],
+                api_key_env="TOGETHER_API_KEY",
+                max_context_tokens=512000,
+                supports_streaming=True,
+                supports_vision=True,
+                priority=7,
+                cost_tier=CostTier.LOW,
+                docs_url="https://docs.together.ai/docs/inference-models",
+            )
+        )
 
         # ── OpenRouter ─────────────────────────────────────────────────
-        self.register(ProviderProfile(name="openrouter", display_name="OpenRouter",
-            models=[
-                ModelInfo("openai/gpt-5.4", supports_vision=True, context_window=1050000, cost_tier=CostTier.HIGH),
-                ModelInfo("openai/gpt-5.5", supports_vision=True, context_window=1100000, cost_tier=CostTier.HIGH),
-                ModelInfo("anthropic/claude-opus-4.8", supports_vision=True, context_window=1000000, cost_tier=CostTier.HIGH),
-                ModelInfo("anthropic/claude-sonnet-4.6", supports_vision=True, context_window=200000, cost_tier=CostTier.HIGH),
-                ModelInfo("google/gemini-2.5-pro", supports_vision=True, context_window=1048576, cost_tier=CostTier.MEDIUM),
-                ModelInfo("deepseek/deepseek-v4-flash", context_window=1000000, cost_tier=CostTier.LOW),
-                ModelInfo("deepseek/deepseek-v4-pro", context_window=1000000, cost_tier=CostTier.MEDIUM),
-                ModelInfo("meta-llama/llama-4-scout-17b-16e-instruct", supports_vision=True, context_window=262144, cost_tier=CostTier.LOW),
-                ModelInfo("nvidia/nemotron-3-super-120b:free", context_window=1000000, cost_tier=CostTier.FREE),
-            ],
-            api_key_env="OPENROUTER_API_KEY", max_context_tokens=2000000,
-            supports_streaming=True, supports_vision=True, priority=6, cost_tier=CostTier.MEDIUM,
-            docs_url="https://openrouter.ai/models"))
+        self.register(
+            ProviderProfile(
+                name="openrouter",
+                display_name="OpenRouter",
+                models=[
+                    ModelInfo(
+                        "openai/gpt-5.4",
+                        supports_vision=True,
+                        context_window=1050000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "openai/gpt-5.5",
+                        supports_vision=True,
+                        context_window=1100000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "anthropic/claude-opus-4.8",
+                        supports_vision=True,
+                        context_window=1000000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "anthropic/claude-sonnet-4.6",
+                        supports_vision=True,
+                        context_window=200000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "google/gemini-2.5-pro",
+                        supports_vision=True,
+                        context_window=1048576,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "deepseek/deepseek-v4-flash", context_window=1000000, cost_tier=CostTier.LOW
+                    ),
+                    ModelInfo(
+                        "deepseek/deepseek-v4-pro",
+                        context_window=1000000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "meta-llama/llama-4-scout-17b-16e-instruct",
+                        supports_vision=True,
+                        context_window=262144,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "nvidia/nemotron-3-super-120b:free",
+                        context_window=1000000,
+                        cost_tier=CostTier.FREE,
+                    ),
+                ],
+                api_key_env="OPENROUTER_API_KEY",
+                max_context_tokens=2000000,
+                supports_streaming=True,
+                supports_vision=True,
+                priority=6,
+                cost_tier=CostTier.MEDIUM,
+                docs_url="https://openrouter.ai/models",
+            )
+        )
 
         # ── DeepSeek ───────────────────────────────────────────────────
-        self.register(ProviderProfile(name="deepseek", display_name="DeepSeek",
-            models=[
-                ModelInfo("deepseek-v4-flash", supports_tools=True, context_window=1000000, cost_tier=CostTier.LOW),
-                ModelInfo("deepseek-v4-pro", supports_tools=True, supports_structured_output=False, context_window=1000000, cost_tier=CostTier.MEDIUM),
-                ModelInfo("deepseek-chat", context_window=65536, cost_tier=CostTier.LOW),
-            ],
-            api_key_env="DEEPSEEK_API_KEY", base_url="https://api.deepseek.com",
-            max_context_tokens=1000000, supports_streaming=True, priority=8, cost_tier=CostTier.LOW,
-            docs_url="https://platform.deepseek.com/docs"))
+        self.register(
+            ProviderProfile(
+                name="deepseek",
+                display_name="DeepSeek",
+                models=[
+                    ModelInfo(
+                        "deepseek-v4-flash",
+                        supports_tools=True,
+                        context_window=1000000,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "deepseek-v4-pro",
+                        supports_tools=True,
+                        supports_structured_output=False,
+                        context_window=1000000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo("deepseek-chat", context_window=65536, cost_tier=CostTier.LOW),
+                ],
+                api_key_env="DEEPSEEK_API_KEY",
+                base_url="https://api.deepseek.com",
+                max_context_tokens=1000000,
+                supports_streaming=True,
+                priority=8,
+                cost_tier=CostTier.LOW,
+                docs_url="https://platform.deepseek.com/docs",
+            )
+        )
 
         # ── xAI / Grok ────────────────────────────────────────────────
-        self.register(ProviderProfile(name="xai", display_name="xAI (Grok)",
-            models=[
-                ModelInfo("grok-4.3", supports_vision=True, supports_structured_output=True, context_window=1000000, cost_tier=CostTier.MEDIUM),
-                ModelInfo("grok-4.1-fast", supports_vision=True, supports_structured_output=False, context_window=2000000, cost_tier=CostTier.LOW),
-                ModelInfo("grok-4.20", supports_vision=True, supports_structured_output=False, context_window=2000000, cost_tier=CostTier.MEDIUM),
-                ModelInfo("grok-build-0.1", supports_vision=True, supports_structured_output=False, context_window=128000, cost_tier=CostTier.LOW),
-            ],
-            api_key_env="XAI_API_KEY", base_url="https://api.x.ai",
-            max_context_tokens=2000000, supports_streaming=True, supports_vision=True, priority=7, cost_tier=CostTier.MEDIUM,
-            docs_url="https://docs.x.ai/docs"))
+        self.register(
+            ProviderProfile(
+                name="xai",
+                display_name="xAI (Grok)",
+                models=[
+                    ModelInfo(
+                        "grok-4.3",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1000000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "grok-4.1-fast",
+                        supports_vision=True,
+                        supports_structured_output=False,
+                        context_window=2000000,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "grok-4.20",
+                        supports_vision=True,
+                        supports_structured_output=False,
+                        context_window=2000000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "grok-build-0.1",
+                        supports_vision=True,
+                        supports_structured_output=False,
+                        context_window=128000,
+                        cost_tier=CostTier.LOW,
+                    ),
+                ],
+                api_key_env="XAI_API_KEY",
+                base_url="https://api.x.ai",
+                max_context_tokens=2000000,
+                supports_streaming=True,
+                supports_vision=True,
+                priority=7,
+                cost_tier=CostTier.MEDIUM,
+                docs_url="https://docs.x.ai/docs",
+            )
+        )
 
         # ── Mistral AI ─────────────────────────────────────────────────
-        self.register(ProviderProfile(name="mistral", display_name="Mistral AI",
-            models=[
-                ModelInfo("mistral-large-3", supports_vision=True, supports_function_calling=True, supports_structured_output=True, context_window=262000, cost_tier=CostTier.MEDIUM),
-                ModelInfo("mistral-small-4", supports_vision=True, supports_function_calling=True, context_window=128000, cost_tier=CostTier.LOW),
-                ModelInfo("codestral", supports_function_calling=True, context_window=32000, cost_tier=CostTier.LOW),
-                ModelInfo("pixtral-large", supports_vision=True, supports_function_calling=True, context_window=128000, cost_tier=CostTier.MEDIUM),
-            ],
-            api_key_env="MISTRAL_API_KEY", base_url="https://api.mistral.ai",
-            max_context_tokens=262000, supports_streaming=True, supports_vision=True, priority=7, cost_tier=CostTier.MEDIUM,
-            docs_url="https://docs.mistral.ai/platform/models"))
+        self.register(
+            ProviderProfile(
+                name="mistral",
+                display_name="Mistral AI",
+                models=[
+                    ModelInfo(
+                        "mistral-large-3",
+                        supports_vision=True,
+                        supports_function_calling=True,
+                        supports_structured_output=True,
+                        context_window=262000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "mistral-small-4",
+                        supports_vision=True,
+                        supports_function_calling=True,
+                        context_window=128000,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "codestral",
+                        supports_function_calling=True,
+                        context_window=32000,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "pixtral-large",
+                        supports_vision=True,
+                        supports_function_calling=True,
+                        context_window=128000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                ],
+                api_key_env="MISTRAL_API_KEY",
+                base_url="https://api.mistral.ai",
+                max_context_tokens=262000,
+                supports_streaming=True,
+                supports_vision=True,
+                priority=7,
+                cost_tier=CostTier.MEDIUM,
+                docs_url="https://docs.mistral.ai/platform/models",
+            )
+        )
 
         # ── Perplexity ─────────────────────────────────────────────────
-        self.register(ProviderProfile(name="perplexity", display_name="Perplexity",
-            models=[
-                ModelInfo("sonar-pro", supports_structured_output=False, context_window=200000, cost_tier=CostTier.MEDIUM),
-                ModelInfo("sonar", supports_structured_output=False, context_window=128000, cost_tier=CostTier.LOW),
-                ModelInfo("sonar-reasoning-pro", supports_structured_output=False, context_window=128000, cost_tier=CostTier.MEDIUM),
-                ModelInfo("sonar-reasoning", supports_structured_output=False, context_window=128000, cost_tier=CostTier.LOW),
-                ModelInfo("sonar-deep-research", supports_structured_output=False, context_window=128000, cost_tier=CostTier.HIGH),
-            ],
-            api_key_env="PERPLEXITY_API_KEY", base_url="https://api.perplexity.ai",
-            max_context_tokens=200000, supports_streaming=True, priority=6, cost_tier=CostTier.MEDIUM,
-            docs_url="https://docs.perplexity.ai/docs/model-cards"))
+        self.register(
+            ProviderProfile(
+                name="perplexity",
+                display_name="Perplexity",
+                models=[
+                    ModelInfo(
+                        "sonar-pro",
+                        supports_structured_output=False,
+                        context_window=200000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "sonar",
+                        supports_structured_output=False,
+                        context_window=128000,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "sonar-reasoning-pro",
+                        supports_structured_output=False,
+                        context_window=128000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "sonar-reasoning",
+                        supports_structured_output=False,
+                        context_window=128000,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "sonar-deep-research",
+                        supports_structured_output=False,
+                        context_window=128000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                ],
+                api_key_env="PERPLEXITY_API_KEY",
+                base_url="https://api.perplexity.ai",
+                max_context_tokens=200000,
+                supports_streaming=True,
+                priority=6,
+                cost_tier=CostTier.MEDIUM,
+                docs_url="https://docs.perplexity.ai/docs/model-cards",
+            )
+        )
 
         # ── Azure OpenAI ──────────────────────────────────────────────
-        self.register(ProviderProfile(name="azure", display_name="Azure OpenAI",
-            models=[
-                ModelInfo("gpt-5.4", supports_vision=True, supports_structured_output=True, context_window=1050000, cost_tier=CostTier.HIGH),
-                ModelInfo("gpt-5.4-mini", supports_vision=True, supports_structured_output=True, context_window=400000, cost_tier=CostTier.MEDIUM),
-                ModelInfo("gpt-4.1", supports_vision=True, supports_structured_output=True, context_window=1000000, cost_tier=CostTier.MEDIUM),
-                ModelInfo("gpt-4.1-mini", supports_vision=True, supports_structured_output=True, context_window=1000000, cost_tier=CostTier.LOW),
-            ],
-            api_key_env="AZURE_OPENAI_API_KEY", base_url="https://YOUR_RESOURCE.openai.azure.com",
-            max_context_tokens=1050000, supports_streaming=True, supports_vision=True, priority=9,
-            cost_tier=CostTier.HIGH, docs_url="https://learn.microsoft.com/en-us/azure/ai-services/openai/"))
+        self.register(
+            ProviderProfile(
+                name="azure",
+                display_name="Azure OpenAI",
+                models=[
+                    ModelInfo(
+                        "gpt-5.4",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1050000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "gpt-5.4-mini",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=400000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "gpt-4.1",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1000000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "gpt-4.1-mini",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1000000,
+                        cost_tier=CostTier.LOW,
+                    ),
+                ],
+                api_key_env="AZURE_OPENAI_API_KEY",
+                base_url="https://YOUR_RESOURCE.openai.azure.com",
+                max_context_tokens=1050000,
+                supports_streaming=True,
+                supports_vision=True,
+                priority=9,
+                cost_tier=CostTier.HIGH,
+                docs_url="https://learn.microsoft.com/en-us/azure/ai-services/openai/",
+            )
+        )
 
         # ── Ollama (Local) ─────────────────────────────────────────────
-        self.register(ProviderProfile(name="ollama", display_name="Ollama (Local)",
-            models=[
-                ModelInfo("llama3.1", context_window=8192, cost_tier=CostTier.FREE),
-                ModelInfo("mistral", context_window=8192, cost_tier=CostTier.FREE),
-                ModelInfo("codellama", context_window=16384, cost_tier=CostTier.FREE),
-                ModelInfo("phi4", context_window=16384, cost_tier=CostTier.FREE),
-            ],
-            base_url="http://localhost:11434", max_context_tokens=16384,
-            supports_streaming=False, supports_tools=False, supports_vision=True,
-            priority=5, cost_tier=CostTier.FREE, provider_type=ProviderType.LOCAL))
+        self.register(
+            ProviderProfile(
+                name="ollama",
+                display_name="Ollama (Local)",
+                models=[
+                    ModelInfo("llama3.1", context_window=8192, cost_tier=CostTier.FREE),
+                    ModelInfo("mistral", context_window=8192, cost_tier=CostTier.FREE),
+                    ModelInfo("codellama", context_window=16384, cost_tier=CostTier.FREE),
+                    ModelInfo("phi4", context_window=16384, cost_tier=CostTier.FREE),
+                ],
+                base_url="http://localhost:11434",
+                max_context_tokens=16384,
+                supports_streaming=False,
+                supports_tools=False,
+                supports_vision=True,
+                priority=5,
+                cost_tier=CostTier.FREE,
+                provider_type=ProviderType.LOCAL,
+            )
+        )
 
         # ── LM Studio (Local) ─────────────────────────────────────────
-        self.register(ProviderProfile(name="lmstudio", display_name="LM Studio (Local)",
-            models=[], base_url="http://localhost:1234", max_context_tokens=8192,
-            supports_streaming=False, supports_tools=False,
-            priority=4, cost_tier=CostTier.FREE, provider_type=ProviderType.LOCAL,
-            docs_url="https://lmstudio.ai/docs"))
+        self.register(
+            ProviderProfile(
+                name="lmstudio",
+                display_name="LM Studio (Local)",
+                models=[],
+                base_url="http://localhost:1234",
+                max_context_tokens=8192,
+                supports_streaming=False,
+                supports_tools=False,
+                priority=4,
+                cost_tier=CostTier.FREE,
+                provider_type=ProviderType.LOCAL,
+                docs_url="https://lmstudio.ai/docs",
+            )
+        )
 
         # ── llama.cpp (Local) ─────────────────────────────────────────
-        self.register(ProviderProfile(name="llamacpp", display_name="llama.cpp",
-            models=[], base_url="http://localhost:8080", max_context_tokens=8192,
-            supports_streaming=True, supports_tools=False,
-            priority=4, cost_tier=CostTier.FREE, provider_type=ProviderType.LOCAL,
-            docs_url="https://github.com/ggml-org/llama.cpp"))
+        self.register(
+            ProviderProfile(
+                name="llamacpp",
+                display_name="llama.cpp",
+                models=[],
+                base_url="http://localhost:8080",
+                max_context_tokens=8192,
+                supports_streaming=True,
+                supports_tools=False,
+                priority=4,
+                cost_tier=CostTier.FREE,
+                provider_type=ProviderType.LOCAL,
+                docs_url="https://github.com/ggml-org/llama.cpp",
+            )
+        )
 
         # ── vLLM (Local) ──────────────────────────────────────────────
-        self.register(ProviderProfile(name="vllm", display_name="vLLM",
-            models=[], base_url="http://localhost:8000", max_context_tokens=32768,
-            supports_streaming=True, supports_tools=True,
-            priority=3, cost_tier=CostTier.FREE, provider_type=ProviderType.LOCAL,
-            docs_url="https://docs.vllm.ai"))
+        self.register(
+            ProviderProfile(
+                name="vllm",
+                display_name="vLLM",
+                models=[],
+                base_url="http://localhost:8000",
+                max_context_tokens=32768,
+                supports_streaming=True,
+                supports_tools=True,
+                priority=3,
+                cost_tier=CostTier.FREE,
+                provider_type=ProviderType.LOCAL,
+                docs_url="https://docs.vllm.ai",
+            )
+        )
 
         # ── LocalAI (Local) ──────────────────────────────────────────
-        self.register(ProviderProfile(name="localai", display_name="LocalAI",
-            models=[], base_url="http://localhost:8080", max_context_tokens=8192,
-            supports_streaming=True, supports_tools=False,
-            priority=3, cost_tier=CostTier.FREE, provider_type=ProviderType.LOCAL,
-            docs_url="https://localai.io"))
+        self.register(
+            ProviderProfile(
+                name="localai",
+                display_name="LocalAI",
+                models=[],
+                base_url="http://localhost:8080",
+                max_context_tokens=8192,
+                supports_streaming=True,
+                supports_tools=False,
+                priority=3,
+                cost_tier=CostTier.FREE,
+                provider_type=ProviderType.LOCAL,
+                docs_url="https://localai.io",
+            )
+        )
 
     def register(self, profile: ProviderProfile) -> None:
         self._profiles[profile.name] = profile
@@ -513,19 +1026,27 @@ class ProviderManager:
     def classify_error(self, provider: str, error: Exception) -> ClassifiedError:
         error_str = str(error).lower()
         if "401" in error_str or "403" in error_str or "unauthorized" in error_str:
-            return ClassifiedError(FailoverReason.AUTH, should_rotate_credential=True, message=str(error))
+            return ClassifiedError(
+                FailoverReason.AUTH, should_rotate_credential=True, message=str(error)
+            )
         if "429" in error_str or "rate" in error_str:
             return ClassifiedError(FailoverReason.RATE_LIMIT, message=str(error))
         if "402" in error_str or "billing" in error_str or "quota" in error_str:
-            return ClassifiedError(FailoverReason.BILLING, should_rotate_credential=True, message=str(error))
+            return ClassifiedError(
+                FailoverReason.BILLING, should_rotate_credential=True, message=str(error)
+            )
         if "timeout" in error_str or "timed out" in error_str:
             return ClassifiedError(FailoverReason.TIMEOUT, message=str(error))
         if "500" in error_str or "502" in error_str or "503" in error_str:
             return ClassifiedError(FailoverReason.SERVER_ERROR, message=str(error))
         if "context" in error_str and ("too long" in error_str or "overflow" in error_str):
-            return ClassifiedError(FailoverReason.CONTEXT_OVERFLOW, should_compress=True, message=str(error))
+            return ClassifiedError(
+                FailoverReason.CONTEXT_OVERFLOW, should_compress=True, message=str(error)
+            )
         if "404" in error_str or "not found" in error_str:
-            return ClassifiedError(FailoverReason.MODEL_NOT_FOUND, should_fallback=True, message=str(error))
+            return ClassifiedError(
+                FailoverReason.MODEL_NOT_FOUND, should_fallback=True, message=str(error)
+            )
         return ClassifiedError(FailoverReason.UNKNOWN, message=str(error))
 
     def record_failure(self, provider: str, reason: FailoverReason) -> None:
@@ -561,7 +1082,9 @@ class ProviderManager:
                 return profile.name, profile.default_model
         return "ollama", "llama3.1"
 
-    def get_providers_by_capability(self, *, vision: bool = False, free: bool = False, local: bool = False) -> list[ProviderProfile]:
+    def get_providers_by_capability(
+        self, *, vision: bool = False, free: bool = False, local: bool = False
+    ) -> list[ProviderProfile]:
         results = []
         for profile in sorted(self._profiles.values(), key=lambda p: -p.priority):
             if vision and not profile.supports_vision:

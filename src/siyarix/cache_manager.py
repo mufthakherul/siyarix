@@ -75,11 +75,17 @@ class CacheManager:
 
     def _save_index(self) -> None:
         try:
-            entries = {key: {
-                "key": e.key, "domain": e.domain,
-                "created_at": e.created_at, "ttl": e.ttl,
-                "size_bytes": e.size_bytes, "hit_count": e.hit_count,
-            } for key, e in self._entries.items()}
+            entries = {
+                key: {
+                    "key": e.key,
+                    "domain": e.domain,
+                    "created_at": e.created_at,
+                    "ttl": e.ttl,
+                    "size_bytes": e.size_bytes,
+                    "hit_count": e.hit_count,
+                }
+                for key, e in self._entries.items()
+            }
             (self._dir / "index.json").write_text(json.dumps(entries, indent=2), encoding="utf-8")
         except Exception as exc:
             logger.debug("Cache index save failed: %s", exc)
@@ -111,8 +117,11 @@ class CacheManager:
         config = self._domain_config(domain)
         now = time.monotonic()
         entry = CacheEntry(
-            key=key, data=data[:100], domain=domain,
-            created_at=now, ttl=config["ttl"],
+            key=key,
+            data=data[:100],
+            domain=domain,
+            created_at=now,
+            ttl=config["ttl"],
             size_bytes=len(data.encode("utf-8")),
         )
 
@@ -194,12 +203,15 @@ cache_manager = CacheManager()
 
 def cached(domain: str = "tool_output") -> Callable[[F], F]:
     """Decorator: caches function return value by (func_name, args, kwargs)."""
+
     def decorator(func: F) -> F:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             key = f"{func.__name__}:{str(args)}:{str(sorted(kwargs.items()))}"
             return cache_manager.get_or_compute(key, domain, lambda: str(func(*args, **kwargs)))
+
         return wrapper  # type: ignore
+
     return decorator
 
 

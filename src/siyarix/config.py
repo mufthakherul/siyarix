@@ -286,6 +286,14 @@ class SettingsStore:
             self._data = {**DEFAULTS}
         self._save()
 
+    def delete(self, key: str) -> bool:
+        """Remove a key from settings entirely. Returns True if it existed."""
+        existed = key in self._data
+        if existed:
+            self._data.pop(key, None)
+            self._save()
+        return existed
+
     def list_all(self) -> list[dict[str, Any]]:
         """Return all settings as a list of dicts for display."""
         rows = []

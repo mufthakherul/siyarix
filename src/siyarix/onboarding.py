@@ -1509,8 +1509,13 @@ class OnboardingWizard:
         os.system("cls" if os.name == "nt" else "clear")
 
     def _store_api_key(self, provider: str, key: str) -> None:
-        """Store API key in vault and environment."""
+        """Store API key in vault, settings, and environment."""
         os.environ[provider.upper() + "_API_KEY"] = key
+        try:
+            from siyarix.config import SettingsStore
+            SettingsStore().set(f"api_key_{provider}", key)
+        except Exception:
+            pass
         if self._vault:
             try:
                 self._vault.set(provider, key)

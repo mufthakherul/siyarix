@@ -1075,6 +1075,9 @@ class OnboardingWizard:
                 desc = info.get("description", "") if isinstance(info, dict) else ""
                 short = textwrap.shorten(desc, width=50, placeholder="...") if desc else ""
                 ptable.add_row(str(i), str(label), short)
+            ptable.add_row("a", "Auto", "Adaptive persona selection based on context")
+            ptable.add_row("u", "Universal", "General-purpose assistant without specialization")
+            ptable.add_row("n", "None", "No persona — raw Siyarix defaults")
             self._console.print(ptable)
             self._console.print()
 
@@ -1108,7 +1111,7 @@ class OnboardingWizard:
 
         self._console.print(
             Panel(
-                textwrap.shorten(SIYARIX_SYSTEM_PROMPT, width=60, placeholder="..."),
+                SIYARIX_SYSTEM_PROMPT,
                 border_style="dim",
                 title="Default System Message",
                 title_align="left",

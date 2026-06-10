@@ -4132,8 +4132,10 @@ When the user message contains tool execution results, analyse them thoroughly.
     def _print_goodbye(self) -> None:
         self._session.save(self._SESSIONS_DIR / f"{self._session.session_id}.json")
         self._output.print_info(f"Session saved: {self._session.session_id[:8]}")
-        self._output.print_info(f"Resume with: siyarix chat --session {self._session.session_id}")
-        self._output.print_info("Your theme and key settings remain in config/.env.")
+        self._output.print_info(
+            f"Resume with: siyarix --session {self._session.session_id}"
+        )
+        self._output.print_info("Settings persist in config/.env — stay curious, stay ethical.")
 
 
 # ---------------------------------------------------------------------------

@@ -2986,7 +2986,10 @@ When the user message contains tool execution results, analyse them thoroughly.
 
         # ── No tools needed ──────────────────────────────────────────────
         if not llm_plan.steps:
-            if llm_connected and llm_call_fn:
+            response = llm_plan.context.get("response", "") if llm_plan else ""
+            if response:
+                self._print_assistant(response)
+            elif llm_connected and llm_call_fn:
                 sys_prompt = self._build_system_prompt()
                 response = await self._stream_assistant_response(
                     sys_prompt, instruction, provider_name, api_key

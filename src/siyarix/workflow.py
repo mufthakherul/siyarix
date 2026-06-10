@@ -84,7 +84,13 @@ class Workflow:
             if not incoming:
                 ready.append(node)
                 continue
-            if all(self.get_node(e.source) and self.get_node(e.source).status == WorkflowStepStatus.COMPLETED for e in incoming):
+            deps_met = True
+            for e in incoming:
+                src = self.get_node(e.source)
+                if src is None or src.status != WorkflowStepStatus.COMPLETED:
+                    deps_met = False
+                    break
+            if deps_met:
                 ready.append(node)
         return ready
 

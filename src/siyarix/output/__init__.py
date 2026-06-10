@@ -37,9 +37,7 @@ except ImportError:
 
 yaml = _yaml
 
-Align: Any = None
 Console: Any = None
-Panel: Any = None
 BarColumn: Any = None
 Progress: Any = None
 SpinnerColumn: Any = None
@@ -51,19 +49,15 @@ Confirm: Any = None
 Prompt: Any = None
 Syntax: Any = None
 Table: Any = None
-Text: Any = None
 
 try:
-    from rich.align import Align
     from rich.console import Console
-    from rich.panel import Panel
     from rich.progress import (BarColumn, Progress, SpinnerColumn,
                                TaskProgressColumn, TextColumn,
                                TimeRemainingColumn, TransferSpeedColumn)
     from rich.prompt import Confirm, Prompt
     from rich.syntax import Syntax
     from rich.table import Table
-    from rich.text import Text
 
     RICH_AVAILABLE = True
 except ImportError:
@@ -122,16 +116,12 @@ class OutputEngine:
         self, title: str, subtitle: str = "", style: str = "primary"
     ) -> None:
         if RICH_AVAILABLE and self.console is not None:
-            banner_text = Text()
-            banner_text.append(title, style=self.theme[style])
-            if subtitle:
-                banner_text.append(f"\n{subtitle}", style=self.theme["muted"])
-            panel = Panel(
-                Align.center(banner_text),
-                border_style=self.theme[style],
-                padding=(1, 4),
+            from ..branding import print_banner as _print_branding_banner
+            _print_branding_banner(
+                console=self.console,
+                theme=list(THEMES.keys())[0] if THEMES else "default",
+                subtitle=title,
             )
-            self.console.print(panel)
         else:
             self._raw_print(f"\n{'=' * 30}")
             self._raw_print(f"  {title}")

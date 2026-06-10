@@ -133,29 +133,49 @@ class HealthChecker:
 
     async def _check_model_providers(self, status: HealthStatus) -> None:
         """Check model provider health."""
-        providers_to_check = {
-            "OpenAI": {"requires_env": "OPENAI_API_KEY"},
-            "Gemini": {"requires_env": "GEMINI_API_KEY"},
-            "Ollama": {"requires_running": True},
-            "Cloud": {"requires_config": True},
-            "OpenRouter": {"requires_env": "OPENROUTER_API_KEY"},
-        }
+        from .providers import ProviderManager
+        pm = ProviderManager()
+        entries: list[tuple[str, str | None, bool]] = []
 
-        for provider_name, config in providers_to_check.items():
+        for prov_name in pm.list_providers():
+            profile = pm.get_profile(prov_name)
+            if not profile:
+                continue
+            # (display_name, env_var, is_local)
+            entries.append((prov_name, profile.api_key_env, not bool(profile.api_key_env)))
+
+        # Also check cloud/custom/opencode
+        entries.extend([
+            ("cloud", "SIYARIX_SERVER_URL", False),
+            ("custom", "CUSTOM_API_KEY", False),
+            ("opencode", "OPENCODE_API_KEY", False),
+        ])
+
+        for provider_name, env_var, is_local in entries:
             start = time.time()
             try:
                 available = False
                 message = ""
 
-                if provider_name == "OpenAI":
-                    available = bool(os.getenv("OPENAI_API_KEY"))
-                    message = (
-                        "OpenAI API key configured"
-                        if available
-                        else "OpenAI not configured"
-                    )
-
-                elif provider_name == "Gemini":
+                if is_local:
+                    # Check if the local service is running
+                    try:
+                        import httpx
+                        ports = {"ollama": 11434, "lmstudio": 1234}
+                        port = ports.get(provider_name, 11434)
+                        async with httpx.AsyncClient(timeout=2.0) as client:
+                            resp = await client.get(f"http://localhost:{port}/api/tags")
+                            available = resp.status_code == 200
+                            message = (
+                                f"{provider_name.capitalize()} responsive"
+                                if available
+                                else f"{provider_name.capitalize()} not responding"
+                            )
+                    except Exception:
+                        logger.debug("%s check failed — not running", provider_name)
+                        available = False
+                        message = f"{provider_name.capitalize()} not running"
+                elif provider_name == "gemini":
                     available = bool(
                         os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
                     )
@@ -164,48 +184,28 @@ class HealthChecker:
                         if available
                         else "Gemini not configured"
                     )
-
-                elif provider_name == "Ollama":
-                    # Check if Ollama is running
-                    try:
-                        import httpx
-
-                        async with httpx.AsyncClient(timeout=2.0) as client:
-                            resp = await client.get("http://localhost:11434/api/tags")
-                            available = resp.status_code == 200
-                            message = (
-                                "Ollama responsive"
-                                if available
-                                else "Ollama not responding"
-                            )
-                    except Exception:
-                        logger.debug("Ollama check failed — not running")
-                        available = False
-                        message = "Ollama not running"
-
-                elif provider_name == "Cloud":
-                    # Check if cloud config present
-                    available = bool(
-                        os.getenv("SIYARIX_SERVER_URL") and os.getenv("SIYARIX_API_KEY")
-                    )
+                elif provider_name == "azure":
+                    available = bool(os.getenv(env_var or ""))
                     message = (
-                        "Cloud configured" if available else "Cloud not configured"
-                    )
-
-                elif provider_name == "OpenRouter":
-                    available = bool(os.getenv("OPENROUTER_API_KEY"))
-                    message = (
-                        "OpenRouter API key configured"
+                        "Azure OpenAI configured"
                         if available
-                        else "OpenRouter not configured"
+                        else "Azure OpenAI not configured"
+                    )
+                else:
+                    available = bool(os.getenv(env_var or ""))
+                    message = (
+                        f"{provider_name.capitalize()} configured"
+                        if available
+                        else f"{provider_name.capitalize()} not configured"
                     )
 
-                self.model_providers_available[provider_name] = available
+                display_name = provider_name.capitalize()
+                self.model_providers_available[display_name] = available
 
                 latency = (time.time() - start) * 1000
                 status.components.append(
                     ComponentHealth(
-                        name=f"ModelProvider/{provider_name}",
+                        name=f"ModelProvider/{display_name}",
                         state=(
                             HealthState.HEALTHY if available else HealthState.DEGRADED
                         ),
@@ -215,10 +215,11 @@ class HealthChecker:
                     )
                 )
             except Exception as exc:
+                display_name = provider_name.capitalize()
                 logger.exception("Model provider check failed for %s", provider_name)
                 status.components.append(
                     ComponentHealth(
-                        name=f"ModelProvider/{provider_name}",
+                        name=f"ModelProvider/{display_name}",
                         state=HealthState.UNHEALTHY,
                         message=f"Error: {str(exc)}",
                         latency_ms=(time.time() - start) * 1000,

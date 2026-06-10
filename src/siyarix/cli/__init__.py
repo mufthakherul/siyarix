@@ -421,6 +421,8 @@ def main_callback(
         help="Execution mode: registry|autonomous|integrated|offline",
     ),
     target: str = typer.Option("", "--target", "-t", help="Set initial target for the session"),
+    session: str = typer.Option("", "--session", help="Resume a previous session by ID"),
+    resume: bool = typer.Option(False, "--resume", help="Resume an existing session"),
     version: bool = typer.Option(False, "--version", help="Show version information"),
 ) -> None:
     if version:
@@ -485,7 +487,7 @@ def main_callback(
 
         _ensure_ollama_running()
         _ensure_vault_ready()
-        start_chat(mode=mode, target=target)
+        start_chat(mode=mode, target=target, session_id=session or None, resume=resume or bool(session))
 
 
 def _ensure_vault_ready() -> None:

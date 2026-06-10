@@ -52,6 +52,8 @@ def test_main_block_via_subprocess() -> None:
         [sys.executable, "-m", "siyarix", "--help"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=30,
         env=env,
     )

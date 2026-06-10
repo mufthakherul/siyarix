@@ -672,7 +672,7 @@ class CredentialVault:
             self._env_comps = {
                 k: h for k, (h, _) in EnvironmentFingerprint.compute_components().items()
             }
-            if not self._verify_passphrase(force=True):
+            if not self._verify_passphrase():
                 self._device_fp = old_fp
                 self._env_fp = old_env
                 return False
@@ -687,22 +687,16 @@ class CredentialVault:
             return False
 
     def _verify_passphrase(self, force: bool = False) -> bool:
-        """Verify passphrase by attempting decryption (bypasses device binding when force=True)."""
+        """Verify passphrase by attempting decryption."""
         try:
             raw = self._vault_path.read_bytes()
             data = json.loads(raw)
             stored_iters = data.get("iterations", _PBKDF2_MIN_ITERATIONS)
 
-            old_device_comps = data.get("device_fp_components", {})
-            old_env_comps = data.get("env_fp_components", {})
-            if old_device_comps and force:
-                old_device_fp = DeviceFingerprint.compute_single_from_comps(old_device_comps)
-            else:
-                old_device_fp = self._device_fp
-            if old_env_comps and force:
-                old_env_fp = EnvironmentFingerprint.compute_single_from_comps(old_env_comps)
-            else:
-                old_env_fp = self._env_fp
+            # Use stored raw fingerprints to avoid ordering issues with
+            # json.dumps(sort_keys=True) vs compute_components() insertion order.
+            old_device_fp = data.get("device_fp") or self._device_fp
+            old_env_fp = data.get("env_fp") or self._env_fp
 
             material = f"{old_device_fp}:::{old_env_fp}:::{self._passphrase}"
             cs = base64.b64decode(data["credentials"]["salt"])
@@ -1227,6 +1221,8 @@ class CredentialVault:
             "version": _VAULT_VERSION,
             "iterations": self._status.iterations or _PBKDF2_CURRENT_ITERATIONS,
             "salt": base64.b64encode(vs).decode(),
+            "device_fp": self._device_fp,
+            "env_fp": self._env_fp,
             "device_fp_components": device_comps_hashes,
             "env_fp_components": env_comps_hashes,
             "device_fp_hash": device_hash,

@@ -228,6 +228,8 @@ class SiyarixChat:
     MAX_CONTEXT_MESSAGES = 200  # memory bound to prevent unbounded growth
     MAX_MESSAGE_CHARS = 50000  # per-message content limit
 
+    SYSTEM_REFRESH_INTERVAL = 15  # re-send full system prompt every N calls
+
     def __init__(
         self,
         mode: str = "integrated",
@@ -252,6 +254,7 @@ class SiyarixChat:
         self._provider_failure_counts: dict[str, int] = {}
         self._provider_last_fail_time: dict[str, float] = {}
         self._provider_cooldown_secs = 30.0
+        self._llm_calls = 0
         from ..providers import UsageTracker, ProviderStateManager
 
         state_dir = str(Path.home() / ".siyarix")
@@ -2534,11 +2537,13 @@ class SiyarixChat:
             # Try streaming for direct responses
             prov_name, api_key = self._resolve_provider()
             if prov_name and api_key:
-                sys_prompt = self._build_system_prompt()
+                compact = self._should_use_compact()
+                sys_prompt = self._build_system_prompt(compact=compact)
                 response = await self._stream_assistant_response(
                     sys_prompt, instruction, prov_name, api_key,
                     history=self._get_conversation_history(),
                 )
+                self._llm_calls += 1
             else:
                 response = self._generate_text_response(instruction) or ""
             if response:
@@ -2728,9 +2733,25 @@ class SiyarixChat:
             )
         return None
 
-    def _build_system_prompt(self) -> str:
-        """Build the full system prompt by prepending the active persona preamble."""
-        from ..personas import build_persona_prompt
+    def _should_use_compact(self) -> bool:
+        """Return True if we should send the compact (reminder) system prompt."""
+        return self._llm_calls > 0 and self._llm_calls % self.SYSTEM_REFRESH_INTERVAL != 0
+
+    def _build_system_prompt(self, compact: bool = False) -> str:
+        """Build the system prompt for the LLM.
+
+        When *compact* is True, return a short reminder instead of the full prompt
+        to save context window tokens (first call and every N calls use full).
+        """
+        from ..personas import build_persona_prompt, get_persona
+
+        COMPACT_PROMPT = """Continue as Siyarix in your active persona. Follow the full system instructions previously provided.
+
+When a security operation is described, output JSON: { "needs_tools": true, "reasoning": "...", "response": "...", "steps": [...] }
+For general chat or after tool execution, output JSON: { "needs_tools": false, "reasoning": "...", "response": "..." }"""
+
+        COMPACT_NEUTRAL = """Continue as Siyarix following the system instructions previously provided.
+Output JSON: { "needs_tools", "reasoning", "response", "steps" } when tools are needed."""
 
         SIYARIX_SYSTEM_PROMPT = """You are Siyarix, an elite cybersecurity professional operating in a terminal-driven environment.
 
@@ -2815,6 +2836,14 @@ Each step is a raw shell command running directly on the shell:
 
 
         persona_name = self._settings.get("persona") or "auto"
+
+        if compact:
+            if persona_name == "none":
+                return COMPACT_NEUTRAL
+            p = get_persona(persona_name)  # noqa: F811
+            label = p["label"] if p else "default"
+            return f"## Active Persona: {label}\n{COMPACT_PROMPT}"
+
         if persona_name == "none":
             return NEUTRAL_SYSTEM_PROMPT
         preamble = build_persona_prompt(persona_name)
@@ -2949,13 +2978,16 @@ Each step is a raw shell command running directly on the shell:
         if llm_connected:
             with console.status("[bold cyan]LLM analysing request...[/bold cyan]", spinner="dots"):
                 try:
+                    compact = self._should_use_compact()
+                    plan_sys_prompt = self._build_system_prompt(compact=compact)
+                    self._llm_calls += 1
                     plan_result = await asyncio.wait_for(
                         agent._planner.llm_decompose_goal(
                             instruction_with_target,
                             tool_names,
                             llm_call=llm_call_fn,
                             tool_schemas=tool_dicts,
-                            system_prompt=self._build_system_prompt(),
+                            system_prompt=plan_sys_prompt,
                             history=self._get_conversation_history(),
                         ),
                         timeout=30.0,
@@ -2981,11 +3013,13 @@ Each step is a raw shell command running directly on the shell:
             if response:
                 self._print_assistant(response)
             elif llm_connected and llm_call_fn:
-                sys_prompt = self._build_system_prompt()
+                compact = self._should_use_compact()
+                sys_prompt = self._build_system_prompt(compact=compact)
                 response = await self._stream_assistant_response(
                     sys_prompt, instruction, provider_name, api_key,
                     history=self._get_conversation_history(),
                 )
+                self._llm_calls += 1
             else:
                 greeting = self._generate_text_response(instruction)
                 response = (
@@ -3168,12 +3202,15 @@ Each step is a raw shell command running directly on the shell:
                     "[bold cyan]LLM analysing wave results...[/bold cyan]", spinner="dots"
                 ):
                     try:
+                        compact = self._should_use_compact()
+                        wave_sys_prompt = self._build_system_prompt(compact=compact)
+                        self._llm_calls += 1
                         plan = await agent._planner.llm_decompose_goal(
                             wave_goal,
                             tool_names,
                             llm_call=llm_call_fn,
                             tool_schemas=tool_dicts,
-                            system_prompt=self._build_system_prompt(),
+                            system_prompt=wave_sys_prompt,
                         )
                         llm_model = provider_name or "none"
                         if plan.steps:

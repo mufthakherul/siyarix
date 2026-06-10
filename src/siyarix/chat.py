@@ -566,7 +566,7 @@ class SiyarixChat:
         self._provider_last_fail_time: dict[str, float] = {}
         self._provider_cooldown_secs = 30.0
         from .providers import UsageTracker, ProviderStateManager
-        state_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".siyarix")
+        state_dir = str(Path.home() / ".siyarix")
         self._provider_state = ProviderStateManager(path=os.path.join(state_dir, "provider_state.json"))
         self._usage_tracker = UsageTracker(path=os.path.join(state_dir, "usage.json"))
         self._validate_provider_config_on_startup()

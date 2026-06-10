@@ -2422,6 +2422,18 @@ class SiyarixChat:
         result = await engine.execute(instruction, interactive=False)
         elapsed = time.monotonic() - t0
 
+        # Save to offline store
+        try:
+            from ..offline_store import OfflineStore
+            store = OfflineStore()
+            target = self._session.target or ""
+            store.save_scan(target or instruction, result.all_findings, mode=self._mode)
+            if plan and plan.id:
+                step_dicts = [{"tool": s.tool, "status": s.status.value, "description": s.description} for s in plan.steps]
+                store.save_plan(plan.id, plan.goal, step_dicts, mode=self._mode)
+        except Exception as exc:
+            logger.debug("Failed to persist to offline store: %s", exc)
+
         # Print results
         self._print_results(result, elapsed)
 
@@ -3606,31 +3618,75 @@ When the user message contains tool execution results, analyse them thoroughly.
 
     def _print_results(self, result: "Any", elapsed: float) -> None:  # EngineResult
         from ..planner import StepStatus
+        from rich.table import Table
+        from rich.panel import Panel
+        from rich.columns import Columns
 
         success_count = sum(
             1 for r in result.step_results if r.status == StepStatus.SUCCESS
         )
+        failed_count = len(result.step_results) - success_count
 
-        # Print any step outputs
-        for step_result in result.step_results:
-            if step_result.output:
-                self._output._raw_print(f"[Output: {step_result.step_id}] {step_result.output[:2000]}")
+        # Step timeline panel
+        step_lines = []
+        for r in result.step_results:
+            icon = "✓" if r.status == StepStatus.SUCCESS else "✗"
+            style = "green" if r.status == StepStatus.SUCCESS else "red"
+            tool = getattr(r, "tool", getattr(r, "step_id", "?"))
+            detail = (r.output or "")[:80].replace("\n", " ") if r.output else ""
+            step_lines.append(f"  [{style}]{icon} [bold]{tool}[/bold][/] [dim]{detail}[/dim]")
 
-        # Summary line
-        status = f"{'✓' if result.success else '✗'} {'Success' if result.success else 'Partial failure'}"
-        self._output._raw_print(f"{status}  Steps: {success_count}/{len(result.step_results)}  Findings: {len(result.all_findings)}  Time: {elapsed:.2f}s")
+        if step_lines:
+            console.print(Panel("\n".join(step_lines), title="[bold]Step Results[/bold]",
+                border_style="blue", padding=(1, 2)))
 
-        if result.success:
-            self._output.print_success(f"Completed {success_count} steps in {elapsed:.2f}s")
-        else:
-            self._output.print_error(f"Partial failure: {success_count}/{len(result.step_results)} steps succeeded")
-
-        # Show findings table if any
+        # Findings table grouped by severity
         if result.all_findings:
-            self._output.print_table(
-                [{"Severity": f.get("severity", "info"), "Type": f.get("type", "—"), "Detail": str(f.get("detail", f.get("description", "")))[:80]} for f in result.all_findings[:20]],
-                title="Findings",
-            )
+            sev_groups: dict[str, list[dict]] = {}
+            for f in result.all_findings:
+                sev = f.get("severity", "info")
+                sev_groups.setdefault(sev, []).append(f)
+
+            sev_order = ["critical", "high", "medium", "low", "info"]
+            for sev in sev_order:
+                if sev not in sev_groups:
+                    continue
+                items = sev_groups[sev][:15]
+                sev_table = Table(title=f"{sev.upper()} Findings ({len(items)})",
+                    header_style=sev.upper(), border_style=sev.upper(), box=None)
+                sev_table.add_column("Tool", style="cyan")
+                sev_table.add_column("Detail", style="white")
+                for f in items:
+                    tool = f.get("tool", f.get("type", "?"))
+                    desc = str(f.get("detail", f.get("description", f.get("title", ""))))[:100]
+                    sev_table.add_row(tool, desc)
+                console.print(sev_table)
+
+            if len(result.all_findings) > 20:
+                remaining = len(result.all_findings) - sum(len(v) for v in sev_groups.values() if len(v) > 15)
+                if remaining > 0:
+                    console.print(f"  [dim]… and {remaining} more findings[/dim]")
+
+        # Executive summary bar
+        summary_panels = []
+        summary_panels.append(Panel(
+            f"[bold]{'✓' if result.success else '✗'} {'Success' if result.success else 'Partial'}[/bold]\n[dim]Status[/dim]",
+            border_style="green" if result.success else "red", padding=(1, 2)))
+        summary_panels.append(Panel(
+            f"[bold]{success_count}/{len(result.step_results)}[/bold]\n[dim]Steps[/dim]",
+            border_style="blue", padding=(1, 2)))
+        summary_panels.append(Panel(
+            f"[bold]{len(result.all_findings)}[/bold]\n[dim]Findings[/dim]",
+            border_style="yellow", padding=(1, 2)))
+        summary_panels.append(Panel(
+            f"[bold]{elapsed:.1f}s[/bold]\n[dim]Duration[/dim]",
+            border_style="cyan", padding=(1, 2)))
+        if failed_count:
+            summary_panels.append(Panel(
+                f"[bold red]{failed_count}[/bold red]\n[dim]Failed[/dim]",
+                border_style="red", padding=(1, 2)))
+
+        console.print(Columns(summary_panels, equal=False, padding=(0, 1)))
 
     def _print_goodbye(self) -> None:
         self._session.save(self._SESSIONS_DIR / f"{self._session.session_id}.json")

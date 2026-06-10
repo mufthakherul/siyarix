@@ -39,9 +39,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .branding import available_themes, print_theme_preview
-from .config import SettingsStore
-from .subprocess_utils import safe_run_sync
+from ..branding import available_themes, print_theme_preview
+from .commands import CommandProfile, CommandProfileStore, HELP_CATEGORIES, SLASH_HELP
+from .session import ChatMessage as ChatMessage, ChatSession as ChatSession
+from .ui import SmartAutocomplete as SmartAutocomplete, CommandPalette as CommandPalette, SplitPane as SplitPane, ConfigPanel as ConfigPanel
+from ..config import SettingsStore
+from ..subprocess_utils import safe_run_sync
 
 # Suppress prompt_toolkit's unawaited-coroutine warning emitted on GC
 warnings.filterwarnings(
@@ -50,99 +53,6 @@ warnings.filterwarnings(
     category=RuntimeWarning,
 )
 
-# ── Unified system prompt: used for planning AND output analysis ─────────
-SIYARIX_SYSTEM_PROMPT = """You are Siyarix, a senior cybersecurity professional with deep expertise across the entire security domain.
-
-## Core Philosophy
-Think like a well-rounded security professional — you know what commands to run, how to interpret results, and how to handle any security task. You are NOT limited to any predefined tool list. You can construct and execute ANY shell command.
-
-## When You Receive a User Request
-Analyse the request within cybersecurity, hacking, and security-adjacent fields:
-- If the user wants a general chat, explanation, or conceptual discussion — respond directly with your expertise.
-- If asking about a specific tool — consider running its `--help` or man page to give an accurate answer.
-- If describing a security operation (scan, enumerate, exploit, audit, recon, bruteforce, etc.) — plan the exact shell commands to run.
-- If the request is unrelated to cybersecurity — politely decline and steer back to security topics.
-
-## Output Format — Always Return Valid JSON
-{
-  "needs_tools": true or false,
-  "reasoning": "Explain your analysis and decision",
-  "response": "Your text answer when needs_tools=false, or analysis after tool execution",
-  "steps": []
-}
-
-## Tool Execution Steps (needs_tools=true)
-Each step is a raw shell command. You decide what to run — any binary, script, or pipeline:
-{
-  "tool": "",
-  "command": "your exact shell command here — any flags, pipes, redirects, subshells",
-  "description": "What this command does and why"
-}
-
-Prefer the `command` field — it runs directly on the shell.
-You can use ANY tool on the system: nmap, nuclei, ffuf, gobuster, whatweb, curl, dig, whois,
-nslookup, openssl, nikto, sqlmap, hydra, john, aircrack-ng, masscan, subfinder, amass,
-dnsrecon, dnsenum, theharvester, wpscan, joomscan, droopescan, smbclient, enum4linux,
-ldapsearch, rpcinfo, snmpwalk, onesixtyone, medusa, ncrack, patator, netcat, socat,
-metasploit, msfconsole, msfvenom, searchsploit, python3, perl, ruby, php, bash, etc.
-
-## Output Analysis (needs_tools=false with response)
-When the user message contains tool execution results:
-- Analyse them like a pentest findings report
-- Identify exposures, misconfigurations, and weaknesses
-- Correlate evidence across tools
-- Assign severity and provide remediation guidance
-- Suggest next-phase testing if relevant
-
-## Core Rules
-- needs_tools=true  → when a security operation is described, or when answering about a tool
-- needs_tools=false → for general chat, explanations, planning, conceptual discussions, or after tool results
-- Only operate within cybersecurity, hacking, and security-adjacent fields; politely decline off-topic requests
-- Always include reasoning to show your thought process
-- Be technical, precise, professional, and thorough
-- Cover both offensive and defensive perspectives where relevant
-- Reference CVEs, real attack techniques, and defensive mitigations where applicable"""
-
-NEUTRAL_SYSTEM_PROMPT = """You are Siyarix, a cybersecurity assistant.
-
-## Core Philosophy
-You know what commands to run and how to interpret results. You are NOT limited to any predefined tool list. You can construct and execute ANY shell command.
-
-## When You Receive a User Request
-Analyse the request within cybersecurity, hacking, and security-adjacent fields:
-- If the user wants a general chat, explanation, or conceptual discussion — respond directly.
-- If asking about a specific tool — consider running its `--help` or man page.
-- If describing a security operation (scan, enumerate, exploit, audit, recon, bruteforce, etc.) — plan the exact shell commands to run.
-- If the request is unrelated to cybersecurity — politely decline and steer back to security topics.
-
-## Output Format — Always Return Valid JSON
-{
-  "needs_tools": true or false,
-  "reasoning": "Explain your analysis and decision",
-  "response": "Your text answer when needs_tools=false, or analysis after tool execution",
-  "steps": []
-}
-
-## Tool Execution Steps (needs_tools=true)
-Each step is a raw shell command. You decide what to run — any binary, script, or pipeline:
-{
-  "tool": "",
-  "command": "your exact shell command here — any flags, pipes, redirects, subshells",
-  "description": "What this command does and why"
-}
-
-Prefer the `command` field — it runs directly on the shell.
-You can use ANY tool on the system.
-
-## Output Analysis (needs_tools=false with response)
-When the user message contains tool execution results, analyse them thoroughly.
-
-## Core Rules
-- needs_tools=true  → when a security operation is described, or when answering about a tool
-- needs_tools=false → for general chat, explanations, planning, conceptual discussions, or after tool results
-- Only operate within cybersecurity, hacking, and security-adjacent fields; politely decline off-topic requests
-- Always include reasoning to show your thought process
-- Be technical, precise, professional, and thorough"""
 
 
 
@@ -240,110 +150,6 @@ def get_security_commands(shell: str = "") -> dict[str, str]:
     return {}
 
 
-@dataclass
-class CommandProfile:
-    name: str
-    command: str
-    description: str | None = None
-    created_at: str = ""
-
-
-class CommandProfileStore:
-    def save(self, profile: CommandProfile) -> None:
-        pass
-
-    def get(self, name: str) -> CommandProfile | None:
-        return None
-
-    def list_credentials(self) -> list[CommandProfile]:
-        return []
-
-    def delete(self, name: str) -> bool:
-        return False
-
-    def render(self, command: str, params: dict[str, str]) -> str:
-        """Render a command template with key=value parameters."""
-        rendered = command
-        for k, v in params.items():
-            rendered = rendered.replace(f"{{{k}}}", v).replace(f"${{{k}}}", v)
-        return rendered
-
-
-class SmartAutocomplete:
-    def __init__(self, session: Any) -> None:
-        pass
-
-    def get_completions(self, document: Any, complete_event: Any) -> list[Any]:
-        return []
-
-
-class CommandPalette:
-    def __init__(self, session_id: str) -> None:
-        pass
-
-    def show(self, console: Any) -> str | None:
-        return None
-
-
-class SplitPane:
-    def __init__(self, theme: str = "dark-neon") -> None:
-        pass
-
-    def generate_layout(
-        self,
-        left_renderable: Any = None,
-        right_type: str = "",
-        session_meta: Any = None,
-        findings: list[Any] | None = None,
-        timeline_events: list[Any] | None = None,
-    ) -> str:
-        return ""
-
-
-class ConfigPanel:
-    @staticmethod
-    def run() -> None:
-        from .config import SettingsStore
-
-        s = SettingsStore()
-        keys = [
-            "color_theme", "model_provider", "gemini_model", "openai_model",
-            "anthropic_model", "openrouter_model", "ollama_model", "ollama_url", "log_level",
-        ]
-        console.print("[bold cyan]Configuration[/bold cyan]")
-        for k in keys:
-            v = s.get(k)
-            if v is not None:
-                console.print(f"  [cyan]{k}:[/cyan] {v}")
-            else:
-                console.print(f"  [cyan]{k}:[/cyan] [dim](not set)[/dim]")
-        console.print("\n[dim]Use /model, /theme, /mode, /key to change settings.[/dim]")
-
-    @staticmethod
-    def _section_tools() -> None:
-        try:
-            from .registry import ToolRegistry
-
-            reg = ToolRegistry()
-            count = reg.discover_from_path()
-            tools = reg.list_tools()
-            if tools:
-                from rich.table import Table
-                table = Table(title=f"{count} Security Tools", header_style="bold cyan")
-                table.add_column("Name", style="cyan")
-                table.add_column("Category", style="magenta")
-                table.add_column("Version", style="dim")
-                for t in sorted(tools, key=lambda x: x.category)[:20]:
-                    table.add_row(t.name, t.category, t.version[:20])
-                if len(tools) > 20:
-                    table.add_row("", f"[dim]… and {len(tools) - 20} more[/dim]", "")
-                console.print(table)
-            else:
-                console.print("[yellow]No tools found on PATH.[/yellow]")
-        except Exception as exc:
-            console.print(f"[red]Tool discovery error: {exc}[/red]")
-
-
 Console: Any = None
 Columns: Any = None
 Markdown: Any = None
@@ -358,7 +164,6 @@ ptk_prompt: Any = None
 try:
     from rich.columns import Columns
     from rich.console import Console
-    from rich.markdown import Markdown
     from rich.panel import Panel
     from rich.prompt import Prompt
     from rich.rule import Rule
@@ -386,157 +191,6 @@ load_env_file()
 
 
 # ---------------------------------------------------------------------------
-# Chat session data model
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class ChatMessage:
-    """A single message in the chat history."""
-
-    role: str  # "user" | "assistant" | "system"
-    content: str
-    timestamp: datetime = field(default_factory=datetime.now)
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "role": self.role,
-            "content": self.content,
-            "timestamp": self.timestamp.isoformat(),
-            "metadata": self.metadata,
-        }
-
-
-@dataclass
-class ChatSession:
-    """A persistent chat session with history."""
-
-    session_id: str
-    messages: list[ChatMessage] = field(default_factory=list)
-    context: dict[str, Any] = field(default_factory=dict)
-    created_at: datetime = field(default_factory=datetime.now)
-    last_active: datetime = field(default_factory=datetime.now)
-    target: str = ""
-    mode: str = "integrated"
-
-    def add_message(self, role: str, content: str, **metadata: Any) -> ChatMessage:
-        # Enforce per-message content size limit
-        if len(content) > 50000:
-            content = content[:50000] + "\n...[truncated]"
-        msg = ChatMessage(role=role, content=content, metadata=metadata)
-        self.messages.append(msg)
-        self.last_active = datetime.now()
-        # Enforce message count limit (memory bound)
-        if len(self.messages) > 200:
-            self.messages = self.messages[-200:]
-        return msg
-
-    def last_n(self, n: int = 10) -> list[ChatMessage]:
-        return self.messages[-n:]
-
-    def get_context_summary(self) -> str:
-        """Build a context summary of recent conversation for the planner."""
-        recent = self.last_n(8)
-        parts = []
-        for msg in recent:
-            prefix = "User" if msg.role == "user" else "Siyarix"
-            parts.append(f"{prefix}: {msg.content[:200]}")
-        return "\n".join(parts)
-
-    def save(self, path: Path) -> None:
-        import json
-
-        data = {
-            "session_id": self.session_id,
-            "created_at": self.created_at.isoformat(),
-            "last_active": self.last_active.isoformat(),
-            "target": self.target,
-            "mode": self.mode,
-            "messages": [m.to_dict() for m in self.messages],
-        }
-        path.write_text(json.dumps(data, indent=2))
-
-    @classmethod
-    def load(cls, path: Path) -> "ChatSession":
-        import json
-
-        data = json.loads(path.read_text())
-        session = cls(
-            session_id=data["session_id"],
-            target=data.get("target", ""),
-            mode=data.get("mode", "integrated"),
-            created_at=datetime.fromisoformat(data["created_at"]),
-            last_active=datetime.fromisoformat(data["last_active"]),
-        )
-        for m in data.get("messages", []):
-            session.messages.append(
-                ChatMessage(
-                    role=m["role"],
-                    content=m["content"],
-                    timestamp=datetime.fromisoformat(m["timestamp"]),
-                    metadata=m.get("metadata", {}),
-                )
-            )
-        return session
-
-
-# ---------------------------------------------------------------------------
-# Slash command registry
-# ---------------------------------------------------------------------------
-
-# ── Help category definitions ─────────────────────────────────────────────
-_HELP_CATEGORIES = [
-    ("Session & Navigation", {
-        "/help": "Show available slash commands (alias: /?)",
-        "/exit": "Exit chat mode (aliases: /quit, /bye)",
-        "/clear": "Clear screen and conversation history (aliases: /clean, /cls)",
-        "/new": "Start a fresh conversation",
-        "/history [n]": "Show recent conversation history",
-        "/search <text>": "Search chat history for a keyword",
-        "/cancel": "Cancel current task without exiting (ESC key also works)",
-    }),
-    ("Configuration", {
-        "/config": "Open the interactive configuration panel",
-        "/config tools": "Manage discovered security tools",
-        "/key": "Manage API keys for AI providers",
-        "/mode <mode>": "Switch execution mode (autonomous|integrated|registry)",
-        "/model [provider]": "Show or switch AI model provider",
-        "/provider [name]": "Show detailed provider info and available models",
-        "/theme mode|appearance": "Change UI theme or preview appearance",
-        "/target <host>": "Set the current target",
-    }),
-    ("Information", {
-        "/tools": "List discovered security tools",
-        "/platform": "Show platform and shell information",
-        "/status": "Show session and runtime status",
-        "/session": "Show detailed session metadata",
-        "/uptime": "Show chat session uptime",
-        "/env": "Show terminal environment summary",
-        "/context": "Show current session context",
-        "/version": "Show Siyarix version",
-        "/shells": "List supported shells",
-    }),
-    ("Execution", {
-        "/run <command>": "Run a tool or shell command",
-        "/security-cmds": "Show security commands for current platform",
-        "/intents [filter]": "List cross-platform command intents",
-        "/translate <intent>": "Translate a command intent to all shells",
-        "/save": "Save current session",
-    }),
-    ("Session Management", {
-        "/log list|show|export": "Manage session logs",
-        "/diff <id_a> <id_b>": "Compare two sessions",
-        "/reset": "Reset mode and target to defaults",
-        "/examples": "Show practical prompt examples",
-        "/palette": "Open interactive command palette",
-    }),
-]
-
-# Flat lookup for command dispatch (includes all commands, including hidden ones)
-_SLASH_HELP = {}
-for _cat_name, _cmds in _HELP_CATEGORIES:
-    _SLASH_HELP.update(_cmds)
 
 # ---------------------------------------------------------------------------
 # The Siyarix Chat REPL
@@ -577,15 +231,18 @@ class SiyarixChat:
         self._provider_failure_counts: dict[str, int] = {}
         self._provider_last_fail_time: dict[str, float] = {}
         self._provider_cooldown_secs = 30.0
-        from .providers import UsageTracker, ProviderStateManager
+        from ..providers import UsageTracker, ProviderStateManager
         state_dir = str(Path.home() / ".siyarix")
         self._provider_state = ProviderStateManager(path=os.path.join(state_dir, "provider_state.json"))
         self._usage_tracker = UsageTracker(path=os.path.join(state_dir, "usage.json"))
+        from ..output import OutputEngine
+        self._output = OutputEngine()
+        self._con = self._output.console
         self._validate_provider_config_on_startup()
 
     def _validate_provider_config_on_startup(self) -> None:
         """Check configured provider has valid API key / SDK / endpoint at startup."""
-        from .providers import ProviderManager
+        from ..providers import ProviderManager
         provider = (self._settings.get("model_provider") or "gemini").lower().strip()
         if provider == "auto":
             return  # auto mode checks at runtime
@@ -858,7 +515,7 @@ class SiyarixChat:
             else:
                 handler(args)
         else:
-            suggestions = [c for c in _SLASH_HELP if c.startswith(command[:3])][:3]
+            suggestions = [c for c in SLASH_HELP if c.startswith(command[:3])][:3]
             hint = ""
             if suggestions:
                 hint = f"  Did you mean: {', '.join(suggestions)}"
@@ -874,7 +531,7 @@ class SiyarixChat:
             "Press [cyan]?[/cyan] at any time to see this help.",
             border_style="cyan",
         ))
-        for category, cmds in _HELP_CATEGORIES:
+        for category, cmds in HELP_CATEGORIES:
             table = Table(title=category, padding=(0, 2))
             table.add_column("Command", style="cyan", no_wrap=True)
             table.add_column("Description", style="white")
@@ -904,7 +561,7 @@ class SiyarixChat:
             return
 
         try:
-            from .report_engine import ReportEngine, ReportConfig, ReportFormat
+            from ..report import ReportEngine, ReportConfig, ReportFormat
         except ModuleNotFoundError:
             console.print("[yellow]Report generation is not available in this version[/yellow]")
             return
@@ -1051,8 +708,8 @@ class SiyarixChat:
             await self._execute_instruction(p.command)
 
     def _show_key_status(self) -> None:
-        from .credential_store import CredentialStore
-        from .providers import ProviderManager
+        from ..credential_store import CredentialStore
+        from ..providers import ProviderManager
 
         provider_registry = ProviderManager()
         try:
@@ -1098,7 +755,7 @@ class SiyarixChat:
             if not api_key:
                 api_key = Prompt.ask(f"Enter {provider} API key", password=True)
         elif action in {"rotate", "roll"}:
-            from .credential_store import CredentialStore
+            from ..credential_store import CredentialStore
 
             try:
                 vault = CredentialStore()
@@ -1125,11 +782,11 @@ class SiyarixChat:
                 console.print("[yellow]Usage: /key remove <provider>[/yellow]")
                 return
             provider = tokens[1].lower()
-            from .providers import get_provider_env_var
+            from ..providers import get_provider_env_var
             env_key = get_provider_env_var(provider)
             upsert_env_vars({env_key: ""}, ensure_env_file())
             os.environ.pop(env_key, None)
-            from .credential_store import CredentialStore
+            from ..credential_store import CredentialStore
 
             try:
                 vault = CredentialStore()
@@ -1141,11 +798,11 @@ class SiyarixChat:
 
         if not api_key:
             api_key = Prompt.ask(f"Enter {provider} API key", password=True)
-        from .providers import get_provider_env_var
+        from ..providers import get_provider_env_var
         env_key = get_provider_env_var(provider)
         # persist to the encrypted vault and .env, then update the live environment
         try:
-            from .credential_store import CredentialStore
+            from ..credential_store import CredentialStore
 
             vault = CredentialStore()
             vault.delete(provider, "api_key")
@@ -1255,7 +912,7 @@ class SiyarixChat:
 
     def _cmd_tools(self, _: str) -> None:
         try:
-            from .registry import ToolRegistry
+            from ..registry import ToolRegistry
 
             reg = ToolRegistry()
             reg.scan_path()
@@ -1551,7 +1208,7 @@ class SiyarixChat:
         await self._execute_instruction(args)
 
     async def _cmd_model(self, args: str) -> None:
-        from .providers import ProviderManager
+        from ..providers import ProviderManager
         tokens = args.split(maxsplit=1) if args else []
         pm = ProviderManager()
         all_providers = pm.list_providers()
@@ -1628,7 +1285,7 @@ class SiyarixChat:
 
     async def _cmd_provider(self, args: str) -> None:
         """Show detailed provider info and available models."""
-        from .providers import ProviderManager
+        from ..providers import ProviderManager
         pm = ProviderManager()
         name = args.strip().lower() if args else ""
 
@@ -1718,7 +1375,7 @@ class SiyarixChat:
     async def _cmd_coder(self, args: str) -> None:
         """Handle /coder command for code generation and review."""
         try:
-            from .coder_bridge import CoderBridge
+            from ..coder_bridge import CoderBridge
         except ModuleNotFoundError:
             console.print("[yellow]Coder Bridge is not available in this version[/yellow]")
             return
@@ -1758,7 +1415,7 @@ class SiyarixChat:
 
     async def _cmd_mcp(self, args: str) -> None:
         """Handle /mcp command for MCP server interaction."""
-        from .mcp import MCPClient, MCPServerConfig
+        from ..mcp import MCPClient, MCPServerConfig
 
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else ""
@@ -1809,7 +1466,7 @@ class SiyarixChat:
 
     async def _cmd_agent(self, args: str) -> None:
         """Handle /agent command for sub-agent lifecycle management."""
-        from .core import AgentCore, AgentMode, AgentGoal
+        from ..core import AgentCore, AgentMode, AgentGoal
 
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else ""
@@ -1846,7 +1503,7 @@ class SiyarixChat:
 
     def _cmd_persona(self, args: str) -> None:
         """Switch mindset/persona: /persona list, /persona <name>, /persona."""
-        from .personas import get_persona, list_personas
+        from ..personas import get_persona, list_personas
         from rich.table import Table
 
         tokens = args.split() if args else []
@@ -1893,7 +1550,7 @@ class SiyarixChat:
             )
 
     def _cmd_version(self, _: str) -> None:
-        from .branding import resolve_version
+        from ..branding import resolve_version
 
         ver = resolve_version()
         console.print(f"[bold cyan]Siyarix[/bold cyan] [green]v{ver}[/green]")
@@ -1906,7 +1563,7 @@ class SiyarixChat:
         """Handle /log command for session log management."""
         from rich.table import Table
 
-        from .session_log import session_logger
+        from ..session_log import session_logger
 
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "list"
@@ -1997,7 +1654,7 @@ class SiyarixChat:
         from rich.table import Table
 
         try:
-            from .offline_store import OfflineStore
+            from ..offline_store import OfflineStore
         except ModuleNotFoundError:
             console.print("[yellow]Offline store is not available in this version[/yellow]")
             return
@@ -2093,7 +1750,7 @@ class SiyarixChat:
     async def _cmd_cloud(self, args: str) -> None:
         """Handle /cloud command for cloud provider scanning."""
         try:
-            from .cloud_scanner import CloudProvider, CloudScanner
+            from ..cloud_scanner import CloudProvider, CloudScanner
         except ModuleNotFoundError:
             console.print("[yellow]Cloud scanner is not available in this version[/yellow]")
             return
@@ -2111,7 +1768,7 @@ class SiyarixChat:
     async def _cmd_k8s(self, args: str) -> None:
         """Handle /k8s command for Kubernetes security scanning."""
         try:
-            from .cloud_scanner import CloudScanner
+            from ..cloud_scanner import CloudScanner
         except ModuleNotFoundError:
             console.print("[yellow]Kubernetes scanner is not available in this version[/yellow]")
             return
@@ -2127,7 +1784,7 @@ class SiyarixChat:
     async def _cmd_docker(self, args: str) -> None:
         """Handle /docker command for container scanning."""
         try:
-            from .cloud_scanner import CloudScanner
+            from ..cloud_scanner import CloudScanner
         except ModuleNotFoundError:
             console.print("[yellow]Docker scanner is not available in this version[/yellow]")
             return
@@ -2143,7 +1800,7 @@ class SiyarixChat:
     async def _cmd_iac(self, args: str) -> None:
         """Handle /iac command for Infrastructure as Code scanning."""
         try:
-            from .iac_scanner import IaCScanner
+            from ..iac_scanner import IaCScanner
         except ModuleNotFoundError:
             console.print("[yellow]IaC scanner is not available in this version[/yellow]")
             return
@@ -2162,7 +1819,7 @@ class SiyarixChat:
     async def _cmd_mobile(self, args: str) -> None:
         """Handle /mobile command for mobile app testing."""
         try:
-            from .mobile_scanner import MobileScanner
+            from ..mobile_scanner import MobileScanner
         except ModuleNotFoundError:
             console.print("[yellow]Mobile scanner is not available in this version[/yellow]")
             return
@@ -2184,7 +1841,7 @@ class SiyarixChat:
     async def _cmd_iot(self, args: str) -> None:
         """Handle /iot command for IoT device testing."""
         try:
-            from .iot_scanner import IoTScanner
+            from ..iot_scanner import IoTScanner
         except ModuleNotFoundError:
             console.print("[yellow]IoT scanner is not available in this version[/yellow]")
             return
@@ -2206,7 +1863,7 @@ class SiyarixChat:
     async def _cmd_hsm(self, args: str) -> None:
         """Handle /hsm command for hardware security module integration."""
         try:
-            from .hsm_manager import HSMService
+            from ..hsm_manager import HSMService
         except ModuleNotFoundError:
             console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
             return
@@ -2231,7 +1888,7 @@ class SiyarixChat:
     async def _cmd_compliance(self, args: str) -> None:
         """Handle /compliance command for framework assessment."""
         try:
-            from .compliance_runner import ComplianceRunner
+            from ..compliance_runner import ComplianceRunner
         except ModuleNotFoundError:
             console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
             return
@@ -2251,7 +1908,7 @@ class SiyarixChat:
 
     async def _cmd_opsec(self, args: str) -> None:
         """Handle /opsec command for operational security."""
-        from .opsec import opsec_manager
+        from ..opsec import opsec_manager
         tokens = args.split() if args else []
         if not tokens or tokens[0] not in ("isolate", "burn", "status", "disable"):
             console.print("[yellow]Usage: /opsec isolate|burn|status|disable [--target <target>][/yellow]")
@@ -2277,7 +1934,7 @@ class SiyarixChat:
     async def _cmd_siem(self, args: str) -> None:
         """Handle /siem command for SIEM/SOAR integration."""
         try:
-            from .platform_integration import platform_integration
+            from ..platform_integration import platform_integration
         except ModuleNotFoundError:
             console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
             return
@@ -2297,7 +1954,7 @@ class SiyarixChat:
     async def _cmd_performance(self, args: str) -> None:
         """Handle /performance command for resource optimization."""
         try:
-            from .performance import performance_optimizer
+            from ..performance import performance_optimizer
         except ModuleNotFoundError:
             console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
             return
@@ -2317,7 +1974,7 @@ class SiyarixChat:
 
     async def _cmd_cache(self, args: str) -> None:
         """Handle /cache command for cache management."""
-        from .cache_manager import cache_manager
+        from ..cache_manager import cache_manager
         tokens = args.split() if args else []
         if not tokens or tokens[0] not in ("status", "clear", "invalidate"):
             console.print("[yellow]Usage: /cache status|clear|invalidate [domain][/yellow]")
@@ -2337,7 +1994,7 @@ class SiyarixChat:
     async def _cmd_import(self, args: str) -> None:
         """Handle /import command for importing scan results."""
         try:
-            from .importer import security_importer
+            from ..importer import security_importer
         except ModuleNotFoundError:
             console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
             return
@@ -2365,7 +2022,7 @@ class SiyarixChat:
     async def _cmd_playbook(self, args: str) -> None:
         """Handle /playbook command for workflow playbooks."""
         try:
-            from .playbook_engine import PlaybookEngine
+            from ..playbook_engine import PlaybookEngine
         except ModuleNotFoundError:
             console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
             return
@@ -2425,7 +2082,7 @@ class SiyarixChat:
                 console.print("[yellow]Usage: /kb search <query>[/yellow]")
                 return
             try:
-                from .knowledge_graph import KnowledgeGraph
+                from ..knowledge_graph import KnowledgeGraph
             except ModuleNotFoundError:
                 console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
                 return
@@ -2444,7 +2101,7 @@ class SiyarixChat:
     async def _cmd_ticket(self, args: str) -> None:
         """Handle /ticket command for external ticket creation."""
         try:
-            from .platform_integration import platform_integration
+            from ..platform_integration import platform_integration
         except ModuleNotFoundError:
             console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
             return
@@ -2475,7 +2132,7 @@ class SiyarixChat:
     async def _cmd_intel(self, args: str) -> None:
         """Handle /intel command for threat intelligence queries."""
         try:
-            from .threat_intel import ThreatIntelFeed, MITREAttackDB
+            from ..threat_intel import ThreatIntelFeed, MITREAttackDB
         except ModuleNotFoundError:
             console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
             return
@@ -2510,7 +2167,7 @@ class SiyarixChat:
     async def _cmd_canary(self, args: str) -> None:
         """Handle /canary command for deception token deployment."""
         try:
-            from .canary import CanaryTokenManager, CanaryTokenType
+            from ..canary import CanaryTokenManager, CanaryTokenType
         except ModuleNotFoundError:
             console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
             return
@@ -2545,7 +2202,7 @@ class SiyarixChat:
 
     async def _cmd_stealth(self, args: str) -> None:
         """Handle /stealth command for evasion configuration."""
-        from .stealth import StealthEngine
+        from ..stealth import StealthEngine
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "status"
         engine = StealthEngine()
@@ -2570,7 +2227,7 @@ class SiyarixChat:
 
     async def _cmd_audit(self, args: str) -> None:
         """Handle /audit command for compliance and legal export."""
-        from .audit_log import audit
+        from ..audit_log import audit
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "status"
         if action == "export":
@@ -2615,7 +2272,7 @@ class SiyarixChat:
         show_plan: bool = False,
     ) -> None:
         """Execute an instruction — AgentCore for LLM modes, engine for registry modes."""
-        from .registry import ToolRegistry
+        from ..registry import ToolRegistry
 
         # ── Route by mode ──
         if self._mode == "registry":
@@ -2640,7 +2297,7 @@ class SiyarixChat:
             )
 
         # ── Registry / integrated fallback: traditional plan → execute pipeline ──
-        from .compat import ExecutionEngine, ExecutionMode
+        from ..compat import ExecutionEngine, ExecutionMode
 
         try:
             exec_mode = ExecutionMode(self._mode)
@@ -2662,7 +2319,7 @@ class SiyarixChat:
         }
 
         reg = ToolRegistry()
-        from .session_log import session_logger
+        from ..session_log import session_logger
 
         engine = ExecutionEngine(
             mode=exec_mode,
@@ -2703,7 +2360,7 @@ class SiyarixChat:
 
         # Multi-model ensemble voting (available providers > 1)
         try:
-            from .multi_model_ensemble import MultiModelEnsemble, VotingStrategy
+            from ..multi_model_ensemble import MultiModelEnsemble, VotingStrategy
 
             ensemble = MultiModelEnsemble()
             registered_count = 0
@@ -2735,7 +2392,7 @@ class SiyarixChat:
 
         # Adversarial plan review
         try:
-            from .adversarial_tester import AdversarialTester, AdversarialSeverity
+            from ..adversarial_tester import AdversarialTester, AdversarialSeverity
 
             tester = AdversarialTester()
             plan_lines = [
@@ -2854,7 +2511,100 @@ class SiyarixChat:
 
     def _build_system_prompt(self) -> str:
         """Build the full system prompt by prepending the active persona preamble."""
-        from .personas import build_persona_prompt
+        from ..personas import build_persona_prompt
+
+        SIYARIX_SYSTEM_PROMPT = """You are Siyarix, a senior cybersecurity professional with deep expertise across the entire security domain.
+
+## Core Philosophy
+Think like a well-rounded security professional — you know what commands to run, how to interpret results, and how to handle any security task. You are NOT limited to any predefined tool list. You can construct and execute ANY shell command.
+
+## When You Receive a User Request
+Analyse the request within cybersecurity, hacking, and security-adjacent fields:
+- If the user wants a general chat, explanation, or conceptual discussion — respond directly with your expertise.
+- If asking about a specific tool — consider running its `--help` or man page to give an accurate answer.
+- If describing a security operation (scan, enumerate, exploit, audit, recon, bruteforce, etc.) — plan the exact shell commands to run.
+- If the request is unrelated to cybersecurity — politely decline and steer back to security topics.
+
+## Output Format — Always Return Valid JSON
+{
+  "needs_tools": true or false,
+  "reasoning": "Explain your analysis and decision",
+  "response": "Your text answer when needs_tools=false, or analysis after tool execution",
+  "steps": []
+}
+
+## Tool Execution Steps (needs_tools=true)
+Each step is a raw shell command. You decide what to run — any binary, script, or pipeline:
+{
+  "tool": "",
+  "command": "your exact shell command here — any flags, pipes, redirects, subshells",
+  "description": "What this command does and why"
+}
+
+Prefer the `command` field — it runs directly on the shell.
+You can use ANY tool on the system: nmap, nuclei, ffuf, gobuster, whatweb, curl, dig, whois,
+nslookup, openssl, nikto, sqlmap, hydra, john, aircrack-ng, masscan, subfinder, amass,
+dnsrecon, dnsenum, theharvester, wpscan, joomscan, droopescan, smbclient, enum4linux,
+ldapsearch, rpcinfo, snmpwalk, onesixtyone, medusa, ncrack, patator, netcat, socat,
+metasploit, msfconsole, msfvenom, searchsploit, python3, perl, ruby, php, bash, etc.
+
+## Output Analysis (needs_tools=false with response)
+When the user message contains tool execution results:
+- Analyse them like a pentest findings report
+- Identify exposures, misconfigurations, and weaknesses
+- Correlate evidence across tools
+- Assign severity and provide remediation guidance
+- Suggest next-phase testing if relevant
+
+## Core Rules
+- needs_tools=true  → when a security operation is described, or when answering about a tool
+- needs_tools=false → for general chat, explanations, planning, conceptual discussions, or after tool results
+- Only operate within cybersecurity, hacking, and security-adjacent fields; politely decline off-topic requests
+- Always include reasoning to show your thought process
+- Be technical, precise, professional, and thorough
+- Cover both offensive and defensive perspectives where relevant
+- Reference CVEs, real attack techniques, and defensive mitigations where applicable"""
+
+        NEUTRAL_SYSTEM_PROMPT = """You are Siyarix, a cybersecurity assistant.
+
+## Core Philosophy
+You know what commands to run and how to interpret results. You are NOT limited to any predefined tool list. You can construct and execute ANY shell command.
+
+## When You Receive a User Request
+Analyse the request within cybersecurity, hacking, and security-adjacent fields:
+- If the user wants a general chat, explanation, or conceptual discussion — respond directly.
+- If asking about a specific tool — consider running its `--help` or man page.
+- If describing a security operation (scan, enumerate, exploit, audit, recon, bruteforce, etc.) — plan the exact shell commands to run.
+- If the request is unrelated to cybersecurity — politely decline and steer back to security topics.
+
+## Output Format — Always Return Valid JSON
+{
+  "needs_tools": true or false,
+  "reasoning": "Explain your analysis and decision",
+  "response": "Your text answer when needs_tools=false, or analysis after tool execution",
+  "steps": []
+}
+
+## Tool Execution Steps (needs_tools=true)
+Each step is a raw shell command. You decide what to run — any binary, script, or pipeline:
+{
+  "tool": "",
+  "command": "your exact shell command here — any flags, pipes, redirects, subshells",
+  "description": "What this command does and why"
+}
+
+Prefer the `command` field — it runs directly on the shell.
+You can use ANY tool on the system.
+
+## Output Analysis (needs_tools=false with response)
+When the user message contains tool execution results, analyse them thoroughly.
+
+## Core Rules
+- needs_tools=true  → when a security operation is described, or when answering about a tool
+- needs_tools=false → for general chat, explanations, planning, conceptual discussions, or after tool results
+- Only operate within cybersecurity, hacking, and security-adjacent fields; politely decline off-topic requests
+- Always include reasoning to show your thought process
+- Be technical, precise, professional, and thorough"""
 
         persona_name = self._settings.get("persona") or "auto"
         if persona_name == "none":
@@ -2870,7 +2620,7 @@ class SiyarixChat:
         When *require_llm* is True (autonomous mode), the method returns False
         if no LLM is available — no heuristic fallback.
         """
-        from .core import AgentCore, AgentMode
+        from ..core import AgentCore, AgentMode
         # ── Resolve provider with auto fallback ──────────────────────────
         is_auto = self._settings.get("model_provider") == "auto"
         provider_name, api_key = self._resolve_provider()
@@ -2920,7 +2670,7 @@ class SiyarixChat:
                 llm_connected = True
                 total_input_tokens += ping.get("input_tokens", 0)
                 total_output_tokens += ping.get("output_tokens", 0)
-                from .providers import CostTier, ProviderManager
+                from ..providers import CostTier, ProviderManager
                 _pm = ProviderManager()
                 _profile = _pm.get_profile(provider_name) if provider_name else None
                 cost_tier = _profile.cost_tier if _profile else CostTier.MEDIUM
@@ -3044,7 +2794,7 @@ class SiyarixChat:
                 console.print(f"[cyan]→ Wave {wave + 1}:[/cyan] {', '.join(tool_labels)}")
 
             # Execute all steps in parallel with a single live display
-            from .subprocess_utils import safe_run_async_stream
+            from ..subprocess_utils import safe_run_async_stream
 
             @dataclass
             class _CmdState:
@@ -3088,7 +2838,7 @@ class SiyarixChat:
                               "exit_code": exec_result.exit_code}
 
             # Pre-review all shell commands before starting Live display
-            from .shell_review import review_and_confirm
+            from ..shell_review import review_and_confirm
             command_review = self._settings.get("command_review", True)
             for s in plan.steps:
                 if not s.command:
@@ -3573,7 +3323,7 @@ class SiyarixChat:
         """Check if an LLM provider is configured and available."""
         provider = (self._settings.get("model_provider") or "gemini").lower().strip()
 
-        from .providers import ProviderManager
+        from ..providers import ProviderManager
         pm = ProviderManager()
         profile = pm.get_profile(provider)
 
@@ -3602,7 +3352,7 @@ class SiyarixChat:
         When ``"auto"``, scan known providers sorted by cost (cheapest first),
         skipping any that are disabled or in cooldown (persisted across restarts).
         """
-        from .providers import ProviderManager
+        from ..providers import ProviderManager
         pm = ProviderManager()
 
         configured = self._settings.get("model_provider") or "openrouter"
@@ -3649,7 +3399,7 @@ class SiyarixChat:
 
     def _print_welcome(self) -> None:
         """Print the welcome banner with system status overview."""
-        from .branding import resolve_version
+        from ..branding import resolve_version
 
         ver = resolve_version()
         provider_status = self._gather_provider_status()
@@ -3660,7 +3410,7 @@ class SiyarixChat:
         scans_count = 0
         findings_count = 0
         try:
-            from .offline_store import OfflineStore
+            from ..offline_store import OfflineStore
 
             store = OfflineStore()
             stats = store.stats()
@@ -3674,7 +3424,7 @@ class SiyarixChat:
         # Live tool & command counts
         tool_count = 0
         try:
-            from .registry import ToolRegistry
+            from ..registry import ToolRegistry
 
             reg = ToolRegistry()
             reg.scan_path()
@@ -3757,7 +3507,7 @@ class SiyarixChat:
 
         Map keys -> (icon, reason)
         """
-        from .providers import ProviderManager
+        from ..providers import ProviderManager
         pm = ProviderManager()
         status: dict[str, tuple[str, str]] = {}
 
@@ -3792,15 +3542,12 @@ class SiyarixChat:
         return status
 
     def _print_assistant(self, message: str) -> None:
-        """Print an assistant text response."""
-        console.print(
-            Panel(
-                Markdown(message),
-                title="[bold green]◆ Siyarix[/bold green]",
-                border_style="green",
-                padding=(0, 2),
-            )
-        )
+        if self._con is not None:
+            from rich.markdown import Markdown
+            from rich.panel import Panel
+            self._con.print(Panel(Markdown(message), title="[bold green]\u25c6 Siyarix[/bold green]", border_style="green", padding=(0, 2)))
+        else:
+            self._output._raw_print(f"\u25c6 Siyarix: {message}")
 
     async def _stream_assistant_response(
         self, system_prompt: str, user_prompt: str, provider_name: str | None = None, api_key: str | None = None
@@ -3834,91 +3581,45 @@ class SiyarixChat:
         return full_text
 
     def _print_plan(self, plan: "Any") -> None:  # ExecutionPlan
-        table = Table(
-            title="Execution Plan", show_header=True, header_style="bold magenta"
-        )
-        table.add_column("#", style="dim", width=3)
-        table.add_column("Tool", style="green")
-        table.add_column("Target", style="yellow")
-        table.add_column("Description", style="white")
+        rows = []
         for i, step in enumerate(plan.steps, 1):
             target = step.args.get("target", "") if isinstance(step.args, dict) else ""
-            table.add_row(
-                str(i),
-                step.tool or "—",
-                target or "—",
-                step.description[:50],
-            )
-        console.print(table)
+            rows.append({"#": str(i), "Tool": step.tool or "—", "Target": target or "—", "Description": step.description[:50]})
+        self._output.print_table(rows, title="Execution Plan")
 
     def _print_results(self, result: "Any", elapsed: float) -> None:  # EngineResult
-        from .planner import StepStatus
+        from ..planner import StepStatus
 
         success_count = sum(
             1 for r in result.step_results if r.status == StepStatus.SUCCESS
         )
-        color = "green" if result.success else "red"
 
         # Print any step outputs
         for step_result in result.step_results:
             if step_result.output:
-                console.print(
-                    Panel(
-                        Syntax(
-                            step_result.output[:2000],
-                            "text",
-                            theme="monokai",
-                            line_numbers=False,
-                        ),
-                        title=f"[dim]Output: {step_result.step_id}[/dim]",
-                        border_style="dim",
-                    )
-                )
+                self._output._raw_print(f"[Output: {step_result.step_id}] {step_result.output[:2000]}")
 
-        # Summary panel
-        console.print(
-            Panel.fit(
-                f"[{color}]{'✓' if result.success else '✗'} {'Success' if result.success else 'Partial failure'}[/{color}]  "
-                f"Steps: {success_count}/{len(result.step_results)}  "
-                f"Findings: [bold]{len(result.all_findings)}[/bold]  "
-                f"Time: {elapsed:.2f}s",
-                border_style=color,
-            )
-        )
+        # Summary line
+        status = f"{'✓' if result.success else '✗'} {'Success' if result.success else 'Partial failure'}"
+        self._output._raw_print(f"{status}  Steps: {success_count}/{len(result.step_results)}  Findings: {len(result.all_findings)}  Time: {elapsed:.2f}s")
+
+        if result.success:
+            self._output.print_success(f"Completed {success_count} steps in {elapsed:.2f}s")
+        else:
+            self._output.print_error(f"Partial failure: {success_count}/{len(result.step_results)} steps succeeded")
 
         # Show findings table if any
         if result.all_findings:
-            ftable = Table(title="Findings", header_style="bold red")
-            ftable.add_column("Severity", width=8)
-            ftable.add_column("Type", style="cyan")
-            ftable.add_column("Detail", style="white")
-            for f in result.all_findings[:20]:
-                sev = f.get("severity", "info")
-                sev_color = {
-                    "critical": "red",
-                    "high": "orange1",
-                    "medium": "yellow",
-                    "low": "cyan",
-                    "info": "white",
-                }.get(sev, "white")
-                ftable.add_row(
-                    f"[{sev_color}]{sev}[/{sev_color}]",
-                    f.get("type", "—"),
-                    str(f.get("detail", f.get("description", "")))[:80],
-                )
-            console.print(ftable)
+            self._output.print_table(
+                [{"Severity": f.get("severity", "info"), "Type": f.get("type", "—"), "Detail": str(f.get("detail", f.get("description", "")))[:80]} for f in result.all_findings[:20]],
+                title="Findings",
+            )
 
     def _print_goodbye(self) -> None:
         self._session.save(self._SESSIONS_DIR / f"{self._session.session_id}.json")
-        console.print(
-            Panel.fit(
-                f"[dim]Session saved: {self._session.session_id[:8]}[/dim]\n"
-                f"[dim]Resume with: siyarix chat --session {self._session.session_id}[/dim]\n"
-                f"[dim]Your theme and key settings remain in config/.env.[/dim]",
-                title="[bold]Goodbye from Siyarix[/bold]",
-                border_style="dim",
-            )
-        )
+        self._output.print_info(f"Session saved: {self._session.session_id[:8]}")
+        self._output.print_info(f"Resume with: siyarix chat --session {self._session.session_id}")
+        self._output.print_info("Your theme and key settings remain in config/.env.")
 
 
 # ---------------------------------------------------------------------------

@@ -1144,7 +1144,7 @@ class SiyarixChat:
         console.print(f"[green]✓ Target set to: {args}[/green]")
 
     def _cmd_mode(self, args: str) -> None:
-        valid = ("autonomous", "integrated", "registry")
+        valid = ("autonomous", "integrated", "registry", "offline")
         if not args:
             console.print(
                 f"Current mode: [cyan]{self._mode}[/cyan] (valid: {', '.join(valid)})"
@@ -1476,7 +1476,16 @@ class SiyarixChat:
             if not goal:
                 console.print("[yellow]Usage: /agent run <goal>[/yellow]")
                 return
-            agent = AgentCore(mode=AgentMode.AUTONOMOUS)
+            chat_mode = self._mode
+            if chat_mode == "integrated":
+                agent_mode = AgentMode.HYBRID
+            elif chat_mode == "autonomous":
+                agent_mode = AgentMode.AUTONOMOUS
+            elif chat_mode in ("registry", "offline"):
+                agent_mode = AgentMode.REGISTRY
+            else:
+                agent_mode = AgentMode.AUTONOMOUS
+            agent = AgentCore(mode=agent_mode)
             await agent.initialize()
             result = await agent.execute_goal(AgentGoal(description=goal))
             if result.success:
@@ -2259,7 +2268,7 @@ class SiyarixChat:
         from ..registry import ToolRegistry
 
         # ── Route by mode ──
-        if self._mode == "registry":
+        if self._mode in ("registry", "offline"):
             pass  # skip agent, go straight to registry engine below
         elif self._mode == "autonomous":
             ok = await self._execute_agent(instruction, target, require_llm=True)
@@ -2619,7 +2628,16 @@ When the user message contains tool execution results, analyse them thoroughly.
         if target and target not in instruction:
             instruction_with_target = f"{instruction} on {target}"
 
-        agent = AgentCore(mode=AgentMode.AUTONOMOUS)
+        chat_mode = self._mode
+        if chat_mode == "integrated":
+            agent_mode = AgentMode.HYBRID
+        elif chat_mode == "autonomous":
+            agent_mode = AgentMode.AUTONOMOUS
+        elif chat_mode in ("registry", "offline"):
+            agent_mode = AgentMode.REGISTRY
+        else:
+            agent_mode = AgentMode.AUTONOMOUS
+        agent = AgentCore(mode=agent_mode)
         with console.status("[bold green]Initializing...[/bold green]", spinner="dots"):
             await agent.initialize()
 
@@ -3457,7 +3475,7 @@ When the user message contains tool execution results, analyse them thoroughly.
                         "[bold]/run <cmd>[/bold] — natural language\n"
                         "[bold]/key set[/bold] — API key management\n"
                         "[bold]/theme[/bold] — switch appearance\n"
-                        "[bold]Mode:[/bold] Registry (offline)",
+                        f"[bold]Mode:[/bold] {self._gather_mode_label(provider_status)}",
                         title="Quick Actions",
                         border_style="magenta",
                         padding=(1, 2),
@@ -3524,6 +3542,21 @@ When the user message contains tool execution results, analyse them thoroughly.
                 status[prov_name] = ("⚠", "available (local)")
 
         return status
+
+    def _gather_mode_label(self, provider_status: dict[str, tuple[str, str]]) -> str:
+        """Build a human-readable mode label showing LLM connectivity state."""
+        has_llm = any(
+            icon == "✓" and label == "configured"
+            for icon, label in provider_status.values()
+        )
+        mode_display = self._mode.capitalize()
+        if has_llm:
+            return f"{mode_display} (LLM online)"
+        if self._mode == "registry":
+            return "Registry (offline)"
+        if self._mode == "autonomous":
+            return "Autonomous (LLM needed)"
+        return f"{mode_display} (local fallback)"
 
     def _print_assistant(self, message: str) -> None:
         if self._con is not None:

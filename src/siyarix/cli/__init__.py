@@ -380,7 +380,7 @@ def main_callback(
         "integrated",
         "--mode",
         "-m",
-        help="Execution mode: registry|autonomous|integrated",
+        help="Execution mode: registry|autonomous|integrated|offline",
     ),
     target: str = typer.Option(
         "", "--target", "-t", help="Set initial target for the session"
@@ -680,7 +680,7 @@ def scan(
         "integrated",
         "--mode",
         "-m",
-        help="Execution mode: registry|autonomous|integrated",
+        help="Execution mode: registry|autonomous|integrated|offline",
     ),
     output: str = typer.Option(
         "table", "--output", "-o", help="Output: table|json|yaml|csv"

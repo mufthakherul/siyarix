@@ -119,23 +119,15 @@ jobs:
     environment:
       name: pypi
       url: https://pypi.org/project/siyarix/
-    env:
-      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: dist-python
           path: dist/
 
-      - name: Skip when PyPI token is unavailable
-        if: env.PYPI_API_TOKEN == ''
-        run: echo "::warning::PYPI_API_TOKEN is not configured; skipping publish."
-
-      - name: Publish to PyPI
-        if: env.PYPI_API_TOKEN != ''
+      - name: Publish to PyPI (Trusted Publishing)
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ env.PYPI_API_TOKEN }}
           skip-existing: true
 
   publish-testpypi:
@@ -146,24 +138,16 @@ jobs:
     environment:
       name: testpypi
       url: https://test.pypi.org/project/siyarix/
-    env:
-      TEST_PYPI_API_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: dist-python
           path: dist/
 
-      - name: Skip when TestPyPI token is unavailable
-        if: env.TEST_PYPI_API_TOKEN == ''
-        run: echo "::warning::TEST_PYPI_API_TOKEN is not configured; skipping publish."
-
-      - name: Publish to TestPyPI
-        if: env.TEST_PYPI_API_TOKEN != ''
+      - name: Publish to TestPyPI (Trusted Publishing)
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
-          password: ${{ env.TEST_PYPI_API_TOKEN }}
           skip-existing: true
 
   test-python-package:

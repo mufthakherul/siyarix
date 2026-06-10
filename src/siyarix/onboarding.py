@@ -237,7 +237,8 @@ class OnboardingWizard:
         )
         self._console.print()
         choice = Prompt.ask(
-            "[bold]Do you accept the ethical use pledge?[/bold]",
+            "[bold]Do you accept the ethical use pledge?[/bold]\n"
+            "  Type [green]c[/green] to continue or [yellow]e[/yellow] to exit",
             choices=["c", "e"],
             default="c",
             show_choices=True,

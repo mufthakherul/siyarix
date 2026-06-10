@@ -132,7 +132,7 @@ class HealthChecker:
         return status
 
     async def _check_model_providers(self, status: HealthStatus) -> None:
-        """Check model provider health."""
+        """Check model provider health (parallel)."""
         from .providers import ProviderManager
         pm = ProviderManager()
         entries: list[tuple[str, str | None, bool]] = []
@@ -141,24 +141,20 @@ class HealthChecker:
             profile = pm.get_profile(prov_name)
             if not profile:
                 continue
-            # (display_name, env_var, is_local)
             entries.append((prov_name, profile.api_key_env, not bool(profile.api_key_env)))
 
-        # Also check cloud/custom/opencode
         entries.extend([
             ("cloud", "SIYARIX_SERVER_URL", False),
             ("custom", "CUSTOM_API_KEY", False),
             ("opencode", "OPENCODE_API_KEY", False),
         ])
 
-        for provider_name, env_var, is_local in entries:
+        async def check_one(provider_name: str, env_var: str | None, is_local: bool) -> ComponentHealth:
             start = time.time()
             try:
-                available = False
-                message = ""
-
                 if is_local:
-                    # Check if the local service is running
+                    available = False
+                    message = f"{provider_name.capitalize()} not running"
                     try:
                         import httpx
                         ports = {"ollama": 11434, "lmstudio": 1234}
@@ -173,58 +169,39 @@ class HealthChecker:
                             )
                     except Exception:
                         logger.debug("%s check failed — not running", provider_name)
-                        available = False
-                        message = f"{provider_name.capitalize()} not running"
                 elif provider_name == "gemini":
-                    available = bool(
-                        os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-                    )
-                    message = (
-                        "Gemini API key configured"
-                        if available
-                        else "Gemini not configured"
-                    )
+                    available = bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
+                    message = "Gemini API key configured" if available else "Gemini not configured"
                 elif provider_name == "azure":
                     available = bool(os.getenv(env_var or ""))
-                    message = (
-                        "Azure OpenAI configured"
-                        if available
-                        else "Azure OpenAI not configured"
-                    )
+                    message = "Azure OpenAI configured" if available else "Azure OpenAI not configured"
                 else:
                     available = bool(os.getenv(env_var or ""))
-                    message = (
-                        f"{provider_name.capitalize()} configured"
-                        if available
-                        else f"{provider_name.capitalize()} not configured"
-                    )
+                    message = f"{provider_name.capitalize()} configured" if available else f"{provider_name.capitalize()} not configured"
 
                 display_name = provider_name.capitalize()
                 self.model_providers_available[display_name] = available
-
                 latency = (time.time() - start) * 1000
-                status.components.append(
-                    ComponentHealth(
-                        name=f"ModelProvider/{display_name}",
-                        state=(
-                            HealthState.HEALTHY if available else HealthState.DEGRADED
-                        ),
-                        message=message,
-                        latency_ms=latency,
-                        details={"available": available},
-                    )
+                return ComponentHealth(
+                    name=f"ModelProvider/{display_name}",
+                    state=HealthState.HEALTHY if available else HealthState.DEGRADED,
+                    message=message,
+                    latency_ms=latency,
+                    details={"available": available},
                 )
             except Exception as exc:
                 display_name = provider_name.capitalize()
                 logger.exception("Model provider check failed for %s", provider_name)
-                status.components.append(
-                    ComponentHealth(
-                        name=f"ModelProvider/{display_name}",
-                        state=HealthState.UNHEALTHY,
-                        message=f"Error: {str(exc)}",
-                        latency_ms=(time.time() - start) * 1000,
-                    )
+                return ComponentHealth(
+                    name=f"ModelProvider/{display_name}",
+                    state=HealthState.UNHEALTHY,
+                    message=f"Error: {str(exc)}",
+                    latency_ms=(time.time() - start) * 1000,
                 )
+
+        import asyncio
+        results = await asyncio.gather(*[check_one(p, e, l) for p, e, l in entries])
+        status.components.extend(results)
 
     async def _check_tool_registry(self, status: HealthStatus) -> None:
         """Check tool registry health."""

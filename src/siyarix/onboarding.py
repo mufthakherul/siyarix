@@ -1842,7 +1842,7 @@ class OnboardingWizard:
             subprocess.Popen(
                 [sys.executable, "-m", "siyarix"] + sys.argv[1:],
                 shell=True,  # nosec B602
-                creationflags=subprocess.CREATE_NEW_CONSOLE,
+                creationflags=subprocess.CREATE_NEW_CONSOLE,  # type: ignore[attr-defined]
             )
         else:
             os.execv(sys.executable, [sys.executable, "-m", "siyarix"] + sys.argv[1:])

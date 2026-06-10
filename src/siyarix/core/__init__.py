@@ -10,7 +10,7 @@ from enum import StrEnum
 from typing import Any
 
 from ..registry import ToolRegistry
-from ..planner import Planner, ExecutionPlan, PlanStatus, StepStatus
+from ..planner import Planner, ExecutionPlan, PlanStatus, StepStatus, PlanStep
 from ..executor import Executor
 from ..validator import Validator, RecoveryAction
 from ..context import ContextManager
@@ -152,7 +152,7 @@ class AgentCore:
             # Progress tracking
             step_progress: dict[str, str] = {}
 
-            def on_step(s):
+            def on_step(s: PlanStep) -> None:
                 step_id = s.id
                 old_status = step_progress.get(step_id, "pending")
                 if old_status != s.status.value:

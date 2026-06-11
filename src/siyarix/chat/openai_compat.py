@@ -251,14 +251,20 @@ def build_messages(
     system_prompt: str,
     user_prompt: str,
     history: list[dict] | None = None,
+    *,
+    compat: OpenAICompat | None = None,
 ) -> list[dict[str, Any]]:
     """Build the messages list for an OpenAI-compatible API call.
 
     Supports system, developer (for reasoning models), user, and assistant roles.
+    When *compat* is provided and its *supports_developer_role* flag is True,
+    uses ``"developer"`` role instead of ``"system"`` for reasoning-optimised models.
     """
     messages: list[dict[str, Any]] = []
     if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
+        use_dev = compat is not None and compat.supports_developer_role
+        role = "developer" if use_dev else "system"
+        messages.append({"role": role, "content": system_prompt})
     if history:
         for msg in history:
             role = msg.get("role", "user")
@@ -312,7 +318,7 @@ async def openai_stream(
 
     Yields content tokens as they arrive.
     """
-    messages = build_messages(system_prompt, user_prompt, history)
+    messages = build_messages(system_prompt, user_prompt, history, compat=compat)
     kwargs: dict[str, Any] = {
         "model": model,
         "messages": messages,
@@ -346,7 +352,7 @@ async def openai_complete(
 
     Returns dict with content, model, input_tokens, output_tokens.
     """
-    messages = build_messages(system_prompt, user_prompt, history)
+    messages = build_messages(system_prompt, user_prompt, history, compat=compat)
     kwargs: dict[str, Any] = {
         "model": model,
         "messages": messages,

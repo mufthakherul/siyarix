@@ -78,32 +78,9 @@ class BootstrapEngine:
             "microsoft" in platform.release().lower() or "wsl" in platform.release().lower()
         ):
             info.is_wsl = True
-        # Detect package manager (platform-adaptive ordering)
-        is_win = os.name == "nt"
-        pm_checks = (
-            [
-                ("winget", "winget"),
-                ("choco", "choco"),
-            ]
-            if is_win
-            else [
-                ("apt-get", "apt"),
-                ("apt", "apt"),
-            ]
-        )
-        pm_checks += [
-            ("brew", "brew"),
-            ("pkg", "pkg"),
-            ("pacman", "pacman"),
-            ("dnf", "dnf"),
-            ("apk", "apk"),
-            ("winget", "winget"),
-            ("choco", "choco"),
-        ]
-        for binary, name in pm_checks:
-            if shutil.which(binary):
-                info.package_manager = name
-                break
+        # Detect package manager
+        from .subprocess_utils import detect_package_manager
+        info.package_manager = detect_package_manager()
         return info
 
     def check_python_version(self) -> bool:

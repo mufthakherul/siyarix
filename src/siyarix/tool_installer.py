@@ -328,32 +328,8 @@ class ToolInstaller:
         return f"{base.rstrip('/')}/releases/latest/download/{filename}"
 
     def _detect_package_manager(self) -> str:
-        is_win = os.name == "nt"
-        # Platform-adaptive ordering: Windows-first managers, then general
-        checks = (
-            [
-                ("winget", "winget"),
-                ("choco", "choco"),
-            ]
-            if is_win
-            else [
-                ("apt-get", "apt"),
-                ("apt", "apt"),
-            ]
-        )
-        checks += [
-            ("brew", "brew"),
-            ("pkg", "pkg"),
-            ("pacman", "pacman"),
-            ("dnf", "dnf"),
-            ("apk", "apk"),
-            ("winget", "winget"),
-            ("choco", "choco"),
-        ]
-        for binary, name in checks:
-            if shutil.which(binary):
-                return name
-        return "pip"
+        from .subprocess_utils import detect_package_manager
+        return detect_package_manager()
 
     def is_installed(self, tool: str) -> bool:
         return shutil.which(tool) is not None

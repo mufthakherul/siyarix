@@ -2971,7 +2971,7 @@ Each step is a raw shell command running directly on the shell:
             try:
                 llm_call_fn = self._make_llm_call(provider_name, api_key or "")
                 ping = await asyncio.wait_for(
-                    llm_call_fn("Respond with exactly: OK", "ping"),
+                    llm_call_fn("Ping utility", "Reply with exactly: OK"),
                     timeout=15.0,
                 )
                 if not isinstance(ping, dict):

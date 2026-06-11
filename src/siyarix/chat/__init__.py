@@ -5,14 +5,6 @@
 A full-featured interactive shell for Siyarix, similar to Claude CLI and
 Gemini CLI, specialized for cybersecurity workflows.
 
-TODO(v3.0): Refactor into ``chat/`` package:
-  - chat/__init__.py     — backward-compatible re-exports
-  - chat/session.py      — ChatSession, ChatMessage data models & persistence
-  - chat/prompts.py      — System prompt definitions
-  - chat/commands.py     — Slash command handlers & command registry
-  - chat/ui.py           — Rich console helpers, SplitPane, ConfigPanel
-  - chat/providers.py    — LLM provider integration helpers
-
 Features:
   • Multi-turn conversation with session history
   • Context-aware suggestions and command recall
@@ -147,16 +139,6 @@ def load_env_file() -> None:
                 logger.debug("Skipping %s from .env (use vault instead)", key)
                 continue
             os.environ[key] = val
-
-
-def ensure_env_file() -> str | None:
-    return None
-
-
-def upsert_env_vars(env_vars: dict[str, str], env_file: str | None = None) -> None:
-    """Set environment variables in-memory only (never writes to .env)."""
-    for k, v in env_vars.items():
-        os.environ[k] = v
 
 
 class _Shell:
@@ -576,6 +558,32 @@ class SiyarixChat:
             "/vault": self._cmd_vault,
             "/review": self._cmd_review,
             "/persona": self._cmd_persona,
+            "/report": self._cmd_report,
+            "/split": self._cmd_split,
+            "/coder": self._cmd_coder,
+            "/batch": self._cmd_batch,
+            "/cloud": self._cmd_cloud,
+            "/k8s": self._cmd_k8s,
+            "/docker": self._cmd_docker,
+            "/iac": self._cmd_iac,
+            "/mobile": self._cmd_mobile,
+            "/iot": self._cmd_iot,
+            "/hsm": self._cmd_hsm,
+            "/compliance": self._cmd_compliance,
+            "/opsec": self._cmd_opsec,
+            "/siem": self._cmd_siem,
+            "/performance": self._cmd_performance,
+            "/cache": self._cmd_cache,
+            "/import": self._cmd_import,
+            "/playbook": self._cmd_playbook,
+            "/campaign": self._cmd_campaign,
+            "/kb": self._cmd_kb,
+            "/ticket": self._cmd_ticket,
+            "/retest": self._cmd_retest,
+            "/intel": self._cmd_intel,
+            "/canary": self._cmd_canary,
+            "/stealth": self._cmd_stealth,
+            "/audit": self._cmd_audit,
         }
 
         handler = handlers.get(command)

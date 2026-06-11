@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Multi-provider LLM abstraction with fallback and credential pooling.
 
-Supports 16 providers with capability flags, cost tiers, and smart failover.
+Supports 24 providers with capability flags, cost tiers, and smart failover.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from .events import Event, EventType, emit_sync
+from .model_aliases import normalize_model_id
 
 logger = logging.getLogger(__name__)
 
@@ -392,18 +393,25 @@ class ProviderManager:
                         "gpt-5.5",
                         supports_vision=True,
                         supports_structured_output=True,
-                        context_window=1100000,
+                        context_window=1000000,
                         cost_tier=CostTier.HIGH,
                     ),
                     ModelInfo(
                         "gpt-5.5-pro",
                         supports_vision=True,
                         supports_structured_output=False,
-                        context_window=1100000,
+                        context_window=1000000,
                         cost_tier=CostTier.HIGH,
                     ),
                     ModelInfo(
                         "gpt-5.4",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=272000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "gpt-5.4-pro",
                         supports_vision=True,
                         supports_structured_output=True,
                         context_window=1050000,
@@ -422,6 +430,13 @@ class ProviderManager:
                         supports_structured_output=True,
                         context_window=400000,
                         cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "gpt-5.3-codex",
+                        supports_vision=True,
+                        supports_structured_output=False,
+                        context_window=400000,
+                        cost_tier=CostTier.HIGH,
                     ),
                     ModelInfo(
                         "gpt-5.2",
@@ -459,7 +474,49 @@ class ProviderManager:
                         cost_tier=CostTier.MEDIUM,
                     ),
                     ModelInfo(
+                        "o4-mini-deep-research",
+                        supports_vision=True,
+                        supports_structured_output=False,
+                        context_window=200000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
                         "o3",
+                        supports_vision=True,
+                        supports_structured_output=False,
+                        context_window=200000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "o3-mini",
+                        supports_vision=False,
+                        supports_structured_output=False,
+                        context_window=200000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "o3-pro",
+                        supports_vision=True,
+                        supports_structured_output=False,
+                        context_window=200000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "o3-deep-research",
+                        supports_vision=True,
+                        supports_structured_output=False,
+                        context_window=200000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "o1",
+                        supports_vision=True,
+                        supports_structured_output=False,
+                        context_window=200000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "o1-pro",
                         supports_vision=True,
                         supports_structured_output=False,
                         context_window=200000,
@@ -467,7 +524,7 @@ class ProviderManager:
                     ),
                 ],
                 api_key_env="OPENAI_API_KEY",
-                max_context_tokens=1100000,
+                max_context_tokens=1000000,
                 supports_streaming=True,
                 supports_vision=True,
                 priority=10,
@@ -486,7 +543,21 @@ class ProviderManager:
                         "claude-opus-4-8",
                         supports_vision=True,
                         supports_structured_output=True,
-                        context_window=1000000,
+                        context_window=1048576,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "claude-opus-4-7",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=200000,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
+                        "claude-opus-4-6",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=200000,
                         cost_tier=CostTier.HIGH,
                     ),
                     ModelInfo(
@@ -505,7 +576,7 @@ class ProviderManager:
                     ),
                 ],
                 api_key_env="ANTHROPIC_API_KEY",
-                max_context_tokens=1000000,
+                max_context_tokens=1048576,
                 supports_streaming=True,
                 supports_vision=True,
                 priority=10,
@@ -535,6 +606,13 @@ class ProviderManager:
                         cost_tier=CostTier.MEDIUM,
                     ),
                     ModelInfo(
+                        "gemini-3.1-pro-preview",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1048576,
+                        cost_tier=CostTier.HIGH,
+                    ),
+                    ModelInfo(
                         "gemini-3.1-pro",
                         supports_vision=True,
                         supports_structured_output=True,
@@ -554,6 +632,13 @@ class ProviderManager:
                         supports_structured_output=True,
                         context_window=1048576,
                         cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "gemini-3-flash-preview",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1048576,
+                        cost_tier=CostTier.MEDIUM,
                     ),
                     ModelInfo(
                         "gemini-3.0-pro",
@@ -615,6 +700,18 @@ class ProviderManager:
                 display_name="Groq",
                 models=[
                     ModelInfo(
+                        "groq/compound",
+                        supports_tools=True,
+                        context_window=131072,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "groq/compound-mini",
+                        supports_tools=True,
+                        context_window=131072,
+                        cost_tier=CostTier.FREE,
+                    ),
+                    ModelInfo(
                         "llama-4-scout-17b-16e-instruct",
                         supports_vision=True,
                         context_window=262144,
@@ -632,7 +729,18 @@ class ProviderManager:
                     ModelInfo(
                         "llama-3.1-8b-instant", context_window=128000, cost_tier=CostTier.FREE
                     ),
-                    ModelInfo("mixtral-8x7b-32768", context_window=32768, cost_tier=CostTier.FREE),
+                    ModelInfo(
+                        "mixtral-8x7b-32768", context_window=32768, cost_tier=CostTier.FREE
+                    ),
+                    ModelInfo(
+                        "openai/gpt-oss-120b", context_window=128000, cost_tier=CostTier.LOW
+                    ),
+                    ModelInfo(
+                        "openai/gpt-oss-20b", context_window=128000, cost_tier=CostTier.FREE
+                    ),
+                    ModelInfo(
+                        "qwen/qwen3-32b", context_window=128000, cost_tier=CostTier.FREE
+                    ),
                 ],
                 api_key_env="GROQ_API_KEY",
                 max_context_tokens=262144,
@@ -667,7 +775,22 @@ class ProviderManager:
                         cost_tier=CostTier.LOW,
                     ),
                     ModelInfo(
+                        "deepseek-ai/DeepSeek-V4-Pro", context_window=1000000, cost_tier=CostTier.MEDIUM
+                    ),
+                    ModelInfo(
                         "deepseek-ai/DeepSeek-V3.1", context_window=128000, cost_tier=CostTier.LOW
+                    ),
+                    ModelInfo(
+                        "moonshotai/Kimi-K2.6",
+                        supports_vision=True,
+                        context_window=262144,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "Qwen/Qwen2.5-7B-Instruct-Turbo", context_window=32768, cost_tier=CostTier.FREE
+                    ),
+                    ModelInfo(
+                        "zai-org/GLM-5.1", context_window=202800, cost_tier=CostTier.LOW
                     ),
                 ],
                 api_key_env="TOGETHER_API_KEY",
@@ -689,19 +812,19 @@ class ProviderManager:
                     ModelInfo(
                         "openai/gpt-5.4",
                         supports_vision=True,
-                        context_window=1050000,
+                        context_window=272000,
                         cost_tier=CostTier.HIGH,
                     ),
                     ModelInfo(
                         "openai/gpt-5.5",
                         supports_vision=True,
-                        context_window=1100000,
+                        context_window=1000000,
                         cost_tier=CostTier.HIGH,
                     ),
                     ModelInfo(
                         "anthropic/claude-opus-4.8",
                         supports_vision=True,
-                        context_window=1000000,
+                        context_window=1048576,
                         cost_tier=CostTier.HIGH,
                     ),
                     ModelInfo(
@@ -735,6 +858,18 @@ class ProviderManager:
                         context_window=1000000,
                         cost_tier=CostTier.FREE,
                     ),
+                    ModelInfo(
+                        "minimax/minimax-m2.7", context_window=204000, cost_tier=CostTier.LOW
+                    ),
+                    ModelInfo(
+                        "ai21/jamba-large-1.7", context_window=256000, cost_tier=CostTier.LOW
+                    ),
+                    ModelInfo(
+                        "qwen/qwen3.5-9b", context_window=32768, cost_tier=CostTier.FREE
+                    ),
+                    ModelInfo(
+                        "z-ai/glm-5.1", context_window=202800, cost_tier=CostTier.LOW
+                    ),
                 ],
                 api_key_env="OPENROUTER_API_KEY",
                 max_context_tokens=2000000,
@@ -765,7 +900,13 @@ class ProviderManager:
                         context_window=1000000,
                         cost_tier=CostTier.MEDIUM,
                     ),
-                    ModelInfo("deepseek-chat", context_window=65536, cost_tier=CostTier.LOW),
+                    ModelInfo("deepseek-chat", context_window=131072, cost_tier=CostTier.LOW),
+                    ModelInfo(
+                        "deepseek-reasoner",
+                        supports_tools=False,
+                        context_window=131072,
+                        cost_tier=CostTier.LOW,
+                    ),
                 ],
                 api_key_env="DEEPSEEK_API_KEY",
                 base_url="https://api.deepseek.com",
@@ -798,6 +939,20 @@ class ProviderManager:
                         cost_tier=CostTier.LOW,
                     ),
                     ModelInfo(
+                        "grok-4.20-beta-latest-reasoning",
+                        supports_vision=True,
+                        supports_structured_output=False,
+                        context_window=2000000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "grok-4.20-beta-latest-non-reasoning",
+                        supports_vision=True,
+                        supports_structured_output=False,
+                        context_window=2000000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
                         "grok-4.20",
                         supports_vision=True,
                         supports_structured_output=False,
@@ -808,7 +963,7 @@ class ProviderManager:
                         "grok-build-0.1",
                         supports_vision=True,
                         supports_structured_output=False,
-                        context_window=128000,
+                        context_window=256000,
                         cost_tier=CostTier.LOW,
                     ),
                 ],
@@ -830,7 +985,7 @@ class ProviderManager:
                 display_name="Mistral AI",
                 models=[
                     ModelInfo(
-                        "mistral-large-3",
+                        "mistral-large-latest",
                         supports_vision=True,
                         supports_function_calling=True,
                         supports_structured_output=True,
@@ -838,26 +993,46 @@ class ProviderManager:
                         cost_tier=CostTier.MEDIUM,
                     ),
                     ModelInfo(
-                        "mistral-small-4",
+                        "mistral-medium-3-5",
+                        supports_vision=True,
+                        supports_function_calling=True,
+                        context_window=262000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo(
+                        "mistral-small-latest",
                         supports_vision=True,
                         supports_function_calling=True,
                         context_window=128000,
                         cost_tier=CostTier.LOW,
                     ),
                     ModelInfo(
-                        "codestral",
+                        "codestral-latest",
                         supports_function_calling=True,
-                        context_window=32000,
+                        context_window=256000,
                         cost_tier=CostTier.LOW,
                     ),
                     ModelInfo(
-                        "pixtral-large",
+                        "pixtral-large-latest",
                         supports_vision=True,
                         supports_function_calling=True,
                         context_window=128000,
                         cost_tier=CostTier.MEDIUM,
                     ),
+                    ModelInfo(
+                        "devstral-medium-latest",
+                        supports_function_calling=True,
+                        context_window=262000,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "magistral-small",
+                        supports_function_calling=True,
+                        context_window=128000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
                 ],
+                default_model="mistral-large-latest",
                 api_key_env="MISTRAL_API_KEY",
                 base_url="https://api.mistral.ai",
                 max_context_tokens=262000,
@@ -913,6 +1088,207 @@ class ProviderManager:
                 priority=6,
                 cost_tier=CostTier.MEDIUM,
                 docs_url="https://docs.perplexity.ai/docs/model-cards",
+            )
+        )
+
+        # ── Cerebras ──────────────────────────────────────────────────
+        self.register(
+            ProviderProfile(
+                name="cerebras",
+                display_name="Cerebras",
+                models=[
+                    ModelInfo("zai-glm-4.7", context_window=128000, cost_tier=CostTier.LOW),
+                    ModelInfo("gpt-oss-120b", context_window=128000, cost_tier=CostTier.LOW),
+                    ModelInfo("gpt-oss-20b", context_window=128000, cost_tier=CostTier.FREE),
+                    ModelInfo("qwen-3-235b-a22b-instruct-2507", context_window=128000, cost_tier=CostTier.LOW),
+                    ModelInfo("llama3.1-8b", context_window=128000, cost_tier=CostTier.FREE),
+                ],
+                default_model="zai-glm-4.7",
+                api_key_env="CEREBRAS_API_KEY",
+                base_url="https://api.cerebras.ai/v1",
+                max_context_tokens=128000,
+                supports_streaming=True,
+                priority=6,
+                cost_tier=CostTier.LOW,
+                docs_url="https://cerebras.ai/inference",
+            )
+        )
+
+        # ── Fireworks AI ──────────────────────────────────────────────
+        self.register(
+            ProviderProfile(
+                name="fireworks",
+                display_name="Fireworks AI",
+                models=[
+                    ModelInfo(
+                        "accounts/fireworks/models/kimi-k2p6",
+                        supports_vision=True,
+                        context_window=262144,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo(
+                        "accounts/fireworks/routers/kimi-k2p5-turbo",
+                        supports_vision=True,
+                        context_window=256000,
+                        cost_tier=CostTier.LOW,
+                    ),
+                ],
+                default_model="accounts/fireworks/routers/kimi-k2p5-turbo",
+                api_key_env="FIREWORKS_API_KEY",
+                base_url="https://api.fireworks.ai/inference/v1",
+                max_context_tokens=262144,
+                supports_streaming=True,
+                supports_vision=True,
+                priority=6,
+                cost_tier=CostTier.LOW,
+                docs_url="https://fireworks.ai/models",
+            )
+        )
+
+        # ── Z.AI (GLM) ────────────────────────────────────────────────
+        self.register(
+            ProviderProfile(
+                name="zai",
+                display_name="Z.AI (GLM)",
+                models=[
+                    ModelInfo("glm-5.1", context_window=202800, cost_tier=CostTier.LOW),
+                    ModelInfo("glm-5", context_window=202800, cost_tier=CostTier.LOW),
+                    ModelInfo("glm-5-turbo", context_window=202800, cost_tier=CostTier.LOW),
+                    ModelInfo(
+                        "glm-5v-turbo", supports_vision=True, context_window=202800, cost_tier=CostTier.LOW
+                    ),
+                    ModelInfo("glm-4.7", context_window=204800, cost_tier=CostTier.LOW),
+                    ModelInfo("glm-4.7-flash", context_window=200000, cost_tier=CostTier.FREE),
+                    ModelInfo(
+                        "glm-4.6v", supports_vision=True, context_window=128000, cost_tier=CostTier.LOW
+                    ),
+                ],
+                default_model="glm-5",
+                api_key_env="ZAI_API_KEY",
+                base_url="https://api.z.ai/api/paas/v4",
+                max_context_tokens=202800,
+                supports_streaming=True,
+                priority=6,
+                cost_tier=CostTier.LOW,
+                docs_url="https://z.ai/docs",
+            )
+        )
+
+        # ── MiniMax ───────────────────────────────────────────────────
+        self.register(
+            ProviderProfile(
+                name="minimax",
+                display_name="MiniMax",
+                models=[
+                    ModelInfo(
+                        "MiniMax-M3",
+                        supports_vision=True,
+                        supports_structured_output=True,
+                        context_window=1000000,
+                        cost_tier=CostTier.MEDIUM,
+                    ),
+                    ModelInfo("MiniMax-M2.7", context_window=204000, cost_tier=CostTier.LOW),
+                    ModelInfo("MiniMax-M2.7-highspeed", context_window=204000, cost_tier=CostTier.LOW),
+                ],
+                default_model="MiniMax-M3",
+                api_key_env="MINIMAX_API_KEY",
+                base_url="https://api.minimax.io/v1",
+                max_context_tokens=1000000,
+                supports_streaming=True,
+                supports_vision=True,
+                priority=5,
+                cost_tier=CostTier.MEDIUM,
+                docs_url="https://platform.minimaxi.com",
+            )
+        )
+
+        # ── Moonshot / Kimi ───────────────────────────────────────────
+        self.register(
+            ProviderProfile(
+                name="moonshot",
+                display_name="Moonshot (Kimi)",
+                models=[
+                    ModelInfo(
+                        "kimi-k2.6", supports_vision=True, context_window=262144, cost_tier=CostTier.LOW
+                    ),
+                    ModelInfo(
+                        "kimi-k2.5", supports_vision=True, context_window=262144, cost_tier=CostTier.LOW
+                    ),
+                    ModelInfo("kimi-k2-thinking", context_window=262144, cost_tier=CostTier.LOW),
+                    ModelInfo("kimi-k2-thinking-turbo", context_window=262144, cost_tier=CostTier.LOW),
+                    ModelInfo("kimi-k2-turbo", context_window=256000, cost_tier=CostTier.LOW),
+                ],
+                default_model="kimi-k2.6",
+                api_key_env="MOONSHOT_API_KEY",
+                base_url="https://api.moonshot.ai/v1",
+                max_context_tokens=262144,
+                supports_streaming=True,
+                supports_vision=True,
+                priority=5,
+                cost_tier=CostTier.LOW,
+                docs_url="https://platform.moonshot.ai",
+            )
+        )
+
+        # ── NVIDIA ────────────────────────────────────────────────────
+        self.register(
+            ProviderProfile(
+                name="nvidia",
+                display_name="NVIDIA",
+                models=[
+                    ModelInfo(
+                        "nvidia/nemotron-3-super-120b-a12b",
+                        context_window=1000000,
+                        cost_tier=CostTier.LOW,
+                    ),
+                    ModelInfo("moonshotai/kimi-k2.5", supports_vision=True, context_window=262144, cost_tier=CostTier.LOW),
+                    ModelInfo("minimaxai/minimax-m2.7", context_window=204000, cost_tier=CostTier.LOW),
+                    ModelInfo("z-ai/glm-5.1", context_window=202800, cost_tier=CostTier.LOW),
+                ],
+                default_model="nvidia/nemotron-3-super-120b-a12b",
+                api_key_env="NVIDIA_API_KEY",
+                base_url="https://integrate.api.nvidia.com/v1",
+                max_context_tokens=1000000,
+                supports_streaming=True,
+                priority=5,
+                cost_tier=CostTier.LOW,
+                docs_url="https://build.nvidia.com/explore/discover",
+            )
+        )
+
+        # ── OpenCode Go ───────────────────────────────────────────────
+        self.register(
+            ProviderProfile(
+                name="opencode-go",
+                display_name="OpenCode Go",
+                models=[
+                    ModelInfo("deepseek-v4-pro", context_window=1000000, cost_tier=CostTier.MEDIUM),
+                    ModelInfo("deepseek-v4-flash", context_window=1000000, cost_tier=CostTier.LOW),
+                ],
+                default_model="deepseek-v4-flash",
+                api_key_env="OPENCODE_API_KEY",
+                base_url="https://opencode.ai/zen/go/v1",
+                max_context_tokens=1000000,
+                supports_streaming=True,
+                priority=5,
+                cost_tier=CostTier.LOW,
+                docs_url="https://opencode.ai",
+            )
+        )
+
+        # ── Hugging Face ──────────────────────────────────────────────
+        self.register(
+            ProviderProfile(
+                name="huggingface",
+                display_name="Hugging Face",
+                models=[],
+                api_key_env="HF_TOKEN",
+                base_url="https://api-inference.huggingface.co/v1",
+                max_context_tokens=128000,
+                supports_streaming=True,
+                priority=4,
+                cost_tier=CostTier.FREE,
+                docs_url="https://huggingface.co/docs/api-inference/index",
             )
         )
 
@@ -1230,6 +1606,14 @@ class ProviderManager:
                 continue
             results.append(profile)
         return results
+
+    def resolve_model_id(self, provider: str, model_id: str) -> str:
+        """Normalize a model ID using provider-specific aliases.
+
+        OpenClaw pattern: provider-model-id-normalization.ts.
+        Falls back to model_id if no normalization applies.
+        """
+        return normalize_model_id(provider, model_id)
 
     def stats(self) -> dict[str, Any]:
         return {

@@ -147,15 +147,57 @@ def safe_run_sync(
         raise
 
 
+def _use_thread_fallback() -> bool:
+    """Return True when asyncio subprocess is unavailable (Windows SelectorEventLoop)."""
+    if os.name != "nt":
+        return False
+    loop = asyncio.get_running_loop()
+    return isinstance(loop, asyncio.SelectorEventLoop)
+
+
 async def safe_run_async(
     cmd: list[str], timeout: int = 10, validate: bool = True
 ) -> ExecutionResult:
     if validate:
         _validate_cmd_list(cmd)
     start = time.monotonic()
-    proc = await asyncio.create_subprocess_exec(
-        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )  # nosec B603
+    if _use_thread_fallback():
+        loop = asyncio.get_running_loop()
+        try:
+            cp = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None, lambda: subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+                ),
+                timeout=timeout + 5,
+            )
+        except asyncio.TimeoutError:
+            logger.debug("safe_run_async (thread) executor timeout for cmd=%s", cmd)
+            return ExecutionResult(exit_code=-1, stderr="Command timed out", duration_ms=(time.monotonic() - start) * 1000)
+        except subprocess.TimeoutExpired:
+            logger.debug("safe_run_async (thread) subprocess timeout for cmd=%s", cmd)
+            return ExecutionResult(exit_code=-1, duration_ms=(time.monotonic() - start) * 1000)
+        except FileNotFoundError:
+            logger.debug("safe_run_async (thread) binary not found: %s", cmd[0] if cmd else "?")
+            return ExecutionResult(
+                exit_code=-1, stderr=f"Binary not found: {cmd[0] if cmd else '?'}",
+                duration_ms=(time.monotonic() - start) * 1000,
+            )
+        return ExecutionResult(
+            exit_code=cp.returncode,
+            stdout=cp.stdout or "",
+            stderr=cp.stderr or "",
+            duration_ms=(time.monotonic() - start) * 1000,
+        )
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )  # nosec B603
+    except FileNotFoundError:
+        logger.debug("safe_run_async binary not found: %s", cmd[0] if cmd else "?")
+        return ExecutionResult(
+            exit_code=-1, stderr=f"Binary not found: {cmd[0] if cmd else '?'}",
+            duration_ms=(time.monotonic() - start) * 1000,
+        )
     if proc.pid is not None:
         _ORPHAN_TRACKER.add(proc.pid)
     try:
@@ -188,9 +230,51 @@ async def safe_run_async_stream(
     if validate:
         _validate_cmd_list(cmd)
     start = time.monotonic()
-    proc = await asyncio.create_subprocess_exec(
-        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )  # nosec B603
+    if _use_thread_fallback():
+        loop = asyncio.get_running_loop()
+        try:
+            cp = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None, lambda: subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+                ),
+                timeout=timeout + 5,
+            )
+        except asyncio.TimeoutError:
+            logger.debug("safe_run_async_stream (thread) executor timeout for cmd=%s", cmd)
+            return ExecutionResult(exit_code=-1, stderr="Command timed out", duration_ms=(time.monotonic() - start) * 1000)
+        except subprocess.TimeoutExpired:
+            logger.debug("safe_run_async_stream (thread) subprocess timeout for cmd=%s", cmd)
+            return ExecutionResult(exit_code=-1, duration_ms=(time.monotonic() - start) * 1000)
+        except FileNotFoundError:
+            logger.debug("safe_run_async_stream (thread) binary not found: %s", cmd[0] if cmd else "?")
+            return ExecutionResult(
+                exit_code=-1, stderr=f"Binary not found: {cmd[0] if cmd else '?'}",
+                duration_ms=(time.monotonic() - start) * 1000,
+            )
+        stdout_text = cp.stdout or ""
+        stderr_text = cp.stderr or ""
+        if on_stdout:
+            for line in stdout_text.splitlines():
+                on_stdout(line)
+        if on_stderr:
+            for line in stderr_text.splitlines():
+                on_stderr(line)
+        return ExecutionResult(
+            exit_code=cp.returncode,
+            stdout=stdout_text,
+            stderr=stderr_text,
+            duration_ms=(time.monotonic() - start) * 1000,
+        )
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )  # nosec B603
+    except FileNotFoundError:
+        logger.debug("safe_run_async_stream binary not found: %s", cmd[0] if cmd else "?")
+        return ExecutionResult(
+            exit_code=-1, stderr=f"Binary not found: {cmd[0] if cmd else '?'}",
+            duration_ms=(time.monotonic() - start) * 1000,
+        )
     if proc.pid is not None:
         _ORPHAN_TRACKER.add(proc.pid)
 

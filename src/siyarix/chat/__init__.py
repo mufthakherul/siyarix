@@ -2971,7 +2971,7 @@ Each step is a raw shell command running directly on the shell:
                     try:
                         tags_resp = httpx.get(f"{ollama_url}/api/tags", timeout=5.0)
                         installed = [m["name"] for m in tags_resp.json().get("models", [])]
-                        configured = self._settings.get("ollama_model") or "llama3.1"
+                        configured = self._settings.get("ollama_model") or "whiterabbitneo/WhiteRabbitNeo-2.5-Qwen-2.5-Coder-7B"
                         if configured not in installed and ":" not in configured:
                             configured = f"{configured}:latest"
                         if configured not in installed:
@@ -3654,7 +3654,7 @@ Each step is a raw shell command running directly on the shell:
             ollama_url = self._settings.get("ollama_url") or os.getenv(
                 "SIYARIX_OLLAMA_URL", "http://localhost:11434"
             )
-            model = self._settings.get("ollama_model") or "llama3.1"
+            model = self._settings.get("ollama_model") or "whiterabbitneo/WhiteRabbitNeo-2.5-Qwen-2.5-Coder-7B"
             try:
                 from ollama import AsyncClient as OllamaAsyncClient
 

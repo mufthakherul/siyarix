@@ -467,10 +467,12 @@ class Planner:
         else:
             tool_lines = [f"  - {t}" for t in available_tools]
 
+        import sys
+        _shell_cmd = "cmd /c" if sys.platform == "win32" else "sh -c"
         if system_prompt:
             full_prompt = (
                 system_prompt
-                + "\n\nCommands you construct will execute via `sh -c` — use proper quoting, pipes, and flags. You have full access to every binary on the system."
+                + f"\n\nCommands you construct will execute via `{_shell_cmd}` — use proper quoting, pipes, and flags. You have full access to every binary on the system."
             )
         else:
             full_prompt = """You are a senior red-team operator and penetration testing specialist.
@@ -514,6 +516,12 @@ Respond with ONLY valid JSON:
         except json.JSONDecodeError as exc:
             raise RuntimeError(f"LLM returned invalid JSON:\n{cleaned[:500]}") from exc
 
+        if not isinstance(data, dict):
+            return self.create_plan(
+                goal=goal,
+                context={"response": str(data) if data else "", "llm_planned": True},
+            )
+
         if not data.get("needs_tools"):
             return self.create_plan(
                 goal=goal,
@@ -523,6 +531,14 @@ Respond with ONLY valid JSON:
         steps_raw = data.get("steps", [])
         steps = []
         for i, s in enumerate(steps_raw):
+            if not isinstance(s, dict):
+                steps.append({
+                    "description": str(s) if s else f"LLM step {i+1}",
+                    "tool": "",
+                    "command": str(s) if s else None,
+                    "args": {},
+                })
+                continue
             step_def: dict[str, Any] = {
                 "description": s.get("description", f"LLM step {i+1}"),
                 "tool": s.get("tool", ""),

@@ -5,30 +5,83 @@
 from __future__ import annotations
 
 from typing import Any
-from prompt_toolkit.completion import Completer
+
+from prompt_toolkit.completion import Completer, Completion
 
 from ..output import output as _output_engine
 
 
 class SmartAutocomplete(Completer):
-    def __init__(self, session: Any) -> None:
-        pass
+    """Context-aware autocomplete for the chat REPL."""
 
-    def get_completions(self, document: Any, complete_event: Any) -> list[Any]:
-        return []
+    def __init__(self, session: Any) -> None:
+        self._session = session
+        self._commands = [
+            "/help", "/exit", "/clear", "/new", "/history", "/search",
+            "/tools", "/platform", "/status", "/session", "/uptime",
+            "/env", "/intents", "/shells", "/run", "/save", "/config",
+            "/key", "/mode", "/model", "/provider", "/theme", "/target",
+            "/version", "/context", "/log", "/diff", "/mcp", "/agent",
+            "/vault", "/review", "/persona", "/report", "/split",
+            "/coder", "/batch", "/cloud", "/k8s", "/docker", "/iac",
+            "/mobile", "/iot", "/hsm", "/compliance", "/opsec", "/siem",
+            "/performance", "/cache", "/import", "/playbook", "/campaign",
+            "/kb", "/ticket", "/retest", "/intel", "/canary", "/stealth",
+            "/audit", "/palette", "/savecmd", "/cmds", "/cmd",
+        ]
+
+    def get_completions(self, document: Any, complete_event: Any) -> list[Completion]:
+        text = document.text_before_cursor
+        if not text.startswith("/"):
+            return []
+        prefix = text.split()[-1] if text.split() else ""
+        return [
+            Completion(cmd, start_position=-len(prefix))
+            for cmd in self._commands
+            if cmd.startswith(prefix)
+        ]
 
 
 class CommandPalette:
+    """Interactive fuzzy command palette for quick command selection."""
+
     def __init__(self, session_id: str) -> None:
-        pass
+        self._session_id = session_id
 
     def show(self, console: Any) -> str | None:
-        return None
+        from rich.table import Table
+        from rich.prompt import Prompt
+
+        from .commands import HELP_CATEGORIES
+
+        all_cmds: list[tuple[str, str]] = []
+        for _cat, cmds in HELP_CATEGORIES:
+            for cmd, desc in cmds.items():
+                all_cmds.append((cmd, desc))
+
+        table = Table(title="Command Palette", header_style="bold cyan")
+        table.add_column("#", style="dim", width=4)
+        table.add_column("Command", style="cyan")
+        table.add_column("Description", style="white")
+        for i, (cmd, desc) in enumerate(all_cmds[:40], 1):
+            table.add_row(str(i), cmd, desc)
+        console.print(table)
+
+        choice = Prompt.ask("Select # or type command", default="")
+        if not choice:
+            return None
+        if choice.isdigit():
+            idx = int(choice) - 1
+            if 0 <= idx < len(all_cmds):
+                return all_cmds[idx][0]
+        return choice.strip()
 
 
 class SplitPane:
+    """Terminal split-pane layout renderer for side-by-side views."""
+
     def __init__(self, theme: str = "dark-neon") -> None:
-        pass
+        self._theme = theme
 
     def generate_layout(
         self,
@@ -38,7 +91,60 @@ class SplitPane:
         findings: list[Any] | None = None,
         timeline_events: list[Any] | None = None,
     ) -> str:
-        return ""
+        from rich.panel import Panel
+        from rich.text import Text
+
+        right_content = Text()
+        if right_type == "timeline":
+            right_content.append("─ Timeline ─\n", style="bold cyan")
+            events = timeline_events or []
+            for evt in events[-10:]:
+                if isinstance(evt, dict):
+                    right_content.append(f"  {evt.get('time', '?')} {evt.get('event', '?')}\n")
+                else:
+                    right_content.append(f"  {evt}\n")
+            if not events:
+                right_content.append("  No events yet\n", style="dim")
+        elif right_type == "metrics":
+            right_content.append("─ Metrics ─\n", style="bold cyan")
+            if session_meta and hasattr(session_meta, "messages"):
+                right_content.append(f"  Messages: {len(session_meta.messages)}\n")
+            right_content.append(f"  Findings: {len(findings or [])}\n")
+        elif right_type == "cheatsheet":
+            right_content.append("─ Quick Reference ─\n", style="bold cyan")
+            right_content.append("  /help    — Show commands\n")
+            right_content.append("  /run     — Execute command\n")
+            right_content.append("  /status  — Session status\n")
+            right_content.append("  /tools   — List tools\n")
+            right_content.append("  /exit    — Exit chat\n")
+        elif right_type == "attack_map":
+            right_content.append("─ Attack Surface ─\n", style="bold cyan")
+            sev_counts: dict[str, int] = {}
+            for f in (findings or []):
+                sev = f.get("severity", "info") if isinstance(f, dict) else "info"
+                sev_counts[sev] = sev_counts.get(sev, 0) + 1
+            for sev, count in sorted(sev_counts.items()):
+                right_content.append(f"  {sev}: {count}\n")
+            if not sev_counts:
+                right_content.append("  No findings\n", style="dim")
+        else:
+            right_content.append("─ Session Info ─\n", style="bold cyan")
+            if session_meta and hasattr(session_meta, "session_id"):
+                right_content.append(f"  ID: {session_meta.session_id[:8]}\n")
+                right_content.append(f"  Target: {session_meta.target or 'none'}\n")
+                right_content.append(f"  Mode: {session_meta.mode}\n")
+
+        left_panel = Panel(left_renderable or Text("No content"), title="Chat", border_style="cyan", width=60)
+        right_panel = Panel(right_content, title=right_type or "Info", border_style="dim", width=40)
+
+        from rich.columns import Columns
+        layout = Columns([left_panel, right_panel], expand=True)
+        from io import StringIO
+        from rich.console import Console as RichConsole
+        buf = StringIO()
+        tmp = RichConsole(file=buf, width=120, force_terminal=True)
+        tmp.print(layout)
+        return buf.getvalue()
 
 
 class ConfigPanel:

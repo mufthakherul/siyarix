@@ -35,6 +35,10 @@ _CONFIG_DIR = Path(
 )
 _SETTINGS_FILE = _CONFIG_DIR / "settings.toml"
 
+def get_config_dir() -> Path:
+    """Return the canonical config directory (~/.siyarix or $SIYARIX_CONFIG_DIR)."""
+    return _CONFIG_DIR
+
 # ---------------------------------------------------------------------------
 # Defaults
 # ---------------------------------------------------------------------------
@@ -75,10 +79,19 @@ DEFAULTS: dict[str, Any] = {
     # New providers
     "deepseek_model": "deepseek-v4-flash",
     "xai_model": "grok-4.3",
-    "mistral_model": "mistral-large-3",
+    "mistral_model": "mistral-large-latest",
     "perplexity_model": "sonar",
     "azure_model": "gpt-5.4",
     "azure_endpoint": "",
+    # New cloud providers
+    "cerebras_model": "zai-glm-4.7",
+    "fireworks_model": "accounts/fireworks/routers/kimi-k2p5-turbo",
+    "zai_model": "glm-5",
+    "minimax_model": "MiniMax-M3",
+    "moonshot_model": "kimi-k2.6",
+    "nvidia_model": "nvidia/nemotron-3-super-120b-a12b",
+    "opencode_go_model": "deepseek-v4-flash",
+    "huggingface_model": "",
     # Local provider config
     "ollama_url": "http://localhost:11434",
     "ollama_model": "llama3.1",
@@ -122,7 +135,7 @@ DESCRIPTIONS: dict[str, str] = {
     "client_profile": "Preferred profile: desktop_chrome | desktop_firefox | android_mobile | ios_safari",
     "tls_verify": "Verify TLS certificates on HTTPS requests",
     "history_retention_days": "Days to keep scan history (0 = forever)",
-    "model_provider": "Preferred model provider: auto | openai | gemini | anthropic | groq | together | openrouter | deepseek | xai | mistral | perplexity | azure | ollama | lmstudio | llamacpp | vllm | localai",
+    "model_provider": "Preferred model provider: auto | openai | gemini | anthropic | groq | together | openrouter | deepseek | xai | mistral | perplexity | cerebras | fireworks | zai | minimax | moonshot | nvidia | opencode-go | huggingface | azure | ollama | lmstudio | llamacpp | vllm | localai",
     "openai_model": "OpenAI model name (default: gpt-5.4)",
     "openai_vision_model": "OpenAI vision-capable model (default: gpt-5.4)",
     "openai_fast_model": "OpenAI fast/cheap model (default: gpt-5.4-mini)",
@@ -146,6 +159,14 @@ DESCRIPTIONS: dict[str, str] = {
     "perplexity_model": "Perplexity model name (default: sonar)",
     "azure_model": "Azure OpenAI model name (default: gpt-5.4)",
     "azure_endpoint": "Azure OpenAI endpoint URL (default: https://YOUR_RESOURCE.openai.azure.com)",
+    "cerebras_model": "Cerebras model name (default: zai-glm-4.7)",
+    "fireworks_model": "Fireworks AI model name (default: accounts/fireworks/routers/kimi-k2p5-turbo)",
+    "zai_model": "Z.AI model name (default: glm-5)",
+    "minimax_model": "MiniMax model name (default: MiniMax-M3)",
+    "moonshot_model": "Moonshot/Kimi model name (default: kimi-k2.6)",
+    "nvidia_model": "NVIDIA model name (default: nvidia/nemotron-3-super-120b-a12b)",
+    "opencode_go_model": "OpenCode Go model name (default: deepseek-v4-flash)",
+    "huggingface_model": "Hugging Face model name (default: empty for server default)",
     "ollama_url": "Ollama server URL (default: http://localhost:11434)",
     "ollama_model": "Ollama model name (default: llama3.1)",
     "lmstudio_url": "LM Studio server URL (default: http://localhost:1234)",

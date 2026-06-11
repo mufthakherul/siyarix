@@ -171,12 +171,13 @@ class AuditSession:
 class AuditLogger:
     """Enterprise audit logging system"""
 
-    _CONFIG_DIR = Path(os.getenv("SIYARIX_CONFIG_DIR", str(Path.home() / ".siyarix")))
-    _AUDIT_LOG = _CONFIG_DIR / "audit.log"
-    _AUDIT_DB = _CONFIG_DIR / "audit.json"
     _RETENTION_DAYS = 365
 
     def __init__(self, log_startup: bool = True) -> None:
+        from .config import get_config_dir
+        self._config_dir = get_config_dir()
+        self._audit_log = self._config_dir / "audit.log"
+        self._audit_db = self._config_dir / "audit.json"
         self._events: list[AuditEvent] = []
         self._sessions: dict[str, AuditSession] = {}
         self._dirty = False
@@ -189,7 +190,7 @@ class AuditLogger:
 
     def _load_config(self) -> None:
         """Load audit configuration"""
-        config_file = self._CONFIG_DIR / "audit.toml"
+        config_file = self._config_dir / "audit.toml"
         if config_file.exists() and tomllib is not None:
             try:
                 config = tomllib.loads(config_file.read_text())
@@ -199,10 +200,10 @@ class AuditLogger:
 
     def _load_events(self) -> None:
         """Load existing events from disk (last 1000 only to limit memory)"""
-        if not self._AUDIT_DB.exists():
+        if not self._audit_db.exists():
             return
         try:
-            data = json.loads(self._AUDIT_DB.read_text())
+            data = json.loads(self._audit_db.read_text())
             # Load only the most recent 1000 events to limit memory usage
             for evt_data in data[-1000:]:
                 evt = AuditEvent(
@@ -227,11 +228,11 @@ class AuditLogger:
     def _save_events(self) -> None:
         """Save events to disk atomically."""
         try:
-            self._CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+            self._config_dir.mkdir(parents=True, exist_ok=True)
             data = [e.to_dict() for e in self._events]
-            tmp = self._AUDIT_DB.with_suffix(".tmp")
+            tmp = self._audit_db.with_suffix(".tmp")
             tmp.write_text(json.dumps(data, indent=2))
-            tmp.replace(self._AUDIT_DB)
+            tmp.replace(self._audit_db)
             self._dirty = False
         except Exception as exc:
             logger.error("Failed to save audit events: %s", exc)

@@ -36,13 +36,14 @@ try:
 except ImportError:
     CRYPTO_AVAILABLE = False
     HAS_AESGCM = False
-    logger = logging.getLogger(__name__)
+
+logger = logging.getLogger(__name__)
+
+if not CRYPTO_AVAILABLE:
     logger.warning(
         "cryptography package not installed. Credential encryption unavailable; "
         "CredentialStore will be disabled until cryptography is installed."
     )
-
-logger = logging.getLogger(__name__)
 
 # AES-256-GCM key derivation constants
 _AES_KEY_SIZE = 32  # 256 bits

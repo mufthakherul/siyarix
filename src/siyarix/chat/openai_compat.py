@@ -19,6 +19,8 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, AsyncGenerator
 
+import httpx
+
 # ── Compat flags dataclass ─────────────────────────────────────────────
 
 
@@ -305,8 +307,11 @@ def make_client(
     return AsyncOpenAI(api_key=resolved_key)
 
 
-# ── Unified streaming function ─────────────────────────────────────────
-# Mirrors OpenClaw's openai-completions.ts streamOpenAICompletions()
+# ── Gemini native REST API functions ────────────────────────────────────
+# Gemini's OpenAI-compatible endpoint does not support safety_settings,
+# so we call the native REST API directly.
+
+_GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 _GEMINI_SAFETY = [
     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
@@ -316,14 +321,114 @@ _GEMINI_SAFETY = [
 ]
 
 
-def _is_gemini(client: Any) -> bool:
-    """Return True if the client is targeting Gemini's OpenAI endpoint."""
-    try:
-        url = str(client.base_url)
-        return "generativelanguage.googleapis.com" in url
-    except Exception:
-        return False
+def _gemini_build_contents(
+    system_prompt: str,
+    user_prompt: str,
+    history: list[dict] | None = None,
+) -> list[dict]:
+    """Build the 'contents' array for Gemini's generateContent API."""
+    contents: list[dict] = []
+    if history:
+        for msg in history:
+            role = msg.get("role", "user")
+            if role == "system":
+                continue
+            gemini_role = "model" if role in ("assistant", "model") else "user"
+            content = msg.get("content", "")
+            contents.append({"role": gemini_role, "parts": [{"text": content}]})
+    contents.append({"role": "user", "parts": [{"text": user_prompt}]})
+    return contents
 
+
+async def _gemini_generate(
+    api_key: str,
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    history: list[dict] | None = None,
+    *,
+    max_tokens: int = 2000,
+    temperature: float = 0.3,
+) -> dict[str, Any]:
+    """Call Gemini's native generateContent endpoint with safety settings."""
+    contents = _gemini_build_contents(system_prompt, user_prompt, history)
+    body: dict[str, Any] = {
+        "contents": contents,
+        "safetySettings": _GEMINI_SAFETY,
+        "generationConfig": {
+            "maxOutputTokens": max_tokens,
+            "temperature": temperature,
+        },
+    }
+    if system_prompt:
+        body["systemInstruction"] = {"parts": [{"text": system_prompt}]}
+
+    url = f"{_GEMINI_API_BASE}/models/{model}:generateContent"
+    async with httpx.AsyncClient(timeout=120) as client:
+        resp = await client.post(url, params={"key": api_key}, json=body)
+        resp.raise_for_status()
+        data = resp.json()
+
+    candidates = data.get("candidates", [])
+    if not candidates:
+        feedback = data.get("promptFeedback", {})
+        reason = feedback.get("blockReason", "unknown")
+        raise RuntimeError(f"Gemini request blocked: {reason}")
+
+    text = candidates[0]["content"]["parts"][0].get("text", "")
+    usage = data.get("usageMetadata", {})
+    return {
+        "content": text,
+        "model": model,
+        "input_tokens": usage.get("promptTokenCount", 0),
+        "output_tokens": usage.get("candidatesTokenCount", 0),
+    }
+
+
+async def _gemini_stream(
+    api_key: str,
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    history: list[dict] | None = None,
+    *,
+    max_tokens: int = 2000,
+    temperature: float = 0.3,
+) -> AsyncGenerator[str, None]:
+    """Stream from Gemini's native streamGenerateContent endpoint."""
+    contents = _gemini_build_contents(system_prompt, user_prompt, history)
+    body: dict[str, Any] = {
+        "contents": contents,
+        "safetySettings": _GEMINI_SAFETY,
+        "generationConfig": {
+            "maxOutputTokens": max_tokens,
+            "temperature": temperature,
+        },
+    }
+    if system_prompt:
+        body["systemInstruction"] = {"parts": [{"text": system_prompt}]}
+
+    url = f"{_GEMINI_API_BASE}/models/{model}:streamGenerateContent"
+    async with httpx.AsyncClient(timeout=120) as client:
+        async with client.stream("POST", url, params={"key": api_key, "alt": "sse"}, json=body) as resp:
+            resp.raise_for_status()
+            async for line in resp.aiter_lines():
+                if line.startswith("data: ") and line != "data: [DONE]":
+                    try:
+                        chunk = json.loads(line[6:])
+                        candidates = chunk.get("candidates", [])
+                        if candidates:
+                            parts = candidates[0].get("content", {}).get("parts", [])
+                            if parts:
+                                text = parts[0].get("text", "")
+                                if text:
+                                    yield text
+                    except json.JSONDecodeError:
+                        continue
+
+
+# ── Unified streaming function ─────────────────────────────────────────
+# Mirrors OpenClaw's openai-completions.ts streamOpenAICompletions()
 
 async def openai_stream(
     client: Any,
@@ -349,8 +454,6 @@ async def openai_stream(
         "stream": True,
         "stream_options": {"include_usage": True},
     }
-    if _is_gemini(client):
-        kwargs["extra_body"] = {"safety_settings": _GEMINI_SAFETY}
     response = await client.chat.completions.create(**kwargs)
     async for chunk in response:
         if chunk.choices and len(chunk.choices) > 0:
@@ -383,8 +486,6 @@ async def openai_complete(
         "max_tokens": max_tokens,
         "temperature": temperature,
     }
-    if _is_gemini(client):
-        kwargs["extra_body"] = {"safety_settings": _GEMINI_SAFETY}
     try:
         response = await client.chat.completions.create(**kwargs)
     except Exception as exc:
@@ -428,6 +529,16 @@ def make_openai_adapter(
         stream: bool = False,
         history: list[dict] | None = None,
     ) -> dict[str, Any]:
+        if provider == "gemini":
+            if stream:
+                return _gemini_stream(
+                    api_key, model, system_prompt, user_prompt,
+                    history=history,
+                )
+            return await _gemini_generate(
+                api_key, model, system_prompt, user_prompt,
+                history=history,
+            )
         if stream:
             return openai_stream(
                 client, model, system_prompt, user_prompt,

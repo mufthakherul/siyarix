@@ -101,9 +101,14 @@ class TestCommandProfileStore:
         store = CommandProfileStore()
         profile = CommandProfile(name="test", command="nmap -sV")
         store.save(profile)
-        assert store.get("test") is None  # stub: always returns None
-        assert store.list_credentials() == []
-        store.delete("test")  # should not raise
+        loaded = store.get("test")
+        assert loaded is not None
+        assert loaded.name == "test"
+        assert loaded.command == "nmap -sV"
+        profiles = store.list_credentials()
+        assert any(p.name == "test" for p in profiles)
+        store.delete("test")
+        assert store.get("test") is None  # should be gone after delete
 
 
 # ── Helper Function Tests ──────────────────────────────────────────────

@@ -308,6 +308,23 @@ def make_client(
 # ── Unified streaming function ─────────────────────────────────────────
 # Mirrors OpenClaw's openai-completions.ts streamOpenAICompletions()
 
+_GEMINI_SAFETY = [
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+]
+
+
+def _is_gemini(client: Any) -> bool:
+    """Return True if the client is targeting Gemini's OpenAI endpoint."""
+    try:
+        url = str(client.base_url)
+        return "generativelanguage.googleapis.com" in url
+    except Exception:
+        return False
+
+
 async def openai_stream(
     client: Any,
     model: str,
@@ -332,6 +349,8 @@ async def openai_stream(
         "stream": True,
         "stream_options": {"include_usage": True},
     }
+    if _is_gemini(client):
+        kwargs["safety_settings"] = _GEMINI_SAFETY
     response = await client.chat.completions.create(**kwargs)
     async for chunk in response:
         if chunk.choices and len(chunk.choices) > 0:
@@ -364,6 +383,8 @@ async def openai_complete(
         "max_tokens": max_tokens,
         "temperature": temperature,
     }
+    if _is_gemini(client):
+        kwargs["safety_settings"] = _GEMINI_SAFETY
     try:
         response = await client.chat.completions.create(**kwargs)
     except Exception as exc:

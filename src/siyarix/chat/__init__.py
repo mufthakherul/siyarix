@@ -3878,7 +3878,7 @@ Each step is a raw shell command running directly on the shell:
         if not binary_path:
             logger.warning("%s binary not found on PATH — cannot auto-start", binary)
             return False
-        if ChatSession._check_local_provider_running(provider_name):
+        if SiyarixChat._check_local_provider_running(provider_name):
             return True
         try:
             import subprocess

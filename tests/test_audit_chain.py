@@ -1,13 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from siyarix.audit_log import AuditEventType, AuditLogger, AuditSeverity
+from siyarix.config import get_config_dir
 
 
 def test_audit_chain_tamper_detection(tmp_path, monkeypatch):
     # Ensure AuditLogger uses a temporary config dir to avoid touching user's files
-    monkeypatch.setattr(AuditLogger, "_CONFIG_DIR", tmp_path)
-    monkeypatch.setattr(AuditLogger, "_AUDIT_DB", tmp_path / "audit.json")
-    monkeypatch.setattr(AuditLogger, "_AUDIT_LOG", tmp_path / "audit.log")
+    monkeypatch.setattr("siyarix.config.get_config_dir", lambda: tmp_path)
 
     logger = AuditLogger(log_startup=False)
 

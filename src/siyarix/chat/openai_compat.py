@@ -350,7 +350,7 @@ async def openai_stream(
         "stream_options": {"include_usage": True},
     }
     if _is_gemini(client):
-        kwargs["safety_settings"] = _GEMINI_SAFETY
+        kwargs["extra_body"] = {"safety_settings": _GEMINI_SAFETY}
     response = await client.chat.completions.create(**kwargs)
     async for chunk in response:
         if chunk.choices and len(chunk.choices) > 0:
@@ -384,7 +384,7 @@ async def openai_complete(
         "temperature": temperature,
     }
     if _is_gemini(client):
-        kwargs["safety_settings"] = _GEMINI_SAFETY
+        kwargs["extra_body"] = {"safety_settings": _GEMINI_SAFETY}
     try:
         response = await client.chat.completions.create(**kwargs)
     except Exception as exc:

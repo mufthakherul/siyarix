@@ -701,8 +701,27 @@ class CredentialVault:
         """
         try:
             self._passphrase = passphrase
-            old_fp = self._device_fp
-            old_env = self._env_fp
+            if not self._verify_passphrase():
+                return False
+
+            # Load entries from vault file bypassing device binding check
+            # (binding check in _unseal would fail if device actually changed)
+            raw = self._vault_path.read_bytes()
+            data = json.loads(raw)
+            stored_iters = data.get("iterations", _PBKDF2_MIN_ITERATIONS)
+            cs = base64.b64decode(data["credentials"]["salt"])
+            cn = base64.b64decode(data["credentials"]["nonce"])
+            cc = base64.b64decode(data["credentials"]["ciphertext"])
+            ck = self._derive_key(cs, stored_iters)
+            decrypted = _AESGCM(ck).decrypt(cn, cc, None).decode()
+            self._zeroize(ck)
+            entries_data = json.loads(decrypted)
+            self._entries.clear()
+            for ed in entries_data:
+                eid = f"{ed['provider']}:{ed['key_name']}"
+                self._entries[eid] = VaultEntry(**ed)
+
+            # Update bindings to current device/environment
             self._device_fp = DeviceFingerprint.compute_single()
             self._env_fp = EnvironmentFingerprint.compute_single()
             self._device_comps = {
@@ -711,10 +730,7 @@ class CredentialVault:
             self._env_comps = {
                 k: h for k, (h, _) in EnvironmentFingerprint.compute_components().items()
             }
-            if not self._verify_passphrase():
-                self._device_fp = old_fp
-                self._env_fp = old_env
-                return False
+
             self._unsealed = True
             self._last_activity = time.time()
             self._status.sealed = False

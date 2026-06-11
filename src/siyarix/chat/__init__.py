@@ -1429,7 +1429,7 @@ class SiyarixChat:
                 if selected != "auto" and selected in all_providers:
                     profile = pm.get_profile(selected)
                     key = self._resolve_api_key(selected, profile.api_key_env if profile else "")
-                    if key or not env_var:
+                    if key or not (profile and profile.api_key_env):
                         with console.status(
                             f"[dim]Validating {selected}...[/dim]", spinner="point"
                         ):
@@ -1437,7 +1437,8 @@ class SiyarixChat:
                                 import asyncio
 
                                 bench_fn = self._make_llm_call(selected, key or "")
-                                bench_key = f"{selected}_model"
+                                from ..chat.openai_compat import MODEL_KEYS as _MK
+                                bench_key = _MK.get(selected, f"{selected}_model")
                                 bench_model = self._settings.get(bench_key) or ""
                                 if not bench_model and profile:
                                     bench_model = profile.default_model
@@ -1474,8 +1475,10 @@ class SiyarixChat:
             if not profile:
                 continue
             key = self._resolve_api_key(prov_name, profile.api_key_env or "")
-            model_setting = self._settings.get(f"{prov_name}_model") or profile.default_model or ""
-            status = "✓ Configured" if key else ("✗ Not set" if env_var else "Available")
+            from ..chat.openai_compat import MODEL_KEYS
+            model_key = MODEL_KEYS.get(prov_name, f"{prov_name}_model")
+            model_setting = self._settings.get(model_key) or profile.default_model or ""
+            status = "✓ Configured" if key else ("✗ Not set" if profile and profile.api_key_env else "Available")
             cost_label = f"[dim]${profile.cost_tier.value}[/dim]" if profile.cost_tier else ""
             lines.append(
                 f"[bold]{profile.display_name}:[/bold] {status} ({model_setting}) {cost_label}\n"

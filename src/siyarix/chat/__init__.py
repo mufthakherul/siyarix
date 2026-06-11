@@ -3397,12 +3397,18 @@ Each step is a raw shell command running directly on the shell:
                                 yield delta.content
 
                     return _gen()
-                response = await client.chat.completions.create(
-                    model=model,
-                    messages=self._build_messages(system_prompt, user_prompt, history),  # type: ignore[arg-type]
-                    max_tokens=2000,
-                    temperature=0.3,
-                )
+                try:
+                    response = await client.chat.completions.create(
+                        model=model,
+                        messages=self._build_messages(system_prompt, user_prompt, history),  # type: ignore[arg-type]
+                        max_tokens=2000,
+                        temperature=0.3,
+                    )
+                except Exception as exc:
+                    msg = str(exc) or repr(exc)
+                    raise RuntimeError(
+                        f"{provider_name} API call failed (model={model}): {msg}"
+                    ) from exc
                 choice = response.choices[0]
                 usage = response.usage
                 return {

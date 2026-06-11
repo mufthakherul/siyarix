@@ -136,7 +136,7 @@ def load_env_file() -> None:
     """Load environment variables from ~/.siyarix/.env (simple key=value parser).
 
     NOTE: API key env vars (*_API_KEY) are intentionally NOT loaded from .env
-    for security. Use the encrypted vault instead: /key set <provider> <key>.
+    for security. Use /key set <provider> <key> instead.
     """
     _api_key_patterns = ("_API_KEY", "_SECRET", "_PASSWORD", "_TOKEN")
     env_path = Path.home() / ".siyarix" / ".env"
@@ -151,7 +151,7 @@ def load_env_file() -> None:
         val = val.strip().strip("'").strip('"')
         if key and not os.environ.get(key):
             if any(p in key.upper() for p in _api_key_patterns):
-                logger.debug("Skipping %s from .env (use vault instead)", key)
+                logger.debug("Skipping %s from .env (use /key command instead)", key)
                 continue
             os.environ[key] = val
 
@@ -608,7 +608,6 @@ class SiyarixChat:
             "/diff": self._cmd_diff,
             "/mcp": self._cmd_mcp,
             "/agent": self._cmd_agent,
-            "/vault": self._cmd_vault,
             "/review": self._cmd_review,
             "/persona": self._cmd_persona,
             "/report": self._cmd_report,
@@ -854,7 +853,7 @@ class SiyarixChat:
             if from_env:
                 status, source = "✓ Set", "Environment"
             elif from_creds:
-                status, source = "✓ Set", "Vault"
+                status, source = "✓ Set", "Store"
             else:
                 status, source = "✗ Missing", "—"
             table.add_row(prov_name, env_key or "—", status, source)
@@ -907,19 +906,13 @@ class SiyarixChat:
             env_key = get_provider_env_var(provider)
             os.environ.pop(env_key, None)
             try:
-                from ..credential_vault import vault_delete
-
-                vault_delete(provider)
-            except Exception:
-                logger.exception("Failed to remove credential from vault")
-            try:
                 from ..credential_store import CredentialStore
 
-                vault = CredentialStore()
-                vault.delete(provider, "api_key")
+                store = CredentialStore()
+                store.delete(provider, "api_key")
             except Exception:
                 pass
-            console.print(f"[green]✓ Cleared {provider} key from encrypted vault[/green]")
+            console.print(f"[green]✓ Cleared {provider} API key[/green]")
             return
 
         if not api_key:
@@ -929,26 +922,14 @@ class SiyarixChat:
         env_key = get_provider_env_var(provider)
         os.environ[env_key] = api_key
         try:
-            from ..credential_vault import vault_set
+            from ..credential_store import CredentialStore
 
-            vault_set(provider, api_key)
-            console.print(
-                f"[green]✓ Encrypted and stored {provider} API key in device-bound vault[/green]"
-            )
+            store = CredentialStore()
+            store.store(provider, api_key, "api_key")
+            console.print(f"[green]✓ Stored {provider} API key[/green]")
         except Exception:
-            logger.exception("Failed to save credential to vault")
-            # Fallback: legacy CredentialStore
-            try:
-                from ..credential_store import CredentialStore
-
-                vault = CredentialStore()
-                vault.delete(provider, "api_key")
-                vault.store(provider, api_key, "api_key")
-                console.print(f"[green]✓ Stored {provider} API key in legacy vault[/green]")
-            except Exception:
-                console.print(f"[green]✓ {provider} API key set in environment[/green]")
-            return
-        console.print("[dim](encrypted, device-bound, tamper-protected)[/dim]")
+            console.print(f"[green]✓ {provider} API key set in environment[/green]")
+            console.print("[dim]Tip: Key will only last for this session. Install cryptography for persistent storage: pip install cryptography[/dim]")
 
         # If user set Gemini key and the client package is missing, offer to install it
         if provider == "gemini":
@@ -986,80 +967,6 @@ class SiyarixChat:
                             console.print(f"[red]Failed to install package: {res.stderr}[/red]")
                     except Exception as exc:
                         logger.exception("Failed to run pip install for %s: %s", pkg_name, exc)
-
-    def _cmd_vault(self, args: str) -> None:
-        tokens = args.split() if args else []
-        action = tokens[0].lower() if tokens else "status"
-        from ..credential_vault import get_vault
-
-        if action == "status":
-            try:
-                vault = get_vault(create=False)
-                s = vault.status
-                console.print("[bold]🔐 Vault Status[/bold]")
-                console.print(f"  State:     {'🟢 Unsealed' if not s.sealed else '🔴 Sealed'}")
-                console.print(
-                    f"  Device:    {'✓ Bound + Match' if s.device_match else '✗ Mismatch' if s.device_match is False else '—'}"
-                )
-                console.print(
-                    f"  Env:       {'✓ Bound + Match' if s.env_match else '✗ Mismatch' if s.env_match is False else '—'}"
-                )
-                console.print(
-                    f"  Creds:     {s.credential_count} total, {s.expired_entries} expired"
-                )
-                console.print(f"  Iter:      {s.iterations:,}")
-                console.print(f"  Lockout:   {'⚠ Active' if s.lockout_active else '✓ None'}")
-                console.print(f"  Health:    {s.health}")
-                if s.warnings:
-                    for w in s.warnings:
-                        console.print(f"  [yellow]⚠ {w}[/yellow]")
-            except FileNotFoundError:
-                console.print(
-                    "[yellow]No vault exists. Set a key with /key set <provider> <key> to create one.[/yellow]"
-                )
-            except Exception as exc:
-                console.print(f"[red]Vault error: {exc}[/red]")
-
-        elif action == "seal":
-            try:
-                get_vault(create=False).seal()
-                console.print("[green]✓ Vault sealed[/green]")
-            except Exception as exc:
-                console.print(f"[red]{exc}[/red]")
-
-        elif action == "health":
-            try:
-                h = get_vault(create=False).health_check()
-                icons = {"healthy": "🟢", "degraded": "🟡", "unhealthy": "🔴"}
-                console.print(f"Health: {icons.get(h.state, '❓')} {h.state.upper()}")
-                for w in h.warnings:
-                    console.print(f"  [yellow]⚠ {w}[/yellow]")
-            except Exception as exc:
-                console.print(f"[red]{exc}[/red]")
-
-        elif action == "history":
-            try:
-                entries = get_vault(create=False).audit_log(limit=20)
-                if not entries:
-                    console.print("[yellow]No audit entries[/yellow]")
-                    return
-                for e in entries:
-                    icons = {
-                        "success": "🟢",
-                        "denied": "🔴",
-                        "error": "🟡",
-                        "info": "🔵",
-                    }
-                    op_icon = icons.get(e.get("outcome", ""), "•")
-                    ts = e.get("timestamp", "")[11:19]
-                    console.print(
-                        f"  {op_icon} [{ts}] {e.get('operation', '')} [{e.get('provider', '')}] {e.get('detail', '')}"
-                    )
-            except Exception as exc:
-                console.print(f"[red]{exc}[/red]")
-
-        else:
-            console.print("[yellow]Usage: /vault [status|seal|health|history][/yellow]")
 
     def _cmd_theme(self, args: str) -> None:
         tokens = args.split(maxsplit=1) if args else []
@@ -1584,9 +1491,37 @@ class SiyarixChat:
 
     async def _cmd_config(self, args: str) -> None:
         """Open the interactive configuration panel."""
-        sub = args.strip().lower() if args else ""
-        if sub == "tools":
+        sub = args.strip() if args else ""
+        if not sub or sub == "show":
+            ConfigPanel().run()
+        elif sub == "tools":
             ConfigPanel()._section_tools()
+        elif sub.startswith("set "):
+            parts = sub.split(maxsplit=2)
+            if len(parts) < 3:
+                console.print("[yellow]Usage: /config set <key> <value>[/yellow]")
+                return
+            key, value = parts[1], parts[2]
+            try:
+                result = self._settings.set(key, value)
+                console.print(f"[green]✓ Set {key} = {result}[/green]")
+                if key == "log_level":
+                    from ..logging_config import configure_logging
+                    configure_logging(str(result))
+            except KeyError as exc:
+                console.print(f"[red]Unknown setting: {exc}[/red]")
+                console.print("[yellow]Use /config to see available settings.[/yellow]")
+        elif sub.startswith("get "):
+            parts = sub.split(maxsplit=1)
+            key = parts[1] if len(parts) > 1 else ""
+            if not key:
+                console.print("[yellow]Usage: /config get <key>[/yellow]")
+                return
+            val = self._settings.get(key)
+            if val is not None:
+                console.print(f"[cyan]{key}[/cyan] = {val}")
+            else:
+                console.print(f"[yellow]{key} is not set[/yellow]")
         else:
             ConfigPanel().run()
 
@@ -3913,16 +3848,5 @@ def start_chat(
     resume: bool = False,
 ) -> None:
     """Launch the Siyarix interactive chat REPL."""
-    import atexit
-
-    try:
-        from ..credential_vault import get_vault
-
-        vault = get_vault(create=False)
-        if vault:
-            atexit.register(vault.seal)
-    except Exception:
-        pass
-
     chat = SiyarixChat(mode=mode, target=target, session_id=session_id, resume=resume)
     chat.run()

@@ -22,7 +22,7 @@ class SmartAutocomplete(Completer):
             "/env", "/intents", "/shells", "/run", "/save", "/config",
             "/key", "/mode", "/model", "/provider", "/theme", "/target",
             "/version", "/context", "/log", "/diff", "/mcp", "/agent",
-            "/vault", "/review", "/persona", "/report", "/split",
+            "/review", "/persona", "/report", "/split",
             "/coder", "/batch", "/cloud", "/k8s", "/docker", "/iac",
             "/mobile", "/iot", "/hsm", "/compliance", "/opsec", "/siem",
             "/performance", "/cache", "/import", "/playbook", "/campaign",

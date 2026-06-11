@@ -70,7 +70,7 @@ def _load_dotenv(path: Path | None = None) -> None:
     """Load environment variables from .env file (simple key=value parser).
 
     NOTE: API key env vars (*_API_KEY) are intentionally NOT loaded from .env
-    for security. Use the encrypted vault instead: `siyarix auth set`.
+    for security. Use `siyarix auth set-key` instead.
     """
     _api_key_patterns = ("_API_KEY", "_SECRET", "_PASSWORD", "_TOKEN")
     env_path = path or Path.cwd() / ".env"
@@ -87,7 +87,7 @@ def _load_dotenv(path: Path | None = None) -> None:
         val = val.strip().strip("'").strip('"')
         if key and not os.environ.get(key):
             if any(p in key.upper() for p in _api_key_patterns):
-                logger.debug("Skipping %s from .env (use vault instead)", key)
+                logger.debug("Skipping %s from .env (use auth set-key instead)", key)
                 continue
             os.environ[key] = val
 
@@ -131,38 +131,20 @@ config = SettingsStore()
 configure_logging(config.get("log_level"))
 _load_dotenv()
 
-# Load API keys from the encrypted vault into environment (in-memory only)
-_VAULT_LOADED = False
-try:
-    from ..credential_vault import vault_get as _vault_get
+_PROVIDER_ENV_MAP: dict[str, str] = {
+    "gemini": "GEMINI_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
+    "groq": "GROQ_API_KEY",
+    "together": "TOGETHER_API_KEY",
+}
 
-    _PROVIDER_ENV_MAP: dict[str, str] = {
-        "gemini": "GEMINI_API_KEY",
-        "openai": "OPENAI_API_KEY",
-        "anthropic": "ANTHROPIC_API_KEY",
-        "openrouter": "OPENROUTER_API_KEY",
-        "groq": "GROQ_API_KEY",
-        "together": "TOGETHER_API_KEY",
-    }
-    for prov, env_var in _PROVIDER_ENV_MAP.items():
-        if not os.environ.get(env_var):
-            key = _vault_get(prov)
-            if key:
-                os.environ[env_var] = key
-    _VAULT_LOADED = True
-except Exception:
-    logger.debug("Vault unavailable; API keys from environment only")
-
-# Legacy CredentialStore fallback for backward compat
+# Load API keys from CredentialStore into environment (in-memory only)
 creds: CredentialStore | None = None
 try:
     creds = CredentialStore()
-    for provider, env_var in [
-        ("gemini", "GEMINI_API_KEY"),
-        ("openai", "OPENAI_API_KEY"),
-        ("anthropic", "ANTHROPIC_API_KEY"),
-        ("openrouter", "OPENROUTER_API_KEY"),
-    ]:
+    for provider, env_var in _PROVIDER_ENV_MAP.items():
         if not os.environ.get(env_var):
             try:
                 key = creds.retrieve(provider, "api_key")
@@ -177,7 +159,7 @@ session_kernel = SessionKernel()
 
 
 def _resolve_key(provider: str) -> str:
-    """Resolve API key from vault → env → legacy CredentialStore."""
+    """Resolve API key from credential store → env."""
     from ..providers import resolve_api_key
 
     env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
@@ -188,15 +170,9 @@ def _resolve_key(provider: str) -> str:
 
 
 def _store_key(provider: str, key: str) -> None:
-    """Store API key in vault (primary) and legacy CredentialStore (fallback)."""
+    """Store API key in CredentialStore and environment."""
     env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
     os.environ[env_var] = key
-    try:
-        from ..credential_vault import vault_set
-
-        vault_set(provider, key)
-    except Exception:
-        logger.debug("Vault unavailable for storing key")
     if creds:
         try:
             creds.store(provider, key, "api_key")
@@ -205,15 +181,9 @@ def _store_key(provider: str, key: str) -> None:
 
 
 def _delete_key(provider: str) -> None:
-    """Delete API key from vault and legacy CredentialStore."""
+    """Delete API key from CredentialStore and environment."""
     env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
     os.environ.pop(env_var, None)
-    try:
-        from ..credential_vault import vault_delete
-
-        vault_delete(provider)
-    except Exception:
-        pass
     if creds:
         try:
             creds.delete(provider, "api_key")
@@ -459,57 +429,7 @@ def main_callback(
             return
 
         _ensure_ollama_running()
-        _ensure_vault_ready()
         start_chat(mode=mode, target=target, session_id=session or None, resume=resume or bool(session))
-
-
-def _ensure_vault_ready() -> None:
-    """Auto-unseal vault on startup or prompt for passphrase on device change."""
-    try:
-        from .. import credential_vault as cv_mod
-        from ..config import SettingsStore
-        from rich.console import Console
-
-        _console = Console()
-
-        if not SettingsStore().get("vault_initialized"):
-            return
-
-        vault = cv_mod.CredentialVault(passphrase="", skip_unseal=True)
-        if not vault._vault_path.exists():
-            return
-
-        key = vault._read_auto_unseal_key()
-        key_file_exists = vault._vault_key_path.exists()
-        if key:
-            try:
-                vault.unseal(key)
-                cv_mod._vault_instance = vault
-                return
-            except (cv_mod.VaultDeviceMismatchError, cv_mod.VaultEnvironmentMismatchError):
-                pass
-            except Exception:
-                vault._clear_auto_unseal_key()
-
-        if key_file_exists:
-            msg = "Device or environment changed. Enter your vault passphrase to re-bind."
-        else:
-            msg = "Enter your vault passphrase to unlock."
-
-        from rich.prompt import Prompt
-
-        _console.print(f"[yellow]Vault sealed: {msg}[/yellow]")
-        for _ in range(3):
-            pp = Prompt.ask("Vault passphrase", password=True)
-            if vault.reconfirm_device(pp):
-                cv_mod._vault_instance = vault
-                _console.print("[green]✓ Vault unsealed and re-bound to current device[/green]")
-                return
-            _console.print("[red]Wrong passphrase. Try again.[/red]")
-        _console.print("[yellow]Could not unseal vault. Keys stored in vault unavailable.[/yellow]")
-    except Exception as exc:
-        logger.debug("Vault auto-unseal skipped: %s", exc)
-
 
 def _ensure_ollama_running() -> None:
     """Start Ollama in background if configured and not already running."""
@@ -567,207 +487,7 @@ app.add_typer(security_app, name="security")
 # ---------------------------------------------------------------------------
 
 auth_app = typer.Typer(help="🔑 Authentication & API keys")
-vault_app = typer.Typer(help="🔐 Encrypted credential vault management")
-
-
-@vault_app.command("status")
-def vault_status() -> None:
-    """Show vault status, binding info, and health."""
-    try:
-        from ..credential_vault import get_vault
-
-        vault = get_vault(create=False)
-        s = vault.status
-        from rich.table import Table
-
-        t = Table(title="Vault Status", header_style="bold cyan")
-        t.add_column("Property", style="yellow")
-        t.add_column("Value")
-        t.add_row("State", "🔴 Sealed" if s.sealed else "🟢 Unsealed")
-        t.add_row("Device Bound", "✓ Yes" if s.device_bound else "✗ No")
-        t.add_row("Environment Bound", "✓ Yes" if s.environment_bound else "✗ No")
-        t.add_row(
-            "Device Match",
-            "✓ Match" if s.device_match else ("✗ Mismatch" if s.device_match is False else "—"),
-        )
-        t.add_row(
-            "Env Match",
-            "✓ Match" if s.env_match else ("✗ Mismatch" if s.env_match is False else "—"),
-        )
-        t.add_row("Tampered", "⚠ Yes" if s.tampered else "✓ No")
-        t.add_row("Credentials", str(s.credential_count))
-        t.add_row("Expired", str(s.expired_entries))
-        t.add_row("PBKDF2 Iterations", f"{s.iterations:,}")
-        t.add_row(
-            "Lockout", f"⚠ Active ({s.lockout_remaining_sec}s)" if s.lockout_active else "✓ None"
-        )
-        t.add_row(
-            "Health",
-            {"healthy": "🟢 Healthy", "degraded": "🟡 Degraded", "unhealthy": "🔴 Unhealthy"}.get(
-                s.health, s.health
-            ),
-        )
-        console.print(t)
-        if s.warnings:
-            for w in s.warnings:
-                console.print(f"[yellow]⚠ {w}[/yellow]")
-    except FileNotFoundError:
-        console.print("[yellow]No vault found. Create one with: siyarix auth set-key[/yellow]")
-    except Exception as exc:
-        console.print(f"[red]Vault error: {exc}[/red]")
-
-
-@vault_app.command("seal")
-def vault_seal() -> None:
-    """Seal the vault (clear all credentials from memory)."""
-    try:
-        from ..credential_vault import get_vault
-
-        get_vault(create=False).seal()
-        console.print("[green]✓ Vault sealed — credentials cleared from memory[/green]")
-    except Exception as exc:
-        console.print(f"[red]Failed: {exc}[/red]")
-
-
-@vault_app.command("unseal")
-def vault_unseal(
-    passphrase: str = typer.Option(
-        "", "--passphrase", "-p", help="Vault passphrase", hide_input=True
-    ),
-) -> None:
-    """Unseal the vault for credential access."""
-    try:
-        from ..credential_vault import get_vault
-
-        v = get_vault(create=False)
-        s = v.unseal(passphrase or None)
-        console.print(
-            f"[green]✓ Vault unsealed — {s.credential_count} credentials available[/green]"
-        )
-    except Exception as exc:
-        console.print(f"[red]Failed: {exc}[/red]")
-
-
-@vault_app.command("backup")
-def vault_backup(
-    output: str = typer.Option("", "--output", "-o", help="Output file path"),
-    passphrase: str = typer.Option(
-        ...,
-        "--passphrase",
-        "-p",
-        help="Backup passphrase (12+ chars, mixed case+digit+symbol)",
-        hide_input=True,
-        prompt=True,
-        confirmation_prompt=True,
-    ),
-) -> None:
-    """Export an encrypted disaster-recovery backup (no device binding)."""
-    try:
-        from ..credential_vault import get_vault
-
-        vault = get_vault(create=False)
-        blob = vault.export_backup(passphrase)
-        path = Path(
-            output or Path.home() / ".siyarix" / f"vault_backup_{datetime.now():%Y%m%d}.bin"
-        )
-        path.write_bytes(blob)
-        console.print(f"[green]✓ Backup saved to {path}[/green]")
-        console.print("[yellow]⚠ This backup uses PASSPHRASE ONLY — no device binding.[/yellow]")
-        console.print(
-            "[yellow]  Store it securely. Anyone with this file + passphrase can decrypt.[/yellow]"
-        )
-    except Exception as exc:
-        console.print(f"[red]Backup failed: {exc}[/red]")
-
-
-@vault_app.command("restore")
-def vault_restore(
-    input_file: str = typer.Argument(..., help="Backup file path"),
-    passphrase: str = typer.Option(
-        ...,
-        "--passphrase",
-        "-p",
-        help="Backup passphrase",
-        hide_input=True,
-        prompt=True,
-    ),
-) -> None:
-    """Restore vault from a disaster-recovery backup (re-binds to this device)."""
-    try:
-        from ..credential_vault import CredentialVault
-
-        path = Path(input_file)
-        if not path.exists():
-            console.print(f"[red]File not found: {input_file}[/red]")
-            raise typer.Exit(1)
-        blob = path.read_bytes()
-        vault = CredentialVault.import_backup(blob, passphrase)
-        keys = vault.list_keys()
-        console.print(f"[green]✓ Restored {len(keys)} credentials from backup[/green]")
-        console.print("[yellow]⚠ Vault is now re-bound to THIS device + environment[/yellow]")
-    except Exception as exc:
-        console.print(f"[red]Restore failed: {exc}[/red]")
-
-
-@vault_app.command("verify")
-def vault_verify() -> None:
-    """Run a full health check on the vault."""
-    try:
-        from ..credential_vault import get_vault
-
-        vault = get_vault(create=False)
-        health = vault.health_check()
-        status_icon = {"healthy": "🟢", "degraded": "🟡", "unhealthy": "🔴"}
-        console.print(f"Health: {status_icon.get(health.state, '❓')} {health.state.upper()}")
-        if health.warnings:
-            for w in health.warnings:
-                console.print(f"[yellow]⚠ {w}[/yellow]")
-        if health.state == "healthy":
-            console.print("[green]✓ All checks passed[/green]")
-    except FileNotFoundError:
-        console.print("[yellow]No vault found[/yellow]")
-    except Exception as exc:
-        console.print(f"[red]Verification failed: {exc}[/red]")
-
-
-@vault_app.command("history")
-def vault_history(
-    limit: int = typer.Option(20, "--limit", "-n", help="Number of audit entries"),
-) -> None:
-    """Show recent vault audit log."""
-    try:
-        from ..credential_vault import get_vault
-
-        vault = get_vault(create=False)
-        entries = vault.audit_log(limit)
-        if not entries:
-            console.print("[yellow]No audit entries[/yellow]")
-            return
-        from rich.table import Table
-
-        t = Table(title=f"Vault Audit Log (last {len(entries)})", header_style="bold cyan")
-        t.add_column("Time", style="dim")
-        t.add_column("Operation")
-        t.add_column("Provider")
-        t.add_column("Outcome")
-        t.add_column("Detail")
-        for e in entries:
-            t.add_row(
-                e.get("timestamp", "")[11:19],
-                e.get("operation", ""),
-                e.get("provider", ""),
-                {"success": "🟢", "denied": "🔴", "error": "🟡", "info": "🔵"}.get(
-                    e.get("outcome", ""), e.get("outcome", "")
-                ),
-                e.get("detail", ""),
-            )
-        console.print(t)
-    except Exception as exc:
-        console.print(f"[red]Failed: {exc}[/red]")
-
-
 app.add_typer(auth_app, name="auth")
-app.add_typer(vault_app, name="vault")
 
 profile_app = typer.Typer(help="👤 Profile & workspace management")
 app.add_typer(profile_app, name="profile")
@@ -1648,11 +1368,8 @@ def auth_set_key(
       siyarix auth set-key anthropic --key sk-ant-...
     """
     _store_key(provider, api_key)
-    console.print(f"[green]✓ API key encrypted and stored for provider: {provider}[/green]")
-    console.print(
-        "[dim]Key is stored in the device-bound encrypted vault. "
-        "It can only be decrypted on this machine in the siyarix environment.[/dim]"
-    )
+    console.print(f"[green]✓ API key stored for provider: {provider}[/green]")
+    console.print("[dim]Key is stored in the encrypted CredentialStore.[/dim]")
 
 
 @auth_app.command("show")
@@ -1676,19 +1393,11 @@ def auth_show() -> None:
 
         env_key = get_provider_env_var(prov)
         from_env = bool(os.getenv(env_key))
-        try:
-            from ..credential_vault import vault_get
-
-            from_vault = bool(vault_get(prov))
-        except Exception:
-            from_vault = False
         from_creds = bool(creds.retrieve(prov, "api_key")) if creds else False
         if from_env:
             status, source = "✓ Set", "Environment variable"
-        elif from_vault:
-            status, source = "✓ Set", "Encrypted vault (device-bound)"
         elif from_creds:
-            status, source = "✓ Set", "Legacy keyring"
+            status, source = "✓ Set", "CredentialStore"
         else:
             status, source = "✗ Not set", "—"
         table.add_row(prov, status, source)

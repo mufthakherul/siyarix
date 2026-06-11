@@ -4,7 +4,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+from dataclasses import dataclass, asdict
+from datetime import datetime, UTC
+from pathlib import Path
 
 
 # ── Help category definitions ─────────────────────────────────────────────
@@ -68,6 +71,37 @@ HELP_CATEGORIES = [
             "/palette": "Open interactive command palette",
         },
     ),
+    (
+        "Advanced Operations",
+        {
+            "/report [format]": "Generate executive report (markdown|html)",
+            "/split [type]": "Toggle split pane (timeline|metrics|cheatsheet|attack_map)",
+            "/coder generate|review": "Code generation and review",
+            "/batch run <file>": "Execute batch command file",
+            "/cloud <aws|azure|gcp>": "Cloud provider scanning",
+            "/k8s scan|audit|rbac": "Kubernetes security scanning",
+            "/docker scan|image|ps": "Container scanning",
+            "/iac scan --path <dir>": "Infrastructure as Code scanning",
+            "/mobile android --apk <path>": "Mobile app testing",
+            "/iot scan|firmware|serial": "IoT device testing",
+            "/hsm configure|status": "Hardware security module",
+            "/compliance run --framework <fw>": "Compliance framework assessment",
+            "/opsec isolate|burn|status": "Operational security",
+            "/siem connect|status": "SIEM/SOAR integration",
+            "/performance status|tune": "Resource optimization",
+            "/cache status|clear": "Cache management",
+            "/import <format> <file>": "Import scan results",
+            "/playbook list|create": "Workflow playbooks",
+            "/campaign list|create": "Multi-target campaigns",
+            "/kb search|list": "Knowledge base operations",
+            "/ticket create|list": "External ticket creation",
+            "/retest schedule|status": "Verification scans",
+            "/intel search|mitre|feeds": "Threat intelligence",
+            "/canary deploy|list|status": "Deception token deployment",
+            "/stealth status|on|off": "Evasion configuration",
+            "/audit export|status|verify": "Compliance and legal export",
+        },
+    ),
 ]
 
 # Flat lookup for command dispatch (includes all commands, including hidden ones)
@@ -84,17 +118,48 @@ class CommandProfile:
     created_at: str = ""
 
 
+_PROFILES_DIR = Path.home() / ".siyarix" / "command_profiles"
+
+
 class CommandProfileStore:
+    """Persistent storage for reusable command profiles."""
+
+    def __init__(self) -> None:
+        _PROFILES_DIR.mkdir(parents=True, exist_ok=True)
+
+    def _path(self, name: str) -> Path:
+        safe = name.replace("/", "_").replace("\\", "_")
+        return _PROFILES_DIR / f"{safe}.json"
+
     def save(self, profile: CommandProfile) -> None:
-        pass
+        if not profile.created_at:
+            profile.created_at = datetime.now(tz=UTC).isoformat()
+        self._path(profile.name).write_text(
+            json.dumps(asdict(profile), indent=2), encoding="utf-8"
+        )
 
     def get(self, name: str) -> CommandProfile | None:
-        return None
+        path = self._path(name)
+        if not path.exists():
+            return None
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return CommandProfile(**data)
 
     def list_credentials(self) -> list[CommandProfile]:
-        return []
+        profiles: list[CommandProfile] = []
+        for p in sorted(_PROFILES_DIR.glob("*.json")):
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+                profiles.append(CommandProfile(**data))
+            except Exception:
+                continue
+        return profiles
 
     def delete(self, name: str) -> bool:
+        path = self._path(name)
+        if path.exists():
+            path.unlink()
+            return True
         return False
 
     def render(self, command: str, params: dict[str, str]) -> str:

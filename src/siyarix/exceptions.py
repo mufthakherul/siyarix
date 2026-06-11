@@ -21,6 +21,11 @@ __all__ = [
     "TimeoutError",
     "CircuitBreakerOpen",
     "MaxRetriesExceeded",
+    "ErrorSeverity",
+    "ErrorContext",
+    "PermissionDeniedError",
+    "ProviderError",
+    "exit_code_for",
 ]
 
 

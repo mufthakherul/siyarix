@@ -243,8 +243,6 @@ class BootstrapEngine:
             self._home / "memory",
             self._home / "logs" / "sessions",
             self._home / "logs" / "audit",
-            self._home / "vault" / "keys",
-            self._home / "vault" / "tokens",
             self._home / "cache" / "tool_outputs",
             self._home / "cache" / "ai_plans",
             self._home / "cache" / "dns",

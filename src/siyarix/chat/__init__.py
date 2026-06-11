@@ -2824,6 +2824,20 @@ class SiyarixChat:
                 except OSError:
                     pass
 
+        # ── Environment info (OS + shell) ──────────────────────────
+        import sys
+        is_win = sys.platform == "win32"
+        os_name = "Windows" if is_win else ("macOS" if sys.platform == "darwin" else "Linux")
+        shell_var = os.environ.get("SHELL", "")
+        if is_win:
+            ps_parent = os.environ.get("PSModulePath", "")
+            shell = "PowerShell" if ps_parent else "cmd.exe"
+        elif shell_var:
+            shell = shell_var.split("/")[-1] or shell_var
+        else:
+            shell = "sh"
+        prompt += f"\n\n## Execution Environment\n- OS: {os_name}\n- Shell: {shell}\n- Commands you construct run directly on this shell — use correct quoting, path separators, and syntax for the target platform."
+
         return prompt
 
     async def _execute_agent(
@@ -2965,9 +2979,9 @@ class SiyarixChat:
                         history=self._get_conversation_history(),
                     )
                     llm_plan = plan_result
-                    llm_reasoning = plan_result.context.get("reasoning", "")
+                    llm_reasoning = plan_result.context.get("reasoning", "") if isinstance(plan_result.context, dict) else ""
                     self._provider_state.record_success(provider_name or "")
-                except (asyncio.TimeoutError, RuntimeError, ValueError) as exc:
+                except (asyncio.TimeoutError, RuntimeError, ValueError, AttributeError) as exc:
                     console.print(
                         f"[yellow]⚠ LLM planning failed ({exc}) — using local planner[/yellow]"
                     )
@@ -3134,9 +3148,10 @@ class SiyarixChat:
                             if st.exit_code is None
                             else ("green" if st.exit_code == 0 else "red")
                         )
+                        panel_content = "\n".join(st.lines[-200:]) if st.lines else ("Running..." if st.exit_code is None else "(no output)")
                         live.update(
                             RichPanel(
-                                "\n".join(st.lines[-200:]),
+                                panel_content,
                                 title=f"{icon} {st.label}",
                                 border_style=border,
                             )
@@ -3149,16 +3164,17 @@ class SiyarixChat:
                 out = (result.get("output") or "").strip()
                 err = (result.get("error") or "").strip()
                 display_lines = out.split("\n") if out else (err.split("\n") if err else st.lines)
-                if display_lines:
-                    icon = "✓" if st.exit_code == 0 else "✗"
-                    border = "green" if st.exit_code == 0 else "red"
-                    console.print(
-                        RichPanel(
-                            "\n".join(display_lines[-200:]),
-                            title=f"{icon} {st.label}",
-                            border_style=border,
-                        )
+                icon = "✓" if st.exit_code == 0 else "✗"
+                border = "green" if st.exit_code == 0 else "red"
+                if not display_lines:
+                    display_lines = ["(no output)"] if st.exit_code == 0 else [f"Command failed (exit {st.exit_code})"]
+                console.print(
+                    RichPanel(
+                        "\n".join(display_lines[-200:]),
+                        title=f"{icon} {st.label}",
+                        border_style=border,
                     )
+                )
 
             # Store outputs for next wave context
             for step, result in raw_results:
@@ -3403,7 +3419,7 @@ class SiyarixChat:
 
     @staticmethod
     def _resolve_api_key(provider: str, env_var: str) -> str | None:
-        """Resolve an API key from vault → credential store → environment."""
+        """Resolve an API key from credential store → environment."""
         from ..providers import resolve_api_key
         return resolve_api_key(provider, env_var)
 

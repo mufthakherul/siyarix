@@ -3130,6 +3130,8 @@ class SiyarixChat:
             async def _exec_one(step: Any, state: _CmdState) -> tuple[Any, dict]:
                 if not step.command:
                     result = await agent._registry.execute(step.tool, **step.args)
+                    if not isinstance(result, dict):
+                        result = {"status": "error" if isinstance(result, Exception) else "success", "output": str(result)}
                     state.exit_code = 0 if result.get("status") == "success" else 1
                     out = (result.get("output") or "").strip()
                     err = (result.get("error") or "").strip()

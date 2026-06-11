@@ -3024,16 +3024,13 @@ Each step is a raw shell command running directly on the shell:
                     compact = self._should_use_compact()
                     plan_sys_prompt = self._build_system_prompt(compact=compact)
                     self._llm_calls += 1
-                    plan_result = await asyncio.wait_for(
-                        agent._planner.llm_decompose_goal(
-                            instruction_with_target,
-                            tool_names,
-                            llm_call=llm_call_fn,
-                            tool_schemas=tool_dicts,
-                            system_prompt=plan_sys_prompt,
-                            history=self._get_conversation_history(),
-                        ),
-                        timeout=30.0,
+                    plan_result = await agent._planner.llm_decompose_goal(
+                        instruction_with_target,
+                        tool_names,
+                        llm_call=llm_call_fn,
+                        tool_schemas=tool_dicts,
+                        system_prompt=plan_sys_prompt,
+                        history=self._get_conversation_history(),
                     )
                     llm_plan = plan_result
                     llm_reasoning = plan_result.context.get("reasoning", "")

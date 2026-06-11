@@ -751,7 +751,7 @@ Respond with ONLY valid JSON:
             # Smart fallback: pick available tools from probe set
             probe_steps = []
             for tool, desc, flags in [
-                ("curl", "HTTP headers check", "-sI"),
+                ("curl", "HTTP headers check", "-sIL"),
                 ("whatweb", "Technology fingerprinting", ""),
                 ("dig", "DNS enumeration", ""),
                 ("nmap", "Port scan", "-sT -T4 --top-ports 100"),

@@ -10,9 +10,11 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Coroutine
 
 from .planner import ExecutionPlan, PlanStep, StepStatus, PlanStatus
-from .registry import ToolRegistry
+from .registry import RiskLevel, ToolRegistry
 from .events import Event, EventType, get_event_bus
 from .worker_pool import AsyncWorkerPool
+from .exceptions import PermissionDeniedError
+from .permission_gate import PermissionGate
 
 logger = logging.getLogger(__name__)
 StepExecutor = Callable[[PlanStep], Coroutine[Any, Any, dict[str, Any]]]
@@ -105,7 +107,12 @@ StepCallback = Callable[[PlanStep], None]
 
 
 class Executor:
-    def __init__(self, registry: ToolRegistry | None = None, max_workers: int = 10) -> None:
+    def __init__(
+        self,
+        registry: ToolRegistry | None = None,
+        max_workers: int = 10,
+        permission_gate: PermissionGate | None = None,
+    ) -> None:
         self._registry = registry
         self._budget = ExecutionBudget()
         self._tracker = ToolCallTracker()
@@ -113,6 +120,7 @@ class Executor:
         self._event_bus = get_event_bus()
         self._pool = AsyncWorkerPool(max_workers=max_workers)
         self._on_step_progress: StepCallback | None = None
+        self._permission_gate = permission_gate
 
     def set_progress_callback(self, cb: StepCallback | None) -> None:
         self._on_step_progress = cb
@@ -237,6 +245,10 @@ class Executor:
         if step.tool in self._custom_executors:
             return await self._custom_executors[step.tool](step)
         if self._registry and step.tool:
+            # ── Permission Gate ──
+            if self._permission_gate:
+                await self._check_permissions(step)
+            # ── Budget & Execute ──
             if not self._budget.consume_tool_call():
                 return {"status": "error", "error": "Tool call budget exhausted"}
             guardrail = self._tracker.record(step.tool, str(sorted(step.args.items())), True)
@@ -258,6 +270,54 @@ class Executor:
                             return alt_result
             return result
         return {"status": "error", "error": f"No executor for: {step.tool}"}
+
+    async def _check_permissions(self, step: PlanStep) -> None:
+        command = step.command or step.args.get("command", "")
+        tool_cap = self._registry.graph.get_tool(step.tool) if self._registry else None
+
+        if command:
+            gate_result = self._permission_gate.check(command, tool=step.tool)
+            if not gate_result.allowed:
+                self._log_safety(step.tool, command, "blocked", gate_result.reason)
+                raise PermissionDeniedError(gate_result.reason)
+            if gate_result.requires_review:
+                from .shell_review import review_and_confirm
+
+                reviewed = review_and_confirm(command, step.tool, gate_result.reason)
+                if reviewed is None:
+                    self._log_safety(step.tool, command, "cancelled", "User cancelled")
+                    raise PermissionDeniedError(f"Cancelled by user: {gate_result.reason}")
+                if reviewed != command:
+                    step.command = reviewed
+                    if "command" in step.args:
+                        step.args["command"] = reviewed
+                self._log_safety(step.tool, command, "approved", gate_result.reason)
+
+        if tool_cap and tool_cap.risk_level in (RiskLevel.HIGH, RiskLevel.CRITICAL):
+            from .shell_review import review_and_confirm
+
+            summary = f"{step.tool} {' '.join(str(v) for v in step.args.values())}"
+            reviewed = review_and_confirm(
+                summary, step.tool, f"Tool risk level: {tool_cap.risk_level.value}"
+            )
+            if reviewed is None:
+                self._log_safety(step.tool, summary, "risk_rejected",
+                                 f"Rejected {tool_cap.risk_level.value} tool")
+                raise PermissionDeniedError(
+                    f"High-risk tool {step.tool} (risk={tool_cap.risk_level.value}) rejected"
+                )
+            self._log_safety(step.tool, summary, "risk_accepted",
+                             f"Approved {tool_cap.risk_level.value} tool")
+
+    def _log_safety(
+        self, tool: str, command: str, action: str, reason: str = ""
+    ) -> None:
+        logger.info("Permission: tool=%s action=%s reason=%s", tool, action, reason)
+        try:
+            from .session_log import session_logger as _sl
+            _sl.add_safety_event("executor", command, f"{action}:{reason}")
+        except Exception:
+            pass
 
     def reset(self) -> None:
         self._budget = ExecutionBudget()

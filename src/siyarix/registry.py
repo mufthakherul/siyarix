@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Callable, Coroutine
 
 from .events import Event, EventType, emit_sync
+from .exceptions import PermissionDeniedError
 from .parsers import ParserRegistry
 
 logger = logging.getLogger(__name__)
@@ -65,6 +66,7 @@ class ToolCapability:
     source: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
     parser: str = ""
+    availability: dict[str, Any] | None = None
 
     @property
     def is_available(self) -> bool:
@@ -157,11 +159,12 @@ class ToolCapabilityGraph:
 
 
 class ToolRegistry:
-    def __init__(self) -> None:
+    def __init__(self, permission_gate: Any = None) -> None:
         self._graph = ToolCapabilityGraph()
         self._handlers: dict[str, ToolHandler] = {}
         self._parser_registry = ParserRegistry()
         self._loaded = False
+        self._permission_gate = permission_gate
 
     @property
     def graph(self) -> ToolCapabilityGraph:
@@ -190,6 +193,29 @@ class ToolRegistry:
         handler = self._handlers.get(name)
         if not handler:
             return {"status": "error", "error": f"No handler for: {name}"}
+
+        # ── Availability check ──
+        if tool.availability:
+            from .tool_availability import ToolAvailabilityContext, evaluate_availability
+            ctx = ToolAvailabilityContext()
+            avail = evaluate_availability(tool.availability, ctx)
+            if not avail.available:
+                reasons = "; ".join(d.detail for d in avail.diagnostics)
+                return {"status": "error", "error": f"Tool {name} unavailable: {reasons}"}
+
+        # ── Permission gate ──
+        if self._permission_gate:
+            command = kwargs.get("command", "")
+            if command:
+                gate_result = self._permission_gate.check(command, tool=name)
+                if not gate_result.allowed:
+                    raise PermissionDeniedError(gate_result.reason)
+                if gate_result.requires_review:
+                    from .shell_review import review_and_confirm
+                    reviewed = review_and_confirm(command, name, gate_result.reason)
+                    if reviewed is None:
+                        raise PermissionDeniedError(f"Cancelled by user: {gate_result.reason}")
+
         try:
             result = await handler(**kwargs)
             result.setdefault("status", "success")
@@ -200,6 +226,8 @@ class ToolRegistry:
                 if parsed:
                     result["findings"] = parsed
             return result
+        except PermissionDeniedError:
+            raise
         except Exception as e:
             logger.exception("Tool execution failed: %s", name)
             return {"status": "error", "error": str(e), "tool": name}

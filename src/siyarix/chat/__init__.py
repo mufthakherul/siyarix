@@ -8,11 +8,11 @@ Gemini CLI, specialized for cybersecurity workflows.
 Features:
   • Multi-turn conversation with session history
   • Context-aware suggestions and command recall
-  • Cross-platform shell awareness (Linux/Mac/Windows/PowerShell)
-  • Rich streaming output with syntax highlighting
-  • Slash commands (/help, /history, /clear, /tools, /exit, etc.)
-  • Natural language → execution pipeline
-  • Session persistence across commands
+
+Public API: start_chat, SiyarixChat, ChatConfig, CommandProfile,
+CommandProfileStore, CROSS_PLATFORM_COMMANDS, get_shell,
+get_shell_platform, get_security_commands, SmartAutocomplete,
+CommandPalette.
 """
 
 from __future__ import annotations
@@ -57,6 +57,21 @@ warnings.filterwarnings(
 # ---------------------------------------------------------------------------
 
 CROSS_PLATFORM_COMMANDS: dict[str, dict[str, str]] = {}
+
+__all__ = [
+    "start_chat",
+    "SiyarixChat",
+    "CommandProfile",
+    "CommandProfileStore",
+    "CROSS_PLATFORM_COMMANDS",
+    "detect_shell",
+    "get_shell_platform",
+    "get_security_commands",
+    "SmartAutocomplete",
+    "CommandPalette",
+    "ChatSession",
+    "ChatMessage",
+]
 
 
 def build_platform_context() -> dict[str, Any]:
@@ -151,7 +166,47 @@ def normalize_shell(shell: str) -> _Shell:
 
 
 def get_security_commands(shell: str = "") -> dict[str, str]:
-    return {}
+    import sys
+    is_win = sys.platform == "win32"
+    if is_win:
+        return {
+            "Firewall status": "netsh advfirewall show allprofiles state",
+            "Open ports": "netstat -an | findstr LISTEN",
+            "Active connections": "netstat -bno",
+            "Running services": "sc query | findstr SERVICE_NAME",
+            "Startup programs": "wmic startup get caption,command",
+            "Scheduled tasks": "schtasks /query /fo LIST /v",
+            "Local users": "net user",
+            "Admin group": "net localgroup Administrators",
+            "Audit policy": "auditpol /get /category:*",
+            "Process list": "tasklist /v",
+            "Event log (security)": 'wevtutil qe Security "/q:*[System[(Level=1 or Level=2)]]" /c:10 /rd:true /f:text',
+            "Registry autoruns": "reg query HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+            "DNS cache": "ipconfig /displaydns",
+            "ARP table": "arp -a",
+            "Route table": "route print",
+        }
+    return {
+        "Listening ports": "ss -tulpn",
+        "Active connections": "netstat -tulpn",
+        "Running processes": "ps aux",
+        "Open files": "lsof -i",
+        "Sudoers": "cat /etc/sudoers | grep -v '^#' | grep -v '^$'",
+        "Cron jobs": "crontab -l",
+        "System logs": "tail -100 /var/log/syslog 2>/dev/null || journalctl -n 100 --no-pager",
+        "Auth logs": "tail -50 /var/log/auth.log 2>/dev/null || journalctl -u sshd -n 50 --no-pager",
+        "Firewall rules": "iptables -L -n -v 2>/dev/null || nft list ruleset 2>/dev/null",
+        "DNS resolution": "cat /etc/resolv.conf",
+        "ARP table": "arp -a 2>/dev/null || ip neigh",
+        "Route table": "ip route",
+        "Disk usage": "df -h",
+        "User accounts": "cat /etc/passwd | grep -v nologin | grep -v /bin/false",
+        "Failed logins": "lastb 2>/dev/null | head -20 || echo 'No lastb'",
+        "Kernel modules": "lsmod",
+        "SUID binaries": "find / -perm -4000 2>/dev/null | head -30",
+        "USB devices": "lsusb",
+        "Network interfaces": "ip addr",
+    }
 
 
 RICH_AVAILABLE = False
@@ -205,9 +260,7 @@ load_env_file()
 class SiyarixChat:
     """Interactive REPL for Siyarix — the cybersecurity AI assistant."""
 
-    _SESSIONS_DIR = (
-        Path(os.getenv("SIYARIX_CONFIG_DIR", str(Path.home() / ".siyarix"))) / "sessions"
-    )
+    _SESSIONS_DIR: Path | None = None
     MAX_CONTEXT_MESSAGES = 300  # memory bound to prevent unbounded growth
     MAX_MESSAGE_CHARS = 50000  # per-message content limit
 
@@ -221,6 +274,8 @@ class SiyarixChat:
         resume: bool = False,
     ) -> None:
         self._mode = mode
+        from ..config import get_config_dir
+        self._SESSIONS_DIR = get_config_dir() / "sessions"
         self._platform_ctx = build_platform_context()
         self._shell = detect_shell()
         self._settings = SettingsStore()
@@ -2964,37 +3019,40 @@ Each step is a raw shell command running directly on the shell:
                 if not started:
                     console.print(f"[yellow]⚠ Could not start {provider_name}[/yellow]")
             else:
-                # Check Ollama model availability and offer to pull if missing
-                if provider_name == "ollama":
-                    from ..ollama_utils import ensure_model_pulled, discover_provider_models, enrich_ollama_models
-                    from ..providers import ProviderManager
-                    ollama_url = self._settings.get("ollama_url") or os.getenv("SIYARIX_OLLAMA_URL", "http://localhost:11434")
-                    configured = self._settings.get("ollama_model") or "whiterabbitneo/WhiteRabbitNeo-2.5-Qwen-2.5-Coder-7B"
-                    pulled = ensure_model_pulled(configured, ollama_url, console)
+                # Check model availability and discover+enrich provider models
+                from ..provider_utils import ensure_model_pulled, discover_provider_models
+                from ..providers import ProviderManager, ModelInfo
+
+                base_url = self._settings.get(f"{provider_name}_url") or os.getenv(
+                    f"SIYARIX_{provider_name.upper()}_URL", ""
+                )
+                settings_key = f"{provider_name}_model"
+                configured = self._settings.get(settings_key) or ""
+
+                if configured:
+                    pulled = ensure_model_pulled(provider_name, configured, base_url, console)
                     if not pulled:
-                        console.print(f"[yellow]⚠ Model '{configured}' not available[/yellow]")
-                        console.print("[dim]  Pull it manually: ollama pull {0}[/dim]".format(configured))
-                    else:
-                        # Discover and enrich models for better context/capability info
-                        try:
-                            from ..providers import ModelInfo
-                            pm = ProviderManager()
-                            profile = pm.get_profile("ollama")
-                            if profile:
-                                discovered = discover_provider_models(ollama_url, enrich=True)
-                                if discovered:
-                                    profile.models = [
-                                        ModelInfo(
-                                            name=m["name"],
-                                            supports_vision=m.get("supports_vision", False),
-                                            supports_tools=m.get("supports_tools", True),
-                                            context_window=m.get("context_window", 128000),
-                                            max_tokens=m.get("max_tokens", 8192),
-                                        )
-                                        for m in discovered
-                                    ]
-                        except Exception:
-                            pass
+                        console.print(f"[yellow]⚠ Model '{configured}' not available for {provider_name}[/yellow]")
+
+                # Enrich provider profile with discovered models
+                try:
+                    pm = ProviderManager()
+                    profile = pm.get_profile(provider_name)
+                    if profile:
+                        discovered = discover_provider_models(provider_name, base_url, enrich=True)
+                        if discovered:
+                            profile.models = [
+                                ModelInfo(
+                                    name=m["name"],
+                                    supports_vision=m.get("supports_vision", False),
+                                    supports_tools=m.get("supports_tools", True),
+                                    context_window=m.get("context_window", 128000),
+                                    max_tokens=m.get("max_tokens", 8192),
+                                )
+                                for m in discovered
+                            ]
+                except Exception:
+                    pass
 
         # Build call function for the provider.
         # OpenClaw pattern: no separate ping — check reachability via
@@ -3298,491 +3356,89 @@ Each step is a raw shell command running directly on the shell:
         messages.append({"role": "user", "content": user})
         return messages
 
-    def _make_llm_call(self, provider_name: str, api_key: str) -> Any:
-        """Return an async callable ``(system, user, *, stream=False, history=None) → dict | AsyncGenerator``.
+        def _make_llm_call(self, provider_name: str, api_key: str) -> Any:
+            """Return an async callable (system, user, *, stream=False, history=None) -> dict | AsyncGenerator.
 
-        Supports all 13 registered providers via native SDK or OpenAI-compatible API.
-        When ``stream=True``, call with ``await fn(system, user, stream=True, history=history)``
-        which returns an async generator yielding content tokens.
-        history is a list of ``{"role": ..., "content": ...}`` dicts from prior conversation.
-        """
-        model = ""
-        result: Any = None
+            Uses the unified OpenAI-compatible adapter for all OpenAI API providers
+            (openai, openrouter, gemini, deepseek, xai, perplexity, groq, together,
+            azure, cerebras, fireworks, zai, minimax, moonshot, nvidia, opencode-go,
+            huggingface, llamacpp, vllm, localai) and native SDK for Anthropic.
 
-        # ── Providers using OpenAI-compatible SDK ──────────────────────
-        if provider_name in (
-            "openai",
-            "openrouter",
-            "gemini",
-            "deepseek",
-            "xai",
-            "perplexity",
-            "azure",
-            "llamacpp",
-            "vllm",
-            "localai",
-        ):
-            from openai import AsyncOpenAI
+            When stream=True, call with await fn(system, user, stream=True, history=history)
+            which returns an async generator yielding content tokens.
+            history is a list of {"role": ..., "content": ...} dicts from prior conversation.
+            """
+            from .openai_compat import make_openai_adapter, PROVIDER_CONFIG
 
-            base_urls = {
-                "openai": None,
-                "openrouter": "https://openrouter.ai/api/v1",
-                "gemini": "https://generativelanguage.googleapis.com/v1beta/openai/",
-                "deepseek": "https://api.deepseek.com",
-                "xai": "https://api.x.ai",
-                "perplexity": "https://api.perplexity.ai",
-                "azure": self._settings.get("azure_endpoint")
-                or os.getenv("AZURE_OPENAI_ENDPOINT", ""),
-                "llamacpp": self._settings.get("llamacpp_url")
-                or os.getenv("SIYARIX_LLAMACPP_URL", "http://localhost:8080"),
-                "vllm": self._settings.get("vllm_url")
-                or os.getenv("SIYARIX_VLLM_URL", "http://localhost:8000"),
-                "localai": self._settings.get("localai_url")
-                or os.getenv("SIYARIX_LOCALAI_URL", "http://localhost:8080"),
-            }
-            model_keys = {
-                "openai": "openai_model",
-                "openrouter": "openrouter_model",
-                "gemini": "gemini_model",
-                "deepseek": "deepseek_model",
-                "xai": "xai_model",
-                "perplexity": "perplexity_model",
-                "azure": "azure_model",
-                "llamacpp": "llamacpp_model",
-                "vllm": "vllm_model",
-                "localai": "localai_model",
-            }
-            model_defaults = {
-                "openai": "gpt-5.4",
-                "openrouter": "openai/gpt-5.4",
-                "gemini": "gemini-3.5-flash",
-                "deepseek": "deepseek-v4-flash",
-                "xai": "grok-4.3",
-                "perplexity": "sonar",
-                "azure": "gpt-5.4",
-                "llamacpp": "",
-                "vllm": "",
-                "localai": "",
-            }
-            base_url = base_urls[provider_name]
-            model = self._settings.get(model_keys[provider_name]) or model_defaults[provider_name]
-            client_kwargs = {"api_key": api_key}
-            if base_url:
-                client_kwargs["base_url"] = base_url
-            client = AsyncOpenAI(**client_kwargs)  # type: ignore[arg-type]
-
-            async def call_openai(
-                system_prompt: str,
-                user_prompt: str,
-                *,
-                stream: bool = False,
-                history: list[dict] | None = None,
-            ) -> dict[str, Any]:
-                if stream:
-
-                    async def _gen() -> Any:
-                        response = await client.chat.completions.create(
-                            model=model,
-                            messages=self._build_messages(system_prompt, user_prompt, history),  # type: ignore[arg-type]
-                            max_tokens=2000,
-                            temperature=0.3,
-                            stream=True,
-                        )
-                        async for chunk in response:  # type: ignore[union-attr]
-                            delta = chunk.choices[0].delta if chunk.choices else None
-                            if delta and delta.content:
-                                yield delta.content
-
-                    return _gen()
+            # -- Anthropic (native SDK) ---------------------------------------------
+            if provider_name == "anthropic":
                 try:
-                    response = await client.chat.completions.create(
+                    from anthropic import AsyncAnthropic
+                except ImportError:
+                    raise ValueError("anthropic package not installed. Run: pip install anthropic")
+
+                anthropic_client = AsyncAnthropic(api_key=api_key)
+                from ..providers import ProviderManager
+
+                model = ProviderManager().resolve_model_id(
+                    "anthropic",
+                    self._settings.get("anthropic_model") or "claude-sonnet-4-6",
+                )
+
+                async def call_anthropic(
+                    system_prompt: str,
+                    user_prompt: str,
+                    *,
+                    stream: bool = False,
+                    history: list[dict] | None = None,
+                ) -> dict[str, Any]:
+                    if stream:
+
+                        async def _gen() -> Any:
+                            hist_msgs = [m for m in (history or []) if m.get("role") != "system"]
+                            msgs = hist_msgs + [{"role": "user", "content": user_prompt}]
+                            async with anthropic_client.messages.stream(
+                                model=model,
+                                system=system_prompt,
+                                messages=msgs,
+                                max_tokens=2000,
+                                temperature=0.3,
+                            ) as stream_ctx:
+                                async for text in stream_ctx.text_stream:
+                                    yield text
+
+                        return _gen()
+                    hist_msgs = [m for m in (history or []) if m.get("role") != "system"]
+                    msgs = hist_msgs + [{"role": "user", "content": user_prompt}]
+                    msg = await anthropic_client.messages.create(
                         model=model,
-                        messages=self._build_messages(system_prompt, user_prompt, history),  # type: ignore[arg-type]
+                        system=system_prompt,
+                        messages=msgs,
                         max_tokens=2000,
                         temperature=0.3,
                     )
-                except Exception as exc:
-                    msg = str(exc) or repr(exc)
-                    raise RuntimeError(
-                        f"{provider_name} API call failed (model={model}): {msg}"
-                    ) from exc
-                choice = response.choices[0]
-                usage = response.usage
-                return {
-                    "content": choice.message.content or "",
-                    "model": response.model or model,
-                    "input_tokens": usage.prompt_tokens if usage else 0,
-                    "output_tokens": usage.completion_tokens if usage else 0,
-                }
-
-            result = call_openai
-
-        # ── Anthropic (native SDK) ──────────────────────────────────────
-        elif provider_name == "anthropic":
-            try:
-                from anthropic import AsyncAnthropic
-            except ImportError:
-                raise ValueError("anthropic package not installed. Run: pip install anthropic")
-
-            anthropic_client = AsyncAnthropic(api_key=api_key)
-            model = self._settings.get("anthropic_model") or "claude-sonnet-4-6"
-
-            async def call_anthropic(
-                system_prompt: str,
-                user_prompt: str,
-                *,
-                stream: bool = False,
-                history: list[dict] | None = None,
-            ) -> dict[str, Any]:
-                if stream:
-
-                    async def _gen() -> Any:
-                        hist_msgs = [m for m in (history or []) if m.get("role") != "system"]
-                        msgs = hist_msgs + [{"role": "user", "content": user_prompt}]
-                        async with anthropic_client.messages.stream(
-                            model=model,
-                            system=system_prompt,
-                            messages=msgs,  # type: ignore[arg-type]
-                            max_tokens=2000,
-                            temperature=0.3,
-                        ) as stream_ctx:
-                            async for text in stream_ctx.text_stream:
-                                yield text
-
-                    return _gen()
-                hist_msgs = [m for m in (history or []) if m.get("role") != "system"]
-                msgs = hist_msgs + [{"role": "user", "content": user_prompt}]
-                msg = await anthropic_client.messages.create(
-                    model=model,
-                    system=system_prompt,
-                    messages=msgs,  # type: ignore[arg-type]
-                    max_tokens=2000,
-                    temperature=0.3,
-                )
-                content_block = msg.content[0] if msg.content else None
-                return {
-                    "content": getattr(content_block, "text", ""),
-                    "model": msg.model or model,
-                    "input_tokens": msg.usage.input_tokens if msg.usage else 0,
-                    "output_tokens": msg.usage.output_tokens if msg.usage else 0,
-                }
-
-            result = call_anthropic
-
-        # ── Groq (openai-compatible) ────────────────────────────────────
-        elif provider_name == "groq":
-            from openai import AsyncOpenAI
-
-            client = AsyncOpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
-            model = self._settings.get("groq_model") or "llama-4-scout-17b-16e-instruct"
-
-            async def call_groq(
-                system_prompt: str,
-                user_prompt: str,
-                *,
-                stream: bool = False,
-                history: list[dict] | None = None,
-            ) -> dict[str, Any]:
-                if stream:
-
-                    async def _gen() -> Any:
-                        response = await client.chat.completions.create(
-                            model=model,
-                            messages=self._build_messages(system_prompt, user_prompt, history),  # type: ignore[arg-type]
-                            max_tokens=2000,
-                            temperature=0.3,
-                            stream=True,
-                        )
-                        async for chunk in response:  # type: ignore[union-attr]
-                            delta = chunk.choices[0].delta if chunk.choices else None
-                            if delta and delta.content:
-                                yield delta.content
-
-                    return _gen()
-                response = await client.chat.completions.create(
-                    model=model,
-                    messages=self._build_messages(system_prompt, user_prompt, history),  # type: ignore[arg-type]
-                    max_tokens=2000,
-                    temperature=0.3,
-                )
-                choice = response.choices[0]
-                usage = response.usage
-                return {
-                    "content": choice.message.content or "",
-                    "model": response.model or model,
-                    "input_tokens": usage.prompt_tokens if usage else 0,
-                    "output_tokens": usage.completion_tokens if usage else 0,
-                }
-
-            result = call_groq
-
-        # ── Together AI (openai-compatible) ────────────────────────────
-        elif provider_name == "together":
-            from openai import AsyncOpenAI
-
-            client = AsyncOpenAI(api_key=api_key, base_url="https://api.together.xyz/v1")
-            model = (
-                self._settings.get("together_model")
-                or "meta-llama/Llama-4-Scout-17B-16E-Instruct-FP8"
-            )
-
-            async def call_together(
-                system_prompt: str,
-                user_prompt: str,
-                *,
-                stream: bool = False,
-                history: list[dict] | None = None,
-            ) -> dict[str, Any]:
-                if stream:
-
-                    async def _gen() -> Any:
-                        response = await client.chat.completions.create(
-                            model=model,
-                            messages=self._build_messages(system_prompt, user_prompt, history),  # type: ignore[arg-type]
-                            max_tokens=2000,
-                            temperature=0.3,
-                            stream=True,
-                        )
-                        async for chunk in response:  # type: ignore[union-attr]
-                            delta = chunk.choices[0].delta if chunk.choices else None
-                            if delta and delta.content:
-                                yield delta.content
-
-                    return _gen()
-                response = await client.chat.completions.create(
-                    model=model,
-                    messages=self._build_messages(system_prompt, user_prompt, history),  # type: ignore[arg-type]
-                    max_tokens=2000,
-                    temperature=0.3,
-                )
-                choice = response.choices[0]
-                usage = response.usage
-                return {
-                    "content": choice.message.content or "",
-                    "model": response.model or model,
-                    "input_tokens": usage.prompt_tokens if usage else 0,
-                    "output_tokens": usage.completion_tokens if usage else 0,
-                }
-
-            result = call_together
-
-        # ── Mistral AI (native SDK) ────────────────────────────────────
-        elif provider_name == "mistral":
-            try:
-                from mistralai import Mistral
-            except ImportError:
-                raise ValueError("mistralai package not installed. Run: pip install mistralai")
-            client = Mistral(api_key=api_key)
-            model = self._settings.get("mistral_model") or "mistral-large-3"
-
-            async def call_mistral(
-                system_prompt: str,
-                user_prompt: str,
-                *,
-                stream: bool = False,
-                history: list[dict] | None = None,
-            ) -> dict[str, Any]:
-                if stream:
-
-                    async def _gen() -> Any:
-                        response = await client.chat.stream_async(  # type: ignore[attr-defined]
-                            model=model,
-                            messages=self._build_messages(system_prompt, user_prompt, history),
-                            max_tokens=2000,
-                            temperature=0.3,
-                        )
-                        async for chunk in response:
-                            if chunk.data and chunk.data.choices:
-                                delta = chunk.data.choices[0].delta
-                                if delta and delta.content:
-                                    yield delta.content
-
-                    return _gen()
-                response = await client.chat.complete_async(  # type: ignore[attr-defined]
-                    model=model,
-                    messages=self._build_messages(system_prompt, user_prompt, history),
-                    max_tokens=2000,
-                    temperature=0.3,
-                )
-                choice = response.choices[0] if response.choices else None
-                return {
-                    "content": (choice.message.content if choice and choice.message else ""),
-                    "model": response.model or model,
-                    "input_tokens": (response.usage.prompt_tokens if response.usage else 0),
-                    "output_tokens": (response.usage.completion_tokens if response.usage else 0),
-                }
-
-            result = call_mistral
-
-        # ── Ollama (prefer native SDK, fall back to HTTP) ──────────────
-        elif provider_name == "ollama":
-            import httpx
-
-            ollama_url = self._settings.get("ollama_url") or os.getenv(
-                "SIYARIX_OLLAMA_URL", "http://localhost:11434"
-            )
-            model = self._settings.get("ollama_model") or "whiterabbitneo/WhiteRabbitNeo-2.5-Qwen-2.5-Coder-7B"
-            try:
-                from ollama import AsyncClient as OllamaAsyncClient
-
-                _ollama_client = OllamaAsyncClient(host=ollama_url)
-                use_sdk = True
-            except Exception:
-                _ollama_client = None
-                use_sdk = False
-
-            async def call_ollama(
-                system_prompt: str,
-                user_prompt: str,
-                *,
-                stream: bool = False,
-                history: list[dict] | None = None,
-            ) -> dict[str, Any]:
-                if use_sdk and stream:
-
-                    async def _gen_sdk() -> Any:
-                        async for chunk in await _ollama_client.chat(
-                            model=model,
-                            messages=self._build_messages(system_prompt, user_prompt, history),
-                            options={"temperature": 0.3, "num_predict": 2000},
-                            stream=True,
-                        ):
-                            content = chunk.get("message", {}).get("content", "")
-                            if content:
-                                yield content
-
-                    return _gen_sdk()
-                if use_sdk:
-                    response = await _ollama_client.chat(
-                        model=model,
-                        messages=self._build_messages(system_prompt, user_prompt, history),
-                        options={"temperature": 0.3, "num_predict": 2000},
-                    )
+                    content_block = msg.content[0] if msg.content else None
                     return {
-                        "content": response.get("message", {}).get("content", ""),
-                        "model": response.get("model", model),
-                        "input_tokens": response.get("prompt_eval_count", 0),
-                        "output_tokens": response.get("eval_count", 0),
-                    }
-                if stream:
-
-                    async def _gen_http() -> Any:
-                        async with httpx.AsyncClient(timeout=60.0) as hclient:
-                            payload = {
-                                "model": model,
-                                "messages": self._build_messages(
-                                    system_prompt, user_prompt, history
-                                ),
-                                "stream": True,
-                                "options": {"temperature": 0.3, "num_predict": 2000},
-                            }
-                            async with hclient.stream(
-                                "POST", f"{ollama_url}/api/chat", json=payload
-                            ) as resp:
-                                async for line in resp.aiter_lines():
-                                    if line.strip():
-                                        import json as _json
-
-                                        data = _json.loads(line)
-                                        content = data.get("message", {}).get("content", "")
-                                        if content:
-                                            yield content
-
-                    return _gen_http()
-                async with httpx.AsyncClient(timeout=60.0) as hclient:
-                    payload = {
-                        "model": model,
-                        "messages": self._build_messages(system_prompt, user_prompt, history),
-                        "stream": False,
-                        "options": {"temperature": 0.3, "num_predict": 2000},
-                    }
-                    resp = await hclient.post(f"{ollama_url}/api/chat", json=payload)
-                    resp.raise_for_status()
-                    data = resp.json()
-                    return {
-                        "content": data.get("message", {}).get("content", ""),
-                        "model": data.get("model", model),
-                        "input_tokens": data.get("prompt_eval_count", 0),
-                        "output_tokens": data.get("eval_count", 0),
+                        "content": getattr(content_block, "text", ""),
+                        "model": msg.model or model,
+                        "input_tokens": msg.usage.input_tokens if msg.usage else 0,
+                        "output_tokens": msg.usage.output_tokens if msg.usage else 0,
                     }
 
-            result = call_ollama
+                    return call_anthropic
 
-        # ── LM Studio (OpenAI-compatible HTTP API) ─────────────────────
-        elif provider_name == "lmstudio":
-            import httpx
+            # -- All other providers use the unified OpenAI-compatible adapter --------
+            if provider_name not in PROVIDER_CONFIG:
+                raise ValueError(f"Unsupported provider: {provider_name}")
 
-            lmstudio_url = self._settings.get("lmstudio_url") or os.getenv(
-                "SIYARIX_LMSTUDIO_URL", "http://localhost:1234"
+            from ..providers import ProviderManager
+
+            return make_openai_adapter(
+                provider=provider_name,
+                api_key=api_key,
+                settings=self._settings,
+                provider_manager=ProviderManager(),
             )
-            model = self._settings.get("lmstudio_model") or ""
-
-            async def call_lmstudio(
-                system_prompt: str,
-                user_prompt: str,
-                *,
-                stream: bool = False,
-                history: list[dict] | None = None,
-            ) -> dict[str, Any]:
-                if stream:
-
-                    async def _gen() -> Any:
-                        async with httpx.AsyncClient(timeout=120.0) as hclient:
-                            payload = {
-                                "model": model or "local-model",
-                                "messages": self._build_messages(
-                                    system_prompt, user_prompt, history
-                                ),
-                                "max_tokens": 2000,
-                                "temperature": 0.3,
-                                "stream": True,
-                            }
-                            async with hclient.stream(
-                                "POST",
-                                f"{lmstudio_url}/v1/chat/completions",
-                                json=payload,
-                            ) as resp:
-                                async for line in resp.aiter_lines():
-                                    if line.startswith("data: "):
-                                        chunk = line[6:]
-                                        if chunk.strip() == "[DONE]":
-                                            break
-                                        try:
-                                            import json as _json
-
-                                            data = _json.loads(chunk)
-                                            delta = data.get("choices", [{}])[0].get("delta", {})
-                                            if delta.get("content"):
-                                                yield delta["content"]
-                                        except Exception:
-                                            pass
-
-                    return _gen()
-                async with httpx.AsyncClient(timeout=120.0) as hclient:
-                    payload = {
-                        "model": model or "local-model",
-                        "messages": self._build_messages(system_prompt, user_prompt, history),
-                        "max_tokens": 2000,
-                        "temperature": 0.3,
-                    }
-                    resp = await hclient.post(f"{lmstudio_url}/v1/chat/completions", json=payload)
-                    resp.raise_for_status()
-                    data = resp.json()
-                    choice = data.get("choices", [{}])[0]
-                    usage = data.get("usage", {})
-                    return {
-                        "content": choice.get("message", {}).get("content", ""),
-                        "model": data.get("model", model or "local-model"),
-                        "input_tokens": usage.get("prompt_tokens", 0),
-                        "output_tokens": usage.get("completion_tokens", 0),
-                    }
-
-            result = call_lmstudio
-
-        else:
-            raise ValueError(f"Unsupported provider: {provider_name}")
-
-        return result
 
     def _llm_available(self) -> bool:
         """Check if an LLM provider is configured and available."""
@@ -3810,42 +3466,43 @@ Each step is a raw shell command running directly on the shell:
 
     @staticmethod
     def _check_local_provider_running(provider_name: str) -> bool:
-        """Ping a local provider's HTTP endpoint to check if it's running."""
-        endpoints = {
-            "ollama": ("http://localhost:11434", "/api/tags"),
-            "lmstudio": ("http://localhost:1234", "/v1/models"),
-            "llamacpp": ("http://localhost:8080", "/health"),
-            "vllm": ("http://localhost:8000", "/health"),
-            "localai": ("http://localhost:8080", "/readyz"),
-        }
-        info = endpoints.get(provider_name)
-        if not info:
-            return False
-        base_url, path = info
-        try:
-            import httpx
-            resp = httpx.get(f"{base_url}{path}", timeout=3.0)
-            return resp.status_code < 500
-        except Exception:
-            return False
+        """Check if a local provider is running via its health endpoint.
+
+        Uses generic provider_utils for all providers.
+        """
+        from ..provider_utils import check_provider_health
+        return check_provider_health(provider_name)
 
     @staticmethod
     def _ensure_local_provider_running(provider_name: str) -> bool:
-        """Try to auto-start a local provider if it's not already running."""
-        endpoints = {
-            "ollama": ("ollama", ["serve"], "http://localhost:11434", "/api/tags"),
-            "lmstudio": ("lmstudio", ["--server"], "http://localhost:1234", "/v1/models"),
+        """Try to auto-start a local provider if it's not already running.
+
+        Uses provider_utils defaults for binary names and URLs.
+        """
+        from ..provider_utils import check_provider_health, PROVIDER_DEFAULTS
+
+        cfg = PROVIDER_DEFAULTS.get(provider_name)
+        if not cfg:
+            return False
+
+        base_url = cfg["url"]
+        health_path = cfg["health_endpoint"]
+
+        start_configs = {
+            "ollama": ("ollama", ["serve"]),
+            "lmstudio": ("lmstudio", ["--server"]),
         }
-        info = endpoints.get(provider_name)
+        info = start_configs.get(provider_name)
         if not info:
             return False
-        binary, args, base_url, health_path = info
+        binary, args = info
+
         import shutil
         binary_path = shutil.which(binary)
         if not binary_path:
             logger.warning("%s binary not found on PATH — cannot auto-start", binary)
             return False
-        if SiyarixChat._check_local_provider_running(provider_name):
+        if check_provider_health(provider_name):
             return True
         try:
             import subprocess
@@ -3866,9 +3523,9 @@ Each step is a raw shell command running directly on the shell:
             for _ in range(15):
                 time.sleep(2)
                 try:
-                    import httpx
-                    r = httpx.get(f"{base_url}{health_path}", timeout=3)
-                    if r.status_code < 500:
+                    from ..provider_utils import safe_http_get_raw
+                    r = safe_http_get_raw(f"{base_url}{health_path}", timeout=3)
+                    if r is not None:
                         logger.info("%s started successfully", binary)
                         return True
                 except Exception:

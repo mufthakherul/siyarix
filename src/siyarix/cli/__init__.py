@@ -13,14 +13,6 @@ Core commands:
   cache      — Cache management
   report     — Report generation
   health     — System health checks
-
-TODO(v3.0): Refactor into ``cli/`` package:
-  - cli/__init__.py      — backward-compatible re-exports
-  - cli/app.py           — Main Typer app, core commands
-  - cli/auth.py          — Authentication & API key commands
-  - cli/config_cmd.py    — Configuration commands
-  - cli/report_cmd.py    — Report generation commands
-  - cli/health.py        — Health check & metrics commands
 """
 
 from __future__ import annotations
@@ -98,13 +90,6 @@ def _load_dotenv(path: Path | None = None) -> None:
                 logger.debug("Skipping %s from .env (use vault instead)", key)
                 continue
             os.environ[key] = val
-
-
-def _upsert_env_vars(env_map: dict[str, str], env_file: str | None = None) -> None:
-    """Set environment variables in-memory only (never writes to .env)."""
-    for k, v in env_map.items():
-        os.environ[k] = v
-
 
 def _display_findings_table(findings: list[dict]) -> None:
     """Render scan findings as a Rich table."""

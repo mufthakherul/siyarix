@@ -80,7 +80,7 @@ dev = [
 ]
 
 [project.scripts]
-siyarix = "siyarix.main:app"
+siyarix = "siyarix.cli:app"
 
 [build-system]
 requires = ["hatchling>=1.21.1"]

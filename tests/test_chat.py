@@ -157,7 +157,7 @@ class TestSiyarixChatInit:
         session.add_message("user", "hello")
         session.save(sessions_dir / "resume-1.json")
 
-        with patch.object(SiyarixChat, "_SESSIONS_DIR", sessions_dir):
+        with patch("siyarix.config.get_config_dir", return_value=tmp_path):
             chat = SiyarixChat(session_id="resume-1", resume=True)
             assert chat._session.session_id == "resume-1"
             assert len(chat._session.messages) == 1

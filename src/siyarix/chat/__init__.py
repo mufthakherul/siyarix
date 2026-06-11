@@ -2964,24 +2964,37 @@ Each step is a raw shell command running directly on the shell:
                 if not started:
                     console.print(f"[yellow]⚠ Could not start {provider_name}[/yellow]")
             else:
-                # Check Ollama model availability
+                # Check Ollama model availability and offer to pull if missing
                 if provider_name == "ollama":
-                    import httpx
+                    from ..ollama_utils import ensure_model_pulled, discover_provider_models, enrich_ollama_models
+                    from ..providers import ProviderManager
                     ollama_url = self._settings.get("ollama_url") or os.getenv("SIYARIX_OLLAMA_URL", "http://localhost:11434")
                     configured = self._settings.get("ollama_model") or "whiterabbitneo/WhiteRabbitNeo-2.5-Qwen-2.5-Coder-7B"
-                    try:
-                        tags_resp = httpx.get(f"{ollama_url}/api/tags", timeout=5.0)
-                        installed = [m["name"] for m in tags_resp.json().get("models", [])]
-                        check = configured if ":" in configured else f"{configured}:latest"
-                        if check not in installed:
-                            console.print(f"[yellow]⚠ Model '[bold]{configured}[/bold]' not in Ollama[/yellow]")
-                            if installed:
-                                console.print(f"[dim]  Available: {', '.join(installed)}[/dim]")
-                            console.print("[dim]  Run: ollama pull {0}[/dim]".format(configured))
-                        else:
-                            console.print(f"[dim]Found model {configured} in Ollama[/dim]")
-                    except Exception as exc:
-                        console.print(f"[dim]Ollama API check failed: {exc}[/dim]")
+                    pulled = ensure_model_pulled(configured, ollama_url, console)
+                    if not pulled:
+                        console.print(f"[yellow]⚠ Model '{configured}' not available[/yellow]")
+                        console.print("[dim]  Pull it manually: ollama pull {0}[/dim]".format(configured))
+                    else:
+                        # Discover and enrich models for better context/capability info
+                        try:
+                            from ..providers import ModelInfo
+                            pm = ProviderManager()
+                            profile = pm.get_profile("ollama")
+                            if profile:
+                                discovered = discover_provider_models(ollama_url, enrich=True)
+                                if discovered:
+                                    profile.models = [
+                                        ModelInfo(
+                                            name=m["name"],
+                                            supports_vision=m.get("supports_vision", False),
+                                            supports_tools=m.get("supports_tools", True),
+                                            context_window=m.get("context_window", 128000),
+                                            max_tokens=m.get("max_tokens", 8192),
+                                        )
+                                        for m in discovered
+                                    ]
+                        except Exception:
+                            pass
 
         # Build call function for the provider.
         # OpenClaw pattern: no separate ping — check reachability via

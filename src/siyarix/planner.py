@@ -748,7 +748,40 @@ Respond with ONLY valid JSON:
                 ],
             )
         if target:
-            # Smart fallback: pick available tools from probe set
+            # Intent-based tool selection: map user keywords to specific tools
+            intent_map = {
+                "headers": ("curl", "HTTP headers check", "-sIL"),
+                "http": ("curl", "HTTP headers check", "-sIL"),
+                "redirect": ("curl", "HTTP headers check", "-sIL"),
+                "tech": ("whatweb", "Technology fingerprinting", ""),
+                "framework": ("whatweb", "Technology fingerprinting", ""),
+                "dns": ("dig", "DNS enumeration", ""),
+                "nameserver": ("dig", "DNS enumeration", ""),
+                "resolve": ("dig", "DNS enumeration", ""),
+                "port": ("nmap", "Port scan", "-sT -T4 --top-ports 100"),
+                "open port": ("nmap", "Port scan", "-sT -T4 --top-ports 100"),
+                "service": ("nmap", "Port scan", "-sT -T4 --top-ports 100"),
+            }
+            for keyword, (tool, desc, flags) in intent_map.items():
+                if keyword in goal_lower:
+                    actual_tool = tool
+                    if tool not in avail_set and tool in TOOL_ALTERNATIVES:
+                        for alt in TOOL_ALTERNATIVES[tool]:
+                            if alt in avail_set:
+                                actual_tool = alt
+                                break
+                    if actual_tool in avail_set or not avail_set:
+                        clean_target = target.replace("https://", "").replace("http://", "").split("/")[0]
+                        return self.create_plan(
+                            goal=goal,
+                            steps=[{
+                                "description": desc + (f" (via {actual_tool})" if actual_tool != tool else ""),
+                                "tool": actual_tool,
+                                "args": {"target": clean_target, "flags": flags},
+                            }],
+                        )
+
+            # Probe fallback: run all tools when intent is unclear
             probe_steps = []
             for tool, desc, flags in [
                 ("curl", "HTTP headers check", "-sIL"),

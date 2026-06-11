@@ -283,17 +283,27 @@ class AgentCore:
 
     def _extract_findings(self, plan: ExecutionPlan) -> list[dict[str, Any]]:
         findings = []
+        seen_keys: set[str] = set()
         for step in plan.steps:
-            if step.status == StepStatus.COMPLETED and step.result:
-                output = step.result.get("output", "")
-                if output:
-                    findings.append(
-                        {
-                            "tool": step.tool,
-                            "description": step.description,
-                            "output_preview": output[:500],
-                        }
-                    )
+            if not (step.status == StepStatus.COMPLETED and step.result):
+                continue
+            parsed = step.result.get("findings")
+            if parsed and isinstance(parsed, list):
+                for f in parsed:
+                    dedup_key = f"{f.get('tool', '')}:{f.get('title', '')}:{f.get('target', '')}"
+                    if dedup_key not in seen_keys:
+                        seen_keys.add(dedup_key)
+                        findings.append(f)
+            output = step.result.get("output", "")
+            if output and not parsed:
+                findings.append(
+                    {
+                        "tool": step.tool,
+                        "description": step.description,
+                        "output_preview": output[:500],
+                        "severity": "info",
+                    }
+                )
         return findings
 
     def stats(self) -> dict[str, Any]:

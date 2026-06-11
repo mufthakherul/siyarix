@@ -306,7 +306,7 @@ class ReportEngine:
                 if "---" not in line:
                     html_parts.append(f"<tr>{''.join(f'<td>{c}</td>' for c in cells)}</tr>")
             elif line.startswith("---"):
-                pass
+                html_parts.append("<hr>")
             elif line.startswith("```"):
                 in_code = not in_code
             else:

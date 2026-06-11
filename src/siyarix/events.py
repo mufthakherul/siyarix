@@ -111,7 +111,7 @@ def emit_sync(event: Event) -> None:
         loop = asyncio.get_running_loop()
         loop.create_task(bus.emit(event))
     except RuntimeError:
-        pass
+        logger.debug("No running event loop; event dropped: %s", event.type)
 
 
 def get_event_bus() -> EventBus:

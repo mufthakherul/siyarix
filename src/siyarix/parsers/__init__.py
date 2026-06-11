@@ -1,10 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Parser protocol and base utilities for all tool output parsers.
+"""Parser protocol, base utilities, and ParserRegistry for all tool output parsers.
 
 All parsers implement the ``Parser`` protocol and should use the
 ``BaseParser`` mixin for consistent error handling, logging, and
 finding field population.
+
+The ``ParserRegistry`` auto-discovers all parsers in this module and
+provides tool → parser lookup for registry-mode execution.
 """
 
 from __future__ import annotations
@@ -109,6 +112,75 @@ def build_finding(
 
 
 # ---------------------------------------------------------------------------
+# ParserRegistry — auto-discover and look up parsers by tool name
+# ---------------------------------------------------------------------------
+
+
+class ParserRegistry:
+    """Maps tool names to parser instances for structured finding extraction.
+
+    Auto-discoverable: call ``discover()`` once at startup to populate the
+    map from every parser class imported in this module.
+    """
+
+    def __init__(self) -> None:
+        self._parsers: dict[str, Parser] = {}
+
+    def register(self, tool_name: str, parser: Parser) -> None:
+        self._parsers[tool_name] = parser
+
+    def get(self, tool_name: str) -> Parser | None:
+        return self._parsers.get(tool_name)
+
+    def parse(self, tool_name: str, output: str) -> list[dict[str, Any]]:
+        parser = self._parsers.get(tool_name)
+        if not parser:
+            return []
+        if isinstance(parser, BaseParser):
+            return parser._parse_safe(output)
+        try:
+            result = parser.parse(output)
+            return result if isinstance(result, list) else []
+        except Exception:
+            logger.exception("Parser failed for tool: %s", tool_name)
+            return []
+
+    def has_parser(self, tool_name: str) -> bool:
+        return tool_name in self._parsers
+
+    def registered_tools(self) -> list[str]:
+        return sorted(self._parsers)
+
+    @property
+    def count(self) -> int:
+        return len(self._parsers)
+
+    def discover(self) -> dict[str, Parser]:
+        """Auto-discover all parser classes imported in this module and map
+        them to their tool names by convention (e.g. ``NmapParser`` → ``nmap``)."""
+        for name, obj in globals().items():
+            if isinstance(obj, type) and issubclass(obj, BaseParser) and obj is not BaseParser:
+                tool_name = _class_to_tool_name(name)
+                instance = obj()
+                self._parsers[tool_name] = instance
+        return self._parsers
+
+
+def _class_to_tool_name(class_name: str) -> str:
+    """Convert ``NmapParser`` → ``nmap``, ``WhatwebParser`` → ``whatweb``, etc."""
+    if class_name.endswith("Parser"):
+        stem = class_name[:-6]
+    else:
+        stem = class_name
+    result = []
+    for i, ch in enumerate(stem):
+        if ch.isupper() and i > 0:
+            result.append("-")
+        result.append(ch.lower())
+    return "".join(result)
+
+
+# ---------------------------------------------------------------------------
 # Auto-import all parser classes
 # ---------------------------------------------------------------------------
 
@@ -116,6 +188,8 @@ from .aircrack_parser import AircrackParser  # noqa: F401, E402
 from .amass_parser import AmassParser  # noqa: F401, E402
 from .bettercap_parser import BettercapParser  # noqa: F401, E402
 from .burpsuite_parser import BurpsuiteParser  # noqa: F401, E402
+from .curl_parser import CurlParser  # noqa: F401, E402
+from .dig_parser import DigParser  # noqa: F401, E402
 from .ettercap_parser import EttercapParser  # noqa: F401, E402
 from .ffuf_parser import FfufParser  # noqa: F401, E402
 from .gobuster_parser import GobusterParser  # noqa: F401, E402
@@ -131,18 +205,23 @@ from .nuclei_parser import NucleiParser  # noqa: F401, E402
 from .shodan_parser import ShodanParser  # noqa: F401, E402
 from .sqlmap_parser import SqlmapParser  # noqa: F401, E402
 from .subfinder_parser import SubfinderParser  # noqa: F401, E402
+from .whatweb_parser import WhatwebParser  # noqa: F401, E402
+from .whois_parser import WhoisParser  # noqa: F401, E402
 from .wpscan_parser import WpscanParser  # noqa: F401, E402
 from .zaproxy_parser import ZaproxyParser  # noqa: F401, E402
 
 __all__ = [
     "Parser",
     "BaseParser",
+    "ParserRegistry",
     "build_finding",
     "_now_iso",
     "AircrackParser",
     "AmassParser",
     "BettercapParser",
     "BurpsuiteParser",
+    "CurlParser",
+    "DigParser",
     "EttercapParser",
     "FfufParser",
     "GobusterParser",
@@ -158,6 +237,8 @@ __all__ = [
     "ShodanParser",
     "SqlmapParser",
     "SubfinderParser",
+    "WhatwebParser",
+    "WhoisParser",
     "WpscanParser",
     "ZaproxyParser",
 ]

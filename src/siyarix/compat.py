@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from .registry import RiskLevel
+
 
 class ExecutionMode(StrEnum):
     REGISTRY = "registry"
@@ -231,27 +233,10 @@ class IntentRoute:
         self.requires_confirmation = requires_confirmation
 
 
-class RiskTier:
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
-
-    def __init__(self, value: str = "low") -> None:
-        self.value = value
-
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, RiskTier):
-            return self.value == other.value
-        if isinstance(other, str):
-            return self.value == other
-        return NotImplemented
+RiskTier = RiskLevel
 
 
 class IntentRouter:
-    def __init__(self) -> None:
-        pass
-
     def route(self, text: str, **kwargs: Any) -> IntentRoute:
         text_lower = text.lower()
         if any(kw in text_lower for kw in ("scan", "nmap", "port scan")):

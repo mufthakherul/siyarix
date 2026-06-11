@@ -175,15 +175,6 @@ def resolve_theme(theme_name: str | None) -> str:
     return mapped if mapped in _SEVERITY_STYLES else _DEFAULT_THEME
 
 
-def canonical_theme(theme_name: str | None) -> str | None:
-    """Resolve theme aliases and return canonical name, else None."""
-    if not theme_name:
-        return None
-    raw = theme_name.strip().lower()
-    mapped = _THEME_ALIASES.get(raw, raw)
-    return mapped if mapped in _SEVERITY_STYLES else None
-
-
 def available_themes() -> list[str]:
     """Return all available theme names, sorted."""
     return sorted(_SEVERITY_STYLES.keys())

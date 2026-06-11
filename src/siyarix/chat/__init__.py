@@ -2956,6 +2956,14 @@ Each step is a raw shell command running directly on the shell:
         total_output_tokens = 0
         llm_call_fn = None
 
+        # Auto-start local provider if not running
+        if provider_name in ("ollama", "lmstudio", "llamacpp", "vllm", "localai"):
+            if not self._check_local_provider_running(provider_name):
+                console.print(f"[dim]{provider_name} not running — attempting to start...[/dim]")
+                started = self._ensure_local_provider_running(provider_name)
+                if not started:
+                    console.print(f"[yellow]⚠ Could not start {provider_name}[/yellow]")
+
         while (
             api_key or provider_name in ("ollama", "lmstudio", "llamacpp", "vllm", "localai")
         ) and not llm_connected:
@@ -3800,23 +3808,91 @@ Each step is a raw shell command running directly on the shell:
         pm = ProviderManager()
         profile = pm.get_profile(provider)
 
-        if provider == "ollama":
-            return True
         if provider == "cloud":
             return bool(os.getenv("SIYARIX_SERVER_URL"))
-        if provider == "lmstudio":
-            return True
         if provider == "custom":
             return bool(os.getenv("CUSTOM_API_KEY"))
         if provider == "opencode":
             return bool(os.getenv("OPENCODE_API_KEY"))
+        if provider in ("ollama", "lmstudio", "llamacpp", "vllm", "localai"):
+            return self._check_local_provider_running(provider)
         if profile and profile.api_key_env:
             key = os.getenv(profile.api_key_env)
-            # gemini also accepts GOOGLE_API_KEY
             if provider == "gemini":
                 return bool(key or os.getenv("GOOGLE_API_KEY"))
             return bool(key)
         return False
+
+    @staticmethod
+    def _check_local_provider_running(provider_name: str) -> bool:
+        """Ping a local provider's HTTP endpoint to check if it's running."""
+        endpoints = {
+            "ollama": ("http://localhost:11434", "/api/tags"),
+            "lmstudio": ("http://localhost:1234", "/v1/models"),
+            "llamacpp": ("http://localhost:8080", "/health"),
+            "vllm": ("http://localhost:8000", "/health"),
+            "localai": ("http://localhost:8080", "/readyz"),
+        }
+        info = endpoints.get(provider_name)
+        if not info:
+            return False
+        base_url, path = info
+        try:
+            import httpx
+            resp = httpx.get(f"{base_url}{path}", timeout=3.0)
+            return resp.status_code < 500
+        except Exception:
+            return False
+
+    @staticmethod
+    def _ensure_local_provider_running(provider_name: str) -> bool:
+        """Try to auto-start a local provider if it's not already running."""
+        endpoints = {
+            "ollama": ("ollama", ["serve"], "http://localhost:11434", "/api/tags"),
+            "lmstudio": ("lmstudio", ["--server"], "http://localhost:1234", "/v1/models"),
+        }
+        info = endpoints.get(provider_name)
+        if not info:
+            return False
+        binary, args, base_url, health_path = info
+        import shutil
+        binary_path = shutil.which(binary)
+        if not binary_path:
+            logger.warning("%s binary not found on PATH — cannot auto-start", binary)
+            return False
+        if ChatSession._check_local_provider_running(provider_name):
+            return True
+        try:
+            import subprocess
+            if os.name == "nt":
+                subprocess.Popen(
+                    [binary, *args],
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            else:
+                subprocess.Popen(
+                    [binary, *args],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            import time
+            for _ in range(15):
+                time.sleep(2)
+                try:
+                    import httpx
+                    r = httpx.get(f"{base_url}{health_path}", timeout=3)
+                    if r.status_code < 500:
+                        logger.info("%s started successfully", binary)
+                        return True
+                except Exception:
+                    pass
+            logger.warning("%s started but not responding within 30s", binary)
+            return False
+        except Exception as exc:
+            logger.warning("Failed to auto-start %s: %s", binary, exc)
+            return False
 
     def _resolve_provider(self) -> tuple[str | None, str | None]:
         """Return ``(provider_name, api_key)`` for the active provider.

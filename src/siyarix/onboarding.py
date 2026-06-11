@@ -723,6 +723,8 @@ class OnboardingWizard:
                 except Exception:
                     pass
 
+                vault._write_auto_unseal_key()
+
                 self._console.print("[green]\u2713 Vault initialized successfully[/green]")
                 self._console.print("[dim]Your secrets are now stored encrypted at rest.[/dim]")
 

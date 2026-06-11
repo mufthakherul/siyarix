@@ -106,6 +106,7 @@ DEFAULTS: dict[str, Any] = {
     "persona": "auto",
     "command_review": True,
     "additional_system_message": "",
+    "max_waves": 25,
 }
 
 # Human-readable descriptions
@@ -155,6 +156,7 @@ DESCRIPTIONS: dict[str, str] = {
     "vllm_model": "vLLM model name (default: empty for server default)",
     "localai_url": "LocalAI server URL (default: http://localhost:8080)",
     "localai_model": "LocalAI model name (default: empty for server default)",
+    "max_waves": "Max plan-execute-measure cycles per goal (reduce for faster responses)",
     "agent_timeout": "Max seconds for agent execution (default: 1740 / 29 min)",
     "notifications_enabled": "Show Rich panel notifications for key events",
     "stealth_mode": "Enable advanced stealth and command argument evasion",

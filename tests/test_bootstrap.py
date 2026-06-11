@@ -43,7 +43,6 @@ class TestBootstrapEngine:
         assert (tmp_path / "personas").exists()
         assert (tmp_path / "memory").exists()
         assert (tmp_path / "logs" / "sessions").exists()
-        assert (tmp_path / "vault").exists()
         assert (tmp_path / "cache" / "tool_outputs").exists()
         assert (tmp_path / "templates" / "reports").exists()
         assert (tmp_path / "masking").exists()

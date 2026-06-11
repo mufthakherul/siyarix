@@ -162,11 +162,11 @@ class OnboardingWizard:
     def __init__(
         self,
         settings: SettingsStore | None = None,
-        vault: Any | None = None,
+        cred_store: Any | None = None,
         console: Any | None = None,
     ) -> None:
         self._settings = settings or SettingsStore()
-        self._vault = vault
+        self._cred_store = cred_store
         self._console = console or Console()
         self._bootstrap = BootstrapEngine()
         self._provider_mgr = ProviderManager()
@@ -201,7 +201,7 @@ class OnboardingWizard:
         await self._step_requirements()
         await self._step_dependencies()
         await self._step_tool_discovery()
-        self._step_vault_setup()
+        self._step_credential_setup()
         await self._step_provider()
         self._step_mode()
         self._step_persona_sysmsg()
@@ -636,7 +636,7 @@ class OnboardingWizard:
 
     # ── Step 5: Vault Setup ─────────────────────────────────────────────
 
-    def _step_vault_setup(self) -> None:
+    def _step_credential_setup(self) -> None:
         """Initialize the encrypted credential storage."""
         self._step_header("Credential Storage Setup")
         self._console.print(
@@ -648,7 +648,7 @@ class OnboardingWizard:
             from siyarix.credential_store import CredentialStore
 
             store = CredentialStore()
-            self._vault = store
+            self._cred_store = store
             self._choices["credential_store_initialized"] = True
             self._console.print("[green]\u2713 Credential store initialized[/green]")
         except Exception as exc:
@@ -1427,9 +1427,9 @@ class OnboardingWizard:
     def _store_api_key(self, provider: str, key: str) -> None:
         """Store API key in credential store and environment."""
         os.environ[provider.upper() + "_API_KEY"] = key
-        if self._vault:
+        if self._cred_store:
             try:
-                self._vault.store(provider, key, "api_key")
+                self._cred_store.store(provider, key, "api_key")
             except Exception:
                 pass
 

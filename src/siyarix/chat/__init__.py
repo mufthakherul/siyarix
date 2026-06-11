@@ -834,10 +834,10 @@ class SiyarixChat:
 
         provider_registry = ProviderManager.get_instance()
         try:
-            vault = CredentialStore()
+            store = CredentialStore()
         except Exception as exc:
             logger.warning("CredentialStore init failed: %s", exc)
-            vault = None
+            store = None
 
         table = Table(title="Configured API Keys", header_style="bold green")
         table.add_column("Provider", style="cyan")
@@ -849,7 +849,7 @@ class SiyarixChat:
             profile = provider_registry.get_profile(prov_name)
             env_key = profile.api_key_env if profile else provider_env_var(prov_name)
             from_env = bool(os.getenv(env_key)) if env_key else False
-            from_creds = bool(vault and vault.retrieve(prov_name, "api_key"))
+            from_creds = bool(store and store.retrieve(prov_name, "api_key"))
             if from_env:
                 status, source = "✓ Set", "Environment"
             elif from_creds:
@@ -879,11 +879,11 @@ class SiyarixChat:
             from ..credential_store import CredentialStore
 
             try:
-                vault = CredentialStore()
+                store = CredentialStore()
                 new_password = Prompt.ask(
                     "Enter new master password (optional)", password=True, default=""
                 )
-                if vault.rotate_key(new_password or None):
+                if store.rotate_key(new_password or None):
                     console.print("[green]✓ Master encryption key rotated successfully[/green]")
                 else:
                     console.print(

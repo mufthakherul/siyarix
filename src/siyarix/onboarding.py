@@ -8,7 +8,8 @@ Walks the user through a multi-step process:
   2. Python + basic requirements check (pip, git, curl)
   3. Python dependencies + SDKs
   4. Cybersecurity tool discovery & install
-  5. Vault setup (create encrypted credential vault, set passphrase)
+   5. Credential storage setup (initialize encrypted credential store)
+
   6. Provider selection (recommended / online / offline / custom / skip)
   7. Mode selection
   8. Persona + system message
@@ -182,7 +183,7 @@ class OnboardingWizard:
             "additional_sysmsg": "",
             "tools_installed": [],
             "dependencies_installed": [],
-            "vault_initialized": False,
+            "credential_store_initialized": False,
             "preferences": dict(_DEFAULT_PREFERENCES),
             "network_ok": False,
             "env_migrated": False,
@@ -636,121 +637,26 @@ class OnboardingWizard:
     # ── Step 5: Vault Setup ─────────────────────────────────────────────
 
     def _step_vault_setup(self) -> None:
-        """Initialize the encrypted credential vault."""
-        self._step_header("Credential Vault Setup")
+        """Initialize the encrypted credential storage."""
+        self._step_header("Credential Storage Setup")
         self._console.print(
-            "Siyarix uses an [bold]encrypted vault[/bold] to store API keys\n"
-            "and secrets securely. The vault is:\n"
-            "  \u2022 AES-256-GCM encrypted\n"
-            "  \u2022 Bound to your device + environment (anti-theft)\n"
-            "  \u2022 Locked after inactivity (auto-seal)\n"
-            "  \u2022 Backed up automatically\n\n"
+            "Siyarix uses an [bold]encrypted credential store[/bold] to keep API keys\n"
+            "secure at rest. Keys are encrypted with Fernet (AES-128-CBC) and\n"
+            "automatically managed.\n\n"
         )
+        try:
+            from siyarix.credential_store import CredentialStore
 
-        if not Confirm.ask("Set up the credential vault now?", default=True):
+            store = CredentialStore()
+            self._vault = store
+            self._choices["credential_store_initialized"] = True
+            self._console.print("[green]\u2713 Credential store initialized[/green]")
+        except Exception as exc:
+            self._console.print(f"[yellow]Credential store unavailable: {exc}[/yellow]")
+            self._choices["credential_store_initialized"] = False
             self._console.print(
-                "[yellow]Vault setup skipped. Secrets will not be stored securely.[/yellow]"
+                "[yellow]You can configure API keys later with: siyarix auth set-key[/yellow]"
             )
-            return
-
-        # Check if vault already exists
-        vault_path = Path.home() / ".siyarix" / "vault.encrypted"
-        vault_exists = vault_path.exists()
-
-        if vault_exists:
-            self._console.print("[green]Vault file already exists.[/green]")
-            if Confirm.ask("Re-initialize (overwrite existing vault)?", default=False):
-                vault_path.unlink(missing_ok=True)
-                # Also clean up old format
-                old = Path.home() / ".siyarix" / "vault.json"
-                if old.exists():
-                    old.unlink()
-                # Clean up vault key too
-                keyf = Path.home() / ".siyarix" / ".vault_key"
-                if keyf.exists():
-                    keyf.unlink()
-            else:
-                self._console.print("[yellow]Using existing vault.[/yellow]")
-                self._choices["vault_initialized"] = True
-                return
-
-        # Passphrase setup
-        self._console.print("\n[bold]Create a Vault Passphrase[/bold]")
-        self._console.print(
-            "[dim]Requirements: 12+ characters, 3 of 4: uppercase, lowercase,\n"
-            "digit, symbol. This passphrase is needed to unlock the vault.[/dim]"
-        )
-
-        for attempt in range(3):
-            passphrase = Prompt.ask("Enter passphrase", password=True)
-            if len(passphrase) < 12:
-                self._console.print("[red]Too short (min 12 characters).[/red]")
-                continue
-            confirm = Prompt.ask("Confirm passphrase", password=True)
-            if passphrase != confirm:
-                self._console.print("[red]Passphrases do not match.[/red]")
-                continue
-            # Validate strength
-            categories = 0
-            if any(c.isupper() for c in passphrase):
-                categories += 1
-            if any(c.islower() for c in passphrase):
-                categories += 1
-            if any(c.isdigit() for c in passphrase):
-                categories += 1
-            if any(not c.isalnum() for c in passphrase):
-                categories += 1
-            if categories < 3:
-                self._console.print(
-                    "[red]Weak passphrase. Use 3 of 4: uppercase, lowercase, digit, symbol.[/red]"
-                )
-                continue
-
-            # Attempt vault initialization
-            try:
-                from siyarix.credential_vault import CredentialVault
-
-                vault = CredentialVault(passphrase=passphrase)
-                self._vault = vault
-                self._choices["vault_initialized"] = True
-                self._settings.set("vault_initialized", True)
-
-                # Store the vault reference globally for later use
-                try:
-                    from siyarix import credential_vault as cv
-
-                    cv._vault_instance = vault
-                except Exception:
-                    pass
-
-                vault._write_auto_unseal_key()
-
-                self._console.print("[green]\u2713 Vault initialized successfully[/green]")
-                self._console.print("[dim]Your secrets are now stored encrypted at rest.[/dim]")
-
-                # Offer to test
-                if Confirm.ask("Test vault by storing and retrieving a sample?", default=False):
-                    try:
-                        vault.set("_test_key", "test_value")
-                        vault.get("_test_key")
-                        vault.delete("_test_key")
-                        self._console.print("[green]\u2713 Vault read/write test passed[/green]")
-                    except Exception as exc:
-                        self._console.print(f"[red]Vault test failed: {exc}[/red]")
-
-                break
-            except Exception as exc:
-                self._console.print(f"[red]Vault creation failed: {exc}[/red]")
-                if attempt < 2:
-                    self._console.print("[yellow]Please try again.[/yellow]")
-                else:
-                    self._console.print("[red]Vault setup failed after 3 attempts.[/red]")
-                    self._console.print(
-                        "[yellow]You can configure the vault later with: siyarix auth set-key[/yellow]"
-                    )
-                continue
-        else:
-            self._console.print("[yellow]Vault setup abandoned.[/yellow]")
 
         self._pause()
 
@@ -920,7 +826,7 @@ class OnboardingWizard:
             self._settings.set(model_key, model)
 
         self._console.print(f"\n[bold]API Key for {name}[/bold]")
-        self._console.print("[dim]Your key is stored in the encrypted vault.[/dim]")
+        self._console.print("[dim]Your key is stored in the encrypted credential store.[/dim]")
         api_key = Prompt.ask("Enter API key", password=True)
         if api_key.strip():
             self._choices["api_keys"][key] = api_key.strip()
@@ -1376,8 +1282,8 @@ class OnboardingWizard:
         summary.add_row("Mode", self._choices["mode"])
         summary.add_row("Persona", self._choices["persona"])
         summary.add_row(
-            "Vault",
-            "\u2713 Initialized" if self._choices["vault_initialized"] else "\u2717 Skipped",
+            "Credential Store",
+            "\u2713 Initialized" if self._choices.get("credential_store_initialized") else "\u2717 Skipped",
         )
         summary.add_row("Theme", self._choices["preferences"]["theme"])
         summary.add_row("Log Level", self._choices["preferences"]["log_level"])
@@ -1420,12 +1326,12 @@ class OnboardingWizard:
         found_env = (
             dotenv_path if dotenv_path.exists() else (alt_path if alt_path.exists() else None)
         )
-        if found_env and self._choices["vault_initialized"]:
+        if found_env and self._choices.get("credential_store_initialized"):
             self._console.print("[bold].env Migration[/bold]")
             self._console.print(
                 "[dim]Found an existing .env file with environment variables.[/dim]"
             )
-            if Confirm.ask("Migrate API keys from .env to vault?", default=True):
+            if Confirm.ask("Migrate API keys from .env to credential store?", default=True):
                 migrated = self._migrate_from_dotenv(found_env)
                 if migrated:
                     self._choices["env_migrated"] = True
@@ -1462,7 +1368,7 @@ class OnboardingWizard:
                 "model": self._choices["provider_model"],
                 "mode": self._choices["mode"],
                 "persona": self._choices["persona"],
-                "vault": self._choices["vault_initialized"],
+                "credential_store": self._choices.get("credential_store_initialized", False),
                 "theme": self._choices["preferences"]["theme"],
                 "log_level": self._choices["preferences"]["log_level"],
             },
@@ -1519,22 +1425,16 @@ class OnboardingWizard:
         os.system("cls" if os.name == "nt" else "clear")
 
     def _store_api_key(self, provider: str, key: str) -> None:
-        """Store API key in vault and environment."""
+        """Store API key in credential store and environment."""
         os.environ[provider.upper() + "_API_KEY"] = key
         if self._vault:
             try:
-                self._vault.set(provider, key)
+                self._vault.store(provider, key, "api_key")
             except Exception:
                 pass
-        try:
-            from siyarix.credential_vault import vault_set
-
-            vault_set(provider, key)
-        except Exception:
-            pass
 
     def _migrate_from_dotenv(self, env_path: Path) -> int:
-        """Migrate API keys from .env file to vault. Returns count of migrated keys."""
+        """Migrate API keys from .env file to credential store. Returns count of migrated keys."""
         api_key_patterns = ("_API_KEY", "_SECRET", "_PASSWORD", "_TOKEN")
         migrated = 0
         try:

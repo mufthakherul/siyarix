@@ -222,36 +222,34 @@ class AgentCore:
     async def _execute_hybrid(
         self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult
     ) -> AgentResult:
-        """Hybrid mode: try LLM planning, fall back to heuristic."""
-        try:
-            if plan is None:
-                plan = self._planner.decompose_goal(
-                    goal.description, [t.name for t in self._registry.list_tools()]
-                )
-            result.plan = plan
-            self._context.add_history(f"Goal: {goal.description}", "user")
-            await self._validator.validate_plan(plan.steps)
-            plan = await self._executor.execute_plan(plan)
-            if plan.has_failures:
-                for step in plan.failed_steps:
-                    recovery = await self._validator.plan_recovery(
-                        step, step.result.get("error", "")
-                    )
-                    if recovery.action == RecoveryAction.RETRY and recovery.modified_step:
-                        idx = plan.steps.index(step)
-                        plan.steps[idx] = recovery.modified_step
-                        plan = await self._executor.execute_plan(plan)
-                        break
-            result.success = plan.status == PlanStatus.COMPLETED
-            result.summary = self._generate_summary(plan)
-            result.findings = self._extract_findings(plan)
-        except Exception as e:
-            result.success = False
-            result.summary = f"Hybrid agent failed: {e}"
-            logger.exception("Hybrid agent execution failed")
+        """Hybrid mode: try autonomous (LLM) first, fall back to registry (heuristic).
+
+        This is NOT a standalone execution — it orchestrates between
+        autonomous and registry modes, combining their strengths.
+        """
+        self._mode = AgentMode.AUTONOMOUS
+        auto_result = await self._execute_autonomous(goal, plan, start, AgentResult(goal=goal.description))
+        if auto_result.success:
+            result.success = True
+            result.summary = auto_result.summary
+            result.findings = auto_result.findings
+            result.plan = auto_result.plan
+            result.duration_ms = auto_result.duration_ms
+            self._history[-1] = result  # replace auto's history entry
+            self._status = AgentStatus.COMPLETED
+            return result
+
+        logger.info("Autonomous execution failed, falling back to registry mode")
+        self._history.pop()  # remove auto's failed history entry
+        self._mode = AgentMode.REGISTRY
+        reg_result = await self._execute_registry(goal, plan, start, AgentResult(goal=goal.description))
+        result.success = reg_result.success
+        result.summary = f"Hybrid (autonomous failed → registry): {reg_result.summary}"
+        result.findings = reg_result.findings
+        result.plan = reg_result.plan
         result.duration_ms = (time.time() - start) * 1000
+        self._history[-1] = result  # replace registry's history entry
         self._status = AgentStatus.COMPLETED if result.success else AgentStatus.FAILED
-        self._history.append(result)
         return result
 
     async def _execute_interactive(

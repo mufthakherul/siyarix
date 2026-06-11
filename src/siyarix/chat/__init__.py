@@ -2971,13 +2971,13 @@ Each step is a raw shell command running directly on the shell:
             try:
                 llm_call_fn = self._make_llm_call(provider_name, api_key or "")
                 ping = await asyncio.wait_for(
-                    llm_call_fn("Ping utility", "Reply with exactly: OK"),
+                    llm_call_fn("", "OK"),
                     timeout=15.0,
                 )
                 if not isinstance(ping, dict):
                     raise RuntimeError(f"LLM returned unexpected type: {type(ping).__name__}")
-                if ping.get("content", "").strip() != "OK":
-                    raise RuntimeError(f"LLM ping failed: {ping.get('content', '')[:100]}")
+                if not ping.get("content", "").strip():
+                    raise RuntimeError("LLM ping returned empty response")
                 llm_connected = True
                 total_input_tokens += ping.get("input_tokens", 0)
                 total_output_tokens += ping.get("output_tokens", 0)

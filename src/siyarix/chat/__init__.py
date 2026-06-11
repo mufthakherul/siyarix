@@ -3370,99 +3370,89 @@ Each step is a raw shell command running directly on the shell:
 
         return True
 
-    def _build_messages(
-        self, system: str, user: str, history: list[dict] | None = None
-    ) -> list[dict]:
-        """Build the messages array for an LLM call, injecting conversation history."""
-        messages = [{"role": "system", "content": system}]
-        if history:
-            messages.extend(history)
-        messages.append({"role": "user", "content": user})
-        return messages
+    def _make_llm_call(self, provider_name: str, api_key: str) -> Any:
+        """Return an async callable (system, user, *, stream=False, history=None) -> dict | AsyncGenerator.
 
-        def _make_llm_call(self, provider_name: str, api_key: str) -> Any:
-            """Return an async callable (system, user, *, stream=False, history=None) -> dict | AsyncGenerator.
+        Uses the unified OpenAI-compatible adapter for all OpenAI API providers
+        (openai, openrouter, gemini, deepseek, xai, perplexity, groq, together,
+        azure, cerebras, fireworks, zai, minimax, moonshot, nvidia, opencode-go,
+        huggingface, llamacpp, vllm, localai) and native SDK for Anthropic.
 
-            Uses the unified OpenAI-compatible adapter for all OpenAI API providers
-            (openai, openrouter, gemini, deepseek, xai, perplexity, groq, together,
-            azure, cerebras, fireworks, zai, minimax, moonshot, nvidia, opencode-go,
-            huggingface, llamacpp, vllm, localai) and native SDK for Anthropic.
+        When stream=True, call with await fn(system, user, stream=True, history=history)
+        which returns an async generator yielding content tokens.
+        history is a list of {"role": ..., "content": ...} dicts from prior conversation.
+        """
+        from .openai_compat import make_openai_adapter, PROVIDER_CONFIG
 
-            When stream=True, call with await fn(system, user, stream=True, history=history)
-            which returns an async generator yielding content tokens.
-            history is a list of {"role": ..., "content": ...} dicts from prior conversation.
-            """
-            from .openai_compat import make_openai_adapter, PROVIDER_CONFIG
+        # -- Anthropic (native SDK) ---------------------------------------------
+        if provider_name == "anthropic":
+            try:
+                from anthropic import AsyncAnthropic
+            except ImportError:
+                raise ValueError("anthropic package not installed. Run: pip install anthropic")
 
-            # -- Anthropic (native SDK) ---------------------------------------------
-            if provider_name == "anthropic":
-                try:
-                    from anthropic import AsyncAnthropic
-                except ImportError:
-                    raise ValueError("anthropic package not installed. Run: pip install anthropic")
-
-                anthropic_client = AsyncAnthropic(api_key=api_key)
-                from ..providers import ProviderManager
-
-                model = ProviderManager().resolve_model_id(
-                    "anthropic",
-                    self._settings.get("anthropic_model") or "claude-sonnet-4-6",
-                )
-
-                async def call_anthropic(
-                    system_prompt: str,
-                    user_prompt: str,
-                    *,
-                    stream: bool = False,
-                    history: list[dict] | None = None,
-                ) -> dict[str, Any]:
-                    if stream:
-
-                        async def _gen() -> Any:
-                            hist_msgs = [m for m in (history or []) if m.get("role") != "system"]
-                            msgs = hist_msgs + [{"role": "user", "content": user_prompt}]
-                            async with anthropic_client.messages.stream(
-                                model=model,
-                                system=system_prompt,
-                                messages=msgs,
-                                max_tokens=2000,
-                                temperature=0.3,
-                            ) as stream_ctx:
-                                async for text in stream_ctx.text_stream:
-                                    yield text
-
-                        return _gen()
-                    hist_msgs = [m for m in (history or []) if m.get("role") != "system"]
-                    msgs = hist_msgs + [{"role": "user", "content": user_prompt}]
-                    msg = await anthropic_client.messages.create(
-                        model=model,
-                        system=system_prompt,
-                        messages=msgs,
-                        max_tokens=2000,
-                        temperature=0.3,
-                    )
-                    content_block = msg.content[0] if msg.content else None
-                    return {
-                        "content": getattr(content_block, "text", ""),
-                        "model": msg.model or model,
-                        "input_tokens": msg.usage.input_tokens if msg.usage else 0,
-                        "output_tokens": msg.usage.output_tokens if msg.usage else 0,
-                    }
-
-                    return call_anthropic
-
-            # -- All other providers use the unified OpenAI-compatible adapter --------
-            if provider_name not in PROVIDER_CONFIG:
-                raise ValueError(f"Unsupported provider: {provider_name}")
-
+            anthropic_client = AsyncAnthropic(api_key=api_key)
             from ..providers import ProviderManager
 
-            return make_openai_adapter(
-                provider=provider_name,
-                api_key=api_key,
-                settings=self._settings,
-                provider_manager=ProviderManager(),
+            model = ProviderManager().resolve_model_id(
+                "anthropic",
+                self._settings.get("anthropic_model") or "claude-sonnet-4-6",
             )
+
+            async def call_anthropic(
+                system_prompt: str,
+                user_prompt: str,
+                *,
+                stream: bool = False,
+                history: list[dict] | None = None,
+            ) -> dict[str, Any]:
+                if stream:
+
+                    async def _gen() -> Any:
+                        hist_msgs = [m for m in (history or []) if m.get("role") != "system"]
+                        msgs = hist_msgs + [{"role": "user", "content": user_prompt}]
+                        async with anthropic_client.messages.stream(
+                            model=model,
+                            system=system_prompt,
+                            messages=msgs,
+                            max_tokens=2000,
+                            temperature=0.3,
+                        ) as stream_ctx:
+                            async for text in stream_ctx.text_stream:
+                                yield text
+
+                    return _gen()
+                hist_msgs = [m for m in (history or []) if m.get("role") != "system"]
+                msgs = hist_msgs + [{"role": "user", "content": user_prompt}]
+                msg = await anthropic_client.messages.create(
+                    model=model,
+                    system=system_prompt,
+                    messages=msgs,
+                    max_tokens=2000,
+                    temperature=0.3,
+                )
+                content_block = msg.content[0] if msg.content else None
+                return {
+                    "content": getattr(content_block, "text", ""),
+                    "model": msg.model or model,
+                    "input_tokens": msg.usage.input_tokens if msg.usage else 0,
+                    "output_tokens": msg.usage.output_tokens if msg.usage else 0,
+                }
+
+            return call_anthropic
+
+        # -- All other providers use the unified OpenAI-compatible adapter --------
+        if provider_name not in PROVIDER_CONFIG:
+            raise ValueError(f"Unsupported provider: {provider_name}")
+
+        from ..providers import ProviderManager
+
+        return make_openai_adapter(
+            provider=provider_name,
+            api_key=api_key,
+            settings=self._settings,
+            provider_manager=ProviderManager(),
+        )
 
     def _llm_available(self) -> bool:
         """Check if an LLM provider is configured and available."""

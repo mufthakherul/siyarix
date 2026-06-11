@@ -80,7 +80,7 @@ class TestPlanner:
         p = Planner()
         plan = p.create_from_template("recon_full", "192.168.1.1")
         assert "192.168.1.1" in plan.goal
-        assert len(plan.steps) == 4
+        assert len(plan.steps) == 6
 
     def test_create_from_unknown_template(self):
         p = Planner()

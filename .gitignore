@@ -133,6 +133,7 @@ build/
 # Internal planning and design assets
 redesign_plan.md
 scratch_rename.py
+scratch/
 DEEP_TECHNICAL_AUDIT.md
 IMPLEMENTATION_ROADMAP.md
 docs/DEEP_TECHNICAL_AUDIT.md

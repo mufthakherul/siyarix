@@ -215,157 +215,90 @@ class Planner:
             "web_audit",
             "network_scan",
             "cloud_audit",
+            "vuln_scan",
+            "dns_recon",
+            "full_audit",
+            "smb_enum",
         }
         self._cron_path = "/etc/crontab" if os.name != "nt" else "C:\\Windows\\System32\\Tasks"
         self._templates: dict[str, list[dict[str, Any]]] = {
             "recon_full": [
-                {
-                    "description": "Full port scan with service/OS detection and default scripts",
-                    "tool": "nmap",
-                    "args": {"flags": "-sV -sC -T4"},
-                },
-                {
-                    "description": "Web technology stack fingerprinting",
-                    "tool": "whatweb",
-                    "args": {},
-                },
-                {
-                    "description": "Directory and file brute-force enumeration",
-                    "tool": "gobuster",
-                    "args": {"mode": "dir"},
-                },
+                {"description": "Full port scan with service/OS detection and default scripts", "tool": "nmap", "args": {"flags": "-sV -sC -T4"}},
+                {"description": "Web technology stack fingerprinting", "tool": "whatweb", "args": {}},
+                {"description": "Directory and file brute-force enumeration", "tool": "gobuster", "args": {"mode": "dir"}},
                 {"description": "Passive subdomain enumeration", "tool": "subfinder", "args": {}},
+                {"description": "Aggressive subdomain discovery via brute-force", "tool": "amass", "args": {}},
+                {"description": "Template-based vulnerability scan", "tool": "nuclei", "args": {"severity": "medium,high,critical"}},
             ],
             "web_audit": [
-                {
-                    "description": "HTTP security headers and response analysis",
-                    "tool": "curl",
-                    "args": {"flags": "-sI"},
-                },
-                {
-                    "description": "Web application technology fingerprinting",
-                    "tool": "whatweb",
-                    "args": {},
-                },
-                {
-                    "description": "Template-based vulnerability scanning (medium+ severity)",
-                    "tool": "nuclei",
-                    "args": {"severity": "medium,high,critical"},
-                },
-                {
-                    "description": "Content discovery and directory/file enumeration",
-                    "tool": "ffuf",
-                    "args": {"wordlist": "common.txt"},
-                },
+                {"description": "HTTP security headers and response analysis", "tool": "curl", "args": {"flags": "-sI"}},
+                {"description": "Web application technology fingerprinting", "tool": "whatweb", "args": {}},
+                {"description": "Template-based vulnerability scanning (medium+ severity)", "tool": "nuclei", "args": {"severity": "medium,high,critical"}},
+                {"description": "Content discovery and directory/file enumeration", "tool": "ffuf", "args": {"wordlist": "common.txt"}},
+                {"description": "WordPress-specific vulnerability scan", "tool": "wpscan", "args": {}},
+                {"description": "Web server vulnerability scan", "tool": "nikto", "args": {}},
             ],
             "brute_force": [
-                {
-                    "description": "Target service discovery and version identification",
-                    "tool": "nmap",
-                    "args": {"flags": "-sV"},
-                },
-                {
-                    "description": "Multi-protocol credential brute-force attack",
-                    "tool": "hydra",
-                    "args": {},
-                },
+                {"description": "Target service discovery and version identification", "tool": "nmap", "args": {"flags": "-sV"}},
+                {"description": "Multi-protocol credential brute-force attack", "tool": "hydra", "args": {}},
+                {"description": "Offline hash cracking of captured credentials", "tool": "hashcat", "args": {}},
             ],
             "wifi_audit": [
-                {
-                    "description": "Wireless traffic capture and handshake collection",
-                    "tool": "aircrack-ng",
-                    "args": {"mode": "capture"},
-                },
-                {
-                    "description": "WPA/WPA2 PSK handshake offline crack",
-                    "tool": "aircrack-ng",
-                    "args": {"mode": "crack"},
-                },
+                {"description": "Wireless traffic capture and handshake collection", "tool": "aircrack-ng", "args": {"mode": "capture"}},
+                {"description": "WPA/WPA2 PSK handshake offline crack", "tool": "aircrack-ng", "args": {"mode": "crack"}},
             ],
             "network_scan": [
-                {
-                    "description": "Full TCP SYN sweep with high-rate discovery",
-                    "tool": "nmap",
-                    "args": {"flags": "-sS -T4 -p- --min-rate 1000"},
-                },
-                {
-                    "description": "Service version detection on top 1000 ports",
-                    "tool": "nmap",
-                    "args": {"flags": "-sV -T4 --top-ports 1000"},
-                },
-                {
-                    "description": "DNS record resolution and zone analysis",
-                    "tool": "dig",
-                    "args": {},
-                },
-                {
-                    "description": "WHOIS registration and IP ownership lookup",
-                    "tool": "whois",
-                    "args": {},
-                },
+                {"description": "Full TCP SYN sweep with high-rate discovery", "tool": "nmap", "args": {"flags": "-sS -T4 -p- --min-rate 1000"}},
+                {"description": "Service version detection on top 1000 ports", "tool": "nmap", "args": {"flags": "-sV -T4 --top-ports 1000"}},
+                {"description": "DNS record resolution and zone analysis", "tool": "dig", "args": {}},
+                {"description": "WHOIS registration and IP ownership lookup", "tool": "whois", "args": {}},
+                {"description": "Mass port scan for additional coverage", "tool": "masscan", "args": {"flags": "--rate 1000 --top-ports 100"}},
             ],
             "cloud_audit": [
-                {
-                    "description": "HTTP security headers and CORS policy analysis",
-                    "tool": "curl",
-                    "args": {"flags": "-sI"},
-                },
-                {
-                    "description": "Web application stack and framework detection",
-                    "tool": "whatweb",
-                    "args": {},
-                },
-                {
-                    "description": "Full DNS record enumeration (A, AAAA, MX, TXT, NS, CNAME)",
-                    "tool": "dig",
-                    "args": {"flags": "ANY"},
-                },
-                {
-                    "description": "SSL/TLS certificate chain and cipher suite validation",
-                    "tool": "openssl",
-                    "args": {"flags": "s_client -servername"},
-                },
+                {"description": "HTTP security headers and CORS policy analysis", "tool": "curl", "args": {"flags": "-sI"}},
+                {"description": "Web application stack and framework detection", "tool": "whatweb", "args": {}},
+                {"description": "Full DNS record enumeration (A, AAAA, MX, TXT, NS, CNAME)", "tool": "dig", "args": {"flags": "ANY"}},
+                {"description": "SSL/TLS certificate chain and cipher suite validation", "tool": "openssl", "args": {"flags": "s_client -servername"}},
             ],
             "ad_assessment": [
-                {
-                    "description": "Domain controller critical port scan (Kerberos, LDAP, SMB, RPC, GC)",
-                    "tool": "nmap",
-                    "args": {
-                        "flags": "-sS -sV -T4 -p 53,88,135,139,389,445,464,636,3268,3269,3389"
-                    },
-                },
-                {
-                    "description": "SMB protocol version and dialect negotiation analysis",
-                    "tool": "nmap",
-                    "args": {"flags": "-sV -p 445 --script smb-protocols"},
-                },
-                {
-                    "description": "LDAP anonymous bind and root DSE information disclosure check",
-                    "tool": "nmap",
-                    "args": {"flags": "-sV -p 389 --script ldap-rootdse"},
-                },
+                {"description": "Domain controller critical port scan (Kerberos, LDAP, SMB, RPC, GC)", "tool": "nmap", "args": {"flags": "-sS -sV -T4 -p 53,88,135,139,389,445,464,636,3268,3269,3389"}},
+                {"description": "SMB protocol version and dialect negotiation analysis", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-protocols"}},
+                {"description": "LDAP anonymous bind and root DSE information disclosure check", "tool": "nmap", "args": {"flags": "-sV -p 389 --script ldap-rootdse"}},
+                {"description": "Kerberos user enumeration attempt", "tool": "nmap", "args": {"flags": "-sV -p 88 --script krb5-enum-users"}},
             ],
             "linux_privesc": [
-                {
-                    "description": "Kernel and OS version identification for known exploit matching",
-                    "tool": "uname",
-                    "args": {"flags": "-a"},
-                },
-                {
-                    "description": "SUID and SGID binary discovery for privilege escalation vectors",
-                    "tool": "find",
-                    "args": {"flags": "/ -perm -4000 -type f 2>/dev/null"},
-                },
-                {
-                    "description": "World-writable directory search for dropper placements",
-                    "tool": "find",
-                    "args": {"flags": "/ -writable -type d 2>/dev/null"},
-                },
-                {
-                    "description": "Scheduled task and cron job inspection for persistence",
-                    "tool": "cat",
-                    "args": {"flags": self._cron_path},
-                },
+                {"description": "Kernel and OS version identification for known exploit matching", "tool": "uname", "args": {"flags": "-a"}},
+                {"description": "SUID and SGID binary discovery for privilege escalation vectors", "tool": "find", "args": {"flags": "/ -perm -4000 -type f 2>/dev/null"}},
+                {"description": "World-writable directory search for dropper placements", "tool": "find", "args": {"flags": "/ -writable -type d 2>/dev/null"}},
+                {"description": "Scheduled task and cron job inspection for persistence", "tool": "cat", "args": {"flags": self._cron_path}},
+            ],
+            "vuln_scan": [
+                {"description": "Template-based vulnerability scan (all severities)", "tool": "nuclei", "args": {"severity": "low,medium,high,critical"}},
+                {"description": "Web server vulnerability scan", "tool": "nikto", "args": {}},
+                {"description": "WordPress vulnerability scan", "tool": "wpscan", "args": {}},
+                {"description": "SQL injection scan", "tool": "sqlmap", "args": {"flags": "--batch --random-agent"}},
+            ],
+            "dns_recon": [
+                {"description": "DNS record enumeration (A, AAAA, MX, TXT, NS, CNAME, SOA)", "tool": "dig", "args": {}},
+                {"description": "Passive subdomain discovery", "tool": "subfinder", "args": {}},
+                {"description": "Brute-force subdomain discovery via wordlist", "tool": "amass", "args": {}},
+                {"description": "WHOIS registration and domain ownership lookup", "tool": "whois", "args": {}},
+            ],
+            "full_audit": [
+                {"description": "Full port scan with service and OS detection", "tool": "nmap", "args": {"flags": "-sV -sC -T4"}},
+                {"description": "HTTP security headers and response analysis", "tool": "curl", "args": {"flags": "-sI"}},
+                {"description": "Web technology fingerprinting", "tool": "whatweb", "args": {}},
+                {"description": "Template-based vulnerability scan", "tool": "nuclei", "args": {"severity": "medium,high,critical"}},
+                {"description": "Directory and file enumeration", "tool": "gobuster", "args": {"mode": "dir"}},
+                {"description": "DNS record enumeration", "tool": "dig", "args": {}},
+                {"description": "Subdomain discovery", "tool": "subfinder", "args": {}},
+                {"description": "WHOIS registration lookup", "tool": "whois", "args": {}},
+            ],
+            "smb_enum": [
+                {"description": "SMB port scan and service detection", "tool": "nmap", "args": {"flags": "-sV -p 445"}},
+                {"description": "SMB protocol version and dialect negotiation", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-protocols"}},
+                {"description": "SMB share enumeration", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-enum-shares"}},
+                {"description": "SMB OS discovery and security check", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-os-discovery,smb-security-mode"}},
             ],
         }
         # Inverted index: keyword → set of tool names
@@ -689,23 +622,27 @@ Respond with ONLY valid JSON:
     def decompose_goal(self, goal: str, available_tools: list[str] | None = None) -> ExecutionPlan:
         goal_lower = goal.lower()
         avail_set = set(available_tools or [])
+
+        # ── Step 1: Match against named workflow templates ──────────────
         kw_map = [
             (("brute", "crack", "password", "credential"), "brute_force"),
             (("wifi", "wireless", "wpa"), "wifi_audit"),
-            (
-                ("ad ", "active directory", "domain controller", "kerberos", "ldap", "smb"),
-                "ad_assessment",
-            ),
+            (("ad ", "active directory", "domain controller", "kerberos", "ldap", "smb"), "ad_assessment"),
             (("cloud", "aws", "s3 ", "azure", "gcp"), "cloud_audit"),
             (("privesc", "privilege escalation", "root", "suid", "linux audit"), "linux_privesc"),
-            (
-                ("network scan", "infrastructure", "port scan", "full scan", "open ports"),
-                "network_scan",
-            ),
+            (("network scan", "infrastructure", "port scan", "full scan", "open ports"), "network_scan"),
+            (("web", "website", "webapp", "web app", "cms"), "web_audit"),
+            (("subdomain", "subdomain", "dns enum", "dnsrecon"), "recon_full"),
+            (("vuln", "cve", "vulnerability", "exploit"), "vuln_scan"),
+            (("dns recon", "dns enum", "dns record", "nameserver", "mx record"), "dns_recon"),
+            (("smb", "netbios", "windows share", "cifs"), "smb_enum"),
+            (("full scan", "full audit", "comprehensive scan", "thorough check"), "full_audit"),
         ]
         for keywords, template_name in kw_map:
             if any(kw in goal_lower for kw in keywords):
                 return self.create_from_template(template_name, goal, available_tools=avail_set)
+
+        # ── Step 2: Extract target ─────────────────────────────────────
         url_match = re.search(r"https?://[^\s]+", goal)
         host_match = re.search(r"\b(?:[\w-]+\.)+[a-z]{2,}\b", goal_lower)
         target = ""
@@ -714,7 +651,7 @@ Respond with ONLY valid JSON:
         elif host_match:
             target = host_match.group(0)
 
-        # Availability-weighted index search
+        # ── Step 3: Availability-weighted index search ──────────────────
         tool_match = None
         if available_tools:
             if self._keyword_index:
@@ -747,23 +684,55 @@ Respond with ONLY valid JSON:
                     }
                 ],
             )
+
+        # ── Step 4: Intent-based tool selection (registry mode) ─────────
         if target:
-            # Intent-based tool selection: map user keywords to specific tools
             intent_map = {
+                # Web / HTTP
                 "headers": ("curl", "HTTP headers check", "-sIL"),
                 "http": ("curl", "HTTP headers check", "-sIL"),
                 "redirect": ("curl", "HTTP headers check", "-sIL"),
                 "tech": ("whatweb", "Technology fingerprinting", ""),
                 "framework": ("whatweb", "Technology fingerprinting", ""),
+                "wp": ("wpscan", "WordPress vulnerability scan", ""),
+                "wordpress": ("wpscan", "WordPress vulnerability scan", ""),
+                "cms": ("whatweb", "CMS fingerprinting", ""),
+                "vuln": ("nuclei", "Vulnerability scan", "-t http"),
+                "cve": ("nuclei", "CVE scan", "-t http/cves"),
+                "fuzz": ("ffuf", "Directory fuzzing", "-w /usr/share/wordlists/dirb/common.txt"),
+                "directories": ("gobuster", "Directory enumeration", "dir -w /usr/share/wordlists/dirb/common.txt"),
+                "dirbust": ("gobuster", "Directory enumeration", "dir -w /usr/share/wordlists/dirb/common.txt"),
+                "endpoint": ("gobuster", "Endpoint enumeration", "dir -w /usr/share/wordlists/dirb/common.txt"),
+                "sqli": ("sqlmap", "SQL injection scan", "--batch --random-agent"),
+                "sql": ("sqlmap", "SQL injection scan", "--batch --random-agent"),
+                "xss": ("nuclei", "XSS scan", "-t http/xss"),
+                # DNS / Network
                 "dns": ("dig", "DNS enumeration", ""),
                 "nameserver": ("dig", "DNS enumeration", ""),
                 "resolve": ("dig", "DNS enumeration", ""),
+                "subdomain": ("subfinder", "Subdomain enumeration", ""),
+                "sub": ("subfinder", "Subdomain enumeration", ""),
+                "whois": ("whois", "WHOIS lookup", ""),
+                # Port / Service
                 "port": ("nmap", "Port scan", "-sT -T4 --top-ports 100"),
                 "open port": ("nmap", "Port scan", "-sT -T4 --top-ports 100"),
                 "service": ("nmap", "Port scan", "-sT -T4 --top-ports 100"),
+                "masscan": ("masscan", "Mass port scan", "--rate 1000 --top-ports 100"),
+                # Recon / Discovery
+                "recon": ("nmap", "Recon scan", "-sT -sV -T4 --top-ports 1000"),
+                "scan": ("nmap", "Quick scan", "-sT -T4 --top-ports 100"),
+                "explore": ("nmap", "Full scan", "-sT -sV -T4 --top-ports 1000"),
+                "stealth": ("nmap", "Stealth scan", "-sS -T2 --top-ports 100"),
+                # Vulnerability / Exploit
+                "ssl": ("nmap", "SSL/TLS check", "--script ssl-enum-ciphers -p 443"),
+                "tls": ("nmap", "SSL/TLS check", "--script ssl-enum-ciphers -p 443"),
+                "smb": ("nmap", "SMB enumeration", "--script smb-enum-shares,smb-os-discovery -p 445"),
+                "brute": ("hydra", "Brute force attack", "-L /usr/share/wordlists/usernames.txt -P /usr/share/wordlists/passwords.txt"),
+                "crack": ("hashcat", "Hash cracking", ""),
             }
-            for keyword, (tool, desc, flags) in intent_map.items():
+            for keyword in sorted(intent_map, key=len, reverse=True):
                 if keyword in goal_lower:
+                    tool, desc, flags = intent_map[keyword]
                     actual_tool = tool
                     if tool not in avail_set and tool in TOOL_ALTERNATIVES:
                         for alt in TOOL_ALTERNATIVES[tool]:
@@ -781,32 +750,38 @@ Respond with ONLY valid JSON:
                             }],
                         )
 
-            # Probe fallback: run all tools when intent is unclear
+            # ── Step 5: Category-aware probe fallback ───────────────────
+            probe_groups = [
+                # Web layer probes
+                [("curl", "HTTP headers check", "-sIL"),
+                 ("whatweb", "Technology fingerprinting", ""),
+                 ("nuclei", "Quick vulnerability scan", "-t http -severity low,medium,high,critical"),
+                 ("gobuster", "Directory enumeration", "dir -w /usr/share/wordlists/dirb/common.txt")],
+                # DNS / network probes
+                [("dig", "DNS enumeration", ""),
+                 ("subfinder", "Subdomain enumeration", ""),
+                 ("whois", "WHOIS lookup", "")],
+                # Port scan
+                [("nmap", "Port scan", "-sT -T4 --top-ports 100"),
+                 ("masscan", "Mass port scan", "--rate 1000 --top-ports 100")],
+            ]
             probe_steps = []
-            for tool, desc, flags in [
-                ("curl", "HTTP headers check", "-sIL"),
-                ("whatweb", "Technology fingerprinting", ""),
-                ("dig", "DNS enumeration", ""),
-                ("nmap", "Port scan", "-sT -T4 --top-ports 100"),
-            ]:
-                actual_tool = tool
-                if tool not in avail_set and tool in TOOL_ALTERNATIVES:
-                    for alt in TOOL_ALTERNATIVES[tool]:
-                        if alt in avail_set:
-                            actual_tool = alt
-                            break
-                if actual_tool in avail_set or not avail_set:
-                    clean_target = (
-                        target.replace("https://", "").replace("http://", "").split("/")[0]
-                    )
-                    probe_steps.append(
-                        {
-                            "description": desc
-                            + (f" (via {actual_tool})" if actual_tool != tool else ""),
+            for group in probe_groups:
+                for tool, desc, flags in group:
+                    actual_tool = tool
+                    if tool not in avail_set and tool in TOOL_ALTERNATIVES:
+                        for alt in TOOL_ALTERNATIVES[tool]:
+                            if alt in avail_set:
+                                actual_tool = alt
+                                break
+                    if actual_tool in avail_set or not avail_set:
+                        clean_target = target.replace("https://", "").replace("http://", "").split("/")[0]
+                        probe_steps.append({
+                            "description": desc + (f" (via {actual_tool})" if actual_tool != tool else ""),
                             "tool": actual_tool,
                             "args": {"target": clean_target, "flags": flags},
-                        }
-                    )
+                        })
+                        break  # one tool per group
             if probe_steps:
                 plan_type = PlanType.DAG if len(probe_steps) > 2 else PlanType.SEQUENTIAL
                 return self.create_plan(goal=goal, steps=probe_steps, plan_type=plan_type)

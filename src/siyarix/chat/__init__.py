@@ -2845,6 +2845,9 @@ class SiyarixChat:
 
         When *compact* is True, return a short reminder instead of the full prompt
         to save context window tokens (first call and every N calls use full).
+
+        Appends any user-configured *additional_system_message* and workspace
+        context files (AGENTS.md, SOUL.md) when present.
         """
         from ..personas import build_persona_prompt, get_persona
 
@@ -2940,17 +2943,38 @@ Each step is a raw shell command running directly on the shell:
 
         if compact:
             if persona_name == "none":
-                return COMPACT_NEUTRAL
-            p = get_persona(persona_name)  # noqa: F811
-            label = p["label"] if p else "default"
-            return f"## Active Persona: {label}\n{COMPACT_PROMPT}"
+                prompt = COMPACT_NEUTRAL
+            else:
+                p = get_persona(persona_name)  # noqa: F811
+                label = p["label"] if p else "default"
+                prompt = f"## Active Persona: {label}\n{COMPACT_PROMPT}"
+        elif persona_name == "none":
+            prompt = NEUTRAL_SYSTEM_PROMPT
+        else:
+            preamble = build_persona_prompt(persona_name)
+            if preamble:
+                prompt = preamble + "\n\n" + SIYARIX_SYSTEM_PROMPT
+            else:
+                prompt = SIYARIX_SYSTEM_PROMPT
 
-        if persona_name == "none":
-            return NEUTRAL_SYSTEM_PROMPT
-        preamble = build_persona_prompt(persona_name)
-        if preamble:
-            return preamble + "\n\n" + SIYARIX_SYSTEM_PROMPT
-        return SIYARIX_SYSTEM_PROMPT
+        # ── User custom instructions ──────────────────────────────────────
+        extra = self._settings.get("additional_system_message", "").strip()
+        if extra:
+            prompt += "\n\n## Custom Instructions\n" + extra
+
+        # ── Workspace context files (AGENTS.md / SOUL.md) ─────────────────
+        for filename in ("AGENTS.md", "SOUL.md"):
+            ctx_file = Path.cwd() / filename
+            if ctx_file.exists():
+                try:
+                    content = ctx_file.read_text(encoding="utf-8").strip()
+                    if content:
+                        label = filename.replace(".md", "")
+                        prompt += f"\n\n## {label}\n{content}"
+                except OSError:
+                    pass
+
+        return prompt
 
     async def _execute_agent(
         self, instruction: str, target: str = "", require_llm: bool = False

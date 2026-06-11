@@ -2568,21 +2568,24 @@ class SiyarixChat:
             plan = await engine.plan(instruction)
 
         if not plan.steps:
-            # Try streaming for direct responses
-            prov_name, api_key = self._resolve_provider()
-            if prov_name and api_key:
-                compact = self._should_use_compact()
-                sys_prompt = self._build_system_prompt(compact=compact)
-                response = await self._stream_assistant_response(
-                    sys_prompt,
-                    instruction,
-                    prov_name,
-                    api_key,
-                    history=self._get_conversation_history(),
-                )
-                self._llm_calls += 1
-            else:
+            # Registry/offline mode: local response only (no LLM)
+            if self._mode in ("registry", "offline"):
                 response = self._generate_text_response(instruction) or ""
+            else:
+                prov_name, api_key = self._resolve_provider()
+                if prov_name and api_key:
+                    compact = self._should_use_compact()
+                    sys_prompt = self._build_system_prompt(compact=compact)
+                    response = await self._stream_assistant_response(
+                        sys_prompt,
+                        instruction,
+                        prov_name,
+                        api_key,
+                        history=self._get_conversation_history(),
+                    )
+                    self._llm_calls += 1
+                else:
+                    response = self._generate_text_response(instruction) or ""
             if response:
                 self._session.add_message("assistant", response or "")
             return

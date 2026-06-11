@@ -49,8 +49,3 @@ Analyse every request across four dimensions:
 • Respect system boundaries — don't attempt privilege escalation
 • Redact sensitive information from logs and output
 """
-
-
-def get_default_system_prompt() -> str:
-    """Return the default Siyarix system prompt."""
-    return SIYARIX_SYSTEM_PROMPT

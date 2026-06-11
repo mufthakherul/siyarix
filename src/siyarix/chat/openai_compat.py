@@ -296,9 +296,12 @@ def make_client(
     if not resolved_base_url or resolved_base_url.strip() == "":
         resolved_base_url = PROVIDER_CONFIG.get(provider, ("", "", ""))[0] or None
 
+    # Local providers may not have an API key; supply a placeholder to satisfy the SDK.
+    resolved_key = api_key or "local"
+
     if resolved_base_url:
-        return AsyncOpenAI(api_key=api_key, base_url=resolved_base_url)
-    return AsyncOpenAI(api_key=api_key)
+        return AsyncOpenAI(api_key=resolved_key, base_url=resolved_base_url)
+    return AsyncOpenAI(api_key=resolved_key)
 
 
 # ── Unified streaming function ─────────────────────────────────────────

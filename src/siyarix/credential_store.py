@@ -108,7 +108,7 @@ class Credential:
 
 
 class CredentialStore:
-    """Enterprise credential vault"""
+    """Enterprise credential store"""
 
     _DEFAULT_CONFIG_DIR = Path.home() / ".siyarix"
 
@@ -116,7 +116,7 @@ class CredentialStore:
         self._config_dir = Path(os.getenv("SIYARIX_CONFIG_DIR", str(self._DEFAULT_CONFIG_DIR)))
         self._config_dir.mkdir(parents=True, exist_ok=True)
         self._creds_file = self._config_dir / "credentials.enc"
-        self._key_file = self._config_dir / ".vault_key"
+        self._key_file = self._config_dir / ".cred_store_key"
         self._credentials: dict[str, Credential] = {}
         self._master_key: bytes | None = None
         self._fernet: Any = None
@@ -132,7 +132,7 @@ class CredentialStore:
         self._load()
 
     def migrate_legacy_config(self, filepath: Path) -> bool:
-        """Migrate legacy JSON config to the new vault format."""
+        """Migrate legacy JSON config to the credential store format."""
         if not filepath.exists():
             return False
 
@@ -172,7 +172,7 @@ class CredentialStore:
             try:
                 import keyring
 
-                stored = keyring.get_password("siyarix", "vault_key")
+                stored = keyring.get_password("siyarix", "cred_store_key")
                 if stored:
                     key_material = base64.urlsafe_b64decode(stored)
             except Exception:
@@ -190,7 +190,7 @@ class CredentialStore:
             try:
                 key = self._normalize_fernet_key(key_material)
             except ValueError:
-                logger.warning("Invalid vault key detected; regenerating a new key")
+                logger.warning("Invalid credential store key detected; regenerating a new key")
                 key = self._generate_fernet_key(password)
         else:
             key = self._generate_fernet_key(password)
@@ -202,10 +202,10 @@ class CredentialStore:
 
                 key_b64 = key.decode() if isinstance(key, bytes) else str(key)
                 # store base64 key material in keyring (best-effort)
-                keyring.set_password("siyarix", "vault_key", key_b64)
+                keyring.set_password("siyarix", "cred_store_key", key_b64)
             except Exception:
                 logger.debug(
-                    "Failed to persist vault key to keyring; key stored locally if permitted"
+                    "Failed to persist credential store key to keyring; key stored locally if permitted"
                 )
 
         self._fernet = Fernet(key)
@@ -249,7 +249,7 @@ class CredentialStore:
                 )
         except Exception as exc:
             # best-effort; log but continue
-            logger.exception("Failed to set permissions on vault key file: %s", exc)
+            logger.exception("Failed to set permissions on credential store key file: %s", exc)
         return base64.urlsafe_b64encode(raw_key)
 
     @staticmethod

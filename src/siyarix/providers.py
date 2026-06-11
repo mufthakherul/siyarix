@@ -1638,21 +1638,21 @@ class ProviderManager:
 
 
 def resolve_api_key(provider: str, env_var: str | None = None) -> str | None:
-    """Resolve a provider API key from vault → environment → legacy credential store.
+    """Resolve a provider API key from credential store → environment.
 
     This is the canonical key-resolution function.  All call sites that need
     a provider's API key should use this instead of ``os.getenv()`` directly.
     """
-    # 1. Encrypted vault (device-bound, persists across sessions)
     key: str | None = None
     try:
-        from .credential_vault import vault_get  # noqa: PLC0415
-        key = vault_get(provider)
+        from .credential_store import CredentialStore  # noqa: PLC0415
+        store = CredentialStore()
+        key = store.retrieve(provider, "api_key")
     except Exception:
         pass
     if key:
         return key
-    # 2. Environment variable
+    # Environment variable
     if not env_var:
         env_var = get_provider_env_var(provider)
     key = os.environ.get(env_var) if env_var else None
@@ -1662,14 +1662,7 @@ def resolve_api_key(provider: str, env_var: str | None = None) -> str | None:
         key = os.environ.get("GOOGLE_API_KEY")
         if key:
             return key
-    # 3. Legacy credential store
-    try:
-        from .credential_store import CredentialStore  # noqa: PLC0415
-        vault = CredentialStore()
-        key = vault.retrieve(provider, "api_key")
-    except Exception:
-        pass
-    return key
+    return None
 
 
 def get_provider_env_var(provider: str) -> str:

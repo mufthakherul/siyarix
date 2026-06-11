@@ -87,8 +87,6 @@ DEFAULTS: dict[str, Any] = {
     "localai_url": "http://localhost:8080",
     "localai_model": "",
     "_start_ollama_on_launch": False,
-    # Vault
-    "vault_initialized": False,
     # Shell & PATH
     "shell_completion_installed": False,
     "path_setup_done": False,

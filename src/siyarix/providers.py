@@ -376,6 +376,21 @@ class ProviderStateManager:
 
 
 class ProviderManager:
+    _instance: ProviderManager | None = None
+    _instance_lock: Any = None
+
+    @classmethod
+    def get_instance(cls) -> ProviderManager:
+        """Return the shared singleton, creating it once on first access."""
+        if cls._instance is None:
+            if cls._instance_lock is None:
+                import threading
+                cls._instance_lock = threading.Lock()
+            with cls._instance_lock:
+                if cls._instance is None:
+                    cls._instance = cls()
+        return cls._instance
+
     def __init__(self) -> None:
         self._profiles: dict[str, ProviderProfile] = {}
         self._credentials: dict[str, list[ProviderCredential]] = {}

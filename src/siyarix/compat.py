@@ -1,33 +1,19 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Backward-compatible wrappers for old module names.
+"""Core engine primitives — ExecutionMode, ExecutionEngine, SessionKernel, IntentRouter.
 
-DEPRECATED: This module exists only for backward compatibility with
-code that imports the legacy API (SessionKernel, IntentRouter,
-ExecutionEngine, etc.). New code should use the direct imports:
-
-  - AgentCore / AgentGoal from siyarix.core
-  - Planner from siyarix.planner
-
-This module will be removed in Siyarix v3.0.0.
+Provides the foundational types used by the CLI and chat subsystems for
+session management, intent routing, and execution engine integration.
 """
 
 from __future__ import annotations
 
 import json
-import warnings
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
-
-warnings.warn(
-    "siyarix.compat is deprecated. Use siyarix.core, siyarix.planner directly. "
-    "This module will be removed in v3.0.0.",
-    DeprecationWarning,
-    stacklevel=2,
-)
 
 
 class ExecutionMode(StrEnum):

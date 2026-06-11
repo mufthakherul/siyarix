@@ -5,7 +5,7 @@ Next-generation agent platform with registry-based execution,
 intelligent tool selection, autonomous workflows, and advanced security tooling.
 """
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 __author__ = "MD MUFTHAKHERUL ISLAM MIRAZ"
 __license__ = "AGPL-3.0-or-later"
 

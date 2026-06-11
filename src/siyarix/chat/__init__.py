@@ -617,6 +617,7 @@ class SiyarixChat:
             "/split": self._cmd_split,
             "/coder": self._cmd_coder,
             "/batch": self._cmd_batch,
+            "/scan": self._cmd_scan,
             "/cloud": self._cmd_cloud,
             "/k8s": self._cmd_k8s,
             "/docker": self._cmd_docker,

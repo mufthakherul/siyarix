@@ -14,6 +14,7 @@ import asyncio
 import atexit as _atexit
 import logging
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -25,6 +26,9 @@ logger = logging.getLogger(__name__)
 
 # Track orphan child processes for cleanup on parent crash
 _ORPHAN_TRACKER: set[int] = set()
+
+# Shell metacharacters to detect injection attempts
+_SHELL_METACHARS = frozenset({";", "|", "&", "`", "$", ">", "<", "\n", "\x00", "\x1b"})
 
 
 @_atexit.register
@@ -81,6 +85,24 @@ async def _kill_process(proc: asyncio.subprocess.Process) -> None:
         proc.kill()
 
 
+def detect_package_manager() -> str:
+    """Detect the available system package manager."""
+    is_win = os.name == "nt"
+    checks: list[tuple[str, str]] = []
+    if is_win:
+        checks += [("winget", "winget"), ("choco", "choco")]
+    else:
+        checks += [("apt-get", "apt"), ("apt", "apt")]
+    checks += [
+        ("brew", "brew"), ("pkg", "pkg"), ("pacman", "pacman"),
+        ("dnf", "dnf"), ("apk", "apk"),
+    ]
+    for binary, name in checks:
+        if shutil.which(binary):
+            return name
+    return "pip"
+
+
 def get_platform_shell_cmd(command: str) -> list[str]:
     """Return a platform-appropriate shell command list for *command*.
 
@@ -103,15 +125,10 @@ def _validate_cmd_list(cmd: list[str]) -> None:
         if not part:
             raise ValueError(f"command part at index {i} is empty")
         cleaned = part.replace(">=", "").replace("<=", "").replace("==", "")
-        for ch in [";", "|", "&", "`", "$", ">", "<"]:
+        for ch in _SHELL_METACHARS:
             if ch in cleaned:
                 raise ValueError(
                     f"command part at index {i} contains suspicious character {ch!r}: {part!r}"
-                )
-        for ch in ["\n", "\r", "\x00", "\x1b"]:
-            if ch in part:
-                raise ValueError(
-                    f"command part at index {i} contains injection character {ch!r}: {part!r}"
                 )
 
 

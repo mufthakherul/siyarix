@@ -2963,6 +2963,24 @@ Each step is a raw shell command running directly on the shell:
                 started = self._ensure_local_provider_running(provider_name)
                 if not started:
                     console.print(f"[yellow]⚠ Could not start {provider_name}[/yellow]")
+            else:
+                # Warn if the configured model isn't available in Ollama
+                if provider_name == "ollama":
+                    import httpx
+                    ollama_url = self._settings.get("ollama_url") or os.getenv("SIYARIX_OLLAMA_URL", "http://localhost:11434")
+                    try:
+                        tags_resp = httpx.get(f"{ollama_url}/api/tags", timeout=5.0)
+                        installed = [m["name"] for m in tags_resp.json().get("models", [])]
+                        configured = self._settings.get("ollama_model") or "llama3.1"
+                        if configured not in installed and ":" not in configured:
+                            configured = f"{configured}:latest"
+                        if configured not in installed:
+                            console.print(f"[yellow]⚠ Model '[bold]{configured}[/bold]' not found in Ollama[/yellow]")
+                            if installed:
+                                console.print(f"[dim]  Available models: {', '.join(installed)}[/dim]")
+                            console.print("[dim]  Set via: /config set ollama_model <modelname>[/dim]")
+                    except Exception:
+                        pass
 
         while (
             api_key or provider_name in ("ollama", "lmstudio", "llamacpp", "vllm", "localai")
@@ -2972,7 +2990,7 @@ Each step is a raw shell command running directly on the shell:
                 llm_call_fn = self._make_llm_call(provider_name, api_key or "")
                 ping = await asyncio.wait_for(
                     llm_call_fn("", "OK"),
-                    timeout=15.0,
+                    timeout=30.0,
                 )
                 if not isinstance(ping, dict):
                     raise RuntimeError(f"LLM returned unexpected type: {type(ping).__name__}")

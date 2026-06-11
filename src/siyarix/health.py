@@ -200,15 +200,18 @@ class HealthChecker:
                     except Exception:
                         logger.debug("%s check failed — not running", provider_name)
                 elif provider_name == "gemini":
-                    available = bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
+                    from .providers import resolve_api_key
+                    available = bool(resolve_api_key("gemini", "GEMINI_API_KEY"))
                     message = "Gemini API key configured" if available else "Gemini not configured"
                 elif provider_name == "azure":
-                    available = bool(os.getenv(env_var or ""))
+                    from .providers import resolve_api_key
+                    available = bool(resolve_api_key("azure", env_var or ""))
                     message = (
                         "Azure OpenAI configured" if available else "Azure OpenAI not configured"
                     )
                 else:
-                    available = bool(os.getenv(env_var or ""))
+                    from .providers import resolve_api_key
+                    available = bool(resolve_api_key(provider_name, env_var or ""))
                     disp = name_map.get(provider_name, provider_name.capitalize())
                     message = f"{disp} configured" if available else f"{disp} not configured"
 

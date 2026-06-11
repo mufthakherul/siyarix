@@ -1471,8 +1471,7 @@ class ProviderManager:
         cred = self.get_credential(provider)
         if cred and cred.api_key:
             return cred.api_key
-        profile = self._profiles.get(provider)
-        return os.getenv(profile.api_key_env, "") if profile and profile.api_key_env else ""
+        return resolve_api_key(provider) or ""
 
     def get_base_url(self, provider: str) -> str:
         cred = self.get_credential(provider)
@@ -1483,7 +1482,7 @@ class ProviderManager:
 
     def auto_detect_provider(self) -> str | None:
         for profile in sorted(self._profiles.values(), key=lambda p: -p.priority):
-            if profile.api_key_env and os.getenv(profile.api_key_env):
+            if resolve_api_key(profile.name, profile.api_key_env):
                 return profile.name
             if profile.provider_type == ProviderType.LOCAL and profile.base_url:
                 return profile.name
@@ -1636,6 +1635,41 @@ class ProviderManager:
             "credentials": {p: len(c) for p, c in self._credentials.items()},
             "error_counts": dict(self._error_counts),
         }
+
+
+def resolve_api_key(provider: str, env_var: str | None = None) -> str | None:
+    """Resolve a provider API key from vault → environment → legacy credential store.
+
+    This is the canonical key-resolution function.  All call sites that need
+    a provider's API key should use this instead of ``os.getenv()`` directly.
+    """
+    # 1. Encrypted vault (device-bound, persists across sessions)
+    key: str | None = None
+    try:
+        from .credential_vault import vault_get  # noqa: PLC0415
+        key = vault_get(provider)
+    except Exception:
+        pass
+    if key:
+        return key
+    # 2. Environment variable
+    if not env_var:
+        env_var = get_provider_env_var(provider)
+    key = os.environ.get(env_var) if env_var else None
+    if key:
+        return key
+    if provider == "gemini":
+        key = os.environ.get("GOOGLE_API_KEY")
+        if key:
+            return key
+    # 3. Legacy credential store
+    try:
+        from .credential_store import CredentialStore  # noqa: PLC0415
+        vault = CredentialStore()
+        key = vault.retrieve(provider, "api_key")
+    except Exception:
+        pass
+    return key
 
 
 def get_provider_env_var(provider: str) -> str:

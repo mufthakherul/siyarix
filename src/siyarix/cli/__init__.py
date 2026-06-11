@@ -177,27 +177,13 @@ session_kernel = SessionKernel()
 
 
 def _resolve_key(provider: str) -> str:
-    """Resolve API key from vault, then CredentialStore, then environment."""
-    env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
-    val = os.environ.get(env_var, "")
-    if val:
-        return val
-    try:
-        from ..credential_vault import vault_get
+    """Resolve API key from vault → env → legacy CredentialStore."""
+    from ..providers import resolve_api_key
 
-        val = vault_get(provider) or ""
-        if val:
-            os.environ[env_var] = val
-            return val
-    except Exception:
-        pass
-    if creds:
-        try:
-            val = creds.retrieve(provider, "api_key") or ""
-            if val:
-                os.environ[env_var] = val
-        except Exception:
-            pass
+    env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
+    val = resolve_api_key(provider, env_var) or ""
+    if val:
+        os.environ[env_var] = val
     return val
 
 

@@ -111,7 +111,7 @@ PROVIDER_CONFIG: dict[str, tuple[str, str, str]] = {
     "llamacpp": ("http://localhost:8080", "", ""),
     "vllm": ("http://localhost:8000", "", ""),
     "localai": ("http://localhost:8080", "", ""),
-    "ollama": ("http://localhost:11434/v1", "", ""),
+    "ollama": ("http://localhost:11434/v1", "llama3.1", ""),
 }
 
 
@@ -138,6 +138,7 @@ MODEL_KEYS: dict[str, str] = {
     "llamacpp": "llamacpp_model",
     "vllm": "vllm_model",
     "localai": "localai_model",
+    "ollama": "ollama_model",
 }
 
 

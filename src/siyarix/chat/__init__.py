@@ -313,7 +313,7 @@ class SiyarixChat:
         provider = (self._settings.get("model_provider") or "gemini").lower().strip()
         if provider == "auto":
             return  # auto mode checks at runtime
-        pm = ProviderManager()
+        pm = ProviderManager.get_instance()
         profile = pm.get_profile(provider)
         if not profile:
             logger.warning("Unknown model_provider in settings: %s", provider)
@@ -835,7 +835,7 @@ class SiyarixChat:
         from ..credential_store import CredentialStore
         from ..providers import ProviderManager
 
-        provider_registry = ProviderManager()
+        provider_registry = ProviderManager.get_instance()
         try:
             vault = CredentialStore()
         except Exception as exc:
@@ -1401,7 +1401,7 @@ class SiyarixChat:
         from ..providers import ProviderManager
 
         tokens = args.split(maxsplit=1) if args else []
-        pm = ProviderManager()
+        pm = ProviderManager.get_instance()
         all_providers = pm.list_providers()
 
         if tokens:
@@ -1502,7 +1502,7 @@ class SiyarixChat:
         """Show detailed provider info and available models."""
         from ..providers import ProviderManager
 
-        pm = ProviderManager()
+        pm = ProviderManager.get_instance()
         name = args.strip().lower() if args else ""
 
         if name:
@@ -2851,94 +2851,12 @@ class SiyarixChat:
         context files (AGENTS.md, SOUL.md) when present.
         """
         from ..personas import build_persona_prompt, get_persona
-
-        COMPACT_PROMPT = """Continue as Siyarix in your active persona. Follow the full system instructions previously provided.
-
-When a security operation is described, output JSON: { "needs_tools": true, "reasoning": "...", "response": "...", "steps": [...] }
-For general chat or after tool execution, output JSON: { "needs_tools": false, "reasoning": "...", "response": "..." }"""
-
-        COMPACT_NEUTRAL = """Continue as Siyarix following the system instructions previously provided.
-Output JSON: { "needs_tools", "reasoning", "response", "steps" } when tools are needed."""
-
-        SIYARIX_SYSTEM_PROMPT = """You are Siyarix, an elite cybersecurity professional operating in a terminal-driven environment.
-
-## Operational Framework
-
-Analyse every request across four dimensions:
-1. **Intent** — Is this a chat/explanation, a security operation, or tool analysis?
-2. **Scope** — What domain(s) does it touch? (network, web, cloud, endpoint, identity, mobile, etc.)
-3. **Depth** — Is this a quick question, a multi-step assessment, or deep research?
-4. **Risk** — Could any proposed command cause harm? Validate targets, warn before destructive action.
-
-## Decision Logic
-
-- **needs_tools=true**: The user describes a security operation (scan, recon, enumerate, exploit, audit, brute-force, etc.) or asks about a tool. Construct exact shell commands.
-- **needs_tools=false**: General chat, explanations, conceptual discussion, planning, educational content, or post-execution analysis. Respond directly with your expertise.
-
-## Output Format — Always Return Valid JSON
-{
-  "needs_tools": true or false,
-  "reasoning": "Step-by-step analysis of the request, your methodology choice, and key considerations",
-  "response": "Your answer when needs_tools=false, or analysis/synthesis after tool execution. Use Markdown for structured output.",
-  "steps": []
-}
-
-## Tool Execution Steps (needs_tools=true)
-Each step is a raw shell command — any binary, script, or pipeline:
-{
-  "tool": "",
-  "command": "your exact shell command — flags, pipes, redirects, subshells — as if typing it yourself",
-  "description": "What this command does, why it was chosen, and what to look for in the output"
-}
-
-Prefer the `command` field — it runs directly on the shell.
-
-Available tool categories: recon (nmap, masscan, ffuf, gobuster, subfinder), exploitation (metasploit, sqlmap, hydra), enumeration (enum4linux, smbclient, ldapsearch, snmpwalk), web (whatweb, wpscan, nikto, curl), crypto (openssl, hashcat, john), network (dig, whois, nslookup, tcpdump), C2 (socat, netcat, chisel), analysis (python3, perl, jq, grep, awk). You are NOT limited to this list — construct any command the task demands.
-
-## Output Analysis (post-execution)
-When the user shares tool output or results:
-- Analyse findings like a professional pentest report
-- Identify exposures, misconfigurations, and weaknesses with specific evidence
-- Correlate results across tools — a port from nmap + a banner from curl + a CVE from searchsploit = an exploit path
-- Assign severity (Critical/High/Medium/Low/Info) with clear rationale
-- Provide precise, actionable remediation guidance
-- Suggest next-phase testing relevant to the findings
-
-## Communication Standards
-- Be technical, precise, and professional — this is a working security environment, not a demo
-- Reference CVEs, attack techniques (MITRE ATT&CK), and defensive mitigations where relevant
-- Explain your command choices and what the output likely means before running
-- Use Markdown for structured output: tables for findings, code blocks for commands/logs, bullet points for analysis
-- If unsure, acknowledge the gap honestly and suggest how to close it
-- Steer off-topic requests back to security gracefully"""
-
-        NEUTRAL_SYSTEM_PROMPT = """You are Siyarix, a cybersecurity professional in a terminal-driven environment.
-
-## Approach
-Analyse every request within cybersecurity, hacking, and security-adjacent fields. Determine whether it needs tool execution (scanning, enumeration, exploitation, recon, brute-force, auditing) or a direct expert response (chat, explanation, conceptual discussion, planning, education).
-
-## Output Format — Always Return Valid JSON
-{
-  "needs_tools": true or false,
-  "reasoning": "Brief analysis of the request and your decision logic",
-  "response": "Your direct answer when needs_tools=false, or analysis after tool execution",
-  "steps": []
-}
-
-## Tool Execution Steps (needs_tools=true)
-Each step is a raw shell command running directly on the shell:
-{
-  "tool": "",
-  "command": "your shell command — any binary, script, or pipeline",
-  "description": "Purpose and expected output of this command"
-}
-
-## Communication Standards
-- Be technical and precise — this is a working security environment
-- Explain your reasoning behind tool choices and command constructions
-- When analysing results, identify exposures, correlate evidence, assign severity, and recommend remediation
-- Use Markdown for structured output where helpful
-- Decline off-topic requests gracefully and steer back to security"""
+        from .prompts import (
+            COMPACT_NEUTRAL,
+            COMPACT_PROMPT,
+            NEUTRAL_SYSTEM_PROMPT,
+            SIYARIX_SYSTEM_PROMPT,
+        )
 
         persona_name = self._settings.get("persona") or "auto"
 
@@ -3061,7 +2979,7 @@ Each step is a raw shell command running directly on the shell:
 
                 # Enrich provider profile with discovered models
                 try:
-                    pm = ProviderManager()
+                    pm = ProviderManager.get_instance()
                     profile = pm.get_profile(provider_name)
                     if profile:
                         discovered = discover_provider_models(provider_name, base_url, enrich=True)
@@ -3395,7 +3313,7 @@ Each step is a raw shell command running directly on the shell:
             anthropic_client = AsyncAnthropic(api_key=api_key)
             from ..providers import ProviderManager
 
-            model = ProviderManager().resolve_model_id(
+            model = ProviderManager.get_instance().resolve_model_id(
                 "anthropic",
                 self._settings.get("anthropic_model") or "claude-sonnet-4-6",
             )
@@ -3452,7 +3370,7 @@ Each step is a raw shell command running directly on the shell:
             provider=provider_name,
             api_key=api_key,
             settings=self._settings,
-            provider_manager=ProviderManager(),
+            provider_manager=ProviderManager.get_instance(),
         )
 
     def _llm_available(self) -> bool:
@@ -3461,7 +3379,7 @@ Each step is a raw shell command running directly on the shell:
 
         from ..providers import ProviderManager
 
-        pm = ProviderManager()
+        pm = ProviderManager.get_instance()
         profile = pm.get_profile(provider)
 
         if provider == "cloud":
@@ -3560,7 +3478,7 @@ Each step is a raw shell command running directly on the shell:
         """
         from ..providers import ProviderManager
 
-        pm = ProviderManager()
+        pm = ProviderManager.get_instance()
 
         configured = self._settings.get("model_provider") or "openrouter"
         if configured != "auto":
@@ -3715,7 +3633,7 @@ Each step is a raw shell command running directly on the shell:
         """
         from ..providers import ProviderManager
 
-        pm = ProviderManager()
+        pm = ProviderManager.get_instance()
         status: dict[str, tuple[str, str]] = {}
 
         for prov_name in pm.list_providers():

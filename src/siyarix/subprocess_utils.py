@@ -18,6 +18,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -233,36 +234,67 @@ async def safe_run_async_stream(
     if _use_thread_fallback():
         loop = asyncio.get_running_loop()
         try:
-            cp = await asyncio.wait_for(
-                loop.run_in_executor(
-                    None, lambda: subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-                ),
-                timeout=timeout + 5,
+            proc = await loop.run_in_executor(
+                None, lambda: subprocess.Popen(
+                    cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                )
             )
-        except asyncio.TimeoutError:
-            logger.debug("safe_run_async_stream (thread) executor timeout for cmd=%s", cmd)
-            return ExecutionResult(exit_code=-1, stderr="Command timed out", duration_ms=(time.monotonic() - start) * 1000)
-        except subprocess.TimeoutExpired:
-            logger.debug("safe_run_async_stream (thread) subprocess timeout for cmd=%s", cmd)
-            return ExecutionResult(exit_code=-1, duration_ms=(time.monotonic() - start) * 1000)
         except FileNotFoundError:
             logger.debug("safe_run_async_stream (thread) binary not found: %s", cmd[0] if cmd else "?")
             return ExecutionResult(
                 exit_code=-1, stderr=f"Binary not found: {cmd[0] if cmd else '?'}",
                 duration_ms=(time.monotonic() - start) * 1000,
             )
-        stdout_text = cp.stdout or ""
-        stderr_text = cp.stderr or ""
-        if on_stdout:
-            for line in stdout_text.splitlines():
-                on_stdout(line)
-        if on_stderr:
-            for line in stderr_text.splitlines():
-                on_stderr(line)
+
+        stdout_lines: list[str] = []
+        stderr_lines: list[str] = []
+
+        def _pipe_reader(
+            pipe, lines: list[str], callback: Callable[[str], None] | None,
+        ) -> None:
+            try:
+                for raw_line in iter(pipe.readline, ""):
+                    line = raw_line.rstrip("\n")
+                    lines.append(line)
+                    if callback:
+                        callback(line)
+            finally:
+                pipe.close()
+
+        readers = []
+        if proc.stdout:
+            t = threading.Thread(
+                target=_pipe_reader, args=(proc.stdout, stdout_lines, on_stdout), daemon=True,
+            )
+            t.start()
+            readers.append(t)
+        if proc.stderr:
+            t = threading.Thread(
+                target=_pipe_reader, args=(proc.stderr, stderr_lines, on_stderr), daemon=True,
+            )
+            t.start()
+            readers.append(t)
+
+        try:
+            exit_code = await asyncio.wait_for(
+                loop.run_in_executor(None, proc.wait),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            logger.debug("safe_run_async_stream (thread) timeout for cmd=%s", cmd)
+            try:
+                proc.kill()
+            except Exception:
+                pass
+            exit_code = -1
+
+        for t in readers:
+            t.join(timeout=2)
+
         return ExecutionResult(
-            exit_code=cp.returncode,
-            stdout=stdout_text,
-            stderr=stderr_text,
+            exit_code=exit_code,
+            stdout="\n".join(stdout_lines),
+            stderr="\n".join(stderr_lines),
             duration_ms=(time.monotonic() - start) * 1000,
         )
     try:

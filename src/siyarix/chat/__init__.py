@@ -2354,8 +2354,10 @@ class SiyarixChat:
             intel_results = feed.search(query)
             if intel_results:
                 for r in intel_results[:10]:
+                    sev = r.get('severity', 'info')
+                    sev_colors = {"critical": "red", "high": "red", "medium": "yellow", "low": "green", "info": "blue"}
                     console.print(
-                        f"  [{r.get('severity', 'info')}] {r.get('indicator', '?')} — {r.get('description', '')[:80]}"
+                        f"  [{sev_colors.get(sev, 'blue')}]{sev.upper()}[/] {r.get('indicator', '?')} — {r.get('description', '')[:80]}"
                     )
             else:
                 console.print("[dim]No threat intelligence matches.[/dim]")
@@ -2571,6 +2573,8 @@ class SiyarixChat:
             # Registry/offline mode: local response only (no LLM)
             if self._mode in ("registry", "offline"):
                 response = self._generate_text_response(instruction) or ""
+                if response:
+                    self._print_assistant(response)
             else:
                 prov_name, api_key = self._resolve_provider()
                 if prov_name and api_key:
@@ -4172,10 +4176,11 @@ Each step is a raw shell command running directly on the shell:
                 if sev not in sev_groups:
                     continue
                 items = sev_groups[sev][:15]
+                sev_color = {"critical": "red", "high": "red", "medium": "yellow", "low": "green", "info": "blue"}.get(sev, "blue")
                 sev_table = Table(
                     title=f"{sev.upper()} Findings ({len(items)})",
-                    header_style=sev.upper(),
-                    border_style=sev.upper(),
+                    header_style=sev_color,
+                    border_style=sev_color,
                     box=None,
                 )
                 sev_table.add_column("Tool", style="cyan")

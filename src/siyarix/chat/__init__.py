@@ -2983,69 +2983,21 @@ Each step is a raw shell command running directly on the shell:
                     except Exception as exc:
                         console.print(f"[dim]Ollama API check failed: {exc}[/dim]")
 
-        while (
-            api_key or provider_name in ("ollama", "lmstudio", "llamacpp", "vllm", "localai")
-        ) and not llm_connected:
-            _model_name = self._settings.get("ollama_model") or "whiterabbitneo/WhiteRabbitNeo-2.5-Qwen-2.5-Coder-7B"
-            console.print(f"[dim]Agent mode — pinging {provider_name} model '{_model_name}' (up to 60s)[/dim]")
-            try:
-                llm_call_fn = self._make_llm_call(provider_name, api_key or "")
-                ping = await asyncio.wait_for(
-                    llm_call_fn("You are a concise assistant.", "Say: OK"),
-                    timeout=60.0,
-                )
-                if not isinstance(ping, dict):
-                    raise RuntimeError(f"LLM returned unexpected type: {type(ping).__name__}")
-                if not ping.get("content", "").strip():
-                    raise RuntimeError("LLM ping returned empty response")
-                llm_connected = True
-                total_input_tokens += ping.get("input_tokens", 0)
-                total_output_tokens += ping.get("output_tokens", 0)
-                from ..providers import CostTier, ProviderManager
-
-                _pm = ProviderManager()
-                _profile = _pm.get_profile(provider_name) if provider_name else None
-                cost_tier = _profile.cost_tier if _profile else CostTier.MEDIUM
-                self._usage_tracker.record_call(
-                    provider_name or "unknown",
-                    ping.get("model", ""),
-                    ping.get("input_tokens", 0),
-                    ping.get("output_tokens", 0),
-                    cost_tier=cost_tier,
-                )
-                self._provider_state.record_success(provider_name or "")
-                break
-            except asyncio.TimeoutError:
-                icon = "⚠"
-                msg = f"{icon} LLM request timed out"
-            except Exception as exc:
-                msg = str(exc)
-                if "429" in msg or "rate_limit" in msg.lower() or "quota" in msg.lower():
-                    icon = "⚠"
-                    msg = f"{icon} LLM rate limit reached"
-                elif "401" in msg or "unauthorized" in msg.lower() or "invalid" in msg.lower():
-                    icon = "⚠"
-                    msg = f"{icon} LLM authentication failed"
-                else:
-                    icon = "⚠"
-                    msg = f"{icon} LLM unavailable ({type(exc).__name__}: {exc})"
-
-            self._provider_state.record_failure(provider_name or "")
-
-            console.print(f"[yellow]{msg}[/yellow]")
-
-            if not is_auto:
-                # Non-auto mode: give up after first failure
-                if require_llm:
+        # Build call function for the provider.
+        # OpenClaw pattern: no separate ping — check reachability via
+        # model listing, then proceed directly to the real chat request.
+        if api_key or provider_name in ("ollama", "lmstudio", "llamacpp", "vllm", "localai"):
+            llm_call_fn = self._make_llm_call(provider_name, api_key or "")
+            if provider_name in ("ollama", "lmstudio", "llamacpp", "vllm", "localai"):
+                if self._check_local_provider_running(provider_name):
+                    llm_connected = True
+                elif require_llm:
+                    console.print(f"[red]✗ {provider_name} not reachable for autonomous mode[/red]")
                     return False
-                llm_call_fn = None
-                break
-
-            # Auto mode: try next provider
-            provider_name, api_key = self._resolve_provider()
-            if not provider_name:
-                console.print("[yellow]⚠ All providers exhausted — using local planner[/yellow]")
-                break
+                else:
+                    console.print(f"[yellow]⚠ {provider_name} not reachable — falling back[/yellow]")
+            else:
+                llm_connected = True
 
         if not llm_connected:
             if require_llm:

@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Callable, Coroutine
 
 from .events import Event, EventType, emit_sync
+from .parsers import ParserRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,7 @@ class ToolCapability:
     installed: bool = False
     source: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
+    parser: str = ""
 
     @property
     def is_available(self) -> bool:
@@ -158,11 +160,16 @@ class ToolRegistry:
     def __init__(self) -> None:
         self._graph = ToolCapabilityGraph()
         self._handlers: dict[str, ToolHandler] = {}
+        self._parser_registry = ParserRegistry()
         self._loaded = False
 
     @property
     def graph(self) -> ToolCapabilityGraph:
         return self._graph
+
+    @property
+    def parser_registry(self) -> ParserRegistry:
+        return self._parser_registry
 
     def register(self, tool: ToolCapability, handler: ToolHandler | None = None) -> None:
         self._graph.add_tool(tool)
@@ -187,12 +194,18 @@ class ToolRegistry:
             result = await handler(**kwargs)
             result.setdefault("status", "success")
             result.setdefault("tool", name)
+            output = result.get("output", "")
+            if output and self._parser_registry.has_parser(name):
+                parsed = self._parser_registry.parse(name, output)
+                if parsed:
+                    result["findings"] = parsed
             return result
         except Exception as e:
             logger.exception("Tool execution failed: %s", name)
             return {"status": "error", "error": str(e), "tool": name}
 
     def discover_from_path(self) -> int:
+        self._parser_registry.discover()
         count = 0
         _handler_map = {
             "nmap": _make_nmap_handler,
@@ -249,6 +262,7 @@ class ToolRegistry:
             binary = shutil.which(name)
             if binary:
                 handler_factory = _handler_map.get(name)
+                has_parser = self._parser_registry.has_parser(name)
                 self.register(
                     ToolCapability(
                         name=name,
@@ -258,6 +272,7 @@ class ToolRegistry:
                         risk_level=_risk_for_tool(name),
                         description=_describe_tool(name),
                         tags=_tags_for_tool(name),
+                        parser=name if has_parser else "",
                     ),
                     handler=handler_factory(name) if handler_factory else None,
                 )
@@ -435,6 +450,11 @@ def _categorize_tool(name: str) -> ToolCategory:
         "aircrack-ng": ToolCategory.NETWORK,
         "burpsuite": ToolCategory.WEB,
         "zaproxy": ToolCategory.WEB,
+        "dig": ToolCategory.RECON,
+        "whois": ToolCategory.RECON,
+        "curl": ToolCategory.UTILITY,
+        "whatweb": ToolCategory.WEB,
+        "wget": ToolCategory.UTILITY,
     }
     return mapping.get(name, ToolCategory.UTILITY)
 
@@ -470,6 +490,11 @@ def _describe_tool(name: str) -> str:
         "john": "Password cracker",
         "burpsuite": "Web application security testing",
         "zaproxy": "Web application security scanner",
+        "dig": "DNS record query and enumeration tool",
+        "whois": "Domain registration and WHOIS lookup",
+        "curl": "HTTP client for headers and response analysis",
+        "whatweb": "Web technology stack fingerprinting",
+        "wget": "HTTP/HTTPS file download and mirroring",
     }
     return descriptions.get(name, name)
 
@@ -495,6 +520,11 @@ def _tags_for_tool(name: str) -> list[str]:
         "john": ["password", "hash", "crack"],
         "burpsuite": ["proxy", "web", "scan"],
         "zaproxy": ["proxy", "web", "scan"],
+        "dig": ["dns", "recon", "enumeration"],
+        "whois": ["osint", "recon", "registration"],
+        "curl": ["http", "client", "headers"],
+        "whatweb": ["web", "fingerprint", "technology"],
+        "wget": ["http", "download", "client"],
     }
     return tag_map.get(name, [name])
 
@@ -621,10 +651,28 @@ def _make_network_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         from .subprocess_utils import safe_run_async
 
-        cmd = [tool_name, "--help"]
-        result = await safe_run_async(cmd, timeout=10)
-        return {"status": "success", "output": result.stdout[:500], "error": result.stderr[:200]}
-
+        target = kwargs.get("target", "")
+        if tool_name in ("bettercap", "ettercap") and target:
+            cmd = [tool_name, "-T", target, "-silent"] if tool_name == "bettercap" else [tool_name, "-T", target, "-M", "arp"]
+        elif tool_name == "aircrack-ng" and "mode" in kwargs:
+            mode = kwargs["mode"]
+            if mode == "capture":
+                cmd = [tool_name, "-c", target] if target else [tool_name, "--help"]
+            elif mode == "crack":
+                pcap = kwargs.get("pcap", "")
+                wordlist = kwargs.get("wordlist", "")
+                cmd = [tool_name, "-w", wordlist, pcap] if pcap and wordlist else [tool_name, "--help"]
+            else:
+                cmd = [tool_name, "--help"]
+        else:
+            cmd = [tool_name, "--help"]
+        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 60))
+        return {
+            "status": "success" if result.exit_code == 0 else "error",
+            "output": result.stdout,
+            "error": result.stderr,
+            "exit_code": result.exit_code,
+        }
     return handler
 
 
@@ -632,10 +680,23 @@ def _make_crypto_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         from .subprocess_utils import safe_run_async
 
-        cmd = [tool_name, "--help"]
-        result = await safe_run_async(cmd, timeout=10)
-        return {"status": "success", "output": result.stdout[:500], "error": result.stderr[:200]}
-
+        target = kwargs.get("target", "")
+        if tool_name == "hashcat" and target:
+            hashfile = kwargs.get("hashfile", target)
+            wordlist = kwargs.get("wordlist", "/usr/share/wordlists/rockyou.txt")
+            mode = kwargs.get("mode", "0")
+            cmd = [tool_name, "-m", mode, "-a", "0", hashfile, wordlist]
+        elif tool_name == "john" and target:
+            cmd = [tool_name, target]
+        else:
+            cmd = [tool_name, "--help"]
+        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 120))
+        return {
+            "status": "success" if result.exit_code == 0 else "error",
+            "output": result.stdout,
+            "error": result.stderr,
+            "exit_code": result.exit_code,
+        }
     return handler
 
 

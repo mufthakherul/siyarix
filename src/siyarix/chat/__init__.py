@@ -3043,10 +3043,12 @@ class SiyarixChat:
 
         if not llm_plan:
             if require_llm:
-                console.print("[red]✗ LLM planning failed — autonomous mode cannot proceed[/red]")
-                return False
-            with console.status("[bold green]Planning...[/bold green]", spinner="dots"):
-                llm_plan = agent._planner.decompose_goal(instruction_with_target, tool_names)
+                # LLM connected but planning format failed (model didn't return
+                # valid JSON).  Stream the response directly instead of aborting.
+                llm_plan = agent._planner.create_plan(goal=instruction_with_target, context={})
+            else:
+                with console.status("[bold green]Planning...[/bold green]", spinner="dots"):
+                    llm_plan = agent._planner.decompose_goal(instruction_with_target, tool_names)
 
         # ── No tools needed ──────────────────────────────────────────────
         if not llm_plan.steps:

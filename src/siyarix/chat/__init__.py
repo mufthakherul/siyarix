@@ -3471,6 +3471,41 @@ class SiyarixChat:
             logger.warning("Failed to auto-start %s: %s", binary, exc)
             return False
 
+    @staticmethod
+    def _resolve_api_key(provider: str, env_var: str) -> str | None:
+        """Resolve an API key from vault → credential store → environment.
+
+        Hierarchy matches the system's credential architecture:
+        1. Encrypted vault (device-bound, persists across sessions)
+        2. Legacy credential store (encrypted, disabled while vault is active)
+        3. Runtime environment variable (session-only)
+        """
+        # 1. Vault
+        key: str | None = None
+        try:
+            from ..credential_vault import vault_get
+            key = vault_get(provider)
+        except Exception:
+            pass
+        if key:
+            return key
+        # 2. Environment
+        key = os.environ.get(env_var) if env_var else None
+        if key:
+            return key
+        if provider == "gemini":
+            key = os.environ.get("GOOGLE_API_KEY")
+            if key:
+                return key
+        # 3. Legacy credential store
+        try:
+            from ..credential_store import CredentialStore
+            vault = CredentialStore()
+            key = vault.retrieve(provider, "api_key")
+        except Exception:
+            pass
+        return key
+
     def _resolve_provider(self) -> tuple[str | None, str | None]:
         """Return ``(provider_name, api_key)`` for the active provider.
 
@@ -3490,9 +3525,7 @@ class SiyarixChat:
         if configured != "auto":
             profile = pm.get_profile(configured)
             env_var = profile.api_key_env if profile else ""
-            key = os.environ.get(env_var) if env_var else ""
-            if not key and configured == "gemini":
-                key = os.environ.get("GOOGLE_API_KEY", "")
+            key = self._resolve_api_key(configured, env_var)
             if not key and profile and not profile.api_key_env:
                 key = "local"
             return (configured, key or None)
@@ -3511,9 +3544,7 @@ class SiyarixChat:
                 candidates.append((profile.cost_tier.sort_key, prov_name, "local"))
                 continue
 
-            key = os.environ.get(profile.api_key_env)
-            if not key and prov_name == "gemini":
-                key = os.environ.get("GOOGLE_API_KEY", "")
+            key = self._resolve_api_key(prov_name, profile.api_key_env)
             if key:
                 candidates.append((profile.cost_tier.sort_key, prov_name, key))
 

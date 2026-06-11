@@ -321,9 +321,7 @@ class SiyarixChat:
         if not profile.api_key_env:
             return  # local provider
 
-        key = os.environ.get(profile.api_key_env)
-        if provider == "gemini" and not key:
-            key = os.environ.get("GOOGLE_API_KEY")
+        key = self._resolve_api_key(provider, profile.api_key_env or "")
         if not key:
             logger.warning(
                 "Provider '%s' configured but %s is not set in environment",
@@ -1430,10 +1428,7 @@ class SiyarixChat:
                 # ── Benchmark: quick validation call ──
                 if selected != "auto" and selected in all_providers:
                     profile = pm.get_profile(selected)
-                    env_var = profile.api_key_env if profile else ""
-                    key = os.environ.get(env_var) if env_var else ""
-                    if selected == "gemini" and not key:
-                        key = os.environ.get("GOOGLE_API_KEY", "")
+                    key = self._resolve_api_key(selected, profile.api_key_env if profile else "")
                     if key or not env_var:
                         with console.status(
                             f"[dim]Validating {selected}...[/dim]", spinner="point"
@@ -1478,8 +1473,7 @@ class SiyarixChat:
             profile = pm.get_profile(prov_name)
             if not profile:
                 continue
-            env_var = profile.api_key_env or ""
-            key = os.environ.get(env_var, "") if env_var else ""
+            key = self._resolve_api_key(prov_name, profile.api_key_env or "")
             model_setting = self._settings.get(f"{prov_name}_model") or profile.default_model or ""
             status = "✓ Configured" if key else ("✗ Not set" if env_var else "Available")
             cost_label = f"[dim]${profile.cost_tier.value}[/dim]" if profile.cost_tier else ""
@@ -1559,8 +1553,7 @@ class SiyarixChat:
             profile = pm.get_profile(prov_name)
             if not profile:
                 continue
-            env_var = profile.api_key_env or ""
-            key = bool(os.getenv(env_var)) if env_var else True
+            key = bool(self._resolve_api_key(prov_name, profile.api_key_env or "")) or not profile.api_key_env
             cap_list = []
             if profile.supports_vision:
                 cap_list.append("👁")
@@ -2594,8 +2587,8 @@ class SiyarixChat:
 
         # Lazy engine build
         engine_config: dict[str, Any] = {
-            "openai_api_key": os.environ.get("OPENAI_API_KEY", ""),
-            "gemini_api_key": os.environ.get("GEMINI_API_KEY", ""),
+            "openai_api_key": self._resolve_api_key("openai", "OPENAI_API_KEY") or "",
+            "gemini_api_key": self._resolve_api_key("gemini", "GEMINI_API_KEY") or "",
             "ollama_url": os.environ.get("SIYARIX_OLLAMA_URL", "http://localhost:11434"),
             "model_provider": self._settings.get("model_provider"),
             "gemini_model": self._settings.get("gemini_model"),
@@ -3393,10 +3386,7 @@ class SiyarixChat:
         if provider in ("ollama", "lmstudio", "llamacpp", "vllm", "localai"):
             return self._check_local_provider_running(provider)
         if profile and profile.api_key_env:
-            key = os.getenv(profile.api_key_env)
-            if provider == "gemini":
-                return bool(key or os.getenv("GOOGLE_API_KEY"))
-            return bool(key)
+            return bool(self._resolve_api_key(provider, profile.api_key_env))
         return False
 
     @staticmethod
@@ -3473,38 +3463,9 @@ class SiyarixChat:
 
     @staticmethod
     def _resolve_api_key(provider: str, env_var: str) -> str | None:
-        """Resolve an API key from vault → credential store → environment.
-
-        Hierarchy matches the system's credential architecture:
-        1. Encrypted vault (device-bound, persists across sessions)
-        2. Legacy credential store (encrypted, disabled while vault is active)
-        3. Runtime environment variable (session-only)
-        """
-        # 1. Vault
-        key: str | None = None
-        try:
-            from ..credential_vault import vault_get
-            key = vault_get(provider)
-        except Exception:
-            pass
-        if key:
-            return key
-        # 2. Environment
-        key = os.environ.get(env_var) if env_var else None
-        if key:
-            return key
-        if provider == "gemini":
-            key = os.environ.get("GOOGLE_API_KEY")
-            if key:
-                return key
-        # 3. Legacy credential store
-        try:
-            from ..credential_store import CredentialStore
-            vault = CredentialStore()
-            key = vault.retrieve(provider, "api_key")
-        except Exception:
-            pass
-        return key
+        """Resolve an API key from vault → credential store → environment."""
+        from ..providers import resolve_api_key
+        return resolve_api_key(provider, env_var)
 
     def _resolve_provider(self) -> tuple[str | None, str | None]:
         """Return ``(provider_name, api_key)`` for the active provider.
@@ -3689,9 +3650,7 @@ class SiyarixChat:
                     pkg_ok = False
 
             # Check key
-            key = os.getenv(profile.api_key_env) if profile.api_key_env else ""
-            if not key and prov_name == "gemini":
-                key = os.getenv("GOOGLE_API_KEY", "")
+            key = self._resolve_api_key(prov_name, profile.api_key_env or "")
 
             if profile.api_key_env and not pkg_ok:
                 status[prov_name] = ("✗", f"pkg missing ({profile.sdk_dependency})")

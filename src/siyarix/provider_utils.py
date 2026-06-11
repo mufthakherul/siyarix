@@ -414,11 +414,13 @@ def _enrich_ollama_models_batch(
                     enriched.append(r)
 
     try:
-        asyncio.run(_run())
-    except RuntimeError:
+        asyncio.get_running_loop()
         logger.debug("Ollama batch enrichment skipped (already in async context)")
-    except Exception as exc:
-        logger.debug("Ollama batch enrichment error: %s", exc)
+    except RuntimeError:
+        try:
+            asyncio.run(_run())
+        except Exception as exc:
+            logger.debug("Ollama batch enrichment error: %s", exc)
 
     return enriched
 

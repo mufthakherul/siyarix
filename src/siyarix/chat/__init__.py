@@ -3475,6 +3475,10 @@ class SiyarixChat:
         When ``model_provider`` is set to a specific name, use that.
         When ``"auto"``, scan known providers sorted by cost (cheapest first),
         skipping any that are disabled or in cooldown (persisted across restarts).
+
+        Local providers (ollama, lmstudio, llamacpp, vllm, localai) that don't
+        need a real API key get the placeholder ``"local"`` so callers can
+        distinguish ``"no key needed"`` from ``"no provider found"``.
         """
         from ..providers import ProviderManager
 
@@ -3487,6 +3491,8 @@ class SiyarixChat:
             key = os.environ.get(env_var) if env_var else ""
             if not key and configured == "gemini":
                 key = os.environ.get("GOOGLE_API_KEY", "")
+            if not key and profile and not profile.api_key_env:
+                key = "local"
             return (configured, key or None)
 
         candidates: list[tuple[int, str, str]] = []
@@ -3500,7 +3506,7 @@ class SiyarixChat:
                 continue
 
             if not profile.api_key_env:
-                candidates.append((profile.cost_tier.sort_key, prov_name, ""))
+                candidates.append((profile.cost_tier.sort_key, prov_name, "local"))
                 continue
 
             key = os.environ.get(profile.api_key_env)
@@ -3747,8 +3753,9 @@ class SiyarixChat:
             if not prov_name or not api_key:
                 console.print("[yellow]⚠ No LLM provider available for streaming[/yellow]")
                 return ""
+            provider_name = prov_name
 
-        llm_fn = self._make_llm_call(provider_name or "", api_key or "")
+        llm_fn = self._make_llm_call(provider_name, api_key)
         gen = await llm_fn(system_prompt, user_prompt, stream=True, history=history)
         full_text = ""
         md = Markdown("")

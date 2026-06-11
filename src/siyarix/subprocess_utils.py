@@ -16,7 +16,6 @@ import logging
 import os
 import signal
 import subprocess
-import shutil
 import sys
 import time
 from collections.abc import Callable

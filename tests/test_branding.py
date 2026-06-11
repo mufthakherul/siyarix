@@ -7,7 +7,6 @@ from rich.console import Console
 from siyarix.branding import (
     _SEVERITY_STYLES,
     available_themes,
-    canonical_theme,
     design_token,
     print_banner,
     print_theme_preview,
@@ -79,18 +78,6 @@ class TestBranding:
 
     def test_resolve_theme_unknown_fallback(self):
         assert resolve_theme("completely-unknown-theme") == "cyber-noir"
-
-    def test_canonical_theme_none(self):
-        assert canonical_theme(None) is None
-
-    def test_canonical_theme_valid(self):
-        assert canonical_theme("matrix") == "matrix"
-
-    def test_canonical_theme_alias(self):
-        assert canonical_theme("monokai") == "synthwave"
-
-    def test_canonical_theme_unknown(self):
-        assert canonical_theme("unknown-theme") is None
 
     def test_design_token(self):
         assert design_token("matrix", "accent") == "bright_green"

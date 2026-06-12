@@ -11,29 +11,36 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+FROM base AS builder
 
-# Install siyarix
 COPY pyproject.toml README.md LICENSE NOTICE ./
 COPY src/ src/
-RUN pip install -e ".[all]"
+RUN pip install --user ".[all]"
 
-# Runtime deps for security tools (optional, for full functionality)
+FROM base AS production
+# Create non-root user
+RUN useradd -m siyarix
+
+# Runtime deps for security tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nmap \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-FROM base AS production
-COPY --from=base /app /app
+COPY --from=builder --chown=siyarix:siyarix /root/.local /home/siyarix/.local
+USER siyarix
+ENV PATH=/home/siyarix/.local/bin:$PATH
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD ["siyarix", "--help"]
+
 ENTRYPOINT ["siyarix"]
 CMD ["--help"]
 
 FROM base AS development
-RUN pip install pytest pytest-asyncio pytest-cov ruff mypy
+COPY pyproject.toml README.md LICENSE NOTICE ./
+COPY src/ src/
+RUN pip install ".[all,dev]"
 COPY tests/ tests/
 COPY .pre-commit-config.yaml ./
 ENTRYPOINT ["bash"]

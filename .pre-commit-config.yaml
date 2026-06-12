@@ -29,6 +29,18 @@ repos:
       - id: check-json
       - id: check-toml
 
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.9
+    hooks:
+      - id: bandit
+        args: ["-c", "pyproject.toml"]
+        additional_dependencies: ["bandit[toml]"]
+
+  - repo: https://github.com/pyupio/safety
+    rev: 3.2.0
+    hooks:
+      - id: safety
+
 default_install_hook_types: [pre-commit, commit-msg]
 default_stages: [pre-commit]
 default_language_version:

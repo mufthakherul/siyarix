@@ -1,9 +1,16 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Siyarix custom exceptions with rich error messages and context."""
+"""Siyarix custom exceptions with rich error messages and context.
+
+Every public exception inherits from :class:`SiyarixException` so that
+callers can use a single ``except SiyarixException`` clause when they
+don't care about the specific failure mode.  Each concrete subclass maps
+to a documented CLI exit code via :func:`exit_code_for`.
+"""
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
@@ -18,7 +25,7 @@ __all__ = [
     "CredentialError",
     "ConfigurationError",
     "NetworkError",
-    "TimeoutError",
+    "SiyarixTimeoutError",
     "CircuitBreakerOpen",
     "MaxRetriesExceeded",
     "ErrorSeverity",
@@ -50,7 +57,18 @@ class ErrorContext:
 
 
 class SiyarixException(Exception):
-    """Base exception for all Siyarix errors."""
+    """Base exception for all Siyarix errors.
+
+    Parameters
+    ----------
+    message:
+        Human-readable description of what went wrong.
+    context:
+        Optional :class:`ErrorContext` carrying severity, component name,
+        and actionable suggestions.
+    cause:
+        Optional upstream exception that triggered this error.
+    """
 
     def __init__(
         self,
@@ -125,8 +143,36 @@ class NetworkError(SiyarixException):
     pass
 
 
-class TimeoutError(SiyarixException):
-    """Operation timed out."""
+class SiyarixTimeoutError(SiyarixException):
+    """Operation timed out.
+
+    .. note::
+        Previously named ``TimeoutError``, which shadowed the Python
+        built-in.  The old name is still importable but emits a
+        :class:`DeprecationWarning`.
+    """
+
+    pass
+
+
+class _DeprecatedTimeoutErrorMeta(type):
+    """Metaclass that emits a deprecation warning on instantiation."""
+
+    def __call__(cls, *args: Any, **kwargs: Any) -> SiyarixTimeoutError:
+        warnings.warn(
+            "siyarix.exceptions.TimeoutError is deprecated and shadows a "
+            "Python built-in. Use SiyarixTimeoutError instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return SiyarixTimeoutError(*args, **kwargs)
+
+
+class TimeoutError(  # noqa: A001  — intentional deprecated alias
+    SiyarixTimeoutError,
+    metaclass=_DeprecatedTimeoutErrorMeta,
+):
+    """**Deprecated** — use :class:`SiyarixTimeoutError` instead."""
 
     pass
 
@@ -155,36 +201,48 @@ class ProviderError(SiyarixException):
     pass
 
 
-# Exit codes as documented in Chapter 3.3:
-# Check most specific types first, then fall back to base SiyarixException.
-_EXIT_CODE_RULES: list[tuple[type[SiyarixException], int]] = [
-    (PermissionDeniedError, 2),
-    (SafetyError, 2),
-    (ToolNotFoundError, 3),
-    (ProviderError, 4),
-    (TimeoutError, 4),
-    (CircuitBreakerOpen, 4),
-    (ExecutionError, 1),
-    (ValidationError, 1),
-    (PlanningError, 1),
-    (ConfigurationError, 1),
-    (NetworkError, 1),
-    (MaxRetriesExceeded, 1),
-    (CredentialError, 1),
-    (SiyarixException, 1),
-]
+# Exit codes as documented in Chapter 3.3.
+# Dict provides O(1) lookup by exact type; the fallback path walks the MRO
+# so subclass specificity is preserved without a linear scan.
+_EXIT_CODE_MAP: dict[type[SiyarixException], int] = {
+    PermissionDeniedError: 2,
+    SafetyError: 2,
+    ToolNotFoundError: 3,
+    ProviderError: 4,
+    SiyarixTimeoutError: 4,
+    CircuitBreakerOpen: 4,
+    ExecutionError: 1,
+    ValidationError: 1,
+    PlanningError: 1,
+    ConfigurationError: 1,
+    NetworkError: 1,
+    MaxRetriesExceeded: 1,
+    CredentialError: 1,
+    SiyarixException: 1,
+}
 
 
 def exit_code_for(exc: SiyarixException) -> int:
-    """Return the documented exit code (Chapter 3.3) for a SiyarixException.
+    """Return the documented exit code (Chapter 3.3) for *exc*.
 
-    0 = Success
-    1 = Execution error
-    2 = Permission denied
-    3 = Tool not found
-    4 = LLM error / timeout
+    Exit codes
+    ----------
+    0 — Success (never returned here; the caller handles success).
+    1 — Execution / validation / config error.
+    2 — Permission denied / safety block.
+    3 — Tool not found.
+    4 — LLM provider error or timeout.
+
+    Complexity is O(1) for exact-type hits and O(depth-of-MRO) for
+    subclasses that are not explicitly listed.
     """
-    for exc_type, code in _EXIT_CODE_RULES:
-        if isinstance(exc, exc_type):
+    # Fast path: exact type match.
+    code = _EXIT_CODE_MAP.get(type(exc))
+    if code is not None:
+        return code
+    # Slow path: walk the MRO to find the nearest registered ancestor.
+    for ancestor in type(exc).__mro__:
+        code = _EXIT_CODE_MAP.get(ancestor)
+        if code is not None:
             return code
     return 1

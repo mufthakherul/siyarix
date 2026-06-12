@@ -30,14 +30,13 @@ _ENV_TO_CONFIG: dict[str, str] = {
     "SIYARIX_SAFE_MODE": "_safe_mode",
 }
 
-_CONFIG_DIR = Path(
-    os.getenv("SIYARIX_CONFIG_DIR", os.getenv("SIYARIX_HOME", str(Path.home() / ".siyarix")))
-)
-_SETTINGS_FILE = _CONFIG_DIR / "settings.toml"
-
 def get_config_dir() -> Path:
     """Return the canonical config directory (~/.siyarix or $SIYARIX_CONFIG_DIR)."""
-    return _CONFIG_DIR
+    return Path(os.getenv("SIYARIX_CONFIG_DIR", os.getenv("SIYARIX_HOME", str(Path.home() / ".siyarix"))))
+
+def get_settings_file() -> Path:
+    """Return the canonical settings.toml file path."""
+    return get_config_dir() / "settings.toml"
 
 # ---------------------------------------------------------------------------
 # Defaults
@@ -86,7 +85,7 @@ DEFAULTS: dict[str, Any] = {
     "vllm_model": "",
     "localai_url": "http://localhost:8080",
     "localai_model": "",
-    "_start_ollama_on_launch": False,
+    "start_ollama_on_launch": False,
     # Shell & PATH
     "shell_completion_installed": False,
     "path_setup_done": False,
@@ -154,39 +153,45 @@ def _try_load_toml(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
     try:
+        import tomllib  # Python 3.11+
+        with path.open("rb") as f:
+            return tomllib.load(f)
+    except ImportError:
         try:
-            import tomllib  # Python 3.11+
-
-            return tomllib.loads(path.read_text())
+            import tomli
+            with path.open("rb") as f:
+                return tomli.load(f)
         except ImportError:
+            # Fallback naive parser
+            data = {}
             try:
-                import tomli  # pyright: ignore[reportMissingImports]  # third-party
-
-                return tomli.loads(path.read_text())
-            except ImportError:
-                # Fallback: very simple TOML parser for key = value lines
-                result: dict[str, Any] = {}
-                for line in path.read_text().splitlines():
-                    line = line.strip()
-                    if not line or line.startswith("#"):
+                for line in path.read_text(encoding="utf-8").splitlines():
+                    line = line.split("#", 1)[0].strip()
+                    if not line or "=" not in line:
                         continue
-                    if "=" in line:
-                        k, _, v = line.partition("=")
-                        k = k.strip()
-                        v = v.strip().strip('"').strip("'")
-                        # Convert types
-                        if v.lower() in ("true", "false"):
-                            result[k] = v.lower() == "true"
-                        elif v.isdigit():
-                            result[k] = int(v)
-                        else:
-                            try:
-                                result[k] = float(v)
-                            except ValueError:
-                                result[k] = v
-                return result
-    except Exception:
-        logger.exception("Failed to parse TOML file %s", path)
+                    key, val = line.split("=", 1)
+                    key = key.strip()
+                    val = val.strip()
+                    if val == "true":
+                        data[key] = True
+                    elif val == "false":
+                        data[key] = False
+                    elif val.startswith('"') and val.endswith('"'):
+                        data[key] = val[1:-1]
+                    else:
+                        try:
+                            if "." in val:
+                                data[key] = float(val)
+                            else:
+                                data[key] = int(val)
+                        except ValueError:
+                            data[key] = val
+                return data
+            except Exception as e:
+                logger.exception("Failed to parse TOML file %s: %s", path, e)
+                return {}
+    except Exception as exc:
+        logger.exception("Failed to parse TOML file %s: %s", path, exc)
         return {}
 
 
@@ -215,7 +220,7 @@ class SettingsStore:
     """
 
     def __init__(self, path: Path | None = None) -> None:
-        self._path = path or _SETTINGS_FILE
+        self._path = path or get_settings_file()
         self._data: dict[str, Any] = {**DEFAULTS, **_try_load_toml(self._path)}
         self._apply_env_overrides()
 
@@ -297,25 +302,15 @@ class SettingsStore:
 
         default_editor = "notepad.exe" if _platform.system().lower() == "windows" else "nano"
         editor = os.getenv("EDITOR", default_editor)
-        editor_cmd = shlex.split(editor) if _platform.system().lower() == "windows" else [editor]
+        editor_cmd = [editor] if _platform.system().lower() == "windows" else shlex.split(editor)
         try:
-            safe_run_sync(editor_cmd + [str(self._path)], timeout=0)
+            safe_run_sync(editor_cmd + [str(self._path)], timeout=None)
         except Exception:
             logger.exception(
                 "Opening editor failed with safe_run_sync for editor=%s path=%s",
                 editor,
                 self._path,
             )
-            try:
-                import subprocess
-
-                subprocess.run(  # nosec B603
-                    editor_cmd + [str(self._path)],
-                    capture_output=False,
-                    timeout=30,
-                )
-            except Exception as inner:
-                logger.error("Fallback editor launch failed: %s", inner)
         # Reload after editing
         self._data = {**DEFAULTS, **_try_load_toml(self._path)}
 
@@ -354,7 +349,7 @@ class SettingsStore:
 
         backup_dir = self._path.parent / "backups"
         backup_dir.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         backup_path = backup_dir / f"settings_{ts}.toml"
         try:
             import shutil
@@ -369,7 +364,12 @@ class SettingsStore:
     def _save(self) -> None:
         # Backup previous config (keep last 5)
         if self._path.exists():
-            self.backup()
+            try:
+                old_data = _try_load_toml(self._path)
+                if old_data != self._data:
+                    self.backup()
+            except Exception:
+                self.backup()
         _write_toml(self._path, self._data)
         self._cleanup_old_backups(5)
 
@@ -388,7 +388,7 @@ class SettingsStore:
     @classmethod
     def restore_latest(cls) -> Path | None:
         """Restore from latest backup. Returns restored path or None."""
-        backup_dir = _CONFIG_DIR / "backups"
+        backup_dir = get_config_dir() / "backups"
         if not backup_dir.exists():
             return None
         backups = sorted(backup_dir.glob("settings_*.toml"))
@@ -398,9 +398,16 @@ class SettingsStore:
         try:
             import shutil
 
-            shutil.copy2(latest, _SETTINGS_FILE)
+            settings_file = get_settings_file()
+            shutil.copy2(latest, settings_file)
             logger.info("Config restored from %s", latest)
-            return _SETTINGS_FILE
+            return settings_file
         except OSError as exc:
             logger.warning("Config restore failed: %s", exc)
             return None
+
+__all__ = [
+    "get_config_dir",
+    "get_settings_file",
+    "SettingsStore",
+]

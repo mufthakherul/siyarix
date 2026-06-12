@@ -100,6 +100,11 @@ class HealthChecker:
             cls._instance = cls()
         return cls._instance
 
+    @classmethod
+    def reset(cls) -> None:
+        """Reset the singleton instance."""
+        cls._instance = None
+
     async def check_all(self) -> HealthStatus:
         """Perform comprehensive health check."""
         status = HealthStatus(state=HealthState.HEALTHY)
@@ -145,6 +150,7 @@ class HealthChecker:
         """Check model provider health (parallel)."""
         from .providers import ProviderManager
 
+        self.model_providers_available.clear()
         pm = ProviderManager()
         entries: list[tuple[str, str | None, bool]] = []
         name_map: dict[str, str] = {}

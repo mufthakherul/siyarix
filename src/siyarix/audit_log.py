@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import atexit
 import hashlib
+import importlib.metadata
 import json
 import logging
 import os
@@ -25,7 +26,7 @@ import socket
 import sys
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -116,7 +117,15 @@ class AuditEvent:
 
     def compute_hash(self, prev_hash: str | None = None) -> str:
         """Compute tamper-evident hash"""
-        data = f"{self.timestamp.isoformat()}{self.event_type}{self.user}{self.action}{prev_hash or ''}"
+        try:
+            details_str = json.dumps(self.details, sort_keys=True)
+        except Exception:
+            details_str = str(self.details)
+        data = (
+            f"{self.timestamp.isoformat()}{self.event_type}{self.severity}"
+            f"{self.user}{self.session_id}{self.source_ip}{self.target}"
+            f"{self.action}{self.result}{details_str}{prev_hash or ''}"
+        )
         return hashlib.sha256(data.encode()).hexdigest()[:16]
 
     def to_dict(self) -> dict[str, Any]:
@@ -171,16 +180,22 @@ class AuditSession:
 class AuditLogger:
     """Enterprise audit logging system"""
 
-    _RETENTION_DAYS = 365
-
     def __init__(self, log_startup: bool = True) -> None:
         from .config import get_config_dir
         self._config_dir = get_config_dir()
         self._audit_log = self._config_dir / "audit.log"
-        self._audit_db = self._config_dir / "audit.json"
+        self._audit_db = self._config_dir / "audit.jsonl"
+        self._legacy_db = self._config_dir / "audit.json"
         self._events: list[AuditEvent] = []
+        self._unflushed_events: list[AuditEvent] = []
         self._sessions: dict[str, AuditSession] = {}
         self._dirty = False
+        
+        self._retention_days = 365
+        self._cached_source_ip: str | None = None
+        self._count_by_type: dict[str, int] = {et: 0 for et in AuditEventType}
+        self._count_by_severity: dict[str, int] = {s: 0 for s in AuditSeverity}
+
         self._load_config()
         self._load_events()
         if log_startup:
@@ -194,18 +209,29 @@ class AuditLogger:
         if config_file.exists() and tomllib is not None:
             try:
                 config = tomllib.loads(config_file.read_text())
-                self._RETENTION_DAYS = config.get("retention_days", 365)
+                self._retention_days = config.get("retention_days", 365)
             except (tomllib.TOMLDecodeError, OSError, ValueError) as exc:
                 logger.exception("Failed to load audit config: %s", exc)
 
     def _load_events(self) -> None:
         """Load existing events from disk (last 1000 only to limit memory)"""
-        if not self._audit_db.exists():
-            return
-        try:
-            data = json.loads(self._audit_db.read_text())
-            # Load only the most recent 1000 events to limit memory usage
-            for evt_data in data[-1000:]:
+        if self._audit_db.exists():
+            try:
+                # JSONL format
+                lines = self._audit_db.read_text().splitlines()
+                self._parse_events_from_dicts([json.loads(line) for line in lines[-1000:] if line.strip()])
+            except Exception as exc:
+                logger.exception("Failed to load audit jsonl: %s", exc)
+        elif self._legacy_db.exists():
+            try:
+                data = json.loads(self._legacy_db.read_text())
+                self._parse_events_from_dicts(data[-1000:])
+            except Exception as exc:
+                logger.exception("Failed to load legacy audit json: %s", exc)
+
+    def _parse_events_from_dicts(self, data: list[dict]) -> None:
+        for evt_data in data:
+            try:
                 evt = AuditEvent(
                     event_id=evt_data["event_id"],
                     timestamp=datetime.fromisoformat(evt_data["timestamp"]),
@@ -217,22 +243,37 @@ class AuditLogger:
                     target=evt_data["target"],
                     action=evt_data["action"],
                     result=evt_data["result"],
-                    details=evt_data["details"],
+                    details=evt_data.get("details", {}),
                     hash_prev=evt_data.get("hash_prev"),
                     hash_current=evt_data.get("hash_current"),
                 )
                 self._events.append(evt)
-        except Exception as exc:
-            logger.exception("Failed to load audit events: %s", exc)
+                self._count_by_type[evt.event_type] = self._count_by_type.get(evt.event_type, 0) + 1
+                self._count_by_severity[evt.severity] = self._count_by_severity.get(evt.severity, 0) + 1
+            except Exception as exc:
+                logger.warning("Failed to parse event: %s", exc)
 
     def _save_events(self) -> None:
         """Save events to disk atomically."""
+        if not self._unflushed_events:
+            return
+            
+        try:
+            from siyarix.opsec import opsec_manager
+            if opsec_manager.status.memory_only:
+                self._unflushed_events.clear()
+                self._dirty = False
+                return
+        except ImportError:
+            pass
+            
         try:
             self._config_dir.mkdir(parents=True, exist_ok=True)
-            data = [e.to_dict() for e in self._events]
-            tmp = self._audit_db.with_suffix(".tmp")
-            tmp.write_text(json.dumps(data, indent=2))
-            tmp.replace(self._audit_db)
+            # Append-only JSONL writing to prevent data loss
+            lines = [json.dumps(e.to_dict()) + "\n" for e in self._unflushed_events]
+            with self._audit_db.open("a", encoding="utf-8") as f:
+                f.writelines(lines)
+            self._unflushed_events.clear()
             self._dirty = False
         except Exception as exc:
             logger.error("Failed to save audit events: %s", exc)
@@ -243,30 +284,37 @@ class AuditLogger:
 
     def _startup_event(self) -> None:
         """Log system startup — uses the correct SYSTEM_START type."""
+        try:
+            version = importlib.metadata.version("siyarix")
+        except Exception:
+            version = "unknown"
+            
         self.log(
             event_type=AuditEventType.SYSTEM_START,
             severity=AuditSeverity.INFO,
             user="system",
             action="cli_startup",
             result="success",
-            details={"version": "1.2.0", "platform": sys.platform},
+            details={"version": version, "platform": sys.platform},
         )
 
     def _get_source_ip(self) -> str:
         """Get source IP"""
-        try:
-            return socket.gethostbyname(socket.gethostname())
-        except Exception as exc:
-            logger.debug("Failed to resolve host IP: %s", exc)
-            return "127.0.0.1"
+        if self._cached_source_ip is None:
+            try:
+                self._cached_source_ip = socket.gethostbyname(socket.gethostname())
+            except Exception as exc:
+                logger.debug("Failed to resolve host IP: %s", exc)
+                self._cached_source_ip = "127.0.0.1"
+        return self._cached_source_ip
 
     def start_session(self, user: str) -> str:
         """Start audit session"""
-        session_id = str(uuid.uuid4())[:12]
+        session_id = uuid.uuid4().hex
         session = AuditSession(
             session_id=session_id,
             user=user,
-            start_time=datetime.now(),
+            start_time=datetime.now(timezone.utc),
             source_ip=self._get_source_ip(),
         )
         self._sessions[session_id] = session
@@ -276,7 +324,7 @@ class AuditLogger:
         """End audit session"""
         if session_id in self._sessions:
             sess = self._sessions[session_id]
-            sess.end_time = datetime.now()
+            sess.end_time = datetime.now(timezone.utc)
             self.log(
                 event_type=AuditEventType.AUTH_LOGOUT,
                 severity=AuditSeverity.INFO,
@@ -284,7 +332,7 @@ class AuditLogger:
                 session_id=session_id,
                 action="session_end",
                 result="success",
-                details={"duration": str(datetime.now() - sess.start_time)},
+                details={"duration": str(datetime.now(timezone.utc) - sess.start_time)},
             )
 
     def log(
@@ -302,8 +350,8 @@ class AuditLogger:
         prev_hash = self._events[-1].hash_current if self._events else None
 
         event = AuditEvent(
-            event_id=str(uuid.uuid4())[:12],
-            timestamp=datetime.now(),
+            event_id=uuid.uuid4().hex,
+            timestamp=datetime.now(timezone.utc),
             event_type=event_type,
             severity=severity,
             user=user,
@@ -319,7 +367,11 @@ class AuditLogger:
         event.hash_current = event.compute_hash(prev_hash)
 
         self._events.append(event)
+        self._unflushed_events.append(event)
         self._dirty = True
+        
+        self._count_by_type[event.event_type] = self._count_by_type.get(event.event_type, 0) + 1
+        self._count_by_severity[event.severity] = self._count_by_severity.get(event.severity, 0) + 1
 
         # Update session
         if session_id and session_id in self._sessions:
@@ -336,12 +388,8 @@ class AuditLogger:
 
         # SIEM dispatch deferred to v2.0
 
-        # Persist every 10 events or on critical/high severity
-        if len(self._events) % 10 == 0 or severity in (
-            AuditSeverity.CRITICAL,
-            AuditSeverity.HIGH,
-        ):
-            self._save_events()
+        # Persist immediately to prevent data loss on crash
+        self._save_events()
 
         return event
 
@@ -386,17 +434,17 @@ class AuditLogger:
 
     def export(
         self,
-        format: str = "json",
+        export_format: str = "json",
         filepath: str | None = None,
         days: int = 30,
     ) -> str | None:
         """Export audit logs"""
-        cutoff = datetime.now() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         events = [e for e in self._events if e.timestamp >= cutoff]
 
-        if format == "json":
+        if export_format == "json":
             data = json.dumps([e.to_dict() for e in events], indent=2)
-        elif format == "csv":
+        elif export_format == "csv":
             import csv
             from io import StringIO
 
@@ -429,14 +477,10 @@ class AuditLogger:
         return {
             "total_events": len(self._events),
             "total_sessions": len(self._sessions),
-            "by_type": {
-                et: len([e for e in self._events if e.event_type == et]) for et in AuditEventType
-            },
-            "by_severity": {
-                s: len([e for e in self._events if e.severity == s]) for s in AuditSeverity
-            },
+            "by_type": dict(self._count_by_type),
+            "by_severity": dict(self._count_by_severity),
             "active_sessions": len([s for s in self._sessions.values() if not s.end_time]),
-            "retention_days": self._RETENTION_DAYS,
+            "retention_days": self._retention_days,
         }
 
     def stats(self) -> dict[str, Any]:
@@ -444,13 +488,29 @@ class AuditLogger:
 
     def cleanup_old_events(self) -> None:
         """Remove events older than retention period"""
-        cutoff = datetime.now() - timedelta(days=self._RETENTION_DAYS)
-        self._events = [e for e in self._events if e.timestamp >= cutoff]
+        cutoff = datetime.now(timezone.utc) - timedelta(days=self._retention_days)
+        retained_events = []
+        for e in self._events:
+            if e.timestamp >= cutoff:
+                retained_events.append(e)
+            else:
+                self._count_by_type[e.event_type] = max(0, self._count_by_type.get(e.event_type, 0) - 1)
+                self._count_by_severity[e.severity] = max(0, self._count_by_severity.get(e.severity, 0) - 1)
+        self._events = retained_events
         self._save_events()
 
 
-# Single global audit logger — created here, NOT re-exported from other modules
-audit = AuditLogger()
+# Module-level instance initialized lazily via __getattr__ to avoid import side effects
+_audit_instance: AuditLogger | None = None
+
+
+def __getattr__(name: str) -> Any:
+    if name == "audit":
+        global _audit_instance
+        if _audit_instance is None:
+            _audit_instance = AuditLogger()
+        return _audit_instance
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def log_event(
@@ -464,4 +524,14 @@ def log_event(
     details: dict | None = None,
 ) -> AuditEvent:
     """Convenience function to log event"""
-    return audit.log(event_type, severity, user, action, result, target, session_id, details)
+    # use lazy 'audit' resolution
+    return __getattr__("audit").log(event_type, severity, user, action, result, target, session_id, details)
+
+__all__ = [
+    "AuditEventType",
+    "AuditSeverity",
+    "AuditEvent",
+    "AuditSession",
+    "AuditLogger",
+    "log_event",
+]

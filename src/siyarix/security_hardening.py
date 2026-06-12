@@ -5,12 +5,18 @@
 Provides three production-grade security primitives:
 
   • **InputValidator** — sanitises IP/hostname/URL targets, detects injection
-  • **SecretRedactor** — strips API keys, passwords, tokens from logs/output
-  • **DangerAnalyzer** — classifies commands by destructiveness before execution
+    patterns including shell metacharacters, path traversal, and SQL keywords.
+  • **SecretRedactor** — strips API keys, passwords, tokens, JWTs, and cloud
+    provider credentials from logs and command output before display.
+  • **DangerAnalyzer** — classifies commands by destructiveness (critical /
+    high / medium / low / info / safe) before execution, supporting both
+    Linux and Windows-specific destructive patterns.
 
 Module-level singletons are exported for easy import::
 
     from siyarix.security_hardening import validator, redactor, danger_analyzer
+
+All three classes are stateless and thread-safe.
 """
 
 from __future__ import annotations
@@ -18,12 +24,21 @@ from __future__ import annotations
 import copy
 import ipaddress
 import logging
+import os
 import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from rich.console import Console
-from rich.panel import Panel
+# L-10: Graceful fallback when rich is not installed.
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+
+    _HAS_RICH = True
+except ImportError:  # pragma: no cover
+    _HAS_RICH = False
+    Console = None  # type: ignore[assignment,misc]
+    Panel = None  # type: ignore[assignment,misc]
 
 __all__ = [
     "InputValidator",
@@ -43,11 +58,11 @@ logger = logging.getLogger(__name__)
 
 # Characters that MUST NOT appear in a target string (shell metacharacters)
 _INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    ("shell_pipe", re.compile(r"[|;&`]")),
+    ("shell_pipe", re.compile(r"[|;\&`]")),
     ("command_substitution", re.compile(r"\$\(")),
-    ("path_traversal", re.compile(r"(\.\./){2,}")),
-    ("path_traversal_backslash", re.compile(r"(\.\.[\\/]){2,}")),
-    ("path_traversal_encoded", re.compile(r"(%2e%2e[/%]){2,}", re.IGNORECASE)),
+    ("path_traversal", re.compile(r"\.\./|\.\.\\")),
+    ("path_traversal_backslash", re.compile(r"\.\.[\\/]")),
+    ("path_traversal_encoded", re.compile(r"%2e%2e[/%]", re.IGNORECASE)),
     ("null_byte", re.compile(r"\x00")),
     ("newline_injection", re.compile(r"[\r\n]")),
     ("format_string", re.compile(r"%[0-9]*[nsxp]", re.IGNORECASE)),
@@ -58,19 +73,31 @@ _INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
             re.IGNORECASE,
         ),
     ),
-    ("redirect", re.compile(r"[><]{1,2}")),
+    ("redirect", re.compile(r"(?:^|(?<=\s))[><]{1,2}(?!\s*/?[a-zA-Z])")),
     ("backtick_exec", re.compile(r"`[^`]+`")),
 ]
 
 _HOSTNAME_RE = re.compile(r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z0-9-]{1,63})*$")
-_URL_RE = re.compile(r"^https?://[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+$")
+_URL_RE = re.compile(
+    r"^https?://[^\s/\$\.\?#]+\.[^\s]+$",
+    re.IGNORECASE,
+)
 
 
 class InputValidator:
-    """Validates and sanitises user inputs before they reach the executor."""
+    """Validate and sanitise user-supplied targets before they reach the executor.
+
+    Supports IPv4/IPv6 addresses, CIDR blocks, DNS hostnames, and HTTP(S)
+    URLs.  All methods are stateless and safe to call from any thread.
+    """
 
     def validate_ip(self, value: str) -> tuple[bool, str]:
-        """Validate an IPv4/IPv6 address or CIDR block."""
+        """Validate an IPv4/IPv6 address or CIDR block.
+
+        Returns:
+            A ``(valid, error_message)`` tuple.  *error_message* is empty
+            when *valid* is ``True``.
+        """
         value = value.strip()
         try:
             ipaddress.ip_network(value, strict=False)
@@ -84,7 +111,11 @@ class InputValidator:
             return False, f"Invalid IP/CIDR: {value!r}"
 
     def validate_hostname(self, value: str) -> tuple[bool, str]:
-        """Validate a DNS hostname."""
+        """Validate a DNS hostname per RFC-952 / RFC-1123.
+
+        Returns:
+            A ``(valid, error_message)`` tuple.
+        """
         value = value.strip()
         if not value or len(value) > 253:
             return False, "Hostname empty or exceeds 253 characters"
@@ -97,7 +128,11 @@ class InputValidator:
             return False, str(exc)
 
     def validate_url(self, value: str) -> tuple[bool, str]:
-        """Validate an HTTP/HTTPS URL."""
+        """Validate an HTTP or HTTPS URL.
+
+        Returns:
+            A ``(valid, error_message)`` tuple.
+        """
         from .validators import validate_url as _validate_url
 
         value = value.strip()
@@ -108,7 +143,14 @@ class InputValidator:
             return False, str(exc)
 
     def validate_target(self, value: str) -> tuple[bool, str]:
-        """Auto-detect and validate a target (IP, hostname, or URL)."""
+        """Auto-detect and validate a target (IP, hostname, or URL).
+
+        Runs injection checks **before** format validation so that
+        hostile inputs are rejected early.
+
+        Returns:
+            A ``(valid, error_message)`` tuple.
+        """
         from .validators import validate_target as _validate_target
 
         value = value.strip()
@@ -130,28 +172,64 @@ class InputValidator:
             return False, str(exc)
 
     def sanitize_arg(self, value: str) -> str:
-        """Strip dangerous characters from a single argument."""
-        # Remove null bytes, backticks, $(), shell operators
+        """Strip dangerous characters from a single argument.
+
+        Removes null bytes, backticks, ``$()``, shell operators,
+        carriage-returns, newlines, and ANSI escape sequences
+        (H-26).  Also collapses ``../`` traversals.
+
+        Returns:
+            The sanitised string, stripped of leading/trailing whitespace.
+        """
+        import urllib.parse
+        value = urllib.parse.unquote(value)
+        # Remove null bytes, carriage-returns, newlines, ANSI escapes (H-26)
         sanitized = value.replace("\x00", "")
+        sanitized = sanitized.replace("\r", "")
+        sanitized = sanitized.replace("\n", "")
+        sanitized = sanitized.replace("\x1b", "")
+        # Remove shell metacharacters
         sanitized = re.sub(r"[`$|;&><]", "", sanitized)
-        sanitized = re.sub(r"\.\./\.\./", "", sanitized)
+        while "../" in sanitized or "..\\" in sanitized:
+            sanitized = sanitized.replace("../", "").replace("..\\", "")
         return sanitized.strip()
 
     def sanitize_args(self, args: list[str]) -> list[str]:
-        """Sanitise a list of arguments."""
+        """Sanitise every argument in *args* individually.
+
+        Returns:
+            A new list with each element sanitised via :meth:`sanitize_arg`.
+        """
         return [self.sanitize_arg(a) for a in args]
 
     def has_injection(self, value: str) -> tuple[bool, str]:
-        """Check a string for injection patterns."""
+        """Check a single string for injection patterns.
+
+        Returns:
+            A ``(detected, pattern_name)`` tuple.  *pattern_name* is the
+            human-readable label of the first matching pattern, or ``""``
+            when nothing suspicious is found.
+        """
         for name, pattern in _INJECTION_PATTERNS:
             if pattern.search(value):
                 return True, name
         return False, ""
 
     def check_args_injection(self, args: list[str]) -> tuple[bool, str]:
-        """Check a list of arguments for injection patterns."""
-        full = " ".join(args)
-        return self.has_injection(full)
+        """Check a list of arguments for injection patterns.
+
+        Each argument is inspected **individually** so that joining them
+        with whitespace cannot create false cross-arg patterns (M-07).
+
+        Returns:
+            A ``(detected, pattern_name)`` tuple for the first offending
+            argument, or ``(False, "")`` if all arguments are clean.
+        """
+        for arg in args:
+            found, name = self.has_injection(arg)
+            if found:
+                return True, name
+        return False, ""
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -161,13 +239,24 @@ class InputValidator:
 _REDACT_PLACEHOLDER = "[REDACTED]"
 
 _REDACT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    # API keys
+    # ── API keys ──────────────────────────────────────────────────────────
     ("openai_key", re.compile(r"sk-[A-Za-z0-9_-]{20,}")),
     ("aws_access_key", re.compile(r"AKIA[0-9A-Z]{16}")),
+    # H-10: preserve the key name, only redact the value after = or :.
     (
         "aws_secret_key",
-        re.compile(r"(?i)aws[_-]?secret[_-]?access[_-]?key\s*[=:]\s*\S+"),
+        re.compile(
+            r"(?i)(aws[_-]?secret[_-]?access[_-]?key\s*[=:]\s*)\S+",
+        ),
     ),
+    # Anthropic API keys (sk-ant-…)
+    ("anthropic_key", re.compile(r"sk-ant-[A-Za-z0-9_-]{20,}")),
+    # DeepSeek API keys
+    ("deepseek_key", re.compile(r"sk-ds[A-Za-z0-9_-]{20,}")),
+    # xAI (Grok) API keys
+    ("xai_key", re.compile(r"xai-[A-Za-z0-9_-]{20,}")),
+    # Mistral API keys
+    ("mistral_key", re.compile(r"(?i)mistral[_-]?api[_-]?key\s*[=:]\s*\S+")),
     ("bearer_token", re.compile(r"(?i)Bearer\s+[A-Za-z0-9_.~+/=-]{20,}")),
     ("basic_auth", re.compile(r"(?i)Basic\s+[A-Za-z0-9+/=]{10,}")),
     ("github_token", re.compile(r"gh[pousr]_[A-Za-z0-9_]{36,}")),
@@ -175,25 +264,41 @@ _REDACT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
         "generic_api_key",
         re.compile(r"(?i)(?:api[_-]?key|apikey)\s*[=:]\s*['\"]?[A-Za-z0-9_.~+/=-]{16,}['\"]?"),
     ),
-    # Passwords in URLs
+    # ── Cloud provider credentials ───────────────────────────────────────
+    # Google Cloud service account key file markers
+    (
+        "gcp_service_account",
+        re.compile(r'"type"\s*:\s*"service_account"'),
+    ),
+    # Azure connection strings
+    (
+        "azure_connection_string",
+        re.compile(
+            r"(?i)(?:DefaultEndpointsProtocol|AccountKey|SharedAccessSignature)"
+            r"=[A-Za-z0-9+/=]+",
+        ),
+    ),
+    # ── Passwords in URLs ────────────────────────────────────────────────
     ("url_password", re.compile(r"://[^:]+:([^@]{3,})@")),
-    # Private key markers
+    # ── Private key markers ──────────────────────────────────────────────
     ("private_key", re.compile(r"-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----")),
-    # Generic secret-like key=value
+    # ── Generic secret-like key=value ────────────────────────────────────
     (
         "secret_kv",
         re.compile(
             r"(?i)(?:password|passwd|pwd|secret|token|auth|credential|private[_-]?key)\s*[=:]\s*\S+",
         ),
     ),
-    # JWT tokens
+    # ── JWT tokens ───────────────────────────────────────────────────────
     (
         "jwt_token",
-        re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+"),
+        re.compile(
+            r"\beyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b",
+        ),
     ),
-    # Slack tokens
+    # ── Slack tokens ─────────────────────────────────────────────────────
     ("slack_token", re.compile(r"xox[bporas]-[0-9A-Za-z-]+")),
-    # Gemini / Google API keys
+    # ── Gemini / Google API keys ─────────────────────────────────────────
     ("google_api_key", re.compile(r"AIza[0-9A-Za-z_-]{35}")),
 ]
 
@@ -219,23 +324,45 @@ _SENSITIVE_KEY_WORDS = frozenset(
 
 
 class SecretRedactor:
-    """Redacts secrets from text output and dictionaries."""
+    """Detect and replace secrets, credentials, and tokens in text and dicts.
+
+    Covers OpenAI, Anthropic, DeepSeek, xAI, Mistral, AWS, GCP, Azure,
+    GitHub, Slack, Google, JWTs, private keys, Bearer/Basic auth, and
+    generic ``key=value`` patterns.  All methods are stateless.
+    """
 
     def redact(self, text: str) -> str:
-        """Return *text* with all detected secrets replaced by [REDACTED]."""
+        """Return *text* with all detected secrets replaced by ``[REDACTED]``.
+
+        For patterns that capture a key-name group (e.g. ``aws_secret_key``),
+        only the **value** portion is redacted while the key name is preserved
+        (H-10).
+        """
         result = text
         for _name, pattern in _REDACT_PATTERNS:
-            result = pattern.sub(_REDACT_PLACEHOLDER, result)
+            if pattern.groups >= 1:
+                # Preserve the captured key-name prefix, redact the rest.
+                result = pattern.sub(rf"\g<1>{_REDACT_PLACEHOLDER}", result)
+            else:
+                result = pattern.sub(_REDACT_PLACEHOLDER, result)
         return result
 
     def redact_dict(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Deep-copy *data* and redact all string values that look secret."""
+        """Deep-copy *data* and redact all string values that look secret.
+
+        Keys whose names match :data:`_SENSITIVE_KEY_WORDS` are
+        unconditionally redacted; all other string values are passed
+        through :meth:`redact` for pattern-based detection.
+        """
         out = copy.deepcopy(data)
         self._walk_dict(out)
         return out
 
     def is_sensitive_key(self, key: str) -> bool:
-        """Return True if *key* looks like it stores a secret."""
+        """Return ``True`` if *key* looks like it stores a secret.
+
+        Matching is case-insensitive and treats hyphens as underscores.
+        """
         lower = key.lower().replace("-", "_")
         return any(w in lower for w in _SENSITIVE_KEY_WORDS)
 
@@ -258,6 +385,24 @@ class SecretRedactor:
                 elif isinstance(item, (dict, list)):
                     self._walk_dict(item)
 
+    def redact_env(self) -> dict[str, str]:
+        """Return a copy of the current environment with sensitive values redacted.
+
+        Iterates over :data:`os.environ` and replaces values whose keys
+        match :meth:`is_sensitive_key` with ``[REDACTED]``.  Non-sensitive
+        values are passed through :meth:`redact` for pattern-based checks.
+
+        Returns:
+            A new ``dict[str, str]`` — the real environment is never mutated.
+        """
+        out: dict[str, str] = {}
+        for key, value in os.environ.items():
+            if self.is_sensitive_key(key):
+                out[key] = _REDACT_PLACEHOLDER
+            else:
+                out[key] = self.redact(value)
+        return out
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # DangerAnalyzer
@@ -266,16 +411,27 @@ class SecretRedactor:
 
 @dataclass
 class DangerReport:
-    """Assessment of how dangerous a command is."""
+    """Assessment of how dangerous a command is.
+
+    Attributes:
+        is_dangerous: ``True`` when at least one pattern matched.
+        severity: The highest severity among all matches — one of
+            ``'critical'``, ``'high'``, ``'medium'``, ``'low'``,
+            ``'info'``, or ``'safe'``.
+        reasons: Human-readable descriptions of every matched pattern.
+        recommendation: Suggested action (block / confirm / caution / info).
+        matched_patterns: Raw regex patterns that fired.
+    """
 
     is_dangerous: bool
-    severity: str  # 'critical' | 'high' | 'medium' | 'low' | 'safe'
+    severity: str  # 'critical' | 'high' | 'medium' | 'low' | 'info' | 'safe'
     reasons: list[str] = field(default_factory=list)
     recommendation: str = ""
     matched_patterns: list[str] = field(default_factory=list)
 
     @property
     def requires_confirmation(self) -> bool:
+        """Return ``True`` when the user should confirm before execution."""
         return self.severity in ("critical", "high", "medium")
 
 
@@ -323,7 +479,9 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "Bash fork bomb",
     ),
     (
-        re.compile(r"\bchmod\s+777\s+/", re.I),
+        # H-09: start-of-line or word-boundary + the command name + args
+        # ensures "chmod" inside tool names like "wichmod" won't match.
+        re.compile(r"(?:^|(?<=\s))chmod\s+777\s+/", re.I | re.M),
         "critical",
         "World-writable root (chmod 777 /)",
     ),
@@ -428,20 +586,38 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "PowerShell WMI shadow copy deletion",
     ),
     # ── LOW ──
-    (re.compile(r"\bchmod\b", re.I), "low", "Permission change (chmod)"),
+    # H-09: use start-of-line-aware pattern so tool names containing
+    # "chmod" (e.g. "gochmod") don't false-positive.
+    (re.compile(r"(?:^|(?<=\s))chmod\b", re.I | re.M), "low", "Permission change (chmod)"),
     (re.compile(r"\bchown\b", re.I), "low", "Ownership change (chown)"),
-    (re.compile(r"\bsudo\b", re.I), "low", "Elevated privileges (sudo)"),
     (re.compile(r"\bcrontab\b", re.I), "low", "Crontab modification"),
 ]
 
-_SEVERITY_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1, "safe": 0}
+_SEVERITY_RANK = {
+    "critical": 5,
+    "high": 4,
+    "medium": 3,
+    "low": 2,
+    "info": 1,
+    "safe": 0,
+}
 
 
 class DangerAnalyzer:
-    """Classifies commands by destructiveness before execution."""
+    """Classify commands by destructiveness before execution.
+
+    Matches against a comprehensive list of Linux and Windows patterns
+    covering file deletion, disk formatting, registry manipulation,
+    reverse shells, cryptominers, and privilege escalation.
+    """
 
     def analyze(self, command: str) -> DangerReport:
-        """Analyze a command string and return a danger report."""
+        """Analyse *command* against all known danger patterns.
+
+        Returns:
+            A :class:`DangerReport` whose *severity* is the highest
+            severity among all matching patterns.
+        """
         if not command or not command.strip():
             return DangerReport(is_dangerous=False, severity="safe")
 
@@ -468,6 +644,8 @@ class DangerAnalyzer:
             recommendation = "⚡ CAUTION — Review this command before execution."
         elif max_severity == "low":
             recommendation = "ℹ️  INFO — Low-risk operation; proceed with awareness."
+        elif max_severity == "info":
+            recommendation = "📝 NOTE — Informational; no action required."
 
         return DangerReport(
             is_dangerous=is_dangerous,
@@ -477,9 +655,20 @@ class DangerAnalyzer:
             matched_patterns=matched,
         )
 
-    def format_warning(self, report: DangerReport, console: Console | None = None) -> None:
-        """Print a formatted danger warning to a Rich console."""
+    def format_warning(self, report: DangerReport, console: Any | None = None) -> None:
+        """Print a formatted danger warning to a Rich console.
+
+        When *rich* is not installed the method silently returns so that
+        callers do not need to guard imports (L-10).
+        """
         if not report.is_dangerous:
+            return
+        if not _HAS_RICH:
+            logger.warning(
+                "DangerAnalyzer.format_warning: rich is not installed; "
+                "cannot render panel.  Severity=%s",
+                report.severity,
+            )
             return
         c = console or Console()
         color_map = {
@@ -487,9 +676,16 @@ class DangerAnalyzer:
             "high": "red",
             "medium": "yellow",
             "low": "cyan",
+            "info": "dim",
         }
         style = color_map.get(report.severity, "white")
-        icon_map = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🔵"}
+        icon_map = {
+            "critical": "🔴",
+            "high": "🟠",
+            "medium": "🟡",
+            "low": "🔵",
+            "info": "ℹ️",
+        }
         icon = icon_map.get(report.severity, "⚪")
 
         lines = [f"[{style}]{icon} DANGER LEVEL: {report.severity.upper()}[/{style}]"]
@@ -504,6 +700,24 @@ class DangerAnalyzer:
                 border_style=style,
             )
         )
+
+    def get_danger_summary(self, command: str) -> str:
+        """Return a one-line human-readable danger summary for *command*.
+
+        Convenience wrapper around :meth:`analyze` that returns a compact
+        string suitable for log messages or CLI output.
+
+        Returns:
+            A string like ``"CRITICAL: sudo rm -r, Recursive force delete"``
+            or ``"safe"`` when no patterns matched.
+        """
+        report = self.analyze(command)
+        if not report.is_dangerous:
+            return "safe"
+        reason_texts = ", ".join(
+            r.split("] ", 1)[1] if "] " in r else r for r in report.reasons
+        )
+        return f"{report.severity.upper()}: {reason_texts}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════

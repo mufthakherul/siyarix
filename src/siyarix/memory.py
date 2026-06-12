@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import logging
 import sqlite3
+import threading
 import time
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -42,7 +44,7 @@ class MemoryEntry:
             return False
         return (time.time() - self.created_at) > self.ttl
 
-    @property
+    @functools.cached_property
     def content_hash(self) -> str:
         return hashlib.sha256(f"{self.key}:{self.value}".encode()).hexdigest()[:16]
 
@@ -52,6 +54,7 @@ class MemoryStore:
         self._db_path = db_path
         self._conn: sqlite3.Connection | None = None
         self._session_memory: dict[str, MemoryEntry] = {}
+        self._lock = threading.Lock()
         if db_path:
             self._init_db()
 
@@ -60,58 +63,67 @@ class MemoryStore:
             return
         try:
             self._db_path.parent.mkdir(parents=True, exist_ok=True)
-            self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
-            self._conn.execute("PRAGMA journal_mode=WAL")
-            self._conn.execute("""
-                CREATE TABLE IF NOT EXISTS memories (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    key TEXT NOT NULL,
-                    value TEXT NOT NULL,
-                    layer TEXT NOT NULL,
-                    tags TEXT DEFAULT '[]',
-                    metadata TEXT DEFAULT '{}',
-                    created_at REAL NOT NULL,
-                    accessed_at REAL NOT NULL,
-                    access_count INTEGER DEFAULT 0,
-                    ttl REAL DEFAULT 0,
-                    content_hash TEXT,
-                    UNIQUE(key, layer)
-                )
-            """)
-            self._conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_layer ON memories(layer)")
-            self._conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_key ON memories(key)")
-            self._conn.commit()
+            with self._lock:
+                self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
+                self._conn.execute("PRAGMA journal_mode=WAL")
+                self._conn.execute("""
+                    CREATE TABLE IF NOT EXISTS memories (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        key TEXT NOT NULL,
+                        value TEXT NOT NULL,
+                        layer TEXT NOT NULL,
+                        tags TEXT DEFAULT '[]',
+                        metadata TEXT DEFAULT '{}',
+                        created_at REAL NOT NULL,
+                        accessed_at REAL NOT NULL,
+                        access_count INTEGER DEFAULT 0,
+                        ttl REAL DEFAULT 0,
+                        content_hash TEXT,
+                        UNIQUE(key, layer)
+                    )
+                """)
+                self._conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_layer ON memories(layer)")
+                self._conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_key ON memories(key)")
+                self._conn.commit()
         except Exception:
             logger.exception("Failed to initialize memory DB")
             self._conn = None
 
     def store(self, entry: MemoryEntry) -> None:
+        try:
+            from siyarix.opsec import opsec_manager
+            if opsec_manager.status.memory_only:
+                entry.layer = MemoryLayer.SESSION
+        except ImportError:
+            pass
+
         if entry.layer == MemoryLayer.SESSION:
             self._session_memory[entry.key] = entry
             return
         if not self._conn:
             return
         try:
-            self._conn.execute(
-                """
-                INSERT OR REPLACE INTO memories
-                (key, value, layer, tags, metadata, created_at, accessed_at, access_count, ttl, content_hash)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    entry.key,
-                    entry.value,
-                    entry.layer.value,
-                    json.dumps(entry.tags),
-                    json.dumps(entry.metadata),
-                    entry.created_at,
-                    entry.accessed_at,
-                    entry.access_count,
-                    entry.ttl,
-                    entry.content_hash,
-                ),
-            )
-            self._conn.commit()
+            with self._lock:
+                self._conn.execute(
+                    """
+                    INSERT OR REPLACE INTO memories
+                    (key, value, layer, tags, metadata, created_at, accessed_at, access_count, ttl, content_hash)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        entry.key,
+                        entry.value,
+                        entry.layer.value,
+                        json.dumps(entry.tags),
+                        json.dumps(entry.metadata),
+                        entry.created_at,
+                        entry.accessed_at,
+                        entry.access_count,
+                        entry.ttl,
+                        entry.content_hash,
+                    ),
+                )
+                self._conn.commit()
         except Exception:
             logger.exception("Failed to store memory: %s", entry.key)
 
@@ -127,31 +139,32 @@ class MemoryStore:
         if not self._conn:
             return None
         try:
-            if layer:
-                cursor = self._conn.execute(
-                    "SELECT * FROM memories WHERE key = ? AND layer = ?", (key, layer.value)
-                )
-            else:
-                cursor = self._conn.execute(
-                    "SELECT * FROM memories WHERE key = ? ORDER BY created_at DESC LIMIT 1", (key,)
-                )
-            row = cursor.fetchone()
-            if not row:
-                return None
-            entry = self._row_to_entry(row)
-            if entry.expired:
+            with self._lock:
+                if layer:
+                    cursor = self._conn.execute(
+                        "SELECT * FROM memories WHERE key = ? AND layer = ?", (key, layer.value)
+                    )
+                else:
+                    cursor = self._conn.execute(
+                        "SELECT * FROM memories WHERE key = ? ORDER BY created_at DESC LIMIT 1", (key,)
+                    )
+                row = cursor.fetchone()
+                if not row:
+                    return None
+                entry = self._row_to_entry(row)
+                if entry.expired:
+                    self._conn.execute(
+                        "DELETE FROM memories WHERE key = ? AND layer = ?", (key, entry.layer.value)
+                    )
+                    self._conn.commit()
+                    return None
+                entry.accessed_at = time.time()
+                entry.access_count += 1
                 self._conn.execute(
-                    "DELETE FROM memories WHERE key = ? AND layer = ?", (key, entry.layer.value)
+                    "UPDATE memories SET accessed_at = ?, access_count = ? WHERE key = ? AND layer = ?",
+                    (entry.accessed_at, entry.access_count, key, entry.layer.value),
                 )
                 self._conn.commit()
-                return None
-            entry.accessed_at = time.time()
-            entry.access_count += 1
-            self._conn.execute(
-                "UPDATE memories SET accessed_at = ?, access_count = ? WHERE key = ? AND layer = ?",
-                (entry.accessed_at, entry.access_count, key, entry.layer.value),
-            )
-            self._conn.commit()
             return entry
         except Exception:
             logger.exception("Failed to retrieve memory: %s", key)
@@ -169,17 +182,19 @@ class MemoryStore:
                 results.append(entry)
         if self._conn:
             try:
-                if layer:
-                    cursor = self._conn.execute(
-                        "SELECT * FROM memories WHERE layer = ? AND (key LIKE ? OR value LIKE ?) ORDER BY accessed_at DESC LIMIT ?",
-                        (layer.value, f"%{query}%", f"%{query}%", limit),
-                    )
-                else:
-                    cursor = self._conn.execute(
-                        "SELECT * FROM memories WHERE key LIKE ? OR value LIKE ? ORDER BY accessed_at DESC LIMIT ?",
-                        (f"%{query}%", f"%{query}%", limit),
-                    )
-                for row in cursor.fetchall():
+                with self._lock:
+                    if layer:
+                        cursor = self._conn.execute(
+                            "SELECT * FROM memories WHERE layer = ? AND (key LIKE ? OR value LIKE ?) ORDER BY accessed_at DESC LIMIT ?",
+                            (layer.value, f"%{query}%", f"%{query}%", limit),
+                        )
+                    else:
+                        cursor = self._conn.execute(
+                            "SELECT * FROM memories WHERE key LIKE ? OR value LIKE ? ORDER BY accessed_at DESC LIMIT ?",
+                            (f"%{query}%", f"%{query}%", limit),
+                        )
+                    rows = cursor.fetchall()
+                for row in rows:
                     entry = self._row_to_entry(row)
                     if not entry.expired and entry.key not in {e.key for e in results}:
                         results.append(entry)
@@ -193,8 +208,9 @@ class MemoryStore:
             return
         if self._conn:
             try:
-                self._conn.execute("DELETE FROM memories WHERE layer = ?", (layer.value,))
-                self._conn.commit()
+                with self._lock:
+                    self._conn.execute("DELETE FROM memories WHERE layer = ?", (layer.value,))
+                    self._conn.commit()
             except Exception:
                 logger.exception("Failed to clear memory layer: %s", layer)
 
@@ -202,8 +218,10 @@ class MemoryStore:
         result: dict[str, Any] = {"session": len(self._session_memory), "persistent": {}}
         if self._conn:
             try:
-                cursor = self._conn.execute("SELECT layer, COUNT(*) FROM memories GROUP BY layer")
-                for row in cursor.fetchall():
+                with self._lock:
+                    cursor = self._conn.execute("SELECT layer, COUNT(*) FROM memories GROUP BY layer")
+                    rows = cursor.fetchall()
+                for row in rows:
                     result["persistent"][row[0]] = row[1]
             except Exception:
                 pass
@@ -224,8 +242,9 @@ class MemoryStore:
 
     def close(self) -> None:
         if self._conn:
-            self._conn.close()
-            self._conn = None
+            with self._lock:
+                self._conn.close()
+                self._conn = None
 
 
 class MemoryManager:
@@ -283,3 +302,10 @@ class MemoryManager:
     def close(self) -> None:
         for store in self._stores.values():
             store.close()
+
+__all__ = [
+    "MemoryLayer",
+    "MemoryEntry",
+    "MemoryStore",
+    "MemoryManager",
+]

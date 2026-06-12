@@ -43,6 +43,11 @@ try:
     from rich import box
 except ImportError:
     Console = None  # type: ignore[assignment,misc]
+    Panel = None  # type: ignore[assignment,misc]
+    Prompt = None  # type: ignore[assignment,misc]
+    Confirm = None  # type: ignore[assignment,misc]
+    Table = None  # type: ignore[assignment,misc]
+    box = None  # type: ignore[assignment,misc]
 
 from siyarix.bootstrap import INITIALIZED_MARKER, BootstrapEngine  # noqa: E402
 from siyarix.config import SettingsStore  # noqa: E402
@@ -51,106 +56,21 @@ from siyarix.providers import ProviderManager  # noqa: E402
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
-_SIYARIX_LOGO = """
-[bold cyan]
-   \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557
-   \u2551                                                  \u2551
-   \u2551     \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2552\u2588\u2588\u2552\u2588\u2588\u2552\u2552\u2588\u2588\u2552 \u2588\u2588\u2552\u2552\u2588\u2588\u2552\u2588\u2588\u2588\u2588\u2588\u2588\u2552\u2588\u2588\u2552\u2588\u2588\u2552  \u2551
-   \u2551     \u2588\u2588\u2552\u2550\u2550\u2550\u2550\u2552\u2588\u2588\u2552\u2552\u2588\u2588\u2552 \u2552\u2588\u2588\u2552\u2552\u2588\u2588\u2552\u2588\u2588\u2552\u2552\u2588\u2588\u2552\u2588\u2588\u2552\u2588\u2588\u2552  \u2551
-   \u2551     \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2552\u2588\u2588\u2552 \u2552\u2588\u2588\u2588\u2588\u2552 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2552\u2588\u2588\u2552\u2588\u2588\u2552  \u2551
-   \u2551     \u2552\u2550\u2550\u2550\u2550\u2588\u2588\u2552\u2588\u2588\u2552  \u2552\u2588\u2588\u2552  \u2588\u2588\u2552\u2552\u2550\u2588\u2588\u2552\u2588\u2588\u2552\u2588\u2588\u2552  \u2551
-   \u2551     \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2552\u2588\u2588\u2552   \u2588\u2588\u2552   \u2588\u2588\u2552  \u2588\u2588\u2552\u2588\u2588\u2552\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2552\u2588\u2588\u2552\u2588\u2588\u2552  \u2551
-   \u2551     \u2552\u2550\u2550\u2550\u2550\u2550\u2550\u2552\u2552\u2550\u2552   \u2552\u2550\u2552   \u2552\u2550\u2552  \u2552\u2550\u2552\u2552\u2550\u2550\u2550\u2550\u2550\u2552\u2552\u2550\u2552\u2552\u2550\u2552  \u2551
-   \u2551                                                  \u2551
-   \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d
-[/bold cyan]
-"""
+from siyarix.templates.wizard_text import (
+    SIYARIX_LOGO as _SIYARIX_LOGO,
+    WELCOME_PANEL_TEXT as _WELCOME_PANEL_TEXT,
+    ETHICS_PLEDGE_TEXT as _ETHICS_PLEDGE_TEXT,
+    EXIT_GREETING_TEXT as _EXIT_GREETING_TEXT,
+    ONLINE_PROVIDERS as _ONLINE_PROVIDERS,
+    OFFLINE_PROVIDERS as _OFFLINE_PROVIDERS,
+    REQUIRED_TOOLS as _REQUIRED_TOOLS,
+    MINIMAL_CYBER_TOOLS as _MINIMAL_CYBER_TOOLS,
+    CYBER_TOOL_HOMEPAGES as _CYBER_TOOL_HOMEPAGES,
+    ARCH_MAP as _ARCH_MAP,
+    PM_CHECKS as _PM_CHECKS,
+    DEFAULT_PREFERENCES as _DEFAULT_PREFERENCES,
+)
 
-_ONLINE_PROVIDERS = [
-    ("openai", "OpenAI", "GPT-5 series, o-series"),
-    ("anthropic", "Anthropic", "Claude Opus/Sonnet/Haiku"),
-    ("gemini", "Google Gemini", "Gemini 2.0/2.5/2.5-Lite/3.0/3.1/3.1-Lite/3.5 series"),
-    ("groq", "Groq", "Llama, Mixtral \u2014 fast inference"),
-    ("together", "Together AI", "Llama, DeepSeek, open models"),
-    ("openrouter", "OpenRouter", "Unified API for 200+ models"),
-    ("deepseek", "DeepSeek", "DeepSeek V4/V3 series"),
-    ("xai", "xAI (Grok)", "Grok 4 series"),
-    ("mistral", "Mistral AI", "Mistral Large/Pixal"),
-    ("perplexity", "Perplexity", "Sonar models"),
-    ("azure", "Azure OpenAI", "GPT via Azure"),
-]
-
-_OFFLINE_PROVIDERS = [
-    ("ollama", "Ollama", "Local LLM runner \u2014 recommended"),
-    ("lmstudio", "LM Studio", "GUI-based local model runner"),
-    ("llamacpp", "llama.cpp", "C++ LLM inference server"),
-    ("vllm", "vLLM", "High-throughput LLM serving"),
-    ("localai", "LocalAI", "OpenAI-compatible local API"),
-]
-
-_REQUIRED_TOOLS = [
-    ("curl", "curl", "HTTP requests & API communication"),
-    ("git", "git", "Version control & tool downloads"),
-]
-
-_MINIMAL_CYBER_TOOLS = [
-    ("nmap", "nmap", "Network discovery & port scanning"),
-    ("curl", "curl", "HTTP requests & API testing"),
-    ("dig", "bind-tools/dnsutils", "DNS resolution & enumeration"),
-    ("openssl", "openssl", "TLS/SSL & cryptography"),
-    ("whois", "whois", "WHOIS domain lookups"),
-    ("nuclei", "nuclei", "Vulnerability scanner"),
-    ("sqlmap", "sqlmap", "SQL injection automation"),
-    ("john", "john", "Password cracking"),
-    ("hydra", "hydra", "Online password attacks"),
-]
-
-_CYBER_TOOL_HOMEPAGES = {
-    "nuclei": "https://github.com/projectdiscovery/nuclei",
-    "sqlmap": "https://sqlmap.org",
-    "john": "https://www.openwall.com/john/",
-    "hydra": "https://github.com/vanhauser-thc/thc-hydra",
-}
-
-_ARCH_MAP: dict[str, str] = {
-    "AMD64": "x86_64 (64-bit)",
-    "x86_64": "x86_64 (64-bit)",
-    "x86": "x86 (32-bit)",
-    "i386": "x86 (32-bit)",
-    "i686": "x86 (32-bit)",
-    "arm64": "ARM64 (AArch64)",
-    "aarch64": "ARM64 (AArch64)",
-    "armv7l": "ARM (32-bit)",
-    "armv6l": "ARM (32-bit)",
-    "ARM64": "ARM64 (AArch64)",
-}
-
-_PM_CHECKS: list[tuple[str, str]] = [
-    ("winget", "winget"),
-    ("choco", "choco"),
-    ("apt-get", "apt"),
-    ("apt", "apt"),
-    ("brew", "brew"),
-    ("pkg", "pkg"),
-    ("pacman", "pacman"),
-    ("dnf", "dnf"),
-    ("yum", "yum"),
-    ("apk", "apk"),
-    ("port", "macports"),
-    ("nix-env", "nix"),
-    ("scoop", "scoop"),
-]
-
-_DEFAULT_PREFERENCES = {
-    "theme": "default",
-    "output_format": "table",
-    "notifications": True,
-    "stealth_mode": False,
-    "command_review": True,
-    "history_days": 90,
-    "log_level": "warning",
-    "auto_update": True,
-}
 
 
 # ── OnboardingWizard ────────────────────────────────────────────────────────
@@ -217,11 +137,7 @@ class OnboardingWizard:
         self._console.print(_SIYARIX_LOGO)
         self._console.print(
             Panel(
-                "[bold yellow]First-Time Setup Wizard[/bold yellow]\n\n"
-                "Welcome to [bold cyan]Siyarix[/bold cyan] \u2014 your open-source\n"
-                "cybersecurity command center.\n\n"
-                "This wizard will help you configure Siyarix for your\n"
-                "environment in just a few steps.",
+                _WELCOME_PANEL_TEXT,
                 border_style="cyan",
                 box=box.ROUNDED,
             )
@@ -229,16 +145,7 @@ class OnboardingWizard:
         self._console.print()
         self._console.print(
             Panel(
-                "[bold red]Ethical Use Pledge[/bold red]\n\n"
-                "Siyarix is a [bold]cybersecurity tool[/bold] designed for:\n"
-                "  \u2022 Authorized penetration testing\n"
-                "  \u2022 Security research on systems you own or have\n"
-                "    explicit permission to test\n"
-                "  \u2022 Educational purposes\n\n"
-                "[italic]Unauthorized use of this tool against systems\n"
-                "without permission is illegal and unethical.[/italic]\n\n"
-                "By continuing, you agree to use Siyarix responsibly\n"
-                "and only on systems you have authorization to test.",
+                _ETHICS_PLEDGE_TEXT,
                 border_style="red",
                 box=box.ROUNDED,
             )
@@ -260,10 +167,7 @@ class OnboardingWizard:
         self._clear_screen()
         self._console.print(
             Panel(
-                "[yellow]Exiting setup.[/yellow]\n\n"
-                "You can run the setup again at any time with:\n"
-                "[bold]  siyarix init[/bold]\n\n"
-                "[italic]Stay curious. Stay ethical.[/italic]",
+                _EXIT_GREETING_TEXT,
                 border_style="yellow",
                 box=box.ROUNDED,
             )
@@ -531,27 +435,28 @@ class OnboardingWizard:
         self._console.print("Checking required Python packages...\n")
 
         core_deps = [
-            ("pydantic", "import pydantic"),
-            ("rich", "import rich"),
-            ("httpx", "import httpx"),
-            ("cryptography", "import cryptography"),
-            ("tomli", "import tomli" if sys.version_info < (3, 11) else "stdlib tomllib"),
-            ("prompt_toolkit", "import prompt_toolkit"),
-            ("pyyaml", "import yaml"),
-            ("jinja2", "import jinja2"),
-            ("packaging", "import packaging"),
-            ("pygments", "import pygments"),
+            ("pydantic", "pydantic"),
+            ("rich", "rich"),
+            ("httpx", "httpx"),
+            ("cryptography", "cryptography"),
+            ("tomli", "tomli" if sys.version_info < (3, 11) else "stdlib tomllib"),
+            ("prompt_toolkit", "prompt_toolkit"),
+            ("pyyaml", "yaml"),
+            ("jinja2", "jinja2"),
+            ("packaging", "packaging"),
+            ("pygments", "pygments"),
         ]
 
         results: list[tuple[str, bool, str]] = []
         missing: list[str] = []
 
+        import importlib
         for pkg, import_str in core_deps:
             try:
                 if "stdlib" in import_str:
                     results.append((pkg, True, "built-in"))
                 else:
-                    exec(import_str)
+                    importlib.import_module(import_str)
                     results.append((pkg, True, "installed"))
             except ImportError:
                 results.append((pkg, False, "missing"))
@@ -1420,9 +1325,11 @@ class OnboardingWizard:
         self._console.print()
         Confirm.ask("[dim]Press Enter to continue[/dim]", default=True)
 
-    @staticmethod
-    def _clear_screen() -> None:
-        os.system("cls" if os.name == "nt" else "clear")
+    def _clear_screen(self) -> None:
+        if hasattr(self, "_console") and self._console:
+            self._console.clear()
+        else:
+            print("\033[2J\033[H", end="", flush=True)
 
     def _store_api_key(self, provider: str, key: str) -> None:
         """Store API key in credential store and environment."""
@@ -1752,7 +1659,7 @@ class OnboardingWizard:
 
     @staticmethod
     def _restart_siyarix() -> None:
-        OnboardingWizard._clear_screen()
+        print("\033[2J\033[H", end="", flush=True)
         if os.name == "nt":
             creationflags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
             subprocess.Popen(

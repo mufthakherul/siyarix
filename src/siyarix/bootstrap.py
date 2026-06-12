@@ -275,7 +275,7 @@ class BootstrapEngine:
         marker.write_text(
             f"# Siyarix initialized\n"
             f"version=1.0.0\n"
-            f"created_at={datetime.now().isoformat()}\n"
+            f"created_at={datetime.now(timezone.utc).isoformat()}\n"
             f"platform={platform.system()}\n"
             f"python={sys.version}\n"
         )
@@ -344,7 +344,7 @@ class BootstrapEngine:
         self.write_marker()
 
         self._result.success = len(self._result.errors) == 0
-        self._result.completed_at = datetime.now().isoformat()
+        self._result.completed_at = datetime.now(timezone.utc).isoformat()
 
         logger.info(
             "Bootstrap complete: %d tools found, %d warnings, %d errors",

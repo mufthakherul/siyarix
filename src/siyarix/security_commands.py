@@ -33,10 +33,10 @@ console = Console()
 
 @security_app.command(name="incidents")
 def list_incidents(
-    status: Optional[str] = typer.Option(
+    status: str | None = typer.Option(
         None, "--status", help="Filter: open|closed|investigating"
     ),
-    severity: Optional[str] = typer.Option(
+    severity: str | None = typer.Option(
         None, "--severity", help="Filter: critical|high|medium|low"
     ),
     limit: int = typer.Option(10, "--limit", help="Number of incidents to show"),
@@ -194,7 +194,7 @@ def create_incident(
         f"[bold]Category:[/bold] {category}\n"
         f"[bold]Severity:[/bold] [{sc}]{severity.upper()}[/{sc}]\n"
         f"[bold]Status:[/bold]   [yellow]open[/yellow]\n"
-        f"[bold]Created:[/bold]  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        f"[bold]Created:[/bold]  {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}"
     )
     console.print(
         Panel.fit(
@@ -212,8 +212,8 @@ def create_incident(
 
 @security_app.command(name="vulnerabilities")
 def list_vulnerabilities(
-    status: Optional[str] = typer.Option(None, "--status", help="Filter by status"),
-    severity: Optional[str] = typer.Option(None, "--severity", help="Filter by severity"),
+    status: str | None = typer.Option(None, "--status", help="Filter by status"),
+    severity: str | None = typer.Option(None, "--severity", help="Filter by severity"),
     limit: int = typer.Option(15, "--limit", help="Number to show"),
     output: str = typer.Option("table", "--output", "-o", help="Output: table|json"),
 ) -> None:
@@ -378,8 +378,8 @@ def run_hunt(
 
 @security_app.command(name="queries")
 def list_queries(
-    tag: Optional[str] = typer.Option(None, "--tag", help="Filter by tag"),
-    mitre_tactic: Optional[str] = typer.Option(
+    tag: str | None = typer.Option(None, "--tag", help="Filter by tag"),
+    mitre_tactic: str | None = typer.Option(
         None, "--mitre-tactic", help="Filter by MITRE tactic"
     ),
 ) -> None:
@@ -571,3 +571,16 @@ def list_playbooks() -> None:
         table.add_row(str(pid), str(name), str(ptype), str(mode))
 
     console.print(table)
+
+__all__ = [
+    "list_incidents",
+    "get_incident",
+    "create_incident",
+    "list_vulnerabilities",
+    "get_remediation_plan",
+    "run_hunt",
+    "list_queries",
+    "mitre_coverage",
+    "show_dashboard",
+    "list_playbooks",
+]

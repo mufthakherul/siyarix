@@ -75,6 +75,13 @@ class CacheManager:
 
     def _save_index(self) -> None:
         try:
+            from siyarix.opsec import opsec_manager
+            if opsec_manager.status.memory_only:
+                return
+        except ImportError:
+            pass
+
+        try:
             entries = {
                 key: {
                     "key": e.key,
@@ -107,6 +114,14 @@ class CacheManager:
 
         entry.hit_count += 1
         self._hit_count += 1
+        
+        try:
+            from siyarix.opsec import opsec_manager
+            if opsec_manager.status.memory_only:
+                return entry.data
+        except ImportError:
+            pass
+            
         try:
             return self._data_path(key).read_text(encoding="utf-8")
         except Exception:
@@ -116,9 +131,16 @@ class CacheManager:
     def set(self, key: str, data: str, domain: str = "tool_output") -> None:
         config = self._domain_config(domain)
         now = time.monotonic()
+        
+        try:
+            from siyarix.opsec import opsec_manager
+            memory_only = opsec_manager.status.memory_only
+        except ImportError:
+            memory_only = False
+
         entry = CacheEntry(
             key=key,
-            data=data[:100],
+            data=data if memory_only else data[:100],
             domain=domain,
             created_at=now,
             ttl=config["ttl"],
@@ -132,11 +154,13 @@ class CacheManager:
             self._evict(oldest)
 
         self._entries[key] = entry
-        try:
-            self._data_path(key).write_text(data, encoding="utf-8")
-        except Exception as exc:
-            logger.debug("Cache write failed for %s: %s", key, exc)
-        self._save_index()
+        
+        if not memory_only:
+            try:
+                self._data_path(key).write_text(data, encoding="utf-8")
+            except Exception as exc:
+                logger.debug("Cache write failed for %s: %s", key, exc)
+            self._save_index()
 
     def _evict(self, key: str) -> None:
         self._entries.pop(key, None)

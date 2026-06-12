@@ -79,7 +79,7 @@ class SessionKernel:
         persistence: SessionPersistenceLevel = SessionPersistenceLevel.WORKSPACE,
     ) -> SessionContext:
         return SessionContext(
-            session_id=str(uuid4())[:12],
+            session_id=uuid4().hex,
             identity=identity,
             objective=objective,
             scope=scope,
@@ -90,7 +90,7 @@ class SessionKernel:
         self, session: SessionContext, instruction: str, mode: str, risk_tier: str
     ) -> OperationCard:
         op = OperationCard(
-            operation_id=str(uuid4())[:12],
+            operation_id=uuid4().hex,
             instruction=instruction,
             mode=mode,
             risk_tier=risk_tier,
@@ -252,3 +252,15 @@ class IntentRouter:
                 mode="exploit", risk_tier=RiskTier("high"), requires_confirmation=True
             )
         return IntentRoute(mode="general", risk_tier=RiskTier("low"))
+
+__all__ = [
+    "ExecutionMode",
+    "SessionPersistenceLevel",
+    "OperationCard",
+    "SessionContext",
+    "SessionKernel",
+    "EngineResult",
+    "ExecutionEngine",
+    "IntentRoute",
+    "IntentRouter",
+]

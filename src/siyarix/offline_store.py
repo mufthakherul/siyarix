@@ -4,7 +4,7 @@ import json
 import logging
 import sqlite3
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -87,8 +87,8 @@ class OfflineStore:
     ) -> str:
         import uuid
 
-        scan_id = str(uuid.uuid4())[:12]
-        now = datetime.now().isoformat()
+        scan_id = uuid.uuid4().hex
+        now = datetime.now(timezone.utc).isoformat()
         conn = self._conn()
         conn.execute(
             "INSERT INTO scans (scan_id, target, mode, plan_id, started_at, completed_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -216,3 +216,7 @@ class OfflineStore:
             for f in conn.execute("SELECT * FROM findings WHERE scan_id = ?", (scan_id,)).fetchall()
         ]
         return result
+
+__all__ = [
+    "OfflineStore",
+]

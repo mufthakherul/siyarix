@@ -162,7 +162,8 @@ class ParserRegistry:
             if isinstance(obj, type) and issubclass(obj, BaseParser) and obj is not BaseParser:
                 tool_name = _class_to_tool_name(name)
                 instance = obj()
-                self._parsers[tool_name] = instance
+                if isinstance(instance, Parser):
+                    self._parsers[tool_name] = instance
         return self._parsers
 
 

@@ -210,10 +210,10 @@ class PlatformIntegrationService:
 
 
 def random_id(length: int = 6) -> str:
-    import random as _r
+    import secrets
     import string as _s
 
-    return "".join(_r.choices(_s.ascii_uppercase + _s.digits, k=length))
+    return "".join(secrets.choice(_s.ascii_uppercase + _s.digits) for _ in range(length))
 
 
 platform_integration = PlatformIntegrationService()

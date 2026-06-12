@@ -9,14 +9,9 @@ from . import _now_iso
 import re
 from xml.etree.ElementTree import ParseError as _ParseError
 
-try:
-    import defusedxml.ElementTree as _ET
+import defusedxml.ElementTree as _ET
 
-    _DEFUSEDXML = True
-except ImportError:
-    import xml.etree.ElementTree as _ET
-
-    _DEFUSEDXML = False
+_DEFUSEDXML = True
 
 
 # Severity mapping based on port number / service risk

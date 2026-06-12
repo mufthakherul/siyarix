@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from abc import ABC, abstractmethod
+import httpx
 from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
@@ -108,7 +108,6 @@ def safe_http_get(url: str, timeout: float = 10.0) -> Any:
     if not _is_safe_url(url):
         logger.warning("Blocked unsafe GET: %s", url)
         return None
-    import httpx
     try:
         resp = httpx.get(url, timeout=timeout)
         resp.raise_for_status()
@@ -125,7 +124,6 @@ def safe_http_post(
     if not _is_safe_url(url):
         logger.warning("Blocked unsafe POST: %s", url)
         return None
-    import httpx
     try:
         return httpx.post(url, json=payload, timeout=timeout)
     except Exception as exc:
@@ -138,7 +136,6 @@ def safe_http_get_raw(url: str, timeout: float = 10.0) -> httpx.Response | None:
     if not _is_safe_url(url):
         logger.warning("Blocked unsafe GET: %s", url)
         return None
-    import httpx
     try:
         resp = httpx.get(url, timeout=timeout)
         resp.raise_for_status()
@@ -481,8 +478,6 @@ def pull_model(
     if provider != "ollama":
         return False, f"Model pull not supported for {provider}"
 
-    import httpx
-
     resolved = resolve_provider_url(provider, base_url)
     url = f"{resolved}/api/pull"
     if not _is_safe_url(url):
@@ -597,3 +592,21 @@ def check_provider_health(provider: str, base_url: str | None = None) -> bool:
     url = f"{resolved}{endpoint}"
     resp = safe_http_get_raw(url, timeout=5.0)
     return resp is not None
+
+__all__ = [
+    "DEFAULT_CONTEXT_WINDOW",
+    "DEFAULT_MAX_TOKENS",
+    "safe_http_get",
+    "safe_http_post",
+    "safe_http_get_raw",
+    "resolve_provider_url",
+    "is_reasoning_model",
+    "build_model_definition",
+    "list_provider_models",
+    "enrich_model",
+    "enrich_all_models",
+    "discover_provider_models",
+    "pull_model",
+    "ensure_model_pulled",
+    "check_provider_health",
+]

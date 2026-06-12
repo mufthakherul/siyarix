@@ -170,3 +170,10 @@ class MCPManager:
             "servers": len(self._client.list_servers()),
             "tools": len(self._client.list_tools()),
         }
+
+__all__ = [
+    "MCPServerConfig",
+    "MCPTool",
+    "MCPClient",
+    "MCPManager",
+]

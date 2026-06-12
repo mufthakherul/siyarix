@@ -94,6 +94,7 @@ class TestSafeRunAsync:
         mock_proc.returncode = 0
 
         with (
+            patch("siyarix.subprocess_utils._use_thread_fallback", return_value=False),
             patch("siyarix.subprocess_utils._validate_cmd_list"),
             patch(
                 "siyarix.subprocess_utils.asyncio.create_subprocess_exec",
@@ -111,6 +112,7 @@ class TestSafeRunAsync:
         mock_proc.kill = MagicMock()
 
         with (
+            patch("siyarix.subprocess_utils._use_thread_fallback", return_value=False),
             patch("siyarix.subprocess_utils._validate_cmd_list"),
             patch(
                 "siyarix.subprocess_utils.asyncio.create_subprocess_exec",

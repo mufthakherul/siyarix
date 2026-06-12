@@ -10,7 +10,7 @@ import pytest
 
 from siyarix.core import AgentCore, AgentGoal, AgentResult, AgentMode, AgentStatus
 from siyarix.planner import ExecutionPlan, PlanStep, PlanStatus, StepStatus
-from siyarix.validator import RecoveryAction, RecoveryPlan
+from siyarix.validators import RecoveryAction, RecoveryPlan
 
 
 @pytest.fixture

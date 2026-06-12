@@ -15,8 +15,7 @@ Usage:
 from __future__ import annotations
 
 import json
-import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, AsyncGenerator
 
 import httpx
@@ -164,7 +163,6 @@ def detect_compat(provider: str, base_url: str) -> OpenAICompat:
     is_deepseek = provider == "deepseek" or "deepseek.com" in effective_base
     is_cerebras = provider == "cerebras" or "cerebras.ai" in effective_base
     is_openrouter = provider == "openrouter" or "openrouter.ai" in effective_base
-    is_perplexity = provider == "perplexity" or "perplexity.ai" in effective_base
     is_cloudflare = "gateway.ai.cloudflare.com" in effective_base
 
     is_non_standard = any([
@@ -528,7 +526,7 @@ def make_openai_adapter(
         *,
         stream: bool = False,
         history: list[dict] | None = None,
-    ) -> dict[str, Any]:
+    ) -> Any:
         if provider == "gemini":
             if stream:
                 return _gemini_stream(

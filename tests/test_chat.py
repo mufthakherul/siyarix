@@ -17,10 +17,10 @@ from siyarix.chat import (
     CommandProfile,
     CommandProfileStore,
     SiyarixChat,
-    _Shell,
-    build_platform_context,
-    detect_shell,
-    normalize_shell,
+
+
+
+
     start_chat,
 )
 
@@ -409,3 +409,7 @@ class TestStartChat:
                 mode="autonomous", target="10.0.0.1", session_id="custom", resume=False
             )
             mock_instance.run.assert_called_once()
+from siyarix.chat.platform_utils import _Shell
+from siyarix.chat.platform_utils import build_platform_context
+from siyarix.chat.platform_utils import normalize_shell
+from siyarix.chat.platform_utils import detect_shell

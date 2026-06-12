@@ -227,6 +227,7 @@ class ContextEngineRuntime:
     config: dict[str, Any] = field(default_factory=dict)
     settings: dict[str, Any] = field(default_factory=dict)
     state: dict[str, Any] = field(default_factory=dict)
+    token_usage: dict[str, int] = field(default_factory=dict)
 
 
 # ── Compaction engine ──────────────────────────────────────────────────
@@ -337,12 +338,15 @@ class CompactionEngine:
         """Called when a subagent finishes. Records the subagent result in compaction history."""
         summary = result.get("summary", result.get("output", str(result)[:200]))
         if self._runtime:
-            self._runtime.token_usage["context_tokens"] += 1
-        self._compaction_history.append({
-            "event": "subagent_ended",
-            "summary": summary[:500],
-            "success": result.get("status") == "success" if "status" in result else True,
-        })
+            self._runtime.token_usage["context_tokens"] = self._runtime.token_usage.get("context_tokens", 0) + 1
+        self._compaction_history.append(
+            CompactResult(
+                ok=result.get("status") == "success" if "status" in result else True,
+                compacted=False,
+                reason="subagent_ended",
+                summary=summary[:500],
+            )
+        )
 
     def dispose(self) -> None:
         """Clean up resources."""
@@ -492,3 +496,22 @@ def _filter_oversized_messages(
     return [
         m for m in messages if estimate_messages_tokens([m]) <= max_tokens_per_msg
     ]
+
+__all__ = [
+    "MIN_PROMPT_BUDGET_TOKENS",
+    "MIN_PROMPT_BUDGET_RATIO",
+    "SUMMARIZATION_OVERHEAD_TOKENS",
+    "BASE_CHUNK_RATIO",
+    "MIN_CHUNK_RATIO",
+    "SAFETY_MARGIN",
+    "MAX_COMPACTION_HISTORY",
+    "CompactResult",
+    "AssembleResult",
+    "estimate_tokens",
+    "estimate_messages_tokens",
+    "split_messages_by_token_share",
+    "SUMMARIZE_SYSTEM_PROMPT",
+    "TranscriptRewriteRequest",
+    "ContextEngineRuntime",
+    "CompactionEngine",
+]

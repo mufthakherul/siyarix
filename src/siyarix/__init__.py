@@ -21,7 +21,7 @@ from .providers import (
 )
 from .planner import Planner, ExecutionPlan, PlanStep, PlanType, PlanStatus, StepStatus
 from .executor import Executor, ExecutionBudget, GuardrailConfig, ToolCallTracker
-from .validator import Validator, ValidationResult, RecoveryAction, RecoveryPlan
+from .validators import Validator, ValidationResult, RecoveryAction, RecoveryPlan
 from .context import ContextManager, ContextChunk, ContextWindow
 from .workflow import WorkflowEngine, Workflow, WorkflowNode, WorkflowStatus
 from .mcp import MCPManager, MCPClient, MCPServerConfig

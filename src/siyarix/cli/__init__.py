@@ -1210,7 +1210,7 @@ def report(
     lines = [
         f"# Siyarix Compliance Report ({framework.upper()})",
         "",
-        f"Generated: {datetime.now().isoformat()}",
+        f"Generated: {datetime.now(timezone.utc).isoformat()}",
         f"Retention days: {stats.get('retention_days')}",
         "",
         "## Audit Summary",

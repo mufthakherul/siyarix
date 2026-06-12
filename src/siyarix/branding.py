@@ -305,3 +305,14 @@ def print_theme_preview(console: Console, theme: str) -> None:
     table.add_row("Error", severity_label(safe_theme, "critical"))
     table.add_row("Success", severity_label(safe_theme, "success"))
     console.print(table)
+
+__all__ = [
+    "resolve_theme",
+    "available_themes",
+    "design_token",
+    "severity_style",
+    "severity_label",
+    "resolve_version",
+    "print_banner",
+    "print_theme_preview",
+]

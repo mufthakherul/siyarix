@@ -177,3 +177,10 @@ def compress_context(ctx: dict[str, Any], max_tokens: int = 8000) -> dict[str, A
         result["xi_recommendations"] = recs[:5]
 
     return result
+
+__all__ = [
+    "ContextChunk",
+    "ContextWindow",
+    "ContextManager",
+    "compress_context",
+]

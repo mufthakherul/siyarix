@@ -132,7 +132,7 @@ class ReportEngine:
             "## Executive Summary",
             "",
             f"**Assessment Target:** {target or 'N/A'}",
-            f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}",
+            f"**Date:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
             f"**Total Findings:** {total}",
             "",
             "### Severity Breakdown",

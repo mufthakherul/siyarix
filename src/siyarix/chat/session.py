@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -55,7 +55,7 @@ class ChatSession:
             content = content[:50000] + "\n...[truncated]"
         msg = ChatMessage(role=role, content=content, metadata=metadata)
         self.messages.append(msg)
-        self.last_active = datetime.now()
+        self.last_active = datetime.now(timezone.utc)
         if len(self.messages) > 300:
             self.messages = self.messages[-300:]
         if self._branching is not None:

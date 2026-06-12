@@ -21,7 +21,7 @@ import logging
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -82,7 +82,7 @@ class Node:
     node_type: NodeType
     label: str
     properties: dict[str, Any] = field(default_factory=dict)
-    discovered_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    discovered_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     discovered_by: str = ""
     confidence: float = 1.0
 
@@ -106,7 +106,7 @@ class Edge:
     target_id: str
     edge_type: EdgeType
     properties: dict[str, Any] = field(default_factory=dict)
-    edge_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    edge_id: str = field(default_factory=lambda: uuid.uuid4().hex)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -154,7 +154,7 @@ class KnowledgeGraph:
                 existing.properties.update(properties)
                 return existing
 
-        nid = node_id or f"{node_type.value}_{str(uuid.uuid4())[:6]}"
+        nid = node_id or f"{node_type.value}_{uuid.uuid4().hex}"
         node = Node(
             node_id=nid,
             node_type=node_type,
@@ -436,7 +436,7 @@ class KnowledgeGraph:
                 target_id=ed["target"],
                 edge_type=EdgeType(ed["type"]),
                 properties=ed.get("properties", {}),
-                edge_id=ed.get("edge_id", str(uuid.uuid4())[:8]),
+                edge_id=ed.get("edge_id", uuid.uuid4().hex),
             )
             graph._edges.append(edge)
             graph._adjacency[edge.source_id].append(edge.target_id)

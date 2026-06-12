@@ -28,7 +28,7 @@ class _JSONFormatter(logging.Formatter):
         return json.dumps(payload, ensure_ascii=False)
 
 
-def configure_logging(level: Optional[str] = None, *, enable_console: bool = True) -> None:
+def configure_logging(level: str | None = None, *, enable_console: bool = True) -> None:
     """Configure root logger.
 
     - `level`: optional string like "INFO"/"DEBUG". If None, defaults to INFO.
@@ -45,7 +45,7 @@ def configure_logging(level: Optional[str] = None, *, enable_console: bool = Tru
     root.setLevel(lvl)
 
     # Prevent duplicate handlers when reloading in tests
-    if any(isinstance(h, logging.StreamHandler) for h in root.handlers):
+    if any(isinstance(h, logging.StreamHandler) and isinstance(h.formatter, _JSONFormatter) for h in root.handlers):
         return
 
     if enable_console:

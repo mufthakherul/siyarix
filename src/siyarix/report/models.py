@@ -55,7 +55,7 @@ class Report:
     sections: list[ReportSection] = field(default_factory=list)
     findings: list[dict[str, Any]] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
-    generated_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    generated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     report_id: str = ""
 
     def __post_init__(self) -> None:

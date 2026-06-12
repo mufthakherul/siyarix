@@ -41,7 +41,7 @@ class WorkflowEdge:
 
 @dataclass
 class WorkflowNode:
-    id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    id: str = field(default_factory=lambda: uuid.uuid4().hex)
     name: str = ""
     step_fn: str = ""
     args: dict[str, Any] = field(default_factory=dict)
@@ -62,7 +62,7 @@ class WorkflowNode:
 
 @dataclass
 class Workflow:
-    id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    id: str = field(default_factory=lambda: uuid.uuid4().hex)
     name: str = ""
     description: str = ""
     status: WorkflowStatus = WorkflowStatus.IDLE
@@ -166,11 +166,12 @@ class WorkflowEngine:
                 *[self._run_node(workflow, n) for n in ready], return_exceptions=True
             )
         workflow.completed_at = time.time()
-        workflow.status = (
-            WorkflowStatus.COMPLETED
-            if all(n.status == WorkflowStepStatus.COMPLETED for n in workflow.nodes)
-            else WorkflowStatus.FAILED
-        )
+        if workflow.status != WorkflowStatus.CANCELLED:
+            workflow.status = (
+                WorkflowStatus.COMPLETED
+                if all(n.status == WorkflowStepStatus.COMPLETED for n in workflow.nodes)
+                else WorkflowStatus.FAILED
+            )
         return workflow
 
     async def _run_node(self, workflow: Workflow, node: WorkflowNode) -> None:
@@ -213,3 +214,12 @@ class WorkflowEngine:
             "completed": len([w for w in wfs if w.status == WorkflowStatus.COMPLETED]),
             "registered_steps": list(self._step_functions.keys()),
         }
+
+__all__ = [
+    "WorkflowStatus",
+    "WorkflowStepStatus",
+    "WorkflowEdge",
+    "WorkflowNode",
+    "Workflow",
+    "WorkflowEngine",
+]

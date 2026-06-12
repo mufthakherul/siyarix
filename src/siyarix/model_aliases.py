@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from typing import Any
 
 _PROVIDER_ALIASES: dict[str, dict[str, str]] = {
     "anthropic": {
@@ -133,3 +132,10 @@ def register_alias(provider: str, alias: str, target: str) -> None:
     if p not in _PROVIDER_ALIASES:
         _PROVIDER_ALIASES[p] = {}
     _PROVIDER_ALIASES[p][alias] = target
+
+__all__ = [
+    "normalize_model_id",
+    "resolve_alias",
+    "list_aliases",
+    "register_alias",
+]

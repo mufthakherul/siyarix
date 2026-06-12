@@ -241,3 +241,9 @@ def build_persona_prompt(persona_name: str) -> str:
         return f"## Active Persona: {p['label']}\n{p['prompt']}"
 
     return f"## Active Persona: {p['label']}\n{p['prompt']}"
+
+__all__ = [
+    "get_persona",
+    "list_personas",
+    "build_persona_prompt",
+]

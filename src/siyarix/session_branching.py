@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import uuid
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
@@ -253,3 +252,8 @@ class BranchingSession:
 
     def _has_entry(self, entry_id: str) -> bool:
         return any(e.id == entry_id for e in self._entries)
+
+__all__ = [
+    "BranchEntry",
+    "BranchingSession",
+]

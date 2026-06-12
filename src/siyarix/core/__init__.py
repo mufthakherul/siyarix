@@ -12,7 +12,7 @@ from typing import Any
 from ..registry import ToolRegistry
 from ..planner import Planner, ExecutionPlan, PlanStatus, StepStatus, PlanStep
 from ..executor import Executor
-from ..validator import Validator, RecoveryAction
+from ..validators import Validator, RecoveryAction
 from ..context import ContextManager
 from ..memory import MemoryManager
 from ..providers import ProviderManager

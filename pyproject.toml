@@ -3,7 +3,6 @@
 name = "siyarix"
 version = "2.0.0"
 description = "Siyarix — AI Cybersecurity Orchestration Agent"
-description-content-type = "text/markdown"
 readme = "README.md"
 authors = [ { name = "MD MUFTHAKHERUL ISLAM MIRAZ", email = "130831166+mufthakherul@users.noreply.github.com" } ]
 requires-python = ">=3.11"
@@ -34,10 +33,11 @@ dependencies = [
   "httpx>=0.27",
   "pydantic>=2.5",
   "keyring>=25.0",
-  "cryptography>=42.0",
+  "cryptography>=42.0,<44.0",
   "psutil>=5.9.0",
   "defusedxml>=0.7.1",
-  "openai>=2.31.0",
+  "anthropic>=0.40.0",
+  "google-generativeai>=0.8.0",
 ]
 
 [project.optional-dependencies]
@@ -94,13 +94,13 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-per-file-ignores = {"tests/*" = ["F841", "E741", "F401", "F821"]}
+per-file-ignores = {"tests/*" = ["E741", "F401"]}
 
 [tool.mypy]
 python_version = "3.11"
 check_untyped_defs = true
 disallow_untyped_defs = false
-ignore_missing_imports = true
+ignore_missing_imports = false
 warn_unused_ignores = true
 strict_optional = true
 

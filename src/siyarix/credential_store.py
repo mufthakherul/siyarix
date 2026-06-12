@@ -12,6 +12,8 @@ import base64
 import json
 import logging
 import os
+import threading
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -19,10 +21,6 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-Fernet: Any = None
-hashes: Any = None
-PBKDF2HMAC: Any = None
-AESGCM: Any = None
 HAS_AESGCM = False
 
 try:
@@ -34,6 +32,10 @@ try:
     HAS_AESGCM = True
     CRYPTO_AVAILABLE = True
 except ImportError:
+    Fernet = None  # type: ignore
+    hashes = None  # type: ignore
+    AESGCM = None  # type: ignore
+    PBKDF2HMAC = None  # type: ignore
     CRYPTO_AVAILABLE = False
     HAS_AESGCM = False
 
@@ -62,6 +64,7 @@ class CredentialType(StrEnum):
     AWS_KEY = "aws_key"
     AZURE_SP = "azure_sp"
     GCP_SA = "gcp_sa"
+    SERVER_URL = "server_url"
 
 
 class Environment(StrEnum):
@@ -115,11 +118,18 @@ class CredentialStore:
     def __init__(self, master_password: str | None = None) -> None:
         self._config_dir = Path(os.getenv("SIYARIX_CONFIG_DIR", str(self._DEFAULT_CONFIG_DIR)))
         self._config_dir.mkdir(parents=True, exist_ok=True)
+        self._creds_dir = self._config_dir / "credentials.d"
+        self._creds_dir.mkdir(parents=True, exist_ok=True)
         self._creds_file = self._config_dir / "credentials.enc"
         self._key_file = self._config_dir / ".cred_store_key"
+        self._salt_file = self._config_dir / ".cred_store_salt"
         self._credentials: dict[str, Credential] = {}
         self._master_key: bytes | None = None
         self._fernet: Any = None
+        self._nonce_counter = int(time.time() * 1000) & 0xFFFFFFFF
+        self._nonce_lock = threading.Lock()
+        self._kms_data_key: bytes | None = None
+        self._kms_encrypted_key: str | None = None
 
         # Enforce cryptography for secure credential handling. Fail fast if missing.
         if not CRYPTO_AVAILABLE:
@@ -131,9 +141,28 @@ class CredentialStore:
 
         self._load()
 
+        self._rate_limit_lock = threading.Lock()
+        self._tokens = 100.0
+        self._last_token_update = time.time()
+        self._rate = 10.0
+
+    def _check_rate_limit(self) -> None:
+        with self._rate_limit_lock:
+            now = time.time()
+            elapsed = now - self._last_token_update
+            self._tokens = min(100.0, self._tokens + elapsed * self._rate)
+            self._last_token_update = now
+            if self._tokens < 1.0:
+                raise RuntimeError("Rate limit exceeded")
+            self._tokens -= 1.0
+
     def migrate_legacy_config(self, filepath: Path) -> bool:
         """Migrate legacy JSON config to the credential store format."""
         if not filepath.exists():
+            return False
+
+        if filepath.stat().st_size > 10 * 1024 * 1024:  # 10MB limit
+            logger.warning("Legacy config file too large to migrate")
             return False
 
         data = json.loads(filepath.read_text())
@@ -174,7 +203,7 @@ class CredentialStore:
 
                 stored = keyring.get_password("siyarix", "cred_store_key")
                 if stored:
-                    key_material = base64.urlsafe_b64decode(stored)
+                    key_material = stored.encode()
             except Exception:
                 logger.debug("Keyring unavailable or failed; falling back to file-based key")
 
@@ -225,11 +254,20 @@ class CredentialStore:
     def _generate_fernet_key(self, password: str | None) -> bytes:
         """Create a valid Fernet key and persist the raw material."""
         if password:
+            self._config_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Use persistent salt (C-01)
+            if self._salt_file.exists():
+                salt = self._salt_file.read_bytes()
+            else:
+                salt = os.urandom(16)
+                self._salt_file.write_bytes(salt)
+
             kdf = PBKDF2HMAC(
                 algorithm=hashes.SHA256(),
                 length=32,
-                salt=os.urandom(16),
-                iterations=100000,
+                salt=salt,
+                iterations=_AES_ITERATIONS,  # C-02: Unify iterations
             )
             raw_key = kdf.derive(password.encode())
         else:
@@ -272,7 +310,10 @@ class CredentialStore:
         """Encrypt using AES-256-GCM as documented in Chapter 5.4."""
         if not HAS_AESGCM or not self._master_key:
             return self._encrypt(data)
-        nonce = os.urandom(_AES_NONCE_SIZE)
+        with self._nonce_lock:
+            self._nonce_counter = (self._nonce_counter + 1) & 0xFFFFFFFF
+            counter_bytes = self._nonce_counter.to_bytes(4, "big")
+        nonce = os.urandom(8) + counter_bytes
         key = self._master_key
         if len(key) != _AES_KEY_SIZE:
             from cryptography.hazmat.primitives import hashes as hash_mod
@@ -284,7 +325,7 @@ class CredentialStore:
                 info=b"siyarix-aes-gcm-key",
             )
             key = hkdf.derive(key)
-        ct = AESGCM(key).encrypt(nonce, data.encode(), None)
+        ct = AESGCM(key).encrypt(nonce, data.encode(), b"siyarix-credential")
         return base64.b64encode(nonce + ct).decode()
 
     def _decrypt_aesgcm(self, encrypted: str) -> str:
@@ -305,7 +346,7 @@ class CredentialStore:
                 info=b"siyarix-aes-gcm-key",
             )
             key = hkdf.derive(key)
-        return AESGCM(key).decrypt(nonce, ct, None).decode()
+        return AESGCM(key).decrypt(nonce, ct, b"siyarix-credential").decode()
 
     def _encrypt(self, data: str) -> str:
         """Encrypt data using Fernet (backward compatible)."""
@@ -344,140 +385,245 @@ class CredentialStore:
         if not HAS_AESGCM:
             logger.warning("AES-256-GCM not available for key rotation")
             return False
+            
+        # C-03: Atomic rotation - snapshot credentials
+        snapshot = {k: Credential(**v.to_dict()) for k, v in self._credentials.items()}
+        
+        old_master_key = self._master_key
         self._master_key = os.urandom(_AES_KEY_SIZE)
         if new_master_password:
+            # For new master passwords, generate a new salt
+            new_salt = os.urandom(16)
             kdf = PBKDF2HMAC(
                 algorithm=hashes.SHA256(),
                 length=_AES_KEY_SIZE,
-                salt=os.urandom(16),
+                salt=new_salt,
                 iterations=_AES_ITERATIONS,
             )
             self._master_key = kdf.derive(new_master_password.encode())
+            self._salt_file.write_bytes(new_salt)
+
         # Re-encrypt all credentials with new key
-        for cred in self._credentials.values():
-            try:
-                plaintext = (
-                    self._decrypt_aesgcm(cred.value_encrypted)
-                    if HAS_AESGCM
-                    else self._decrypt(cred.value_encrypted)
-                )
-                cred.value_encrypted = self._encrypt_aesgcm(plaintext)
-                cred.rotated = True
-            except Exception:
+        try:
+            for cred in self._credentials.values():
                 try:
+                    plaintext = (
+                        self._decrypt_aesgcm(cred.value_encrypted)
+                        if HAS_AESGCM
+                        else self._decrypt(cred.value_encrypted)
+                    )
+                    cred.value_encrypted = self._encrypt_aesgcm(plaintext)
+                    cred.rotated = True
+                except Exception:
                     plaintext = self._decrypt(cred.value_encrypted)
                     cred.value_encrypted = self._encrypt_aesgcm(plaintext)
                     cred.rotated = True
-                except Exception as exc:
-                    logger.warning("Failed to rotate credential %s: %s", cred.cred_id, exc)
-        self._save()
-        logger.info("Master key rotated successfully")
-        return True
+            
+            self._save()
+            logger.info("Master key rotated successfully")
+            return True
+        except Exception as exc:
+            # Rollback on partial failure
+            self._credentials = snapshot
+            self._master_key = old_master_key
+            logger.error("Key rotation failed, rolling back. Error: %s", exc)
+            return False
 
     def _load(self) -> None:
         """Load credentials from disk"""
-        if not self._creds_file.exists():
+        legacy_loaded = False
+        if self._creds_file.exists():
+            try:
+                raw = self._creds_file.read_text()
+                if raw.strip():
+                    obj = None
+                    try:
+                        obj = json.loads(raw)
+                    except json.JSONDecodeError:
+                        obj = None
+
+                    if obj and isinstance(obj, dict) and "encrypted_key" in obj and "payload" in obj:
+                        if not self._kms_available():
+                            raise RuntimeError("KMS provider configured but boto3 not available")
+                        import base64 as _b64
+                        import boto3  # pyright: ignore[reportMissingImports]
+
+                        kms_key_blob = _b64.b64decode(obj["encrypted_key"])
+                        payload = _b64.b64decode(obj["payload"])
+                        kms = boto3.client("kms")
+                        resp = kms.decrypt(CiphertextBlob=kms_key_blob)
+                        data_key = resp.get("Plaintext")
+                        if not data_key:
+                            raise RuntimeError("KMS failed to decrypt data key")
+                        fernet_key = base64.urlsafe_b64encode(data_key)
+                        f = Fernet(fernet_key)
+                        decrypted = f.decrypt(payload).decode()
+                        data = json.loads(decrypted)
+                        
+                        # Cache the KMS data key for future use
+                        self._kms_data_key = data_key
+                        self._kms_encrypted_key = obj["encrypted_key"]
+                    else:
+                        decrypted = self._decrypt(raw)
+                        data = json.loads(decrypted)
+                    
+                    for cred_data in data:
+                        if "value_encrypted" not in cred_data:
+                            logger.error("Credential entry missing value_encrypted")
+                        cred = Credential(
+                            cred_id=cred_data["cred_id"],
+                            name=cred_data["name"],
+                            cred_type=cred_data["cred_type"],
+                            environment=cred_data["environment"],
+                            value_encrypted=cred_data["value_encrypted"],
+                            created_at=datetime.fromisoformat(cred_data["created_at"]),
+                            expires_at=(
+                                datetime.fromisoformat(cred_data["expires_at"])
+                                if cred_data.get("expires_at")
+                                else None
+                            ),
+                            last_used=(
+                                datetime.fromisoformat(cred_data["last_used"])
+                                if cred_data.get("last_used")
+                                else None
+                            ),
+                            usage_count=cred_data.get("usage_count", 0),
+                            rotated=cred_data.get("rotated", False),
+                            tags=cred_data.get("tags", []),
+                            shared_with=cred_data.get("shared_with", []),
+                        )
+                        self._credentials[cred.cred_id] = cred
+                    legacy_loaded = True
+            except Exception as exc:
+                logger.exception("Failed to load legacy credentials: %s", exc)
+
+        if self._creds_dir.exists():
+            for filepath in self._creds_dir.glob("*.enc"):
+                try:
+                    raw = filepath.read_text()
+                    if not raw.strip():
+                        continue
+
+                    obj = None
+                    try:
+                        obj = json.loads(raw)
+                    except json.JSONDecodeError:
+                        obj = None
+
+                    if obj and isinstance(obj, dict) and "encrypted_key" in obj and "payload" in obj:
+                        if not self._kms_available():
+                            raise RuntimeError("KMS provider configured but boto3 not available")
+                        import base64 as _b64
+                        import boto3  # pyright: ignore[reportMissingImports]
+
+                        encrypted_key = obj["encrypted_key"]
+                        if self._kms_encrypted_key != encrypted_key or not self._kms_data_key:
+                            kms_key_blob = _b64.b64decode(encrypted_key)
+                            kms = boto3.client("kms")
+                            resp = kms.decrypt(CiphertextBlob=kms_key_blob)
+                            self._kms_data_key = resp.get("Plaintext")
+                            self._kms_encrypted_key = encrypted_key
+                        
+                        if not self._kms_data_key:
+                            raise RuntimeError("KMS failed to decrypt data key")
+
+                        fernet_key = base64.urlsafe_b64encode(self._kms_data_key)
+                        f = Fernet(fernet_key)
+                        payload = _b64.b64decode(obj["payload"])
+                        decrypted = f.decrypt(payload).decode()
+                        data = json.loads(decrypted)
+                    else:
+                        decrypted = self._decrypt(raw)
+                        data = json.loads(decrypted)
+                    
+                    cred = Credential(
+                        cred_id=data["cred_id"],
+                        name=data["name"],
+                        cred_type=data["cred_type"],
+                        environment=data["environment"],
+                        value_encrypted=data["value_encrypted"],
+                        created_at=datetime.fromisoformat(data["created_at"]),
+                        expires_at=(
+                            datetime.fromisoformat(data["expires_at"])
+                            if data.get("expires_at")
+                            else None
+                        ),
+                        last_used=(
+                            datetime.fromisoformat(data["last_used"])
+                            if data.get("last_used")
+                            else None
+                        ),
+                        usage_count=data.get("usage_count", 0),
+                        rotated=data.get("rotated", False),
+                        tags=data.get("tags", []),
+                        shared_with=data.get("shared_with", []),
+                    )
+                    self._credentials[cred.cred_id] = cred
+                except Exception as exc:
+                    logger.exception("Failed to load credential %s: %s", filepath, exc)
+
+        if legacy_loaded:
+            self._save()
+            try:
+                self._creds_file.rename(self._creds_file.with_name("credentials.enc.bak"))
+            except Exception:
+                pass
+
+    def _save(self, cred: Credential | None = None, delete_cred_id: str | None = None) -> None:
+        """Save credentials to disk incrementally"""
+        if delete_cred_id:
+            cred_file = self._creds_dir / f"{delete_cred_id}.enc"
+            if cred_file.exists():
+                cred_file.unlink()
+            
+        creds_to_save = [cred] if cred else list(self._credentials.values())
+        if not creds_to_save and not delete_cred_id:
             return
 
-        try:
-            raw = self._creds_file.read_text()
-            if not raw.strip():
-                return
-
-            # Detect KMS envelope format (JSON with encrypted_key + payload)
-            obj = None
-            try:
-                obj = json.loads(raw)
-            except Exception:
-                obj = None
-
-            if obj and isinstance(obj, dict) and "encrypted_key" in obj and "payload" in obj:
-                # KMS envelope decryption using AWS KMS
-                if not self._kms_available():
-                    raise RuntimeError(
-                        "KMS provider configured but boto3 not available or provider not enabled"
-                    )
-                import base64 as _b64
-
-                import boto3  # pyright: ignore[reportMissingImports]
-
-                kms_key_blob = _b64.b64decode(obj["encrypted_key"])
-                payload = _b64.b64decode(obj["payload"])
-                kms = boto3.client("kms")
-                resp = kms.decrypt(CiphertextBlob=kms_key_blob)
-                data_key = resp.get("Plaintext")
-                if not data_key:
-                    raise RuntimeError("KMS failed to decrypt data key")
-                fernet_key = base64.urlsafe_b64encode(data_key)
-                f = Fernet(fernet_key)
-                decrypted = f.decrypt(payload).decode()
-                data = json.loads(decrypted)
-            else:
-                # Legacy local fernet-encrypted payload
-                decrypted = self._decrypt(raw)
-                data = json.loads(decrypted)
-            for cred_data in data:
-                if "value_encrypted" not in cred_data:
-                    logger.error("Credential entry missing value_encrypted")
-                cred = Credential(
-                    cred_id=cred_data["cred_id"],
-                    name=cred_data["name"],
-                    cred_type=cred_data["cred_type"],
-                    environment=cred_data["environment"],
-                    value_encrypted=cred_data["value_encrypted"],
-                    created_at=datetime.fromisoformat(cred_data["created_at"]),
-                    expires_at=(
-                        datetime.fromisoformat(cred_data["expires_at"])
-                        if cred_data.get("expires_at")
-                        else None
-                    ),
-                    usage_count=cred_data.get("usage_count", 0),
-                    rotated=cred_data.get("rotated", False),
-                    tags=cred_data.get("tags", []),
-                    shared_with=cred_data.get("shared_with", []),
-                )
-                self._credentials[cred.cred_id] = cred
-        except Exception as exc:
-            logger.exception("Failed to load credentials from disk: %s", exc)
-
-    def _save(self) -> None:
-        """Save credentials to disk"""
-        data = [c.to_dict() for c in self._credentials.values()]
-        raw = json.dumps(data)
-
-        # If a KMS provider is configured, perform envelope encryption with KMS
         provider = os.getenv("SIYARIX_KMS_PROVIDER", "").strip().lower()
-        if provider == "aws" and self._kms_available():
+        use_kms = provider == "aws" and self._kms_available()
+        fernet_key = None
+        f = None
+
+        if use_kms:
             try:
                 import base64 as _b64
-
                 import boto3  # pyright: ignore[reportMissingImports]
 
-                kms = boto3.client("kms")
-                key_id = os.getenv("AWS_KMS_KEY_ID")
-                if not key_id:
-                    raise RuntimeError("AWS_KMS_KEY_ID must be set when SIYARIX_KMS_PROVIDER=aws")
-                # Generate a data key (plaintext + encrypted)
-                resp = kms.generate_data_key(KeyId=key_id, KeySpec="AES_256")
-                plaintext = resp.get("Plaintext")
-                ciphertext_blob = resp.get("CiphertextBlob")
-                if not plaintext or not ciphertext_blob:
-                    raise RuntimeError("Failed to generate data key from KMS")
-                fernet_key = base64.urlsafe_b64encode(plaintext)
+                if not self._kms_data_key or not self._kms_encrypted_key:
+                    kms = boto3.client("kms")
+                    key_id = os.getenv("AWS_KMS_KEY_ID")
+                    if not key_id:
+                        raise RuntimeError("AWS_KMS_KEY_ID must be set when SIYARIX_KMS_PROVIDER=aws")
+                    resp = kms.generate_data_key(KeyId=key_id, KeySpec="AES_256")
+                    plaintext = resp.get("Plaintext")
+                    ciphertext_blob = resp.get("CiphertextBlob")
+                    if not plaintext or not ciphertext_blob:
+                        raise RuntimeError("Failed to generate data key from KMS")
+                    self._kms_data_key = plaintext
+                    self._kms_encrypted_key = _b64.b64encode(ciphertext_blob).decode()
+
+                fernet_key = base64.urlsafe_b64encode(self._kms_data_key)
                 f = Fernet(fernet_key)
-                payload = f.encrypt(raw.encode())
-                out = {
-                    "encrypted_key": _b64.b64encode(ciphertext_blob).decode(),
-                    "payload": _b64.b64encode(payload).decode(),
-                }
-                self._creds_file.write_text(json.dumps(out))
-                return
             except Exception:
                 logger.exception("KMS envelope encryption failed; falling back to local encryption")
+                use_kms = False
 
-        # Default: local Fernet encryption
-        encrypted = self._encrypt(raw)
-        self._creds_file.write_text(encrypted)
+        for c in creds_to_save:
+            if not c:
+                continue
+            raw = json.dumps(c.to_dict())
+            if use_kms and f and self._kms_encrypted_key:
+                payload = f.encrypt(raw.encode())
+                out = {
+                    "encrypted_key": self._kms_encrypted_key,
+                    "payload": _b64.b64encode(payload).decode(),
+                }
+                content_str = json.dumps(out)
+            else:
+                content_str = self._encrypt(raw)
+            
+            (self._creds_dir / f"{c.cred_id}.enc").write_text(content_str)
 
     def store(
         self,
@@ -489,37 +635,45 @@ class CredentialStore:
         tags: list[str] | None = None,
     ) -> Credential:
         """Store credential"""
+        self._check_rate_limit()
         # Replace any existing credential with the same logical name/type.
         self.delete(name, cred_type)
         cred = Credential(
-            cred_id=str(uuid.uuid4())[:12],
+            cred_id=uuid.uuid4().hex,
             name=name,
             cred_type=cred_type,
             environment=environment,
             value_encrypted=self._encrypt(value),
-            created_at=datetime.now(),
-            expires_at=datetime.now() + timedelta(days=expires_in_days),
+            created_at=datetime.now(timezone.utc),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=expires_in_days),
             tags=tags or [],
         )
         self._credentials[cred.cred_id] = cred
         self._save()
         return cred
 
-    def get(self, cred_id: str, update_usage: bool = True) -> str | None:
+    def get(self, cred_id: str, update_usage: bool = False) -> str | None:
         """Retrieve credential value"""
+        self._check_rate_limit()
         cred = self._credentials.get(cred_id)
         if not cred:
             return None
 
         # Check expiration
-        if cred.expires_at and cred.expires_at < datetime.now():
+        if cred.expires_at and cred.expires_at < datetime.now(timezone.utc):
             logger.warning("Credential %s has expired", cred.name)
             return None
 
         if update_usage:
-            cred.last_used = datetime.now()
-            cred.usage_count += 1
-            self._save()
+            now = datetime.now(timezone.utc)
+            # Periodically write usage to avoid IO bottleneck
+            if not cred.last_used or (now - cred.last_used).total_seconds() > 60:
+                cred.last_used = now
+                cred.usage_count += 1
+                self._save(cred)
+            else:
+                cred.last_used = now
+                cred.usage_count += 1
 
         return self._decrypt(cred.value_encrypted)
 
@@ -551,10 +705,11 @@ class CredentialStore:
 
     def delete(self, name: str, cred_type: str | None = None) -> bool:
         """Delete credential by name and type"""
-        for cred_id, cred in self._credentials.items():
+        self._check_rate_limit()
+        for cred_id, cred in list(self._credentials.items()):
             if cred.name == name and (not cred_type or cred.cred_type == cred_type):
                 del self._credentials[cred_id]
-                self._save()
+                self._save(delete_cred_id=cred_id)
                 return True
         return False
 
@@ -568,7 +723,7 @@ class CredentialStore:
         cred.rotated = True
         cred.last_used = None
         cred.usage_count = 0
-        self._save()
+        self._save(cred)
         return True
 
     def share(self, cred_id: str, user: str) -> bool:
@@ -579,12 +734,12 @@ class CredentialStore:
 
         if user not in cred.shared_with:
             cred.shared_with.append(user)
-            self._save()
+            self._save(cred)
         return True
 
     def check_expiring(self, days: int = 7) -> list[dict]:
         """Check for expiring credentials"""
-        cutoff = datetime.now() + timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) + timedelta(days=days)
         expiring = []
         for cred in self._credentials.values():
             if cred.expires_at and cred.expires_at <= cutoff:
@@ -602,13 +757,13 @@ class CredentialStore:
         # Encrypt with provided password
         if CRYPTO_AVAILABLE:
             salt = os.urandom(16)
-            kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000)
+            kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=_AES_ITERATIONS)
             key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
             fernet = Fernet(key)
             encrypted = fernet.encrypt(json.dumps(data).encode())
             Path(filepath).write_bytes(salt + encrypted)
         else:
-            Path(filepath).write_text(json.dumps(data, indent=2))
+            raise RuntimeError("cryptography package required for export")
 
     def import_encrypted(self, filepath: str, password: str) -> int:
         """Import encrypted backup"""
@@ -619,7 +774,7 @@ class CredentialStore:
         salt = data[:16]
         encrypted = data[16:]
 
-        kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000)
+        kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=_AES_ITERATIONS)
         key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
         fernet = Fernet(key)
         decrypted = fernet.decrypt(encrypted)
@@ -664,12 +819,14 @@ class CredentialStore:
 
 
 _creds_instance: CredentialStore | None = None
-
+_creds_lock = threading.Lock()
 
 def get_creds() -> CredentialStore:
     global _creds_instance
     if _creds_instance is None:
-        _creds_instance = CredentialStore()
+        with _creds_lock:
+            if _creds_instance is None:
+                _creds_instance = CredentialStore()
     return _creds_instance
 
 
@@ -681,3 +838,14 @@ def get_credential(name: str, environment: str | None = None) -> str | None:
 def store_credential(name: str, value: str, cred_type: str = "api_key") -> Credential:
     """Convenience function"""
     return get_creds().store(name, value, cred_type)
+
+__all__ = [
+    "HAS_AESGCM",
+    "CredentialType",
+    "Environment",
+    "Credential",
+    "CredentialStore",
+    "get_creds",
+    "get_credential",
+    "store_credential",
+]

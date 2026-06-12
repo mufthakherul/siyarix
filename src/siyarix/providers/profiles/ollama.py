@@ -1,0 +1,28 @@
+from __future__ import annotations
+from ..types import ProviderProfile, ModelInfo, CostTier, ProviderType
+
+
+def register_profile(manager) -> None:
+    # Adjust indentation
+
+    # ── Ollama (Local) ─────────────────────────────────────────────
+    manager.register(
+        ProviderProfile(
+            name="ollama",
+            display_name="Ollama (Local)",
+            models=[
+                ModelInfo("llama3.1", context_window=8192, cost_tier=CostTier.FREE),
+                ModelInfo("mistral", context_window=8192, cost_tier=CostTier.FREE),
+                ModelInfo("codellama", context_window=16384, cost_tier=CostTier.FREE),
+                ModelInfo("phi4", context_window=16384, cost_tier=CostTier.FREE),
+            ],
+            base_url="http://localhost:11434",
+            max_context_tokens=16384,
+            supports_streaming=False,
+            supports_tools=False,
+            supports_vision=True,
+            priority=5,
+            cost_tier=CostTier.FREE,
+            provider_type=ProviderType.LOCAL,
+        )
+    )

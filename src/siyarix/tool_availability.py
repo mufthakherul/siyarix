@@ -200,3 +200,12 @@ def check_tool_available(
     expr = {"installed": {"name": tool_name}}
     result = evaluate_availability(expr, ctx)
     return result.available, result.diagnostics
+
+__all__ = [
+    "ToolAvailabilityContext",
+    "ToolAvailabilityDiagnostic",
+    "ToolAvailabilityResult",
+    "register_signal",
+    "evaluate_availability",
+    "check_tool_available",
+]

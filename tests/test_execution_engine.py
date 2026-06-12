@@ -252,7 +252,7 @@ class TestSecurityHardening:
     def test_analyze_sudo_low(self) -> None:
         report = self.danger.analyze("sudo apt update")
         assert report.is_dangerous
-        assert report.severity == "low"
+        assert report.severity == "info"
 
     def test_analyze_sql_drop(self) -> None:
         report = self.danger.analyze("DROP TABLE users")

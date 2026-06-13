@@ -48,12 +48,19 @@ class CommandPipeline:
         ctx: Any = None,
     ) -> PipelineResult:
         result = PipelineResult()
+        previous_output: dict[str, Any] = {}
         for step in steps:
             try:
-                res = await executor(step, ctx)
+                enriched_ctx = {**(ctx or {}), "previous_output": previous_output}
+                res = await executor(step, enriched_ctx)
                 if res.get("status") == "completed":
                     result.steps_completed += 1
                     result.all_findings.extend(res.get("findings", []))
+                    previous_output = {
+                        "output": res.get("output", ""),
+                        "findings": res.get("findings", []),
+                        "step_id": step.step_id,
+                    }
                 else:
                     result.steps_failed += 1
                     result.success = False

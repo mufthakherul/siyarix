@@ -37,21 +37,30 @@ class ToolCapabilityGraph:
     def get_chain(self, start: str, goal: str) -> list[str]:
         if start not in self._nodes or goal not in self._nodes:
             return []
+        import heapq
+        queue: list[tuple[float, str, list[str]]] = [(0.0, start, [start])]
         visited: set[str] = set()
-        queue: list[list[str]] = [[start]]
+        
+        adj: dict[str, list[tuple[str, float]]] = {n: [] for n in self._nodes}
+        for edge in self._edges:
+            adj[edge.source].append((edge.target, edge.weight))
+            # Treat edges as undirected for pathfinding
+            adj[edge.target].append((edge.source, edge.weight))
+
         while queue:
-            path = queue.pop(0)
-            current = path[-1]
+            weight, current, path = heapq.heappop(queue)
+            
             if current == goal:
                 return path
+                
             if current in visited:
                 continue
             visited.add(current)
-            for edge in self._edges:
-                if edge.source == current and edge.target not in visited:
-                    queue.append(path + [edge.target])
-                elif edge.target == current and edge.source not in visited:
-                    queue.append(path + [edge.source])
+            
+            for neighbor, edge_weight in adj.get(current, []):
+                if neighbor not in visited:
+                    heapq.heappush(queue, (weight + edge_weight, neighbor, path + [neighbor]))
+                    
         return []
 
     def find_optimal_tools(

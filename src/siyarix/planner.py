@@ -43,12 +43,43 @@ TOOL_ALTERNATIVES: dict[str, list[str]] = {
     "sqlmap": ["jSQL", "sqlninja"],
 }
 
+class SemanticRouter:
+    def __init__(self):
+        try:
+            from sentence_transformers import SentenceTransformer
+            self._model = SentenceTransformer("all-MiniLM-L6-v2")
+            self._available = True
+        except ImportError:
+            self._model = None
+            self._available = False
+        self._intent_embeddings: dict[str, Any] = {}
+        
+    def build_embeddings(self, intent_map: dict[str, tuple]) -> None:
+        if not self._available or self._intent_embeddings:
+            return
+        phrases = list(intent_map.keys())
+        embeddings = self._model.encode(phrases)
+        self._intent_embeddings = dict(zip(phrases, embeddings))
+    
+    def match(self, query: str, threshold: float = 0.72) -> str | None:
+        if not self._available or not self._intent_embeddings:
+            return None
+        from sentence_transformers import util
+        query_emb = self._model.encode(query)
+        best_score, best_key = 0.0, None
+        for phrase, emb in self._intent_embeddings.items():
+            score = float(util.cos_sim(query_emb, emb))
+            if score > best_score:
+                best_score, best_key = score, phrase
+        return best_key if best_score >= threshold else None
+
 
 class Planner:
     """Plan decomposer with an inverted-index strategy for scalable tool lookup."""
 
     def __init__(self) -> None:
         self._plans: dict[str, ExecutionPlan] = {}
+        self._semantic_router = SemanticRouter()
         self._auto_dag_templates: set[str] = {
             "recon_full",
             "web_audit",
@@ -336,24 +367,69 @@ Respond with ONLY valid JSON:
 
         user_prompt = goal
 
+        openai_tools = [{
+            "type": "function",
+            "function": {
+                "name": "execute_plan",
+                "description": "Execute shell commands or system operations. Use this tool when needs_tools is true.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "needs_tools": {"type": "boolean"},
+                        "reasoning": {"type": "string"},
+                        "steps": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "tool": {"type": "string"},
+                                    "command": {"type": "string"},
+                                    "description": {"type": "string"}
+                                },
+                                "required": ["tool", "command", "description"]
+                            }
+                        }
+                    },
+                    "required": ["needs_tools", "reasoning", "steps"]
+                }
+            }
+        }]
+
         try:
-            raw = await llm_call(full_prompt, user_prompt, history=history)
-            response = raw.get("content", "") if isinstance(raw, dict) else str(raw)
+            raw = await llm_call(full_prompt, user_prompt, history=history, tools=openai_tools)
+            
+            tool_calls = raw.get("tool_calls") if isinstance(raw, dict) else None
+            if tool_calls and len(tool_calls) > 0:
+                func_args = tool_calls[0].function.arguments
+                if isinstance(func_args, str):
+                    import json
+                    try:
+                        data = json.loads(func_args)
+                        response = "" # handled via data
+                    except json.JSONDecodeError:
+                        data = None
+                        response = func_args
+                else:
+                    data = func_args
+                    response = ""
+            else:
+                response = raw.get("content", "") if isinstance(raw, dict) else str(raw)
+                data = None
         except Exception as exc:
             raise RuntimeError(f"LLM planning call failed: {exc}") from exc
 
-        # Parse JSON response
-        # Strip any markdown fences the LLM might add
-        cleaned = response.strip()
-        if cleaned.startswith("```"):
-            # Remove ```json … ``` fences
-            cleaned = cleaned.split("\n", 1)[-1]
-            cleaned = cleaned.rsplit("```", 1)[0]
-        cleaned = cleaned.strip()
-        try:
-            data = json.loads(cleaned)
-        except json.JSONDecodeError as exc:
-            raise RuntimeError(f"LLM returned invalid JSON:\n{cleaned[:500]}") from exc
+        # Parse JSON response if native tool calls weren't used
+        if data is None:
+            cleaned = response.strip()
+            if cleaned.startswith("```"):
+                # Remove ```json … ``` fences
+                cleaned = cleaned.split("\n", 1)[-1]
+                cleaned = cleaned.rsplit("```", 1)[0]
+            cleaned = cleaned.strip()
+            try:
+                data = json.loads(cleaned)
+            except json.JSONDecodeError as exc:
+                raise RuntimeError(f"LLM returned invalid JSON:\n{cleaned[:500]}") from exc
 
         if not isinstance(data, dict):
             return self.create_plan(
@@ -413,7 +489,7 @@ Respond with ONLY valid JSON:
             for i, step_def in enumerate(steps):
                 plan_steps.append(
                     PlanStep(
-                        id=f"step_{i:03d}",
+                        id=step_def.get("id", f"step_{i:03d}"),
                         description=step_def.get("description", f"Step {i+1}"),
                         tool=step_def.get("tool", ""),
                         args=step_def.get("args", {}),
@@ -585,25 +661,34 @@ Respond with ONLY valid JSON:
                 "brute": ("hydra", "Brute force attack", "-L /usr/share/wordlists/usernames.txt -P /usr/share/wordlists/passwords.txt"),
                 "crack": ("hashcat", "Hash cracking", ""),
             }
-            for keyword in sorted(intent_map, key=len, reverse=True):
-                if keyword in goal_lower:
-                    tool, desc, flags = intent_map[keyword]
-                    actual_tool = tool
-                    if tool not in avail_set and tool in TOOL_ALTERNATIVES:
-                        for alt in TOOL_ALTERNATIVES[tool]:
-                            if alt in avail_set:
-                                actual_tool = alt
-                                break
-                    if actual_tool in avail_set or not avail_set:
-                        clean_target = target.replace("https://", "").replace("http://", "").split("/")[0]
-                        return self.create_plan(
-                            goal=goal,
-                            steps=[{
-                                "description": desc + (f" (via {actual_tool})" if actual_tool != tool else ""),
-                                "tool": actual_tool,
-                                "args": {"target": clean_target, "flags": flags},
-                            }],
-                        )
+            self._semantic_router.build_embeddings(intent_map)
+            sem_match = self._semantic_router.match(goal_lower)
+            matched_keyword = sem_match if sem_match else None
+            
+            if not matched_keyword:
+                for keyword in sorted(intent_map, key=len, reverse=True):
+                    if keyword in goal_lower:
+                        matched_keyword = keyword
+                        break
+                        
+            if matched_keyword:
+                tool, desc, flags = intent_map[matched_keyword]
+                actual_tool = tool
+                if tool not in avail_set and tool in TOOL_ALTERNATIVES:
+                    for alt in TOOL_ALTERNATIVES[tool]:
+                        if alt in avail_set:
+                            actual_tool = alt
+                            break
+                if actual_tool in avail_set or not avail_set:
+                    clean_target = target.replace("https://", "").replace("http://", "").split("/")[0]
+                    return self.create_plan(
+                        goal=goal,
+                        steps=[{
+                            "description": desc + (f" (via {actual_tool})" if actual_tool != tool else ""),
+                            "tool": actual_tool,
+                            "args": {"target": clean_target, "flags": flags},
+                        }],
+                    )
 
             # ── Step 5: Category-aware probe fallback ───────────────────
             probe_groups = [
@@ -621,6 +706,7 @@ Respond with ONLY valid JSON:
                  ("masscan", "Mass port scan", "--rate 1000 --top-ports 100")],
             ]
             probe_steps = []
+            last_step_id = None
             for group in probe_groups:
                 for tool, desc, flags in group:
                     actual_tool = tool
@@ -631,11 +717,15 @@ Respond with ONLY valid JSON:
                                 break
                     if actual_tool in avail_set or not avail_set:
                         clean_target = target.replace("https://", "").replace("http://", "").split("/")[0]
+                        step_id = f"probe_{actual_tool}"
                         probe_steps.append({
+                            "id": step_id,
                             "description": desc + (f" (via {actual_tool})" if actual_tool != tool else ""),
                             "tool": actual_tool,
                             "args": {"target": clean_target, "flags": flags},
+                            "dependencies": [last_step_id] if last_step_id else [],
                         })
+                        last_step_id = step_id
                         break  # one tool per group
             if probe_steps:
                 plan_type = PlanType.DAG if len(probe_steps) > 2 else PlanType.SEQUENTIAL
@@ -673,27 +763,28 @@ Respond with ONLY valid JSON:
         return self.create_plan(goal=goal)
 
     def adapt_plan(self, plan: ExecutionPlan, failed_step: PlanStep, error: str) -> ExecutionPlan:
-        if failed_step.tool == "nmap" and "filtered" in error.lower():
-            failed_step.args["flags"] = failed_step.args.get("flags", "") + " -Pn"
-            failed_step.status = StepStatus.PENDING
-            failed_step.retry_count += 1
-        elif failed_step.tool in ("nikto", "nuclei") and "refused" in error.lower():
-            idx = plan.steps.index(failed_step)
-            plan.steps.insert(
-                idx + 1,
-                PlanStep(
-                    id=f"adapted_{idx}",
-                    description="Fallback scan",
-                    tool="nuclei",
-                    args={"target": failed_step.args.get("target", "")},
-                ),
-            )
-            failed_step.status = StepStatus.SKIPPED
-        elif failed_step.tool in ("gobuster", "ffuf") and "404" in error:
-            failed_step.args["extensions"] = "php,html,js,txt"
-            failed_step.status = StepStatus.PENDING
-            failed_step.retry_count += 1
-        elif failed_step.can_retry:
+        error_lower = error.lower()
+        from typing import Callable
+        RECOVERY_RULES: list[tuple[str | None, str, Callable]] = [
+            ("nmap", "filtered", lambda s: s.args.update({"flags": s.args.get("flags","") + " -Pn"})),
+            ("nmap", "permission", lambda s: s.args.update({"flags": s.args.get("flags","").replace("-sS","-sT")})),
+            (None, "timeout", lambda s: s.args.update({"timeout": s.timeout * 1.5})),
+            (None, "refused", lambda s: s.metadata.update({"skip_on_refused": True})),
+            ("gobuster|ffuf", "404", lambda s: s.args.update({"extensions": "php,html,js,txt,asp,aspx"})),
+            ("hydra", "invalid user", lambda s: s.args.update({"flags": "-e nsr"})),
+            ("sqlmap", "not injectable", lambda s: s.args.update({"flags": "--level=3 --risk=2"})),
+        ]
+        
+        for tool_pat, err_pat, recovery_fn in RECOVERY_RULES:
+            tool_match = tool_pat is None or re.search(tool_pat, failed_step.tool)
+            if tool_match and err_pat in error_lower:
+                if failed_step.can_retry:
+                    recovery_fn(failed_step)
+                    failed_step.status = StepStatus.PENDING
+                    failed_step.retry_count += 1
+                    return plan
+                    
+        if failed_step.can_retry:
             failed_step.status = StepStatus.PENDING
             failed_step.retry_count += 1
         else:

@@ -16,8 +16,15 @@ from ..validators import Validator, RecoveryAction
 from ..context import ContextManager
 from ..memory import MemoryManager
 from ..providers import ProviderManager
+from ..providers.usage import UsageTracker
 from ..workflow import WorkflowEngine
 from ..events import Event, EventType, get_event_bus
+from ..exceptions import BudgetExceededError
+from ..knowledge_graph import KnowledgeGraph
+from ..stealth import StealthEngine
+import os
+from pathlib import Path
+from ..config import get_config_dir
 
 logger = logging.getLogger(__name__)
 
@@ -76,12 +83,33 @@ class AgentCore:
         self._planner = Planner()
         self._executor = Executor(self._registry)
         self._validator = Validator()
-        self._context = ContextManager()
         self._memory = MemoryManager()
+        self._context = ContextManager(memory=self._memory)
         self._providers = ProviderManager()
         self._workflow_engine = WorkflowEngine()
         self._event_bus = get_event_bus()
+        
+        # Load external plugins
+        try:
+            from siyarix.plugins.loader import PluginLoader
+            plugin_loader = PluginLoader(self._registry, self._providers)
+            plugin_loader.load_all()
+        except Exception as e:
+            logger.warning(f"Failed to initialize plugin loader: {e}")
+            
+        # Initialize notifications
+        try:
+            from siyarix.notifications import NotificationDispatcher
+            self._notifications = NotificationDispatcher()
+        except Exception as e:
+            logger.warning(f"Failed to initialize notifications: {e}")
         self._history: list[AgentResult] = []
+        self._kg_path = get_config_dir() / "knowledge_graph.json"
+        self._knowledge_graph = KnowledgeGraph()
+        self._usage_tracker = UsageTracker()
+        self._stealth = StealthEngine()
+        self._max_tokens_per_session = int(os.getenv("SIYARIX_MAX_TOKENS", "100000"))
+        self._max_cost_usd = float(os.getenv("SIYARIX_MAX_COST_USD", "2.00"))
 
     @property
     def status(self) -> AgentStatus:
@@ -119,6 +147,67 @@ class AgentCore:
     def context(self) -> ContextManager:
         return self._context
 
+    @property
+    def stealth(self) -> StealthEngine:
+        return self._stealth
+
+    async def _check_budget(self) -> None:
+        record = self._usage_tracker.session_totals()
+        if record.total_tokens >= self._max_tokens_per_session:
+            raise BudgetExceededError(
+                f"Session token limit {self._max_tokens_per_session} reached."
+            )
+        if record.estimated_cost_usd >= self._max_cost_usd:
+            raise BudgetExceededError(
+                f"Session cost limit ${self._max_cost_usd:.2f} reached."
+            )
+
+    async def start(self) -> None:
+        import signal
+        import asyncio
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            try:
+                loop.add_signal_handler(sig, lambda: asyncio.create_task(self.shutdown()))
+            except NotImplementedError:
+                pass
+
+        if self._kg_path.exists():
+            self._knowledge_graph.load_json(str(self._kg_path))
+            logger.info("Loaded knowledge graph: %d nodes", len(self._knowledge_graph._nodes))
+            
+        if os.getenv("SIYARIX_STEALTH") == "1":
+            try:
+                from ..stealth import StealthManager
+                self._stealth = StealthManager()
+                await self._stealth.activate()
+                logger.info("Stealth mode active")
+            except ImportError:
+                pass
+
+        await self.initialize()
+        
+        # Register custom _subagent executor for playbooks/swarms
+        async def _subagent_handler(step: Any) -> dict[str, Any]:
+            role = step.args.get("role", "assistant")
+            goal_desc = step.args.get("goal", step.command)
+            try:
+                res = await self.execute_subagent(role, goal_desc)
+                return {"status": "success", "findings": len(res.findings)}
+            except Exception as e:
+                return {"status": "error", "error": str(e)}
+        self._executor.register_executor("_subagent", _subagent_handler)
+
+    async def shutdown(self) -> None:
+        logger.info("Siyarix shutting down gracefully...")
+        if hasattr(self._executor, 'close'):
+            await self._executor.close(timeout=5.0)
+        self._kg_path.parent.mkdir(parents=True, exist_ok=True)
+        self._knowledge_graph.save_json(str(self._kg_path))
+        if hasattr(self._providers, '_state') and hasattr(self._providers._state, 'save'):
+            self._providers._state.save()
+        logger.info("Shutdown complete.")
+
     async def initialize(self) -> None:
         self._registry.discover_from_path()
         self._registry.scan_path()
@@ -133,6 +222,32 @@ class AgentCore:
                 data={"mode": self._mode.value, "tools": self._registry.stats()["total"]},
             )
         )
+
+    async def execute_multi_wave(self, goal: AgentGoal, max_waves: int = 5) -> AgentResult:
+        all_findings = []
+        plan = None
+        for wave in range(max_waves):
+            wave_context = {
+                "wave": wave,
+                "previous_findings": all_findings[-20:],
+                "goal": goal.description,
+            }
+            wave_goal = AgentGoal(
+                description=goal.description,
+                constraints={**goal.constraints, "context": wave_context},
+            )
+            wave_result = await self.execute_goal(wave_goal, plan)
+            all_findings.extend(wave_result.findings)
+            
+            if not wave_result.findings:
+                break
+                
+            if hasattr(self._planner, "plan_next_wave"):
+                plan = self._planner.plan_next_wave(wave_result.findings, goal)
+            else:
+                plan = None
+                
+        return AgentResult(goal=goal.description, findings=all_findings, success=True)
 
     async def execute_goal(self, goal: AgentGoal, plan: ExecutionPlan | None = None) -> AgentResult:
         self._status = AgentStatus.PLANNING
@@ -179,8 +294,14 @@ class AgentCore:
 
             self._executor.set_progress_callback(on_step)
             await self._validator.validate_plan(plan.steps)
-            plan = await self._executor.execute_plan(plan)
-            result.success = plan.status == PlanStatus.COMPLETED
+            if hasattr(plan, "plan_type") and getattr(plan.plan_type, "value", None) == "dag":
+                workflow = self._workflow_engine.from_execution_plan(plan)
+                wf_result = await self._workflow_engine.run(workflow, self._executor)
+                result.success = wf_result.status.value == "completed"
+            else:
+                plan = await self._executor.execute_plan(plan)
+                result.success = plan.status == PlanStatus.COMPLETED
+
             result.summary = self._generate_summary(plan)
             result.findings = self._extract_findings(plan)
         except Exception as e:
@@ -197,9 +318,23 @@ class AgentCore:
     ) -> AgentResult:
         """Autonomous mode: LLM-first planning, reflection, recovery."""
         try:
+            await self._check_budget()
             if plan is None:
-                plan = self._planner.decompose_goal(
-                    goal.description, [t.name for t in self._registry.list_tools()]
+                provider, model = self._providers.select_provider()
+                async def llm_call(system_prompt, user_prompt, *, history=None):
+                    return await self._providers.complete(
+                        provider, model, system_prompt, user_prompt, history=history
+                    )
+                tool_schemas = [
+                    {"name": t.name, "description": t.description, "tags": t.tags, "category": getattr(t.category, 'value', str(t.category))}
+                    for t in self._registry.list_tools()
+                ]
+                plan = await self._planner.llm_decompose_goal(
+                    goal.description,
+                    [t.name for t in self._registry.list_tools()],
+                    llm_call=llm_call,
+                    tool_schemas=tool_schemas,
+                    history=self._context.get_history(),
                 )
             result.plan = plan
             self._context.add_history(f"Goal: {goal.description}", "user")
@@ -230,46 +365,49 @@ class AgentCore:
     async def _execute_hybrid(
         self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult
     ) -> AgentResult:
-        """Hybrid mode: try autonomous (LLM) first, fall back to registry (heuristic).
-
-        This is NOT a standalone execution — it orchestrates between
-        autonomous and registry modes, combining their strengths.
-        """
-        self._mode = AgentMode.AUTONOMOUS
+        """Hybrid mode: try autonomous (LLM) first, fall back to registry (heuristic)."""
         auto_result = await self._execute_autonomous(goal, plan, start, AgentResult(goal=goal.description))
         if auto_result.success:
-            result.success = True
-            result.summary = auto_result.summary
-            result.findings = auto_result.findings
-            result.plan = auto_result.plan
-            result.duration_ms = auto_result.duration_ms
-            self._history[-1] = result  # replace auto's history entry
-            self._status = AgentStatus.COMPLETED
-            return result
+            return auto_result
 
         logger.info("Autonomous execution failed, falling back to registry mode")
-        self._history.pop()  # remove auto's failed history entry
-        self._mode = AgentMode.REGISTRY
-        reg_result = await self._execute_registry(goal, plan, start, AgentResult(goal=goal.description))
-        result.success = reg_result.success
-        result.summary = f"Hybrid (autonomous failed → registry): {reg_result.summary}"
-        result.findings = reg_result.findings
-        result.plan = reg_result.plan
-        result.duration_ms = (time.time() - start) * 1000
-        self._history[-1] = result  # replace registry's history entry
-        self._status = AgentStatus.COMPLETED if result.success else AgentStatus.FAILED
-        return result
+        
+        completed_step_ids = {
+            s.id for s in (auto_result.plan.steps if auto_result.plan else [])
+            if s.status == StepStatus.COMPLETED
+        }
+        
+        registry_plan = self._planner.decompose_goal(
+            goal.description, [t.name for t in self._registry.list_tools()]
+        )
+        for step in registry_plan.steps:
+            if step.tool in completed_step_ids:
+                step.status = StepStatus.SKIPPED
+                
+        return await self._execute_registry(goal, registry_plan, start, AgentResult(goal=goal.description))
 
     async def _execute_interactive(
         self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult
     ) -> AgentResult:
-        """Interactive mode: lightweight, user-in-the-loop, minimal automation."""
+        """Interactive mode: user-in-the-loop."""
         try:
             if plan is None:
                 plan = self._planner.decompose_goal(
                     goal.description, [t.name for t in self._registry.list_tools()]
                 )
             result.plan = plan
+            
+            print("\n--- Plan Preview ---")
+            for step in plan.steps:
+                print(f"[{step.id}] {step.tool}: {step.description}")
+            print("--------------------\n")
+            
+            approval = input("Approve plan? [y/N]: ").strip().lower()
+            if approval != 'y':
+                result.success = False
+                result.summary = "Plan rejected by user."
+                return result
+                
             plan = await self._executor.execute_plan(plan)
             result.success = plan.status == PlanStatus.COMPLETED
             result.summary = self._generate_summary(plan)
@@ -290,6 +428,16 @@ class AgentCore:
         return f"Executed {total} steps: {completed} completed, {failed} failed. Progress: {plan.progress_pct:.0f}%"
 
     def _extract_findings(self, plan: ExecutionPlan) -> list[dict[str, Any]]:
+        import hashlib
+        def _make_finding_hash(finding: dict) -> str:
+            key_parts = [
+                finding.get("target", ""),
+                finding.get("port", ""),
+                finding.get("cve", finding.get("title", "")),
+                finding.get("severity", ""),
+            ]
+            return hashlib.md5("|".join(str(p).lower() for p in key_parts).encode()).hexdigest()
+
         findings = []
         seen_keys: set[str] = set()
         for step in plan.steps:
@@ -298,21 +446,57 @@ class AgentCore:
             parsed = step.result.get("findings")
             if parsed and isinstance(parsed, list):
                 for f in parsed:
-                    dedup_key = f"{f.get('tool', '')}:{f.get('title', '')}:{f.get('target', '')}"
+                    dedup_key = _make_finding_hash(f)
                     if dedup_key not in seen_keys:
                         seen_keys.add(dedup_key)
                         findings.append(f)
+                        self._ingest_finding_to_graph(f, discovered_by=step.tool)
             output = step.result.get("output", "")
             if output and not parsed:
-                findings.append(
-                    {
-                        "tool": step.tool,
-                        "description": step.description,
-                        "output_preview": output[:500],
-                        "severity": "info",
-                    }
-                )
+                f_dict = {
+                    "tool": step.tool,
+                    "description": step.description,
+                    "output_preview": output[:500],
+                    "severity": "info",
+                }
+                findings.append(f_dict)
+                self._ingest_finding_to_graph(f_dict, discovered_by=step.tool)
         return findings
+
+    def _ingest_finding_to_graph(self, finding: dict[str, Any], discovered_by: str) -> None:
+        from ..knowledge_graph import NodeType, EdgeType
+        target = finding.get("target", "")
+        host_node = None
+        if target:
+            host_node = self._knowledge_graph.add_node(
+                NodeType.HOST, label=target, discovered_by=discovered_by,
+                ip=finding.get("ip", ""), hostname=finding.get("hostname", "")
+            )
+        if finding.get("cve") or finding.get("severity"):
+            vuln_node = self._knowledge_graph.add_node(
+                NodeType.VULNERABILITY, label=finding.get("cve", finding.get("title", finding.get("description", "vuln"))),
+                severity=finding.get("severity", ""), cve=finding.get("cve", ""),
+                discovered_by=discovered_by,
+            )
+            if host_node:
+                self._knowledge_graph.add_edge(host_node.node_id, vuln_node.node_id, EdgeType.HAS_VULN)
+
+    def create_subagent(self, role: str, mode: AgentMode = AgentMode.AUTONOMOUS) -> 'AgentCore':
+        """Create a specialized sub-agent that shares this agent's knowledge graph."""
+        subagent = AgentCore(mode=mode)
+        subagent._knowledge_graph = self._knowledge_graph  # Share memory
+        logger.info(f"Created sub-agent with role: {role}")
+        return subagent
+        
+    async def execute_subagent(self, role: str, goal: str) -> AgentResult:
+        """Create and run a subagent for a specific goal."""
+        subagent = self.create_subagent(role)
+        await subagent.start()
+        try:
+            result = await subagent.execute_goal(AgentGoal(description=goal))
+            return result
+        finally:
+            await subagent.shutdown()
 
     def stats(self) -> dict[str, Any]:
         return {

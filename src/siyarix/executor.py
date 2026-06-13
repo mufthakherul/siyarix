@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .events import Event, EventType, get_event_bus
+from .audit_log import audit, AuditEventType, AuditSeverity
 from .exceptions import PermissionDeniedError
 from .permission_gate import PermissionGate
 from .planner import TOOL_ALTERNATIVES, ExecutionPlan, PlanStep, StepStatus, PlanStatus
@@ -183,11 +184,40 @@ class ToolCallTracker:
     """Records tool-call outcomes and enforces guardrail policies."""
 
     def __init__(self, config: GuardrailConfig | None = None) -> None:
+        from .config import get_config_dir
+        import json
         self._config = config or GuardrailConfig()
         self._failure_counts: dict[str, int] = {}
         self._consecutive_same: dict[str, int] = {}
         self._no_progress_count = 0
         self._last_mutation = ""
+        self._state_file = get_config_dir() / "tool_failures.json"
+        self._load_state()
+
+    def _load_state(self) -> None:
+        import json
+        if self._state_file.exists():
+            try:
+                data = json.loads(self._state_file.read_text())
+                self._failure_counts = data.get("failure_counts", {})
+                self._consecutive_same = data.get("consecutive_same", {})
+                self._no_progress_count = data.get("no_progress_count", 0)
+                self._last_mutation = data.get("last_mutation", "")
+            except Exception:
+                pass
+
+    def _save_state(self) -> None:
+        import json
+        try:
+            self._state_file.parent.mkdir(parents=True, exist_ok=True)
+            self._state_file.write_text(json.dumps({
+                "failure_counts": self._failure_counts,
+                "consecutive_same": self._consecutive_same,
+                "no_progress_count": self._no_progress_count,
+                "last_mutation": self._last_mutation
+            }))
+        except Exception:
+            pass
 
     # -- public properties (M-09) -------------------------------------------
 
@@ -232,11 +262,15 @@ class ToolCallTracker:
                 self._no_progress_count += 1
             self._consecutive_same[tool] = self._consecutive_same.get(tool, 0) + 1
         if self._failure_counts.get(tool, 0) >= self._config.exact_failure_block_after:
+            self._save_state()
             return f"BLOCKED: {tool} failed {self._failure_counts[tool]} times"
         if self._consecutive_same.get(tool, 0) >= self._config.same_tool_failure_halt_after:
+            self._save_state()
             return f"HALTED: {tool} called {self._consecutive_same[tool]} times consecutively"
         if self._no_progress_count >= self._config.no_progress_block_after:
+            self._save_state()
             return f"BLOCKED: No progress for {self._no_progress_count} calls"
+        self._save_state()
         return None
 
     def reset(self) -> None:
@@ -244,6 +278,7 @@ class ToolCallTracker:
         self._failure_counts.clear()
         self._consecutive_same.clear()
         self._no_progress_count = 0
+        self._save_state()
 
 
 StepCallback = Callable[[PlanStep], None]
@@ -332,7 +367,9 @@ class Executor:
                 and all(not s.dependencies for s in ready_steps)
             )
             if can_parallel:
-                tasks = [self._pool.submit(self._execute_step, s, executor_fn) for s in ready_steps]
+                tasks = []
+                for s in ready_steps:
+                    tasks.append(await self._pool.submit(self._execute_step, s, executor_fn))
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 # M-41: log exceptions that gather swallowed
                 for i, res in enumerate(results):
@@ -458,6 +495,13 @@ class Executor:
                 return {"status": "error", "error": guardrail}
 
             result = await self._registry.execute(step.tool, **step.args)
+            
+            try:
+                from .dlp import DLPEngine
+                dlp = DLPEngine(redact_secrets=True, redact_pii=True)
+                result = dlp.redact_dict(result)
+            except ImportError:
+                pass
             if result.get("status") == "error":
                 alt_tools = TOOL_ALTERNATIVES.get(step.tool, [])
                 for alt in alt_tools:
@@ -526,6 +570,22 @@ class Executor:
         try:
             _sl = _get_session_logger()
             _sl.add_safety_event("executor", command, f"{action}:{reason}")
+            
+            # SAFE-03: Audit trail entry for manual approvals
+            if action in ("approved", "risk_accepted"):
+                audit(
+                    AuditEventType.SECURITY_APPROVAL,
+                    AuditSeverity.HIGH,
+                    "Manual execution approval granted",
+                    {"tool": tool, "command": command, "reason": reason}
+                )
+            elif action in ("cancelled", "risk_rejected", "blocked"):
+                audit(
+                    AuditEventType.SECURITY_DENIAL,
+                    AuditSeverity.MEDIUM,
+                    "Execution denied",
+                    {"tool": tool, "command": command, "reason": reason, "action": action}
+                )
         except Exception:
             # L-27: log at debug instead of silently swallowing
             logger.debug(

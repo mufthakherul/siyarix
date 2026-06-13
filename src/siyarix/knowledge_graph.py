@@ -137,6 +137,30 @@ class KnowledgeGraph:
 
     # ── Node operations ──────────────────────────────────────────────────
 
+    def prune(self, ttl_seconds: int = 86400 * 30) -> int:
+        """Remove nodes older than TTL (and their associated edges)."""
+        now = datetime.now(timezone.utc)
+        to_remove = []
+        for nid, node in self._nodes.items():
+            try:
+                dt = datetime.fromisoformat(node.discovered_at)
+                if (now - dt).total_seconds() > ttl_seconds:
+                    to_remove.append(nid)
+            except ValueError:
+                pass
+
+        for nid in to_remove:
+            self._nodes.pop(nid, None)
+
+        self._edges = [e for e in self._edges if e.source_id not in to_remove and e.target_id not in to_remove]
+        self._adjacency.clear()
+        self._reverse_adj.clear()
+        for e in self._edges:
+            self._adjacency[e.source_id].append(e.target_id)
+            self._reverse_adj[e.target_id].append(e.source_id)
+
+        return len(to_remove)
+
     def add_node(
         self,
         node_type: NodeType,

@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
+from siyarix.config import get_config_dir
 
 logger = logging.getLogger(__name__)
 
@@ -249,7 +250,7 @@ class MemoryStore:
 
 class MemoryManager:
     def __init__(self, base_path: Path | None = None) -> None:
-        self._base_path = base_path or Path.home() / ".siyarix"
+        self._base_path = base_path or get_config_dir()
         self._stores: dict[MemoryLayer, MemoryStore] = {}
         self._stores[MemoryLayer.SESSION] = MemoryStore()
         db_path = self._base_path / "memory.db"
@@ -298,6 +299,40 @@ class MemoryManager:
 
     def stats(self) -> dict[str, Any]:
         return {layer.value: store.stats() for layer, store in self._stores.items()}
+
+    def save_context(self, entry: dict[str, Any]) -> None:
+        import json
+        key = f"context_{time.time()}_{hashlib.md5(str(entry).encode()).hexdigest()[:8]}"
+        self.store(
+            key=key,
+            value=json.dumps(entry),
+            layer=MemoryLayer.PROJECT,
+            tags=["context"],
+        )
+
+    def load_context(self) -> list[dict[str, Any]]:
+        import json
+        store = self._stores.get(MemoryLayer.PROJECT)
+        if not store or not store._conn:
+            return []
+        
+        try:
+            with store._lock:
+                cursor = store._conn.execute(
+                    "SELECT value FROM memories WHERE layer = ? AND tags LIKE ? ORDER BY created_at ASC",
+                    (MemoryLayer.PROJECT.value, '%"context"%')
+                )
+                rows = cursor.fetchall()
+            
+            history = []
+            for row in rows:
+                try:
+                    history.append(json.loads(row["value"]))
+                except json.JSONDecodeError:
+                    pass
+            return history
+        except Exception:
+            return []
 
     def close(self) -> None:
         for store in self._stores.values():

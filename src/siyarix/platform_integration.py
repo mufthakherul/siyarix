@@ -15,9 +15,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from siyarix.config import get_config_dir
+
 logger = logging.getLogger(__name__)
 
-INTEGRATIONS_DIR = Path.home() / ".siyarix" / "integrations"
+INTEGRATIONS_DIR = get_config_dir() / "integrations"
 
 
 @dataclass

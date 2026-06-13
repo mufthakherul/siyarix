@@ -15,7 +15,7 @@ from typing import Any
 MAX_PAYLOAD_LENGTH = 262144
 
 BRACKET_TOOL_RE = re.compile(
-    r"\[TOOL_[A-Z]+_[A-Z]+\]|\[tool(?::\w+)?\]|\[(\w+)\](?:\s*\n|\s+)(\{)", re.DOTALL
+    r"\[TOOL_[\w-]+\]|\[tool(?::[\w-]+)?\]|\[([\w-]+)\](?:\s*\n|\s+)(\{)", re.IGNORECASE | re.DOTALL
 )
 XML_TOOL_RE = re.compile(r"<function=(\w+)>(.*?)</function>", re.DOTALL)
 

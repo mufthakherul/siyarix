@@ -26,6 +26,7 @@ import secrets
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
+from .config import get_config_dir
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ class OPSECManager:
 
     def __init__(self) -> None:
         self._status: OPSECStatus = OPSECStatus()
-        self._log_dir: Path = Path.home() / ".siyarix" / "logs"
+        self._log_dir: Path = get_config_dir() / "logs"
 
     @property
     def status(self) -> OPSECStatus:

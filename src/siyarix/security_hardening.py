@@ -188,8 +188,10 @@ class InputValidator:
         sanitized = sanitized.replace("\r", "")
         sanitized = sanitized.replace("\n", "")
         sanitized = sanitized.replace("\x1b", "")
-        # Remove shell metacharacters
-        sanitized = re.sub(r"[`$|;&><]", "", sanitized)
+        # Remove shell metacharacters but allow $ for valid env vars/regexes
+        sanitized = re.sub(r"[`|;&><]", "", sanitized)
+        # Remove command substitution
+        sanitized = re.sub(r"\$\(|\$\{", "", sanitized)
         while "../" in sanitized or "..\\" in sanitized:
             sanitized = sanitized.replace("../", "").replace("..\\", "")
         return sanitized.strip()
@@ -497,14 +499,14 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     ),
     (re.compile(r">\s*/etc/", re.I), "high", "Overwrite system config"),
     (
-        re.compile(r"\bcurl\b.*\|\s*(?:sudo\s+)?(?:bash|sh)\b", re.I),
+        re.compile(r"\bcurl\b.*\|\s*(?:sudo\s+)?(?:bash|sh|python)\b", re.I),
         "high",
-        "Pipe curl to shell",
+        "Pipe curl to shell/python",
     ),
     (
-        re.compile(r"\bwget\b.*\|\s*(?:sudo\s+)?(?:bash|sh)\b", re.I),
+        re.compile(r"\bwget\b.*\|\s*(?:sudo\s+)?(?:bash|sh|python)\b", re.I),
         "high",
-        "Pipe wget to shell",
+        "Pipe wget to shell/python",
     ),
     (re.compile(r"\bDROP\s+(?:TABLE|DATABASE)\b", re.I), "high", "SQL DROP statement"),
     (
@@ -537,6 +539,11 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     (re.compile(r"/dev/tcp/", re.I), "medium", "Bash /dev/tcp (reverse shell pattern)"),
     (re.compile(r"\bxmrig\b", re.I), "medium", "Cryptominer (xmrig)"),
     (re.compile(r"\bcpuminer\b", re.I), "medium", "Cryptominer (cpuminer)"),
+    (re.compile(r"\bcrontab\s+-e\b", re.I), "medium", "Edit crontab (persistence)"),
+    (re.compile(r">>\s*(?:~/\.bashrc|~/\.zshrc|~/\.profile)", re.I), "medium", "Modify shell rc (persistence)"),
+    (re.compile(r"\bbase64\s+-d\s*\|", re.I), "high", "Base64 decode pipe (encoded execution)"),
+    (re.compile(r"\|\s*base64\s+-d\b", re.I), "high", "Pipe to base64 decode (encoded execution)"),
+    (re.compile(r"\bcat\s+(?:/etc/shadow|~/\.ssh/|/root/\.ssh/)", re.I), "critical", "Credential exfiltration (shadow/ssh)"),
     # ── Windows-specific ──
     (re.compile(r"\bformat\s+[a-zA-Z]:", re.I), "critical", "Windows format disk"),
     (

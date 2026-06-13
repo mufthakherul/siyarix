@@ -41,6 +41,7 @@ __all__ = [
     "safe_run_async",
     "safe_run_async_stream",
     "safe_run_sync",
+    "safe_run_sandboxed",
 ]
 
 # Track orphan child processes for cleanup on parent crash.
@@ -312,6 +313,7 @@ async def safe_run_async_stream(
     validate: bool = True,
     on_stdout: Callable[[str], Any] | None = None,
     on_stderr: Callable[[str], Any] | None = None,
+    max_output_bytes: int | None = None,
 ) -> ExecutionResult:
     """Run a command and stream output line-by-line via callbacks."""
     if validate:
@@ -320,6 +322,7 @@ async def safe_run_async_stream(
     
     stdout_lines: list[str] = []
     stderr_lines: list[str] = []
+    bytes_read = [0]
 
     if _use_thread_fallback():
         loop = asyncio.get_running_loop()
@@ -341,6 +344,9 @@ async def safe_run_async_stream(
         ) -> None:
             try:
                 for raw_line in iter(pipe.readline, ""):
+                    bytes_read[0] += len(raw_line.encode("utf-8", errors="replace"))
+                    if max_output_bytes and bytes_read[0] > max_output_bytes:
+                        continue
                     line = raw_line.rstrip("\n")
                     lines.append(line)
                     if callback:
@@ -408,6 +414,9 @@ async def safe_run_async_stream(
             raw = await stream.readline()
             if not raw:
                 break
+            bytes_read[0] += len(raw)
+            if max_output_bytes and bytes_read[0] > max_output_bytes:
+                continue
             line = raw.decode(errors="replace").rstrip("\n")
             lines.append(line)
             if callback:
@@ -462,3 +471,49 @@ async def safe_run_async_stream(
         stderr="\n".join(stderr_lines),
         duration_ms=duration_ms,
     )
+
+def safe_run_sandboxed(
+    command: list[str],
+    timeout: float = 60.0,
+    cwd: str | None = None,
+    env: dict[str, str] | None = None,
+    allow_network: bool = False,
+) -> ExecutionResult:
+    """Run a command inside a sandbox if available, otherwise fallback to restricted env.
+    
+    Attempts to use `bwrap` (Bubblewrap) on Linux or Docker. If neither are available,
+    runs the command normally but with a restricted PATH and sanitized environment.
+    """
+    sandbox_cmd = []
+    
+    if sys.platform == "linux" and shutil.which("bwrap"):
+        sandbox_cmd = [
+            "bwrap", "--ro-bind", "/", "/", "--dev", "/dev",
+            "--proc", "/proc", "--unshare-all"
+        ]
+        if allow_network:
+            sandbox_cmd.remove("--unshare-all")
+            sandbox_cmd.extend(["--unshare-pid", "--unshare-user", "--unshare-cgroup", "--unshare-ipc"])
+        
+        if cwd:
+            sandbox_cmd.extend(["--bind", cwd, cwd])
+        sandbox_cmd.extend(["--"])
+        sandbox_cmd.extend(command)
+    elif shutil.which("docker"):
+        # basic docker fallback
+        img = "alpine:latest" if not allow_network else "ubuntu:latest"
+        sandbox_cmd = ["docker", "run", "--rm", "--network", "host" if allow_network else "none"]
+        if cwd:
+            sandbox_cmd.extend(["-v", f"{Path(cwd).resolve()}:/workspace", "-w", "/workspace"])
+        sandbox_cmd.append(img)
+        sandbox_cmd.extend(command)
+    else:
+        # Fallback to restricted environment
+        sandbox_cmd = command
+        restricted_env = {"PATH": "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"}
+        if env:
+            restricted_env.update(env)
+        env = restricted_env
+
+    return safe_run_sync(sandbox_cmd, timeout=timeout, cwd=cwd, env=env)
+

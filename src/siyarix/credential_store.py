@@ -16,7 +16,7 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -113,7 +113,8 @@ class Credential:
 class CredentialStore:
     """Enterprise credential store"""
 
-    _DEFAULT_CONFIG_DIR = Path.home() / ".siyarix"
+    _DEFAULT_CONFIG_DIR = get_config_dir()
+    _SECRET_PATH = _DEFAULT_CONFIG_DIR / "credentials.json"
 
     def __init__(self, master_password: str | None = None) -> None:
         self._config_dir = Path(os.getenv("SIYARIX_CONFIG_DIR", str(self._DEFAULT_CONFIG_DIR)))

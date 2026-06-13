@@ -102,7 +102,20 @@ jobs:
           pip install pip-audit
 
       - name: Run dependency vulnerability scan
-        run: pip-audit --format=json --output=osv-sarif-results.json || true
+        run: |
+          pip freeze > requirements.txt
+          pip-audit -r requirements.txt --format=json -o audit.json || true
+          python -c "
+          import json, sys
+          vulns = 0
+          with open('audit.json') as f:
+              data = json.load(f)
+              for dep in data:
+                  vulns += len(dep.get('vulns', []))
+          if vulns > 0:
+              print(f'::error::{vulns} vulnerabilities found')
+              sys.exit(1)
+          "
 
       - name: Upload dependency scan results
         if: always()

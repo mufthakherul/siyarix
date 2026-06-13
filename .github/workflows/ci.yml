@@ -95,6 +95,12 @@ jobs:
           echo "Checking for required files..."
           ls -la pyproject.toml setup.py setup.cfg 2>/dev/null || true
 
+      - name: Regenerate dependency graph
+        run: |
+          pip install graphify
+          graphify src/siyarix/ --output graph.json
+          git diff --exit-code graph.json || echo "::warning::graph.json is stale"
+
   test:
     name: Test Suite
     runs-on: ubuntu-latest

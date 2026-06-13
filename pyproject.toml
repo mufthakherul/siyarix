@@ -33,11 +33,11 @@ dependencies = [
   "httpx>=0.27",
   "pydantic>=2.5",
   "keyring>=25.0",
-  "cryptography>=42.0,<44.0",
+  "cryptography>=42.0",
   "psutil>=5.9.0",
   "defusedxml>=0.7.1",
-  "anthropic>=0.40.0",
-  "google-generativeai>=0.8.0",
+  "PyYAML>=6.0",
+  "Jinja2>=3.1.0",
 ]
 
 [project.optional-dependencies]
@@ -45,6 +45,7 @@ cli = [
   "typer>=0.12",
   "rich>=13",
   "prompt_toolkit>=3.0",
+  "textual>=0.50.0",
 ]
 siem = [
   "httpx>=0.27",
@@ -59,6 +60,11 @@ openai = [
 ]
 gemini = [
   "google-generativeai>=0.8.0",
+]
+api = [
+  "fastapi>=0.110.0",
+  "uvicorn[standard]>=0.29.0",
+  "pyjwt>=2.8.0",
 ]
 anthropic = [
   "anthropic>=0.40.0",
@@ -94,12 +100,13 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-per-file-ignores = {"tests/*" = ["E741", "F401"]}
+per-file-ignores = {"tests/*" = ["E741"]}
 
 [tool.mypy]
 python_version = "3.11"
 check_untyped_defs = true
-disallow_untyped_defs = false
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
 ignore_missing_imports = false
 warn_unused_ignores = true
 strict_optional = true
@@ -116,3 +123,12 @@ markers = [
   "terminal: terminal detection tests",
   "tool_installer: tool installer tests",
 ]
+
+[tool.coverage.report]
+fail_under = 75
+show_missing = true
+omit = ["tests/*", "*/migrations/*"]
+
+[tool.coverage.run]
+source = ["src/siyarix"]
+branch = true

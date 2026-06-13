@@ -1,0 +1,15 @@
+site_name: Siyarix
+theme:
+  name: material
+  palette:
+    - scheme: slate
+nav:
+  - Home: index.md
+  - Getting Started: getting-started/installation.md
+  - Routing Modes: architecture/interaction-modes.md
+  - CLI Reference: user/cli-commands.md
+  - AI Workflows: ai/multi-provider-routing.md
+  - Contributing: developer/contribution-guide.md
+  - Ethical Use: security/ethical-hacking-policy.md
+plugins:
+  - search

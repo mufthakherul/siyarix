@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from siyarix.config import get_config_dir
+
 from .session import ChatMessage as ChatMessage, ChatSession as ChatSession
 from .ui import (
     SmartAutocomplete as SmartAutocomplete,
@@ -120,7 +122,7 @@ def load_env_file() -> None:
     for security. Use /key set <provider> <key> instead.
     """
     _api_key_patterns = ("_API_KEY", "_SECRET", "_PASSWORD", "_TOKEN")
-    env_path = Path.home() / ".siyarix" / ".env"
+    env_path = get_config_dir() / ".env"
     if not env_path.exists():
         return
     for line in env_path.read_text(encoding="utf-8", errors="replace").splitlines():

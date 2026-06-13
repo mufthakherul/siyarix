@@ -347,6 +347,7 @@ async def _gemini_generate(
     *,
     max_tokens: int = 2000,
     temperature: float = 0.3,
+    tools: list[dict] | None = None,
 ) -> dict[str, Any]:
     """Call Gemini's native generateContent endpoint with safety settings."""
     contents = _gemini_build_contents(system_prompt, user_prompt, history)
@@ -392,6 +393,7 @@ async def _gemini_stream(
     *,
     max_tokens: int = 2000,
     temperature: float = 0.3,
+    tools: list[dict] | None = None,
 ) -> AsyncGenerator[str, None]:
     """Stream from Gemini's native streamGenerateContent endpoint."""
     contents = _gemini_build_contents(system_prompt, user_prompt, history)
@@ -438,6 +440,7 @@ async def openai_stream(
     max_tokens: int = 2000,
     temperature: float = 0.3,
     compat: OpenAICompat | None = None,
+    tools: list[dict] | None = None,
 ) -> AsyncGenerator[str, None]:
     """Stream a response from any OpenAI-compatible provider.
 
@@ -452,6 +455,8 @@ async def openai_stream(
         "stream": True,
         "stream_options": {"include_usage": True},
     }
+    if tools:
+        kwargs["tools"] = tools
     response = await client.chat.completions.create(**kwargs)
     async for chunk in response:
         if chunk.choices and len(chunk.choices) > 0:
@@ -472,6 +477,7 @@ async def openai_complete(
     max_tokens: int = 2000,
     temperature: float = 0.3,
     compat: OpenAICompat | None = None,
+    tools: list[dict] | None = None,
 ) -> dict[str, Any]:
     """Complete a chat request from any OpenAI-compatible provider.
 
@@ -484,6 +490,8 @@ async def openai_complete(
         "max_tokens": max_tokens,
         "temperature": temperature,
     }
+    if tools:
+        kwargs["tools"] = tools
     try:
         response = await client.chat.completions.create(**kwargs)
     except Exception as exc:
@@ -497,6 +505,7 @@ async def openai_complete(
         "model": response.model or model,
         "input_tokens": usage.prompt_tokens if usage else 0,
         "output_tokens": usage.completion_tokens if usage else 0,
+        "tool_calls": getattr(choice.message, "tool_calls", None),
     }
 
 
@@ -526,25 +535,67 @@ def make_openai_adapter(
         *,
         stream: bool = False,
         history: list[dict] | None = None,
+        tools: list[dict] | None = None,
     ) -> Any:
-        if provider == "gemini":
-            if stream:
-                return _gemini_stream(
-                    api_key, model, system_prompt, user_prompt,
-                    history=history,
+        import asyncio
+        from ..compaction import CompactionEngine
+        
+        current_history = history
+        max_retries = 3
+        
+        for attempt in range(max_retries):
+            try:
+                if provider == "gemini":
+                    if stream:
+                        # stream yields values immediately, so catching exceptions here is tricky 
+                        # but we'll let it be for now since retrying streams mid-flight is complex.
+                        return _gemini_stream(
+                            api_key, model, system_prompt, user_prompt,
+                            history=current_history, tools=tools,
+                        )
+                    return await _gemini_generate(
+                        api_key, model, system_prompt, user_prompt,
+                        history=current_history, tools=tools,
+                    )
+                if stream:
+                    return openai_stream(
+                        client, model, system_prompt, user_prompt,
+                        history=current_history, compat=compat, tools=tools
+                    )
+                return await openai_complete(
+                    client, model, system_prompt, user_prompt,
+                    history=current_history, compat=compat, tools=tools
                 )
-            return await _gemini_generate(
-                api_key, model, system_prompt, user_prompt,
-                history=history,
-            )
-        if stream:
-            return openai_stream(
-                client, model, system_prompt, user_prompt,
-                history=history, compat=compat,
-            )
-        return await openai_complete(
-            client, model, system_prompt, user_prompt,
-            history=history, compat=compat,
-        )
+            except Exception as e:
+                if not provider_manager:
+                    if attempt >= max_retries - 1:
+                        raise
+                    await asyncio.sleep(2 ** attempt)
+                    continue
+                
+                # Classify the original exception if wrapped
+                original_exc = getattr(e, "__cause__", e) or e
+                status_code = getattr(getattr(original_exc, "response", None), "status_code", None)
+                classified = provider_manager.classify_error(provider, original_exc, http_status=status_code)
+                
+                # PROV-03: Trigger CompactionEngine on context overflow
+                if classified.should_compress and current_history:
+                    # Flatten history to text
+                    text_history = "\n".join([f"{m.get('role', 'user')}: {m.get('content', '')}" for m in current_history])
+                    compactor = CompactionEngine()
+                    compressed_text = compactor.compress(text_history, target_ratio=0.5)
+                    # Replace history with the compressed summary
+                    current_history = [{"role": "system", "content": f"Prior context:\n{compressed_text}"}]
+                    continue  # Retry with compacted history
+                
+                # PROV-05: RetryPolicy for provider calls
+                if classified.retryable and attempt < max_retries - 1:
+                    provider_manager.record_failure(provider, classified.reason)
+                    await asyncio.sleep(2 ** attempt)
+                    continue
+                
+                # Out of retries or non-retryable
+                provider_manager.record_failure(provider, classified.reason)
+                raise
 
     return adapter

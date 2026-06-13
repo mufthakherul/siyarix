@@ -5,10 +5,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass, asdict
 from datetime import datetime, UTC
 from pathlib import Path
+from siyarix.config import get_config_dir
 
+logger = logging.getLogger(__name__)
 
 # ── Help category definitions ─────────────────────────────────────────────
 HELP_CATEGORIES = [
@@ -118,14 +121,12 @@ class CommandProfile:
     created_at: str = ""
 
 
-_PROFILES_DIR = Path.home() / ".siyarix" / "command_profiles"
-
-
 class CommandProfileStore:
     """Persistent storage for reusable command profiles."""
 
     def __init__(self) -> None:
-        _PROFILES_DIR.mkdir(parents=True, exist_ok=True)
+        self._profiles_dir = get_config_dir() / "command_profiles"
+        self._profiles_dir.mkdir(parents=True, exist_ok=True)
 
     def _path(self, name: str) -> Path:
         safe = name.replace("/", "_").replace("\\", "_")

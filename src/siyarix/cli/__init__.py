@@ -29,7 +29,7 @@ if os.name == "nt" and hasattr(asyncio, "WindowsSelectorEventLoopPolicy"):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 import platform
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import typer
@@ -46,7 +46,7 @@ from .. import __version__
 from ..audit_log import AuditEventType, AuditSeverity, audit
 from ..branding import available_themes, print_banner
 from ..chat import start_chat, CommandProfile, CommandProfileStore, CROSS_PLATFORM_COMMANDS
-from ..config import SettingsStore
+from ..config import SettingsStore, get_config_dir
 from ..compat import IntentRouter, SessionKernel, ExecutionEngine, ExecutionMode
 from ..credential_store import CredentialStore
 from ..registry import ToolRegistry
@@ -75,7 +75,7 @@ def _load_dotenv(path: Path | None = None) -> None:
     _api_key_patterns = ("_API_KEY", "_SECRET", "_PASSWORD", "_TOKEN")
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():
-        env_path = Path.home() / ".siyarix" / ".env"
+        env_path = get_config_dir() / ".env"
     if not env_path.exists():
         return
     for line in env_path.read_text().splitlines():
@@ -275,7 +275,7 @@ def init_wizard(
     """
     import asyncio
 
-    home_dir = Path.home() / ".siyarix"
+    home_dir = get_config_dir()
     marker = home_dir / ".initialized"
     if marker.exists() and not force:
         console.print("[green]\u2713 Siyarix is already initialized.[/green]")
@@ -403,7 +403,7 @@ def main_callback(
         return
 
     # Pipe from stdin: echo "scan 10.0.0.1" | siyarix
-    if _IS_STDIN_PIPE:
+    if _IS_STDIN_PIPE and ctx.invoked_subcommand is None:
         lines = [line for line in sys.stdin if line.strip()]
         if lines:
             _run_batch_lines([line.strip() for line in lines])
@@ -1034,6 +1034,7 @@ def agent(
     max_iterations: int = typer.Option(10, "--max-iter", "-n", help="Maximum agent iterations"),
     mode: str = typer.Option("autonomous", "--mode", "-m", help="Execution mode"),
     no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
+    stealth: bool = typer.Option(False, "--stealth", "-s", help="Enable stealth mode"),
 ) -> None:
     """Launch a goal-driven autonomous agent (observe → reason → act loop).
 
@@ -1063,6 +1064,11 @@ def agent(
         "integrated": AgentMode.HYBRID,
     }
     agent = AgentCore(mode=mode_map.get(mode, AgentMode.HYBRID))
+    
+    settings = SettingsStore()
+    if stealth or settings.get("stealth_mode"):
+        agent.stealth.enable("medium")
+        
     asyncio.run(agent.initialize())
     agent_goal = AgentGoal(description=goal, target=target)
     asyncio.run(agent.execute_goal(agent_goal))
@@ -1541,6 +1547,162 @@ def config_reset(key: str = typer.Argument(default="", help="Key to reset (empty
 # Note: theme commands are defined earlier; duplicate premium-themed handlers removed to
 # avoid redefinition and typing conflicts.
 
+
+# ---------------------------------------------------------------------------
+# Report command
+# ---------------------------------------------------------------------------
+@app.command("report")
+def generate_report(
+    output: str = typer.Option(None, "--output", "-o", help="Output path for the HTML report"),
+) -> None:
+    """Generate an HTML security assessment report from the knowledge graph."""
+    from siyarix.reporting import ReportEngine
+    from siyarix.core import AgentCore, AgentMode
+    
+    core = AgentCore(mode=AgentMode.AUTONOMOUS)
+    engine = ReportEngine(core._knowledge_graph)
+    
+    path = engine.generate_html_report(output)
+    console.print(f"[bold green]Report generated successfully:[/bold green] {path}")
+
+# ---------------------------------------------------------------------------
+# TUI command
+# ---------------------------------------------------------------------------
+@app.command()
+def tui() -> None:
+    """Start the Siyarix Textual Terminal User Interface."""
+    try:
+        from siyarix.tui.app import SiyarixTUI
+        from siyarix.core import AgentCore, AgentMode
+        import asyncio
+    except ImportError:
+        console.print("[red]Textual not installed. Run: pip install siyarix\\[cli][/red]")
+        sys.exit(1)
+        
+    core = AgentCore(mode=AgentMode.AUTONOMOUS)
+    
+    async def _run_tui() -> None:
+        await core.start()
+        app = SiyarixTUI(core=core)
+        try:
+            await app.run_async()
+        finally:
+            await core.shutdown()
+            
+    asyncio.run(_run_tui())
+
+# ---------------------------------------------------------------------------
+# Compliance commands
+# ---------------------------------------------------------------------------
+compliance_app = typer.Typer(help="Compliance evidence collection and assessment.")
+app.add_typer(compliance_app, name="compliance")
+
+@compliance_app.command("run")
+def compliance_run(
+    framework: str = typer.Argument(..., help="Compliance framework (e.g., SOC2, NIST, GDPR)"),
+    target: str = typer.Argument(..., help="Target to assess"),
+) -> None:
+    """Run a compliance assessment."""
+    from siyarix.compliance import ComplianceEngine
+    import asyncio
+    
+    engine = ComplianceEngine()
+    
+    async def _run() -> None:
+        console.print(f"[green]Starting {framework} compliance assessment for {target}...[/green]")
+        try:
+            report = await engine.run_assessment(framework, target)
+            console.print(f"[green]Assessment complete! Evidence saved to {report.evidence_path}[/green]")
+        except Exception as e:
+            console.print(f"[red]Assessment failed: {e}[/red]")
+            raise typer.Exit(1)
+            
+    asyncio.run(_run())
+
+# ---------------------------------------------------------------------------
+# Playbook commands
+# ---------------------------------------------------------------------------
+playbook_app = typer.Typer(help="Manage and run YAML playbooks.")
+app.add_typer(playbook_app, name="playbook")
+
+@playbook_app.command("run")
+def playbook_run(
+    path: str = typer.Argument(..., help="Path to playbook YAML file"),
+    var: list[str] = typer.Option([], "--var", help="Variables in key=value format"),
+) -> None:
+    """Run a YAML playbook."""
+    from siyarix.playbook import PlaybookEngine
+    from siyarix.workflow import WorkflowEngine
+    from siyarix.core import AgentCore
+    import asyncio
+    
+    variables = {}
+    for v in var:
+        if "=" in v:
+            k, val = v.split("=", 1)
+            variables[k] = val
+            
+    engine = PlaybookEngine(WorkflowEngine())
+    core = AgentCore()
+    
+    async def _run() -> None:
+        await core.start()
+        try:
+            await engine.execute(path, variables, executor=core.executor)
+        finally:
+            await core.shutdown()
+            
+    asyncio.run(_run())
+
+@playbook_app.command("list")
+def playbook_list(
+    dir_path: str = typer.Option("playbooks", "--dir", "-d", help="Directory containing playbooks"),
+) -> None:
+    """List available playbooks."""
+    p = Path(dir_path)
+    if not p.exists() or not p.is_dir():
+        console.print(f"[yellow]Directory '{dir_path}' not found.[/yellow]")
+        return
+    for f in p.glob("*.yml"):
+        console.print(f"- {f.name}")
+
+@playbook_app.command("validate")
+def playbook_validate(
+    path: str = typer.Argument(..., help="Path to playbook YAML file"),
+) -> None:
+    """Validate a YAML playbook."""
+    from siyarix.playbook import PlaybookEngine
+    from siyarix.workflow import WorkflowEngine
+    engine = PlaybookEngine(WorkflowEngine())
+    try:
+        engine.load(path)
+        console.print(f"[green]Playbook '{path}' is valid.[/green]")
+    except Exception as e:
+        console.print(f"[red]Playbook validation failed: {e}[/red]")
+        raise typer.Exit(1)
+
+# ---------------------------------------------------------------------------
+# Serve command
+# ---------------------------------------------------------------------------
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Host to bind"),
+    port: int = typer.Option(8080, "--port", "-p", help="Port to bind"),
+    reload: bool = typer.Option(False, "--reload", help="Enable auto-reload for development"),
+) -> None:
+    """Start the Siyarix REST API and WebSocket server."""
+    try:
+        import uvicorn
+        from siyarix.api.server import app as api_app
+    except ImportError:
+        console.print("[red]API dependencies not installed. Run: pip install siyarix\\[api][/red]")
+        sys.exit(1)
+        
+    console.print(f"[green]Starting Siyarix API server on http://{host}:{port}...[/green]")
+    if reload:
+        uvicorn.run("siyarix.api.server:app", host=host, port=port, reload=True)
+    else:
+        uvicorn.run(api_app, host=host, port=port)
 
 # ---------------------------------------------------------------------------
 # Version command

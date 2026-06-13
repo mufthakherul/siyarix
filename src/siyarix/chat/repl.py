@@ -9,6 +9,7 @@ import warnings
 from collections import deque
 from pathlib import Path
 from typing import Any
+from ..config import get_config_dir
 
 from .session import ChatMessage as ChatMessage, ChatSession as ChatSession
 from .ui import (
@@ -102,7 +103,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         self._llm_calls = 0
         from ..providers import UsageTracker, ProviderStateManager
 
-        state_dir = str(Path.home() / ".siyarix")
+        state_dir = str(get_config_dir())
         self._provider_state = ProviderStateManager(
             path=os.path.join(state_dir, "provider_state.json")
         )

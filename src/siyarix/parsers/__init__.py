@@ -124,16 +124,26 @@ class ParserRegistry:
     """
 
     def __init__(self) -> None:
-        self._parsers: dict[str, Parser] = {}
+        self._parsers: dict[str, dict[str | None, Parser]] = {}
 
-    def register(self, tool_name: str, parser: Parser) -> None:
-        self._parsers[tool_name] = parser
+    def register(self, tool_name: str, parser: Parser, version: str | None = None) -> None:
+        if tool_name not in self._parsers:
+            self._parsers[tool_name] = {}
+        self._parsers[tool_name][version] = parser
+        # Set default parser if not explicitly set
+        if version is not None and None not in self._parsers[tool_name]:
+            self._parsers[tool_name][None] = parser
 
-    def get(self, tool_name: str) -> Parser | None:
-        return self._parsers.get(tool_name)
+    def get(self, tool_name: str, version: str | None = None) -> Parser | None:
+        versions = self._parsers.get(tool_name)
+        if not versions:
+            return None
+        if version in versions:
+            return versions[version]
+        return versions.get(None)
 
-    def parse(self, tool_name: str, output: str) -> list[dict[str, Any]]:
-        parser = self._parsers.get(tool_name)
+    def parse(self, tool_name: str, output: str, version: str | None = None) -> list[dict[str, Any]]:
+        parser = self.get(tool_name, version)
         if not parser:
             return []
         if isinstance(parser, BaseParser):
@@ -145,17 +155,21 @@ class ParserRegistry:
             logger.exception("Parser failed for tool: %s", tool_name)
             return []
 
-    def has_parser(self, tool_name: str) -> bool:
-        return tool_name in self._parsers
+    def has_parser(self, tool_name: str, version: str | None = None) -> bool:
+        if tool_name not in self._parsers:
+            return False
+        if version is None:
+            return True
+        return version in self._parsers[tool_name] or None in self._parsers[tool_name]
 
     def registered_tools(self) -> list[str]:
         return sorted(self._parsers)
 
     @property
     def count(self) -> int:
-        return len(self._parsers)
+        return sum(len(v) for v in self._parsers.values())
 
-    def discover(self) -> dict[str, Parser]:
+    def discover(self) -> dict[str, dict[str | None, Parser]]:
         """Auto-discover all parser classes imported in this module and map
         them to their tool names by convention (e.g. ``NmapParser`` → ``nmap``)."""
         for name, obj in globals().items():
@@ -163,7 +177,18 @@ class ParserRegistry:
                 tool_name = _class_to_tool_name(name)
                 instance = obj()
                 if isinstance(instance, Parser):
-                    self._parsers[tool_name] = instance
+                    version = getattr(instance, "version", None)
+                    self.register(tool_name, instance, version)
+        
+        try:
+            import siyarix_parsers
+            if hasattr(siyarix_parsers, "NmapRustParser"):
+                self.register("nmap", siyarix_parsers.NmapRustParser(), "rust")
+            if hasattr(siyarix_parsers, "NucleiRustParser"):
+                self.register("nuclei", siyarix_parsers.NucleiRustParser(), "rust")
+        except ImportError:
+            pass
+            
         return self._parsers
 
 

@@ -32,6 +32,7 @@ __all__ = [
     "ErrorContext",
     "PermissionDeniedError",
     "ProviderError",
+    "BudgetExceededError",
     "exit_code_for",
 ]
 
@@ -114,7 +115,13 @@ class PlanningError(SiyarixException):
 
 
 class SafetyError(SiyarixException):
-    """Safety validation blocked operation."""
+    """A configured safety rule was violated."""
+
+    pass
+
+
+class BudgetExceededError(SiyarixException):
+    """The session exceeded its allowed token or cost budget."""
 
     pass
 

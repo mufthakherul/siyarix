@@ -75,6 +75,8 @@ class AuditEventType(StrEnum):
     BULK_OPERATION = "bulk_operation"
     SYSTEM_START = "system_start"
     SYSTEM_ERROR = "system_error"
+    SECURITY_APPROVAL = "security_approval"
+    SECURITY_DENIAL = "security_denial"
 
 
 class AuditSeverity(StrEnum):

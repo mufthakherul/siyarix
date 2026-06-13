@@ -50,12 +50,24 @@ class ContextWindow:
 
 
 class ContextManager:
-    def __init__(self, max_tokens: int = 1_000_000) -> None:
+    def __init__(self, max_tokens: int = 1_000_000, memory: Any = None) -> None:
         self._window = ContextWindow(max_tokens=max_tokens)
         self._chunks: list[ContextChunk] = []
         self._compressed_summaries: list[str] = []
         self._total_tokens = 0
         self._compression_count = 0
+        self._memory = memory
+        
+        if self._memory and hasattr(self._memory, 'load_context'):
+            history = self._memory.load_context()
+            for entry in history:
+                role = entry.get("role", "user")
+                content = entry.get("content", "")
+                if content:
+                    chunk = ContextChunk(content=content, source=f"history:{role}")
+                    self._chunks.append(chunk)
+                    self._window.history_tokens += chunk.token_estimate
+                    self._total_tokens += chunk.token_estimate
 
     @property
     def window(self) -> ContextWindow:
@@ -69,6 +81,9 @@ class ContextManager:
         self._chunks.append(chunk)
         self._window.history_tokens += chunk.token_estimate
         self._total_tokens += chunk.token_estimate
+        if self._memory and hasattr(self._memory, 'save_context'):
+            import time
+            self._memory.save_context({"role": role, "content": content, "ts": time.time()})
 
     def add_tool_output(self, tool: str, output: str, max_length: int = 4000) -> None:
         truncated = output[:max_length] + ("..." if len(output) > max_length else "")

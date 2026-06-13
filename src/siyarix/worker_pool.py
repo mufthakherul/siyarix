@@ -35,7 +35,7 @@ class AsyncWorkerPool:
         await pool.close()
     """
 
-    def __init__(self, max_workers: int = 5) -> None:
+    def __init__(self, max_workers: int = 5, max_queue: int = 100) -> None:
         """Create a pool with at most *max_workers* concurrent tasks.
 
         Raises:
@@ -44,10 +44,11 @@ class AsyncWorkerPool:
         if max_workers <= 0:
             raise ValueError("max_workers must be > 0")
         self._sema = asyncio.Semaphore(max_workers)
+        self._queue_sema = asyncio.Semaphore(max_queue)
         self._tasks: set[asyncio.Task[Any]] = set()
         self._closed = False
 
-    def submit(
+    async def submit(
         self, fn: Callable[..., Coroutine[Any, Any, Any]], *args: Any, **kwargs: Any
     ) -> asyncio.Task[Any]:
         """Submit *fn(\*args, \*\*kwargs)* for bounded execution.
@@ -60,10 +61,16 @@ class AsyncWorkerPool:
         if self._closed:
             raise RuntimeError("Pool is closed")
 
+        # Backpressure: Wait until there's room in the queue
+        await self._queue_sema.acquire()
+
         async def _guarded() -> Any:
             """Acquire the semaphore around the actual work."""
-            async with self._sema:
-                return await fn(*args, **kwargs)
+            try:
+                async with self._sema:
+                    return await fn(*args, **kwargs)
+            finally:
+                self._queue_sema.release()
 
         task: asyncio.Task[Any] = asyncio.create_task(_guarded())
         self._tasks.add(task)

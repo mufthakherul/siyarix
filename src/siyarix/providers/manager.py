@@ -11,6 +11,7 @@ from .types import (
     CostTier,
 )
 from ..model_aliases import normalize_model_id
+from ..config import SettingsStore
 
 
 class ProviderManager:
@@ -31,9 +32,14 @@ class ProviderManager:
         return cls._instance
 
     def __init__(self) -> None:
+        if ProviderManager._instance is not None:
+            raise RuntimeError("ProviderManager is a singleton. Use get_instance().")
         self._profiles: dict[str, ProviderProfile] = {}
         self._credentials: dict[str, list[ProviderCredential]] = {}
         self._error_counts: dict[str, int] = {}
+        from .state import ProviderStateManager
+        from ..config import get_config_dir
+        self._state_manager = ProviderStateManager(str(get_config_dir() / "provider_state.json"))
         self._init_default_profiles()
 
     def _init_default_profiles(self) -> None:
@@ -48,7 +54,22 @@ class ProviderManager:
         return self._profiles.get(name)
 
     def list_profiles(self) -> list[ProviderProfile]:
-        return sorted(self._profiles.values(), key=lambda p: -p.priority)
+        settings = SettingsStore()
+        priority_list = settings.get("provider_priority", [])
+        if isinstance(priority_list, str):
+            priority_list = [p.strip() for p in priority_list.split(",")]
+        
+        def _get_sort_key(p: ProviderProfile) -> tuple[int, int]:
+            # Returns a tuple: (index in priority_list, p.priority)
+            # Lower index in priority_list is better (comes first). 
+            # If not in list, index is infinity (len(priority_list)), then fallback to -p.priority.
+            try:
+                idx = priority_list.index(p.name)
+            except ValueError:
+                idx = len(priority_list)
+            return (idx, -p.priority)
+
+        return sorted(self._profiles.values(), key=_get_sort_key)
 
     def list_providers(self) -> list[str]:
         return sorted(self._profiles.keys())
@@ -79,7 +100,7 @@ class ProviderManager:
         return profile.base_url if profile else ""
 
     def auto_detect_provider(self) -> str | None:
-        for profile in sorted(self._profiles.values(), key=lambda p: -p.priority):
+        for profile in self.list_profiles():
             if resolve_api_key(profile.name, profile.api_key_env):
                 return profile.name
             if profile.provider_type == ProviderType.LOCAL and profile.base_url:
@@ -178,8 +199,14 @@ class ProviderManager:
                 if reason in (FailoverReason.AUTH, FailoverReason.BILLING):
                     cred.status = "dead"
                 elif reason == FailoverReason.RATE_LIMIT:
-                    cred.cooldown_until = time.time() + 60
+                    # PROV-02: Exponential backoff
+                    backoff = min(3600, 10 * (2 ** cred.failure_count))
+                    cred.cooldown_until = time.time() + backoff
+                elif reason in (FailoverReason.TIMEOUT, FailoverReason.SERVER_ERROR):
+                    backoff = min(300, 5 * (2 ** cred.failure_count))
+                    cred.cooldown_until = time.time() + backoff
                 break
+        self._state_manager.record_failure(provider, reason)
 
     def record_success(self, provider: str) -> None:
         self._error_counts[provider] = 0
@@ -188,6 +215,7 @@ class ProviderManager:
                 cred.failure_count = 0
                 cred.last_used = time.time()
                 break
+        self._state_manager.record_success(provider)
 
     def select_provider(self, preferred: str | None = None) -> tuple[str, str]:
         if preferred and preferred in self._profiles:
@@ -198,16 +226,16 @@ class ProviderManager:
         if detected:
             profile = self._profiles[detected]
             return detected, profile.default_model
-        for profile in sorted(self._profiles.values(), key=lambda p: -p.priority):
+        for profile in self.list_profiles():
             if self.get_api_key(profile.name) or profile.base_url:
                 return profile.name, profile.default_model
         return "ollama", "llama3.1"
 
     def get_providers_by_capability(
-        self, *, vision: bool = False, free: bool = False, local: bool = False
+        self, *, vision: bool = False, free: bool = False, local: bool = False, function_calling: bool = False
     ) -> list[ProviderProfile]:
         results = []
-        for profile in sorted(self._profiles.values(), key=lambda p: -p.priority):
+        for profile in self.list_profiles():
             if vision and not profile.supports_vision:
                 continue
             if free and profile.cost_tier != CostTier.FREE:
@@ -215,6 +243,8 @@ class ProviderManager:
             if local and profile.provider_type != ProviderType.LOCAL:
                 continue
             if not local and profile.provider_type == ProviderType.LOCAL:
+                continue
+            if function_calling and not profile.supports_function_calling:
                 continue
             results.append(profile)
         return results
@@ -233,6 +263,50 @@ class ProviderManager:
             "credentials": {p: len(c) for p, c in self._credentials.items()},
             "error_counts": dict(self._error_counts),
         }
+
+    async def complete(
+        self,
+        provider: str,
+        system_prompt: str,
+        user_prompt: str,
+        history: list[dict] | None = None,
+        *,
+        stream: bool = False,
+    ) -> Any:
+        from ..chat.openai_compat import make_openai_adapter
+        api_key = resolve_api_key(provider) or ""
+        profile = self.get_profile(provider)
+        base_url = profile.base_url if profile else None
+        settings = SettingsStore()
+        adapter = make_openai_adapter(
+            provider, api_key, base_url, settings, provider_manager=self
+        )
+        return await adapter(system_prompt, user_prompt, stream=stream, history=history)
+
+    async def ensemble_decide(self, system_prompt: str, user_prompt: str, providers: list[str]) -> str:
+        """Run a query across multiple providers and return the majority vote."""
+        import asyncio
+        from collections import Counter
+        
+        responses = await asyncio.gather(*[
+            self.complete(p, system_prompt, user_prompt)
+            for p in providers
+        ], return_exceptions=True)
+        
+        valid = []
+        for r in responses:
+            if isinstance(r, dict) and "content" in r:
+                valid.append(r["content"])
+            elif hasattr(r, "content"):
+                valid.append(r.content)
+            elif isinstance(r, str):
+                valid.append(r)
+                
+        if not valid:
+            raise RuntimeError("All ensemble providers failed")
+            
+        most_common = Counter(valid).most_common(1)[0][0]
+        return most_common
 
 
 def resolve_api_key(provider: str, env_var: str | None = None) -> str | None:

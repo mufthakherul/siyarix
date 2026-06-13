@@ -241,9 +241,17 @@ def make_generic_handler(tool_name: str) -> ToolHandler:
 
     async def handler(**kwargs: Any) -> dict[str, Any]:
         from .subprocess_utils import safe_run_async
+        from .validators import validate_target, ValidationError
 
         cmd = [tool_name]
         target = kwargs.get("target", "")
+        if target:
+            try:
+                # Sanity check target if present
+                validate_target(target)
+            except ValidationError as e:
+                return {"status": "error", "error": f"Invalid target: {e}", "tool": tool_name}
+
         args_raw = kwargs.get("args", [])
         flags = kwargs.get("flags", "")
         if isinstance(args_raw, str):

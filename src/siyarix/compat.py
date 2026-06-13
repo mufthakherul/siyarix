@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from siyarix.config import get_config_dir
 from .registry import RiskLevel
 
 
@@ -67,7 +68,7 @@ class SessionKernel:
     """Manage session state and operation cards."""
 
     def __init__(self, base_dir: Path | None = None) -> None:
-        root = base_dir or Path.home() / ".siyarix" / "kernel_sessions"
+        root = base_dir or get_config_dir() / "kernel_sessions"
         root.mkdir(parents=True, exist_ok=True)
         self._root = root
 

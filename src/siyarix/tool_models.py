@@ -43,6 +43,7 @@ class ToolCapability:
     aliases: list[str] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     inputs: dict[str, str] = field(default_factory=dict)
+    input_schema: dict[str, Any] = field(default_factory=dict)
     outputs: dict[str, str] = field(default_factory=dict)
     dependencies: list[str] = field(default_factory=list)
     related_tools: list[str] = field(default_factory=list)

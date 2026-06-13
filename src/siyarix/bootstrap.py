@@ -17,9 +17,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from siyarix.config import get_config_dir
+
 logger = logging.getLogger(__name__)
 
-SIYARIX_HOME = Path.home() / ".siyarix"
+SIYARIX_HOME = get_config_dir()
 INITIALIZED_MARKER = SIYARIX_HOME / ".initialized"
 
 

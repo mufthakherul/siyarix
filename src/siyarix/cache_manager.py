@@ -18,8 +18,9 @@ from pathlib import Path
 from typing import Any, Callable, TypeVar
 
 logger = logging.getLogger(__name__)
+from siyarix.config import get_config_dir
 
-CACHE_DIR = Path.home() / ".siyarix" / "cache"
+CACHE_DIR = get_config_dir() / "cache"
 
 F = TypeVar("F", bound=Callable[..., Any])
 

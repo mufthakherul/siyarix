@@ -32,7 +32,13 @@ _ENV_TO_CONFIG: dict[str, str] = {
 
 def get_config_dir() -> Path:
     """Return the canonical config directory (~/.siyarix or $SIYARIX_CONFIG_DIR)."""
-    return Path(os.getenv("SIYARIX_CONFIG_DIR", os.getenv("SIYARIX_HOME", str(Path.home() / ".siyarix"))))
+    p_str = os.getenv("SIYARIX_CONFIG_DIR") or os.getenv("SIYARIX_HOME")
+    if p_str:
+        p = Path(p_str).expanduser().resolve()
+    else:
+        p = Path.home() / ".siyarix"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
 
 def get_settings_file() -> Path:
     """Return the canonical settings.toml file path."""
@@ -345,7 +351,7 @@ class SettingsStore:
         """Backup current config to timestamped file. Returns backup path or None."""
         if not self._path.exists():
             return None
-        from datetime import datetime
+        from datetime import datetime, timezone
 
         backup_dir = self._path.parent / "backups"
         backup_dir.mkdir(parents=True, exist_ok=True)

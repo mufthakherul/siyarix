@@ -7,12 +7,13 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from siyarix.config import get_config_dir
 
 logger = logging.getLogger(__name__)
 
 
 class OfflineStore:
-    _DB_PATH = Path.home() / ".siyarix" / "offline_store.db"
+    _DB_PATH = get_config_dir() / "offline_store.db"
 
     def __init__(self, db_path: str | Path | None = None) -> None:
         path = Path(db_path) if db_path else self._DB_PATH

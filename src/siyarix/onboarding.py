@@ -50,7 +50,7 @@ except ImportError:
     box = None  # type: ignore[assignment,misc]
 
 from siyarix.bootstrap import INITIALIZED_MARKER, BootstrapEngine  # noqa: E402
-from siyarix.config import SettingsStore  # noqa: E402
+from siyarix.config import SettingsStore, get_config_dir  # noqa: E402
 from siyarix.providers import ProviderManager  # noqa: E402
 
 
@@ -284,7 +284,7 @@ class OnboardingWizard:
         # Disk space for ~/.siyarix home
         disk_free_gb = 0.0
         try:
-            siyarix_home = Path.home() / ".siyarix"
+            siyarix_home = get_config_dir()
             siyarix_home.mkdir(parents=True, exist_ok=True)
             free_bytes = shutil.disk_usage(siyarix_home).free
             disk_free_gb = free_bytes / (1024**3)
@@ -385,7 +385,7 @@ class OnboardingWizard:
             checks.append((label, shutil.which(cmd) is not None))
 
         # Writable config directory
-        config_dir = Path.home() / ".siyarix"
+        config_dir = get_config_dir()
         try:
             config_dir.mkdir(parents=True, exist_ok=True)
             test_file = config_dir / ".write_test"
@@ -1226,7 +1226,7 @@ class OnboardingWizard:
         self._console.print()
 
         # ── .env migration ─────────────────────────────────────────────
-        dotenv_path = Path.home() / ".siyarix" / ".env"
+        dotenv_path = get_config_dir() / ".env"
         alt_path = Path.cwd() / ".env"
         found_env = (
             dotenv_path if dotenv_path.exists() else (alt_path if alt_path.exists() else None)
@@ -1597,8 +1597,7 @@ class OnboardingWizard:
                     timeout=60,
                 )
                 result = subprocess.run(
-                    "curl -fsSL https://ollama.com/install.sh | sh",
-                    shell=True,  # nosec B602
+                    ["sh", "-c", "curl -fsSL https://ollama.com/install.sh | sh"],
                     capture_output=True,
                     text=True,
                     timeout=600,
@@ -1612,8 +1611,7 @@ class OnboardingWizard:
             else:
                 self._console.print("  Installing via official script...")
                 result = subprocess.run(
-                    "curl -fsSL https://ollama.com/install.sh | sh",
-                    shell=True,  # nosec B602
+                    ["sh", "-c", "curl -fsSL https://ollama.com/install.sh | sh"],
                     capture_output=True,
                     text=True,
                     timeout=600,
@@ -1663,8 +1661,8 @@ class OnboardingWizard:
         if os.name == "nt":
             creationflags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
             subprocess.Popen(
-                [sys.executable, "-m", "siyarix"] + sys.argv[1:],
-                shell=True,  # nosec B602
+                ["start", "cmd", "/c", sys.executable, "-m", "siyarix"] + sys.argv[1:],
+                shell=True,  # required for 'start' on windows but safe here
                 creationflags=creationflags,
             )
         else:

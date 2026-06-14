@@ -2076,6 +2076,23 @@ if ($ollama) { $ollama.Uninstall() | Out-Null }
                 )
                 return not r.returncode
             else:
+                # Official Linux uninstall: service → binary → libs
+                script = """
+sudo systemctl stop ollama 2>/dev/null
+sudo systemctl disable ollama 2>/dev/null
+sudo rm -f /etc/systemd/system/ollama.service
+sudo systemctl daemon-reload
+OLLAMA_BIN=$(command -v ollama 2>/dev/null)
+if [ -n "$OLLAMA_BIN" ]; then sudo rm -f "$OLLAMA_BIN"; fi
+sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
+"""
+                r = subprocess.run(
+                    ["sh", "-c", script],
+                    capture_output=True, text=True, timeout=60, check=False,
+                )
+                if not r.returncode:
+                    return True
+                # Fallback: just remove the binary
                 bin_path = shutil.which("ollama") or "/usr/local/bin/ollama"
                 r = subprocess.run(
                     ["sudo", "rm", "-f", bin_path],

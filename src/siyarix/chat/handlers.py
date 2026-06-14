@@ -7,6 +7,13 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+from rich.panel import Panel
+from rich.prompt import Prompt
+from rich.rule import Rule
+from rich.syntax import Syntax
+from rich.table import Table
 
 from ..branding import available_themes, print_theme_preview
 from .commands import CommandProfile, CommandProfileStore, HELP_CATEGORIES, SLASH_HELP
@@ -19,47 +26,32 @@ from .ui import (
 )
 from ..subprocess_utils import safe_run_sync
 from .platform_utils import provider_env_var, CROSS_PLATFORM_COMMANDS, normalize_shell, list_supported_shells, get_security_commands, get_shell_platform
+from .console import console
 
-
-RICH_AVAILABLE = False
-try:
-    from rich.columns import Columns
-    from rich.console import Console
-    from rich.markdown import Markdown
-    from rich.panel import Panel
-    from rich.prompt import Prompt
-    from rich.rule import Rule
-    from rich.syntax import Syntax
-    from rich.table import Table
-    from rich.text import Text
-
-    RICH_AVAILABLE = True
-except ImportError:
-    Columns = None
-    Console = None
-    Markdown = None
-    Panel = None
-    Prompt = None
-    Rule = None
-    Syntax = None
-    Table = None
-    Text = None
+if TYPE_CHECKING:
+    from ..config import SettingsStore
+    from ..providers.state import ProviderStateManager
+    from ..providers.usage import UsageTracker
 
 logger = logging.getLogger(__name__)
 
-PTK_AVAILABLE = False
-try:
-    from prompt_toolkit import prompt as ptk_prompt
-    from prompt_toolkit.key_binding import KeyBindings
-    PTK_AVAILABLE = True
-except Exception:
-    ptk_prompt = None
-    KeyBindings = None
-
-from .console import console
-
 class CommandHandlersMixin:
-    pass  # In case empty
+    if TYPE_CHECKING:
+        _session: ChatSession
+        _settings: SettingsStore
+        _mode: str
+        _SESSIONS_DIR: Path
+        _provider_state: ProviderStateManager
+        _print_welcome: Any
+        _execute_instruction: Any
+        _render_split_pane_layout: Any
+        _print_assistant: Any
+        _platform_ctx: dict[str, Any]
+        _shell: str
+        _resolve_api_key: Any
+        _make_llm_call: Any
+        _usage_tracker: UsageTracker
+        _engine_kill_switch: Any
     async def _handle_slash(self, cmd: str) -> None:
         """Dispatch slash commands."""
         parts = cmd.split(maxsplit=1)
@@ -414,7 +406,7 @@ class CommandHandlersMixin:
         if provider == "gemini":
             pkg_name = "google-genai"
             try:
-                from google import genai as _test_genai  # noqa: F401
+                import google.genai as _test_genai  # noqa: F401
 
                 gemini_pkg_installed = True
             except Exception:
@@ -438,7 +430,7 @@ class CommandHandlersMixin:
                             ],
                             timeout=600,
                         )
-                        if res.returncode == 0:
+                        if not res.exit_code:
                             console.print(
                                 f"[green]✓ {pkg_name} installed — Gemini should be available now.[/green]"
                             )

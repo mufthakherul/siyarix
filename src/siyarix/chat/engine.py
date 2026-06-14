@@ -9,7 +9,9 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+from rich.panel import Panel
 
 from .session import ChatMessage as ChatMessage, ChatSession as ChatSession
 from .ui import (
@@ -18,47 +20,27 @@ from .ui import (
     SplitPane as SplitPane,
     ConfigPanel as ConfigPanel,
 )
+from .console import console
 
-
-RICH_AVAILABLE = False
-try:
-    from rich.columns import Columns
-    from rich.console import Console
-    from rich.markdown import Markdown
-    from rich.panel import Panel
-    from rich.prompt import Prompt
-    from rich.rule import Rule
-    from rich.syntax import Syntax
-    from rich.table import Table
-    from rich.text import Text
-
-    RICH_AVAILABLE = True
-except ImportError:
-    Columns = None
-    Console = None
-    Markdown = None
-    Panel = None
-    Prompt = None
-    Rule = None
-    Syntax = None
-    Table = None
-    Text = None
+if TYPE_CHECKING:
+    from ..config import SettingsStore
+    from ..providers.state import ProviderStateManager
 
 logger = logging.getLogger(__name__)
 
-PTK_AVAILABLE = False
-try:
-    from prompt_toolkit import prompt as ptk_prompt
-    from prompt_toolkit.key_binding import KeyBindings
-    PTK_AVAILABLE = True
-except Exception:
-    ptk_prompt = None
-    KeyBindings = None
-
-from .console import console
-
 class LLMEngineMixin:
-    pass  # In case empty
+    if TYPE_CHECKING:
+        _session: ChatSession
+        _settings: SettingsStore
+        _mode: str
+        _provider_state: ProviderStateManager
+        _print_assistant: Any
+        _llm_calls: int
+        SYSTEM_REFRESH_INTERVAL: int
+        _stream_assistant_response: Any
+        _get_conversation_history: Any
+        _print_plan: Any
+        _print_results: Any
     async def _handle_natural_language(self, user_input: str) -> None:
         """Process a natural language instruction."""
         # Add user message to history
@@ -361,7 +343,7 @@ class LLMEngineMixin:
 
     def _should_use_compact(self) -> bool:
         """Return True if we should send the compact (reminder) system prompt."""
-        return self._llm_calls > 0 and self._llm_calls % self.SYSTEM_REFRESH_INTERVAL != 0
+        return self._llm_calls > 0 and bool(self._llm_calls % self.SYSTEM_REFRESH_INTERVAL)
 
 
     def _build_system_prompt(self, compact: bool = False) -> str:
@@ -526,7 +508,6 @@ class LLMEngineMixin:
                                     supports_vision=m.get("supports_vision", False),
                                     supports_tools=m.get("supports_tools", True),
                                     context_window=m.get("context_window", 128000),
-                                    max_tokens=m.get("max_tokens", 8192),
                                 )
                                 for m in discovered
                             ]
@@ -645,7 +626,7 @@ class LLMEngineMixin:
                     tool_labels.append(f"[bold]$ {s.command}[/bold]")
                 else:
                     tool_labels.append(f"[bold]{s.tool}[/bold]")
-            if wave == 0:
+            if not wave:
                 console.print(f"[cyan]→ Executing:[/cyan] {', '.join(tool_labels)}")
             else:
                 console.print(f"[cyan]→ Wave {wave + 1}:[/cyan] {', '.join(tool_labels)}")
@@ -693,7 +674,7 @@ class LLMEngineMixin:
                 state.exit_code = exec_result.exit_code
                 state.done = True
                 return step, {
-                    "status": "success" if exec_result.exit_code == 0 else "error",
+                    "status": "success" if not exec_result.exit_code else "error",
                     "output": exec_result.stdout,
                     "error": exec_result.stderr,
                     "exit_code": exec_result.exit_code,
@@ -733,16 +714,16 @@ class LLMEngineMixin:
                                 focus_idx = unfinished[0]
                             else:
                                 done_set = True
-                        
+
                         st = cmd_states[focus_idx]
                         elapsed = time.time() - wave_start
-                        icon = "·" if st.exit_code is None else ("✓" if st.exit_code == 0 else "✗")
+                        icon = "·" if st.exit_code is None else ("✓" if not st.exit_code else "✗")
                         border = (
                             "cyan"
                             if st.exit_code is None
-                            else ("green" if st.exit_code == 0 else "red")
+                            else ("green" if not st.exit_code else "red")
                         )
-                        
+
                         # Show last 200 lines or "Running..." with elapsed time
                         if st.lines:
                             panel_content = "\n".join(st.lines[-200:])
@@ -750,7 +731,7 @@ class LLMEngineMixin:
                             panel_content = f"Running... ({elapsed:.1f}s)"
                         else:
                             panel_content = "(no output)"
-                            
+
                         live.update(
                             RichPanel(
                                 panel_content,
@@ -767,10 +748,10 @@ class LLMEngineMixin:
                 out = (result.get("output") or "").strip()
                 err = (result.get("error") or "").strip()
                 display_lines = out.split("\n") if out else (err.split("\n") if err else st.lines)
-                icon = "✓" if st.exit_code == 0 else "✗"
-                border = "green" if st.exit_code == 0 else "red"
+                icon = "✓" if not st.exit_code else "✗"
+                border = "green" if not st.exit_code else "red"
                 if not display_lines:
-                    display_lines = ["(no output)"] if st.exit_code == 0 else [f"Command failed (exit {st.exit_code})"]
+                    display_lines = ["(no output)"] if not st.exit_code else [f"Command failed (exit {st.exit_code})"]
                 console.print(
                     RichPanel(
                         "\n".join(display_lines[-200:]),

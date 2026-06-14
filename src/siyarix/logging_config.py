@@ -35,19 +35,21 @@ def configure_logging(level: str | None = None, *, enable_console: bool = True) 
     """
     root = logging.getLogger()
     if level:
-        try:
-            lvl = getattr(logging, level.upper())
-        except Exception:
-            lvl = logging.INFO
+        lvl = getattr(logging, level.upper(), logging.INFO)
     else:
         lvl = logging.INFO
     root.setLevel(lvl)
 
-    # Prevent duplicate handlers when reloading in tests
-    if any(isinstance(h, logging.StreamHandler) and isinstance(h.formatter, _JSONFormatter) for h in root.handlers):
+    # Update existing console handler levels so reconfiguration takes effect
+    for h in root.handlers:
+        if isinstance(h, logging.StreamHandler):
+            h.setLevel(lvl)
+
+    if not enable_console:
         return
 
-    if enable_console:
+    # Only add a handler if none exists
+    if not any(isinstance(h, logging.StreamHandler) for h in root.handlers):
         ch = logging.StreamHandler(sys.stderr)
         ch.setLevel(lvl)
         ch.setFormatter(_JSONFormatter())

@@ -1525,6 +1525,9 @@ def config_set(
     try:
         new_val = config.set(key, value)
         console.print(f"[green]✓ {key} = {new_val}[/green]")
+        if key == "log_level":
+            from siyarix.logging_config import configure_logging
+            configure_logging(new_val)
     except (KeyError, ValueError) as exc:
         console.print(f"[red]Error: {exc}[/red]")
         raise typer.Exit(1)

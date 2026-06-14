@@ -2143,11 +2143,40 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
 
     @staticmethod
     def _ollama_gguf_path(model_name: str) -> Path | None:
-        """Find the GGUF blob path in Ollama's cache for a given model."""
+        """Find the GGUF blob path in Ollama's cache for a given model.
+        Tries manifest parsing first, falls back to newest blob scan.
+        """
+        # Method 1: parse the "FROM" line from "ollama show"
+        try:
+            r = subprocess.run(
+                ["ollama", "show", model_name, "--modelfile"],
+                capture_output=True, text=True, timeout=30, check=False,
+            )
+            if not r.returncode:
+                for line in r.stdout.splitlines():
+                    if line.startswith("FROM "):
+                        ref = line[5:].strip()
+                        if ref.startswith("sha256:"):
+                            blob = (
+                                Path.home()
+                                / ".ollama"
+                                / "models"
+                                / "blobs"
+                                / ref.replace("sha256:", "sha256-")
+                            )
+                            if blob.is_file():
+                                return blob
+                        if os.path.isabs(ref) and os.path.isfile(ref):
+                            return Path(ref)
+        except Exception:
+            pass
+
+        # Method 2: parse the JSON manifest on disk
         tag = "latest"
+        model_sans_tag = model_name
         if ":" in model_name:
-            model_name, tag = model_name.split(":", 1)
-        parts = model_name.split("/")
+            model_sans_tag, tag = model_name.split(":", 1)
+        parts = model_sans_tag.split("/")
         if len(parts) == 2:
             namespace, name = parts[0], parts[1]
         else:
@@ -2162,18 +2191,28 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
             / name
             / tag
         )
-        if not manifest.is_file():
-            return None
-        try:
-            data = json.loads(manifest.read_text(encoding="utf-8"))
-            for layer in data.get("layers", []):
-                if layer.get("mediaType") == "application/vnd.ollama.image.model":
-                    digest = layer["digest"].replace("sha256:", "sha256-")
-                    blob = Path.home() / ".ollama" / "models" / "blobs" / digest
-                    if blob.is_file():
-                        return blob
-        except (json.JSONDecodeError, KeyError, OSError):
-            pass
+        if manifest.is_file():
+            try:
+                data = json.loads(manifest.read_text(encoding="utf-8"))
+                for layer in data.get("layers", []):
+                    if layer.get("mediaType") == "application/vnd.ollama.image.model":
+                        digest = layer["digest"].replace("sha256:", "sha256-")
+                        blob = Path.home() / ".ollama" / "models" / "blobs" / digest
+                        if blob.is_file():
+                            return blob
+            except (json.JSONDecodeError, KeyError, OSError):
+                pass
+
+        # Method 3: find the newest blob file (just downloaded)
+        blobs_dir = Path.home() / ".ollama" / "models" / "blobs"
+        if blobs_dir.is_dir():
+            try:
+                blobs = [p for p in blobs_dir.iterdir() if p.is_file()]
+                if blobs:
+                    return max(blobs, key=lambda p: p.stat().st_mtime)
+            except OSError:
+                pass
+
         return None
 
     # ── llama.cpp helpers ───────────────────────────────────────────

@@ -132,7 +132,14 @@ class OnboardingWizard:
 
     def _welcome_screen(self) -> bool:
         self._clear_screen()
-        self._console.print(_SIYARIX_LOGO)
+        self._console.print(
+            Panel.fit(
+                _SIYARIX_LOGO,
+                border_style="cyan",
+                box=box.ROUNDED,
+                padding=(0, 2),
+            )
+        )
         self._console.print(
             Panel(
                 _WELCOME_PANEL_TEXT,
@@ -1209,7 +1216,14 @@ class OnboardingWizard:
 
     async def _finalize(self) -> None:
         self._clear_screen()
-        self._console.print(_SIYARIX_LOGO)
+        self._console.print(
+            Panel.fit(
+                _SIYARIX_LOGO,
+                border_style="cyan",
+                box=box.ROUNDED,
+                padding=(0, 2),
+            )
+        )
         self._console.print(
             Panel(
                 "[bold green]Setup Complete![/bold green]\n\n"

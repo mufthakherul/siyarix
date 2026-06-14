@@ -7,16 +7,14 @@ import asyncio
 import logging
 import os
 import time
-from typing import Any, AsyncGenerator
+from typing import Any
 
 from fastapi import FastAPI, Depends, HTTPException, Security, status, WebSocket, WebSocketDisconnect
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
-import jwt
 
 from siyarix.core import AgentCore
-from siyarix.core import AgentCore, AgentGoal, AgentMode
-from siyarix.knowledge_graph import KnowledgeGraph
+from siyarix.core import AgentGoal, AgentMode
 
 logger = logging.getLogger(__name__)
 
@@ -62,12 +60,12 @@ async def start_scan(req: ScanRequest, token: str = Depends(verify_token)) -> di
     core = AgentCore(mode=mode)
     await core.start()
     _sessions[session_id] = core
-    
+
     async def run_in_bg() -> None:
         try:
             from siyarix.core import AgentGoal
             goal = AgentGoal(description=f"Scan target: {req.target}")
-            result = await core.execute_goal(goal)
+            await core.execute_goal(goal)
         finally:
             await core.shutdown()
 
@@ -101,7 +99,6 @@ async def list_sessions(token: str = Depends(verify_token)) -> dict[str, list[st
 async def chat_query(req: ChatRequest, token: str = Depends(verify_token)) -> dict[str, Any]:
     core = AgentCore(mode=AgentMode.AUTONOMOUS)
     await core.start()
-    from siyarix.core import AgentGoal
     goal = AgentGoal(description=req.query)
     result = await core.execute_goal(goal)
     await core.shutdown()
@@ -144,13 +141,11 @@ async def websocket_stream(websocket: WebSocket, session_id: str) -> None:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    core = _sessions[session_id]
-    
     # We will subscribe to the event bus
     from siyarix.events import get_event_bus
     bus = get_event_bus()
     queue: asyncio.Queue[dict] = asyncio.Queue()
-    
+
     async def event_handler(event: Any) -> None:
         try:
             # We want to convert enum or dataclass to dict, simple approach:
@@ -160,7 +155,7 @@ async def websocket_stream(websocket: WebSocket, session_id: str) -> None:
             logger.error("Error queueing event: %s", e)
 
     bus.on(None, event_handler)
-    
+
     try:
         while True:
             event_dict = await queue.get()

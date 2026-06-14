@@ -40,7 +40,7 @@ class ToolCapabilityGraph:
         import heapq
         queue: list[tuple[float, str, list[str]]] = [(0.0, start, [start])]
         visited: set[str] = set()
-        
+
         adj: dict[str, list[tuple[str, float]]] = {n: [] for n in self._nodes}
         for edge in self._edges:
             adj[edge.source].append((edge.target, edge.weight))
@@ -49,18 +49,18 @@ class ToolCapabilityGraph:
 
         while queue:
             weight, current, path = heapq.heappop(queue)
-            
+
             if current == goal:
                 return path
-                
+
             if current in visited:
                 continue
             visited.add(current)
-            
+
             for neighbor, edge_weight in adj.get(current, []):
                 if neighbor not in visited:
                     heapq.heappush(queue, (weight + edge_weight, neighbor, path + [neighbor]))
-                    
+
         return []
 
     def find_optimal_tools(

@@ -179,7 +179,7 @@ class ParserRegistry:
                 if isinstance(instance, Parser):
                     version = getattr(instance, "version", None)
                     self.register(tool_name, instance, version)
-        
+
         try:
             import siyarix_parsers
             if hasattr(siyarix_parsers, "NmapRustParser"):
@@ -188,7 +188,7 @@ class ParserRegistry:
                 self.register("nuclei", siyarix_parsers.NucleiRustParser(), "rust")
         except ImportError:
             pass
-            
+
         return self._parsers
 
 

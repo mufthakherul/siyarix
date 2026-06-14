@@ -3,12 +3,11 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Header, Footer, Input, RichLog, DataTable, Static
+from textual.widgets import Header, Footer, Input, RichLog, DataTable
 from textual import work
 
 from siyarix.core import AgentCore, AgentGoal

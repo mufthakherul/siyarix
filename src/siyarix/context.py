@@ -57,7 +57,7 @@ class ContextManager:
         self._total_tokens = 0
         self._compression_count = 0
         self._memory = memory
-        
+
         if self._memory and hasattr(self._memory, 'load_context'):
             history = self._memory.load_context()
             for entry in history:

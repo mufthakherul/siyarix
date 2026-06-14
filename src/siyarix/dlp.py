@@ -24,7 +24,7 @@ PII_PATTERNS = {
 
 class DLPEngine:
     """Scans and redacts sensitive information from tool outputs."""
-    
+
     def __init__(self, redact_secrets: bool = True, redact_pii: bool = False) -> None:
         self.redact_secrets = redact_secrets
         self.redact_pii = redact_pii
@@ -33,25 +33,25 @@ class DLPEngine:
         """Redact sensitive information from a string."""
         if not isinstance(text, str):
             return text
-            
+
         redacted = text
-        
+
         if self.redact_secrets:
             for name, pattern in SECRET_PATTERNS.items():
                 redacted = pattern.sub(f"[REDACTED {name}]", redacted)
-                
+
         if self.redact_pii:
             for name, pattern in PII_PATTERNS.items():
                 redacted = pattern.sub(f"[REDACTED {name}]", redacted)
-                
+
         if redacted != text:
             logger.debug("DLP Engine redacted sensitive information.")
-            
+
         return redacted
 
     def redact_dict(self, data: dict[str, Any]) -> dict[str, Any]:
         """Recursively redact strings in a dictionary."""
-        result = {}
+        result: dict[str, Any] = {}
         for k, v in data.items():
             if isinstance(v, str):
                 result[k] = self.redact(v)

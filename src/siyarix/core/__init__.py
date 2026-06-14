@@ -23,7 +23,6 @@ from ..exceptions import BudgetExceededError
 from ..knowledge_graph import KnowledgeGraph
 from ..stealth import StealthEngine
 import os
-from pathlib import Path
 from ..config import get_config_dir
 
 logger = logging.getLogger(__name__)
@@ -88,7 +87,7 @@ class AgentCore:
         self._providers = ProviderManager.get_instance()
         self._workflow_engine = WorkflowEngine()
         self._event_bus = get_event_bus()
-        
+
         # Load external plugins
         try:
             from siyarix.plugins.loader import PluginLoader
@@ -96,7 +95,7 @@ class AgentCore:
             plugin_loader.load_all()
         except Exception as e:
             logger.warning(f"Failed to initialize plugin loader: {e}")
-            
+
         # Initialize notifications
         try:
             from siyarix.notifications import NotificationDispatcher
@@ -175,18 +174,18 @@ class AgentCore:
         if self._kg_path.exists():
             self._knowledge_graph.load_json(str(self._kg_path))
             logger.info("Loaded knowledge graph: %d nodes", len(self._knowledge_graph._nodes))
-            
+
         if os.getenv("SIYARIX_STEALTH") == "1":
             try:
-                from ..stealth import StealthManager
-                self._stealth = StealthManager()
-                await self._stealth.activate()
+                from ..stealth import StealthEngine
+                self._stealth = StealthEngine()
+                self._stealth.enable()
                 logger.info("Stealth mode active")
             except ImportError:
                 pass
 
         await self.initialize()
-        
+
         # Register custom _subagent executor for playbooks/swarms
         async def _subagent_handler(step: Any) -> dict[str, Any]:
             role = step.args.get("role", "assistant")
@@ -224,7 +223,7 @@ class AgentCore:
         )
 
     async def execute_multi_wave(self, goal: AgentGoal, max_waves: int = 5) -> AgentResult:
-        all_findings = []
+        all_findings: list[dict[str, Any]] = []
         plan = None
         for wave in range(max_waves):
             wave_context = {
@@ -238,15 +237,15 @@ class AgentCore:
             )
             wave_result = await self.execute_goal(wave_goal, plan)
             all_findings.extend(wave_result.findings)
-            
+
             if not wave_result.findings:
                 break
-                
+
             if hasattr(self._planner, "plan_next_wave"):
                 plan = self._planner.plan_next_wave(wave_result.findings, goal)
             else:
                 plan = None
-                
+
         return AgentResult(goal=goal.description, findings=all_findings, success=True)
 
     async def execute_goal(self, goal: AgentGoal, plan: ExecutionPlan | None = None) -> AgentResult:
@@ -295,9 +294,30 @@ class AgentCore:
             self._executor.set_progress_callback(on_step)
             await self._validator.validate_plan(plan.steps)
             if hasattr(plan, "plan_type") and getattr(plan.plan_type, "value", None) == "dag":
-                workflow = self._workflow_engine.from_execution_plan(plan)
-                wf_result = await self._workflow_engine.run(workflow, self._executor)
-                result.success = wf_result.status.value == "completed"
+                from ..workflow import WorkflowStatus
+                nodes = [
+                    {
+                        "id": s.id,
+                        "name": s.tool or s.description,
+                        "step_fn": s.tool,
+                        "args": s.args,
+                        "timeout": s.timeout,
+                    }
+                    for s in plan.steps
+                ]
+                edges = [
+                    {"source": dep, "target": s.id}
+                    for s in plan.steps
+                    for dep in s.dependencies
+                ]
+                workflow = self._workflow_engine.create_workflow(
+                    name=goal.description,
+                    description=goal.description,
+                    nodes=nodes,
+                    edges=edges,
+                )
+                wf_result = await self._workflow_engine.run_workflow(workflow)
+                result.success = wf_result.status == WorkflowStatus.COMPLETED
             else:
                 plan = await self._executor.execute_plan(plan)
                 result.success = plan.status == PlanStatus.COMPLETED
@@ -321,7 +341,7 @@ class AgentCore:
             await self._check_budget()
             if plan is None:
                 provider, model = self._providers.select_provider()
-                async def llm_call(system_prompt, user_prompt, *, history=None, **kwargs):
+                async def llm_call(system_prompt: str, user_prompt: str, *, history: Any = None, **kwargs: Any) -> Any:
                     return await self._providers.complete(
                         provider, model, system_prompt, user_prompt, history=history, **kwargs
                     )
@@ -371,19 +391,19 @@ class AgentCore:
             return auto_result
 
         logger.info("Autonomous execution failed, falling back to registry mode")
-        
+
         completed_step_ids = {
             s.id for s in (auto_result.plan.steps if auto_result.plan else [])
             if s.status == StepStatus.COMPLETED
         }
-        
+
         registry_plan = self._planner.decompose_goal(
             goal.description, [t.name for t in self._registry.list_tools()]
         )
         for step in registry_plan.steps:
             if step.tool in completed_step_ids:
                 step.status = StepStatus.SKIPPED
-                
+
         return await self._execute_registry(goal, registry_plan, start, AgentResult(goal=goal.description))
 
     async def _execute_interactive(
@@ -396,18 +416,18 @@ class AgentCore:
                     goal.description, [t.name for t in self._registry.list_tools()]
                 )
             result.plan = plan
-            
+
             print("\n--- Plan Preview ---")
             for step in plan.steps:
                 print(f"[{step.id}] {step.tool}: {step.description}")
             print("--------------------\n")
-            
+
             approval = input("Approve plan? [y/N]: ").strip().lower()
             if approval != 'y':
                 result.success = False
                 result.summary = "Plan rejected by user."
                 return result
-                
+
             plan = await self._executor.execute_plan(plan)
             result.success = plan.status == PlanStatus.COMPLETED
             result.summary = self._generate_summary(plan)
@@ -487,7 +507,7 @@ class AgentCore:
         subagent._knowledge_graph = self._knowledge_graph  # Share memory
         logger.info(f"Created sub-agent with role: {role}")
         return subagent
-        
+
     async def execute_subagent(self, role: str, goal: str) -> AgentResult:
         """Create and run a subagent for a specific goal."""
         subagent = self.create_subagent(role)

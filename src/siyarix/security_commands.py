@@ -12,8 +12,8 @@ The UI scaffolding is complete and ready for backend wiring.
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any, Dict, List, Optional, cast
+from datetime import datetime, timezone
+from typing import Any, Dict, List, cast
 
 import typer
 from rich.console import Console

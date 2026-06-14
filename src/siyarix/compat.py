@@ -189,7 +189,7 @@ class ExecutionEngine:
 
     async def execute(self, goal: str, **kwargs: Any) -> EngineResult:
         from .core import AgentCore, AgentMode, AgentGoal
-        from .planner import StepResult
+        from .models import StepResult
 
         mode_map = {
             ExecutionMode.REGISTRY: AgentMode.REGISTRY,

@@ -58,10 +58,10 @@ class ProviderManager:
         priority_list = settings.get("provider_priority", [])
         if isinstance(priority_list, str):
             priority_list = [p.strip() for p in priority_list.split(",")]
-        
+
         def _get_sort_key(p: ProviderProfile) -> tuple[int, int]:
             # Returns a tuple: (index in priority_list, p.priority)
-            # Lower index in priority_list is better (comes first). 
+            # Lower index in priority_list is better (comes first).
             # If not in list, index is infinity (len(priority_list)), then fallback to -p.priority.
             try:
                 idx = priority_list.index(p.name)
@@ -244,7 +244,7 @@ class ProviderManager:
                 continue
             if not local and profile.provider_type == ProviderType.LOCAL:
                 continue
-            if function_calling and not profile.supports_function_calling:
+            if function_calling and not profile.supports_tools:
                 continue
             results.append(profile)
         return results
@@ -273,7 +273,7 @@ class ProviderManager:
         history: list[dict] | None = None,
         *,
         stream: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Any:
         from ..chat.openai_compat import make_openai_adapter
         api_key = resolve_api_key(provider) or ""
@@ -291,12 +291,12 @@ class ProviderManager:
         """Run a query across multiple providers and return the majority vote."""
         import asyncio
         from collections import Counter
-        
+
         responses = await asyncio.gather(*[
             self.complete(p, self.select_provider(p)[1], system_prompt, user_prompt)
             for p in providers
         ], return_exceptions=True)
-        
+
         valid = []
         for r in responses:
             if isinstance(r, dict) and "content" in r:
@@ -305,10 +305,10 @@ class ProviderManager:
                 valid.append(r.content)
             elif isinstance(r, str):
                 valid.append(r)
-                
+
         if not valid:
             raise RuntimeError("All ensemble providers failed")
-            
+
         most_common = Counter(valid).most_common(1)[0][0]
         return most_common
 

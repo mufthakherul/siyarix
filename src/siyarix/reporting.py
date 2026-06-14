@@ -40,10 +40,10 @@ REPORT_TEMPLATE = """
             <h1>Siyarix Security Assessment Report</h1>
             <p>Generated: {{ date }}</p>
         </div>
-        
+
         <h2>Executive Summary</h2>
         <p>This report contains automated security findings extracted by the Siyarix AI Offensive Security assistant.</p>
-        
+
         <h2>Findings ({{ findings|length }})</h2>
         {% for f in findings %}
         <div class="finding {{ f.severity|lower }}">
@@ -56,7 +56,7 @@ REPORT_TEMPLATE = """
             {% endif %}
         </div>
         {% endfor %}
-        
+
         {% if not findings %}
         <p>No findings recorded in the Knowledge Graph.</p>
         {% endif %}
@@ -75,22 +75,22 @@ class ReportEngine:
         """Generate an HTML report of all findings."""
         if output_path is None:
             output_path = get_config_dir() / f"siyarix_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
-        
+
         output_path = Path(output_path)
-        
+
         findings = []
         for node_id, data in self.kg.nodes.items():
-            if data.get("category") == "finding":
+            if data.properties.get("category") == "finding":
                 findings.append(data)
-                
+
         env = Environment(loader=BaseLoader())
         template = env.from_string(REPORT_TEMPLATE)
-        
+
         html_content = template.render(
             date=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             findings=findings
         )
-        
+
         output_path.write_text(html_content, encoding="utf-8")
         logger.info("Generated HTML report at %s", output_path)
         return output_path

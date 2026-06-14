@@ -23,7 +23,6 @@ from .tool_models import (
     ToolCategory,
     RiskLevel,
     ToolCapability,
-    ToolEdge,
 )
 from .tool_graph import ToolCapabilityGraph
 from .tool_metadata import (

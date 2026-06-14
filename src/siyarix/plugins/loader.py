@@ -42,16 +42,16 @@ class PluginLoader:
         spec = importlib.util.spec_from_file_location(module_name, str(path))
         if not spec or not spec.loader:
             raise ImportError(f"Could not load spec for {path}")
-        
+
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module
         spec.loader.exec_module(module)
-        
+
         # Look for standard hooks
         if hasattr(module, "register_tools"):
             module.register_tools(self.registry)
             logger.info("Plugin %s registered tools", module_name)
-            
+
         if hasattr(module, "register_providers"):
             module.register_providers(self.provider_manager)
             logger.info("Plugin %s registered providers", module_name)

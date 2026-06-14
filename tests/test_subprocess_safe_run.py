@@ -1,21 +1,18 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import subprocess
 import sys
 
-from siyarix.subprocess_utils import safe_run_sync
+from siyarix.subprocess_utils import safe_run_sync, ExecutionResult
 
 
 def test_safe_run_sync_basic():
-    # Basic command should succeed (cross-platform using Python)
     res = safe_run_sync([sys.executable, "-c", "print('hello')"], timeout=5)
-    assert isinstance(res, subprocess.CompletedProcess)
-    assert res.returncode == 0
+    assert isinstance(res, ExecutionResult)
+    assert res.exit_code == 0
     assert "hello" in res.stdout
 
 
 def test_safe_run_sync_rejects_suspicious():
-    # Command parts containing shell metacharacters should be rejected
     try:
         safe_run_sync(["/bin/sh", "-c", "echo hi; rm -rf /"])
         raised = False

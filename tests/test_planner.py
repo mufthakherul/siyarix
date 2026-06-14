@@ -9,7 +9,6 @@ import pytest
 from siyarix.planner import (
     ExecutionPlan,
     PlanStep,
-    PlanType,
     PlanStatus,
     StepStatus,
     Planner,

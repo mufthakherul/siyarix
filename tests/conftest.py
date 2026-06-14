@@ -15,8 +15,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from siyarix.planner import ExecutionPlan, PlanStep, PlanType, PlanStatus, StepStatus
-from siyarix.providers import ProviderManager, ProviderProfile
+from siyarix.planner import ExecutionPlan, PlanStep, PlanType, StepStatus
+from siyarix.providers import ProviderManager
 from siyarix.registry import ToolCapability, ToolCategory, ToolRegistry
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="gi")

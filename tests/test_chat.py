@@ -4,10 +4,9 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -154,7 +153,10 @@ class TestSiyarixChatInit:
         session.add_message("user", "hello")
         session.save(sessions_dir / "resume-1.json")
 
-        with patch("siyarix.config.get_config_dir", return_value=tmp_path):
+        with (
+            patch("siyarix.config.get_config_dir", return_value=tmp_path),
+            patch("siyarix.chat.repl.get_config_dir", return_value=tmp_path),
+        ):
             chat = SiyarixChat(session_id="resume-1", resume=True)
             assert chat._session.session_id == "resume-1"
             assert len(chat._session.messages) == 1
@@ -373,7 +375,7 @@ class TestSiarixChatSessionPersistence:
 class TestStartChat:
     def test_start_chat_calls_run(self) -> None:
         with (
-            patch("siyarix.chat.SiyarixChat") as mock_cls,
+            patch("siyarix.chat.repl.SiyarixChat") as mock_cls,
         ):
             mock_instance = MagicMock()
             mock_cls.return_value = mock_instance
@@ -386,7 +388,7 @@ class TestStartChat:
 
     def test_start_chat_with_params(self) -> None:
         with (
-            patch("siyarix.chat.SiyarixChat") as mock_cls,
+            patch("siyarix.chat.repl.SiyarixChat") as mock_cls,
         ):
             mock_instance = MagicMock()
             mock_cls.return_value = mock_instance

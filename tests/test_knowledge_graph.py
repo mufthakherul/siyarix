@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import json
 from pathlib import Path
 from siyarix.knowledge_graph import KnowledgeGraph, NodeType, EdgeType
 

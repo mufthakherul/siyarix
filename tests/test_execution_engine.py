@@ -136,7 +136,7 @@ class TestPlanner:
         step = plan.steps[0]
         step.status = StepStatus.FAILED
         self.planner.adapt_plan(plan, step, "404 Not Found")
-        assert step.args.get("extensions") == "php,html,js,txt"
+        assert step.args.get("extensions") == "php,html,js,txt,asp,aspx"
         assert step.status == StepStatus.PENDING
 
     def test_adapt_plan_generic_retry(self) -> None:

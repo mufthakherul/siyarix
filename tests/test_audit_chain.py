@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from siyarix.audit_log import AuditEventType, AuditLogger, AuditSeverity
-from siyarix.config import get_config_dir
 
 
 def test_audit_chain_tamper_detection(tmp_path, monkeypatch):

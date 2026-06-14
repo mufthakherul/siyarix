@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from siyarix.platform_integration import PlatformIntegrationService, random_id
-import pytest
 
 def test_random_id():
     rid = random_id(8)

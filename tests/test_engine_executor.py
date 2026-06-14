@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -176,7 +176,7 @@ class TestExecutePlan:
         s1 = make_step("s1", tool="nmap", dependencies=["missing"])
         plan = make_plan(steps=[s1], plan_type=PlanType.SEQUENTIAL)
         ex = Executor()
-        result = await ex.execute_plan(plan, make_async_executor())
+        await ex.execute_plan(plan, make_async_executor())
         assert s1.status == StepStatus.PENDING
 
     @pytest.mark.asyncio
@@ -185,7 +185,7 @@ class TestExecutePlan:
         s2 = make_step("s2", tool="nuclei", dependencies=["s1"])
         plan = make_plan(steps=[s1, s2], plan_type=PlanType.SEQUENTIAL)
         ex = Executor()
-        result = await ex.execute_plan(plan, make_async_executor())
+        await ex.execute_plan(plan, make_async_executor())
         assert s2.status == StepStatus.COMPLETED
 
     @pytest.mark.asyncio
@@ -194,7 +194,7 @@ class TestExecutePlan:
         s2 = make_step("s2", tool="nuclei", dependencies=["s1"])
         plan = make_plan(steps=[s1, s2], plan_type=PlanType.SEQUENTIAL)
         ex = Executor()
-        result = await ex.execute_plan(plan, fail_executor)
+        await ex.execute_plan(plan, fail_executor)
         assert s1.status == StepStatus.FAILED
         assert s2.status == StepStatus.PENDING
 
@@ -205,7 +205,7 @@ class TestExecutePlan:
         reg = MagicMock(spec=ToolRegistry)
         reg.execute = AsyncMock(return_value={"status": "success"})
         ex = Executor(registry=reg)
-        result = await ex.execute_plan(plan)
+        await ex.execute_plan(plan)
         reg.execute.assert_called_once_with("nmap")
 
     @pytest.mark.asyncio
@@ -213,7 +213,7 @@ class TestExecutePlan:
         s1 = make_step("s1", tool="nmap")
         plan = make_plan(steps=[s1])
         ex = Executor()
-        result = await ex.execute_plan(plan)
+        await ex.execute_plan(plan)
         assert s1.status == StepStatus.FAILED
         assert "No executor" in s1.result.get("error", "")
 
@@ -226,7 +226,7 @@ class TestExecutePlan:
         ex = Executor(registry=reg)
         custom = make_async_executor({"status": "success", "output": "custom"})
         ex.register_executor("nmap", custom)
-        result = await ex.execute_plan(plan)
+        await ex.execute_plan(plan)
         custom.assert_called_once()
         reg.execute.assert_not_called()
 
@@ -238,7 +238,7 @@ class TestExecutePlan:
         custom = AsyncMock(return_value={"status": "success", "output": "custom"})
         ex.register_executor("nmap", custom)
         executor_fn = make_async_executor({"status": "success", "output": "fn"})
-        result = await ex.execute_plan(plan, executor_fn)
+        await ex.execute_plan(plan, executor_fn)
         assert s1.result.get("output") == "fn"
         custom.assert_not_called()
 

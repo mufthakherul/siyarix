@@ -301,6 +301,9 @@ class ToolRegistry:
                         ToolCategory(meta["category"]) if meta and "category" in meta
                         else categorize_tool(entry)
                     )
+                    # Skip unknown system executables that aren't security-relevant
+                    if category == ToolCategory.UTILITY and not personas and not meta:
+                        continue
                     self.register(
                         ToolCapability(
                             name=entry,

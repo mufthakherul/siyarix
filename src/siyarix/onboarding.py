@@ -1588,42 +1588,54 @@ class OnboardingWizard:
 
         # 3. Provider API test (if configured)
         provider_name = self._choices.get("provider_name", "")
-        if provider_name and self._choices.get("api_keys", {}).get(provider_name):
-            self._console.print()
-            self._console.print(f"[bold]3. Provider API Test ({provider_name})[/bold]")
-            env_var = f"{provider_name.upper()}_API_KEY"
-            test_key = os.environ.get(env_var, "")
-            if test_key:
-                ok = False
-                detail = ""
-                try:
-                    import httpx
+        provider_type = self._choices.get("provider_type", "")
+        if provider_name:
+            if provider_type == "offline":
+                self._console.print()
+                self._console.print(
+                    f"[bold]3. Provider API Test ({provider_name})[/bold] "
+                    "[dim](local provider, skipping remote test)[/dim]"
+                )
+            else:
+                self._console.print()
+                self._console.print(f"[bold]3. Provider API Test ({provider_name})[/bold]")
+                env_var = f"{provider_name.upper()}_API_KEY"
+                test_key = os.environ.get(env_var, "")
+                if test_key:
+                    ok = False
+                    detail = ""
+                    try:
+                        import httpx
 
-                    headers = {"Authorization": f"Bearer {test_key}"}
-                    api_urls = {
-                        "openai": "https://api.openai.com/v1/models",
-                        "anthropic": "https://api.anthropic.com/v1/messages",
-                        "gemini": f"https://generativelanguage.googleapis.com/v1beta/models?key={test_key}",
-                        "groq": "https://api.groq.com/openai/v1/models",
-                        "openrouter": "https://openrouter.ai/api/v1/models",
-                    }
-                    url = api_urls.get(provider_name, "")
-                    if url:
-                        r = httpx.get(url, headers=headers, timeout=10)
-                        ok = r.status_code < 500
-                        detail = f"HTTP {r.status_code} ({r.elapsed.total_seconds():.1f}s)"
-                    else:
-                        detail = "No test URL for provider"
-                except Exception as exc:
-                    detail = str(exc)[:40]
-                status_str = "[green]\u2713[/green]" if ok else "[red]\u2717[/red]"
-                self._console.print(f"  {provider_name}: {status_str} {detail}")
-                diag_results.append(("Provider API", ok, detail))
-                if not ok:
+                        headers = {"Authorization": f"Bearer {test_key}"}
+                        api_urls = {
+                            "openai": "https://api.openai.com/v1/models",
+                            "anthropic": "https://api.anthropic.com/v1/messages",
+                            "gemini": f"https://generativelanguage.googleapis.com/v1beta/models?key={test_key}",
+                            "groq": "https://api.groq.com/openai/v1/models",
+                            "openrouter": "https://openrouter.ai/api/v1/models",
+                        }
+                        url = api_urls.get(provider_name, "")
+                        if url:
+                            r = httpx.get(url, headers=headers, timeout=10)
+                            ok = r.status_code < 500
+                            detail = f"HTTP {r.status_code} ({r.elapsed.total_seconds():.1f}s)"
+                        else:
+                            detail = "No test URL for provider"
+                    except Exception as exc:
+                        detail = str(exc)[:40]
+                    status_str = "[green]\u2713[/green]" if ok else "[red]\u2717[/red]"
+                    self._console.print(f"  {provider_name}: {status_str} {detail}")
+                    diag_results.append(("Provider API", ok, detail))
+                    if not ok:
+                        self._console.print(
+                            "  [yellow]Key stored but API unreachable. Check endpoint or key.[/yellow]"
+                        )
+                        all_ok = False
+                else:
                     self._console.print(
-                        "  [yellow]Key stored but API unreachable. Check endpoint or key.[/yellow]"
+                        f"  [dim]No API key for {provider_name}, skipped.[/dim]"
                     )
-                    all_ok = False
         else:
             self._console.print()
             self._console.print(

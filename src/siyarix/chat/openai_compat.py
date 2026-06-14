@@ -291,7 +291,37 @@ def make_client(
     Uses the provider config to resolve base_url if not provided,
     and applies any provider-specific client customizations.
     """
-    from openai import AsyncOpenAI
+    import subprocess
+    import sys
+
+    for _attempt in range(2):
+        try:
+            from openai import AsyncOpenAI
+            break
+        except ImportError:
+            if _attempt == 1:
+                raise
+            msg = (
+                "\nMissing required package: openai\n"
+                "All providers (local and cloud) use the OpenAI-compatible SDK.\n"
+            )
+            try:
+                from rich.prompt import Confirm
+
+                print(msg)
+                if Confirm.ask("Install openai package now?", default=True):
+                    r = subprocess.run(
+                        [sys.executable, "-m", "pip", "install", "openai>=2.31.0"],
+                        capture_output=True, text=True, timeout=120, check=False,
+                    )
+                    if not r.returncode:
+                        print("Installed. Retrying...")
+                        continue
+                    print(f"Install failed: {r.stderr.strip()}")
+            except Exception:
+                print(msg)
+            print("Run: pip install 'openai>=2.31.0'")
+            raise
 
     resolved_base_url = base_url
     if not resolved_base_url or resolved_base_url.strip() == "":

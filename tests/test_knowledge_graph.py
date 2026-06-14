@@ -87,9 +87,9 @@ def test_knowledge_graph_serialization(tmp_path: Path):
     assert "test_target" in json_data
     
     file_path = tmp_path / "kg.json"
-    kg.save(file_path)
+    kg.save_json(file_path)
     
-    kg2 = KnowledgeGraph.load(file_path)
+    kg2 = KnowledgeGraph.load_json(file_path)
     assert kg2.node_count == 1
     assert kg2.get_node(n1.node_id).label == "test_target"
 

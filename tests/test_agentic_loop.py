@@ -313,6 +313,7 @@ class TestExecuteGoal:
         )
 
         autonomous_agent._planner.decompose_goal = MagicMock(return_value=failed_plan)
+        autonomous_agent._planner.llm_decompose_goal = AsyncMock(return_value=failed_plan)
         autonomous_agent._validator.validate_plan = AsyncMock(return_value=[])
         autonomous_agent._executor.execute_plan = AsyncMock(
             side_effect=[failed_plan, recovered_plan]

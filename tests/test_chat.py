@@ -17,12 +17,9 @@ from siyarix.chat import (
     CommandProfile,
     CommandProfileStore,
     SiyarixChat,
-
-
-
-
     start_chat,
 )
+from siyarix.chat.platform_utils import _Shell, build_platform_context, detect_shell, normalize_shell
 
 
 # ── Data Model Tests ───────────────────────────────────────────────────
@@ -169,6 +166,14 @@ class TestSiyarixChatSlashCommands:
     def chat(self) -> SiyarixChat:
         return SiyarixChat()
 
+    @pytest.fixture
+    def mock_console(self):
+        from siyarix.chat.console import console
+        with patch.object(console, "print") as mock_print, \
+             patch.object(console, "clear") as mock_clear, \
+             patch.object(console, "status") as mock_status:
+            yield MagicMock(print=mock_print, clear=mock_clear, status=mock_status)
+
     @pytest.mark.asyncio
     async def test_handle_slash_help(self, chat: SiyarixChat) -> None:
         with patch.object(chat, "_cmd_help") as mock:
@@ -176,12 +181,11 @@ class TestSiyarixChatSlashCommands:
             mock.assert_called_once_with("")
 
     @pytest.mark.asyncio
-    async def test_handle_slash_unknown(self, chat: SiyarixChat) -> None:
-        with patch("siyarix.chat.console") as mock_console:
-            await chat._handle_slash("/nonexistent")
-            mock_console.print.assert_called_once()
-            args = mock_console.print.call_args[0][0]
-            assert "Unknown command" in str(args)
+    async def test_handle_slash_unknown(self, chat: SiyarixChat, mock_console) -> None:
+        await chat._handle_slash("/nonexistent")
+        mock_console.print.assert_called_once()
+        args = mock_console.print.call_args[0][0]
+        assert "Unknown command" in str(args)
 
     @pytest.mark.asyncio
     async def test_handle_slash_exit(self, chat: SiyarixChat) -> None:
@@ -198,111 +202,94 @@ class TestSiyarixChatSlashCommands:
         chat._cmd_exit("")
         assert chat._running is False
 
-    def test_cmd_clear(self, chat: SiyarixChat) -> None:
+    def test_cmd_clear(self, chat: SiyarixChat, mock_console) -> None:
         chat._session.add_message("user", "test")
         assert len(chat._session.messages) == 1
-        with patch("siyarix.chat.console") as mock:
-            chat._cmd_clear("")
-            assert len(chat._session.messages) == 0
-            mock.clear.assert_called_once()
+        chat._cmd_clear("")
+        assert len(chat._session.messages) == 0
+        mock_console.clear.assert_called_once()
 
-    def test_cmd_new(self, chat: SiyarixChat) -> None:
+    def test_cmd_new(self, chat: SiyarixChat, mock_console) -> None:
         chat._session.add_message("user", "test")
         chat._session.context["key"] = "val"
-        with patch("siyarix.chat.console") as mock:
-            chat._cmd_new("")
-            assert len(chat._session.messages) == 0
-            assert chat._session.context == {}
-            mock.print.assert_called_once()
+        chat._cmd_new("")
+        assert len(chat._session.messages) == 0
+        assert chat._session.context == {}
+        mock_console.print.assert_called_once()
 
-    def test_cmd_reset(self, chat: SiyarixChat) -> None:
+    def test_cmd_reset(self, chat: SiyarixChat, mock_console) -> None:
         chat._mode = "autonomous"
         chat._session.mode = "autonomous"
         chat._session.target = "10.0.0.1"
-        with patch("siyarix.chat.console") as mock:
-            chat._cmd_reset("")
-            assert chat._mode == "integrated"
-            assert chat._session.target == ""
-            mock.print.assert_called_once()
+        chat._cmd_reset("")
+        assert chat._mode == "integrated"
+        assert chat._session.target == ""
+        mock_console.print.assert_called_once()
 
-    def test_cmd_version(self, chat: SiyarixChat) -> None:
-        with patch("siyarix.chat.console") as mock:
-            chat._cmd_version("")
-            mock.print.assert_called_once()
-            args = mock.print.call_args[0][0]
-            assert "Siyarix" in str(args)
+    def test_cmd_version(self, chat: SiyarixChat, mock_console) -> None:
+        chat._cmd_version("")
+        mock_console.print.assert_called_once()
+        args = mock_console.print.call_args[0][0]
+        assert "Siyarix" in str(args)
 
-    def test_cmd_target_set(self, chat: SiyarixChat) -> None:
-        with patch("siyarix.chat.console") as mock:
-            chat._cmd_target("10.0.0.1")
-            assert chat._session.target == "10.0.0.1"
-            mock.print.assert_called_once()
+    def test_cmd_target_set(self, chat: SiyarixChat, mock_console) -> None:
+        chat._cmd_target("10.0.0.1")
+        assert chat._session.target == "10.0.0.1"
+        mock_console.print.assert_called_once()
 
-    def test_cmd_target_show(self, chat: SiyarixChat) -> None:
+    def test_cmd_target_show(self, chat: SiyarixChat, mock_console) -> None:
         chat._session.target = "10.0.0.1"
-        with patch("siyarix.chat.console") as mock:
-            chat._cmd_target("")
-            mock.print.assert_called_once()
-            args = mock.print.call_args[0][0]
-            assert "10.0.0.1" in str(args)
+        chat._cmd_target("")
+        mock_console.print.assert_called_once()
+        args = mock_console.print.call_args[0][0]
+        assert "10.0.0.1" in str(args)
 
-    def test_cmd_mode_switch(self, chat: SiyarixChat) -> None:
-        with patch("siyarix.chat.console") as mock:
-            chat._cmd_mode("autonomous")
-            assert chat._mode == "autonomous"
-            mock.print.assert_called_once()
+    def test_cmd_mode_switch(self, chat: SiyarixChat, mock_console) -> None:
+        chat._cmd_mode("autonomous")
+        assert chat._mode == "autonomous"
+        mock_console.print.assert_called_once()
 
-    def test_cmd_mode_invalid(self, chat: SiyarixChat) -> None:
-        with patch("siyarix.chat.console") as mock:
-            chat._cmd_mode("invalid")
-            assert chat._mode == "integrated"
-            mock.print.assert_any_call(
-                "[red]Invalid mode: invalid. Valid modes: autonomous, integrated, registry, offline[/red]"
-            )
+    def test_cmd_mode_invalid(self, chat: SiyarixChat, mock_console) -> None:
+        chat._cmd_mode("invalid")
+        assert chat._mode == "integrated"
+        mock_console.print.assert_any_call(
+            "[red]Invalid mode: invalid. Valid modes: autonomous, integrated, registry, offline[/red]"
+        )
 
-    def test_cmd_uptime(self, chat: SiyarixChat) -> None:
-        with patch("siyarix.chat.console") as mock:
-            chat._cmd_uptime("")
-            mock.print.assert_called_once()
-            args = mock.print.call_args[0][0]
-            assert "uptime" in str(args).lower()
+    def test_cmd_uptime(self, chat: SiyarixChat, mock_console) -> None:
+        chat._cmd_uptime("")
+        mock_console.print.assert_called_once()
+        args = mock_console.print.call_args[0][0]
+        assert "uptime" in str(args).lower()
 
-    def test_cmd_save(self, chat: SiyarixChat) -> None:
-        with (
-            patch("siyarix.chat.console") as mock,
-            patch.object(chat._session, "save") as mock_save,
-        ):
+    def test_cmd_save(self, chat: SiyarixChat, mock_console) -> None:
+        with patch.object(chat._session, "save") as mock_save:
             chat._cmd_save("")
             mock_save.assert_called_once()
-            mock.print.assert_called_once()
+            mock_console.print.assert_called_once()
 
-    def test_cmd_history_empty(self, chat: SiyarixChat) -> None:
-        with patch("siyarix.chat.console") as mock:
-            chat._cmd_history("")
-            mock.print.assert_called_once()
+    def test_cmd_history_empty(self, chat: SiyarixChat, mock_console) -> None:
+        chat._cmd_history("")
+        mock_console.print.assert_called_once()
 
-    def test_cmd_history_with_messages(self, chat: SiyarixChat) -> None:
+    def test_cmd_history_with_messages(self, chat: SiyarixChat, mock_console) -> None:
         chat._session.add_message("user", "test message")
         chat._session.add_message("assistant", "response")
-        with patch("siyarix.chat.console") as mock:
-            chat._cmd_history("")
-            assert mock.print.call_count >= 1
+        chat._cmd_history("")
+        assert mock_console.print.call_count >= 1
 
-    def test_cmd_esc(self, chat: SiyarixChat) -> None:
-        with patch("siyarix.chat.console") as mock:
-            chat._cmd_esc("")
-            assert chat._esc_press_count == 1
-            mock.print.assert_any_call("[bold red]⚠ EMERGENCY STOP TRIGGERED[/bold red]")
+    def test_cmd_esc(self, chat: SiyarixChat, mock_console) -> None:
+        chat._cmd_esc("")
+        assert chat._esc_press_count == 1
+        mock_console.print.assert_any_call("[bold red]⚠ EMERGENCY STOP TRIGGERED[/bold red]")
 
-    def test_cmd_context_empty(self, chat: SiyarixChat) -> None:
-        with patch("siyarix.chat.console") as mock:
-            chat._cmd_context("")
-            mock.print.assert_called_once()
+    def test_cmd_context_empty(self, chat: SiyarixChat, mock_console) -> None:
+        chat._cmd_context("")
+        mock_console.print.assert_called_once()
 
-    def test_cmd_env(self, chat: SiyarixChat) -> None:
-        with patch("siyarix.chat.console") as mock:
-            chat._cmd_env("")
-            mock.print.assert_called_once()
+    def test_cmd_env(self, chat: SiyarixChat, mock_console) -> None:
+        chat._cmd_env("")
+        mock_console.print.assert_called_once()
 
 
 class TestGenerateTextResponse:
@@ -409,7 +396,3 @@ class TestStartChat:
                 mode="autonomous", target="10.0.0.1", session_id="custom", resume=False
             )
             mock_instance.run.assert_called_once()
-from siyarix.chat.platform_utils import _Shell
-from siyarix.chat.platform_utils import build_platform_context
-from siyarix.chat.platform_utils import normalize_shell
-from siyarix.chat.platform_utils import detect_shell

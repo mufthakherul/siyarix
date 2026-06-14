@@ -102,12 +102,22 @@ def temp_config_file(temp_dir: Path) -> Path:
 
 
 @pytest.fixture(autouse=True)
-def clean_env() -> Generator[None, None, None]:
+def clean_env(tmp_path_factory: pytest.TempPathFactory) -> Generator[None, None, None]:
     siyarix_vars = [k for k in os.environ if k.startswith("SIYARIX_")]
     backup = {k: os.environ[k] for k in siyarix_vars}
     for k in siyarix_vars:
         del os.environ[k]
+
+    # Isolate tests from real user configuration (L-19)
+    temp_config = tmp_path_factory.mktemp("siyarix_test_config")
+    os.environ["SIYARIX_CONFIG_DIR"] = str(temp_config)
+    os.environ["SIYARIX_HOME"] = str(temp_config)
+
     yield
+
+    # Clean up after test
+    for k in [k for k in os.environ if k.startswith("SIYARIX_")]:
+        del os.environ[k]
     os.environ.update(backup)
 
 

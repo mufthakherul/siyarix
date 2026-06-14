@@ -63,10 +63,11 @@ def test_tool_installation_success() -> None:
     installer = ToolInstaller()
 
     with (
-        patch.object(installer, "_detect_package_manager", return_value="apt-get"),
-        patch("siyarix.tool_installer.shutil.which", return_value=None),
+        patch.object(installer, "_detect_pm", return_value="apt-get"),
+        patch("siyarix.tool_installer.shutil.which") as mock_which,
         patch("siyarix.tool_installer.subprocess.run") as mock_run,
     ):
+        mock_which.side_effect = lambda t: t == "gobuster"
         mock_run.return_value = MagicMock(returncode=0, stdout="installed", stderr="")
         result = installer.install("gobuster")
         assert result.success is True
@@ -77,7 +78,7 @@ def test_tool_installation_failure() -> None:
     installer = ToolInstaller()
 
     with (
-        patch.object(installer, "_detect_package_manager", return_value="apt-get"),
+        patch.object(installer, "_detect_pm", return_value="apt-get"),
         patch("siyarix.tool_installer.shutil.which", return_value=None),
         patch("siyarix.tool_installer.subprocess.run") as mock_run,
     ):

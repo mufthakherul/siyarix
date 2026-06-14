@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -60,7 +60,7 @@ class TestInit:
 
 class TestCredential:
     def test_to_dict(self):
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         cred = Credential(
             cred_id="c1",
             name="test",
@@ -80,7 +80,7 @@ class TestCredential:
         assert d["shared_with"] == ["user1"]
 
     def test_to_dict_no_expiry(self):
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         cred = Credential(
             cred_id="c2",
             name="test2",
@@ -175,8 +175,8 @@ class TestStoreGetDelete:
             cred_type="api_key",
             environment="dev",
             value_encrypted=store._encrypt("old_value"),
-            created_at=datetime.now() - timedelta(days=400),
-            expires_at=datetime.now() - timedelta(days=1),
+            created_at=datetime.now(timezone.utc) - timedelta(days=400),
+            expires_at=datetime.now(timezone.utc) - timedelta(days=1),
         )
         store._save()
         assert store.get(expired_id) is None
@@ -240,8 +240,8 @@ class TestShareAndExpiring:
             cred_type="api_key",
             environment="dev",
             value_encrypted=store._encrypt("val"),
-            created_at=datetime.now() - timedelta(days=360),
-            expires_at=datetime.now() + timedelta(days=3),
+            created_at=datetime.now(timezone.utc) - timedelta(days=360),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=3),
         )
         store._save()
         expiring = store.check_expiring(7)

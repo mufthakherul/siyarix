@@ -105,6 +105,7 @@ DEFAULTS: dict[str, Any] = {
     "command_review": True,
     "additional_system_message": "",
     "max_waves": 25,
+    "notifications_enabled": True,
 }
 
 # Human-readable descriptions
@@ -151,6 +152,7 @@ DESCRIPTIONS: dict[str, str] = {
     "stealth_mode": "Enable advanced stealth and command argument evasion",
     "persona": "Active persona name (default: auto)",
     "command_review": "Prompt before executing raw shell commands (default: true)",
+    "notifications_enabled": "Enable Slack/Discord notifications for key events (default: true)",
 }
 
 

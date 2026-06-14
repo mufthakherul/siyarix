@@ -535,10 +535,10 @@ class OnboardingWizard:
         self._step_header("Requirements Check")
         self._console.print("Checking Python version and basic requirements...\n")
 
-        checks: list[tuple[str, bool]] = []
+        checks: list[tuple[str, bool, str]] = []
 
         py_ok = (sys.version_info.major, sys.version_info.minor) >= (3, 12)
-        checks.append(("Python >= 3.12", py_ok))
+        checks.append(("Python >= 3.12", py_ok, "All features require Python 3.12+"))
         if not py_ok:
             self._console.print(
                 f"[red]Python {sys.version_info.major}.{sys.version_info.minor} found \u2014 "
@@ -549,10 +549,10 @@ class OnboardingWizard:
             sys.exit(1)
 
         pip_ok = shutil.which("pip") is not None or shutil.which("pip3") is not None
-        checks.append(("pip / pip3", pip_ok))
+        checks.append(("pip / pip3", pip_ok, "Package installer for Python dependencies"))
 
-        for cmd, label, _desc in _REQUIRED_TOOLS:
-            checks.append((label, shutil.which(cmd) is not None))
+        for cmd, label, desc in _REQUIRED_TOOLS:
+            checks.append((label, shutil.which(cmd) is not None, desc))
 
         # Writable config directory
         config_dir = get_config_dir()
@@ -564,7 +564,7 @@ class OnboardingWizard:
             dir_writable = True
         except Exception:
             dir_writable = False
-        checks.append(("Config dir writable", dir_writable))
+        checks.append(("Config dir writable", dir_writable, "Siyarix needs to store settings and credentials"))
         if not dir_writable:
             self._console.print(f"[red]Cannot write to {config_dir}[/red]")
             self._console.print("[yellow]Check permissions and try again.[/yellow]")
@@ -576,12 +576,13 @@ class OnboardingWizard:
         if not shutil.which("siyarix") and not Path(sys.argv[0]).name.startswith("siyarix"):
             path_issues.append("Siyarix not found in PATH (may need pip install -e .)")
 
-        table = Table(box=box.SIMPLE, show_header=False)
+        table = Table(box=box.SIMPLE, show_header=True)
         table.add_column("Requirement", style="cyan")
+        table.add_column("Why")
         table.add_column("Status", justify="center")
-        for label, ok in checks:
+        for label, ok, reason in checks:
             status = "[green]\u2713[/green]" if ok else "[red]\u2717[/red]"
-            table.add_row(label, status)
+            table.add_row(label, f"[dim]{reason}[/dim]", status)
         self._console.print(table)
         self._console.print()
 
@@ -606,32 +607,32 @@ class OnboardingWizard:
         self._console.print("Checking required Python packages...\n")
 
         core_deps = [
-            ("pydantic", "pydantic"),
-            ("rich", "rich"),
-            ("httpx", "httpx"),
-            ("cryptography", "cryptography"),
-            ("tomli", "tomli" if sys.version_info < (3, 11) else "stdlib tomllib"),
-            ("prompt_toolkit", "prompt_toolkit"),
-            ("pyyaml", "yaml"),
-            ("jinja2", "jinja2"),
-            ("packaging", "packaging"),
-            ("pygments", "pygments"),
-            ("openai", "openai"),
+            ("pydantic", "pydantic", "Settings, data validation"),
+            ("rich", "rich", "Terminal UI, tables, prompts"),
+            ("httpx", "httpx", "HTTP requests to providers and APIs"),
+            ("cryptography", "cryptography", "Encrypted credential storage"),
+            ("tomli", "tomli" if sys.version_info < (3, 11) else "stdlib tomllib", "Config file parsing"),
+            ("prompt_toolkit", "prompt_toolkit", "Interactive REPL and input"),
+            ("pyyaml", "yaml", "YAML config support"),
+            ("jinja2", "jinja2", "Prompt templating engine"),
+            ("packaging", "packaging", "Version comparison for tools"),
+            ("pygments", "pygments", "Code syntax highlighting in output"),
+            ("openai", "openai", "OpenAI-compatible SDK (all providers use this under the hood)"),
         ]
 
         results: list[tuple[str, bool, str]] = []
         missing: list[str] = []
 
         import importlib
-        for pkg, import_str in core_deps:
+        for pkg, import_str, reason in core_deps:
             try:
                 if "stdlib" in import_str:
-                    results.append((pkg, True, "built-in"))
+                    results.append((pkg, True, "built-in", reason))
                 else:
                     importlib.import_module(import_str)
-                    results.append((pkg, True, "installed"))
+                    results.append((pkg, True, "installed", reason))
             except ImportError:
-                results.append((pkg, False, "missing"))
+                results.append((pkg, False, "missing", reason))
                 missing.append(pkg)
 
         if not shutil.which("pip") and not shutil.which("pip3"):
@@ -639,12 +640,13 @@ class OnboardingWizard:
             self._pause()
             return
 
-        table = Table(box=box.SIMPLE, show_header=False)
+        table = Table(box=box.SIMPLE, show_header=True)
         table.add_column("Package", style="cyan")
+        table.add_column("Why")
         table.add_column("Status", justify="center")
-        for pkg, ok, detail in results:
+        for pkg, ok, detail, reason in results:
             status = f"[green]\u2713 {detail}[/green]" if ok else f"[red]\u2717 {detail}[/red]"
-            table.add_row(pkg, status)
+            table.add_row(pkg, f"[dim]{reason}[/dim]", status)
         self._console.print(table)
         self._console.print()
 
@@ -1896,9 +1898,34 @@ class OnboardingWizard:
                     )
 
                 if rc_file and rc_file.parent.exists():
-                    completion_cmd = f'eval "$(siyarix completion {shell})"'
+                    # Typer/Click shell completion via env-var: _<APP>_COMPLETE=<shell>_source <app>
+                    typer_shell = shell
+                    if shell == "pwsh":
+                        typer_shell = "powershell"
+                    if shell in ("powershell", "pwsh"):
+                        completion_cmd = (
+                            '$env:_SIYARIX_COMPLETE="powershell_source"; '
+                            "siyarix | Out-String | Invoke-Expression"
+                        )
+                    else:
+                        completion_cmd = (
+                            f'eval "$(_SIYARIX_COMPLETE={typer_shell}_source siyarix)"'
+                        )
                     if rc_file.exists():
                         existing = rc_file.read_text(encoding="utf-8")
+                        # Clean up old broken eval line (siyarix completion — singular, no such command)
+                        import re as _re
+                        cleaned = _re.sub(
+                            r'\neval "\$\(siyarix? completion \w+\)"\n?',
+                            "",
+                            existing,
+                        )
+                        if cleaned != existing:
+                            rc_file.write_text(cleaned, encoding="utf-8")
+                            existing = cleaned
+                            self._console.print(
+                                "  [dim]Removed old broken completion line.[/dim]"
+                            )
                         if completion_cmd not in existing:
                             with rc_file.open("a", encoding="utf-8") as f:
                                 f.write(f"\n# Siyarix completions\n{completion_cmd}\n")

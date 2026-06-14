@@ -996,14 +996,19 @@ class LLMEngineMixin:
         binary_path = shutil.which(binary)
         if not binary_path:
             # Check ~/.siyarix/bin as fallback (onboarding installs there)
-            siyarix_bin = Path.home() / ".siyarix" / "bin" / binary
+            siyarix_bin = Path.home() / ".siyarix" / "bin"
+            siyarix_binary = siyarix_bin / binary
             if os.name == "nt":
-                siyarix_bin = Path.home() / ".siyarix" / "bin" / f"{binary}.exe"
-            if siyarix_bin.exists():
-                binary_path = str(siyarix_bin)
-            else:
-                logger.warning("%s binary not found on PATH — cannot auto-start", binary)
-                return False
+                siyarix_binary = siyarix_bin / f"{binary}.exe"
+            if siyarix_binary.exists():
+                binary_path = str(siyarix_binary)
+                # One-time promotion of shared libs from stale subdirectories
+                for d in siyarix_bin.iterdir():
+                    if d.is_dir() and d.name.startswith("llama-"):
+                        for lib in d.glob("*.so*"):
+                            dest = siyarix_bin / lib.name
+                            if not dest.exists():
+                                shutil.copy2(lib, dest)
         if check_provider_health(provider_name):
             return True
         try:

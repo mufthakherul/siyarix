@@ -415,9 +415,8 @@ def main_callback(
             _run_batch_lines([line.strip() for line in lines])
         return
 
-    # No subcommand + TTY: launch interactive UI
-    if ctx.invoked_subcommand is None and _IS_TTY:
-        # Check if onboarding is needed
+    # No subcommand: check onboarding regardless of TTY
+    if ctx.invoked_subcommand is None:
         try:
             from siyarix.bootstrap import INITIALIZED_MARKER
             from siyarix.config import SettingsStore
@@ -430,13 +429,20 @@ def main_callback(
             needs_onboarding = True
 
         if needs_onboarding:
-            import asyncio
+            if _IS_TTY:
+                import asyncio
 
-            asyncio.run(_run_onboarding())
+                asyncio.run(_run_onboarding())
+            else:
+                console.print(
+                    "[yellow]Siyarix needs initial setup. Run [cyan]siyarix init[/cyan] to start the setup wizard.[/yellow]"
+                )
             return
 
-        _ensure_ollama_running()
-        start_chat(mode=mode, target=target, session_id=session or None, resume=resume or bool(session))
+        # TTY: launch interactive chat
+        if _IS_TTY:
+            _ensure_ollama_running()
+            start_chat(mode=mode, target=target, session_id=session or None, resume=resume or bool(session))
 
 def _ensure_ollama_running() -> None:
     """Start Ollama in background if configured and not already running."""

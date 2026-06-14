@@ -970,14 +970,28 @@ class LLMEngineMixin:
             return False
         binary, args = info
 
-        # For llama.cpp, try to discover the model GGUF before starting
+        # For llama.cpp, try to discover a valid model GGUF before starting
         if provider_name == "llamacpp":
             models_dir = Path.home() / ".siyarix" / "models"
             if models_dir.is_dir():
                 ggufs = sorted(models_dir.glob("*.gguf"), key=lambda p: p.stat().st_mtime, reverse=True)
-                if ggufs:
-                    args = [*args, "--model", str(ggufs[0])]
-                    logger.info("llama-server model: %s", ggufs[0])
+                # Validate GGUF magic bytes (first 4 bytes must be "GGUF")
+                valid_model = None
+                for g in ggufs:
+                    try:
+                        header = g.read_bytes()[:4]
+                        if header == b"GGUF":
+                            valid_model = str(g)
+                            break
+                        logger.warning("Skipping invalid GGUF (bad magic): %s", g.name)
+                        g.rename(g.with_suffix(".gguf.invalid"))
+                    except OSError:
+                        continue
+                if valid_model:
+                    args = [*args, "--model", valid_model]
+                    logger.info("llama-server model: %s", valid_model)
+                else:
+                    logger.warning("No valid GGUF model found in %s", models_dir)
 
         binary_path = shutil.which(binary)
         if not binary_path:

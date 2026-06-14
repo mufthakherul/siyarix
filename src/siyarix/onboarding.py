@@ -1045,20 +1045,34 @@ class OnboardingWizard:
                     # Find the GGUF in Ollama's blob cache
                     gguf_path = self._ollama_gguf_path(model_name)
                     if gguf_path:
-                        dest = models_dir / f"{model_name.replace('/', '_').replace(':', '_')}.gguf"
+                        # Validate GGUF magic bytes before copying
                         try:
-                            shutil.copy2(gguf_path, dest)
-                            self._console.print(
-                                f"[dim]GGUF copied to: {dest}[/dim]\n"
-                                f"[dim]  llama-server --model {dest} --port 18080[/dim]"
-                            )
-                            downloaded = True
+                            header = gguf_path.read_bytes()[:4]
+                            if header != b"GGUF":
+                                self._console.print(
+                                    f"[yellow]Warning: blob at {gguf_path} is not a valid GGUF "
+                                    "(bad magic bytes). Skipping copy.[/yellow]"
+                                )
+                                downloaded = True
+                            else:
+                                dest = models_dir / f"{model_name.replace('/', '_').replace(':', '_')}.gguf"
+                                try:
+                                    shutil.copy2(gguf_path, dest)
+                                    self._console.print(
+                                        f"[dim]GGUF copied to: {dest}[/dim]\n"
+                                        f"[dim]  llama-server --model {dest} --port 18080[/dim]"
+                                    )
+                                    downloaded = True
+                                except OSError as exc:
+                                    self._console.print(
+                                        f"[yellow]Warning: couldn't copy GGUF: {exc}[/yellow]\n"
+                                        f"[dim]GGUF found at: {gguf_path}[/dim]"
+                                    )
+                                    downloaded = True
                         except OSError as exc:
                             self._console.print(
-                                f"[yellow]Warning: couldn't copy GGUF: {exc}[/yellow]\n"
-                                f"[dim]GGUF found at: {gguf_path}[/dim]"
+                                f"[yellow]Warning: couldn't read blob: {exc}[/yellow]"
                             )
-                            downloaded = True
                 else:
                     self._console.print(
                         f"[red]\u2717 Pull failed[/red]\n"
@@ -2378,6 +2392,16 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
     def _start_llamacpp_service(model_path: str | None = None, port: int = 18080) -> None:
         """Start llama.cpp server in background."""
         try:
+            # Validate GGUF model if provided
+            if model_path:
+                try:
+                    p = Path(model_path)
+                    if p.is_file() and p.read_bytes()[:4] != b"GGUF":
+                        logger.warning("Invalid GGUF (bad magic), starting without --model")
+                        model_path = None
+                except OSError:
+                    pass
+
             bin_dir = Path.home() / ".siyarix" / "bin"
             llama_bin = bin_dir / "llama-server"
             if os.name == "nt":

@@ -283,7 +283,12 @@ class OnboardingWizard:
         term_program = os.environ.get("TERM_PROGRAM", "")
 
         # Package managers
-        available_pms = [name for binary, name in _PM_CHECKS if shutil.which(binary)]
+        seen = set()
+        available_pms = []
+        for binary, name in _PM_CHECKS:
+            if shutil.which(binary) and name not in seen:
+                seen.add(name)
+                available_pms.append(name)
 
         # Proxy
         http_proxy = os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy") or ""

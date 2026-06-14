@@ -167,27 +167,25 @@ class ToolInstaller:
             self._print("  Updating brew formulas...")
             subprocess.run(["brew", "update"], capture_output=True, timeout=120, check=False)
 
-        install_cmd = {
-            "apt": ["apt-get", "install", "-y", pkg],
-            "apt-get": ["apt-get", "install", "-y", pkg],
-            "brew": ["brew", "install", pkg],
-            "pacman": ["pacman", "-Sy", "--noconfirm", pkg],
-            "dnf": ["dnf", "install", "-y", pkg],
-            "apk": ["apk", "add", pkg],
-        }.get(pm, [pm, "install", "-y", pkg])
+        is_deb = pm in ("apt", "apt-get")
+        if is_deb:
+            install_cmd = ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", pkg]
+        else:
+            install_cmd = {
+                "brew": ["brew", "install", pkg],
+                "pacman": ["pacman", "-Sy", "--noconfirm", pkg],
+                "dnf": ["dnf", "install", "-y", pkg],
+                "apk": ["apk", "add", pkg],
+            }.get(pm, [pm, "install", "-y", pkg])
 
         try:
             self._print(f"  Running: sudo {' '.join(install_cmd)}")
-            env = {**os.environ}
-            if pm in ("apt", "apt-get"):
-                env["DEBIAN_FRONTEND"] = "noninteractive"
             subprocess.run(
                 ["sudo", "-p", "Password required for installation: "] + install_cmd,
                 capture_output=True,
                 text=True,
                 timeout=300,
                 check=False,
-                env=env,
             )
             if shutil.which(tool):
                 self._print(f"  [green]\u2713 {tool} installed via {pm}[/green]")

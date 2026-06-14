@@ -75,15 +75,30 @@ REQUIRED_TOOLS = [
 
 MINIMAL_CYBER_TOOLS = [
     ("nmap", "nmap", "Network discovery & port scanning"),
-    ("curl", "curl", "HTTP requests & API testing"),
-    ("dig", "bind-tools/dnsutils", "DNS resolution & enumeration"),
     ("openssl", "openssl", "TLS/SSL & cryptography"),
-    ("whois", "whois", "WHOIS domain lookups"),
-    ("nuclei", "nuclei", "Vulnerability scanner"),
-    ("sqlmap", "sqlmap", "SQL injection automation"),
-    ("john", "john", "Password cracking"),
-    ("hydra", "hydra", "Online password attacks"),
 ]
+
+PERSONA_TOOLS = {
+    "appsec": [
+        ("ffuf", "ffuf", "Web fuzzer"),
+        ("nuclei", "nuclei", "Vulnerability scanner"),
+        ("sqlmap", "sqlmap", "SQL injection automation"),
+    ],
+    "network security": [
+        ("dig", "bind-tools/dnsutils", "DNS resolution & enumeration"),
+        ("whois", "whois", "WHOIS domain lookups"),
+    ],
+    "red team": [
+        ("john", "john", "Password cracking"),
+        ("hydra", "hydra", "Online password attacks"),
+    ],
+    "blue team": [
+        ("yara", "yara", "Pattern matching for malware"),
+    ],
+    "dfir": [
+        ("yara", "yara", "Pattern matching for malware"),
+    ]
+}
 
 CYBER_TOOL_HOMEPAGES = {
     "nuclei": "https://github.com/projectdiscovery/nuclei",

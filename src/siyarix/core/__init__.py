@@ -85,7 +85,7 @@ class AgentCore:
         self._validator = Validator()
         self._memory = MemoryManager()
         self._context = ContextManager(memory=self._memory)
-        self._providers = ProviderManager()
+        self._providers = ProviderManager.get_instance()
         self._workflow_engine = WorkflowEngine()
         self._event_bus = get_event_bus()
         
@@ -321,9 +321,9 @@ class AgentCore:
             await self._check_budget()
             if plan is None:
                 provider, model = self._providers.select_provider()
-                async def llm_call(system_prompt, user_prompt, *, history=None):
+                async def llm_call(system_prompt, user_prompt, *, history=None, **kwargs):
                     return await self._providers.complete(
-                        provider, model, system_prompt, user_prompt, history=history
+                        provider, model, system_prompt, user_prompt, history=history, **kwargs
                     )
                 tool_schemas = [
                     {"name": t.name, "description": t.description, "tags": t.tags, "category": getattr(t.category, 'value', str(t.category))}

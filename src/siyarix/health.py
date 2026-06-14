@@ -148,10 +148,10 @@ class HealthChecker:
 
     async def _check_model_providers(self, status: HealthStatus) -> None:
         """Check model provider health (parallel)."""
-        from .providers import ProviderManager
+        from .providers.manager import ProviderManager
 
         self.model_providers_available.clear()
-        pm = ProviderManager()
+        pm = ProviderManager.get_instance()
         entries: list[tuple[str, str | None, bool]] = []
         name_map: dict[str, str] = {}
 
@@ -249,7 +249,7 @@ class HealthChecker:
     async def _check_tool_registry(self, status: HealthStatus) -> None:
         """Check tool registry health."""
         critical_tools = (
-            ["pwsh", "powershell", "cmd", "python.exe"]
+            ["pwsh.exe", "powershell.exe", "cmd.exe", "python.exe"]
             if os.name == "nt"
             else ["bash", "sh", "python3", "python"]
         )

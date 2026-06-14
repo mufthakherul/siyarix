@@ -29,6 +29,12 @@ if os.name == "nt" and hasattr(asyncio, "WindowsSelectorEventLoopPolicy"):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 import platform
 import sys
+import io
+if sys.stdout and getattr(sys.stdout, 'encoding', '').lower() != 'utf-8':
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    except Exception:
+        pass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -438,7 +444,7 @@ def _ensure_ollama_running() -> None:
 
         settings = SettingsStore()
         provider = settings.get("model_provider") or ""
-        should_start = settings.get("_start_ollama_on_launch") or provider == "ollama"
+        should_start = settings.get("_start_ollama_on_launch", False) or provider == "ollama"
         if not should_start:
             return
         ollama_url = settings.get("ollama_url") or "http://localhost:11434"
@@ -1086,8 +1092,6 @@ def health_check(
     """Run system health checks."""
     status = asyncio.run(get_health().check_all())
     if output == "json":
-        import json
-
         console.print(json.dumps(status.to_dict(), indent=2))
         return
 
@@ -1384,7 +1388,7 @@ def auth_show() -> None:
     try:
         from siyarix.providers import ProviderManager
 
-        pm = ProviderManager()
+        pm = ProviderManager.get_instance()
         providers = pm.list_providers()
     except Exception:
         providers = ["openai", "gemini", "anthropic", "groq", "openrouter"]

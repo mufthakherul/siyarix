@@ -20,6 +20,7 @@ from datetime import datetime, timezone, timedelta
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
+from siyarix.config import get_config_dir
 
 HAS_AESGCM = False
 

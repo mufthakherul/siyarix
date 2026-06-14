@@ -142,10 +142,10 @@ class OPSECManager:
             result = mgr.isolate("10.0.0.1", use_tor=True)
             print(result.detail)
         """
+        namespace = self._status.namespace
         if not namespace:
-            import secrets
-            target_hash = hashlib.sha256(target.encode()).hexdigest()[:8] if target else "no_target"
-            namespace = f"siyarix_isolated_{secrets.token_hex(4)}"
+            safe_target = "".join(c if c.isalnum() else "_" for c in target)[:16] if target else "no_target"
+            namespace = f"siyarix_isolated_{safe_target}_{secrets.token_hex(4)}"
 
         self._status.isolated = True
         self._status.namespace = namespace

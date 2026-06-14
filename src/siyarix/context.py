@@ -132,6 +132,10 @@ class ContextManager:
                 messages.append({"role": "tool", "content": f"[{tool}] {chunk.content}"})
         return messages
 
+    def get_history(self) -> list[dict[str, str]]:
+        """Alias for build_context to maintain backward compatibility."""
+        return self.build_context()
+
     def get_relevant_context(self, query: str, limit: int = 5) -> list[ContextChunk]:
         query_lower = query.lower()
         scored = []

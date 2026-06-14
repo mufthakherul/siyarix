@@ -402,7 +402,6 @@ Respond with ONLY valid JSON:
             if tool_calls and len(tool_calls) > 0:
                 func_args = tool_calls[0].function.arguments
                 if isinstance(func_args, str):
-                    import json
                     try:
                         data = json.loads(func_args)
                         response = "" # handled via data

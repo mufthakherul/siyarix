@@ -30,6 +30,7 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import IO, Any
 
 logger = logging.getLogger(__name__)
@@ -83,7 +84,7 @@ class ExecutionResult:
 
     @property
     def success(self) -> bool:
-        return self.exit_code == 0
+        return not self.exit_code
 
 
 def _cleanup_orphans(is_exit: bool = False) -> None:
@@ -105,6 +106,7 @@ def _cleanup_orphans(is_exit: bool = False) -> None:
                         ["taskkill", "/F", "/T", "/PID", str(pid)],
                         capture_output=True,
                         timeout=5,
+                        check=False,
                     )
             else:
                 os.kill(pid, signal.SIGTERM)
@@ -208,10 +210,12 @@ def _validate_cmd_list(cmd: list[str]) -> None:
 
 def safe_run_sync(
     cmd: list[str],
-    timeout: int = 10,
+    timeout: float = 10,
     capture_output: bool = True,
     text: bool = True,
-) -> subprocess.CompletedProcess[str]:
+    cwd: str | None = None,
+    env: dict[str, str] | None = None,
+) -> ExecutionResult:
     """Run *cmd* synchronously with validation and timeout.
 
     Returns:
@@ -224,7 +228,8 @@ def safe_run_sync(
     _validate_cmd_list(cmd)
     _cleanup_orphans()
     try:
-        return subprocess.run(cmd, capture_output=capture_output, text=text, timeout=timeout)  # nosec B603
+        cp = subprocess.run(cmd, capture_output=capture_output, text=text, timeout=timeout, check=False, cwd=cwd, env=env)  # nosec B603
+        return ExecutionResult(exit_code=cp.returncode, stdout=cp.stdout, stderr=cp.stderr)
     except subprocess.TimeoutExpired:
         logger.debug("safe_run_sync timeout for cmd=%s", cmd)
         raise
@@ -252,7 +257,7 @@ async def safe_run_async(
         try:
             cp = await asyncio.wait_for(
                 loop.run_in_executor(
-                    None, lambda: subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+                    None, lambda: subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
                 ),
                 timeout=timeout + 5,
             )

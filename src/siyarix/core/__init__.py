@@ -340,10 +340,13 @@ class AgentCore:
         try:
             await self._check_budget()
             if plan is None:
-                provider, model = self._providers.select_provider()
+                from ..config import SettingsStore
+                _settings = SettingsStore()
+                _preferred = _settings.get("model_provider") or None
+                provider, model = self._providers.select_provider(preferred=_preferred)
                 async def llm_call(system_prompt: str, user_prompt: str, *, history: Any = None, **kwargs: Any) -> Any:
                     return await self._providers.complete(
-                        provider, model, system_prompt, user_prompt, history=history, **kwargs
+                        provider, "", system_prompt, user_prompt, history=history, **kwargs
                     )
                 tool_schemas = [
                     {"name": t.name, "description": t.description, "tags": t.tags, "category": getattr(t.category, 'value', str(t.category))}

@@ -628,6 +628,19 @@ app.add_typer(config_app, name="config")
 completions_app = typer.Typer(help="🏁 Shell completions")
 app.add_typer(completions_app, name="completions")
 
+
+@app.command("completion", hidden=True)
+def _completion_alias(shell: str = typer.Argument("bash", help="Shell (bash, zsh, fish, powershell)")) -> None:
+    """Alias for 'completions'. Use 'siyarix completions' (plural) instead."""
+    console.print(
+        "[yellow]'siyarix completion' (singular) is deprecated. "
+        f"Use [bold]'siyarix completions install {shell}'[/bold] instead.[/yellow]"
+    )
+    console.print(
+        "[dim]Or set up shell completions with the correct method:\n"
+        f"  eval \"$(_SIYARIX_COMPLETE={shell}_source siyarix)\"[/dim]"
+    )
+
 theme_app = typer.Typer(help="🎨 Theme customization")
 app.add_typer(theme_app, name="theme")
 

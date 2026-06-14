@@ -960,11 +960,24 @@ class LLMEngineMixin:
         start_configs = {
             "ollama": ("ollama", ["serve"]),
             "lmstudio": ("lmstudio", ["--server"]),
+            "llamacpp": ("llama-server", [
+                "--port", "18080",
+                "--host", "127.0.0.1",
+            ]),
         }
         info = start_configs.get(provider_name)
         if not info:
             return False
         binary, args = info
+
+        # For llama.cpp, try to discover the model GGUF before starting
+        if provider_name == "llamacpp":
+            models_dir = Path.home() / ".siyarix" / "models"
+            if models_dir.is_dir():
+                ggufs = sorted(models_dir.glob("*.gguf"), key=lambda p: p.stat().st_mtime, reverse=True)
+                if ggufs:
+                    args = [*args, "--model", str(ggufs[0])]
+                    logger.info("llama-server model: %s", ggufs[0])
 
         binary_path = shutil.which(binary)
         if not binary_path:

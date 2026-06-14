@@ -67,8 +67,8 @@ _RE_URL = re.compile(
     r"^https?://[^\s/$.?#]+\.[^\s]+$",
     re.IGNORECASE,
 )
-"""URL pattern — H-04 / L-11: character class now uses ``[^\s/$.?#]+``
-followed by a literal dot and ``[^\s]+`` so the TLD portion is required."""
+"""URL pattern - H-04 / L-11: character class now uses ``[^\\s/$.?#]+``
+followed by a literal dot and ``[^\\s]+`` so the TLD portion is required."""
 
 _RE_HOSTNAME = re.compile(
     r"^(?:"

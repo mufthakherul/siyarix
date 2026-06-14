@@ -1013,7 +1013,8 @@ class OnboardingWizard:
                 "xploiter/pentester": "https://huggingface.co/xploiter/pentester-GGUF",
                 "qwen3.5:4b": "https://huggingface.co/Qwen/Qwen3.5-4B-GGUF",
                 "qwen3:14b": "https://huggingface.co/Qwen/Qwen3-14B-GGUF",
-                "gemma4:26b": "https://huggingface.co/google/gemma-4-26b-it-GGUF",
+                "gemma4:26b": "https://huggingface.co/ggml-org/gemma-4-26B-A4B-it-GGUF",
+                "gemma4:e4b": "https://huggingface.co/ggml-org/gemma-4-e4b-it-GGUF",
             }
             link = hf_links.get(model_name, "")
             if link:

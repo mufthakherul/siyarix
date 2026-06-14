@@ -91,7 +91,7 @@ DEFAULTS: dict[str, Any] = {
     "vllm_model": "",
     "localai_url": "http://localhost:8080",
     "localai_model": "",
-    "start_ollama_on_launch": False,
+    "_start_ollama_on_launch": False,
     # Shell & PATH
     "shell_completion_installed": False,
     "path_setup_done": False,
@@ -106,6 +106,7 @@ DEFAULTS: dict[str, Any] = {
     "additional_system_message": "",
     "max_waves": 25,
     "notifications_enabled": True,
+    "history_retention_days": 90,
 }
 
 # Human-readable descriptions
@@ -153,6 +154,7 @@ DESCRIPTIONS: dict[str, str] = {
     "persona": "Active persona name (default: auto)",
     "command_review": "Prompt before executing raw shell commands (default: true)",
     "notifications_enabled": "Enable Slack/Discord notifications for key events (default: true)",
+    "history_retention_days": "Days to retain command history (0 = forever, default: 90)",
 }
 
 

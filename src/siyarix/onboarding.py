@@ -1634,7 +1634,7 @@ class OnboardingWizard:
             creationflags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
             subprocess.Popen(
                 ["start", "cmd", "/c", sys.executable, "-m", "siyarix"] + sys.argv[1:],
-                shell=True,  # required for 'start' on windows but safe here
+                shell=True,  # nosec - required for 'start' on windows but safe here
                 creationflags=creationflags,
             )
         else:

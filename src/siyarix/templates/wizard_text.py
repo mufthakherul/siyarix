@@ -72,11 +72,11 @@ REQUIRED_TOOLS = [
 MINIMAL_CYBER_TOOLS = [
     ("nmap", "nmap", "Network discovery & port scanning"),
     ("openssl", "openssl", "TLS/SSL & cryptography"),
-    ("dig", "bind-tools/dnsutils", "DNS resolution & enumeration"),
+    ("dig", "dnsutils", "DNS resolution & enumeration"),
     ("whois", "whois", "WHOIS domain lookups"),
     ("python3", "python3", "Python scripting & automation"),
     ("jq", "jq", "JSON query & processing"),
-    ("ping", "ping", "Network connectivity testing"),
+    ("ping", "iputils-ping", "Network connectivity testing"),
     ("tcpdump", "tcpdump", "Packet capture & analysis"),
     ("tshark", "tshark", "CLI packet analyzer"),
 ]

@@ -178,12 +178,16 @@ class ToolInstaller:
 
         try:
             self._print(f"  Running: sudo {' '.join(install_cmd)}")
+            env = {**os.environ}
+            if pm in ("apt", "apt-get"):
+                env["DEBIAN_FRONTEND"] = "noninteractive"
             subprocess.run(
                 ["sudo", "-p", "Password required for installation: "] + install_cmd,
                 capture_output=True,
                 text=True,
                 timeout=300,
                 check=False,
+                env=env,
             )
             if shutil.which(tool):
                 self._print(f"  [green]\u2713 {tool} installed via {pm}[/green]")

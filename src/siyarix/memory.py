@@ -315,7 +315,7 @@ class MemoryManager:
         store = self._stores.get(MemoryLayer.PROJECT)
         if not store or not store._conn:
             return []
-        
+
         try:
             with store._lock:
                 cursor = store._conn.execute(
@@ -323,7 +323,7 @@ class MemoryManager:
                     (MemoryLayer.PROJECT.value, '%"context"%')
                 )
                 rows = cursor.fetchall()
-            
+
             history = []
             for row in rows:
                 try:

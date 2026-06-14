@@ -257,7 +257,7 @@ class CredentialStore:
         """Create a valid Fernet key and persist the raw material."""
         if password:
             self._config_dir.mkdir(parents=True, exist_ok=True)
-            
+
             # Use persistent salt (C-01)
             if self._salt_file.exists():
                 salt = self._salt_file.read_bytes()
@@ -387,10 +387,10 @@ class CredentialStore:
         if not HAS_AESGCM:
             logger.warning("AES-256-GCM not available for key rotation")
             return False
-            
+
         # C-03: Atomic rotation - snapshot credentials
         snapshot = {k: Credential(**v.to_dict()) for k, v in self._credentials.items()}
-        
+
         old_master_key = self._master_key
         self._master_key = os.urandom(_AES_KEY_SIZE)
         if new_master_password:
@@ -420,7 +420,7 @@ class CredentialStore:
                     plaintext = self._decrypt(cred.value_encrypted)
                     cred.value_encrypted = self._encrypt_aesgcm(plaintext)
                     cred.rotated = True
-            
+
             self._save()
             logger.info("Master key rotated successfully")
             return True
@@ -461,14 +461,14 @@ class CredentialStore:
                         f = Fernet(fernet_key)
                         decrypted = f.decrypt(payload).decode()
                         data = json.loads(decrypted)
-                        
+
                         # Cache the KMS data key for future use
                         self._kms_data_key = data_key
                         self._kms_encrypted_key = obj["encrypted_key"]
                     else:
                         decrypted = self._decrypt(raw)
                         data = json.loads(decrypted)
-                    
+
                     for cred_data in data:
                         if "value_encrypted" not in cred_data:
                             logger.error("Credential entry missing value_encrypted")
@@ -525,7 +525,7 @@ class CredentialStore:
                             resp = kms.decrypt(CiphertextBlob=kms_key_blob)
                             self._kms_data_key = resp.get("Plaintext")
                             self._kms_encrypted_key = encrypted_key
-                        
+
                         if not self._kms_data_key:
                             raise RuntimeError("KMS failed to decrypt data key")
 
@@ -537,7 +537,7 @@ class CredentialStore:
                     else:
                         decrypted = self._decrypt(raw)
                         data = json.loads(decrypted)
-                    
+
                     cred = Credential(
                         cred_id=data["cred_id"],
                         name=data["name"],
@@ -577,7 +577,7 @@ class CredentialStore:
             cred_file = self._creds_dir / f"{delete_cred_id}.enc"
             if cred_file.exists():
                 cred_file.unlink()
-            
+
         creds_to_save = [cred] if cred else list(self._credentials.values())
         if not creds_to_save and not delete_cred_id:
             return
@@ -624,7 +624,7 @@ class CredentialStore:
                 content_str = json.dumps(out)
             else:
                 content_str = self._encrypt(raw)
-            
+
             (self._creds_dir / f"{c.cred_id}.enc").write_text(content_str)
 
     def store(

@@ -5,11 +5,10 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
 
 import httpx
 
-from siyarix.opsec import AuditEvent
+from siyarix.audit_log import AuditEvent
 
 logger = logging.getLogger(__name__)
 

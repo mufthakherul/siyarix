@@ -348,7 +348,7 @@ async def _gemini_generate(
     max_tokens: int = 2000,
     temperature: float = 0.3,
     tools: list[dict] | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> dict[str, Any]:
     """Call Gemini's native generateContent endpoint with safety settings."""
     contents = _gemini_build_contents(system_prompt, user_prompt, history)
@@ -395,7 +395,7 @@ async def _gemini_stream(
     max_tokens: int = 2000,
     temperature: float = 0.3,
     tools: list[dict] | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """Stream from Gemini's native streamGenerateContent endpoint."""
     contents = _gemini_build_contents(system_prompt, user_prompt, history)
@@ -443,14 +443,14 @@ async def openai_stream(
     temperature: float = 0.3,
     compat: OpenAICompat | None = None,
     tools: list[dict] | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """Stream a response from any OpenAI-compatible provider.
 
     Yields content tokens as they arrive.
     """
     messages = build_messages(system_prompt, user_prompt, history, compat=compat)
-    kwargs: dict[str, Any] = {
+    call_kwargs: dict[str, Any] = {
         "model": model,
         "messages": messages,
         "max_tokens": max_tokens,
@@ -459,8 +459,8 @@ async def openai_stream(
         "stream_options": {"include_usage": True},
     }
     if tools:
-        kwargs["tools"] = tools
-    response = await client.chat.completions.create(**kwargs)
+        call_kwargs["tools"] = tools
+    response = await client.chat.completions.create(**call_kwargs)
     async for chunk in response:
         if chunk.choices and len(chunk.choices) > 0:
             delta = chunk.choices[0].delta
@@ -481,23 +481,23 @@ async def openai_complete(
     temperature: float = 0.3,
     compat: OpenAICompat | None = None,
     tools: list[dict] | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> dict[str, Any]:
     """Complete a chat request from any OpenAI-compatible provider.
 
     Returns dict with content, model, input_tokens, output_tokens.
     """
     messages = build_messages(system_prompt, user_prompt, history, compat=compat)
-    kwargs: dict[str, Any] = {
+    call_kwargs: dict[str, Any] = {
         "model": model,
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
     }
     if tools:
-        kwargs["tools"] = tools
+        call_kwargs["tools"] = tools
     try:
-        response = await client.chat.completions.create(**kwargs)
+        response = await client.chat.completions.create(**call_kwargs)
     except Exception as exc:
         msg = str(exc) or repr(exc)
         raise RuntimeError(f"API call failed (model={model}): {msg}") from exc
@@ -560,16 +560,16 @@ def make_openai_adapter(
         stream: bool = False,
         history: list[dict] | None = None,
         tools: list[dict] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Any:
         import asyncio
         from ..compaction import CompactionEngine
-        
+
         current_history = history
         max_retries = 3
         # Use the passed-in model if provided, else use the one resolved at creation
         effective_model = _map_real_model(model) if model else api_model
-        
+
         for attempt in range(max_retries):
             try:
                 if provider == "gemini":
@@ -597,28 +597,29 @@ def make_openai_adapter(
                         raise
                     await asyncio.sleep(2 ** attempt)
                     continue
-                
+
                 # Classify the original exception if wrapped
                 original_exc = getattr(e, "__cause__", e) or e
                 status_code = getattr(getattr(original_exc, "response", None), "status_code", None)
                 classified = provider_manager.classify_error(provider, original_exc, http_status=status_code)
-                
+
                 # PROV-03: Trigger CompactionEngine on context overflow
                 if classified.should_compress and current_history:
                     # Flatten history to text
                     text_history = "\n".join([f"{m.get('role', 'user')}: {m.get('content', '')}" for m in current_history])
                     compactor = CompactionEngine()
-                    compressed_text = compactor.compress(text_history, target_ratio=0.5)
+                    result = await compactor.compact(current_history)
+                    compressed_text = result.summary or text_history[:int(len(text_history) * 0.5)]
                     # Replace history with the compressed summary
                     current_history = [{"role": "system", "content": f"Prior context:\n{compressed_text}"}]
                     continue  # Retry with compacted history
-                
+
                 # PROV-05: RetryPolicy for provider calls
                 if classified.retryable and attempt < max_retries - 1:
                     provider_manager.record_failure(provider, classified.reason)
                     await asyncio.sleep(2 ** attempt)
                     continue
-                
+
                 # Out of retries or non-retryable
                 provider_manager.record_failure(provider, classified.reason)
                 raise

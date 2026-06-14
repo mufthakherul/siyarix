@@ -1,8 +1,9 @@
 from __future__ import annotations
 from ..types import ProviderProfile, ModelInfo, CostTier, ProviderType
+from ..manager import ProviderManager
 
 
-def register_profile(manager) -> None:
+def register_profile(manager: ProviderManager) -> None:
     # Adjust indentation
 
     # ── Ollama (Local) ─────────────────────────────────────────────

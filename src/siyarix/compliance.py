@@ -82,7 +82,7 @@ class ComplianceEngine:
         if not checks:
             logger.warning("No checks defined for framework %s", framework)
             return []
-        
+
         results = await asyncio.gather(*[c.run() for c in checks])
         return list(results)
 
@@ -95,12 +95,12 @@ class ComplianceEngine:
     async def run_assessment(self, framework: str, target: str) -> ComplianceReport:
         if framework not in self.FRAMEWORKS:
             raise ValueError(f"Unknown framework: {framework}")
-        
+
         results = await self._run_framework_checks(framework, target)
-        
+
         timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         evidence_dir = self._base_dir / f"{framework}_{target.replace('/', '_')}_{timestamp_str}"
-        
+
         report = ComplianceReport(
             framework=framework,
             target=target,

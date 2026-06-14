@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from ..manager import ProviderManager
 from .openai import register_profile as register_openai
 from .anthropic import register_profile as register_anthropic
 from .gemini import register_profile as register_gemini
@@ -26,7 +27,7 @@ from .vllm import register_profile as register_vllm
 from .localai import register_profile as register_localai
 
 
-def register_all_profiles(manager) -> None:
+def register_all_profiles(manager: ProviderManager) -> None:
     register_openai(manager)
     register_anthropic(manager)
     register_gemini(manager)

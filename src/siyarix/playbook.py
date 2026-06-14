@@ -11,7 +11,7 @@ from typing import Any
 
 import yaml
 
-from siyarix.core import ExecutionPlan, PlanStep, PlanType
+from siyarix.models import ExecutionPlan, PlanStep, PlanType
 from siyarix.workflow import WorkflowEngine
 
 logger = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ class PlaybookEngine:
                     else:
                         context[k] = str(v)
 
-        steps = []
+        steps: list[PlanStep] = []
         for step_data in data["steps"]:
             resolved_step = self._resolve_dict(step_data, context)
             step_id = resolved_step.get("id", f"step_{len(steps)+1}")
@@ -69,19 +69,19 @@ class PlaybookEngine:
             tool = resolved_step.get("tool", "")
             args = resolved_step.get("args", {})
             depends_on = resolved_step.get("depends_on", [])
-            
+
             if step_type == "agent":
                 tool = "_subagent"
                 args = {
                     "role": resolved_step.get("role", "assistant"),
                     "goal": resolved_step.get("goal", ""),
                 }
-            
-            # Use JSON string for args to match planner output format if needed, 
-            # or pass the dict directly if tools support it. 
+
+            # Use JSON string for args to match planner output format if needed,
+            # or pass the dict directly if tools support it.
             import json
             command = json.dumps(args)
-            
+
             step = PlanStep(
                 id=step_id,
                 description=f"Run {tool} from playbook",
@@ -100,5 +100,24 @@ class PlaybookEngine:
         """Load and execute a playbook."""
         data = self.load(path)
         plan = self.create_plan(data, variables)
-        workflow = self.workflow_engine.from_execution_plan(plan)
-        return await self.workflow_engine.run(workflow, executor)
+        nodes = [
+            {
+                "id": step.id,
+                "name": step.description,
+                "step_fn": step.tool,
+                "args": {"command": step.command},
+                "timeout": step.timeout,
+            }
+            for step in plan.steps
+        ]
+        edges = []
+        for step in plan.steps:
+            for dep in step.dependencies:
+                edges.append({"source": dep, "target": step.id})
+        workflow = self.workflow_engine.create_workflow(
+            name=str(path),
+            description="Playbook execution",
+            nodes=nodes,
+            edges=edges,
+        )
+        return await self.workflow_engine.run_workflow(workflow)

@@ -6,7 +6,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
-import time
 from collections import deque
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field

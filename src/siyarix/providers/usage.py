@@ -9,6 +9,7 @@ from .types import CostTier
 logger = logging.getLogger(__name__)
 
 
+@dataclass
 class UsageRecord:
     provider: str = ""
     model: str = ""

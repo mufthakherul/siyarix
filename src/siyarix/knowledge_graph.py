@@ -322,6 +322,11 @@ class KnowledgeGraph:
             if edge.source_id in type_nodes or edge.target_id in type_nodes
         ]
 
+    @property
+    def nodes(self) -> dict[str, Node]:
+        """All nodes in the graph (mapping node_id → Node)."""
+        return self._nodes
+
     # ── Statistics ───────────────────────────────────────────────────────
 
     @property

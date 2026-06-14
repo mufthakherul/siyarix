@@ -12,16 +12,17 @@ import time
 import json
 import os
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any
 
 from .security_hardening import DangerAnalyzer
 from .config import get_config_dir
+from enum import StrEnum
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-from enum import StrEnum
+
 
 class GateStage(StrEnum):
     SYNTAX = "syntax"
@@ -39,7 +40,7 @@ class GateResult:
     command: str = ""
     requires_review: bool = False
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not isinstance(self.stage, GateStage):
             try:
                 self.stage = GateStage(self.stage)
@@ -56,18 +57,18 @@ class PermissionGate:
         self._state_file = get_config_dir() / "rate_limit.json"
         self._load_state()
 
-    def _load_state(self):
+    def _load_state(self) -> None:
         if os.path.exists(self._state_file):
             try:
-                with open(self._state_file, "r") as f:
+                with open(self._state_file, "r", encoding='utf-8') as f:
                     self._calls = json.load(f)
             except Exception:
                 pass
 
-    def _save_state(self):
+    def _save_state(self) -> None:
         try:
             os.makedirs(os.path.dirname(self._state_file), exist_ok=True)
-            with open(self._state_file, "w") as f:
+            with open(self._state_file, "w", encoding='utf-8') as f:
                 json.dump(self._calls, f)
         except Exception:
             pass
@@ -77,15 +78,15 @@ class PermissionGate:
     ) -> GateResult:
         now = time.time()
         self._calls = [t for t in self._calls if now - t < self.rate_limit_period]
-        
+
         if context and context.get("restricted_payload"):
              if any(bad in command for bad in ("rm -rf", "mkfs", "dd if=")):
                  return GateResult(False, GateStage.FORBIDDEN, "Payload verification failed", tool=tool, command=command)
-                 
+
         if len(self._calls) >= self.rate_limit_calls:
             self._save_state()
             return GateResult(False, GateStage.FORBIDDEN, "Rate limit exceeded", tool=tool, command=command)
-            
+
         self._calls.append(now)
         self._save_state()
 

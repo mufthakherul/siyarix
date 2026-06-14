@@ -54,7 +54,7 @@ def find_json_object_end(text: str, start: int) -> int:
             depth += 1
         elif ch == "}":
             depth -= 1
-            if depth == 0:
+            if not depth:
                 return i + 1
 
     return -1

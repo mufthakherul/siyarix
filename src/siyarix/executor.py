@@ -135,7 +135,7 @@ class ExecutionBudget:
     @property
     def progress_pct(self) -> float:
         """Rough progress percentage based on iteration consumption."""
-        if self.max_iterations == 0:
+        if not self.max_iterations:
             return 100.0
         return min(100.0, (self._iterations / self.max_iterations) * 100.0)
 
@@ -185,7 +185,6 @@ class ToolCallTracker:
 
     def __init__(self, config: GuardrailConfig | None = None) -> None:
         from .config import get_config_dir
-        import json
         self._config = config or GuardrailConfig()
         self._failure_counts: dict[str, int] = {}
         self._consecutive_same: dict[str, int] = {}
@@ -379,7 +378,7 @@ class Executor:
             if can_parallel:
                 tasks = []
                 for s in ready_steps:
-                    tasks.append(await self._pool.submit(self._execute_step, s, executor_fn))
+                    tasks.append(self._pool.submit(self._execute_step, s, executor_fn))
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 # M-41: log exceptions that gather swallowed
                 for i, res in enumerate(results):
@@ -505,7 +504,7 @@ class Executor:
                 return {"status": "error", "error": guardrail}
 
             result = await self._registry.execute(step.tool, **step.args)
-            
+
             try:
                 from .dlp import DLPEngine
                 dlp = DLPEngine(redact_secrets=True, redact_pii=True)
@@ -600,7 +599,7 @@ class Executor:
         try:
             _sl = _get_session_logger()
             _sl.add_safety_event("executor", command, f"{action}:{reason}")
-            
+
             # SAFE-03: Audit trail entry for manual approvals
             if action in ("approved", "risk_accepted"):
                 audit(

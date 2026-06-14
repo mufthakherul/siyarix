@@ -19,7 +19,6 @@ Usage example::
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
 import secrets
@@ -282,7 +281,7 @@ class OPSECManager:
             return
         try:
             size: int = path.stat().st_size
-            if size == 0:
+            if not size:
                 path.unlink()
                 return
             for _ in range(passes):

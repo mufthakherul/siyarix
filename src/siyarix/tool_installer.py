@@ -11,7 +11,7 @@ import os
 import shutil
 import subprocess
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Any
 
 logger = logging.getLogger(__name__)
@@ -118,12 +118,12 @@ class ToolInstaller:
                         "winget", "install", pkg, 
                         "--silent", "--accept-package-agreements", "--accept-source-agreements"
                     ]
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, check=False)
                 self._refresh_windows_path()
                 if shutil.which(tool):
                     self._print(f"  [green]\u2713 {tool} installed via winget[/green]")
                     return True
-                elif result.returncode == 0 or "already installed" in result.stdout or "already installed" in result.stderr:
+                elif not result.returncode or "already installed" in result.stdout or "already installed" in result.stderr:
                     self._print(f"  [green]\u2713 {tool} already installed (verified via winget output)[/green]")
                     return True
             except Exception as e:
@@ -132,7 +132,7 @@ class ToolInstaller:
         if shutil.which("choco"):
             try:
                 cmd = ["choco", "install", "-y", pkg]
-                subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+                subprocess.run(cmd, capture_output=True, text=True, timeout=300, check=False)
                 self._refresh_windows_path()
                 if shutil.which(tool):
                     self._print(f"  [green]\u2713 {tool} installed via choco[/green]")
@@ -162,10 +162,10 @@ class ToolInstaller:
         # Pre-update package index for reliable installs
         if pm in ("apt", "apt-get"):
             self._print("  Updating package index...")
-            subprocess.run(["sudo", "-p", "Password required for update: ", pm, "update"], capture_output=True, timeout=120)
+            subprocess.run(["sudo", "-p", "Password required for update: ", pm, "update"], capture_output=True, timeout=120, check=False)
         elif pm == "brew":
             self._print("  Updating brew formulas...")
-            subprocess.run(["brew", "update"], capture_output=True, timeout=120)
+            subprocess.run(["brew", "update"], capture_output=True, timeout=120, check=False)
 
         install_cmd = {
             "apt": ["apt-get", "install", "-y", pkg],
@@ -183,6 +183,7 @@ class ToolInstaller:
                 capture_output=True,
                 text=True,
                 timeout=300,
+                check=False,
             )
             if shutil.which(tool):
                 self._print(f"  [green]\u2713 {tool} installed via {pm}[/green]")

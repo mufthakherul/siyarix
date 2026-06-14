@@ -14,7 +14,7 @@ import platform
 import shutil
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from siyarix.config import get_config_dir
@@ -229,8 +229,9 @@ class BootstrapEngine:
                     capture_output=True,
                     text=True,
                     timeout=300,
+                    check=False,
                 )  # nosec B603
-                results[pkg] = result.returncode == 0
+                results[pkg] = not result.returncode
             except Exception as exc:
                 logger.warning("Failed to install %s: %s", pkg, exc)
                 results[pkg] = False
@@ -313,7 +314,7 @@ class BootstrapEngine:
         # T6: Dependency check
         deps = self.check_dependencies()
         missing_deps = [k for k, v in deps.items() if not v]
-        self._result.dependencies_ok = len(missing_deps) == 0
+        self._result.dependencies_ok = not len(missing_deps)
 
         # T7: Database backend check
         db_status = self.check_database_backend()
@@ -345,7 +346,7 @@ class BootstrapEngine:
         # T11: Write initialization marker
         self.write_marker()
 
-        self._result.success = len(self._result.errors) == 0
+        self._result.success = not len(self._result.errors)
         self._result.completed_at = datetime.now(timezone.utc).isoformat()
 
         logger.info(

@@ -18,7 +18,7 @@ def make_nmap_handler(tool_name: str) -> ToolHandler:
         cmd = [tool_name] + flags.split() + [target]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 120))
         return {
-            "status": "success" if result.exit_code == 0 else "error",
+            "status": "success" if not result.exit_code else "error",
             "output": result.stdout,
             "error": result.stderr,
             "exit_code": result.exit_code,
@@ -55,7 +55,7 @@ def make_web_handler(tool_name: str) -> ToolHandler:
                 cmd += [target]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 300))
         return {
-            "status": "success" if result.exit_code == 0 else "error",
+            "status": "success" if not result.exit_code else "error",
             "output": result.stdout,
             "error": result.stderr,
             "exit_code": result.exit_code,
@@ -73,7 +73,7 @@ def make_portscan_handler(tool_name: str) -> ToolHandler:
         cmd = [tool_name] + flags.split() + [target]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 120))
         return {
-            "status": "success" if result.exit_code == 0 else "error",
+            "status": "success" if not result.exit_code else "error",
             "output": result.stdout,
             "error": result.stderr,
             "exit_code": result.exit_code,
@@ -101,7 +101,7 @@ def make_recon_handler(tool_name: str) -> ToolHandler:
             cmd = [tool_name, "--help"]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 30))
         return {
-            "status": "success" if result.exit_code == 0 else "error",
+            "status": "success" if not result.exit_code else "error",
             "output": result.stdout,
             "error": result.stderr,
             "exit_code": result.exit_code,
@@ -118,7 +118,7 @@ def make_brute_handler(tool_name: str) -> ToolHandler:
         cmd = [tool_name, "-l", target]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 120))
         return {
-            "status": "success" if result.exit_code == 0 else "error",
+            "status": "success" if not result.exit_code else "error",
             "output": result.stdout,
             "error": result.stderr,
             "exit_code": result.exit_code,
@@ -148,7 +148,7 @@ def make_network_handler(tool_name: str) -> ToolHandler:
             cmd = [tool_name, "--help"]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 60))
         return {
-            "status": "success" if result.exit_code == 0 else "error",
+            "status": "success" if not result.exit_code else "error",
             "output": result.stdout,
             "error": result.stderr,
             "exit_code": result.exit_code,
@@ -172,7 +172,7 @@ def make_crypto_handler(tool_name: str) -> ToolHandler:
             cmd = [tool_name, "--help"]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 120))
         return {
-            "status": "success" if result.exit_code == 0 else "error",
+            "status": "success" if not result.exit_code else "error",
             "output": result.stdout,
             "error": result.stderr,
             "exit_code": result.exit_code,
@@ -189,7 +189,7 @@ def make_curl_handler(tool_name: str) -> ToolHandler:
         cmd = [tool_name] + flags.split() + [target]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 30))
         return {
-            "status": "success" if result.exit_code == 0 else "error",
+            "status": "success" if not result.exit_code else "error",
             "output": result.stdout,
             "error": result.stderr,
             "exit_code": result.exit_code,
@@ -206,7 +206,7 @@ def make_dns_handler(tool_name: str) -> ToolHandler:
         cmd = [tool_name, target]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 30))
         return {
-            "status": "success" if result.exit_code == 0 else "error",
+            "status": "success" if not result.exit_code else "error",
             "output": result.stdout,
             "error": result.stderr,
             "exit_code": result.exit_code,
@@ -223,7 +223,7 @@ def make_whois_handler(tool_name: str) -> ToolHandler:
         cmd = [tool_name, target]
         result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 30))
         return {
-            "status": "success" if result.exit_code == 0 else "error",
+            "status": "success" if not result.exit_code else "error",
             "output": result.stdout,
             "error": result.stderr,
             "exit_code": result.exit_code,
@@ -266,7 +266,7 @@ def make_generic_handler(tool_name: str) -> ToolHandler:
         try:
             result = await safe_run_async(cmd, timeout=timeout)
             return {
-                "status": "success" if result.exit_code == 0 else "error",
+                "status": "success" if not result.exit_code else "error",
                 "output": result.stdout,
                 "error": result.stderr,
                 "exit_code": result.exit_code,

@@ -111,7 +111,7 @@ class SessionLogger:
 
     def load(self, session_id: str) -> SessionLog | None:
         path = self._path(session_id)
-        if not path.exists() or path.stat().st_size == 0:
+        if not path.exists() or not path.stat().st_size:
             return None
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
@@ -127,7 +127,7 @@ class SessionLogger:
         for path in sorted(
             self._log_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
         ):
-            if path.stat().st_size == 0:
+            if not path.stat().st_size:
                 logger.debug("Skipping empty session log: %s", path)
                 path.unlink(missing_ok=True)
                 continue

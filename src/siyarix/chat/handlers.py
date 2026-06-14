@@ -495,24 +495,42 @@ class CommandHandlersMixin:
             )
 
 
-    def _cmd_tools(self, _: str) -> None:
+    def _cmd_tools(self, arg: str) -> None:
         try:
             from ..registry import ToolRegistry
+            from ..tool_models import ToolCategory
 
             reg = ToolRegistry()
             reg.scan_path()
-            tools = reg.list_tools()
+
+            category_filter = None
+            if arg.strip():
+                try:
+                    category_filter = ToolCategory(arg.strip().lower())
+                except ValueError:
+                    valid = ", ".join(c.value for c in ToolCategory)
+                    console.print(f"[yellow]Invalid category. Valid: {valid}[/yellow]")
+                    return
+
+            tools = reg.list_tools(category=category_filter)
             if not tools:
-                console.print("[yellow]No tools registered.[/yellow]")
+                label = f" ({category_filter.value})" if category_filter else ""
+                console.print(f"[yellow]No tools found{label}.[/yellow]")
                 return
-            table = Table(title=f"{len(tools)} Security Tools Found", header_style="bold cyan")
-            table.add_column("Name", style="cyan")
+
+            title = f"{len(tools)} Security Tools"
+            if category_filter:
+                title += f" [{category_filter.value}]"
+            table = Table(title=title, header_style="bold cyan")
+            table.add_column("#", style="dim", width=4)
+            table.add_column("Name", style="cyan", no_wrap=True)
             table.add_column("Category", style="magenta")
             table.add_column("Version", style="dim")
-            table.add_column("Capabilities", style="white")
-            for t in sorted(tools, key=lambda x: x.category):
-                caps = ", ".join(t.tags[:3])
-                table.add_row(t.name, t.category, t.version[:20], caps)
+            table.add_column("Persona", style="yellow")
+            for i, t in enumerate(sorted(tools, key=lambda x: x.category), 1):
+                ver = t.version[:20] if t.version else ""
+                personas = ", ".join(t.metadata.get("personas", [])) if t.metadata else ""
+                table.add_row(str(i), t.name, t.category.value, ver, personas)
             console.print(table)
         except Exception as exc:
             logger.exception("Tool discovery error")

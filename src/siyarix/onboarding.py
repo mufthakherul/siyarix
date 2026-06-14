@@ -2005,6 +2005,7 @@ class OnboardingWizard:
         """Download and install llama.cpp pre-built binary."""
         import platform as _platform
         import urllib.request
+        import json
         import zipfile
         import tarfile
 
@@ -2013,68 +2014,79 @@ class OnboardingWizard:
         machine = _platform.machine().lower()
         system = _platform.system().lower()
 
-        # Map platform to GitHub release asset pattern
-        asset_pattern = ""
+        # Fetch the latest release tag from GitHub API
+        try:
+            api_url = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
+            resp = urllib.request.urlopen(api_url, timeout=15)
+            release_data = json.loads(resp.read())
+            tag = release_data.get("tag_name", "")
+            if not tag:
+                raise ValueError("No tag_name in release data")
+        except Exception as exc:
+            self._console.print(f"  [red]Failed to fetch latest release: {exc}[/red]")
+            self._console.print("[yellow]Install manually from: https://github.com/ggml-org/llama.cpp/releases[/yellow]")
+            return False
+
+        # Map platform to GitHub release asset pattern (new naming: llama-{tag}-bin-{os}-{arch}.tar.gz)
+        suffix = ""
         if system == "linux":
             if machine in ("x86_64", "amd64"):
-                asset_pattern = "llama.cpp-linux-x86_64.tar.xz"
+                suffix = "ubuntu-x64.tar.gz"
             elif "aarch64" in machine or "arm64" in machine:
-                asset_pattern = "llama.cpp-linux-aarch64.tar.xz"
+                suffix = "ubuntu-arm64.tar.gz"
         elif system == "darwin":
             if "arm" in machine or "aarch64" in machine:
-                asset_pattern = "llama.cpp-macos-arm64.tar.xz"
+                suffix = "macos-arm64.tar.gz"
             else:
-                asset_pattern = "llama.cpp-macos-x86_64.tar.xz"
+                suffix = "macos-x64.tar.gz"
         elif os.name == "nt":
-            asset_pattern = "llama.cpp-windows-{arch}.zip".replace(
-                "{arch}", "amd64" if machine in ("x86_64", "amd64") else "arm64"
-            )
+            arch = "x64" if machine in ("x86_64", "amd64") else "arm64"
+            suffix = f"win-cpu-{arch}.zip"
 
-        if not asset_pattern:
+        if not suffix:
             self._console.print("[red]Unsupported platform for llama.cpp auto-install.[/red]")
             self._console.print("[yellow]Install manually from: https://github.com/ggml-org/llama.cpp/releases[/yellow]")
             return False
 
-        release_url = "https://github.com/ggml-org/llama.cpp/releases/latest/download"
-        download_url = f"{release_url}/{asset_pattern}"
+        asset_name = f"llama-{tag}-bin-{suffix}"
+        download_url = f"https://github.com/ggml-org/llama.cpp/releases/download/{tag}/{asset_name}"
 
         bin_dir = Path.home() / ".siyarix" / "bin"
         bin_dir.mkdir(parents=True, exist_ok=True)
 
         try:
-            self._console.print(f"  Downloading [cyan]{asset_pattern}[/cyan]...")
-            archive_path = bin_dir / asset_pattern
+            self._console.print(f"  Downloading [cyan]{asset_name}[/cyan]...")
+            archive_path = bin_dir / asset_name
             urllib.request.urlretrieve(download_url, archive_path)
             self._console.print("  [green]\u2713 Downloaded[/green]")
 
             # Extract
             self._console.print("  Extracting...")
-            if asset_pattern.endswith(".zip"):
+            if asset_name.endswith(".zip"):
                 with zipfile.ZipFile(archive_path, "r") as zf:
                     zf.extractall(bin_dir)
             else:
-                with tarfile.open(archive_path, "r:xz") as tf:
+                with tarfile.open(archive_path, "r:gz") as tf:
                     tf.extractall(bin_dir)
 
+            # Remove the versioned extract directory prefix if present
+            for entry in list(bin_dir.iterdir()):
+                if entry.is_dir() and entry.name.startswith(f"llama-{tag}-bin-"):
+                    extract_root = entry
+                    for child in entry.iterdir():
+                        dest = bin_dir / child.name
+                        if child.is_dir():
+                            shutil.copytree(child, dest, dirs_exist_ok=True)
+                        else:
+                            shutil.copy2(child, dest)
+                    shutil.rmtree(extract_root)
+                    break
+
             # Find the llama-server binary
-            extracted = bin_dir / "build" / "bin"
-            if extracted.exists():
-                for f in extracted.iterdir():
-                    if f.name in ("llama-server", "llama-server.exe"):
+            for f in bin_dir.rglob("*"):
+                if f.is_file() and f.name in ("llama-server", "llama-server.exe"):
+                    if f.parent != bin_dir:
                         shutil.copy2(f, bin_dir / f.name)
-                        f.unlink()
-            else:
-                # Some releases extract to bin_dir directly
-                for f in bin_dir.iterdir():
-                    if f.name in ("llama-server", "llama-server.exe") and f.parent == bin_dir:
-                        break
-                else:
-                    # Try to find it recursively
-                    for f in bin_dir.rglob("*"):
-                        if f.is_file() and f.name in ("llama-server", "llama-server.exe"):
-                            base_name = f.name
-                            shutil.copy2(f, bin_dir / base_name)
-                            break
 
             # Cleanup archive
             archive_path.unlink(missing_ok=True)

@@ -72,6 +72,13 @@ REQUIRED_TOOLS = [
 MINIMAL_CYBER_TOOLS = [
     ("nmap", "nmap", "Network discovery & port scanning"),
     ("openssl", "openssl", "TLS/SSL & cryptography"),
+    ("dig", "bind-tools/dnsutils", "DNS resolution & enumeration"),
+    ("whois", "whois", "WHOIS domain lookups"),
+    ("python3", "python3", "Python scripting & automation"),
+    ("jq", "jq", "JSON query & processing"),
+    ("ping", "ping", "Network connectivity testing"),
+    ("tcpdump", "tcpdump", "Packet capture & analysis"),
+    ("tshark", "tshark", "CLI packet analyzer"),
 ]
 
 PERSONA_TOOLS = {
@@ -79,20 +86,39 @@ PERSONA_TOOLS = {
         ("ffuf", "ffuf", "Web fuzzer"),
         ("nuclei", "nuclei", "Vulnerability scanner"),
         ("sqlmap", "sqlmap", "SQL injection automation"),
+        ("gobuster", "gobuster", "Directory/file brute forcing"),
+        ("nikto", "nikto", "Web server vulnerability scanner"),
+        ("wpscan", "wpscan", "WordPress security scanner"),
+        ("whatweb", "whatweb", "Web tech fingerprinting"),
     ],
     "network security": [
-        ("dig", "bind-tools/dnsutils", "DNS resolution & enumeration"),
-        ("whois", "whois", "WHOIS domain lookups"),
+        ("masscan", "masscan", "High-speed TCP port scanner"),
+        ("bettercap", "bettercap", "Network MITM framework"),
+        ("responder", "responder", "LLMNR/NBT-NS poisoning"),
     ],
     "red team": [
         ("john", "john", "Password cracking"),
         ("hydra", "hydra", "Online password attacks"),
+        ("hashcat", "hashcat", "GPU-accelerated hash cracking"),
+        ("metasploit", "metasploit", "Exploitation framework"),
+        ("mimikatz", "mimikatz", "Windows credential extraction"),
+        ("impacket", "impacket", "Windows protocol toolkit"),
+        ("crackmapexec", "crackmapexec", "AD post-exploitation"),
     ],
     "blue team": [
         ("yara", "yara", "Pattern matching for malware"),
+        ("suricata", "suricata", "Network IDS/IPS engine"),
+        ("snort", "snort", "Network intrusion detection"),
+        ("ossec", "ossec", "Host-based intrusion detection"),
+        ("wireshark", "wireshark", "Network protocol analyzer"),
     ],
     "dfir": [
         ("yara", "yara", "Pattern matching for malware"),
+        ("volatility", "volatility", "Memory forensics framework"),
+        ("sleuthkit", "sleuthkit", "File system forensics"),
+        ("exiftool", "exiftool", "Metadata extraction"),
+        ("binwalk", "binwalk", "Firmware analysis"),
+        ("hashdeep", "hashdeep", "File hashing & integrity"),
     ]
 }
 
@@ -101,6 +127,18 @@ CYBER_TOOL_HOMEPAGES = {
     "sqlmap": "https://sqlmap.org",
     "john": "https://www.openwall.com/john/",
     "hydra": "https://github.com/vanhauser-thc/thc-hydra",
+    "masscan": "https://github.com/robertdavidgraham/masscan",
+    "hashcat": "https://hashcat.net/hashcat/",
+    "metasploit": "https://www.metasploit.com/",
+    "mimikatz": "https://github.com/gentilkiwi/mimikatz",
+    "responder": "https://github.com/lgandx/Responder",
+    "impacket": "https://github.com/fortra/impacket",
+    "crackmapexec": "https://github.com/byt3bl33d3r/CrackMapExec",
+    "volatility": "https://www.volatilityfoundation.org/",
+    "sleuthkit": "https://www.sleuthkit.org/",
+    "binwalk": "https://github.com/ReFirmLabs/binwalk",
+    "suricata": "https://suricata.io/",
+    "snort": "https://www.snort.org/",
 }
 
 ARCH_MAP: dict[str, str] = {

@@ -2341,7 +2341,7 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
 
             # Remove the versioned extract directory prefix if present
             for entry in list(bin_dir.iterdir()):
-                if entry.is_dir() and entry.name.startswith(f"llama-{tag}-bin-"):
+                if entry.is_dir() and (entry.name.startswith(f"llama-{tag}") and not entry.name.startswith(".")):
                     extract_root = entry
                     for child in entry.iterdir():
                         dest = bin_dir / child.name
@@ -2352,11 +2352,14 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
                     shutil.rmtree(extract_root)
                     break
 
-            # Find the llama-server binary
+            # Find the llama-server binary and any shared libs
             for f in bin_dir.rglob("*"):
                 if f.is_file() and f.name in ("llama-server", "llama-server.exe"):
                     if f.parent != bin_dir:
                         shutil.copy2(f, bin_dir / f.name)
+                        # Also copy shared libraries from the same directory
+                        for lib in f.parent.glob("*.so*"):
+                            shutil.copy2(lib, bin_dir / lib.name)
 
             # Cleanup archive
             archive_path.unlink(missing_ok=True)
@@ -2410,6 +2413,14 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
             if not llama_bin.exists():
                 logger.warning("llama-server not found at %s", llama_bin)
                 return
+
+            # One-time promotion of shared libraries from stale subdirectories
+            for d in bin_dir.iterdir():
+                if d.is_dir() and d.name.startswith("llama-"):
+                    for lib in d.glob("*.so*"):
+                        dest = bin_dir / lib.name
+                        if not dest.exists():
+                            shutil.copy2(lib, dest)
 
             cmd = [str(llama_bin), "--port", str(port), "--host", "127.0.0.1"]
             if model_path:

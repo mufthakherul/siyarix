@@ -765,7 +765,7 @@ def scan(
             target_file = Path(t[1:])
             if target_file.exists():
                 lines = [
-                    line.strip() for line in target_file.read_text().splitlines() if line.strip()
+                    line.strip() for line in target_file.read_text(encoding='utf-8').splitlines() if line.strip()
                 ]
                 expanded_targets.extend(lines)
                 console.print(f"[dim]Loaded {len(lines)} targets from {target_file}[/dim]")
@@ -891,7 +891,7 @@ def discover(
     if export and result.all_findings:
         import json
 
-        Path(export).write_text(json.dumps(result.all_findings, indent=2))
+        Path(export).write_text(json.dumps(result.all_findings, indent=2), encoding='utf-8')
         console.print(f"[dim]Findings exported to {export}[/dim]")
 
 
@@ -1070,11 +1070,11 @@ def agent(
         "integrated": AgentMode.HYBRID,
     }
     agent = AgentCore(mode=mode_map.get(mode, AgentMode.HYBRID))
-    
+
     settings = SettingsStore()
     if stealth or settings.get("stealth_mode"):
         agent.stealth.enable("medium")
-        
+
     asyncio.run(agent.initialize())
     agent_goal = AgentGoal(description=goal, target=target)
     asyncio.run(agent.execute_goal(agent_goal))
@@ -1132,7 +1132,7 @@ def metrics_show(
     if data:
         console.print(data)
         if export:
-            Path(export).write_text(data)
+            Path(export).write_text(data, encoding='utf-8')
         return
 
     # Table output
@@ -1241,7 +1241,7 @@ def report(
         for evt in events[-20:]:
             lines.append(json.dumps(evt, indent=2))
 
-    Path(output).write_text("\n".join(lines))
+    Path(output).write_text("\n".join(lines), encoding='utf-8')
     console.print(f"[green]✓ Report generated: {output}[/green]")
 
 
@@ -1562,10 +1562,10 @@ def generate_report(
     """Generate an HTML security assessment report from the knowledge graph."""
     from siyarix.reporting import ReportEngine
     from siyarix.core import AgentCore, AgentMode
-    
+
     core = AgentCore(mode=AgentMode.AUTONOMOUS)
     engine = ReportEngine(core._knowledge_graph)
-    
+
     path = engine.generate_html_report(output)
     console.print(f"[bold green]Report generated successfully:[/bold green] {path}")
 
@@ -1582,9 +1582,9 @@ def tui() -> None:
     except ImportError:
         console.print("[red]Textual not installed. Run: pip install siyarix\\[cli][/red]")
         sys.exit(1)
-        
+
     core = AgentCore(mode=AgentMode.AUTONOMOUS)
-    
+
     async def _run_tui() -> None:
         await core.start()
         app = SiyarixTUI(core=core)
@@ -1592,7 +1592,7 @@ def tui() -> None:
             await app.run_async()
         finally:
             await core.shutdown()
-            
+
     asyncio.run(_run_tui())
 
 # ---------------------------------------------------------------------------
@@ -1609,9 +1609,9 @@ def compliance_run(
     """Run a compliance assessment."""
     from siyarix.compliance import ComplianceEngine
     import asyncio
-    
+
     engine = ComplianceEngine()
-    
+
     async def _run() -> None:
         console.print(f"[green]Starting {framework} compliance assessment for {target}...[/green]")
         try:
@@ -1620,7 +1620,7 @@ def compliance_run(
         except Exception as e:
             console.print(f"[red]Assessment failed: {e}[/red]")
             raise typer.Exit(1)
-            
+
     asyncio.run(_run())
 
 # ---------------------------------------------------------------------------
@@ -1639,23 +1639,23 @@ def playbook_run(
     from siyarix.workflow import WorkflowEngine
     from siyarix.core import AgentCore
     import asyncio
-    
+
     variables = {}
     for v in var:
         if "=" in v:
             k, val = v.split("=", 1)
             variables[k] = val
-            
+
     engine = PlaybookEngine(WorkflowEngine())
     core = AgentCore()
-    
+
     async def _run() -> None:
         await core.start()
         try:
             await engine.execute(path, variables, executor=core.executor)
         finally:
             await core.shutdown()
-            
+
     asyncio.run(_run())
 
 @playbook_app.command("list")
@@ -1701,7 +1701,7 @@ def serve(
     except ImportError:
         console.print("[red]API dependencies not installed. Run: pip install siyarix\\[api][/red]")
         sys.exit(1)
-        
+
     console.print(f"[green]Starting Siyarix API server on http://{host}:{port}...[/green]")
     if reload:
         uvicorn.run("siyarix.api.server:app", host=host, port=port, reload=True)

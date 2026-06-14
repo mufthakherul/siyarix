@@ -192,7 +192,7 @@ class AuditLogger:
         self._unflushed_events: list[AuditEvent] = []
         self._sessions: dict[str, AuditSession] = {}
         self._dirty = False
-        
+
         self._retention_days = 365
         self._cached_source_ip: str | None = None
         self._count_by_type: dict[str, int] = {et: 0 for et in AuditEventType}
@@ -259,7 +259,7 @@ class AuditLogger:
         """Save events to disk atomically."""
         if not self._unflushed_events:
             return
-            
+
         try:
             from siyarix.opsec import opsec_manager
             if opsec_manager.status.memory_only:
@@ -268,7 +268,7 @@ class AuditLogger:
                 return
         except ImportError:
             pass
-            
+
         try:
             self._config_dir.mkdir(parents=True, exist_ok=True)
             # Append-only JSONL writing to prevent data loss
@@ -290,7 +290,7 @@ class AuditLogger:
             version = importlib.metadata.version("siyarix")
         except Exception:
             version = "unknown"
-            
+
         self.log(
             event_type=AuditEventType.SYSTEM_START,
             severity=AuditSeverity.INFO,
@@ -371,7 +371,7 @@ class AuditLogger:
         self._events.append(event)
         self._unflushed_events.append(event)
         self._dirty = True
-        
+
         self._count_by_type[event.event_type] = self._count_by_type.get(event.event_type, 0) + 1
         self._count_by_severity[event.severity] = self._count_by_severity.get(event.severity, 0) + 1
 
@@ -470,7 +470,7 @@ class AuditLogger:
             data = json.dumps([e.to_dict() for e in events], indent=2)
 
         if filepath:
-            Path(filepath).write_text(data)
+            Path(filepath).write_text(data, encoding='utf-8')
             return None
         return data
 

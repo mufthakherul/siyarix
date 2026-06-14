@@ -54,6 +54,62 @@ from siyarix.tool_installer import ToolInstaller
 
 logger = logging.getLogger(__name__)
 
+# ── Cybersecurity model tiers for recommended setup ────────────────────
+# Ordered by free RAM tiers. All models are security-focused.
+SECURITY_MODEL_TIERS: list[dict[str, Any]] = [
+    {
+        "tier": "light",
+        "label": "Light  (≤ 4 GB RAM)",
+        "min_ram": 0,
+        "max_ram": 4,
+        "models": [
+            ("IHA089/drana-infinity-3b", "1.8 GB", "Cybersecurity research, bug bounty, vulnerability analysis — fast 3B model"),
+            ("xploiter/pentester", "1.6 GB", "Pentesting methodology, OWASP, tool guidance — lightest option"),
+        ],
+        "default_idx": 0,
+        "fallback": "IHA089/drana-infinity-3b",
+    },
+    {
+        "tier": "balanced",
+        "label": "Balanced (4-8 GB RAM)",
+        "min_ram": 4,
+        "max_ram": 8,
+        "models": [
+            ("IHA089/drana-infinity-7b", "4.5 GB", "Elite cybersecurity research, exploit logic, multi-step attack chains — 7B"),
+            ("luisppb16/gemma4-e4b-secops", "2.5 GB", "Gemma 4-based SecOps, offensive/defensive security, code review — fast 4B"),
+            ("IHA089/drana-infinity-3b", "1.8 GB", "Cybersecurity research, bug bounty — fastest 3B, fits any system"),
+        ],
+        "default_idx": 0,
+        "fallback": "IHA089/drana-infinity-3b",
+    },
+    {
+        "tier": "capable",
+        "label": "Capable (8-16 GB RAM)",
+        "min_ram": 8,
+        "max_ram": 16,
+        "models": [
+            ("supergoatscriptguy/mythos-sec:8b", "5 GB", "CTF, bug bounty, pentest — abliterated, no disclaimers, Gemma-4 based"),
+            ("luisppb16/qwen3.5-9b-red-team", "5.5 GB", "Red team operations, adversary simulation — Qwen3.5 fine-tune"),
+            ("IHA089/drana-infinity-7b", "4.5 GB", "Elite cybersecurity research, exploit logic — solid 7B specialist"),
+        ],
+        "default_idx": 0,
+        "fallback": "IHA089/drana-infinity-7b",
+    },
+    {
+        "tier": "high-end",
+        "label": "High-end (16+ GB RAM)",
+        "min_ram": 16,
+        "max_ram": 999,
+        "models": [
+            ("supergoatscriptguy/mythos-sec:24b", "14 GB", "Flagship security: 30B-class quality at 8B-class speed (MoE)"),
+            ("luisppb16/qwen3.5-9b-red-team", "5.5 GB", "Red team specialist, adversary simulation — highly rated"),
+            ("IHA089/drana-infinity-7b", "4.5 GB", "Elite cybersecurity research — always a solid choice"),
+        ],
+        "default_idx": 0,
+        "fallback": "luisppb16/qwen3.5-9b-red-team",
+    },
+]
+
 try:
     from rich.console import Console
     from rich.panel import Panel
@@ -287,6 +343,93 @@ class OnboardingWizard:
 
         ram_label = f"{ram_total_gb:.1f} GB" if ram_total_gb > 0 else "Unknown"
 
+        # Free / available RAM (using psutil for consistency)
+        ram_free_gb = 0.0
+        try:
+            import psutil
+            mem = psutil.virtual_memory()
+            ram_free_gb = mem.available / (1024**3)
+        except Exception:
+            pass
+
+        # Physical CPU cores
+        cpu_physical = 0
+        try:
+            import psutil as _ps
+            cpu_physical = _ps.cpu_count(logical=False) or 0
+        except Exception:
+            pass
+
+        # ── GPU detection ─────────────────────────────────────────────
+        gpu_type = "none"
+        gpu_vram_gb = 0
+        gpu_name = ""
+
+        # NVIDIA
+        try:
+            result = subprocess.run(
+                ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"],
+                capture_output=True, text=True, timeout=10, check=False,
+            )
+            if not result.returncode and result.stdout.strip():
+                parts = [p.strip() for p in result.stdout.split(",")]
+                gpu_type = "nvidia"
+                gpu_name = parts[0] if len(parts) > 0 else ""
+                try:
+                    gpu_vram_gb = round(int(parts[1]) / 1024, 1) if len(parts) > 1 else 0
+                except (ValueError, IndexError):
+                    pass
+        except (FileNotFoundError, subprocess.SubprocessError):
+            pass
+
+        # AMD ROCm
+        if gpu_type == "none":
+            try:
+                result = subprocess.run(
+                    ["rocm-smi", "--showmeminfo", "vram"],
+                    capture_output=True, text=True, timeout=10, check=False,
+                )
+                if not result.returncode and "VRAM" in result.stdout:
+                    gpu_type = "amd"
+                    for line in result.stdout.splitlines():
+                        if "VRAM Total" in line:
+                            val = line.split(":")[-1].strip().split()[0] if ":" in line else ""
+                            try:
+                                gpu_vram_gb = round(float(val) / 1024, 1) if val else 0
+                            except (ValueError, IndexError):
+                                pass
+                            break
+            except (FileNotFoundError, subprocess.SubprocessError):
+                pass
+
+        # Apple Metal (macOS)
+        if gpu_type == "none" and system == "Darwin":
+            try:
+                result = subprocess.run(
+                    ["system_profiler", "SPHardwareDataType"],
+                    capture_output=True, text=True, timeout=10, check=False,
+                )
+                if not result.returncode:
+                    for line in result.stdout.splitlines():
+                        if "Chip" in line or "Apple" in line:
+                            gpu_type = "apple"
+                            gpu_name = line.split(":")[-1].strip()
+                            break
+            except (FileNotFoundError, subprocess.SubprocessError):
+                pass
+
+        # ── Battery / Server detection ─────────────────────────────────
+        has_battery = False
+        try:
+            import psutil as _ps
+            bat = _ps.sensors_battery()
+            has_battery = bat is not None
+        except Exception:
+            pass
+        is_server = not has_battery and ram_total_gb >= 16
+
+        gpu_label = f"{gpu_name} ({gpu_vram_gb:.1f} GB)" if gpu_name else gpu_type.upper() if gpu_type != "none" else "None"
+
         # Disk space for ~/.siyarix home
         disk_free_gb = 0.0
         try:
@@ -310,8 +453,12 @@ class OnboardingWizard:
         info_table.add_row("Operating System", f"{system} {release}")
         if machine in _ARCH_MAP:
             info_table.add_row("Architecture", arch_label)
-        info_table.add_row("CPU", cpu_label)
-        info_table.add_row("RAM", ram_label)
+        info_table.add_row("CPU (logical)", cpu_label)
+        info_table.add_row("CPU (physical)", str(cpu_physical) if cpu_physical else "Unknown")
+        info_table.add_row("GPU", gpu_label)
+        info_table.add_row("RAM (total)", ram_label)
+        info_table.add_row("RAM (free)", f"{ram_free_gb:.1f} GB" if ram_free_gb > 0 else "Unknown")
+        info_table.add_row("Device", "Server" if is_server else "Desktop/Laptop")
         info_table.add_row("Disk (~/.siyarix)", disk_label)
         info_table.add_row("Python", sys.version.split()[0])
         info_table.add_row("Virtual Environment", venv_label)
@@ -349,7 +496,14 @@ class OnboardingWizard:
             "machine": machine,
             "arch_label": arch_label,
             "cpu_count": cpu_count,
+            "cpu_physical": cpu_physical,
             "ram_gb": ram_total_gb,
+            "ram_free_gb": round(ram_free_gb, 1),
+            "gpu_type": gpu_type,
+            "gpu_vram_gb": gpu_vram_gb,
+            "gpu_name": gpu_name,
+            "has_battery": has_battery,
+            "is_server": is_server,
             "disk_free_gb": disk_free_gb,
             "in_venv": in_venv,
             "is_wsl": is_wsl,
@@ -586,7 +740,7 @@ class OnboardingWizard:
         options.add_column("Description")
         options.add_row(
             "[bold]0[/bold]",
-            "[bold]Recommended[/bold] \u2014 Install Ollama + WhiteRabbitNeo model",
+            "[bold]Recommended[/bold] \u2014 Auto-detect & setup local provider (Ollama/llama.cpp)",
         )
         options.add_row(
             "[bold]1[/bold]", "Online Provider \u2014 cloud API (OpenAI, Anthropic, Gemini...)"
@@ -618,76 +772,261 @@ class OnboardingWizard:
         self._pause()
 
     async def _setup_recommended(self) -> None:
-        """Option 0: Install Ollama + pull WhiteRabbitNeo model."""
-        self._console.print("\n[bold]Setting up recommended provider: Ollama[/bold]\n")
+        """Option 0: Auto-detect device, recommend provider + cybersecurity model."""
+        import asyncio
 
-        ollama_found = shutil.which("ollama") is not None
+        specs = self._choices.get("platform", {})
+        ram_free = specs.get("ram_free_gb", 0)
+        has_gpu = specs.get("gpu_type", "none") != "none"
 
-        if not ollama_found:
-            self._console.print("[yellow]Ollama not found on your system.[/yellow]")
-            if Confirm.ask("Install Ollama?", default=True):
-                ok = self._install_ollama()
-                if not ok:
-                    self._console.print("[red]Ollama installation failed.[/red]")
-                    self._console.print("Install manually from: https://ollama.com")
-                    if not Confirm.ask("Try an online provider instead?", default=True):
+        # Show device summary (already detected in Step 1)
+        self._console.print("\n[bold]== Your System ==[/bold]\n")
+        dev_table = Table(box=box.SIMPLE, show_header=False)
+        dev_table.add_column("Property", style="cyan")
+        dev_table.add_column("Value")
+        dev_table.add_row("RAM (total)", f"{specs.get('ram_gb', 0):.1f} GB")
+        dev_table.add_row("RAM (free)", f"{ram_free:.1f} GB")
+        dev_table.add_row("CPU (logical)", str(specs.get("cpu_count", 0)))
+        dev_table.add_row("CPU (physical)", str(specs.get("cpu_physical", 0)))
+        if has_gpu:
+            gpu_n = specs.get("gpu_name", "")
+            gpu_v = specs.get("gpu_vram_gb", 0)
+            gl = f"{gpu_n} ({gpu_v:.1f} GB)" if gpu_n else specs["gpu_type"].upper()
+            dev_table.add_row("GPU", gl)
+        else:
+            dev_table.add_row("GPU", "[yellow]Not detected (CPU mode)[/yellow]")
+        dev_table.add_row("Free Disk (~/.siyarix)", f"{specs.get('disk_free_gb', 0):.1f} GB")
+        dev_table.add_row("Device", "[green]Server[/green]" if specs.get("is_server") else "[blue]Desktop/Laptop[/blue]")
+        self._console.print(dev_table)
+        self._console.print()
+
+        # Classify tier based on free RAM
+        _tier_config, models, default_idx, fallback_model = self._suggest_models({"ram_free_gb": ram_free})
+        tier_label = _tier_config["label"]
+        self._console.print(f"Detected tier: [bold cyan]{tier_label}[/bold cyan]\n")
+
+        # ── Step 2: Provider choice ──────────────────────────────────────
+        self._console.print("[bold]== Choose Your Provider ==[/bold]\n")
+        self._console.print(
+            "Both providers will be auto-installed. Pick based on your preference:\n"
+        )
+
+        prov_table = Table(box=box.ROUNDED, show_header=True)
+        prov_table.add_column("#", style="yellow", width=4)
+        prov_table.add_column("Provider", style="cyan")
+        prov_table.add_column("Idle RAM", justify="center")
+        prov_table.add_column("GPU Support")
+        prov_table.add_column("Model Management")
+        prov_table.add_column("Best For")
+        prov_table.add_row(
+            "1", "llama.cpp",
+            "Zero (on-demand)",
+            "CUDA, Metal, Vulkan",
+            "Manual (GGUF files)",
+            "Low-RAM, power users",
+        )
+        prov_table.add_row(
+            "2", "Ollama",
+            "~200 MB daemon",
+            "CUDA, Metal",
+            "Built-in (ollama pull)",
+            "Most users, convenience",
+        )
+        self._console.print(prov_table)
+        self._console.print()
+
+        # Default: llama.cpp for low-RAM/no-GPU, Ollama for well-resourced systems
+        prov_default = "1" if ram_free < 6 or not has_gpu else "2"
+        prov_choice = Prompt.ask(
+            "Select provider",
+            choices=["1", "2"],
+            default=prov_default,
+        )
+
+        is_llamacpp = prov_choice == "1"
+        provider_name = "llamacpp" if is_llamacpp else "ollama"
+        provider_label = "llama.cpp" if is_llamacpp else "Ollama"
+
+        self._console.print()
+        self._console.print(f"[bold]== Installing {provider_label} ==[/bold]\n")
+
+        # ── Step 3: Install & start provider ─────────────────────────────
+        if is_llamacpp:
+            bin_path = Path.home() / ".siyarix" / "bin" / "llama-server"
+            if os.name == "nt":
+                bin_path = Path.home() / ".siyarix" / "bin" / "llama-server.exe"
+            llamacpp_found = bin_path.exists() or bool(shutil.which("llama-server"))
+
+            if not llamacpp_found:
+                self._console.print("[yellow]llama-server not found on your system.[/yellow]")
+                if Confirm.ask("Install llama.cpp?", default=True):
+                    ok = self._install_llamacpp()
+                    if not ok:
+                        self._console.print("[red]llama.cpp installation failed.[/red]")
+                        if Confirm.ask("Try an online provider instead?", default=True):
+                            await self._setup_online_provider()
                         return
-                    await self._setup_online_provider()
+                else:
+                    self._console.print("[yellow]llama.cpp required for recommended setup.[/yellow]")
+                    if Confirm.ask("Try an online provider instead?", default=True):
+                        await self._setup_online_provider()
                     return
+
+            if bin_path.exists():
+                os.environ["PATH"] = str(bin_path.parent) + os.pathsep + os.environ.get("PATH", "")
+
+            llamacpp_url = os.environ.get("LLAMACPP_HOST", "http://localhost:18080")
+            running = self._check_llamacpp_running(llamacpp_url)
+            if not running:
+                self._console.print("[yellow]llama.cpp server is not running.[/yellow]")
+                if Confirm.ask("Start llama.cpp server now?", default=True):
+                    self._start_llamacpp_service()
+                    await asyncio.sleep(2)
+
+            self._settings.set("llamacpp_url", llamacpp_url)
+            pull_cmd = None
+            self._console.print(f"[green]\u2713 {provider_label} ready[/green]")
+        else:
+            ollama_found = shutil.which("ollama") is not None
+            if not ollama_found:
+                self._console.print("[yellow]Ollama not found on your system.[/yellow]")
+                if Confirm.ask("Install Ollama?", default=True):
+                    ok = self._install_ollama()
+                    if not ok:
+                        self._console.print("[red]Ollama installation failed.[/red]")
+                        self._console.print("Install manually from: https://ollama.com")
+                        if Confirm.ask("Try an online provider instead?", default=True):
+                            await self._setup_online_provider()
+                        return
+                else:
+                    self._console.print("[yellow]Ollama required for recommended setup.[/yellow]")
+                    if Confirm.ask("Try an online provider instead?", default=True):
+                        await self._setup_online_provider()
+                    return
+
+            ollama_url = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+            running = self._check_ollama_running(ollama_url)
+            if not running:
+                self._console.print("[yellow]Ollama service is not running.[/yellow]")
+                if Confirm.ask("Start Ollama now?", default=True):
+                    self._start_ollama_service()
+                    await asyncio.sleep(3)
+
+            self._settings.set("ollama_url", ollama_url)
+            self._settings.set("_start_ollama_on_launch", True)
+            pull_cmd = ["ollama", "pull"]
+            self._console.print(f"[green]\u2713 {provider_label} ready[/green]")
+
+        # ── Step 4: Model selection ──────────────────────────────────────
+        self._console.print()
+        self._console.print("[bold]== Choose Your Cybersecurity Model ==[/bold]\n")
+        self._console.print(
+            f"Based on your system ({ram_free:.1f} GB free RAM), "
+            f"here are recommended security-focused models:\n"
+        )
+
+        model_table = Table(box=box.ROUNDED, show_header=True)
+        model_table.add_column("#", style="yellow", width=4)
+        model_table.add_column("Model", style="cyan")
+        model_table.add_column("Size", justify="center")
+        model_table.add_column("Description")
+        for i, (m_name, m_size, m_desc) in enumerate(models, 1):
+            model_table.add_row(str(i), m_name, m_size, m_desc)
+        custom_idx = len(models) + 1
+        model_table.add_row(str(custom_idx), "[bold]Custom[/bold]", "—", "Enter your own model name")
+        self._console.print(model_table)
+        self._console.print()
+
+        model_choices = [str(i) for i in range(1, custom_idx + 1)]
+        model_choice = Prompt.ask(
+            "Select model",
+            choices=model_choices,
+            default=str(default_idx + 1),
+        )
+
+        model_choice_int = int(model_choice)
+        if 1 <= model_choice_int <= len(models):
+            model_name = models[model_choice_int - 1][0]
+        else:
+            model_name = Prompt.ask("Enter custom model name (e.g., your-org/your-model)")
+
+        # ── Step 5: Download model ──────────────────────────────────────
+        self._console.print()
+        self._console.print(f"[bold]== Downloading {model_name} ==[/bold]\n")
+
+        if not is_llamacpp:
+            self._console.print(f"Pulling [cyan]{model_name}[/cyan] with Ollama...")
+            self._console.print("[dim]This may take several minutes depending on model size.[/dim]")
+            if Confirm.ask("Pull this model now?", default=True):
+                try:
+                    result = subprocess.run(
+                        [*pull_cmd, model_name],
+                        capture_output=True,
+                        text=True,
+                        timeout=7200,
+                        check=False,
+                    )
+                    if not result.returncode:
+                        self._console.print("[green]\u2713 Model downloaded[/green]")
+                    else:
+                        self._console.print(f"[red]Pull failed: {result.stderr.strip()}[/red]")
+                        model_name = fallback_model
+                        self._console.print(f"Falling back to [cyan]{model_name}[/cyan]")
+                        subprocess.run(
+                            [*pull_cmd, model_name],
+                            capture_output=True,
+                            text=True,
+                            timeout=7200,
+                            check=False,
+                        )
+                except Exception as exc:
+                    self._console.print(f"[red]Error: {exc}[/red]")
+                    model_name = fallback_model
+                    self._console.print(f"Falling back to [cyan]{model_name}[/cyan]")
             else:
-                self._console.print("[yellow]Ollama required for recommended setup.[/yellow]")
-                if Confirm.ask("Try an online provider instead?", default=True):
-                    await self._setup_online_provider()
+                model_name = fallback_model
+                self._console.print(f"Using fallback: [cyan]{model_name}[/cyan]")
+
+            self._settings.set("ollama_model", model_name)
+        else:
+            # llama.cpp: provide instructions for model download
+            self._console.print(
+                "[yellow]llama.cpp uses GGUF model files. You can download them from Hugging Face:[/yellow]"
+            )
+            hf_links = {
+                "IHA089/drana-infinity-3b": "https://huggingface.co/IHA089/drana-infinity-3b-GGUF",
+                "IHA089/drana-infinity-7b": "https://huggingface.co/IHA089/drana-infinity-7b-GGUF",
+                "supergoatscriptguy/mythos-sec:8b": "https://huggingface.co/supergoatscriptguy/mythos-sec",
+                "supergoatscriptguy/mythos-sec:24b": "https://huggingface.co/supergoatscriptguy/mythos-sec",
+                "luisppb16/qwen3.5-9b-red-team": "https://huggingface.co/luisppb16/Qwen3.5-9B-Red_Team-GGUF",
+                "luisppb16/gemma4-e4b-secops": "https://huggingface.co/luisppb16/gemma4-e4b-SecOps-GGUF",
+                "xploiter/pentester": "https://huggingface.co/xploiter/pentester-GGUF",
+            }
+            link = hf_links.get(model_name, "")
+            if link:
+                self._console.print(f"  [cyan]{link}[/cyan]")
+            else:
+                self._console.print(f"  Search for [cyan]{model_name}[/cyan] GGUF on Hugging Face")
+            self._console.print()
+            self._console.print(
+                "[dim]Place the .gguf file in ~/.siyarix/models/ and run:\n"
+                "  llama-server --model ~/.siyarix/models/your-model.gguf --port 18080[/dim]"
+            )
+            if not Confirm.ask("Continue without downloading? (You can configure the model later)", default=True):
                 return
 
-        ollama_url = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-        self._console.print(f"Ollama gateway: [cyan]{ollama_url}[/cyan]")
+            self._settings.set("llamacpp_model", model_name)
 
-        running = self._check_ollama_running(ollama_url)
-        if not running:
-            self._console.print("[yellow]Ollama service is not running.[/yellow]")
-            if Confirm.ask("Start Ollama now?", default=True):
-                self._start_ollama_service()
-                import asyncio
-
-                await asyncio.sleep(3)
-                running = self._check_ollama_running(ollama_url)
-
-        model_name = "whiterabbitneo/WhiteRabbitNeo-2.5-Qwen-2.5-Coder-7B"
-        self._console.print(f"\nModel to pull: [cyan]{model_name}[/cyan]")
-        self._console.print("[dim]Size: ~4.5 GB download. May take several minutes.[/dim]")
-
-        if Confirm.ask("Pull this model now?", default=True):
-            self._console.print("Pulling model...")
-            try:
-                result = subprocess.run(
-                    ["ollama", "pull", model_name],
-                    capture_output=True,
-                    text=True,
-                    timeout=3600,
-                    check=False,
-                )
-                if not result.returncode:
-                    self._console.print("[green]\u2713 Model downloaded[/green]")
-                else:
-                    self._console.print(f"[red]Pull failed: {result.stderr.strip()}[/red]")
-                    model_name = "llama3.1"
-                    self._console.print(f"Falling back to [cyan]{model_name}[/cyan]")
-            except Exception as exc:
-                self._console.print(f"[red]Error: {exc}[/red]")
-                model_name = "llama3.1"
-        else:
-            model_name = "llama3.1"
-
+        # ── Save settings ───────────────────────────────────────────────
         self._choices["provider_type"] = "offline"
-        self._choices["provider_name"] = "ollama"
+        self._choices["provider_name"] = provider_name
         self._choices["provider_model"] = model_name
-        self._settings.set("model_provider", "ollama")
-        self._settings.set("ollama_url", ollama_url)
-        self._settings.set("ollama_model", model_name)
-        self._settings.set("_start_ollama_on_launch", True)
-        self._console.print("[dim]Ollama will be started automatically when needed.[/dim]")
-        self._console.print(f"[green]\u2713 Provider configured: Ollama / {model_name}[/green]")
+        self._settings.set("model_provider", provider_name)
+
+        self._console.print()
+        self._console.print(
+            f"[green]\u2713 Provider configured: {provider_label} / {model_name}[/green]"
+        )
 
     async def _setup_online_provider(self) -> None:
         """Option 1: Pick an online/cloud provider."""
@@ -781,7 +1120,7 @@ class OnboardingWizard:
         config_map = {
             "ollama": ("ollama_url", "http://localhost:11434", "ollama_model"),
             "lmstudio": ("lmstudio_url", "http://localhost:1234", "lmstudio_model"),
-            "llamacpp": ("llamacpp_url", "http://localhost:8080", "llamacpp_model"),
+            "llamacpp": ("llamacpp_url", "http://localhost:18080", "llamacpp_model"),
             "vllm": ("vllm_url", "http://localhost:8000", "vllm_model"),
             "localai": ("localai_url", "http://localhost:8080", "localai_model"),
         }
@@ -1545,6 +1884,20 @@ class OnboardingWizard:
 
 
 
+    def _suggest_models(self, specs: dict[str, Any]) -> tuple[dict[str, Any], list[tuple[str, str, str]], int, str]:
+        """Return the best matching tier, models list, default index, and fallback model."""
+        free_ram = specs.get("ram_free_gb", 0)
+        for tier_config in SECURITY_MODEL_TIERS:
+            if tier_config["min_ram"] <= free_ram < tier_config["max_ram"]:
+                return (
+                    tier_config,
+                    tier_config["models"],
+                    tier_config["default_idx"],
+                    tier_config["fallback"],
+                )
+        last = SECURITY_MODEL_TIERS[-1]
+        return last, last["models"], last["default_idx"], last["fallback"]
+
     def _install_ollama(self) -> bool:
         """Install Ollama on the current platform."""
         self._console.print("  Installing Ollama...\n")
@@ -1640,6 +1993,146 @@ class OnboardingWizard:
                 )
         except Exception as exc:
             logger.warning("Failed to start Ollama: %s", exc)
+
+    # ── llama.cpp helpers ───────────────────────────────────────────
+
+    def _install_llamacpp(self) -> bool:
+        """Download and install llama.cpp pre-built binary."""
+        import platform as _platform
+        import urllib.request
+        import zipfile
+        import tarfile
+
+        self._console.print("  Installing llama.cpp...\n")
+
+        machine = _platform.machine().lower()
+        system = _platform.system().lower()
+
+        # Map platform to GitHub release asset pattern
+        asset_pattern = ""
+        if system == "linux":
+            if machine in ("x86_64", "amd64"):
+                asset_pattern = "llama.cpp-linux-x86_64.tar.xz"
+            elif "aarch64" in machine or "arm64" in machine:
+                asset_pattern = "llama.cpp-linux-aarch64.tar.xz"
+        elif system == "darwin":
+            if "arm" in machine or "aarch64" in machine:
+                asset_pattern = "llama.cpp-macos-arm64.tar.xz"
+            else:
+                asset_pattern = "llama.cpp-macos-x86_64.tar.xz"
+        elif os.name == "nt":
+            asset_pattern = "llama.cpp-windows-{arch}.zip".replace(
+                "{arch}", "amd64" if machine in ("x86_64", "amd64") else "arm64"
+            )
+
+        if not asset_pattern:
+            self._console.print("[red]Unsupported platform for llama.cpp auto-install.[/red]")
+            self._console.print("[yellow]Install manually from: https://github.com/ggml-org/llama.cpp/releases[/yellow]")
+            return False
+
+        release_url = "https://github.com/ggml-org/llama.cpp/releases/latest/download"
+        download_url = f"{release_url}/{asset_pattern}"
+
+        bin_dir = Path.home() / ".siyarix" / "bin"
+        bin_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            self._console.print(f"  Downloading [cyan]{asset_pattern}[/cyan]...")
+            archive_path = bin_dir / asset_pattern
+            urllib.request.urlretrieve(download_url, archive_path)
+            self._console.print("  [green]\u2713 Downloaded[/green]")
+
+            # Extract
+            self._console.print("  Extracting...")
+            if asset_pattern.endswith(".zip"):
+                with zipfile.ZipFile(archive_path, "r") as zf:
+                    zf.extractall(bin_dir)
+            else:
+                with tarfile.open(archive_path, "r:xz") as tf:
+                    tf.extractall(bin_dir)
+
+            # Find the llama-server binary
+            extracted = bin_dir / "build" / "bin"
+            if extracted.exists():
+                for f in extracted.iterdir():
+                    if f.name in ("llama-server", "llama-server.exe"):
+                        shutil.copy2(f, bin_dir / f.name)
+                        f.unlink()
+            else:
+                # Some releases extract to bin_dir directly
+                for f in bin_dir.iterdir():
+                    if f.name in ("llama-server", "llama-server.exe") and f.parent == bin_dir:
+                        break
+                else:
+                    # Try to find it recursively
+                    for f in bin_dir.rglob("*"):
+                        if f.is_file() and f.name in ("llama-server", "llama-server.exe"):
+                            base_name = f.name
+                            shutil.copy2(f, bin_dir / base_name)
+                            break
+
+            # Cleanup archive
+            archive_path.unlink(missing_ok=True)
+
+            # Add to PATH for this session
+            os.environ["PATH"] = str(bin_dir) + os.pathsep + os.environ.get("PATH", "")
+
+            # Verify
+            llama_bin = bin_dir / "llama-server"
+            if os.name == "nt":
+                llama_bin = bin_dir / "llama-server.exe"
+            if llama_bin.exists():
+                self._console.print(f"  [green]\u2713 llama-server installed: {llama_bin}[/green]")
+                return True
+            self._console.print("[yellow]llama-server binary not found after extraction.[/yellow]")
+            return False
+        except Exception as exc:
+            self._console.print(f"  [red]llama.cpp installation failed: {exc}[/red]")
+            self._console.print("[yellow]Install manually from: https://github.com/ggml-org/llama.cpp/releases[/yellow]")
+            return False
+
+    @staticmethod
+    def _check_llamacpp_running(url: str = "http://localhost:18080") -> bool:
+        """Check if llama.cpp server is running."""
+        try:
+            import httpx
+            r = httpx.get(f"{url}/health", timeout=5)
+            return r.status_code < 500
+        except Exception:
+            return False
+
+    @staticmethod
+    def _start_llamacpp_service(model_path: str | None = None, port: int = 18080) -> None:
+        """Start llama.cpp server in background."""
+        try:
+            bin_dir = Path.home() / ".siyarix" / "bin"
+            llama_bin = bin_dir / "llama-server"
+            if os.name == "nt":
+                llama_bin = bin_dir / "llama-server.exe"
+
+            if not llama_bin.exists():
+                logger.warning("llama-server not found at %s", llama_bin)
+                return
+
+            cmd = [str(llama_bin), "--port", str(port), "--host", "127.0.0.1"]
+            if model_path:
+                cmd.extend(["--model", model_path])
+
+            if os.name == "nt":
+                subprocess.Popen(
+                    cmd,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            else:
+                subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+        except Exception as exc:
+            logger.warning("Failed to start llama.cpp: %s", exc)
 
     @staticmethod
     def _restart_siyarix() -> None:

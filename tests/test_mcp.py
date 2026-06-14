@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import pytest
-from siyarix.mcp import MCPServerConfig, MCPTool, MCPClient, MCPManager
+from siyarix.mcp import MCPServerConfig, MCPClient, MCPManager
 
 @pytest.mark.asyncio
 async def test_mcp_server_config():

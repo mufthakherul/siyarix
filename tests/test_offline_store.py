@@ -1,9 +1,8 @@
-import pytest
 from siyarix.offline_store import OfflineStore
 
 def test_offline_store_init(tmp_path):
     db_path = tmp_path / "test.db"
-    store = OfflineStore(db_path=db_path)
+    OfflineStore(db_path=db_path)
     assert db_path.exists()
     
 def test_offline_store_scans(tmp_path):

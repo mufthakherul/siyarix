@@ -63,7 +63,7 @@ class TestSafeRunSync:
         with patch("siyarix.subprocess_utils.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="ok", stderr="")
             result = safe_run_sync(["echo", "hi"])
-            assert result.returncode == 0
+            assert result.exit_code == 0
 
     def test_timeout_raises(self) -> None:
         with patch(

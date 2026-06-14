@@ -143,7 +143,7 @@ class TestInitialize:
     async def test_initialize_sets_up_registry(self, agent):
         with (
             patch.object(agent._registry, "discover_from_path") as mock_discover,
-            patch.object(agent._event_bus, "emit", new_callable=AsyncMock) as mock_emit,
+            patch.object(agent._event_bus, "emit", new_callable=AsyncMock),
         ):
             await agent.initialize()
             mock_discover.assert_called_once()

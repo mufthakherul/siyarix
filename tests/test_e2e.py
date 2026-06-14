@@ -15,7 +15,6 @@ from siyarix.planner import (
     ExecutionPlan,
     PlanStep,
     Planner,
-    StepResult,
     StepStatus,
 )
 from siyarix.tool_installer import ToolInstaller

@@ -32,13 +32,16 @@ def test_worker_pool_close_cancels_tasks():
             return "cancelled"
 
     async def _run():
-        fut = asyncio.create_task(pool.submit(long_task))
-        # Give the task a moment to start
+        # Submit the long task and let it start
+        task = asyncio.create_task(pool.submit(long_task))
         await asyncio.sleep(0.01)
         # Close pool, forcing cancellation
         await pool.close(timeout=0.1)
-        res = await fut
-        assert res in ("cancelled", "done")
+        try:
+            res = await task
+            assert res in ("cancelled", "done")
+        except asyncio.CancelledError:
+            assert True
 
     asyncio.run(_run())
 

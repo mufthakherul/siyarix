@@ -1,12 +1,53 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Static metadata for common security and utility tools."""
+"""Static metadata for common security and utility tools.
+
+Functions first consult the cyber_tools.json database, falling back
+to the built-in static mappings for tools not yet in the database.
+"""
 
 from __future__ import annotations
 
+from typing import Any
+
 from .tool_models import RiskLevel, ToolCategory
+
+_DB: dict[str, Any] | None = None
+
+
+def _load_db() -> dict[str, Any]:
+    global _DB
+    if _DB is not None:
+        return _DB
+    try:
+        from pathlib import Path
+        import json
+        p = Path(__file__).parent / "data" / "cyber_tools.json"
+        if p.exists():
+            _DB = json.loads(p.read_text())
+        else:
+            _DB = {}
+    except Exception:
+        _DB = {}
+    return _DB
+
+
+def _db_lookup(name: str) -> dict[str, Any]:
+    db = _load_db()
+    entry = db.get(name, {})
+    if not entry:
+        for tool_name, data in db.items():
+            if name in data.get("aliases", []):
+                return data
+    return entry
 
 
 def categorize_tool(name: str) -> ToolCategory:
+    entry = _db_lookup(name)
+    if entry:
+        try:
+            return ToolCategory(entry["category"])
+        except ValueError:
+            pass
     mapping = {
         "nmap": ToolCategory.RECON,
         "masscan": ToolCategory.RECON,
@@ -37,6 +78,12 @@ def categorize_tool(name: str) -> ToolCategory:
 
 
 def risk_for_tool(name: str) -> RiskLevel:
+    entry = _db_lookup(name)
+    if entry:
+        try:
+            return RiskLevel(entry["risk_level"])
+        except ValueError:
+            pass
     high_risk = {"metasploit", "sqlmap", "hashcat", "hydra", "ettercap", "bettercap"}
     medium_risk = {"nmap", "nuclei", "nikto", "gobuster", "ffuf", "wpscan", "masscan"}
     if name in high_risk:
@@ -47,6 +94,9 @@ def risk_for_tool(name: str) -> RiskLevel:
 
 
 def describe_tool(name: str) -> str:
+    entry = _db_lookup(name)
+    if entry and entry.get("description"):
+        return entry["description"]
     descriptions = {
         "nmap": "Network port scanner and service detector",
         "nikto": "Web server vulnerability scanner",
@@ -77,6 +127,9 @@ def describe_tool(name: str) -> str:
 
 
 def tags_for_tool(name: str) -> list[str]:
+    entry = _db_lookup(name)
+    if entry and entry.get("tags"):
+        return entry["tags"]
     tag_map = {
         "nmap": ["port-scan", "network", "service-detection"],
         "nikto": ["web", "vulnerability", "server"],
@@ -105,9 +158,21 @@ def tags_for_tool(name: str) -> list[str]:
     }
     return tag_map.get(name, [name])
 
+
+def personas_for_tool(name: str) -> list[str]:
+    entry = _db_lookup(name)
+    if entry and entry.get("personas"):
+        return entry["personas"]
+    default_map = {
+        "nmap": ["pentester", "redteam", "blueteam", "devsecops"],
+        "nuclei": ["pentester", "redteam", "blueteam", "devsecops"],
+    }
+    return default_map.get(name, [])
+
 __all__ = [
     "categorize_tool",
     "risk_for_tool",
     "describe_tool",
     "tags_for_tool",
+    "personas_for_tool",
 ]

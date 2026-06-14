@@ -56,7 +56,7 @@ except Exception:
     ptk_prompt = None
     KeyBindings = None
 
-console = Console()
+from .console import console
 
 class CommandHandlersMixin:
     pass  # In case empty

@@ -53,7 +53,7 @@ except Exception:
     ptk_prompt = None
     KeyBindings = None
 
-console = Console()
+from .console import console
 
 CROSS_PLATFORM_COMMANDS = {}
 

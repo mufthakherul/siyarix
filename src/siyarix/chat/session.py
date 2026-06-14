@@ -16,7 +16,7 @@ class ChatMessage:
 
     role: str  # "user" | "assistant" | "system"
     content: str
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -35,8 +35,8 @@ class ChatSession:
     session_id: str
     messages: list[ChatMessage] = field(default_factory=list)
     context: dict[str, Any] = field(default_factory=dict)
-    created_at: datetime = field(default_factory=datetime.now)
-    last_active: datetime = field(default_factory=datetime.now)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    last_active: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     target: str = ""
     mode: str = "integrated"
 

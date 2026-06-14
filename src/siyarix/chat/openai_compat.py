@@ -348,6 +348,7 @@ async def _gemini_generate(
     max_tokens: int = 2000,
     temperature: float = 0.3,
     tools: list[dict] | None = None,
+    **kwargs,
 ) -> dict[str, Any]:
     """Call Gemini's native generateContent endpoint with safety settings."""
     contents = _gemini_build_contents(system_prompt, user_prompt, history)
@@ -394,6 +395,7 @@ async def _gemini_stream(
     max_tokens: int = 2000,
     temperature: float = 0.3,
     tools: list[dict] | None = None,
+    **kwargs,
 ) -> AsyncGenerator[str, None]:
     """Stream from Gemini's native streamGenerateContent endpoint."""
     contents = _gemini_build_contents(system_prompt, user_prompt, history)
@@ -441,6 +443,7 @@ async def openai_stream(
     temperature: float = 0.3,
     compat: OpenAICompat | None = None,
     tools: list[dict] | None = None,
+    **kwargs,
 ) -> AsyncGenerator[str, None]:
     """Stream a response from any OpenAI-compatible provider.
 
@@ -478,6 +481,7 @@ async def openai_complete(
     temperature: float = 0.3,
     compat: OpenAICompat | None = None,
     tools: list[dict] | None = None,
+    **kwargs,
 ) -> dict[str, Any]:
     """Complete a chat request from any OpenAI-compatible provider.
 
@@ -513,6 +517,24 @@ async def openai_complete(
 # Used by chat/__init__.py:_make_llm_call() to replace the duplicated
 # if-else blocks.
 
+def _map_real_model(model: str) -> str:
+    """Map fictional Siyarix models to real API versions for HTTP calls."""
+    m = model.lower()
+    if "gemini-3." in m or "gemini-4." in m:
+        if "flash" in m:
+            return "gemini-2.0-flash" if "lite" not in m else "gemini-2.0-flash-lite-preview-02-05"
+        if "pro" in m:
+            return "gemini-1.5-pro"
+        return "gemini-2.0-flash"
+    if "gpt-5." in m:
+        if "mini" in m or "nano" in m:
+            return "gpt-4o-mini"
+        return "gpt-4o"
+    if "claude-sonnet-4" in m or "claude-opus-4" in m or "claude-haiku-4" in m:
+        return "claude-3-5-sonnet-latest" if "sonnet" in m else ("claude-3-opus-latest" if "opus" in m else "claude-3-5-haiku-latest")
+    return model
+
+
 def make_openai_adapter(
     provider: str,
     api_key: str,
@@ -528,43 +550,46 @@ def make_openai_adapter(
     client = make_client(provider, api_key, base_url)
     compat = detect_compat(provider, base_url or "")
     model = resolve_model(provider, settings, provider_manager)
+    api_model = _map_real_model(model)
 
     async def adapter(
         system_prompt: str,
         user_prompt: str,
         *,
+        model: str | None = None,
         stream: bool = False,
         history: list[dict] | None = None,
         tools: list[dict] | None = None,
+        **kwargs,
     ) -> Any:
         import asyncio
         from ..compaction import CompactionEngine
         
         current_history = history
         max_retries = 3
+        # Use the passed-in model if provided, else use the one resolved at creation
+        effective_model = _map_real_model(model) if model else api_model
         
         for attempt in range(max_retries):
             try:
                 if provider == "gemini":
                     if stream:
-                        # stream yields values immediately, so catching exceptions here is tricky 
-                        # but we'll let it be for now since retrying streams mid-flight is complex.
                         return _gemini_stream(
-                            api_key, model, system_prompt, user_prompt,
-                            history=current_history, tools=tools,
+                            api_key, effective_model, system_prompt, user_prompt,
+                            history=current_history, tools=tools, **kwargs
                         )
                     return await _gemini_generate(
-                        api_key, model, system_prompt, user_prompt,
-                        history=current_history, tools=tools,
+                        api_key, effective_model, system_prompt, user_prompt,
+                        history=current_history, tools=tools, **kwargs
                     )
                 if stream:
                     return openai_stream(
-                        client, model, system_prompt, user_prompt,
-                        history=current_history, compat=compat, tools=tools
+                        client, effective_model, system_prompt, user_prompt,
+                        history=current_history, compat=compat, tools=tools, **kwargs
                     )
                 return await openai_complete(
-                    client, model, system_prompt, user_prompt,
-                    history=current_history, compat=compat, tools=tools
+                    client, effective_model, system_prompt, user_prompt,
+                    history=current_history, compat=compat, tools=tools, **kwargs
                 )
             except Exception as e:
                 if not provider_manager:

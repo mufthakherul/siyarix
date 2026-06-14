@@ -130,7 +130,7 @@ class CommandProfileStore:
 
     def _path(self, name: str) -> Path:
         safe = name.replace("/", "_").replace("\\", "_")
-        return _PROFILES_DIR / f"{safe}.json"
+        return self._profiles_dir / f"{safe}.json"
 
     def save(self, profile: CommandProfile) -> None:
         if not profile.created_at:
@@ -148,7 +148,7 @@ class CommandProfileStore:
 
     def list_credentials(self) -> list[CommandProfile]:
         profiles: list[CommandProfile] = []
-        for p in sorted(_PROFILES_DIR.glob("*.json")):
+        for p in sorted(self._profiles_dir.glob("*.json")):
             try:
                 data = json.loads(p.read_text(encoding="utf-8"))
                 profiles.append(CommandProfile(**data))

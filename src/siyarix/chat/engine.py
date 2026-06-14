@@ -55,7 +55,7 @@ except Exception:
     ptk_prompt = None
     KeyBindings = None
 
-console = Console()
+from .console import console
 
 class LLMEngineMixin:
     pass  # In case empty
@@ -723,6 +723,7 @@ class LLMEngineMixin:
             if cmd_states:
                 focus_idx = 0
                 done_set = False
+                wave_start = time.time()
                 with Live(console=console, refresh_per_second=10, screen=False) as live:
                     while not done_set:
                         await asyncio.sleep(0.1)
@@ -732,18 +733,29 @@ class LLMEngineMixin:
                                 focus_idx = unfinished[0]
                             else:
                                 done_set = True
+                        
                         st = cmd_states[focus_idx]
+                        elapsed = time.time() - wave_start
                         icon = "·" if st.exit_code is None else ("✓" if st.exit_code == 0 else "✗")
                         border = (
                             "cyan"
                             if st.exit_code is None
                             else ("green" if st.exit_code == 0 else "red")
                         )
-                        panel_content = "\n".join(st.lines[-200:]) if st.lines else ("Running..." if st.exit_code is None else "(no output)")
+                        
+                        # Show last 200 lines or "Running..." with elapsed time
+                        if st.lines:
+                            panel_content = "\n".join(st.lines[-200:])
+                        elif st.exit_code is None:
+                            panel_content = f"Running... ({elapsed:.1f}s)"
+                        else:
+                            panel_content = "(no output)"
+                            
                         live.update(
                             RichPanel(
                                 panel_content,
                                 title=f"{icon} {st.label}",
+                                subtitle=f"Elapsed: {elapsed:.1f}s" if st.exit_code is None else None,
                                 border_style=border,
                             )
                         )

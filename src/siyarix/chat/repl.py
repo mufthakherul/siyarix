@@ -60,7 +60,7 @@ from .platform_utils import detect_shell, get_shell_platform, build_platform_con
 from .handlers import CommandHandlersMixin
 from .engine import LLMEngineMixin
 
-console = Console()
+from .console import console
 
 class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
     """Interactive REPL for Siyarix — the cybersecurity AI assistant."""
@@ -211,7 +211,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             try:
                 if self._split_pane_enabled:
                     self._render_split_pane_layout()
-                user_input = self._prompt()
+                user_input = await self._prompt_async()
                 if not user_input:
                     if self._esc_press_count > 0:
                         now = time.time()
@@ -263,7 +263,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         self._print_goodbye()
 
 
-    def _prompt(self) -> str:
+    async def _prompt_async(self) -> str:
         """Display the input prompt and read a line."""
 
         if not sys.stdin.isatty():
@@ -280,11 +280,13 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         if self._split_pane_enabled:
             if PTK_AVAILABLE:
                 try:
-                    return ptk_prompt(
+                    from prompt_toolkit import PromptSession
+                    session = PromptSession()
+                    return (await session.prompt_async(
                         "❯ ",
                         key_bindings=esc_bindings,
                         completer=SmartAutocomplete(self._session),
-                    ).strip()
+                    )).strip()
                 except KeyboardInterrupt:
                     raise
                 except Exception:
@@ -315,11 +317,13 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore", RuntimeWarning)
-                    answer = ptk_prompt(
+                    from prompt_toolkit import PromptSession
+                    session = PromptSession()
+                    answer = (await session.prompt_async(
                         "❯ ",
                         key_bindings=esc_bindings,
                         completer=SmartAutocomplete(self._session),
-                    ).strip()
+                    )).strip()
             except KeyboardInterrupt:
                 raise
             except Exception as exc:

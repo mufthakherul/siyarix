@@ -1001,6 +1001,9 @@ class OnboardingWizard:
         else:
             # llama.cpp: first try Ollama pull, else show GGUF links
             downloaded = False
+            models_dir = Path.home() / ".siyarix" / "models"
+            models_dir.mkdir(parents=True, exist_ok=True)
+
             if shutil.which("ollama") and Confirm.ask(
                 f"Pull [cyan]{model_name}[/cyan] via Ollama?",
                 default=True,
@@ -1012,7 +1015,23 @@ class OnboardingWizard:
                 )
                 if not result.returncode:
                     self._console.print("[green]\u2713 Downloaded via Ollama[/green]")
-                    downloaded = True
+                    # Find the GGUF in Ollama's blob cache
+                    gguf_path = self._ollama_gguf_path(model_name)
+                    if gguf_path:
+                        dest = models_dir / f"{model_name.replace('/', '_').replace(':', '_')}.gguf"
+                        try:
+                            shutil.copy2(gguf_path, dest)
+                            self._console.print(
+                                f"[dim]GGUF copied to: {dest}[/dim]\n"
+                                f"[dim]  llama-server --model {dest} --port 18080[/dim]"
+                            )
+                            downloaded = True
+                        except OSError as exc:
+                            self._console.print(
+                                f"[yellow]Warning: couldn't copy GGUF: {exc}[/yellow]\n"
+                                f"[dim]GGUF found at: {gguf_path}[/dim]"
+                            )
+                            downloaded = True
                 else:
                     self._console.print(f"[red]\u2717 Pull failed: {result.stderr.strip() or result.stdout.strip()}[/red]")
 
@@ -2019,6 +2038,41 @@ class OnboardingWizard:
                 )
         except Exception as exc:
             logger.warning("Failed to start Ollama: %s", exc)
+
+    @staticmethod
+    def _ollama_gguf_path(model_name: str) -> Path | None:
+        """Find the GGUF blob path in Ollama's cache for a given model."""
+        tag = "latest"
+        if ":" in model_name:
+            model_name, tag = model_name.split(":", 1)
+        parts = model_name.split("/")
+        if len(parts) == 2:
+            namespace, name = parts[0], parts[1]
+        else:
+            namespace, name = "library", parts[0]
+        manifest = (
+            Path.home()
+            / ".ollama"
+            / "models"
+            / "manifests"
+            / "registry.ollama.ai"
+            / namespace
+            / name
+            / tag
+        )
+        if not manifest.is_file():
+            return None
+        try:
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+            for layer in data.get("layers", []):
+                if layer.get("mediaType") == "application/vnd.ollama.image.model":
+                    digest = layer["digest"].replace("sha256:", "sha256-")
+                    blob = Path.home() / ".ollama" / "models" / "blobs" / digest
+                    if blob.is_file():
+                        return blob
+        except (json.JSONDecodeError, KeyError, OSError):
+            pass
+        return None
 
     # ── llama.cpp helpers ───────────────────────────────────────────
 

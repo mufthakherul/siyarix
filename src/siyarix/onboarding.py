@@ -65,11 +65,14 @@ from siyarix.templates.wizard_text import (
     OFFLINE_PROVIDERS as _OFFLINE_PROVIDERS,
     REQUIRED_TOOLS as _REQUIRED_TOOLS,
     MINIMAL_CYBER_TOOLS as _MINIMAL_CYBER_TOOLS,
+    PERSONA_TOOLS as _PERSONA_TOOLS,
     CYBER_TOOL_HOMEPAGES as _CYBER_TOOL_HOMEPAGES,
     ARCH_MAP as _ARCH_MAP,
     PM_CHECKS as _PM_CHECKS,
     DEFAULT_PREFERENCES as _DEFAULT_PREFERENCES,
 )
+
+from siyarix.tool_installer import ToolInstaller
 
 
 
@@ -89,7 +92,7 @@ class OnboardingWizard:
         self._cred_store = cred_store
         self._console = console or Console()
         self._bootstrap = BootstrapEngine()
-        self._provider_mgr = ProviderManager()
+        self._provider_mgr = ProviderManager.get_instance()
 
         self._choices: dict[str, Any] = {
             "ethics_accepted": False,
@@ -125,6 +128,7 @@ class OnboardingWizard:
         await self._step_provider()
         self._step_mode()
         self._step_persona_sysmsg()
+        self._step_install_persona_tools()
         self._step_preferences()
         await self._step_network_diagnostics()
         await self._finalize()
@@ -423,8 +427,9 @@ class OnboardingWizard:
         if missing:
             self._console.print("[yellow]Some basic requirements are missing.[/yellow]")
             if Confirm.ask("Install missing requirements?", default=True):
+                installer = ToolInstaller(console=self._console)
                 for cmd in missing:
-                    self._install_system_tool(cmd)
+                    installer.install_tool(cmd)
         self._console.print("[green]\u2713 Requirements check complete[/green]")
         self._pause()
 
@@ -531,8 +536,9 @@ class OnboardingWizard:
 
         if install_choices:
             self._console.print(f"\nInstalling {len(install_choices)} tool(s)...")
+            installer = ToolInstaller(console=self._console)
             for exe, pkg in install_choices.items():
-                self._install_system_tool(exe, pkg)
+                installer.install_tool(exe, pkg)
         else:
             self._console.print("[yellow]Skipping tool installation.[/yellow]")
 
@@ -956,6 +962,45 @@ class OnboardingWizard:
 
         self._pause()
 
+    # ── Step 9.5: Persona Tool Installation ──────────────────────────────
+
+    def _step_install_persona_tools(self) -> None:
+        persona = self._choices.get("persona", "none")
+        if persona not in _PERSONA_TOOLS:
+            return
+
+        self._step_header(f"Specialized Tools for: {persona}")
+        self._console.print(f"Scanning for specialized tools required by [bold]{persona}[/bold]...\n")
+
+        tools_to_check = _PERSONA_TOOLS[persona]
+        missing = []
+        for exe, pkg, desc in tools_to_check:
+            if not shutil.which(exe):
+                missing.append((exe, pkg, desc))
+
+        if not missing:
+            self._console.print(f"[bold green]\u2713 All specialized tools for {persona} present![/bold green]")
+            self._pause()
+            return
+
+        self._console.print(f"[yellow]{len(missing)} specialized tool(s) not found.[/yellow]")
+        install_choices = {}
+        for exe, pkg, desc in missing:
+            want = Confirm.ask(f"  Install [cyan]{exe}[/cyan]? ({desc})", default=False)
+            if want:
+                install_choices[exe] = pkg
+
+        if install_choices:
+            self._console.print(f"\nInstalling {len(install_choices)} tool(s)...")
+            installer = ToolInstaller(console=self._console)
+            for exe, pkg in install_choices.items():
+                installer.install_tool(exe, pkg)
+        else:
+            self._console.print("[yellow]Skipping persona tool installation.[/yellow]")
+
+        self._console.print("[green]\u2713 Persona tool setup complete[/green]")
+        self._pause()
+
     # ── Step 9: Preferences ────────────────────────────────────────────
 
     def _step_preferences(self) -> None:
@@ -1376,7 +1421,10 @@ class OnboardingWizard:
         # Shell completions
         self._console.print(f"  Detected shell: [cyan]{shell}[/cyan]")
 
-        if Confirm.ask("  Install shell completions?", default=True):
+        if shell == "cmd":
+            self._console.print("  [dim]Command Prompt (cmd) does not support shell completions. Siyarix recommends PowerShell (pwsh).[/dim]")
+            self._choices["shell_completion_done"] = False
+        elif Confirm.ask("  Install shell completions?", default=True):
             try:
                 rc_files = {
                     "bash": Path.home() / ".bashrc",
@@ -1483,85 +1531,7 @@ class OnboardingWizard:
             self._console.print(f"  [red]\u2717 {package}: {exc}[/red]")
             return False
 
-    def _install_system_tool(self, tool: str, pkg: str | None = None) -> bool:
-        """Install a system tool using the appropriate package manager."""
-        pkg = pkg or tool
-        self._console.print(f"  Installing [cyan]{tool}[/cyan]...")
 
-        if os.name == "nt":
-            return self._elevated_install_win(tool, pkg)
-        else:
-            return self._elevated_install_nix(tool, pkg)
-
-    def _elevated_install_win(self, tool: str, pkg: str) -> bool:
-        """Elevated install on Windows via winget/choco."""
-        if shutil.which("winget"):
-            try:
-                script = f'Start-Process -FilePath "winget" -ArgumentList "install --silent {pkg}" -Verb RunAs -Wait'
-                subprocess.run(
-                    ["powershell", "-Command", script],
-                    capture_output=True,
-                    text=True,
-                    timeout=300,
-                )
-                if shutil.which(tool):
-                    self._console.print(f"  [green]\u2713 {tool} installed via winget[/green]")
-                    return True
-            except Exception:
-                pass
-        if shutil.which("choco"):
-            try:
-                script = f'Start-Process -FilePath "choco" -ArgumentList "install -y {pkg}" -Verb RunAs -Wait'
-                subprocess.run(
-                    ["powershell", "-Command", script],
-                    capture_output=True,
-                    text=True,
-                    timeout=300,
-                )
-                if shutil.which(tool):
-                    self._console.print(f"  [green]\u2713 {tool} installed via choco[/green]")
-                    return True
-            except Exception:
-                pass
-        self._console.print(f"  [yellow]Could not auto-install {tool}.[/yellow]")
-        self._console.print(f"  [dim]Install manually: winget install {pkg}[/dim]")
-        return False
-
-    def _elevated_install_nix(self, tool: str, pkg: str) -> bool:
-        """Elevated install on Linux/macOS via sudo."""
-        pm = self._bootstrap.detect_platform().package_manager
-        if not pm:
-            pm = "apt-get" if shutil.which("apt-get") else "brew"
-
-        install_cmd = {
-            "apt": ["apt-get", "install", "-y", pkg],
-            "apt-get": ["apt-get", "install", "-y", pkg],
-            "brew": ["brew", "install", pkg],
-            "pacman": ["pacman", "-S", "--noconfirm", pkg],
-            "dnf": ["dnf", "install", "-y", pkg],
-            "apk": ["apk", "add", pkg],
-        }.get(pm, [pm, "install", "-y", pkg])
-
-        try:
-            self._console.print(f"  Running: sudo {' '.join(install_cmd)}")
-            result = subprocess.run(
-                ["sudo", "-p", "Password required for installation: "] + install_cmd,
-                capture_output=True,
-                text=True,
-                timeout=300,
-            )
-            if result.returncode == 0:
-                if shutil.which(tool):
-                    self._console.print(f"  [green]\u2713 {tool} installed[/green]")
-                    return True
-            self._console.print(f"  [red]\u2717 {tool}: {result.stderr.strip()}[/red]")
-            return False
-        except subprocess.TimeoutExpired:
-            self._console.print(f"  [red]\u2717 {tool}: installation timed out[/red]")
-            return False
-        except Exception as exc:
-            self._console.print(f"  [red]\u2717 {tool}: {exc}[/red]")
-            return False
 
     def _install_ollama(self) -> bool:
         """Install Ollama on the current platform."""

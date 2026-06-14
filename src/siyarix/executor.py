@@ -346,17 +346,27 @@ class Executor:
             ready_steps = plan.get_ready_steps()
             if not ready_steps:
                 if plan.pending_steps:
-                    blocked = all(
-                        any(s.status == StepStatus.FAILED for s in plan.steps if s.id == dep)
-                        for step in plan.pending_steps
-                        for dep in step.dependencies
-                    )
+                    # M-23: Detect if the plan is permanently blocked (deadlocked).
+                    # A plan is blocked if every pending step depends on at least one
+                    # step that has failed or is missing from the plan entirely. (H-20)
+                    blocked = True
+                    for step in plan.pending_steps:
+                        step_permanently_blocked = False
+                        for dep_id in step.dependencies:
+                            dep_step = plan.get_step(dep_id)
+                            if dep_step is None or dep_step.status == StepStatus.FAILED:
+                                step_permanently_blocked = True
+                                break
+                        if not step_permanently_blocked:
+                            # This step might still become ready if its dependencies complete.
+                            blocked = False
+                            break
+
                     if blocked:
+                        logger.warning("Plan %s is deadlocked; breaking execution loop.", plan.id)
                         break
-                    # M-23: removed unreachable second break — fall through
-                    # to the top of the while-loop so the plan can re-evaluate
-                    # readiness after a wait cycle.
-                    await asyncio.sleep(0)
+
+                    await asyncio.sleep(0.01)  # Brief yield to prevent busy-wait
                     continue
                 else:
                     break
@@ -502,6 +512,26 @@ class Executor:
                 result = dlp.redact_dict(result)
             except ImportError:
                 pass
+            if result.get("status") == "error":
+                err_msg = str(result.get("error", "")).lower()
+                if any(x in err_msg for x in ["not found", "not recognized", "executable"]):
+                    try:
+                        import sys
+                        if sys.stdout and sys.stdout.isatty():
+                            from rich.prompt import Confirm
+                            from siyarix.tool_installer import ToolInstaller
+                            want = Confirm.ask(f"\n[yellow]Tool [cyan]{step.tool}[/cyan] is missing. Auto-install it?[/yellow]", default=True)
+                            if want:
+                                installer = ToolInstaller()
+                                if installer.install_tool(step.tool):
+                                    result = await self._registry.execute(step.tool, **step.args)
+                                    try:
+                                        result = dlp.redact_dict(result)
+                                    except Exception:
+                                        pass
+                    except Exception:
+                        pass
+
             if result.get("status") == "error":
                 alt_tools = TOOL_ALTERNATIVES.get(step.tool, [])
                 for alt in alt_tools:

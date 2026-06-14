@@ -329,7 +329,12 @@ async def safe_run_async_stream(
         try:
             sync_proc = await loop.run_in_executor(
                 None, lambda: subprocess.Popen(
-                    cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    bufsize=1,  # Line buffered
+                    errors="replace",  # Handle encoding issues gracefully
                 )
             )
         except FileNotFoundError:
@@ -369,12 +374,14 @@ async def safe_run_async_stream(
             readers.append(t)
 
         try:
+            logger.debug("Waiting for process exit: %s", cmd)
             exit_code = await asyncio.wait_for(
                 loop.run_in_executor(None, sync_proc.wait),
                 timeout=timeout,
             )
+            logger.debug("Process exited with code %d: %s", exit_code, cmd)
         except asyncio.TimeoutError:
-            logger.debug("safe_run_async_stream (thread) timeout for cmd=%s", cmd)
+            logger.warning("safe_run_async_stream (thread) timeout for cmd=%s", cmd)
             try:
                 sync_proc.kill()
             except Exception:
@@ -429,10 +436,13 @@ async def safe_run_async_stream(
             await _read_stream(s, lines, cb)
 
     try:
+        # H-22: Gather reader tasks and ALSO wait for the process to exit
+        # to ensure returncode is populated.
         await asyncio.wait_for(
             asyncio.gather(
                 _safe_read(async_proc.stdout, stdout_lines, on_stdout),
                 _safe_read(async_proc.stderr, stderr_lines, on_stderr),
+                async_proc.wait(),
             ),
             timeout=timeout,
         )

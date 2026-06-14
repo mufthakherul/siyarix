@@ -425,25 +425,27 @@ class KnowledgeGraph:
         }
         return json.dumps(data, indent=2, default=str)
 
-    def save(self, path: Path) -> None:
+    def save_json(self, path: str | Path) -> None:
         """Save graph to a JSON file."""
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(self.to_json(), encoding="utf-8")
+        p = Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(self.to_json(), encoding="utf-8")
         logger.info(
             "Knowledge graph saved to %s (%d nodes, %d edges)",
-            path,
+            p,
             self.node_count,
             self.edge_count,
         )
 
     @classmethod
-    def load(cls, path: Path) -> KnowledgeGraph:
+    def load_json(cls, path: str | Path) -> KnowledgeGraph:
         """Load graph from a JSON file."""
         graph = cls()
-        if not path.exists():
+        p = Path(path)
+        if not p.exists():
             return graph
 
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(p.read_text(encoding="utf-8"))
         for nd in data.get("nodes", []):
             graph._nodes[nd["node_id"]] = Node(
                 node_id=nd["node_id"],
@@ -468,7 +470,7 @@ class KnowledgeGraph:
 
         logger.info(
             "Knowledge graph loaded from %s (%d nodes, %d edges)",
-            path,
+            p,
             graph.node_count,
             graph.edge_count,
         )

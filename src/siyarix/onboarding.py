@@ -1017,7 +1017,17 @@ class OnboardingWizard:
                 else:
                     self._console.print("[yellow]Skipping Ollama install.[/yellow]")
 
-            if shutil.which("ollama") and Confirm.ask(
+            # Ensure Ollama server is running before pulling
+            if shutil.which("ollama") and not self._check_ollama_running():
+                self._console.print("  Starting Ollama server...")
+                self._start_ollama_service()
+                import asyncio as _asyncio
+                for _ in range(15):
+                    if self._check_ollama_running():
+                        break
+                    await _asyncio.sleep(1)
+
+            if shutil.which("ollama") and self._check_ollama_running() and Confirm.ask(
                 f"Pull [cyan]{model_name}[/cyan] via Ollama?",
                 default=True,
             ):

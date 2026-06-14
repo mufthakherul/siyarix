@@ -51,9 +51,9 @@ class AsyncWorkerPool:
     async def submit(
         self, fn: Callable[..., Coroutine[Any, Any, Any]], *args: Any, **kwargs: Any
     ) -> Any:
-        """Submit *fn(\*args, \*\*kwargs)* for bounded execution.
+        """Submit *fn(*args, **kwargs)* for bounded execution.
 
-        Returns the result of *fn(\*args, \*\*kwargs)*.
+        Returns the result of *fn(*args, **kwargs)*.
 
         Raises:
             RuntimeError: If the pool has been closed.

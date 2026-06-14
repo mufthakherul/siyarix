@@ -73,7 +73,7 @@ _INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
             re.IGNORECASE,
         ),
     ),
-    ("redirect", re.compile(r"(?:^|(?<=\s))[><]{1,2}(?!\s*/?[a-zA-Z])")),
+    ("redirect", re.compile(r"(?:^|(?<=\s))[>]{1,2}")),
     ("backtick_exec", re.compile(r"`[^`]+`")),
 ]
 
@@ -592,6 +592,8 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "medium",
         "PowerShell WMI shadow copy deletion",
     ),
+    # ── INFO ──
+    (re.compile(r"\bsudo\b", re.I), "info", "Sudo privilege escalation"),
     # ── LOW ──
     # H-09: use start-of-line-aware pattern so tool names containing
     # "chmod" (e.g. "gochmod") don't false-positive.

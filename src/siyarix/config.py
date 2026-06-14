@@ -169,7 +169,7 @@ def _try_load_toml(path: Path) -> dict[str, Any]:
                 return tomli.load(f)
         except ImportError:
             # Fallback naive parser
-            data = {}
+            data: dict[str, Any] = {}
             try:
                 for line in path.read_text(encoding="utf-8").splitlines():
                     line = line.split("#", 1)[0].strip()
@@ -212,7 +212,8 @@ def _write_toml(path: Path, data: dict[str, Any]) -> None:
         if isinstance(value, bool):
             lines.append(f"{key} = {'true' if value else 'false'}")
         elif isinstance(value, str):
-            lines.append(f'{key} = "{value}"')
+            escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+            lines.append(f'{key} = "{escaped}"')
         else:
             lines.append(f"{key} = {value}")
         lines.append("")
@@ -310,7 +311,7 @@ class SettingsStore:
         editor = os.getenv("EDITOR", default_editor)
         editor_cmd = [editor] if _platform.system().lower() == "windows" else shlex.split(editor)
         try:
-            safe_run_sync(editor_cmd + [str(self._path)], timeout=None)
+            safe_run_sync(editor_cmd + [str(self._path)], timeout=3600)
         except Exception:
             logger.exception(
                 "Opening editor failed with safe_run_sync for editor=%s path=%s",

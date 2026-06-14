@@ -6,10 +6,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import time
-import uuid
-from dataclasses import dataclass, field
-from enum import StrEnum
 from typing import Any
 
 from .events import Event, EventType, emit_sync
@@ -17,13 +13,28 @@ from .events import Event, EventType, emit_sync
 
 from .models import (
     ExecutionPlan,
-    ExecutionStep,
     PlanStatus,
     PlanStep,
     PlanType,
     StepResult,
     StepStatus,
     StepType,
+)
+
+_IS_WIN = os.name == "nt"
+
+# Platform-aware wordlist paths
+_COMMON_WORDLIST = (
+    r"C:\Tools\wordlists\dirb\common.txt" if _IS_WIN
+    else "/usr/share/wordlists/dirb/common.txt"
+)
+_USERNAME_WORDLIST = (
+    r"C:\Tools\wordlists\usernames.txt" if _IS_WIN
+    else "/usr/share/wordlists/usernames.txt"
+)
+_PASSWORD_WORDLIST = (
+    r"C:\Tools\wordlists\passwords.txt" if _IS_WIN
+    else "/usr/share/wordlists/passwords.txt"
 )
 
 TOOL_ALTERNATIVES: dict[str, list[str]] = {
@@ -44,7 +55,7 @@ TOOL_ALTERNATIVES: dict[str, list[str]] = {
 }
 
 class SemanticRouter:
-    def __init__(self):
+    def __init__(self) -> None:
         try:
             from sentence_transformers import SentenceTransformer
             self._model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -53,14 +64,14 @@ class SemanticRouter:
             self._model = None
             self._available = False
         self._intent_embeddings: dict[str, Any] = {}
-        
+
     def build_embeddings(self, intent_map: dict[str, tuple]) -> None:
         if not self._available or self._intent_embeddings:
             return
         phrases = list(intent_map.keys())
         embeddings = self._model.encode(phrases)
         self._intent_embeddings = dict(zip(phrases, embeddings))
-    
+
     def match(self, query: str, threshold: float = 0.72) -> str | None:
         if not self._available or not self._intent_embeddings:
             return None
@@ -118,7 +129,7 @@ class Planner:
                 {"description": "WPA/WPA2 PSK handshake offline crack", "tool": "aircrack-ng", "args": {"mode": "crack"}},
             ],
             "network_scan": [
-                {"description": "Full TCP SYN sweep with high-rate discovery", "tool": "nmap", "args": {"flags": "-sS -T4 -p- --min-rate 1000"}},
+                {"description": "Full TCP port sweep with high-rate discovery", "tool": "nmap", "args": {"flags": "-sT -T4 -p- --min-rate 1000"}},
                 {"description": "Service version detection on top 1000 ports", "tool": "nmap", "args": {"flags": "-sV -T4 --top-ports 1000"}},
                 {"description": "DNS record resolution and zone analysis", "tool": "dig", "args": {}},
                 {"description": "WHOIS registration and IP ownership lookup", "tool": "whois", "args": {}},
@@ -131,7 +142,7 @@ class Planner:
                 {"description": "SSL/TLS certificate chain and cipher suite validation", "tool": "openssl", "args": {"flags": "s_client -servername"}},
             ],
             "ad_assessment": [
-                {"description": "Domain controller critical port scan (Kerberos, LDAP, SMB, RPC, GC)", "tool": "nmap", "args": {"flags": "-sS -sV -T4 -p 53,88,135,139,389,445,464,636,3268,3269,3389"}},
+                {"description": "Domain controller critical port scan (Kerberos, LDAP, SMB, RPC, GC)", "tool": "nmap", "args": {"flags": "-sT -sV -T4 -p 53,88,135,139,389,445,464,636,3268,3269,3389"}},
                 {"description": "SMB protocol version and dialect negotiation analysis", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-protocols"}},
                 {"description": "LDAP anonymous bind and root DSE information disclosure check", "tool": "nmap", "args": {"flags": "-sV -p 389 --script ldap-rootdse"}},
                 {"description": "Kerberos user enumeration attempt", "tool": "nmap", "args": {"flags": "-sV -p 88 --script krb5-enum-users"}},
@@ -338,11 +349,26 @@ class Planner:
             tool_lines = [f"  - {t}" for t in available_tools]
 
         import sys
-        _shell_cmd = "cmd /c" if sys.platform == "win32" else "sh -c"
+        import platform as _platform
+        _is_win = sys.platform == "win32"
+        _shell_cmd = "cmd /c" if _is_win else "sh -c"
+        _platform_hint = (
+            f"Running on: {_platform.system()} {_platform.release()} ({_platform.machine()})\n"
+            f"Shell: {_shell_cmd}\n"
+            + ("IMPORTANT: This is a Windows system. Use Windows-compatible commands and paths.\n"
+               "  - nmap: use -sT (TCP connect) instead of -sS (SYN scan); omit -O (OS detection)\n"
+               "  - Use forward slashes or escaped backslashes in paths\n"
+               "  - For DNS queries, use nslookup instead of dig if dig is unavailable\n"
+               "  - List available tools with 'where' instead of 'which'\n"
+               "  - Standard security tools may need to be installed via winget/choco"
+               if _is_win else
+               "Running on a Unix-like system (Linux/macOS). Standard Unix commands apply.\n"
+               "  - nmap -sS (SYN scan) requires root\n")
+        )
         if system_prompt:
             full_prompt = (
                 system_prompt
-                + f"\n\nCommands you construct will execute via `{_shell_cmd}` — use proper quoting, pipes, and flags. You have full access to every binary on the system."
+                + f"\n\nCommands you construct will execute via `{_shell_cmd}` — use proper quoting, pipes, and flags. You have full access to every binary on the system.\n\n{_platform_hint}"
             )
         else:
             full_prompt = """You are a senior red-team operator and penetration testing specialist.
@@ -363,7 +389,9 @@ Respond with ONLY valid JSON:
 }}
 
 - needs_tools=true for security operations, false for chat/explanation
-- Always use the "command" field for raw shell execution"""
+- Always use the "command" field for raw shell execution
+
+""" + _platform_hint
 
         user_prompt = goal
 
@@ -397,7 +425,7 @@ Respond with ONLY valid JSON:
 
         try:
             raw = await llm_call(full_prompt, user_prompt, history=history, tools=openai_tools)
-            
+
             tool_calls = raw.get("tool_calls") if isinstance(raw, dict) else None
             if tool_calls and len(tool_calls) > 0:
                 func_args = tool_calls[0].function.arguments
@@ -629,10 +657,10 @@ Respond with ONLY valid JSON:
                 "cms": ("whatweb", "CMS fingerprinting", ""),
                 "vuln": ("nuclei", "Vulnerability scan", "-t http"),
                 "cve": ("nuclei", "CVE scan", "-t http/cves"),
-                "fuzz": ("ffuf", "Directory fuzzing", "-w /usr/share/wordlists/dirb/common.txt"),
-                "directories": ("gobuster", "Directory enumeration", "dir -w /usr/share/wordlists/dirb/common.txt"),
-                "dirbust": ("gobuster", "Directory enumeration", "dir -w /usr/share/wordlists/dirb/common.txt"),
-                "endpoint": ("gobuster", "Endpoint enumeration", "dir -w /usr/share/wordlists/dirb/common.txt"),
+                "fuzz": ("ffuf", "Directory fuzzing", f"-w {_COMMON_WORDLIST}"),
+                "directories": ("gobuster", "Directory enumeration", f"dir -w {_COMMON_WORDLIST}"),
+                "dirbust": ("gobuster", "Directory enumeration", f"dir -w {_COMMON_WORDLIST}"),
+                "endpoint": ("gobuster", "Endpoint enumeration", f"dir -w {_COMMON_WORDLIST}"),
                 "sqli": ("sqlmap", "SQL injection scan", "--batch --random-agent"),
                 "sql": ("sqlmap", "SQL injection scan", "--batch --random-agent"),
                 "xss": ("nuclei", "XSS scan", "-t http/xss"),
@@ -652,24 +680,24 @@ Respond with ONLY valid JSON:
                 "recon": ("nmap", "Recon scan", "-sT -sV -T4 --top-ports 1000"),
                 "scan": ("nmap", "Quick scan", "-sT -T4 --top-ports 100"),
                 "explore": ("nmap", "Full scan", "-sT -sV -T4 --top-ports 1000"),
-                "stealth": ("nmap", "Stealth scan", "-sS -T2 --top-ports 100"),
+                "stealth": ("nmap", "Stealth scan", "-sT -T2 --top-ports 100" if os.name == "nt" else "-sS -T2 --top-ports 100"),
                 # Vulnerability / Exploit
                 "ssl": ("nmap", "SSL/TLS check", "--script ssl-enum-ciphers -p 443"),
                 "tls": ("nmap", "SSL/TLS check", "--script ssl-enum-ciphers -p 443"),
                 "smb": ("nmap", "SMB enumeration", "--script smb-enum-shares,smb-os-discovery -p 445"),
-                "brute": ("hydra", "Brute force attack", "-L /usr/share/wordlists/usernames.txt -P /usr/share/wordlists/passwords.txt"),
+                "brute": ("hydra", "Brute force attack", f"-L {_USERNAME_WORDLIST} -P {_PASSWORD_WORDLIST}"),
                 "crack": ("hashcat", "Hash cracking", ""),
             }
             self._semantic_router.build_embeddings(intent_map)
             sem_match = self._semantic_router.match(goal_lower)
             matched_keyword = sem_match if sem_match else None
-            
+
             if not matched_keyword:
                 for keyword in sorted(intent_map, key=len, reverse=True):
                     if keyword in goal_lower:
                         matched_keyword = keyword
                         break
-                        
+
             if matched_keyword:
                 tool, desc, flags = intent_map[matched_keyword]
                 actual_tool = tool
@@ -695,7 +723,7 @@ Respond with ONLY valid JSON:
                 [("curl", "HTTP headers check", "-sIL"),
                  ("whatweb", "Technology fingerprinting", ""),
                  ("nuclei", "Quick vulnerability scan", "-t http -severity low,medium,high,critical"),
-                 ("gobuster", "Directory enumeration", "dir -w /usr/share/wordlists/dirb/common.txt")],
+                 ("gobuster", "Directory enumeration", f"dir -w {_COMMON_WORDLIST}")],
                 # DNS / network probes
                 [("dig", "DNS enumeration", ""),
                  ("subfinder", "Subdomain enumeration", ""),
@@ -768,12 +796,11 @@ Respond with ONLY valid JSON:
             ("nmap", "filtered", lambda s: s.args.update({"flags": s.args.get("flags","") + " -Pn"})),
             ("nmap", "permission", lambda s: s.args.update({"flags": s.args.get("flags","").replace("-sS","-sT")})),
             (None, "timeout", lambda s: s.args.update({"timeout": s.timeout * 1.5})),
-            (None, "refused", lambda s: s.metadata.update({"skip_on_refused": True})),
             ("gobuster|ffuf", "404", lambda s: s.args.update({"extensions": "php,html,js,txt,asp,aspx"})),
             ("hydra", "invalid user", lambda s: s.args.update({"flags": "-e nsr"})),
             ("sqlmap", "not injectable", lambda s: s.args.update({"flags": "--level=3 --risk=2"})),
         ]
-        
+
         for tool_pat, err_pat, recovery_fn in RECOVERY_RULES:
             tool_match = tool_pat is None or re.search(tool_pat, failed_step.tool)
             if tool_match and err_pat in error_lower:
@@ -782,7 +809,16 @@ Respond with ONLY valid JSON:
                     failed_step.status = StepStatus.PENDING
                     failed_step.retry_count += 1
                     return plan
-                    
+
+        # Connection refused: skip failed step and add nuclei replacement
+        if "refused" in error_lower:
+            failed_step.status = StepStatus.SKIPPED
+            plan.steps.append(PlanStep(
+                tool="nuclei",
+                args={"target": failed_step.args.get("target", "")},
+            ))
+            return plan
+
         if failed_step.can_retry:
             failed_step.status = StepStatus.PENDING
             failed_step.retry_count += 1
@@ -809,5 +845,12 @@ Respond with ONLY valid JSON:
         }
 
 __all__ = [
+    "ExecutionPlan",
+    "PlanStatus",
+    "PlanStep",
+    "PlanType",
     "Planner",
+    "StepResult",
+    "StepStatus",
+    "StepType",
 ]

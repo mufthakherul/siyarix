@@ -31,6 +31,8 @@ from .tool_metadata import (
     describe_tool,
     tags_for_tool,
 )
+from .tool_version import detect_version, get_tool_metadata
+
 from .tool_handlers import (
     make_nmap_handler,
     make_web_handler,
@@ -181,16 +183,23 @@ class ToolRegistry:
             if binary:
                 handler_factory = _handler_map.get(name)
                 has_parser = self._parser_registry.has_parser(name)
+                meta = get_tool_metadata(name)
+                version = meta.get("version", "") if meta else ""
+                if not version:
+                    version = detect_version(name, binary)
+                personas = meta.get("personas", []) if meta else []
                 self.register(
                     ToolCapability(
                         name=name,
                         binary=name,
                         installed=True,
+                        version=version,
                         category=categorize_tool(name),
                         risk_level=risk_for_tool(name),
                         description=describe_tool(name),
                         tags=tags_for_tool(name),
                         parser=name if has_parser else "",
+                        metadata={"personas": personas} if personas else {},
                     ),
                     handler=handler_factory(name) if handler_factory else None,
                 )
@@ -209,11 +218,13 @@ class ToolRegistry:
         ):
             binary = shutil.which(name)
             if binary:
+                version = detect_version(name, binary)
                 self.register(
                     ToolCapability(
                         name=name,
                         binary=name,
                         installed=True,
+                        version=version,
                         category=ToolCategory.UTILITY,
                         risk_level=RiskLevel.SAFE,
                         description=f"{name} interpreter/compiler",
@@ -281,15 +292,29 @@ class ToolRegistry:
                         continue
                     if self._graph.get_tool(entry):
                         continue  # already registered
+                    meta = get_tool_metadata(entry)
+                    version = meta.get("version", "") if meta else ""
+                    if not version:
+                        version = detect_version(entry, full)
+                    personas = meta.get("personas", []) if meta else []
+                    category = (
+                        ToolCategory(meta["category"]) if meta and "category" in meta
+                        else categorize_tool(entry)
+                    )
                     self.register(
                         ToolCapability(
                             name=entry,
                             binary=entry,
                             installed=True,
-                            category=ToolCategory.UTILITY,
-                            risk_level=RiskLevel.LOW,
+                            version=version,
+                            category=category,
+                            risk_level=(
+                                RiskLevel(meta["risk_level"]) if meta and "risk_level" in meta
+                                else RiskLevel.LOW
+                            ),
                             description=describe_tool(entry),
                             tags=tags_for_tool(entry),
+                            metadata={"personas": personas} if personas else {},
                         ),
                         handler=make_generic_handler(entry),
                     )

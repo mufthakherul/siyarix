@@ -999,35 +999,47 @@ class OnboardingWizard:
 
             self._settings.set("ollama_model", model_name)
         else:
-            # llama.cpp: provide instructions for model download
-            self._console.print(
-                "[yellow]llama.cpp uses GGUF model files. You can download them from Hugging Face:[/yellow]"
-            )
-            hf_links = {
-                "IHA089/drana-infinity-3b": "https://huggingface.co/IHA089/drana-infinity-3b-GGUF",
-                "IHA089/drana-infinity-7b": "https://huggingface.co/IHA089/drana-infinity-7b-GGUF",
-                "supergoatscriptguy/mythos-sec:8b": "https://huggingface.co/supergoatscriptguy/mythos-sec",
-                "supergoatscriptguy/mythos-sec:24b": "https://huggingface.co/supergoatscriptguy/mythos-sec",
-                "luisppb16/qwen3.5-9b-red-team": "https://huggingface.co/luisppb16/Qwen3.5-9B-Red_Team-GGUF",
-                "luisppb16/gemma4-e4b-secops": "https://huggingface.co/luisppb16/gemma4-e4b-SecOps-GGUF",
-                "xploiter/pentester": "https://huggingface.co/xploiter/pentester-GGUF",
-                "qwen3.5:4b": "https://huggingface.co/Qwen/Qwen3.5-4B-GGUF",
-                "qwen3:14b": "https://huggingface.co/Qwen/Qwen3-14B-GGUF",
-                "gemma4:26b": "https://huggingface.co/ggml-org/gemma-4-26B-A4B-it-GGUF",
-                "gemma4:e4b": "https://huggingface.co/ggml-org/gemma-4-e4b-it-GGUF",
-            }
-            link = hf_links.get(model_name, "")
-            if link:
-                self._console.print(f"  [cyan]{link}[/cyan]")
-            else:
-                self._console.print(f"  Search for [cyan]{model_name}[/cyan] GGUF on Hugging Face")
-            self._console.print()
-            self._console.print(
-                "[dim]Place the .gguf file in ~/.siyarix/models/ and run:\n"
-                "  llama-server --model ~/.siyarix/models/your-model.gguf --port 18080[/dim]"
-            )
-            if not Confirm.ask("Continue without downloading? (You can configure the model later)", default=True):
-                return
+            # llama.cpp: first try Ollama pull, else show GGUF links
+            downloaded = False
+            if shutil.which("ollama") and Confirm.ask(
+                f"Pull [cyan]{model_name}[/cyan] via Ollama?",
+                default=True,
+            ):
+                self._console.print(f"Pulling [cyan]{model_name}[/cyan] with Ollama...")
+                result = subprocess.run(
+                    ["ollama", "pull", model_name],
+                    capture_output=True, text=True, timeout=7200, check=False,
+                )
+                if not result.returncode:
+                    self._console.print("[green]\u2713 Downloaded via Ollama[/green]")
+                    downloaded = True
+                else:
+                    self._console.print(f"[red]\u2717 Pull failed: {result.stderr.strip() or result.stdout.strip()}[/red]")
+
+            if not downloaded:
+                # Show links to verifiable public GGUF repos
+                hf_links = {
+                    "qwen3:14b": "https://huggingface.co/Qwen/Qwen3-14B-GGUF",
+                    "gemma4:26b": "https://huggingface.co/ggml-org/gemma-4-26B-A4B-it-GGUF",
+                    "gemma4:e4b": "https://huggingface.co/ggml-org/gemma-4-e4b-it-GGUF",
+                }
+                self._console.print(
+                    "[yellow]Download the GGUF model file manually from Hugging Face:[/yellow]"
+                )
+                link = hf_links.get(model_name, "")
+                if link:
+                    self._console.print(f"  [cyan]{link}[/cyan]")
+                else:
+                    self._console.print(
+                        f"  Search for [cyan]{model_name}[/cyan] GGUF on Hugging Face"
+                    )
+                self._console.print()
+                self._console.print(
+                    "[dim]Place the .gguf file in ~/.siyarix/models/ and run:\n"
+                    "  llama-server --model ~/.siyarix/models/your-model.gguf --port 18080[/dim]"
+                )
+                if not Confirm.ask("Continue without downloading? (You can configure the model later)", default=True):
+                    return
 
             self._settings.set("llamacpp_model", model_name)
 

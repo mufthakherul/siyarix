@@ -616,6 +616,7 @@ class OnboardingWizard:
             ("jinja2", "jinja2"),
             ("packaging", "packaging"),
             ("pygments", "pygments"),
+            ("openai", "openai"),
         ]
 
         results: list[tuple[str, bool, str]] = []

@@ -2,6 +2,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from dataclasses import dataclass
 from typing import Any
 from .types import CostTier
 
@@ -46,12 +47,28 @@ class UsageRecord:
         return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
 
+@dataclass
+class UsageTotals:
+    total_tokens: int = 0
+    estimated_cost_usd: float = 0.0
+
+
 class UsageTracker:
     """Tracks token usage and cost per provider across a session."""
 
     def __init__(self, path: str | None = None) -> None:
         self._records: dict[str, UsageRecord] = {}
         self._path = path
+
+    def session_totals(self) -> UsageTotals:
+        """Calculate total usage across all providers."""
+        total_in = sum(r.input_tokens for r in self._records.values())
+        total_out = sum(r.output_tokens for r in self._records.values())
+        total_cost = sum(r.total_cost_estimated for r in self._records.values())
+        return UsageTotals(
+            total_tokens=total_in + total_out,
+            estimated_cost_usd=total_cost
+        )
 
     def record_call(
         self,

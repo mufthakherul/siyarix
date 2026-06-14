@@ -267,11 +267,13 @@ class ProviderManager:
     async def complete(
         self,
         provider: str,
+        model: str,
         system_prompt: str,
         user_prompt: str,
         history: list[dict] | None = None,
         *,
         stream: bool = False,
+        **kwargs,
     ) -> Any:
         from ..chat.openai_compat import make_openai_adapter
         api_key = resolve_api_key(provider) or ""
@@ -281,7 +283,9 @@ class ProviderManager:
         adapter = make_openai_adapter(
             provider, api_key, base_url, settings, provider_manager=self
         )
-        return await adapter(system_prompt, user_prompt, stream=stream, history=history)
+        return await adapter(
+            system_prompt, user_prompt, stream=stream, history=history, model=model, **kwargs
+        )
 
     async def ensemble_decide(self, system_prompt: str, user_prompt: str, providers: list[str]) -> str:
         """Run a query across multiple providers and return the majority vote."""
@@ -289,7 +293,7 @@ class ProviderManager:
         from collections import Counter
         
         responses = await asyncio.gather(*[
-            self.complete(p, system_prompt, user_prompt)
+            self.complete(p, self.select_provider(p)[1], system_prompt, user_prompt)
             for p in providers
         ], return_exceptions=True)
         
@@ -340,7 +344,7 @@ def resolve_api_key(provider: str, env_var: str | None = None) -> str | None:
 
 def get_provider_env_var(provider: str) -> str:
     """Resolve the environment variable name for a provider's API key."""
-    pm = ProviderManager()
+    pm = ProviderManager.get_instance()
     profile = pm.get_profile(provider)
     if profile and profile.api_key_env:
         return profile.api_key_env

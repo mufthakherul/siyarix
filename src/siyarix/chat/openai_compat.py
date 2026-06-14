@@ -92,23 +92,23 @@ class OpenAICompat:
 # This is the single source of truth for all OpenAI-compatible providers.
 
 PROVIDER_CONFIG: dict[str, tuple[str, str, str]] = {
-    "openai": ("", "gpt-5.4", "OPENAI_API_KEY"),
-    "openrouter": ("https://openrouter.ai/api/v1", "openai/gpt-5.4", "OPENROUTER_API_KEY"),
+    "openai": ("", "gpt-5.5", "OPENAI_API_KEY"),
+    "openrouter": ("https://openrouter.ai/api/v1", "openai/gpt-5.5", "OPENROUTER_API_KEY"),
     "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai/", "gemini-3.5-flash", "GEMINI_API_KEY"),
     "deepseek": ("https://api.deepseek.com", "deepseek-v4-flash", "DEEPSEEK_API_KEY"),
     "xai": ("https://api.x.ai", "grok-4.3", "XAI_API_KEY"),
-    "perplexity": ("https://api.perplexity.ai", "sonar", "PERPLEXITY_API_KEY"),
+    "perplexity": ("https://api.perplexity.ai", "sonar-pro", "PERPLEXITY_API_KEY"),
     "groq": ("https://api.groq.com/openai/v1", "llama-4-scout-17b-16e-instruct", "GROQ_API_KEY"),
     "together": ("https://api.together.xyz/v1", "meta-llama/Llama-4-Scout-17B-16E-Instruct-FP8", "TOGETHER_API_KEY"),
-    "cerebras": ("https://api.cerebras.ai/v1", "zai-glm-4.7", "CEREBRAS_API_KEY"),
-    "fireworks": ("https://api.fireworks.ai/inference/v1", "accounts/fireworks/routers/kimi-k2p5-turbo", "FIREWORKS_API_KEY"),
-    "zai": ("https://api.z.ai/api/paas/v4", "glm-5", "ZAI_API_KEY"),
+    "cerebras": ("https://api.cerebras.ai/v1", "gpt-oss-120b", "CEREBRAS_API_KEY"),
+    "fireworks": ("https://api.fireworks.ai/inference/v1", "accounts/fireworks/models/kimi-k2p6", "FIREWORKS_API_KEY"),
+    "zai": ("https://api.z.ai/api/paas/v4", "glm-5.1", "ZAI_API_KEY"),
     "minimax": ("https://api.minimax.io/v1", "MiniMax-M3", "MINIMAX_API_KEY"),
     "moonshot": ("https://api.moonshot.ai/v1", "kimi-k2.6", "MOONSHOT_API_KEY"),
     "nvidia": ("https://integrate.api.nvidia.com/v1", "nvidia/nemotron-3-super-120b-a12b", "NVIDIA_API_KEY"),
     "opencode-go": ("https://opencode.ai/zen/go/v1", "deepseek-v4-flash", "OPENCODE_GO_API_KEY"),
     "huggingface": ("https://api-inference.huggingface.co/v1", "", "HUGGINGFACE_API_KEY"),
-    "azure": ("", "gpt-5.4", "AZURE_OPENAI_API_KEY"),
+    "azure": ("", "gpt-5.5", "AZURE_OPENAI_API_KEY"),
     "llamacpp": ("http://localhost:8080", "", ""),
     "vllm": ("http://localhost:8000", "", ""),
     "localai": ("http://localhost:8080", "", ""),
@@ -547,10 +547,35 @@ def make_openai_adapter(
     Returns an async function with signature:
         (system, user, *, stream=False, history=None) -> dict | AsyncGenerator
     """
-    client = make_client(provider, api_key, base_url)
-    compat = detect_compat(provider, base_url or "")
     model = resolve_model(provider, settings, provider_manager)
     api_model = _map_real_model(model)
+
+    # Gemini uses native REST API — no openai package needed
+    if provider == "gemini":
+        async def gemini_adapter(
+            system_prompt: str,
+            user_prompt: str,
+            *,
+            model: str | None = None,
+            stream: bool = False,
+            history: list[dict] | None = None,
+            tools: list[dict] | None = None,
+            **kwargs: Any,
+        ) -> Any:
+            effective_model = _map_real_model(model) if model else api_model
+            if stream:
+                return _gemini_stream(
+                    api_key, effective_model, system_prompt, user_prompt,
+                    history=history, tools=tools, **kwargs
+                )
+            return await _gemini_generate(
+                api_key, effective_model, system_prompt, user_prompt,
+                history=history, tools=tools, **kwargs
+            )
+        return gemini_adapter
+
+    client = make_client(provider, api_key, base_url)
+    compat = detect_compat(provider, base_url or "")
 
     async def adapter(
         system_prompt: str,
@@ -567,21 +592,10 @@ def make_openai_adapter(
 
         current_history = history
         max_retries = 3
-        # Use the passed-in model if provided, else use the one resolved at creation
         effective_model = _map_real_model(model) if model else api_model
 
         for attempt in range(max_retries):
             try:
-                if provider == "gemini":
-                    if stream:
-                        return _gemini_stream(
-                            api_key, effective_model, system_prompt, user_prompt,
-                            history=current_history, tools=tools, **kwargs
-                        )
-                    return await _gemini_generate(
-                        api_key, effective_model, system_prompt, user_prompt,
-                        history=current_history, tools=tools, **kwargs
-                    )
                 if stream:
                     return openai_stream(
                         client, effective_model, system_prompt, user_prompt,
@@ -598,29 +612,23 @@ def make_openai_adapter(
                     await asyncio.sleep(2 ** attempt)
                     continue
 
-                # Classify the original exception if wrapped
                 original_exc = getattr(e, "__cause__", e) or e
                 status_code = getattr(getattr(original_exc, "response", None), "status_code", None)
                 classified = provider_manager.classify_error(provider, original_exc, http_status=status_code)
 
-                # PROV-03: Trigger CompactionEngine on context overflow
                 if classified.should_compress and current_history:
-                    # Flatten history to text
                     text_history = "\n".join([f"{m.get('role', 'user')}: {m.get('content', '')}" for m in current_history])
                     compactor = CompactionEngine()
                     result = await compactor.compact(current_history)
                     compressed_text = result.summary or text_history[:int(len(text_history) * 0.5)]
-                    # Replace history with the compressed summary
                     current_history = [{"role": "system", "content": f"Prior context:\n{compressed_text}"}]
-                    continue  # Retry with compacted history
+                    continue
 
-                # PROV-05: RetryPolicy for provider calls
                 if classified.retryable and attempt < max_retries - 1:
                     provider_manager.record_failure(provider, classified.reason)
                     await asyncio.sleep(2 ** attempt)
                     continue
 
-                # Out of retries or non-retryable
                 provider_manager.record_failure(provider, classified.reason)
                 raise
 

@@ -64,6 +64,8 @@ SECURITY_MODEL_TIERS: list[dict[str, Any]] = [
         "max_ram": 4,
         "models": [
             ("IHA089/drana-infinity-3b", "1.8 GB", "Cybersecurity research, bug bounty, vulnerability analysis — fast 3B model"),
+            ("qwen3.5:4b", "3.4 GB", "Tool-calling champion (97.5% FC pass rate), general intelligence, coding — fits any system"),
+            ("luisppb16/gemma4-e4b-secops", "2.5 GB", "Gemma 4-based SecOps (native function calling), offensive/defensive security, code review"),
             ("xploiter/pentester", "1.6 GB", "Pentesting methodology, OWASP, tool guidance — lightest option"),
         ],
         "default_idx": 0,
@@ -76,11 +78,12 @@ SECURITY_MODEL_TIERS: list[dict[str, Any]] = [
         "max_ram": 8,
         "models": [
             ("IHA089/drana-infinity-7b", "4.5 GB", "Elite cybersecurity research, exploit logic, multi-step attack chains — 7B"),
-            ("luisppb16/gemma4-e4b-secops", "2.5 GB", "Gemma 4-based SecOps, offensive/defensive security, code review — fast 4B"),
-            ("IHA089/drana-infinity-3b", "1.8 GB", "Cybersecurity research, bug bounty — fastest 3B, fits any system"),
+            ("luisppb16/qwen3.5-9b-red-team", "5.5 GB", "Red team operations (Qwen3.5 base = elite function calling)"),
+            ("supergoatscriptguy/mythos-sec:8b", "5 GB", "CTF, bug bounty, pentest — Gemma-4 based, native function calling, no disclaimers"),
+            ("luisppb16/gemma4-e4b-secops", "2.5 GB", "Gemma 4-based SecOps (native function calling) — fast 4B"),
         ],
         "default_idx": 0,
-        "fallback": "IHA089/drana-infinity-3b",
+        "fallback": "IHA089/drana-infinity-7b",
     },
     {
         "tier": "capable",
@@ -88,7 +91,8 @@ SECURITY_MODEL_TIERS: list[dict[str, Any]] = [
         "min_ram": 8,
         "max_ram": 16,
         "models": [
-            ("supergoatscriptguy/mythos-sec:8b", "5 GB", "CTF, bug bounty, pentest — abliterated, no disclaimers, Gemma-4 based"),
+            ("supergoatscriptguy/mythos-sec:8b", "5 GB", "CTF, bug bounty, pentest — Gemma-4 based, native function calling, no disclaimers"),
+            ("qwen3:14b", "9.3 GB", "Best accuracy-to-size ratio, 88-92% function calling, strong reasoning & tool orchestration"),
             ("luisppb16/qwen3.5-9b-red-team", "5.5 GB", "Red team operations, adversary simulation — Qwen3.5 fine-tune"),
             ("IHA089/drana-infinity-7b", "4.5 GB", "Elite cybersecurity research, exploit logic — solid 7B specialist"),
         ],
@@ -101,8 +105,9 @@ SECURITY_MODEL_TIERS: list[dict[str, Any]] = [
         "min_ram": 16,
         "max_ram": 999,
         "models": [
-            ("supergoatscriptguy/mythos-sec:24b", "14 GB", "Flagship security: 30B-class quality at 8B-class speed (MoE)"),
-            ("luisppb16/qwen3.5-9b-red-team", "5.5 GB", "Red team specialist, adversary simulation — highly rated"),
+            ("supergoatscriptguy/mythos-sec:24b", "14 GB", "Flagship security: 30B-class quality at 8B-class speed (MoE), tool-calling ready"),
+            ("gemma4:26b", "18 GB", "Native function calling (92% FC), MoE with 4B active params — best FC among local models"),
+            ("luisppb16/qwen3.5-9b-red-team", "5.5 GB", "Red team specialist, adversary simulation — highly rated, Qwen3.5 FC"),
             ("IHA089/drana-infinity-7b", "4.5 GB", "Elite cybersecurity research — always a solid choice"),
         ],
         "default_idx": 0,
@@ -1006,6 +1011,9 @@ class OnboardingWizard:
                 "luisppb16/qwen3.5-9b-red-team": "https://huggingface.co/luisppb16/Qwen3.5-9B-Red_Team-GGUF",
                 "luisppb16/gemma4-e4b-secops": "https://huggingface.co/luisppb16/gemma4-e4b-SecOps-GGUF",
                 "xploiter/pentester": "https://huggingface.co/xploiter/pentester-GGUF",
+                "qwen3.5:4b": "https://huggingface.co/Qwen/Qwen3.5-4B-GGUF",
+                "qwen3:14b": "https://huggingface.co/Qwen/Qwen3-14B-GGUF",
+                "gemma4:26b": "https://huggingface.co/google/gemma-4-26b-it-GGUF",
             }
             link = hf_links.get(model_name, "")
             if link:

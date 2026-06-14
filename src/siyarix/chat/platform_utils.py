@@ -4,8 +4,8 @@ import platform as _platform
 import os
 import shutil
 import sys
-from pathlib import Path
 from typing import Any
+
 
 from siyarix.config import get_config_dir
 
@@ -17,45 +17,9 @@ from .ui import (
     ConfigPanel as ConfigPanel,
 )
 
-
-RICH_AVAILABLE = False
-try:
-    from rich.columns import Columns
-    from rich.console import Console
-    from rich.markdown import Markdown
-    from rich.panel import Panel
-    from rich.prompt import Prompt
-    from rich.rule import Rule
-    from rich.syntax import Syntax
-    from rich.table import Table
-    from rich.text import Text
-
-    RICH_AVAILABLE = True
-except ImportError:
-    Columns = None
-    Console = None
-    Markdown = None
-    Panel = None
-    Prompt = None
-    Rule = None
-    Syntax = None
-    Table = None
-    Text = None
-
 logger = logging.getLogger(__name__)
 
-PTK_AVAILABLE = False
-try:
-    from prompt_toolkit import prompt as ptk_prompt
-    from prompt_toolkit.key_binding import KeyBindings
-    PTK_AVAILABLE = True
-except Exception:
-    ptk_prompt = None
-    KeyBindings = None
-
-from .console import console
-
-CROSS_PLATFORM_COMMANDS = {}
+CROSS_PLATFORM_COMMANDS: dict[str, dict[str, str]] = {}
 
 def build_platform_context() -> dict[str, Any]:
     uname = _platform.uname()
@@ -100,7 +64,7 @@ def detect_shell() -> str:
         found = shutil.which(sh)
         if found:
             return found
-    return "/bin/sh"
+    return os.environ.get("COMSPEC", "cmd.exe") if os.name == "nt" else "/bin/sh"
 
 
 def get_shell_platform() -> str:

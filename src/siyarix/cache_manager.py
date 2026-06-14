@@ -17,8 +17,9 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, TypeVar
 
-logger = logging.getLogger(__name__)
 from siyarix.config import get_config_dir
+
+logger = logging.getLogger(__name__)
 
 CACHE_DIR = get_config_dir() / "cache"
 
@@ -115,14 +116,14 @@ class CacheManager:
 
         entry.hit_count += 1
         self._hit_count += 1
-        
+
         try:
             from siyarix.opsec import opsec_manager
             if opsec_manager.status.memory_only:
                 return entry.data
         except ImportError:
             pass
-            
+
         try:
             return self._data_path(key).read_text(encoding="utf-8")
         except Exception:
@@ -132,7 +133,7 @@ class CacheManager:
     def set(self, key: str, data: str, domain: str = "tool_output") -> None:
         config = self._domain_config(domain)
         now = time.monotonic()
-        
+
         try:
             from siyarix.opsec import opsec_manager
             memory_only = opsec_manager.status.memory_only
@@ -155,7 +156,7 @@ class CacheManager:
             self._evict(oldest)
 
         self._entries[key] = entry
-        
+
         if not memory_only:
             try:
                 self._data_path(key).write_text(data, encoding="utf-8")

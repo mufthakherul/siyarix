@@ -14,21 +14,17 @@ backtracking (ReDoS).
 from __future__ import annotations
 
 import ipaddress
-import re
-from typing import Any
-
 import logging
+import re
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Callable
+from typing import Any, Callable
 
+from .exceptions import ErrorContext, ErrorSeverity, ValidationError
 from .planner import PlanStep
 from .events import Event, EventType, get_event_bus
 
 logger = logging.getLogger(__name__)
-
-
-from .exceptions import ErrorContext, ErrorSeverity, ValidationError
 
 __all__ = [
     "validate_cidr",

@@ -33,6 +33,25 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from siyarix.bootstrap import INITIALIZED_MARKER, BootstrapEngine
+from siyarix.config import SettingsStore, get_config_dir
+from siyarix.providers import ProviderManager
+from siyarix.templates.wizard_text import (
+    SIYARIX_LOGO as _SIYARIX_LOGO,
+    WELCOME_PANEL_TEXT as _WELCOME_PANEL_TEXT,
+    ETHICS_PLEDGE_TEXT as _ETHICS_PLEDGE_TEXT,
+    EXIT_GREETING_TEXT as _EXIT_GREETING_TEXT,
+    ONLINE_PROVIDERS as _ONLINE_PROVIDERS,
+    OFFLINE_PROVIDERS as _OFFLINE_PROVIDERS,
+    REQUIRED_TOOLS as _REQUIRED_TOOLS,
+    MINIMAL_CYBER_TOOLS as _MINIMAL_CYBER_TOOLS,
+    PERSONA_TOOLS as _PERSONA_TOOLS,
+    ARCH_MAP as _ARCH_MAP,
+    PM_CHECKS as _PM_CHECKS,
+    DEFAULT_PREFERENCES as _DEFAULT_PREFERENCES,
+)
+from siyarix.tool_installer import ToolInstaller
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -47,32 +66,7 @@ except ImportError:
     Prompt = None  # type: ignore[assignment,misc]
     Confirm = None  # type: ignore[assignment,misc]
     Table = None  # type: ignore[assignment,misc]
-    box = None  # type: ignore[assignment,misc]
-
-from siyarix.bootstrap import INITIALIZED_MARKER, BootstrapEngine  # noqa: E402
-from siyarix.config import SettingsStore, get_config_dir  # noqa: E402
-from siyarix.providers import ProviderManager  # noqa: E402
-
-
-# ── Helpers ────────────────────────────────────────────────────────────────
-
-from siyarix.templates.wizard_text import (
-    SIYARIX_LOGO as _SIYARIX_LOGO,
-    WELCOME_PANEL_TEXT as _WELCOME_PANEL_TEXT,
-    ETHICS_PLEDGE_TEXT as _ETHICS_PLEDGE_TEXT,
-    EXIT_GREETING_TEXT as _EXIT_GREETING_TEXT,
-    ONLINE_PROVIDERS as _ONLINE_PROVIDERS,
-    OFFLINE_PROVIDERS as _OFFLINE_PROVIDERS,
-    REQUIRED_TOOLS as _REQUIRED_TOOLS,
-    MINIMAL_CYBER_TOOLS as _MINIMAL_CYBER_TOOLS,
-    PERSONA_TOOLS as _PERSONA_TOOLS,
-    CYBER_TOOL_HOMEPAGES as _CYBER_TOOL_HOMEPAGES,
-    ARCH_MAP as _ARCH_MAP,
-    PM_CHECKS as _PM_CHECKS,
-    DEFAULT_PREFERENCES as _DEFAULT_PREFERENCES,
-)
-
-from siyarix.tool_installer import ToolInstaller
+    box = None  # type: ignore[assignment]
 
 
 
@@ -264,7 +258,7 @@ class OnboardingWizard:
                     if kernel32.GlobalMemoryStatusEx(ctypes.byref(mem)):
                         ram_total_gb = mem.ullTotalPhys / (1024**3)
             elif system == "Linux":
-                with open("/proc/meminfo") as f:
+                with open("/proc/meminfo", encoding='utf-8') as f:
                     for line in f:
                         if line.startswith("MemTotal:"):
                             parts = line.split()
@@ -277,10 +271,11 @@ class OnboardingWizard:
                     capture_output=True,
                     text=True,
                     timeout=5,
+                    check=False,
                 )
-                if result.returncode == 0:
+                if not result.returncode:
                     ram_total_gb = int(result.stdout.strip()) / (1024**3)
-        except Exception:
+        except (ValueError, OSError, subprocess.SubprocessError):
             pass
 
         ram_label = f"{ram_total_gb:.1f} GB" if ram_total_gb > 0 else "Unknown"
@@ -663,8 +658,9 @@ class OnboardingWizard:
                     capture_output=True,
                     text=True,
                     timeout=3600,
+                    check=False,
                 )
-                if result.returncode == 0:
+                if not result.returncode:
                     self._console.print("[green]\u2713 Model downloaded[/green]")
                 else:
                     self._console.print(f"[red]Pull failed: {result.stderr.strip()}[/red]")
@@ -1487,7 +1483,8 @@ class OnboardingWizard:
                             f"}}"
                         )
                         subprocess.run(
-                            ["powershell", "-Command", script], capture_output=True, timeout=30
+                            ["powershell", "-Command", script], capture_output=True, timeout=30,
+                            check=False,
                         )
                         self._console.print(
                             f"  [green]\u2713 Added to user PATH: {siyarix_bin}[/green]"
@@ -1521,8 +1518,9 @@ class OnboardingWizard:
                 capture_output=True,
                 text=True,
                 timeout=300,
+                check=False,
             )
-            if result.returncode == 0:
+            if not result.returncode:
                 self._console.print(f"  [green]\u2713 {package} installed[/green]")
                 return True
             self._console.print(f"  [red]\u2717 {package} failed: {result.stderr.strip()}[/red]")
@@ -1550,6 +1548,7 @@ class OnboardingWizard:
                     capture_output=True,
                     text=True,
                     timeout=600,
+                    check=False,
                 )
                 if shutil.which("ollama"):
                     self._console.print("  [green]\u2713 Ollama installed[/green]")
@@ -1565,14 +1564,16 @@ class OnboardingWizard:
                     capture_output=True,
                     text=True,
                     timeout=60,
+                    check=False,
                 )
                 result = subprocess.run(
                     ["sh", "-c", "curl -fsSL https://ollama.com/install.sh | sh"],
                     capture_output=True,
                     text=True,
                     timeout=600,
+                    check=False,
                 )
-                ok = result.returncode == 0
+                ok = not result.returncode
                 if ok:
                     self._console.print("  [green]\u2713 Ollama installed[/green]")
                 else:
@@ -1585,8 +1586,9 @@ class OnboardingWizard:
                     capture_output=True,
                     text=True,
                     timeout=600,
+                    check=False,
                 )
-                ok = result.returncode == 0
+                ok = not result.returncode
                 if ok:
                     self._console.print("  [green]\u2713 Ollama installed[/green]")
                 else:

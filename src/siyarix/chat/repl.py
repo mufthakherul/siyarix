@@ -11,6 +11,15 @@ from pathlib import Path
 from typing import Any
 from ..config import get_config_dir
 
+from rich.columns import Columns
+from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.prompt import Prompt
+from rich.table import Table
+from rich.text import Text
+from prompt_toolkit import PromptSession
+from prompt_toolkit.key_binding import KeyBindings
+
 from .session import ChatMessage as ChatMessage, ChatSession as ChatSession
 from .ui import (
     SmartAutocomplete as SmartAutocomplete,
@@ -19,48 +28,12 @@ from .ui import (
     ConfigPanel as ConfigPanel,
 )
 from ..config import SettingsStore
-
-
-RICH_AVAILABLE = False
-try:
-    from rich.columns import Columns
-    from rich.console import Console
-    from rich.markdown import Markdown
-    from rich.panel import Panel
-    from rich.prompt import Prompt
-    from rich.rule import Rule
-    from rich.syntax import Syntax
-    from rich.table import Table
-    from rich.text import Text
-
-    RICH_AVAILABLE = True
-except ImportError:
-    Columns = None
-    Console = None
-    Markdown = None
-    Panel = None
-    Prompt = None
-    Rule = None
-    Syntax = None
-    Table = None
-    Text = None
-
-logger = logging.getLogger(__name__)
-
-PTK_AVAILABLE = False
-try:
-    from prompt_toolkit import prompt as ptk_prompt
-    from prompt_toolkit.key_binding import KeyBindings
-    PTK_AVAILABLE = True
-except Exception:
-    ptk_prompt = None
-    KeyBindings = None
-
 from .platform_utils import detect_shell, get_shell_platform, build_platform_context
 from .handlers import CommandHandlersMixin
 from .engine import LLMEngineMixin
-
 from .console import console
+
+logger = logging.getLogger(__name__)
 
 class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
     """Interactive REPL for Siyarix — the cybersecurity AI assistant."""
@@ -82,7 +55,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         resume: bool = False,
     ) -> None:
         self._mode = mode
-        from ..config import get_config_dir
         self._SESSIONS_DIR = get_config_dir() / "sessions"
         self._platform_ctx = build_platform_context()
         self._shell = detect_shell()
@@ -272,26 +244,22 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             except (EOFError, KeyboardInterrupt):
                 return ""
 
-        esc_bindings = self._make_esc_bindings() if PTK_AVAILABLE else None
+        esc_bindings = self._make_esc_bindings()
         prompt_label = Text.assemble(
             ("❯ ", "bold cyan"), ("Type your message or @path/to/file", "dim")
         )
 
         if self._split_pane_enabled:
-            if PTK_AVAILABLE:
-                try:
-                    from prompt_toolkit import PromptSession
-                    session = PromptSession()
-                    return (await session.prompt_async(
-                        "❯ ",
-                        key_bindings=esc_bindings,
-                        completer=SmartAutocomplete(self._session),
-                    )).strip()
-                except KeyboardInterrupt:
-                    raise
-                except Exception:
-                    return Prompt.ask(prompt_label, default="").strip()
-            else:
+            try:
+                session: PromptSession = PromptSession()
+                return (await session.prompt_async(
+                    "❯ ",
+                    key_bindings=esc_bindings,
+                    completer=SmartAutocomplete(self._session),
+                )).strip()
+            except KeyboardInterrupt:
+                raise
+            except Exception:
                 return Prompt.ask(prompt_label, default="").strip()
 
         # Show compact status line above prompt
@@ -313,25 +281,19 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         )
         console.print(status)
 
-        if PTK_AVAILABLE:
-            try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", RuntimeWarning)
-                    from prompt_toolkit import PromptSession
-                    session = PromptSession()
-                    answer = (await session.prompt_async(
-                        "❯ ",
-                        key_bindings=esc_bindings,
-                        completer=SmartAutocomplete(self._session),
-                    )).strip()
-            except KeyboardInterrupt:
-                raise
-            except Exception as exc:
-                logger.debug("prompt_toolkit failed: %s", exc)
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", RuntimeWarning)
-                    answer = Prompt.ask(prompt_label, default="").strip()
-        else:
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                session = PromptSession()
+                answer = (await session.prompt_async(
+                    "❯ ",
+                    key_bindings=esc_bindings,
+                    completer=SmartAutocomplete(self._session),
+                )).strip()
+        except KeyboardInterrupt:
+            raise
+        except Exception as exc:
+            logger.debug("prompt_toolkit failed: %s", exc)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
                 answer = Prompt.ask(prompt_label, default="").strip()
@@ -620,7 +582,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         Returns the clean response text (JSON wrapper stripped if present).
         """
         from rich.live import Live
-        from rich.markdown import Markdown
         from rich.panel import Panel
 
         if not provider_name or not api_key:
@@ -673,7 +634,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
     def _print_results(self, result: "Any", elapsed: float) -> None:  # EngineResult
         from ..planner import StepStatus
-        from rich.table import Table
         from rich.panel import Panel
         from rich.columns import Columns
 

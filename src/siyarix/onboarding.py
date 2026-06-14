@@ -999,16 +999,30 @@ class OnboardingWizard:
 
             self._settings.set("ollama_model", model_name)
         else:
-            # llama.cpp: first try Ollama pull, else show GGUF links
+            # llama.cpp: try Ollama pull as convenience download
             downloaded = False
+            ollama_installed_by_us = False
             models_dir = Path.home() / ".siyarix" / "models"
             models_dir.mkdir(parents=True, exist_ok=True)
+
+            # Install Ollama if not already present
+            if not shutil.which("ollama"):
+                self._console.print("[yellow]Ollama is required to download this model.[/yellow]")
+                if Confirm.ask("Install Ollama now?", default=True):
+                    if self._install_ollama():
+                        ollama_installed_by_us = True
+                        self._console.print("[green]\u2713 Ollama installed[/green]")
+                    else:
+                        self._console.print("[red]Ollama install failed, falling back to manual download.[/red]")
+                else:
+                    self._console.print("[yellow]Skipping Ollama install.[/yellow]")
 
             if shutil.which("ollama") and Confirm.ask(
                 f"Pull [cyan]{model_name}[/cyan] via Ollama?",
                 default=True,
             ):
                 self._console.print(f"Pulling [cyan]{model_name}[/cyan] with Ollama...")
+                self._console.print("[dim]This may take several minutes depending on model size.[/dim]")
                 result = subprocess.run(
                     ["ollama", "pull", model_name],
                     capture_output=True, text=True, timeout=7200, check=False,
@@ -1033,10 +1047,32 @@ class OnboardingWizard:
                             )
                             downloaded = True
                 else:
-                    self._console.print(f"[red]\u2717 Pull failed: {result.stderr.strip() or result.stdout.strip()}[/red]")
+                    self._console.print(
+                        f"[red]\u2717 Pull failed[/red]\n"
+                        f"[red]  {result.stderr.strip() or result.stdout.strip()}[/red]"
+                    )
+                    if not Confirm.ask("Try downloading manually instead?", default=True):
+                        return
+
+            # If we installed Ollama just for this, offer to remove it
+            if downloaded and ollama_installed_by_us:
+                self._console.print(
+                    "[dim]Ollama is no longer needed — the GGUF file has been extracted.[/dim]"
+                )
+                if Confirm.ask("Uninstall Ollama to free up space?", default=False):
+                    self._console.print("  Uninstalling Ollama...")
+                    if self._uninstall_ollama():
+                        self._console.print("[green]\u2713 Ollama uninstalled[/green]")
+                    else:
+                        self._console.print(
+                            "[yellow]Automatic uninstall failed. You can uninstall manually:\n"
+                            "  Windows: Control Panel -> Programs -> Uninstall Ollama\n"
+                            "  macOS:   drag /Applications/Ollama.app to Trash\n"
+                            "  Linux:   sudo apt remove ollama[/yellow]"
+                        )
 
             if not downloaded:
-                # Show links to verifiable public GGUF repos
+                # Fallback: show links to verifiable public GGUF repos
                 hf_links = {
                     "qwen3:14b": "https://huggingface.co/Qwen/Qwen3-14B-GGUF",
                     "gemma4:26b": "https://huggingface.co/ggml-org/gemma-4-26B-A4B-it-GGUF",
@@ -2008,6 +2044,45 @@ class OnboardingWizard:
                 return ok
         except Exception as exc:
             self._console.print(f"  [red]Ollama installation error: {exc}[/red]")
+            return False
+
+    def _uninstall_ollama(self) -> bool:
+        """Uninstall Ollama. Best-effort per platform."""
+        try:
+            if os.name == "nt":
+                script = '''
+$ollama = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -eq "Ollama" }
+if ($ollama) { $ollama.Uninstall() | Out-Null }
+'''
+                r = subprocess.run(
+                    ["powershell", "-Command", script],
+                    capture_output=True, text=True, timeout=120, check=False,
+                )
+                if not r.returncode and "Error" not in r.stderr:
+                    return True
+                uninstaller = "C:\\Program Files\\Ollama\\uninstall.exe"
+                if os.path.isfile(uninstaller):
+                    r = subprocess.run(
+                        [uninstaller, "/S"],
+                        capture_output=True, text=True, timeout=120, check=False,
+                    )
+                    return not r.returncode
+                return False
+            elif sys.platform == "darwin":
+                bin_path = shutil.which("ollama") or "/usr/local/bin/ollama"
+                r = subprocess.run(
+                    ["sudo", "rm", "-f", bin_path],
+                    capture_output=True, text=True, timeout=30, check=False,
+                )
+                return not r.returncode
+            else:
+                bin_path = shutil.which("ollama") or "/usr/local/bin/ollama"
+                r = subprocess.run(
+                    ["sudo", "rm", "-f", bin_path],
+                    capture_output=True, text=True, timeout=30, check=False,
+                )
+                return not r.returncode
+        except Exception:
             return False
 
     @staticmethod

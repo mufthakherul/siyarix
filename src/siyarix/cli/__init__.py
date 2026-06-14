@@ -236,6 +236,13 @@ def _get_engine(mode: str = "integrated") -> ExecutionEngine:
 
 
 # ---------------------------------------------------------------------------
+# Ensure ~/.siyarix/bin is on PATH (onboarding installs binaries there)
+# ---------------------------------------------------------------------------
+_siyarix_bin = str(Path.home() / ".siyarix" / "bin")
+if _siyarix_bin not in os.environ.get("PATH", ""):
+    os.environ["PATH"] = _siyarix_bin + os.pathsep + os.environ.get("PATH", "")
+
+# ---------------------------------------------------------------------------
 # Main Typer app — Premium structure
 # ---------------------------------------------------------------------------
 app = typer.Typer(
@@ -632,13 +639,32 @@ app.add_typer(completions_app, name="completions")
 @app.command("completion", hidden=True)
 def _completion_alias(shell: str = typer.Argument("bash", help="Shell (bash, zsh, fish, powershell)")) -> None:
     """Alias for 'completions'. Use 'siyarix completions' (plural) instead."""
-    console.print(
-        "[yellow]'siyarix completion' (singular) is deprecated. "
-        f"Use [bold]'siyarix completions install {shell}'[/bold] instead.[/yellow]"
+    # Clean up old broken line from .bashrc / .zshrc so user stops seeing this
+    import re as _re
+    for rc_name in (".bashrc", ".zshrc", ".config/fish/config.fish"):
+        rc = Path.home() / rc_name
+        if rc.is_file():
+            try:
+                text = rc.read_text(encoding="utf-8")
+                cleaned = _re.sub(
+                    r'\neval "\$\(siyarix? completion \w+\)".*',
+                    "",
+                    text,
+                )
+                if cleaned != text:
+                    rc.write_text(cleaned, encoding="utf-8")
+            except OSError:
+                pass
+
+    # Write to stderr so eval "$(siyarix completion bash)" doesn't choke on the output
+    print(
+        "'siyarix completion' (singular) is deprecated. "
+        f"Use 'siyarix completions install {shell}' instead.",
+        file=sys.stderr,
     )
-    console.print(
-        "[dim]Or set up shell completions with the correct method:\n"
-        f"  eval \"$(_SIYARIX_COMPLETE={shell}_source siyarix)\"[/dim]"
+    print(
+        f"Or run: eval \"$(_SIYARIX_COMPLETE={shell}_source siyarix)\"",
+        file=sys.stderr,
     )
 
 theme_app = typer.Typer(help="🎨 Theme customization")

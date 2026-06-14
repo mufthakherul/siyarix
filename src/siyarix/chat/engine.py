@@ -981,8 +981,15 @@ class LLMEngineMixin:
 
         binary_path = shutil.which(binary)
         if not binary_path:
-            logger.warning("%s binary not found on PATH — cannot auto-start", binary)
-            return False
+            # Check ~/.siyarix/bin as fallback (onboarding installs there)
+            siyarix_bin = Path.home() / ".siyarix" / "bin" / binary
+            if os.name == "nt":
+                siyarix_bin = Path.home() / ".siyarix" / "bin" / f"{binary}.exe"
+            if siyarix_bin.exists():
+                binary_path = str(siyarix_bin)
+            else:
+                logger.warning("%s binary not found on PATH — cannot auto-start", binary)
+                return False
         if check_provider_health(provider_name):
             return True
         try:

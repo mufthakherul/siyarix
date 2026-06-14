@@ -109,10 +109,10 @@ PROVIDER_CONFIG: dict[str, tuple[str, str, str]] = {
     "opencode-go": ("https://opencode.ai/zen/go/v1", "deepseek-v4-flash", "OPENCODE_GO_API_KEY"),
     "huggingface": ("https://api-inference.huggingface.co/v1", "", "HUGGINGFACE_API_KEY"),
     "azure": ("", "gpt-5.5", "AZURE_OPENAI_API_KEY"),
-    "llamacpp": ("http://localhost:8080", "", ""),
+    "llamacpp": ("http://localhost:18080", "", ""),
     "vllm": ("http://localhost:8000", "", ""),
     "localai": ("http://localhost:8080", "", ""),
-    "ollama": ("http://localhost:11434/v1", "whiterabbitneo/WhiteRabbitNeo-2.5-Qwen-2.5-Coder-7B", ""),
+    "ollama": ("http://localhost:11434/v1", "IHA089/drana-infinity-7b", ""),
 }
 
 

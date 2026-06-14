@@ -47,7 +47,7 @@ PROVIDER_DEFAULTS: dict[str, dict[str, Any]] = {
         "health_endpoint": "/v1/models",
     },
     "llamacpp": {
-        "url": "http://localhost:8080",
+        "url": "http://localhost:18080",
         "models_endpoint": "/v1/models",
         "models_list_key": "data",
         "model_id_key": "id",

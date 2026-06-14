@@ -12,7 +12,7 @@ def register_profile(manager: ProviderManager) -> None:
             name="llamacpp",
             display_name="llama.cpp",
             models=[],
-            base_url="http://localhost:8080",
+            base_url="http://localhost:18080",
             max_context_tokens=8192,
             supports_streaming=True,
             supports_tools=False,

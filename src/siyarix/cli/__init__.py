@@ -945,7 +945,8 @@ def run(
             raise typer.Exit(1)
         instruction += f" on {target}"
 
-    route = intent_router.route(instruction, preferred_mode=mode)
+    route = intent_router.route(instruction)
+    route.mode = mode if mode != "integrated" else route.mode
     session = session_kernel.start(objective="direct-command", scope=target or "adhoc")
     op = session_kernel.add_operation(
         session=session,

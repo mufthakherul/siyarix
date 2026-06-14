@@ -426,7 +426,8 @@ def main_callback(
                 "onboarding_complete"
             )
         except Exception:
-            needs_onboarding = False
+            logger.debug("Onboarding check failed, assuming fresh install", exc_info=True)
+            needs_onboarding = True
 
         if needs_onboarding:
             import asyncio

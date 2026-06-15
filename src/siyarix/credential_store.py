@@ -605,6 +605,7 @@ class CredentialStore:
                     self._kms_data_key = plaintext
                     self._kms_encrypted_key = _b64.b64encode(ciphertext_blob).decode()
 
+                assert self._kms_data_key is not None, "KMS data key must be set"
                 fernet_key = base64.urlsafe_b64encode(self._kms_data_key)
                 f = Fernet(fernet_key)
             except Exception:

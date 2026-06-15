@@ -1,18 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Advanced planning system with goal decomposition and workflow generation."""
+"""Planner router — dispatches requests to AutonomousPlanner or RegistryPlanner based on execution mode.
+
+Acts as the unified entry point for all planning. Routes to the appropriate
+specialised planner and handles integrated-mode fallback logic.
+"""
 
 from __future__ import annotations
 
-import json
 import logging
-import os
-import platform as _platform
-import re
-import sys
-from typing import Any, Callable
-
-from .events import Event, EventType, emit_sync
-
+from typing import Any
 
 from .models import (
     ExecutionPlan,
@@ -23,247 +19,155 @@ from .models import (
     StepStatus,
     StepType,
 )
-
-_IS_WIN = os.name == "nt"
-
-# Platform-aware wordlist paths
-_COMMON_WORDLIST = (
-    r"C:\Tools\wordlists\dirb\common.txt" if _IS_WIN
-    else "/usr/share/wordlists/dirb/common.txt"
-)
-_USERNAME_WORDLIST = (
-    r"C:\Tools\wordlists\usernames.txt" if _IS_WIN
-    else "/usr/share/wordlists/usernames.txt"
-)
-_PASSWORD_WORDLIST = (
-    r"C:\Tools\wordlists\passwords.txt" if _IS_WIN
-    else "/usr/share/wordlists/passwords.txt"
-)
+from .planner_registry import RegistryPlanner, TOOL_ALTERNATIVES
+from .planner_autonomous import AutonomousPlanner
 
 logger = logging.getLogger(__name__)
 
-TOOL_ALTERNATIVES: dict[str, list[str]] = {
-    "nmap": ["masscan", "rustscan", "naabu"],
-    "masscan": ["nmap", "rustscan"],
-    "gobuster": ["ffuf", "dirb", "dirsearch"],
-    "ffuf": ["gobuster", "dirb", "dirsearch"],
-    "whatweb": ["wappalyzer", "builtwith"],
-    "nuclei": ["nikto", "wapiti", "skipfish"],
-    "nikto": ["nuclei", "wapiti"],
-    "hydra": ["medusa", "ncrack", "patator"],
-    "subfinder": ["amass", "sublist3r", "assetfinder"],
-    "amass": ["subfinder", "sublist3r"],
-    "curl": ["wget", "httpie"],
-    "dig": ["nslookup", "host"],
-    "aircrack-ng": ["hashcat", "john"],
-    "sqlmap": ["jSQL", "sqlninja"],
-}
+# Re-export models for backward compatibility
+__all__ = [
+    "ExecutionPlan",
+    "PlanStatus",
+    "PlanStep",
+    "PlanType",
+    "StepResult",
+    "StepStatus",
+    "StepType",
+    "Planner",
+    "TOOL_ALTERNATIVES",
+]
+
 
 class Planner:
-    """Plan decomposer with an inverted-index strategy for scalable tool lookup."""
+    """Unified planner router — dispatches to the right planner by mode.
+
+    Modes
+    -----
+    - ``autonomous``  → AutonomousPlanner (LLM-only, no heuristic fallback)
+    - ``offline`` / ``registry`` → RegistryPlanner (heuristic-only)
+    - ``integrated``  → try AutonomousPlanner first; fall back to RegistryPlanner
+                        on any failure. If provider is ``"registry"``, skip LLM.
+    """
 
     def __init__(self) -> None:
+        self._autonomous = AutonomousPlanner()
+        self._registry = RegistryPlanner()
         self._plans: dict[str, ExecutionPlan] = {}
-        self._auto_dag_templates: set[str] = {
-            "recon_full", "web_audit", "network_scan", "cloud_audit",
-            "vuln_scan", "dns_recon", "full_audit", "smb_enum",
-        }
-        self._cron_path = "/etc/crontab" if os.name != "nt" else "C:\\Windows\\System32\\Tasks"
-        self._templates: dict[str, list[dict[str, Any]]] = {
-            "recon_full": [
-                {"description": "Full port scan with service/OS detection and default scripts", "tool": "nmap", "args": {"flags": "-sV -sC -T4"}},
-                {"description": "Web technology stack fingerprinting", "tool": "whatweb", "args": {}},
-                {"description": "Directory and file brute-force enumeration", "tool": "gobuster", "args": {"mode": "dir"}},
-                {"description": "Passive subdomain enumeration", "tool": "subfinder", "args": {}},
-                {"description": "Aggressive subdomain discovery via brute-force", "tool": "amass", "args": {}},
-                {"description": "Template-based vulnerability scan", "tool": "nuclei", "args": {"severity": "medium,high,critical"}},
-            ],
-            "web_audit": [
-                {"description": "HTTP security headers and response analysis", "tool": "curl", "args": {"flags": "-sI"}},
-                {"description": "Web application technology fingerprinting", "tool": "whatweb", "args": {}},
-                {"description": "Template-based vulnerability scanning (medium+ severity)", "tool": "nuclei", "args": {"severity": "medium,high,critical"}},
-                {"description": "Content discovery and directory/file enumeration", "tool": "ffuf", "args": {"wordlist": "common.txt"}},
-                {"description": "WordPress-specific vulnerability scan", "tool": "wpscan", "args": {}},
-                {"description": "Web server vulnerability scan", "tool": "nikto", "args": {}},
-            ],
-            "brute_force": [
-                {"description": "Target service discovery and version identification", "tool": "nmap", "args": {"flags": "-sV"}},
-                {"description": "Multi-protocol credential brute-force attack", "tool": "hydra", "args": {}},
-                {"description": "Offline hash cracking of captured credentials", "tool": "hashcat", "args": {}},
-            ],
-            "wifi_audit": [
-                {"description": "Wireless traffic capture and handshake collection", "tool": "aircrack-ng", "args": {"mode": "capture"}},
-                {"description": "WPA/WPA2 PSK handshake offline crack", "tool": "aircrack-ng", "args": {"mode": "crack"}},
-            ],
-            "network_scan": [
-                {"description": "Full TCP port sweep with high-rate discovery", "tool": "nmap", "args": {"flags": "-sT -T4 -p- --min-rate 1000"}},
-                {"description": "Service version detection on top 1000 ports", "tool": "nmap", "args": {"flags": "-sV -T4 --top-ports 1000"}},
-                {"description": "DNS record resolution and zone analysis", "tool": "dig", "args": {}},
-                {"description": "WHOIS registration and IP ownership lookup", "tool": "whois", "args": {}},
-                {"description": "Mass port scan for additional coverage", "tool": "masscan", "args": {"flags": "--rate 1000 --top-ports 100"}},
-            ],
-            "cloud_audit": [
-                {"description": "HTTP security headers and CORS policy analysis", "tool": "curl", "args": {"flags": "-sI"}},
-                {"description": "Web application stack and framework detection", "tool": "whatweb", "args": {}},
-                {"description": "Full DNS record enumeration (A, AAAA, MX, TXT, NS, CNAME)", "tool": "dig", "args": {"flags": "ANY"}},
-                {"description": "SSL/TLS certificate chain and cipher suite validation", "tool": "openssl", "args": {"flags": "s_client -servername"}},
-            ],
-            "ad_assessment": [
-                {"description": "Domain controller critical port scan", "tool": "nmap", "args": {"flags": "-sT -sV -T4 -p 53,88,135,139,389,445,464,636,3268,3269,3389"}},
-                {"description": "SMB protocol version and dialect negotiation analysis", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-protocols"}},
-                {"description": "LDAP anonymous bind and root DSE information disclosure check", "tool": "nmap", "args": {"flags": "-sV -p 389 --script ldap-rootdse"}},
-                {"description": "Kerberos user enumeration attempt", "tool": "nmap", "args": {"flags": "-sV -p 88 --script krb5-enum-users"}},
-            ],
-            "linux_privesc": [
-                {"description": "Kernel and OS version identification", "tool": "uname", "args": {"flags": "-a"}},
-                {"description": "SUID and SGID binary discovery", "tool": "find", "args": {"flags": "/ -perm -4000 -type f 2>/dev/null"}},
-                {"description": "World-writable directory search", "tool": "find", "args": {"flags": "/ -writable -type d 2>/dev/null"}},
-                {"description": "Scheduled task and cron job inspection", "tool": "cat", "args": {"flags": self._cron_path}},
-            ],
-            "vuln_scan": [
-                {"description": "Template-based vulnerability scan (all severities)", "tool": "nuclei", "args": {"severity": "low,medium,high,critical"}},
-                {"description": "Web server vulnerability scan", "tool": "nikto", "args": {}},
-                {"description": "WordPress vulnerability scan", "tool": "wpscan", "args": {}},
-                {"description": "SQL injection scan", "tool": "sqlmap", "args": {"flags": "--batch --random-agent"}},
-            ],
-            "dns_recon": [
-                {"description": "DNS record enumeration (A, AAAA, MX, TXT, NS, CNAME, SOA)", "tool": "dig", "args": {}},
-                {"description": "Passive subdomain discovery", "tool": "subfinder", "args": {}},
-                {"description": "Brute-force subdomain discovery via wordlist", "tool": "amass", "args": {}},
-                {"description": "WHOIS registration and domain ownership lookup", "tool": "whois", "args": {}},
-            ],
-            "full_audit": [
-                {"description": "Full port scan with service and OS detection", "tool": "nmap", "args": {"flags": "-sV -sC -T4"}},
-                {"description": "HTTP security headers and response analysis", "tool": "curl", "args": {"flags": "-sI"}},
-                {"description": "Web technology fingerprinting", "tool": "whatweb", "args": {}},
-                {"description": "Template-based vulnerability scan", "tool": "nuclei", "args": {"severity": "medium,high,critical"}},
-                {"description": "Directory and file enumeration", "tool": "gobuster", "args": {"mode": "dir"}},
-                {"description": "DNS record enumeration", "tool": "dig", "args": {}},
-                {"description": "Subdomain discovery", "tool": "subfinder", "args": {}},
-                {"description": "WHOIS registration lookup", "tool": "whois", "args": {}},
-            ],
-            "smb_enum": [
-                {"description": "SMB port scan and service detection", "tool": "nmap", "args": {"flags": "-sV -p 445"}},
-                {"description": "SMB protocol version and dialect negotiation", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-protocols"}},
-                {"description": "SMB share enumeration", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-enum-shares"}},
-                {"description": "SMB OS discovery and security check", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-os-discovery,smb-security-mode"}},
-            ],
-        }
-        # Inverted index: keyword → set of tool names
-        self._keyword_index: dict[str, set[str]] = {}
 
-    # ── Index builder ─────────────────────────────────────────────────────
+    @property
+    def autonomous_planner(self) -> AutonomousPlanner:
+        return self._autonomous
 
-    def build_index(self, available_tools: list[str], tool_registry: Any = None) -> None:
-        """Build an inverted keyword index from available tool names & metadata.
+    @property
+    def registry_planner(self) -> RegistryPlanner:
+        return self._registry
 
-        ``tool_registry`` is any object that provides ``.get_tool(name)``
-        returning an object with ``.tags``, ``.description``, ``.category``.
+    # ── Public routing API ────────────────────────────────────────────────
+
+    async def plan(
+        self,
+        goal: str,
+        mode: str = "integrated",
+        provider: str | None = None,
+        available_tools: list[str] | None = None,
+        llm_call: Any = None,
+        tool_schemas: list[dict] | None = None,
+        system_prompt: str | None = None,
+        platform: str | None = None,
+        history: list[dict] | None = None,
+        is_first_call: bool | None = None,
+        **kwargs: Any,
+    ) -> ExecutionPlan:
+        """Route the planning request based on execution mode.
+
+        Parameters
+        ----------
+        goal:
+            The user's request to plan.
+        mode:
+            One of ``"autonomous"``, ``"registry"``, ``"offline"``, ``"integrated"``.
+        provider:
+            Model provider name. When ``"registry"`` in integrated mode, skips LLM.
+        available_tools:
+            List of tool names available for registry/offline mode.
+        llm_call:
+            Async callable for LLM interactions (required for autonomous mode).
+        tool_schemas:
+            Full tool metadata for the LLM (first-call context).
+        system_prompt:
+            Custom system prompt for the LLM.
+        platform:
+            Pre-built platform context string.
+        history:
+            Conversation history for the LLM.
+        is_first_call:
+            Override session first-call detection in AutonomousPlanner.
         """
-        self._keyword_index.clear()
-        for name in available_tools:
-            name_lower = name.lower()
-            # Index the full name
-            self._add_to_index(name_lower, name)
-            # Index each word in the name (split on "-", "_", ".")
-            for part in re.split(r"[-_.]+", name_lower):
-                if len(part) > 1:
-                    self._add_to_index(part, name)
-            # Index tags and description when a registry is available
-            if tool_registry is not None:
-                try:
-                    tool = (
-                        tool_registry.get_tool(name) if hasattr(tool_registry, "get_tool") else None
-                    )
-                    if tool is None and hasattr(tool_registry, "_graph"):
-                        tool = tool_registry._graph.get_tool(name)
-                    if tool:
-                        for tag in getattr(tool, "tags", []):
-                            self._add_to_index(tag.lower(), name)
-                        desc = getattr(tool, "description", "")
-                        if desc and desc != name:
-                            for word in desc.lower().split():
-                                if len(word) > 2:
-                                    self._add_to_index(word, name)
-                except Exception as exc:
-                    logger.warning("Failed to get tool metadata for %s: %s", name, exc)
+        mode_lower = mode.lower()
 
-    def resolve_alternatives(
-        self, template_name: str, available_tools: set[str]
-    ) -> list[dict[str, Any]]:
-        """Resolve template steps, substituting missing tools with alternatives."""
-        steps = self._templates.get(template_name, [])
-        resolved = []
-        for step in steps:
-            tool = step["tool"]
-            if tool in available_tools:
-                resolved.append(step)
-            else:
-                alt_found = None
-                for alt in TOOL_ALTERNATIVES.get(tool, []):
-                    if alt in available_tools:
-                        alt_found = alt
-                        break
-                if alt_found:
-                    resolved.append(
-                        {
-                            **step,
-                            "tool": alt_found,
-                            "description": f"{step['description']} (via {alt_found})",
-                        }
-                    )
-                else:
-                    resolved.append(step)
-        return resolved
+        if mode_lower in ("registry", "offline"):
+            logger.debug("Planner: routing to RegistryPlanner (%s mode)", mode_lower)
+            return self._registry.plan(goal, available_tools=available_tools)
 
-    def _add_to_index(self, keyword: str, tool_name: str) -> None:
-        if keyword not in self._keyword_index:
-            self._keyword_index[keyword] = set()
-        self._keyword_index[keyword].add(tool_name)
+        if mode_lower == "autonomous":
+            logger.debug("Planner: routing to AutonomousPlanner (autonomous mode)")
+            return await self._autonomous.plan(
+                goal,
+                system_prompt=system_prompt,
+                platform=platform,
+                llm_call=llm_call,
+                tool_schemas=tool_schemas,
+                available_tools=available_tools,
+                history=history,
+                is_first_call=is_first_call,
+            )
 
-    def _search_index(self, query: str) -> list[str]:
-        """Return tool names matching the query, ranked by relevance.
+        # ── Integrated mode ────────────────────────────────────────────────
+        provider_lower = (provider or "").lower()
 
-        Scoring (higher = better):
-          - Tool name is literally in the query        → +500  (exact charter)
-          - A name-part (split on ``-_.``) is in query  → +50
-          - A tag word matches                          → +10
-          - A description word matches                  → +3
+        # If provider is explicitly "registry", skip LLM entirely
+        if provider_lower == "registry":
+            logger.debug("Planner: integrated mode with registry provider → RegistryPlanner")
+            return self._registry.plan(goal, available_tools=available_tools)
 
-        Returns only tools with a positive score,
-        ordered by score descending.
-        """
-        words = {w for w in re.split(r"[^\w]+", query.lower()) if len(w) > 1}
-        if not words:
-            return []
+        # Try AutonomousPlanner first
+        logger.debug("Planner: integrated mode → trying AutonomousPlanner")
+        try:
+            plan = await self._autonomous.plan(
+                goal,
+                system_prompt=system_prompt,
+                platform=platform,
+                llm_call=llm_call,
+                tool_schemas=tool_schemas,
+                available_tools=available_tools,
+                history=history,
+                is_first_call=is_first_call,
+            )
+            if plan.steps:
+                logger.debug("Planner: AutonomousPlanner succeeded in integrated mode")
+                return plan
+        except Exception as exc:
+            logger.warning("Planner: AutonomousPlanner failed in integrated mode: %s", exc)
 
-        scores: dict[str, int] = {}
-        for w in words:
-            for tool_name in self._keyword_index.get(w, []):
-                scores[tool_name] = scores.get(tool_name, 0) + 1
+        # Fall back to RegistryPlanner
+        logger.info("Planner: integrated mode → falling back to RegistryPlanner")
+        return self._registry.plan(goal, available_tools=available_tools)
 
-        # Fallback: if no word matched, try substring match of index keys
-        if not scores:
-            for key, names in self._keyword_index.items():
-                if key in query.lower():
-                    for n in names:
-                        scores[n] = scores.get(n, 0) + 1
+    # ── Backward-compatible API ───────────────────────────────────────────
 
-        # Boost exact and part matches
-        for t in list(scores.keys()):
-            t_lower = t.lower()
-            if t_lower in words:
-                scores[t] += 500  # exact name matched literally
-            else:
-                for part in re.split(r"[-_.]+", t_lower):
-                    if part in words and len(part) > 2:
-                        scores[t] += 50
-                        break
+    def decompose_goal(self, goal: str, available_tools: list[str] | None = None) -> ExecutionPlan:
+        """Backward-compatible wrapper — delegates to RegistryPlanner."""
+        return self._registry.decompose_goal(goal, available_tools)
 
-        ranked = sorted(scores, key=lambda n: -scores[n])
-        return ranked
-
-    # ── LLM-driven planning ─────────────────────────────────────────────
+    def create_from_template(
+        self,
+        template_name: str,
+        target: str,
+        overrides: dict[str, Any] | None = None,
+        available_tools: set[str] | None = None,
+    ) -> ExecutionPlan:
+        """Backward-compatible wrapper — delegates to RegistryPlanner."""
+        return self._registry.create_from_template(template_name, target, overrides, available_tools)
 
     async def llm_decompose_goal(
         self,
@@ -274,209 +178,25 @@ class Planner:
         system_prompt: str | None = None,
         history: list[dict] | None = None,
     ) -> ExecutionPlan:
-        """Use an LLM to analyse the user's goal and produce a tool plan.
-
-        The LLM decides:
-        1. Whether tools are needed at all
-        2. Which tools from *available_tools* are suitable
-        3. What arguments each tool should receive
-
-        Parameters
-        ----------
-        llm_call:
-            An async callable ``(system_prompt: str, user_prompt: str, *, history: list[dict] | None = None) → str``
-            that returns the LLM's response text.
-        tool_schemas:
-            Optional list of tool dicts with ``name``, ``description``,
-            ``tags``, ``category`` to give the LLM richer context.
-        system_prompt:
-            Optional external system prompt. When provided the tools list
-            is appended; when omitted the old inline prompt is used.
-        history:
-            Optional list of ``{"role": ..., "content": ...}`` dicts from prior conversation.
-        """
-        # Build a compact tool list for the prompt
-        if tool_schemas:
-            tool_lines = []
-            for t in tool_schemas:
-                name = t.get("name", "")
-                desc = t.get("description", "")
-                tags = t.get("tags", [])
-                cat = t.get("category", "")
-                if name in available_tools:
-                    meta = f"  - {name}"
-                    if desc and desc != name:
-                        meta += f": {desc}"
-                    if tags:
-                        meta += f" [{', '.join(tags[:5])}]"
-                    if cat:
-                        meta += f" ({cat})"
-                    tool_lines.append(meta)
-        else:
-            tool_lines = [f"  - {t}" for t in available_tools]
-
-        _is_win = sys.platform == "win32"
-        _shell_cmd = "cmd /c" if _is_win else "sh -c"
-        _platform_hint = (
-            f"Running on: {_platform.system()} {_platform.release()} ({_platform.machine()})\n"
-            f"Shell: {_shell_cmd}\n"
-            + ("IMPORTANT: This is a Windows system. Use Windows-compatible commands and paths.\n"
-               "  - nmap: use -sT (TCP connect) instead of -sS (SYN scan); omit -O (OS detection)\n"
-               "  - Use forward slashes or escaped backslashes in paths\n"
-               "  - For DNS queries, use nslookup instead of dig if dig is unavailable\n"
-               "  - List available tools with 'where' instead of 'which'\n"
-               "  - Standard security tools may need to be installed via winget/choco"
-               if _is_win else
-               "Running on a Unix-like system (Linux/macOS). Standard Unix commands apply.\n"
-               "  - nmap -sS (SYN scan) requires root\n")
-        )
-        if system_prompt:
-            full_prompt = (
-                system_prompt
-                + f"\n\nCommands you construct will execute via `{_shell_cmd}` — use proper quoting, pipes, and flags. You have full access to every binary on the system.\n\n{_platform_hint}"
-            )
-        else:
-            full_prompt = """You are a senior red-team operator and penetration testing specialist.
-
-You have full access to every binary on this system. Construct exact shell commands.
-
-Respond with ONLY valid JSON:
-{{
-  "needs_tools": true or false,
-  "reasoning": "Strategic rationale",
-  "steps": [
-    {{
-      "tool": "",
-      "command": "exact shell command with all flags and arguments",
-      "description": "What this does"
-    }}
-  ]
-}}
-
-- needs_tools=true for security operations, false for chat/explanation
-- Always use the "command" field for raw shell execution
-
-""" + _platform_hint
-
-        user_prompt = goal
-
-        openai_tools = [{
-            "type": "function",
-            "function": {
-                "name": "execute_plan",
-                "description": "Execute shell commands or system operations. Use this tool when needs_tools is true.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "needs_tools": {"type": "boolean"},
-                        "reasoning": {"type": "string"},
-                        "steps": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "tool": {"type": "string"},
-                                    "command": {"type": "string"},
-                                    "description": {"type": "string"}
-                                },
-                                "required": ["tool", "command", "description"]
-                            }
-                        }
-                    },
-                    "required": ["needs_tools", "reasoning", "steps"]
-                }
-            }
-        }]
-
-        try:
-            raw = await llm_call(full_prompt, user_prompt, history=history, tools=openai_tools)
-
-            tool_calls = raw.get("tool_calls") if isinstance(raw, dict) else None
-            if tool_calls and len(tool_calls) > 0:
-                func_args = tool_calls[0].function.arguments
-                if isinstance(func_args, str):
-                    try:
-                        data = json.loads(func_args)
-                        response = "" # handled via data
-                    except json.JSONDecodeError:
-                        data = None
-                        response = func_args
-                else:
-                    data = func_args
-                    response = ""
-            else:
-                response = raw.get("content", "") if isinstance(raw, dict) else str(raw)
-                data = None
-        except Exception as exc:
-            raise RuntimeError(f"LLM planning call failed: {exc}") from exc
-
-        # Parse JSON response if native tool calls weren't used
-        if data is None:
-            cleaned = response.strip()
-            # Remove ```json … ``` fences (handles leading whitespace and optional language tag)
-            cleaned = re.sub(r'^[\s]*```(?:json)?\s*\n?', '', cleaned)
-            cleaned = re.sub(r'\n?\s*```\s*$', '', cleaned)
-            cleaned = cleaned.strip()
-            try:
-                data = json.loads(cleaned)
-            except json.JSONDecodeError:
-                # Model returned conversational text instead of structured JSON.
-                # Treat it as a chat response with no tools needed.
-                return self.create_plan(
-                    goal=goal,
-                    context={
-                        "response": cleaned,
-                        "reasoning": "Model returned conversational response "
-                        "(could not parse as structured plan). Handled as chat.",
-                        "llm_planned": True,
-                    },
-                )
-
-        if not isinstance(data, dict):
-            return self.create_plan(
-                goal=goal,
-                context={"response": str(data) if data else "", "llm_planned": True},
-            )
-
-        if not data.get("needs_tools"):
-            return self.create_plan(
-                goal=goal,
-                context={"reasoning": data.get("reasoning", ""), "response": data.get("response", ""), "llm_planned": True},
-            )
-
-        steps_raw = data.get("steps", [])
-        steps: list[dict[str, Any]] = []
-        for i, s in enumerate(steps_raw):
-            if not isinstance(s, dict):
-                steps.append({
-                    "description": str(s) if s else f"LLM step {i+1}",
-                    "tool": "",
-                    "command": str(s) if s else None,
-                    "args": {},
-                })
-                continue
-            step_def: dict[str, Any] = {
-                "description": s.get("description", f"LLM step {i+1}"),
-                "tool": s.get("tool", ""),
-                "command": s.get("command"),
-                "args": s.get("args", {}),
-            }
-            steps.append(step_def)
-
-        if not steps:
-            # LLM said needs_tools but gave no steps — treat as chat
-            return self.create_plan(
-                goal=goal,
-                context={"reasoning": data.get("reasoning", ""), "response": data.get("response", ""), "llm_planned": True},
-            )
-
-        return self.create_plan(
-            goal=goal,
-            steps=steps,
-            context={"reasoning": data.get("reasoning", ""), "response": data.get("response", ""), "llm_planned": True},
+        """Backward-compatible wrapper — delegates to AutonomousPlanner."""
+        return await self._autonomous.plan(
+            goal,
+            system_prompt=system_prompt,
+            llm_call=llm_call,
+            tool_schemas=tool_schemas,
+            available_tools=available_tools,
+            history=history,
         )
 
-    # ── Existing API ──
+    def resolve_alternatives(
+        self, template_name: str, available_tools: set[str]
+    ) -> list[dict[str, Any]]:
+        """Backward-compatible wrapper — delegates to RegistryPlanner."""
+        return self._registry.resolve_alternatives(template_name, available_tools)
+
+    def build_index(self, available_tools: list[str], tool_registry: Any = None) -> None:
+        """Backward-compatible wrapper — delegates to RegistryPlanner."""
+        self._registry.build_index(available_tools, tool_registry)
 
     def create_plan(
         self,
@@ -485,339 +205,32 @@ Respond with ONLY valid JSON:
         steps: list[dict[str, Any]] | None = None,
         context: dict[str, Any] | None = None,
     ) -> ExecutionPlan:
-        plan_steps = []
-        if steps:
-            for i, step_def in enumerate(steps):
-                plan_steps.append(
-                    PlanStep(
-                        id=step_def.get("id", f"step_{i:03d}"),
-                        description=step_def.get("description", f"Step {i+1}"),
-                        tool=step_def.get("tool", ""),
-                        args=step_def.get("args", {}),
-                        command=step_def.get("command"),
-                        dependencies=step_def.get("dependencies", []),
-                        timeout=step_def.get("timeout", 300.0),
-                    )
-                )
-        plan = ExecutionPlan(
-            goal=goal,
-            plan_type=plan_type,
-            steps=plan_steps,
-            context=context or {},
-            status=PlanStatus.ACTIVE,
-        )
+        plan = self._registry.create_plan(goal, plan_type, steps, context)
         self._plans[plan.id] = plan
-        emit_sync(
-            Event(
-                type=EventType.PLAN_CREATED,
-                source="planner",
-                data={"plan_id": plan.id, "goal": goal, "steps": len(plan_steps)},
-            )
-        )
         return plan
-
-    def create_from_template(
-        self,
-        template_name: str,
-        target: str,
-        overrides: dict[str, Any] | None = None,
-        available_tools: set[str] | None = None,
-    ) -> ExecutionPlan:
-        template = self._templates.get(template_name)
-        if not template:
-            raise ValueError(f"Unknown template: {template_name}")
-        if available_tools:
-            template = self.resolve_alternatives(template_name, available_tools)
-        url_match = re.search(r"https?://[^\s]+", target)
-        host_match = re.search(r"\b(?:[\w-]+\.)+[a-z]{2,}\b", target.lower())
-        clean_target = (
-            url_match.group(0) if url_match else (host_match.group(0) if host_match else target)
-        )
-        steps = []
-        for step_def in template:
-            step = {**step_def, "args": {**step_def.get("args", {}), "target": clean_target}}
-            if overrides:
-                step["args"].update(overrides.get("args", {}))
-            steps.append(step)
-        plan_type = (
-            PlanType.DAG if template_name in self._auto_dag_templates else PlanType.SEQUENTIAL
-        )
-        return self.create_plan(
-            goal=f"{template_name} on {clean_target}",
-            steps=steps,
-            context={"target": clean_target, "template": template_name},
-            plan_type=plan_type,
-        )
-
-    def decompose_goal(self, goal: str, available_tools: list[str] | None = None) -> ExecutionPlan:
-        goal_lower = goal.lower()
-        avail_set = set(available_tools or [])
-
-        # ── Step 1: Match against named workflow templates ──────────────
-        kw_map = [
-            (("brute", "crack", "password", "credential"), "brute_force"),
-            (("wifi", "wireless", "wpa"), "wifi_audit"),
-            (("ad ", "active directory", "domain controller", "kerberos", "ldap", "smb"), "ad_assessment"),
-            (("cloud", "aws", "s3 ", "azure", "gcp"), "cloud_audit"),
-            (("privesc", "privilege escalation", "root", "suid", "linux audit"), "linux_privesc"),
-            (("network scan", "infrastructure", "port scan", "full scan", "open ports"), "network_scan"),
-            (("web", "website", "webapp", "web app", "cms"), "web_audit"),
-            (("subdomain", "subdomain", "dns enum", "dnsrecon"), "recon_full"),
-            (("vuln", "cve", "vulnerability", "exploit"), "vuln_scan"),
-            (("dns recon", "dns enum", "dns record", "nameserver", "mx record"), "dns_recon"),
-            (("smb", "netbios", "windows share", "cifs"), "smb_enum"),
-            (("full scan", "full audit", "comprehensive scan", "thorough check"), "full_audit"),
-        ]
-        for keywords, template_name in kw_map:
-            if any(kw in goal_lower for kw in keywords):
-                return self.create_from_template(template_name, goal, available_tools=avail_set)
-
-        # ── Step 2: Extract target ─────────────────────────────────────
-        url_match = re.search(r"https?://[^\s]+", goal)
-        host_match = re.search(r"\b(?:[\w-]+\.)+[a-z]{2,}\b", goal_lower)
-        target = ""
-        if url_match:
-            target = url_match.group(0)
-        elif host_match:
-            target = host_match.group(0)
-
-        # ── Step 3: Availability-weighted index search ──────────────────
-        tool_match = None
-        if available_tools:
-            if self._keyword_index:
-                candidates = self._search_index(goal)
-                for c in candidates:
-                    if c in avail_set:
-                        pattern = r"(?<!\w)" + re.escape(c.lower()) + r"(?!\w)"
-                        if re.search(pattern, goal_lower):
-                            tool_match = c
-                            break
-            if not tool_match:
-                for t in available_tools:
-                    if len(t) < 3:
-                        continue
-                    pattern = r"(?<!\w)" + re.escape(t.lower()) + r"(?!\w)"
-                    if re.search(pattern, goal_lower):
-                        tool_match = t
-                        break
-        if tool_match:
-            return self.create_plan(
-                goal=goal,
-                steps=[
-                    {
-                        "description": f"Execute {tool_match} on {target}",
-                        "tool": tool_match,
-                        "args": {
-                            "target": target,
-                            "flags": "-sT -T4 --top-ports 100" if tool_match == "nmap" else "",
-                        },
-                    }
-                ],
-            )
-
-        # ── Step 4: Intent-based tool selection (registry mode) ─────────
-        if target:
-            intent_map = {
-                # Web / HTTP
-                "headers": ("curl", "HTTP headers check", "-sIL"),
-                "http": ("curl", "HTTP headers check", "-sIL"),
-                "redirect": ("curl", "HTTP headers check", "-sIL"),
-                "tech": ("whatweb", "Technology fingerprinting", ""),
-                "framework": ("whatweb", "Technology fingerprinting", ""),
-                "wp": ("wpscan", "WordPress vulnerability scan", ""),
-                "wordpress": ("wpscan", "WordPress vulnerability scan", ""),
-                "cms": ("whatweb", "CMS fingerprinting", ""),
-                "vuln": ("nuclei", "Vulnerability scan", "-t http"),
-                "cve": ("nuclei", "CVE scan", "-t http/cves"),
-                "fuzz": ("ffuf", "Directory fuzzing", f"-w {_COMMON_WORDLIST}"),
-                "directories": ("gobuster", "Directory enumeration", f"dir -w {_COMMON_WORDLIST}"),
-                "dirbust": ("gobuster", "Directory enumeration", f"dir -w {_COMMON_WORDLIST}"),
-                "endpoint": ("gobuster", "Endpoint enumeration", f"dir -w {_COMMON_WORDLIST}"),
-                "sqli": ("sqlmap", "SQL injection scan", "--batch --random-agent"),
-                "sql": ("sqlmap", "SQL injection scan", "--batch --random-agent"),
-                "xss": ("nuclei", "XSS scan", "-t http/xss"),
-                # DNS / Network
-                "dns": ("dig", "DNS enumeration", ""),
-                "nameserver": ("dig", "DNS enumeration", ""),
-                "resolve": ("dig", "DNS enumeration", ""),
-                "subdomain": ("subfinder", "Subdomain enumeration", ""),
-                "sub": ("subfinder", "Subdomain enumeration", ""),
-                "whois": ("whois", "WHOIS lookup", ""),
-                # Port / Service
-                "port": ("nmap", "Port scan", "-sT -T4 --top-ports 100"),
-                "open port": ("nmap", "Port scan", "-sT -T4 --top-ports 100"),
-                "service": ("nmap", "Port scan", "-sT -T4 --top-ports 100"),
-                "masscan": ("masscan", "Mass port scan", "--rate 1000 --top-ports 100"),
-                # Recon / Discovery
-                "recon": ("nmap", "Recon scan", "-sT -sV -T4 --top-ports 1000"),
-                "scan": ("nmap", "Quick scan", "-sT -T4 --top-ports 100"),
-                "explore": ("nmap", "Full scan", "-sT -sV -T4 --top-ports 1000"),
-                "stealth": ("nmap", "Stealth scan", "-sT -T2 --top-ports 100" if os.name == "nt" else "-sS -T2 --top-ports 100"),
-                # Vulnerability / Exploit
-                "ssl": ("nmap", "SSL/TLS check", "--script ssl-enum-ciphers -p 443"),
-                "tls": ("nmap", "SSL/TLS check", "--script ssl-enum-ciphers -p 443"),
-                "smb": ("nmap", "SMB enumeration", "--script smb-enum-shares,smb-os-discovery -p 445"),
-                "brute": ("hydra", "Brute force attack", f"-L {_USERNAME_WORDLIST} -P {_PASSWORD_WORDLIST}"),
-                "crack": ("hashcat", "Hash cracking", ""),
-            }
-            matched_keyword = None
-            for keyword in sorted(intent_map, key=len, reverse=True):
-                if keyword in goal_lower:
-                    matched_keyword = keyword
-                    break
-
-            if matched_keyword:
-                tool, desc, flags = intent_map[matched_keyword]
-                actual_tool = tool
-                if tool not in avail_set and tool in TOOL_ALTERNATIVES:
-                    for alt in TOOL_ALTERNATIVES[tool]:
-                        if alt in avail_set:
-                            actual_tool = alt
-                            break
-                if actual_tool in avail_set or not avail_set:
-                    clean_target = target.replace("https://", "").replace("http://", "").split("/")[0]
-                    return self.create_plan(
-                        goal=goal,
-                        steps=[{
-                            "description": desc + (f" (via {actual_tool})" if actual_tool != tool else ""),
-                            "tool": actual_tool,
-                            "args": {"target": clean_target, "flags": flags},
-                        }],
-                    )
-
-            # ── Step 5: Category-aware probe fallback ───────────────────
-            probe_groups = [
-                # Web layer probes
-                [("curl", "HTTP headers check", "-sIL"),
-                 ("whatweb", "Technology fingerprinting", ""),
-                 ("nuclei", "Quick vulnerability scan", "-t http -severity low,medium,high,critical"),
-                 ("gobuster", "Directory enumeration", f"dir -w {_COMMON_WORDLIST}")],
-                # DNS / network probes
-                [("dig", "DNS enumeration", ""),
-                 ("subfinder", "Subdomain enumeration", ""),
-                 ("whois", "WHOIS lookup", "")],
-                # Port scan
-                [("nmap", "Port scan", "-sT -T4 --top-ports 100"),
-                 ("masscan", "Mass port scan", "--rate 1000 --top-ports 100")],
-            ]
-            probe_steps = []
-            last_step_id = None
-            for group in probe_groups:
-                for tool, desc, flags in group:
-                    actual_tool = tool
-                    if tool not in avail_set and tool in TOOL_ALTERNATIVES:
-                        for alt in TOOL_ALTERNATIVES[tool]:
-                            if alt in avail_set:
-                                actual_tool = alt
-                                break
-                    if actual_tool in avail_set or not avail_set:
-                        clean_target = target.replace("https://", "").replace("http://", "").split("/")[0]
-                        step_id = f"probe_{actual_tool}"
-                        probe_steps.append({
-                            "id": step_id,
-                            "description": desc + (f" (via {actual_tool})" if actual_tool != tool else ""),
-                            "tool": actual_tool,
-                            "args": {"target": clean_target, "flags": flags},
-                            "dependencies": [last_step_id] if last_step_id else [],
-                        })
-                        last_step_id = step_id
-                        break  # one tool per group
-            if probe_steps:
-                plan_type = PlanType.DAG if len(probe_steps) > 2 else PlanType.SEQUENTIAL
-                return self.create_plan(goal=goal, steps=probe_steps, plan_type=plan_type)
-            return self.create_plan(goal=goal)
-        # Check if the query sounds like a security/recon goal (no target given)
-        goal_keywords = {
-            "scan",
-            "recon",
-            "audit",
-            "check",
-            "enum",
-            "analyze",
-            "analyse",
-            "explore",
-            "map",
-            "discover",
-            "probe",
-            "test",
-            "hack",
-            "pentest",
-        }
-        if any(kw in goal_lower.split() for kw in goal_keywords):
-            return self.create_plan(
-                goal=goal,
-                steps=[
-                    {"description": "Technology fingerprinting", "tool": "whatweb", "args": {}},
-                    {
-                        "description": "Port scan",
-                        "tool": "nmap",
-                        "args": {"flags": "-sT -T4 --top-ports 100"},
-                    },
-                ],
-            )
-        return self.create_plan(goal=goal)
 
     def adapt_plan(self, plan: ExecutionPlan, failed_step: PlanStep, error: str) -> ExecutionPlan:
-        error_lower = error.lower()
-        RECOVERY_RULES: list[tuple[str | None, str, Callable]] = [
-            ("nmap", "filtered", lambda s: s.args.update({"flags": s.args.get("flags","") + " -Pn"})),
-            ("nmap", "permission", lambda s: s.args.update({"flags": s.args.get("flags","").replace("-sS","-sT")})),
-            (None, "timeout", lambda s: s.args.update({"timeout": s.timeout * 1.5})),
-            ("gobuster|ffuf", "404", lambda s: s.args.update({"extensions": "php,html,js,txt,asp,aspx"})),
-            ("hydra", "invalid user", lambda s: s.args.update({"flags": "-e nsr"})),
-            ("sqlmap", "not injectable", lambda s: s.args.update({"flags": "--level=3 --risk=2"})),
-        ]
-
-        for tool_pat, err_pat, recovery_fn in RECOVERY_RULES:
-            tool_match = tool_pat is None or re.search(tool_pat, failed_step.tool)
-            if tool_match and err_pat in error_lower:
-                if failed_step.can_retry:
-                    recovery_fn(failed_step)
-                    failed_step.status = StepStatus.PENDING
-                    failed_step.retry_count += 1
-                    return plan
-
-        # Connection refused: skip failed step and add nuclei replacement
-        if "refused" in error_lower:
-            failed_step.status = StepStatus.SKIPPED
-            plan.steps.append(PlanStep(
-                tool="nuclei",
-                args={"target": failed_step.args.get("target", "")},
-            ))
-            return plan
-
-        if failed_step.can_retry:
-            failed_step.status = StepStatus.PENDING
-            failed_step.retry_count += 1
-        else:
-            failed_step.status = StepStatus.FAILED
-        return plan
+        return self._registry.adapt_plan(plan, failed_step, error)
 
     def get_plan(self, plan_id: str) -> ExecutionPlan | None:
-        return self._plans.get(plan_id)
+        return self._registry.get_plan(plan_id) or self._autonomous.get_plan(plan_id) or self._plans.get(plan_id)
 
     def list_plans(self, status: PlanStatus | None = None) -> list[ExecutionPlan]:
-        plans = list(self._plans.values())
-        if status:
-            plans = [p for p in plans if p.status == status]
-        return sorted(plans, key=lambda p: -p.created_at)
+        registry_plans = self._registry.list_plans(status)
+        auto_plans = self._autonomous.list_plans(status)
+        seen = {p.id for p in registry_plans}
+        return registry_plans + [p for p in auto_plans if p.id not in seen]
 
     def stats(self) -> dict[str, Any]:
-        plans = list(self._plans.values())
+        registry_stats = self._registry.stats()
+        auto_stats = self._autonomous.stats()
+        total = registry_stats.get("total_plans", 0) + auto_stats.get("total_plans", 0)
         return {
-            "total_plans": len(plans),
-            "active": len([p for p in plans if p.status == PlanStatus.ACTIVE]),
-            "completed": len([p for p in plans if p.status == PlanStatus.COMPLETED]),
-            "templates": list(self._templates.keys()),
+            "total_plans": total,
+            "active": registry_stats.get("active", 0) + auto_stats.get("active", 0),
+            "completed": registry_stats.get("completed", 0) + auto_stats.get("completed", 0),
+            "templates": registry_stats.get("templates", []),
+            "router": {"mode": "multi", "sub_planners": ["autonomous", "registry"]},
+            "registry": registry_stats,
+            "autonomous": auto_stats,
         }
-
-__all__ = [
-    "ExecutionPlan",
-    "PlanStatus",
-    "PlanStep",
-    "PlanType",
-    "Planner",
-    "StepResult",
-    "StepStatus",
-    "StepType",
-]

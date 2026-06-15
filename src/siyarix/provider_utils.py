@@ -99,7 +99,8 @@ def _is_safe_url(url: str) -> bool:
             return bool(addr.is_private or addr.is_loopback)
         except ValueError:
             return False
-    except Exception:
+    except Exception as exc:
+        logger.debug("URL safety check failed for %s: %s", url, exc)
         return False
 
 
@@ -239,7 +240,8 @@ def _enrich_ollama_model(
         return None, None, None
     try:
         info = resp.json()
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to parse Ollama model info for %s: %s", model_name, exc)
         return None, None, None
 
     ctx: int | None = None

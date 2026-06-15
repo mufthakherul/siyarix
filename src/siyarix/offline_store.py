@@ -201,6 +201,7 @@ class OfflineStore:
         """
         from .parsers import ParserRegistry
         registry = ParserRegistry()
+        registry.discover()
         findings = registry.parse(tool, raw_output)
         if not findings:
             logger.warning("Parser for %s produced no findings from the raw output.", tool)

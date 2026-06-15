@@ -1,5 +1,6 @@
-import json, sys, os
-
+import json
+import sys
+import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 json_path = r"D:\Miraz_Work\siyarix\src\siyarix\data\cyber_tools.json"
@@ -486,7 +487,7 @@ with open(output_path, "w", encoding="utf-8", newline="\n") as f:
     json.dump(sorted_tools, f, indent=2, ensure_ascii=False)
 
 # ── REPORT ──────────────────────────────────────────────────────────────────
-print(f"=== Cleanup Complete ===")
+print("=== Cleanup Complete ===")
 print(f"Tools removed:          {len(removed)}")
 for r in removed:
     print(f"  - {r}")

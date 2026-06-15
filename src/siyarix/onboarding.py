@@ -35,7 +35,6 @@ from typing import Any
 
 from siyarix.bootstrap import INITIALIZED_MARKER, BootstrapEngine
 from siyarix.config import SettingsStore, get_config_dir
-from siyarix.providers import ProviderManager
 from siyarix.templates.wizard_text import (
     SIYARIX_LOGO as _SIYARIX_LOGO,
     WELCOME_PANEL_TEXT as _WELCOME_PANEL_TEXT,
@@ -117,6 +116,7 @@ SECURITY_MODEL_TIERS: list[dict[str, Any]] = [
 
 try:
     from rich.console import Console
+    from rich.markup import escape as rich_escape
     from rich.panel import Panel
     from rich.prompt import Prompt, Confirm
     from rich.table import Table
@@ -1043,8 +1043,10 @@ class OnboardingWizard:
                 if not result.returncode:
                     self._console.print("[green]\u2713 Downloaded via Ollama[/green]")
                     # Find the GGUF in Ollama's blob cache
+                    self._console.print("  Locating GGUF file in Ollama cache...")
                     gguf_path = self._ollama_gguf_path(model_name)
                     if gguf_path:
+                        self._console.print(f"  [dim]Found blob: {gguf_path.name}[/dim]")
                         # Validate GGUF magic bytes before copying
                         try:
                             header = gguf_path.read_bytes()[:4]
@@ -1057,9 +1059,10 @@ class OnboardingWizard:
                             else:
                                 dest = models_dir / f"{model_name.replace('/', '_').replace(':', '_')}.gguf"
                                 try:
+                                    self._console.print(f"  Copying GGUF to [cyan]{dest}[/cyan]...")
                                     shutil.copy2(gguf_path, dest)
                                     self._console.print(
-                                        f"[dim]GGUF copied to: {dest}[/dim]\n"
+                                        f"[green]\u2713 GGUF copied to: {dest}[/green]\n"
                                         f"[dim]  llama-server --model {dest} --port 18080[/dim]"
                                     )
                                     downloaded = True
@@ -1073,6 +1076,14 @@ class OnboardingWizard:
                             self._console.print(
                                 f"[yellow]Warning: couldn't read blob: {exc}[/yellow]"
                             )
+                            downloaded = True
+                    else:
+                        self._console.print(
+                            "[yellow]Could not locate GGUF blob in Ollama cache.[/yellow]\n"
+                            "  The model was downloaded but the GGUF file could not be extracted.\n"
+                            "  You can still use it by selecting [bold]Ollama[/bold] as your provider instead."
+                        )
+                        downloaded = True
                 else:
                     self._console.print(
                         f"[red]\u2717 Pull failed[/red]\n"
@@ -1359,7 +1370,7 @@ class OnboardingWizard:
             self._console.print()
 
             choice = Prompt.ask(
-                "Select persona ([a]uto / [u]niversal / [n]one / #)",
+                rich_escape("Select persona ([a]uto / [u]niversal / [n]one / #)"),
                 choices=[str(i) for i in range(1, len(personas) + 1)] + ["a", "u", "n"],
                 default="a",
             )

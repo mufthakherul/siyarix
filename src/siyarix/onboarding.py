@@ -1532,7 +1532,7 @@ class OnboardingWizard:
         self._console.print("[bold]Security[/bold]")
 
         cmd_review = Confirm.ask(
-            "  Review shell commands before execution?",
+            "  Review shell commands before execution? (recommended for beginners)",
             default=prefs["command_review"],
         )
         prefs["command_review"] = cmd_review

@@ -103,7 +103,7 @@ DEFAULTS: dict[str, Any] = {
     "default_mode": "integrated",
     "stealth_mode": False,
     "persona": "auto",
-    "command_review": True,
+    "command_review": False,
     "additional_system_message": "",
     "max_waves": 25,
     "notifications_enabled": True,
@@ -154,7 +154,7 @@ DESCRIPTIONS: dict[str, str] = {
     "agent_timeout": "Max seconds for agent execution (default: 1740 / 29 min)",
     "stealth_mode": "Enable advanced stealth and command argument evasion",
     "persona": "Active persona name (default: auto)",
-    "command_review": "Prompt before executing raw shell commands (default: true)",
+    "command_review": "Prompt before executing raw shell commands (default: false)",
     "notifications_enabled": "Enable Slack/Discord notifications for key events (default: true)",
     "history_retention_days": "Days to retain command history (0 = forever, default: 90)",
 }

@@ -1069,12 +1069,18 @@ class LLMEngineMixin:
         Local providers (ollama, lmstudio, llamacpp, vllm, localai) that don't
         need a real API key get the placeholder ``"local"`` so callers can
         distinguish ``"no key needed"`` from ``"no provider found"``.
+
+        The special ``"registry"`` provider represents offline mode and
+        returns ``(None, None)`` to signal no LLM is available.
         """
         from ..providers import ProviderManager
 
         pm = ProviderManager.get_instance()
 
         configured = self._settings.get("model_provider") or "openrouter"
+        if configured == "registry":
+            return (None, None)
+
         if configured != "auto":
             profile = pm.get_profile(configured)
             env_var = profile.api_key_env if profile else ""
@@ -1086,6 +1092,9 @@ class LLMEngineMixin:
         candidates: list[tuple[int, str, str]] = []
 
         for prov_name in pm.list_providers():
+            if prov_name == "registry":
+                continue
+
             if self._provider_state.is_disabled(prov_name):
                 continue
 

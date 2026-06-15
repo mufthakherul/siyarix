@@ -1043,6 +1043,13 @@ def run(
         result = PipelineExecutionResult(
             success=pipe_res.success, all_findings=pipe_res.all_findings
         )
+        if save and result.all_findings:
+            try:
+                from ..offline_store import OfflineStore
+                store = OfflineStore()
+                store.save_scan(instruction, result.all_findings, mode=route.mode)
+            except Exception:
+                pass
     else:
         engine = _get_engine(route.mode)
         result = asyncio.run(

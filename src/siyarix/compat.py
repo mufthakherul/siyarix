@@ -8,6 +8,7 @@ session management, intent routing, and execution engine integration.
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -17,6 +18,8 @@ from uuid import uuid4
 
 from siyarix.config import get_config_dir
 from .registry import RiskLevel
+
+logger = logging.getLogger(__name__)
 
 
 class ExecutionMode(StrEnum):
@@ -201,7 +204,9 @@ class ExecutionEngine:
         agent_goal = AgentGoal(description=goal)
         result = await agent.execute_goal(agent_goal)
         step_results = []
+        plan_id = ""
         if result.plan:
+            plan_id = result.plan.id
             for i, step in enumerate(result.plan.steps):
                 sr = StepResult(
                     step_id=str(i + 1),
@@ -210,11 +215,33 @@ class ExecutionEngine:
                     error=step.result.get("error", "") if step.result else "",
                 )
                 step_results.append(sr)
+
+        persist = kwargs.get("persist", False)
+        if persist and result.findings:
+            try:
+                from .offline_store import OfflineStore
+
+                store = OfflineStore()
+                store.save_scan(goal, result.findings, mode=self._mode.value if hasattr(self._mode, "value") else str(self._mode), plan_id=plan_id)
+                if result.plan:
+                    step_dicts = [
+                        {
+                            "tool": s.tool,
+                            "status": s.status.value if hasattr(s.status, "value") else str(s.status),
+                            "description": s.description,
+                        }
+                        for s in result.plan.steps
+                    ]
+                    store.save_plan(plan_id, result.plan.goal or goal, step_dicts)
+            except Exception:
+                logger.exception("Failed to persist execution results")
+
         return EngineResult(
             success=result.success,
             summary=result.summary,
             all_findings=result.findings,
             step_results=step_results,
+            plan_id=plan_id,
         )
 
     async def run(self, goal: str, **kwargs: Any) -> EngineResult:

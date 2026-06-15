@@ -162,7 +162,7 @@ The full documentation lives in [`docs/`](docs/DOCS_MAP.md).
 | `user/` | CLI reference, security workflows, AI workflows, reporting, cloud/IaC/mobile/IoT scanning, compliance, playbooks, threat intel, deception, importing |
 | `developer/` | Codebase overview, contribution guide, module architecture, testing, building |
 | `architecture/` | System overview, AI agent pipeline, provider abstraction, execution engine, memory/state, security model, experience intelligence, interaction modes, intent routing |
-| `ai/` | Multi-provider routing, prompt architecture, agent reasoning, tool execution, safety/hallucination handling, multi-model ensemble, MCP integration |
+| `ai/` | Multi-provider routing, prompt architecture, agent reasoning, tool execution, safety/hallucination handling, multi-model ensemble |
 | `security/` | Ethical hacking policy, abuse prevention, threat model, vulnerability reporting, OPSEC, HSM integration |
 | `legal/` | AGPL-3.0 license guide, NOTICE explanation, disclaimer, trademark policy, responsible AI usage |
 

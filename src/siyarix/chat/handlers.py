@@ -17,13 +17,8 @@ from rich.table import Table
 
 from ..branding import available_themes, print_theme_preview
 from .commands import CommandProfile, CommandProfileStore, HELP_CATEGORIES, SLASH_HELP
-from .session import ChatMessage as ChatMessage, ChatSession as ChatSession
-from .ui import (
-    SmartAutocomplete as SmartAutocomplete,
-    CommandPalette as CommandPalette,
-    SplitPane as SplitPane,
-    ConfigPanel as ConfigPanel,
-)
+from .session import ChatMessage, ChatSession
+from .ui import SmartAutocomplete, CommandPalette, SplitPane, ConfigPanel
 from ..subprocess_utils import safe_run_sync
 from .platform_utils import provider_env_var, CROSS_PLATFORM_COMMANDS, normalize_shell, list_supported_shells, get_security_commands, get_shell_platform
 from .console import console
@@ -52,6 +47,7 @@ class CommandHandlersMixin:
         _make_llm_call: Any
         _usage_tracker: UsageTracker
         _engine_kill_switch: Any
+        _tool_cache: list[Any] | None
     async def _handle_slash(self, cmd: str) -> None:
         """Dispatch slash commands."""
         parts = cmd.split(maxsplit=1)
@@ -205,7 +201,7 @@ class CommandHandlersMixin:
     async def _cmd_palette(self, _: str) -> None:
         """Open the fuzzy command palette overlay."""
         palette = CommandPalette(self._session.session_id)
-        cmd = palette.show(console)
+        cmd = await palette.show_async(console)
         if cmd:
             console.print(f"[green]Selected command from palette:[/green] {cmd}")
             run = Prompt.ask("Run this command now? (y/N)", default="y")
@@ -469,16 +465,23 @@ class CommandHandlersMixin:
 
     def _cmd_history(self, args: str) -> None:
         limit = 20
+        search_filter = ""
         if args:
+            parts = args.split()
             try:
-                limit = max(1, min(int(args), 200))
+                limit = max(1, min(int(parts[0]), 200))
+                if len(parts) > 1:
+                    search_filter = " ".join(parts[1:])
             except ValueError:
-                console.print("[yellow]Usage: /history [n][/yellow]")
-                return
+                search_filter = args
 
         msgs = self._session.last_n(limit)
+        if search_filter:
+            msgs = [m for m in msgs if search_filter.lower() in m.content.lower()]
+
         if not msgs:
-            console.print("[dim]No conversation history yet.[/dim]")
+            label = f" matching '{search_filter}'" if search_filter else ""
+            console.print(f"[dim]No conversation history{label} yet.[/dim]")
             return
         console.print(Rule(f"[bold]Conversation History (last {len(msgs)})[/bold]"))
         for msg in msgs:
@@ -486,7 +489,7 @@ class CommandHandlersMixin:
             ts = msg.timestamp.strftime("%H:%M:%S")
             label = "You" if msg.role == "user" else "Siyarix"
             console.print(
-                f"[dim]{ts}[/dim] [{role_color}]{label}:[/{role_color}] {msg.content[:120]}"
+                f"[dim]{ts}[/dim] [{role_color}]{label}:[/{role_color}] {msg.content[:200]}"
             )
 
 
@@ -496,7 +499,10 @@ class CommandHandlersMixin:
             from ..tool_models import ToolCategory
 
             reg = ToolRegistry()
-            reg.scan_path()
+            if not hasattr(self, '_tool_cache') or self._tool_cache is None:
+                reg.scan_path()
+                self._tool_cache = reg.list_tools()
+            tools = self._tool_cache
 
             category_filter = None
             if arg.strip():
@@ -506,8 +512,8 @@ class CommandHandlersMixin:
                     valid = ", ".join(c.value for c in ToolCategory)
                     console.print(f"[yellow]Invalid category. Valid: {valid}[/yellow]")
                     return
+                tools = [t for t in tools if t.category == category_filter]
 
-            tools = reg.list_tools(category=category_filter)
             if not tools:
                 label = f" ({category_filter.value})" if category_filter else ""
                 console.print(f"[yellow]No tools found{label}.[/yellow]")
@@ -590,12 +596,20 @@ class CommandHandlersMixin:
             "user_messages": len([m for m in self._session.messages if m.role == "user"]),
             "assistant_messages": len([m for m in self._session.messages if m.role == "assistant"]),
         }
+        findings = self._session.context.get("findings", [])
+        uptime_delta = datetime.now(timezone.utc) - self._session.created_at
+        hours, rem = divmod(int(uptime_delta.total_seconds()), 3600)
+        minutes, secs = divmod(rem, 60)
+        config_provider = self._settings.get("model_provider") or "auto"
+        persona = self._settings.get("persona") or "auto"
         console.print(
             Panel.fit(
                 f"[bold]Mode:[/bold] {self._mode}\n"
+                f"[bold]Provider:[/bold] {config_provider} | [bold]Persona:[/bold] {persona}\n"
                 f"[bold]Target:[/bold] {self._session.target or '[dim]not set[/dim]'}\n"
-                f"[bold]Session:[/bold] {self._session.session_id}\n"
+                f"[bold]Session:[/bold] {self._session.session_id[:8]} | [bold]Uptime:[/bold] {hours:02d}:{minutes:02d}:{secs:02d}\n"
                 f"[bold]Messages:[/bold] {counts['messages']} (you: {counts['user_messages']}, agent: {counts['assistant_messages']})\n"
+                f"[bold]Findings:[/bold] {len(findings)}\n"
                 f"[bold]Shell:[/bold] {self._platform_ctx.get('shell_platform', 'unknown')}\n"
                 f"[bold]Intents:[/bold] {self._platform_ctx.get('available_tools_count', 0)}",
                 title="Chat Status",
@@ -762,20 +776,27 @@ class CommandHandlersMixin:
 
     def _cmd_translate(self, args: str) -> None:
         if not args:
+            intents = list(CROSS_PLATFORM_COMMANDS.keys())
             console.print("[yellow]Usage: /translate <intent>[/yellow]")
-            console.print(
-                f"Available intents: {', '.join(list(CROSS_PLATFORM_COMMANDS.keys())[:10])}..."
-            )
+            table = Table(title=f"Available Intents ({len(intents)})", header_style="bold cyan")
+            table.add_column("Intent", style="cyan")
+            table.add_column("Example Command", style="green")
+            for intent in sorted(intents):
+                cmd = next(iter(CROSS_PLATFORM_COMMANDS[intent].values()), "")
+                table.add_row(intent, cmd)
+            console.print(table)
             return
         entry = CROSS_PLATFORM_COMMANDS.get(args)
         if not entry:
-            console.print(f"[red]Unknown intent: {args}[/red]")
+            close = [k for k in CROSS_PLATFORM_COMMANDS if args in k or k in args][:3]
+            hint = f" Did you mean: {', '.join(close)}?" if close else ""
+            console.print(f"[red]Unknown intent: {args}[/red]{hint}")
             return
         table = Table(title=f"Command: {args}", header_style="bold cyan")
         table.add_column("Shell", style="cyan")
         table.add_column("Command", style="green")
         for shell, cmd in entry.items():
-            table.add_row(shell, cmd)
+            table.add_row(shell.replace("bash", "Linux/macOS").replace("powershell", "PowerShell").replace("cmd", "CMD"), cmd)
         console.print(table)
 
 
@@ -998,12 +1019,24 @@ class CommandHandlersMixin:
 
 
     async def _cmd_config(self, args: str) -> None:
-        """Open the interactive configuration panel."""
+        """View or modify configuration settings."""
+        from ..config import DESCRIPTIONS
+
         sub = args.strip() if args else ""
         if not sub or sub == "show":
-            ConfigPanel().run()
+            rows = self._settings.list_all()
+            table = Table(title="Configuration Settings", header_style="bold cyan")
+            table.add_column("Key", style="cyan", no_wrap=True)
+            table.add_column("Value", style="white")
+            table.add_column("Default", style="dim")
+            table.add_column("Description", style="green")
+            for r in rows:
+                val_style = "yellow" if r["modified"] else "white"
+                table.add_row(r["key"], f"[{val_style}]{r['value']}[/{val_style}]", r["default"], r["description"])
+            console.print(table)
+            console.print("[dim]Use /config set <key> <value> to change, /config get <key> to view[/dim]")
         elif sub == "tools":
-            ConfigPanel()._section_tools()
+            ConfigPanel._section_tools()
         elif sub.startswith("set "):
             parts = sub.split(maxsplit=2)
             if len(parts) < 3:
@@ -1026,12 +1059,20 @@ class CommandHandlersMixin:
                 console.print("[yellow]Usage: /config get <key>[/yellow]")
                 return
             val = self._settings.get(key)
+            desc = DESCRIPTIONS.get(key, "")
             if val is not None:
                 console.print(f"[cyan]{key}[/cyan] = {val}")
+                if desc:
+                    console.print(f"[dim]{desc}[/dim]")
             else:
                 console.print(f"[yellow]{key} is not set[/yellow]")
+        elif sub.startswith("list"):
+            valid_keys = sorted(DESCRIPTIONS.keys())
+            console.print("[bold]Available settings keys:[/bold]")
+            for k in valid_keys:
+                console.print(f"  [cyan]{k}[/cyan]: [dim]{DESCRIPTIONS[k]}[/dim]")
         else:
-            ConfigPanel().run()
+            console.print("[yellow]Usage: /config [show|set|get|list|tools][/yellow]")
 
 
 
@@ -1363,17 +1404,7 @@ class CommandHandlersMixin:
                 continue
             console.print(f"\n[cyan][{i}/{len(lines)}] $ {line}[/cyan]")
             await self._execute_instruction(line)
-
         console.print(f"[green]✓ Batch complete: {batch_file.name}[/green]")
-
-
-
-
-
-
-
-
-
 
     async def _cmd_opsec(self, args: str) -> None:
         """Handle /opsec command for operational security."""
@@ -1477,9 +1508,6 @@ class CommandHandlersMixin:
             count = cache_manager.invalidate(domain)
             console.print(f"[green]{count} entries invalidated[/green]")
 
-
-
-
     async def _cmd_campaign(self, args: str) -> None:
         """Handle /campaign command for multi-target campaigns."""
         tokens = args.split() if args else []
@@ -1558,9 +1586,6 @@ class CommandHandlersMixin:
             console.print("[dim]No pending retests.[/dim]")
         else:
             console.print("[yellow]Usage: /retest schedule|status[/yellow]")
-
-
-
 
     async def _cmd_stealth(self, args: str) -> None:
         """Handle /stealth command for evasion configuration."""

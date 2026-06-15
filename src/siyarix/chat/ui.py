@@ -6,12 +6,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.completion import Completer, Completion, PathCompleter
 
 from ..output import output as _output_engine
-
-
-from prompt_toolkit.completion import Completer, Completion, PathCompleter
 
 class SmartAutocomplete(Completer):
     """Context-aware autocomplete for the chat REPL."""
@@ -64,7 +61,7 @@ class CommandPalette:
     def __init__(self, session_id: str) -> None:
         self._session_id = session_id
 
-    def show(self, console: Any) -> str | None:
+    async def show_async(self, console: Any) -> str | None:
         from prompt_toolkit.shortcuts import radiolist_dialog
         from .commands import HELP_CATEGORIES
 
@@ -76,11 +73,11 @@ class CommandPalette:
         if not all_cmds:
             return None
 
-        result = radiolist_dialog(
+        result = await radiolist_dialog(
             title="Command Palette",
             text="Select a command to execute:",
             values=all_cmds,
-        ).run()
+        ).run_async()
 
         return result
 

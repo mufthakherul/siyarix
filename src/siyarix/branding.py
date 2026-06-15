@@ -266,7 +266,7 @@ def print_banner(
 
 def _sample_command(theme: str) -> str:
     if resolve_theme(theme) == "eclipse":
-        return "siyarix scan 10.0.0.5 --mode registry"
+        return "siyarix scan 10.0.0.5 --mode offline"
     return "siyarix scan 10.0.0.5 --mode integrated"
 
 

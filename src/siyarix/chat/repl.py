@@ -233,6 +233,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         # Gather status information
         target_str = f" ({self._session.target})" if self._session.target else ""
         mode_color = {
+            "offline": "ansiyellow",
             "registry": "ansiyellow",
             "autonomous": "ansimagenta",
             "integrated": "ansicyan",
@@ -517,10 +518,10 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             icon == "✓" and label == "configured" for icon, label in provider_status.values()
         )
         mode_display = self._mode.capitalize()
+        if self._mode in ("offline", "registry"):
+            return "Offline (registry, no LLM)"
         if has_llm:
             return f"{mode_display} (LLM online)"
-        if self._mode == "registry":
-            return "Registry (offline)"
         if self._mode == "autonomous":
             return "Autonomous (LLM needed)"
         return f"{mode_display} (local fallback)"

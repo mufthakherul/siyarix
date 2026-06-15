@@ -744,24 +744,27 @@ class CommandHandlersMixin:
 
 
     def _cmd_mode(self, args: str) -> None:
-        valid = ("autonomous", "integrated", "registry", "offline")
+        valid = ("autonomous", "integrated", "offline")
         if not args:
             console.print(f"Current mode: [cyan]{self._mode}[/cyan] (valid: {', '.join(valid)})")
             return
+
+        # Redirect: "registry" was renamed to "offline"
+        if args == "registry":
+            console.print("[yellow]'registry' mode has been renamed to 'offline'. Switching…[/yellow]")
+            args = "offline"
+
         if args not in valid:
             console.print(f"[red]Invalid mode: {args}. Valid modes: {', '.join(valid)}[/red]")
             return
 
-        # Normalise: treat "registry" as "offline" (it's the same thing)
-        resolved = "offline" if args == "registry" else args
+        self._mode = args
+        self._session.mode = args
 
-        self._mode = resolved
-        self._session.mode = resolved
-
-        if resolved == "offline":
+        if args == "offline":
             self._settings.set("model_provider", "registry")
             console.print(
-                f"[green]✓ Mode switched to: {resolved} (provider locked to registry)[/green]"
+                f"[green]✓ Mode switched to: {args} (provider locked to registry)[/green]"
             )
         else:
             # Switching away from offline: release provider lock if it was "registry"
@@ -769,10 +772,10 @@ class CommandHandlersMixin:
             if current_provider == "registry":
                 self._settings.set("model_provider", "auto")
                 console.print(
-                    f"[green]✓ Mode switched to: {resolved} (provider reset to auto)[/green]"
+                    f"[green]✓ Mode switched to: {args} (provider reset to auto)[/green]"
                 )
             else:
-                console.print(f"[green]✓ Mode switched to: {resolved}[/green]")
+                console.print(f"[green]✓ Mode switched to: {args}[/green]")
 
 
     def _cmd_save(self, _: str) -> None:

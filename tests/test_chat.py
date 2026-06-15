@@ -255,8 +255,12 @@ class TestSiyarixChatSlashCommands:
         chat._cmd_mode("invalid")
         assert chat._mode == "integrated"
         mock_console.print.assert_any_call(
-            "[red]Invalid mode: invalid. Valid modes: autonomous, integrated, registry, offline[/red]"
+            "[red]Invalid mode: invalid. Valid modes: autonomous, integrated, offline[/red]"
         )
+
+    def test_cmd_mode_registry_redirect(self, chat: SiyarixChat, mock_console) -> None:
+        chat._cmd_mode("registry")
+        assert chat._mode == "offline"
 
     def test_cmd_mode_offline_locks_provider(self, chat: SiyarixChat, mock_console) -> None:
         chat._cmd_mode("offline")

@@ -1119,7 +1119,6 @@ def agent(
     from ..core import AgentCore, AgentMode, AgentGoal
 
     mode_map = {
-        "registry": AgentMode.REGISTRY,
         "offline": AgentMode.REGISTRY,
         "autonomous": AgentMode.AUTONOMOUS,
         "integrated": AgentMode.HYBRID,

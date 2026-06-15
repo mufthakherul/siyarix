@@ -149,7 +149,11 @@ class LLMEngineMixin:
 
         # Show plan if requested
         if show_plan and len(plan.steps) > 1:
-            self._print_plan(plan)
+            if self._mode in ("registry", "offline"):
+                from ..response import ResponseGenerator
+                ResponseGenerator().render_plan(plan.steps)
+            else:
+                self._print_plan(plan)
 
         # Multi-model ensemble voting (available providers > 1)
         try:
@@ -246,8 +250,19 @@ class LLMEngineMixin:
         except Exception as exc:
             logger.debug("Failed to persist to offline store: %s", exc)
 
-        # Print results
-        self._print_results(result, elapsed)
+        # Print results — use professional ResponseGenerator for offline mode
+        if self._mode in ("registry", "offline"):
+            from ..response import ResponseGenerator
+            ResponseGenerator().render_results(
+                success=result.success,
+                summary=result.summary,
+                findings=result.all_findings,
+                step_results=result.step_results,
+                duration_ms=result.duration_ms,
+                goal=instruction,
+            )
+        else:
+            self._print_results(result, elapsed)
 
         # Store findings in session context so split pane can render them!
         self._session.context["findings"] = result.all_findings
@@ -619,140 +634,31 @@ class LLMEngineMixin:
             else:
                 console.print(f"[cyan]→ Wave {wave + 1}:[/cyan] {', '.join(tool_labels)}")
 
-            # Execute all steps in parallel with a single live display
-            from ..subprocess_utils import get_platform_shell_cmd, safe_run_async_stream
-
-            @dataclass
-            class _CmdState:
-                label: str
-                lines: list[str] = field(default_factory=list)
-                exit_code: int | None = None
-                done: bool = False
-
-            cmd_states: list[_CmdState] = []
-            for s in plan.steps:
-                if s.command:
-                    cmd_states.append(_CmdState(label=f"$ {s.command}"))
-                elif s.tool and s.tool not in ("execute_plan", "_", ""):
-                    cmd_states.append(_CmdState(label=s.tool))
-
-            async def _exec_one(step: Any, state: _CmdState) -> tuple[Any, dict]:
-                if not step.command:
-                    result = await agent._registry.execute(step.tool, **step.args)
-                    if not isinstance(result, dict):
-                        result = {"status": "error" if isinstance(result, Exception) else "success", "output": str(result)}
-                    state.exit_code = 0 if result.get("status") == "success" else 1
-                    out = (result.get("output") or "").strip()
-                    err = (result.get("error") or "").strip()
-                    if out:
-                        state.lines.extend(out.split("\n"))
-                    if err:
-                        state.lines.extend(err.split("\n"))
-                    state.done = True
-                    return step, result
-
-                cmd_timeout = self._settings.get("agent_timeout") or 1740
-                exec_result = await safe_run_async_stream(
-                    get_platform_shell_cmd(step.command),
-                    timeout=cmd_timeout,
-                    validate=False,
-                    on_stdout=lambda line: state.lines.append(line),
-                    on_stderr=lambda line: state.lines.append(line),
-                )
-                state.exit_code = exec_result.exit_code
-                state.done = True
-                return step, {
-                    "status": "success" if not exec_result.exit_code else "error",
-                    "output": exec_result.stdout,
-                    "error": exec_result.stderr,
-                    "exit_code": exec_result.exit_code,
-                }
-
-            # Pre-review all shell commands before starting Live display
-            from ..shell_review import review_and_confirm
-
-            command_review = self._settings.get("command_review", True)
-            for s in plan.steps:
-                if not s.command:
-                    continue
-                if not command_review:
-                    break
-                reviewed = review_and_confirm(s.command, "raw", "Raw shell command from LLM plan")
-                if reviewed is None:
-                    console.print("[yellow]⚠ Command cancelled by user[/yellow]")
-                    return True
-                s.command = reviewed
-
-            exec_tasks = [_exec_one(s, st) for s, st in zip(plan.steps, cmd_states)]
-            exec_task = asyncio.ensure_future(asyncio.gather(*exec_tasks))
-
-            from rich.live import Live
+            # Execute via AutonomousExecutor with live display
             from rich.panel import Panel as RichPanel
 
-            # Suppress CPR warning on terminals that don't support it
-            _old_term = os.environ.get("TERM")
-            os.environ["TERM"] = "xterm-256color"
+            agent.executor_autonomous.command_review = self._settings.get("command_review", True)
+            plan = await agent.executor_autonomous.execute_plan(plan, live_display=True)
 
-            if cmd_states:
-                focus_idx = 0
-                done_set = False
-                wave_start = time.time()
-                with Live(console=console, refresh_per_second=10, screen=False) as live:
-                    while not done_set:
-                        await asyncio.sleep(0.1)
-                        if cmd_states[focus_idx].done:
-                            unfinished = [i for i, st in enumerate(cmd_states) if not st.done]
-                            if unfinished:
-                                focus_idx = unfinished[0]
-                            else:
-                                done_set = True
-
-                        st = cmd_states[focus_idx]
-                        elapsed = time.time() - wave_start
-                        icon = "·" if st.exit_code is None else ("✓" if not st.exit_code else "✗")
-                        border = (
-                            "cyan"
-                            if st.exit_code is None
-                            else ("green" if not st.exit_code else "red")
-                        )
-
-                        # Show last 200 lines or "Running..." with elapsed time
-                        if st.lines:
-                            panel_content = "\n".join(st.lines[-200:])
-                        elif st.exit_code is None:
-                            panel_content = f"Running... ({elapsed:.1f}s)"
-                        else:
-                            panel_content = "(no output)"
-
-                        live.update(
-                            RichPanel(
-                                panel_content,
-                                title=f"{icon} {st.label}",
-                                subtitle=f"Elapsed: {elapsed:.1f}s" if st.exit_code is None else None,
-                                border_style=border,
-                            )
-                        )
-
-            raw_results = await exec_task
-
-            # Restore original TERM
-            if _old_term is not None:
-                os.environ["TERM"] = _old_term
-            else:
-                os.environ.pop("TERM", None)
+            if plan.status.name == "CANCELLED":
+                console.print("[yellow]⚠ Command cancelled by user[/yellow]")
+                return True
 
             # Separate Live display output from summary panels
             console.print()
 
             # Show summary for this wave
-            for (step, result), st in zip(raw_results, cmd_states):
+            for s in plan.steps:
+                result = s.result or {}
                 out = (result.get("output") or "").strip()
                 err = (result.get("error") or "").strip()
-                display_lines = out.split("\n") if out else (err.split("\n") if err else st.lines)
-                icon = "✓" if not st.exit_code else "✗"
-                border = "green" if not st.exit_code else "red"
+                success = result.get("status") == "success"
+                label = f"$ {s.command}" if s.command else s.tool
+                display_lines = out.split("\n") if out else (err.split("\n") if err else ["(no output)"])
+                icon = "✓" if success else "✗"
+                border = "green" if success else "red"
                 if not display_lines:
-                    display_lines = ["(no output)"] if not st.exit_code else [f"Command failed (exit {st.exit_code})"]
+                    display_lines = ["(no output)"] if success else [f"Command failed"]
                 truncated = []
                 for line in display_lines[-200:]:
                     if len(line) > 500:
@@ -762,16 +668,17 @@ class LLMEngineMixin:
                 console.print(
                     RichPanel(
                         "\n".join(truncated),
-                        title=f"{icon} {st.label}",
+                        title=f"{icon} {label}",
                         border_style=border,
                     )
                 )
 
             # Store outputs for next wave context
-            for step, result in raw_results:
+            for s in plan.steps:
+                result = s.result or {}
                 output = (result.get("output") or "").strip()[:2000]
-                cmd_label = f"$ {step.command}" if step.command else step.tool
-                all_outputs.append(f"• {cmd_label} ({step.description}):\n{output}\n")
+                cmd_label = f"$ {s.command}" if s.command else s.tool
+                all_outputs.append(f"• {cmd_label} ({s.description}):\n{output}\n")
 
             # Ask LLM: are we done, or need another wave?
             if llm_connected and llm_call_fn:

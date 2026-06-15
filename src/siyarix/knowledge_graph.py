@@ -16,6 +16,7 @@ queries like:
 
 from __future__ import annotations
 
+import heapq
 import json
 import logging
 import uuid
@@ -289,7 +290,7 @@ class KnowledgeGraph:
         return [self._nodes[nid] for nid in ids if nid in self._nodes]
 
     def shortest_path(self, start_id: str, end_id: str) -> list[str] | None:
-        """BFS shortest path between two nodes. Returns node IDs or None."""
+        """BFS shortest path between two nodes (unweighted hops). Returns node IDs or None."""
         if start_id not in self._nodes or end_id not in self._nodes:
             return None
         if start_id == end_id:
@@ -312,6 +313,105 @@ class KnowledgeGraph:
                 queue.append(new_path)
 
         return None  # No path found
+
+    def _get_edge_weight(self, source_id: str, target_id: str) -> float:
+        """Calculate the traversal cost for an edge (BloodHound style)."""
+        edges = self.get_edges(source_id=source_id, target_id=target_id)
+        if not edges:
+            return float('inf')
+            
+        # We take the cheapest edge if multiple exist between two nodes
+        costs = []
+        for e in edges:
+            base_cost = 10.0
+            if e.edge_type == EdgeType.HAS_VULN:
+                # Target node is a vulnerability, get its severity
+                target_node = self.get_node(target_id)
+                sev = target_node.properties.get("severity", "info").lower() if target_node else "info"
+                costs.append({"critical": 1.0, "high": 3.0, "medium": 5.0, "low": 10.0}.get(sev, 10.0))
+            elif e.edge_type == EdgeType.AUTHENTICATED_BY:
+                costs.append(2.0)
+            elif e.edge_type == EdgeType.HAS_PORT or e.edge_type == EdgeType.RUNS_SERVICE:
+                costs.append(0.5)  # Structural links are cheap
+            else:
+                costs.append(base_cost)
+        return min(costs)
+
+    def easiest_attack_path(self, start_id: str, end_id: str) -> list[str] | None:
+        """Dijkstra's shortest path based on exploitability costs."""
+        if start_id not in self._nodes or end_id not in self._nodes:
+            return None
+        if start_id == end_id:
+            return [start_id]
+
+        distances = {node_id: float('inf') for node_id in self._nodes}
+        distances[start_id] = 0.0
+        
+        # Priority queue stores (cost, current_node_id, path_so_far)
+        pq: list[tuple[float, str, list[str]]] = [(0.0, start_id, [start_id])]
+        visited: set[str] = set()
+
+        while pq:
+            current_cost, current_node, path = heapq.heappop(pq)
+
+            if current_node == end_id:
+                return path
+
+            if current_node in visited:
+                continue
+            visited.add(current_node)
+
+            for neighbor_id in self._adjacency.get(current_node, []):
+                if neighbor_id in visited:
+                    continue
+                
+                edge_cost = self._get_edge_weight(current_node, neighbor_id)
+                new_cost = current_cost + edge_cost
+
+                if new_cost < distances[neighbor_id]:
+                    distances[neighbor_id] = new_cost
+                    heapq.heappush(pq, (new_cost, neighbor_id, path + [neighbor_id]))
+
+        return None
+        
+    def blast_radius(self, start_id: str, max_cost: float = 20.0) -> list[str]:
+        """Reachability analysis: all nodes reachable within a specific exploit cost."""
+        if start_id not in self._nodes:
+            return []
+            
+        distances = {start_id: 0.0}
+        pq: list[tuple[float, str]] = [(0.0, start_id)]
+        reachable = set([start_id])
+        
+        while pq:
+            current_cost, current_node = heapq.heappop(pq)
+            
+            if current_cost > max_cost:
+                continue
+                
+            for neighbor_id in self._adjacency.get(current_node, []):
+                edge_cost = self._get_edge_weight(current_node, neighbor_id)
+                new_cost = current_cost + edge_cost
+                
+                if new_cost <= max_cost:
+                    if neighbor_id not in distances or new_cost < distances[neighbor_id]:
+                        distances[neighbor_id] = new_cost
+                        reachable.add(neighbor_id)
+                        heapq.heappush(pq, (new_cost, neighbor_id))
+                        
+        return list(reachable)
+
+    def find_crown_jewel_paths(self, start_id: str) -> dict[str, list[str]]:
+        """Find easiest paths to any nodes tagged as 'crown_jewel'."""
+        crown_jewels = [n.node_id for n in self._nodes.values() if n.properties.get("crown_jewel")]
+        paths = {}
+        for cj in crown_jewels:
+            if cj != start_id:
+                path = self.easiest_attack_path(start_id, cj)
+                if path:
+                    paths[cj] = path
+        return paths
+
 
     def subgraph(self, node_type: NodeType) -> list[dict[str, Any]]:
         """Extract a subgraph containing only nodes of a given type and their edges."""

@@ -4,9 +4,12 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
+import platform as _platform
 import re
-from typing import Any
+import sys
+from typing import Any, Callable
 
 from .events import Event, EventType, emit_sync
 
@@ -36,6 +39,8 @@ _PASSWORD_WORDLIST = (
     r"C:\Tools\wordlists\passwords.txt" if _IS_WIN
     else "/usr/share/wordlists/passwords.txt"
 )
+
+logger = logging.getLogger(__name__)
 
 TOOL_ALTERNATIVES: dict[str, list[str]] = {
     "nmap": ["masscan", "rustscan", "naabu"],
@@ -218,8 +223,8 @@ class Planner:
                             for word in desc.lower().split():
                                 if len(word) > 2:
                                     self._add_to_index(word, name)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("Failed to get tool metadata for %s: %s", name, exc)
 
     def resolve_alternatives(
         self, template_name: str, available_tools: set[str]
@@ -348,8 +353,6 @@ class Planner:
         else:
             tool_lines = [f"  - {t}" for t in available_tools]
 
-        import sys
-        import platform as _platform
         _is_win = sys.platform == "win32"
         _shell_cmd = "cmd /c" if _is_win else "sh -c"
         _platform_hint = (
@@ -448,10 +451,9 @@ Respond with ONLY valid JSON:
         # Parse JSON response if native tool calls weren't used
         if data is None:
             cleaned = response.strip()
-            if cleaned.startswith("```"):
-                # Remove ```json … ``` fences
-                cleaned = cleaned.split("\n", 1)[-1]
-                cleaned = cleaned.rsplit("```", 1)[0]
+            # Remove ```json … ``` fences (handles leading whitespace and optional language tag)
+            cleaned = re.sub(r'^[\s]*```(?:json)?\s*\n?', '', cleaned)
+            cleaned = re.sub(r'\n?\s*```\s*$', '', cleaned)
             cleaned = cleaned.strip()
             try:
                 data = json.loads(cleaned)
@@ -559,8 +561,6 @@ Respond with ONLY valid JSON:
         overrides: dict[str, Any] | None = None,
         available_tools: set[str] | None = None,
     ) -> ExecutionPlan:
-        import re
-
         template = self._templates.get(template_name)
         if not template:
             raise ValueError(f"Unknown template: {template_name}")
@@ -801,7 +801,6 @@ Respond with ONLY valid JSON:
 
     def adapt_plan(self, plan: ExecutionPlan, failed_step: PlanStep, error: str) -> ExecutionPlan:
         error_lower = error.lower()
-        from typing import Callable
         RECOVERY_RULES: list[tuple[str | None, str, Callable]] = [
             ("nmap", "filtered", lambda s: s.args.update({"flags": s.args.get("flags","") + " -Pn"})),
             ("nmap", "permission", lambda s: s.args.update({"flags": s.args.get("flags","").replace("-sS","-sT")})),

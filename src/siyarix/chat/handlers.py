@@ -18,7 +18,7 @@ from rich.table import Table
 from ..branding import available_themes, print_theme_preview
 from .commands import CommandProfile, CommandProfileStore, HELP_CATEGORIES, SLASH_HELP
 from .session import ChatMessage, ChatSession
-from .ui import SmartAutocomplete, CommandPalette, SplitPane, ConfigPanel
+from .ui import SmartAutocomplete, SplitPane, ConfigPanel
 from ..subprocess_utils import safe_run_sync
 from .platform_utils import provider_env_var, CROSS_PLATFORM_COMMANDS, normalize_shell, list_supported_shells, get_security_commands, get_shell_platform
 from .console import console
@@ -77,7 +77,6 @@ class CommandHandlersMixin:
             "/search": self._cmd_search,
             "/examples": self._cmd_examples,
             "/reset": self._cmd_reset,
-            "/palette": self._cmd_palette,
             "/savecmd": self._cmd_savecmd,
             "/cmds": self._cmd_cmds,
             "/cmd": self._cmd_cmd,
@@ -196,17 +195,6 @@ class CommandHandlersMixin:
         )
         console.print(f"[bold green]✓ Report generated successfully at: {path}[/bold green]")
         console.print(f"[dim]Findings: {len(findings)} | Format: {fmt}[/dim]")
-
-
-    async def _cmd_palette(self, _: str) -> None:
-        """Open the fuzzy command palette overlay."""
-        palette = CommandPalette(self._session.session_id)
-        cmd = await palette.show_async(console)
-        if cmd:
-            console.print(f"[green]Selected command from palette:[/green] {cmd}")
-            run = Prompt.ask("Run this command now? (y/N)", default="y")
-            if run.lower().startswith("y"):
-                await self._execute_instruction(cmd)
 
 
     def _cmd_split(self, args: str) -> None:

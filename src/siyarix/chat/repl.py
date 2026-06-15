@@ -19,7 +19,7 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.key_binding import KeyBindings
 
 from .session import ChatMessage, ChatSession
-from .ui import SmartAutocomplete, CommandPalette, SplitPane, ConfigPanel
+from .ui import SmartAutocomplete, SplitPane, ConfigPanel
 from ..config import SettingsStore
 from .platform_utils import detect_shell, get_shell_platform, build_platform_context
 from .handlers import CommandHandlersMixin

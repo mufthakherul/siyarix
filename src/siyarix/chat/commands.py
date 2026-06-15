@@ -71,7 +71,7 @@ HELP_CATEGORIES = [
             "/diff <id_a> <id_b>": "Compare two sessions",
             "/reset": "Reset mode and target to defaults",
             "/examples": "Show practical prompt examples",
-            "/palette": "Open interactive command palette",
+
         },
     ),
     (

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Chat UI components — SplitPane, ConfigPanel, SmartAutocomplete, CommandPalette."""
+"""Chat UI components — SplitPane, ConfigPanel, SmartAutocomplete."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ class SmartAutocomplete(Completer):
             "/batch", "/opsec", "/siem",
             "/performance", "/cache", "/campaign",
             "/kb", "/ticket", "/retest", "/stealth",
-            "/audit", "/palette", "/savecmd", "/cmds", "/cmd",
+            "/audit", "/savecmd", "/cmds", "/cmd",
         ]
 
     def get_completions(self, document: Any, complete_event: Any) -> Any:
@@ -53,33 +53,6 @@ class SmartAutocomplete(Completer):
         elif "/" in word or "\\" in word or word.startswith("."):
             for completion in self._path_completer.get_completions(document, complete_event):
                 yield completion
-
-
-class CommandPalette:
-    """Interactive fuzzy command palette for quick command selection."""
-
-    def __init__(self, session_id: str) -> None:
-        self._session_id = session_id
-
-    async def show_async(self, console: Any) -> str | None:
-        from prompt_toolkit.shortcuts import radiolist_dialog
-        from .commands import HELP_CATEGORIES
-
-        all_cmds: list[tuple[str, str]] = []
-        for _cat, cmds in HELP_CATEGORIES:
-            for cmd, desc in cmds.items():
-                all_cmds.append((cmd, f"{cmd:<15} {desc}"))
-
-        if not all_cmds:
-            return None
-
-        result = await radiolist_dialog(
-            title="Command Palette",
-            text="Select a command to execute:",
-            values=all_cmds,
-        ).run_async()
-
-        return result
 
 
 class SplitPane:

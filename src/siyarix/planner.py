@@ -49,9 +49,13 @@ class Planner:
                         on any failure. If provider is ``"registry"``, skip LLM.
     """
 
-    def __init__(self) -> None:
-        self._autonomous = AutonomousPlanner()
-        self._registry = RegistryPlanner()
+    def __init__(
+        self,
+        autonomous_planner: AutonomousPlanner | None = None,
+        registry_planner: RegistryPlanner | None = None,
+    ) -> None:
+        self._autonomous = autonomous_planner or AutonomousPlanner()
+        self._registry = registry_planner or RegistryPlanner()
         self._plans: dict[str, ExecutionPlan] = {}
 
     @property

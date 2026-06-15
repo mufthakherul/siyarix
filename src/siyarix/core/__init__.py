@@ -91,15 +91,22 @@ class AgentCore:
     registry (tool-based) and autonomous (shell-command) execution.
     """
 
-    def __init__(self, mode: AgentMode = AgentMode.REGISTRY) -> None:
+    def __init__(
+        self,
+        mode: AgentMode = AgentMode.REGISTRY,
+        registry: ToolRegistry | None = None,
+    ) -> None:
         self._mode = mode
         self._status = AgentStatus.IDLE
-        self._registry = ToolRegistry()
-        self._planner = Planner()
+        self._registry = registry or ToolRegistry()
         self._planner_registry = RegistryPlanner()
         self._planner_autonomous = AutonomousPlanner()
+        self._planner = Planner(
+            autonomous_planner=self._planner_autonomous,
+            registry_planner=self._planner_registry,
+        )
         self._executor_registry = RegistryExecutor(self._registry)
-        self._executor_autonomous = AutonomousExecutor()
+        self._executor_autonomous = AutonomousExecutor(registry=self._registry)
         self._validator = Validator()
         self._memory = MemoryManager()
         self._context = ContextManager(memory=self._memory)
@@ -396,19 +403,29 @@ class AgentCore:
 
         logger.info("Autonomous execution failed, falling back to registry mode")
 
-        completed_step_ids = {
-            s.id for s in (auto_result.plan.steps if auto_result.plan else [])
-            if s.status == StepStatus.COMPLETED
+        completed_step_tools = {
+            s.tool for s in (auto_result.plan.steps if auto_result.plan else [])
+            if s.status == StepStatus.COMPLETED and s.tool
         }
 
+        # Context Preservation: Extract why autonomous failed to inform registry mode
+        fallback_goal = goal.description
+        if auto_result.plan and auto_result.plan.has_failures:
+            failure_reasons = []
+            for s in auto_result.plan.failed_steps:
+                err = s.result.get("error", "Unknown error") if s.result else "Unknown error"
+                failure_reasons.append(f"{s.tool or 'shell'} failed: {err}")
+            if failure_reasons:
+                fallback_goal += f" (Previous autonomous failures to avoid: {'; '.join(failure_reasons)})"
+
         registry_plan = self._planner_registry.plan(
-            goal.description, [t.name for t in self._registry.list_tools()]
+            fallback_goal, [t.name for t in self._registry.list_tools()]
         )
         for step in registry_plan.steps:
-            if step.tool in completed_step_ids:
+            if step.tool in completed_step_tools:
                 step.status = StepStatus.SKIPPED
 
-        return await self._execute_registry(goal, registry_plan, start, AgentResult(goal=goal.description))
+        return await self._execute_registry(goal, registry_plan, start, AgentResult(goal=fallback_goal))
 
     async def _execute_interactive(
         self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult

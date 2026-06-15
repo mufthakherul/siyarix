@@ -26,10 +26,9 @@ class SmartAutocomplete(Completer):
             "/key", "/mode", "/model", "/provider", "/theme", "/target",
             "/version", "/context", "/log", "/diff", "/mcp", "/agent",
             "/review", "/persona", "/report", "/split",
-            "/coder", "/batch", "/cloud", "/k8s", "/docker", "/iac",
-            "/mobile", "/iot", "/hsm", "/compliance", "/opsec", "/siem",
-            "/performance", "/cache", "/import", "/playbook", "/campaign",
-            "/kb", "/ticket", "/retest", "/intel", "/canary", "/stealth",
+            "/batch", "/opsec", "/siem",
+            "/performance", "/cache", "/campaign",
+            "/kb", "/ticket", "/retest", "/stealth",
             "/audit", "/palette", "/savecmd", "/cmds", "/cmd",
         ]
 

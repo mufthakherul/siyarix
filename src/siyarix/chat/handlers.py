@@ -108,29 +108,16 @@ class CommandHandlersMixin:
             "/persona": self._cmd_persona,
             "/report": self._cmd_report,
             "/split": self._cmd_split,
-            "/coder": self._cmd_coder,
             "/batch": self._cmd_batch,
             "/scan": self._cmd_scan,
-            "/cloud": self._cmd_cloud,
-            "/k8s": self._cmd_k8s,
-            "/docker": self._cmd_docker,
-            "/iac": self._cmd_iac,
-            "/mobile": self._cmd_mobile,
-            "/iot": self._cmd_iot,
-            "/hsm": self._cmd_hsm,
-            "/compliance": self._cmd_compliance,
             "/opsec": self._cmd_opsec,
             "/siem": self._cmd_siem,
             "/performance": self._cmd_performance,
             "/cache": self._cmd_cache,
-            "/import": self._cmd_import,
-            "/playbook": self._cmd_playbook,
             "/campaign": self._cmd_campaign,
             "/kb": self._cmd_kb,
             "/ticket": self._cmd_ticket,
             "/retest": self._cmd_retest,
-            "/intel": self._cmd_intel,
-            "/canary": self._cmd_canary,
             "/stealth": self._cmd_stealth,
             "/audit": self._cmd_audit,
         }
@@ -1047,47 +1034,6 @@ class CommandHandlersMixin:
             ConfigPanel().run()
 
 
-    async def _cmd_coder(self, args: str) -> None:
-        """Handle /coder command for code generation and review."""
-        try:
-            from .stubs import CoderBridge
-        except ModuleNotFoundError:
-            console.print("[yellow]Coder Bridge is not available in this version[/yellow]")
-            return
-
-        tokens = args.split() if args else []
-        action = tokens[0].lower() if tokens else ""
-        bridge = CoderBridge()
-
-        if action == "generate":
-            prompt = " ".join(tokens[1:]) if len(tokens) > 1 else ""
-            if not prompt:
-                prompt = Prompt.ask("Describe the code you need")
-            console.print(f"[dim]Generating code for: {prompt}[/dim]")
-            code = await bridge.generate(prompt)
-            if code:
-                console.print(
-                    Panel(
-                        Syntax(code, "python", theme="monokai"),
-                        title="Generated Code",
-                        border_style="green",
-                    )
-                )
-        elif action == "review":
-            path = tokens[1] if len(tokens) > 1 else ""
-            if not path:
-                console.print("[yellow]Usage: /coder review <file_path>[/yellow]")
-                return
-            try:
-                with open(path, encoding="utf-8") as f:
-                    code = f.read()
-                review = await bridge.review(path, code)
-                console.print(review.to_panel())
-            except FileNotFoundError:
-                console.print(f"[red]File not found: {path}[/red]")
-        else:
-            console.print("[yellow]Usage: /coder generate|review[/yellow]")
-
 
     async def _cmd_mcp(self, args: str) -> None:
         """Handle /mcp command for MCP server interaction."""
@@ -1421,175 +1367,12 @@ class CommandHandlersMixin:
         console.print(f"[green]✓ Batch complete: {batch_file.name}[/green]")
 
 
-    async def _cmd_cloud(self, args: str) -> None:
-        """Handle /cloud command for cloud provider scanning."""
-        try:
-            from .stubs import CloudProvider, CloudScanner
-        except ModuleNotFoundError:
-            console.print("[yellow]Cloud scanner is not available in this version[/yellow]")
-            return
-        tokens = args.split() if args else []
-        if not tokens or tokens[0] not in ("aws", "azure", "gcp", "scan"):
-            console.print("[yellow]Usage: /cloud <aws|azure|gcp> <target>[/yellow]")
-            return
-        provider = tokens[0]
-        target = tokens[1] if len(tokens) > 1 else ""
-        scanner = CloudScanner()
-        provider_enum = getattr(CloudProvider, provider.upper(), CloudProvider.AWS)
-        result = await scanner.scan_by_provider(provider_enum, target)
-        console.print(scanner.generate_report(result, fmt="text"))
 
 
-    async def _cmd_k8s(self, args: str) -> None:
-        """Handle /k8s command for Kubernetes security scanning."""
-        try:
-            from .stubs import CloudScanner
-        except ModuleNotFoundError:
-            console.print("[yellow]Kubernetes scanner is not available in this version[/yellow]")
-            return
-        tokens = args.split() if args else []
-        if not tokens or tokens[0] not in ("scan", "audit", "rbac"):
-            console.print("[yellow]Usage: /k8s scan|audit|rbac <namespace>[/yellow]")
-            return
-        namespace = tokens[1] if len(tokens) > 1 else "default"
-        scanner = CloudScanner()
-        result = await scanner.scan_kubernetes(namespace)
-        console.print(scanner.generate_report(result, fmt="text"))
 
 
-    async def _cmd_docker(self, args: str) -> None:
-        """Handle /docker command for container scanning."""
-        try:
-            from .stubs import CloudScanner
-        except ModuleNotFoundError:
-            console.print("[yellow]Docker scanner is not available in this version[/yellow]")
-            return
-        tokens = args.split() if args else []
-        if not tokens or tokens[0] not in ("scan", "image", "ps"):
-            console.print("[yellow]Usage: /docker scan|image|ps <image>[/yellow]")
-            return
-        image = tokens[1] if len(tokens) > 1 else ""
-        scanner = CloudScanner()
-        result = await scanner.scan_docker(image)
-        console.print(scanner.generate_report(result, fmt="text"))
 
 
-    async def _cmd_iac(self, args: str) -> None:
-        """Handle /iac command for Infrastructure as Code scanning."""
-        try:
-            from .stubs import IaCScanner
-        except ModuleNotFoundError:
-            console.print("[yellow]IaC scanner is not available in this version[/yellow]")
-            return
-        tokens = args.split() if args else []
-        if len(tokens) < 2 or tokens[0] not in ("scan",):
-            console.print("[yellow]Usage: /iac scan --path <directory>[/yellow]")
-            return
-        path = tokens[1] if len(tokens) > 1 else "."
-        if "--path" in tokens:
-            idx = tokens.index("--path")
-            path = tokens[idx + 1] if idx + 1 < len(tokens) else "."
-        scanner = IaCScanner()
-        result = scanner.scan_path(path)
-        console.print(scanner.generate_report(result, fmt="text"))
-
-
-    async def _cmd_mobile(self, args: str) -> None:
-        """Handle /mobile command for mobile app testing."""
-        try:
-            from .stubs import MobileScanner
-        except ModuleNotFoundError:
-            console.print("[yellow]Mobile scanner is not available in this version[/yellow]")
-            return
-        tokens = args.split() if args else []
-        if len(tokens) < 2 or tokens[0] not in ("android", "apk", "ios", "ipa"):
-            console.print("[yellow]Usage: /mobile android --apk <path>[/yellow]")
-            return
-        apk_path = ""
-        if "--apk" in tokens:
-            idx = tokens.index("--apk")
-            apk_path = tokens[idx + 1] if idx + 1 < len(tokens) else ""
-        if not apk_path:
-            console.print("[yellow]--apk <path> is required[/yellow]")
-            return
-        scanner = MobileScanner()
-        result = scanner.scan_apk(apk_path)
-        console.print(scanner.generate_report(result, fmt="text"))
-
-
-    async def _cmd_iot(self, args: str) -> None:
-        """Handle /iot command for IoT device testing."""
-        try:
-            from .stubs import IoTScanner
-        except ModuleNotFoundError:
-            console.print("[yellow]IoT scanner is not available in this version[/yellow]")
-            return
-        tokens = args.split() if args else []
-        if len(tokens) < 2 or tokens[0] not in ("scan", "firmware", "serial"):
-            console.print("[yellow]Usage: /iot scan|firmware|serial <device|path>[/yellow]")
-            return
-        target = tokens[1]
-        scanner = IoTScanner()
-        if tokens[0] == "firmware":
-            result = scanner.scan_firmware(target)
-        elif tokens[0] == "serial":
-            baud = int(tokens[2]) if len(tokens) > 2 else 115200
-            result = scanner.scan_serial_port(target, baud=baud)
-        else:
-            result = scanner.scan_firmware(target)
-        console.print(scanner.generate_report(result, fmt="text"))
-
-
-    async def _cmd_hsm(self, args: str) -> None:
-        """Handle /hsm command for hardware security module integration."""
-        try:
-            from .stubs import HSMService
-        except ModuleNotFoundError:
-            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
-            return
-        tokens = args.split() if args else []
-        if not tokens or tokens[0] not in ("configure", "status", "disconnect"):
-            console.print(
-                "[yellow]Usage: /hsm configure|status|disconnect [--provider yubikey|pkcs11|tpm][/yellow]"
-            )
-            return
-        hsm = HSMService()
-        if tokens[0] == "configure":
-            provider = "yubikey"
-            if "--provider" in tokens:
-                idx = tokens.index("--provider")
-                provider = tokens[idx + 1] if idx + 1 < len(tokens) else "yubikey"
-            hsm.connect(provider=provider)
-            console.print(hsm.generate_report(fmt="text"))
-        elif tokens[0] == "status":
-            console.print(hsm.generate_report(fmt="text"))
-        elif tokens[0] == "disconnect":
-            hsm.disconnect()
-            console.print("[green]HSM disconnected[/green]")
-
-
-    async def _cmd_compliance(self, args: str) -> None:
-        """Handle /compliance command for framework assessment."""
-        try:
-            from .stubs import ComplianceRunner
-        except ModuleNotFoundError:
-            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
-            return
-        tokens = args.split() if args else []
-        if len(tokens) < 2 or tokens[0] not in ("run",):
-            console.print(
-                "[yellow]Usage: /compliance run --framework pci-dss|iso-27001|nist-800-53|soc2|gdpr|hipaa <target>[/yellow]"
-            )
-            return
-        framework = "pci-dss"
-        target = ""
-        if "--framework" in tokens:
-            idx = tokens.index("--framework")
-            framework = tokens[idx + 1] if idx + 1 < len(tokens) else "pci-dss"
-        target = tokens[-1] if not tokens[-1].startswith("--") else ""
-        runner = ComplianceRunner()
-        result = runner.run_framework(framework, target)
-        console.print(runner.generate_report(result, fmt="text"))
 
 
     async def _cmd_opsec(self, args: str) -> None:
@@ -1695,79 +1478,6 @@ class CommandHandlersMixin:
             console.print(f"[green]{count} entries invalidated[/green]")
 
 
-    async def _cmd_import(self, args: str) -> None:
-        """Handle /import command for importing scan results."""
-        try:
-            from .stubs import security_importer
-        except ModuleNotFoundError:
-            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
-            return
-        tokens = args.split() if args else []
-        if len(tokens) < 2 or tokens[0] not in (
-            "nessus",
-            "burp",
-            "metasploit",
-            "stix",
-            "auto",
-        ):
-            console.print(
-                "[yellow]Usage: /import <nessus|burp|metasploit|stix|auto> <file>[/yellow]"
-            )
-            return
-        fmt = tokens[0]
-        path = tokens[1]
-        importer_fn = getattr(security_importer, f"import_{fmt}", None)
-        if importer_fn:
-            result = importer_fn(path)
-        else:
-            result = security_importer.auto_import(path)
-        console.print(
-            f"Imported {result.total_imported} findings from {fmt} ({len(result.errors)} errors)"
-        )
-        for f in result.findings[:10]:
-            console.print(f"  [{f.severity}] {f.title} @ {f.host or '?'}:{f.port}")
-        if len(result.findings) > 10:
-            console.print(f"  ... and {len(result.findings) - 10} more")
-
-
-    async def _cmd_playbook(self, args: str) -> None:
-        """Handle /playbook command for workflow playbooks."""
-        try:
-            from .stubs import PlaybookEngine
-            engine = PlaybookEngine()
-            console.print("[yellow]PlaybookEngine is running in stub mode.[/yellow]")
-        except ImportError:
-            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
-            return
-        tokens = args.split() if args else []
-        action = tokens[0].lower() if tokens else "list"
-        if action == "list":
-            playbooks = engine.list_playbooks()
-            if not playbooks:
-                console.print("[dim]No playbooks. Use /playbook create <name> to make one.[/dim]")
-                return
-            for pb in playbooks:
-                console.print(f"  • {pb.get('name', '?')} ({pb.get('steps', 0)} steps)")
-        elif action == "create":
-            name = " ".join(tokens[1:]) if len(tokens) > 1 else Prompt.ask("Playbook name")
-            engine.create(name)
-            console.print(f"[green]✓ Playbook created: {name}[/green]")
-        elif action == "show":
-            name = tokens[1] if len(tokens) > 1 else ""
-            loaded_pb = engine.load(name)
-            if loaded_pb:
-                for i, s in enumerate(loaded_pb.steps, 1):
-                    console.print(f"  {i}. [{s.step_type.value}] {s.command or s.description}")
-            else:
-                console.print(f"[red]Playbook not found: {name}[/red]")
-        elif action == "delete":
-            name = tokens[1] if len(tokens) > 1 else ""
-            if engine.delete(name):
-                console.print(f"[green]✓ Playbook deleted: {name}[/green]")
-            else:
-                console.print(f"[red]Playbook not found: {name}[/red]")
-        else:
-            console.print("[yellow]Usage: /playbook list|create|show|delete[/yellow]")
 
 
     async def _cmd_campaign(self, args: str) -> None:
@@ -1850,91 +1560,6 @@ class CommandHandlersMixin:
             console.print("[yellow]Usage: /retest schedule|status[/yellow]")
 
 
-    async def _cmd_intel(self, args: str) -> None:
-        """Handle /intel command for threat intelligence queries."""
-        try:
-            from .stubs import ThreatIntelFeed, MITREAttackDB
-        except ModuleNotFoundError:
-            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
-            return
-        tokens = args.split() if args else []
-        action = tokens[0].lower() if tokens else "search"
-        if action == "search":
-            query = " ".join(tokens[1:]) if len(tokens) > 1 else ""
-            if not query:
-                console.print("[yellow]Usage: /intel search <cve|ip|domain|hash>[/yellow]")
-                return
-            feed = ThreatIntelFeed()
-            intel_results = feed.search(query)
-            if intel_results:
-                for r in intel_results[:10]:
-                    sev = r.get('severity', 'info')
-                    sev_colors = {"critical": "red", "high": "red", "medium": "yellow", "low": "green", "info": "blue"}
-                    console.print(
-                        f"  [{sev_colors.get(sev, 'blue')}]{sev.upper()}[/] {r.get('indicator', '?')} — {r.get('description', '')[:80]}"
-                    )
-            else:
-                console.print("[dim]No threat intelligence matches.[/dim]")
-        elif action == "mitre":
-            tac = tokens[1] if len(tokens) > 1 else ""
-            db = MITREAttackDB()
-            mitre_results: list[dict[str, str]] = (
-                db.search(tactic=tac) if tac else db.list_techniques()[:15]
-            )
-            for r in mitre_results[:15]:
-                console.print(
-                    f"  • {r.get('id', '?')} — {r.get('name', '?')} ({r.get('tactic', '?')})"
-                )
-        elif action == "feeds":
-            feed = ThreatIntelFeed()
-            feeds = feed.list_feeds()
-            for f in feeds:
-                console.print(f"  • {f.get('name', '?')} — {f.get('status', '?')}")
-        else:
-            console.print("[yellow]Usage: /intel search|mitre|feeds[/yellow]")
-
-
-    async def _cmd_canary(self, args: str) -> None:
-        """Handle /canary command for deception token deployment."""
-        try:
-            from .stubs import CanaryTokenManager, CanaryTokenType
-        except ModuleNotFoundError:
-            console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
-            return
-        tokens = args.split() if args else []
-        action = tokens[0].lower() if tokens else "list"
-        mgr = CanaryTokenManager()
-        if action == "deploy":
-            token_type = tokens[1] if len(tokens) > 1 else "web"
-            try:
-                ttype = CanaryTokenType(token_type)
-            except ValueError:
-                console.print(
-                    f"[red]Invalid token type: {token_type} (web|dns|aws_key|credential|file|api_key)[/red]"
-                )
-                return
-            target = tokens[2] if len(tokens) > 2 else Prompt.ask("Deployment target")
-            deployment = mgr.deploy_to_target(target, token_types=[ttype])
-            console.print(
-                f"[green]✓ Deployed {len(deployment.tokens)} canary token(s) to {target}[/green]"
-            )
-            for t in deployment.tokens:
-                console.print(f"    {t.token_type}: {t.value[:60]}...")
-        elif action == "list":
-            tokens_list = mgr.list_tokens()
-            if not tokens_list:
-                console.print("[dim]No canary tokens deployed.[/dim]")
-                return
-            for t in tokens_list[:15]:
-                triggered = "🔴 TRIGGERED" if t.triggered else "🟢 ACTIVE"
-                console.print(f"  {triggered} [{t.token_type}] {t.location} ({t.created_at[:19]})")
-        elif action == "status":
-            canary_stats = mgr.summary()
-            console.print(
-                f"Canary tokens: {canary_stats.get('total_tokens', 0)} total, {canary_stats.get('triggered_tokens', 0)} triggered"
-            )
-        else:
-            console.print("[yellow]Usage: /canary deploy|list|status[/yellow]")
 
 
     async def _cmd_stealth(self, args: str) -> None:

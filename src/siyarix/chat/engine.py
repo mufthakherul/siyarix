@@ -13,13 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from rich.panel import Panel
 
-from .session import ChatMessage as ChatMessage, ChatSession as ChatSession
-from .ui import (
-    SmartAutocomplete as SmartAutocomplete,
-    CommandPalette as CommandPalette,
-    SplitPane as SplitPane,
-    ConfigPanel as ConfigPanel,
-)
+from .session import ChatMessage, ChatSession
 from .console import console
 
 if TYPE_CHECKING:
@@ -41,6 +35,7 @@ class LLMEngineMixin:
         _get_conversation_history: Any
         _print_plan: Any
         _print_results: Any
+        _tool_cache: list[Any] | None
     async def _handle_natural_language(self, user_input: str) -> None:
         """Process a natural language instruction."""
         # Add user message to history
@@ -539,9 +534,9 @@ class LLMEngineMixin:
         if llm_connected:
             with console.status("[bold cyan]LLM analysing request...[/bold cyan]", spinner="dots"):
                 try:
+                    self._llm_calls += 1
                     compact = self._should_use_compact()
                     plan_sys_prompt = self._build_system_prompt(compact=compact)
-                    self._llm_calls += 1
                     plan_result = await agent._planner.llm_decompose_goal(
                         instruction_with_target,
                         tool_names,
@@ -693,7 +688,7 @@ class LLMEngineMixin:
             from rich.panel import Panel as RichPanel
 
             # Suppress CPR warning on terminals that don't support it
-            _old_term = os.environ.pop("TERM", None)
+            _old_term = os.environ.get("TERM")
             os.environ["TERM"] = "xterm-256color"
 
             if cmd_states:
@@ -739,10 +734,10 @@ class LLMEngineMixin:
             raw_results = await exec_task
 
             # Restore original TERM
-            if _old_term is None:
-                del os.environ["TERM"]
-            else:
+            if _old_term is not None:
                 os.environ["TERM"] = _old_term
+            else:
+                os.environ.pop("TERM", None)
 
             # Separate Live display output from summary panels
             console.print()
@@ -794,9 +789,9 @@ class LLMEngineMixin:
                     spinner="dots",
                 ):
                     try:
+                        self._llm_calls += 1
                         compact = self._should_use_compact()
                         wave_sys_prompt = self._build_system_prompt(compact=compact)
-                        self._llm_calls += 1
                         plan = await agent._planner.llm_decompose_goal(
                             wave_goal,
                             tool_names,

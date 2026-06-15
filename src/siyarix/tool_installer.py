@@ -144,54 +144,52 @@ class ToolInstaller:
         return False
 
     def _refresh_windows_path(self) -> None:
-        """Attempt to refresh os.environ['PATH'] from the Windows Registry."""
+        """Refresh os.environ['PATH'] from the Windows Registry."""
         try:
             import winreg
             with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r'SYSTEM\CurrentControlSet\Control\Session Manager\Environment', 0, winreg.KEY_READ) as key:
                 sys_path, _ = winreg.QueryValueEx(key, 'PATH')
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Environment', 0, winreg.KEY_READ) as key:
                 user_path, _ = winreg.QueryValueEx(key, 'PATH')
-            os.environ['PATH'] = sys_path + ';' + user_path
-        except Exception:
-            pass
+            os.environ['PATH'] = sys_path + ';' + user_path + ';' + os.environ.get('PATH', '')
+        except Exception as exc:
+            logger.debug("Failed to refresh Windows PATH: %s", exc)
 
     def _install_nix(self, tool: str, pkg: str) -> bool:
-        """Install on Linux/macOS via sudo."""
+        """Install on Linux/macOS. Tries sudo first, falls back to user-only."""
         pm = self._detect_pm()
-        
-        # Pre-update package index for reliable installs
+
         if pm in ("apt", "apt-get"):
             self._print("  Updating package index...")
-            subprocess.run(["sudo", "-p", "Password required for update: ", pm, "update"], capture_output=True, timeout=120, check=False)
+            subprocess.run(["sudo", "-p", "Password required for update: ", pm, "update"],
+                           capture_output=True, timeout=120, check=False)
         elif pm == "brew":
             self._print("  Updating brew formulas...")
             subprocess.run(["brew", "update"], capture_output=True, timeout=120, check=False)
 
         is_deb = pm in ("apt", "apt-get")
         if is_deb:
-            install_cmd = ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", pkg]
+            base_cmd = ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", pkg]
         else:
-            install_cmd = {
+            base_cmd = {
                 "brew": ["brew", "install", pkg],
                 "pacman": ["pacman", "-Sy", "--noconfirm", pkg],
                 "dnf": ["dnf", "install", "-y", pkg],
                 "apk": ["apk", "add", pkg],
             }.get(pm, [pm, "install", "-y", pkg])
 
-        try:
-            self._print(f"  Running: sudo {' '.join(install_cmd)}")
-            subprocess.run(
-                ["sudo", "-p", "Password required for installation: "] + install_cmd,
-                capture_output=True,
-                text=True,
-                timeout=300,
-                check=False,
-            )
-            if shutil.which(tool):
-                self._print(f"  [green]\u2713 {tool} installed via {pm}[/green]")
-                return True
-        except Exception as e:
-            logger.debug(f"{pm} install failed: {e}")
+        for use_sudo in ([True, False] if pm != "brew" else [False]):
+            cmd = (["sudo", "-p", "Password required: "] + base_cmd) if use_sudo else base_cmd
+            try:
+                self._print(f"  Running: {' '.join(cmd)}")
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, check=False)
+                if result.returncode == 0 or shutil.which(tool):
+                    if shutil.which(tool):
+                        self._print(f"  [green]\u2713 {tool} installed via {pm}[/green]")
+                        return True
+            except (subprocess.SubprocessError, PermissionError) as e:
+                logger.debug(f"{pm} install failed (sudo={use_sudo}): {e}")
+                continue
 
         self._print(f"  [yellow]Could not auto-install {tool}.[/yellow]")
         return False

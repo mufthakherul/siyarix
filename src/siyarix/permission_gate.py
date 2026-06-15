@@ -55,21 +55,24 @@ class PermissionGate:
         self.rate_limit_calls = rate_limit_calls
         self.rate_limit_period = rate_limit_period
         self._state_file = get_config_dir() / "rate_limit.json"
+        self._state_file.parent.mkdir(parents=True, exist_ok=True)
         self._load_state()
+        self._dirty = False
 
     def _load_state(self) -> None:
-        if os.path.exists(self._state_file):
+        if self._state_file.exists():
             try:
-                with open(self._state_file, "r", encoding='utf-8') as f:
-                    self._calls = json.load(f)
+                self._calls = json.loads(self._state_file.read_text(encoding="utf-8"))
             except Exception:
                 pass
 
-    def _save_state(self) -> None:
+    def _save_state(self, force: bool = False) -> None:
+        if not force:
+            self._dirty = True
+            return
         try:
-            os.makedirs(os.path.dirname(self._state_file), exist_ok=True)
-            with open(self._state_file, "w", encoding='utf-8') as f:
-                json.dump(self._calls, f)
+            self._state_file.write_text(json.dumps(self._calls), encoding="utf-8")
+            self._dirty = False
         except Exception:
             pass
 
@@ -84,11 +87,11 @@ class PermissionGate:
                  return GateResult(False, GateStage.FORBIDDEN, "Payload verification failed", tool=tool, command=command)
 
         if len(self._calls) >= self.rate_limit_calls:
-            self._save_state()
+            self._save_state(force=True)
             return GateResult(False, GateStage.FORBIDDEN, "Rate limit exceeded", tool=tool, command=command)
 
         self._calls.append(now)
-        self._save_state()
+        self._save_state(force=(len(self._calls) % 50 == 0))
 
         # Stage 1: Syntax check
         if not command or not command.strip():

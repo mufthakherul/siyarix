@@ -176,12 +176,17 @@ def evaluate_availability(
         items = expression["anyOf"]
         return _eval_any_of(items if isinstance(items, list) else [items], ctx)
 
-    # Find and evaluate first matching signal
     for signal_name, handler in _SIGNAL_HANDLERS.items():
         if signal_name in expression:
             sig_expr = expression[signal_name]
             if isinstance(sig_expr, bool):
-                sig_expr = {} if sig_expr else {"always": False}
+                return ToolAvailabilityResult(
+                    available=sig_expr,
+                    diagnostics=[ToolAvailabilityDiagnostic(
+                        signal=signal_name, passed=sig_expr,
+                        detail=f"{signal_name}={sig_expr}",
+                    )]
+                )
             if isinstance(sig_expr, dict):
                 diag = handler(sig_expr, ctx)
                 return ToolAvailabilityResult(

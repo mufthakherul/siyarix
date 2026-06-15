@@ -8,6 +8,7 @@ import functools
 import json
 import logging
 import re
+import sys
 import time
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
@@ -60,38 +61,36 @@ def _redact_value(key: str, value: Any) -> str:
             return raw[:2] + "***" + raw[-2:]
         return "***"
     return str(value)
+# ---------------------------------------------------------------------------
+# Cached module-level lazy imports
+# ---------------------------------------------------------------------------
 
 
-# ---------------------------------------------------------------------------
-# Cached module-level lazy import for shell_review (L-28)
-# ---------------------------------------------------------------------------
 @functools.lru_cache(maxsize=1)
 def _get_review_and_confirm() -> Callable[..., str | None]:
-    """Lazily import and cache ``review_and_confirm`` from :mod:`.shell_review`.
-
-    This avoids an import inside every async call while still deferring the
-    import until it is actually needed (breaking a potential circular import).
-    """
     from .shell_review import review_and_confirm
     return review_and_confirm
 
 
 @functools.lru_cache(maxsize=1)
 def _get_session_logger() -> Any:
-    """Lazily import and cache ``session_logger``."""
     from .session_log import session_logger
     return session_logger
 
 
-@functools.lru_cache(maxsize=1)
+_DLP_ENGINE: Any = None
+
+
 def _get_dlp_engine() -> Any:
-    """Lazily import and cache ``DLPEngine``."""
-    try:
-        from .dlp import DLPEngine
-        return DLPEngine(redact_secrets=True, redact_pii=True)
-    except ImportError:
-        logger.debug("DLPEngine not available, skipping redaction")
-        return None
+    global _DLP_ENGINE
+    if _DLP_ENGINE is None:
+        try:
+            from .dlp import DLPEngine
+            _DLP_ENGINE = DLPEngine(redact_secrets=True, redact_pii=True)
+        except ImportError:
+            logger.debug("DLPEngine not available, skipping redaction")
+            _DLP_ENGINE = False
+    return _DLP_ENGINE if _DLP_ENGINE is not False else None
 
 
 @dataclass
@@ -203,6 +202,8 @@ class ToolCallTracker:
         self._no_progress_count = 0
         self._last_mutation = ""
         self._state_file = get_config_dir() / "tool_failures.json"
+        self._dirty = False
+        self._debounce_counter = 0
         self._load_state()
 
     def _load_state(self) -> None:
@@ -216,7 +217,11 @@ class ToolCallTracker:
             except Exception as exc:
                 logger.debug("Failed to load tool failure state: %s", exc)
 
-    def _save_state(self) -> None:
+    def _save_state(self, force: bool = False) -> None:
+        self._debounce_counter += 1
+        if not force and self._debounce_counter % 10 != 0:
+            self._dirty = True
+            return
         try:
             self._state_file.parent.mkdir(parents=True, exist_ok=True)
             self._state_file.write_text(json.dumps({
@@ -225,8 +230,9 @@ class ToolCallTracker:
                 "no_progress_count": self._no_progress_count,
                 "last_mutation": self._last_mutation
             }))
+            self._dirty = False
         except Exception as exc:
-            logger.debug("Failed to save tool failure state: %s", exc)
+            logger.warning("Failed to save tool failure state: %s", exc)
 
     # -- public properties (M-09) -------------------------------------------
 
@@ -492,68 +498,75 @@ class Executor:
     async def _try_execute(
         self, step: PlanStep, executor_fn: StepExecutor | None
     ) -> dict[str, Any]:
-        """Attempt tool execution with automatic fallback to alternatives on failure."""
         if executor_fn:
             return await executor_fn(step)
         if step.tool in self._custom_executors:
             return await self._custom_executors[step.tool](step)
-        if self._registry and step.tool:
-            # ── Permission Gate ──
-            if self._permission_gate:
-                await self._check_permissions(step)
-            # ── Budget & Execute ──
-            if not self._budget.consume_tool_call():
-                return {"status": "error", "error": "Tool call budget exhausted"}
+        if not self._registry or not step.tool:
+            return {"status": "error", "error": f"No executor for: {step.tool}"}
 
-            # H-19 / M-25: guardrail check BEFORE execution uses success=False
-            # as a pessimistic pre-check; real success is recorded in
-            # _execute_step after the call returns.
-            args_key = str(sorted(step.args.items()))
-            guardrail = self._tracker.record(step.tool, args_key, False)
+        if self._permission_gate:
+            await self._check_permissions(step)
+        if not self._budget.consume_tool_call():
+            return {"status": "error", "error": "Tool call budget exhausted"}
+
+        args_key = str(sorted(step.args.items()))
+        guardrail = self._tracker.record(step.tool, args_key, False)
+        if guardrail and "BLOCKED" in guardrail:
+            return {"status": "error", "error": guardrail}
+
+        result = await self._registry.execute(step.tool, **step.args)
+        result = await self._apply_dlp(result)
+        if result.get("status") == "error":
+            result = await self._handle_tool_error(step, result)
+        if result.get("status") == "error":
+            result = await self._try_alternatives(step, result)
+        return result
+
+    async def _apply_dlp(self, result: dict[str, Any]) -> dict[str, Any]:
+        dlp = _get_dlp_engine()
+        if dlp is not None and isinstance(result, dict):
+            return dlp.redact_dict(result)
+        return result
+
+    async def _handle_tool_error(self, step: PlanStep, result: dict[str, Any]) -> dict[str, Any]:
+        err_msg = str(result.get("error", "")).lower()
+        if any(x in err_msg for x in ["not found", "not recognized", "executable", "no such"]):
+            try:
+                import sys as _sys
+                if _sys.stdout and _sys.stdout.isatty():
+                    from rich.prompt import Confirm
+                    from siyarix.tool_installer import ToolInstaller
+                    want = Confirm.ask(
+                        f"\n[yellow]Tool [cyan]{step.tool}[/cyan] is missing. Auto-install it?[/yellow]",
+                        default=True
+                    )
+                    if want:
+                        installer = ToolInstaller()
+                        if installer.install_tool(step.tool):
+                            from siyarix.tool_models import invalidate_which_cache
+                            invalidate_which_cache()
+                            result = await self._registry.execute(step.tool, **step.args)
+                            result = await self._apply_dlp(result)
+            except Exception as exc:
+                logger.warning("Tool auto-install failed for %s: %s", step.tool, exc)
+        return result
+
+    async def _try_alternatives(self, step: PlanStep, result: dict[str, Any]) -> dict[str, Any]:
+        alt_tools = TOOL_ALTERNATIVES.get(step.tool, [])
+        for alt in alt_tools:
+            if alt not in self._custom_executors and not (self._registry and self._registry.graph.get_tool(alt)):
+                continue
+            alt_args_key = str(sorted(step.args.items()))
+            guardrail = self._tracker.record(alt, alt_args_key, False)
             if guardrail and "BLOCKED" in guardrail:
-                return {"status": "error", "error": guardrail}
-
-            result = await self._registry.execute(step.tool, **step.args)
-
-            dlp = _get_dlp_engine()
-            if dlp is not None:
-                result = dlp.redact_dict(result)
-            if result.get("status") == "error":
-                err_msg = str(result.get("error", "")).lower()
-                if any(x in err_msg for x in ["not found", "not recognized", "executable"]):
-                    if sys.stdout and sys.stdout.isatty():
-                        try:
-                            from rich.prompt import Confirm
-                            from siyarix.tool_installer import ToolInstaller
-                            want = Confirm.ask(f"\n[yellow]Tool [cyan]{step.tool}[/cyan] is missing. Auto-install it?[/yellow]", default=True)
-                            if want:
-                                installer = ToolInstaller()
-                                if installer.install_tool(step.tool):
-                                    result = await self._registry.execute(step.tool, **step.args)
-                                    if dlp is not None:
-                                        result = dlp.redact_dict(result)
-                        except Exception as exc:
-                            logger.warning("Tool auto-install failed for %s: %s", step.tool, exc)
-
-            if result.get("status") == "error":
-                alt_tools = TOOL_ALTERNATIVES.get(step.tool, [])
-                for alt in alt_tools:
-                    if alt in self._custom_executors or (
-                        self._registry and self._registry.graph.get_tool(alt)
-                    ):
-                        alt_args_key = str(sorted(step.args.items()))
-                        guardrail = self._tracker.record(alt, alt_args_key, False)
-                        if guardrail and "BLOCKED" in guardrail:
-                            continue
-                        alt_result = await self._registry.execute(alt, **step.args)
-                        if alt_result.get("status") != "error":
-                            step.tool = alt
-                            # Success recorded by _execute_step
-                            return alt_result
-                        # Record alt failure
-                        self._tracker.record(alt, alt_args_key, False)
-            return result
-        return {"status": "error", "error": f"No executor for: {step.tool}"}
+                continue
+            alt_result = await self._registry.execute(alt, **step.args)
+            if alt_result.get("status") != "error":
+                step.tool = alt
+                return alt_result
+            self._tracker.record(alt, alt_args_key, False)
+        return result
 
     async def _check_permissions(self, step: PlanStep) -> None:
         """Verify permission gate and optionally prompt the user for review."""

@@ -9,157 +9,132 @@ from typing import Any
 from .tool_models import ToolHandler
 
 
+_EMPTY_TARGET_RESULT = lambda tool: {"status": "error", "error": "No target specified", "tool": tool}
+
+
+def _run(tool_name: str, cmd: list[str], timeout: int = 120) -> Any:
+    """Lazy import and run a command asynchronously."""
+    from .subprocess_utils import safe_run_async as _run_async
+    return _run_async(cmd, timeout=timeout)
+
+
+def _make_result(tool_name: str, result: Any) -> dict[str, Any]:
+    return {
+        "status": "success" if not result.exit_code else "error",
+        "output": result.stdout,
+        "error": result.stderr,
+        "exit_code": result.exit_code,
+        "tool": tool_name,
+    }
+
+
 def make_nmap_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
-        from .subprocess_utils import safe_run_async
-
         target = kwargs.get("target", "")
+        if not target:
+            return _EMPTY_TARGET_RESULT(tool_name)
         flags = kwargs.get("flags", "-sT -T4 --top-ports 100")
         cmd = [tool_name] + flags.split() + [target]
-        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 120))
-        return {
-            "status": "success" if not result.exit_code else "error",
-            "output": result.stdout,
-            "error": result.stderr,
-            "exit_code": result.exit_code,
-        }
-
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 120))
+        return _make_result(tool_name, result)
     return handler
 
 
 def make_web_handler(tool_name: str) -> ToolHandler:
-    async def handler(**kwargs: Any) -> dict[str, Any]:
-        from .subprocess_utils import safe_run_async
+    TARGET_FLAGS = {
+        "nikto": "-h",
+        "nuclei": "-duc -u",
+        "gobuster": "-u",
+        "ffuf": "-u",
+        "wpscan": "--url",
+        "sqlmap": "-u",
+    }
 
+    async def handler(**kwargs: Any) -> dict[str, Any]:
         target = kwargs.get("target", "")
         extra_args = kwargs.get("args", [])
         if isinstance(extra_args, str):
             extra_args = extra_args.split()
         cmd = [tool_name] + extra_args
         if target:
-            if tool_name in ("nikto",):
-                cmd += ["-h", target]
-            elif tool_name in ("nuclei",):
-                cmd += ["-duc", "-u", target]
-            elif tool_name in ("gobuster",):
-                cmd += ["-u", target]
-            elif tool_name in ("ffuf",):
-                cmd += ["-u", target]
-            elif tool_name in ("wpscan",):
-                cmd += ["--url", target]
-            elif tool_name in ("sqlmap",):
-                cmd += ["-u", target]
-            elif tool_name in ("whatweb",):
-                cmd += [target]
+            flag = TARGET_FLAGS.get(tool_name)
+            if flag:
+                cmd.extend(flag.split() + [target])
             else:
-                cmd += [target]
-        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 300))
-        return {
-            "status": "success" if not result.exit_code else "error",
-            "output": result.stdout,
-            "error": result.stderr,
-            "exit_code": result.exit_code,
-        }
-
+                cmd.append(target)
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 300))
+        return _make_result(tool_name, result)
     return handler
 
 
 def make_portscan_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
-        from .subprocess_utils import safe_run_async
-
         target = kwargs.get("target", "")
+        if not target:
+            return _EMPTY_TARGET_RESULT(tool_name)
         flags = kwargs.get("flags", "-T4 --top-ports 100")
         cmd = [tool_name] + flags.split() + [target]
-        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 120))
-        return {
-            "status": "success" if not result.exit_code else "error",
-            "output": result.stdout,
-            "error": result.stderr,
-            "exit_code": result.exit_code,
-        }
-
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 120))
+        return _make_result(tool_name, result)
     return handler
 
 
 def make_recon_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
-        from .subprocess_utils import safe_run_async
-
         target = kwargs.get("target", "")
         if tool_name == "amass":
             cmd = [tool_name, "enum", "-d", target] if target else [tool_name, "--help"]
         elif tool_name == "subfinder":
             cmd = [tool_name, "-d", target] if target else [tool_name, "--help"]
         elif tool_name == "shodan":
-            cmd = (
-                [tool_name, "info"]
-                if not target or target.startswith("-")
-                else [tool_name, "host", target]
-            )
+            cmd = [tool_name, "info"] if not target or target.startswith("-") else [tool_name, "host", target]
         else:
             cmd = [tool_name, "--help"]
-        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 30))
-        return {
-            "status": "success" if not result.exit_code else "error",
-            "output": result.stdout,
-            "error": result.stderr,
-            "exit_code": result.exit_code,
-        }
-
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 30))
+        return _make_result(tool_name, result)
     return handler
 
 
 def make_brute_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
-        from .subprocess_utils import safe_run_async
-
         target = kwargs.get("target", "")
-        cmd = [tool_name, "-l", target]
-        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 120))
-        return {
-            "status": "success" if not result.exit_code else "error",
-            "output": result.stdout,
-            "error": result.stderr,
-            "exit_code": result.exit_code,
-        }
-
+        if not target:
+            return _EMPTY_TARGET_RESULT(tool_name)
+        service = kwargs.get("service", "ssh")
+        username = kwargs.get("username", "root")
+        wordlist = kwargs.get("wordlist", "/usr/share/wordlists/rockyou.txt")
+        cmd = [tool_name, "-l", username, "-P", wordlist, service + "://" + target]
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 120))
+        return _make_result(tool_name, result)
     return handler
 
 
 def make_network_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
-        from .subprocess_utils import safe_run_async
-
         target = kwargs.get("target", "")
-        if tool_name in ("bettercap", "ettercap") and target:
-            cmd = [tool_name, "-T", target, "-silent"] if tool_name == "bettercap" else [tool_name, "-T", target, "-M", "arp"]
+        if tool_name == "bettercap" and target:
+            cmd = [tool_name, "-eval", f"set arp.spoof.targets {target}; arp.spoof on"]
+        elif tool_name == "ettercap" and target:
+            cmd = [tool_name, "-T", "-M", "arp", f"/{target}//"]
         elif tool_name == "aircrack-ng" and "mode" in kwargs:
             mode = kwargs["mode"]
             if mode == "capture":
                 cmd = [tool_name, "-c", target] if target else [tool_name, "--help"]
             elif mode == "crack":
                 pcap = kwargs.get("pcap", "")
-                wordlist = kwargs.get("wordlist", "")
-                cmd = [tool_name, "-w", wordlist, pcap] if pcap and wordlist else [tool_name, "--help"]
+                wordlist = kwargs.get("wordlist", "/usr/share/wordlists/rockyou.txt")
+                cmd = [tool_name, "-w", wordlist, pcap] if pcap else [tool_name, "--help"]
             else:
                 cmd = [tool_name, "--help"]
         else:
             cmd = [tool_name, "--help"]
-        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 60))
-        return {
-            "status": "success" if not result.exit_code else "error",
-            "output": result.stdout,
-            "error": result.stderr,
-            "exit_code": result.exit_code,
-        }
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 60))
+        return _make_result(tool_name, result)
     return handler
 
 
 def make_crypto_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
-        from .subprocess_utils import safe_run_async
-
         target = kwargs.get("target", "")
         if tool_name == "hashcat" and target:
             hashfile = kwargs.get("hashfile", target)
@@ -170,88 +145,57 @@ def make_crypto_handler(tool_name: str) -> ToolHandler:
             cmd = [tool_name, target]
         else:
             cmd = [tool_name, "--help"]
-        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 120))
-        return {
-            "status": "success" if not result.exit_code else "error",
-            "output": result.stdout,
-            "error": result.stderr,
-            "exit_code": result.exit_code,
-        }
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 120))
+        return _make_result(tool_name, result)
     return handler
 
 
 def make_curl_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
-        from .subprocess_utils import safe_run_async
-
         target = kwargs.get("target", "")
+        if not target:
+            return _EMPTY_TARGET_RESULT(tool_name)
         flags = kwargs.get("flags", "-sI")
         cmd = [tool_name] + flags.split() + [target]
-        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 30))
-        return {
-            "status": "success" if not result.exit_code else "error",
-            "output": result.stdout,
-            "error": result.stderr,
-            "exit_code": result.exit_code,
-        }
-
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 30))
+        return _make_result(tool_name, result)
     return handler
 
 
 def make_dns_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
-        from .subprocess_utils import safe_run_async
-
         target = kwargs.get("target", "")
-        cmd = [tool_name, target]
-        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 30))
-        return {
-            "status": "success" if not result.exit_code else "error",
-            "output": result.stdout,
-            "error": result.stderr,
-            "exit_code": result.exit_code,
-        }
-
+        if not target:
+            return _EMPTY_TARGET_RESULT(tool_name)
+        flags = kwargs.get("flags", "")
+        cmd = [tool_name] + (flags.split() if flags else []) + [target]
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 30))
+        return _make_result(tool_name, result)
     return handler
 
 
 def make_whois_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
-        from .subprocess_utils import safe_run_async
-
         target = kwargs.get("target", "")
+        if not target:
+            return _EMPTY_TARGET_RESULT(tool_name)
         cmd = [tool_name, target]
-        result = await safe_run_async(cmd, timeout=kwargs.get("timeout", 30))
-        return {
-            "status": "success" if not result.exit_code else "error",
-            "output": result.stdout,
-            "error": result.stderr,
-            "exit_code": result.exit_code,
-        }
-
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 30))
+        return _make_result(tool_name, result)
     return handler
 
 
 def make_generic_handler(tool_name: str) -> ToolHandler:
-    """Build a generic handler that passes kwargs as CLI arguments.
-
-    Translates:
-      handler(target="example.com", flags="-sV")  →  tool_name -sV example.com
-    """
-
     async def handler(**kwargs: Any) -> dict[str, Any]:
         from .subprocess_utils import safe_run_async
         from .validators import validate_target, ValidationError
-
         cmd = [tool_name]
         target = kwargs.get("target", "")
         if target:
             try:
-                # Sanity check target if present
                 validate_target(target)
             except ValidationError as e:
                 return {"status": "error", "error": f"Invalid target: {e}", "tool": tool_name}
-
         args_raw = kwargs.get("args", [])
         flags = kwargs.get("flags", "")
         if isinstance(args_raw, str):
@@ -265,14 +209,7 @@ def make_generic_handler(tool_name: str) -> ToolHandler:
         timeout = kwargs.get("timeout", 120)
         try:
             result = await safe_run_async(cmd, timeout=timeout)
-            return {
-                "status": "success" if not result.exit_code else "error",
-                "output": result.stdout,
-                "error": result.stderr,
-                "exit_code": result.exit_code,
-                "tool": tool_name,
-            }
+            return _make_result(tool_name, result)
         except Exception as exc:
             return {"status": "error", "error": str(exc), "tool": tool_name}
-
     return handler

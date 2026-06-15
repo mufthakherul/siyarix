@@ -40,6 +40,11 @@ def configure_logging(level: str | None = None, *, enable_console: bool = True) 
         lvl = logging.INFO
     root.setLevel(lvl)
 
+    # Suppress noisy INFO-level logs from httpx and httpcore
+    # These spam HTTP request/response lines that are debugging diagnostics
+    for noisy in ("httpx", "httpx._client", "httpx._config", "httpcore", "httpcore._async", "httpcore._sync"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+
     # Update existing console handler levels so reconfiguration takes effect
     for h in root.handlers:
         if isinstance(h, logging.StreamHandler):

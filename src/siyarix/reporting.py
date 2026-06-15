@@ -83,7 +83,7 @@ class ReportEngine:
             if data.properties.get("category") == "finding":
                 findings.append(data)
 
-        env = Environment(loader=BaseLoader())
+        env = Environment(loader=BaseLoader(), autoescape=True)
         template = env.from_string(REPORT_TEMPLATE)
 
         html_content = template.render(

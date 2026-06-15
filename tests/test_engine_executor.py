@@ -8,7 +8,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from siyarix.executor import ExecutionBudget, Executor, GuardrailConfig, ToolCallTracker
+from siyarix.executor import ExecutionBudget, GuardrailConfig, ToolCallTracker
+from siyarix import Executor
 from siyarix.planner import (
     ExecutionPlan,
     PlanStatus,

@@ -35,7 +35,7 @@ class TestInit:
         assert agent.status == AgentStatus.IDLE
         assert agent.registry is not None
         assert agent.planner is not None
-        assert agent.executor is not None
+        assert agent.executor_registry is not None
         assert agent.validator is not None
 
     def test_init_registry_mode(self):
@@ -168,9 +168,9 @@ class TestExecuteGoal:
             goal="Scan target with nmap", steps=[step], status=PlanStatus.COMPLETED
         )
 
-        agent._planner.decompose_goal = MagicMock(return_value=plan)
+        agent._planner_registry.plan = MagicMock(return_value=plan)
         agent._validator.validate_plan = AsyncMock(return_value=[])
-        agent._executor.execute_plan = AsyncMock(return_value=plan)
+        agent._executor_registry.execute_plan = AsyncMock(return_value=plan)
 
         result = await agent.execute_goal(goal)
 
@@ -185,11 +185,11 @@ class TestExecuteGoal:
         step = PlanStep(tool="nmap", args={}, description="Port scan")
         plan = ExecutionPlan(goal="Scan target with nmap", steps=[step], status=PlanStatus.ACTIVE)
 
-        agent._planner.decompose_goal = MagicMock(return_value=plan)
+        agent._planner_registry.plan = MagicMock(return_value=plan)
         agent._validator.validate_plan = AsyncMock(return_value=[])
-        agent._executor.execute_plan = AsyncMock(return_value=plan)
+        agent._executor_registry.execute_plan = AsyncMock(return_value=plan)
 
-        with patch.object(agent._executor, "execute_plan", new_callable=AsyncMock) as mock_exec:
+        with patch.object(agent._executor_registry, "execute_plan", new_callable=AsyncMock) as mock_exec:
             failed_step = PlanStep(
                 tool="nmap",
                 args={},
@@ -212,7 +212,7 @@ class TestExecuteGoal:
 
     @pytest.mark.asyncio
     async def test_execute_goal_exception(self, agent, goal):
-        agent._planner.decompose_goal = MagicMock(side_effect=RuntimeError("planner crashed"))
+        agent._planner_registry.plan = MagicMock(side_effect=RuntimeError("planner crashed"))
 
         result = await agent.execute_goal(goal)
 
@@ -225,9 +225,9 @@ class TestExecuteGoal:
         step = PlanStep(tool="nmap", args={}, description="Scan")
         plan = ExecutionPlan(goal="Scan target with nmap", steps=[step], status=PlanStatus.ACTIVE)
 
-        agent._planner.decompose_goal = MagicMock(return_value=plan)
+        agent._planner_registry.plan = MagicMock(return_value=plan)
         agent._validator.validate_plan = AsyncMock(return_value=[])
-        agent._executor.execute_plan = AsyncMock(return_value=plan)
+        agent._executor_registry.execute_plan = AsyncMock(return_value=plan)
 
         result = await agent.execute_goal(goal)
 
@@ -247,9 +247,9 @@ class TestExecuteGoal:
         step = PlanStep(tool="nmap", args={}, description="Scan")
         plan = ExecutionPlan(goal="Scan target with nmap", steps=[step], status=PlanStatus.ACTIVE)
 
-        agent._planner.decompose_goal = MagicMock(return_value=plan)
+        agent._planner_registry.plan = MagicMock(return_value=plan)
         agent._validator.validate_plan = track_validate
-        agent._executor.execute_plan = AsyncMock(return_value=plan)
+        agent._executor_registry.execute_plan = AsyncMock(return_value=plan)
 
         await agent.execute_goal(goal)
 
@@ -266,9 +266,9 @@ class TestExecuteGoal:
         )
         plan = ExecutionPlan(goal="Scan target with nmap", steps=[step], status=PlanStatus.ACTIVE)
 
-        agent._planner.decompose_goal = MagicMock(return_value=plan)
+        agent._planner_registry.plan = MagicMock(return_value=plan)
         agent._validator.validate_plan = AsyncMock(return_value=[])
-        agent._executor.execute_plan = AsyncMock(return_value=plan)
+        agent._executor_registry.execute_plan = AsyncMock(return_value=plan)
 
         result = await agent.execute_goal(goal)
 
@@ -280,9 +280,9 @@ class TestExecuteGoal:
     async def test_execute_goal_empty_plan(self, agent, goal):
         plan = ExecutionPlan(goal="Scan target with nmap", steps=[], status=PlanStatus.COMPLETED)
 
-        agent._planner.decompose_goal = MagicMock(return_value=plan)
+        agent._planner_registry.plan = MagicMock(return_value=plan)
         agent._validator.validate_plan = AsyncMock(return_value=[])
-        agent._executor.execute_plan = AsyncMock(return_value=plan)
+        agent._executor_registry.execute_plan = AsyncMock(return_value=plan)
 
         result = await agent.execute_goal(goal)
 
@@ -312,10 +312,10 @@ class TestExecuteGoal:
             goal="Scan", steps=[recovered_step], status=PlanStatus.COMPLETED
         )
 
-        autonomous_agent._planner.decompose_goal = MagicMock(return_value=failed_plan)
-        autonomous_agent._planner.llm_decompose_goal = AsyncMock(return_value=failed_plan)
+        autonomous_agent._planner_registry.plan = MagicMock(return_value=failed_plan)
+        autonomous_agent._planner_autonomous.plan = AsyncMock(return_value=failed_plan)
         autonomous_agent._validator.validate_plan = AsyncMock(return_value=[])
-        autonomous_agent._executor.execute_plan = AsyncMock(
+        autonomous_agent._executor_autonomous.execute_plan = AsyncMock(
             side_effect=[failed_plan, recovered_plan]
         )
         autonomous_agent._validator.plan_recovery = AsyncMock(
@@ -327,7 +327,7 @@ class TestExecuteGoal:
         result = await autonomous_agent.execute_goal(goal)
 
         assert result.success is True
-        assert autonomous_agent._executor.execute_plan.call_count == 2
+        assert autonomous_agent._executor_autonomous.execute_plan.call_count == 2
 
 
 # ---------------------------------------------------------------------------

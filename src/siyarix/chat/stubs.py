@@ -8,18 +8,21 @@ have not yet been implemented in the open-source release.
 from __future__ import annotations
 
 import logging
-from typing import Any, List
+from enum import Enum
+from typing import Any
+import typing
+
+logger = logging.getLogger(__name__)
+
 
 class CanaryTokenManager:
     def __init__(self) -> None: pass
-    def deploy_to_target(self, target: str, token_types: List[Any]) -> Any: return None
-    def list(self) -> List[str]: return []
+    def deploy_to_target(self, target: str, token_types: typing.List[Any]) -> Any: return None
+    def list(self) -> typing.List[str]: return []
     def status(self) -> str: return "stubbed"
-    def list_tokens(self) -> List[Any]: return []
+    def list_tokens(self) -> typing.List[Any]: return []
     def summary(self) -> dict[str, Any]: return {}
-from enum import Enum
 
-logger = logging.getLogger(__name__)
 
 class CoderBridge:
     def __init__(self) -> None: pass

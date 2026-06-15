@@ -11,22 +11,15 @@ from pathlib import Path
 from typing import Any
 from ..config import get_config_dir
 
-from rich.columns import Columns
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
-from rich.table import Table
 from rich.text import Text
 from prompt_toolkit import PromptSession
 from prompt_toolkit.key_binding import KeyBindings
 
-from .session import ChatMessage as ChatMessage, ChatSession as ChatSession
-from .ui import (
-    SmartAutocomplete as SmartAutocomplete,
-    CommandPalette as CommandPalette,
-    SplitPane as SplitPane,
-    ConfigPanel as ConfigPanel,
-)
+from .session import ChatMessage, ChatSession
+from .ui import SmartAutocomplete, CommandPalette, SplitPane, ConfigPanel
 from ..config import SettingsStore
 from .platform_utils import detect_shell, get_shell_platform, build_platform_context
 from .handlers import CommandHandlersMixin
@@ -73,6 +66,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         self._provider_last_fail_time: dict[str, float] = {}
         self._provider_cooldown_secs = 30.0
         self._llm_calls = 0
+        self._tool_cache: list[Any] | None = None
         from ..providers import UsageTracker, ProviderStateManager
 
         state_dir = str(get_config_dir())
@@ -89,42 +83,32 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
     def _validate_provider_config_on_startup(self) -> None:
         """Check configured provider has valid API key / SDK / endpoint at startup."""
-        from ..providers import ProviderManager
+        from ..providers import ProviderManager, resolve_api_key
 
         provider = (self._settings.get("model_provider") or "gemini").lower().strip()
         if provider == "auto":
-            return  # auto mode checks at runtime
+            return
         pm = ProviderManager.get_instance()
         profile = pm.get_profile(provider)
         if not profile:
             logger.warning("Unknown model_provider in settings: %s", provider)
             return
         if not profile.api_key_env:
-            return  # local provider
+            return
 
-        key = self._resolve_api_key(provider, profile.api_key_env or "")
+        key = resolve_api_key(provider, profile.api_key_env or "")
         if not key:
-            logger.warning(
-                "Provider '%s' configured but %s is not set in environment",
-                provider,
-                profile.api_key_env,
-            )
-            console.print(
-                f"[yellow]⚠ Provider '{provider}' configured but {profile.api_key_env} is not set.[/yellow]"
-            )
+            msg = f"Provider '{provider}' configured but {profile.api_key_env} is not set."
+            logger.warning(msg)
+            console.print(f"[yellow]⚠ {msg}[/yellow]")
 
         if profile.sdk_dependency:
             try:
                 __import__(profile.sdk_dependency)
             except ImportError:
-                logger.warning(
-                    "Provider '%s' SDK '%s' not installed",
-                    provider,
-                    profile.sdk_dependency,
-                )
-                console.print(
-                    f"[yellow]⚠ Provider '{provider}' requires SDK: pip install {profile.sdk_dependency}[/yellow]"
-                )
+                msg = f"Provider '{provider}' requires SDK: pip install {profile.sdk_dependency}"
+                logger.warning(msg)
+                console.print(f"[yellow]⚠ {msg}[/yellow]")
 
 
     def _init_session(self, session_id: str | None, target: str, resume: bool) -> ChatSession:
@@ -181,8 +165,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         """Main async REPL loop."""
         while self._running:
             try:
-                if self._split_pane_enabled:
-                    self._render_split_pane_layout()
                 user_input = await self._prompt_async()
                 if not user_input:
                     if self._esc_press_count > 0:
@@ -237,7 +219,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
     async def _prompt_async(self) -> str:
         """Display the input prompt and read a line."""
-
         if not sys.stdin.isatty():
             try:
                 return input().strip()
@@ -248,19 +229,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         prompt_label = Text.assemble(
             ("❯ ", "bold cyan"), ("Type your message or @path/to/file", "dim")
         )
-
-        if self._split_pane_enabled:
-            try:
-                session: PromptSession = PromptSession()
-                return (await session.prompt_async(
-                    "❯ ",
-                    key_bindings=esc_bindings,
-                    completer=SmartAutocomplete(self._session),
-                )).strip()
-            except KeyboardInterrupt:
-                raise
-            except Exception:
-                return Prompt.ask(prompt_label, default="").strip()
 
         # Gather status information
         target_str = f" ({self._session.target})" if self._session.target else ""
@@ -287,7 +255,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
-                session = PromptSession()
+                session: PromptSession = PromptSession()
                 answer = (await session.prompt_async(
                     "❯ ",
                     key_bindings=esc_bindings,
@@ -379,6 +347,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         shell_info = get_shell_platform()
         theme = self._settings.get("color_theme") or "cyber-noir"
         provider = self._settings.get("model_provider") or "auto"
+        persona = self._settings.get("persona") or "auto"
 
         scans_count = 0
         findings_count = 0
@@ -401,8 +370,8 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             pass
 
         command_count = sum(1 for m in self._session.messages if m.role == "user")
+        msg_count = len(self._session.messages)
 
-        # Create Layout
         layout = Layout()
         layout.split_column(
             Layout(name="header", size=4),
@@ -432,8 +401,10 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         layout["session_info"].update(
             Panel(
                 f"[bold #00ffcc]Platform:[/bold #00ffcc] [white]{shell_info}[/white]\n"
-                f"[bold #00ffcc]Theme:[/bold #00ffcc] [white]{theme}[/white]\n"
+                f"[bold #00ffcc]Mode:[/bold #00ffcc] [white]{self._mode}[/white]\n"
                 f"[bold #00ffcc]Provider:[/bold #00ffcc] [white]{provider}[/white]\n"
+                f"[bold #00ffcc]Persona:[/bold #00ffcc] [white]{persona}[/white]\n"
+                f"[bold #00ffcc]Theme:[/bold #00ffcc] [white]{theme}[/white]\n"
                 f"[bold #00ffcc]Session:[/bold #00ffcc] [white]{self._session.session_id[:8]}[/white]",
                 title="[bold]Session[/bold]",
                 border_style="cyan"
@@ -445,7 +416,9 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 f"[bold #ff00ff]Scans:[/bold #ff00ff] [white]{scans_count}[/white]\n"
                 f"[bold #ff00ff]Findings:[/bold #ff00ff] [white]{findings_count}[/white]\n"
                 f"[bold #ff00ff]Tools:[/bold #ff00ff] [white]{tool_count}[/white]\n"
-                f"[bold #ff00ff]Commands:[/bold #ff00ff] [white]{command_count}[/white]",
+                f"[bold #ff00ff]Commands:[/bold #ff00ff] [white]{command_count}[/white]\n"
+                f"[bold #ff00ff]Messages:[/bold #ff00ff] [white]{msg_count}[/white]\n"
+                f"[bold #ff00ff]Provider Calls:[/bold #ff00ff] [white]{self._llm_calls}[/white]",
                 title="[bold]Telemetry[/bold]",
                 border_style="magenta"
             )
@@ -453,26 +426,34 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
         layout["quick_actions"].update(
             Panel(
-                "[bold white]/help[/bold white] [dim]— cmds[/dim]\n"
-                "[bold white]/scan <tgt>[/bold white] [dim]— run[/dim]\n"
-                "[bold white]/run <cmd>[/bold white] [dim]— nlp[/dim]\n"
-                "[bold white]/theme[/bold white] [dim]— UI[/dim]",
-                title="[bold]Actions[/bold]",
+                "[bold white]/help[/bold white]  [dim]— cmds[/dim]\n"
+                "[bold white]/scan <tgt>[/bold white]  [dim]— run[/dim]\n"
+                "[bold white]/model <name>[/bold white]  [dim]— switch LLM[/dim]\n"
+                "[bold white]/persona <name>[/bold white]  [dim]— switch persona[/dim]\n"
+                "[bold white]/split <type>[/bold white]  [dim]— split pane[/dim]\n"
+                "[bold white]/theme <name>[/bold white]  [dim]— UI theme[/dim]",
+                title="[bold]Quick Actions[/bold]",
                 border_style="green"
             )
         )
         
-        runtime_txt = "\n".join(
-            f"[bold yellow]{k.capitalize()[:8]}:[/bold yellow] [dim]{v[0]}[/dim]"
-            for k, v in sorted(provider_status.items())[:4]
-        )
-        if not runtime_txt:
-            runtime_txt = "[dim]Initializing endpoints...[/dim]"
+        configured = [k for k, (icon, _) in provider_status.items() if icon == "✓"]
+        runtime_txt = ""
+        if configured:
+            runtime_txt = f"[bold green]✓[/bold green] [dim]{', '.join(configured[:3])}[/dim]\n"
+            if len(configured) > 3:
+                runtime_txt += f"[dim]+ {len(configured) - 3} more[/dim]"
+        else:
+            available = [k for k, (icon, _) in provider_status.items() if icon == "⚠"]
+            if available:
+                runtime_txt = f"[bold yellow]⚠[/bold yellow] [dim]Available (local): {', '.join(available[:2])}[/dim]"
+            else:
+                runtime_txt = "[dim]No providers configured[/dim]"
 
         layout["runtime"].update(
             Panel(
                 runtime_txt,
-                title="[bold]Runtime[/bold]",
+                title="[bold]LLM Status[/bold]",
                 border_style="yellow"
             )
         )
@@ -480,7 +461,8 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         layout["footer"].update(
             Panel(
                 "[bold cyan]Type natural language[/bold cyan] to plan work, or use slash commands.\n"
-                "[dim]Examples:[/dim] [green]scan 10.0.0.5[/green]  [green]enumerate example.com[/green]  [green]/theme appearance[/green]",
+                "[dim] Examples:[/dim] [green]scan 10.0.0.5[/green]  [green]enumerate example.com[/green]  [green]/theme cyber-noir[/green]\n"
+                "[dim] Press ? or type /help for all commands[/dim]",
                 title="[bold bright_black]SYSTEM LOG[/bold bright_black]",
                 border_style="bright_black"
             )
@@ -559,7 +541,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 )
             )
         else:
-            self._output._raw_print(f"\u25c6 Siyarix: {message}")
+            console.print(f"\u25c6 Siyarix: {message}")
 
 
     @staticmethod
@@ -698,6 +680,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                     continue
                 items = sev_groups[sev][:15]
                 sev_color = {"critical": "red", "high": "red", "medium": "yellow", "low": "green", "info": "blue"}.get(sev, "blue")
+                from rich.table import Table
                 sev_table = Table(
                     title=f"{sev.upper()} Findings ({len(items)})",
                     header_style=sev_color,

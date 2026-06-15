@@ -12,6 +12,9 @@ STATUS_RE = re.compile(r"^HTTP/\d+\.\d+\s+(\d+)\s+(.+)$")
 class CurlParser(BaseParser):
     def parse(self, output: str) -> list[dict[str, Any]]:
         findings: list[dict[str, Any]] = []
+        output = output.strip()
+        if not output:
+            return findings
         headers: dict[str, str] = {}
         status_code = ""
         status_text = ""

@@ -320,7 +320,7 @@ class TestAircrackParser:
 class TestImpacketParser:
     def test_basic_parse(self):
         p = ImpacketParser()
-        output = "Administrator:500:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::\n"
+        output = "Administrator:500:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c1:::\n"
         findings = p.parse(output)
         assert len(findings) >= 1
         _check_finding(findings[0], "impacket")
@@ -353,3 +353,68 @@ class TestParserEdgeCases:
         output = "Url: http://example.com\nsome noise here\n/admin (Status: 200)\n[Footer]\n"
         findings = p.parse(output)
         assert len(findings) >= 1
+
+from siyarix.parsers.waybackurls_parser import WaybackurlsParser
+from siyarix.parsers.paramspider_parser import ParamspiderParser
+from siyarix.parsers.corsy_parser import CorsyParser
+from siyarix.parsers.kxss_parser import KxssParser
+from siyarix.parsers.zmap_parser import ZmapParser
+from siyarix.parsers.aquatone_parser import AquatoneParser
+from siyarix.parsers.kiterunner_parser import KiterunnerParser
+
+class TestWaybackurlsParser:
+    def test_basic_parse(self):
+        p = WaybackurlsParser()
+        output = "http://example.com/test\nhttp://example.com/test2?id=1\n"
+        findings = p.parse(output)
+        assert len(findings) == 2
+        _check_finding(findings[0], "waybackurls")
+
+class TestParamspiderParser:
+    def test_basic_parse(self):
+        p = ParamspiderParser()
+        output = "http://example.com/api?user=FUZZ\nhttp://example.com/login?redirect=FUZZ\n"
+        findings = p.parse(output)
+        assert len(findings) == 2
+        _check_finding(findings[0], "paramspider")
+
+class TestCorsyParser:
+    def test_basic_parse(self):
+        p = CorsyParser()
+        output = '{"http://example.com": [{"type": "Origin Reflection", "severity": "High"}]}'
+        findings = p.parse(output)
+        assert len(findings) == 1
+        _check_finding(findings[0], "corsy")
+        assert findings[0]["severity"] == "high"
+
+class TestKxssParser:
+    def test_basic_parse(self):
+        p = KxssParser()
+        output = "URL: http://example.com/?q=test Param: q Unfiltered: [<>\'\"]\n"
+        findings = p.parse(output)
+        assert len(findings) == 1
+        _check_finding(findings[0], "kxss")
+
+class TestZmapParser:
+    def test_basic_parse(self):
+        p = ZmapParser()
+        output = "192.168.1.1\n192.168.1.2\n"
+        findings = p.parse(output)
+        assert len(findings) == 2
+        _check_finding(findings[0], "zmap")
+
+class TestAquatoneParser:
+    def test_basic_parse(self):
+        p = AquatoneParser()
+        output = '{"pages": {"1": {"url": "http://example.com", "status": 200, "pageTitle": "Example", "hasScreenshot": true}}}'
+        findings = p.parse(output)
+        assert len(findings) == 1
+        _check_finding(findings[0], "aquatone")
+
+class TestKiterunnerParser:
+    def test_basic_parse(self):
+        p = KiterunnerParser()
+        output = '{"URL": "http://example.com/api/v1/users", "Status": 403}\nGET http://example.com/api/v1/admin'
+        findings = p.parse(output)
+        assert len(findings) == 2
+        _check_finding(findings[0], "kiterunner")

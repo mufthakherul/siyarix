@@ -20,11 +20,18 @@ from .providers import (
     ClassifiedError,
 )
 from .planner import Planner, ExecutionPlan, PlanStep, PlanType, PlanStatus, StepStatus
-from .executor import Executor, ExecutionBudget, GuardrailConfig, ToolCallTracker
+from .planner_registry import RegistryPlanner, TOOL_ALTERNATIVES
+from .planner_autonomous import AutonomousPlanner
+from .executor import BaseExecutor, ExecutionBudget, GuardrailConfig, ToolCallTracker
+from .executor_registry import RegistryExecutor
+from .executor_autonomous import AutonomousExecutor
 from .validators import Validator, ValidationResult, RecoveryAction, RecoveryPlan
 from .context import ContextManager, ContextChunk, ContextWindow
 from .workflow import WorkflowEngine, Workflow, WorkflowNode, WorkflowStatus
 from .core import AgentCore, AgentMode, AgentStatus, AgentGoal, AgentResult
+
+# Backward compatibility alias
+Executor = RegistryExecutor
 
 __all__ = [
     "Event",
@@ -46,15 +53,21 @@ __all__ = [
     "FailoverReason",
     "ClassifiedError",
     "Planner",
+    "RegistryPlanner",
+    "AutonomousPlanner",
     "ExecutionPlan",
     "PlanStep",
     "PlanType",
     "PlanStatus",
     "StepStatus",
     "Executor",
+    "BaseExecutor",
+    "RegistryExecutor",
+    "AutonomousExecutor",
     "ExecutionBudget",
     "GuardrailConfig",
     "ToolCallTracker",
+    "TOOL_ALTERNATIVES",
     "Validator",
     "ValidationResult",
     "RecoveryAction",

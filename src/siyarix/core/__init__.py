@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Core agent system with goal decomposition, execution, and self-reflection."""
+"""Core agent system with mode-aware planners and executors."""
 
 from __future__ import annotations
 
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -11,7 +12,11 @@ from typing import Any
 
 from ..registry import ToolRegistry
 from ..planner import Planner, ExecutionPlan, PlanStatus, StepStatus, PlanStep
-from ..executor import Executor
+from ..planner_registry import RegistryPlanner
+from ..planner_autonomous import AutonomousPlanner
+from ..executor import BaseExecutor
+from ..executor_registry import RegistryExecutor
+from ..executor_autonomous import AutonomousExecutor
 from ..validators import Validator, RecoveryAction
 from ..context import ContextManager
 from ..memory import MemoryManager
@@ -22,7 +27,6 @@ from ..events import Event, EventType, get_event_bus
 from ..exceptions import BudgetExceededError
 from ..knowledge_graph import KnowledgeGraph
 from ..stealth import StealthEngine
-import os
 from ..config import get_config_dir
 from .swarm import SwarmRouter, SwarmTask
 from .learning import ContinuousLearning, Experience
@@ -81,12 +85,21 @@ class AgentResult:
 
 
 class AgentCore:
+    """Central orchestrator with mode-aware planners and executors.
+
+    Uses PlannerRouter for mode dispatch and dedicated executors for
+    registry (tool-based) and autonomous (shell-command) execution.
+    """
+
     def __init__(self, mode: AgentMode = AgentMode.REGISTRY) -> None:
         self._mode = mode
         self._status = AgentStatus.IDLE
         self._registry = ToolRegistry()
         self._planner = Planner()
-        self._executor = Executor(self._registry)
+        self._planner_registry = RegistryPlanner()
+        self._planner_autonomous = AutonomousPlanner()
+        self._executor_registry = RegistryExecutor(self._registry)
+        self._executor_autonomous = AutonomousExecutor()
         self._validator = Validator()
         self._memory = MemoryManager()
         self._context = ContextManager(memory=self._memory)
@@ -94,7 +107,6 @@ class AgentCore:
         self._workflow_engine = WorkflowEngine()
         self._event_bus = get_event_bus()
 
-        # Load external plugins
         try:
             from siyarix.plugins.loader import PluginLoader
             plugin_loader = PluginLoader(self._registry, self._providers)
@@ -102,12 +114,12 @@ class AgentCore:
         except Exception as e:
             logger.warning(f"Failed to initialize plugin loader: {e}")
 
-        # Initialize notifications
         try:
             from siyarix.notifications import NotificationDispatcher
             self._notifications = NotificationDispatcher()
         except Exception as e:
             logger.warning(f"Failed to initialize notifications: {e}")
+
         self._history: list[AgentResult] = []
         self._kg_path = get_config_dir() / "knowledge_graph.json"
         self._knowledge_graph = KnowledgeGraph()
@@ -133,8 +145,20 @@ class AgentCore:
         return self._planner
 
     @property
-    def executor(self) -> Executor:
-        return self._executor
+    def planner_registry(self) -> RegistryPlanner:
+        return self._planner_registry
+
+    @property
+    def planner_autonomous(self) -> AutonomousPlanner:
+        return self._planner_autonomous
+
+    @property
+    def executor_registry(self) -> RegistryExecutor:
+        return self._executor_registry
+
+    @property
+    def executor_autonomous(self) -> AutonomousExecutor:
+        return self._executor_autonomous
 
     @property
     def validator(self) -> Validator:
@@ -159,13 +183,9 @@ class AgentCore:
     async def _check_budget(self) -> None:
         record = self._usage_tracker.session_totals()
         if record.total_tokens >= self._max_tokens_per_session:
-            raise BudgetExceededError(
-                f"Session token limit {self._max_tokens_per_session} reached."
-            )
+            raise BudgetExceededError(f"Session token limit {self._max_tokens_per_session} reached.")
         if record.estimated_cost_usd >= self._max_cost_usd:
-            raise BudgetExceededError(
-                f"Session cost limit ${self._max_cost_usd:.2f} reached."
-            )
+            raise BudgetExceededError(f"Session cost limit ${self._max_cost_usd:.2f} reached.")
 
     async def start(self) -> None:
         import signal
@@ -183,7 +203,6 @@ class AgentCore:
 
         if os.getenv("SIYARIX_STEALTH") == "1":
             try:
-                from ..stealth import StealthEngine
                 self._stealth = StealthEngine()
                 self._stealth.enable()
                 logger.info("Stealth mode active")
@@ -192,7 +211,6 @@ class AgentCore:
 
         await self.initialize()
 
-        # Register custom _subagent executor for playbooks/swarms
         async def _subagent_handler(step: Any) -> dict[str, Any]:
             role = step.args.get("role", "assistant")
             goal_desc = step.args.get("goal", step.command)
@@ -201,12 +219,12 @@ class AgentCore:
                 return {"status": "success", "findings": len(res.findings)}
             except Exception as e:
                 return {"status": "error", "error": str(e)}
-        self._executor.register_executor("_subagent", _subagent_handler)
+        self._executor_registry.register_executor("_subagent", _subagent_handler)
 
     async def shutdown(self) -> None:
         logger.info("Siyarix shutting down gracefully...")
-        if hasattr(self._executor, 'close'):
-            await self._executor.close(timeout=5.0)
+        await self._executor_registry.close(timeout=5.0)
+        await self._executor_autonomous.close(timeout=5.0)
         self._kg_path.parent.mkdir(parents=True, exist_ok=True)
         self._knowledge_graph.save_json(str(self._kg_path))
         if hasattr(self._providers, '_state') and hasattr(self._providers._state, 'save'):
@@ -216,10 +234,8 @@ class AgentCore:
     async def initialize(self) -> None:
         self._registry.discover_from_path()
         self._registry.scan_path()
-        self._planner.build_index(
-            [t.name for t in self._registry._graph.all_tools()],
-            tool_registry=self._registry,
-        )
+        tool_names = [t.name for t in self._registry._graph.all_tools()]
+        self._planner_registry.build_index(tool_names, tool_registry=self._registry)
         await self._event_bus.emit(
             Event(
                 type=EventType.AGENT_START,
@@ -243,15 +259,12 @@ class AgentCore:
             )
             wave_result = await self.execute_goal(wave_goal, plan)
             all_findings.extend(wave_result.findings)
-
             if not wave_result.findings:
                 break
-
             if hasattr(self._planner, "plan_next_wave"):
                 plan = self._planner.plan_next_wave(wave_result.findings, goal)
             else:
                 plan = None
-
         return AgentResult(goal=goal.description, findings=all_findings, success=True)
 
     async def execute_goal(self, goal: AgentGoal, plan: ExecutionPlan | None = None) -> AgentResult:
@@ -271,13 +284,13 @@ class AgentCore:
     async def _execute_registry(
         self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult
     ) -> AgentResult:
-        """Registry mode: heuristic planning with validation, no LLM, no reflection."""
+        """Registry mode: heuristic planning via RegistryPlanner, execution via RegistryExecutor."""
         try:
             tool_names = [t.name for t in self._registry.list_tools()]
             if plan is None:
-                plan = self._planner.decompose_goal(goal.description, tool_names)
+                plan = self._planner_registry.plan(goal.description, tool_names)
             result.plan = plan
-            # Progress tracking
+
             step_progress: dict[str, str] = {}
 
             def on_step(s: PlanStep) -> None:
@@ -286,7 +299,6 @@ class AgentCore:
                 if old_status != s.status.value:
                     step_progress[step_id] = s.status.value
                     from ..events import emit_sync
-
                     emit_sync(
                         Event(
                             type=EventType.PLAN_STEP_START
@@ -297,36 +309,14 @@ class AgentCore:
                         )
                     )
 
-            self._executor.set_progress_callback(on_step)
+            self._executor_registry.set_progress_callback(on_step)
             await self._validator.validate_plan(plan.steps)
+
             if hasattr(plan, "plan_type") and getattr(plan.plan_type, "value", None) == "dag":
-                from ..workflow import WorkflowStatus
-                nodes = [
-                    {
-                        "id": s.id,
-                        "name": s.tool or s.description,
-                        "step_fn": s.tool,
-                        "args": s.args,
-                        "timeout": s.timeout,
-                    }
-                    for s in plan.steps
-                ]
-                edges = [
-                    {"source": dep, "target": s.id}
-                    for s in plan.steps
-                    for dep in s.dependencies
-                ]
-                workflow = self._workflow_engine.create_workflow(
-                    name=goal.description,
-                    description=goal.description,
-                    nodes=nodes,
-                    edges=edges,
-                )
-                wf_result = await self._workflow_engine.run_workflow(workflow)
-                result.success = wf_result.status == WorkflowStatus.COMPLETED
+                plan = await self._executor_registry.execute_workflow(plan)
             else:
-                plan = await self._executor.execute_plan(plan)
-                result.success = plan.status == PlanStatus.COMPLETED
+                plan = await self._executor_registry.execute_plan(plan)
+            result.success = plan.status == PlanStatus.COMPLETED
 
             result.summary = self._generate_summary(plan)
             result.findings = self._extract_findings(plan)
@@ -342,7 +332,7 @@ class AgentCore:
     async def _execute_autonomous(
         self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult
     ) -> AgentResult:
-        """Autonomous mode: LLM-first planning, reflection, recovery."""
+        """Autonomous mode: LLM-first planning via AutonomousPlanner, execution via AutonomousExecutor."""
         try:
             await self._check_budget()
             if plan is None:
@@ -350,25 +340,29 @@ class AgentCore:
                 _settings = SettingsStore()
                 _preferred = _settings.get("model_provider") or None
                 provider, model = self._providers.select_provider(preferred=_preferred)
+
                 async def llm_call(system_prompt: str, user_prompt: str, *, history: Any = None, **kwargs: Any) -> Any:
                     return await self._providers.complete(
                         provider, "", system_prompt, user_prompt, history=history, **kwargs
                     )
+
                 tool_schemas = [
                     {"name": t.name, "description": t.description, "tags": t.tags, "category": getattr(t.category, 'value', str(t.category))}
                     for t in self._registry.list_tools()
                 ]
-                plan = await self._planner.llm_decompose_goal(
+                plan = await self._planner_autonomous.plan(
                     goal.description,
-                    [t.name for t in self._registry.list_tools()],
                     llm_call=llm_call,
                     tool_schemas=tool_schemas,
+                    available_tools=[t.name for t in self._registry.list_tools()],
                     history=self._context.get_history(),
+                    is_first_call=True,
                 )
             result.plan = plan
             self._context.add_history(f"Goal: {goal.description}", "user")
             await self._validator.validate_plan(plan.steps)
-            plan = await self._executor.execute_plan(plan)
+            plan = await self._executor_autonomous.execute_plan(plan, live_display=False)
+
             if plan.has_failures:
                 for step in plan.failed_steps:
                     recovery = await self._validator.plan_recovery(
@@ -377,8 +371,9 @@ class AgentCore:
                     if recovery.action == RecoveryAction.RETRY and recovery.modified_step:
                         idx = plan.steps.index(step)
                         plan.steps[idx] = recovery.modified_step
-                        plan = await self._executor.execute_plan(plan)
+                        plan = await self._executor_autonomous.execute_plan(plan, live_display=False)
                         break
+
             result.success = plan.status == PlanStatus.COMPLETED
             result.summary = self._generate_summary(plan)
             result.findings = self._extract_findings(plan)
@@ -394,7 +389,7 @@ class AgentCore:
     async def _execute_hybrid(
         self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult
     ) -> AgentResult:
-        """Hybrid mode: try autonomous (LLM) first, fall back to registry (heuristic)."""
+        """Hybrid mode: try AutonomousPlanner + AutonomousExecutor first, fall back to RegistryPlanner + RegistryExecutor."""
         auto_result = await self._execute_autonomous(goal, plan, start, AgentResult(goal=goal.description))
         if auto_result.success:
             return auto_result
@@ -406,7 +401,7 @@ class AgentCore:
             if s.status == StepStatus.COMPLETED
         }
 
-        registry_plan = self._planner.decompose_goal(
+        registry_plan = self._planner_registry.plan(
             goal.description, [t.name for t in self._registry.list_tools()]
         )
         for step in registry_plan.steps:
@@ -421,7 +416,7 @@ class AgentCore:
         """Interactive mode: user-in-the-loop."""
         try:
             if plan is None:
-                plan = self._planner.decompose_goal(
+                plan = self._planner_registry.plan(
                     goal.description, [t.name for t in self._registry.list_tools()]
                 )
             result.plan = plan
@@ -437,7 +432,7 @@ class AgentCore:
                 result.summary = "Plan rejected by user."
                 return result
 
-            plan = await self._executor.execute_plan(plan)
+            plan = await self._executor_registry.execute_plan(plan)
             result.success = plan.status == PlanStatus.COMPLETED
             result.summary = self._generate_summary(plan)
             result.findings = self._extract_findings(plan)
@@ -511,14 +506,12 @@ class AgentCore:
                 self._knowledge_graph.add_edge(host_node.node_id, vuln_node.node_id, EdgeType.HAS_VULN)
 
     def create_subagent(self, role: str, mode: AgentMode = AgentMode.AUTONOMOUS) -> 'AgentCore':
-        """Create a specialized sub-agent that shares this agent's knowledge graph."""
         subagent = AgentCore(mode=mode)
-        subagent._knowledge_graph = self._knowledge_graph  # Share memory
+        subagent._knowledge_graph = self._knowledge_graph
         logger.info(f"Created sub-agent with role: {role}")
         return subagent
 
     async def execute_subagent(self, role: str, goal: str) -> AgentResult:
-        """Create and run a subagent for a specific goal."""
         subagent = self.create_subagent(role)
         await subagent.start()
         try:
@@ -533,4 +526,5 @@ class AgentCore:
             "status": self._status.value,
             "registry": self._registry.stats(),
             "history": len(self._history),
+            "planner_router": self._planner.stats(),
         }

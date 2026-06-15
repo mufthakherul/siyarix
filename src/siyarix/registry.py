@@ -472,7 +472,7 @@ class ToolRegistry:
         tool = self._graph.get_tool(name)
         if tool and tool.related_tools:
             return tool.related_tools
-        from .planner import TOOL_ALTERNATIVES
+        from .planner_registry import TOOL_ALTERNATIVES
         return TOOL_ALTERNATIVES.get(name, [])
 
     def get_by_tags(self, tags: list[str]) -> list[ToolCapability]:

@@ -41,7 +41,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
 
 class ScanRequest(BaseModel):
     target: str
-    mode: str = "registry"
+    mode: str = "offline"
 
 
 class ChatRequest(BaseModel):

@@ -374,7 +374,7 @@ def main_callback(
         "integrated",
         "--mode",
         "-m",
-        help="Execution mode: registry|autonomous|integrated|offline",
+        help="Execution mode: autonomous|integrated|offline",
     ),
     target: str = typer.Option("", "--target", "-t", help="Set initial target for the session"),
     session: str = typer.Option("", "--session", help="Resume a previous session by ID"),
@@ -781,7 +781,7 @@ def scan(
         "integrated",
         "--mode",
         "-m",
-        help="Execution mode: registry|autonomous|integrated|offline",
+        help="Execution mode: autonomous|integrated|offline",
     ),
     output: str = typer.Option("table", "--output", "-o", help="Output: table|json|yaml|csv"),
     parallel: int = typer.Option(3, "--parallel", "-p", help="Parallel workers"),
@@ -1120,6 +1120,7 @@ def agent(
 
     mode_map = {
         "registry": AgentMode.REGISTRY,
+        "offline": AgentMode.REGISTRY,
         "autonomous": AgentMode.AUTONOMOUS,
         "integrated": AgentMode.HYBRID,
     }

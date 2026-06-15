@@ -33,7 +33,7 @@ HELP_CATEGORIES = [
             "/config": "Open the interactive configuration panel",
             "/config tools": "Manage discovered security tools",
             "/key": "Manage API keys for AI providers",
-            "/mode <mode>": "Switch execution mode (autonomous|integrated|registry|offline)",
+            "/mode <mode>": "Switch execution mode (autonomous|integrated|offline)",
             "/model [provider]": "Show or switch AI model provider",
             "/provider [name]": "Show detailed provider info and available models",
             "/theme mode|appearance": "Change UI theme or preview appearance",

@@ -2287,8 +2287,7 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
     def _install_llamacpp(self) -> bool:
         """Download and install llama.cpp pre-built binary."""
         import platform as _platform
-        import urllib.request
-        import json
+        import httpx
         import zipfile
         import tarfile
 
@@ -2300,8 +2299,9 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
         # Fetch the latest release tag from GitHub API
         try:
             api_url = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
-            resp = urllib.request.urlopen(api_url, timeout=15)
-            release_data = json.loads(resp.read())
+            resp = httpx.get(api_url, timeout=15)
+            resp.raise_for_status()
+            release_data = resp.json()
             tag = release_data.get("tag_name", "")
             if not tag:
                 raise ValueError("No tag_name in release data")
@@ -2376,12 +2376,12 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
                     break
 
             # Find the llama-server binary and any shared libs
-            for f in bin_dir.rglob("*"):
-                if f.is_file() and f.name in ("llama-server", "llama-server.exe"):
-                    if f.parent != bin_dir:
-                        shutil.copy2(f, bin_dir / f.name)
+            for entry in bin_dir.rglob("*"):
+                if entry.is_file() and entry.name in ("llama-server", "llama-server.exe"):
+                    if entry.parent != bin_dir:
+                        shutil.copy2(entry, bin_dir / entry.name)
                         # Also copy shared libraries from the same directory
-                        for lib in f.parent.glob("*.so*"):
+                        for lib in entry.parent.glob("*.so*"):
                             shutil.copy2(lib, bin_dir / lib.name)
 
             # Cleanup archive

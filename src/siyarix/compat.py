@@ -186,10 +186,11 @@ class ExecutionEngine:
 
     async def plan(self, instruction: str) -> Any:
         from .planner import Planner
+        from .planner_registry import RegistryPlanner
 
-        planner = Planner()
+        planner = RegistryPlanner()
         tools = [t.name for t in self._registry.list_tools()] if self._registry else []
-        return planner.decompose_goal(instruction, tools)
+        return planner.plan(instruction, tools)
 
     async def execute(self, goal: str, **kwargs: Any) -> EngineResult:
         from .core import AgentCore, AgentMode, AgentGoal

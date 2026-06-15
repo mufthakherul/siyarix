@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import json
 import logging
 import re
 import time
@@ -80,6 +81,17 @@ def _get_session_logger() -> Any:
     """Lazily import and cache ``session_logger``."""
     from .session_log import session_logger
     return session_logger
+
+
+@functools.lru_cache(maxsize=1)
+def _get_dlp_engine() -> Any:
+    """Lazily import and cache ``DLPEngine``."""
+    try:
+        from .dlp import DLPEngine
+        return DLPEngine(redact_secrets=True, redact_pii=True)
+    except ImportError:
+        logger.debug("DLPEngine not available, skipping redaction")
+        return None
 
 
 @dataclass
@@ -194,7 +206,6 @@ class ToolCallTracker:
         self._load_state()
 
     def _load_state(self) -> None:
-        import json
         if self._state_file.exists():
             try:
                 data = json.loads(self._state_file.read_text())
@@ -202,11 +213,10 @@ class ToolCallTracker:
                 self._consecutive_same = data.get("consecutive_same", {})
                 self._no_progress_count = data.get("no_progress_count", 0)
                 self._last_mutation = data.get("last_mutation", "")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed to load tool failure state: %s", exc)
 
     def _save_state(self) -> None:
-        import json
         try:
             self._state_file.parent.mkdir(parents=True, exist_ok=True)
             self._state_file.write_text(json.dumps({
@@ -215,8 +225,8 @@ class ToolCallTracker:
                 "no_progress_count": self._no_progress_count,
                 "last_mutation": self._last_mutation
             }))
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to save tool failure state: %s", exc)
 
     # -- public properties (M-09) -------------------------------------------
 
@@ -505,18 +515,14 @@ class Executor:
 
             result = await self._registry.execute(step.tool, **step.args)
 
-            try:
-                from .dlp import DLPEngine
-                dlp = DLPEngine(redact_secrets=True, redact_pii=True)
+            dlp = _get_dlp_engine()
+            if dlp is not None:
                 result = dlp.redact_dict(result)
-            except ImportError:
-                pass
             if result.get("status") == "error":
                 err_msg = str(result.get("error", "")).lower()
                 if any(x in err_msg for x in ["not found", "not recognized", "executable"]):
-                    try:
-                        import sys
-                        if sys.stdout and sys.stdout.isatty():
+                    if sys.stdout and sys.stdout.isatty():
+                        try:
                             from rich.prompt import Confirm
                             from siyarix.tool_installer import ToolInstaller
                             want = Confirm.ask(f"\n[yellow]Tool [cyan]{step.tool}[/cyan] is missing. Auto-install it?[/yellow]", default=True)
@@ -524,12 +530,10 @@ class Executor:
                                 installer = ToolInstaller()
                                 if installer.install_tool(step.tool):
                                     result = await self._registry.execute(step.tool, **step.args)
-                                    try:
+                                    if dlp is not None:
                                         result = dlp.redact_dict(result)
-                                    except Exception:
-                                        pass
-                    except Exception:
-                        pass
+                        except Exception as exc:
+                            logger.warning("Tool auto-install failed for %s: %s", step.tool, exc)
 
             if result.get("status") == "error":
                 alt_tools = TOOL_ALTERNATIVES.get(step.tool, [])

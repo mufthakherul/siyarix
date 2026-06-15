@@ -176,11 +176,11 @@ class ProviderManager:
             reason, rotate = self._classify_by_message(str(error))
 
         if reason == FailoverReason.AUTH:
-            return ClassifiedError(reason, should_rotate_credential=True, message=str(error))
+            return ClassifiedError(reason, should_rotate_credential=rotate, message=str(error))
         if reason == FailoverReason.RATE_LIMIT:
             return ClassifiedError(reason, message=str(error))
         if reason == FailoverReason.BILLING:
-            return ClassifiedError(reason, should_rotate_credential=True, message=str(error))
+            return ClassifiedError(reason, should_rotate_credential=rotate, message=str(error))
         if reason == FailoverReason.TIMEOUT:
             return ClassifiedError(reason, message=str(error))
         if reason == FailoverReason.SERVER_ERROR:
@@ -329,17 +329,9 @@ def resolve_api_key(provider: str, env_var: str | None = None) -> str | None:
         pass
     if key:
         return key
-    # Environment variable
     if not env_var:
         env_var = get_provider_env_var(provider)
-    key = os.environ.get(env_var) if env_var else None
-    if key:
-        return key
-    if provider == "gemini":
-        key = os.environ.get("GOOGLE_API_KEY")
-        if key:
-            return key
-    return None
+    return os.environ.get(env_var) if env_var else None
 
 
 def get_provider_env_var(provider: str) -> str:

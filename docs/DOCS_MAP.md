@@ -73,7 +73,6 @@ Start here:
 - `ai/tool-execution.md` — tool lifecycle and parsing
 - `ai/safety-and-hallucination.md` — safety constraints
 - `ai/multi-model-ensemble.md` — parallel LLM voting strategies
-- `ai/mcp-integration.md` — Model Context Protocol client
 
 ### Security researchers
 
@@ -147,9 +146,8 @@ docs/
 │   ├── agent-reasoning.md         # Goal decomposition, multi-agent
 │   ├── tool-execution.md          # Tool discovery, parsing, errors
 │   ├── safety-and-hallucination.md  # Response sensor, danger analysis
-│   ├── multi-model-ensemble.md    # Parallel LLM voting strategies
-│   └── mcp-integration.md         # Model Context Protocol client
-│
+    │   ├── multi-model-ensemble.md    # Parallel LLM voting strategies
+    │
 ├── security/
 │   ├── ethical-hacking-policy.md   # Authorized use, scope, compliance
 │   ├── abuse-prevention.md         # Danger analysis, emergency stop, OPSEC

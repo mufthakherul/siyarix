@@ -23,7 +23,6 @@ class StepStatus(StrEnum):
     PENDING = "pending"
     READY = "ready"
     RUNNING = "running"
-    SUCCESS = "success"
     COMPLETED = "completed"
     FAILED = "failed"
     SKIPPED = "skipped"
@@ -61,6 +60,18 @@ class ExecutionStep:
     timeout: float = 300.0
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    def to_plan_step(self) -> PlanStep:
+        return PlanStep(
+            id=self.id,
+            description=self.description,
+            tool=self.tool,
+            args={"target": self.target} if self.target else {},
+            command=self.command,
+            dependencies=self.depends_on,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+
 
 @dataclass
 class PlanStep:
@@ -77,6 +88,14 @@ class PlanStep:
     timeout: float = 300.0
     duration_ms: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __hash__(self) -> int:
+        return hash(self.id)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, PlanStep):
+            return NotImplemented
+        return self.id == other.id
 
     @property
     def is_ready(self) -> bool:

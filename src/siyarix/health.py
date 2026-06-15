@@ -207,7 +207,7 @@ class HealthChecker:
                         logger.debug("%s check failed — not running", provider_name)
                 elif provider_name == "gemini":
                     from .providers import resolve_api_key
-                    available = bool(resolve_api_key("gemini", "GEMINI_API_KEY"))
+                    available = bool(resolve_api_key("gemini", "GEMINI_API_KEY") or resolve_api_key("gemini", "GOOGLE_API_KEY"))
                     message = "Gemini API key configured" if available else "Gemini not configured"
                 elif provider_name == "azure":
                     from .providers import resolve_api_key

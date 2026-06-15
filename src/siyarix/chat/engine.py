@@ -756,9 +756,15 @@ class LLMEngineMixin:
                 border = "green" if not st.exit_code else "red"
                 if not display_lines:
                     display_lines = ["(no output)"] if not st.exit_code else [f"Command failed (exit {st.exit_code})"]
+                truncated = []
+                for line in display_lines[-200:]:
+                    if len(line) > 500:
+                        truncated.append(line[:500] + "...")
+                    else:
+                        truncated.append(line)
                 console.print(
                     RichPanel(
-                        "\n".join(display_lines[-200:]),
+                        "\n".join(truncated),
                         title=f"{icon} {st.label}",
                         border_style=border,
                     )

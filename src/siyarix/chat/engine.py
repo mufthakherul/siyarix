@@ -601,15 +601,6 @@ class LLMEngineMixin:
             )
             return True
 
-        # ── Announce which tools will run ───────────────────────────────
-        tool_labels = []
-        for s in llm_plan.steps:
-            if s.command:
-                tool_labels.append(f"[bold]$ {s.command}[/bold]")
-            else:
-                tool_labels.append(f"[bold]{s.tool}[/bold]")
-        console.print(f"[cyan]→ Executing:[/cyan] {', '.join(tool_labels)}")
-
         # ── Multi-wave execution loop ─────────────────────────────────────
         max_waves = self._settings.get("max_waves") or 25
         all_outputs: list[str] = []
@@ -632,7 +623,7 @@ class LLMEngineMixin:
                 console.print(f"[cyan]→ Wave {wave + 1}:[/cyan] {', '.join(tool_labels)}")
 
             # Execute all steps in parallel with a single live display
-                from ..subprocess_utils import get_platform_shell_cmd, safe_run_async_stream
+            from ..subprocess_utils import get_platform_shell_cmd, safe_run_async_stream
 
             @dataclass
             class _CmdState:

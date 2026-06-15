@@ -602,7 +602,7 @@ class LLMEngineMixin:
             return True
 
         # ── Multi-wave execution loop ─────────────────────────────────────
-        max_waves = self._settings.get("max_waves") or 3
+        max_waves = self._settings.get("max_waves") or 12
         all_outputs: list[str] = []
         plan: Any = llm_plan
 

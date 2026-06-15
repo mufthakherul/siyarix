@@ -25,6 +25,7 @@ from .lmstudio import register_profile as register_lmstudio
 from .llamacpp import register_profile as register_llamacpp
 from .vllm import register_profile as register_vllm
 from .localai import register_profile as register_localai
+from .registry import register_profile as register_registry
 
 
 def register_all_profiles(manager: ProviderManager) -> None:
@@ -52,3 +53,4 @@ def register_all_profiles(manager: ProviderManager) -> None:
     register_llamacpp(manager)
     register_vllm(manager)
     register_localai(manager)
+    register_registry(manager)

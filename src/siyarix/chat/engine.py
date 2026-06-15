@@ -158,7 +158,7 @@ class LLMEngineMixin:
 
         # Multi-model ensemble voting (available providers > 1)
         try:
-            from ..multi_model_ensemble import MultiModelEnsemble, VotingStrategy
+            from .stubs import MultiModelEnsemble, VotingStrategy
 
             ensemble = MultiModelEnsemble()
             registered_count = 0
@@ -190,7 +190,7 @@ class LLMEngineMixin:
 
         # Adversarial plan review
         try:
-            from ..adversarial_tester import AdversarialTester, AdversarialSeverity
+            from .stubs import AdversarialTester, AdversarialSeverity
 
             tester = AdversarialTester()
             plan_lines = [

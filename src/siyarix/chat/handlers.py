@@ -406,7 +406,7 @@ class CommandHandlersMixin:
         if provider == "gemini":
             pkg_name = "google-genai"
             try:
-                import google.genai as _test_genai  # noqa: F401
+                import google.genai as _test_genai  # type: ignore[import-untyped]  # noqa: F401
 
                 gemini_pkg_installed = True
             except Exception:
@@ -441,12 +441,14 @@ class CommandHandlersMixin:
 
 
     def _cmd_theme(self, args: str) -> None:
-        tokens = args.split(maxsplit=1) if args else []
+        tokens = args.split() if args else []
         if not tokens or tokens[0].lower() in {"show", "list"}:
             current = self._settings.get("color_theme")
-            console.print(f"Current theme: [cyan]{current}[/cyan]")
-            console.print(f"Available themes: {', '.join(available_themes())}")
-            console.print("Use /theme mode dark|light|system or /theme appearance")
+            syntax = self._settings.get("syntax_theme") or "monokai"
+            console.print(f"Current UI theme: [cyan]{current}[/cyan] | Syntax theme: [cyan]{syntax}[/cyan]")
+            console.print(f"Available UI themes: {', '.join(available_themes())}")
+            console.print("Use /theme <ui_theme> [syntax_theme]")
+            console.print("Example: /theme cyber-noir dracula")
             return
 
         action = tokens[0].lower()
@@ -462,12 +464,18 @@ class CommandHandlersMixin:
                 return
             theme = tokens[1].strip().lower()
             self._settings.set("color_theme", theme)
+            if len(tokens) > 2:
+                self._settings.set("syntax_theme", tokens[2].strip().lower())
             console.print(f"[green]✓ Theme set to: {theme}[/green]")
             print_theme_preview(console, theme)
             return
 
         theme = action
         self._settings.set("color_theme", theme)
+        if len(tokens) > 1:
+            syntax_theme = tokens[1].strip().lower()
+            self._settings.set("syntax_theme", syntax_theme)
+            console.print(f"[green]✓ Syntax theme set to: {syntax_theme}[/green]")
         console.print(f"[green]✓ Theme set to: {theme}[/green]")
         print_theme_preview(console, theme)
 
@@ -1042,7 +1050,7 @@ class CommandHandlersMixin:
     async def _cmd_coder(self, args: str) -> None:
         """Handle /coder command for code generation and review."""
         try:
-            from ..coder_bridge import CoderBridge
+            from .stubs import CoderBridge
         except ModuleNotFoundError:
             console.print("[yellow]Coder Bridge is not available in this version[/yellow]")
             return
@@ -1416,7 +1424,7 @@ class CommandHandlersMixin:
     async def _cmd_cloud(self, args: str) -> None:
         """Handle /cloud command for cloud provider scanning."""
         try:
-            from ..cloud_scanner import CloudProvider, CloudScanner
+            from .stubs import CloudProvider, CloudScanner
         except ModuleNotFoundError:
             console.print("[yellow]Cloud scanner is not available in this version[/yellow]")
             return
@@ -1435,7 +1443,7 @@ class CommandHandlersMixin:
     async def _cmd_k8s(self, args: str) -> None:
         """Handle /k8s command for Kubernetes security scanning."""
         try:
-            from ..cloud_scanner import CloudScanner
+            from .stubs import CloudScanner
         except ModuleNotFoundError:
             console.print("[yellow]Kubernetes scanner is not available in this version[/yellow]")
             return
@@ -1452,7 +1460,7 @@ class CommandHandlersMixin:
     async def _cmd_docker(self, args: str) -> None:
         """Handle /docker command for container scanning."""
         try:
-            from ..cloud_scanner import CloudScanner
+            from .stubs import CloudScanner
         except ModuleNotFoundError:
             console.print("[yellow]Docker scanner is not available in this version[/yellow]")
             return
@@ -1469,7 +1477,7 @@ class CommandHandlersMixin:
     async def _cmd_iac(self, args: str) -> None:
         """Handle /iac command for Infrastructure as Code scanning."""
         try:
-            from ..iac_scanner import IaCScanner
+            from .stubs import IaCScanner
         except ModuleNotFoundError:
             console.print("[yellow]IaC scanner is not available in this version[/yellow]")
             return
@@ -1489,7 +1497,7 @@ class CommandHandlersMixin:
     async def _cmd_mobile(self, args: str) -> None:
         """Handle /mobile command for mobile app testing."""
         try:
-            from ..mobile_scanner import MobileScanner
+            from .stubs import MobileScanner
         except ModuleNotFoundError:
             console.print("[yellow]Mobile scanner is not available in this version[/yellow]")
             return
@@ -1512,7 +1520,7 @@ class CommandHandlersMixin:
     async def _cmd_iot(self, args: str) -> None:
         """Handle /iot command for IoT device testing."""
         try:
-            from ..iot_scanner import IoTScanner
+            from .stubs import IoTScanner
         except ModuleNotFoundError:
             console.print("[yellow]IoT scanner is not available in this version[/yellow]")
             return
@@ -1535,7 +1543,7 @@ class CommandHandlersMixin:
     async def _cmd_hsm(self, args: str) -> None:
         """Handle /hsm command for hardware security module integration."""
         try:
-            from ..hsm_manager import HSMService
+            from .stubs import HSMService
         except ModuleNotFoundError:
             console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
             return
@@ -1563,7 +1571,7 @@ class CommandHandlersMixin:
     async def _cmd_compliance(self, args: str) -> None:
         """Handle /compliance command for framework assessment."""
         try:
-            from ..compliance_runner import ComplianceRunner
+            from .stubs import ComplianceRunner
         except ModuleNotFoundError:
             console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
             return
@@ -1690,7 +1698,7 @@ class CommandHandlersMixin:
     async def _cmd_import(self, args: str) -> None:
         """Handle /import command for importing scan results."""
         try:
-            from ..importer import security_importer
+            from .stubs import security_importer
         except ModuleNotFoundError:
             console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
             return
@@ -1725,13 +1733,14 @@ class CommandHandlersMixin:
     async def _cmd_playbook(self, args: str) -> None:
         """Handle /playbook command for workflow playbooks."""
         try:
-            from ..playbook_engine import PlaybookEngine
-        except ModuleNotFoundError:
+            from .stubs import PlaybookEngine
+            engine = PlaybookEngine()
+            console.print("[yellow]PlaybookEngine is running in stub mode.[/yellow]")
+        except ImportError:
             console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
             return
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "list"
-        engine = PlaybookEngine()
         if action == "list":
             playbooks = engine.list_playbooks()
             if not playbooks:
@@ -1844,7 +1853,7 @@ class CommandHandlersMixin:
     async def _cmd_intel(self, args: str) -> None:
         """Handle /intel command for threat intelligence queries."""
         try:
-            from ..threat_intel import ThreatIntelFeed, MITREAttackDB
+            from .stubs import ThreatIntelFeed, MITREAttackDB
         except ModuleNotFoundError:
             console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
             return
@@ -1888,7 +1897,7 @@ class CommandHandlersMixin:
     async def _cmd_canary(self, args: str) -> None:
         """Handle /canary command for deception token deployment."""
         try:
-            from ..canary import CanaryTokenManager, CanaryTokenType
+            from .stubs import CanaryTokenManager, CanaryTokenType
         except ModuleNotFoundError:
             console.print("[yellow]This feature requires Siyarix Enterprise (v2)[/yellow]")
             return

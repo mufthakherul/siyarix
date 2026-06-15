@@ -455,8 +455,18 @@ Respond with ONLY valid JSON:
             cleaned = cleaned.strip()
             try:
                 data = json.loads(cleaned)
-            except json.JSONDecodeError as exc:
-                raise RuntimeError(f"LLM returned invalid JSON:\n{cleaned[:500]}") from exc
+            except json.JSONDecodeError:
+                # Model returned conversational text instead of structured JSON.
+                # Treat it as a chat response with no tools needed.
+                return self.create_plan(
+                    goal=goal,
+                    context={
+                        "response": cleaned,
+                        "reasoning": "Model returned conversational response "
+                        "(could not parse as structured plan). Handled as chat.",
+                        "llm_planned": True,
+                    },
+                )
 
         if not isinstance(data, dict):
             return self.create_plan(

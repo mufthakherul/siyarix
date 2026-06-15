@@ -123,6 +123,7 @@ try:
     from rich.table import Table
     from rich import box
 except ImportError:
+    logger.warning("Rich library not installed; TUI features will be degraded")
     Console = None  # type: ignore[assignment,misc]
     Panel = None  # type: ignore[assignment,misc]
     Prompt = None  # type: ignore[assignment,misc]
@@ -360,16 +361,16 @@ class OnboardingWizard:
             import psutil
             mem = psutil.virtual_memory()
             ram_free_gb = mem.available / (1024**3)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to get available RAM: %s", exc)
 
         # Physical CPU cores
         cpu_physical = 0
         try:
             import psutil as _ps
             cpu_physical = _ps.cpu_count(logical=False) or 0
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to get CPU count: %s", exc)
 
         # ── GPU detection ─────────────────────────────────────────────
         gpu_type = "none"
@@ -435,8 +436,8 @@ class OnboardingWizard:
             import psutil as _ps
             bat = _ps.sensors_battery()
             has_battery = bat is not None
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to detect battery: %s", exc)
         is_server = not has_battery and ram_total_gb >= 16
 
         gpu_label = f"{gpu_name} ({gpu_vram_gb:.1f} GB)" if gpu_name else gpu_type.upper() if gpu_type != "none" else "None"
@@ -448,8 +449,8 @@ class OnboardingWizard:
             siyarix_home.mkdir(parents=True, exist_ok=True)
             free_bytes = shutil.disk_usage(siyarix_home).free
             disk_free_gb = free_bytes / (1024**3)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to get disk usage: %s", exc)
 
         disk_label = f"{disk_free_gb:.1f} GB free" if disk_free_gb > 0 else "Unknown"
 
@@ -1196,8 +1197,7 @@ class OnboardingWizard:
 
         self._settings.set("model_provider", key)
         model_key = f"{key}_model"
-        if model_key in self._settings.get(model_key, None) or True:
-            self._settings.set(model_key, model)
+        self._settings.set(model_key, model)
 
         self._console.print(f"\n[bold]API Key for {name}[/bold]")
         self._console.print("[dim]Your key is stored in the encrypted credential store.[/dim]")
@@ -1864,8 +1864,8 @@ class OnboardingWizard:
         if self._cred_store:
             try:
                 self._cred_store.store(provider, key, "api_key")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("Failed to store API key for %s: %s", provider, exc)
 
     def _migrate_from_dotenv(self, env_path: Path) -> int:
         """Migrate API keys from .env file to credential store. Returns count of migrated keys."""
@@ -2235,8 +2235,8 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
                                 return blob
                         if os.path.isabs(ref) and os.path.isfile(ref):
                             return Path(ref)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to resolve Ollama blob path: %s", exc)
 
         # Method 2: parse the JSON manifest on disk
         tag = "latest"

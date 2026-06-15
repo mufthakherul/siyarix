@@ -35,6 +35,7 @@ from typing import Any
 
 from siyarix.bootstrap import INITIALIZED_MARKER, BootstrapEngine
 from siyarix.config import SettingsStore, get_config_dir
+from siyarix.providers.manager import ProviderManager
 from siyarix.templates.wizard_text import (
     SIYARIX_LOGO as _SIYARIX_LOGO,
     WELCOME_PANEL_TEXT as _WELCOME_PANEL_TEXT,
@@ -372,7 +373,7 @@ class OnboardingWizard:
 
         # ── GPU detection ─────────────────────────────────────────────
         gpu_type = "none"
-        gpu_vram_gb = 0
+        gpu_vram_gb: float = 0.0
         gpu_name = ""
 
         # NVIDIA
@@ -620,7 +621,7 @@ class OnboardingWizard:
             ("openai", "openai", "OpenAI-compatible SDK (all providers use this under the hood)"),
         ]
 
-        results: list[tuple[str, bool, str]] = []
+        results: list[tuple[str, bool, str, str]] = []
         missing: list[str] = []
 
         import importlib
@@ -968,6 +969,7 @@ class OnboardingWizard:
         self._console.print(f"[bold]== Downloading {model_name} ==[/bold]\n")
 
         if not is_llamacpp:
+            assert pull_cmd is not None, "Ollama pull command not available"
             self._console.print(f"Pulling [cyan]{model_name}[/cyan] with Ollama...")
             self._console.print("[dim]This may take several minutes depending on model size.[/dim]")
             if Confirm.ask("Pull this model now?", default=True):
@@ -2338,17 +2340,27 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
         try:
             self._console.print(f"  Downloading [cyan]{asset_name}[/cyan]...")
             archive_path = bin_dir / asset_name
-            urllib.request.urlretrieve(download_url, archive_path)
+            with httpx.stream("GET", download_url, timeout=120) as r:
+                r.raise_for_status()
+                with open(archive_path, "wb") as fh:
+                    for chunk in r.iter_bytes():
+                        fh.write(chunk)
             self._console.print("  [green]\u2713 Downloaded[/green]")
 
             # Extract
             self._console.print("  Extracting...")
             if asset_name.endswith(".zip"):
                 with zipfile.ZipFile(archive_path, "r") as zf:
-                    zf.extractall(bin_dir)
+                    for zinfo in zf.infolist():
+                        if zinfo.filename.startswith("/") or ".." in zinfo.filename:
+                            continue
+                        zf.extract(zinfo, bin_dir)
             else:
                 with tarfile.open(archive_path, "r:gz") as tf:
-                    tf.extractall(bin_dir)
+                    for tinfo in tf.getmembers():
+                        if tinfo.name.startswith("/") or ".." in tinfo.name:
+                            continue
+                        tf.extract(tinfo, bin_dir)
 
             # Remove the versioned extract directory prefix if present
             for entry in list(bin_dir.iterdir()):

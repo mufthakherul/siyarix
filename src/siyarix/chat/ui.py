@@ -21,7 +21,7 @@ class SmartAutocomplete(Completer):
             "/tools", "/platform", "/status", "/session", "/uptime",
             "/env", "/intents", "/shells", "/run", "/save", "/config",
             "/key", "/mode", "/model", "/provider", "/theme", "/target",
-            "/version", "/context", "/log", "/diff", "/mcp", "/agent",
+            "/version", "/context", "/log", "/diff", "/agent",
             "/review", "/persona", "/report", "/split",
             "/batch", "/opsec", "/siem",
             "/performance", "/cache", "/campaign",

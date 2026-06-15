@@ -551,7 +551,17 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "critical",
         "Windows force delete system drive",
     ),
+    (
+        re.compile(r"\brmdir\s+/[sSqQ]", re.I),
+        "critical",
+        "Windows recursive directory delete (rmdir /S)",
+    ),
     (re.compile(r"\breg\s+delete\s+HKLM", re.I), "critical", "Windows registry delete (HKLM)"),
+    (
+        re.compile(r"\breg\s+delete\s+HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", re.I),
+        "high",
+        "Windows registry persistence key deletion",
+    ),
     (
         re.compile(r"\bbcdedit\s+/set\s+{default}\s+.*\b(?:boot|recovery)sequence", re.I),
         "critical",
@@ -569,6 +579,7 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "Windows WMIC volume deletion",
     ),
     (re.compile(r"\bwevtutil\s+cl\b", re.I), "high", "Windows event log clearing"),
+    (re.compile(r"\bClear-EventLog\b", re.I), "high", "PowerShell event log clearing"),
     (re.compile(r"\bcipher\s+/w:", re.I), "medium", "Windows disk overwrite (cipher /w)"),
     (
         re.compile(r"\bnet\s+(?:user|localgroup)\s+/delete", re.I),
@@ -586,11 +597,25 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "medium",
         "Windows registry persistence (Run key)",
     ),
+    (
+        re.compile(r"\breg\s+add\s+HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", re.I),
+        "medium",
+        "Windows registry persistence (CurrentUser Run key)",
+    ),
     (re.compile(r"\bschtasks\s+/create\b", re.I), "medium", "Windows scheduled task creation"),
+    (re.compile(r"\bschtasks\s+/delete\b", re.I), "high", "Windows scheduled task deletion"),
     (
         re.compile(r"\bGet-WmiObject\s+Win32_ShadowCopy\b.*\bDelete\(\)", re.I),
         "medium",
         "PowerShell WMI shadow copy deletion",
+    ),
+    (re.compile(r"\bRemove-Item\s+-Recurse\b", re.I), "high", "PowerShell recursive deletion"),
+    (re.compile(r"\bRemove-Item\s+.*\\$", re.I), "high", "PowerShell drive wipe"),
+    (re.compile(r"\bdel\s+/[fF]\s+/[sS]", re.I), "high", "Windows recursive force delete"),
+    (
+        re.compile(r"\bGet-ChildItem\s+.*\|\s*Remove-Item", re.I),
+        "high",
+        "PowerShell piped mass deletion",
     ),
     # ── INFO ──
     (re.compile(r"\bsudo\b", re.I), "info", "Sudo privilege escalation"),

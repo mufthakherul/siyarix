@@ -97,7 +97,7 @@ class CommandHandlersMixin:
             "/cancel": self._cmd_esc,
             "/log": self._cmd_log,
             "/diff": self._cmd_diff,
-            "/mcp": self._cmd_mcp,
+
             "/agent": self._cmd_agent,
             "/review": self._cmd_review,
             "/persona": self._cmd_persona,
@@ -1063,57 +1063,6 @@ class CommandHandlersMixin:
             console.print("[yellow]Usage: /config [show|set|get|list|tools][/yellow]")
 
 
-
-    async def _cmd_mcp(self, args: str) -> None:
-        """Handle /mcp command for MCP server interaction."""
-        from ..mcp import MCPClient, MCPServerConfig
-
-        tokens = args.split() if args else []
-        action = tokens[0].lower() if tokens else ""
-
-        if action == "connect":
-            url = tokens[1] if len(tokens) > 1 else ""
-            if not url:
-                url = Prompt.ask("MCP server URL")
-            client = MCPClient()
-            server_name = tokens[2] if len(tokens) > 2 else "default"
-            ok = await client.connect(MCPServerConfig(name=server_name, url=url))
-            if ok:
-                self._session.context["mcp_client"] = client
-                self._session.context["mcp_server"] = server_name
-                console.print(f"[green]✓ Connected to MCP server at {url}[/green]")
-            else:
-                console.print(f"[red]Failed to connect to {url}[/red]")
-        elif action == "call":
-            call_client: MCPClient | None = self._session.context.get("mcp_client")
-            if not call_client:
-                console.print(
-                    "[yellow]Not connected to an MCP server. Use /mcp connect first.[/yellow]"
-                )
-                return
-            tool = tokens[1] if len(tokens) > 1 else ""
-            if not tool:
-                console.print("[yellow]Usage: /mcp call <tool> [args...][/yellow]")
-                return
-            params = {"args": tokens[2:]} if len(tokens) > 2 else {}
-            result = await call_client.call_tool(tool, params)
-            console.print(
-                Panel(
-                    json.dumps(result, indent=2),
-                    title=f"MCP: {tool}",
-                    border_style="magenta",
-                )
-            )
-        elif action == "disconnect":
-            client = self._session.context.pop("mcp_client", None)
-            server_name = self._session.context.pop("mcp_server", "default")
-            if client:
-                await client.disconnect(server_name)
-                console.print("[green]✓ Disconnected from MCP server.[/green]")
-            else:
-                console.print("[dim]Not connected to any MCP server.[/dim]")
-        else:
-            console.print("[yellow]Usage: /mcp connect|call|disconnect[/yellow]")
 
 
     async def _cmd_agent(self, args: str) -> None:

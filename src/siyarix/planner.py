@@ -59,52 +59,14 @@ TOOL_ALTERNATIVES: dict[str, list[str]] = {
     "sqlmap": ["jSQL", "sqlninja"],
 }
 
-class SemanticRouter:
-    def __init__(self) -> None:
-        try:
-            from sentence_transformers import SentenceTransformer
-            self._model = SentenceTransformer("all-MiniLM-L6-v2")
-            self._available = True
-        except ImportError:
-            self._model = None
-            self._available = False
-        self._intent_embeddings: dict[str, Any] = {}
-
-    def build_embeddings(self, intent_map: dict[str, tuple]) -> None:
-        if not self._available or self._intent_embeddings:
-            return
-        phrases = list(intent_map.keys())
-        embeddings = self._model.encode(phrases)
-        self._intent_embeddings = dict(zip(phrases, embeddings))
-
-    def match(self, query: str, threshold: float = 0.72) -> str | None:
-        if not self._available or not self._intent_embeddings:
-            return None
-        from sentence_transformers import util
-        query_emb = self._model.encode(query)
-        best_score, best_key = 0.0, None
-        for phrase, emb in self._intent_embeddings.items():
-            score = float(util.cos_sim(query_emb, emb))
-            if score > best_score:
-                best_score, best_key = score, phrase
-        return best_key if best_score >= threshold else None
-
-
 class Planner:
     """Plan decomposer with an inverted-index strategy for scalable tool lookup."""
 
     def __init__(self) -> None:
         self._plans: dict[str, ExecutionPlan] = {}
-        self._semantic_router = SemanticRouter()
         self._auto_dag_templates: set[str] = {
-            "recon_full",
-            "web_audit",
-            "network_scan",
-            "cloud_audit",
-            "vuln_scan",
-            "dns_recon",
-            "full_audit",
-            "smb_enum",
+            "recon_full", "web_audit", "network_scan", "cloud_audit",
+            "vuln_scan", "dns_recon", "full_audit", "smb_enum",
         }
         self._cron_path = "/etc/crontab" if os.name != "nt" else "C:\\Windows\\System32\\Tasks"
         self._templates: dict[str, list[dict[str, Any]]] = {
@@ -147,16 +109,16 @@ class Planner:
                 {"description": "SSL/TLS certificate chain and cipher suite validation", "tool": "openssl", "args": {"flags": "s_client -servername"}},
             ],
             "ad_assessment": [
-                {"description": "Domain controller critical port scan (Kerberos, LDAP, SMB, RPC, GC)", "tool": "nmap", "args": {"flags": "-sT -sV -T4 -p 53,88,135,139,389,445,464,636,3268,3269,3389"}},
+                {"description": "Domain controller critical port scan", "tool": "nmap", "args": {"flags": "-sT -sV -T4 -p 53,88,135,139,389,445,464,636,3268,3269,3389"}},
                 {"description": "SMB protocol version and dialect negotiation analysis", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-protocols"}},
                 {"description": "LDAP anonymous bind and root DSE information disclosure check", "tool": "nmap", "args": {"flags": "-sV -p 389 --script ldap-rootdse"}},
                 {"description": "Kerberos user enumeration attempt", "tool": "nmap", "args": {"flags": "-sV -p 88 --script krb5-enum-users"}},
             ],
             "linux_privesc": [
-                {"description": "Kernel and OS version identification for known exploit matching", "tool": "uname", "args": {"flags": "-a"}},
-                {"description": "SUID and SGID binary discovery for privilege escalation vectors", "tool": "find", "args": {"flags": "/ -perm -4000 -type f 2>/dev/null"}},
-                {"description": "World-writable directory search for dropper placements", "tool": "find", "args": {"flags": "/ -writable -type d 2>/dev/null"}},
-                {"description": "Scheduled task and cron job inspection for persistence", "tool": "cat", "args": {"flags": self._cron_path}},
+                {"description": "Kernel and OS version identification", "tool": "uname", "args": {"flags": "-a"}},
+                {"description": "SUID and SGID binary discovery", "tool": "find", "args": {"flags": "/ -perm -4000 -type f 2>/dev/null"}},
+                {"description": "World-writable directory search", "tool": "find", "args": {"flags": "/ -writable -type d 2>/dev/null"}},
+                {"description": "Scheduled task and cron job inspection", "tool": "cat", "args": {"flags": self._cron_path}},
             ],
             "vuln_scan": [
                 {"description": "Template-based vulnerability scan (all severities)", "tool": "nuclei", "args": {"severity": "low,medium,high,critical"}},
@@ -698,15 +660,11 @@ Respond with ONLY valid JSON:
                 "brute": ("hydra", "Brute force attack", f"-L {_USERNAME_WORDLIST} -P {_PASSWORD_WORDLIST}"),
                 "crack": ("hashcat", "Hash cracking", ""),
             }
-            self._semantic_router.build_embeddings(intent_map)
-            sem_match = self._semantic_router.match(goal_lower)
-            matched_keyword = sem_match if sem_match else None
-
-            if not matched_keyword:
-                for keyword in sorted(intent_map, key=len, reverse=True):
-                    if keyword in goal_lower:
-                        matched_keyword = keyword
-                        break
+            matched_keyword = None
+            for keyword in sorted(intent_map, key=len, reverse=True):
+                if keyword in goal_lower:
+                    matched_keyword = keyword
+                    break
 
             if matched_keyword:
                 tool, desc, flags = intent_map[matched_keyword]

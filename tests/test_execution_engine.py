@@ -606,7 +606,7 @@ class TestExecutionModels:
     def test_step_status_enum_values(self) -> None:
         assert StepStatus.PENDING.value == "pending"
         assert StepStatus.RUNNING.value == "running"
-        assert StepStatus.SUCCESS.value == "success"
+        assert StepStatus.COMPLETED.value == "completed"
         assert StepStatus.FAILED.value == "failed"
         assert StepStatus.SKIPPED.value == "skipped"
 

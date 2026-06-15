@@ -645,14 +645,13 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         from rich.panel import Panel
         from rich.columns import Columns
 
-        success_count = sum(1 for r in result.step_results if r.status == StepStatus.SUCCESS)
+        success_count = sum(1 for r in result.step_results if r.status == StepStatus.COMPLETED)
         failed_count = len(result.step_results) - success_count
 
-        # Step timeline panel
         step_lines = []
         for r in result.step_results:
-            icon = "✓" if r.status == StepStatus.SUCCESS else "✗"
-            style = "green" if r.status == StepStatus.SUCCESS else "red"
+            icon = "✓" if r.status == StepStatus.COMPLETED else "✗"
+            style = "green" if r.status == StepStatus.COMPLETED else "red"
             tool = getattr(r, "tool", getattr(r, "step_id", "?"))
             detail = (r.output or "")[:80].replace("\n", " ") if r.output else ""
             step_lines.append(f"  [{style}]{icon} [bold]{tool}[/bold][/] [dim]{detail}[/dim]")

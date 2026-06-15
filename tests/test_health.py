@@ -67,6 +67,11 @@ class TestHealthStatus:
 
 
 class TestHealthChecker:
+    @pytest.fixture(autouse=True)
+    def mock_home(self, tmp_path):
+        with patch("pathlib.Path.home", return_value=tmp_path):
+            yield
+
     @pytest.fixture
     def checker(self) -> HealthChecker:
         c = HealthChecker()

@@ -254,7 +254,8 @@ class LLMEngineMixin:
 
         timeline = []
         for step_res in result.step_results:
-            status_emoji = "🟢" if step_res.status.value == "success" else "🔴"
+            from siyarix.models import StepStatus
+            status_emoji = "🟢" if step_res.status == StepStatus.COMPLETED else "🔴"
             timeline.append(
                 {
                     "time": datetime.now(timezone.utc).strftime("%H:%M:%S"),

@@ -213,7 +213,8 @@ class CredentialStore:
         if key_material is None and self._key_file.exists():
             try:
                 key_material = self._key_file.read_bytes()
-            except Exception:
+            except Exception as exc:
+                logger.debug("Failed to read key file %s: %s", self._key_file, exc)
                 key_material = None
 
         # Normalize or generate
@@ -416,7 +417,8 @@ class CredentialStore:
                     )
                     cred.value_encrypted = self._encrypt_aesgcm(plaintext)
                     cred.rotated = True
-                except Exception:
+                except Exception as exc:
+                    logger.debug("AESGCM decrypt failed for %s, falling back to Fernet: %s", cred.cred_id, exc)
                     plaintext = self._decrypt(cred.value_encrypted)
                     cred.value_encrypted = self._encrypt_aesgcm(plaintext)
                     cred.rotated = True
@@ -568,8 +570,8 @@ class CredentialStore:
             self._save()
             try:
                 self._creds_file.rename(self._creds_file.with_name("credentials.enc.bak"))
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("Failed to rename legacy credentials file: %s", exc)
 
     def _save(self, cred: Credential | None = None, delete_cred_id: str | None = None) -> None:
         """Save credentials to disk incrementally"""

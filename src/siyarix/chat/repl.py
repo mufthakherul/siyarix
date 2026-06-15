@@ -262,24 +262,27 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             except Exception:
                 return Prompt.ask(prompt_label, default="").strip()
 
-        # Show compact status line above prompt
+        # Gather status information
         target_str = f" ({self._session.target})" if self._session.target else ""
         mode_color = {
-            "registry": "yellow",
-            "autonomous": "magenta",
-            "integrated": "cyan",
-        }.get(self._mode, "cyan")
+            "registry": "ansiyellow",
+            "autonomous": "ansimagenta",
+            "integrated": "ansicyan",
+        }.get(self._mode, "ansicyan")
         theme = self._settings.get("color_theme") or "cyber-noir"
         provider = self._settings.get("model_provider") or "auto"
-        status = Text.assemble(
-            (f"{provider}", "bold cyan"),
-            (f" · {theme}", "dim white"),
-            (f" · {self._mode}", mode_color),
-            (f"{target_str}", "dim") if target_str else ("", "dim"),
-            ("  ", "dim"),
-            ("? for shortcuts · /help for all commands", "dim"),
-        )
-        console.print(status)
+
+        def get_bottom_toolbar() -> Any:
+            from prompt_toolkit.formatted_text import HTML
+            return HTML(
+                f'<style bg="ansiblack" fg="ansiwhite"> '
+                f'<style fg="ansicyan"><b>{provider}</b></style> · '
+                f'<style fg="ansigray">{theme}</style> · '
+                f'<style fg="{mode_color}">{self._mode}</style>'
+                f'<style fg="ansigray">{target_str}</style>  · '
+                f'<style fg="ansigray">? for shortcuts · /help for all commands</style> '
+                f'</style>'
+            )
 
         try:
             with warnings.catch_warnings():
@@ -289,6 +292,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                     "❯ ",
                     key_bindings=esc_bindings,
                     completer=SmartAutocomplete(self._session),
+                    bottom_toolbar=get_bottom_toolbar,
                 )).strip()
         except KeyboardInterrupt:
             raise
@@ -363,34 +367,33 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
 
     def _print_welcome(self) -> None:
-        """Print the welcome banner with system status overview."""
+        """Print the welcome banner with system status overview using a premium layout."""
         from ..branding import resolve_version
+        from rich.layout import Layout
+        from rich.panel import Panel
+        from rich.align import Align
+        from rich.text import Text
 
         ver = resolve_version()
         provider_status = self._gather_provider_status()
         shell_info = get_shell_platform()
-        theme = self._settings.get("color_theme")
-        provider = self._settings.get("model_provider")
+        theme = self._settings.get("color_theme") or "cyber-noir"
+        provider = self._settings.get("model_provider") or "auto"
 
         scans_count = 0
         findings_count = 0
         try:
             from ..offline_store import OfflineStore
-
             store = OfflineStore()
             stats = store.stats()
             scans_count = stats.get("total_scans", 0)
             findings_count = stats.get("total_findings", 0)
-        except ModuleNotFoundError:
+        except Exception:
             pass
-        except Exception as exc:
-            logger.debug("Failed to read offline store stats: %s", exc)
 
-        # Live tool & command counts
         tool_count = 0
         try:
             from ..registry import ToolRegistry
-
             reg = ToolRegistry()
             reg.scan_path()
             tool_count = len(reg.list_tools())
@@ -399,71 +402,92 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
         command_count = sum(1 for m in self._session.messages if m.role == "user")
 
-        console.print(
+        # Create Layout
+        layout = Layout()
+        layout.split_column(
+            Layout(name="header", size=4),
+            Layout(name="main", size=8),
+            Layout(name="footer", size=5)
+        )
+        layout["main"].split_row(
+            Layout(name="session_info", ratio=1),
+            Layout(name="system_stats", ratio=1),
+            Layout(name="quick_actions", ratio=1),
+            Layout(name="runtime", ratio=1),
+        )
+
+        header_text = Text.assemble(
+            (" █▓▒░ ", "bold magenta"), 
+            ("SIYARIX ADVANCED ORCHESTRATOR ", "bold cyan"),
+            (f"v{ver} ", "bold green"),
+            ("░▒▓█ ", "bold magenta"),
+            "\n",
+            ("Terminal copilot for offensive security — plan, inspect, execute.", "dim italic white")
+        )
+
+        layout["header"].update(
+            Panel(Align.center(header_text, vertical="middle"), style="cyan", border_style="bold magenta")
+        )
+
+        layout["session_info"].update(
             Panel(
-                f"[bold cyan]Siyarix[/bold cyan] [green]v{ver}[/green] — [bold]AI Cybersecurity Agent[/bold]\n"
-                f"[dim]Terminal copilot for security work — plan, inspect, execute from one shell.[/dim]",
-                title="[bold]⚡ Siyarix Command Center[/bold]",
-                border_style="cyan",
-                padding=(1, 2),
+                f"[bold #00ffcc]Platform:[/bold #00ffcc] [white]{shell_info}[/white]\n"
+                f"[bold #00ffcc]Theme:[/bold #00ffcc] [white]{theme}[/white]\n"
+                f"[bold #00ffcc]Provider:[/bold #00ffcc] [white]{provider}[/white]\n"
+                f"[bold #00ffcc]Session:[/bold #00ffcc] [white]{self._session.session_id[:8]}[/white]",
+                title="[bold]Session[/bold]",
+                border_style="cyan"
             )
         )
-        console.print(
-            Columns(
-                [
-                    Panel(
-                        f"[bold]Platform:[/bold] {shell_info}\n"
-                        f"[bold]Theme:[/bold] {theme}\n"
-                        f"[bold]Provider:[/bold] {provider}\n"
-                        f"[bold]Session:[/bold] {self._session.session_id[:8]}",
-                        title="Session",
-                        border_style="green",
-                        padding=(1, 2),
-                    ),
-                    Panel(
-                        f"[bold]Scans:[/bold] {scans_count}\n"
-                        f"[bold]Findings:[/bold] {findings_count}\n"
-                        f"[bold]Tools:[/bold] {tool_count}\n"
-                        f"[bold]Commands:[/bold] {command_count}\n"
-                        f"[bold]Hotkeys:[/bold] /help · /exit",
-                        title="System",
-                        border_style="blue",
-                        padding=(1, 2),
-                    ),
-                    Panel(
-                        "[bold]/help[/bold] — command reference\n"
-                        "[bold]/scan <tgt>[/bold] — run a scan\n"
-                        "[bold]/run <cmd>[/bold] — natural language\n"
-                        "[bold]/key set[/bold] — API key management\n"
-                        "[bold]/theme[/bold] — switch appearance\n"
-                        f"[bold]Mode:[/bold] {self._gather_mode_label(provider_status)}",
-                        title="Quick Actions",
-                        border_style="magenta",
-                        padding=(1, 2),
-                    ),
-                    Panel(
-                        "\n".join(
-                            f"[bold]{k.capitalize()}:[/bold] {v[0]}"
-                            for k, v in sorted(provider_status.items())
-                        ),
-                        title="Runtime",
-                        border_style="yellow",
-                        padding=(1, 2),
-                    ),
-                ],
-                equal=True,
-                expand=True,
+
+        layout["system_stats"].update(
+            Panel(
+                f"[bold #ff00ff]Scans:[/bold #ff00ff] [white]{scans_count}[/white]\n"
+                f"[bold #ff00ff]Findings:[/bold #ff00ff] [white]{findings_count}[/white]\n"
+                f"[bold #ff00ff]Tools:[/bold #ff00ff] [white]{tool_count}[/white]\n"
+                f"[bold #ff00ff]Commands:[/bold #ff00ff] [white]{command_count}[/white]",
+                title="[bold]Telemetry[/bold]",
+                border_style="magenta"
             )
         )
-        console.print(
+
+        layout["quick_actions"].update(
+            Panel(
+                "[bold white]/help[/bold white] [dim]— cmds[/dim]\n"
+                "[bold white]/scan <tgt>[/bold white] [dim]— run[/dim]\n"
+                "[bold white]/run <cmd>[/bold white] [dim]— nlp[/dim]\n"
+                "[bold white]/theme[/bold white] [dim]— UI[/dim]",
+                title="[bold]Actions[/bold]",
+                border_style="green"
+            )
+        )
+        
+        runtime_txt = "\n".join(
+            f"[bold yellow]{k.capitalize()[:8]}:[/bold yellow] [dim]{v[0]}[/dim]"
+            for k, v in sorted(provider_status.items())[:4]
+        )
+        if not runtime_txt:
+            runtime_txt = "[dim]Initializing endpoints...[/dim]"
+
+        layout["runtime"].update(
+            Panel(
+                runtime_txt,
+                title="[bold]Runtime[/bold]",
+                border_style="yellow"
+            )
+        )
+
+        layout["footer"].update(
             Panel(
                 "[bold cyan]Type natural language[/bold cyan] to plan work, or use slash commands.\n"
                 "[dim]Examples:[/dim] [green]scan 10.0.0.5[/green]  [green]enumerate example.com[/green]  [green]/theme appearance[/green]",
-                title="Getting Started",
-                border_style="bright_black",
-                padding=(1, 2),
+                title="[bold bright_black]SYSTEM LOG[/bold bright_black]",
+                border_style="bright_black"
             )
         )
+
+        console.print(layout)
+
 
 
     def _gather_provider_status(self) -> dict[str, tuple[str, str]]:
@@ -525,9 +549,10 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             from rich.markdown import Markdown
             from rich.panel import Panel
 
+            syntax_theme = self._settings.get("syntax_theme") or "monokai"
             self._con.print(
                 Panel(
-                    Markdown(message),
+                    Markdown(message, code_theme=syntax_theme),
                     title="[bold green]\u25c6 Siyarix[/bold green]",
                     border_style="green",
                     padding=(0, 2),
@@ -594,7 +619,8 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         llm_fn = self._make_llm_call(provider_name, api_key)
         gen = await llm_fn(system_prompt, user_prompt, stream=True, history=history)
         full_text = ""
-        md = Markdown("")
+        syntax_theme = self._settings.get("syntax_theme") or "monokai"
+        md = Markdown("", code_theme=syntax_theme)
         panel = Panel(
             md,
             title="[bold green]◆ Siyarix[/bold green]",
@@ -605,7 +631,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             async for token in gen:
                 full_text += token
                 display_text = self._strip_json_wrapper(full_text)
-                md = Markdown(display_text)
+                md = Markdown(display_text, code_theme=syntax_theme)
                 panel = Panel(
                     md,
                     title="[bold green]◆ Siyarix[/bold green]",

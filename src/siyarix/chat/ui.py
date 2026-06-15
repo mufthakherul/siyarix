@@ -11,11 +11,14 @@ from prompt_toolkit.completion import Completer, Completion
 from ..output import output as _output_engine
 
 
+from prompt_toolkit.completion import Completer, Completion, PathCompleter
+
 class SmartAutocomplete(Completer):
     """Context-aware autocomplete for the chat REPL."""
 
     def __init__(self, session: Any) -> None:
         self._session = session
+        self._path_completer = PathCompleter()
         self._commands = [
             "/help", "/exit", "/clear", "/new", "/history", "/search",
             "/tools", "/platform", "/status", "/session", "/uptime",
@@ -30,16 +33,30 @@ class SmartAutocomplete(Completer):
             "/audit", "/palette", "/savecmd", "/cmds", "/cmd",
         ]
 
-    def get_completions(self, document: Any, complete_event: Any) -> list[Completion]:
+    def get_completions(self, document: Any, complete_event: Any) -> Any:
         text = document.text_before_cursor
-        if not text.startswith("/"):
-            return []
-        prefix = text.split()[-1] if text.split() else ""
-        return [
-            Completion(cmd, start_position=-len(prefix))
-            for cmd in self._commands
-            if cmd.startswith(prefix)
-        ]
+        
+        # Command completion
+        if text.startswith("/"):
+            word_before_cursor = document.get_word_before_cursor()
+            prefix = text.split()[-1] if text.split() else ""
+            if " " not in text:
+                for cmd in self._commands:
+                    if cmd.startswith(prefix):
+                        yield Completion(cmd, start_position=-len(prefix))
+            return
+
+        # Path completion if text contains @ or looks like a path
+        word = document.get_word_before_cursor(WORD=True)
+        if word.startswith("@"):
+            document_copy = document.clone()
+            document_copy.text = document.text.replace("@", "")
+            document_copy.cursor_position -= 1
+            for completion in self._path_completer.get_completions(document_copy, complete_event):
+                yield completion
+        elif "/" in word or "\\" in word or word.startswith("."):
+            for completion in self._path_completer.get_completions(document, complete_event):
+                yield completion
 
 
 class CommandPalette:
@@ -49,32 +66,24 @@ class CommandPalette:
         self._session_id = session_id
 
     def show(self, console: Any) -> str | None:
-        from rich.table import Table
-        from rich.prompt import Prompt
-
+        from prompt_toolkit.shortcuts import radiolist_dialog
         from .commands import HELP_CATEGORIES
 
         all_cmds: list[tuple[str, str]] = []
         for _cat, cmds in HELP_CATEGORIES:
             for cmd, desc in cmds.items():
-                all_cmds.append((cmd, desc))
+                all_cmds.append((cmd, f"{cmd:<15} {desc}"))
 
-        table = Table(title="Command Palette", header_style="bold cyan")
-        table.add_column("#", style="dim", width=4)
-        table.add_column("Command", style="cyan")
-        table.add_column("Description", style="white")
-        for i, (cmd, desc) in enumerate(all_cmds[:40], 1):
-            table.add_row(str(i), cmd, desc)
-        console.print(table)
-
-        choice = Prompt.ask("Select # or type command", default="")
-        if not choice:
+        if not all_cmds:
             return None
-        if choice.isdigit():
-            idx = int(choice) - 1
-            if 0 <= idx < len(all_cmds):
-                return all_cmds[idx][0]
-        return choice.strip()
+
+        result = radiolist_dialog(
+            title="Command Palette",
+            text="Select a command to execute:",
+            values=all_cmds,
+        ).run()
+
+        return result
 
 
 class SplitPane:

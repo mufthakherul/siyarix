@@ -602,7 +602,7 @@ class LLMEngineMixin:
             return True
 
         # ── Multi-wave execution loop ─────────────────────────────────────
-        max_waves = self._settings.get("max_waves") or 25
+        max_waves = self._settings.get("max_waves") or 3
         all_outputs: list[str] = []
         plan: Any = llm_plan
 
@@ -776,10 +776,12 @@ class LLMEngineMixin:
                     f"Original request: {instruction_with_target}\n\n"
                     f"Completed execution wave {wave + 1}. Results so far:\n\n"
                     f"{''.join(all_outputs)}\n\n"
-                    "Analyse these results. If the original request is fully satisfied, "
-                    "set needs_tools=false and provide the final response. "
-                    "If more commands are needed (e.g. missing data, tool not found, "
-                    "need deeper recon), set needs_tools=true and provide the next steps."
+                    "Analyse these results. Decide: is the original request now fully satisfied?\n"
+                    "- If YES → set needs_tools=false and provide a concise final response.\n"
+                    "- If NO and only 1-2 more commands would complete it → set needs_tools=true.\n"
+                    "- If NO and many more commands are needed → set needs_tools=false and "
+                    "summarise what was found so far instead of continuing indefinitely.\n"
+                    "Prefer stopping early with a good summary over endless waves of probing."
                 )
                 with console.status(
                     "[bold cyan]LLM analysing wave results...[/bold cyan]",

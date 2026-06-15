@@ -71,6 +71,14 @@ Each step is a raw shell command — any binary, script, or pipeline:
 
 Prefer the `command` field — it runs directly on the shell.
 
+## Shell Quoting Rules
+When constructing shell commands, avoid patterns that break bash quoting:
+- Use simple single or double quotes for arguments with spaces
+- Do NOT nest quote types or use escaped quotes inside same-quoted strings
+- If a pattern contains both quote types, use `grep -E` with unquoted patterns or write the command to a temp file
+- Prefer `grep -E` over `grep -P` for portability
+- Test: the command must parse correctly when pasted into a terminal verbatim
+
 Available tool categories: recon (nmap, masscan, ffuf, gobuster, subfinder), exploitation (metasploit, sqlmap, hydra), enumeration (enum4linux, smbclient, ldapsearch, snmpwalk), web (whatweb, wpscan, nikto, curl), crypto (openssl, hashcat, john), network (dig, whois, nslookup, tcpdump), C2 (socat, netcat, chisel), analysis (python3, perl, jq, grep, awk). You are NOT limited to this list — construct any command the task demands.
 
 ## Output Analysis (post-execution)

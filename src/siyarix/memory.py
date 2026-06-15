@@ -302,7 +302,7 @@ class MemoryManager:
 
     def save_context(self, entry: dict[str, Any]) -> None:
         import json
-        key = f"context_{time.time()}_{hashlib.md5(str(entry).encode()).hexdigest()[:8]}"
+        key = f"context_{time.time()}_{hashlib.md5(str(entry).encode(), usedforsecurity=False).hexdigest()[:8]}"
         self.store(
             key=key,
             value=json.dumps(entry),

@@ -459,7 +459,7 @@ class AgentCore:
                 finding.get("cve", finding.get("title", "")),
                 finding.get("severity", ""),
             ]
-            return hashlib.md5("|".join(str(p).lower() for p in key_parts).encode()).hexdigest()
+            return hashlib.md5("|".join(str(p).lower() for p in key_parts).encode(), usedforsecurity=False).hexdigest()
 
         findings = []
         seen_keys: set[str] = set()

@@ -538,13 +538,14 @@ class LLMEngineMixin:
                     self._llm_calls += 1
                     compact = self._should_use_compact()
                     plan_sys_prompt = self._build_system_prompt(compact=compact)
-                    plan_result = await agent._planner.llm_decompose_goal(
+                    plan_result = await agent.planner_autonomous.plan(
                         instruction_with_target,
-                        tool_names,
+                        system_prompt=plan_sys_prompt,
                         llm_call=llm_call_fn,
                         tool_schemas=tool_dicts,
-                        system_prompt=plan_sys_prompt,
+                        available_tools=tool_names,
                         history=self._get_conversation_history(),
+                        is_first_call=(self._llm_calls <= 1),
                     )
                     llm_plan = plan_result
                     llm_reasoning = plan_result.context.get("reasoning", "") if isinstance(plan_result.context, dict) else ""
@@ -558,10 +559,10 @@ class LLMEngineMixin:
             if require_llm:
                 # LLM connected but planning format failed (model didn't return
                 # valid JSON).  Stream the response directly instead of aborting.
-                llm_plan = agent._planner.create_plan(goal=instruction_with_target, context={})
+                llm_plan = agent.planner_autonomous.create_plan(goal=instruction_with_target, context={})
             else:
                 with console.status("[bold green]Planning...[/bold green]", spinner="dots"):
-                    llm_plan = agent._planner.decompose_goal(instruction_with_target, tool_names)
+                    llm_plan = agent.planner_registry.plan(instruction_with_target, tool_names)
 
         # ── No tools needed ──────────────────────────────────────────────
         if not llm_plan.steps:
@@ -793,12 +794,14 @@ class LLMEngineMixin:
                         self._llm_calls += 1
                         compact = self._should_use_compact()
                         wave_sys_prompt = self._build_system_prompt(compact=compact)
-                        plan = await agent._planner.llm_decompose_goal(
+                        plan = await agent.planner_autonomous.plan(
                             wave_goal,
-                            tool_names,
+                            system_prompt=wave_sys_prompt,
                             llm_call=llm_call_fn,
                             tool_schemas=tool_dicts,
-                            system_prompt=wave_sys_prompt,
+                            available_tools=tool_names,
+                            history=self._get_conversation_history(),
+                            is_first_call=False,
                         )
                         llm_model = provider_name or "none"
                         if plan.steps:

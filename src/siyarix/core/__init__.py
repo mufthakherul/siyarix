@@ -24,6 +24,8 @@ from ..knowledge_graph import KnowledgeGraph
 from ..stealth import StealthEngine
 import os
 from ..config import get_config_dir
+from .swarm import SwarmRouter, SwarmTask
+from .learning import ContinuousLearning, Experience
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,10 @@ __all__ = [
     "AgentStatus",
     "AgentGoal",
     "AgentResult",
+    "SwarmRouter",
+    "SwarmTask",
+    "ContinuousLearning",
+    "Experience",
 ]
 
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import math
+import difflib
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Set, Tuple
 
@@ -41,10 +42,30 @@ class NaturalLanguageParser:
         "ipv4": r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
         "domain": r"\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b",
     }
+    
+    # Suffixes for lightweight stemming
+    SUFFIXES = ["ing", "ed", "s", "es", "ly", "tion", "ity"]
+    
+    # Default Synonyms (can be customized by user config later)
+    DEFAULT_SYNONYMS = {
+        "bug": "vuln",
+        "cve": "vuln",
+        "exploit": "vuln",
+        "hack": "vuln",
+        "dirbust": "directory",
+        "enum": "enumeration",
+        "subdomain": "recon",
+        "passwords": "brute",
+        "creds": "brute",
+        "sql": "sqli",
+    }
 
-    def __init__(self) -> None:
+    def __init__(self, custom_synonyms: dict[str, str] | None = None) -> None:
         self._tool_corpus: dict[str, list[str]] = {}
         self._template_corpus: dict[str, list[str]] = {}
+        self.synonyms = self.DEFAULT_SYNONYMS.copy()
+        if custom_synonyms:
+            self.synonyms.update(custom_synonyms)
         
     def train_tools(self, tools_metadata: list[dict[str, Any]]) -> None:
         """Feed tool descriptions to the parser to build semantic corpus."""
@@ -63,13 +84,43 @@ class NaturalLanguageParser:
             text = f"{name.replace('_', ' ')} {desc}".lower()
             self._template_corpus[name] = self.tokenize(text)
 
+    def stem_word(self, word: str) -> str:
+        """Lightweight Porter-style suffix stripping."""
+        for suffix in self.SUFFIXES:
+            if word.endswith(suffix) and len(word) - len(suffix) >= 3:
+                stem = word[:-len(suffix)]
+                if len(stem) > 2 and stem[-1] == stem[-2]:
+                    return stem[:-1]
+                return stem
+        return word
+
     def tokenize(self, text: str) -> list[str]:
-        """Convert raw text into normalized semantic tokens."""
+        """Convert raw text into normalized semantic tokens including N-Grams."""
         text = text.lower()
         # Remove punctuation except hyphens
         text = re.sub(r'[^\w\s-]', ' ', text)
         words = text.split()
-        return [w for w in words if w and w not in self.STOPWORDS and len(w) > 1]
+        
+        tokens = []
+        clean_words = []
+        for w in words:
+            if w and w not in self.STOPWORDS and len(w) > 1:
+                # Apply stemming first
+                stemmed = self.stem_word(w)
+                # Apply synonym mapping
+                mapped = self.synonyms.get(stemmed, stemmed)
+                clean_words.append(mapped)
+                tokens.append(mapped)
+                
+        # Generate Bigrams
+        for i in range(len(clean_words) - 1):
+            tokens.append(f"{clean_words[i]}_{clean_words[i+1]}")
+            
+        # Generate Trigrams
+        for i in range(len(clean_words) - 2):
+            tokens.append(f"{clean_words[i]}_{clean_words[i+1]}_{clean_words[i+2]}")
+            
+        return tokens
 
     def extract_entities(self, text: str) -> tuple[str, str]:
         """Extract the primary target (URL, IP, or Domain)."""
@@ -93,7 +144,7 @@ class NaturalLanguageParser:
         return "", ""
 
     def extract_parameters(self, text: str) -> dict[str, str]:
-        """Extract modifier arguments (speed, ports, stealth)."""
+        """Extract modifier arguments (speed, ports, stealth, time, format, severity)."""
         params = {}
         text_lower = text.lower()
         
@@ -112,6 +163,29 @@ class NaturalLanguageParser:
         elif any(word in text_lower for word in ["aggressive", "intense", "heavy"]):
             params["speed"] = "aggressive"
             
+        # Time / Duration extraction
+        time_match = re.search(r'\b(?:timeout|max time|run for)\s*(\d+[smhd])\b', text_lower)
+        if time_match:
+            params["timeout"] = time_match.group(1)
+            
+        # Severity extraction (for vuln scanners)
+        if "critical" in text_lower and "high" in text_lower:
+            params["severity"] = "critical,high"
+        elif "critical" in text_lower:
+            params["severity"] = "critical"
+        elif "high" in text_lower:
+            params["severity"] = "high"
+        elif "medium" in text_lower:
+            params["severity"] = "medium"
+            
+        # Output Format extraction
+        if "json" in text_lower:
+            params["format"] = "json"
+        elif "xml" in text_lower:
+            params["format"] = "xml"
+        elif "markdown" in text_lower or " md " in text_lower:
+            params["format"] = "markdown"
+            
         # Protocol extraction
         if "udp" in text_lower:
             params["protocol"] = "udp"
@@ -124,6 +198,18 @@ class NaturalLanguageParser:
             
         return params
 
+    def fuzzy_match(self, token: str, corpus_tokens: list[str]) -> bool:
+        """Check if a token fuzzy-matches any corpus token using difflib."""
+        if not corpus_tokens:
+            return False
+        # Only fuzzy match longer words to avoid false positives on small words
+        if len(token) < 5:
+            return token in corpus_tokens
+            
+        # Find closest match
+        matches = difflib.get_close_matches(token, corpus_tokens, n=1, cutoff=0.75)
+        return len(matches) > 0
+
     def score_intent(self, tokens: list[str], corpus: dict[str, list[str]]) -> tuple[str | None, float]:
         """Calculate Term Frequency similarity to find the best match."""
         best_match = None
@@ -131,9 +217,13 @@ class NaturalLanguageParser:
         
         for name, doc_tokens in corpus.items():
             score = 0.0
-            # Basic Term-Frequency intersection scoring
+            # BM25-style intersection scoring with fuzzy tolerance
             for token in tokens:
-                if token in doc_tokens:
+                if "_" in token:
+                    # N-grams are weighted heavily
+                    if token in doc_tokens:
+                        score += 3.0
+                elif self.fuzzy_match(token, doc_tokens):
                     # Weight exact name matches extremely high
                     if token == name:
                         score += 5.0

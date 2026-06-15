@@ -10,6 +10,7 @@ import sys
 from typing import Any
 
 from .events import Event, EventType, emit_sync
+from .nlp_engine import NaturalLanguageParser
 from .models import (
     ExecutionPlan,
     PlanStatus,
@@ -64,6 +65,7 @@ class RegistryPlanner:
 
     def __init__(self) -> None:
         self._plans: dict[str, ExecutionPlan] = {}
+        self._nlp = NaturalLanguageParser()
         self._auto_dag_templates: set[str] = {
             "recon_full", "web_audit", "network_scan", "cloud_audit",
             "vuln_scan", "dns_recon", "full_audit", "smb_enum",
@@ -158,6 +160,7 @@ class RegistryPlanner:
 
     def build_index(self, available_tools: list[str], tool_registry: Any = None) -> None:
         self._keyword_index.clear()
+        tools_metadata = []
         for name in available_tools:
             name_lower = name.lower()
             self._add_to_index(name_lower, name)
@@ -172,6 +175,12 @@ class RegistryPlanner:
                     if tool is None and hasattr(tool_registry, "_graph"):
                         tool = tool_registry._graph.get_tool(name)
                     if tool:
+                        tools_metadata.append({
+                            "name": tool.name,
+                            "description": getattr(tool, "description", ""),
+                            "tags": getattr(tool, "tags", []),
+                            "category": getattr(tool, "category", "")
+                        })
                         for tag in getattr(tool, "tags", []):
                             self._add_to_index(tag.lower(), name)
                         desc = getattr(tool, "description", "")
@@ -181,6 +190,12 @@ class RegistryPlanner:
                                     self._add_to_index(word, name)
                 except Exception as exc:
                     logger.warning("Failed to get tool metadata for %s: %s", name, exc)
+                    
+        # Train NLP Engine
+        if tools_metadata:
+            self._nlp.train_tools(tools_metadata)
+        templates_meta = {k: " ".join(step["description"] for step in v) for k, v in self._templates.items() if v}
+        self._nlp.train_templates(templates_meta)
 
     def _add_to_index(self, keyword: str, tool_name: str) -> None:
         if keyword not in self._keyword_index:
@@ -233,8 +248,11 @@ class RegistryPlanner:
                         "tool": alt_found,
                         "description": f"{step['description']} (via {alt_found})",
                     })
-                else:
+                elif not available_tools:
+                    # If available_tools isn't strictly defined, assume it's available
                     resolved.append(step)
+                else:
+                    logger.warning("Tool %s missing and no alternative found. Dropping step.", tool)
         return resolved
 
     # ── Core planning ─────────────────────────────────────────────────────
@@ -242,6 +260,40 @@ class RegistryPlanner:
     def plan(self, goal: str, available_tools: list[str] | None = None) -> ExecutionPlan:
         """Main entry point — decompose a user goal into an execution plan."""
         return self.decompose_goal(goal, available_tools)
+
+    def smart_plan(self, text: str, available_tools: list[str] | None = None) -> ExecutionPlan:
+        """Plan using NLP analysis for smarter intent understanding.
+
+        Uses the trained NaturalLanguageParser to extract intent, target,
+        and parameters from natural language. Falls back to decompose_goal()
+        when confidence is low or no template matches.
+        """
+        avail_set = set(available_tools or [])
+        intent = self._nlp.parse(text)
+
+        context = {
+            "nlp_template": intent.template_name or "",
+            "nlp_confidence": intent.confidence,
+            "nlp_target": intent.target,
+            "nlp_target_type": intent.target_type,
+            "nlp_parameters": intent.parameters,
+        }
+
+        if intent.template_name and intent.confidence > 0.15:
+            target = intent.target or text
+            overrides = {"args": intent.parameters} if intent.parameters else None
+            try:
+                plan = self.create_from_template(
+                    intent.template_name, target,
+                    overrides=overrides,
+                    available_tools=avail_set,
+                )
+                plan.context.update(context)
+                return plan
+            except ValueError:
+                pass
+
+        return self.decompose_goal(text, available_tools)
 
     def create_plan(
         self,
@@ -317,6 +369,66 @@ class RegistryPlanner:
     def decompose_goal(self, goal: str, available_tools: list[str] | None = None) -> ExecutionPlan:
         goal_lower = goal.lower()
         avail_set = set(available_tools or [])
+        
+        # ── Step 0: NLP Semantic Intent Parsing ─────────────────────────
+        intent = self._nlp.parse(goal)
+        target = intent.target
+        
+        # If NLP engine has high confidence in a template
+        if intent.template_name and intent.confidence > 1.5:
+            return self.create_from_template(
+                intent.template_name, 
+                target, 
+                overrides={"args": intent.parameters}, 
+                available_tools=avail_set
+            )
+            
+        # If NLP engine has high confidence in a specific tool
+        if intent.tool_name and intent.confidence > 1.5:
+            actual_tool = intent.tool_name
+            if actual_tool not in avail_set and available_tools:
+                for alt in TOOL_ALTERNATIVES.get(actual_tool, []):
+                    if alt in avail_set:
+                        actual_tool = alt
+                        break
+            if not available_tools or actual_tool in avail_set:
+                args = {"target": target}
+                flags = ""
+                
+                # Apply Semantic Parameters
+                if actual_tool in ("nmap", "masscan"):
+                    if intent.parameters.get("speed") == "fast": flags += "-T4 "
+                    elif intent.parameters.get("speed") == "stealth": flags += "-sS -T2 "
+                    else: flags += "-sT -T4 "
+                    
+                    if intent.parameters.get("ports") == "all": flags += "-p- "
+                    elif intent.parameters.get("ports"): flags += f"-p {intent.parameters['ports']} "
+                    else: flags += "--top-ports 100 "
+                    
+                    if intent.parameters.get("verbose"): flags += "-v "
+                    if intent.parameters.get("timeout"): flags += f"--host-timeout {intent.parameters['timeout']} "
+                    if intent.parameters.get("format") == "xml": flags += "-oX - "
+                    
+                elif actual_tool == "nuclei":
+                    if intent.parameters.get("severity"): flags += f"-s {intent.parameters['severity']} "
+                    if intent.parameters.get("format") == "json": flags += "-json-export "
+                    if intent.parameters.get("timeout"): flags += f"-timeout {intent.parameters['timeout'].replace('s', '')} "
+                
+                elif actual_tool in ("ffuf", "gobuster"):
+                    if intent.parameters.get("timeout"): flags += f"-t {intent.parameters['timeout'].replace('s', '')} "
+                    if intent.parameters.get("format") == "json": flags += "-o result.json -of json "
+                
+                if flags:
+                    args["flags"] = flags.strip()
+                    
+                return self.create_plan(
+                    goal=goal,
+                    steps=[{
+                        "description": f"Execute {actual_tool} on {target}",
+                        "tool": actual_tool,
+                        "args": args,
+                    }],
+                )
 
         # ── Step 1: Match against named workflow templates ──────────────
         kw_map = [

@@ -751,9 +751,28 @@ class CommandHandlersMixin:
         if args not in valid:
             console.print(f"[red]Invalid mode: {args}. Valid modes: {', '.join(valid)}[/red]")
             return
-        self._mode = args
-        self._session.mode = args
-        console.print(f"[green]✓ Mode switched to: {args}[/green]")
+
+        # Normalise: treat "registry" as "offline" (it's the same thing)
+        resolved = "offline" if args == "registry" else args
+
+        self._mode = resolved
+        self._session.mode = resolved
+
+        if resolved == "offline":
+            self._settings.set("model_provider", "registry")
+            console.print(
+                f"[green]✓ Mode switched to: {resolved} (provider locked to registry)[/green]"
+            )
+        else:
+            # Switching away from offline: release provider lock if it was "registry"
+            current_provider = self._settings.get("model_provider") or "auto"
+            if current_provider == "registry":
+                self._settings.set("model_provider", "auto")
+                console.print(
+                    f"[green]✓ Mode switched to: {resolved} (provider reset to auto)[/green]"
+                )
+            else:
+                console.print(f"[green]✓ Mode switched to: {resolved}[/green]")
 
 
     def _cmd_save(self, _: str) -> None:
@@ -831,8 +850,35 @@ class CommandHandlersMixin:
                 "custom",
                 "opencode",
             }
+
+            # ── Cross-mode validation for "registry" provider ──
+            if selected == "registry":
+                if self._mode == "autonomous":
+                    console.print(
+                        "[red]✗ Cannot use registry (offline) provider in autonomous mode. "
+                        "Switch to integrated or offline mode first.[/red]"
+                    )
+                    return
+                if self._mode == "offline":
+                    console.print("[dim]Provider already set to registry (offline mode).[/dim]")
+                    return
+
+            # ── Block switching away from registry when in offline mode ──
+            if self._mode == "offline" and selected != "registry":
+                console.print(
+                    "[yellow]⚠ Cannot switch provider while in offline mode. "
+                    "Use /mode integrated or /mode autonomous first.[/yellow]"
+                )
+                return
+
             if selected in valid_providers:
                 self._settings.set("model_provider", selected)
+
+                # Auto-switch mode when selecting registry provider
+                if selected == "registry" and self._mode != "offline":
+                    self._mode = "offline"
+                    self._session.mode = "offline"
+
                 model_name = ""
                 if len(tokens) > 1 and selected != "auto":
                     model_name = tokens[1].strip()
@@ -847,7 +893,7 @@ class CommandHandlersMixin:
                 console.print(f"[green]✓ Model provider set to: {selected}[/green]")
 
                 # ── Benchmark: quick validation call ──
-                if selected != "auto" and selected in all_providers:
+                if selected != "auto" and selected != "registry" and selected in all_providers:
                     profile = pm.get_profile(selected)
                     key = self._resolve_api_key(selected, profile.api_key_env if profile else "")
                     if key or not (profile and profile.api_key_env):

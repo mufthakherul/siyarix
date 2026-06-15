@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 class ExecutionMode(StrEnum):
     REGISTRY = "registry"
+    OFFLINE = "offline"
     AUTONOMOUS = "autonomous"
     INTEGRATED = "integrated"
 
@@ -196,6 +197,7 @@ class ExecutionEngine:
 
         mode_map = {
             ExecutionMode.REGISTRY: AgentMode.REGISTRY,
+            ExecutionMode.OFFLINE: AgentMode.REGISTRY,
             ExecutionMode.AUTONOMOUS: AgentMode.AUTONOMOUS,
             ExecutionMode.INTEGRATED: AgentMode.HYBRID,
         }

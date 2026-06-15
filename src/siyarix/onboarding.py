@@ -1335,7 +1335,7 @@ class OnboardingWizard:
             choices=["1", "2", "3", "4"],
             default="2",
         )
-        mode_map = {"1": "autonomous", "2": "integrated", "3": "registry", "4": "integrated"}
+        mode_map = {"1": "autonomous", "2": "integrated", "3": "offline", "4": "integrated"}
         self._choices["mode"] = mode_map[choice]
         self._settings.set("default_mode", self._choices["mode"])
         self._console.print(f"[green]\u2713 Mode set to: {self._choices['mode']}[/green]")

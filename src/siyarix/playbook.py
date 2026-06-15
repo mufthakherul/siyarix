@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from siyarix.models import ExecutionPlan, PlanStep, PlanType
 from siyarix.workflow import WorkflowEngine

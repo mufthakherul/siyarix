@@ -71,7 +71,7 @@ class BootstrapEngine:
         info = PlatformInfo(
             system=_sys,
             release=platform.release(),
-            shell=self._detect_shell(),
+            shell=self._detect_shell(),  # nosec B604 – false positive, method call not subprocess
             terminal=os.environ.get("TERM", "unknown"),
             python_version=sys.version,
         )

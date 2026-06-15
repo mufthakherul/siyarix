@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 YAML_AVAILABLE = False
 _yaml: Any = None
 try:
-    import yaml as _yaml  # type: ignore[no-redef]
+    import yaml as _yaml  # type: ignore[import-untyped,no-redef]
 
     YAML_AVAILABLE = True
 except ImportError:

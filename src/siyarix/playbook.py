@@ -69,6 +69,9 @@ class PlaybookEngine:
             tool = resolved_step.get("tool", "")
             args = resolved_step.get("args", {})
             depends_on = resolved_step.get("depends_on", [])
+            condition = resolved_step.get("if", None)
+            retries = resolved_step.get("retries", 0)
+            timeout = resolved_step.get("timeout", 600.0)
 
             if step_type == "agent":
                 tool = "_subagent"
@@ -77,17 +80,23 @@ class PlaybookEngine:
                     "goal": resolved_step.get("goal", ""),
                 }
 
-            # Use JSON string for args to match planner output format if needed,
-            # or pass the dict directly if tools support it.
             import json
+            
+            # Embed advanced execution metadata into args so the executor can access them
+            if condition:
+                args["_condition"] = condition
+            if retries:
+                args["_retries"] = retries
+
             command = json.dumps(args)
 
             step = PlanStep(
                 id=step_id,
-                description=f"Run {tool} from playbook",
+                description=resolved_step.get("description", f"Run {tool} from playbook"),
                 tool=tool,
                 command=command,
                 dependencies=depends_on,
+                timeout=timeout,
             )
             steps.append(step)
 

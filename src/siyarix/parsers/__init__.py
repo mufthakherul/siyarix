@@ -171,17 +171,30 @@ class ParserRegistry:
 
     def discover(self) -> dict[str, dict[str | None, Parser]]:
         """Auto-discover all parser classes imported in this module and map
-        them to their tool names by convention (e.g. ``NmapParser`` → ``nmap``)."""
+        them to their tool names by convention (e.g. ``NmapParser`` → ``nmap``).
+
+        Discovers both ``BaseParser`` subclasses and any class whose name
+        ends with ``Parser`` and implements a ``parse`` method.
+        """
         for name, obj in globals().items():
-            if isinstance(obj, type) and issubclass(obj, BaseParser) and obj is not BaseParser:
-                tool_name = _class_to_tool_name(name)
-                instance = obj()
-                if isinstance(instance, Parser):
-                    version = getattr(instance, "version", None)
-                    self.register(tool_name, instance, version)
+            if not isinstance(obj, type):
+                continue
+            if name in ("BaseParser", "Parser"):
+                continue
+            if not name.endswith("Parser") and not issubclass(obj, BaseParser):
+                continue
+            if issubclass(obj, BaseParser) and obj is BaseParser:
+                continue
+            if not hasattr(obj, "parse"):
+                continue
+            tool_name = _class_to_tool_name(name)
+            instance = obj()
+            if isinstance(instance, Parser):
+                version = getattr(instance, "version", None)
+                self.register(tool_name, instance, version)
 
         try:
-            import siyarix_parsers
+            import siyarix_parsers  # type: ignore
             if hasattr(siyarix_parsers, "NmapRustParser"):
                 self.register("nmap", siyarix_parsers.NmapRustParser(), "rust")
             if hasattr(siyarix_parsers, "NucleiRustParser"):
@@ -212,29 +225,116 @@ def _class_to_tool_name(class_name: str) -> str:
 
 from .aircrack_parser import AircrackParser  # noqa: F401, E402
 from .amass_parser import AmassParser  # noqa: F401, E402
+from .aquatone_parser import AquatoneParser  # noqa: F401, E402
+from .arachni_parser import ArachniParser  # noqa: F401, E402
+from .arjun_parser import ArjunParser  # noqa: F401, E402
+from .assetfinder_parser import AssetfinderParser  # noqa: F401, E402
+from .aws_parser import AwsParser  # noqa: F401, E402
+from .bandit_parser import BanditParser  # noqa: F401, E402
 from .bettercap_parser import BettercapParser  # noqa: F401, E402
+from .bloodhound_parser import BloodhoundParser  # noqa: F401, E402
+from .bloodhound_python_parser import BloodhoundPythonParser  # noqa: F401, E402
 from .burpsuite_parser import BurpsuiteParser  # noqa: F401, E402
+from .certipy_parser import CertipyParser  # noqa: F401, E402
+from .checkov_parser import CheckovParser  # noqa: F401, E402
+from .commix_parser import CommixParser  # noqa: F401, E402
+from .corsy_parser import CorsyParser  # noqa: F401, E402
+from .crackmapexec_parser import CrackmapexecParser  # noqa: F401, E402
 from .curl_parser import CurlParser  # noqa: F401, E402
+from .dalfox_parser import DalfoxParser  # noqa: F401, E402
 from .dig_parser import DigParser  # noqa: F401, E402
+from .dirb_parser import DirbParser  # noqa: F401, E402
+from .dirsearch_parser import DirsearchParser  # noqa: F401, E402
+from .dmitry_parser import DmitryParser  # noqa: F401, E402
+from .dnsenum_parser import DnsenumParser  # noqa: F401, E402
+from .dnsmap_parser import DnsmapParser  # noqa: F401, E402
+from .dnsrecon_parser import DnsreconParser  # noqa: F401, E402
+from .dnstwist_parser import DnstwistParser  # noqa: F401, E402
+from .dnsx_parser import DnsxParser  # noqa: F401, E402
+from .enum4linux_parser import Enum4linuxParser  # noqa: F401, E402
 from .ettercap_parser import EttercapParser  # noqa: F401, E402
+from .evil_winrm_parser import EvilWinrmParser  # noqa: F401, E402
+from .exiftool_parser import ExiftoolParser  # noqa: F401, E402
+from .feroxbuster_parser import FeroxbusterParser  # noqa: F401, E402
 from .ffuf_parser import FfufParser  # noqa: F401, E402
+from .findomain_parser import FindomainParser  # noqa: F401, E402
+from .finger_parser import FingerParser  # noqa: F401, E402
+from .gau_parser import GauParser  # noqa: F401, E402
+from .gitleaks_parser import GitleaksParser  # noqa: F401, E402
 from .gobuster_parser import GobusterParser  # noqa: F401, E402
+from .gospider_parser import GospiderParser  # noqa: F401, E402
+from .gowitness_parser import GowitnessParser  # noqa: F401, E402
+from .grype_parser import GrypeParser  # noqa: F401, E402
+from .hakrawler_parser import HakrawlerParser  # noqa: F401, E402
+from .hash_identifier_parser import HashIdentifierParser  # noqa: F401, E402
 from .hashcat_parser import HashcatParser  # noqa: F401, E402
+from .httpx_parser import HttpxParser  # noqa: F401, E402
 from .hydra_parser import HydraParser  # noqa: F401, E402
+from .ike_scan_parser import IkeScanParser  # noqa: F401, E402
 from .impacket_parser import ImpacketParser  # noqa: F401, E402
+from .interactsh_parser import InteractshParser  # noqa: F401, E402
 from .john_parser import JohnParser  # noqa: F401, E402
+from .jwt_tool_parser import JwtToolParser  # noqa: F401, E402
+from .katana_parser import KatanaParser  # noqa: F401, E402
+from .kerbrute_parser import KerbruteParser  # noqa: F401, E402
+from .kiterunner_parser import KiterunnerParser  # noqa: F401, E402
+from .kubectl_parser import KubectlParser  # noqa: F401, E402
+from .kxss_parser import KxssParser  # noqa: F401, E402
+from .ldapsearch_parser import LdapsearchParser  # noqa: F401, E402
+from .lynis_parser import LynisParser  # noqa: F401, E402
 from .masscan_parser import MasscanParser  # noqa: F401, E402
+from .massdns_parser import MassdnsParser  # noqa: F401, E402
 from .metasploit_parser import MetasploitParser  # noqa: F401, E402
+from .mimikatz_parser import MimikatzParser  # noqa: F401, E402
+from .naabu_parser import NaabuParser  # noqa: F401, E402
+from .netcat_parser import NetcatParser  # noqa: F401, E402
 from .nikto_parser import NiktoParser  # noqa: F401, E402
 from .nmap_parser import NmapParser  # noqa: F401, E402
 from .nuclei_parser import NucleiParser  # noqa: F401, E402
+from .paramspider_parser import ParamspiderParser  # noqa: F401, E402
+from .prowler_parser import ProwlerParser  # noqa: F401, E402
+from .pypykatz_parser import PypykatzParser  # noqa: F401, E402
+from .recon_ng_parser import ReconNgParser  # noqa: F401, E402
+from .responder_parser import ResponderParser  # noqa: F401, E402
+from .rustscan_parser import RustscanParser  # noqa: F401, E402
+from .s3scanner_parser import S3scannerParser  # noqa: F401, E402
+from .scoutsuite_parser import ScoutsuiteParser  # noqa: F401, E402
+from .searchsploit_parser import SearchsploitParser  # noqa: F401, E402
+from .seatbelt_parser import SeatbeltParser  # noqa: F401, E402
+from .semgrep_parser import SemgrepParser  # noqa: F401, E402
+from .sharphound_parser import SharphoundParser  # noqa: F401, E402
+from .sherlock_parser import SherlockParser  # noqa: F401, E402
 from .shodan_parser import ShodanParser  # noqa: F401, E402
+from .shuffledns_parser import ShufflednsParser  # noqa: F401, E402
+from .smbclient_parser import SmbclientParser  # noqa: F401, E402
+from .smbmap_parser import SmbmapParser  # noqa: F401, E402
+from .smtp_user_enum_parser import SmtpUserEnumParser  # noqa: F401, E402
 from .sqlmap_parser import SqlmapParser  # noqa: F401, E402
+from .ssh_audit_parser import SshAuditParser  # noqa: F401, E402
+from .sslscan_parser import SslscanParser  # noqa: F401, E402
+from .sslyze_parser import SslyzeParser  # noqa: F401, E402
 from .subfinder_parser import SubfinderParser  # noqa: F401, E402
+from .sublist3r_parser import Sublist3rParser  # noqa: F401, E402
+from .syft_parser import SyftParser  # noqa: F401, E402
+from .tcpdump_parser import TcpdumpParser  # noqa: F401, E402
+from .testssl_parser import TestsslParser  # noqa: F401, E402
+from .theharvester_parser import TheharvesterParser  # noqa: F401, E402
+from .trivy_parser import TrivyParser  # noqa: F401, E402
+from .trufflehog_parser import TrufflehogParser  # noqa: F401, E402
+from .volatility_parser import VolatilityParser  # noqa: F401, E402
+from .wafw00f_parser import Wafw00fParser  # noqa: F401, E402
+from .wapiti_parser import WapitiParser  # noqa: F401, E402
+from .waybackurls_parser import WaybackurlsParser  # noqa: F401, E402
+from .wfuzz_parser import WfuzzParser  # noqa: F401, E402
+from .wget_parser import WgetParser  # noqa: F401, E402
 from .whatweb_parser import WhatwebParser  # noqa: F401, E402
 from .whois_parser import WhoisParser  # noqa: F401, E402
 from .wpscan_parser import WpscanParser  # noqa: F401, E402
+from .xsstrike_parser import XsstrikeParser  # noqa: F401, E402
+from .yara_parser import YaraParser  # noqa: F401, E402
 from .zaproxy_parser import ZaproxyParser  # noqa: F401, E402
+from .zgrab_parser import ZgrabParser  # noqa: F401, E402
+from .zmap_parser import ZmapParser  # noqa: F401, E402
 
 __all__ = [
     "Parser",
@@ -244,27 +344,114 @@ __all__ = [
     "_now_iso",
     "AircrackParser",
     "AmassParser",
+    "AquatoneParser",
+    "ArachniParser",
+    "ArjunParser",
+    "AssetfinderParser",
+    "AwsParser",
+    "BanditParser",
     "BettercapParser",
+    "BloodhoundParser",
+    "BloodhoundPythonParser",
     "BurpsuiteParser",
+    "CertipyParser",
+    "CheckovParser",
+    "CommixParser",
+    "CorsyParser",
+    "CrackmapexecParser",
     "CurlParser",
+    "DalfoxParser",
     "DigParser",
+    "DirbParser",
+    "DirsearchParser",
+    "DmitryParser",
+    "DnsenumParser",
+    "DnsmapParser",
+    "DnsreconParser",
+    "DnstwistParser",
+    "DnsxParser",
+    "Enum4linuxParser",
     "EttercapParser",
+    "EvilWinrmParser",
+    "ExiftoolParser",
+    "FeroxbusterParser",
     "FfufParser",
+    "FindomainParser",
+    "FingerParser",
+    "GauParser",
+    "GitleaksParser",
     "GobusterParser",
+    "GospiderParser",
+    "GowitnessParser",
+    "GrypeParser",
+    "HakrawlerParser",
+    "HashIdentifierParser",
     "HashcatParser",
+    "HttpxParser",
     "HydraParser",
+    "IkeScanParser",
     "ImpacketParser",
+    "InteractshParser",
     "JohnParser",
+    "JwtToolParser",
+    "KatanaParser",
+    "KerbruteParser",
+    "KiterunnerParser",
+    "KubectlParser",
+    "KxssParser",
+    "LdapsearchParser",
+    "LynisParser",
     "MasscanParser",
+    "MassdnsParser",
     "MetasploitParser",
+    "MimikatzParser",
+    "NaabuParser",
+    "NetcatParser",
     "NiktoParser",
     "NmapParser",
     "NucleiParser",
+    "ParamspiderParser",
+    "ProwlerParser",
+    "PypykatzParser",
+    "ReconNgParser",
+    "ResponderParser",
+    "RustscanParser",
+    "S3scannerParser",
+    "ScoutsuiteParser",
+    "SearchsploitParser",
+    "SeatbeltParser",
+    "SemgrepParser",
+    "SharphoundParser",
+    "SherlockParser",
     "ShodanParser",
+    "ShufflednsParser",
+    "SmbclientParser",
+    "SmbmapParser",
+    "SmtpUserEnumParser",
     "SqlmapParser",
+    "SshAuditParser",
+    "SslscanParser",
+    "SslyzeParser",
     "SubfinderParser",
+    "Sublist3rParser",
+    "SyftParser",
+    "TcpdumpParser",
+    "TestsslParser",
+    "TheharvesterParser",
+    "TrivyParser",
+    "TrufflehogParser",
+    "VolatilityParser",
+    "Wafw00fParser",
+    "WapitiParser",
+    "WaybackurlsParser",
+    "WfuzzParser",
+    "WgetParser",
     "WhatwebParser",
     "WhoisParser",
     "WpscanParser",
+    "XsstrikeParser",
+    "YaraParser",
     "ZaproxyParser",
+    "ZgrabParser",
+    "ZmapParser",
 ]

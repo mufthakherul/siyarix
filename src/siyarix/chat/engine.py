@@ -610,12 +610,12 @@ class LLMEngineMixin:
             if not plan or not plan.steps:
                 break
 
-            # Announce
+            # Announce — skip hallucinated / placeholder tool names
             tool_labels = []
             for s in plan.steps:
                 if s.command:
                     tool_labels.append(f"[bold]$ {s.command}[/bold]")
-                else:
+                elif s.tool and s.tool not in ("execute_plan", "_", ""):
                     tool_labels.append(f"[bold]{s.tool}[/bold]")
             if not wave:
                 console.print(f"[cyan]→ Executing:[/cyan] {', '.join(tool_labels)}")
@@ -636,7 +636,7 @@ class LLMEngineMixin:
             for s in plan.steps:
                 if s.command:
                     cmd_states.append(_CmdState(label=f"$ {s.command}"))
-                else:
+                elif s.tool and s.tool not in ("execute_plan", "_", ""):
                     cmd_states.append(_CmdState(label=s.tool))
 
             async def _exec_one(step: Any, state: _CmdState) -> tuple[Any, dict]:
@@ -692,6 +692,10 @@ class LLMEngineMixin:
             from rich.live import Live
             from rich.panel import Panel as RichPanel
 
+            # Suppress CPR warning on terminals that don't support it
+            _old_term = os.environ.pop("TERM", None)
+            os.environ["TERM"] = "xterm-256color"
+
             if cmd_states:
                 focus_idx = 0
                 done_set = False
@@ -733,6 +737,15 @@ class LLMEngineMixin:
                         )
 
             raw_results = await exec_task
+
+            # Restore original TERM
+            if _old_term is None:
+                del os.environ["TERM"]
+            else:
+                os.environ["TERM"] = _old_term
+
+            # Separate Live display output from summary panels
+            console.print()
 
             # Show summary for this wave
             for (step, result), st in zip(raw_results, cmd_states):

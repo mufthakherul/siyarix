@@ -67,7 +67,6 @@ class DirbParser:
         return self._parse_text(output)
 
     def _parse_json(self, data: Any) -> list[dict]:
-        from typing import Any
         findings: list[dict] = []
         seen: set[str] = set()
         results = data if isinstance(data, list) else data.get("results", data.get("sites", [data]))

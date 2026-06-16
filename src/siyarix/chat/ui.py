@@ -10,36 +10,141 @@ from prompt_toolkit.completion import Completer, Completion, PathCompleter
 
 from ..output import output as _output_engine
 
+
 class SmartAutocomplete(Completer):
     """Context-aware autocomplete for the chat REPL."""
+
+    _COMMANDS: list[str] = [
+        "/help",
+        "/exit",
+        "/clear",
+        "/new",
+        "/history",
+        "/search",
+        "/tools",
+        "/platform",
+        "/status",
+        "/session",
+        "/uptime",
+        "/env",
+        "/intents",
+        "/shells",
+        "/run",
+        "/save",
+        "/config",
+        "/key",
+        "/mode",
+        "/model",
+        "/provider",
+        "/theme",
+        "/target",
+        "/version",
+        "/context",
+        "/log",
+        "/diff",
+        "/agent",
+        "/review",
+        "/persona",
+        "/report",
+        "/split",
+        "/batch",
+        "/opsec",
+        "/siem",
+        "/performance",
+        "/cache",
+        "/campaign",
+        "/kb",
+        "/ticket",
+        "/retest",
+        "/stealth",
+        "/audit",
+        "/savecmd",
+        "/cmds",
+        "/cmd",
+    ]
+
+    _ARG_COMMANDS: dict[str, str] = {
+        "/run": "tool",
+        "/model": "model",
+        "/provider": "provider",
+        "/key": "provider",
+        "/target": "target",
+        "/mode": "mode",
+        "/persona": "persona",
+        "/theme": "theme",
+    }
 
     def __init__(self, session: Any) -> None:
         self._session = session
         self._path_completer = PathCompleter()
-        self._commands = [
-            "/help", "/exit", "/clear", "/new", "/history", "/search",
-            "/tools", "/platform", "/status", "/session", "/uptime",
-            "/env", "/intents", "/shells", "/run", "/save", "/config",
-            "/key", "/mode", "/model", "/provider", "/theme", "/target",
-            "/version", "/context", "/log", "/diff", "/agent",
-            "/review", "/persona", "/report", "/split",
-            "/batch", "/opsec", "/siem",
-            "/performance", "/cache", "/campaign",
-            "/kb", "/ticket", "/retest", "/stealth",
-            "/audit", "/savecmd", "/cmds", "/cmd",
-        ]
+        self._tool_cache: list[str] = []
+        self._model_cache: list[str] = []
+        self._last_cache_refresh = 0.0
+
+    def _refresh_caches(self) -> None:
+        now = __import__("time").time()
+        if now - self._last_cache_refresh < 30.0:
+            return
+        self._last_cache_refresh = now
+        self._tool_cache.clear()
+        self._model_cache.clear()
+        try:
+            from ..registry import ToolRegistry
+
+            reg = ToolRegistry()
+            tools = reg.list_tools()
+            self._tool_cache = [t.name for t in tools]
+        except Exception:
+            self._tool_cache = []
+        try:
+            from ..providers import ProviderManager
+
+            mgr = ProviderManager.get_instance()
+            for prov in mgr.list_providers():
+                models = mgr.get_models(prov)
+                self._model_cache.extend(models)
+        except Exception:
+            self._model_cache = []
+
+    def _complete_arg(self, arg_type: str, prefix: str) -> Any:
+        self._refresh_caches()
+        if arg_type == "tool":
+            for name in self._tool_cache:
+                if name.startswith(prefix):
+                    yield Completion(name, start_position=-len(prefix))
+        elif arg_type == "model":
+            for name in self._model_cache:
+                if name.startswith(prefix):
+                    yield Completion(name, start_position=-len(prefix))
+        elif arg_type == "provider":
+            try:
+                from ..providers import ProviderManager
+
+                mgr = ProviderManager.get_instance()
+                for prov in mgr.list_providers():
+                    if prov.startswith(prefix):
+                        yield Completion(prov, start_position=-len(prefix))
+            except Exception:
+                pass
 
     def get_completions(self, document: Any, complete_event: Any) -> Any:
         text = document.text_before_cursor
-        
-        # Command completion
+
         if text.startswith("/"):
-            word_before_cursor = document.get_word_before_cursor()
-            prefix = text.split()[-1] if text.split() else ""
-            if " " not in text:
-                for cmd in self._commands:
-                    if cmd.startswith(prefix):
-                        yield Completion(cmd, start_position=-len(prefix))
+            parts = text.split()
+            cmd = parts[0] if parts else ""
+            if len(parts) <= 1:
+                # Completing the command itself
+                prefix = cmd.lstrip("/")
+                for c in self._COMMANDS:
+                    if c.startswith(cmd):
+                        yield Completion(c, start_position=-len(cmd))
+                return
+            # Completing an argument to a command
+            arg_type = self._ARG_COMMANDS.get(cmd)
+            if arg_type:
+                prefix = parts[-1]
+                yield from self._complete_arg(arg_type, prefix)
             return
 
         # Path completion if text contains @ or looks like a path
@@ -98,7 +203,7 @@ class SplitPane:
         elif right_type == "attack_map":
             right_content.append("─ Attack Surface ─\n", style="bold cyan")
             sev_counts: dict[str, int] = {}
-            for f in (findings or []):
+            for f in findings or []:
                 sev = f.get("severity", "info") if isinstance(f, dict) else "info"
                 sev_counts[sev] = sev_counts.get(sev, 0) + 1
             for sev, count in sorted(sev_counts.items()):
@@ -112,13 +217,17 @@ class SplitPane:
                 right_content.append(f"  Target: {session_meta.target or 'none'}\n")
                 right_content.append(f"  Mode: {session_meta.mode}\n")
 
-        left_panel = Panel(left_renderable or Text("No content"), title="Chat", border_style="cyan", width=60)
+        left_panel = Panel(
+            left_renderable or Text("No content"), title="Chat", border_style="cyan", width=60
+        )
         right_panel = Panel(right_content, title=right_type or "Info", border_style="dim", width=40)
 
         from rich.columns import Columns
+
         layout = Columns([left_panel, right_panel], expand=True)
         from io import StringIO
         from rich.console import Console as RichConsole
+
         buf = StringIO()
         tmp = RichConsole(file=buf, width=120, force_terminal=True)
         tmp.print(layout)

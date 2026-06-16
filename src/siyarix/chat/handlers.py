@@ -17,11 +17,20 @@ from rich.table import Table
 
 from ..branding import available_themes, print_theme_preview
 from .commands import CommandProfile, CommandProfileStore, HELP_CATEGORIES, SLASH_HELP
-from .session import ChatMessage, ChatSession
-from .ui import SmartAutocomplete, SplitPane, ConfigPanel
+from .session import ChatSession
+from .ui import ConfigPanel
 from ..subprocess_utils import safe_run_sync
-from .platform_utils import provider_env_var, CROSS_PLATFORM_COMMANDS, normalize_shell, list_supported_shells, get_security_commands, get_shell_platform
+from .platform_utils import (
+    provider_env_var,
+    CROSS_PLATFORM_COMMANDS,
+    normalize_shell,
+    list_supported_shells,
+    get_security_commands,
+    get_shell_platform,
+)
 from .console import console
+
+from ..exceptions import LLMProviderError
 
 if TYPE_CHECKING:
     from ..config import SettingsStore
@@ -29,6 +38,7 @@ if TYPE_CHECKING:
     from ..providers.usage import UsageTracker
 
 logger = logging.getLogger(__name__)
+
 
 class CommandHandlersMixin:
     if TYPE_CHECKING:
@@ -48,6 +58,7 @@ class CommandHandlersMixin:
         _usage_tracker: UsageTracker
         _engine_kill_switch: Any
         _tool_cache: list[Any] | None
+
     async def _handle_slash(self, cmd: str) -> None:
         """Dispatch slash commands."""
         parts = cmd.split(maxsplit=1)
@@ -97,7 +108,6 @@ class CommandHandlersMixin:
             "/cancel": self._cmd_esc,
             "/log": self._cmd_log,
             "/diff": self._cmd_diff,
-
             "/agent": self._cmd_agent,
             "/review": self._cmd_review,
             "/persona": self._cmd_persona,
@@ -130,7 +140,6 @@ class CommandHandlersMixin:
                 hint = f"  Did you mean: {', '.join(suggestions)}"
             console.print(f"[red]Unknown command: {command}[/red] — type [cyan]/help[/cyan]{hint}")
 
-
     def _cmd_help(self, _: str) -> None:
         """Show categorized help."""
         console.print(
@@ -150,22 +159,18 @@ class CommandHandlersMixin:
             console.print(table)
             console.print()
 
-
     def _cmd_exit(self, _: str) -> None:
         self._running = False
-
 
     def _cmd_clear(self, _: str) -> None:
         console.clear()
         self._session.messages.clear()
         self._print_welcome()
 
-
     def _cmd_new(self, _: str) -> None:
         self._session.messages.clear()
         self._session.context.clear()
         console.print("[green]✓ Started a new conversation context.[/green]")
-
 
     def _cmd_report(self, args: str) -> None:
         """Generate an executive report based on current session findings."""
@@ -196,7 +201,6 @@ class CommandHandlersMixin:
         console.print(f"[bold green]✓ Report generated successfully at: {path}[/bold green]")
         console.print(f"[dim]Findings: {len(findings)} | Format: {fmt}[/dim]")
 
-
     def _cmd_split(self, args: str) -> None:
         """Toggle split pane mode or change the visualization type."""
         args_clean = args.strip().lower()
@@ -222,7 +226,6 @@ class CommandHandlersMixin:
         if self._split_pane_enabled:
             self._render_split_pane_layout()
 
-
     def _cmd_savecmd(self, args: str) -> None:
         if not args:
             console.print("[yellow]Usage: /savecmd <name> <command>[/yellow]")
@@ -236,7 +239,6 @@ class CommandHandlersMixin:
         profile = CommandProfile(name=name, command=command, description=None)
         store.save(profile)
         console.print(f"[green]✓ Saved command profile: {name}[/green]")
-
 
     def _cmd_cmds(self, _: str) -> None:
         store = CommandProfileStore()
@@ -252,7 +254,6 @@ class CommandHandlersMixin:
             table.add_row(p.name, p.command, p.created_at or "")
         console.print(table)
 
-
     async def _cmd_cmd(self, args: str) -> None:
         if not args:
             console.print("[yellow]Usage: /cmd <name>[/yellow]")
@@ -267,7 +268,6 @@ class CommandHandlersMixin:
         run = Prompt.ask("Run this command? (y/N)", default="N")
         if run.lower().startswith("y"):
             await self._execute_instruction(p.command)
-
 
     def _show_key_status(self) -> None:
         from ..credential_store import CredentialStore
@@ -300,7 +300,6 @@ class CommandHandlersMixin:
             table.add_row(prov_name, env_key or "—", status, source)
 
         console.print(table)
-
 
     def _cmd_key(self, args: str) -> None:
         tokens = args.split(maxsplit=2) if args else []
@@ -353,7 +352,7 @@ class CommandHandlersMixin:
                 store = CredentialStore()
                 store.delete(provider, "api_key")
             except Exception:
-                pass
+                logger.warning("Failed to delete API key for %s from credential store", provider, exc_info=True)
             console.print(f"[green]✓ Cleared {provider} API key[/green]")
             return
 
@@ -371,13 +370,15 @@ class CommandHandlersMixin:
             console.print(f"[green]✓ Stored {provider} API key[/green]")
         except Exception:
             console.print(f"[green]✓ {provider} API key set in environment[/green]")
-            console.print("[dim]Tip: Key will only last for this session. Install cryptography for persistent storage: pip install cryptography[/dim]")
+            console.print(
+                "[dim]Tip: Key will only last for this session. Install cryptography for persistent storage: pip install cryptography[/dim]"
+            )
 
         # If user set Gemini key and the client package is missing, offer to install it
         if provider == "gemini":
             pkg_name = "google-genai"
             try:
-                import google.genai as _test_genai  # type: ignore[import-untyped]  # noqa: F401
+                import google.genai as _test_genai  # noqa: F401
 
                 gemini_pkg_installed = True
             except Exception:
@@ -410,13 +411,14 @@ class CommandHandlersMixin:
                     except Exception as exc:
                         logger.exception("Failed to run pip install for %s: %s", pkg_name, exc)
 
-
     def _cmd_theme(self, args: str) -> None:
         tokens = args.split() if args else []
         if not tokens or tokens[0].lower() in {"show", "list"}:
             current = self._settings.get("color_theme")
             syntax = self._settings.get("syntax_theme") or "monokai"
-            console.print(f"Current UI theme: [cyan]{current}[/cyan] | Syntax theme: [cyan]{syntax}[/cyan]")
+            console.print(
+                f"Current UI theme: [cyan]{current}[/cyan] | Syntax theme: [cyan]{syntax}[/cyan]"
+            )
             console.print(f"Available UI themes: {', '.join(available_themes())}")
             console.print("Use /theme <ui_theme> [syntax_theme]")
             console.print("Example: /theme cyber-noir dracula")
@@ -450,7 +452,6 @@ class CommandHandlersMixin:
         console.print(f"[green]✓ Theme set to: {theme}[/green]")
         print_theme_preview(console, theme)
 
-
     def _cmd_history(self, args: str) -> None:
         limit = 20
         search_filter = ""
@@ -480,14 +481,13 @@ class CommandHandlersMixin:
                 f"[dim]{ts}[/dim] [{role_color}]{label}:[/{role_color}] {msg.content[:200]}"
             )
 
-
     def _cmd_tools(self, arg: str) -> None:
         try:
             from ..registry import ToolRegistry
             from ..tool_models import ToolCategory
 
             reg = ToolRegistry()
-            if not hasattr(self, '_tool_cache') or self._tool_cache is None:
+            if not hasattr(self, "_tool_cache") or self._tool_cache is None:
                 reg.scan_path()
                 self._tool_cache = reg.list_tools()
             tools = self._tool_cache
@@ -524,7 +524,6 @@ class CommandHandlersMixin:
         except Exception as exc:
             logger.exception("Tool discovery error")
             console.print(f"[red]Tool discovery error: {exc}[/red]")
-
 
     def _cmd_platform(self, _: str) -> None:
         ctx = self._platform_ctx
@@ -577,7 +576,6 @@ class CommandHandlersMixin:
             table.add_row(category, key, str(value))
         console.print(table)
 
-
     def _cmd_status(self, _: str) -> None:
         counts = {
             "messages": len(self._session.messages),
@@ -605,7 +603,6 @@ class CommandHandlersMixin:
             )
         )
 
-
     def _cmd_session(self, _: str) -> None:
         payload = {
             "session_id": self._session.session_id,
@@ -624,14 +621,12 @@ class CommandHandlersMixin:
             )
         )
 
-
     def _cmd_uptime(self, _: str) -> None:
         delta = datetime.now(timezone.utc) - self._session.created_at
         seconds = int(delta.total_seconds())
         hours, rem = divmod(seconds, 3600)
         minutes, secs = divmod(rem, 60)
         console.print(f"Session uptime: [cyan]{hours:02d}:{minutes:02d}:{secs:02d}[/cyan]")
-
 
     def _cmd_env(self, _: str) -> None:
         keys = [
@@ -655,7 +650,6 @@ class CommandHandlersMixin:
             table.add_row(k, v if v else "[dim]not set[/dim]")
         console.print(table)
 
-
     def _cmd_intents(self, args: str) -> None:
         filter_str = args.strip().lower()
         intents = sorted(CROSS_PLATFORM_COMMANDS.keys())
@@ -676,7 +670,6 @@ class CommandHandlersMixin:
                 f"[dim]Showing 120/{len(intents)} intents. Narrow with /intents <filter>.[/dim]"
             )
 
-
     def _cmd_shells(self, _: str) -> None:
         table = Table(title="Supported Shells", header_style="bold cyan")
         table.add_column("Shell", style="cyan")
@@ -684,7 +677,6 @@ class CommandHandlersMixin:
         for shell_name, tier in list_supported_shells():
             table.add_row(shell_name, tier)
         console.print(table)
-
 
     def _cmd_search(self, args: str) -> None:
         needle = args.strip().lower()
@@ -710,7 +702,6 @@ class CommandHandlersMixin:
                 f"[dim]{ts}[/dim] [{role_color}]{label}:[/{role_color}] {msg.content[:160]}"
             )
 
-
     def _cmd_examples(self, _: str) -> None:
         examples = [
             "scan 10.10.10.10 with nmap and summarize open ports",
@@ -726,13 +717,11 @@ class CommandHandlersMixin:
             table.add_row(str(idx), text)
         console.print(table)
 
-
     def _cmd_reset(self, _: str) -> None:
         self._mode = "integrated"
         self._session.mode = "integrated"
         self._session.target = ""
         console.print("[green]✓ Reset mode to integrated and cleared target.[/green]")
-
 
     def _cmd_target(self, args: str) -> None:
         if not args:
@@ -742,7 +731,6 @@ class CommandHandlersMixin:
         self._session.target = args
         console.print(f"[green]✓ Target set to: {args}[/green]")
 
-
     def _cmd_mode(self, args: str) -> None:
         valid = ("autonomous", "integrated", "offline")
         if not args:
@@ -751,7 +739,9 @@ class CommandHandlersMixin:
 
         # Redirect: "registry" was renamed to "offline"
         if args == "registry":
-            console.print("[yellow]'registry' mode has been renamed to 'offline'. Switching…[/yellow]")
+            console.print(
+                "[yellow]'registry' mode has been renamed to 'offline'. Switching…[/yellow]"
+            )
             args = "offline"
 
         if args not in valid:
@@ -771,18 +761,14 @@ class CommandHandlersMixin:
             current_provider = self._settings.get("model_provider") or "auto"
             if current_provider == "registry":
                 self._settings.set("model_provider", "auto")
-                console.print(
-                    f"[green]✓ Mode switched to: {args} (provider reset to auto)[/green]"
-                )
+                console.print(f"[green]✓ Mode switched to: {args} (provider reset to auto)[/green]")
             else:
                 console.print(f"[green]✓ Mode switched to: {args}[/green]")
-
 
     def _cmd_save(self, _: str) -> None:
         path = self._SESSIONS_DIR / f"{self._session.session_id}.json"
         self._session.save(path)
         console.print(f"[green]✓ Session saved to: {path}[/green]")
-
 
     def _cmd_translate(self, args: str) -> None:
         if not args:
@@ -806,9 +792,13 @@ class CommandHandlersMixin:
         table.add_column("Shell", style="cyan")
         table.add_column("Command", style="green")
         for shell, cmd in entry.items():
-            table.add_row(shell.replace("bash", "Linux/macOS").replace("powershell", "PowerShell").replace("cmd", "CMD"), cmd)
+            table.add_row(
+                shell.replace("bash", "Linux/macOS")
+                .replace("powershell", "PowerShell")
+                .replace("cmd", "CMD"),
+                cmd,
+            )
         console.print(table)
-
 
     def _cmd_security_cmds(self, _: str) -> None:
         cmds = get_security_commands(self._shell)
@@ -822,7 +812,6 @@ class CommandHandlersMixin:
             table.add_row(purpose, cmd[:80])
         console.print(table)
 
-
     async def _cmd_scan(self, args: str) -> None:
         target = args or self._session.target
         if not target:
@@ -830,13 +819,11 @@ class CommandHandlersMixin:
             return
         await self._execute_instruction(f"scan {target}", target=target)
 
-
     async def _cmd_run(self, args: str) -> None:
         if not args:
             console.print("[yellow]Usage: /run <command or tool>[/yellow]")
             return
         await self._execute_instruction(args)
-
 
     async def _cmd_model(self, args: str) -> None:
         from ..providers import ProviderManager
@@ -908,6 +895,7 @@ class CommandHandlersMixin:
 
                                 bench_fn = self._make_llm_call(selected, key or "")
                                 from ..chat.openai_compat import MODEL_KEYS as _MK
+
                                 bench_key = _MK.get(selected, f"{selected}_model")
                                 bench_model = self._settings.get(bench_key) or ""
                                 if not bench_model and profile:
@@ -917,7 +905,7 @@ class CommandHandlersMixin:
                                     timeout=15.0,
                                 )
                                 if not isinstance(result, dict):
-                                    raise RuntimeError(
+                                    raise LLMProviderError(
                                         f"LLM returned unexpected type: {type(result).__name__}"
                                     )
                                 content = result.get("content", "").strip()
@@ -946,9 +934,14 @@ class CommandHandlersMixin:
                 continue
             key = self._resolve_api_key(prov_name, profile.api_key_env or "")
             from ..chat.openai_compat import MODEL_KEYS
+
             model_key = MODEL_KEYS.get(prov_name, f"{prov_name}_model")
             model_setting = self._settings.get(model_key) or profile.default_model or ""
-            status = "✓ Configured" if key else ("✗ Not set" if profile and profile.api_key_env else "Available")
+            status = (
+                "✓ Configured"
+                if key
+                else ("✗ Not set" if profile and profile.api_key_env else "Available")
+            )
             cost_label = f"[dim]${profile.cost_tier.value}[/dim]" if profile.cost_tier else ""
             lines.append(
                 f"[bold]{profile.display_name}:[/bold] {status} ({model_setting}) {cost_label}\n"
@@ -964,7 +957,6 @@ class CommandHandlersMixin:
         if usage_summary:
             lines.append(f"\n[dim]{usage_summary}[/dim]")
         console.print(Panel.fit("".join(lines), title="Model Providers", border_style="cyan"))
-
 
     async def _cmd_provider(self, args: str) -> None:
         """Show detailed provider info and available models."""
@@ -1027,7 +1019,10 @@ class CommandHandlersMixin:
             profile = pm.get_profile(prov_name)
             if not profile:
                 continue
-            key = bool(self._resolve_api_key(prov_name, profile.api_key_env or "")) or not profile.api_key_env
+            key = (
+                bool(self._resolve_api_key(prov_name, profile.api_key_env or ""))
+                or not profile.api_key_env
+            )
             cap_list = []
             if profile.supports_vision:
                 cap_list.append("👁")
@@ -1046,14 +1041,12 @@ class CommandHandlersMixin:
             )
         console.print(table)
 
-
     def _cmd_context(self, _: str) -> None:
         summary = self._session.get_context_summary()
         if not summary:
             console.print("[dim]No conversation context yet.[/dim]")
             return
         console.print(Panel(summary, title="Session Context", border_style="dim"))
-
 
     async def _cmd_config(self, args: str) -> None:
         """View or modify configuration settings."""
@@ -1069,9 +1062,16 @@ class CommandHandlersMixin:
             table.add_column("Description", style="green")
             for r in rows:
                 val_style = "yellow" if r["modified"] else "white"
-                table.add_row(r["key"], f"[{val_style}]{r['value']}[/{val_style}]", r["default"], r["description"])
+                table.add_row(
+                    r["key"],
+                    f"[{val_style}]{r['value']}[/{val_style}]",
+                    r["default"],
+                    r["description"],
+                )
             console.print(table)
-            console.print("[dim]Use /config set <key> <value> to change, /config get <key> to view[/dim]")
+            console.print(
+                "[dim]Use /config set <key> <value> to change, /config get <key> to view[/dim]"
+            )
         elif sub == "tools":
             ConfigPanel._section_tools()
         elif sub.startswith("set "):
@@ -1085,6 +1085,7 @@ class CommandHandlersMixin:
                 console.print(f"[green]✓ Set {key} = {result}[/green]")
                 if key == "log_level":
                     from ..logging_config import configure_logging
+
                     configure_logging(str(result))
             except KeyError as exc:
                 console.print(f"[red]Unknown setting: {exc}[/red]")
@@ -1110,9 +1111,6 @@ class CommandHandlersMixin:
                 console.print(f"  [cyan]{k}[/cyan]: [dim]{DESCRIPTIONS[k]}[/dim]")
         else:
             console.print("[yellow]Usage: /config [show|set|get|list|tools][/yellow]")
-
-
-
 
     async def _cmd_agent(self, args: str) -> None:
         """Handle /agent command for sub-agent lifecycle management."""
@@ -1147,7 +1145,6 @@ class CommandHandlersMixin:
         else:
             console.print("[yellow]Usage: /agent run <goal> | /agent status[/yellow]")
 
-
     def _cmd_review(self, args: str) -> None:
         """Toggle command review prompt before execution."""
         current = self._settings.get("command_review", True)
@@ -1162,7 +1159,6 @@ class CommandHandlersMixin:
         self._settings.set("command_review", new_val)
         status = "on" if new_val else "off"
         console.print(f"[green]Command review turned [bold]{status}[/bold][/green]")
-
 
     def _cmd_persona(self, args: str) -> None:
         """Switch mindset/persona: /persona list, /persona <name>, /persona."""
@@ -1204,7 +1200,6 @@ class CommandHandlersMixin:
         self._settings.set("persona", p["name"])
         console.print(f"[green]Persona switched to [bold]{p['label']}[/bold][/green]")
 
-
     def _cmd_esc(self, _: str) -> None:
         """Emergency stop - cancel all pending execution."""
         console.print("[bold red]⚠ EMERGENCY STOP TRIGGERED[/bold red]")
@@ -1217,13 +1212,11 @@ class CommandHandlersMixin:
         else:
             console.print("[dim]No active engine to cancel.[/dim]")
 
-
     def _cmd_version(self, _: str) -> None:
         from ..branding import resolve_version
 
         ver = resolve_version()
         console.print(f"[bold cyan]Siyarix[/bold cyan] [green]v{ver}[/green]")
-
 
     def _cmd_log(self, args: str) -> None:
         """Handle /log command for session log management."""
@@ -1308,7 +1301,6 @@ class CommandHandlersMixin:
         else:
             console.print("[yellow]Usage: /log list|show|export[/yellow]")
 
-
     def _cmd_diff(self, args: str) -> None:
         """Handle /diff command to compare two sessions."""
         from rich.panel import Panel
@@ -1369,7 +1361,6 @@ class CommandHandlersMixin:
                 rt.add_row(f.get("title", "?"), f.get("severity", "?"))
             console.print(rt)
 
-
     async def _cmd_batch(self, args: str) -> None:
         """Handle /batch command for batch execution."""
         tokens = args.split() if args else []
@@ -1422,7 +1413,6 @@ class CommandHandlersMixin:
             opsec_manager.disable()
             console.print("[green]OPSEC deactivated[/green]")
 
-
     async def _cmd_siem(self, args: str) -> None:
         """Handle /siem command for SIEM/SOAR integration."""
         from ..platform_integration import platform_integration
@@ -1443,7 +1433,6 @@ class CommandHandlersMixin:
         elif tokens[0] == "status":
             summary = platform_integration.summary()
             console.print(f"SIEM connections: {summary.get('siem_connections', 0)}")
-
 
     async def _cmd_performance(self, args: str) -> None:
         """Handle /performance command for resource optimization."""
@@ -1470,7 +1459,6 @@ class CommandHandlersMixin:
             console.print(
                 f"Recommended: {s['recommended']['max_agents']} agents, {s['recommended']['memory_per_agent_mb']}MB/agent"
             )
-
 
     async def _cmd_cache(self, args: str) -> None:
         """Handle /cache command for cache management."""
@@ -1515,7 +1503,6 @@ class CommandHandlersMixin:
         else:
             console.print("[yellow]Usage: /campaign list|create|status[/yellow]")
 
-
     async def _cmd_kb(self, args: str) -> None:
         """Handle /kb command for knowledge base operations."""
         tokens = args.split() if args else []
@@ -1539,7 +1526,6 @@ class CommandHandlersMixin:
         else:
             console.print("[yellow]Usage: /kb search|list[/yellow]")
 
-
     async def _cmd_ticket(self, args: str) -> None:
         """Handle /ticket command for external ticket creation."""
         from ..platform_integration import platform_integration
@@ -1557,7 +1543,6 @@ class CommandHandlersMixin:
             )
         else:
             console.print("[yellow]Usage: /ticket create|list[/yellow]")
-
 
     async def _cmd_retest(self, args: str) -> None:
         """Handle /retest command for verification scans."""
@@ -1603,7 +1588,6 @@ class CommandHandlersMixin:
                 "[yellow]Usage: /stealth status|on|off|level <none|light|medium|heavy|paranoid>[/yellow]"
             )
 
-
     async def _cmd_audit(self, args: str) -> None:
         """Handle /audit command for compliance and legal export."""
         from ..audit_log import audit
@@ -1632,5 +1616,3 @@ class CommandHandlersMixin:
             )
         else:
             console.print("[yellow]Usage: /audit export|status|verify[/yellow]")
-
-

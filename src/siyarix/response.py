@@ -73,8 +73,10 @@ class ResponseGenerator:
         # ── Step Overview ──────────────────────────────────────────────────
         step_lines = []
         for r in step_results:
-            s_icon = "✓" if getattr(r, "status", "").value == "completed" else "✗"
-            s_color = "green" if getattr(r, "status", "").value == "completed" else "red"
+            s_val = getattr(r, "status", "")
+            s_str = s_val.value if hasattr(s_val, "value") else str(s_val)
+            s_icon = "✓" if s_str == "completed" else "✗"
+            s_color = "green" if s_str == "completed" else "red"
             step_id = getattr(r, "step_id", "?")
             output = (getattr(r, "output", "") or "")[:80].replace("\n", " ")
             step_lines.append(f"  [{s_color}]{s_icon}[/] [bold]{step_id}[/] [dim]{output}[/dim]")
@@ -205,7 +207,11 @@ class ResponseGenerator:
     def _build_stats(
         self, success: bool, step_results: list[Any], findings: list[dict], duration_ms: float
     ) -> list[str]:
-        completed = sum(1 for r in step_results if getattr(r, "status", "").value == "completed")
+        completed = 0
+        for r in step_results:
+            s = getattr(r, "status", "")
+            if (s.value if hasattr(s, "value") else str(s)) == "completed":
+                completed += 1
         total = len(step_results)
         duration_s = duration_ms / 1000
         return [

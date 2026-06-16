@@ -423,8 +423,8 @@ class OnboardingWizard:
         try:
             import psutil
 
-            mem = psutil.virtual_memory()
-            ram_free_gb = mem.available / (1024**3)
+            vmem = psutil.virtual_memory()
+            ram_free_gb = vmem.available / (1024**3)
         except Exception as exc:
             logger.debug("Failed to get available RAM: %s", exc)
 

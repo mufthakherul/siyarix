@@ -236,7 +236,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         theme = self._settings.get("color_theme") or "cyber-noir"
         provider = self._settings.get("model_provider") or "auto"
 
-        def get_bottom_toolbar() -> Any:
+        def get_status_bar() -> Any:
             from prompt_toolkit.formatted_text import HTML
 
             return HTML(
@@ -253,12 +253,23 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
                 session: PromptSession = PromptSession()
+                from prompt_toolkit.layout import Float, Window, FormattedTextControl
+
                 answer = (
                     await session.prompt_async(
                         "❯ ",
                         key_bindings=esc_bindings,
                         completer=SmartAutocomplete(self._session),
-                        bottom_toolbar=get_bottom_toolbar,
+                        floats=[  # type: ignore[call-arg]
+                            Float(
+                                content=Window(
+                                    content=FormattedTextControl(get_status_bar()),
+                                    height=1,
+                                    style="bg:ansiblack",
+                                ),
+                                bottom=2,
+                            )
+                        ],
                     )
                 ).strip()
         except KeyboardInterrupt:

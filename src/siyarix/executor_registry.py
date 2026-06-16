@@ -237,6 +237,8 @@ class RegistryExecutor(BaseExecutor):
                             from .tool_models import invalidate_which_cache
 
                             invalidate_which_cache()
+                            if self._registry is None:
+                                return {"status": "error", "error": "Registry not initialized", "tool": step.tool}
                             try:
                                 result = await self._registry.execute(step.tool, **step.args)
                             except (ToolNotFoundError, ToolExecutionError) as e:
@@ -256,6 +258,8 @@ class RegistryExecutor(BaseExecutor):
             alt_args_key = str(sorted(step.args.items()))
             guardrail = self._tracker.record(alt, alt_args_key, False)
             if guardrail and "BLOCKED" in guardrail:
+                continue
+            if self._registry is None:
                 continue
             try:
                 alt_result = await self._registry.execute(alt, **step.args)

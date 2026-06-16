@@ -420,7 +420,7 @@ class RegistryPlanner:
         resolved = []
         for step in steps:
             tool = step["tool"]
-            if tool in available_tools:
+            if not available_tools or tool in available_tools:
                 resolved.append(step)
             else:
                 alt_found = None
@@ -436,11 +436,9 @@ class RegistryPlanner:
                             "description": f"{step['description']} (via {alt_found})",
                         }
                     )
-                elif not available_tools:
-                    # If available_tools isn't strictly defined, assume it's available
-                    resolved.append(step)
                 else:
-                    logger.warning("Tool %s missing and no alternative found. Dropping step.", tool)
+                    logger.warning("Tool %s missing and no alternative found. Keeping step for auto-install.", tool)
+                    resolved.append(step)
         return resolved
 
     # ── Core planning ─────────────────────────────────────────────────────
@@ -580,24 +578,23 @@ class RegistryPlanner:
                     if alt in avail_set:
                         actual_tool = alt
                         break
-            if not available_tools or actual_tool in avail_set:
-                args = {"target": target}
-                flags = ""
+            args = {"target": target}
+            flags = ""
 
-                # Apply Semantic Parameters
-                if actual_tool in ("nmap", "masscan"):
-                    if intent.parameters.get("speed") == "fast":
-                        flags += "-T4 "
-                    elif intent.parameters.get("speed") == "stealth":
-                        flags += "-sS -T2 "
-                    else:
-                        flags += "-sT -T4 "
+            # Apply Semantic Parameters
+            if actual_tool in ("nmap", "masscan"):
+                if intent.parameters.get("speed") == "fast":
+                    flags += "-T4 "
+                elif intent.parameters.get("speed") == "stealth":
+                    flags += "-sS -T2 "
+                else:
+                    flags += "-sT -T4 "
 
-                    if intent.parameters.get("ports") == "all":
-                        flags += "-p- "
-                    elif intent.parameters.get("ports"):
-                        flags += f"-p {intent.parameters['ports']} "
-                    else:
+                if intent.parameters.get("ports") == "all":
+                    flags += "-p- "
+                elif intent.parameters.get("ports"):
+                    flags += f"-p {intent.parameters['ports']} "
+                else:
                         flags += "--top-ports 100 "
 
                     if intent.parameters.get("verbose"):
@@ -768,11 +765,10 @@ class RegistryPlanner:
                         if alt in avail_set:
                             actual_tool = alt
                             break
-                if actual_tool in avail_set or not avail_set:
-                    clean_target = (
-                        target.replace("https://", "").replace("http://", "").split("/")[0]
-                    )
-                    return self.create_plan(
+                clean_target = (
+                    target.replace("https://", "").replace("http://", "").split("/")[0]
+                )
+                return self.create_plan(
                         goal=goal,
                         steps=[
                             {
@@ -816,23 +812,21 @@ class RegistryPlanner:
                             if alt in avail_set:
                                 actual_tool = alt
                                 break
-                    if actual_tool in avail_set or not avail_set:
-                        clean_target = (
-                            target.replace("https://", "").replace("http://", "").split("/")[0]
-                        )
-                        step_id = f"probe_{actual_tool}"
-                        probe_steps.append(
-                            {
-                                "id": step_id,
-                                "description": desc
-                                + (f" (via {actual_tool})" if actual_tool != tool else ""),
-                                "tool": actual_tool,
-                                "args": {"target": clean_target, "flags": flags},
-                                "dependencies": [last_step_id] if last_step_id else [],
-                            }
-                        )
-                        last_step_id = step_id
-                        break
+                    clean_target = (
+                        target.replace("https://", "").replace("http://", "").split("/")[0]
+                    )
+                    step_id = f"probe_{actual_tool}"
+                    probe_steps.append(
+                        {
+                            "id": step_id,
+                            "description": desc
+                            + (f" (via {actual_tool})" if actual_tool != tool else ""),
+                            "tool": actual_tool,
+                            "args": {"target": clean_target, "flags": flags},
+                            "dependencies": [last_step_id] if last_step_id else [],
+                        }
+                    )
+                    last_step_id = step_id
             if probe_steps:
                 plan_type = PlanType.DAG if len(probe_steps) > 2 else PlanType.SEQUENTIAL
                 return self.create_plan(goal=goal, steps=probe_steps, plan_type=plan_type)

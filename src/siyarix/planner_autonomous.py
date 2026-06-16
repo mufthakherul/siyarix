@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import platform as _platform
 import re
 import sys
@@ -22,7 +21,6 @@ from .models import (
     PlanStatus,
     PlanStep,
     PlanType,
-    StepStatus,
 )
 
 logger = logging.getLogger(__name__)
@@ -61,19 +59,23 @@ class AutonomousPlanner:
             f"Shell: {_shell_cmd}",
         ]
         if _is_win:
-            lines.extend([
-                "IMPORTANT: This is a Windows system. Use Windows-compatible commands and paths.",
-                "  - nmap: use -sT (TCP connect) instead of -sS (SYN scan); omit -O (OS detection)",
-                "  - Use forward slashes or escaped backslashes in paths",
-                "  - For DNS queries, use nslookup instead of dig if dig is unavailable",
-                "  - List available tools with 'where' instead of 'which'",
-                "  - Standard security tools may need to be installed via winget/choco",
-            ])
+            lines.extend(
+                [
+                    "IMPORTANT: This is a Windows system. Use Windows-compatible commands and paths.",
+                    "  - nmap: use -sT (TCP connect) instead of -sS (SYN scan); omit -O (OS detection)",
+                    "  - Use forward slashes or escaped backslashes in paths",
+                    "  - For DNS queries, use nslookup instead of dig if dig is unavailable",
+                    "  - List available tools with 'where' instead of 'which'",
+                    "  - Standard security tools may need to be installed via winget/choco",
+                ]
+            )
         else:
-            lines.extend([
-                "Running on a Unix-like system (Linux/macOS). Standard Unix commands apply.",
-                "  - nmap -sS (SYN scan) requires root",
-            ])
+            lines.extend(
+                [
+                    "Running on a Unix-like system (Linux/macOS). Standard Unix commands apply.",
+                    "  - nmap -sS (SYN scan) requires root",
+                ]
+            )
         return "\n".join(lines)
 
     def _build_first_prompt(
@@ -149,8 +151,7 @@ Respond with ONLY valid JSON:
         if history:
             recent = history[-6:] if len(history) > 6 else history
             base += "\nRecent context:\n" + "\n".join(
-                f"{m.get('role', 'unknown')}: {m.get('content', '')[:200]}"
-                for m in recent
+                f"{m.get('role', 'unknown')}: {m.get('content', '')[:200]}" for m in recent
             )
         base += "\n\nUser request: " + user_goal
         return base
@@ -193,48 +194,58 @@ Respond with ONLY valid JSON:
             msg = "AutonomousPlanner requires an llm_call function"
             raise RuntimeError(msg)
 
-        effective_first = is_first_call if is_first_call is not None else not self._session_initialised
+        effective_first = (
+            is_first_call if is_first_call is not None else not self._session_initialised
+        )
         platform_info = platform or self._build_platform_context()
 
         if effective_first:
             full_prompt = self._build_first_prompt(
-                system_prompt, goal, platform_info,
-                tool_schemas=tool_schemas, available_tools=available_tools,
+                system_prompt,
+                goal,
+                platform_info,
+                tool_schemas=tool_schemas,
+                available_tools=available_tools,
             )
             logger.debug("AutonomousPlanner: first-call prompt (full context + tools)")
         else:
             full_prompt = self._build_subsequent_prompt(
-                system_prompt, goal, platform_info, history=history,
+                system_prompt,
+                goal,
+                platform_info,
+                history=history,
             )
             logger.debug("AutonomousPlanner: subsequent-call prompt (compact)")
 
-        openai_tools = [{
-            "type": "function",
-            "function": {
-                "name": "execute_plan",
-                "description": "Execute shell commands or system operations.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "needs_tools": {"type": "boolean"},
-                        "reasoning": {"type": "string"},
-                        "steps": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "tool": {"type": "string"},
-                                    "command": {"type": "string"},
-                                    "description": {"type": "string"},
+        openai_tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "execute_plan",
+                    "description": "Execute shell commands or system operations.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "needs_tools": {"type": "boolean"},
+                            "reasoning": {"type": "string"},
+                            "steps": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "tool": {"type": "string"},
+                                        "command": {"type": "string"},
+                                        "description": {"type": "string"},
+                                    },
+                                    "required": ["tool", "command", "description"],
                                 },
-                                "required": ["tool", "command", "description"],
                             },
                         },
+                        "required": ["needs_tools", "reasoning", "steps"],
                     },
-                    "required": ["needs_tools", "reasoning", "steps"],
                 },
-            },
-        }]
+            }
+        ]
 
         try:
             raw = await llm_call(full_prompt, goal, history=history, tools=openai_tools)
@@ -266,19 +277,23 @@ Respond with ONLY valid JSON:
         steps: list[dict[str, Any]] = []
         for i, s in enumerate(steps_raw):
             if not isinstance(s, dict):
-                steps.append({
-                    "description": str(s) if s else f"LLM step {i+1}",
-                    "tool": "",
-                    "command": str(s) if s else None,
-                    "args": {},
-                })
+                steps.append(
+                    {
+                        "description": str(s) if s else f"LLM step {i + 1}",
+                        "tool": "",
+                        "command": str(s) if s else None,
+                        "args": {},
+                    }
+                )
                 continue
-            steps.append({
-                "description": s.get("description", f"LLM step {i+1}"),
-                "tool": s.get("tool", ""),
-                "command": s.get("command"),
-                "args": s.get("args", {}),
-            })
+            steps.append(
+                {
+                    "description": s.get("description", f"LLM step {i + 1}"),
+                    "tool": s.get("tool", ""),
+                    "command": s.get("command"),
+                    "args": s.get("args", {}),
+                }
+            )
 
         if not steps:
             return self.create_plan(
@@ -313,8 +328,8 @@ Respond with ONLY valid JSON:
 
         response = raw.get("content", "") if isinstance(raw, dict) else str(raw)
         cleaned = response.strip()
-        cleaned = re.sub(r'^[\s]*```(?:json)?\s*\n?', '', cleaned)
-        cleaned = re.sub(r'\n?\s*```\s*$', '', cleaned)
+        cleaned = re.sub(r"^[\s]*```(?:json)?\s*\n?", "", cleaned)
+        cleaned = re.sub(r"\n?\s*```\s*$", "", cleaned)
         cleaned = cleaned.strip()
         try:
             return json.loads(cleaned)
@@ -334,7 +349,7 @@ Respond with ONLY valid JSON:
                 plan_steps.append(
                     PlanStep(
                         id=step_def.get("id", f"step_{i:03d}"),
-                        description=step_def.get("description", f"Step {i+1}"),
+                        description=step_def.get("description", f"Step {i + 1}"),
                         tool=step_def.get("tool", ""),
                         args=step_def.get("args", {}),
                         command=step_def.get("command"),

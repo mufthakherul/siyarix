@@ -6,8 +6,6 @@ from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
-from rich.text import Text
 
 logger = logging.getLogger(__name__)
 
@@ -32,30 +30,45 @@ class SummarySection:
 class ResponseGenerator:
     SEVERITY_ORDER = ["critical", "high", "medium", "low", "info"]
     SEVERITY_COLORS = {
-        "critical": "red", "high": "red", "medium": "yellow",
-        "low": "green", "info": "blue",
+        "critical": "red",
+        "high": "red",
+        "medium": "yellow",
+        "low": "green",
+        "info": "blue",
     }
     SEVERITY_ICONS = {
-        "critical": "🔴", "high": "🔴", "medium": "🟡",
-        "low": "🟢", "info": "ℹ️",
+        "critical": "🔴",
+        "high": "🔴",
+        "medium": "🟡",
+        "low": "🟢",
+        "info": "ℹ️",
     }
 
     def __init__(self, console: Console | None = None) -> None:
         self._console = console or Console()
 
-    def render_results(self, success: bool, summary: str, findings: list[dict],
-                       step_results: list[Any], duration_ms: float, goal: str) -> None:
+    def render_results(
+        self,
+        success: bool,
+        summary: str,
+        findings: list[dict],
+        step_results: list[Any],
+        duration_ms: float,
+        goal: str,
+    ) -> None:
         sections: list[SummarySection] = []
 
         # ── Executive Summary ──────────────────────────────────────────────
         status_text = "Completed" if success else "Partially Completed"
         status_icon = "✓" if success else "✗"
         status_color = "green" if success else "red"
-        sections.append(SummarySection(
-            title=f"{status_icon} {status_text}",
-            lines=[f"[dim]{summary}[/dim]"],
-            style=status_color,
-        ))
+        sections.append(
+            SummarySection(
+                title=f"{status_icon} {status_text}",
+                lines=[f"[dim]{summary}[/dim]"],
+                style=status_color,
+            )
+        )
 
         # ── Step Overview ──────────────────────────────────────────────────
         step_lines = []
@@ -92,20 +105,24 @@ class ResponseGenerator:
                     lines.append(f"  {icon} {title}")
             if len(group.items) > 12:
                 lines.append(f"  [dim]… and {len(group.items) - 12} more[/dim]")
-            sections.append(SummarySection(
-                title=f"{sev.upper()} ({group.count})",
-                lines=lines,
-                style=color,
-            ))
+            sections.append(
+                SummarySection(
+                    title=f"{sev.upper()} ({group.count})",
+                    lines=lines,
+                    style=color,
+                )
+            )
 
         # ── Insights ───────────────────────────────────────────────────────
         insights = self._generate_insights(findings)
         if insights:
-            sections.append(SummarySection(
-                title="Insights",
-                lines=[f"  💡 {insight}" for insight in insights],
-                style="cyan",
-            ))
+            sections.append(
+                SummarySection(
+                    title="Insights",
+                    lines=[f"  💡 {insight}" for insight in insights],
+                    style="cyan",
+                )
+            )
 
         # ── Stats Bar ──────────────────────────────────────────────────────
         stats = self._build_stats(success, step_results, findings, duration_ms)
@@ -113,19 +130,23 @@ class ResponseGenerator:
         # Render
         for section in sections:
             if section.lines:
-                self._console.print(Panel(
-                    "\n".join(section.lines),
-                    title=f"[bold {section.style}]{section.title}[/bold {section.style}]",
-                    border_style=section.style,
-                    padding=(1, 2),
-                ))
+                self._console.print(
+                    Panel(
+                        "\n".join(section.lines),
+                        title=f"[bold {section.style}]{section.title}[/bold {section.style}]",
+                        border_style=section.style,
+                        padding=(1, 2),
+                    )
+                )
 
         # Stats bar
-        self._console.print(Panel(
-            " │ ".join(stats),
-            border_style="dim",
-            padding=(0, 2),
-        ))
+        self._console.print(
+            Panel(
+                " │ ".join(stats),
+                border_style="dim",
+                padding=(0, 2),
+            )
+        )
 
     def render_plan(self, steps: list[Any]) -> None:
         lines = []
@@ -136,22 +157,21 @@ class ResponseGenerator:
             label = f"$ {cmd}" if cmd else tool
             lines.append(f"  {i}. [bold]{label}[/bold] — [dim]{desc}[/dim]")
         if lines:
-            self._console.print(Panel(
-                "\n".join(lines),
-                title="[bold cyan]Plan[/bold cyan]",
-                border_style="cyan",
-                padding=(1, 2),
-            ))
+            self._console.print(
+                Panel(
+                    "\n".join(lines),
+                    title="[bold cyan]Plan[/bold cyan]",
+                    border_style="cyan",
+                    padding=(1, 2),
+                )
+            )
 
     def _group_findings(self, findings: list[dict]) -> dict[str, FindingGroup]:
         groups: dict[str, list[dict]] = {}
         for f in findings:
             sev = f.get("severity", "info")
             groups.setdefault(sev, []).append(f)
-        return {
-            sev: FindingGroup(severity=sev, items=items)
-            for sev, items in groups.items()
-        }
+        return {sev: FindingGroup(severity=sev, items=items) for sev, items in groups.items()}
 
     def _generate_insights(self, findings: list[dict]) -> list[str]:
         insights = []
@@ -162,20 +182,29 @@ class ResponseGenerator:
         open_ports = [f for f in findings if f.get("port")]
 
         if critical_count:
-            insights.append(f"[red]{critical_count} critical[/red] issues require immediate attention")
+            insights.append(
+                f"[red]{critical_count} critical[/red] issues require immediate attention"
+            )
         if high_count:
             insights.append(f"[red]{high_count} high[/red] severity findings should be reviewed")
         if open_ports:
-            ports = sorted(set(int(f["port"]) for f in open_ports if str(f.get("port", "")).isdigit()))
+            ports = sorted(
+                set(int(f["port"]) for f in open_ports if str(f.get("port", "")).isdigit())
+            )
             if ports:
-                insights.append(f"[yellow]{len(ports)}[/yellow] open ports detected: {', '.join(str(p) for p in ports[:10])}{'...' if len(ports) > 10 else ''}")
+                insights.append(
+                    f"[yellow]{len(ports)}[/yellow] open ports detected: {', '.join(str(p) for p in ports[:10])}{'...' if len(ports) > 10 else ''}"
+                )
         if not findings:
-            insights.append("No findings discovered — the target appears clean for the selected checks")
+            insights.append(
+                "No findings discovered — the target appears clean for the selected checks"
+            )
 
         return insights
 
-    def _build_stats(self, success: bool, step_results: list[Any],
-                     findings: list[dict], duration_ms: float) -> list[str]:
+    def _build_stats(
+        self, success: bool, step_results: list[Any], findings: list[dict], duration_ms: float
+    ) -> list[str]:
         completed = sum(1 for r in step_results if getattr(r, "status", "").value == "completed")
         total = len(step_results)
         duration_s = duration_ms / 1000

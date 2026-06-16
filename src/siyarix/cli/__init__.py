@@ -474,7 +474,8 @@ def _ensure_ollama_running() -> None:
             if r.status_code < 500:
                 return
         except Exception:
-            logger.warning("Ollama not reachable at %s", ollama_url, exc_info=True)
+            from rich.console import Console
+            Console().print(f"[yellow]⚠ Ollama not reachable at {ollama_url}[/yellow]")
         if shutil.which("ollama"):
             if os.name == "nt":
                 subprocess.Popen(

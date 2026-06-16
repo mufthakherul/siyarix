@@ -101,14 +101,5 @@ class ThreatIntelManager:
             return await self.alienvault.lookup_ip(target)
 
 
-# Stubs for chat handler compatibility
-class ThreatIntelFeed:
-    pass
-
-
-class MITREAttackDB:
-    pass
-
-
 # Global singleton
 intel_manager = ThreatIntelManager()

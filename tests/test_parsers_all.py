@@ -25,7 +25,13 @@ from siyarix.parsers.sqlmap_parser import SqlmapParser
 from siyarix.parsers.subfinder_parser import SubfinderParser
 from siyarix.parsers.wpscan_parser import WpscanParser
 from siyarix.parsers.zaproxy_parser import ZaproxyParser
-
+from siyarix.parsers.waybackurls_parser import WaybackurlsParser
+from siyarix.parsers.paramspider_parser import ParamspiderParser
+from siyarix.parsers.corsy_parser import CorsyParser
+from siyarix.parsers.kxss_parser import KxssParser
+from siyarix.parsers.zmap_parser import ZmapParser
+from siyarix.parsers.aquatone_parser import AquatoneParser
+from siyarix.parsers.kiterunner_parser import KiterunnerParser
 
 def _check_finding(finding, expected_tool, min_fields=None):
     """Validate a finding dict has required structure."""
@@ -354,13 +360,6 @@ class TestParserEdgeCases:
         findings = p.parse(output)
         assert len(findings) >= 1
 
-from siyarix.parsers.waybackurls_parser import WaybackurlsParser
-from siyarix.parsers.paramspider_parser import ParamspiderParser
-from siyarix.parsers.corsy_parser import CorsyParser
-from siyarix.parsers.kxss_parser import KxssParser
-from siyarix.parsers.zmap_parser import ZmapParser
-from siyarix.parsers.aquatone_parser import AquatoneParser
-from siyarix.parsers.kiterunner_parser import KiterunnerParser
 
 class TestWaybackurlsParser:
     def test_basic_parse(self):

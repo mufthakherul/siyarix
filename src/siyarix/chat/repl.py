@@ -270,7 +270,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 from prompt_toolkit.formatted_text import HTML
                 from prompt_toolkit.patch_stdout import patch_stdout
 
-                session = PromptSession(bottom_toolbar=get_bottom_toolbar)
+                session: PromptSession[Any] = PromptSession(bottom_toolbar=get_bottom_toolbar)
 
                 pt_prompt = HTML(
                     '<style fg="ansicyan"><b>❯ </b></style><style fg="ansigray">Type your message or @path/to/file: </style>'

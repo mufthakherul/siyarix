@@ -230,7 +230,7 @@ def _write_toml(path: Path, data: dict[str, Any]) -> None:
         else:
             lines.append(f"{key} = {value}")
         lines.append("")
-    path.write_text("\n".join(lines))
+    path.write_text("\n".join(lines), encoding="utf-8")
 
 
 class SettingsStore:

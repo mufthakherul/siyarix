@@ -21,6 +21,7 @@ def _load_db() -> dict[str, Any]:
     try:
         from pathlib import Path
         import json
+
         p = Path(__file__).parent / "data" / "cyber_tools.json"
         if p.exists():
             _DB = json.loads(p.read_text())
@@ -168,6 +169,7 @@ def personas_for_tool(name: str) -> list[str]:
         "nuclei": ["pentester", "redteam", "blueteam", "devsecops"],
     }
     return default_map.get(name, [])
+
 
 __all__ = [
     "categorize_tool",

@@ -133,6 +133,7 @@ def register_alias(provider: str, alias: str, target: str) -> None:
         _PROVIDER_ALIASES[p] = {}
     _PROVIDER_ALIASES[p][alias] = target
 
+
 __all__ = [
     "normalize_model_id",
     "resolve_alias",

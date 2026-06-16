@@ -162,6 +162,7 @@ class AssistantMessageEventStream:
                 index += 1
             else:
                 import asyncio
+
                 await asyncio.sleep(0.01)
 
     # ── Convenience helpers ──────────────────────────────────────────
@@ -208,8 +209,7 @@ class AssistantMessageEventStream:
             "text": self.text,
             "thinking": self.thinking,
             "tool_calls": [
-                {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
-                for tc in self.tool_calls
+                {"id": tc.id, "name": tc.name, "arguments": tc.arguments} for tc in self.tool_calls
             ],
         }
 

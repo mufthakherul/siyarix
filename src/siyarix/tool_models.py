@@ -98,6 +98,7 @@ class ToolEdge:
     relation: str = "chain"
     weight: float = 1.0
 
+
 __all__ = [
     "ToolCategory",
     "RiskLevel",

@@ -10,6 +10,7 @@ from siyarix.events import get_event_bus, EventType
 
 logger = logging.getLogger(__name__)
 
+
 class NotificationDispatcher:
     """Dispatches notifications to Slack/Discord webhooks."""
 

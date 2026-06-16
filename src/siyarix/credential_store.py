@@ -418,7 +418,11 @@ class CredentialStore:
                     cred.value_encrypted = self._encrypt_aesgcm(plaintext)
                     cred.rotated = True
                 except Exception as exc:
-                    logger.debug("AESGCM decrypt failed for %s, falling back to Fernet: %s", cred.cred_id, exc)
+                    logger.debug(
+                        "AESGCM decrypt failed for %s, falling back to Fernet: %s",
+                        cred.cred_id,
+                        exc,
+                    )
                     plaintext = self._decrypt(cred.value_encrypted)
                     cred.value_encrypted = self._encrypt_aesgcm(plaintext)
                     cred.rotated = True
@@ -446,7 +450,12 @@ class CredentialStore:
                     except json.JSONDecodeError:
                         obj = None
 
-                    if obj and isinstance(obj, dict) and "encrypted_key" in obj and "payload" in obj:
+                    if (
+                        obj
+                        and isinstance(obj, dict)
+                        and "encrypted_key" in obj
+                        and "payload" in obj
+                    ):
                         if not self._kms_available():
                             raise RuntimeError("KMS provider configured but boto3 not available")
                         import base64 as _b64
@@ -514,7 +523,12 @@ class CredentialStore:
                     except json.JSONDecodeError:
                         obj = None
 
-                    if obj and isinstance(obj, dict) and "encrypted_key" in obj and "payload" in obj:
+                    if (
+                        obj
+                        and isinstance(obj, dict)
+                        and "encrypted_key" in obj
+                        and "payload" in obj
+                    ):
                         if not self._kms_available():
                             raise RuntimeError("KMS provider configured but boto3 not available")
                         import base64 as _b64
@@ -598,7 +612,9 @@ class CredentialStore:
                     kms = boto3.client("kms")
                     key_id = os.getenv("AWS_KMS_KEY_ID")
                     if not key_id:
-                        raise RuntimeError("AWS_KMS_KEY_ID must be set when SIYARIX_KMS_PROVIDER=aws")
+                        raise RuntimeError(
+                            "AWS_KMS_KEY_ID must be set when SIYARIX_KMS_PROVIDER=aws"
+                        )
                     resp = kms.generate_data_key(KeyId=key_id, KeySpec="AES_256")
                     plaintext = resp.get("Plaintext")
                     ciphertext_blob = resp.get("CiphertextBlob")
@@ -607,7 +623,8 @@ class CredentialStore:
                     self._kms_data_key = plaintext
                     self._kms_encrypted_key = _b64.b64encode(ciphertext_blob).decode()
 
-                assert self._kms_data_key is not None, "KMS data key must be set"
+                if self._kms_data_key is None:
+                    raise RuntimeError("KMS data key must be set before encryption")
                 fernet_key = base64.urlsafe_b64encode(self._kms_data_key)
                 f = Fernet(fernet_key)
             except Exception:
@@ -762,7 +779,9 @@ class CredentialStore:
         # Encrypt with provided password
         if CRYPTO_AVAILABLE:
             salt = os.urandom(16)
-            kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=_AES_ITERATIONS)
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(), length=32, salt=salt, iterations=_AES_ITERATIONS
+            )
             key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
             fernet = Fernet(key)
             encrypted = fernet.encrypt(json.dumps(data).encode())
@@ -779,7 +798,9 @@ class CredentialStore:
         salt = data[:16]
         encrypted = data[16:]
 
-        kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=_AES_ITERATIONS)
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(), length=32, salt=salt, iterations=_AES_ITERATIONS
+        )
         key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
         fernet = Fernet(key)
         decrypted = fernet.decrypt(encrypted)
@@ -826,6 +847,7 @@ class CredentialStore:
 _creds_instance: CredentialStore | None = None
 _creds_lock = threading.Lock()
 
+
 def get_creds() -> CredentialStore:
     global _creds_instance
     if _creds_instance is None:
@@ -843,6 +865,7 @@ def get_credential(name: str, environment: str | None = None) -> str | None:
 def store_credential(name: str, value: str, cred_type: str = "api_key") -> Credential:
     """Convenience function"""
     return get_creds().store(name, value, cred_type)
+
 
 __all__ = [
     "HAS_AESGCM",

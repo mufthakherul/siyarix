@@ -9,7 +9,12 @@ Gemini CLI, specialized for cybersecurity workflows.
 from .repl import SiyarixChat, start_chat
 from .console import console
 from .commands import CommandProfile, CommandProfileStore
-from .platform_utils import CROSS_PLATFORM_COMMANDS, detect_shell, get_shell_platform, get_security_commands
+from .platform_utils import (
+    CROSS_PLATFORM_COMMANDS,
+    detect_shell,
+    get_shell_platform,
+    get_security_commands,
+)
 from .ui import SmartAutocomplete
 from .session import ChatSession, ChatMessage
 
@@ -24,7 +29,6 @@ __all__ = [
     "get_shell_platform",
     "get_security_commands",
     "SmartAutocomplete",
-
     "ChatSession",
     "ChatMessage",
 ]

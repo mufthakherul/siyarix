@@ -88,6 +88,7 @@ def detect_version(name: str, binary_path: str | None = None) -> str:
 def bulk_detect(tools: list[str]) -> dict[str, str]:
     return {t: detect_version(t) for t in tools}
 
+
 __all__ = [
     "detect_version",
     "get_tool_metadata",

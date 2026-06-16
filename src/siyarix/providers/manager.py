@@ -39,6 +39,7 @@ class ProviderManager:
         self._error_counts: dict[str, int] = {}
         from .state import ProviderStateManager
         from ..config import get_config_dir
+
         self._state_manager = ProviderStateManager(str(get_config_dir() / "provider_state.json"))
         self._init_default_profiles()
 
@@ -200,10 +201,10 @@ class ProviderManager:
                     cred.status = "dead"
                 elif reason == FailoverReason.RATE_LIMIT:
                     # PROV-02: Exponential backoff
-                    backoff = min(3600, 10 * (2 ** cred.failure_count))
+                    backoff = min(3600, 10 * (2**cred.failure_count))
                     cred.cooldown_until = time.time() + backoff
                 elif reason in (FailoverReason.TIMEOUT, FailoverReason.SERVER_ERROR):
-                    backoff = min(300, 5 * (2 ** cred.failure_count))
+                    backoff = min(300, 5 * (2**cred.failure_count))
                     cred.cooldown_until = time.time() + backoff
                 break
         self._state_manager.record_failure(provider, reason)
@@ -232,7 +233,12 @@ class ProviderManager:
         return "ollama", "llama3.1"
 
     def get_providers_by_capability(
-        self, *, vision: bool = False, free: bool = False, local: bool = False, function_calling: bool = False
+        self,
+        *,
+        vision: bool = False,
+        free: bool = False,
+        local: bool = False,
+        function_calling: bool = False,
     ) -> list[ProviderProfile]:
         results = []
         for profile in self.list_profiles():
@@ -276,26 +282,30 @@ class ProviderManager:
         **kwargs: Any,
     ) -> Any:
         from ..chat.openai_compat import make_openai_adapter
+
         api_key = resolve_api_key(provider) or ""
         profile = self.get_profile(provider)
         base_url = profile.base_url if profile else None
         settings = SettingsStore()
-        adapter = make_openai_adapter(
-            provider, api_key, base_url, settings, provider_manager=self
-        )
+        adapter = make_openai_adapter(provider, api_key, base_url, settings, provider_manager=self)
         return await adapter(
             system_prompt, user_prompt, stream=stream, history=history, model=model, **kwargs
         )
 
-    async def ensemble_decide(self, system_prompt: str, user_prompt: str, providers: list[str]) -> str:
+    async def ensemble_decide(
+        self, system_prompt: str, user_prompt: str, providers: list[str]
+    ) -> str:
         """Run a query across multiple providers and return the majority vote."""
         import asyncio
         from collections import Counter
 
-        responses = await asyncio.gather(*[
-            self.complete(p, self.select_provider(p)[1], system_prompt, user_prompt)
-            for p in providers
-        ], return_exceptions=True)
+        responses = await asyncio.gather(
+            *[
+                self.complete(p, self.select_provider(p)[1], system_prompt, user_prompt)
+                for p in providers
+            ],
+            return_exceptions=True,
+        )
 
         valid = []
         for r in responses:

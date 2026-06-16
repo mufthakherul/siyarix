@@ -16,12 +16,14 @@ from siyarix.config import get_config_dir
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class ComplianceResult:
     check_id: str
     status: str
     evidence_data: dict[str, Any] = field(default_factory=dict)
     message: str = ""
+
 
 @dataclass
 class ComplianceReport:
@@ -47,6 +49,7 @@ class ComplianceReport:
             ],
             "evidence_path": str(self.evidence_path),
         }
+
 
 class ComplianceCheck:
     def __init__(self, check_id: str, target: str) -> None:

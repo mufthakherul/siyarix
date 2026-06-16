@@ -417,12 +417,14 @@ class TestExecutionEngine:
 
         with patch("siyarix.core.AgentCore") as MockAgent:
             agent_instance = MockAgent.return_value
-            agent_instance.initialize = AsyncMock()
+            agent_instance.start = AsyncMock()
+            agent_instance.shutdown = AsyncMock()
             agent_instance.execute_goal = AsyncMock(return_value=mock_result)
 
             result = await engine.execute("scan target")
 
-            agent_instance.initialize.assert_called_once()
+            agent_instance.start.assert_called_once()
+            agent_instance.shutdown.assert_called_once()
             agent_instance.execute_goal.assert_called_once()
             assert result.success
             assert result.summary == "done"
@@ -439,7 +441,8 @@ class TestExecutionEngine:
 
         with patch("siyarix.core.AgentCore") as MockAgent:
             agent_instance = MockAgent.return_value
-            agent_instance.initialize = AsyncMock()
+            agent_instance.start = AsyncMock()
+            agent_instance.shutdown = AsyncMock()
             agent_instance.execute_goal = AsyncMock(return_value=mock_result)
 
             await engine.execute("test")

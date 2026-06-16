@@ -14,13 +14,16 @@ SECRET_PATTERNS = {
     "SLACK_TOKEN": re.compile(r"xox[baprs]-[0-9]{12}-[0-9]{12}-[a-zA-Z0-9]{24}"),
     "GITHUB_TOKEN": re.compile(r"gh[pousr]_[A-Za-z0-9_]{36}"),
     "GENERIC_BEARER": re.compile(r"Bearer\s+[a-zA-Z0-9_\-\.]+"),
-    "PRIVATE_KEY": re.compile(r"-----BEGIN (?:RSA )?PRIVATE KEY-----.*?-----END (?:RSA )?PRIVATE KEY-----", re.DOTALL),
+    "PRIVATE_KEY": re.compile(
+        r"-----BEGIN (?:RSA )?PRIVATE KEY-----.*?-----END (?:RSA )?PRIVATE KEY-----", re.DOTALL
+    ),
 }
 
 PII_PATTERNS = {
     "EMAIL": re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b"),
     "SSN": re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
 }
+
 
 class DLPEngine:
     """Scans and redacts sensitive information from tool outputs."""

@@ -78,12 +78,14 @@ PROVIDER_DEFAULTS: dict[str, dict[str, Any]] = {
 
 # ── SSRF-safe HTTP helpers ───────────────────────────────────────────────
 
+
 def _is_safe_url(url: str) -> bool:
     """Allow only http://localhost, 127.0.0.1, ::1, and private IPs.
 
     OpenClaw pattern: hostname allowlist + private network allowance.
     """
     from urllib.parse import urlparse
+
     try:
         parsed = urlparse(url)
         if parsed.scheme not in ("http", "https"):
@@ -94,6 +96,7 @@ def _is_safe_url(url: str) -> bool:
         if host.startswith("127."):
             return True
         import ipaddress
+
         try:
             addr = ipaddress.ip_address(host)
             return bool(addr.is_private or addr.is_loopback)
@@ -148,6 +151,7 @@ def safe_http_get_raw(url: str, timeout: float = 10.0) -> httpx.Response | None:
 
 # ── Shared helpers ───────────────────────────────────────────────────────
 
+
 def resolve_provider_url(provider: str, base_url: str | None = None) -> str:
     cfg = PROVIDER_DEFAULTS.get(provider)
     if not cfg:
@@ -190,6 +194,7 @@ def build_model_definition(
 
 # ── Provider-specific model listing ──────────────────────────────────────
 
+
 def _list_ollama_models(base_url: str) -> list[dict[str, Any]]:
     """GET /api/tags."""
     url = f"{base_url}/api/tags"
@@ -229,6 +234,7 @@ def list_provider_models(provider: str, base_url: str | None = None) -> list[dic
 
 
 # ── Provider-specific model enrichment ───────────────────────────────────
+
 
 def _enrich_ollama_model(
     model_name: str, base_url: str
@@ -426,6 +432,7 @@ def _enrich_ollama_models_batch(
 
 # ── Provider discovery ───────────────────────────────────────────────────
 
+
 def discover_provider_models(
     provider: str,
     base_url: str | None = None,
@@ -446,6 +453,7 @@ def discover_provider_models(
 
 
 # ── Model pulling (Ollama only) ──────────────────────────────────────────
+
 
 def _parse_num_ctx(parameters: Any) -> int | None:
     """Extract num_ctx from Modelfile parameters string.
@@ -559,7 +567,9 @@ def ensure_model_pulled(
 
     if provider != "ollama":
         if console:
-            console.print(f"[yellow]⚠ Model '{model_name}' not found — cannot auto-pull for {provider}[/yellow]")
+            console.print(
+                f"[yellow]⚠ Model '{model_name}' not found — cannot auto-pull for {provider}[/yellow]"
+            )
         return False
 
     if console:
@@ -582,6 +592,7 @@ def ensure_model_pulled(
 
 # ── Health check ─────────────────────────────────────────────────────────
 
+
 def check_provider_health(provider: str, base_url: str | None = None) -> bool:
     """Check if a provider is reachable via its health endpoint."""
     provider = provider.lower()
@@ -594,6 +605,7 @@ def check_provider_health(provider: str, base_url: str | None = None) -> bool:
     url = f"{resolved}{endpoint}"
     resp = safe_http_get_raw(url, timeout=5.0)
     return resp is not None
+
 
 __all__ = [
     "DEFAULT_CONTEXT_WINDOW",

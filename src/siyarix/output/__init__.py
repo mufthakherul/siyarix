@@ -316,16 +316,16 @@ class OutputEngine:
         except ValueError:
             fmt = OutputFormat.RAW
         if fmt == OutputFormat.JSON:
-            path.write_text(json.dumps(data, indent=2), encoding='utf-8')
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         elif fmt == OutputFormat.YAML and YAML_AVAILABLE:
-            path.write_text(yaml.dump(data), encoding='utf-8')
+            path.write_text(yaml.dump(data), encoding="utf-8")
         elif fmt == OutputFormat.CSV and isinstance(data, list):
             with path.open("w", newline="", encoding="utf-8") as f:
                 writer = csv.DictWriter(f, fieldnames=data[0].keys())
                 writer.writeheader()
                 writer.writerows(data)
         else:
-            path.write_text(str(data), encoding='utf-8')
+            path.write_text(str(data), encoding="utf-8")
         if RICH_AVAILABLE:
             self.print_success(f"Exported to {filepath}")
         else:

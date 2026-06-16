@@ -30,6 +30,7 @@ _ENV_TO_CONFIG: dict[str, str] = {
     "SIYARIX_SAFE_MODE": "_safe_mode",
 }
 
+
 def get_config_dir() -> Path:
     """Return the canonical config directory (~/.siyarix or $SIYARIX_CONFIG_DIR)."""
     p_str = os.getenv("SIYARIX_CONFIG_DIR") or os.getenv("SIYARIX_HOME")
@@ -40,9 +41,11 @@ def get_config_dir() -> Path:
     p.mkdir(parents=True, exist_ok=True)
     return p
 
+
 def get_settings_file() -> Path:
     """Return the canonical settings.toml file path."""
     return get_config_dir() / "settings.toml"
+
 
 # ---------------------------------------------------------------------------
 # Defaults
@@ -166,11 +169,13 @@ def _try_load_toml(path: Path) -> dict[str, Any]:
         return {}
     try:
         import tomllib  # Python 3.11+
+
         with path.open("rb") as f:
             return tomllib.load(f)
     except ImportError:
         try:
             import tomli
+
             with path.open("rb") as f:
                 return tomli.load(f)
         except ImportError:
@@ -418,6 +423,7 @@ class SettingsStore:
         except OSError as exc:
             logger.warning("Config restore failed: %s", exc)
             return None
+
 
 __all__ = [
     "get_config_dir",

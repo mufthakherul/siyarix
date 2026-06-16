@@ -33,9 +33,7 @@ console = Console()
 
 @security_app.command(name="incidents")
 def list_incidents(
-    status: str | None = typer.Option(
-        None, "--status", help="Filter: open|closed|investigating"
-    ),
+    status: str | None = typer.Option(None, "--status", help="Filter: open|closed|investigating"),
     severity: str | None = typer.Option(
         None, "--severity", help="Filter: critical|high|medium|low"
     ),
@@ -379,9 +377,7 @@ def run_hunt(
 @security_app.command(name="queries")
 def list_queries(
     tag: str | None = typer.Option(None, "--tag", help="Filter by tag"),
-    mitre_tactic: str | None = typer.Option(
-        None, "--mitre-tactic", help="Filter by MITRE tactic"
-    ),
+    mitre_tactic: str | None = typer.Option(None, "--mitre-tactic", help="Filter by MITRE tactic"),
 ) -> None:
     """List available threat hunting queries."""
     queries: List[Dict[str, Any]] = [
@@ -571,6 +567,7 @@ def list_playbooks() -> None:
         table.add_row(str(pid), str(name), str(ptype), str(mode))
 
     console.print(table)
+
 
 __all__ = [
     "list_incidents",

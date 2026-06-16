@@ -18,8 +18,8 @@ from rich.text import Text
 from prompt_toolkit import PromptSession
 from prompt_toolkit.key_binding import KeyBindings
 
-from .session import ChatMessage, ChatSession
-from .ui import SmartAutocomplete, SplitPane, ConfigPanel
+from .session import ChatSession
+from .ui import SmartAutocomplete, SplitPane
 from ..config import SettingsStore
 from .platform_utils import detect_shell, get_shell_platform, build_platform_context
 from .handlers import CommandHandlersMixin
@@ -27,6 +27,7 @@ from .engine import LLMEngineMixin
 from .console import console
 
 logger = logging.getLogger(__name__)
+
 
 class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
     """Interactive REPL for Siyarix — the cybersecurity AI assistant."""
@@ -38,7 +39,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
     MAX_MESSAGE_CHARS = 50000  # per-message content limit
 
     SYSTEM_REFRESH_INTERVAL = 15  # re-send full system prompt every N calls
-
 
     def __init__(
         self,
@@ -80,7 +80,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         self._con = self._output.console
         self._validate_provider_config_on_startup()
 
-
     def _validate_provider_config_on_startup(self) -> None:
         """Check configured provider has valid API key / SDK / endpoint at startup."""
         from ..providers import ProviderManager, resolve_api_key
@@ -109,7 +108,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 msg = f"Provider '{provider}' requires SDK: pip install {profile.sdk_dependency}"
                 logger.warning(msg)
                 console.print(f"[yellow]⚠ {msg}[/yellow]")
-
 
     def _init_session(self, session_id: str | None, target: str, resume: bool) -> ChatSession:
         """Initialize or resume a chat session."""
@@ -147,19 +145,17 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                     console.print(f"[dim]Restored legacy session {session.session_id[:8]}[/dim]")
                     return session
             except Exception:
-                pass
+                logger.warning("Failed to restore legacy session", exc_info=True)
 
         # New session
         sid = session_id or uuid.uuid4().hex
         session = ChatSession(session_id=sid, target=target, mode=self._mode)
         return session
 
-
     def run(self) -> None:
         """Start the interactive REPL loop."""
         self._print_welcome()
         asyncio.run(self._repl_loop())
-
 
     async def _repl_loop(self) -> None:
         """Main async REPL loop."""
@@ -216,7 +212,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
         self._print_goodbye()
 
-
     async def _prompt_async(self) -> str:
         """Display the input prompt and read a line."""
         if not sys.stdin.isatty():
@@ -243,6 +238,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
         def get_bottom_toolbar() -> Any:
             from prompt_toolkit.formatted_text import HTML
+
             return HTML(
                 f'<style bg="ansiblack" fg="ansiwhite"> '
                 f'<style fg="ansicyan"><b>{provider}</b></style> · '
@@ -250,19 +246,21 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 f'<style fg="{mode_color}">{self._mode}</style>'
                 f'<style fg="ansigray">{target_str}</style>  · '
                 f'<style fg="ansigray">? for shortcuts · /help for all commands</style> '
-                f'</style>'
+                f"</style>"
             )
 
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
                 session: PromptSession = PromptSession()
-                answer = (await session.prompt_async(
-                    "❯ ",
-                    key_bindings=esc_bindings,
-                    completer=SmartAutocomplete(self._session),
-                    bottom_toolbar=get_bottom_toolbar,
-                )).strip()
+                answer = (
+                    await session.prompt_async(
+                        "❯ ",
+                        key_bindings=esc_bindings,
+                        completer=SmartAutocomplete(self._session),
+                        bottom_toolbar=get_bottom_toolbar,
+                    )
+                ).strip()
         except KeyboardInterrupt:
             raise
         except Exception as exc:
@@ -271,7 +269,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 warnings.simplefilter("ignore", RuntimeWarning)
                 answer = Prompt.ask(prompt_label, default="").strip()
         return answer
-
 
     def _make_esc_bindings(self) -> Any:
         """Create prompt_toolkit key bindings for ESC detection."""
@@ -295,7 +292,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             event.app.current_buffer.validate_and_handle()
 
         return kb
-
 
     def _render_split_pane_layout(self, left_content: Any = None) -> None:
         """Render the terminal using side-by-side SplitPane layout."""
@@ -334,12 +330,10 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         )
         console.print(layout)
 
-
     def _print_welcome(self) -> None:
         """Print the welcome banner with system status overview using a premium layout."""
         from ..branding import resolve_version
         from rich.layout import Layout
-        from rich.panel import Panel
         from rich.align import Align
         from rich.text import Text
 
@@ -354,21 +348,23 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         findings_count = 0
         try:
             from ..offline_store import OfflineStore
+
             store = OfflineStore()
             stats = store.stats()
             scans_count = stats.get("total_scans", 0)
             findings_count = stats.get("total_findings", 0)
         except Exception:
-            pass
+            logger.warning("Failed to load offline store stats for welcome banner", exc_info=True)
 
         tool_count = 0
         try:
             from ..registry import ToolRegistry
+
             reg = ToolRegistry()
             reg.scan_path()
             tool_count = len(reg.list_tools())
         except Exception:
-            pass
+            logger.warning("Failed to load tool registry for welcome banner", exc_info=True)
 
         command_count = sum(1 for m in self._session.messages if m.role == "user")
         msg_count = len(self._session.messages)
@@ -377,7 +373,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         layout.split_column(
             Layout(name="header", size=4),
             Layout(name="main", size=8),
-            Layout(name="footer", size=5)
+            Layout(name="footer", size=5),
         )
         layout["main"].split_row(
             Layout(name="session_info", ratio=1),
@@ -387,16 +383,23 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         )
 
         header_text = Text.assemble(
-            (" █▓▒░ ", "bold magenta"), 
+            (" █▓▒░ ", "bold magenta"),
             ("SIYARIX ADVANCED ORCHESTRATOR ", "bold cyan"),
             (f"v{ver} ", "bold green"),
             ("░▒▓█ ", "bold magenta"),
             "\n",
-            ("Terminal copilot for offensive security — plan, inspect, execute.", "dim italic white")
+            (
+                "Terminal copilot for offensive security — plan, inspect, execute.",
+                "dim italic white",
+            ),
         )
 
         layout["header"].update(
-            Panel(Align.center(header_text, vertical="middle"), style="cyan", border_style="bold magenta")
+            Panel(
+                Align.center(header_text, vertical="middle"),
+                style="cyan",
+                border_style="bold magenta",
+            )
         )
 
         layout["session_info"].update(
@@ -408,7 +411,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 f"[bold #00ffcc]Theme:[/bold #00ffcc] [white]{theme}[/white]\n"
                 f"[bold #00ffcc]Session:[/bold #00ffcc] [white]{self._session.session_id[:8]}[/white]",
                 title="[bold]Session[/bold]",
-                border_style="cyan"
+                border_style="cyan",
             )
         )
 
@@ -421,7 +424,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 f"[bold #ff00ff]Messages:[/bold #ff00ff] [white]{msg_count}[/white]\n"
                 f"[bold #ff00ff]Provider Calls:[/bold #ff00ff] [white]{self._llm_calls}[/white]",
                 title="[bold]Telemetry[/bold]",
-                border_style="magenta"
+                border_style="magenta",
             )
         )
 
@@ -434,10 +437,10 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 "[bold white]/split <type>[/bold white]  [dim]— split pane[/dim]\n"
                 "[bold white]/theme <name>[/bold white]  [dim]— UI theme[/dim]",
                 title="[bold]Quick Actions[/bold]",
-                border_style="green"
+                border_style="green",
             )
         )
-        
+
         configured = [k for k, (icon, _) in provider_status.items() if icon == "✓"]
         runtime_txt = ""
         if configured:
@@ -452,11 +455,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 runtime_txt = "[dim]No providers configured[/dim]"
 
         layout["runtime"].update(
-            Panel(
-                runtime_txt,
-                title="[bold]LLM Status[/bold]",
-                border_style="yellow"
-            )
+            Panel(runtime_txt, title="[bold]LLM Status[/bold]", border_style="yellow")
         )
 
         layout["footer"].update(
@@ -465,13 +464,11 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 "[dim] Examples:[/dim] [green]scan 10.0.0.5[/green]  [green]enumerate example.com[/green]  [green]/theme cyber-noir[/green]\n"
                 "[dim] Press ? or type /help for all commands[/dim]",
                 title="[bold bright_black]SYSTEM LOG[/bold bright_black]",
-                border_style="bright_black"
+                border_style="bright_black",
             )
         )
 
         console.print(layout)
-
-
 
     def _gather_provider_status(self) -> dict[str, tuple[str, str]]:
         """Return a concise status map for supported providers.
@@ -511,7 +508,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
         return status
 
-
     def _gather_mode_label(self, provider_status: dict[str, tuple[str, str]]) -> str:
         """Build a human-readable mode label showing LLM connectivity state."""
         has_llm = any(
@@ -525,7 +521,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         if self._mode == "autonomous":
             return "Autonomous (LLM needed)"
         return f"{mode_display} (local fallback)"
-
 
     def _print_assistant(self, message: str) -> None:
         if self._con is not None:
@@ -544,7 +539,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         else:
             console.print(f"\u25c6 Siyarix: {message}")
 
-
     @staticmethod
     def _strip_json_wrapper(text: str) -> str:
         """If text is JSON with a 'response' field, extract just the response text."""
@@ -561,7 +555,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             pass
         return text
 
-
     def _get_conversation_history(self, max_messages: int = 50) -> list[dict]:
         """Extract recent conversation history from the session for LLM context."""
         msgs = self._session.messages
@@ -576,7 +569,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             for m in recent
         ]
 
-
     async def _stream_assistant_response(
         self,
         system_prompt: str,
@@ -590,7 +582,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         Returns the clean response text (JSON wrapper stripped if present).
         """
         from rich.live import Live
-        from rich.panel import Panel
 
         if not provider_name or not api_key:
             prov_name, api_key = self._resolve_provider()
@@ -625,7 +616,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         console.print()
         return self._strip_json_wrapper(full_text)
 
-
     def _print_plan(self, plan: "Any") -> None:  # ExecutionPlan
         rows = []
         for i, step in enumerate(plan.steps, 1):
@@ -640,10 +630,8 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             )
         self._output.print_table(rows, title="Execution Plan")
 
-
     def _print_results(self, result: "Any", elapsed: float) -> None:  # EngineResult
         from ..planner import StepStatus
-        from rich.panel import Panel
         from rich.columns import Columns
 
         success_count = sum(1 for r in result.step_results if r.status == StepStatus.COMPLETED)
@@ -679,8 +667,15 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 if sev not in sev_groups:
                     continue
                 items = sev_groups[sev][:15]
-                sev_color = {"critical": "red", "high": "red", "medium": "yellow", "low": "green", "info": "blue"}.get(sev, "blue")
+                sev_color = {
+                    "critical": "red",
+                    "high": "red",
+                    "medium": "yellow",
+                    "low": "green",
+                    "info": "blue",
+                }.get(sev, "blue")
                 from rich.table import Table
+
                 sev_table = Table(
                     title=f"{sev.upper()} Findings ({len(items)})",
                     header_style=sev_color,
@@ -743,14 +738,11 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
         console.print(Columns(summary_panels, equal=False, padding=(0, 1)))
 
-
     def _print_goodbye(self) -> None:
         self._session.save(self._SESSIONS_DIR / f"{self._session.session_id}.json")
         self._output.print_info(f"Session saved: {self._session.session_id[:8]}")
         self._output.print_info(f"Resume with: siyarix --session {self._session.session_id}")
         self._output.print_info("Settings persist in config/.env — stay curious, stay ethical.")
-
-
 
 
 def start_chat(
@@ -762,4 +754,3 @@ def start_chat(
     """Launch the Siyarix interactive chat REPL."""
     chat = SiyarixChat(mode=mode, target=target, session_id=session_id, resume=resume)
     chat.run()
-

@@ -82,6 +82,7 @@ class BootstrapEngine:
             info.is_wsl = True
         # Detect package manager
         from .subprocess_utils import detect_package_manager
+
         info.package_manager = detect_package_manager()
         return info
 
@@ -271,7 +272,7 @@ class BootstrapEngine:
                     "# Actual settings are stored in settings.toml\n"
                 )
             except OSError:
-                pass
+                logger.warning("Failed to write config alias at %s", config_alias, exc_info=True)
 
     def write_marker(self) -> None:
         marker = self._home / ".initialized"

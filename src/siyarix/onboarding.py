@@ -63,10 +63,26 @@ SECURITY_MODEL_TIERS: list[dict[str, Any]] = [
         "min_ram": 0,
         "max_ram": 4,
         "models": [
-            ("IHA089/drana-infinity-3b", "1.8 GB", "Cybersecurity research, bug bounty, vulnerability analysis — fast 3B model"),
-            ("qwen3.5:4b", "3.4 GB", "Tool-calling champion (97.5% FC pass rate), general intelligence, coding — fits any system"),
-            ("luisppb16/gemma4-e4b-secops", "2.5 GB", "Gemma 4-based SecOps (native function calling), offensive/defensive security, code review"),
-            ("xploiter/pentester", "1.6 GB", "Pentesting methodology, OWASP, tool guidance — lightest option"),
+            (
+                "IHA089/drana-infinity-3b",
+                "1.8 GB",
+                "Cybersecurity research, bug bounty, vulnerability analysis — fast 3B model",
+            ),
+            (
+                "qwen3.5:4b",
+                "3.4 GB",
+                "Tool-calling champion (97.5% FC pass rate), general intelligence, coding — fits any system",
+            ),
+            (
+                "luisppb16/gemma4-e4b-secops",
+                "2.5 GB",
+                "Gemma 4-based SecOps (native function calling), offensive/defensive security, code review",
+            ),
+            (
+                "xploiter/pentester",
+                "1.6 GB",
+                "Pentesting methodology, OWASP, tool guidance — lightest option",
+            ),
         ],
         "default_idx": 0,
         "fallback": "IHA089/drana-infinity-3b",
@@ -77,10 +93,26 @@ SECURITY_MODEL_TIERS: list[dict[str, Any]] = [
         "min_ram": 4,
         "max_ram": 8,
         "models": [
-            ("IHA089/drana-infinity-7b", "4.5 GB", "Elite cybersecurity research, exploit logic, multi-step attack chains — 7B"),
-            ("luisppb16/qwen3.5-9b-red-team", "5.5 GB", "Red team operations (Qwen3.5 base = elite function calling)"),
-            ("supergoatscriptguy/mythos-sec:8b", "5 GB", "CTF, bug bounty, pentest — Gemma-4 based, native function calling, no disclaimers"),
-            ("luisppb16/gemma4-e4b-secops", "2.5 GB", "Gemma 4-based SecOps (native function calling) — fast 4B"),
+            (
+                "IHA089/drana-infinity-7b",
+                "4.5 GB",
+                "Elite cybersecurity research, exploit logic, multi-step attack chains — 7B",
+            ),
+            (
+                "luisppb16/qwen3.5-9b-red-team",
+                "5.5 GB",
+                "Red team operations (Qwen3.5 base = elite function calling)",
+            ),
+            (
+                "supergoatscriptguy/mythos-sec:8b",
+                "5 GB",
+                "CTF, bug bounty, pentest — Gemma-4 based, native function calling, no disclaimers",
+            ),
+            (
+                "luisppb16/gemma4-e4b-secops",
+                "2.5 GB",
+                "Gemma 4-based SecOps (native function calling) — fast 4B",
+            ),
         ],
         "default_idx": 0,
         "fallback": "IHA089/drana-infinity-7b",
@@ -91,10 +123,26 @@ SECURITY_MODEL_TIERS: list[dict[str, Any]] = [
         "min_ram": 8,
         "max_ram": 16,
         "models": [
-            ("supergoatscriptguy/mythos-sec:8b", "5 GB", "CTF, bug bounty, pentest — Gemma-4 based, native function calling, no disclaimers"),
-            ("qwen3:14b", "9.3 GB", "Best accuracy-to-size ratio, 88-92% function calling, strong reasoning & tool orchestration"),
-            ("luisppb16/qwen3.5-9b-red-team", "5.5 GB", "Red team operations, adversary simulation — Qwen3.5 fine-tune"),
-            ("IHA089/drana-infinity-7b", "4.5 GB", "Elite cybersecurity research, exploit logic — solid 7B specialist"),
+            (
+                "supergoatscriptguy/mythos-sec:8b",
+                "5 GB",
+                "CTF, bug bounty, pentest — Gemma-4 based, native function calling, no disclaimers",
+            ),
+            (
+                "qwen3:14b",
+                "9.3 GB",
+                "Best accuracy-to-size ratio, 88-92% function calling, strong reasoning & tool orchestration",
+            ),
+            (
+                "luisppb16/qwen3.5-9b-red-team",
+                "5.5 GB",
+                "Red team operations, adversary simulation — Qwen3.5 fine-tune",
+            ),
+            (
+                "IHA089/drana-infinity-7b",
+                "4.5 GB",
+                "Elite cybersecurity research, exploit logic — solid 7B specialist",
+            ),
         ],
         "default_idx": 0,
         "fallback": "IHA089/drana-infinity-7b",
@@ -105,10 +153,26 @@ SECURITY_MODEL_TIERS: list[dict[str, Any]] = [
         "min_ram": 16,
         "max_ram": 999,
         "models": [
-            ("supergoatscriptguy/mythos-sec:24b", "14 GB", "Flagship security: 30B-class quality at 8B-class speed (MoE), tool-calling ready"),
-            ("gemma4:26b", "18 GB", "Native function calling (92% FC), MoE with 4B active params — best FC among local models"),
-            ("luisppb16/qwen3.5-9b-red-team", "5.5 GB", "Red team specialist, adversary simulation — highly rated, Qwen3.5 FC"),
-            ("IHA089/drana-infinity-7b", "4.5 GB", "Elite cybersecurity research — always a solid choice"),
+            (
+                "supergoatscriptguy/mythos-sec:24b",
+                "14 GB",
+                "Flagship security: 30B-class quality at 8B-class speed (MoE), tool-calling ready",
+            ),
+            (
+                "gemma4:26b",
+                "18 GB",
+                "Native function calling (92% FC), MoE with 4B active params — best FC among local models",
+            ),
+            (
+                "luisppb16/qwen3.5-9b-red-team",
+                "5.5 GB",
+                "Red team specialist, adversary simulation — highly rated, Qwen3.5 FC",
+            ),
+            (
+                "IHA089/drana-infinity-7b",
+                "4.5 GB",
+                "Elite cybersecurity research — always a solid choice",
+            ),
         ],
         "default_idx": 0,
         "fallback": "luisppb16/qwen3.5-9b-red-team",
@@ -130,7 +194,6 @@ except ImportError:
     Confirm = None  # type: ignore[assignment,misc]
     Table = None  # type: ignore[assignment,misc]
     box = None  # type: ignore[assignment]
-
 
 
 # ── OnboardingWizard ────────────────────────────────────────────────────────
@@ -333,7 +396,7 @@ class OnboardingWizard:
                     if kernel32.GlobalMemoryStatusEx(ctypes.byref(mem)):
                         ram_total_gb = mem.ullTotalPhys / (1024**3)
             elif system == "Linux":
-                with open("/proc/meminfo", encoding='utf-8') as f:
+                with open("/proc/meminfo", encoding="utf-8") as f:
                     for line in f:
                         if line.startswith("MemTotal:"):
                             parts = line.split()
@@ -359,6 +422,7 @@ class OnboardingWizard:
         ram_free_gb = 0.0
         try:
             import psutil
+
             mem = psutil.virtual_memory()
             ram_free_gb = mem.available / (1024**3)
         except Exception as exc:
@@ -368,6 +432,7 @@ class OnboardingWizard:
         cpu_physical = 0
         try:
             import psutil as _ps
+
             cpu_physical = _ps.cpu_count(logical=False) or 0
         except Exception as exc:
             logger.debug("Failed to get CPU count: %s", exc)
@@ -381,7 +446,10 @@ class OnboardingWizard:
         try:
             result = subprocess.run(
                 ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"],
-                capture_output=True, text=True, timeout=10, check=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
             )
             if not result.returncode and result.stdout.strip():
                 parts = [p.strip() for p in result.stdout.split(",")]
@@ -390,16 +458,19 @@ class OnboardingWizard:
                 try:
                     gpu_vram_gb = round(int(parts[1]) / 1024, 1) if len(parts) > 1 else 0
                 except (ValueError, IndexError):
-                    pass
+                    logger.warning("Failed to parse NVIDIA GPU VRAM from nvidia-smi output", exc_info=True)
         except (FileNotFoundError, subprocess.SubprocessError):
-            pass
+            logger.warning("nvidia-smi not available for GPU detection")
 
         # AMD ROCm
         if gpu_type == "none":
             try:
                 result = subprocess.run(
                     ["rocm-smi", "--showmeminfo", "vram"],
-                    capture_output=True, text=True, timeout=10, check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    check=False,
                 )
                 if not result.returncode and "VRAM" in result.stdout:
                     gpu_type = "amd"
@@ -409,7 +480,7 @@ class OnboardingWizard:
                             try:
                                 gpu_vram_gb = round(float(val) / 1024, 1) if val else 0
                             except (ValueError, IndexError):
-                                pass
+                                logger.warning("Failed to parse AMD GPU VRAM from rocm-smi output", exc_info=True)
                             break
             except (FileNotFoundError, subprocess.SubprocessError):
                 pass
@@ -419,7 +490,10 @@ class OnboardingWizard:
             try:
                 result = subprocess.run(
                     ["system_profiler", "SPHardwareDataType"],
-                    capture_output=True, text=True, timeout=10, check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    check=False,
                 )
                 if not result.returncode:
                     for line in result.stdout.splitlines():
@@ -434,13 +508,20 @@ class OnboardingWizard:
         has_battery = False
         try:
             import psutil as _ps
+
             bat = _ps.sensors_battery()
             has_battery = bat is not None
         except Exception as exc:
             logger.debug("Failed to detect battery: %s", exc)
         is_server = not has_battery and ram_total_gb >= 16
 
-        gpu_label = f"{gpu_name} ({gpu_vram_gb:.1f} GB)" if gpu_name else gpu_type.upper() if gpu_type != "none" else "None"
+        gpu_label = (
+            f"{gpu_name} ({gpu_vram_gb:.1f} GB)"
+            if gpu_name
+            else gpu_type.upper()
+            if gpu_type != "none"
+            else "None"
+        )
 
         # Disk space for ~/.siyarix home
         disk_free_gb = 0.0
@@ -566,7 +647,9 @@ class OnboardingWizard:
             dir_writable = True
         except Exception:
             dir_writable = False
-        checks.append(("Config dir writable", dir_writable, "Siyarix needs to store settings and credentials"))
+        checks.append(
+            ("Config dir writable", dir_writable, "Siyarix needs to store settings and credentials")
+        )
         if not dir_writable:
             self._console.print(f"[red]Cannot write to {config_dir}[/red]")
             self._console.print("[yellow]Check permissions and try again.[/yellow]")
@@ -613,7 +696,11 @@ class OnboardingWizard:
             ("rich", "rich", "Terminal UI, tables, prompts"),
             ("httpx", "httpx", "HTTP requests to providers and APIs"),
             ("cryptography", "cryptography", "Encrypted credential storage"),
-            ("tomli", "tomli" if sys.version_info < (3, 11) else "stdlib tomllib", "Config file parsing"),
+            (
+                "tomli",
+                "tomli" if sys.version_info < (3, 11) else "stdlib tomllib",
+                "Config file parsing",
+            ),
             ("prompt_toolkit", "prompt_toolkit", "Interactive REPL and input"),
             ("pyyaml", "yaml", "YAML config support"),
             ("jinja2", "jinja2", "Prompt templating engine"),
@@ -626,6 +713,7 @@ class OnboardingWizard:
         missing: list[str] = []
 
         import importlib
+
         for pkg, import_str, reason in core_deps:
             try:
                 if "stdlib" in import_str:
@@ -747,7 +835,7 @@ class OnboardingWizard:
     async def _step_provider(self) -> None:
         self._step_header("Provider Configuration")
         self._console.print(
-            "Siyarix needs an AI provider to power its autonomous\n" "and integrated modes.\n"
+            "Siyarix needs an AI provider to power its autonomous\nand integrated modes.\n"
         )
 
         options = Table(box=box.ROUNDED, show_header=False)
@@ -811,12 +899,17 @@ class OnboardingWizard:
         else:
             dev_table.add_row("GPU", "[yellow]Not detected (CPU mode)[/yellow]")
         dev_table.add_row("Free Disk (~/.siyarix)", f"{specs.get('disk_free_gb', 0):.1f} GB")
-        dev_table.add_row("Device", "[green]Server[/green]" if specs.get("is_server") else "[blue]Desktop/Laptop[/blue]")
+        dev_table.add_row(
+            "Device",
+            "[green]Server[/green]" if specs.get("is_server") else "[blue]Desktop/Laptop[/blue]",
+        )
         self._console.print(dev_table)
         self._console.print()
 
         # Classify tier based on free RAM
-        _tier_config, models, default_idx, fallback_model = self._suggest_models({"ram_free_gb": ram_free})
+        _tier_config, models, default_idx, fallback_model = self._suggest_models(
+            {"ram_free_gb": ram_free}
+        )
         tier_label = _tier_config["label"]
         self._console.print(f"Detected tier: [bold cyan]{tier_label}[/bold cyan]\n")
 
@@ -834,14 +927,16 @@ class OnboardingWizard:
         prov_table.add_column("Model Management")
         prov_table.add_column("Best For")
         prov_table.add_row(
-            "1", "llama.cpp",
+            "1",
+            "llama.cpp",
             "Zero (on-demand)",
             "CUDA, Metal, Vulkan",
             "Manual (GGUF files)",
             "Low-RAM, power users",
         )
         prov_table.add_row(
-            "2", "Ollama",
+            "2",
+            "Ollama",
             "~200 MB daemon",
             "CUDA, Metal",
             "Built-in (ollama pull)",
@@ -882,7 +977,9 @@ class OnboardingWizard:
                             await self._setup_online_provider()
                         return
                 else:
-                    self._console.print("[yellow]llama.cpp required for recommended setup.[/yellow]")
+                    self._console.print(
+                        "[yellow]llama.cpp required for recommended setup.[/yellow]"
+                    )
                     if Confirm.ask("Try an online provider instead?", default=True):
                         await self._setup_online_provider()
                     return
@@ -948,7 +1045,9 @@ class OnboardingWizard:
         for i, (m_name, m_size, m_desc) in enumerate(models, 1):
             model_table.add_row(str(i), m_name, m_size, m_desc)
         custom_idx = len(models) + 1
-        model_table.add_row(str(custom_idx), "[bold]Custom[/bold]", "—", "Enter your own model name")
+        model_table.add_row(
+            str(custom_idx), "[bold]Custom[/bold]", "—", "Enter your own model name"
+        )
         self._console.print(model_table)
         self._console.print()
 
@@ -970,7 +1069,9 @@ class OnboardingWizard:
         self._console.print(f"[bold]== Downloading {model_name} ==[/bold]\n")
 
         if not is_llamacpp:
-            assert pull_cmd is not None, "Ollama pull command not available"
+            if pull_cmd is None:
+                self._console.print("[red]Ollama pull command not available.[/red]")
+                return
             self._console.print(f"Pulling [cyan]{model_name}[/cyan] with Ollama...")
             self._console.print("[dim]This may take several minutes depending on model size.[/dim]")
             if Confirm.ask("Pull this model now?", default=True):
@@ -1019,7 +1120,9 @@ class OnboardingWizard:
                         ollama_installed_by_us = True
                         self._console.print("[green]\u2713 Ollama installed[/green]")
                     else:
-                        self._console.print("[red]Ollama install failed, falling back to manual download.[/red]")
+                        self._console.print(
+                            "[red]Ollama install failed, falling back to manual download.[/red]"
+                        )
                 else:
                     self._console.print("[yellow]Skipping Ollama install.[/yellow]")
 
@@ -1028,20 +1131,30 @@ class OnboardingWizard:
                 self._console.print("  Starting Ollama server...")
                 self._start_ollama_service()
                 import asyncio as _asyncio
+
                 for _ in range(15):
                     if self._check_ollama_running("http://localhost:11434"):
                         break
                     await _asyncio.sleep(1)
 
-            if shutil.which("ollama") and self._check_ollama_running("http://localhost:11434") and Confirm.ask(
-                f"Pull [cyan]{model_name}[/cyan] via Ollama?",
-                default=True,
+            if (
+                shutil.which("ollama")
+                and self._check_ollama_running("http://localhost:11434")
+                and Confirm.ask(
+                    f"Pull [cyan]{model_name}[/cyan] via Ollama?",
+                    default=True,
+                )
             ):
                 self._console.print(f"Pulling [cyan]{model_name}[/cyan] with Ollama...")
-                self._console.print("[dim]This may take several minutes depending on model size.[/dim]")
+                self._console.print(
+                    "[dim]This may take several minutes depending on model size.[/dim]"
+                )
                 result = subprocess.run(
                     ["ollama", "pull", model_name],
-                    capture_output=True, text=True, timeout=7200, check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=7200,
+                    check=False,
                 )
                 if not result.returncode:
                     self._console.print("[green]\u2713 Downloaded via Ollama[/green]")
@@ -1060,7 +1173,10 @@ class OnboardingWizard:
                                 )
                                 downloaded = True
                             else:
-                                dest = models_dir / f"{model_name.replace('/', '_').replace(':', '_')}.gguf"
+                                dest = (
+                                    models_dir
+                                    / f"{model_name.replace('/', '_').replace(':', '_')}.gguf"
+                                )
                                 try:
                                     self._console.print(f"  Copying GGUF to [cyan]{dest}[/cyan]...")
                                     shutil.copy2(gguf_path, dest)
@@ -1134,7 +1250,10 @@ class OnboardingWizard:
                     "[dim]Place the .gguf file in ~/.siyarix/models/ and run:\n"
                     "  llama-server --model ~/.siyarix/models/your-model.gguf --port 18080[/dim]"
                 )
-                if not Confirm.ask("Continue without downloading? (You can configure the model later)", default=True):
+                if not Confirm.ask(
+                    "Continue without downloading? (You can configure the model later)",
+                    default=True,
+                ):
                     return
 
             self._settings.set("llamacpp_model", model_name)
@@ -1300,11 +1419,11 @@ class OnboardingWizard:
         try:
             self._settings.set(f"{name.lower()}_url", base_url)
         except KeyError:
-            pass
+            logger.warning("Setting %s_url not recognized by settings schema", name.lower())
         try:
             self._settings.set(f"{name.lower()}_model", model)
         except KeyError:
-            pass
+            logger.warning("Setting %s_model not recognized by settings schema", name.lower())
         if api_key.strip():
             self._choices["api_keys"][name.lower()] = api_key.strip()
             self._store_api_key(name.lower(), api_key.strip())
@@ -1433,7 +1552,9 @@ class OnboardingWizard:
             return
 
         self._step_header(f"Specialized Tools for: {persona}")
-        self._console.print(f"Scanning for specialized tools required by [bold]{persona}[/bold]...\n")
+        self._console.print(
+            f"Scanning for specialized tools required by [bold]{persona}[/bold]...\n"
+        )
 
         tools_to_check = _PERSONA_TOOLS[persona]
         missing = []
@@ -1442,7 +1563,9 @@ class OnboardingWizard:
                 missing.append((exe, pkg, desc))
 
         if not missing:
-            self._console.print(f"[bold green]\u2713 All specialized tools for {persona} present![/bold green]")
+            self._console.print(
+                f"[bold green]\u2713 All specialized tools for {persona} present![/bold green]"
+            )
             self._pause()
             return
 
@@ -1663,9 +1786,7 @@ class OnboardingWizard:
                         )
                         all_ok = False
                 else:
-                    self._console.print(
-                        f"  [dim]No API key for {provider_name}, skipped.[/dim]"
-                    )
+                    self._console.print(f"  [dim]No API key for {provider_name}, skipped.[/dim]")
         else:
             self._console.print()
             self._console.print(
@@ -1715,7 +1836,9 @@ class OnboardingWizard:
         summary.add_row("Persona", self._choices["persona"])
         summary.add_row(
             "Credential Store",
-            "\u2713 Initialized" if self._choices.get("credential_store_initialized") else "\u2717 Skipped",
+            "\u2713 Initialized"
+            if self._choices.get("credential_store_initialized")
+            else "\u2717 Skipped",
         )
         summary.add_row("Theme", self._choices["preferences"]["theme"])
         summary.add_row("Log Level", self._choices["preferences"]["log_level"])
@@ -1904,7 +2027,9 @@ class OnboardingWizard:
         self._console.print(f"  Detected shell: [cyan]{shell}[/cyan]")
 
         if shell == "cmd":
-            self._console.print("  [dim]Command Prompt (cmd) does not support shell completions. Siyarix recommends PowerShell (pwsh).[/dim]")
+            self._console.print(
+                "  [dim]Command Prompt (cmd) does not support shell completions. Siyarix recommends PowerShell (pwsh).[/dim]"
+            )
             self._choices["shell_completion_done"] = False
         elif Confirm.ask("  Install shell completions?", default=True):
             try:
@@ -1935,13 +2060,12 @@ class OnboardingWizard:
                             "siyarix | Out-String | Invoke-Expression"
                         )
                     else:
-                        completion_cmd = (
-                            f'eval "$(_SIYARIX_COMPLETE={typer_shell}_source siyarix)"'
-                        )
+                        completion_cmd = f'eval "$(_SIYARIX_COMPLETE={typer_shell}_source siyarix)"'
                     if rc_file.exists():
                         existing = rc_file.read_text(encoding="utf-8")
                         # Clean up old broken eval line (siyarix completion — singular, no such command)
                         import re as _re
+
                         cleaned = _re.sub(
                             r'\neval "\$\(siyarix? completion \w+\)"\n?',
                             "",
@@ -1950,9 +2074,7 @@ class OnboardingWizard:
                         if cleaned != existing:
                             rc_file.write_text(cleaned, encoding="utf-8")
                             existing = cleaned
-                            self._console.print(
-                                "  [dim]Removed old broken completion line.[/dim]"
-                            )
+                            self._console.print("  [dim]Removed old broken completion line.[/dim]")
                         if completion_cmd not in existing:
                             with rc_file.open("a", encoding="utf-8") as f:
                                 f.write(f"\n# Siyarix completions\n{completion_cmd}\n")
@@ -1994,7 +2116,9 @@ class OnboardingWizard:
                             f"}}"
                         )
                         subprocess.run(
-                            ["powershell", "-Command", script], capture_output=True, timeout=30,
+                            ["powershell", "-Command", script],
+                            capture_output=True,
+                            timeout=30,
                             check=False,
                         )
                         self._console.print(
@@ -2040,9 +2164,9 @@ class OnboardingWizard:
             self._console.print(f"  [red]\u2717 {package}: {exc}[/red]")
             return False
 
-
-
-    def _suggest_models(self, specs: dict[str, Any]) -> tuple[dict[str, Any], list[tuple[str, str, str]], int, str]:
+    def _suggest_models(
+        self, specs: dict[str, Any]
+    ) -> tuple[dict[str, Any], list[tuple[str, str, str]], int, str]:
         """Return the best matching tier, models list, default index, and fallback model."""
         free_ram = specs.get("ram_free_gb", 0)
         for tier_config in SECURITY_MODEL_TIERS:
@@ -2127,13 +2251,16 @@ class OnboardingWizard:
         """Uninstall Ollama. Best-effort per platform."""
         try:
             if os.name == "nt":
-                script = '''
+                script = """
 $ollama = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -eq "Ollama" }
 if ($ollama) { $ollama.Uninstall() | Out-Null }
-'''
+"""
                 r = subprocess.run(
                     ["powershell", "-Command", script],
-                    capture_output=True, text=True, timeout=120, check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                    check=False,
                 )
                 if not r.returncode and "Error" not in r.stderr:
                     return True
@@ -2141,7 +2268,10 @@ if ($ollama) { $ollama.Uninstall() | Out-Null }
                 if os.path.isfile(uninstaller):
                     r = subprocess.run(
                         [uninstaller, "/S"],
-                        capture_output=True, text=True, timeout=120, check=False,
+                        capture_output=True,
+                        text=True,
+                        timeout=120,
+                        check=False,
                     )
                     return not r.returncode
                 return False
@@ -2149,7 +2279,10 @@ if ($ollama) { $ollama.Uninstall() | Out-Null }
                 bin_path = shutil.which("ollama") or "/usr/local/bin/ollama"
                 r = subprocess.run(
                     ["sudo", "rm", "-f", bin_path],
-                    capture_output=True, text=True, timeout=30, check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    check=False,
                 )
                 return not r.returncode
             else:
@@ -2165,7 +2298,10 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
 """
                 r = subprocess.run(
                     ["sh", "-c", script],
-                    capture_output=True, text=True, timeout=60, check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    check=False,
                 )
                 if not r.returncode:
                     return True
@@ -2173,7 +2309,10 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
                 bin_path = shutil.which("ollama") or "/usr/local/bin/ollama"
                 r = subprocess.run(
                     ["sudo", "rm", "-f", bin_path],
-                    capture_output=True, text=True, timeout=30, check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    check=False,
                 )
                 return not r.returncode
         except Exception:
@@ -2217,7 +2356,10 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
         try:
             r = subprocess.run(
                 ["ollama", "show", model_name, "--modelfile"],
-                capture_output=True, text=True, timeout=30, check=False,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
             )
             if not r.returncode:
                 for line in r.stdout.splitlines():
@@ -2268,7 +2410,7 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
                         if blob.is_file():
                             return blob
             except (json.JSONDecodeError, KeyError, OSError):
-                pass
+                logger.warning("Failed to parse Ollama manifest for %s", model_name, exc_info=True)
 
         # Method 3: find the newest blob file (just downloaded)
         blobs_dir = Path.home() / ".ollama" / "models" / "blobs"
@@ -2278,12 +2420,12 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
                 if blobs:
                     return max(blobs, key=lambda p: p.stat().st_mtime)
             except OSError:
-                pass
+                logger.warning("Failed to scan Ollama blobs directory", exc_info=True)
 
         return None
 
-    # ── llama.cpp helpers ───────────────────────────────────────────
 
+    # ── llama.cpp helpers ───────────────────────────────────────────
     def _install_llamacpp(self) -> bool:
         """Download and install llama.cpp pre-built binary."""
         import platform as _platform
@@ -2307,7 +2449,9 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
                 raise ValueError("No tag_name in release data")
         except Exception as exc:
             self._console.print(f"  [red]Failed to fetch latest release: {exc}[/red]")
-            self._console.print("[yellow]Install manually from: https://github.com/ggml-org/llama.cpp/releases[/yellow]")
+            self._console.print(
+                "[yellow]Install manually from: https://github.com/ggml-org/llama.cpp/releases[/yellow]"
+            )
             return False
 
         # Map platform to GitHub release asset pattern (new naming: llama-{tag}-bin-{os}-{arch}.tar.gz)
@@ -2328,7 +2472,9 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
 
         if not suffix:
             self._console.print("[red]Unsupported platform for llama.cpp auto-install.[/red]")
-            self._console.print("[yellow]Install manually from: https://github.com/ggml-org/llama.cpp/releases[/yellow]")
+            self._console.print(
+                "[yellow]Install manually from: https://github.com/ggml-org/llama.cpp/releases[/yellow]"
+            )
             return False
 
         asset_name = f"llama-{tag}-bin-{suffix}"
@@ -2364,7 +2510,9 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
 
             # Remove the versioned extract directory prefix if present
             for entry in list(bin_dir.iterdir()):
-                if entry.is_dir() and (entry.name.startswith(f"llama-{tag}") and not entry.name.startswith(".")):
+                if entry.is_dir() and (
+                    entry.name.startswith(f"llama-{tag}") and not entry.name.startswith(".")
+                ):
                     extract_root = entry
                     for child in entry.iterdir():
                         dest = bin_dir / child.name
@@ -2401,7 +2549,9 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
             return False
         except Exception as exc:
             self._console.print(f"  [red]llama.cpp installation failed: {exc}[/red]")
-            self._console.print("[yellow]Install manually from: https://github.com/ggml-org/llama.cpp/releases[/yellow]")
+            self._console.print(
+                "[yellow]Install manually from: https://github.com/ggml-org/llama.cpp/releases[/yellow]"
+            )
             return False
 
     @staticmethod
@@ -2409,6 +2559,7 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
         """Check if llama.cpp server is running."""
         try:
             import httpx
+
             r = httpx.get(f"{url}/health", timeout=5)
             return r.status_code < 500
         except Exception:
@@ -2426,7 +2577,7 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
                         logger.warning("Invalid GGUF (bad magic), starting without --model")
                         model_path = None
                 except OSError:
-                    pass
+                    logger.warning("Failed to validate GGUF model file %s", model_path, exc_info=True)
 
             bin_dir = Path.home() / ".siyarix" / "bin"
             llama_bin = bin_dir / "llama-server"

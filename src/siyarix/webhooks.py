@@ -18,8 +18,10 @@ from siyarix.events import get_event_bus, Event, EventType
 
 logger = logging.getLogger(__name__)
 
+
 class WebhookDispatcher:
     """Dispatches alerts and remediation scripts to external services."""
+
     def __init__(self) -> None:
         self.webhook_url = os.getenv("SIYARIX_WEBHOOK_URL")
         self.bus = get_event_bus()
@@ -40,29 +42,29 @@ class WebhookDispatcher:
             return
 
         remediation = self.generate_remediation(finding)
-        
+
         payload = {
             "text": f"🚨 **CRITICAL VULNERABILITY DETECTED** 🚨\n"
-                    f"**Target:** {finding.get('target', 'Unknown')}\n"
-                    f"**Type:** {finding.get('type', finding.get('title', 'Unknown'))}\n"
-                    f"**Auto-Remediation Script:**\n```bash\n{remediation}\n```"
+            f"**Target:** {finding.get('target', 'Unknown')}\n"
+            f"**Type:** {finding.get('type', finding.get('title', 'Unknown'))}\n"
+            f"**Auto-Remediation Script:**\n```bash\n{remediation}\n```"
         }
 
         try:
             req = urllib.request.Request(
                 self.webhook_url,
-                data=json.dumps(payload).encode('utf-8'),
-                headers={'Content-Type': 'application/json'}
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
             )
             urllib.request.urlopen(req, timeout=5)
-            logger.info(f"Webhook alert dispatched for {finding.get('id', 'vuln')}")
+            logger.info("Webhook alert dispatched for %s", finding.get('id', 'vuln'))
         except urllib.error.URLError as e:
-            logger.error(f"Failed to dispatch webhook: {e}")
+            logger.error("Failed to dispatch webhook: %s", e)
 
     def generate_remediation(self, finding: dict[str, Any]) -> str:
         """Generate a basic auto-remediation script based on the finding type."""
         f_type = str(finding.get("type", finding.get("title", ""))).lower()
-        
+
         if "sql injection" in f_type:
             return "# Remediation: Use parameterized queries (Prepared Statements) in your application code."
         elif "xss" in f_type or "cross-site scripting" in f_type:
@@ -70,9 +72,12 @@ class WebhookDispatcher:
         elif "open port" in f_type or "ssh" in f_type:
             return "sudo ufw deny 22/tcp\n# Or configure iptables to drop unauthorized SSH traffic."
         elif "outdated" in f_type or "cve-" in f_type:
-            return "sudo apt-get update && sudo apt-get upgrade -y\n# Ensure all packages are patched."
+            return (
+                "sudo apt-get update && sudo apt-get upgrade -y\n# Ensure all packages are patched."
+            )
         else:
             return "# Remediation script generation requires manual review for this vulnerability."
+
 
 # Global singleton
 webhook_dispatcher = WebhookDispatcher()

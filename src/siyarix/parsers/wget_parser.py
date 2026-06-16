@@ -8,6 +8,7 @@ from . import _now_iso
 
 import json
 import re
+from typing import Any
 
 _ERROR_RE = re.compile(
     r"(?i)(?:ERROR|Failed|unable to resolve|cannot connect|connection refused|timeout|name or service not known)"
@@ -89,7 +90,8 @@ class WgetParser:
                 pass
         return self._parse_text(output)
 
-    def _parse_json(self, data) -> list[dict]:
+    def _parse_json(self, data: Any) -> list[dict]:
+        from typing import Any
         findings: list[dict] = []
         seen: set[str] = set()
         items = data if isinstance(data, list) else [data]

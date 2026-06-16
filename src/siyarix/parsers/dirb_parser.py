@@ -8,6 +8,7 @@ from . import _now_iso
 
 import json
 import re
+from typing import Any
 
 _FIND_RE = re.compile(
     r"==>\s*(?P<url>\S+)\s*[<\-]+.*?(?:CODE[:\s]*(?P<code>\d+))?(?:.*?SIZE[:\s]*(?P<size>\d+))?",
@@ -65,7 +66,8 @@ class DirbParser:
                 pass
         return self._parse_text(output)
 
-    def _parse_json(self, data) -> list[dict]:
+    def _parse_json(self, data: Any) -> list[dict]:
+        from typing import Any
         findings: list[dict] = []
         seen: set[str] = set()
         results = data if isinstance(data, list) else data.get("results", data.get("sites", [data]))

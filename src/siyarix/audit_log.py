@@ -37,7 +37,7 @@ try:
     import tomllib  # Python 3.11+
 except ImportError:
     try:
-        import tomli as tomllib  # type: ignore[no-redef]
+        import tomli as tomllib  # type: ignore[import-not-found,no-redef]
     except ImportError:
         tomllib = None  # type: ignore[assignment]
 

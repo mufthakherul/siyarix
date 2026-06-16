@@ -9,7 +9,7 @@ from . import _now_iso
 import re
 from xml.etree.ElementTree import ParseError as _ParseError
 
-import defusedxml.ElementTree as _ET  # type: ignore
+import defusedxml.ElementTree as _ET  
 
 _DEFUSEDXML = True
 

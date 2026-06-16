@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-import pytest
 from siyarix.nlp_engine import NaturalLanguageParser
 
 def test_nlp_target_extraction():

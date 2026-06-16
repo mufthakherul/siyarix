@@ -160,6 +160,12 @@ class AutonomousExecutor(BaseExecutor):
 
         self.normalise_step(step)
 
+        from siyarix.stealth import stealth_engine
+        if stealth_engine.config.enabled:
+            delay = stealth_engine.get_randomized_delay(1.0)
+            if delay > 0:
+                await asyncio.sleep(delay)
+
         start = _time.monotonic()
         try:
             if not step.command:

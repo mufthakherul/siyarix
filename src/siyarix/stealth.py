@@ -214,4 +214,6 @@ class StealthEngine:
         }
 
 
-__all__ = ["StealthEngine", "StealthConfig", "EVASION_LEVELS"]
+stealth_engine = StealthEngine()
+
+__all__ = ["StealthEngine", "StealthConfig", "EVASION_LEVELS", "stealth_engine"]

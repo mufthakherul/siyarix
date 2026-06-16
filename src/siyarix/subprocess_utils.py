@@ -216,6 +216,20 @@ def _validate_cmd_list(cmd: list[str]) -> None:
                 )
 
 
+def _prepare_env(env: dict[str, str] | None = None) -> dict[str, str]:
+    from siyarix.stealth import stealth_engine
+    exec_env = os.environ.copy()
+    if env:
+        exec_env.update(env)
+    if stealth_engine.config.enabled:
+        proxy = stealth_engine.get_current_proxy()
+        if proxy:
+            exec_env["HTTP_PROXY"] = proxy
+            exec_env["HTTPS_PROXY"] = proxy
+            exec_env["ALL_PROXY"] = proxy
+    return exec_env
+
+
 def safe_run_sync(
     cmd: list[str],
     timeout: float = 10,
@@ -235,6 +249,7 @@ def safe_run_sync(
     """
     _validate_cmd_list(cmd)
     _cleanup_orphans()
+    exec_env = _prepare_env(env)
     try:
         cp = subprocess.run(
             cmd,
@@ -243,7 +258,7 @@ def safe_run_sync(
             timeout=timeout,
             check=False,
             cwd=cwd,
-            env=env,
+            env=exec_env,
         )  # nosec B603
         return ExecutionResult(exit_code=cp.returncode, stdout=cp.stdout, stderr=cp.stderr)
     except subprocess.TimeoutExpired:
@@ -263,10 +278,11 @@ def _use_thread_fallback() -> bool:
 
 
 async def safe_run_async(
-    cmd: list[str], timeout: int = 10, validate: bool = True
+    cmd: list[str], timeout: int = 10, validate: bool = True, env: dict[str, str] | None = None
 ) -> ExecutionResult:
     if validate:
         _validate_cmd_list(cmd)
+    exec_env = _prepare_env(env)
     start = time.monotonic()
     if _use_thread_fallback():
         loop = asyncio.get_running_loop()
@@ -275,7 +291,7 @@ async def safe_run_async(
                 loop.run_in_executor(
                     None,
                     lambda: subprocess.run(
-                        cmd, capture_output=True, text=True, timeout=timeout, check=False
+                        cmd, capture_output=True, text=True, timeout=timeout, check=False, env=exec_env
                     ),
                 ),
                 timeout=timeout + 5,
@@ -305,7 +321,7 @@ async def safe_run_async(
         )
     try:
         proc = await asyncio.create_subprocess_exec(
-            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, env=exec_env
         )  # nosec B603
     except FileNotFoundError:
         logger.debug("safe_run_async binary not found: %s", cmd[0] if cmd else "?")
@@ -344,10 +360,12 @@ async def safe_run_async_stream(
     on_stdout: Callable[[str], Any] | None = None,
     on_stderr: Callable[[str], Any] | None = None,
     max_output_bytes: int | None = None,
+    env: dict[str, str] | None = None,
 ) -> ExecutionResult:
     """Run a command and stream output line-by-line via callbacks."""
     if validate:
         _validate_cmd_list(cmd)
+    exec_env = _prepare_env(env)
     start = time.monotonic()
 
     stdout_lines: list[str] = []
@@ -366,6 +384,7 @@ async def safe_run_async_stream(
                     text=True,
                     bufsize=1,  # Line buffered
                     errors="replace",  # Handle encoding issues gracefully
+                    env=exec_env,
                 ),
             )
         except FileNotFoundError:
@@ -440,7 +459,7 @@ async def safe_run_async_stream(
 
     try:
         async_proc = await asyncio.create_subprocess_exec(
-            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, env=exec_env
         )  # nosec B603
     except FileNotFoundError:
         logger.debug("safe_run_async_stream binary not found: %s", cmd[0] if cmd else "?")

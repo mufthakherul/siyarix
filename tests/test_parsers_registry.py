@@ -609,12 +609,7 @@ SAMPLES: dict[str, tuple[str, int]] = {
         1,
     ),
 
-    # ======== Exploit Dev / AppSec ========
-    "crackmapexec": (
-        "SMB         10.0.0.1      445    DC01     [*] Windows 10.0 Build 17763 x64\n"
-        "SMB         10.0.0.1      445    DC01     [+] admin:Password123!\n",
-        1,
-    ),
+
 }
 
 

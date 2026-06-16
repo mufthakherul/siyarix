@@ -631,7 +631,7 @@ class LLMEngineMixin:
             response = llm_plan.context.get("response", "") if llm_plan else ""
             if response:
                 self._print_assistant(response)
-            elif llm_connected and llm_call_fn:
+            elif llm_connected and llm_call_fn is not None:
                 compact = self._should_use_compact()
                 sys_prompt = self._build_system_prompt(compact=compact)
                 response = await self._stream_assistant_response(
@@ -730,7 +730,7 @@ class LLMEngineMixin:
                 all_outputs.append(f"• {cmd_label} ({s.description}):\n{output}\n")
 
             # Ask LLM: are we done, or need another wave?
-            if llm_connected and llm_call_fn:
+            if llm_connected and llm_call_fn is not None:
                 wave_goal = (
                     f"Original request: {instruction_with_target}\n\n"
                     f"Completed execution wave {wave + 1}. Results so far:\n\n"

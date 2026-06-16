@@ -1,5 +1,6 @@
 """Debug script to test which parsers work with which samples."""
-import sys; sys.path.insert(0, 'src')
+import sys
+sys.path.insert(0, 'src')
 from siyarix.parsers import ParserRegistry
 
 reg = ParserRegistry()

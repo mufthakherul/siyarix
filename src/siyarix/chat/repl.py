@@ -627,15 +627,33 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         """If text is JSON with a 'response' field, extract just the response text."""
         cleaned = text.strip()
         if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[-1]
-            cleaned = cleaned.rsplit("```", 1)[0]
+            lines = cleaned.split("\n", 1)
+            cleaned = lines[-1] if len(lines) > 1 else ""
+            if cleaned.endswith("```"):
+                cleaned = cleaned.rsplit("```", 1)[0]
             cleaned = cleaned.strip()
+            
         try:
             data = json.loads(cleaned)
             if isinstance(data, dict) and "response" in data:
                 return data["response"]
         except (json.JSONDecodeError, ValueError, TypeError):
             pass
+            
+        import re
+        match = re.search(r'\{\s*"response"\s*:\s*"(.*)', cleaned, re.DOTALL | re.IGNORECASE)
+        if match:
+            extracted = match.group(1)
+            if extracted.endswith('"}'):
+                extracted = extracted[:-2]
+            elif extracted.endswith('"'):
+                extracted = extracted[:-1]
+            elif extracted.endswith('"\n}'):
+                extracted = extracted[:-3]
+                
+            extracted = extracted.replace('\\"', '"').replace('\\n', '\n').replace('\\\\', '\\')
+            return extracted
+            
         return text
 
     def _get_conversation_history(self, max_messages: int = 50) -> list[dict]:

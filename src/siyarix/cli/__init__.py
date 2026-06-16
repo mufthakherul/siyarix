@@ -30,11 +30,12 @@ if os.name == "nt" and hasattr(asyncio, "WindowsSelectorEventLoopPolicy"):
 import platform
 import sys
 import io
-if sys.stdout and getattr(sys.stdout, 'encoding', '').lower() != 'utf-8':
+
+if sys.stdout and getattr(sys.stdout, "encoding", "").lower() != "utf-8":
     try:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     except Exception:
-        pass
+        logging.warning("Failed to set stdout encoding to UTF-8")
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -97,6 +98,7 @@ def _load_dotenv(path: Path | None = None) -> None:
                 continue
             os.environ[key] = val
 
+
 def _display_findings_table(findings: list[dict]) -> None:
     """Render scan findings as a Rich table."""
     ftable = Table(title="Findings", header_style="bold red")
@@ -157,7 +159,7 @@ try:
                 if key:
                     os.environ[env_var] = key
             except Exception:
-                pass
+                logger.warning("Failed to load API key for provider %s", provider, exc_info=True)
 except Exception:
     creds = None
 intent_router = IntentRouter()
@@ -183,7 +185,7 @@ def _store_key(provider: str, key: str) -> None:
         try:
             creds.store(provider, key, "api_key")
         except Exception:
-            pass
+            logger.warning("Failed to store API key for provider %s", provider, exc_info=True)
 
 
 def _delete_key(provider: str) -> None:
@@ -194,7 +196,7 @@ def _delete_key(provider: str) -> None:
         try:
             creds.delete(provider, "api_key")
         except Exception:
-            pass
+            logger.warning("Failed to delete API key for provider %s", provider, exc_info=True)
 
 
 def _get_engine(mode: str = "integrated") -> ExecutionEngine:
@@ -449,7 +451,10 @@ def main_callback(
         # TTY: launch interactive chat
         if _IS_TTY:
             _ensure_ollama_running()
-            start_chat(mode=mode, target=target, session_id=session or None, resume=resume or bool(session))
+            start_chat(
+                mode=mode, target=target, session_id=session or None, resume=resume or bool(session)
+            )
+
 
 def _ensure_ollama_running() -> None:
     """Start Ollama in background if configured and not already running."""
@@ -469,7 +474,7 @@ def _ensure_ollama_running() -> None:
             if r.status_code < 500:
                 return
         except Exception:
-            pass
+            logger.warning("Ollama not reachable at %s", ollama_url, exc_info=True)
         if shutil.which("ollama"):
             if os.name == "nt":
                 subprocess.Popen(
@@ -485,6 +490,7 @@ def _ensure_ollama_running() -> None:
                     stderr=subprocess.DEVNULL,
                 )
             import time
+
             for _ in range(15):
                 time.sleep(2)
                 try:
@@ -493,7 +499,7 @@ def _ensure_ollama_running() -> None:
                         logger.info("Ollama started and ready")
                         return
                 except Exception:
-                    pass
+                    logger.warning("Ollama health check failed (attempt %d/15)", _ + 1, exc_info=True)
             logger.warning("Ollama started but not responding within 30s")
     except Exception as exc:
         logger.warning("Failed to auto-start Ollama: %s", exc)
@@ -637,10 +643,13 @@ app.add_typer(completions_app, name="completions")
 
 
 @app.command("completion", hidden=True)
-def _completion_alias(shell: str = typer.Argument("bash", help="Shell (bash, zsh, fish, powershell)")) -> None:
+def _completion_alias(
+    shell: str = typer.Argument("bash", help="Shell (bash, zsh, fish, powershell)"),
+) -> None:
     """Alias for 'completions'. Use 'siyarix completions' (plural) instead."""
     # Clean up old broken line from .bashrc / .zshrc so user stops seeing this
     import re as _re
+
     for rc_name in (".bashrc", ".zshrc", ".config/fish/config.fish"):
         rc = Path.home() / rc_name
         if rc.is_file():
@@ -654,7 +663,7 @@ def _completion_alias(shell: str = typer.Argument("bash", help="Shell (bash, zsh
                 if cleaned != text:
                     rc.write_text(cleaned, encoding="utf-8")
             except OSError:
-                pass
+                logger.warning("Failed to clean up broken completion line in %s", rc_name, exc_info=True)
 
     # Write to stderr so eval "$(siyarix completion bash)" doesn't choke on the output
     print(
@@ -663,9 +672,10 @@ def _completion_alias(shell: str = typer.Argument("bash", help="Shell (bash, zsh
         file=sys.stderr,
     )
     print(
-        f"Or run: eval \"$(_SIYARIX_COMPLETE={shell}_source siyarix)\"",
+        f'Or run: eval "$(_SIYARIX_COMPLETE={shell}_source siyarix)"',
         file=sys.stderr,
     )
+
 
 theme_app = typer.Typer(help="🎨 Theme customization")
 app.add_typer(theme_app, name="theme")
@@ -811,7 +821,9 @@ def scan(
             target_file = Path(t[1:])
             if target_file.exists():
                 lines = [
-                    line.strip() for line in target_file.read_text(encoding='utf-8').splitlines() if line.strip()
+                    line.strip()
+                    for line in target_file.read_text(encoding="utf-8").splitlines()
+                    if line.strip()
                 ]
                 expanded_targets.extend(lines)
                 console.print(f"[dim]Loaded {len(lines)} targets from {target_file}[/dim]")
@@ -937,7 +949,7 @@ def discover(
     if export and result.all_findings:
         import json
 
-        Path(export).write_text(json.dumps(result.all_findings, indent=2), encoding='utf-8')
+        Path(export).write_text(json.dumps(result.all_findings, indent=2), encoding="utf-8")
         console.print(f"[dim]Findings exported to {export}[/dim]")
 
 
@@ -1046,10 +1058,11 @@ def run(
         if save and result.all_findings:
             try:
                 from ..offline_store import OfflineStore
+
                 store = OfflineStore()
                 store.save_scan(instruction, result.all_findings, mode=route.mode)
             except Exception:
-                pass
+                logger.warning("Failed to persist scan results", exc_info=True)
     else:
         engine = _get_engine(route.mode)
         result = asyncio.run(
@@ -1129,9 +1142,15 @@ def agent(
     if stealth or settings.get("stealth_mode"):
         agent.stealth.enable("medium")
 
-    asyncio.run(agent.initialize())
-    agent_goal = AgentGoal(description=goal, target=target)
-    asyncio.run(agent.execute_goal(agent_goal))
+    async def _run_agent() -> None:
+        await agent.start()
+        try:
+            agent_goal = AgentGoal(description=goal, target=target)
+            await agent.execute_goal(agent_goal)
+        finally:
+            await agent.shutdown()
+
+    asyncio.run(_run_agent())
 
 
 # ---------------------------------------------------------------------------
@@ -1186,7 +1205,7 @@ def metrics_show(
     if data:
         console.print(data)
         if export:
-            Path(export).write_text(data, encoding='utf-8')
+            Path(export).write_text(data, encoding="utf-8")
         return
 
     # Table output
@@ -1295,7 +1314,7 @@ def report(
         for evt in events[-20:]:
             lines.append(json.dumps(evt, indent=2))
 
-    Path(output).write_text("\n".join(lines), encoding='utf-8')
+    Path(output).write_text("\n".join(lines), encoding="utf-8")
     console.print(f"[green]✓ Report generated: {output}[/green]")
 
 
@@ -1573,6 +1592,7 @@ def config_set(
         console.print(f"[green]✓ {key} = {new_val}[/green]")
         if key == "log_level":
             from siyarix.logging_config import configure_logging
+
             configure_logging(new_val)
     except (KeyError, ValueError) as exc:
         console.print(f"[red]Error: {exc}[/red]")
@@ -1614,17 +1634,34 @@ def config_reset(key: str = typer.Argument(default="", help="Key to reset (empty
 # ---------------------------------------------------------------------------
 @app.command("report")
 def generate_report(
-    output: str = typer.Option(None, "--output", "-o", help="Output path for the HTML report"),
+    output: str = typer.Option(None, "--output", "-o", help="Output path for the report"),
+    fmt: str = typer.Option("html", "--format", "-f", help="Format: html|markdown|json|sarif"),
 ) -> None:
-    """Generate an HTML security assessment report from the knowledge graph."""
-    from siyarix.reporting import ReportEngine
-    from siyarix.core import AgentCore, AgentMode
+    """Generate a security assessment report from the knowledge graph."""
+    from ..core import AgentCore, AgentMode
+    from ..report import ReportEngine, ReportFormat
 
-    core = AgentCore(mode=AgentMode.AUTONOMOUS)
-    engine = ReportEngine(core._knowledge_graph)
+    core = AgentCore(mode=AgentMode.REGISTRY)
 
-    path = engine.generate_html_report(output)
-    console.print(f"[bold green]Report generated successfully:[/bold green] {path}")
+    async def _run() -> None:
+        await core.start()
+        try:
+            engine = ReportEngine()
+            report = engine.build_report_from_kg(core._knowledge_graph)
+            fmt_map = {
+                "html": ReportFormat.HTML,
+                "markdown": ReportFormat.MARKDOWN,
+                "json": ReportFormat.JSON,
+                "sarif": ReportFormat.SARIF,
+            }
+            out_path = engine.save(report, Path(output or "siyarix_report"), fmt_map.get(fmt, ReportFormat.HTML))
+            console.print(f"[bold green]Report generated successfully:[/bold green] {out_path}")
+        finally:
+            await core.shutdown()
+
+    import asyncio
+    asyncio.run(_run())
+
 
 # ---------------------------------------------------------------------------
 # TUI command
@@ -1652,11 +1689,13 @@ def tui() -> None:
 
     asyncio.run(_run_tui())
 
+
 # ---------------------------------------------------------------------------
 # Compliance commands
 # ---------------------------------------------------------------------------
 compliance_app = typer.Typer(help="Compliance evidence collection and assessment.")
 app.add_typer(compliance_app, name="compliance")
+
 
 @compliance_app.command("run")
 def compliance_run(
@@ -1673,18 +1712,22 @@ def compliance_run(
         console.print(f"[green]Starting {framework} compliance assessment for {target}...[/green]")
         try:
             report = await engine.run_assessment(framework, target)
-            console.print(f"[green]Assessment complete! Evidence saved to {report.evidence_path}[/green]")
+            console.print(
+                f"[green]Assessment complete! Evidence saved to {report.evidence_path}[/green]"
+            )
         except Exception as e:
             console.print(f"[red]Assessment failed: {e}[/red]")
             raise typer.Exit(1)
 
     asyncio.run(_run())
 
+
 # ---------------------------------------------------------------------------
 # Playbook commands
 # ---------------------------------------------------------------------------
 playbook_app = typer.Typer(help="Manage and run YAML playbooks.")
 app.add_typer(playbook_app, name="playbook")
+
 
 @playbook_app.command("run")
 def playbook_run(
@@ -1709,11 +1752,12 @@ def playbook_run(
     async def _run() -> None:
         await core.start()
         try:
-            await engine.execute(path, variables, executor=core.executor)
+            await engine.execute(path, variables)
         finally:
             await core.shutdown()
 
     asyncio.run(_run())
+
 
 @playbook_app.command("list")
 def playbook_list(
@@ -1727,6 +1771,7 @@ def playbook_list(
     for f in p.glob("*.yml"):
         console.print(f"- {f.name}")
 
+
 @playbook_app.command("validate")
 def playbook_validate(
     path: str = typer.Argument(..., help="Path to playbook YAML file"),
@@ -1734,6 +1779,7 @@ def playbook_validate(
     """Validate a YAML playbook."""
     from siyarix.playbook import PlaybookEngine
     from siyarix.workflow import WorkflowEngine
+
     engine = PlaybookEngine(WorkflowEngine())
     try:
         engine.load(path)
@@ -1741,6 +1787,7 @@ def playbook_validate(
     except Exception as e:
         console.print(f"[red]Playbook validation failed: {e}[/red]")
         raise typer.Exit(1)
+
 
 # ---------------------------------------------------------------------------
 # Serve command
@@ -1764,6 +1811,7 @@ def serve(
         uvicorn.run("siyarix.api.server:app", host=host, port=port, reload=True)
     else:
         uvicorn.run(api_app, host=host, port=port)
+
 
 # ---------------------------------------------------------------------------
 # Version command

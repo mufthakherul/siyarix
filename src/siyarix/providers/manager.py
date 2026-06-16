@@ -112,7 +112,10 @@ class ProviderManager:
     def _classify_by_http_status(status: int | None) -> FailoverReason | None:
         """Classify error by HTTP status code.
 
-        OpenClaw pattern: classifyFailoverClassificationFromHttpStatus().
+        Maps HTTP status codes to failover reasons:
+          402 → BILLING, 429 → RATE_LIMIT, 401/403 → AUTH,
+          408 → TIMEOUT, 404 → MODEL_NOT_FOUND, 500/502/503/504 → SERVER_ERROR,
+          529 → SERVER_ERROR, 400/422 → AUTH.
         """
         if status is None:
             return None
@@ -140,8 +143,8 @@ class ProviderManager:
     def _classify_by_message(message: str) -> tuple[FailoverReason | None, bool]:
         """Classify error by message text patterns.
 
-        OpenClaw pattern: classifyFailoverClassificationFromMessage() + failover-matches.ts.
-        Returns (reason, should_rotate_credential).
+        Scans error messages for keywords (e.g. "rate limit", "billing",
+        "timeout") and returns (reason, should_rotate_credential).
         """
         msg = message.lower()
         if "401" in msg or "403" in msg or "unauthorized" in msg or "invalid api key" in msg:
@@ -169,7 +172,8 @@ class ProviderManager:
     ) -> ClassifiedError:
         """Multi-pass error classification with HTTP status + message patterns.
 
-        OpenClaw pattern: three-route classification (status → code → message).
+        Three-route classification: HTTP status code first, then message
+        text patterns, with credential rotation hints for auth/billing failures.
         """
         reason = self._classify_by_http_status(http_status)
         rotate = False
@@ -258,8 +262,8 @@ class ProviderManager:
     def resolve_model_id(self, provider: str, model_id: str) -> str:
         """Normalize a model ID using provider-specific aliases.
 
-        OpenClaw pattern: provider-model-id-normalization.ts.
-        Falls back to model_id if no normalization applies.
+        Applies per-provider normalization (e.g. "gpt-4" → "gpt-4-turbo"
+        for certain providers). Falls back to model_id if no normalization applies.
         """
         return normalize_model_id(provider, model_id)
 

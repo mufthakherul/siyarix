@@ -2,7 +2,7 @@
 """Generic local provider utilities: model listing, enrichment, pull.
 
 Supports all local providers (ollama, lmstudio, llamacpp, vllm, localai)
-with a unified interface. Patterns adapted from OpenClaw (Apache 2.0):
+with a unified interface. Patterns adapted from production-grade toolkits:
   - Provider-specific model listing + enrichment
   - On-demand model pull (Ollama only)
   - SSRF-safe HTTP helpers
@@ -82,7 +82,8 @@ PROVIDER_DEFAULTS: dict[str, dict[str, Any]] = {
 def _is_safe_url(url: str) -> bool:
     """Allow only http://localhost, 127.0.0.1, ::1, and private IPs.
 
-    OpenClaw pattern: hostname allowlist + private network allowance.
+    SSRF guard: hostname allowlist rejects external/public IPs to prevent
+    Server-Side Request Forgery attacks via local-provider model URLs.
     """
     from urllib.parse import urlparse
 
@@ -165,7 +166,8 @@ def resolve_provider_url(provider: str, base_url: str | None = None) -> str:
 def is_reasoning_model(model_name: str) -> bool:
     """Detect reasoning models by name heuristic.
 
-    OpenClaw pattern: isReasoningModelHeuristic().
+    Matches substrings like r1, qwq, thinking, reason, think
+    to identify models that emit extended reasoning tokens.
     """
     return bool(re.search(r"r1|qwq|reasoning|think|reason", model_name, re.IGNORECASE))
 
@@ -458,7 +460,8 @@ def discover_provider_models(
 def _parse_num_ctx(parameters: Any) -> int | None:
     """Extract num_ctx from Modelfile parameters string.
 
-    OpenClaw pattern: parseOllamaNumCtxParameter().
+    Parses the Modelfile's PARAMETER line to get the context window size
+    that the model was created with (e.g., "num_ctx 4096").
     """
     if not isinstance(parameters, str) or not parameters.strip():
         return None
@@ -480,9 +483,8 @@ def pull_model(
 ) -> tuple[bool, str]:
     """Pull a model for providers that support it (Ollama only for now).
 
-    OpenClaw pattern: pullOllamaModelCore() with streaming NDJSON.
-
-    Returns (ok: bool, message: str).
+    Streams NDJSON pull progress from Ollama's API and reports status
+    via the optional on_status callback. Returns (ok: bool, message: string).
     """
     provider = provider.lower()
     if provider != "ollama":
@@ -555,8 +557,8 @@ def ensure_model_pulled(
 ) -> bool:
     """Check if model exists; pull if missing (Ollama only).
 
-    OpenClaw pattern: ensureOllamaModelPulled().
-    Returns True if model is available.
+    Lists local models and triggers a pull if the requested model is not
+    found. Returns True if model is available.
     """
     provider = provider.lower()
     models = list_provider_models(provider, base_url)

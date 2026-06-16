@@ -595,28 +595,28 @@ class RegistryPlanner:
                 elif intent.parameters.get("ports"):
                     flags += f"-p {intent.parameters['ports']} "
                 else:
-                        flags += "--top-ports 100 "
+                    flags += "--top-ports 100 "
 
-                    if intent.parameters.get("verbose"):
-                        flags += "-v "
-                    if intent.parameters.get("timeout"):
-                        flags += f"--host-timeout {intent.parameters['timeout']} "
-                    if intent.parameters.get("format") == "xml":
-                        flags += "-oX - "
+                if intent.parameters.get("verbose"):
+                    flags += "-v "
+                if intent.parameters.get("timeout"):
+                    flags += f"--host-timeout {intent.parameters['timeout']} "
+                if intent.parameters.get("format") == "xml":
+                    flags += "-oX - "
 
-                elif actual_tool == "nuclei":
-                    if intent.parameters.get("severity"):
-                        flags += f"-s {intent.parameters['severity']} "
-                    if intent.parameters.get("format") == "json":
-                        flags += "-json-export "
-                    if intent.parameters.get("timeout"):
-                        flags += f"-timeout {intent.parameters['timeout'].replace('s', '')} "
+            elif actual_tool == "nuclei":
+                if intent.parameters.get("severity"):
+                    flags += f"-s {intent.parameters['severity']} "
+                if intent.parameters.get("format") == "json":
+                    flags += "-json-export "
+                if intent.parameters.get("timeout"):
+                    flags += f"-timeout {intent.parameters['timeout'].replace('s', '')} "
 
-                elif actual_tool in ("ffuf", "gobuster"):
-                    if intent.parameters.get("timeout"):
-                        flags += f"-t {intent.parameters['timeout'].replace('s', '')} "
-                    if intent.parameters.get("format") == "json":
-                        flags += "-o result.json -of json "
+            elif actual_tool in ("ffuf", "gobuster"):
+                if intent.parameters.get("timeout"):
+                    flags += f"-t {intent.parameters['timeout'].replace('s', '')} "
+                if intent.parameters.get("format") == "json":
+                    flags += "-o result.json -of json "
 
                 if flags:
                     args["flags"] = flags.strip()

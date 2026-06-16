@@ -1615,33 +1615,6 @@ def generate_report(
 
 
 # ---------------------------------------------------------------------------
-# TUI command
-# ---------------------------------------------------------------------------
-@app.command()
-def tui() -> None:
-    """Start the Siyarix Textual Terminal User Interface."""
-    try:
-        from siyarix.tui.app import SiyarixTUI
-        from siyarix.core import AgentCore, AgentMode
-        import asyncio
-    except ImportError:
-        console.print("[red]Textual not installed. Run: pip install siyarix\\[cli][/red]")
-        sys.exit(1)
-
-    core = AgentCore(mode=AgentMode.AUTONOMOUS)
-
-    async def _run_tui() -> None:
-        await core.start()
-        app = SiyarixTUI(core=core)
-        try:
-            await app.run_async()
-        finally:
-            await core.shutdown()
-
-    asyncio.run(_run_tui())
-
-
-# ---------------------------------------------------------------------------
 # Compliance commands
 # ---------------------------------------------------------------------------
 compliance_app = typer.Typer(help="Compliance evidence collection and assessment.")

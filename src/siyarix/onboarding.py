@@ -789,7 +789,7 @@ class OnboardingWizard:
 
         install_choices = {}
         for exe, pkg, desc in missing:
-            want = Confirm.ask(f"  Install [cyan]{exe}[/cyan]? ({desc})", default=False)
+            want = Confirm.ask(f"  Install [cyan]{exe}[/cyan]? ({desc})", default=True)
             if want:
                 install_choices[exe] = pkg
 
@@ -1572,7 +1572,7 @@ class OnboardingWizard:
         self._console.print(f"[yellow]{len(missing)} specialized tool(s) not found.[/yellow]")
         install_choices = {}
         for exe, pkg, desc in missing:
-            want = Confirm.ask(f"  Install [cyan]{exe}[/cyan]? ({desc})", default=False)
+            want = Confirm.ask(f"  Install [cyan]{exe}[/cyan]? ({desc})", default=True)
             if want:
                 install_choices[exe] = pkg
 
@@ -1898,7 +1898,7 @@ class OnboardingWizard:
             self._console.print()
 
         # ── Shell completion + PATH setup ──────────────────────────────
-        if Confirm.ask("Set up shell completions and add Siyarix to PATH?", default=False):
+        if Confirm.ask("Set up shell completions and add Siyarix to PATH?", default=True):
             await self._step_shell_setup()
 
         # ── Write marker + settings ─────────────────────────────────────

@@ -19,6 +19,7 @@ from .console import console
 if TYPE_CHECKING:
     from ..config import SettingsStore
     from ..providers.state import ProviderStateManager
+    from ..providers.usage import UsageTracker
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ class LLMEngineMixin:
         _settings: SettingsStore
         _mode: str
         _provider_state: ProviderStateManager
+        _usage_tracker: UsageTracker
         _print_assistant: Any
         _llm_calls: int
         SYSTEM_REFRESH_INTERVAL: int
@@ -540,7 +542,26 @@ class LLMEngineMixin:
         # OpenClaw pattern: no separate ping — check reachability via
         # model listing, then proceed directly to the real chat request.
         if api_key or provider_name in ("ollama", "lmstudio", "llamacpp", "vllm", "localai"):
-            llm_call_fn = self._make_llm_call(provider_name, api_key or "")
+            raw_llm_call = self._make_llm_call(provider_name, api_key or "")
+
+            # Wrap it to capture token counts from non-streaming responses
+            async def llm_call_fn(system_prompt: str, user_prompt: str, **kwargs: Any) -> Any:
+                result = await raw_llm_call(system_prompt, user_prompt, **kwargs)
+                if not kwargs.get("stream") and isinstance(result, dict):
+                    nonlocal total_input_tokens
+                    nonlocal total_output_tokens
+                    inp = result.get("input_tokens", 0)
+                    out = result.get("output_tokens", 0)
+                    total_input_tokens += inp
+                    total_output_tokens += out
+                    if inp or out:
+                        self._usage_tracker.record_call(
+                            provider=provider_name or "unknown",
+                            model=result.get("model", "unknown"),
+                            input_tokens=inp,
+                            output_tokens=out,
+                        )
+                return result
             if provider_name in ("ollama", "lmstudio", "llamacpp", "vllm", "localai"):
                 if self._check_local_provider_running(provider_name):
                     llm_connected = True

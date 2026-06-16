@@ -100,6 +100,7 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
+ignore = ["S603", "S607"]
 per-file-ignores = {"tests/*" = ["E741"]}
 
 [tool.mypy]

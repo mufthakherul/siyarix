@@ -14,7 +14,6 @@ from ..registry import ToolRegistry
 from ..planner import Planner, ExecutionPlan, PlanStatus, StepStatus, PlanStep
 from ..planner_registry import RegistryPlanner
 from ..planner_autonomous import AutonomousPlanner
-from ..executor import BaseExecutor
 from ..executor_registry import RegistryExecutor
 from ..executor_autonomous import AutonomousExecutor
 from ..validators import Validator, RecoveryAction
@@ -116,16 +115,18 @@ class AgentCore:
 
         try:
             from siyarix.plugins.loader import PluginLoader
+
             plugin_loader = PluginLoader(self._registry, self._providers)
             plugin_loader.load_all()
         except Exception as e:
-            logger.warning(f"Failed to initialize plugin loader: {e}")
+            logger.warning("Failed to initialize plugin loader: %s", e)
 
         try:
             from siyarix.notifications import NotificationDispatcher
+
             self._notifications = NotificationDispatcher()
         except Exception as e:
-            logger.warning(f"Failed to initialize notifications: {e}")
+            logger.warning("Failed to initialize notifications: %s", e)
 
         self._history: list[AgentResult] = []
         self._kg_path = get_config_dir() / "knowledge_graph.json"
@@ -190,13 +191,16 @@ class AgentCore:
     async def _check_budget(self) -> None:
         record = self._usage_tracker.session_totals()
         if record.total_tokens >= self._max_tokens_per_session:
-            raise BudgetExceededError(f"Session token limit {self._max_tokens_per_session} reached.")
+            raise BudgetExceededError(
+                f"Session token limit {self._max_tokens_per_session} reached."
+            )
         if record.estimated_cost_usd >= self._max_cost_usd:
             raise BudgetExceededError(f"Session cost limit ${self._max_cost_usd:.2f} reached.")
 
     async def start(self) -> None:
         import signal
         import asyncio
+
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):
             try:
@@ -214,7 +218,7 @@ class AgentCore:
                 self._stealth.enable()
                 logger.info("Stealth mode active")
             except ImportError:
-                pass
+                logger.warning("Stealth dependencies not available", exc_info=True)
 
         await self.initialize()
 
@@ -226,6 +230,7 @@ class AgentCore:
                 return {"status": "success", "findings": len(res.findings)}
             except Exception as e:
                 return {"status": "error", "error": str(e)}
+
         self._executor_registry.register_executor("_subagent", _subagent_handler)
 
     async def shutdown(self) -> None:
@@ -234,7 +239,7 @@ class AgentCore:
         await self._executor_autonomous.close(timeout=5.0)
         self._kg_path.parent.mkdir(parents=True, exist_ok=True)
         self._knowledge_graph.save_json(str(self._kg_path))
-        if hasattr(self._providers, '_state') and hasattr(self._providers._state, 'save'):
+        if hasattr(self._providers, "_state") and hasattr(self._providers._state, "save"):
             self._providers._state.save()
         logger.info("Shutdown complete.")
 
@@ -306,6 +311,7 @@ class AgentCore:
                 if old_status != s.status.value:
                     step_progress[step_id] = s.status.value
                     from ..events import emit_sync
+
                     emit_sync(
                         Event(
                             type=EventType.PLAN_STEP_START
@@ -344,17 +350,25 @@ class AgentCore:
             await self._check_budget()
             if plan is None:
                 from ..config import SettingsStore
+
                 _settings = SettingsStore()
                 _preferred = _settings.get("model_provider") or None
                 provider, model = self._providers.select_provider(preferred=_preferred)
 
-                async def llm_call(system_prompt: str, user_prompt: str, *, history: Any = None, **kwargs: Any) -> Any:
+                async def llm_call(
+                    system_prompt: str, user_prompt: str, *, history: Any = None, **kwargs: Any
+                ) -> Any:
                     return await self._providers.complete(
                         provider, "", system_prompt, user_prompt, history=history, **kwargs
                     )
 
                 tool_schemas = [
-                    {"name": t.name, "description": t.description, "tags": t.tags, "category": getattr(t.category, 'value', str(t.category))}
+                    {
+                        "name": t.name,
+                        "description": t.description,
+                        "tags": t.tags,
+                        "category": getattr(t.category, "value", str(t.category)),
+                    }
                     for t in self._registry.list_tools()
                 ]
                 plan = await self._planner_autonomous.plan(
@@ -378,7 +392,9 @@ class AgentCore:
                     if recovery.action == RecoveryAction.RETRY and recovery.modified_step:
                         idx = plan.steps.index(step)
                         plan.steps[idx] = recovery.modified_step
-                        plan = await self._executor_autonomous.execute_plan(plan, live_display=False)
+                        plan = await self._executor_autonomous.execute_plan(
+                            plan, live_display=False
+                        )
                         break
 
             result.success = plan.status == PlanStatus.COMPLETED
@@ -397,14 +413,17 @@ class AgentCore:
         self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult
     ) -> AgentResult:
         """Hybrid mode: try AutonomousPlanner + AutonomousExecutor first, fall back to RegistryPlanner + RegistryExecutor."""
-        auto_result = await self._execute_autonomous(goal, plan, start, AgentResult(goal=goal.description))
+        auto_result = await self._execute_autonomous(
+            goal, plan, start, AgentResult(goal=goal.description)
+        )
         if auto_result.success:
             return auto_result
 
         logger.info("Autonomous execution failed, falling back to registry mode")
 
         completed_step_tools = {
-            s.tool for s in (auto_result.plan.steps if auto_result.plan else [])
+            s.tool
+            for s in (auto_result.plan.steps if auto_result.plan else [])
             if s.status == StepStatus.COMPLETED and s.tool
         }
 
@@ -416,7 +435,9 @@ class AgentCore:
                 err = s.result.get("error", "Unknown error") if s.result else "Unknown error"
                 failure_reasons.append(f"{s.tool or 'shell'} failed: {err}")
             if failure_reasons:
-                fallback_goal += f" (Previous autonomous failures to avoid: {'; '.join(failure_reasons)})"
+                fallback_goal += (
+                    f" (Previous autonomous failures to avoid: {'; '.join(failure_reasons)})"
+                )
 
         registry_plan = self._planner_registry.plan(
             fallback_goal, [t.name for t in self._registry.list_tools()]
@@ -425,7 +446,9 @@ class AgentCore:
             if step.tool in completed_step_tools:
                 step.status = StepStatus.SKIPPED
 
-        return await self._execute_registry(goal, registry_plan, start, AgentResult(goal=fallback_goal))
+        return await self._execute_registry(
+            goal, registry_plan, start, AgentResult(goal=fallback_goal)
+        )
 
     async def _execute_interactive(
         self, goal: AgentGoal, plan: ExecutionPlan | None, start: float, result: AgentResult
@@ -444,7 +467,7 @@ class AgentCore:
             print("--------------------\n")
 
             approval = input("Approve plan? [y/N]: ").strip().lower()
-            if approval != 'y':
+            if approval != "y":
                 result.success = False
                 result.summary = "Plan rejected by user."
                 return result
@@ -470,6 +493,7 @@ class AgentCore:
 
     def _extract_findings(self, plan: ExecutionPlan) -> list[dict[str, Any]]:
         import hashlib
+
         def _make_finding_hash(finding: dict) -> str:
             key_parts = [
                 finding.get("target", ""),
@@ -477,7 +501,9 @@ class AgentCore:
                 finding.get("cve", finding.get("title", "")),
                 finding.get("severity", ""),
             ]
-            return hashlib.md5("|".join(str(p).lower() for p in key_parts).encode(), usedforsecurity=False).hexdigest()
+            return hashlib.md5(
+                "|".join(str(p).lower() for p in key_parts).encode(), usedforsecurity=False
+            ).hexdigest()
 
         findings = []
         seen_keys: set[str] = set()
@@ -506,26 +532,34 @@ class AgentCore:
 
     def _ingest_finding_to_graph(self, finding: dict[str, Any], discovered_by: str) -> None:
         from ..knowledge_graph import NodeType, EdgeType
+
         target = finding.get("target", "")
         host_node = None
         if target:
             host_node = self._knowledge_graph.add_node(
-                NodeType.HOST, label=target, discovered_by=discovered_by,
-                ip=finding.get("ip", ""), hostname=finding.get("hostname", "")
+                NodeType.HOST,
+                label=target,
+                discovered_by=discovered_by,
+                ip=finding.get("ip", ""),
+                hostname=finding.get("hostname", ""),
             )
         if finding.get("cve") or finding.get("severity"):
             vuln_node = self._knowledge_graph.add_node(
-                NodeType.VULNERABILITY, label=finding.get("cve", finding.get("title", finding.get("description", "vuln"))),
-                severity=finding.get("severity", ""), cve=finding.get("cve", ""),
+                NodeType.VULNERABILITY,
+                label=finding.get("cve", finding.get("title", finding.get("description", "vuln"))),
+                severity=finding.get("severity", ""),
+                cve=finding.get("cve", ""),
                 discovered_by=discovered_by,
             )
             if host_node:
-                self._knowledge_graph.add_edge(host_node.node_id, vuln_node.node_id, EdgeType.HAS_VULN)
+                self._knowledge_graph.add_edge(
+                    host_node.node_id, vuln_node.node_id, EdgeType.HAS_VULN
+                )
 
-    def create_subagent(self, role: str, mode: AgentMode = AgentMode.AUTONOMOUS) -> 'AgentCore':
+    def create_subagent(self, role: str, mode: AgentMode = AgentMode.AUTONOMOUS) -> "AgentCore":
         subagent = AgentCore(mode=mode)
         subagent._knowledge_graph = self._knowledge_graph
-        logger.info(f"Created sub-agent with role: {role}")
+        logger.info("Created sub-agent with role: %s", role)
         return subagent
 
     async def execute_subagent(self, role: str, goal: str) -> AgentResult:

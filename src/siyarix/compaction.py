@@ -30,6 +30,7 @@ LlmCallable = Callable[..., Coroutine[Any, Any, dict[str, Any]]]
 # Types
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class CompactResult:
     ok: bool
@@ -53,6 +54,7 @@ class AssembleResult:
 # ---------------------------------------------------------------------------
 # Token estimation
 # ---------------------------------------------------------------------------
+
 
 def estimate_tokens(text: str) -> int:
     """Rough token estimation (4 chars per token)."""
@@ -211,6 +213,7 @@ async def summarize_with_fallback(
 @dataclass
 class TranscriptRewriteRequest:
     """Request to rewrite a portion of the transcript."""
+
     start_index: int = 0
     end_index: int = 0
     replacement: list[dict[str, Any]] = field(default_factory=list)
@@ -223,6 +226,7 @@ class TranscriptRewriteRequest:
 @dataclass
 class ContextEngineRuntime:
     """Runtime context passed to lifecycle hooks."""
+
     session_id: str = ""
     config: dict[str, Any] = field(default_factory=dict)
     settings: dict[str, Any] = field(default_factory=dict)
@@ -295,9 +299,7 @@ class CompactionEngine:
         """Process a new incoming message."""
         return []
 
-    async def after_turn(
-        self, transcript: list[dict[str, Any]]
-    ) -> list[TranscriptRewriteRequest]:
+    async def after_turn(self, transcript: list[dict[str, Any]]) -> list[TranscriptRewriteRequest]:
         """Called after each assistant turn. Opportunity to rewrite transcript."""
         _budget = self.prompt_budget
         total = estimate_messages_tokens(transcript)
@@ -308,10 +310,12 @@ class CompactionEngine:
                     TranscriptRewriteRequest(
                         start_index=0,
                         end_index=len(transcript),
-                        replacement=[{
-                            "role": "system",
-                            "content": f"[Compacted context]\n\n{result.summary}",
-                        }],
+                        replacement=[
+                            {
+                                "role": "system",
+                                "content": f"[Compacted context]\n\n{result.summary}",
+                            }
+                        ],
                         reason=result.reason,
                     )
                 ]
@@ -326,19 +330,17 @@ class CompactionEngine:
             requests.extend(await self.ingest(msg, runtime))
         return requests
 
-    async def prepare_subagent_spawn(
-        self, config: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    async def prepare_subagent_spawn(self, config: dict[str, Any]) -> dict[str, Any] | None:
         """Prepare context for a subagent spawn. Returns context info or None."""
         return None
 
-    async def on_subagent_ended(
-        self, result: dict[str, Any]
-    ) -> None:
+    async def on_subagent_ended(self, result: dict[str, Any]) -> None:
         """Called when a subagent finishes. Records the subagent result in compaction history."""
         summary = result.get("summary", result.get("output", str(result)[:200]))
         if self._runtime:
-            self._runtime.token_usage["context_tokens"] = self._runtime.token_usage.get("context_tokens", 0) + 1
+            self._runtime.token_usage["context_tokens"] = (
+                self._runtime.token_usage.get("context_tokens", 0) + 1
+            )
         self._compaction_history.append(
             CompactResult(
                 ok=result.get("status") == "success" if "status" in result else True,
@@ -474,6 +476,7 @@ class CompactionEngine:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _format_messages_for_summary(messages: list[dict[str, Any]]) -> str:
     """Format messages as a plain-text conversation for summarization."""
     parts = []
@@ -482,7 +485,9 @@ def _format_messages_for_summary(messages: list[dict[str, Any]]) -> str:
         content = msg.get("content", "")
         if isinstance(content, list):
             texts = [
-                b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text"
+                b.get("text", "")
+                for b in content
+                if isinstance(b, dict) and b.get("type") == "text"
             ]
             content = "\n".join(texts)
         parts.append(f"[{role.upper()}]\n{content}")
@@ -493,9 +498,8 @@ def _filter_oversized_messages(
     messages: list[dict[str, Any]], max_tokens_per_msg: int
 ) -> list[dict[str, Any]]:
     """Remove messages that exceed the per-message token budget."""
-    return [
-        m for m in messages if estimate_messages_tokens([m]) <= max_tokens_per_msg
-    ]
+    return [m for m in messages if estimate_messages_tokens([m]) <= max_tokens_per_msg]
+
 
 __all__ = [
     "MIN_PROMPT_BUDGET_TOKENS",

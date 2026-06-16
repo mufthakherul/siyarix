@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import functools
 import json
 import logging
@@ -13,11 +12,11 @@ from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from typing import Any
 
-from .events import Event, EventType, get_event_bus
+from .events import get_event_bus
 from .audit_log import audit, AuditEventType, AuditSeverity
 from .exceptions import PermissionDeniedError
 from .permission_gate import PermissionGate
-from .models import ExecutionPlan, PlanStep, StepStatus, PlanStatus
+from .models import ExecutionPlan, PlanStep
 from .worker_pool import AsyncWorkerPool
 
 logger = logging.getLogger(__name__)
@@ -36,11 +35,25 @@ StepExecutor = Callable[[PlanStep], Coroutine[Any, Any, dict[str, Any]]]
 # ---------------------------------------------------------------------------
 # Sensitive-value redaction
 # ---------------------------------------------------------------------------
-_SENSITIVE_KEYS: frozenset[str] = frozenset({
-    "password", "passwd", "secret", "token", "api_key", "apikey",
-    "auth", "authorization", "credential", "credentials", "private_key",
-    "access_key", "secret_key", "session_token", "cookie",
-})
+_SENSITIVE_KEYS: frozenset[str] = frozenset(
+    {
+        "password",
+        "passwd",
+        "secret",
+        "token",
+        "api_key",
+        "apikey",
+        "auth",
+        "authorization",
+        "credential",
+        "credentials",
+        "private_key",
+        "access_key",
+        "secret_key",
+        "session_token",
+        "cookie",
+    }
+)
 _SENSITIVE_RE = re.compile(
     r"(password|passwd|secret|token|api_key|apikey|auth|key|credential)",
     re.IGNORECASE,
@@ -60,15 +73,18 @@ def _redact_value(key: str, value: Any) -> str:
 # Lazy imports (cached)
 # ---------------------------------------------------------------------------
 
+
 @functools.lru_cache(maxsize=1)
 def _get_review_and_confirm() -> Callable[..., str | None]:
     from .shell_review import review_and_confirm
+
     return review_and_confirm
 
 
 @functools.lru_cache(maxsize=1)
 def _get_session_logger() -> Any:
     from .session_log import session_logger
+
     return session_logger
 
 
@@ -80,6 +96,7 @@ def _get_dlp_engine() -> Any:
     if _DLP_ENGINE is None:
         try:
             from .dlp import DLPEngine
+
             _DLP_ENGINE = DLPEngine(redact_secrets=True, redact_pii=True)
         except ImportError:
             logger.debug("DLPEngine not available, skipping redaction")
@@ -90,6 +107,7 @@ def _get_dlp_engine() -> Any:
 # ---------------------------------------------------------------------------
 # Shared data types
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class ExecutionBudget:
@@ -172,6 +190,7 @@ class ToolCallTracker:
 
     def __init__(self, config: GuardrailConfig | None = None) -> None:
         from .config import get_config_dir
+
         self._config = config or GuardrailConfig()
         self._failure_counts: dict[str, int] = {}
         self._consecutive_same: dict[str, int] = {}
@@ -200,12 +219,16 @@ class ToolCallTracker:
             return
         try:
             self._state_file.parent.mkdir(parents=True, exist_ok=True)
-            self._state_file.write_text(json.dumps({
-                "failure_counts": self._failure_counts,
-                "consecutive_same": self._consecutive_same,
-                "no_progress_count": self._no_progress_count,
-                "last_mutation": self._last_mutation,
-            }))
+            self._state_file.write_text(
+                json.dumps(
+                    {
+                        "failure_counts": self._failure_counts,
+                        "consecutive_same": self._consecutive_same,
+                        "no_progress_count": self._no_progress_count,
+                        "last_mutation": self._last_mutation,
+                    }
+                )
+            )
             self._dirty = False
         except Exception as exc:
             logger.warning("Failed to save tool failure state: %s", exc)
@@ -312,9 +335,7 @@ class BaseExecutor:
                         step.args["command"] = reviewed
                 self._log_safety(step.tool, command, "approved", gate_result.reason)
 
-    def _log_safety(
-        self, tool: str, command: str, action: str, reason: str = ""
-    ) -> None:
+    def _log_safety(self, tool: str, command: str, action: str, reason: str = "") -> None:
         logger.info("Permission: tool=%s action=%s reason=%s", tool, action, reason)
         try:
             _sl = _get_session_logger()
@@ -334,7 +355,9 @@ class BaseExecutor:
                     {"tool": tool, "command": command, "reason": reason, "action": action},
                 )
         except Exception:
-            logger.debug("Failed to record safety event for tool=%s action=%s", tool, action, exc_info=True)
+            logger.debug(
+                "Failed to record safety event for tool=%s action=%s", tool, action, exc_info=True
+            )
 
     # ── Lifecycle ─────────────────────────────────────────────────────────
 

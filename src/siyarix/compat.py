@@ -185,7 +185,6 @@ class ExecutionEngine:
         return {"mode": self._mode.value if hasattr(self._mode, "value") else str(self._mode)}
 
     async def plan(self, instruction: str) -> Any:
-        from .planner import Planner
         from .planner_registry import RegistryPlanner
 
         planner = RegistryPlanner()
@@ -206,9 +205,12 @@ class ExecutionEngine:
             mode=mode_map.get(self._mode, AgentMode.HYBRID),
             registry=self._registry,
         )
-        await agent.initialize()
-        agent_goal = AgentGoal(description=goal)
-        result = await agent.execute_goal(agent_goal)
+        await agent.start()
+        try:
+            agent_goal = AgentGoal(description=goal)
+            result = await agent.execute_goal(agent_goal)
+        finally:
+            await agent.shutdown()
         step_results = []
         plan_id = ""
         if result.plan:
@@ -228,12 +230,19 @@ class ExecutionEngine:
                 from .offline_store import OfflineStore
 
                 store = OfflineStore()
-                store.save_scan(goal, result.findings, mode=self._mode.value if hasattr(self._mode, "value") else str(self._mode), plan_id=plan_id)
+                store.save_scan(
+                    goal,
+                    result.findings,
+                    mode=self._mode.value if hasattr(self._mode, "value") else str(self._mode),
+                    plan_id=plan_id,
+                )
                 if result.plan:
                     step_dicts = [
                         {
                             "tool": s.tool,
-                            "status": s.status.value if hasattr(s.status, "value") else str(s.status),
+                            "status": s.status.value
+                            if hasattr(s.status, "value")
+                            else str(s.status),
                             "description": s.description,
                         }
                         for s in result.plan.steps
@@ -286,6 +295,7 @@ class IntentRouter:
                 mode="exploit", risk_tier=RiskTier("high"), requires_confirmation=True
             )
         return IntentRoute(mode="general", risk_tier=RiskTier("low"))
+
 
 __all__ = [
     "ExecutionMode",

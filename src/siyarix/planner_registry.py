@@ -6,7 +6,6 @@ from __future__ import annotations
 import logging
 import os
 import re
-import sys
 from typing import Any
 
 from .events import Event, EventType, emit_sync
@@ -16,24 +15,19 @@ from .models import (
     PlanStatus,
     PlanStep,
     PlanType,
-    StepResult,
     StepStatus,
-    StepType,
 )
 
 _IS_WIN = os.name == "nt"
 
 _COMMON_WORDLIST = (
-    r"C:\Tools\wordlists\dirb\common.txt" if _IS_WIN
-    else "/usr/share/wordlists/dirb/common.txt"
+    r"C:\Tools\wordlists\dirb\common.txt" if _IS_WIN else "/usr/share/wordlists/dirb/common.txt"
 )
 _USERNAME_WORDLIST = (
-    r"C:\Tools\wordlists\usernames.txt" if _IS_WIN
-    else "/usr/share/wordlists/usernames.txt"
+    r"C:\Tools\wordlists\usernames.txt" if _IS_WIN else "/usr/share/wordlists/usernames.txt"
 )
 _PASSWORD_WORDLIST = (
-    r"C:\Tools\wordlists\passwords.txt" if _IS_WIN
-    else "/usr/share/wordlists/passwords.txt"
+    r"C:\Tools\wordlists\passwords.txt" if _IS_WIN else "/usr/share/wordlists/passwords.txt"
 )
 
 logger = logging.getLogger(__name__)
@@ -67,8 +61,14 @@ class RegistryPlanner:
         self._plans: dict[str, ExecutionPlan] = {}
         self._nlp = NaturalLanguageParser()
         self._auto_dag_templates: set[str] = {
-            "recon_full", "web_audit", "network_scan", "cloud_audit",
-            "vuln_scan", "dns_recon", "full_audit", "smb_enum",
+            "recon_full",
+            "web_audit",
+            "network_scan",
+            "cloud_audit",
+            "vuln_scan",
+            "dns_recon",
+            "full_audit",
+            "smb_enum",
         }
         self._cron_path = "/etc/crontab" if os.name != "nt" else "C:\\Windows\\System32\\Tasks"
         self._templates: dict[str, list[dict[str, Any]]] = self._build_templates()
@@ -77,82 +77,264 @@ class RegistryPlanner:
     def _build_templates(self) -> dict[str, list[dict[str, Any]]]:
         return {
             "recon_full": [
-                {"description": "Full port scan with service/OS detection and default scripts", "tool": "nmap", "args": {"flags": "-sV -sC -T4"}},
-                {"description": "Web technology stack fingerprinting", "tool": "whatweb", "args": {}},
-                {"description": "Directory and file brute-force enumeration", "tool": "gobuster", "args": {"mode": "dir"}},
+                {
+                    "description": "Full port scan with service/OS detection and default scripts",
+                    "tool": "nmap",
+                    "args": {"flags": "-sV -sC -T4"},
+                },
+                {
+                    "description": "Web technology stack fingerprinting",
+                    "tool": "whatweb",
+                    "args": {},
+                },
+                {
+                    "description": "Directory and file brute-force enumeration",
+                    "tool": "gobuster",
+                    "args": {"mode": "dir"},
+                },
                 {"description": "Passive subdomain enumeration", "tool": "subfinder", "args": {}},
-                {"description": "Aggressive subdomain discovery via brute-force", "tool": "amass", "args": {}},
-                {"description": "Template-based vulnerability scan", "tool": "nuclei", "args": {"severity": "medium,high,critical"}},
+                {
+                    "description": "Aggressive subdomain discovery via brute-force",
+                    "tool": "amass",
+                    "args": {},
+                },
+                {
+                    "description": "Template-based vulnerability scan",
+                    "tool": "nuclei",
+                    "args": {"severity": "medium,high,critical"},
+                },
             ],
             "web_audit": [
-                {"description": "HTTP security headers and response analysis", "tool": "curl", "args": {"flags": "-sI"}},
-                {"description": "Web application technology fingerprinting", "tool": "whatweb", "args": {}},
-                {"description": "Template-based vulnerability scanning (medium+ severity)", "tool": "nuclei", "args": {"severity": "medium,high,critical"}},
-                {"description": "Content discovery and directory/file enumeration", "tool": "ffuf", "args": {"wordlist": "common.txt"}},
-                {"description": "WordPress-specific vulnerability scan", "tool": "wpscan", "args": {}},
+                {
+                    "description": "HTTP security headers and response analysis",
+                    "tool": "curl",
+                    "args": {"flags": "-sI"},
+                },
+                {
+                    "description": "Web application technology fingerprinting",
+                    "tool": "whatweb",
+                    "args": {},
+                },
+                {
+                    "description": "Template-based vulnerability scanning (medium+ severity)",
+                    "tool": "nuclei",
+                    "args": {"severity": "medium,high,critical"},
+                },
+                {
+                    "description": "Content discovery and directory/file enumeration",
+                    "tool": "ffuf",
+                    "args": {"wordlist": "common.txt"},
+                },
+                {
+                    "description": "WordPress-specific vulnerability scan",
+                    "tool": "wpscan",
+                    "args": {},
+                },
                 {"description": "Web server vulnerability scan", "tool": "nikto", "args": {}},
             ],
             "brute_force": [
-                {"description": "Target service discovery and version identification", "tool": "nmap", "args": {"flags": "-sV"}},
-                {"description": "Multi-protocol credential brute-force attack", "tool": "hydra", "args": {}},
-                {"description": "Offline hash cracking of captured credentials", "tool": "hashcat", "args": {}},
+                {
+                    "description": "Target service discovery and version identification",
+                    "tool": "nmap",
+                    "args": {"flags": "-sV"},
+                },
+                {
+                    "description": "Multi-protocol credential brute-force attack",
+                    "tool": "hydra",
+                    "args": {},
+                },
+                {
+                    "description": "Offline hash cracking of captured credentials",
+                    "tool": "hashcat",
+                    "args": {},
+                },
             ],
             "wifi_audit": [
-                {"description": "Wireless traffic capture and handshake collection", "tool": "aircrack-ng", "args": {"mode": "capture"}},
-                {"description": "WPA/WPA2 PSK handshake offline crack", "tool": "aircrack-ng", "args": {"mode": "crack"}},
+                {
+                    "description": "Wireless traffic capture and handshake collection",
+                    "tool": "aircrack-ng",
+                    "args": {"mode": "capture"},
+                },
+                {
+                    "description": "WPA/WPA2 PSK handshake offline crack",
+                    "tool": "aircrack-ng",
+                    "args": {"mode": "crack"},
+                },
             ],
             "network_scan": [
-                {"description": "Full TCP port sweep with high-rate discovery", "tool": "nmap", "args": {"flags": "-sT -T4 -p- --min-rate 1000"}},
-                {"description": "Service version detection on top 1000 ports", "tool": "nmap", "args": {"flags": "-sV -T4 --top-ports 1000"}},
-                {"description": "DNS record resolution and zone analysis", "tool": "dig", "args": {}},
-                {"description": "WHOIS registration and IP ownership lookup", "tool": "whois", "args": {}},
-                {"description": "Mass port scan for additional coverage", "tool": "masscan", "args": {"flags": "--rate 1000 --top-ports 100"}},
+                {
+                    "description": "Full TCP port sweep with high-rate discovery",
+                    "tool": "nmap",
+                    "args": {"flags": "-sT -T4 -p- --min-rate 1000"},
+                },
+                {
+                    "description": "Service version detection on top 1000 ports",
+                    "tool": "nmap",
+                    "args": {"flags": "-sV -T4 --top-ports 1000"},
+                },
+                {
+                    "description": "DNS record resolution and zone analysis",
+                    "tool": "dig",
+                    "args": {},
+                },
+                {
+                    "description": "WHOIS registration and IP ownership lookup",
+                    "tool": "whois",
+                    "args": {},
+                },
+                {
+                    "description": "Mass port scan for additional coverage",
+                    "tool": "masscan",
+                    "args": {"flags": "--rate 1000 --top-ports 100"},
+                },
             ],
             "cloud_audit": [
-                {"description": "HTTP security headers and CORS policy analysis", "tool": "curl", "args": {"flags": "-sI"}},
-                {"description": "Web application stack and framework detection", "tool": "whatweb", "args": {}},
-                {"description": "Full DNS record enumeration (A, AAAA, MX, TXT, NS, CNAME)", "tool": "dig", "args": {"flags": "ANY"}},
-                {"description": "SSL/TLS certificate chain and cipher suite validation", "tool": "openssl", "args": {"flags": "s_client -servername"}},
+                {
+                    "description": "HTTP security headers and CORS policy analysis",
+                    "tool": "curl",
+                    "args": {"flags": "-sI"},
+                },
+                {
+                    "description": "Web application stack and framework detection",
+                    "tool": "whatweb",
+                    "args": {},
+                },
+                {
+                    "description": "Full DNS record enumeration (A, AAAA, MX, TXT, NS, CNAME)",
+                    "tool": "dig",
+                    "args": {"flags": "ANY"},
+                },
+                {
+                    "description": "SSL/TLS certificate chain and cipher suite validation",
+                    "tool": "openssl",
+                    "args": {"flags": "s_client -servername"},
+                },
             ],
             "ad_assessment": [
-                {"description": "Domain controller critical port scan", "tool": "nmap", "args": {"flags": "-sT -sV -T4 -p 53,88,135,139,389,445,464,636,3268,3269,3389"}},
-                {"description": "SMB protocol version and dialect negotiation analysis", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-protocols"}},
-                {"description": "LDAP anonymous bind and root DSE information disclosure check", "tool": "nmap", "args": {"flags": "-sV -p 389 --script ldap-rootdse"}},
-                {"description": "Kerberos user enumeration attempt", "tool": "nmap", "args": {"flags": "-sV -p 88 --script krb5-enum-users"}},
+                {
+                    "description": "Domain controller critical port scan",
+                    "tool": "nmap",
+                    "args": {
+                        "flags": "-sT -sV -T4 -p 53,88,135,139,389,445,464,636,3268,3269,3389"
+                    },
+                },
+                {
+                    "description": "SMB protocol version and dialect negotiation analysis",
+                    "tool": "nmap",
+                    "args": {"flags": "-sV -p 445 --script smb-protocols"},
+                },
+                {
+                    "description": "LDAP anonymous bind and root DSE information disclosure check",
+                    "tool": "nmap",
+                    "args": {"flags": "-sV -p 389 --script ldap-rootdse"},
+                },
+                {
+                    "description": "Kerberos user enumeration attempt",
+                    "tool": "nmap",
+                    "args": {"flags": "-sV -p 88 --script krb5-enum-users"},
+                },
             ],
             "linux_privesc": [
-                {"description": "Kernel and OS version identification", "tool": "uname", "args": {"flags": "-a"}},
-                {"description": "SUID and SGID binary discovery", "tool": "find", "args": {"flags": "/ -perm -4000 -type f 2>/dev/null"}},
-                {"description": "World-writable directory search", "tool": "find", "args": {"flags": "/ -writable -type d 2>/dev/null"}},
-                {"description": "Scheduled task and cron job inspection", "tool": "cat", "args": {"flags": self._cron_path}},
+                {
+                    "description": "Kernel and OS version identification",
+                    "tool": "uname",
+                    "args": {"flags": "-a"},
+                },
+                {
+                    "description": "SUID and SGID binary discovery",
+                    "tool": "find",
+                    "args": {"flags": "/ -perm -4000 -type f 2>/dev/null"},
+                },
+                {
+                    "description": "World-writable directory search",
+                    "tool": "find",
+                    "args": {"flags": "/ -writable -type d 2>/dev/null"},
+                },
+                {
+                    "description": "Scheduled task and cron job inspection",
+                    "tool": "cat",
+                    "args": {"flags": self._cron_path},
+                },
             ],
             "vuln_scan": [
-                {"description": "Template-based vulnerability scan (all severities)", "tool": "nuclei", "args": {"severity": "low,medium,high,critical"}},
+                {
+                    "description": "Template-based vulnerability scan (all severities)",
+                    "tool": "nuclei",
+                    "args": {"severity": "low,medium,high,critical"},
+                },
                 {"description": "Web server vulnerability scan", "tool": "nikto", "args": {}},
                 {"description": "WordPress vulnerability scan", "tool": "wpscan", "args": {}},
-                {"description": "SQL injection scan", "tool": "sqlmap", "args": {"flags": "--batch --random-agent"}},
+                {
+                    "description": "SQL injection scan",
+                    "tool": "sqlmap",
+                    "args": {"flags": "--batch --random-agent"},
+                },
             ],
             "dns_recon": [
-                {"description": "DNS record enumeration (A, AAAA, MX, TXT, NS, CNAME, SOA)", "tool": "dig", "args": {}},
+                {
+                    "description": "DNS record enumeration (A, AAAA, MX, TXT, NS, CNAME, SOA)",
+                    "tool": "dig",
+                    "args": {},
+                },
                 {"description": "Passive subdomain discovery", "tool": "subfinder", "args": {}},
-                {"description": "Brute-force subdomain discovery via wordlist", "tool": "amass", "args": {}},
-                {"description": "WHOIS registration and domain ownership lookup", "tool": "whois", "args": {}},
+                {
+                    "description": "Brute-force subdomain discovery via wordlist",
+                    "tool": "amass",
+                    "args": {},
+                },
+                {
+                    "description": "WHOIS registration and domain ownership lookup",
+                    "tool": "whois",
+                    "args": {},
+                },
             ],
             "full_audit": [
-                {"description": "Full port scan with service and OS detection", "tool": "nmap", "args": {"flags": "-sV -sC -T4"}},
-                {"description": "HTTP security headers and response analysis", "tool": "curl", "args": {"flags": "-sI"}},
+                {
+                    "description": "Full port scan with service and OS detection",
+                    "tool": "nmap",
+                    "args": {"flags": "-sV -sC -T4"},
+                },
+                {
+                    "description": "HTTP security headers and response analysis",
+                    "tool": "curl",
+                    "args": {"flags": "-sI"},
+                },
                 {"description": "Web technology fingerprinting", "tool": "whatweb", "args": {}},
-                {"description": "Template-based vulnerability scan", "tool": "nuclei", "args": {"severity": "medium,high,critical"}},
-                {"description": "Directory and file enumeration", "tool": "gobuster", "args": {"mode": "dir"}},
+                {
+                    "description": "Template-based vulnerability scan",
+                    "tool": "nuclei",
+                    "args": {"severity": "medium,high,critical"},
+                },
+                {
+                    "description": "Directory and file enumeration",
+                    "tool": "gobuster",
+                    "args": {"mode": "dir"},
+                },
                 {"description": "DNS record enumeration", "tool": "dig", "args": {}},
                 {"description": "Subdomain discovery", "tool": "subfinder", "args": {}},
                 {"description": "WHOIS registration lookup", "tool": "whois", "args": {}},
             ],
             "smb_enum": [
-                {"description": "SMB port scan and service detection", "tool": "nmap", "args": {"flags": "-sV -p 445"}},
-                {"description": "SMB protocol version and dialect negotiation", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-protocols"}},
-                {"description": "SMB share enumeration", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-enum-shares"}},
-                {"description": "SMB OS discovery and security check", "tool": "nmap", "args": {"flags": "-sV -p 445 --script smb-os-discovery,smb-security-mode"}},
+                {
+                    "description": "SMB port scan and service detection",
+                    "tool": "nmap",
+                    "args": {"flags": "-sV -p 445"},
+                },
+                {
+                    "description": "SMB protocol version and dialect negotiation",
+                    "tool": "nmap",
+                    "args": {"flags": "-sV -p 445 --script smb-protocols"},
+                },
+                {
+                    "description": "SMB share enumeration",
+                    "tool": "nmap",
+                    "args": {"flags": "-sV -p 445 --script smb-enum-shares"},
+                },
+                {
+                    "description": "SMB OS discovery and security check",
+                    "tool": "nmap",
+                    "args": {"flags": "-sV -p 445 --script smb-os-discovery,smb-security-mode"},
+                },
             ],
         }
 
@@ -175,12 +357,14 @@ class RegistryPlanner:
                     if tool is None and hasattr(tool_registry, "_graph"):
                         tool = tool_registry._graph.get_tool(name)
                     if tool:
-                        tools_metadata.append({
-                            "name": tool.name,
-                            "description": getattr(tool, "description", ""),
-                            "tags": getattr(tool, "tags", []),
-                            "category": getattr(tool, "category", "")
-                        })
+                        tools_metadata.append(
+                            {
+                                "name": tool.name,
+                                "description": getattr(tool, "description", ""),
+                                "tags": getattr(tool, "tags", []),
+                                "category": getattr(tool, "category", ""),
+                            }
+                        )
                         for tag in getattr(tool, "tags", []):
                             self._add_to_index(tag.lower(), name)
                         desc = getattr(tool, "description", "")
@@ -190,11 +374,13 @@ class RegistryPlanner:
                                     self._add_to_index(word, name)
                 except Exception as exc:
                     logger.warning("Failed to get tool metadata for %s: %s", name, exc)
-                    
+
         # Train NLP Engine
         if tools_metadata:
             self._nlp.train_tools(tools_metadata)
-        templates_meta = {k: " ".join(step["description"] for step in v) for k, v in self._templates.items() if v}
+        templates_meta = {
+            k: " ".join(step["description"] for step in v) for k, v in self._templates.items() if v
+        }
         self._nlp.train_templates(templates_meta)
 
     def _add_to_index(self, keyword: str, tool_name: str) -> None:
@@ -243,11 +429,13 @@ class RegistryPlanner:
                         alt_found = alt
                         break
                 if alt_found:
-                    resolved.append({
-                        **step,
-                        "tool": alt_found,
-                        "description": f"{step['description']} (via {alt_found})",
-                    })
+                    resolved.append(
+                        {
+                            **step,
+                            "tool": alt_found,
+                            "description": f"{step['description']} (via {alt_found})",
+                        }
+                    )
                 elif not available_tools:
                     # If available_tools isn't strictly defined, assume it's available
                     resolved.append(step)
@@ -284,7 +472,8 @@ class RegistryPlanner:
             overrides = {"args": intent.parameters} if intent.parameters else None
             try:
                 plan = self.create_from_template(
-                    intent.template_name, target,
+                    intent.template_name,
+                    target,
                     overrides=overrides,
                     available_tools=avail_set,
                 )
@@ -308,7 +497,7 @@ class RegistryPlanner:
                 plan_steps.append(
                     PlanStep(
                         id=step_def.get("id", f"step_{i:03d}"),
-                        description=step_def.get("description", f"Step {i+1}"),
+                        description=step_def.get("description", f"Step {i + 1}"),
                         tool=step_def.get("tool", ""),
                         args=step_def.get("args", {}),
                         command=step_def.get("command"),
@@ -369,20 +558,20 @@ class RegistryPlanner:
     def decompose_goal(self, goal: str, available_tools: list[str] | None = None) -> ExecutionPlan:
         goal_lower = goal.lower()
         avail_set = set(available_tools or [])
-        
+
         # ── Step 0: NLP Semantic Intent Parsing ─────────────────────────
         intent = self._nlp.parse(goal)
         target = intent.target
-        
+
         # If NLP engine has high confidence in a template
         if intent.template_name and intent.confidence > 1.5:
             return self.create_from_template(
-                intent.template_name, 
-                target, 
-                overrides={"args": intent.parameters}, 
-                available_tools=avail_set
+                intent.template_name,
+                target,
+                overrides={"args": intent.parameters},
+                available_tools=avail_set,
             )
-            
+
         # If NLP engine has high confidence in a specific tool
         if intent.tool_name and intent.confidence > 1.5:
             actual_tool = intent.tool_name
@@ -394,50 +583,72 @@ class RegistryPlanner:
             if not available_tools or actual_tool in avail_set:
                 args = {"target": target}
                 flags = ""
-                
+
                 # Apply Semantic Parameters
                 if actual_tool in ("nmap", "masscan"):
-                    if intent.parameters.get("speed") == "fast": flags += "-T4 "
-                    elif intent.parameters.get("speed") == "stealth": flags += "-sS -T2 "
-                    else: flags += "-sT -T4 "
-                    
-                    if intent.parameters.get("ports") == "all": flags += "-p- "
-                    elif intent.parameters.get("ports"): flags += f"-p {intent.parameters['ports']} "
-                    else: flags += "--top-ports 100 "
-                    
-                    if intent.parameters.get("verbose"): flags += "-v "
-                    if intent.parameters.get("timeout"): flags += f"--host-timeout {intent.parameters['timeout']} "
-                    if intent.parameters.get("format") == "xml": flags += "-oX - "
-                    
+                    if intent.parameters.get("speed") == "fast":
+                        flags += "-T4 "
+                    elif intent.parameters.get("speed") == "stealth":
+                        flags += "-sS -T2 "
+                    else:
+                        flags += "-sT -T4 "
+
+                    if intent.parameters.get("ports") == "all":
+                        flags += "-p- "
+                    elif intent.parameters.get("ports"):
+                        flags += f"-p {intent.parameters['ports']} "
+                    else:
+                        flags += "--top-ports 100 "
+
+                    if intent.parameters.get("verbose"):
+                        flags += "-v "
+                    if intent.parameters.get("timeout"):
+                        flags += f"--host-timeout {intent.parameters['timeout']} "
+                    if intent.parameters.get("format") == "xml":
+                        flags += "-oX - "
+
                 elif actual_tool == "nuclei":
-                    if intent.parameters.get("severity"): flags += f"-s {intent.parameters['severity']} "
-                    if intent.parameters.get("format") == "json": flags += "-json-export "
-                    if intent.parameters.get("timeout"): flags += f"-timeout {intent.parameters['timeout'].replace('s', '')} "
-                
+                    if intent.parameters.get("severity"):
+                        flags += f"-s {intent.parameters['severity']} "
+                    if intent.parameters.get("format") == "json":
+                        flags += "-json-export "
+                    if intent.parameters.get("timeout"):
+                        flags += f"-timeout {intent.parameters['timeout'].replace('s', '')} "
+
                 elif actual_tool in ("ffuf", "gobuster"):
-                    if intent.parameters.get("timeout"): flags += f"-t {intent.parameters['timeout'].replace('s', '')} "
-                    if intent.parameters.get("format") == "json": flags += "-o result.json -of json "
-                
+                    if intent.parameters.get("timeout"):
+                        flags += f"-t {intent.parameters['timeout'].replace('s', '')} "
+                    if intent.parameters.get("format") == "json":
+                        flags += "-o result.json -of json "
+
                 if flags:
                     args["flags"] = flags.strip()
-                    
+
                 return self.create_plan(
                     goal=goal,
-                    steps=[{
-                        "description": f"Execute {actual_tool} on {target}",
-                        "tool": actual_tool,
-                        "args": args,
-                    }],
+                    steps=[
+                        {
+                            "description": f"Execute {actual_tool} on {target}",
+                            "tool": actual_tool,
+                            "args": args,
+                        }
+                    ],
                 )
 
         # ── Step 1: Match against named workflow templates ──────────────
         kw_map = [
             (("brute", "crack", "password", "credential"), "brute_force"),
             (("wifi", "wireless", "wpa"), "wifi_audit"),
-            (("ad ", "active directory", "domain controller", "kerberos", "ldap", "smb"), "ad_assessment"),
+            (
+                ("ad ", "active directory", "domain controller", "kerberos", "ldap", "smb"),
+                "ad_assessment",
+            ),
             (("cloud", "aws", "s3 ", "azure", "gcp"), "cloud_audit"),
             (("privesc", "privilege escalation", "root", "suid", "linux audit"), "linux_privesc"),
-            (("network scan", "infrastructure", "port scan", "full scan", "open ports"), "network_scan"),
+            (
+                ("network scan", "infrastructure", "port scan", "full scan", "open ports"),
+                "network_scan",
+            ),
             (("web", "website", "webapp", "web app", "cms"), "web_audit"),
             (("subdomain", "subdomain", "dns enum", "dnsrecon"), "recon_full"),
             (("vuln", "cve", "vulnerability", "exploit"), "vuln_scan"),
@@ -480,14 +691,16 @@ class RegistryPlanner:
         if tool_match:
             return self.create_plan(
                 goal=goal,
-                steps=[{
-                    "description": f"Execute {tool_match} on {target}",
-                    "tool": tool_match,
-                    "args": {
-                        "target": target,
-                        "flags": "-sT -T4 --top-ports 100" if tool_match == "nmap" else "",
-                    },
-                }],
+                steps=[
+                    {
+                        "description": f"Execute {tool_match} on {target}",
+                        "tool": tool_match,
+                        "args": {
+                            "target": target,
+                            "flags": "-sT -T4 --top-ports 100" if tool_match == "nmap" else "",
+                        },
+                    }
+                ],
             )
 
         # ── Step 4: Intent-based tool selection ─────────────────────────
@@ -523,11 +736,23 @@ class RegistryPlanner:
                 "recon": ("nmap", "Recon scan", "-sT -sV -T4 --top-ports 1000"),
                 "scan": ("nmap", "Quick scan", "-sT -T4 --top-ports 100"),
                 "explore": ("nmap", "Full scan", "-sT -sV -T4 --top-ports 1000"),
-                "stealth": ("nmap", "Stealth scan", "-sT -T2 --top-ports 100" if os.name == "nt" else "-sS -T2 --top-ports 100"),
+                "stealth": (
+                    "nmap",
+                    "Stealth scan",
+                    "-sT -T2 --top-ports 100" if os.name == "nt" else "-sS -T2 --top-ports 100",
+                ),
                 "ssl": ("nmap", "SSL/TLS check", "--script ssl-enum-ciphers -p 443"),
                 "tls": ("nmap", "SSL/TLS check", "--script ssl-enum-ciphers -p 443"),
-                "smb": ("nmap", "SMB enumeration", "--script smb-enum-shares,smb-os-discovery -p 445"),
-                "brute": ("hydra", "Brute force attack", f"-L {_USERNAME_WORDLIST} -P {_PASSWORD_WORDLIST}"),
+                "smb": (
+                    "nmap",
+                    "SMB enumeration",
+                    "--script smb-enum-shares,smb-os-discovery -p 445",
+                ),
+                "brute": (
+                    "hydra",
+                    "Brute force attack",
+                    f"-L {_USERNAME_WORDLIST} -P {_PASSWORD_WORDLIST}",
+                ),
                 "crack": ("hashcat", "Hash cracking", ""),
             }
             matched_keyword = None
@@ -544,27 +769,42 @@ class RegistryPlanner:
                             actual_tool = alt
                             break
                 if actual_tool in avail_set or not avail_set:
-                    clean_target = target.replace("https://", "").replace("http://", "").split("/")[0]
+                    clean_target = (
+                        target.replace("https://", "").replace("http://", "").split("/")[0]
+                    )
                     return self.create_plan(
                         goal=goal,
-                        steps=[{
-                            "description": desc + (f" (via {actual_tool})" if actual_tool != tool else ""),
-                            "tool": actual_tool,
-                            "args": {"target": clean_target, "flags": flags},
-                        }],
+                        steps=[
+                            {
+                                "description": desc
+                                + (f" (via {actual_tool})" if actual_tool != tool else ""),
+                                "tool": actual_tool,
+                                "args": {"target": clean_target, "flags": flags},
+                            }
+                        ],
                     )
 
             # ── Step 5: Category-aware probe fallback ───────────────────
             probe_groups = [
-                [("curl", "HTTP headers check", "-sIL"),
-                 ("whatweb", "Technology fingerprinting", ""),
-                 ("nuclei", "Quick vulnerability scan", "-t http -severity low,medium,high,critical"),
-                 ("gobuster", "Directory enumeration", f"dir -w {_COMMON_WORDLIST}")],
-                [("dig", "DNS enumeration", ""),
-                 ("subfinder", "Subdomain enumeration", ""),
-                 ("whois", "WHOIS lookup", "")],
-                [("nmap", "Port scan", "-sT -T4 --top-ports 100"),
-                 ("masscan", "Mass port scan", "--rate 1000 --top-ports 100")],
+                [
+                    ("curl", "HTTP headers check", "-sIL"),
+                    ("whatweb", "Technology fingerprinting", ""),
+                    (
+                        "nuclei",
+                        "Quick vulnerability scan",
+                        "-t http -severity low,medium,high,critical",
+                    ),
+                    ("gobuster", "Directory enumeration", f"dir -w {_COMMON_WORDLIST}"),
+                ],
+                [
+                    ("dig", "DNS enumeration", ""),
+                    ("subfinder", "Subdomain enumeration", ""),
+                    ("whois", "WHOIS lookup", ""),
+                ],
+                [
+                    ("nmap", "Port scan", "-sT -T4 --top-ports 100"),
+                    ("masscan", "Mass port scan", "--rate 1000 --top-ports 100"),
+                ],
             ]
             probe_steps = []
             last_step_id = None
@@ -577,15 +817,20 @@ class RegistryPlanner:
                                 actual_tool = alt
                                 break
                     if actual_tool in avail_set or not avail_set:
-                        clean_target = target.replace("https://", "").replace("http://", "").split("/")[0]
+                        clean_target = (
+                            target.replace("https://", "").replace("http://", "").split("/")[0]
+                        )
                         step_id = f"probe_{actual_tool}"
-                        probe_steps.append({
-                            "id": step_id,
-                            "description": desc + (f" (via {actual_tool})" if actual_tool != tool else ""),
-                            "tool": actual_tool,
-                            "args": {"target": clean_target, "flags": flags},
-                            "dependencies": [last_step_id] if last_step_id else [],
-                        })
+                        probe_steps.append(
+                            {
+                                "id": step_id,
+                                "description": desc
+                                + (f" (via {actual_tool})" if actual_tool != tool else ""),
+                                "tool": actual_tool,
+                                "args": {"target": clean_target, "flags": flags},
+                                "dependencies": [last_step_id] if last_step_id else [],
+                            }
+                        )
                         last_step_id = step_id
                         break
             if probe_steps:
@@ -594,15 +839,31 @@ class RegistryPlanner:
             return self.create_plan(goal=goal)
 
         goal_keywords = {
-            "scan", "recon", "audit", "check", "enum", "analyze", "analyse",
-            "explore", "map", "discover", "probe", "test", "hack", "pentest",
+            "scan",
+            "recon",
+            "audit",
+            "check",
+            "enum",
+            "analyze",
+            "analyse",
+            "explore",
+            "map",
+            "discover",
+            "probe",
+            "test",
+            "hack",
+            "pentest",
         }
         if any(kw in goal_lower.split() for kw in goal_keywords):
             return self.create_plan(
                 goal=goal,
                 steps=[
                     {"description": "Technology fingerprinting", "tool": "whatweb", "args": {}},
-                    {"description": "Port scan", "tool": "nmap", "args": {"flags": "-sT -T4 --top-ports 100"}},
+                    {
+                        "description": "Port scan",
+                        "tool": "nmap",
+                        "args": {"flags": "-sT -T4 --top-ports 100"},
+                    },
                 ],
             )
         return self.create_plan(goal=goal)
@@ -610,10 +871,22 @@ class RegistryPlanner:
     def adapt_plan(self, plan: ExecutionPlan, failed_step: PlanStep, error: str) -> ExecutionPlan:
         error_lower = error.lower()
         RECOVERY_RULES: list[tuple[str | None, str, Any]] = [
-            ("nmap", "filtered", lambda s: s.args.update({"flags": s.args.get("flags","") + " -Pn"})),
-            ("nmap", "permission", lambda s: s.args.update({"flags": s.args.get("flags","").replace("-sS","-sT")})),
+            (
+                "nmap",
+                "filtered",
+                lambda s: s.args.update({"flags": s.args.get("flags", "") + " -Pn"}),
+            ),
+            (
+                "nmap",
+                "permission",
+                lambda s: s.args.update({"flags": s.args.get("flags", "").replace("-sS", "-sT")}),
+            ),
             (None, "timeout", lambda s: s.args.update({"timeout": s.timeout * 1.5})),
-            ("gobuster|ffuf", "404", lambda s: s.args.update({"extensions": "php,html,js,txt,asp,aspx"})),
+            (
+                "gobuster|ffuf",
+                "404",
+                lambda s: s.args.update({"extensions": "php,html,js,txt,asp,aspx"}),
+            ),
             ("hydra", "invalid user", lambda s: s.args.update({"flags": "-e nsr"})),
             ("sqlmap", "not injectable", lambda s: s.args.update({"flags": "--level=3 --risk=2"})),
         ]
@@ -627,10 +900,12 @@ class RegistryPlanner:
                     return plan
         if "refused" in error_lower:
             failed_step.status = StepStatus.SKIPPED
-            plan.steps.append(PlanStep(
-                tool="nuclei",
-                args={"target": failed_step.args.get("target", "")},
-            ))
+            plan.steps.append(
+                PlanStep(
+                    tool="nuclei",
+                    args={"target": failed_step.args.get("target", "")},
+                )
+            )
             return plan
         if failed_step.can_retry:
             failed_step.status = StepStatus.PENDING

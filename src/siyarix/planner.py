@@ -171,7 +171,9 @@ class Planner:
         available_tools: set[str] | None = None,
     ) -> ExecutionPlan:
         """Backward-compatible wrapper — delegates to RegistryPlanner."""
-        return self._registry.create_from_template(template_name, target, overrides, available_tools)
+        return self._registry.create_from_template(
+            template_name, target, overrides, available_tools
+        )
 
     async def llm_decompose_goal(
         self,
@@ -217,7 +219,11 @@ class Planner:
         return self._registry.adapt_plan(plan, failed_step, error)
 
     def get_plan(self, plan_id: str) -> ExecutionPlan | None:
-        return self._registry.get_plan(plan_id) or self._autonomous.get_plan(plan_id) or self._plans.get(plan_id)
+        return (
+            self._registry.get_plan(plan_id)
+            or self._autonomous.get_plan(plan_id)
+            or self._plans.get(plan_id)
+        )
 
     def list_plans(self, status: PlanStatus | None = None) -> list[ExecutionPlan]:
         registry_plans = self._registry.list_plans(status)

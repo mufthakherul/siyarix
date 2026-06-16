@@ -1,129 +1,41 @@
-# Labeler configuration
-# Add to .github/labeler.yml
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Auto-label PRs based on changed file paths
 
-# CI/CD changes
-ci/cd:
-  - changed-files:
-      - any-glob-to-any-file:
-          - '.github/workflows/**'
-          - '.github/**'
-          - '*.yml'
-          - '*.yaml'
-          - 'Dockerfile'
-          - '.dockerignore'
-          - '.gitlab-ci.yml'
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'Makefile'
-          - 'tox.ini'
-          - 'noxfile.py'
-          - '.pre-commit-config.yaml'
+src/siyarix/**/*.py:
+  - core
 
-# Documentation
-documentation:
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'docs/**'
-          - '*.md'
-          - '*.rst'
-          - '*.txt'
-  - any-glob-to-any-file:
-      - 'examples/**/*.md'
+src/siyarix/providers/**/*.py:
+  - providers
 
-# Tests
-testing:
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'tests/**'
-          - 'test_*.py'
-          - '*_test.py'
-          - '**/conftest.py'
-          - '**/pytest.ini'
-          - '**/setup.cfg'
+src/siyarix/chat/**/*.py:
+  - chat
 
-# Code changes
-source:
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'src/**/*.py'
-          - 'siyarix/**/*.py'
-          - '!**/__pycache__/**'
-          - '!**/*.pyc'
+src/siyarix/cli/**/*.py:
+  - cli
 
-# Build/Package
-build:
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'pyproject.toml'
-          - 'setup.py'
-          - 'setup.cfg'
-          - 'requirements*.txt'
-          - 'poetry.lock'
-          - 'Pipfile*'
-          - '*.toml'
+src/siyarix/report/**/*.py:
+  - reporting
 
-# Config files
-config:
-  - changed-files:
-      - any-glob-to-any-file:
-          - '.editorconfig'
-          - '.gitignore'
-          - '.ruff*'
-          - '.flake8'
-          - 'mypy.ini'
-          - 'pytest.ini'
-          - '.bandit'
+src/siyarix/api/**/*.py:
+  - api
 
-# Security related
-security:
-  - changed-files:
-      - any-glob-to-any-file:
-          - '.github/workflows/security.yml'
-          - '**/security*'
-          - 'SECURITY.md'
+tests/**/*.py:
+  - testing
 
-# Scripts
-scripts:
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'scripts/**'
-          - 'bin/**'
-          - 'tools/**'
-          - '*.sh'
-          - '*.bash'
+docs/**/*.md:
+  - documentation
 
-# Examples
-examples:
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'examples/**'
-          - 'sample*'
+.github/**/*.yml:
+  - ci/cd
 
-# Package scripts
-packaging:
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'packages/**'
-          - 'homebrew/**'
-          - 'npm/**'
+Dockerfile:
+  - docker
 
-# Parsers
-parsers:
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'src/siyarix/parsers/**'
-          - '**/parser*.py'
+install.sh:
+  - installer
 
-# Engine
-engine:
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'src/siyarix/engine.py'
-          - 'src/siyarix/engine/**'
+install.ps1:
+  - installer
 
-# CLI
-cli:
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'src/siyarix/main.py'
-          - 'src/siyarix/cli/**'
+pyproject.toml:
+  - dependencies

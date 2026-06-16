@@ -48,7 +48,7 @@ class LLMEngineMixin:
         if self._session.target and self._session.target not in instruction:
             instruction = f"{instruction} on {self._session.target}"
 
-        await self._execute_instruction(instruction, show_plan=True)
+        await self._execute_instruction(instruction, target=self._session.target or "", show_plan=True)
 
     async def _execute_instruction(
         self,
@@ -127,8 +127,17 @@ class LLMEngineMixin:
             # Registry/offline mode: local response only (no LLM)
             if self._mode in ("registry", "offline"):
                 response = self._generate_text_response(instruction) or ""
-                if response:
-                    self._print_assistant(response)
+                if not response:
+                    response = (
+                        "I couldn't build a plan from your request. "
+                        "Try being more specific — for example:\n"
+                        "  •  **scan** example.com\n"
+                        "  •  **enumerate** example.com\n"
+                        "  •  **dns recon** on example.com\n"
+                        "  •  **port scan** 10.0.0.1\n\n"
+                        "Type **`/help`** to see all available commands."
+                    )
+                self._print_assistant(response)
             else:
                 prov_name, api_key = self._resolve_provider()
                 if prov_name and api_key:
@@ -227,9 +236,9 @@ class LLMEngineMixin:
         except Exception as exc:
             logger.debug("Adversarial review skipped: %s", exc)
 
-        # Execute with live output
+        # Execute with live output — pass plan so it's not discarded
         t0 = time.monotonic()
-        result = await engine.execute(instruction, interactive=False)
+        result = await engine.execute(instruction, plan=plan, interactive=False)
         elapsed = time.monotonic() - t0
 
         # Save to offline store

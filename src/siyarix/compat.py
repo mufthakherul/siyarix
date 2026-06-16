@@ -187,11 +187,16 @@ class ExecutionEngine:
     async def plan(self, instruction: str) -> Any:
         from .planner_registry import RegistryPlanner
 
+        if self._registry is not None:
+            self._registry.discover_from_path()
+            self._registry.scan_path()
+
         planner = RegistryPlanner()
         tools = [t.name for t in self._registry.list_tools()] if self._registry else []
+        planner.build_index(tools, tool_registry=self._registry)
         return planner.smart_plan(instruction, tools)
 
-    async def execute(self, goal: str, **kwargs: Any) -> EngineResult:
+    async def execute(self, goal: str, plan: Any = None, **kwargs: Any) -> EngineResult:
         from .core import AgentCore, AgentMode, AgentGoal
         from .models import StepResult
 
@@ -208,7 +213,7 @@ class ExecutionEngine:
         await agent.start()
         try:
             agent_goal = AgentGoal(description=goal)
-            result = await agent.execute_goal(agent_goal)
+            result = await agent.execute_goal(agent_goal, plan=plan)
         finally:
             await agent.shutdown()
         step_results = []
@@ -256,6 +261,7 @@ class ExecutionEngine:
             summary=result.summary,
             all_findings=result.findings,
             step_results=step_results,
+            duration_ms=result.duration_ms,
             plan_id=plan_id,
         )
 

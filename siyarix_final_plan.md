@@ -1524,7 +1524,7 @@ The project uses Conventional Commits (well documented in `CONTRIBUTING.md`) but
 ```bash
 pip install git-cliff
 # Configure cliff.toml with sections: feat, fix, security, perf, refactor, docs
-git cliff --tag v2.1.0 -o CHANGELOG.md
+git cliff --tag v3.0.0 -o CHANGELOG.md
 ```
 
 ---

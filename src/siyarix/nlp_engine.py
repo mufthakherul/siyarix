@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Natural Language Processing Engine for Offline Heuristic Planning.
 
-Provides advanced intent scoring, entity extraction, and semantic
-parameter extraction without heavy machine learning dependencies.
+Provides advanced intent scoring, entity extraction, semantic parameter
+extraction, and TF-IDF based keyword weighting without heavy machine learning dependencies.
 """
 
 from __future__ import annotations
@@ -10,14 +10,15 @@ from __future__ import annotations
 import re
 import math
 import difflib
+from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Set
+from typing import Any
 
 
 @dataclass
 class ParsedIntent:
     target: str = ""
-    target_type: str = ""  # e.g., 'url', 'ip', 'domain'
+    target_type: str = ""  # e.g., 'url', 'ipv4', 'domain', 'email', 'mac'
     tool_name: str | None = None
     template_name: str | None = None
     parameters: dict[str, Any] = field(default_factory=dict)
@@ -26,79 +27,81 @@ class ParsedIntent:
 
 
 class NaturalLanguageParser:
-    """A lightweight, zero-dependency NLP engine for intent mapping."""
+    """An advanced, zero-dependency NLP engine for intent mapping and semantic parsing."""
 
-    # Common English stopwords to filter out noise
-    STOPWORDS: Set[str] = {
-        "the",
-        "a",
-        "an",
-        "and",
-        "or",
-        "but",
-        "in",
-        "on",
-        "at",
-        "to",
-        "for",
-        "of",
-        "with",
-        "by",
-        "from",
-        "up",
-        "about",
-        "into",
-        "over",
-        "after",
-        "please",
-        "can",
-        "you",
-        "do",
-        "i",
-        "want",
-        "need",
-        "could",
-        "would",
-        "run",
-        "execute",
-        "perform",
-        "start",
-        "initiate",
-        "make",
-        "give",
-        "me",
-    }
+    # Comprehensive English stopwords to filter out noise
+    STOPWORDS: frozenset[str] = frozenset(
+        {
+            "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
+            "of", "with", "by", "from", "up", "about", "into", "over", "after",
+            "please", "can", "you", "do", "i", "want", "need", "could", "would",
+            "run", "execute", "perform", "start", "initiate", "make", "give", "me",
+            "show", "find", "get", "tell", "is", "are", "was", "were", "be", "been",
+            "have", "has", "had", "what", "which", "who", "where", "why", "how",
+            "all", "any", "some", "every", "just", "now", "then", "like",
+        }
+    )
 
     # Regex patterns for Entity Extraction
     PATTERNS = {
         "url": r"https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+[/\w\.-]*",
-        "ipv4": r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
+        "ipv4": r"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b",
+        "ipv6": r"\b(?:[A-Fa-f0-9]{1,4}:){7}[A-Fa-f0-9]{1,4}\b",
         "domain": r"\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b",
+        "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
+        "mac": r"\b(?:[0-9A-Fa-f]{2}[:-]){5}(?:[0-9A-Fa-f]{2})\b",
     }
 
     # Suffixes for lightweight stemming
-    SUFFIXES = ["ing", "ed", "s", "es", "ly", "tion", "ity"]
+    SUFFIXES = ["ing", "ed", "s", "es", "ly", "tion", "ity", "ment", "ness", "able", "ible"]
 
-    # Default Synonyms (can be customized by user config later)
+    # Default Synonyms mapped to canonical terms
     DEFAULT_SYNONYMS = {
         "bug": "vuln",
         "cve": "vuln",
         "exploit": "vuln",
         "hack": "vuln",
+        "weakness": "vuln",
+        "flaw": "vuln",
         "dirbust": "directory",
         "enum": "enumeration",
+        "discover": "recon",
         "subdomain": "recon",
         "passwords": "brute",
         "creds": "brute",
+        "credentials": "brute",
         "sql": "sqli",
+        "injection": "sqli",
+        "xss": "cross-site",
+        "mitm": "intercept",
+        "sniff": "intercept",
+        "phish": "social",
     }
 
     def __init__(self, custom_synonyms: dict[str, str] | None = None) -> None:
         self._tool_corpus: dict[str, list[str]] = {}
         self._template_corpus: dict[str, list[str]] = {}
+        
+        # IDF (Inverse Document Frequency) components
+        self._doc_frequencies: dict[str, int] = defaultdict(int)
+        self._total_docs: int = 0
+        
         self.synonyms = self.DEFAULT_SYNONYMS.copy()
         if custom_synonyms:
             self.synonyms.update(custom_synonyms)
+
+    def _recalculate_idf(self) -> None:
+        """Calculate document frequencies for IDF weighting."""
+        self._doc_frequencies.clear()
+        self._total_docs = len(self._tool_corpus) + len(self._template_corpus)
+        
+        for tokens in self._tool_corpus.values():
+            for t in set(tokens):
+                self._doc_frequencies[t] += 1
+                
+        for tokens in self._template_corpus.values():
+            for t in set(tokens):
+                self._doc_frequencies[t] += 1
 
     def train_tools(self, tools_metadata: list[dict[str, Any]]) -> None:
         """Feed tool descriptions to the parser to build semantic corpus."""
@@ -110,12 +113,14 @@ class NaturalLanguageParser:
             # Combine all semantic clues
             text = f"{name} {desc} {tags} {category}".lower()
             self._tool_corpus[name] = self.tokenize(text)
+        self._recalculate_idf()
 
     def train_templates(self, templates_metadata: dict[str, str]) -> None:
         """Feed workflow templates to the parser."""
         for name, desc in templates_metadata.items():
             text = f"{name.replace('_', ' ')} {desc}".lower()
             self._template_corpus[name] = self.tokenize(text)
+        self._recalculate_idf()
 
     def stem_word(self, word: str) -> str:
         """Lightweight Porter-style suffix stripping."""
@@ -156,28 +161,23 @@ class NaturalLanguageParser:
         return tokens
 
     def extract_entities(self, text: str) -> tuple[str, str]:
-        """Extract the primary target (URL, IP, or Domain)."""
-        # Try URL first
-        urls = re.findall(self.PATTERNS["url"], text)
-        if urls:
-            return urls[0], "url"
-
-        # Try IPv4
-        ips = re.findall(self.PATTERNS["ipv4"], text)
-        if ips:
-            return ips[0], "ipv4"
-
-        # Try Domain
-        domains = re.findall(self.PATTERNS["domain"], text)
-        # Filter out false positives like "e.g." or "v.1"
-        valid_domains = [d for d in domains if len(d) > 4]
-        if valid_domains:
-            return valid_domains[0], "domain"
+        """Extract the primary target (URL, IP, Domain, Email, MAC)."""
+        # Iterate over patterns in priority order
+        for entity_type, pattern in self.PATTERNS.items():
+            matches = re.findall(pattern, text)
+            if matches:
+                # For domains, filter out false positives like "e.g." or "v.1"
+                if entity_type == "domain":
+                    valid_matches = [m for m in matches if len(m) > 4 and not m.startswith("e.g")]
+                    if valid_matches:
+                        return valid_matches[0], entity_type
+                else:
+                    return matches[0], entity_type
 
         return "", ""
 
     def extract_parameters(self, text: str) -> dict[str, str]:
-        """Extract modifier arguments (speed, ports, stealth, time, format, severity)."""
+        """Extract modifier arguments (speed, ports, stealth, time, format, severity, wordlist)."""
         params = {}
         text_lower = text.lower()
 
@@ -188,7 +188,7 @@ class NaturalLanguageParser:
         elif "all ports" in text_lower or "full ports" in text_lower:
             params["ports"] = "all"
 
-        # Speed extraction
+        # Speed / Stealth extraction
         if any(word in text_lower for word in ["fast", "quick", "speedy", "rapid"]):
             params["speed"] = "fast"
         elif any(word in text_lower for word in ["stealth", "slow", "sneaky", "quiet", "evasive"]):
@@ -202,14 +202,17 @@ class NaturalLanguageParser:
             params["timeout"] = time_match.group(1)
 
         # Severity extraction (for vuln scanners)
-        if "critical" in text_lower and "high" in text_lower:
-            params["severity"] = "critical,high"
-        elif "critical" in text_lower:
-            params["severity"] = "critical"
-        elif "high" in text_lower:
-            params["severity"] = "high"
-        elif "medium" in text_lower:
-            params["severity"] = "medium"
+        severities = []
+        if "critical" in text_lower:
+            severities.append("critical")
+        if "high" in text_lower:
+            severities.append("high")
+        if "medium" in text_lower:
+            severities.append("medium")
+        if "low" in text_lower:
+            severities.append("low")
+        if severities:
+            params["severity"] = ",".join(severities)
 
         # Output Format extraction
         if "json" in text_lower:
@@ -225,11 +228,23 @@ class NaturalLanguageParser:
         elif "tcp" in text_lower:
             params["protocol"] = "tcp"
 
-        # Output extraction
-        if any(word in text_lower for word in ["verbose", "detail"]):
+        # Output verbosity
+        if any(word in text_lower for word in ["verbose", "detail", "detailed"]):
             params["verbose"] = "true"
+            
+        # Wordlist extraction
+        wordlist_match = re.search(r"\bwordlist\s*([a-zA-Z0-9_./\-]+)\b", text_lower)
+        if wordlist_match:
+            params["wordlist"] = wordlist_match.group(1)
 
         return params
+
+    def get_idf(self, token: str) -> float:
+        """Calculate Inverse Document Frequency for a token."""
+        df = self._doc_frequencies.get(token, 0)
+        if df == 0 or self._total_docs == 0:
+            return 1.0  # Unknown words have high IDF
+        return math.log(self._total_docs / (1 + df)) + 1.0
 
     def fuzzy_match(self, token: str, corpus_tokens: list[str]) -> bool:
         """Check if a token fuzzy-matches any corpus token using difflib."""
@@ -246,28 +261,35 @@ class NaturalLanguageParser:
     def score_intent(
         self, tokens: list[str], corpus: dict[str, list[str]]
     ) -> tuple[str | None, float]:
-        """Calculate Term Frequency similarity to find the best match."""
+        """Calculate TF-IDF style similarity to find the best matching intent."""
         best_match = None
         highest_score = 0.0
 
         for name, doc_tokens in corpus.items():
             score = 0.0
-            # BM25-style intersection scoring with fuzzy tolerance
+            
+            # Count term frequencies in the document
+            doc_tf: dict[str, int] = defaultdict(int)
+            for t in doc_tokens:
+                doc_tf[t] += 1
+
             for token in tokens:
+                idf = self.get_idf(token)
+                
                 if "_" in token:
                     # N-grams are weighted heavily
                     if token in doc_tokens:
-                        score += 3.0
+                        score += 3.0 * idf
                 elif self.fuzzy_match(token, doc_tokens):
                     # Weight exact name matches extremely high
                     if token == name:
-                        score += 5.0
+                        score += 6.0 * idf
                     else:
-                        score += 1.0
+                        score += 1.0 * idf * doc_tf.get(token, 1)
 
-            # Normalize by document length to prevent long docs from always winning
+            # Normalize by document length penalty to prevent long docs from always winning
             if doc_tokens:
-                score = score / math.sqrt(len(doc_tokens))
+                score = score / math.pow(len(doc_tokens), 0.5)
 
             if score > highest_score:
                 highest_score = score
@@ -276,7 +298,7 @@ class NaturalLanguageParser:
         return best_match, highest_score
 
     def parse(self, text: str) -> ParsedIntent:
-        """Parse natural language into a structured intent."""
+        """Parse natural language into a structured intent representation."""
         intent = ParsedIntent()
 
         # 1. Target Extraction
@@ -296,7 +318,7 @@ class NaturalLanguageParser:
             tpl_match, tpl_score = self.score_intent(intent.tokens, self._template_corpus)
             tool_match, tool_score = self.score_intent(intent.tokens, self._tool_corpus)
 
-            # Templates usually capture complex intents better, slightly favor them
+            # Templates usually capture complex intents better, slightly favor them (+20% bonus)
             if tpl_score > 0 and (tpl_score * 1.2) >= tool_score:
                 intent.template_name = tpl_match
                 intent.confidence = tpl_score
@@ -305,3 +327,4 @@ class NaturalLanguageParser:
                 intent.confidence = tool_score
 
         return intent
+

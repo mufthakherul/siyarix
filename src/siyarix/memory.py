@@ -83,7 +83,9 @@ class MemoryStore:
                         UNIQUE(key, layer)
                     )
                 """)
-                self._conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_layer ON memories(layer)")
+                self._conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_memories_layer ON memories(layer)"
+                )
                 self._conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_key ON memories(key)")
                 self._conn.commit()
         except Exception:
@@ -93,6 +95,7 @@ class MemoryStore:
     def store(self, entry: MemoryEntry) -> None:
         try:
             from siyarix.opsec import opsec_manager
+
             if opsec_manager.status.memory_only:
                 entry.layer = MemoryLayer.SESSION
         except ImportError:
@@ -147,7 +150,8 @@ class MemoryStore:
                     )
                 else:
                     cursor = self._conn.execute(
-                        "SELECT * FROM memories WHERE key = ? ORDER BY created_at DESC LIMIT 1", (key,)
+                        "SELECT * FROM memories WHERE key = ? ORDER BY created_at DESC LIMIT 1",
+                        (key,),
                     )
                 row = cursor.fetchone()
                 if not row:
@@ -220,12 +224,14 @@ class MemoryStore:
         if self._conn:
             try:
                 with self._lock:
-                    cursor = self._conn.execute("SELECT layer, COUNT(*) FROM memories GROUP BY layer")
+                    cursor = self._conn.execute(
+                        "SELECT layer, COUNT(*) FROM memories GROUP BY layer"
+                    )
                     rows = cursor.fetchall()
                 for row in rows:
                     result["persistent"][row[0]] = row[1]
             except Exception:
-                pass
+                logger.warning("Failed to query memory stats", exc_info=True)
         return result
 
     def _row_to_entry(self, row: sqlite3.Row) -> MemoryEntry:
@@ -302,6 +308,7 @@ class MemoryManager:
 
     def save_context(self, entry: dict[str, Any]) -> None:
         import json
+
         key = f"context_{time.time()}_{hashlib.md5(str(entry).encode(), usedforsecurity=False).hexdigest()[:8]}"
         self.store(
             key=key,
@@ -312,6 +319,7 @@ class MemoryManager:
 
     def load_context(self) -> list[dict[str, Any]]:
         import json
+
         store = self._stores.get(MemoryLayer.PROJECT)
         if not store or not store._conn:
             return []
@@ -320,7 +328,7 @@ class MemoryManager:
             with store._lock:
                 cursor = store._conn.execute(
                     "SELECT value FROM memories WHERE layer = ? AND tags LIKE ? ORDER BY created_at ASC",
-                    (MemoryLayer.PROJECT.value, '%"context"%')
+                    (MemoryLayer.PROJECT.value, '%"context"%'),
                 )
                 rows = cursor.fetchall()
 
@@ -337,6 +345,7 @@ class MemoryManager:
     def close(self) -> None:
         for store in self._stores.values():
             store.close()
+
 
 __all__ = [
     "MemoryLayer",

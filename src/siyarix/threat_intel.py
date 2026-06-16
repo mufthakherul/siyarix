@@ -16,13 +16,17 @@ import os
 
 logger = logging.getLogger(__name__)
 
+
 class ThreatIntelProvider:
     """Base class for Threat Intelligence integrations."""
+
     def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key
 
+
 class AlienVaultOTX(ThreatIntelProvider):
     """AlienVault Open Threat Exchange integration."""
+
     BASE_URL = "https://otx.alienvault.com/api/v1/indicators"
 
     def __init__(self) -> None:
@@ -42,14 +46,16 @@ class AlienVaultOTX(ThreatIntelProvider):
                 return {
                     "source": "AlienVault OTX",
                     "pulse_count": data.get("pulse_info", {}).get("count", 0),
-                    "reputation": data.get("reputation", 0)
+                    "reputation": data.get("reputation", 0),
                 }
         except urllib.error.URLError as e:
-            logger.warning(f"AlienVault lookup failed for {ip}: {e}")
+            logger.warning("AlienVault lookup failed for %s: %s", ip, e)
             return {"source": "AlienVault OTX", "error": str(e)}
+
 
 class NVDDatabase(ThreatIntelProvider):
     """National Vulnerability Database (NVD) integration."""
+
     BASE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 
     async def lookup_cve(self, cve_id: str) -> dict[str, Any]:
@@ -70,15 +76,17 @@ class NVDDatabase(ThreatIntelProvider):
                         "source": "NVD",
                         "id": cve_id,
                         "description": cve_data.get("descriptions", [{}])[0].get("value", ""),
-                        "base_score": base_score
+                        "base_score": base_score,
                     }
                 return {"source": "NVD", "error": "CVE not found"}
         except urllib.error.URLError as e:
-            logger.warning(f"NVD lookup failed for {cve_id}: {e}")
+            logger.warning("NVD lookup failed for %s: %s", cve_id, e)
             return {"source": "NVD", "error": str(e)}
+
 
 class ThreatIntelManager:
     """Facade for querying all configured threat intel providers."""
+
     def __init__(self) -> None:
         self.alienvault = AlienVaultOTX()
         self.nvd = NVDDatabase()
@@ -92,12 +100,15 @@ class ThreatIntelManager:
             # Assuming IP for now
             return await self.alienvault.lookup_ip(target)
 
+
 # Stubs for chat handler compatibility
 class ThreatIntelFeed:
     pass
 
+
 class MITREAttackDB:
     pass
+
 
 # Global singleton
 intel_manager = ThreatIntelManager()

@@ -6,14 +6,14 @@ import os
 import shutil
 import sys
 import time
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from rich.panel import Panel
 
-from .session import ChatMessage, ChatSession
+from ..exceptions import LLMProviderError
+from .session import ChatSession
 from .console import console
 
 if TYPE_CHECKING:
@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from ..providers.state import ProviderStateManager
 
 logger = logging.getLogger(__name__)
+
 
 class LLMEngineMixin:
     if TYPE_CHECKING:
@@ -36,6 +37,7 @@ class LLMEngineMixin:
         _print_plan: Any
         _print_results: Any
         _tool_cache: list[Any] | None
+
     async def _handle_natural_language(self, user_input: str) -> None:
         """Process a natural language instruction."""
         # Add user message to history
@@ -47,7 +49,6 @@ class LLMEngineMixin:
             instruction = f"{instruction} on {self._session.target}"
 
         await self._execute_instruction(instruction, show_plan=True)
-
 
     async def _execute_instruction(
         self,
@@ -151,6 +152,7 @@ class LLMEngineMixin:
         if show_plan and len(plan.steps) > 1:
             if self._mode in ("registry", "offline"):
                 from ..response import ResponseGenerator
+
                 ResponseGenerator().render_plan(plan.steps)
             else:
                 self._print_plan(plan)
@@ -253,6 +255,7 @@ class LLMEngineMixin:
         # Print results — use professional ResponseGenerator for offline mode
         if self._mode in ("registry", "offline"):
             from ..response import ResponseGenerator
+
             ResponseGenerator().render_results(
                 success=result.success,
                 summary=result.summary,
@@ -270,6 +273,7 @@ class LLMEngineMixin:
         timeline = []
         for step_res in result.step_results:
             from siyarix.models import StepStatus
+
             status_emoji = "🟢" if step_res.status == StepStatus.COMPLETED else "🔴"
             timeline.append(
                 {
@@ -291,7 +295,6 @@ class LLMEngineMixin:
         summary += f"Found {len(result.all_findings)} findings. "
         summary += "Success." if result.success else "Some steps failed."
         self._session.add_message("assistant", summary, findings=len(result.all_findings))
-
 
     def _generate_text_response(self, user_input: str) -> str | None:
         """Return a text response for non-tool queries, or ``None`` to let the pipeline proceed."""
@@ -351,11 +354,9 @@ class LLMEngineMixin:
             )
         return None
 
-
     def _should_use_compact(self) -> bool:
         """Return True if we should send the compact (reminder) system prompt."""
         return self._llm_calls > 0 and bool(self._llm_calls % self.SYSTEM_REFRESH_INTERVAL)
-
 
     def _build_system_prompt(self, compact: bool = False) -> str:
         """Build the system prompt for the LLM.
@@ -407,7 +408,7 @@ class LLMEngineMixin:
                         label = filename.replace(".md", "")
                         prompt += f"\n\n## {label}\n{content}"
                 except OSError:
-                    pass
+                    logger.warning("Failed to read workspace context file %s", filename, exc_info=True)
 
         # ── Environment info (OS + shell) ──────────────────────────
         is_win = sys.platform == "win32"
@@ -423,7 +424,6 @@ class LLMEngineMixin:
         prompt += f"\n\n## Execution Environment\n- OS: {os_name}\n- Shell: {shell}\n- Commands you construct run directly on this shell — use correct quoting, path separators, and syntax for the target platform."
 
         return prompt
-
 
     async def _execute_agent(
         self, instruction: str, target: str = "", require_llm: bool = False
@@ -504,7 +504,9 @@ class LLMEngineMixin:
                 if configured:
                     pulled = ensure_model_pulled(provider_name, configured, base_url, console)
                     if not pulled:
-                        console.print(f"[yellow]⚠ Model '{configured}' not available for {provider_name}[/yellow]")
+                        console.print(
+                            f"[yellow]⚠ Model '{configured}' not available for {provider_name}[/yellow]"
+                        )
 
                 # Enrich provider profile with discovered models
                 try:
@@ -523,7 +525,7 @@ class LLMEngineMixin:
                                 for m in discovered
                             ]
                 except Exception:
-                    pass
+                    logger.warning("Failed to discover provider models for %s", provider_name, exc_info=True)
 
         # Build call function for the provider.
         # OpenClaw pattern: no separate ping — check reachability via
@@ -537,7 +539,9 @@ class LLMEngineMixin:
                     console.print(f"[red]✗ {provider_name} not reachable for autonomous mode[/red]")
                     return False
                 else:
-                    console.print(f"[yellow]⚠ {provider_name} not reachable — falling back[/yellow]")
+                    console.print(
+                        f"[yellow]⚠ {provider_name} not reachable — falling back[/yellow]"
+                    )
             else:
                 llm_connected = True
 
@@ -563,7 +567,11 @@ class LLMEngineMixin:
                         is_first_call=(self._llm_calls <= 1),
                     )
                     llm_plan = plan_result
-                    llm_reasoning = plan_result.context.get("reasoning", "") if isinstance(plan_result.context, dict) else ""
+                    llm_reasoning = (
+                        plan_result.context.get("reasoning", "")
+                        if isinstance(plan_result.context, dict)
+                        else ""
+                    )
                     self._provider_state.record_success(provider_name or "")
                 except (asyncio.TimeoutError, RuntimeError, ValueError, AttributeError) as exc:
                     console.print(
@@ -574,7 +582,9 @@ class LLMEngineMixin:
             if require_llm:
                 # LLM connected but planning format failed (model didn't return
                 # valid JSON).  Stream the response directly instead of aborting.
-                llm_plan = agent.planner_autonomous.create_plan(goal=instruction_with_target, context={})
+                llm_plan = agent.planner_autonomous.create_plan(
+                    goal=instruction_with_target, context={}
+                )
             else:
                 with console.status("[bold green]Planning...[/bold green]", spinner="dots"):
                     llm_plan = agent.planner_registry.plan(instruction_with_target, tool_names)
@@ -654,11 +664,13 @@ class LLMEngineMixin:
                 err = (result.get("error") or "").strip()
                 success = result.get("status") == "success"
                 label = f"$ {s.command}" if s.command else s.tool
-                display_lines = out.split("\n") if out else (err.split("\n") if err else ["(no output)"])
+                display_lines = (
+                    out.split("\n") if out else (err.split("\n") if err else ["(no output)"])
+                )
                 icon = "✓" if success else "✗"
                 border = "green" if success else "red"
                 if not display_lines:
-                    display_lines = ["(no output)"] if success else [f"Command failed"]
+                    display_lines = ["(no output)"] if success else ["Command failed"]
                 truncated = []
                 for line in display_lines[-200:]:
                     if len(line) > 500:
@@ -742,7 +754,6 @@ class LLMEngineMixin:
 
         return True
 
-
     def _make_llm_call(self, provider_name: str, api_key: str) -> Any:
         """Return an async callable (system, user, *, stream=False, history=None) -> dict | AsyncGenerator.
 
@@ -762,7 +773,7 @@ class LLMEngineMixin:
             try:
                 from anthropic import AsyncAnthropic
             except ImportError:
-                raise ValueError("anthropic package not installed. Run: pip install anthropic")
+                raise LLMProviderError("anthropic package not installed. Run: pip install anthropic")
 
             anthropic_client = AsyncAnthropic(api_key=api_key)
             from ..providers import ProviderManager
@@ -816,7 +827,7 @@ class LLMEngineMixin:
 
         # -- All other providers use the unified OpenAI-compatible adapter --------
         if provider_name not in PROVIDER_CONFIG:
-            raise ValueError(f"Unsupported provider: {provider_name}")
+            raise LLMProviderError(f"Unsupported provider: {provider_name}")
 
         from ..providers import ProviderManager
 
@@ -826,7 +837,6 @@ class LLMEngineMixin:
             settings=self._settings,
             provider_manager=ProviderManager.get_instance(),
         )
-
 
     def _llm_available(self) -> bool:
         """Check if an LLM provider is configured and available."""
@@ -849,7 +859,6 @@ class LLMEngineMixin:
             return bool(self._resolve_api_key(provider, profile.api_key_env))
         return False
 
-
     @staticmethod
     def _check_local_provider_running(provider_name: str) -> bool:
         """Check if a local provider is running via its health endpoint.
@@ -857,8 +866,8 @@ class LLMEngineMixin:
         Uses generic provider_utils for all providers.
         """
         from ..provider_utils import check_provider_health
-        return check_provider_health(provider_name)
 
+        return check_provider_health(provider_name)
 
     @staticmethod
     def _ensure_local_provider_running(provider_name: str) -> bool:
@@ -878,10 +887,15 @@ class LLMEngineMixin:
         start_configs = {
             "ollama": ("ollama", ["serve"]),
             "lmstudio": ("lmstudio", ["--server"]),
-            "llamacpp": ("llama-server", [
-                "--port", "18080",
-                "--host", "127.0.0.1",
-            ]),
+            "llamacpp": (
+                "llama-server",
+                [
+                    "--port",
+                    "18080",
+                    "--host",
+                    "127.0.0.1",
+                ],
+            ),
         }
         info = start_configs.get(provider_name)
         if not info:
@@ -892,7 +906,9 @@ class LLMEngineMixin:
         if provider_name == "llamacpp":
             models_dir = Path.home() / ".siyarix" / "models"
             if models_dir.is_dir():
-                ggufs = sorted(models_dir.glob("*.gguf"), key=lambda p: p.stat().st_mtime, reverse=True)
+                ggufs = sorted(
+                    models_dir.glob("*.gguf"), key=lambda p: p.stat().st_mtime, reverse=True
+                )
                 # Validate GGUF magic bytes (first 4 bytes must be "GGUF")
                 valid_model = None
                 for g in ggufs:
@@ -931,6 +947,7 @@ class LLMEngineMixin:
             return True
         try:
             import subprocess
+
             if os.name == "nt":
                 subprocess.Popen(
                     [binary, *args],
@@ -945,29 +962,30 @@ class LLMEngineMixin:
                     stderr=subprocess.DEVNULL,
                 )
             import time
+
             for _ in range(15):
                 time.sleep(2)
                 try:
                     from ..provider_utils import safe_http_get_raw
+
                     r = safe_http_get_raw(f"{base_url}{health_path}", timeout=3)
                     if r is not None:
                         logger.info("%s started successfully", binary)
                         return True
                 except Exception:
-                    pass
+                    logger.warning("%s health check failed (attempt %d/15)", binary, _ + 1, exc_info=True)
             logger.warning("%s started but not responding within 30s", binary)
             return False
         except Exception as exc:
             logger.warning("Failed to auto-start %s: %s", binary, exc)
             return False
 
-
     @staticmethod
     def _resolve_api_key(provider: str, env_var: str) -> str | None:
         """Resolve an API key from credential store → environment."""
         from ..providers import resolve_api_key
-        return resolve_api_key(provider, env_var)
 
+        return resolve_api_key(provider, env_var)
 
     def _resolve_provider(self) -> tuple[str | None, str | None]:
         """Return ``(provider_name, api_key)`` for the active provider.
@@ -1029,5 +1047,3 @@ class LLMEngineMixin:
             return (name, key or None)
 
         return (None, None)
-
-

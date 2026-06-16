@@ -20,6 +20,8 @@ from typing import Any, AsyncGenerator
 
 import httpx
 
+from ..exceptions import LLMProviderError
+
 # ── Compat flags dataclass ─────────────────────────────────────────────
 
 
@@ -94,18 +96,34 @@ class OpenAICompat:
 PROVIDER_CONFIG: dict[str, tuple[str, str, str]] = {
     "openai": ("", "gpt-5.5", "OPENAI_API_KEY"),
     "openrouter": ("https://openrouter.ai/api/v1", "openai/gpt-5.5", "OPENROUTER_API_KEY"),
-    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai/", "gemini-3.5-flash", "GEMINI_API_KEY"),
+    "gemini": (
+        "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "gemini-3.5-flash",
+        "GEMINI_API_KEY",
+    ),
     "deepseek": ("https://api.deepseek.com", "deepseek-v4-flash", "DEEPSEEK_API_KEY"),
     "xai": ("https://api.x.ai", "grok-4.3", "XAI_API_KEY"),
     "perplexity": ("https://api.perplexity.ai", "sonar-pro", "PERPLEXITY_API_KEY"),
     "groq": ("https://api.groq.com/openai/v1", "llama-4-scout-17b-16e-instruct", "GROQ_API_KEY"),
-    "together": ("https://api.together.xyz/v1", "meta-llama/Llama-4-Scout-17B-16E-Instruct-FP8", "TOGETHER_API_KEY"),
+    "together": (
+        "https://api.together.xyz/v1",
+        "meta-llama/Llama-4-Scout-17B-16E-Instruct-FP8",
+        "TOGETHER_API_KEY",
+    ),
     "cerebras": ("https://api.cerebras.ai/v1", "gpt-oss-120b", "CEREBRAS_API_KEY"),
-    "fireworks": ("https://api.fireworks.ai/inference/v1", "accounts/fireworks/models/kimi-k2p6", "FIREWORKS_API_KEY"),
+    "fireworks": (
+        "https://api.fireworks.ai/inference/v1",
+        "accounts/fireworks/models/kimi-k2p6",
+        "FIREWORKS_API_KEY",
+    ),
     "zai": ("https://api.z.ai/api/paas/v4", "glm-5.1", "ZAI_API_KEY"),
     "minimax": ("https://api.minimax.io/v1", "MiniMax-M3", "MINIMAX_API_KEY"),
     "moonshot": ("https://api.moonshot.ai/v1", "kimi-k2.6", "MOONSHOT_API_KEY"),
-    "nvidia": ("https://integrate.api.nvidia.com/v1", "nvidia/nemotron-3-super-120b-a12b", "NVIDIA_API_KEY"),
+    "nvidia": (
+        "https://integrate.api.nvidia.com/v1",
+        "nvidia/nemotron-3-super-120b-a12b",
+        "NVIDIA_API_KEY",
+    ),
     "opencode-go": ("https://opencode.ai/zen/go/v1", "deepseek-v4-flash", "OPENCODE_GO_API_KEY"),
     "huggingface": ("https://api-inference.huggingface.co/v1", "", "HUGGINGFACE_API_KEY"),
     "azure": ("", "gpt-5.5", "AZURE_OPENAI_API_KEY"),
@@ -157,7 +175,11 @@ def detect_compat(provider: str, base_url: str) -> OpenAICompat:
 
     # ── provider identification (name + URL patterns) ──
     is_zai = provider == "zai" or "api.z.ai" in effective_base
-    is_together = provider == "together" or "api.together.xyz" in effective_base or "api.together.ai" in effective_base
+    is_together = (
+        provider == "together"
+        or "api.together.xyz" in effective_base
+        or "api.together.ai" in effective_base
+    )
     is_moonshot = provider == "moonshot" or "api.moonshot." in effective_base
     is_grok = provider == "xai" or "api.x.ai" in effective_base
     is_deepseek = provider == "deepseek" or "deepseek.com" in effective_base
@@ -165,15 +187,29 @@ def detect_compat(provider: str, base_url: str) -> OpenAICompat:
     is_openrouter = provider == "openrouter" or "openrouter.ai" in effective_base
     is_cloudflare = "gateway.ai.cloudflare.com" in effective_base
 
-    is_non_standard = any([
-        is_cerebras, is_grok, is_together, is_zai, is_moonshot,
-        is_deepseek, provider == "opencode-go", "opencode.ai" in effective_base,
-        is_cloudflare, "chutes.ai" in effective_base,
-    ])
+    is_non_standard = any(
+        [
+            is_cerebras,
+            is_grok,
+            is_together,
+            is_zai,
+            is_moonshot,
+            is_deepseek,
+            provider == "opencode-go",
+            "opencode.ai" in effective_base,
+            is_cloudflare,
+            "chutes.ai" in effective_base,
+        ]
+    )
 
-    use_max_tokens = any([
-        is_moonshot, is_together, is_cloudflare, "chutes.ai" in effective_base,
-    ])
+    use_max_tokens = any(
+        [
+            is_moonshot,
+            is_together,
+            is_cloudflare,
+            "chutes.ai" in effective_base,
+        ]
+    )
 
     # ── thinking format detection ──
     if is_deepseek:
@@ -227,6 +263,7 @@ def detect_compat(provider: str, base_url: str) -> OpenAICompat:
 # Takes a settings-like object (dict or obj with .get()) and returns
 # the resolved model ID for the given provider.
 
+
 def resolve_model(
     provider: str,
     settings: Any,
@@ -248,6 +285,7 @@ def resolve_model(
 
 
 # ── Helper: build messages list ───────────────────────────────────────
+
 
 def build_messages(
     system_prompt: str,
@@ -280,6 +318,7 @@ def build_messages(
 
 # ── Client factory ─────────────────────────────────────────────────────
 
+
 def make_client(
     provider: str,
     api_key: str,
@@ -297,6 +336,7 @@ def make_client(
     for _attempt in range(2):
         try:
             from openai import AsyncOpenAI
+
             break
         except ImportError:
             if _attempt == 1:
@@ -312,7 +352,10 @@ def make_client(
                 if Confirm.ask("Install openai package now?", default=True):
                     r = subprocess.run(
                         [sys.executable, "-m", "pip", "install", "openai>=2.31.0"],
-                        capture_output=True, text=True, timeout=120, check=False,
+                        capture_output=True,
+                        text=True,
+                        timeout=120,
+                        check=False,
                     )
                     if not r.returncode:
                         print("Installed. Retrying...")
@@ -403,7 +446,7 @@ async def _gemini_generate(
     if not candidates:
         feedback = data.get("promptFeedback", {})
         reason = feedback.get("blockReason", "unknown")
-        raise RuntimeError(f"Gemini request blocked: {reason}")
+        raise LLMProviderError(f"Gemini request blocked: {reason}")
 
     text = candidates[0]["content"]["parts"][0].get("text", "")
     usage = data.get("usageMetadata", {})
@@ -442,7 +485,9 @@ async def _gemini_stream(
 
     url = f"{_GEMINI_API_BASE}/models/{model}:streamGenerateContent"
     async with httpx.AsyncClient(timeout=120) as client:
-        async with client.stream("POST", url, params={"key": api_key, "alt": "sse"}, json=body) as resp:
+        async with client.stream(
+            "POST", url, params={"key": api_key, "alt": "sse"}, json=body
+        ) as resp:
             resp.raise_for_status()
             async for line in resp.aiter_lines():
                 if line.startswith("data: ") and line != "data: [DONE]":
@@ -461,6 +506,7 @@ async def _gemini_stream(
 
 # ── Unified streaming function ─────────────────────────────────────────
 # Mirrors OpenClaw's openai-completions.ts streamOpenAICompletions()
+
 
 async def openai_stream(
     client: Any,
@@ -500,6 +546,7 @@ async def openai_stream(
 
 # ── Unified completion function ────────────────────────────────────────
 
+
 async def openai_complete(
     client: Any,
     model: str,
@@ -530,7 +577,7 @@ async def openai_complete(
         response = await client.chat.completions.create(**call_kwargs)
     except Exception as exc:
         msg = str(exc) or repr(exc)
-        raise RuntimeError(f"API call failed (model={model}): {msg}") from exc
+        raise LLMProviderError(f"API call failed (model={model}): {msg}") from exc
 
     choice = response.choices[0]
     usage = response.usage
@@ -547,6 +594,7 @@ async def openai_complete(
 # Used by chat/__init__.py:_make_llm_call() to replace the duplicated
 # if-else blocks.
 
+
 def _map_real_model(model: str) -> str:
     """Map fictional Siyarix models to real API versions for HTTP calls."""
     m = model.lower()
@@ -561,7 +609,11 @@ def _map_real_model(model: str) -> str:
             return "gpt-4o-mini"
         return "gpt-4o"
     if "claude-sonnet-4" in m or "claude-opus-4" in m or "claude-haiku-4" in m:
-        return "claude-3-5-sonnet-latest" if "sonnet" in m else ("claude-3-opus-latest" if "opus" in m else "claude-3-5-haiku-latest")
+        return (
+            "claude-3-5-sonnet-latest"
+            if "sonnet" in m
+            else ("claude-3-opus-latest" if "opus" in m else "claude-3-5-haiku-latest")
+        )
     return model
 
 
@@ -582,6 +634,7 @@ def make_openai_adapter(
 
     # Gemini uses native REST API — no openai package needed
     if provider == "gemini":
+
         async def gemini_adapter(
             system_prompt: str,
             user_prompt: str,
@@ -595,13 +648,24 @@ def make_openai_adapter(
             effective_model = _map_real_model(model) if model else api_model
             if stream:
                 return _gemini_stream(
-                    api_key, effective_model, system_prompt, user_prompt,
-                    history=history, tools=tools, **kwargs
+                    api_key,
+                    effective_model,
+                    system_prompt,
+                    user_prompt,
+                    history=history,
+                    tools=tools,
+                    **kwargs,
                 )
             return await _gemini_generate(
-                api_key, effective_model, system_prompt, user_prompt,
-                history=history, tools=tools, **kwargs
+                api_key,
+                effective_model,
+                system_prompt,
+                user_prompt,
+                history=history,
+                tools=tools,
+                **kwargs,
             )
+
         return gemini_adapter
 
     client = make_client(provider, api_key, base_url)
@@ -628,35 +692,56 @@ def make_openai_adapter(
             try:
                 if stream:
                     return openai_stream(
-                        client, effective_model, system_prompt, user_prompt,
-                        history=current_history, compat=compat, tools=tools, **kwargs
+                        client,
+                        effective_model,
+                        system_prompt,
+                        user_prompt,
+                        history=current_history,
+                        compat=compat,
+                        tools=tools,
+                        **kwargs,
                     )
                 return await openai_complete(
-                    client, effective_model, system_prompt, user_prompt,
-                    history=current_history, compat=compat, tools=tools, **kwargs
+                    client,
+                    effective_model,
+                    system_prompt,
+                    user_prompt,
+                    history=current_history,
+                    compat=compat,
+                    tools=tools,
+                    **kwargs,
                 )
             except Exception as e:
                 if not provider_manager:
                     if attempt >= max_retries - 1:
                         raise
-                    await asyncio.sleep(2 ** attempt)
+                    await asyncio.sleep(2**attempt)
                     continue
 
                 original_exc = getattr(e, "__cause__", e) or e
                 status_code = getattr(getattr(original_exc, "response", None), "status_code", None)
-                classified = provider_manager.classify_error(provider, original_exc, http_status=status_code)
+                classified = provider_manager.classify_error(
+                    provider, original_exc, http_status=status_code
+                )
 
                 if classified.should_compress and current_history:
-                    text_history = "\n".join([f"{m.get('role', 'user')}: {m.get('content', '')}" for m in current_history])
+                    text_history = "\n".join(
+                        [
+                            f"{m.get('role', 'user')}: {m.get('content', '')}"
+                            for m in current_history
+                        ]
+                    )
                     compactor = CompactionEngine()
                     result = await compactor.compact(current_history)
-                    compressed_text = result.summary or text_history[:int(len(text_history) * 0.5)]
-                    current_history = [{"role": "system", "content": f"Prior context:\n{compressed_text}"}]
+                    compressed_text = result.summary or text_history[: int(len(text_history) * 0.5)]
+                    current_history = [
+                        {"role": "system", "content": f"Prior context:\n{compressed_text}"}
+                    ]
                     continue
 
                 if classified.retryable and attempt < max_retries - 1:
                     provider_manager.record_failure(provider, classified.reason)
-                    await asyncio.sleep(2 ** attempt)
+                    await asyncio.sleep(2**attempt)
                     continue
 
                 provider_manager.record_failure(provider, classified.reason)

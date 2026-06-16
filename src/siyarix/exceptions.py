@@ -10,7 +10,6 @@ to a documented CLI exit code via :func:`exit_code_for`.
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
@@ -18,21 +17,15 @@ from typing import Any
 __all__ = [
     "SiyarixException",
     "ValidationError",
-    "ExecutionError",
-    "PlanningError",
-    "SafetyError",
-    "ToolNotFoundError",
-    "CredentialError",
-    "ConfigurationError",
-    "NetworkError",
-    "SiyarixTimeoutError",
-    "CircuitBreakerOpen",
-    "MaxRetriesExceeded",
     "ErrorSeverity",
     "ErrorContext",
     "PermissionDeniedError",
-    "ProviderError",
     "BudgetExceededError",
+    "ToolNotFoundError",
+    "ToolExecutionError",
+    "LLMProviderError",
+    "ConfigError",
+    "CredentialError",
     "exit_code_for",
 ]
 
@@ -102,96 +95,8 @@ class ValidationError(SiyarixException):
     pass
 
 
-class ExecutionError(SiyarixException):
-    """Tool execution failed."""
-
-    pass
-
-
-class PlanningError(SiyarixException):
-    """Task planning failed."""
-
-    pass
-
-
-class SafetyError(SiyarixException):
-    """A configured safety rule was violated."""
-
-    pass
-
-
 class BudgetExceededError(SiyarixException):
     """The session exceeded its allowed token or cost budget."""
-
-    pass
-
-
-class ToolNotFoundError(SiyarixException):
-    """Tool not found in registry or PATH."""
-
-    pass
-
-
-class CredentialError(SiyarixException):
-    """Credential management error."""
-
-    pass
-
-
-class ConfigurationError(SiyarixException):
-    """Configuration error."""
-
-    pass
-
-
-class NetworkError(SiyarixException):
-    """Network operation failed."""
-
-    pass
-
-
-class SiyarixTimeoutError(SiyarixException):
-    """Operation timed out.
-
-    .. note::
-        Previously named ``TimeoutError``, which shadowed the Python
-        built-in.  The old name is still importable but emits a
-        :class:`DeprecationWarning`.
-    """
-
-    pass
-
-
-class _DeprecatedTimeoutErrorMeta(type):
-    """Metaclass that emits a deprecation warning on instantiation."""
-
-    def __call__(cls, *args: Any, **kwargs: Any) -> SiyarixTimeoutError:
-        warnings.warn(
-            "siyarix.exceptions.TimeoutError is deprecated and shadows a "
-            "Python built-in. Use SiyarixTimeoutError instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return SiyarixTimeoutError(*args, **kwargs)
-
-
-class TimeoutError(  # noqa: A001  — intentional deprecated alias
-    SiyarixTimeoutError,
-    metaclass=_DeprecatedTimeoutErrorMeta,
-):
-    """**Deprecated** — use :class:`SiyarixTimeoutError` instead."""
-
-    pass
-
-
-class CircuitBreakerOpen(SiyarixException):
-    """Circuit breaker is open; service temporarily unavailable."""
-
-    pass
-
-
-class MaxRetriesExceeded(SiyarixException):
-    """Maximum retry attempts exceeded."""
 
     pass
 
@@ -202,8 +107,32 @@ class PermissionDeniedError(SiyarixException):
     pass
 
 
-class ProviderError(SiyarixException):
-    """AI provider error / timeout (exit code 4)."""
+class ToolNotFoundError(SiyarixException):
+    """Requested tool is not registered or not on PATH (exit code 3)."""
+
+    pass
+
+
+class ToolExecutionError(SiyarixException):
+    """Tool handler raised an exception during execution."""
+
+    pass
+
+
+class LLMProviderError(SiyarixException):
+    """LLM provider returned an error or timed out (exit code 4)."""
+
+    pass
+
+
+class ConfigError(SiyarixException):
+    """Invalid or missing configuration."""
+
+    pass
+
+
+class CredentialError(SiyarixException):
+    """Credential store lookup or storage failed."""
 
     pass
 
@@ -213,17 +142,12 @@ class ProviderError(SiyarixException):
 # so subclass specificity is preserved without a linear scan.
 _EXIT_CODE_MAP: dict[type[SiyarixException], int] = {
     PermissionDeniedError: 2,
-    SafetyError: 2,
     ToolNotFoundError: 3,
-    ProviderError: 4,
-    SiyarixTimeoutError: 4,
-    CircuitBreakerOpen: 4,
-    ExecutionError: 1,
+    LLMProviderError: 4,
+    BudgetExceededError: 1,
     ValidationError: 1,
-    PlanningError: 1,
-    ConfigurationError: 1,
-    NetworkError: 1,
-    MaxRetriesExceeded: 1,
+    ConfigError: 1,
+    ToolExecutionError: 1,
     CredentialError: 1,
     SiyarixException: 1,
 }

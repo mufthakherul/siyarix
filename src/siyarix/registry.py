@@ -9,15 +9,17 @@ from __future__ import annotations
 import json
 import logging
 import os
-import shutil
 import threading
 import time
-from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from .events import Event, EventType, emit_sync
-from .exceptions import PermissionDeniedError
+from .exceptions import (
+    PermissionDeniedError,
+    ToolExecutionError,
+    ToolNotFoundError,
+)
 from .parsers import ParserRegistry
 
 # Expose models, graph, handlers, and metadata via the registry module
@@ -82,20 +84,55 @@ _HANDLER_MAP: dict[str, Any] = {
 }
 
 _CURATED_TOOL_NAMES: tuple[str, ...] = (
-    "nmap", "nikto", "nuclei", "gobuster", "ffuf", "hydra", "masscan",
-    "amass", "subfinder", "wpscan", "sqlmap", "shodan", "bettercap",
-    "ettercap", "aircrack-ng", "hashcat", "john", "burpsuite", "zaproxy",
-    "whatweb", "curl", "wget", "dig", "whois",
+    "nmap",
+    "nikto",
+    "nuclei",
+    "gobuster",
+    "ffuf",
+    "hydra",
+    "masscan",
+    "amass",
+    "subfinder",
+    "wpscan",
+    "sqlmap",
+    "shodan",
+    "bettercap",
+    "ettercap",
+    "aircrack-ng",
+    "hashcat",
+    "john",
+    "burpsuite",
+    "zaproxy",
+    "whatweb",
+    "curl",
+    "wget",
+    "dig",
+    "whois",
 )
 
 _INTERPRETER_NAMES: tuple[str, ...] = (
-    "python3", "python", "node", "go", "rustc", "gcc", "g++", "java", "ruby", "bash",
+    "python3",
+    "python",
+    "node",
+    "go",
+    "rustc",
+    "gcc",
+    "g++",
+    "java",
+    "ruby",
+    "bash",
 )
 
-_BLACKLISTED_PATH_TOOLS: frozenset[str] = frozenset({
-    "conhost.exe", "sihost.exe", "taskhostw.exe", "svchost.exe",
-    "RuntimeBroker.exe", "securityhealthsystray.exe",
-})
+_BLACKLISTED_PATH_TOOLS: frozenset[str] = frozenset(
+    {
+        "conhost.exe",
+        "sihost.exe",
+        "taskhostw.exe",
+        "svchost.exe",
+        "RuntimeBroker.exe",
+        "securityhealthsystray.exe",
+    }
+)
 
 
 class ToolRegistry:
@@ -127,7 +164,9 @@ class ToolRegistry:
             self._graph.add_tool(tool)
             if handler:
                 self._handlers[tool.name] = handler
-        emit_sync(Event(type=EventType.TOOL_REGISTERED, source="registry", data={"tool": tool.name}))
+        emit_sync(
+            Event(type=EventType.TOOL_REGISTERED, source="registry", data={"tool": tool.name})
+        )
 
     def register_many(self, tools: list[tuple[ToolCapability, ToolHandler | None]]) -> int:
         for tool, handler in tools:
@@ -139,7 +178,9 @@ class ToolRegistry:
             removed = self._graph._nodes.pop(name, None)
             self._handlers.pop(name, None)
         if removed:
-            emit_sync(Event(type=EventType.TOOL_UNREGISTERED, source="registry", data={"tool": name}))
+            emit_sync(
+                Event(type=EventType.TOOL_UNREGISTERED, source="registry", data={"tool": name})
+            )
             return True
         return False
 
@@ -158,17 +199,18 @@ class ToolRegistry:
             tool = self._graph.get_tool(name)
             handler = self._handlers.get(name)
         if not tool:
-            return {"status": "error", "error": f"Tool not found: {name}"}
+            raise ToolNotFoundError(f"Tool not found: {name}")
         if not handler:
-            return {"status": "error", "error": f"No handler for: {name}"}
+            raise ToolNotFoundError(f"No handler registered for: {name}")
 
         if tool.availability:
             from .tool_availability import ToolAvailabilityContext, evaluate_availability
+
             ctx = ToolAvailabilityContext()
             avail = evaluate_availability(tool.availability, ctx)
             if not avail.available:
                 reasons = "; ".join(d.detail for d in avail.diagnostics)
-                return {"status": "error", "error": f"Tool {name} unavailable: {reasons}"}
+                raise ToolNotFoundError(f"Tool {name} unavailable: {reasons}")
 
         if self._permission_gate:
             command = kwargs.get("command", "")
@@ -178,6 +220,7 @@ class ToolRegistry:
                     raise PermissionDeniedError(gate_result.reason)
                 if gate_result.requires_review:
                     from .shell_review import review_and_confirm
+
                     reviewed = review_and_confirm(command, name, gate_result.reason)
                     if reviewed is None:
                         raise PermissionDeniedError(f"Cancelled by user: {gate_result.reason}")
@@ -195,18 +238,21 @@ class ToolRegistry:
             duration = (time.monotonic() - start) * 1000
             if tool:
                 import asyncio
+
                 def _update_stats() -> None:
                     with self._lock:
                         tool.usage_count += 1
                         tool.last_used = time.time()
-                        tool.avg_duration_ms = (tool.avg_duration_ms * (tool.usage_count - 1) + duration) / tool.usage_count
+                        tool.avg_duration_ms = (
+                            tool.avg_duration_ms * (tool.usage_count - 1) + duration
+                        ) / tool.usage_count
+
                 await asyncio.to_thread(_update_stats)
             return result
-        except PermissionDeniedError:
+        except (PermissionDeniedError, ToolNotFoundError):
             raise
         except Exception as e:
-            logger.exception("Tool execution failed: %s", name)
-            return {"status": "error", "error": str(e), "tool": name}
+            raise ToolExecutionError(f"Tool {name} execution failed: {e}") from e
 
     def _build_tool_capability(
         self, name: str, binary: str, version: str, handler_factory: Any = None
@@ -251,19 +297,21 @@ class ToolRegistry:
             binary = _cached_which(name)
             if binary:
                 version = detect_version(name, binary)
-                tools_to_register.append((
-                    ToolCapability(
-                        name=name,
-                        binary=name,
-                        installed=True,
-                        version=version,
-                        category=ToolCategory.UTILITY,
-                        risk_level=RiskLevel.SAFE,
-                        description=f"{name} interpreter/compiler",
-                        tags=["language", name],
-                    ),
-                    None,
-                ))
+                tools_to_register.append(
+                    (
+                        ToolCapability(
+                            name=name,
+                            binary=name,
+                            installed=True,
+                            version=version,
+                            category=ToolCategory.UTILITY,
+                            risk_level=RiskLevel.SAFE,
+                            description=f"{name} interpreter/compiler",
+                            tags=["language", name],
+                        ),
+                        None,
+                    )
+                )
                 count += 1
 
         if tools_to_register:
@@ -340,28 +388,32 @@ class ToolRegistry:
                         version = detect_version(entry, full)
                     personas = meta.get("personas", []) if meta else []
                     category = (
-                        ToolCategory(meta["category"]) if meta and "category" in meta
+                        ToolCategory(meta["category"])
+                        if meta and "category" in meta
                         else categorize_tool(entry)
                     )
                     if category == ToolCategory.UTILITY and not personas and not meta:
                         continue
-                    tools_to_register.append((
-                        ToolCapability(
-                            name=entry,
-                            binary=entry,
-                            installed=True,
-                            version=version,
-                            category=category,
-                            risk_level=(
-                                RiskLevel(meta["risk_level"]) if meta and "risk_level" in meta
-                                else RiskLevel.LOW
+                    tools_to_register.append(
+                        (
+                            ToolCapability(
+                                name=entry,
+                                binary=entry,
+                                installed=True,
+                                version=version,
+                                category=category,
+                                risk_level=(
+                                    RiskLevel(meta["risk_level"])
+                                    if meta and "risk_level" in meta
+                                    else RiskLevel.LOW
+                                ),
+                                description=describe_tool(entry),
+                                tags=tags_for_tool(entry),
+                                metadata={"personas": personas} if personas else {},
                             ),
-                            description=describe_tool(entry),
-                            tags=tags_for_tool(entry),
-                            metadata={"personas": personas} if personas else {},
-                        ),
-                        make_generic_handler(entry),
-                    ))
+                            make_generic_handler(entry),
+                        )
+                    )
                     count += 1
             except OSError as e:
                 logger.debug("Failed to scan directory %s: %s", path_dir, e)
@@ -384,21 +436,23 @@ class ToolRegistry:
                 handler_factory = _HANDLER_MAP.get(name)
                 handler = handler_factory(name) if handler_factory and register_handlers else None
                 meta = info if isinstance(info, dict) else {}
-                tools_to_register.append((
-                    ToolCapability(
-                        name=name,
-                        description=meta.get("description", ""),
-                        category=ToolCategory(meta.get("category", "utility")),
-                        risk_level=RiskLevel(meta.get("risk_level", "safe")),
-                        aliases=meta.get("aliases", []),
-                        tags=meta.get("tags", []),
-                        binary=meta.get("binary", ""),
-                        version=meta.get("version", ""),
-                        installed=meta.get("installed", False),
-                        parser=meta.get("parser", ""),
-                    ),
-                    handler,
-                ))
+                tools_to_register.append(
+                    (
+                        ToolCapability(
+                            name=name,
+                            description=meta.get("description", ""),
+                            category=ToolCategory(meta.get("category", "utility")),
+                            risk_level=RiskLevel(meta.get("risk_level", "safe")),
+                            aliases=meta.get("aliases", []),
+                            tags=meta.get("tags", []),
+                            binary=meta.get("binary", ""),
+                            version=meta.get("version", ""),
+                            installed=meta.get("installed", False),
+                            parser=meta.get("parser", ""),
+                        ),
+                        handler,
+                    )
+                )
                 count += 1
             if tools_to_register:
                 self.register_many(tools_to_register)
@@ -408,6 +462,7 @@ class ToolRegistry:
 
     def load_custom_tools(self) -> int:
         from .config import get_config_dir
+
         custom_tools_path = get_config_dir() / "custom_tools.json"
         if not custom_tools_path.exists():
             return 0
@@ -415,24 +470,28 @@ class ToolRegistry:
             data = json.loads(custom_tools_path.read_text(encoding="utf-8"))
             tools_to_register: list[tuple[ToolCapability, ToolHandler | None]] = []
             for name, meta in data.items():
-                tools_to_register.append((
-                    ToolCapability(
-                        name=name,
-                        description=meta.get("description", "Custom tool"),
-                        category=ToolCategory(meta.get("category", "utility")),
-                        risk_level=RiskLevel(meta.get("risk_level", "low")),
-                        aliases=meta.get("aliases", []),
-                        tags=meta.get("tags", ["custom"]),
-                        binary=meta.get("binary", name),
-                        version=meta.get("version", "custom"),
-                        installed=True,
-                        parser=meta.get("parser", ""),
-                    ),
-                    make_generic_handler(name),
-                ))
+                tools_to_register.append(
+                    (
+                        ToolCapability(
+                            name=name,
+                            description=meta.get("description", "Custom tool"),
+                            category=ToolCategory(meta.get("category", "utility")),
+                            risk_level=RiskLevel(meta.get("risk_level", "low")),
+                            aliases=meta.get("aliases", []),
+                            tags=meta.get("tags", ["custom"]),
+                            binary=meta.get("binary", name),
+                            version=meta.get("version", "custom"),
+                            installed=True,
+                            parser=meta.get("parser", ""),
+                        ),
+                        make_generic_handler(name),
+                    )
+                )
             if tools_to_register:
                 self.register_many(tools_to_register)
-                logger.info(f"Loaded {len(tools_to_register)} custom tools from {custom_tools_path}")
+                logger.info(
+                    f"Loaded {len(tools_to_register)} custom tools from {custom_tools_path}"
+                )
             return len(tools_to_register)
         except Exception:
             logger.exception("Failed to load custom tools from %s", custom_tools_path)
@@ -457,11 +516,12 @@ class ToolRegistry:
         if search:
             search_lower = search.lower()
             tools = [
-                t for t in tools
+                t
+                for t in tools
                 if search_lower in t.name.lower()
                 or search_lower in t.description.lower()
                 or any(search_lower in tag.lower() for tag in t.tags)
-                or any(search_lower in alias.lower() for alias in getattr(t, 'aliases', []))
+                or any(search_lower in alias.lower() for alias in getattr(t, "aliases", []))
             ]
         return sorted(tools, key=lambda t: t.name)
 
@@ -473,6 +533,7 @@ class ToolRegistry:
         if tool and tool.related_tools:
             return tool.related_tools
         from .planner_registry import TOOL_ALTERNATIVES
+
         return TOOL_ALTERNATIVES.get(name, [])
 
     def get_by_tags(self, tags: list[str]) -> list[ToolCapability]:

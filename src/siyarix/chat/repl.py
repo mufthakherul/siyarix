@@ -78,35 +78,11 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         self._output = OutputEngine()
         self._con = self._output.console
         
-        
-        # --- Full Screen UI Engine State ---
-        import io
-        from prompt_toolkit.buffer import Buffer
-        self._ui_history_ansi = ""
-        self._ui_live_ansi = ""
-        self._ui_buf = io.StringIO()
-        self._ui_history_buffer = Buffer(read_only=True)
-        
-        # Intercept globals
-        console.file = self._ui_buf
-        console._force_terminal = True
-        self._con.file = self._ui_buf
-        self._con._force_terminal = True
-        # -----------------------------------
-        
+                
         self._validate_provider_config_on_startup()
 
     def _ui_flush(self) -> None:
-        """Drain the intercepted rich output into the history ANSI buffer."""
-        text = self._ui_buf.getvalue()
-        if text:
-            self._ui_history_ansi += text
-            self._ui_buf.truncate(0)
-            self._ui_buf.seek(0)
-            from prompt_toolkit.application.current import get_app
-            app = get_app()
-            if app and app.is_running:
-                app.invalidate()
+        pass
 
     def _validate_provider_config_on_startup(self) -> None:
         """Check configured provider has valid API key / SDK / endpoint at startup."""
@@ -287,15 +263,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
-                from prompt_toolkit.layout import (
-                    Layout as PTLayout,
-                    HSplit,
-                    Window,
-                    FormattedTextControl,
-                )
-                from prompt_toolkit.layout.containers import ConditionalContainer
-                from prompt_toolkit.layout.dimension import Dimension
-                from prompt_toolkit.filters import Condition
                 from prompt_toolkit.formatted_text import HTML
                 from ..branding import resolve_version
 
@@ -307,43 +274,21 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                     f'<style fg="green"> v{_ver}</style>'
                     f'<style fg="ansiwhite"> ░▒▓█ </style>'
                     f'<style fg="bright_black" italic>  — terminal agent for cyber-security</style>'
-                    f'</style>'
+                    f'\n</style>❯ '
                 )
 
+                from prompt_toolkit.patch_stdout import patch_stdout
                 session: PromptSession = PromptSession()
-                session.app.full_screen = True
-                _orig_create = session._create_layout
-
-                def _patched_create(self_obj: Any) -> PTLayout:
-                    orig = _orig_create()
-                    top_bar = ConditionalContainer(
-                        Window(
-                            FormattedTextControl(lambda: header_html),
-                            style="class:top-toolbar",
-                            dont_extend_height=True,
-                            height=Dimension(min=1),
-                        ),
-                        filter=Condition(lambda: True),
-                    )
-                    from prompt_toolkit.formatted_text import ANSI
-                    history_win = Window(
-                        FormattedTextControl(lambda: ANSI(self._ui_history_ansi + self._ui_live_ansi)),
-                        wrap_lines=True,
-                        always_hide_cursor=True
-                    )
-                    return PTLayout(HSplit([top_bar, history_win, orig.container]))
-
-                import types
-                session._create_layout = types.MethodType(_patched_create, session)  # type: ignore
-
-                answer = (
-                    await session.prompt_async(
-                        "❯ ",
-                        key_bindings=esc_bindings,
-                        completer=SmartAutocomplete(self._session),
-                        bottom_toolbar=get_bottom_toolbar,
-                    )
-                ).strip()
+                
+                with patch_stdout():
+                    answer = (
+                        await session.prompt_async(
+                            header_html,
+                            key_bindings=esc_bindings,
+                            completer=SmartAutocomplete(self._session),
+                            bottom_toolbar=get_bottom_toolbar,
+                        )
+                    ).strip()
         except KeyboardInterrupt:
             raise
         except Exception as exc:
@@ -694,36 +639,19 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         full_text = ""
         syntax_theme = self._settings.get("syntax_theme") or "monokai"
         
-        from prompt_toolkit.application.current import get_app
+        from rich.live import Live
+        from rich.panel import Panel
 
-        async for token in gen:
-            full_text += token
-            display_text = self._strip_json_wrapper(full_text)
-            md = Markdown(display_text, code_theme=syntax_theme)
-            panel = Panel(
-                md,
-                title="[bold green]◆ Siyarix[/bold green]",
-                border_style="green",
-                padding=(0, 2),
-            )
-            # Temporarily redirect to string buffer to get ANSI
-            import io
-            buf = io.StringIO()
-            from rich.console import Console
-            tmp_con = Console(file=buf, force_terminal=True, color_system="truecolor", width=self._con.size.width)
-            tmp_con.print(panel)
-            self._ui_live_ansi = buf.getvalue()
-            app = get_app()
-            if app and app.is_running:
-                app.invalidate()
+        md = Markdown("", code_theme=syntax_theme)
+        panel = Panel(md, title="[bold green]◆ Siyarix[/bold green]", border_style="green", padding=(0, 2))
+        
+        with Live(panel, console=console, refresh_per_second=15, transient=False) as live:
+            async for token in gen:
+                full_text += token
+                display_text = self._strip_json_wrapper(full_text)
+                md = Markdown(display_text, code_theme=syntax_theme)
+                live.update(Panel(md, title="[bold green]◆ Siyarix[/bold green]", border_style="green", padding=(0, 2)))
                 
-        # Finalize
-        self._ui_history_ansi += self._ui_live_ansi
-        self._ui_live_ansi = ""
-        app = get_app()
-        if app and app.is_running:
-            app.invalidate()
-            
         return self._strip_json_wrapper(full_text)
 
     def _print_plan(self, plan: "Any") -> None:  # ExecutionPlan

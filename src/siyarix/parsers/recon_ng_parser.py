@@ -30,8 +30,17 @@ _MODULE_RE = re.compile(
 )
 
 _TARGET_KEYS = {
-    "host", "ip_address", "domain", "ip", "email", "name",
-    "first_name", "last_name", "username", "contact", "url",
+    "host",
+    "ip_address",
+    "domain",
+    "ip",
+    "email",
+    "name",
+    "first_name",
+    "last_name",
+    "username",
+    "contact",
+    "url",
 }
 
 
@@ -66,15 +75,17 @@ class ReconNgParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"recon-ng {k}: {str(v)[:80]}",
-                    "severity": "info",
-                    "description": f"recon-ng data point: {k} = {v}",
-                    "evidence": json.dumps({k: v}) if not isinstance(v, str) else str(v),
-                    "tool": "recon-ng",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"recon-ng {k}: {str(v)[:80]}",
+                        "severity": "info",
+                        "description": f"recon-ng data point: {k} = {v}",
+                        "evidence": json.dumps({k: v}) if not isinstance(v, str) else str(v),
+                        "tool": "recon-ng",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
         return findings
 
     def _parse_text(self, output: str) -> list[dict]:
@@ -111,16 +122,18 @@ class ReconNgParser:
                         continue
                     seen.add(dedup_key)
                     desc_parts = [f"{k}={v}" for k, v in row_data.items()]
-                    findings.append({
-                        "title": f"recon-ng result: {target}",
-                        "severity": "info",
-                        "description": f"recon-ng row data: {'; '.join(desc_parts)}"
-                        + (f" [module: {current_module}]" if current_module else ""),
-                        "evidence": " | ".join(desc_parts),
-                        "tool": "recon-ng",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"recon-ng result: {target}",
+                            "severity": "info",
+                            "description": f"recon-ng row data: {'; '.join(desc_parts)}"
+                            + (f" [module: {current_module}]" if current_module else ""),
+                            "evidence": " | ".join(desc_parts),
+                            "tool": "recon-ng",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             fm = _FOUND_RE.search(line)
@@ -133,15 +146,17 @@ class ReconNgParser:
                 target = "unknown"
                 if "@" in value:
                     target = value.split("@")[1]
-                findings.append({
-                    "title": f"recon-ng found: {value}",
-                    "severity": "info",
-                    "description": f"recon-ng discovered: {value}",
-                    "evidence": line,
-                    "tool": "recon-ng",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"recon-ng found: {value}",
+                        "severity": "info",
+                        "description": f"recon-ng discovered: {value}",
+                        "evidence": line,
+                        "tool": "recon-ng",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             kv = _KEYVAL_RE.match(line)
@@ -153,15 +168,17 @@ class ReconNgParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"recon-ng {key}: {value[:60]}",
-                    "severity": "info",
-                    "description": f"recon-ng key-value: {key} = {value}"
-                    + (f" [module: {current_module}]" if current_module else ""),
-                    "evidence": f"{key}: {value}",
-                    "tool": "recon-ng",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"recon-ng {key}: {value[:60]}",
+                        "severity": "info",
+                        "description": f"recon-ng key-value: {key} = {value}"
+                        + (f" [module: {current_module}]" if current_module else ""),
+                        "evidence": f"{key}: {value}",
+                        "tool": "recon-ng",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

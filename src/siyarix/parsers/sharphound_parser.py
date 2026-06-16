@@ -42,15 +42,17 @@ class SharphoundParser:
                     continue
                 if line not in seen:
                     seen.add(line)
-                    findings.append({
-                        "title": f"SharpHound: {line[:60]}",
-                        "severity": "info",
-                        "description": f"SharpHound output: {line[:200]}",
-                        "evidence": line,
-                        "tool": "sharphound",
-                        "target": "unknown",
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"SharpHound: {line[:60]}",
+                            "severity": "info",
+                            "description": f"SharpHound output: {line[:200]}",
+                            "evidence": line,
+                            "tool": "sharphound",
+                            "target": "unknown",
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         return findings
 
@@ -67,70 +69,80 @@ class SharphoundParser:
                 if dedup_key in seen:
                     return
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"AD User: {name}",
-                    "severity": "info",
-                    "description": f"SharpHound discovered user {name} in {domain}",
-                    "evidence": f"User: {name} | Domain: {domain}",
-                    "tool": "sharphound",
-                    "target": domain,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"AD User: {name}",
+                        "severity": "info",
+                        "description": f"SharpHound discovered user {name} in {domain}",
+                        "evidence": f"User: {name} | Domain: {domain}",
+                        "tool": "sharphound",
+                        "target": domain,
+                        "timestamp": _now_iso(),
+                    }
+                )
             elif obj_type.lower() == "group":
                 dedup_key = f"group:{name}:{domain}"
                 if dedup_key in seen:
                     return
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"AD Group: {name}",
-                    "severity": "info",
-                    "description": f"SharpHound discovered group {name} in {domain}",
-                    "evidence": f"Group: {name} | Domain: {domain}",
-                    "tool": "sharphound",
-                    "target": domain,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"AD Group: {name}",
+                        "severity": "info",
+                        "description": f"SharpHound discovered group {name} in {domain}",
+                        "evidence": f"Group: {name} | Domain: {domain}",
+                        "tool": "sharphound",
+                        "target": domain,
+                        "timestamp": _now_iso(),
+                    }
+                )
             elif obj_type.lower() == "computer":
                 dedup_key = f"computer:{name}:{domain}"
                 if dedup_key in seen:
                     return
                 seen.add(dedup_key)
                 os = props.get("operatingsystem", props.get("OperatingSystem", "unknown"))
-                findings.append({
-                    "title": f"AD Computer: {name}",
-                    "severity": "info",
-                    "description": f"SharpHound discovered computer {name} ({os}) in {domain}",
-                    "evidence": f"Computer: {name} | OS: {os}",
-                    "tool": "sharphound",
-                    "target": domain,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"AD Computer: {name}",
+                        "severity": "info",
+                        "description": f"SharpHound discovered computer {name} ({os}) in {domain}",
+                        "evidence": f"Computer: {name} | OS: {os}",
+                        "tool": "sharphound",
+                        "target": domain,
+                        "timestamp": _now_iso(),
+                    }
+                )
             elif obj_type.lower() == "session":
                 computer = props.get("computer", props.get("Computer", "?"))
                 dedup_key = f"session:{name}:{computer}"
                 if dedup_key in seen:
                     return
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"AD Session: {name} -> {computer}",
-                    "severity": "medium",
-                    "description": f"SharpHound discovered session {name} on {computer}",
-                    "evidence": f"User: {name} | Computer: {computer}",
-                    "tool": "sharphound",
-                    "target": domain,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"AD Session: {name} -> {computer}",
+                        "severity": "medium",
+                        "description": f"SharpHound discovered session {name} on {computer}",
+                        "evidence": f"User: {name} | Computer: {computer}",
+                        "tool": "sharphound",
+                        "target": domain,
+                        "timestamp": _now_iso(),
+                    }
+                )
             elif obj_type.lower() == "acl":
                 dedup_key = f"acl:{name}:{domain}"
                 if dedup_key in seen:
                     return
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"AD ACL: {name}",
-                    "severity": "low",
-                    "description": f"SharpHound discovered ACL for {name} in {domain}",
-                    "evidence": f"ACL: {name} | Domain: {domain}",
-                    "tool": "sharphound",
-                    "target": domain,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"AD ACL: {name}",
+                        "severity": "low",
+                        "description": f"SharpHound discovered ACL for {name} in {domain}",
+                        "evidence": f"ACL: {name} | Domain: {domain}",
+                        "tool": "sharphound",
+                        "target": domain,
+                        "timestamp": _now_iso(),
+                    }
+                )

@@ -71,7 +71,9 @@ class DnsmapParser:
 
         # Try CSV format
         first_line = trimmed.splitlines()[0] if trimmed.splitlines() else ""
-        if "domain" in first_line.lower() and ("ip" in first_line.lower() or "address" in first_line.lower()):
+        if "domain" in first_line.lower() and (
+            "ip" in first_line.lower() or "address" in first_line.lower()
+        ):
             try:
                 reader = csv.DictReader(io.StringIO(trimmed))
                 for row in reader:
@@ -79,15 +81,18 @@ class DnsmapParser:
                     ip = row.get("ip", row.get("address", row.get("IP", "")))
                     if domain and domain not in seen:
                         seen.add(domain)
-                        findings.append({
-                            "title": f"Discovered subdomain: {domain}",
-                            "severity": _ip_severity(ip) if ip else "info",
-                            "description": f"dnsmap discovered subdomain {domain}" + (f" with IP {ip}" if ip else ""),
-                            "evidence": f"{domain} -> {ip}" if ip else domain,
-                            "tool": "dnsmap",
-                            "target": domain,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"Discovered subdomain: {domain}",
+                                "severity": _ip_severity(ip) if ip else "info",
+                                "description": f"dnsmap discovered subdomain {domain}"
+                                + (f" with IP {ip}" if ip else ""),
+                                "evidence": f"{domain} -> {ip}" if ip else domain,
+                                "tool": "dnsmap",
+                                "target": domain,
+                                "timestamp": _now_iso(),
+                            }
+                        )
                 if findings:
                     return findings
             except Exception:
@@ -106,15 +111,17 @@ class DnsmapParser:
                 if domain in seen:
                     continue
                 seen.add(domain)
-                findings.append({
-                    "title": f"Discovered subdomain: {domain}",
-                    "severity": _ip_severity(ip),
-                    "description": f"dnsmap discovered subdomain {domain} with IP {ip}",
-                    "evidence": f"{domain} -> {ip}",
-                    "tool": "dnsmap",
-                    "target": domain,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Discovered subdomain: {domain}",
+                        "severity": _ip_severity(ip),
+                        "description": f"dnsmap discovered subdomain {domain} with IP {ip}",
+                        "evidence": f"{domain} -> {ip}",
+                        "tool": "dnsmap",
+                        "target": domain,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             m = _FIND_RE.search(line)
@@ -124,15 +131,18 @@ class DnsmapParser:
                     continue
                 seen.add(domain)
                 ip = m.group("ip") or ""
-                findings.append({
-                    "title": f"Discovered subdomain: {domain}",
-                    "severity": _ip_severity(ip) if ip else "info",
-                    "description": f"dnsmap discovered subdomain {domain}" + (f" with IP {ip}" if ip else ""),
-                    "evidence": line,
-                    "tool": "dnsmap",
-                    "target": domain,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Discovered subdomain: {domain}",
+                        "severity": _ip_severity(ip) if ip else "info",
+                        "description": f"dnsmap discovered subdomain {domain}"
+                        + (f" with IP {ip}" if ip else ""),
+                        "evidence": line,
+                        "tool": "dnsmap",
+                        "target": domain,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             mp = _PAREN_IP_RE.match(line)
@@ -142,15 +152,17 @@ class DnsmapParser:
                     continue
                 seen.add(domain)
                 ip = mp.group("ip")
-                findings.append({
-                    "title": f"Discovered subdomain: {domain}",
-                    "severity": _ip_severity(ip),
-                    "description": f"dnsmap mapped {domain} to {ip}",
-                    "evidence": f"{domain} -> {ip}",
-                    "tool": "dnsmap",
-                    "target": domain,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Discovered subdomain: {domain}",
+                        "severity": _ip_severity(ip),
+                        "description": f"dnsmap mapped {domain} to {ip}",
+                        "evidence": f"{domain} -> {ip}",
+                        "tool": "dnsmap",
+                        "target": domain,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             m2 = _IP_RE.match(line)
@@ -160,14 +172,16 @@ class DnsmapParser:
                     continue
                 seen.add(domain)
                 ip = m2.group("ip")
-                findings.append({
-                    "title": f"Subdomain: {domain}",
-                    "severity": _ip_severity(ip),
-                    "description": f"dnsmap mapped {domain} to {ip}",
-                    "evidence": f"{domain} -> {ip}",
-                    "tool": "dnsmap",
-                    "target": domain,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Subdomain: {domain}",
+                        "severity": _ip_severity(ip),
+                        "description": f"dnsmap mapped {domain} to {ip}",
+                        "evidence": f"{domain} -> {ip}",
+                        "tool": "dnsmap",
+                        "target": domain,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

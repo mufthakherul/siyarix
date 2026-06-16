@@ -42,19 +42,24 @@ class SeatbeltParser:
                     severity = "info"
                     if isinstance(output_text, str):
                         output_lower = output_text.lower()
-                        if any(x in output_lower for x in ("admin", "administrator", "password", "token", "privilege")):
+                        if any(
+                            x in output_lower
+                            for x in ("admin", "administrator", "password", "token", "privilege")
+                        ):
                             severity = "high" if "password" in output_lower else "medium"
 
-                    findings.append({
-                        "title": f"Seatbelt: {command}",
-                        "severity": severity,
-                        "description": f"Seatbelt enumerated {command} on {host}"
-                        + (f" (user: {user})" if user else ""),
-                        "evidence": str(output_text)[:200] if output_text else command,
-                        "tool": "seatbelt",
-                        "target": host,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Seatbelt: {command}",
+                            "severity": severity,
+                            "description": f"Seatbelt enumerated {command} on {host}"
+                            + (f" (user: {user})" if user else ""),
+                            "evidence": str(output_text)[:200] if output_text else command,
+                            "tool": "seatbelt",
+                            "target": host,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 return findings
             except json.JSONDecodeError:
                 pass
@@ -71,14 +76,16 @@ class SeatbeltParser:
             if dedup_key in seen_commands:
                 continue
             seen_commands.add(dedup_key)
-            findings.append({
-                "title": f"Seatbelt: {line[:60]}",
-                "severity": severity,
-                "description": f"Seatbelt output: {line[:200]}",
-                "evidence": line.strip(),
-                "tool": "seatbelt",
-                "target": "localhost",
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"Seatbelt: {line[:60]}",
+                    "severity": severity,
+                    "description": f"Seatbelt output: {line[:200]}",
+                    "evidence": line.strip(),
+                    "tool": "seatbelt",
+                    "target": "localhost",
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

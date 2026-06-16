@@ -68,7 +68,9 @@ def _looks_like_csv(text: str) -> bool:
     if not stripped:
         return False
     first = stripped.splitlines()[0].strip().lower()
-    return "," in first and any(kw in first for kw in ("type", "name", "address", "target", "record"))
+    return "," in first and any(
+        kw in first for kw in ("type", "name", "address", "target", "record")
+    )
 
 
 class DnsreconParser:
@@ -120,15 +122,17 @@ class DnsreconParser:
                 desc += f" [SOA: {soa_str}]"
                 evidence += f" soa:{soa_str}"
 
-            findings.append({
-                "title": f"DNS {record_type} record: {name}",
-                "severity": severity,
-                "description": desc,
-                "evidence": evidence,
-                "tool": "dnsrecon",
-                "target": name,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"DNS {record_type} record: {name}",
+                    "severity": severity,
+                    "description": desc,
+                    "evidence": evidence,
+                    "tool": "dnsrecon",
+                    "target": name,
+                    "timestamp": _now_iso(),
+                }
+            )
         return findings
 
     def _parse_csv(self, csv_str: str) -> list[dict]:
@@ -154,15 +158,17 @@ class DnsreconParser:
             elif record_type in ("MX", "SOA"):
                 severity = "low"
 
-            findings.append({
-                "title": f"DNS {record_type} record: {name}",
-                "severity": severity,
-                "description": f"dnsrecon discovered {record_type} record {name} -> {value}",
-                "evidence": f"{record_type} {name} {value}",
-                "tool": "dnsrecon",
-                "target": name,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"DNS {record_type} record: {name}",
+                    "severity": severity,
+                    "description": f"dnsrecon discovered {record_type} record {name} -> {value}",
+                    "evidence": f"{record_type} {name} {value}",
+                    "tool": "dnsrecon",
+                    "target": name,
+                    "timestamp": _now_iso(),
+                }
+            )
         return findings
 
     def _parse_text(self, output: str) -> list[dict]:
@@ -186,29 +192,33 @@ class DnsreconParser:
                 sk = f"stats:{target_domain}:{count}"
                 if sk not in seen:
                     seen.add(sk)
-                    findings.append({
-                        "title": f"dnsrecon summary: {count} records",
-                        "severity": "info",
-                        "description": f"dnsrecon found {count} records for {target_domain}",
-                        "evidence": line,
-                        "tool": "dnsrecon",
-                        "target": target_domain,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"dnsrecon summary: {count} records",
+                            "severity": "info",
+                            "description": f"dnsrecon found {count} records for {target_domain}",
+                            "evidence": line,
+                            "tool": "dnsrecon",
+                            "target": target_domain,
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
             if _ZONE_TRANSFER_RE.search(line):
                 zk = f"zone_xfer:{target_domain}"
                 if zk not in seen:
                     seen.add(zk)
-                    findings.append({
-                        "title": "DNS zone transfer permitted",
-                        "severity": "high",
-                        "description": f"DNS zone transfer is permitted for {target_domain} — potential information disclosure.",
-                        "evidence": line,
-                        "tool": "dnsrecon",
-                        "target": target_domain,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": "DNS zone transfer permitted",
+                            "severity": "high",
+                            "description": f"DNS zone transfer is permitted for {target_domain} — potential information disclosure.",
+                            "evidence": line,
+                            "tool": "dnsrecon",
+                            "target": target_domain,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             srv_m = _SRV_RE.match(line)
@@ -224,15 +234,17 @@ class DnsreconParser:
                 seen.add(dedup_key)
                 desc = f"dnsrecon discovered SRV record {name} -> {target}:{port} (prio={priority}, weight={weight})"
                 evidence = f"SRV {name} {priority} {weight} {port} {target}"
-                findings.append({
-                    "title": f"DNS SRV record: {name}",
-                    "severity": "info",
-                    "description": desc,
-                    "evidence": evidence,
-                    "tool": "dnsrecon",
-                    "target": name,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"DNS SRV record: {name}",
+                        "severity": "info",
+                        "description": desc,
+                        "evidence": evidence,
+                        "tool": "dnsrecon",
+                        "target": name,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             txt_m = _TXT_RE.match(line)
@@ -243,15 +255,17 @@ class DnsreconParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"DNS TXT record: {name}",
-                    "severity": "info",
-                    "description": f"dnsrecon discovered TXT record {name} -> {text}",
-                    "evidence": f"TXT {name} {text}",
-                    "tool": "dnsrecon",
-                    "target": name,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"DNS TXT record: {name}",
+                        "severity": "info",
+                        "description": f"dnsrecon discovered TXT record {name} -> {text}",
+                        "evidence": f"TXT {name} {text}",
+                        "tool": "dnsrecon",
+                        "target": name,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             soa_detailed = _SOA_DETAIL_RE.match(line)
@@ -269,15 +283,17 @@ class DnsreconParser:
                 seen.add(dedup_key)
                 desc = f"DNS SOA: mname={mname}, rname={rname}"
                 evidence = f"SOA {mname} {rname} serial={serial} refresh={refresh} retry={retry} expire={expire} minimum={minimum}"
-                findings.append({
-                    "title": f"DNS SOA: {mname}",
-                    "severity": "low",
-                    "description": desc,
-                    "evidence": evidence,
-                    "tool": "dnsrecon",
-                    "target": mname,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"DNS SOA: {mname}",
+                        "severity": "low",
+                        "description": desc,
+                        "evidence": evidence,
+                        "tool": "dnsrecon",
+                        "target": mname,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             soa_m = _SOA_RE.match(line)
@@ -288,15 +304,17 @@ class DnsreconParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"DNS SOA: {mname}",
-                    "severity": "low",
-                    "description": f"DNS SOA record: mname={mname}, rname={rname}",
-                    "evidence": f"SOA {mname} {rname}",
-                    "tool": "dnsrecon",
-                    "target": mname,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"DNS SOA: {mname}",
+                        "severity": "low",
+                        "description": f"DNS SOA record: mname={mname}, rname={rname}",
+                        "evidence": f"SOA {mname} {rname}",
+                        "tool": "dnsrecon",
+                        "target": mname,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             m = _BRACKET_RECORD_RE.match(line)
@@ -322,14 +340,16 @@ class DnsreconParser:
             elif record_type in ("MX", "SOA"):
                 severity = "low"
 
-            findings.append({
-                "title": f"DNS {record_type} record: {name}",
-                "severity": severity,
-                "description": f"dnsrecon discovered {record_type} record {name} -> {value}",
-                "evidence": f"{record_type} {name} {value}",
-                "tool": "dnsrecon",
-                "target": name,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"DNS {record_type} record: {name}",
+                    "severity": severity,
+                    "description": f"dnsrecon discovered {record_type} record {name} -> {value}",
+                    "evidence": f"{record_type} {name} {value}",
+                    "tool": "dnsrecon",
+                    "target": name,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

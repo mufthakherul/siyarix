@@ -1,4 +1,4 @@
-﻿# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Assetfinder subdomain discovery output parser."""
 
@@ -36,28 +36,32 @@ class AssetfinderParser:
             if m:
                 sub = m.group("sub")
                 seen.add(sub)
-                findings.append({
-                    "title": f"Subdomain: {sub}",
-                    "severity": "info",
-                    "description": f"assetfinder discovered subdomain {sub}",
-                    "evidence": sub,
-                    "tool": "assetfinder",
-                    "target": sub,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Subdomain: {sub}",
+                        "severity": "info",
+                        "description": f"assetfinder discovered subdomain {sub}",
+                        "evidence": sub,
+                        "tool": "assetfinder",
+                        "target": sub,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         if summary_count:
             key = "summary:total"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": f"assetfinder: {summary_count} subdomains",
-                    "severity": "info",
-                    "description": f"assetfinder discovered {summary_count} subdomains",
-                    "evidence": f"Total: {summary_count}",
-                    "tool": "assetfinder",
-                    "target": "",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"assetfinder: {summary_count} subdomains",
+                        "severity": "info",
+                        "description": f"assetfinder discovered {summary_count} subdomains",
+                        "evidence": f"Total: {summary_count}",
+                        "tool": "assetfinder",
+                        "target": "",
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

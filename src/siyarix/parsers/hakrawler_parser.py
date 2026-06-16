@@ -11,17 +11,37 @@ import re
 _URL_RE = re.compile(r"^(?P<url>https?://\S+)", re.IGNORECASE)
 
 _EXT_SEVERITY = {
-    ".js": "medium", ".json": "info", ".php": "medium",
-    ".asp": "medium", ".aspx": "medium", ".jsp": "medium",
-    ".action": "medium", ".do": "medium",
-    ".bak": "high", ".old": "high", ".backup": "high",
-    ".sql": "high", ".dump": "high", ".db": "medium",
-    ".env": "critical", ".git": "critical", ".svn": "critical",
-    ".config": "high", ".yml": "medium", ".yaml": "medium",
-    ".xml": "info", ".pdf": "low", ".doc": "low",
-    ".xls": "low", ".zip": "medium", ".tar": "medium",
-    ".gz": "medium", ".pem": "critical", ".key": "critical",
-    ".cert": "high", ".p12": "critical",
+    ".js": "medium",
+    ".json": "info",
+    ".php": "medium",
+    ".asp": "medium",
+    ".aspx": "medium",
+    ".jsp": "medium",
+    ".action": "medium",
+    ".do": "medium",
+    ".bak": "high",
+    ".old": "high",
+    ".backup": "high",
+    ".sql": "high",
+    ".dump": "high",
+    ".db": "medium",
+    ".env": "critical",
+    ".git": "critical",
+    ".svn": "critical",
+    ".config": "high",
+    ".yml": "medium",
+    ".yaml": "medium",
+    ".xml": "info",
+    ".pdf": "low",
+    ".doc": "low",
+    ".xls": "low",
+    ".zip": "medium",
+    ".tar": "medium",
+    ".gz": "medium",
+    ".pem": "critical",
+    ".key": "critical",
+    ".cert": "high",
+    ".p12": "critical",
 }
 
 _METHOD_RE = re.compile(r"^\[(?P<method>[A-Z]+)\]\s*(?P<url>https?://\S+)", re.IGNORECASE)
@@ -62,7 +82,10 @@ class HakrawlerParser:
                 if url.lower().endswith(ext):
                     severity = sev
                     break
-            if any(x in url.lower() for x in ("admin", "login", "api", "wp-admin", "console", "dashboard")):
+            if any(
+                x in url.lower()
+                for x in ("admin", "login", "api", "wp-admin", "console", "dashboard")
+            ):
                 severity = "medium" if severity == "info" else severity
 
             desc = f"hakrawler discovered endpoint: {url}"
@@ -71,13 +94,15 @@ class HakrawlerParser:
                 desc += f" [{method}]"
                 evidence += f"; method:{method}"
 
-            findings.append({
-                "title": f"Endpoint: {url[:80]}",
-                "severity": severity,
-                "description": desc,
-                "evidence": evidence,
-                "tool": "hakrawler",
-                "target": url,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"Endpoint: {url[:80]}",
+                    "severity": severity,
+                    "description": desc,
+                    "evidence": evidence,
+                    "tool": "hakrawler",
+                    "target": url,
+                    "timestamp": _now_iso(),
+                }
+            )
         return findings

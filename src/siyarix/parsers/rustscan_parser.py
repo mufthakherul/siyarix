@@ -114,15 +114,17 @@ class RustscanParser:
                     if port_service:
                         desc += f" service: {port_service}"
                         evidence += f"; service:{port_service}"
-                    findings.append({
-                        "title": f"Open port {port_num}/{proto}",
-                        "severity": severity,
-                        "description": desc,
-                        "evidence": evidence,
-                        "tool": "rustscan",
-                        "target": host,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Open port {port_num}/{proto}",
+                            "severity": severity,
+                            "description": desc,
+                            "evidence": evidence,
+                            "tool": "rustscan",
+                            "target": host,
+                            "timestamp": _now_iso(),
+                        }
+                    )
         return findings
 
     def _parse_text(self, output: str) -> list[dict]:
@@ -170,15 +172,17 @@ class RustscanParser:
                 if service:
                     desc += f" service: {service}"
                     evidence += f"; service:{service}"
-                findings.append({
-                    "title": f"Open port {port_num}/{proto}",
-                    "severity": severity,
-                    "description": desc,
-                    "evidence": evidence,
-                    "tool": "rustscan",
-                    "target": host_g,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Open port {port_num}/{proto}",
+                        "severity": severity,
+                        "description": desc,
+                        "evidence": evidence,
+                        "tool": "rustscan",
+                        "target": host_g,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             m = _OPEN_HOST_PORT_RE.search(line)
@@ -193,15 +197,17 @@ class RustscanParser:
                 severity = _severity_for_port(port_num)
                 desc = f"RustScan discovered open port {port_num}/{proto} on {host_g}"
                 evidence = f"Open {port_num}/{proto} on {host_g}"
-                findings.append({
-                    "title": f"Open port {port_num}/{proto}",
-                    "severity": severity,
-                    "description": desc,
-                    "evidence": evidence,
-                    "tool": "rustscan",
-                    "target": host_g,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Open port {port_num}/{proto}",
+                        "severity": severity,
+                        "description": desc,
+                        "evidence": evidence,
+                        "tool": "rustscan",
+                        "target": host_g,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             m = _TEXT_PORT_RE.search(line)
@@ -221,14 +227,16 @@ class RustscanParser:
                 if service:
                     desc += f" service: {service}"
                     evidence += f"; service:{service}"
-                findings.append({
-                    "title": f"Open port {port_num}/{proto}",
-                    "severity": severity,
-                    "description": desc,
-                    "evidence": evidence,
-                    "tool": "rustscan",
-                    "target": host,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Open port {port_num}/{proto}",
+                        "severity": severity,
+                        "description": desc,
+                        "evidence": evidence,
+                        "tool": "rustscan",
+                        "target": host,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

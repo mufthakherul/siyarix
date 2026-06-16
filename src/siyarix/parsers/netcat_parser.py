@@ -72,15 +72,17 @@ class NetcatParser:
                         desc = f"netcat connection to {target}:{port} was refused — port likely closed or filtered"
                     else:
                         desc = f"netcat connection to {target}:{port} failed"
-                    findings.append({
-                        "title": f"Port closed/filtered: {target}:{port}",
-                        "severity": "info",
-                        "description": desc,
-                        "evidence": raw,
-                        "tool": "netcat",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Port closed/filtered: {target}:{port}",
+                            "severity": "info",
+                            "description": desc,
+                            "evidence": raw,
+                            "tool": "netcat",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _LISTEN_RE.search(line)
@@ -90,15 +92,17 @@ class NetcatParser:
                 key = f"listen:{target}:{port}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Connection received: {target}:{port}",
-                        "severity": "medium",
-                        "description": f"netcat received connection from {target}:{port} in listen mode",
-                        "evidence": raw,
-                        "tool": "netcat",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Connection received: {target}:{port}",
+                            "severity": "medium",
+                            "description": f"netcat received connection from {target}:{port} in listen mode",
+                            "evidence": raw,
+                            "tool": "netcat",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _BANNER_RE.search(line)
@@ -109,15 +113,17 @@ class NetcatParser:
                 key = f"banner:{target}:{port}:{banner[:30]}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Service banner: {banner.split()[0] if banner else 'unknown'}",
-                        "severity": "info",
-                        "description": f"Banner grabbed from {target}:{port}: {banner}",
-                        "evidence": raw,
-                        "tool": "netcat",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Service banner: {banner.split()[0] if banner else 'unknown'}",
+                            "severity": "info",
+                            "description": f"Banner grabbed from {target}:{port}: {banner}",
+                            "evidence": raw,
+                            "tool": "netcat",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _CONNECTED_RE.match(line)
@@ -127,15 +133,17 @@ class NetcatParser:
                 key = f"connected:{target}:{port}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Port open: {target}:{port}",
-                        "severity": "medium",
-                        "description": f"netcat successfully connected to {target}:{port}",
-                        "evidence": raw,
-                        "tool": "netcat",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Port open: {target}:{port}",
+                            "severity": "medium",
+                            "description": f"netcat successfully connected to {target}:{port}",
+                            "evidence": raw,
+                            "tool": "netcat",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _TRANSFER_RE.search(line)
@@ -144,28 +152,32 @@ class NetcatParser:
                 key = f"transfer:{size}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Data transfer: {size} bytes",
-                        "severity": "info",
-                        "description": f"netcat transferred {size} bytes",
-                        "evidence": raw,
-                        "tool": "netcat",
-                        "target": "unknown",
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Data transfer: {size} bytes",
+                            "severity": "info",
+                            "description": f"netcat transferred {size} bytes",
+                            "evidence": raw,
+                            "tool": "netcat",
+                            "target": "unknown",
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         if total_bytes:
             key = "summary:total-transfer"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": f"netcat total: {total_bytes} bytes",
-                    "severity": "info",
-                    "description": f"netcat total data transfer: {total_bytes} bytes",
-                    "evidence": f"Total: {total_bytes} bytes",
-                    "tool": "netcat",
-                    "target": "unknown",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"netcat total: {total_bytes} bytes",
+                        "severity": "info",
+                        "description": f"netcat total data transfer: {total_bytes} bytes",
+                        "evidence": f"Total: {total_bytes} bytes",
+                        "tool": "netcat",
+                        "target": "unknown",
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

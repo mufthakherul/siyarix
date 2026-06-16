@@ -34,7 +34,9 @@ class FindomainParser:
                 continue
             seen.add(domain)
 
-            ip_address = obj.get("ip_address", obj.get("ip", obj.get("IP", obj.get("IpAddress", ""))))
+            ip_address = obj.get(
+                "ip_address", obj.get("ip", obj.get("IP", obj.get("IpAddress", "")))
+            )
 
             description = f"Domain resolved: {domain}"
             evidence = domain
@@ -42,14 +44,16 @@ class FindomainParser:
                 description += f" -> {ip_address}"
                 evidence += f" -> {ip_address}"
 
-            findings.append({
-                "title": f"Findomain: {domain}",
-                "severity": "info",
-                "description": description,
-                "evidence": evidence,
-                "tool": "findomain",
-                "target": domain,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"Findomain: {domain}",
+                    "severity": "info",
+                    "description": description,
+                    "evidence": evidence,
+                    "tool": "findomain",
+                    "target": domain,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

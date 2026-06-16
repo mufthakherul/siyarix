@@ -15,10 +15,18 @@ _ROW_RE = re.compile(
 )
 _URL_RE = re.compile(r"https?://\S+", re.IGNORECASE)
 _SEVERITY_BY_STATUS = {
-    200: "info", 201: "info", 204: "info",
-    301: "low", 302: "low", 307: "low", 308: "low",
-    401: "medium", 403: "medium",
-    500: "high", 502: "high", 503: "high",
+    200: "info",
+    201: "info",
+    204: "info",
+    301: "low",
+    302: "low",
+    307: "low",
+    308: "low",
+    401: "medium",
+    403: "medium",
+    500: "high",
+    502: "high",
+    503: "high",
 }
 _WILDCARD_RE = re.compile(r"(?i)(wildcard|filter|excluded|discarded)\s+(\d+)")
 
@@ -58,15 +66,17 @@ class FeroxbusterParser:
 
             severity = _SEVERITY_BY_STATUS.get(status, "info")
 
-            findings.append({
-                "title": f"Feroxbuster: {url} (HTTP {status})",
-                "severity": severity,
-                "description": f"Discovered {url} — HTTP {status}, size {size}, lines {lines_count}",
-                "evidence": f"{url} [Status: {status}, Size: {size}]",
-                "tool": "feroxbuster",
-                "target": url,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"Feroxbuster: {url} (HTTP {status})",
+                    "severity": severity,
+                    "description": f"Discovered {url} — HTTP {status}, size {size}, lines {lines_count}",
+                    "evidence": f"{url} [Status: {status}, Size: {size}]",
+                    "tool": "feroxbuster",
+                    "target": url,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings
 
@@ -97,14 +107,16 @@ class FeroxbusterParser:
             size = obj.get("content_length", obj.get("size", 0))
             severity = _SEVERITY_BY_STATUS.get(int(status), "info")
 
-            findings.append({
-                "title": f"Feroxbuster: {url} (HTTP {status})",
-                "severity": severity,
-                "description": f"Discovered {url} — HTTP {status}, size {size}",
-                "evidence": json.dumps(obj, default=str),
-                "tool": "feroxbuster",
-                "target": url,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"Feroxbuster: {url} (HTTP {status})",
+                    "severity": severity,
+                    "description": f"Discovered {url} — HTTP {status}, size {size}",
+                    "evidence": json.dumps(obj, default=str),
+                    "tool": "feroxbuster",
+                    "target": url,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

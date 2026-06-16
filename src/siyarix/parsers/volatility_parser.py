@@ -1,4 +1,4 @@
-﻿# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Volatility memory forensics output parser — parses Volatility 3 JSON output."""
 
@@ -12,19 +12,31 @@ import re
 _JSON_RE = re.compile(r"^\s*[{\[]")
 
 _VOLATILITY_PLUGINS = {
-    "windows.pslist": "process", "windows.psscan": "process",
-    "windows.pstree": "process", "windows.netscan": "network",
-    "windows.netstat": "network", "windows.cmdline": "command",
-    "windows.cmdscan": "command", "windows.dlldump": "module",
-    "windows.modscan": "module", "windows.malfind": "malware",
-    "windows.hivelist": "registry", "windows.registry": "registry",
-    "windows.filescan": "file", "windows.mftscan": "file",
+    "windows.pslist": "process",
+    "windows.psscan": "process",
+    "windows.pstree": "process",
+    "windows.netscan": "network",
+    "windows.netstat": "network",
+    "windows.cmdline": "command",
+    "windows.cmdscan": "command",
+    "windows.dlldump": "module",
+    "windows.modscan": "module",
+    "windows.malfind": "malware",
+    "windows.hivelist": "registry",
+    "windows.registry": "registry",
+    "windows.filescan": "file",
+    "windows.mftscan": "file",
     "windows.envars": "environment",
-    "windows.privileges": "privilege", "windows.token": "token",
-    "windows.callbacks": "callback", "windows.ssdt": "ssdt",
-    "linux.pslist": "process", "linux.pstree": "process",
-    "linux.netstat": "network", "linux.bash": "command",
-    "linux.malfind": "malware", "mac.pslist": "process",
+    "windows.privileges": "privilege",
+    "windows.token": "token",
+    "windows.callbacks": "callback",
+    "windows.ssdt": "ssdt",
+    "linux.pslist": "process",
+    "linux.pstree": "process",
+    "linux.netstat": "network",
+    "linux.bash": "command",
+    "linux.malfind": "malware",
+    "mac.pslist": "process",
 }
 
 _SUMMARY_RE = re.compile(
@@ -44,7 +56,11 @@ class VolatilityParser:
                 data = json.loads(output)
                 columns = data.get("columns", [])
                 rows = data.get("rows", [])
-                plugin = data.get("plugin", {}).get("name", "unknown") if isinstance(data.get("plugin"), dict) else "unknown"
+                plugin = (
+                    data.get("plugin", {}).get("name", "unknown")
+                    if isinstance(data.get("plugin"), dict)
+                    else "unknown"
+                )
 
                 if isinstance(rows, list) and isinstance(columns, list):
                     for row in rows:
@@ -64,15 +80,17 @@ class VolatilityParser:
                 key = f"raw:{line[:60]}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Volatility: {line[:60]}",
-                        "severity": "info",
-                        "description": line[:200],
-                        "evidence": raw.strip(),
-                        "tool": "volatility",
-                        "target": "memory",
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Volatility: {line[:60]}",
+                            "severity": "info",
+                            "description": line[:200],
+                            "evidence": raw.strip(),
+                            "tool": "volatility",
+                            "target": "memory",
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         return findings
 
@@ -93,16 +111,19 @@ class VolatilityParser:
             key = f"proc:{pid}:{name}"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": f"Process: {name} (PID: {pid})",
-                    "severity": severity,
-                    "description": f"Volatility discovered process {name} (PID {pid})"
-                    + (" - " + ", ".join(suspicions) if suspicions else ""),
-                    "evidence": f"PID: {pid} | Name: {name}" + (f" | PPID: {ppid}" if ppid else ""),
-                    "tool": "volatility",
-                    "target": "memory",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Process: {name} (PID: {pid})",
+                        "severity": severity,
+                        "description": f"Volatility discovered process {name} (PID {pid})"
+                        + (" - " + ", ".join(suspicions) if suspicions else ""),
+                        "evidence": f"PID: {pid} | Name: {name}"
+                        + (f" | PPID: {ppid}" if ppid else ""),
+                        "tool": "volatility",
+                        "target": "memory",
+                        "timestamp": _now_iso(),
+                    }
+                )
         elif plugin_type == "network":
             proto = row.get("Proto", row.get("protocol", ""))
             local = row.get("LocalAddr", row.get("local", row.get("LocalAddress", "")))
@@ -111,51 +132,60 @@ class VolatilityParser:
             key = f"net:{local}:{remote}:{proto}"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": f"Net: {local} <-> {remote} ({proto})",
-                    "severity": "info",
-                    "description": f"Volatility discovered {proto} connection: {local} -> {remote} [{state}]",
-                    "evidence": f"Local: {local} | Remote: {remote} | State: {state}",
-                    "tool": "volatility",
-                    "target": "memory",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Net: {local} <-> {remote} ({proto})",
+                        "severity": "info",
+                        "description": f"Volatility discovered {proto} connection: {local} -> {remote} [{state}]",
+                        "evidence": f"Local: {local} | Remote: {remote} | State: {state}",
+                        "tool": "volatility",
+                        "target": "memory",
+                        "timestamp": _now_iso(),
+                    }
+                )
         elif plugin_type == "malware":
             key = f"malware:{pid}:{name}"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": f"Potential malware: {name} (PID: {pid})",
-                    "severity": "high",
-                    "description": f"Volatility malfind detected potential injected code in {name} (PID {pid})",
-                    "evidence": f"PID: {pid} | Process: {name}" + (f" | Offset: {offset}" if offset else ""),
-                    "tool": "volatility",
-                    "target": "memory",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Potential malware: {name} (PID: {pid})",
+                        "severity": "high",
+                        "description": f"Volatility malfind detected potential injected code in {name} (PID {pid})",
+                        "evidence": f"PID: {pid} | Process: {name}"
+                        + (f" | Offset: {offset}" if offset else ""),
+                        "tool": "volatility",
+                        "target": "memory",
+                        "timestamp": _now_iso(),
+                    }
+                )
         elif plugin_type == "file":
             key = f"file:{name}"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": f"File: {name}",
-                    "severity": "info",
-                    "description": f"Volatility discovered file reference: {name}",
-                    "evidence": f"File: {name} | Offset: {offset}",
-                    "tool": "volatility",
-                    "target": "memory",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"File: {name}",
+                        "severity": "info",
+                        "description": f"Volatility discovered file reference: {name}",
+                        "evidence": f"File: {name} | Offset: {offset}",
+                        "tool": "volatility",
+                        "target": "memory",
+                        "timestamp": _now_iso(),
+                    }
+                )
         elif plugin_type == "registry":
             key = f"reg:{name}"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": f"Registry: {name}",
-                    "severity": "info",
-                    "description": f"Volatility discovered registry hive: {name}",
-                    "evidence": f"Hive: {name} | Offset: {offset}",
-                    "tool": "volatility",
-                    "target": "memory",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Registry: {name}",
+                        "severity": "info",
+                        "description": f"Volatility discovered registry hive: {name}",
+                        "evidence": f"Hive: {name} | Offset: {offset}",
+                        "tool": "volatility",
+                        "target": "memory",
+                        "timestamp": _now_iso(),
+                    }
+                )

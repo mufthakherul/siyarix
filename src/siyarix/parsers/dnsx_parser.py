@@ -57,14 +57,16 @@ class DnsxParser:
             if resolved_ips:
                 description += f" -> {resolved_ips}"
 
-            findings.append({
-                "title": f"dnsx: {host}",
-                "severity": "info",
-                "description": description,
-                "evidence": f"Host: {host}, Type: {record_type}, Records: {resolved_ips}",
-                "tool": "dnsx",
-                "target": host,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"dnsx: {host}",
+                    "severity": "info",
+                    "description": description,
+                    "evidence": f"Host: {host}, Type: {record_type}, Records: {resolved_ips}",
+                    "tool": "dnsx",
+                    "target": host,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

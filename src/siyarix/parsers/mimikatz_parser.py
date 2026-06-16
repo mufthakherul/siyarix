@@ -44,6 +44,7 @@ class MimikatzParser:
         if _JSON_RE.match(stripped):
             try:
                 import json
+
                 data = json.loads(stripped)
                 items = data if isinstance(data, list) else [data]
                 for item in items:
@@ -59,25 +60,29 @@ class MimikatzParser:
                             continue
                         seen.add(dedup_key)
                         if ntlm:
-                            findings.append({
-                                "title": f"Mimikatz: credential found for {user}",
-                                "severity": "critical",
-                                "description": f"User: {user}, Domain: {domain}, NTLM: {ntlm}",
-                                "evidence": json.dumps(item),
-                                "tool": "mimikatz",
-                                "target": domain,
-                                "timestamp": _now_iso(),
-                            })
+                            findings.append(
+                                {
+                                    "title": f"Mimikatz: credential found for {user}",
+                                    "severity": "critical",
+                                    "description": f"User: {user}, Domain: {domain}, NTLM: {ntlm}",
+                                    "evidence": json.dumps(item),
+                                    "tool": "mimikatz",
+                                    "target": domain,
+                                    "timestamp": _now_iso(),
+                                }
+                            )
                         if password and "(null)" not in password:
-                            findings.append({
-                                "title": f"Mimikatz: plaintext password for {user}",
-                                "severity": "critical",
-                                "description": f"User: {user}, Domain: {domain}, Password: {password}",
-                                "evidence": json.dumps(item),
-                                "tool": "mimikatz",
-                                "target": domain,
-                                "timestamp": _now_iso(),
-                            })
+                            findings.append(
+                                {
+                                    "title": f"Mimikatz: plaintext password for {user}",
+                                    "severity": "critical",
+                                    "description": f"User: {user}, Domain: {domain}, Password: {password}",
+                                    "evidence": json.dumps(item),
+                                    "tool": "mimikatz",
+                                    "target": domain,
+                                    "timestamp": _now_iso(),
+                                }
+                            )
                 return findings
             except json.JSONDecodeError:
                 pass
@@ -86,7 +91,6 @@ class MimikatzParser:
         current_section = ""
         target = "unknown"
 
-        in_creds_block = False
         current_user = ""
         current_domain = ""
         current_password = ""
@@ -96,74 +100,87 @@ class MimikatzParser:
             line_stripped = line.strip()
 
             if _LOGPON_RE.search(line_stripped):
-                findings.append({
-                    "title": "Mimikatz: sekurlsa::logonpasswords executed",
-                    "severity": "critical",
-                    "description": "Mimikatz ran sekurlsa::logonpasswords — credential dumping detected",
-                    "evidence": line_stripped,
-                    "tool": "mimikatz",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "Mimikatz: sekurlsa::logonpasswords executed",
+                        "severity": "critical",
+                        "description": "Mimikatz ran sekurlsa::logonpasswords — credential dumping detected",
+                        "evidence": line_stripped,
+                        "tool": "mimikatz",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             if _DCSYNC_RE.search(line_stripped):
-                findings.append({
-                    "title": "Mimikatz: lsadump::dcsync executed",
-                    "severity": "critical",
-                    "description": "Mimikatz ran lsadump::dcsync — domain credential replication detected",
-                    "evidence": line_stripped,
-                    "tool": "mimikatz",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "Mimikatz: lsadump::dcsync executed",
+                        "severity": "critical",
+                        "description": "Mimikatz ran lsadump::dcsync — domain credential replication detected",
+                        "evidence": line_stripped,
+                        "tool": "mimikatz",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             if _GOLDEN_RE.search(line_stripped):
-                findings.append({
-                    "title": "Mimikatz: kerberos::golden executed",
-                    "severity": "critical",
-                    "description": "Mimikatz golden ticket creation detected",
-                    "evidence": line_stripped,
-                    "tool": "mimikatz",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "Mimikatz: kerberos::golden executed",
+                        "severity": "critical",
+                        "description": "Mimikatz golden ticket creation detected",
+                        "evidence": line_stripped,
+                        "tool": "mimikatz",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             if _TICKET_RE.search(line_stripped):
-                findings.append({
-                    "title": "Mimikatz: Kerberos ticket extracted",
-                    "severity": "high",
-                    "description": "Kerberos ticket (.kirbi) extracted from memory or disk",
-                    "evidence": line_stripped,
-                    "tool": "mimikatz",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "Mimikatz: Kerberos ticket extracted",
+                        "severity": "high",
+                        "description": "Kerberos ticket (.kirbi) extracted from memory or disk",
+                        "evidence": line_stripped,
+                        "tool": "mimikatz",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             if _MSV_CREDS_RE.search(line_stripped):
                 current_section = "msv"
-                in_creds_block = True
                 continue
 
             if _WDIGEST_RE.search(line_stripped) and ":" not in line_stripped:
                 current_section = "wdigest"
-                in_creds_block = True
                 continue
 
             if _KERBEROS_RE.search(line_stripped) and ":" not in line_stripped:
                 current_section = "kerberos"
-                in_creds_block = True
                 continue
 
             if "Username" in line_stripped and "*" in line_stripped:
-                current_user = _USERNAME_FIELD_RE.sub(r"\1", line_stripped) if _USERNAME_FIELD_RE.search(line_stripped) else ""
+                current_user = (
+                    _USERNAME_FIELD_RE.sub(r"\1", line_stripped)
+                    if _USERNAME_FIELD_RE.search(line_stripped)
+                    else ""
+                )
                 continue
 
             if "Domain" in line_stripped and "*" in line_stripped:
-                current_domain = _DOMAIN_FIELD_RE.sub(r"\1", line_stripped) if _DOMAIN_FIELD_RE.search(line_stripped) else ""
+                current_domain = (
+                    _DOMAIN_FIELD_RE.sub(r"\1", line_stripped)
+                    if _DOMAIN_FIELD_RE.search(line_stripped)
+                    else ""
+                )
                 continue
 
             if "NTLM" in line_stripped and "*" in line_stripped:
@@ -177,15 +194,17 @@ class MimikatzParser:
                         description = f"User: {current_user}, Domain: {current_domain}"
                         if current_ntlm:
                             description += f", NTLM hash: {current_ntlm}"
-                        findings.append({
-                            "title": title,
-                            "severity": "critical",
-                            "description": description,
-                            "evidence": f"User: {current_user} Domain: {current_domain} NTLM: {current_ntlm} Section: {current_section}",
-                            "tool": "mimikatz",
-                            "target": target,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": title,
+                                "severity": "critical",
+                                "description": description,
+                                "evidence": f"User: {current_user} Domain: {current_domain} NTLM: {current_ntlm} Section: {current_section}",
+                                "tool": "mimikatz",
+                                "target": target,
+                                "timestamp": _now_iso(),
+                            }
+                        )
                     current_user = ""
                     current_domain = ""
                     current_ntlm = ""
@@ -199,14 +218,16 @@ class MimikatzParser:
                         dedup_key = f"{current_user}|{current_domain}|{current_password[:16]}"
                         if dedup_key not in seen:
                             seen.add(dedup_key)
-                            findings.append({
-                                "title": f"Mimikatz: {current_section.upper()} plaintext password",
-                                "severity": "critical",
-                                "description": f"User: {current_user}, Domain: {current_domain}, Password: {current_password}",
-                                "evidence": f"User: {current_user} Domain: {current_domain} Password: {current_password} Section: {current_section}",
-                                "tool": "mimikatz",
-                                "target": target,
-                                "timestamp": _now_iso(),
-                            })
+                            findings.append(
+                                {
+                                    "title": f"Mimikatz: {current_section.upper()} plaintext password",
+                                    "severity": "critical",
+                                    "description": f"User: {current_user}, Domain: {current_domain}, Password: {current_password}",
+                                    "evidence": f"User: {current_user} Domain: {current_domain} Password: {current_password} Section: {current_section}",
+                                    "tool": "mimikatz",
+                                    "target": target,
+                                    "timestamp": _now_iso(),
+                                }
+                            )
 
         return findings

@@ -78,7 +78,7 @@ class WgetParser:
     def parse(self, output: str) -> list[dict]:
         if not output.strip():
             return []
-        first_line = next((l for l in output.splitlines() if l.strip()), "")
+        first_line = next((line for line in output.splitlines() if line.strip()), "")
         stripped = first_line.lstrip()
 
         if stripped.startswith("[") or stripped.startswith("{"):
@@ -89,7 +89,7 @@ class WgetParser:
                 pass
         return self._parse_text(output)
 
-    def _parse_json(self, data) -> list[dict]:  # type: ignore
+    def _parse_json(self, data) -> list[dict]:
         findings: list[dict] = []
         seen: set[str] = set()
         items = data if isinstance(data, list) else [data]
@@ -100,7 +100,7 @@ class WgetParser:
             status_code = str(item.get("status_code", item.get("status", "")))
             size = item.get("size", item.get("length", ""))
             filename = item.get("filename", item.get("file", ""))
-            error = item.get("error", "")
+            item.get("error", "")
 
             dedup_key = f"{url}:{status_code}:{filename}"
             if dedup_key in seen:
@@ -118,16 +118,18 @@ class WgetParser:
                 desc_parts.append(f"file: {filename}")
             if size:
                 desc_parts.append(f"size: {size}b")
-            title = "wget: " + (" ".join(title_parts) if title_parts else url)  # type: ignore
-            findings.append({
-                "title": title,
-                "severity": severity,
-                "description": " | ".join(desc_parts),
-                "evidence": json.dumps(item, default=str),
-                "tool": "wget",
-                "target": url,
-                "timestamp": _now_iso(),
-            })
+            title = "wget: " + (" ".join(title_parts) if title_parts else url)
+            findings.append(
+                {
+                    "title": title,
+                    "severity": severity,
+                    "description": " | ".join(desc_parts),
+                    "evidence": json.dumps(item, default=str),
+                    "tool": "wget",
+                    "target": url,
+                    "timestamp": _now_iso(),
+                }
+            )
         return findings
 
     def _parse_text(self, output: str) -> list[dict]:
@@ -155,15 +157,17 @@ class WgetParser:
                 dedup_key = f"download:{current_url}"
                 if dedup_key not in seen:
                     seen.add(dedup_key)
-                    findings.append({
-                        "title": f"wget download started: {current_url}",
-                        "severity": "info",
-                        "description": f"wget started downloading {current_url}",
-                        "evidence": f"URL: {current_url}",
-                        "tool": "wget",
-                        "target": current_url,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"wget download started: {current_url}",
+                            "severity": "info",
+                            "description": f"wget started downloading {current_url}",
+                            "evidence": f"URL: {current_url}",
+                            "tool": "wget",
+                            "target": current_url,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             sl = _STATUS_LINE_RE.match(line)
@@ -175,15 +179,17 @@ class WgetParser:
                     continue
                 seen.add(dedup_key)
                 severity = _STATUS_SEVERITY.get(code, "info")
-                findings.append({
-                    "title": f"wget HTTP {code} {text}"[:120],
-                    "severity": severity,
-                    "description": f"wget request to {current_url} returned HTTP {code} {text}",
-                    "evidence": f"HTTP {code} {text}",
-                    "tool": "wget",
-                    "target": current_url,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"wget HTTP {code} {text}"[:120],
+                        "severity": severity,
+                        "description": f"wget request to {current_url} returned HTTP {code} {text}",
+                        "evidence": f"HTTP {code} {text}",
+                        "tool": "wget",
+                        "target": current_url,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             if _ERROR_RE.search(line):
@@ -197,15 +203,17 @@ class WgetParser:
                 if http_m:
                     code = http_m.group("code")
                     severity = _STATUS_SEVERITY.get(code, "medium")
-                findings.append({
-                    "title": f"wget error: {error_text[:60]}",
-                    "severity": severity,
-                    "description": f"wget encountered an error for {current_url}: {error_text}",
-                    "evidence": error_text,
-                    "tool": "wget",
-                    "target": current_url,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"wget error: {error_text[:60]}",
+                        "severity": severity,
+                        "description": f"wget encountered an error for {current_url}: {error_text}",
+                        "evidence": error_text,
+                        "tool": "wget",
+                        "target": current_url,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             rec_m = _RECURSIVE_RE.search(line)
@@ -215,15 +223,17 @@ class WgetParser:
                     dedup_key = f"recursive:{current_url}:{downloaded}"
                     if dedup_key not in seen:
                         seen.add(dedup_key)
-                        findings.append({
-                            "title": f"wget recursive download complete ({downloaded} files)",
-                            "severity": "info",
-                            "description": f"wget recursively downloaded {downloaded} files from {current_url}",
-                            "evidence": f"files: {downloaded}",
-                            "tool": "wget",
-                            "target": current_url,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"wget recursive download complete ({downloaded} files)",
+                                "severity": "info",
+                                "description": f"wget recursively downloaded {downloaded} files from {current_url}",
+                                "evidence": f"files: {downloaded}",
+                                "tool": "wget",
+                                "target": current_url,
+                                "timestamp": _now_iso(),
+                            }
+                        )
                 continue
 
             m = _LENGTH_RE.search(line)
@@ -231,15 +241,17 @@ class WgetParser:
                 dedup_key = f"length:{current_url}:{m.group('bytes')}"
                 if dedup_key not in seen:
                     seen.add(dedup_key)
-                    findings.append({
-                        "title": f"wget resource size: {m.group('bytes')} bytes",
-                        "severity": "info",
-                        "description": f"wget determined resource at {current_url} is {m.group('bytes')} bytes ({m.group('type')})",
-                        "evidence": line.strip(),
-                        "tool": "wget",
-                        "target": current_url,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"wget resource size: {m.group('bytes')} bytes",
+                            "severity": "info",
+                            "description": f"wget determined resource at {current_url} is {m.group('bytes')} bytes ({m.group('type')})",
+                            "evidence": line.strip(),
+                            "tool": "wget",
+                            "target": current_url,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _SAVED_RE.search(line)
@@ -247,25 +259,29 @@ class WgetParser:
                 dedup_key = f"saved:{current_url}:{m.group('file')}"
                 if dedup_key not in seen:
                     seen.add(dedup_key)
-                    findings.append({
-                        "title": f"wget downloaded: {m.group('file')}",
-                        "severity": "info",
-                        "description": f"wget successfully downloaded {m.group('file')} from {current_url}",
-                        "evidence": f"file: {m.group('file')}",
-                        "tool": "wget",
-                        "target": current_url,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"wget downloaded: {m.group('file')}",
+                            "severity": "info",
+                            "description": f"wget successfully downloaded {m.group('file')} from {current_url}",
+                            "evidence": f"file: {m.group('file')}",
+                            "tool": "wget",
+                            "target": current_url,
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         if spider_mode and not findings:
-            findings.append({
-                "title": "wget spider scan completed",
-                "severity": "info",
-                "description": f"wget spider mode scan of {current_url} completed",
-                "evidence": f"spider: {current_url}",
-                "tool": "wget",
-                "target": current_url,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": "wget spider scan completed",
+                    "severity": "info",
+                    "description": f"wget spider mode scan of {current_url} completed",
+                    "evidence": f"spider: {current_url}",
+                    "tool": "wget",
+                    "target": current_url,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

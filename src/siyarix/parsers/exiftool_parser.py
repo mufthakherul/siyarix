@@ -113,16 +113,22 @@ class ExiftoolParser:
                 description_parts.append(f"GPS: {gps_str}")
 
             evidence = json.dumps(extracted, default=str)
-            description = "; ".join(description_parts) if description_parts else f"EXIF data from {source_file}"
+            description = (
+                "; ".join(description_parts)
+                if description_parts
+                else f"EXIF data from {source_file}"
+            )
 
-            findings.append({
-                "title": f"Exiftool: {source_file}",
-                "severity": "info",
-                "description": description,
-                "evidence": evidence,
-                "tool": "exiftool",
-                "target": source_file,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"Exiftool: {source_file}",
+                    "severity": "info",
+                    "description": description,
+                    "evidence": evidence,
+                    "tool": "exiftool",
+                    "target": source_file,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

@@ -12,8 +12,11 @@ import re
 _JSON_RE = re.compile(r"^\s*[{\[]")
 
 _SEVERITY_MAP = {
-    "critical": "critical", "high": "high", "medium": "medium",
-    "low": "low", "informational": "info",
+    "critical": "critical",
+    "high": "high",
+    "medium": "medium",
+    "low": "low",
+    "informational": "info",
 }
 
 
@@ -31,7 +34,9 @@ class ArachniParser:
                     name = issue.get("name", issue.get("check", {}).get("name", "Unknown issue"))
                     severity_raw = issue.get("severity", "info").lower()
                     severity = _SEVERITY_MAP.get(severity_raw, "info")
-                    description = issue.get("description", issue.get("check", {}).get("description", ""))
+                    description = issue.get(
+                        "description", issue.get("check", {}).get("description", "")
+                    )
                     url = issue.get("vector", {}).get("action", "unknown")
                     parameter = issue.get("vector", {}).get("input", "")
                     cwe = issue.get("cwe", [])
@@ -59,15 +64,17 @@ class ArachniParser:
                     if remediation:
                         evidence_parts.append(f"Remediation: {remediation[:100]}")
 
-                    findings.append({
-                        "title": f"[{tag}] {name}",
-                        "severity": severity,
-                        "description": description[:200] if description else name,
-                        "evidence": " | ".join(evidence_parts),
-                        "tool": "arachni",
-                        "target": url,
-                        "timestamp": issue.get("generated_at", _now_iso()),
-                    })
+                    findings.append(
+                        {
+                            "title": f"[{tag}] {name}",
+                            "severity": severity,
+                            "description": description[:200] if description else name,
+                            "evidence": " | ".join(evidence_parts),
+                            "tool": "arachni",
+                            "target": url,
+                            "timestamp": issue.get("generated_at", _now_iso()),
+                        }
+                    )
             except json.JSONDecodeError:
                 pass
 
@@ -82,15 +89,17 @@ class ArachniParser:
                     if dedup_key in seen:
                         continue
                     seen.add(dedup_key)
-                    findings.append({
-                        "title": f"Arachni: {line[:80]}",
-                        "severity": _SEVERITY_MAP.get(sev, "info"),
-                        "description": line.strip()[:200],
-                        "evidence": line.strip(),
-                        "tool": "arachni",
-                        "target": "unknown",
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Arachni: {line[:80]}",
+                            "severity": _SEVERITY_MAP.get(sev, "info"),
+                            "description": line.strip()[:200],
+                            "evidence": line.strip(),
+                            "tool": "arachni",
+                            "target": "unknown",
+                            "timestamp": _now_iso(),
+                        }
+                    )
                     break
 
         return findings

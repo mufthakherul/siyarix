@@ -90,15 +90,17 @@ class SearchsploitParser:
                             evidence_parts.append(f"Path: {path}")
                         if cve_ids:
                             evidence_parts.append(f"CVE: {', '.join(cve_ids)}")
-                        findings.append({
-                            "title": f"Exploit: {title[:80]}",
-                            "severity": "high",
-                            "description": f"Exploit-DB #{eid}: {title} ({etype}/{platform})",
-                            "evidence": " | ".join(evidence_parts),
-                            "tool": "searchsploit",
-                            "target": query,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"Exploit: {title[:80]}",
+                                "severity": "high",
+                                "description": f"Exploit-DB #{eid}: {title} ({etype}/{platform})",
+                                "evidence": " | ".join(evidence_parts),
+                                "tool": "searchsploit",
+                                "target": query,
+                                "timestamp": _now_iso(),
+                            }
+                        )
                 except json.JSONDecodeError:
                     pass
                 continue
@@ -114,15 +116,17 @@ class SearchsploitParser:
                     evidence_parts = [f"EDB-ID: {eid}"]
                     if cve_ids:
                         evidence_parts.append(f"CVE: {', '.join(cve_ids)}")
-                    findings.append({
-                        "title": f"Exploit #{eid}: {title[:60]}",
-                        "severity": "high",
-                        "description": f"searchsploit found exploit #{eid}: {title} ({m.group('type')}/{m.group('platform')})",
-                        "evidence": " | ".join(evidence_parts),
-                        "tool": "searchsploit",
-                        "target": query,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Exploit #{eid}: {title[:60]}",
+                            "severity": "high",
+                            "description": f"searchsploit found exploit #{eid}: {title} ({m.group('type')}/{m.group('platform')})",
+                            "evidence": " | ".join(evidence_parts),
+                            "tool": "searchsploit",
+                            "target": query,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _BRIEF_LINE_RE.match(line)
@@ -136,15 +140,17 @@ class SearchsploitParser:
                     evidence_parts = [f"EDB-ID: {eid}"]
                     if cve_ids:
                         evidence_parts.append(f"CVE: {', '.join(cve_ids)}")
-                    findings.append({
-                        "title": f"Exploit #{eid}: {title[:60]}",
-                        "severity": "high",
-                        "description": f"searchsploit found exploit #{eid}: {title} ({m.group('type')}/{m.group('platform')})",
-                        "evidence": " | ".join(evidence_parts),
-                        "tool": "searchsploit",
-                        "target": query,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Exploit #{eid}: {title[:60]}",
+                            "severity": "high",
+                            "description": f"searchsploit found exploit #{eid}: {title} ({m.group('type')}/{m.group('platform')})",
+                            "evidence": " | ".join(evidence_parts),
+                            "tool": "searchsploit",
+                            "target": query,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _URL_LINE_RE.match(line)
@@ -158,15 +164,17 @@ class SearchsploitParser:
                     evidence_parts = [f"EDB-ID: {eid}", f"URL: {m.group('url')}"]
                     if cve_ids:
                         evidence_parts.append(f"CVE: {', '.join(cve_ids)}")
-                    findings.append({
-                        "title": f"Exploit #{eid}: {title[:60]}",
-                        "severity": "high",
-                        "description": f"searchsploit found exploit #{eid} at {m.group('url')}",
-                        "evidence": " | ".join(evidence_parts),
-                        "tool": "searchsploit",
-                        "target": query,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Exploit #{eid}: {title[:60]}",
+                            "severity": "high",
+                            "description": f"searchsploit found exploit #{eid} at {m.group('url')}",
+                            "evidence": " | ".join(evidence_parts),
+                            "tool": "searchsploit",
+                            "target": query,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _PATH_LINE_RE.search(line)
@@ -175,15 +183,17 @@ class SearchsploitParser:
                 key = f"path:{path}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Exploit-DB local path: {path[:60]}",
-                        "severity": "info",
-                        "description": f"searchsploit local path for {query}: {path}",
-                        "evidence": path,
-                        "tool": "searchsploit",
-                        "target": query,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Exploit-DB local path: {path[:60]}",
+                            "severity": "info",
+                            "description": f"searchsploit local path for {query}: {path}",
+                            "evidence": path,
+                            "tool": "searchsploit",
+                            "target": query,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _PATH_ENTRY_RE.match(line)
@@ -193,15 +203,17 @@ class SearchsploitParser:
                 key = f"path:{eid}:{path}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Exploit #{eid} local file",
-                        "severity": "info",
-                        "description": f"Exploit-DB file at {path}",
-                        "evidence": f"Path: {path}",
-                        "tool": "searchsploit",
-                        "target": query,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Exploit #{eid} local file",
+                            "severity": "info",
+                            "description": f"Exploit-DB file at {path}",
+                            "evidence": f"Path: {path}",
+                            "tool": "searchsploit",
+                            "target": query,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _TITLE_PATH_RE.match(line)
@@ -211,25 +223,29 @@ class SearchsploitParser:
                 key = f"path:{title}:{path}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Exploit: {title[:60]}",
-                        "severity": "high",
-                        "description": f"searchsploit found exploit: {title} at {path}",
-                        "evidence": f"Title: {title} | Path: {path}",
-                        "tool": "searchsploit",
-                        "target": query,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Exploit: {title[:60]}",
+                            "severity": "high",
+                            "description": f"searchsploit found exploit: {title} at {path}",
+                            "evidence": f"Title: {title} | Path: {path}",
+                            "tool": "searchsploit",
+                            "target": query,
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         if summary_count:
-            findings.append({
-                "title": f"searchsploit results: {summary_count} exploits",
-                "severity": "info",
-                "description": f"searchsploit found {summary_count} exploits for {query}",
-                "evidence": f"Total: {summary_count}",
-                "tool": "searchsploit",
-                "target": query,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"searchsploit results: {summary_count} exploits",
+                    "severity": "info",
+                    "description": f"searchsploit found {summary_count} exploits for {query}",
+                    "evidence": f"Total: {summary_count}",
+                    "tool": "searchsploit",
+                    "target": query,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

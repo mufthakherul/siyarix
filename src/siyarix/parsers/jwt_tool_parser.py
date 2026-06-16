@@ -94,7 +94,9 @@ class JwtToolParser:
                     if len(parts) >= 2:
                         padded = parts[1] + "=" * (4 - len(parts[1]) % 4)
                         decoded_payload = json.loads(
-                            __import__("base64").urlsafe_b64decode(padded).decode("utf-8", errors="replace")
+                            __import__("base64")
+                            .urlsafe_b64decode(padded)
+                            .decode("utf-8", errors="replace")
                         )
                 except Exception:
                     pass
@@ -112,30 +114,34 @@ class JwtToolParser:
                 key = "vuln:none-algorithm"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": "JWT algorithm set to 'none'",
-                        "severity": "critical",
-                        "description": "JWT accepts 'none' algorithm — attacker can forge arbitrary tokens",
-                        "evidence": raw,
-                        "tool": "jwt_tool",
-                        "target": current_token[:40] + "..." if current_token else "unknown",
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": "JWT algorithm set to 'none'",
+                            "severity": "critical",
+                            "description": "JWT accepts 'none' algorithm — attacker can forge arbitrary tokens",
+                            "evidence": raw,
+                            "tool": "jwt_tool",
+                            "target": current_token[:40] + "..." if current_token else "unknown",
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             if algo in ("none", "null", "nonealgorithm"):
                 key = f"vuln:none-algo:{algo}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": "JWT 'none' algorithm attack possible",
-                        "severity": "critical",
-                        "description": f"JWT uses algorithm '{algo}' enabling signature bypass",
-                        "evidence": raw,
-                        "tool": "jwt_tool",
-                        "target": current_token[:40] + "..." if current_token else "unknown",
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": "JWT 'none' algorithm attack possible",
+                            "severity": "critical",
+                            "description": f"JWT uses algorithm '{algo}' enabling signature bypass",
+                            "evidence": raw,
+                            "tool": "jwt_tool",
+                            "target": current_token[:40] + "..." if current_token else "unknown",
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _VULN_RE.search(line)
@@ -144,15 +150,17 @@ class JwtToolParser:
                 key = f"vuln:{vuln[:60]}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"JWT vulnerability: {vuln[:60]}",
-                        "severity": "high",
-                        "description": f"jwt_tool identified: {vuln}",
-                        "evidence": raw,
-                        "tool": "jwt_tool",
-                        "target": current_token[:40] + "..." if current_token else "unknown",
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"JWT vulnerability: {vuln[:60]}",
+                            "severity": "high",
+                            "description": f"jwt_tool identified: {vuln}",
+                            "evidence": raw,
+                            "tool": "jwt_tool",
+                            "target": current_token[:40] + "..." if current_token else "unknown",
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _ROLE_RE.search(line)
@@ -162,15 +170,19 @@ class JwtToolParser:
                     key = f"role:{current_token[:40]}:{role_val}"
                     if key not in seen:
                         seen.add(key)
-                        findings.append({
-                            "title": "JWT privilege escalation possible",
-                            "severity": "high",
-                            "description": f"JWT contains privilege claim: {raw.strip()}",
-                            "evidence": raw,
-                            "tool": "jwt_tool",
-                            "target": current_token[:40] + "..." if current_token else "unknown",
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": "JWT privilege escalation possible",
+                                "severity": "high",
+                                "description": f"JWT contains privilege claim: {raw.strip()}",
+                                "evidence": raw,
+                                "tool": "jwt_tool",
+                                "target": current_token[:40] + "..."
+                                if current_token
+                                else "unknown",
+                                "timestamp": _now_iso(),
+                            }
+                        )
                 continue
 
         if decoded_payload:
@@ -184,29 +196,33 @@ class JwtToolParser:
                         severity = "info"
                     else:
                         severity = "info"
-                    findings.append({
-                        "title": f"JWT claim: {k} = {v}",
-                        "severity": severity,
-                        "description": f"Decoded JWT claim {k}: {v}",
-                        "evidence": f"{k}={v}",
-                        "tool": "jwt_tool",
-                        "target": current_token[:40] + "..." if current_token else "unknown",
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"JWT claim: {k} = {v}",
+                            "severity": severity,
+                            "description": f"Decoded JWT claim {k}: {v}",
+                            "evidence": f"{k}={v}",
+                            "tool": "jwt_tool",
+                            "target": current_token[:40] + "..." if current_token else "unknown",
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         if signature_valid is not None:
             key = f"sig-valid:{signature_valid}"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": "JWT signature verification result",
-                    "severity": "info" if signature_valid else "high",
-                    "description": f"JWT signature verification: {'valid' if signature_valid else 'invalid'}",
-                    "evidence": f"Signature verified: {signature_valid}",
-                    "tool": "jwt_tool",
-                    "target": current_token[:40] + "..." if current_token else "unknown",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "JWT signature verification result",
+                        "severity": "info" if signature_valid else "high",
+                        "description": f"JWT signature verification: {'valid' if signature_valid else 'invalid'}",
+                        "evidence": f"Signature verified: {signature_valid}",
+                        "tool": "jwt_tool",
+                        "target": current_token[:40] + "..." if current_token else "unknown",
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings
 
@@ -218,15 +234,17 @@ class JwtToolParser:
         key = f"json-algo:{algo}"
         if key not in seen:
             seen.add(key)
-            findings.append({
-                "title": f"JWT analysis: algorithm={algo}",
-                "severity": "info",
-                "description": f"JWT token analyzed: algorithm={algo}, claims={json.dumps(record.get('payload', {}))}",
-                "evidence": f"Token: {token[:40]}... | Algorithm: {algo}",
-                "tool": "jwt_tool",
-                "target": token[:40] + "..." if token else "unknown",
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"JWT analysis: algorithm={algo}",
+                    "severity": "info",
+                    "description": f"JWT token analyzed: algorithm={algo}, claims={json.dumps(record.get('payload', {}))}",
+                    "evidence": f"Token: {token[:40]}... | Algorithm: {algo}",
+                    "tool": "jwt_tool",
+                    "target": token[:40] + "..." if token else "unknown",
+                    "timestamp": _now_iso(),
+                }
+            )
 
         payload = record.get("payload", {})
         if isinstance(payload, dict):
@@ -234,16 +252,22 @@ class JwtToolParser:
                 key = f"json-claim:{k}:{v}"
                 if key not in seen:
                     seen.add(key)
-                    sev = "high" if k.lower() in ("role", "admin", "is_admin", "privilege") else "info"
-                    findings.append({
-                        "title": f"JWT claim: {k} = {v}",
-                        "severity": sev,
-                        "description": f"Decoded JWT claim {k}: {v}",
-                        "evidence": f"{k}={v}",
-                        "tool": "jwt_tool",
-                        "target": token[:40] + "..." if token else "unknown",
-                        "timestamp": _now_iso(),
-                    })
+                    sev = (
+                        "high"
+                        if k.lower() in ("role", "admin", "is_admin", "privilege")
+                        else "info"
+                    )
+                    findings.append(
+                        {
+                            "title": f"JWT claim: {k} = {v}",
+                            "severity": sev,
+                            "description": f"Decoded JWT claim {k}: {v}",
+                            "evidence": f"{k}={v}",
+                            "tool": "jwt_tool",
+                            "target": token[:40] + "..." if token else "unknown",
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         issues = record.get("issues", [])
         if isinstance(issues, list):
@@ -251,29 +275,33 @@ class JwtToolParser:
                 key = f"json-issue:{issue}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"JWT issue: {issue}",
-                        "severity": "high",
-                        "description": f"jwt_tool identified issue: {issue}",
-                        "evidence": issue,
-                        "tool": "jwt_tool",
-                        "target": token[:40] + "..." if token else "unknown",
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"JWT issue: {issue}",
+                            "severity": "high",
+                            "description": f"jwt_tool identified issue: {issue}",
+                            "evidence": issue,
+                            "tool": "jwt_tool",
+                            "target": token[:40] + "..." if token else "unknown",
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         if record.get("signature_valid") is not None:
             sv = record["signature_valid"]
             key = f"json-sig:{sv}"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": "JWT signature verification",
-                    "severity": "info" if sv else "high",
-                    "description": f"Signature verification: {'passed' if sv else 'failed'}",
-                    "evidence": f"valid: {sv}",
-                    "tool": "jwt_tool",
-                    "target": token[:40] + "..." if token else "unknown",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "JWT signature verification",
+                        "severity": "info" if sv else "high",
+                        "description": f"Signature verification: {'passed' if sv else 'failed'}",
+                        "evidence": f"valid: {sv}",
+                        "tool": "jwt_tool",
+                        "target": token[:40] + "..." if token else "unknown",
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

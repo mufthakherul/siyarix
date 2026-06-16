@@ -83,21 +83,22 @@ class NaabuParser:
             if service:
                 desc += f" service: {service}"
                 evidence += f"; service:{service}"
-            findings.append({
-                "title": f"Open port {port_num}/{proto}",
-                "severity": severity,
-                "description": desc,
-                "evidence": evidence,
-                "tool": "naabu",
-                "target": host,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"Open port {port_num}/{proto}",
+                    "severity": severity,
+                    "description": desc,
+                    "evidence": evidence,
+                    "tool": "naabu",
+                    "target": host,
+                    "timestamp": _now_iso(),
+                }
+            )
         return findings
 
     def _parse_text(self, output: str) -> list[dict]:
         findings: list[dict] = []
         seen: set[str] = set()
-        host = "unknown"
 
         for line in output.splitlines():
             line = line.strip()
@@ -106,7 +107,7 @@ class NaabuParser:
 
             m = _HOST_RE.search(line)
             if m:
-                host = m.group("host")
+                m.group("host")
                 continue
 
             m = _TCP_PORT_RE.search(line)
@@ -119,14 +120,16 @@ class NaabuParser:
                     continue
                 seen.add(dedup_key)
                 severity = _severity_for_port(port_num)
-                findings.append({
-                    "title": f"Open port {port_num}/{proto}",
-                    "severity": severity,
-                    "description": f"Naabu discovered open port {port_num}/{proto} on {host_found}",
-                    "evidence": f"Open port {port_num}/{proto} on {host_found}",
-                    "tool": "naabu",
-                    "target": host_found,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Open port {port_num}/{proto}",
+                        "severity": severity,
+                        "description": f"Naabu discovered open port {port_num}/{proto} on {host_found}",
+                        "evidence": f"Open port {port_num}/{proto} on {host_found}",
+                        "tool": "naabu",
+                        "target": host_found,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

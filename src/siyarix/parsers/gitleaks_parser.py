@@ -1,4 +1,4 @@
-﻿# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Gitleaks JSON output parser — extracts secrets, rule IDs, file paths, and entropy."""
 
@@ -49,15 +49,17 @@ class GitleaksParser:
             key = "summary:total"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": f"Gitleaks: {summary_m.group(1)} secrets",
-                    "severity": "info",
-                    "description": f"Gitleaks detected {summary_m.group(1)} secrets",
-                    "evidence": f"Total: {summary_m.group(1)}",
-                    "tool": "gitleaks",
-                    "target": "",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Gitleaks: {summary_m.group(1)} secrets",
+                        "severity": "info",
+                        "description": f"Gitleaks detected {summary_m.group(1)} secrets",
+                        "evidence": f"Total: {summary_m.group(1)}",
+                        "tool": "gitleaks",
+                        "target": "",
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings
 

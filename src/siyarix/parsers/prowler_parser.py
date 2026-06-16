@@ -62,14 +62,16 @@ class ProwlerParser:
             evidence = f"Status: {status}, Region: {region}, Resource: {resource_arn}"
             target = resource_arn or region or control
 
-            findings.append({
-                "title": f"Prowler: {control} ({status})",
-                "severity": severity,
-                "description": description,
-                "evidence": evidence,
-                "tool": "prowler",
-                "target": target,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"Prowler: {control} ({status})",
+                    "severity": severity,
+                    "description": description,
+                    "evidence": evidence,
+                    "tool": "prowler",
+                    "target": target,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

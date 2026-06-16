@@ -48,14 +48,16 @@ class ShufflednsParser:
                 description += f" -> {ip}"
                 evidence += f" : {ip}"
 
-            findings.append({
-                "title": f"Shuffledns: {domain}",
-                "severity": "info",
-                "description": description,
-                "evidence": evidence,
-                "tool": "shuffledns",
-                "target": domain,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"Shuffledns: {domain}",
+                    "severity": "info",
+                    "description": description,
+                    "evidence": evidence,
+                    "tool": "shuffledns",
+                    "target": domain,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

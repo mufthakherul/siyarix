@@ -10,9 +10,18 @@ KEYVAL_RE = re.compile(r"^(\w[\w\s/]*?):\s*(.+)$")
 
 class WhoisParser(BaseParser):
     INTERESTING_KEYS = {
-        "domain name", "registrar", "creation date", "expiry date",
-        "updated date", "name server", "registrant name", "registrant organization",
-        "admin name", "admin organization", "tech name", "tech organization",
+        "domain name",
+        "registrar",
+        "creation date",
+        "expiry date",
+        "updated date",
+        "name server",
+        "registrant name",
+        "registrant organization",
+        "admin name",
+        "admin organization",
+        "tech name",
+        "tech organization",
     }
 
     def parse(self, output: str) -> list[dict[str, Any]]:

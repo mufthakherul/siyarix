@@ -20,7 +20,6 @@ class DalfoxParser:
     """Parse dalfox XSS scanner JSON output (with text fallback) into normalized finding dicts."""
 
     def parse(self: DalfoxParser, output: str) -> list[dict]:
-        findings: list[dict] = []
         lines = output.splitlines()
 
         if lines and _JSON_LINE_RE.match(lines[0].strip()):
@@ -69,7 +68,9 @@ class DalfoxParser:
         return {
             "title": title,
             "severity": severity,
-            "description": f"XSS vulnerability in parameter {param} at {url}" if param else f"XSS vulnerability at {url}",
+            "description": f"XSS vulnerability in parameter {param} at {url}"
+            if param
+            else f"XSS vulnerability at {url}",
             "evidence": str(evidence),
             "tool": "dalfox",
             "target": url,
@@ -99,15 +100,17 @@ class DalfoxParser:
                     continue
                 seen.add(dedup_key)
 
-                findings.append({
-                    "title": f"Dalfox: Potential XSS on {param}",
-                    "severity": "high",
-                    "description": f"Potential XSS: parameter {param} at {url}",
-                    "evidence": evidence,
-                    "tool": "dalfox",
-                    "target": url,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Dalfox: Potential XSS on {param}",
+                        "severity": "high",
+                        "description": f"Potential XSS: parameter {param} at {url}",
+                        "evidence": evidence,
+                        "tool": "dalfox",
+                        "target": url,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
             if url_m and "target" in line_stripped.lower():
                 target = url_m.group(1)

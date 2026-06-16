@@ -1,4 +1,4 @@
-﻿# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Semgrep JSON output parser — extracts check_id, path, line, severity, and message from scan results."""
 
@@ -60,28 +60,32 @@ class SemgrepParser:
             key = f"{check_id}:{path}:{line_num}"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": f"Semgrep: {check_id}",
-                    "severity": severity,
-                    "description": message or f"Semgrep finding: {check_id}",
-                    "evidence": f"{path}:{line_num} [{check_id}]",
-                    "tool": "semgrep",
-                    "target": path,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Semgrep: {check_id}",
+                        "severity": severity,
+                        "description": message or f"Semgrep finding: {check_id}",
+                        "evidence": f"{path}:{line_num} [{check_id}]",
+                        "tool": "semgrep",
+                        "target": path,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         if summary_count:
             key = "summary:total"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": f"Semgrep: {summary_count} findings",
-                    "severity": "info",
-                    "description": f"Semgrep found {summary_count} findings",
-                    "evidence": f"Total: {summary_count}",
-                    "tool": "semgrep",
-                    "target": "",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Semgrep: {summary_count} findings",
+                        "severity": "info",
+                        "description": f"Semgrep found {summary_count} findings",
+                        "evidence": f"Total: {summary_count}",
+                        "tool": "semgrep",
+                        "target": "",
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

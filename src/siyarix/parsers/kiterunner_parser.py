@@ -5,6 +5,7 @@ import json
 from typing import Any
 from . import BaseParser, build_finding
 
+
 class KiterunnerParser(BaseParser):
     """Parses Kiterunner API discovery output."""
 
@@ -19,25 +20,29 @@ class KiterunnerParser(BaseParser):
                     data = json.loads(line)
                     url = data.get("URL", "")
                     status = data.get("Status", 0)
-                    findings.append(build_finding(
-                        title=f"Kiterunner API Endpoint: {url}",
-                        severity="info",
-                        description=f"Found API endpoint {url} returning {status}",
-                        evidence=line,
-                        tool="kiterunner",
-                        target=url,
-                    ))
+                    findings.append(
+                        build_finding(
+                            title=f"Kiterunner API Endpoint: {url}",
+                            severity="info",
+                            description=f"Found API endpoint {url} returning {status}",
+                            evidence=line,
+                            tool="kiterunner",
+                            target=url,
+                        )
+                    )
                 except json.JSONDecodeError:
                     pass
             elif "GET" in line or "POST" in line:
                 parts = line.split()
                 if len(parts) >= 2:
-                    findings.append(build_finding(
-                        title=f"Kiterunner Route: {parts[0]} {parts[1]}",
-                        severity="info",
-                        description=line,
-                        evidence=line,
-                        tool="kiterunner",
-                        target=parts[1],
-                    ))
+                    findings.append(
+                        build_finding(
+                            title=f"Kiterunner Route: {parts[0]} {parts[1]}",
+                            severity="info",
+                            description=line,
+                            evidence=line,
+                            tool="kiterunner",
+                            target=parts[1],
+                        )
+                    )
         return findings

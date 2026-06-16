@@ -51,24 +51,41 @@ _AGGRESSIVE_RE = re.compile(
 )
 
 _ENCRYPTION_NAMES = {
-    "1": "DES-CBC", "2": "IDEA-CBC", "3": "BLOWFISH-CBC",
-    "5": "AES-CBC-128", "6": "AES-CBC-192", "7": "AES-CBC-256",
-    "8": "AES-CTR-128", "9": "AES-CTR-192", "10": "AES-CTR-256",
+    "1": "DES-CBC",
+    "2": "IDEA-CBC",
+    "3": "BLOWFISH-CBC",
+    "5": "AES-CBC-128",
+    "6": "AES-CBC-192",
+    "7": "AES-CBC-256",
+    "8": "AES-CTR-128",
+    "9": "AES-CTR-192",
+    "10": "AES-CTR-256",
 }
 
 _HASH_NAMES = {
-    "1": "MD5", "2": "SHA1", "3": "SHA2-256", "4": "SHA2-384",
+    "1": "MD5",
+    "2": "SHA1",
+    "3": "SHA2-256",
+    "4": "SHA2-384",
     "5": "SHA2-512",
 }
 
 _AUTH_NAMES = {
-    "1": "PSK", "2": "DSS", "3": "RSA-SIG", "5": "XAUTH",
-    "64221": "HYBRID", "65001": "XAUTH-PSK",
+    "1": "PSK",
+    "2": "DSS",
+    "3": "RSA-SIG",
+    "5": "XAUTH",
+    "64221": "HYBRID",
+    "65001": "XAUTH-PSK",
 }
 
 _DH_NAMES = {
-    "1": "768-bit MODP", "2": "1024-bit MODP", "5": "1536-bit MODP",
-    "14": "2048-bit MODP", "15": "3072-bit MODP", "16": "4096-bit MODP",
+    "1": "768-bit MODP",
+    "2": "1024-bit MODP",
+    "5": "1536-bit MODP",
+    "14": "2048-bit MODP",
+    "15": "3072-bit MODP",
+    "16": "4096-bit MODP",
 }
 
 _SUMMARY_RE = re.compile(
@@ -84,7 +101,6 @@ class IkeScanParser:
         findings: list[dict] = []
         seen: set[str] = set()
         current_ip = "unknown"
-        current_state = ""
 
         for raw in output.splitlines():
             line = raw.strip()
@@ -96,15 +112,17 @@ class IkeScanParser:
                 key = "summary:scanned"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"ike-scan: {m.group(1)} hosts",
-                        "severity": "info",
-                        "description": f"ike-scan scanned {m.group(1)} hosts",
-                        "evidence": raw.strip(),
-                        "tool": "ike-scan",
-                        "target": current_ip,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"ike-scan: {m.group(1)} hosts",
+                            "severity": "info",
+                            "description": f"ike-scan scanned {m.group(1)} hosts",
+                            "evidence": raw.strip(),
+                            "tool": "ike-scan",
+                            "target": current_ip,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             if "ike-scan" in line.lower() and ":" in line:
@@ -137,16 +155,17 @@ class IkeScanParser:
                     seen.add(key)
                     if status == "SA" or status == "HANDSHAKE":
                         current_ip = ip
-                        current_state = status
-                        findings.append({
-                            "title": f"IKE response: {ip} ({status})",
-                            "severity": "high",
-                            "description": f"ike-scan received {status} from {ip}: {transform_desc}",
-                            "evidence": f"Encryption: {enc_name} | Hash: {hash_name} | Auth: {auth_name} | DH: {dh_name}",
-                            "tool": "ike-scan",
-                            "target": ip,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"IKE response: {ip} ({status})",
+                                "severity": "high",
+                                "description": f"ike-scan received {status} from {ip}: {transform_desc}",
+                                "evidence": f"Encryption: {enc_name} | Hash: {hash_name} | Auth: {auth_name} | DH: {dh_name}",
+                                "tool": "ike-scan",
+                                "target": ip,
+                                "timestamp": _now_iso(),
+                            }
+                        )
                 continue
 
             # Transform attribute line
@@ -171,47 +190,53 @@ class IkeScanParser:
                 key = f"transform:{ip}:{state}:{enc}:{hash_algo}:{auth}:{dh}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"IKE transform: {ip} ({state})",
-                        "severity": severity,
-                        "description": f"ike-scan received {state} from {ip}: {transform_desc}",
-                        "evidence": f"Enc={enc_name} Hash={hash_name} Auth={auth_name} DH={dh_name}",
-                        "tool": "ike-scan",
-                        "target": ip,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"IKE transform: {ip} ({state})",
+                            "severity": severity,
+                            "description": f"ike-scan received {state} from {ip}: {transform_desc}",
+                            "evidence": f"Enc={enc_name} Hash={hash_name} Auth={auth_name} DH={dh_name}",
+                            "tool": "ike-scan",
+                            "target": ip,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _HANDSHAKE_RE.search(line)
             if m:
-                current_state = m.group(0)
+                m.group(0)
                 key = f"handshake:{current_ip}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": "IKE handshake received",
-                        "severity": "high",
-                        "description": f"ike-scan received IKE handshake from {current_ip} — VPN gateway identified",
-                        "evidence": raw,
-                        "tool": "ike-scan",
-                        "target": current_ip,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": "IKE handshake received",
+                            "severity": "high",
+                            "description": f"ike-scan received IKE handshake from {current_ip} — VPN gateway identified",
+                            "evidence": raw,
+                            "tool": "ike-scan",
+                            "target": current_ip,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             if _AGGRESSIVE_RE.search(line):
                 key = f"aggressive:{current_ip}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": "IKE aggressive mode detected",
-                        "severity": "high",
-                        "description": f"ike-scan detected aggressive mode from {current_ip} — vulnerable to PSK cracking",
-                        "evidence": raw,
-                        "tool": "ike-scan",
-                        "target": current_ip,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": "IKE aggressive mode detected",
+                            "severity": "high",
+                            "description": f"ike-scan detected aggressive mode from {current_ip} — vulnerable to PSK cracking",
+                            "evidence": raw,
+                            "tool": "ike-scan",
+                            "target": current_ip,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _RETURNED_RE.match(line)
@@ -223,15 +248,17 @@ class IkeScanParser:
                 key = f"returned:{current_ip}:{state}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"IKE response: {current_ip} ({state})",
-                        "severity": severity,
-                        "description": f"ike-scan received {state} from {current_ip}: {transform}",
-                        "evidence": raw,
-                        "tool": "ike-scan",
-                        "target": current_ip,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"IKE response: {current_ip} ({state})",
+                            "severity": severity,
+                            "description": f"ike-scan received {state} from {current_ip}: {transform}",
+                            "evidence": raw,
+                            "tool": "ike-scan",
+                            "target": current_ip,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _VENDOR_RE.search(line)
@@ -240,15 +267,17 @@ class IkeScanParser:
                 key = f"vendor:{current_ip}:{vendor[:40]}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"IKE vendor ID: {vendor[:40]}",
-                        "severity": "info",
-                        "description": f"ike-scan identified vendor fingerprint {vendor} on {current_ip}",
-                        "evidence": raw,
-                        "tool": "ike-scan",
-                        "target": current_ip,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"IKE vendor ID: {vendor[:40]}",
+                            "severity": "info",
+                            "description": f"ike-scan identified vendor fingerprint {vendor} on {current_ip}",
+                            "evidence": raw,
+                            "tool": "ike-scan",
+                            "target": current_ip,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _BANNER_RE.search(line)
@@ -257,14 +286,16 @@ class IkeScanParser:
                 key = f"banner:{current_ip}:{banner[:40]}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"IKE banner: {banner[:40]}",
-                        "severity": "info",
-                        "description": f"ike-scan received banner from {current_ip}: {banner}",
-                        "evidence": raw,
-                        "tool": "ike-scan",
-                        "target": current_ip,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"IKE banner: {banner[:40]}",
+                            "severity": "info",
+                            "description": f"ike-scan received banner from {current_ip}: {banner}",
+                            "evidence": raw,
+                            "tool": "ike-scan",
+                            "target": current_ip,
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         return findings

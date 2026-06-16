@@ -8,7 +8,9 @@ from . import _now_iso
 
 import re
 
-_CONNECT_RE = re.compile(r"(?:Connecting|Established|Connected|Session)\s+.*?(?:to|with|established)", re.IGNORECASE)
+_CONNECT_RE = re.compile(
+    r"(?:Connecting|Established|Connected|Session)\s+.*?(?:to|with|established)", re.IGNORECASE
+)
 _BANNER_RE = re.compile(r"(?:Evil.WinRM|WinRM|PS\s+session|PowerShell\s+session)", re.IGNORECASE)
 _IP_PORT_RE = re.compile(r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::(\d+))?")
 _USER_RE = re.compile(r"(?:user|username)[:\s]+(\S+)", re.IGNORECASE)
@@ -35,6 +37,7 @@ class EvilWinrmParser:
         if _JSON_RE.match(stripped):
             try:
                 import json
+
                 data = json.loads(stripped)
                 items = data if isinstance(data, list) else [data]
                 for item in items:
@@ -46,15 +49,17 @@ class EvilWinrmParser:
                         dedup_key = f"session|{host}"
                         if dedup_key not in seen_hosts:
                             seen_hosts.add(dedup_key)
-                            findings.append({
-                                "title": "Evil-WinRM: Session established",
-                                "severity": "critical",
-                                "description": f"Evil-WinRM session established on {host} as {user}",
-                                "evidence": json.dumps(item),
-                                "tool": "evil_winrm",
-                                "target": host,
-                                "timestamp": _now_iso(),
-                            })
+                            findings.append(
+                                {
+                                    "title": "Evil-WinRM: Session established",
+                                    "severity": "critical",
+                                    "description": f"Evil-WinRM session established on {host} as {user}",
+                                    "evidence": json.dumps(item),
+                                    "tool": "evil_winrm",
+                                    "target": host,
+                                    "timestamp": _now_iso(),
+                                }
+                            )
                 return findings
             except json.JSONDecodeError:
                 pass
@@ -78,15 +83,17 @@ class EvilWinrmParser:
                 dedup_key = f"session|{target}"
                 if dedup_key not in seen_hosts:
                     seen_hosts.add(dedup_key)
-                    findings.append({
-                        "title": "Evil-WinRM: Session established",
-                        "severity": "critical",
-                        "description": description,
-                        "evidence": line_stripped,
-                        "tool": "evil_winrm",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": "Evil-WinRM: Session established",
+                            "severity": "critical",
+                            "description": description,
+                            "evidence": line_stripped,
+                            "tool": "evil_winrm",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _CONNECT_RE.search(line_stripped)
@@ -107,28 +114,36 @@ class EvilWinrmParser:
                 dedup_key = f"connect|{target}"
                 if dedup_key not in seen_hosts:
                     seen_hosts.add(dedup_key)
-                    findings.append({
-                        "title": "Evil-WinRM: Connection",
-                        "severity": severity,
-                        "description": description,
+                    findings.append(
+                        {
+                            "title": "Evil-WinRM: Connection",
+                            "severity": severity,
+                            "description": description,
+                            "evidence": line_stripped,
+                            "tool": "evil_winrm",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
+                continue
+
+            ip_m = _IP_PORT_RE.search(line_stripped)
+            if ip_m and (
+                "winrm" in line_stripped.lower()
+                or "http" in line_stripped.lower()
+                or "port" in line_stripped.lower()
+            ):
+                target = ip_m.group(1)
+                findings.append(
+                    {
+                        "title": "Evil-WinRM: Target identified",
+                        "severity": "info",
+                        "description": f"WinRM target: {target}",
                         "evidence": line_stripped,
                         "tool": "evil_winrm",
                         "target": target,
                         "timestamp": _now_iso(),
-                    })
-                continue
-
-            ip_m = _IP_PORT_RE.search(line_stripped)
-            if ip_m and ("winrm" in line_stripped.lower() or "http" in line_stripped.lower() or "port" in line_stripped.lower()):
-                target = ip_m.group(1)
-                findings.append({
-                    "title": "Evil-WinRM: Target identified",
-                    "severity": "info",
-                    "description": f"WinRM target: {target}",
-                    "evidence": line_stripped,
-                    "tool": "evil_winrm",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                    }
+                )
 
         return findings

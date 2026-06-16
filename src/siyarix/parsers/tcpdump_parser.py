@@ -77,15 +77,19 @@ class TcpdumpParser:
                 key = f"arp:{m.group('target')}:{m.group('sender')}:{m.group('op')}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"ARP {m.group('op')}: {m.group('target')}",
-                        "severity": "medium" if m.group('op') in ("Gratuitous", "Probe") else "info",
-                        "description": f"ARP {m.group('op').lower()} observed for {m.group('target')} from {m.group('sender')}.",
-                        "evidence": raw,
-                        "tool": "tcpdump",
-                        "target": m.group("target"),
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"ARP {m.group('op')}: {m.group('target')}",
+                            "severity": "medium"
+                            if m.group("op") in ("Gratuitous", "Probe")
+                            else "info",
+                            "description": f"ARP {m.group('op').lower()} observed for {m.group('target')} from {m.group('sender')}.",
+                            "evidence": raw,
+                            "tool": "tcpdump",
+                            "target": m.group("target"),
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _ICMP_RE.search(line)
@@ -94,21 +98,26 @@ class TcpdumpParser:
                 if key not in seen:
                     seen.add(key)
                     icmp_type = m.group("icmp_type").strip().lower()
-                    if any(t in icmp_type for t in ("redirect", "unreach", "time exceed", "parameter problem")):
+                    if any(
+                        t in icmp_type
+                        for t in ("redirect", "unreach", "time exceed", "parameter problem")
+                    ):
                         severity = "medium"
                     elif any(t in icmp_type for t in ("echo request", "echo reply")):
                         severity = "low"
                     else:
                         severity = "info"
-                    findings.append({
-                        "title": f"ICMP {m.group('icmp_type').strip()}",
-                        "severity": severity,
-                        "description": f"ICMP {m.group('icmp_type').strip()} from {m.group('src')} to {m.group('dst')}.",
-                        "evidence": raw,
-                        "tool": "tcpdump",
-                        "target": m.group("dst"),
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"ICMP {m.group('icmp_type').strip()}",
+                            "severity": severity,
+                            "description": f"ICMP {m.group('icmp_type').strip()} from {m.group('src')} to {m.group('dst')}.",
+                            "evidence": raw,
+                            "tool": "tcpdump",
+                            "target": m.group("dst"),
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _TCP_RE.search(line)
@@ -133,15 +142,17 @@ class TcpdumpParser:
                     if "U" in flags:
                         flag_desc.append("URG")
                     desc = f"TCP {'|'.join(flag_desc) if flag_desc else flags} from {m.group('src')} to {m.group('dst')}"
-                    findings.append({
-                        "title": f"TCP packet: {m.group('src')} -> {m.group('dst')} ({','.join(flag_desc) if flag_desc else flags})",
-                        "severity": "info",
-                        "description": desc,
-                        "evidence": raw,
-                        "tool": "tcpdump",
-                        "target": m.group("dst"),
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"TCP packet: {m.group('src')} -> {m.group('dst')} ({','.join(flag_desc) if flag_desc else flags})",
+                            "severity": "info",
+                            "description": desc,
+                            "evidence": raw,
+                            "tool": "tcpdump",
+                            "target": m.group("dst"),
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _DHCP_RE.search(line)
@@ -149,15 +160,17 @@ class TcpdumpParser:
                 key = f"dhcp:{m.group('src')}:{m.group('dst')}:{m.group('dhcp_type')}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"DHCP {m.group('dhcp_type')}",
-                        "severity": "info",
-                        "description": f"DHCP {m.group('dhcp_type')} from {m.group('src')} to {m.group('dst')}.",
-                        "evidence": raw,
-                        "tool": "tcpdump",
-                        "target": m.group("dst"),
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"DHCP {m.group('dhcp_type')}",
+                            "severity": "info",
+                            "description": f"DHCP {m.group('dhcp_type')} from {m.group('src')} to {m.group('dst')}.",
+                            "evidence": raw,
+                            "tool": "tcpdump",
+                            "target": m.group("dst"),
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _DNS_RE.search(line)
@@ -165,15 +178,17 @@ class TcpdumpParser:
                 key = f"dns:{m.group('query')}:{m.group('src')}:{m.group('dst')}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"DNS query: {m.group('query')}",
-                        "severity": "info",
-                        "description": f"DNS {m.group('dns_op')} query for {m.group('query')} from {m.group('src')} to {m.group('dst')}.",
-                        "evidence": raw,
-                        "tool": "tcpdump",
-                        "target": m.group("query"),
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"DNS query: {m.group('query')}",
+                            "severity": "info",
+                            "description": f"DNS {m.group('dns_op')} query for {m.group('query')} from {m.group('src')} to {m.group('dst')}.",
+                            "evidence": raw,
+                            "tool": "tcpdump",
+                            "target": m.group("query"),
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _PACKET_RE.match(line)
@@ -188,25 +203,29 @@ class TcpdumpParser:
                 desc = f"Captured {proto} packet from {m.group('src')} to {m.group('dst')}"
                 if detail:
                     desc += f": {detail[:80]}"
-                findings.append({
-                    "title": f"Packet: {m.group('src')} -> {m.group('dst')} ({proto})",
-                    "severity": "info",
-                    "description": desc,
-                    "evidence": raw[:200],
-                    "tool": "tcpdump",
-                    "target": m.group("dst"),
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Packet: {m.group('src')} -> {m.group('dst')} ({proto})",
+                        "severity": "info",
+                        "description": desc,
+                        "evidence": raw[:200],
+                        "tool": "tcpdump",
+                        "target": m.group("dst"),
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         if summary_lines:
-            findings.append({
-                "title": "tcpdump: Packet summary",
-                "severity": "info",
-                "description": "; ".join(summary_lines),
-                "evidence": " | ".join(summary_lines),
-                "tool": "tcpdump",
-                "target": "unknown",
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": "tcpdump: Packet summary",
+                    "severity": "info",
+                    "description": "; ".join(summary_lines),
+                    "evidence": " | ".join(summary_lines),
+                    "tool": "tcpdump",
+                    "target": "unknown",
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

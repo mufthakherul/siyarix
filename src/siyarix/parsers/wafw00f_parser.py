@@ -35,12 +35,40 @@ _CONFIDENCE_RE = re.compile(
 )
 
 _WAF_NAMES = {
-    "cloudflare", "akamai", "imperva", "incapsula", "aws waf", "azure waf",
-    "fastly", "sucuri", "barracuda", "f5 big-ip", "modsecurity", "comodo",
-    "fortinet", "citrix", "denyall", "sophos", "radware", "safe3waf",
-    "webknight", "dotdefender", "profense", "binarysec", "siteguard",
-    "varnish", "keycdn", "stackpath", "section.io", "reboot", "wordfence",
-    "securesphere", "stackpath", "airlock", "appwall", "serverdefender",
+    "cloudflare",
+    "akamai",
+    "imperva",
+    "incapsula",
+    "aws waf",
+    "azure waf",
+    "fastly",
+    "sucuri",
+    "barracuda",
+    "f5 big-ip",
+    "modsecurity",
+    "comodo",
+    "fortinet",
+    "citrix",
+    "denyall",
+    "sophos",
+    "radware",
+    "safe3waf",
+    "webknight",
+    "dotdefender",
+    "profense",
+    "binarysec",
+    "siteguard",
+    "varnish",
+    "keycdn",
+    "stackpath",
+    "section.io",
+    "reboot",
+    "wordfence",
+    "securesphere",
+    "stackpath",
+    "airlock",
+    "appwall",
+    "serverdefender",
 }
 
 _SUMMARY_RE = re.compile(
@@ -96,15 +124,17 @@ class Wafw00fParser:
                 key = "summary:wafs"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"wafw00f: {m.group(1)} WAFs detected",
-                        "severity": "info",
-                        "description": f"wafw00f detected {m.group(1)} WAF(s)",
-                        "evidence": raw.strip(),
-                        "tool": "wafw00f",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"wafw00f: {m.group(1)} WAFs detected",
+                            "severity": "info",
+                            "description": f"wafw00f detected {m.group(1)} WAF(s)",
+                            "evidence": raw.strip(),
+                            "tool": "wafw00f",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _URL_RE.search(line)
@@ -121,15 +151,17 @@ class Wafw00fParser:
                 key = f"no-waf:{target}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": "No WAF detected",
-                        "severity": "info",
-                        "description": f"wafw00f found no Web Application Firewall in front of {target}",
-                        "evidence": raw,
-                        "tool": "wafw00f",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": "No WAF detected",
+                            "severity": "info",
+                            "description": f"wafw00f found no Web Application Firewall in front of {target}",
+                            "evidence": raw,
+                            "tool": "wafw00f",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _WAF_RE.search(line)
@@ -157,16 +189,18 @@ class Wafw00fParser:
                     if multi_waf:
                         evidence_parts.append("Multiple WAFs detected")
 
-                    findings.append({
-                        "title": f"WAF detected: {waf_name}",
-                        "severity": severity,
-                        "description": f"wafw00f identified {waf_name} protecting {target}"
-                        + (f" (confidence: {confidence}%)" if confidence else ""),
-                        "evidence": " | ".join(evidence_parts),
-                        "tool": "wafw00f",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"WAF detected: {waf_name}",
+                            "severity": severity,
+                            "description": f"wafw00f identified {waf_name} protecting {target}"
+                            + (f" (confidence: {confidence}%)" if confidence else ""),
+                            "evidence": " | ".join(evidence_parts),
+                            "tool": "wafw00f",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         return findings
 
@@ -181,15 +215,17 @@ class Wafw00fParser:
             key = f"no-waf-json:{url}"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": "No WAF detected",
-                    "severity": "info",
-                    "description": f"wafw00f found no Web Application Firewall in front of {url}",
-                    "evidence": json.dumps(record)[:200],
-                    "tool": "wafw00f",
-                    "target": url,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "No WAF detected",
+                        "severity": "info",
+                        "description": f"wafw00f found no Web Application Firewall in front of {url}",
+                        "evidence": json.dumps(record)[:200],
+                        "tool": "wafw00f",
+                        "target": url,
+                        "timestamp": _now_iso(),
+                    }
+                )
             return findings
 
         wafs = record.get("waf", [])
@@ -206,7 +242,9 @@ class Wafw00fParser:
         for waf_name in wafs:
             confidence = record.get("confidence", record.get("score", 0))
             if isinstance(confidence, str):
-                confidence = int(re.sub(r"[^0-9]", "", confidence)) if re.search(r"\d", confidence) else 0
+                confidence = (
+                    int(re.sub(r"[^0-9]", "", confidence)) if re.search(r"\d", confidence) else 0
+                )
 
             severity = "medium"
             if isinstance(confidence, (int, float)):
@@ -222,15 +260,17 @@ class Wafw00fParser:
                 if confidence:
                     evidence_parts.append(f"Confidence: {confidence}%")
 
-                findings.append({
-                    "title": f"WAF detected: {waf_name}",
-                    "severity": severity,
-                    "description": f"wafw00f identified {waf_name} protecting {url}"
-                    + (f" (confidence: {confidence}%)" if confidence else ""),
-                    "evidence": " | ".join(evidence_parts),
-                    "tool": "wafw00f",
-                    "target": url,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"WAF detected: {waf_name}",
+                        "severity": severity,
+                        "description": f"wafw00f identified {waf_name} protecting {url}"
+                        + (f" (confidence: {confidence}%)" if confidence else ""),
+                        "evidence": " | ".join(evidence_parts),
+                        "tool": "wafw00f",
+                        "target": url,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

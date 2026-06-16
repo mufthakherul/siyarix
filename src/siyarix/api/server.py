@@ -26,7 +26,7 @@ from siyarix.core import AgentGoal, AgentMode
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Siyarix API", version="1.0.0")
+app = FastAPI(title="Siyarix API", version="3.0.0")
 security = HTTPBearer()
 
 # Store active sessions and their core instances

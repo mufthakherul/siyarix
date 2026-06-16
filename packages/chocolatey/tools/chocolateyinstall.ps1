@@ -1,8 +1,8 @@
 $ErrorActionPreference = 'Stop'
 
 $packageName = 'siyarix'
-$version = '2.0.0'
-$url = 'https://github.com/mufthakherul/siyarix/archive/refs/tags/v2.0.0.tar.gz'
+$version = '3.0.0'
+$url = 'https://github.com/mufthakherul/siyarix/archive/refs/tags/v3.0.0.tar.gz'
 
 Write-Host "Installing $packageName $version..."
 

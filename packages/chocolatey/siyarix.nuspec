@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>siyarix</id>
-    <version>1.0.0-beta</version>
+    <version>3.0.0</version>
     <title>Siyarix</title>
     <authors>MD MUFTHAKHERUL ISLAM MIRAZ</authors>
     <owners>mufthakherul</owners>

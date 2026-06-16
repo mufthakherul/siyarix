@@ -128,7 +128,7 @@ class QRadarAdapter(SIEMAdapter):
         try:
             # Format payload using IBM QRadar LEEF 2.0
             # LEEF:2.0|Vendor|Product|Version|EventID|Key=Value...
-            leef_header = f"LEEF:2.0|Siyarix|SecurityPlatform|1.0.0|{event.event_type}|"
+            leef_header = f"LEEF:2.0|Siyarix|SecurityPlatform|3.0.0|{event.event_type}|"
 
             # Map attributes to LEEF standard keys
             leef_attrs = [

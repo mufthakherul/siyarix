@@ -72,7 +72,7 @@ class ReportEngine:
             "target": target,
             "total_findings": len(sorted_findings),
             "severity_counts": self._count_severities(sorted_findings),
-            "generated_by": "Siyarix Report Engine v1.0.0",
+            "generated_by": "Siyarix Report Engine v3.0.0",
         }
 
         sections = []

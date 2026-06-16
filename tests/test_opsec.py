@@ -160,7 +160,7 @@ class TestOPSECManager:
         mgr._secure_delete(d)  # should not raise
 
     @patch("builtins.open", side_effect=PermissionError("denied"))
-    def test_secure_delete_permission_error(self, mock_open: MagicMock, tmp_path: Path) -> None:
+    def test_secure_delete_permission_error(self, _mock_open: MagicMock, tmp_path: Path) -> None:
         mgr = OPSECManager()
         test_file = tmp_path / "locked.txt"
         test_file.write_text("data")

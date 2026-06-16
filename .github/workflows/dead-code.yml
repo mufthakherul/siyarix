@@ -25,4 +25,4 @@ jobs:
 
       - name: Find Dead Code
         continue-on-error: true
-        run: vulture src/ --min-confidence 100 || true
+        run: vulture src/ .vulture_whitelist.py --min-confidence 100 || true

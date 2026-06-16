@@ -133,3 +133,7 @@ omit = ["tests/*", "*/migrations/*"]
 [tool.coverage.run]
 source = ["src/siyarix"]
 branch = true
+
+[tool.vulture]
+paths = ['src/siyarix', '.vulture_whitelist.py']
+

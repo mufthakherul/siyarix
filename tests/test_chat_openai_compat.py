@@ -101,7 +101,7 @@ async def test_gemini_generate_blocked():
 async def test_gemini_stream():
     url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent"
     
-    def mock_stream(request):
+    def mock_stream(_request):
         content = b'data: {"candidates": [{"content": {"parts": [{"text": "chunk1"}]}}]}\ndata: {"candidates": [{"content": {"parts": [{"text": "chunk2"}]}}]}\ndata: [DONE]\n'
         return httpx.Response(200, content=content)
     
@@ -113,7 +113,7 @@ async def test_gemini_stream():
 
 @pytest.mark.asyncio
 @patch("openai.AsyncOpenAI")
-async def test_openai_complete(mock_client_class):
+async def test_openai_complete(_mock_client_class):
     mock_client = AsyncMock()
     
     class MockChoice:
@@ -140,7 +140,7 @@ async def test_openai_complete(mock_client_class):
 
 @pytest.mark.asyncio
 @patch("openai.AsyncOpenAI")
-async def test_openai_complete_error(mock_client_class):
+async def test_openai_complete_error(_mock_client_class):
     mock_client = AsyncMock()
     mock_client.chat.completions.create.side_effect = Exception("API down")
     
@@ -149,7 +149,7 @@ async def test_openai_complete_error(mock_client_class):
 
 @pytest.mark.asyncio
 @patch("openai.AsyncOpenAI")
-async def test_openai_stream(mock_client_class):
+async def test_openai_stream(_mock_client_class):
     mock_client = AsyncMock()
     
     class MockDelta:
@@ -217,7 +217,7 @@ async def test_make_openai_adapter_compaction(mock_make_client):
         def resolve_model_id(self, provider, model):
             return model
             
-        def classify_error(self, provider, exc, http_status):
+        def classify_error(self, provider, _exc, _http_status):
             class MockClassified:
                 should_compress = True
                 retryable = True
@@ -258,7 +258,7 @@ async def test_make_openai_adapter_retryable(mock_make_client):
     
     class MockProviderManager:
         def resolve_model_id(self, provider, model): return model
-        def classify_error(self, provider, exc, http_status):
+        def classify_error(self, provider, _exc, _http_status):
             class MockClassified:
                 should_compress = False
                 retryable = True

@@ -148,7 +148,7 @@ def test_pull_model():
     url = "http://localhost:11434/api/pull"
     
     # Successful stream
-    def mock_stream(request):
+    def mock_stream(_request):
         content = b'{"status": "pulling", "total": 100, "completed": 50}\n{"status": "success"}\n'
         return httpx.Response(200, content=content)
     

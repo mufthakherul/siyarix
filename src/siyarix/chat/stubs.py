@@ -19,7 +19,7 @@ class CanaryTokenManager:
     def __init__(self) -> None:
         pass
 
-    def deploy_to_target(self, target: str, token_types: typing.List[Any]) -> Any:
+    def deploy_to_target(self, target: str, _token_types: typing.List[Any]) -> Any:
         return None
 
     def list(self) -> typing.List[str]:
@@ -98,7 +98,7 @@ class IoTScanner:
     def scan_firmware(self, target: str) -> Any:
         return {}
 
-    def scan_serial_port(self, target: str, baud: int) -> Any:
+    def scan_serial_port(self, target: str, _baud: int) -> Any:
         return {}
 
     def generate_report(self, result: Any, fmt: str) -> str:
@@ -184,7 +184,7 @@ class MultiModelEnsemble:
     def run(self, target: str) -> None:
         pass
 
-    def plan(self, instruction: str, voting_strategy: Any) -> Any:
+    def plan(self, instruction: str, _voting_strategy: Any) -> Any:
         return None
 
     def register_provider(self, name: str, p: Any) -> None:

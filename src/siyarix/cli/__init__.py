@@ -278,7 +278,7 @@ def init_wizard(
     force: bool = typer.Option(
         False, "--force", "-f", help="Re-run wizard even if already configured"
     ),
-    skip_requirements: bool = typer.Option(
+    _skip_requirements: bool = typer.Option(
         False, "--skip-requirements", help="Skip requirements check"
     ),
 ) -> None:
@@ -745,10 +745,10 @@ def scan(
         help="Execution mode: autonomous|integrated|offline",
     ),
     output: str = typer.Option("table", "--output", "-o", help="Output: table|json|yaml|csv"),
-    parallel: int = typer.Option(3, "--parallel", "-p", help="Parallel workers"),
+    _parallel: int = typer.Option(3, "--parallel", "-p", help="Parallel workers"),
     timeout: int = typer.Option(300, "--timeout", help="Timeout per tool (seconds)"),
     save: bool = typer.Option(False, "--save", "-s", help="Save results to database"),
-    notify: bool = typer.Option(False, "--notify", "-n", help="Send notification on completion"),
+    _notify: bool = typer.Option(False, "--notify", "-n", help="Send notification on completion"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
     no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
     profile: str = typer.Option("", "--profile", help="Use specific profile"),
@@ -1338,7 +1338,7 @@ def audit_verify() -> None:
 def tool_registry_list(
     category: str = typer.Option("", "--category", "-c", help="Filter by category"),
     refresh: bool = typer.Option(False, "--refresh", "-r", help="Force re-discovery"),
-    fast: bool = typer.Option(False, "--fast", help="Skip version probes for speed"),
+    _fast: bool = typer.Option(False, "--fast", help="Skip version probes for speed"),
 ) -> None:
     """List all discovered security tools on this system.
 

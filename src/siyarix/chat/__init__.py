@@ -2,8 +2,7 @@
 
 """Siyarix Chat — Interactive REPL / Conversation Mode.
 
-A full-featured interactive shell for Siyarix, similar to Claude CLI and
-Gemini CLI, specialized for cybersecurity workflows.
+A full-featured interactive shell for Siyarix, similar to leading enterprise terminal agents, specialized for cybersecurity workflows.
 """
 
 from .repl import SiyarixChat, start_chat

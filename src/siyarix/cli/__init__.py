@@ -187,17 +187,6 @@ def _store_key(provider: str, key: str) -> None:
             logger.warning("Failed to store API key for provider %s", provider, exc_info=True)
 
 
-def _delete_key(provider: str) -> None:
-    """Delete API key from CredentialStore and environment."""
-    env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
-    os.environ.pop(env_var, None)
-    if creds:
-        try:
-            creds.delete(provider, "api_key")
-        except Exception:
-            logger.warning("Failed to delete API key for provider %s", provider, exc_info=True)
-
-
 def _get_engine(mode: str = "integrated") -> ExecutionEngine:
     """Build an ExecutionEngine with API keys from config/credentials."""
     engine_config: dict = {}

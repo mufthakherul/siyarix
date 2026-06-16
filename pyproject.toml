@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 [project]
 name = "siyarix"
-version = "2.0.0"
+version = "3.0.0"
 description = "Siyarix — AI Cybersecurity Orchestration Agent"
 readme = "README.md"
 authors = [ { name = "MD MUFTHAKHERUL ISLAM MIRAZ", email = "130831166+mufthakherul@users.noreply.github.com" } ]

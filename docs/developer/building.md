@@ -10,8 +10,8 @@ pip install build hatchling
 python -m build
 
 # Output in dist/
-# dist/siyarix-2.0.0-py3-none-any.whl
-# dist/siyarix-2.0.0.tar.gz
+# dist/siyarix-3.0.0-py3-none-any.whl
+# dist/siyarix-3.0.0.tar.gz
 ```
 
 ## Development installation

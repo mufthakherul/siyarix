@@ -560,7 +560,7 @@ class ReportEngine:
             "version": "2.1.0",
             "runs": [
                 {
-                    "tool": {"driver": {"name": "Siyarix", "version": "1.0.0"}},
+                    "tool": {"driver": {"name": "Siyarix", "version": "3.0.0"}},
                     "results": results,
                     "properties": {
                         "report_id": report.report_id,

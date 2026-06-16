@@ -224,7 +224,7 @@ def resolve_version() -> str:
         return _pkg_version("siyarix")
     except Exception as exc:
         logger.debug("Failed to resolve package version: %s", exc)
-        return "2.0.0"
+        return "3.0.0"
 
 
 def print_banner(

@@ -264,26 +264,15 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
                 from prompt_toolkit.formatted_text import HTML
-                from ..branding import resolve_version
-
-                _ver = resolve_version()
-                header_html = HTML(
-                    f'<style bg="ansiblack"> '
-                    f'<style fg="ansiwhite">  █▓▒░ </style>'
-                    f'<style fg="ansiwhite" bold>SIYARIX</style>'
-                    f'<style fg="green"> v{_ver}</style>'
-                    f'<style fg="ansiwhite"> ░▒▓█ </style>'
-                    f'<style fg="bright_black" italic>  — terminal agent for cyber-security</style>'
-                    f'\n</style>❯ '
-                )
-
                 from prompt_toolkit.patch_stdout import patch_stdout
                 session: PromptSession = PromptSession()
                 
+                pt_prompt = HTML('<style fg="ansicyan"><b>❯ </b></style><style fg="ansigray">Type your message or @path/to/file: </style>')
+
                 with patch_stdout():
                     answer = (
                         await session.prompt_async(
-                            header_html,
+                            pt_prompt,
                             key_bindings=esc_bindings,
                             completer=SmartAutocomplete(self._session),
                             bottom_toolbar=get_bottom_toolbar,
@@ -292,6 +281,9 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         except KeyboardInterrupt:
             raise
         except Exception as exc:
+            import traceback
+            console.print(f"[red]prompt_toolkit failed: {exc}[/red]")
+            console.print(traceback.format_exc())
             logger.debug("prompt_toolkit failed: %s", exc)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)

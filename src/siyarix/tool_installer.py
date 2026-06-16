@@ -71,7 +71,7 @@ class ToolInstaller:
         )
         if not success:
             res.error = f"No install method known or successful for {tool}"
-            
+
         self._install_history.append(res)
         return res
 
@@ -103,28 +103,46 @@ class ToolInstaller:
                 "curl": "cURL.cURL",
                 "ffuf": "ffuf.ffuf",
                 "nuclei": "ProjectDiscovery.Nuclei",
-                "yara": "VirusTotal.YARA"
+                "yara": "VirusTotal.YARA",
             }
             winget_id = WINGET_MAP.get(tool) or WINGET_MAP.get(pkg)
-            
+
             try:
                 if winget_id:
                     cmd = [
-                        "winget", "install", "--id", winget_id, "--exact",
-                        "--silent", "--accept-package-agreements", "--accept-source-agreements"
+                        "winget",
+                        "install",
+                        "--id",
+                        winget_id,
+                        "--exact",
+                        "--silent",
+                        "--accept-package-agreements",
+                        "--accept-source-agreements",
                     ]
                 else:
                     cmd = [
-                        "winget", "install", pkg, 
-                        "--silent", "--accept-package-agreements", "--accept-source-agreements"
+                        "winget",
+                        "install",
+                        pkg,
+                        "--silent",
+                        "--accept-package-agreements",
+                        "--accept-source-agreements",
                     ]
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, check=False)
+                result = subprocess.run(
+                    cmd, capture_output=True, text=True, timeout=300, check=False
+                )
                 self._refresh_windows_path()
                 if shutil.which(tool):
                     self._print(f"  [green]\u2713 {tool} installed via winget[/green]")
                     return True
-                elif not result.returncode or "already installed" in result.stdout or "already installed" in result.stderr:
-                    self._print(f"  [green]\u2713 {tool} already installed (verified via winget output)[/green]")
+                elif (
+                    not result.returncode
+                    or "already installed" in result.stdout
+                    or "already installed" in result.stderr
+                ):
+                    self._print(
+                        f"  [green]\u2713 {tool} already installed (verified via winget output)[/green]"
+                    )
                     return True
             except Exception as e:
                 logger.debug(f"Winget install failed: {e}")
@@ -147,11 +165,19 @@ class ToolInstaller:
         """Refresh os.environ['PATH'] from the Windows Registry."""
         try:
             import winreg
-            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r'SYSTEM\CurrentControlSet\Control\Session Manager\Environment', 0, winreg.KEY_READ) as key:
-                sys_path, _ = winreg.QueryValueEx(key, 'PATH')
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Environment', 0, winreg.KEY_READ) as key:
-                user_path, _ = winreg.QueryValueEx(key, 'PATH')
-            os.environ['PATH'] = sys_path + ';' + user_path + ';' + os.environ.get('PATH', '')
+
+            with winreg.OpenKey(
+                winreg.HKEY_LOCAL_MACHINE,
+                r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
+                0,
+                winreg.KEY_READ,
+            ) as key:
+                sys_path, _ = winreg.QueryValueEx(key, "PATH")
+            with winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER, r"Environment", 0, winreg.KEY_READ
+            ) as key:
+                user_path, _ = winreg.QueryValueEx(key, "PATH")
+            os.environ["PATH"] = sys_path + ";" + user_path + ";" + os.environ.get("PATH", "")
         except Exception as exc:
             logger.debug("Failed to refresh Windows PATH: %s", exc)
 
@@ -161,8 +187,12 @@ class ToolInstaller:
 
         if pm in ("apt", "apt-get"):
             self._print("  Updating package index...")
-            subprocess.run(["sudo", "-p", "Password required for update: ", pm, "update"],
-                           capture_output=True, timeout=120, check=False)
+            subprocess.run(
+                ["sudo", "-p", "Password required for update: ", pm, "update"],
+                capture_output=True,
+                timeout=120,
+                check=False,
+            )
         elif pm == "brew":
             self._print("  Updating brew formulas...")
             subprocess.run(["brew", "update"], capture_output=True, timeout=120, check=False)
@@ -178,11 +208,13 @@ class ToolInstaller:
                 "apk": ["apk", "add", pkg],
             }.get(pm, [pm, "install", "-y", pkg])
 
-        for use_sudo in ([True, False] if pm != "brew" else [False]):
+        for use_sudo in [True, False] if pm != "brew" else [False]:
             cmd = (["sudo", "-p", "Password required: "] + base_cmd) if use_sudo else base_cmd
             try:
                 self._print(f"  Running: {' '.join(cmd)}")
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, check=False)
+                result = subprocess.run(
+                    cmd, capture_output=True, text=True, timeout=300, check=False
+                )
                 if result.returncode == 0 or shutil.which(tool):
                     if shutil.which(tool):
                         self._print(f"  [green]\u2713 {tool} installed via {pm}[/green]")

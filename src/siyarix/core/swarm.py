@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Swarm Orchestration Architecture for Siyarix.
 
-This module implements a Multi-Agent Swarm architecture to parallelize 
+This module implements a Multi-Agent Swarm architecture to parallelize
 and specialize the offensive security workflow.
 """
 
@@ -16,6 +16,7 @@ from siyarix.events import get_event_bus, Event, EventType
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class SwarmTask:
     id: str
@@ -24,46 +25,63 @@ class SwarmTask:
     status: str = "pending"
     result: dict[str, Any] | None = None
 
+
 class SpecializedAgent:
     """Base class for a specialized AI agent in the Swarm."""
+
     def __init__(self, name: str, role: str) -> None:
         self.name = name
         self.role = role
         self.bus = get_event_bus()
 
     async def execute(self, task: SwarmTask) -> SwarmTask:
-        await self.bus.emit(Event(
-            type=EventType.CUSTOM,
-            source=self.name,
-            data={"sub_type": "text_end", "text": f"[{self.role}] Initiating task on {task.target}..."}
-        ))
-        
+        await self.bus.emit(
+            Event(
+                type=EventType.CUSTOM,
+                source=self.name,
+                data={
+                    "sub_type": "text_end",
+                    "text": f"[{self.role}] Initiating task on {task.target}...",
+                },
+            )
+        )
+
         # Simulate agentic work
         await asyncio.sleep(2)
         task.status = "completed"
         task.result = {"findings": f"Mock findings by {self.name}"}
-        
-        await self.bus.emit(Event(
-            type=EventType.CUSTOM,
-            source=self.name,
-            data={"sub_type": "text_end", "text": f"[{self.role}] Completed task on {task.target}."}
-        ))
+
+        await self.bus.emit(
+            Event(
+                type=EventType.CUSTOM,
+                source=self.name,
+                data={
+                    "sub_type": "text_end",
+                    "text": f"[{self.role}] Completed task on {task.target}.",
+                },
+            )
+        )
         return task
+
 
 class ReconAgent(SpecializedAgent):
     def __init__(self) -> None:
         super().__init__("ReconAgent", "Reconnaissance Specialist")
 
+
 class ExploitAgent(SpecializedAgent):
     def __init__(self) -> None:
         super().__init__("ExploitAgent", "Exploitation Specialist")
+
 
 class ReportAgent(SpecializedAgent):
     def __init__(self) -> None:
         super().__init__("ReportAgent", "Reporting & Compliance Officer")
 
+
 class SwarmRouter:
     """Orchestrates tasks across specialized agents."""
+
     def __init__(self) -> None:
         self.recon = ReconAgent()
         self.exploit = ExploitAgent()
@@ -72,11 +90,13 @@ class SwarmRouter:
 
     async def run_campaign(self, target: str) -> dict[str, Any]:
         """Execute a full campaign using the swarm."""
-        await self.bus.emit(Event(
-            type=EventType.CUSTOM,
-            source="SwarmRouter",
-            data={"sub_type": "text_end", "text": f"Deploying Swarm Campaign against {target}"}
-        ))
+        await self.bus.emit(
+            Event(
+                type=EventType.CUSTOM,
+                source="SwarmRouter",
+                data={"sub_type": "text_end", "text": f"Deploying Swarm Campaign against {target}"},
+            )
+        )
 
         # 1. Recon Phase
         t1 = SwarmTask(id="task-1", type="recon", target=target)

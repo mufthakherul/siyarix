@@ -143,7 +143,9 @@ class OPSECManager:
         """
         namespace = self._status.namespace
         if not namespace:
-            safe_target = "".join(c if c.isalnum() else "_" for c in target)[:16] if target else "no_target"
+            safe_target = (
+                "".join(c if c.isalnum() else "_" for c in target)[:16] if target else "no_target"
+            )
             namespace = f"siyarix_isolated_{safe_target}_{secrets.token_hex(4)}"
 
         self._status.isolated = True
@@ -201,9 +203,7 @@ class OPSECManager:
                         items_destroyed += 1
             details.append(f"Session {session_id}: {items_destroyed} files shredded")
             details.extend(self._trace_cleanup_messages())
-            logger.info(
-                "OPSEC burn completed for session=%s items=%d", session_id, items_destroyed
-            )
+            logger.info("OPSEC burn completed for session=%s items=%d", session_id, items_destroyed)
             return OPSECActionResult(
                 action="burn",
                 success=True,
@@ -229,9 +229,7 @@ class OPSECManager:
         details.append(f"Log files: {items_destroyed} files shredded (3-pass random overwrite)")
         details.extend(self._trace_cleanup_messages())
 
-        logger.info(
-            "OPSEC burn completed for session=all items=%d", items_destroyed
-        )
+        logger.info("OPSEC burn completed for session=all items=%d", items_destroyed)
         self._status = OPSECStatus()
         return OPSECActionResult(
             action="burn", success=True, detail="\n".join(details), items_destroyed=items_destroyed

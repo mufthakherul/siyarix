@@ -14,6 +14,7 @@ from siyarix.providers.manager import ProviderManager
 
 logger = logging.getLogger(__name__)
 
+
 class PluginLoader:
     """Discovers and loads external plugins."""
 

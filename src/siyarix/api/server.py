@@ -9,7 +9,15 @@ import os
 import time
 from typing import Any
 
-from fastapi import FastAPI, Depends, HTTPException, Security, status, WebSocket, WebSocketDisconnect
+from fastapi import (
+    FastAPI,
+    Depends,
+    HTTPException,
+    Security,
+    status,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 
@@ -23,6 +31,7 @@ security = HTTPBearer()
 
 # Store active sessions and their core instances
 _sessions: dict[str, AgentCore] = {}
+
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)) -> str:
     """Verify JWT token."""
@@ -64,6 +73,7 @@ async def start_scan(req: ScanRequest, token: str = Depends(verify_token)) -> di
     async def run_in_bg() -> None:
         try:
             from siyarix.core import AgentGoal
+
             goal = AgentGoal(description=f"Scan target: {req.target}")
             await core.execute_goal(goal)
         finally:
@@ -128,6 +138,7 @@ async def list_providers(token: str = Depends(verify_token)) -> dict[str, Any]:
 @app.get("/v1/graph")
 async def export_graph(token: str = Depends(verify_token)) -> dict[str, Any]:
     import json
+
     core = AgentCore()
     await core.start()
     kg_json = core._knowledge_graph.to_json()
@@ -143,6 +154,7 @@ async def websocket_stream(websocket: WebSocket, session_id: str) -> None:
 
     # We will subscribe to the event bus
     from siyarix.events import get_event_bus
+
     bus = get_event_bus()
     queue: asyncio.Queue[dict] = asyncio.Queue()
 

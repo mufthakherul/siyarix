@@ -184,6 +184,7 @@ class AuditLogger:
 
     def __init__(self, log_startup: bool = True) -> None:
         from .config import get_config_dir
+
         self._config_dir = get_config_dir()
         self._audit_log = self._config_dir / "audit.log"
         self._audit_db = self._config_dir / "audit.jsonl"
@@ -221,7 +222,9 @@ class AuditLogger:
             try:
                 # JSONL format
                 lines = self._audit_db.read_text().splitlines()
-                self._parse_events_from_dicts([json.loads(line) for line in lines[-1000:] if line.strip()])
+                self._parse_events_from_dicts(
+                    [json.loads(line) for line in lines[-1000:] if line.strip()]
+                )
             except Exception as exc:
                 logger.exception("Failed to load audit jsonl: %s", exc)
         elif self._legacy_db.exists():
@@ -251,7 +254,9 @@ class AuditLogger:
                 )
                 self._events.append(evt)
                 self._count_by_type[evt.event_type] = self._count_by_type.get(evt.event_type, 0) + 1
-                self._count_by_severity[evt.severity] = self._count_by_severity.get(evt.severity, 0) + 1
+                self._count_by_severity[evt.severity] = (
+                    self._count_by_severity.get(evt.severity, 0) + 1
+                )
             except Exception as exc:
                 logger.warning("Failed to parse event: %s", exc)
 
@@ -262,6 +267,7 @@ class AuditLogger:
 
         try:
             from siyarix.opsec import opsec_manager
+
             if opsec_manager.status.memory_only:
                 self._unflushed_events.clear()
                 self._dirty = False
@@ -470,7 +476,7 @@ class AuditLogger:
             data = json.dumps([e.to_dict() for e in events], indent=2)
 
         if filepath:
-            Path(filepath).write_text(data, encoding='utf-8')
+            Path(filepath).write_text(data, encoding="utf-8")
             return None
         return data
 
@@ -496,8 +502,12 @@ class AuditLogger:
             if e.timestamp >= cutoff:
                 retained_events.append(e)
             else:
-                self._count_by_type[e.event_type] = max(0, self._count_by_type.get(e.event_type, 0) - 1)
-                self._count_by_severity[e.severity] = max(0, self._count_by_severity.get(e.severity, 0) - 1)
+                self._count_by_type[e.event_type] = max(
+                    0, self._count_by_type.get(e.event_type, 0) - 1
+                )
+                self._count_by_severity[e.severity] = max(
+                    0, self._count_by_severity.get(e.severity, 0) - 1
+                )
         self._events = retained_events
         self._save_events()
 
@@ -527,7 +537,10 @@ def log_event(
 ) -> AuditEvent:
     """Convenience function to log event"""
     # use lazy 'audit' resolution
-    return __getattr__("audit").log(event_type, severity, user, action, result, target, session_id, details)
+    return __getattr__("audit").log(
+        event_type, severity, user, action, result, target, session_id, details
+    )
+
 
 __all__ = [
     "AuditEventType",

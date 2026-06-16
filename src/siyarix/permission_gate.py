@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import time
 import json
-import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -22,14 +21,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-
-
 class GateStage(StrEnum):
     SYNTAX = "syntax"
     FORBIDDEN = "forbidden"
     PERMISSION = "permission"
     REVIEW = "review"
     APPROVED = "approved"
+
 
 @dataclass
 class GateResult:
@@ -83,12 +81,20 @@ class PermissionGate:
         self._calls = [t for t in self._calls if now - t < self.rate_limit_period]
 
         if context and context.get("restricted_payload"):
-             if any(bad in command for bad in ("rm -rf", "mkfs", "dd if=")):
-                 return GateResult(False, GateStage.FORBIDDEN, "Payload verification failed", tool=tool, command=command)
+            if any(bad in command for bad in ("rm -rf", "mkfs", "dd if=")):
+                return GateResult(
+                    False,
+                    GateStage.FORBIDDEN,
+                    "Payload verification failed",
+                    tool=tool,
+                    command=command,
+                )
 
         if len(self._calls) >= self.rate_limit_calls:
             self._save_state(force=True)
-            return GateResult(False, GateStage.FORBIDDEN, "Rate limit exceeded", tool=tool, command=command)
+            return GateResult(
+                False, GateStage.FORBIDDEN, "Rate limit exceeded", tool=tool, command=command
+            )
 
         self._calls.append(now)
         self._save_state(force=(len(self._calls) % 50 == 0))
@@ -117,6 +123,7 @@ class PermissionGate:
                 requires_review=True,
             )
         return GateResult(True, GateStage.APPROVED, "", tool=tool, command=command)
+
 
 __all__ = [
     "GateResult",

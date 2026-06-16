@@ -47,6 +47,7 @@ class ChatSession:
     def branching(self) -> Any:
         if self._branching is None:
             from ..session_branching import BranchingSession
+
             self._branching = BranchingSession(session_id=self.session_id)
         return self._branching
 
@@ -105,6 +106,7 @@ class ChatSession:
         path.write_text(json.dumps(data, indent=2))
         if self._branching is not None:
             from ..session_branching import BranchingSession
+
             if isinstance(self._branching, BranchingSession):
                 self._branching.save()
 

@@ -71,7 +71,6 @@ HELP_CATEGORIES = [
             "/diff <id_a> <id_b>": "Compare two sessions",
             "/reset": "Reset mode and target to defaults",
             "/examples": "Show practical prompt examples",
-
         },
     ),
     (
@@ -122,9 +121,7 @@ class CommandProfileStore:
     def save(self, profile: CommandProfile) -> None:
         if not profile.created_at:
             profile.created_at = datetime.now(tz=UTC).isoformat()
-        self._path(profile.name).write_text(
-            json.dumps(asdict(profile), indent=2), encoding="utf-8"
-        )
+        self._path(profile.name).write_text(json.dumps(asdict(profile), indent=2), encoding="utf-8")
 
     def get(self, name: str) -> CommandProfile | None:
         path = self._path(name)

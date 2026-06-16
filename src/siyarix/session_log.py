@@ -21,9 +21,12 @@ from .audit_log import AuditEventType, AuditSeverity, audit
 
 logger = logging.getLogger(__name__)
 
+
 def _get_siyarix_dir() -> Path:
     from .config import get_config_dir
+
     return get_config_dir()
+
 
 _SIYARIX_DIR = _get_siyarix_dir()
 _LOG_DIR = _SIYARIX_DIR / "logs"

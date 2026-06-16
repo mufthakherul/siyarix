@@ -14,8 +14,17 @@ from typing import Any
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical, Container
 from textual.widgets import (
-    Header, Footer, Input, RichLog, DataTable, 
-    TabbedContent, TabPane, Tree, Sparkline, Static, Rule
+    Header,
+    Footer,
+    Input,
+    RichLog,
+    DataTable,
+    TabbedContent,
+    TabPane,
+    Tree,
+    Sparkline,
+    Static,
+    Rule,
 )
 from textual import work
 
@@ -91,7 +100,7 @@ class SiyarixTUI(App[None]):
         self.findings_table = DataTable(id="findings-table")
         self.execution_tree = Tree("Execution Plan", id="exec-tree")
         self.input_widget = Input(placeholder="Deploy agent or enter query...", id="input")
-        
+
         # Telemetry Widgets
         self.cpu_sparkline = Sparkline(summary_function=max, classes="spark")
         self.ram_sparkline = Sparkline(summary_function=max, classes="spark")
@@ -105,7 +114,7 @@ class SiyarixTUI(App[None]):
                 yield Static("[bold #00ffcc]Execution Strategy[/]", classes="header")
                 yield self.execution_tree
                 yield Rule()
-                
+
                 yield Static("[bold #ff00ff]Live Telemetry[/]", classes="header")
                 with Vertical(classes="metric-panel"):
                     yield Static("CPU Usage (%)")
@@ -121,14 +130,14 @@ class SiyarixTUI(App[None]):
                         yield self.chat_log
                     with TabPane("Vulnerability Matrix", id="tab-findings"):
                         yield self.findings_table
-                
+
                 yield self.input_widget
         yield Footer()
 
     def on_mount(self) -> None:
         # Init table
         self.findings_table.add_columns("ID", "Category", "Severity", "Target")
-        
+
         # Init Tree
         self.execution_tree.root.expand()
         self.execution_tree.root.add_leaf("Phase 1: Reconnaissance [Pending]")
@@ -137,10 +146,10 @@ class SiyarixTUI(App[None]):
 
         # Hook events
         self.bus.on(None, self.on_agent_event)
-        
+
         self.chat_log.write("[bold #00ffcc]Siyarix OS v2.0.0[/] successfully initialized.")
         self.chat_log.write("System online. Waiting for operator input...")
-        
+
         # Start mock telemetry (to be wired to real metrics later)
         self.telemetry_task = asyncio.create_task(self.update_telemetry())
 
@@ -159,7 +168,9 @@ class SiyarixTUI(App[None]):
     async def on_agent_event(self, event: Any) -> None:
         # Handle events from the event bus and update UI
         if event.type == EventType.CUSTOM and event.data.get("sub_type") == "text_end":
-            self.call_from_thread(self.chat_log.write, f"[[bold #ff00ff]SIYARIX[/]]: {event.data.get('text', '')}")
+            self.call_from_thread(
+                self.chat_log.write, f"[[bold #ff00ff]SIYARIX[/]]: {event.data.get('text', '')}"
+            )
         elif event.type == EventType.CUSTOM and event.data.get("sub_type") == "finding":
             finding = event.data.get("finding", {})
             self.call_from_thread(
@@ -167,13 +178,18 @@ class SiyarixTUI(App[None]):
                 finding.get("id", "N/A"),
                 finding.get("type", "N/A"),
                 finding.get("severity", "info"),
-                finding.get("target", "global")
+                finding.get("target", "global"),
             )
         elif event.type == EventType.TOOL_EXECUTING:
             tool = event.data.get("tool", "")
-            self.call_from_thread(self.chat_log.write, f"[[dim #00ffcc]SYSTEM[/]] Executing module: [italic]{tool}[/italic]...")
+            self.call_from_thread(
+                self.chat_log.write,
+                f"[[dim #00ffcc]SYSTEM[/]] Executing module: [italic]{tool}[/italic]...",
+            )
         elif event.type == EventType.AGENT_ERROR:
-            self.call_from_thread(self.chat_log.write, f"[[bold red]CRITICAL[/]] {event.data.get('error', '')}")
+            self.call_from_thread(
+                self.chat_log.write, f"[[bold red]CRITICAL[/]] {event.data.get('error', '')}"
+            )
 
     @work(exclusive=True, thread=False)
     async def process_command(self, text: str) -> None:
@@ -191,4 +207,3 @@ class SiyarixTUI(App[None]):
         text = message.value
         self.input_widget.value = ""
         self.process_command(text)
-

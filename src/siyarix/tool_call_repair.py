@@ -270,6 +270,7 @@ def _levenshtein_distance(a: str, b: str) -> int:
         prev = curr
     return prev[-1]
 
+
 __all__ = [
     "MAX_PAYLOAD_LENGTH",
     "BRACKET_TOOL_RE",

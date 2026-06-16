@@ -66,10 +66,7 @@ class UsageTracker:
         total_in = sum(r.input_tokens for r in self._records.values())
         total_out = sum(r.output_tokens for r in self._records.values())
         total_cost = sum(r.total_cost_estimated for r in self._records.values())
-        return UsageTotals(
-            total_tokens=total_in + total_out,
-            estimated_cost_usd=total_cost
-        )
+        return UsageTotals(total_tokens=total_in + total_out, estimated_cost_usd=total_cost)
 
     def record_call(
         self,

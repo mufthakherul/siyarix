@@ -19,23 +19,20 @@ from typing import Any, Callable
 @dataclass
 class ToolAvailabilityContext:
     """Context for evaluating tool availability."""
+
     env: dict[str, str] = field(default_factory=lambda: dict(os.environ))
     config: dict[str, Any] = field(default_factory=dict)
     installed_tools: dict[str, str] = field(default_factory=dict)
     provider_auth: dict[str, bool] = field(default_factory=dict)
 
 
-ToolAvailabilitySignal = (
-    dict[str, Any]
-    | str
-    | list[Any]
-    | bool
-)
+ToolAvailabilitySignal = dict[str, Any] | str | list[Any] | bool
 
 
 @dataclass
 class ToolAvailabilityDiagnostic:
     """Result of a single availability check."""
+
     signal: str
     passed: bool
     detail: str = ""
@@ -44,6 +41,7 @@ class ToolAvailabilityDiagnostic:
 @dataclass
 class ToolAvailabilityResult:
     """Result of evaluating tool availability."""
+
     available: bool
     diagnostics: list[ToolAvailabilityDiagnostic] = field(default_factory=list)
 
@@ -58,7 +56,9 @@ def _eval_always(expr: dict[str, Any], ctx: ToolAvailabilityContext) -> ToolAvai
 def _eval_auth(expr: dict[str, Any], ctx: ToolAvailabilityContext) -> ToolAvailabilityDiagnostic:
     provider = expr.get("provider", "")
     if not provider:
-        return ToolAvailabilityDiagnostic(signal="auth", passed=False, detail="no provider specified")
+        return ToolAvailabilityDiagnostic(
+            signal="auth", passed=False, detail="no provider specified"
+        )
     authed = ctx.provider_auth.get(provider, False)
     detail = f"provider '{provider}' {'is' if authed else 'is not'} authenticated"
     return ToolAvailabilityDiagnostic(signal="auth", passed=authed, detail=detail)
@@ -90,10 +90,14 @@ def _eval_env(expr: dict[str, Any], ctx: ToolAvailabilityContext) -> ToolAvailab
     return ToolAvailabilityDiagnostic(signal="env", passed=present, detail=detail)
 
 
-def _eval_installed(expr: dict[str, Any], ctx: ToolAvailabilityContext) -> ToolAvailabilityDiagnostic:
+def _eval_installed(
+    expr: dict[str, Any], ctx: ToolAvailabilityContext
+) -> ToolAvailabilityDiagnostic:
     name = expr.get("name", "")
     if not name:
-        return ToolAvailabilityDiagnostic(signal="installed", passed=False, detail="no tool name specified")
+        return ToolAvailabilityDiagnostic(
+            signal="installed", passed=False, detail="no tool name specified"
+        )
     installed = name in ctx.installed_tools or shutil.which(name) is not None
     detail = f"tool '{name}' is {'installed' if installed else 'not installed'}"
     return ToolAvailabilityDiagnostic(signal="installed", passed=installed, detail=detail)
@@ -123,7 +127,9 @@ def _eval_any_of(expr: list[Any], ctx: ToolAvailabilityContext) -> ToolAvailabil
 # ── Signal registry ────────────────────────────────────────────────────
 
 
-_SIGNAL_HANDLERS: dict[str, Callable[[dict[str, Any], ToolAvailabilityContext], ToolAvailabilityDiagnostic]] = {
+_SIGNAL_HANDLERS: dict[
+    str, Callable[[dict[str, Any], ToolAvailabilityContext], ToolAvailabilityDiagnostic]
+] = {
     "always": _eval_always,
     "auth": _eval_auth,
     "config": _eval_config,
@@ -132,7 +138,10 @@ _SIGNAL_HANDLERS: dict[str, Callable[[dict[str, Any], ToolAvailabilityContext], 
 }
 
 
-def register_signal(name: str, handler: Callable[[dict[str, Any], ToolAvailabilityContext], ToolAvailabilityDiagnostic]) -> None:
+def register_signal(
+    name: str,
+    handler: Callable[[dict[str, Any], ToolAvailabilityContext], ToolAvailabilityDiagnostic],
+) -> None:
     """Register a custom availability signal handler."""
     _SIGNAL_HANDLERS[name] = handler
 
@@ -182,10 +191,13 @@ def evaluate_availability(
             if isinstance(sig_expr, bool):
                 return ToolAvailabilityResult(
                     available=sig_expr,
-                    diagnostics=[ToolAvailabilityDiagnostic(
-                        signal=signal_name, passed=sig_expr,
-                        detail=f"{signal_name}={sig_expr}",
-                    )]
+                    diagnostics=[
+                        ToolAvailabilityDiagnostic(
+                            signal=signal_name,
+                            passed=sig_expr,
+                            detail=f"{signal_name}={sig_expr}",
+                        )
+                    ],
                 )
             if isinstance(sig_expr, dict):
                 diag = handler(sig_expr, ctx)
@@ -205,6 +217,7 @@ def check_tool_available(
     expr = {"installed": {"name": tool_name}}
     result = evaluate_availability(expr, ctx)
     return result.available, result.diagnostics
+
 
 __all__ = [
     "ToolAvailabilityContext",

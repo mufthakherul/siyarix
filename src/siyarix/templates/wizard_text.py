@@ -119,7 +119,7 @@ PERSONA_TOOLS = {
         ("exiftool", "exiftool", "Metadata extraction"),
         ("binwalk", "binwalk", "Firmware analysis"),
         ("hashdeep", "hashdeep", "File hashing & integrity"),
-    ]
+    ],
 }
 
 CYBER_TOOL_HOMEPAGES = {

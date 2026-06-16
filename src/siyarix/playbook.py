@@ -16,6 +16,7 @@ from siyarix.workflow import WorkflowEngine
 
 logger = logging.getLogger(__name__)
 
+
 class PlaybookEngine:
     """Parses and executes YAML playbooks."""
 
@@ -34,11 +35,13 @@ class PlaybookEngine:
 
     def _resolve_vars(self, text: str, context: dict[str, str]) -> str:
         """Resolve {{ var }} templates."""
+
         def replace(match: re.Match) -> str:
             var_name = match.group(1).strip()
             if var_name.startswith("env."):
                 return os.environ.get(var_name[4:], "")
             return context.get(var_name, match.group(0))
+
         return re.sub(r"\{\{(.*?)\}\}", replace, text)
 
     def _resolve_dict(self, data: Any, context: dict[str, str]) -> Any:
@@ -50,7 +53,9 @@ class PlaybookEngine:
             return self._resolve_vars(data, context)
         return data
 
-    def create_plan(self, data: dict[str, Any], variables: dict[str, str] | None = None) -> ExecutionPlan:
+    def create_plan(
+        self, data: dict[str, Any], variables: dict[str, str] | None = None
+    ) -> ExecutionPlan:
         """Convert a loaded playbook into an ExecutionPlan."""
         context = variables or {}
         if "vars" in data:
@@ -64,7 +69,7 @@ class PlaybookEngine:
         steps: list[PlanStep] = []
         for step_data in data["steps"]:
             resolved_step = self._resolve_dict(step_data, context)
-            step_id = resolved_step.get("id", f"step_{len(steps)+1}")
+            step_id = resolved_step.get("id", f"step_{len(steps) + 1}")
             step_type = resolved_step.get("type", "tool")
             tool = resolved_step.get("tool", "")
             args = resolved_step.get("args", {})
@@ -81,7 +86,7 @@ class PlaybookEngine:
                 }
 
             import json
-            
+
             # Embed advanced execution metadata into args so the executor can access them
             if condition:
                 args["_condition"] = condition
@@ -105,7 +110,9 @@ class PlaybookEngine:
             steps=steps,
         )
 
-    async def execute(self, path: str | Path, variables: dict[str, str] | None = None, executor: Any = None) -> Any:
+    async def execute(
+        self, path: str | Path, variables: dict[str, str] | None = None, executor: Any = None
+    ) -> Any:
         """Load and execute a playbook."""
         data = self.load(path)
         plan = self.create_plan(data, variables)

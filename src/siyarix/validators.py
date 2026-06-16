@@ -72,10 +72,10 @@ followed by a literal dot and ``[^\\s]+`` so the TLD portion is required."""
 
 _RE_HOSTNAME = re.compile(
     r"^(?:"
-    r"localhost"                                          # bare localhost
+    r"localhost"  # bare localhost
     r"|"
-    r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)" # single-label
-    r"(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*" # optional dot-labels
+    r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)"  # single-label
+    r"(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*"  # optional dot-labels
     r")$"
 )
 """Hostname pattern — H-05: accepts ``localhost``, single-label hosts
@@ -88,20 +88,17 @@ _RE_EMAIL = re.compile(
 )
 """Simplified RFC 5321 email pattern for notification config."""
 
-_RE_CIDR = re.compile(
-    r"^[\da-fA-F.:]+/\d{1,3}$"
-)
+_RE_CIDR = re.compile(r"^[\da-fA-F.:]+/\d{1,3}$")
 """Quick pre-filter for CIDR notation before handing off to ``ipaddress``."""
 
-_RE_PORT_RANGE = re.compile(
-    r"^(\d{1,5})-(\d{1,5})$"
-)
+_RE_PORT_RANGE = re.compile(r"^(\d{1,5})-(\d{1,5})$")
 """Matches a dash-separated port range like ``80-443``."""
 
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _enforce_length(value: str, field_name: str) -> None:
     """Raise ``ValidationError`` when *value* exceeds the global ceiling.
@@ -158,6 +155,7 @@ def _redact(value: str, *, max_visible: int = 32) -> str:
 # Public validators
 # ---------------------------------------------------------------------------
 
+
 def validate_not_empty(value: str, field_name: str = "value") -> None:
     """Validate that *value* is a non-blank string.
 
@@ -185,6 +183,7 @@ def validate_not_empty(value: str, field_name: str = "value") -> None:
                 component="validator",
             ),
         )
+
 
 def validate_min_length(value: str, min_len: int, field_name: str = "value") -> None:
     """Validate that *value* meets a minimum character length.
@@ -246,10 +245,7 @@ def validate_hostname(hostname: str) -> None:
             "Invalid hostname: exceeds maximum length",
             context=ErrorContext(
                 severity=ErrorSeverity.ERROR,
-                user_message=(
-                    "Hostname must not exceed "
-                    f"{_MAX_HOSTNAME_LENGTH} characters"
-                ),
+                user_message=(f"Hostname must not exceed {_MAX_HOSTNAME_LENGTH} characters"),
                 component="validator",
             ),
         )
@@ -259,13 +255,11 @@ def validate_hostname(hostname: str) -> None:
             f"Invalid hostname: {_redact(hostname)}",
             context=ErrorContext(
                 severity=ErrorSeverity.ERROR,
-                user_message=(
-                    "Hostname must be valid "
-                    "(e.g., example.com, localhost, myserver)"
-                ),
+                user_message=("Hostname must be valid (e.g., example.com, localhost, myserver)"),
                 component="validator",
             ),
         )
+
 
 def validate_url(url: str) -> None:
     """Validate a URL for ``http`` or ``https`` schemes.
@@ -298,6 +292,7 @@ def validate_url(url: str) -> None:
                 component="validator",
             ),
         )
+
 
 def validate_port(port: int | str) -> int:
     """Validate and return a single TCP/UDP port number.
@@ -346,6 +341,7 @@ def validate_port(port: int | str) -> int:
 
     return port_int
 
+
 def validate_port_range(port_range: str) -> tuple[int, int]:
     """Validate a dash-separated port range string.
 
@@ -391,6 +387,7 @@ def validate_port_range(port_range: str) -> tuple[int, int]:
         )
 
     return start, end
+
 
 def validate_cidr(cidr: str) -> ipaddress.IPv4Network | ipaddress.IPv6Network:
     """Validate a CIDR notation string and return the network object.
@@ -443,6 +440,7 @@ def validate_cidr(cidr: str) -> ipaddress.IPv4Network | ipaddress.IPv6Network:
             ),
         )
 
+
 def validate_email(email: str) -> None:
     """Validate an email address for notification configuration.
 
@@ -473,6 +471,7 @@ def validate_email(email: str) -> None:
                 component="validator",
             ),
         )
+
 
 def validate_target(target: str) -> dict[str, Any]:
     """Validate a scan target and return classification metadata.
@@ -559,8 +558,6 @@ def validate_target(target: str) -> dict[str, Any]:
             component="validator",
         ),
     )
-
-
 
 
 class ValidationSeverity(StrEnum):

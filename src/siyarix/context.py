@@ -58,7 +58,7 @@ class ContextManager:
         self._compression_count = 0
         self._memory = memory
 
-        if self._memory and hasattr(self._memory, 'load_context'):
+        if self._memory and hasattr(self._memory, "load_context"):
             history = self._memory.load_context()
             for entry in history:
                 role = entry.get("role", "user")
@@ -81,8 +81,9 @@ class ContextManager:
         self._chunks.append(chunk)
         self._window.history_tokens += chunk.token_estimate
         self._total_tokens += chunk.token_estimate
-        if self._memory and hasattr(self._memory, 'save_context'):
+        if self._memory and hasattr(self._memory, "save_context"):
             import time
+
             self._memory.save_context({"role": role, "content": content, "ts": time.time()})
 
     def add_tool_output(self, tool: str, output: str, max_length: int = 4000) -> None:
@@ -196,6 +197,7 @@ def compress_context(ctx: dict[str, Any], max_tokens: int = 8000) -> dict[str, A
         result["xi_recommendations"] = recs[:5]
 
     return result
+
 
 __all__ = [
     "ContextChunk",

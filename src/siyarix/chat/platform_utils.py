@@ -11,22 +11,79 @@ from siyarix.config import get_config_dir
 logger = logging.getLogger(__name__)
 
 CROSS_PLATFORM_COMMANDS: dict[str, dict[str, str]] = {
-    "nmap_scan": {"bash": "nmap -sV {target}", "powershell": "nmap -sV {target}", "cmd": "nmap -sV {target}"},
-    "ping_host": {"bash": "ping -c 4 {target}", "powershell": "ping -n 4 {target}", "cmd": "ping -n 4 {target}"},
-    "traceroute": {"bash": "traceroute {target}", "powershell": "tracert {target}", "cmd": "tracert {target}"},
-    "dns_lookup": {"bash": "nslookup {target}", "powershell": "nslookup {target}", "cmd": "nslookup {target}"},
-    "whois_query": {"bash": "whois {target}", "powershell": "whois {target}", "cmd": "whois {target}"},
+    "nmap_scan": {
+        "bash": "nmap -sV {target}",
+        "powershell": "nmap -sV {target}",
+        "cmd": "nmap -sV {target}",
+    },
+    "ping_host": {
+        "bash": "ping -c 4 {target}",
+        "powershell": "ping -n 4 {target}",
+        "cmd": "ping -n 4 {target}",
+    },
+    "traceroute": {
+        "bash": "traceroute {target}",
+        "powershell": "tracert {target}",
+        "cmd": "tracert {target}",
+    },
+    "dns_lookup": {
+        "bash": "nslookup {target}",
+        "powershell": "nslookup {target}",
+        "cmd": "nslookup {target}",
+    },
+    "whois_query": {
+        "bash": "whois {target}",
+        "powershell": "whois {target}",
+        "cmd": "whois {target}",
+    },
     "netstat": {"bash": "netstat -tulpn", "powershell": "netstat -an", "cmd": "netstat -an"},
-    "list_processes": {"bash": "ps aux", "powershell": "Get-Process | Format-Table", "cmd": "tasklist"},
-    "disk_usage": {"bash": "df -h", "powershell": "Get-PSDrive | Where Used", "cmd": "wmic logicaldisk get size,freespace,caption"},
-    "curl_request": {"bash": "curl -s {target}", "powershell": "curl -s {target}", "cmd": "curl {target}"},
-    "dig_dns": {"bash": "dig {target}", "powershell": "Resolve-DnsName {target}", "cmd": "nslookup {target}"},
-    "tcpdump": {"bash": "tcpdump -i any port {port}", "powershell": "Get-NetTCPConnection", "cmd": "netstat -an"},
-    "ssh_connect": {"bash": "ssh {user}@{target}", "powershell": "ssh {user}@{target}", "cmd": "ssh {user}@{target}"},
-    "check_firewall": {"bash": "iptables -L -n", "powershell": "netsh advfirewall show allprofiles", "cmd": "netsh advfirewall show allprofiles"},
-    "enum_shares": {"bash": "smbclient -L {target}", "powershell": "Get-SmbShare", "cmd": "net view {target}"},
-    "http_headers": {"bash": "curl -I {target}", "powershell": "curl -I {target}", "cmd": "curl -I {target}"},
+    "list_processes": {
+        "bash": "ps aux",
+        "powershell": "Get-Process | Format-Table",
+        "cmd": "tasklist",
+    },
+    "disk_usage": {
+        "bash": "df -h",
+        "powershell": "Get-PSDrive | Where Used",
+        "cmd": "wmic logicaldisk get size,freespace,caption",
+    },
+    "curl_request": {
+        "bash": "curl -s {target}",
+        "powershell": "curl -s {target}",
+        "cmd": "curl {target}",
+    },
+    "dig_dns": {
+        "bash": "dig {target}",
+        "powershell": "Resolve-DnsName {target}",
+        "cmd": "nslookup {target}",
+    },
+    "tcpdump": {
+        "bash": "tcpdump -i any port {port}",
+        "powershell": "Get-NetTCPConnection",
+        "cmd": "netstat -an",
+    },
+    "ssh_connect": {
+        "bash": "ssh {user}@{target}",
+        "powershell": "ssh {user}@{target}",
+        "cmd": "ssh {user}@{target}",
+    },
+    "check_firewall": {
+        "bash": "iptables -L -n",
+        "powershell": "netsh advfirewall show allprofiles",
+        "cmd": "netsh advfirewall show allprofiles",
+    },
+    "enum_shares": {
+        "bash": "smbclient -L {target}",
+        "powershell": "Get-SmbShare",
+        "cmd": "net view {target}",
+    },
+    "http_headers": {
+        "bash": "curl -I {target}",
+        "powershell": "curl -I {target}",
+        "cmd": "curl -I {target}",
+    },
 }
+
 
 def build_platform_context() -> dict[str, Any]:
     uname = _platform.uname()
@@ -121,6 +178,7 @@ def normalize_shell(shell: str) -> _Shell:
 
 def get_security_commands(shell: str = "") -> dict[str, str]:
     import sys
+
     is_win = sys.platform == "win32"
     if is_win:
         return {
@@ -161,5 +219,3 @@ def get_security_commands(shell: str = "") -> dict[str, str]:
         "USB devices": "lsusb",
         "Network interfaces": "ip addr",
     }
-
-

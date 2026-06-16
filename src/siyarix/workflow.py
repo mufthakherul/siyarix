@@ -129,7 +129,7 @@ class WorkflowEngine:
         wf_nodes = [
             WorkflowNode(
                 id=n.get("id", f"node_{i:03d}"),
-                name=n.get("name", f"Step {i+1}"),
+                name=n.get("name", f"Step {i + 1}"),
                 step_fn=n.get("step_fn", ""),
                 args=n.get("args", {}),
                 timeout=n.get("timeout", 300.0),
@@ -214,6 +214,7 @@ class WorkflowEngine:
             "completed": len([w for w in wfs if w.status == WorkflowStatus.COMPLETED]),
             "registered_steps": list(self._step_functions.keys()),
         }
+
 
 __all__ = [
     "WorkflowStatus",

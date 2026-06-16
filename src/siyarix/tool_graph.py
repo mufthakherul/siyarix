@@ -38,6 +38,7 @@ class ToolCapabilityGraph:
         if start not in self._nodes or goal not in self._nodes:
             return []
         import heapq
+
         queue: list[tuple[float, str, list[str]]] = [(0.0, start, [start])]
         visited: set[str] = set()
 
@@ -88,6 +89,7 @@ class ToolCapabilityGraph:
 
     def all_tools(self) -> list[ToolCapability]:
         return list(self._nodes.values())
+
 
 __all__ = [
     "ToolCapabilityGraph",

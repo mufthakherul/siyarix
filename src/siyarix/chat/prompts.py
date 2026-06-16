@@ -21,18 +21,22 @@ def _platform_context() -> str:
         f"- Shell: {shell}",
     ]
     if is_win:
-        lines.extend([
-            "- WARNING: Windows system detected — commands must use Windows-compatible flags:",
-            "  * nmap: use -sT (TCP connect) instead of -sS (SYN scan); omit -O",
-            "  * Use forward slashes or escaped backslashes in paths",
-            "  * For DNS: use nslookup if dig is unavailable",
-            "  * Find binaries with `where` instead of `which`",
-        ])
+        lines.extend(
+            [
+                "- WARNING: Windows system detected — commands must use Windows-compatible flags:",
+                "  * nmap: use -sT (TCP connect) instead of -sS (SYN scan); omit -O",
+                "  * Use forward slashes or escaped backslashes in paths",
+                "  * For DNS: use nslookup if dig is unavailable",
+                "  * Find binaries with `where` instead of `which`",
+            ]
+        )
     else:
-        lines.extend([
-            "- Unix-like system (Linux/macOS) — standard Unix commands apply.",
-            "  * nmap -sS (SYN scan) requires root/admin privileges",
-        ])
+        lines.extend(
+            [
+                "- Unix-like system (Linux/macOS) — standard Unix commands apply.",
+                "  * nmap -sS (SYN scan) requires root/admin privileges",
+            ]
+        )
     return "\n".join(lines)
 
 

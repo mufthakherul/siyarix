@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class BranchEntry:
     """A single entry in a branched session JSONL file."""
+
     id: str = ""
     parent_id: str = ""
     type: str = "message"  # session, message, compaction, branch_summary, label
@@ -38,12 +39,14 @@ def _new_id() -> str:
 
 def _session_dir(session_id: str) -> Path:
     from .config import get_config_dir
+
     return get_config_dir() / "sessions"
 
 
 # ---------------------------------------------------------------------------
 # Branching session
 # ---------------------------------------------------------------------------
+
 
 class BranchingSession:
     """A session with branching support using JSONL tree format.
@@ -115,7 +118,9 @@ class BranchingSession:
         """Add a bookmark/label entry."""
         return self.append_entry("label", content=label, metadata=metadata)
 
-    def add_branch_summary(self, summary: str, metadata: dict[str, Any] | None = None) -> BranchEntry:
+    def add_branch_summary(
+        self, summary: str, metadata: dict[str, Any] | None = None
+    ) -> BranchEntry:
         """Add a branch summary entry (created when branching)."""
         return self.append_entry("branch_summary", content=summary, metadata=metadata)
 
@@ -243,7 +248,9 @@ class BranchingSession:
                     if not line:
                         continue
                     data = json.loads(line)
-                    entry = BranchEntry(**{k: v for k, v in data.items() if k in BranchEntry.__dataclass_fields__})
+                    entry = BranchEntry(
+                        **{k: v for k, v in data.items() if k in BranchEntry.__dataclass_fields__}
+                    )
                     self._entries.append(entry)
             if self._entries:
                 self._leaf_id = self._entries[-1].id
@@ -252,6 +259,7 @@ class BranchingSession:
 
     def _has_entry(self, entry_id: str) -> bool:
         return any(e.id == entry_id for e in self._entries)
+
 
 __all__ = [
     "BranchEntry",

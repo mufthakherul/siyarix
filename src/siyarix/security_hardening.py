@@ -182,6 +182,7 @@ class InputValidator:
             The sanitised string, stripped of leading/trailing whitespace.
         """
         import urllib.parse
+
         value = urllib.parse.unquote(value)
         # Remove null bytes, carriage-returns, newlines, ANSI escapes (H-26)
         sanitized = value.replace("\x00", "")
@@ -540,10 +541,18 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     (re.compile(r"\bxmrig\b", re.I), "medium", "Cryptominer (xmrig)"),
     (re.compile(r"\bcpuminer\b", re.I), "medium", "Cryptominer (cpuminer)"),
     (re.compile(r"\bcrontab\s+-e\b", re.I), "medium", "Edit crontab (persistence)"),
-    (re.compile(r">>\s*(?:~/\.bashrc|~/\.zshrc|~/\.profile)", re.I), "medium", "Modify shell rc (persistence)"),
+    (
+        re.compile(r">>\s*(?:~/\.bashrc|~/\.zshrc|~/\.profile)", re.I),
+        "medium",
+        "Modify shell rc (persistence)",
+    ),
     (re.compile(r"\bbase64\s+-d\s*\|", re.I), "high", "Base64 decode pipe (encoded execution)"),
     (re.compile(r"\|\s*base64\s+-d\b", re.I), "high", "Pipe to base64 decode (encoded execution)"),
-    (re.compile(r"\bcat\s+(?:/etc/shadow|~/\.ssh/|/root/\.ssh/)", re.I), "critical", "Credential exfiltration (shadow/ssh)"),
+    (
+        re.compile(r"\bcat\s+(?:/etc/shadow|~/\.ssh/|/root/\.ssh/)", re.I),
+        "critical",
+        "Credential exfiltration (shadow/ssh)",
+    ),
     # ── Windows-specific ──
     (re.compile(r"\bformat\s+[a-zA-Z]:", re.I), "critical", "Windows format disk"),
     (
@@ -558,7 +567,9 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     ),
     (re.compile(r"\breg\s+delete\s+HKLM", re.I), "critical", "Windows registry delete (HKLM)"),
     (
-        re.compile(r"\breg\s+delete\s+HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", re.I),
+        re.compile(
+            r"\breg\s+delete\s+HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", re.I
+        ),
         "high",
         "Windows registry persistence key deletion",
     ),
@@ -748,9 +759,7 @@ class DangerAnalyzer:
         report = self.analyze(command)
         if not report.is_dangerous:
             return "safe"
-        reason_texts = ", ".join(
-            r.split("] ", 1)[1] if "] " in r else r for r in report.reasons
-        )
+        reason_texts = ", ".join(r.split("] ", 1)[1] if "] " in r else r for r in report.reasons)
         return f"{report.severity.upper()}: {reason_texts}"
 
 

@@ -78,6 +78,7 @@ class CacheManager:
     def _save_index(self) -> None:
         try:
             from siyarix.opsec import opsec_manager
+
             if opsec_manager.status.memory_only:
                 return
         except ImportError:
@@ -119,6 +120,7 @@ class CacheManager:
 
         try:
             from siyarix.opsec import opsec_manager
+
             if opsec_manager.status.memory_only:
                 return entry.data
         except ImportError:
@@ -136,6 +138,7 @@ class CacheManager:
 
         try:
             from siyarix.opsec import opsec_manager
+
             memory_only = opsec_manager.status.memory_only
         except ImportError:
             memory_only = False

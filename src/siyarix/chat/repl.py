@@ -278,7 +278,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 session: PromptSession = PromptSession()
                 _orig_create = session._create_layout
 
-                def _patched_create(self) -> PTLayout:
+                def _patched_create(self_obj: Any) -> PTLayout:
                     orig = _orig_create()
                     top_bar = ConditionalContainer(
                         Window(
@@ -292,7 +292,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                     return PTLayout(HSplit([top_bar, orig.container]))
 
                 import types
-                session._create_layout = types.MethodType(_patched_create, session)
+                session._create_layout = types.MethodType(_patched_create, session)  # type: ignore
 
                 answer = (
                     await session.prompt_async(

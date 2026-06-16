@@ -223,23 +223,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
         self._print_goodbye()
 
-    def _make_header(self) -> str:
-        """Build a condensed header line for the pinned top toolbar."""
-        provider = self._settings.get("model_provider") or "auto"
-        persona = self._settings.get("persona") or "auto"
-        sid = self._session.session_id[:8] if self._session.session_id else ""
-        target = self._session.target or ""
-        parts = [
-            "SIYARIX",
-            provider,
-            self._mode,
-            persona,
-            f"session: {sid}",
-        ]
-        if target:
-            parts.append(target)
-        return f"  {'  │  '.join(parts)}  "
-
     async def _prompt_async(self) -> str:
         """Display the input prompt and read a line."""
         if not sys.stdin.isatty():
@@ -254,7 +237,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         )
 
         # Gather status information
-        target_str = f" ({self._session.target})" if self._session.target else ""
+        target_info = f" ({self._session.target})" if self._session.target else ""
         mode_color = {
             "offline": "ansiyellow",
             "registry": "ansiyellow",
@@ -263,16 +246,20 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         }.get(self._mode, "ansicyan")
         theme = self._settings.get("color_theme") or "cyber-noir"
         provider = self._settings.get("model_provider") or "auto"
+        persona = self._settings.get("persona") or "auto"
+        session_id = self._session.session_id[:8] if self._session.session_id else ""
 
         def get_bottom_toolbar() -> Any:
             from prompt_toolkit.formatted_text import HTML
             return HTML(
                 f'<style bg="ansiblack" fg="ansiwhite"> '
                 f'<style fg="ansicyan"><b>{provider}</b></style> · '
-                f'<style fg="ansigray">{theme}</style> · '
-                f'<style fg="{mode_color}">{self._mode}</style>'
-                f'<style fg="ansigray">{target_str}</style>  · '
-                f'<style fg="ansigray">? for shortcuts · /help for all commands</style> '
+                f'<style fg="{mode_color}">{self._mode}</style> · '
+                f'<style fg="ansimagenta">{persona}</style> · '
+                f'<style fg="ansigray">session: {session_id}</style>'
+                f'<style fg="ansigray">{target_info}</style>  · '
+                f'<style fg="ansigray">{theme}</style>  · '
+                f'<style fg="ansigray">? /help</style> '
                 f'</style>'
             )
 
@@ -281,19 +268,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 warnings.simplefilter("ignore", RuntimeWarning)
                 from prompt_toolkit.formatted_text import HTML
                 from prompt_toolkit.patch_stdout import patch_stdout
-                from prompt_toolkit.layout import Window, FormattedTextControl
                 session = PromptSession(bottom_toolbar=get_bottom_toolbar)
-
-                # Pin a persistent header at the top of the prompt layout
-                header_win = Window(
-                    FormattedTextControl(self._make_header()),
-                    height=1,
-                    style="bg:ansiblack fg:ansiwhite bold",
-                    dont_extend_height=True,
-                )
-                root = session.app.layout.container
-                if hasattr(root, 'children'):
-                    root.children.insert(0, header_win)
 
                 pt_prompt = HTML('<style fg="ansicyan"><b>❯ </b></style><style fg="ansigray">Type your message or @path/to/file: </style>')
 
@@ -312,8 +287,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             console.print(f"[red]prompt_toolkit failed: {exc}[/red]")
             console.print(traceback.format_exc())
             logger.debug("prompt_toolkit failed: %s", exc)
-            # Still show toolbar info so the user sees status even in fallback
-            console.print(f"  [dim]{provider} · {theme} · {self._mode}{target_str}  · ? for shortcuts · /help for all commands[/dim]")
+            console.print(f"  [dim]{provider} · {self._mode} · {persona} · session: {session_id}{target_info} · {theme} · ? /help[/dim]")
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
                 answer = Prompt.ask(prompt_label, default="").strip()

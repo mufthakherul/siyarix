@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number (e.g., 0.1.3)'
+        description: 'Version number (e.g., 3.0.0)'
         required: true
         type: string
       publish_pypi:

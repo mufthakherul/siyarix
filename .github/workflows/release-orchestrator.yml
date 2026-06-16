@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version number (e.g., 2.0.1 or v2.0.1)"
+        description: "Version number (e.g., 3.0.0 or v3.0.0)"
         required: true
         type: string
 

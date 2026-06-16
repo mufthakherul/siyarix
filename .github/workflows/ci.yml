@@ -123,6 +123,16 @@ jobs:
           path: coverage.xml
           retention-days: 14
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          env_vars: OS,PYTHON
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+
   integration-test:
     name: Integration Tests
     runs-on: ubuntu-latest

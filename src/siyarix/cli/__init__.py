@@ -450,60 +450,10 @@ def main_callback(
 
         # TTY: launch interactive chat
         if _IS_TTY:
-            _ensure_ollama_running()
             start_chat(
                 mode=mode, target=target, session_id=session or None, resume=resume or bool(session)
             )
 
-
-def _ensure_ollama_running() -> None:
-    """Start Ollama in background if configured and not already running."""
-    try:
-        from ..config import SettingsStore
-
-        settings = SettingsStore()
-        provider = settings.get("model_provider") or ""
-        should_start = settings.get("_start_ollama_on_launch", False) or provider == "ollama"
-        if not should_start:
-            return
-        ollama_url = settings.get("ollama_url") or "http://localhost:11434"
-        import httpx
-
-        try:
-            r = httpx.get(f"{ollama_url}/api/tags", timeout=5)
-            if r.status_code < 500:
-                return
-        except Exception:
-            from rich.console import Console
-            Console().print(f"[yellow]⚠ Ollama not reachable at {ollama_url}[/yellow]")
-        if shutil.which("ollama"):
-            if os.name == "nt":
-                subprocess.Popen(
-                    ["ollama", "serve"],
-                    creationflags=subprocess.CREATE_NO_WINDOW,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-            else:
-                subprocess.Popen(
-                    ["ollama", "serve"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-            import time
-
-            for _ in range(15):
-                time.sleep(2)
-                try:
-                    r = httpx.get(f"{ollama_url}/api/tags", timeout=3)
-                    if r.status_code < 500:
-                        logger.info("Ollama started and ready")
-                        return
-                except Exception:
-                    logger.warning("Ollama health check failed (attempt %d/15)", _ + 1, exc_info=True)
-            logger.warning("Ollama started but not responding within 30s")
-    except Exception as exc:
-        logger.warning("Failed to auto-start Ollama: %s", exc)
 
 
 # Register security command group into the main CLI.

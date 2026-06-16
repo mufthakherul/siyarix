@@ -1024,6 +1024,12 @@ class LLMEngineMixin:
             key = self._resolve_api_key(configured, env_var)
             if not key and profile and not profile.api_key_env:
                 key = "local"
+            if configured == "ollama":
+                try:
+                    from ..providers.ollama_utils import ensure_ollama_running
+                    ensure_ollama_running()
+                except Exception:
+                    pass
             return (configured, key or None)
 
         candidates: list[tuple[int, str, str]] = []
@@ -1052,7 +1058,14 @@ class LLMEngineMixin:
             return (c[0], -(prof.priority if prof else 0))
 
         candidates.sort(key=_sort_key)
-        for _, name, key in candidates:
-            return (name, key or None)
+        if candidates:
+            prov, key = candidates[0][1], candidates[0][2]
+            if prov == "ollama":
+                try:
+                    from ..providers.ollama_utils import ensure_ollama_running
+                    ensure_ollama_running()
+                except Exception:
+                    pass
+            return (prov, key or None)
 
         return (None, None)

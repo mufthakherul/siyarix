@@ -459,7 +459,7 @@ class CredentialStore:
                         if not self._kms_available():
                             raise RuntimeError("KMS provider configured but boto3 not available")
                         import base64 as _b64
-                        import boto3  # pyright: ignore[reportMissingImports]
+                        import boto3  # type: ignore[import-not-found] # pyright: ignore[reportMissingImports]
 
                         kms_key_blob = _b64.b64decode(obj["encrypted_key"])
                         payload = _b64.b64decode(obj["payload"])

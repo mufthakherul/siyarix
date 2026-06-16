@@ -331,7 +331,7 @@ def resolve_api_key(provider: str, env_var: str | None = None) -> str | None:
     """
     key: str | None = None
     try:
-        from .credential_store import CredentialStore  # noqa: PLC0415
+        from siyarix.credential_store import CredentialStore  # noqa: PLC0415
 
         store = CredentialStore()
         key = store.retrieve(provider, "api_key")

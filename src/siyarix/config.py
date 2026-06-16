@@ -174,7 +174,7 @@ def _try_load_toml(path: Path) -> dict[str, Any]:
             return tomllib.load(f)
     except ImportError:
         try:
-            import tomli
+            import tomli  # type: ignore
 
             with path.open("rb") as f:
                 return tomli.load(f)

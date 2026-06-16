@@ -11,9 +11,9 @@ import asyncio
 import random
 from typing import Any
 
-from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical, Container
-from textual.widgets import (
+from textual.app import App, ComposeResult  # type: ignore
+from textual.containers import Horizontal, Vertical, Container  # type: ignore
+from textual.widgets import (  # type: ignore
     Header,
     Footer,
     Input,
@@ -26,7 +26,7 @@ from textual.widgets import (
     Static,
     Rule,
 )
-from textual import work
+from textual import work  # type: ignore
 
 from siyarix.core import AgentCore, AgentGoal
 from siyarix.events import get_event_bus, EventType

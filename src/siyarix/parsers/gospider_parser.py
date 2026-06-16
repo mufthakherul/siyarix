@@ -52,15 +52,17 @@ class GospiderParser:
                     sub = sub_m.group(1)
                     if sub not in subdomains_found:
                         subdomains_found.add(sub)
-                        findings.append({
-                            "title": f"Gospider subdomain: {sub}",
-                            "severity": "info",
-                            "description": f"Gospider discovered subdomain {sub}",
-                            "evidence": f"Subdomain: {sub}",
-                            "tool": "gospider",
-                            "target": sub,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"Gospider subdomain: {sub}",
+                                "severity": "info",
+                                "description": f"Gospider discovered subdomain {sub}",
+                                "evidence": f"Subdomain: {sub}",
+                                "tool": "gospider",
+                                "target": sub,
+                                "timestamp": _now_iso(),
+                            }
+                        )
 
             severity = "info"
             if status and int(status) in (401, 403, 302, 301):
@@ -78,14 +80,16 @@ class GospiderParser:
             if redir:
                 evidence += f", Redirect: {redir}"
 
-            findings.append({
-                "title": f"Gospider: {url}",
-                "severity": severity,
-                "description": description,
-                "evidence": evidence,
-                "tool": "gospider",
-                "target": url_path,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"Gospider: {url}",
+                    "severity": severity,
+                    "description": description,
+                    "evidence": evidence,
+                    "tool": "gospider",
+                    "target": url_path,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

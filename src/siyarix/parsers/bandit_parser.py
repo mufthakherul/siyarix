@@ -1,4 +1,4 @@
-﻿# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Bandit JSON output parser — extracts security issues with test_id, severity, confidence, and code."""
 
@@ -66,28 +66,32 @@ class BanditParser:
             if code:
                 evidence += f"\nCode: {code[:200]}"
 
-            findings.append({
-                "title": title,
-                "severity": severity,
-                "description": description,
-                "evidence": evidence,
-                "tool": "bandit",
-                "target": filename,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": title,
+                    "severity": severity,
+                    "description": description,
+                    "evidence": evidence,
+                    "tool": "bandit",
+                    "target": filename,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         if summary_count:
             key = "summary:total"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": f"Bandit: {summary_count} issues",
-                    "severity": "info",
-                    "description": f"Bandit found {summary_count} issues",
-                    "evidence": f"Total: {summary_count}",
-                    "tool": "bandit",
-                    "target": "",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Bandit: {summary_count} issues",
+                        "severity": "info",
+                        "description": f"Bandit found {summary_count} issues",
+                        "evidence": f"Total: {summary_count}",
+                        "tool": "bandit",
+                        "target": "",
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

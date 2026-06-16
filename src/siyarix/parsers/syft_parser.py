@@ -12,14 +12,27 @@ import re
 _JSON_RE = re.compile(r"^\s*[{\[]")
 
 _SEVERITY_PACKAGES = {
-    "openssl": "high", "libssl": "high", "log4j": "critical",
-    "log4j-core": "critical", "log4j-api": "critical",
-    "spring": "high", "spring-framework": "high",
-    "struts": "critical", "tomcat": "medium",
-    "nginx": "medium", "apache": "medium",
-    "bash": "medium", "sudo": "high", "python": "low",
-    "node": "low", "go": "low", "curl": "low", "wget": "low",
-    "busybox": "medium", "musl": "low", "alpine": "low",
+    "openssl": "high",
+    "libssl": "high",
+    "log4j": "critical",
+    "log4j-core": "critical",
+    "log4j-api": "critical",
+    "spring": "high",
+    "spring-framework": "high",
+    "struts": "critical",
+    "tomcat": "medium",
+    "nginx": "medium",
+    "apache": "medium",
+    "bash": "medium",
+    "sudo": "high",
+    "python": "low",
+    "node": "low",
+    "go": "low",
+    "curl": "low",
+    "wget": "low",
+    "busybox": "medium",
+    "musl": "low",
+    "alpine": "low",
 }
 
 
@@ -44,7 +57,7 @@ class SyftParser:
                 name = art.get("name", "unknown")
                 version = art.get("version", "")
                 ptype = art.get("type", art.get("metadata", {}).get("packageType", "unknown"))
-                locations = art.get("locations", [])
+                art.get("locations", [])
                 licenses = art.get("licenses", [])
 
                 dedup_key = f"{name}|{version}"
@@ -58,15 +71,17 @@ class SyftParser:
                         severity = sev
                         break
 
-                findings.append({
-                    "title": f"Package: {name} ({version})",
-                    "severity": severity,
-                    "description": f"Syft discovered {ptype} package {name} version {version}"
-                    + (f" [{', '.join(licenses[:3])}]" if licenses else ""),
-                    "evidence": f"Package: {name} | Version: {version} | Type: {ptype}",
-                    "tool": "syft",
-                    "target": "container",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Package: {name} ({version})",
+                        "severity": severity,
+                        "description": f"Syft discovered {ptype} package {name} version {version}"
+                        + (f" [{', '.join(licenses[:3])}]" if licenses else ""),
+                        "evidence": f"Package: {name} | Version: {version} | Type: {ptype}",
+                        "tool": "syft",
+                        "target": "container",
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

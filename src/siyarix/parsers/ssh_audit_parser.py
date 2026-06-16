@@ -8,8 +8,12 @@ from . import _now_iso
 
 import re
 
-_FINDING_RE = re.compile(r"^[(\[](?P<severity>info|medium|high|fail|warn)[)\]]\s+(?P<finding>.+)", re.IGNORECASE)
-_ALGORITHM_RE = re.compile(r"(?:algorithm|kex|key\s*exchange|host\s*key|cipher|mac|compression)[\s:]+(.+)", re.IGNORECASE)
+_FINDING_RE = re.compile(
+    r"^[(\[](?P<severity>info|medium|high|fail|warn)[)\]]\s+(?P<finding>.+)", re.IGNORECASE
+)
+_ALGORITHM_RE = re.compile(
+    r"(?:algorithm|kex|key\s*exchange|host\s*key|cipher|mac|compression)[\s:]+(.+)", re.IGNORECASE
+)
 _KEX_RE = re.compile(r"\[kex\]\s+(.+)", re.IGNORECASE)
 _HOST_KEY_RE = re.compile(r"\[host_key\]\s+(.+)", re.IGNORECASE)
 _SSH_VERSION_RE = re.compile(r"SSH-\d+\.\d+", re.IGNORECASE)
@@ -55,19 +59,25 @@ class SshAuditParser:
                     continue
                 seen.add(dedup_key)
 
-                title = finding_text.split("--")[0].strip() if "--" in finding_text else finding_text.split("(")[0].strip()
+                title = (
+                    finding_text.split("--")[0].strip()
+                    if "--" in finding_text
+                    else finding_text.split("(")[0].strip()
+                )
                 if len(title) > 80:
                     title = title[:77] + "..."
 
-                findings.append({
-                    "title": f"ssh-audit: {title}",
-                    "severity": severity,
-                    "description": f"[{severity_raw}] {finding_text}",
-                    "evidence": line_stripped,
-                    "tool": "ssh_audit",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"ssh-audit: {title}",
+                        "severity": severity,
+                        "description": f"[{severity_raw}] {finding_text}",
+                        "evidence": line_stripped,
+                        "tool": "ssh_audit",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             km = _KEX_RE.search(line_stripped)
@@ -76,15 +86,17 @@ class SshAuditParser:
                 if dedup_key not in seen:
                     seen.add(dedup_key)
                     sev = "medium" if _RECOMMEND_RE.search(line_stripped) else "info"
-                    findings.append({
-                        "title": "ssh-audit: Key exchange algorithms",
-                        "severity": sev,
-                        "description": f"Supported KEX algorithms: {km.group(1)}",
-                        "evidence": line_stripped,
-                        "tool": "ssh_audit",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": "ssh-audit: Key exchange algorithms",
+                            "severity": sev,
+                            "description": f"Supported KEX algorithms: {km.group(1)}",
+                            "evidence": line_stripped,
+                            "tool": "ssh_audit",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             hm = _HOST_KEY_RE.search(line_stripped)
@@ -93,15 +105,17 @@ class SshAuditParser:
                 if dedup_key not in seen:
                     seen.add(dedup_key)
                     sev = "medium" if _RECOMMEND_RE.search(line_stripped) else "info"
-                    findings.append({
-                        "title": "ssh-audit: Host key algorithms",
-                        "severity": sev,
-                        "description": f"Host key algorithms: {hm.group(1)}",
-                        "evidence": line_stripped,
-                        "tool": "ssh_audit",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": "ssh-audit: Host key algorithms",
+                            "severity": sev,
+                            "description": f"Host key algorithms: {hm.group(1)}",
+                            "evidence": line_stripped,
+                            "tool": "ssh_audit",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             am = _ALGORITHM_RE.search(line_stripped)
@@ -110,14 +124,16 @@ class SshAuditParser:
                 if dedup_key not in seen:
                     seen.add(dedup_key)
                     sev = "medium" if _RECOMMEND_RE.search(line_stripped) else "info"
-                    findings.append({
-                        "title": "ssh-audit: Algorithm info",
-                        "severity": sev,
-                        "description": f"Algorithm details: {am.group(1)}",
-                        "evidence": line_stripped,
-                        "tool": "ssh_audit",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": "ssh-audit: Algorithm info",
+                            "severity": sev,
+                            "description": f"Algorithm details: {am.group(1)}",
+                            "evidence": line_stripped,
+                            "tool": "ssh_audit",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         return findings

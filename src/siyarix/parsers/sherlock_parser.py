@@ -37,19 +37,35 @@ class SherlockParser:
                             status = result.get("status", "").lower()
                             url = result.get("url", result.get("url_user", ""))
                             if status in ("claimed", "yes", "true"):
-                                severity = "medium" if any(x in site_name.lower() for x in ("linkedin", "twitter", "facebook", "instagram", "github")) else "info"
+                                severity = (
+                                    "medium"
+                                    if any(
+                                        x in site_name.lower()
+                                        for x in (
+                                            "linkedin",
+                                            "twitter",
+                                            "facebook",
+                                            "instagram",
+                                            "github",
+                                        )
+                                    )
+                                    else "info"
+                                )
                                 key = f"site:{site_name.lower()}"
                                 if key not in seen:
                                     seen.add(key)
-                                    findings.append({
-                                        "title": f"Social: {site_name}",
-                                        "severity": severity,
-                                        "description": f"Sherlock found username on {site_name}" + (f" at {url}" if url else ""),
-                                        "evidence": url or site_name,
-                                        "tool": "sherlock",
-                                        "target": site_name,
-                                        "timestamp": _now_iso(),
-                                    })
+                                    findings.append(
+                                        {
+                                            "title": f"Social: {site_name}",
+                                            "severity": severity,
+                                            "description": f"Sherlock found username on {site_name}"
+                                            + (f" at {url}" if url else ""),
+                                            "evidence": url or site_name,
+                                            "tool": "sherlock",
+                                            "target": site_name,
+                                            "timestamp": _now_iso(),
+                                        }
+                                    )
             except json.JSONDecodeError:
                 pass
 
@@ -61,28 +77,32 @@ class SherlockParser:
                 key = f"line:{line[:60]}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Sherlock: {line[:60]}",
-                        "severity": "info",
-                        "description": f"Sherlock result: {line}",
-                        "evidence": raw.strip(),
-                        "tool": "sherlock",
-                        "target": "unknown",
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Sherlock: {line[:60]}",
+                            "severity": "info",
+                            "description": f"Sherlock result: {line}",
+                            "evidence": raw.strip(),
+                            "tool": "sherlock",
+                            "target": "unknown",
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         if summary_count:
             key = "summary:total"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": f"Sherlock: {summary_count} sites",
-                    "severity": "info",
-                    "description": f"Sherlock found username on {summary_count} sites",
-                    "evidence": f"Total: {summary_count}",
-                    "tool": "sherlock",
-                    "target": "unknown",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Sherlock: {summary_count} sites",
+                        "severity": "info",
+                        "description": f"Sherlock found username on {summary_count} sites",
+                        "evidence": f"Total: {summary_count}",
+                        "tool": "sherlock",
+                        "target": "unknown",
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

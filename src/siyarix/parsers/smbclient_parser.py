@@ -30,23 +30,28 @@ _SERVER_LINE_RE = re.compile(
 )
 
 _DOMAIN_RE = re.compile(
-    r"Domain\s*=\s*\[?([^\]]+)\]?", re.IGNORECASE,
+    r"Domain\s*=\s*\[?([^\]]+)\]?",
+    re.IGNORECASE,
 )
 
 _OS_RE = re.compile(
-    r"OS\s*=\s*\[?([^\]]+)\]?", re.IGNORECASE,
+    r"OS\s*=\s*\[?([^\]]+)\]?",
+    re.IGNORECASE,
 )
 
 _SERVER_DESC_RE = re.compile(
-    r"(?:Server|server)\s*=\s*\[?([^\]]+)\]?", re.IGNORECASE,
+    r"(?:Server|server)\s*=\s*\[?([^\]]+)\]?",
+    re.IGNORECASE,
 )
 
 _SMB_VER_RE = re.compile(
-    r"SMB\s*(?:version|v)?\s*[=:]\s*([\d.]+)", re.IGNORECASE,
+    r"SMB\s*(?:version|v)?\s*[=:]\s*([\d.]+)",
+    re.IGNORECASE,
 )
 
 _NETBIOS_RE = re.compile(
-    r"(?:NetBIOS|nbt|nbname)\s*[=:]\s*(\S+)", re.IGNORECASE,
+    r"(?:NetBIOS|nbt|nbname)\s*[=:]\s*(\S+)",
+    re.IGNORECASE,
 )
 
 _JSON_RE = re.compile(r"^\s*[{\[]")
@@ -78,30 +83,34 @@ class SmbclientParser:
                         if dedup_key in seen:
                             continue
                         seen.add(dedup_key)
-                        findings.append({
-                            "title": f"SMB share discovered: {share}",
-                            "severity": "medium",
-                            "description": f"smbclient discovered share {share} on {server}",
-                            "evidence": json.dumps(item),
-                            "tool": "smbclient",
-                            "target": server,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"SMB share discovered: {share}",
+                                "severity": "medium",
+                                "description": f"smbclient discovered share {share} on {server}",
+                                "evidence": json.dumps(item),
+                                "tool": "smbclient",
+                                "target": server,
+                                "timestamp": _now_iso(),
+                            }
+                        )
                     fname = item.get("filename", item.get("name", ""))
                     if fname:
                         dedup_key = f"file|{server}|{fname}"
                         if dedup_key in seen:
                             continue
                         seen.add(dedup_key)
-                        findings.append({
-                            "title": f"SMB file: {fname}",
-                            "severity": "info",
-                            "description": f"File {fname} ({fsize} bytes) accessible on {server}",
-                            "evidence": json.dumps(item),
-                            "tool": "smbclient",
-                            "target": server,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"SMB file: {fname}",
+                                "severity": "info",
+                                "description": f"File {fname} ({fsize} bytes) accessible on {server}",
+                                "evidence": json.dumps(item),
+                                "tool": "smbclient",
+                                "target": server,
+                                "timestamp": _now_iso(),
+                            }
+                        )
                 return findings
             except json.JSONDecodeError:
                 pass
@@ -121,72 +130,82 @@ class SmbclientParser:
             dom = _DOMAIN_RE.search(line)
             if dom:
                 domain_name = dom.group(1).strip()
-                findings.append({
-                    "title": f"SMB server domain: {domain_name}",
-                    "severity": "info",
-                    "description": f"Domain/workgroup: {domain_name}",
-                    "evidence": line,
-                    "tool": "smbclient",
-                    "target": server,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"SMB server domain: {domain_name}",
+                        "severity": "info",
+                        "description": f"Domain/workgroup: {domain_name}",
+                        "evidence": line,
+                        "tool": "smbclient",
+                        "target": server,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             osm = _OS_RE.search(line)
             if osm:
                 os_name = osm.group(1).strip()
-                findings.append({
-                    "title": f"SMB server OS: {os_name}",
-                    "severity": "info",
-                    "description": f"Server OS: {os_name}",
-                    "evidence": line,
-                    "tool": "smbclient",
-                    "target": server,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"SMB server OS: {os_name}",
+                        "severity": "info",
+                        "description": f"Server OS: {os_name}",
+                        "evidence": line,
+                        "tool": "smbclient",
+                        "target": server,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             sdm = _SERVER_DESC_RE.search(line)
             if sdm:
                 sv = sdm.group(1).strip()
-                findings.append({
-                    "title": f"SMB server: {sv}",
-                    "severity": "info",
-                    "description": f"SMB server description: {sv}",
-                    "evidence": line,
-                    "tool": "smbclient",
-                    "target": sv,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"SMB server: {sv}",
+                        "severity": "info",
+                        "description": f"SMB server description: {sv}",
+                        "evidence": line,
+                        "tool": "smbclient",
+                        "target": sv,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 if server == "unknown":
                     server = sv
                 continue
 
             svm = _SMB_VER_RE.search(line)
             if svm:
-                findings.append({
-                    "title": f"SMB protocol version: {svm.group(1)}",
-                    "severity": "info",
-                    "description": f"SMB version {svm.group(1)} detected on {server}",
-                    "evidence": line,
-                    "tool": "smbclient",
-                    "target": server,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"SMB protocol version: {svm.group(1)}",
+                        "severity": "info",
+                        "description": f"SMB version {svm.group(1)} detected on {server}",
+                        "evidence": line,
+                        "tool": "smbclient",
+                        "target": server,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             nbm = _NETBIOS_RE.search(line)
             if nbm:
                 nbname = nbm.group(1).strip()
-                findings.append({
-                    "title": f"NetBIOS name: {nbname}",
-                    "severity": "info",
-                    "description": f"NetBIOS name {nbname} for {server}",
-                    "evidence": line,
-                    "tool": "smbclient",
-                    "target": server,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"NetBIOS name: {nbname}",
+                        "severity": "info",
+                        "description": f"NetBIOS name {nbname} for {server}",
+                        "evidence": line,
+                        "tool": "smbclient",
+                        "target": server,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             if "server" in lower and ("\\\\" in line or "//" in line or ":" in line):
@@ -199,15 +218,17 @@ class SmbclientParser:
                 continue
 
             if _CONNECTED_RE.search(lower):
-                findings.append({
-                    "title": f"SMB session: {server}",
-                    "severity": "info",
-                    "description": f"smbclient successfully connected to SMB server {server}",
-                    "evidence": line,
-                    "tool": "smbclient",
-                    "target": server,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"SMB session: {server}",
+                        "severity": "info",
+                        "description": f"smbclient successfully connected to SMB server {server}",
+                        "evidence": line,
+                        "tool": "smbclient",
+                        "target": server,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             if "\\" in line and line.strip() == current_share.strip():
@@ -221,15 +242,17 @@ class SmbclientParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"SMB share discovered: {current_share}",
-                    "severity": "medium",
-                    "description": f"smbclient discovered share {current_share} ({share_type}) on {server}",
-                    "evidence": f"server: {server} share: {current_share} type: {share_type}",
-                    "tool": "smbclient",
-                    "target": server,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"SMB share discovered: {current_share}",
+                        "severity": "medium",
+                        "description": f"smbclient discovered share {current_share} ({share_type}) on {server}",
+                        "evidence": f"server: {server} share: {current_share} type: {share_type}",
+                        "tool": "smbclient",
+                        "target": server,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             m = _FILE_RE.match(line)
@@ -243,14 +266,16 @@ class SmbclientParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"SMB file: {fname}",
-                    "severity": "info",
-                    "description": f"File {fname} ({fsize} bytes, {fdate}) in {current_share} on {server}",
-                    "evidence": line,
-                    "tool": "smbclient",
-                    "target": server,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"SMB file: {fname}",
+                        "severity": "info",
+                        "description": f"File {fname} ({fsize} bytes, {fdate}) in {current_share} on {server}",
+                        "evidence": line,
+                        "tool": "smbclient",
+                        "target": server,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

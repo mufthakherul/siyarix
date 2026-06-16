@@ -55,7 +55,7 @@ class GrypeParser:
             severity_raw = vuln.get("severity", vuln.get("Severity", "Unknown"))
             severity = _SEVERITY_MAP.get(str(severity_raw), "info")
 
-            fix_state = fix_data.get("state", fix_data.get("State", "unknown"))
+            fix_data.get("state", fix_data.get("State", "unknown"))
             fix_versions = fix_data.get("versions", fix_data.get("Versions", []))
             fix_str = ", ".join(fix_versions) if fix_versions else "not available"
 
@@ -66,14 +66,16 @@ class GrypeParser:
                 f"Severity: {severity_raw}, Fix: {fix_str}"
             )
 
-            findings.append({
-                "title": f"Grype: {vuln_id} ({pkg_name})",
-                "severity": severity,
-                "description": description,
-                "evidence": evidence,
-                "tool": "grype",
-                "target": pkg_name,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"Grype: {vuln_id} ({pkg_name})",
+                    "severity": severity,
+                    "description": description,
+                    "evidence": evidence,
+                    "tool": "grype",
+                    "target": pkg_name,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

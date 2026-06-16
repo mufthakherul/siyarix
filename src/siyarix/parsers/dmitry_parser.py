@@ -66,7 +66,6 @@ class DmitryParser:
         findings: list[dict] = []
         seen: set[str] = set()
         domain = "unknown"
-        in_whois_section = False
 
         for raw in output.splitlines():
             line = raw.strip()
@@ -74,7 +73,6 @@ class DmitryParser:
                 continue
 
             if _WHOIS_SECTION_RE.search(line):
-                in_whois_section = True
                 continue
 
             m = _DOMAIN_RE.match(line)
@@ -93,16 +91,18 @@ class DmitryParser:
                 if key not in seen:
                     seen.add(key)
                     sev = "medium" if state.lower() == "open" else "info"
-                    findings.append({
-                        "title": f"Port {port}/{proto} ({state})",
-                        "severity": sev,
-                        "description": f"DMitry discovered {state} port {port}/{proto} on {domain}"
-                        + (f" - {service}" if service else ""),
-                        "evidence": raw,
-                        "tool": "dmitry",
-                        "target": domain,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Port {port}/{proto} ({state})",
+                            "severity": sev,
+                            "description": f"DMitry discovered {state} port {port}/{proto} on {domain}"
+                            + (f" - {service}" if service else ""),
+                            "evidence": raw,
+                            "tool": "dmitry",
+                            "target": domain,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             # TCP port with banner: e.g. "80 (http): Server: Apache/2.4"
@@ -111,15 +111,17 @@ class DmitryParser:
                 key = f"tcp-banner:{m.group('port')}:{m.group('service')}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Banner: {m.group('port')}/{m.group('service')}",
-                        "severity": "info",
-                        "description": f"DMitry grabbed banner from port {m.group('port')} ({m.group('service')}) on {domain}",
-                        "evidence": raw,
-                        "tool": "dmitry",
-                        "target": domain,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Banner: {m.group('port')}/{m.group('service')}",
+                            "severity": "info",
+                            "description": f"DMitry grabbed banner from port {m.group('port')} ({m.group('service')}) on {domain}",
+                            "evidence": raw,
+                            "tool": "dmitry",
+                            "target": domain,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _BANNER_RE.search(line)
@@ -128,15 +130,17 @@ class DmitryParser:
                 key = f"banner:{banner_text[:40]}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Service banner: {banner_text[:40]}",
-                        "severity": "info",
-                        "description": f"DMitry discovered banner on {domain}: {banner_text}",
-                        "evidence": raw,
-                        "tool": "dmitry",
-                        "target": domain,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Service banner: {banner_text[:40]}",
+                            "severity": "info",
+                            "description": f"DMitry discovered banner on {domain}: {banner_text}",
+                            "evidence": raw,
+                            "tool": "dmitry",
+                            "target": domain,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _NS_RE.match(line)
@@ -145,15 +149,17 @@ class DmitryParser:
                 key = f"ns:{ns}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Name server: {ns}",
-                        "severity": "low",
-                        "description": f"DMitry discovered name server {ns} for {domain}",
-                        "evidence": raw,
-                        "tool": "dmitry",
-                        "target": domain,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Name server: {ns}",
+                            "severity": "low",
+                            "description": f"DMitry discovered name server {ns} for {domain}",
+                            "evidence": raw,
+                            "tool": "dmitry",
+                            "target": domain,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             emails = _EMAIL_RE.findall(line)
@@ -161,15 +167,17 @@ class DmitryParser:
                 key = f"email:{email}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Email: {email}",
-                        "severity": "medium",
-                        "description": f"DMitry discovered email {email} associated with {domain}",
-                        "evidence": email,
-                        "tool": "dmitry",
-                        "target": email,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Email: {email}",
+                            "severity": "medium",
+                            "description": f"DMitry discovered email {email} associated with {domain}",
+                            "evidence": email,
+                            "tool": "dmitry",
+                            "target": email,
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
             m = _HOST_RE.match(line)
             if m:
@@ -177,15 +185,17 @@ class DmitryParser:
                 key = f"host:{host}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Host: {host}",
-                        "severity": "info",
-                        "description": f"DMitry discovered host {host} for {domain}",
-                        "evidence": raw,
-                        "tool": "dmitry",
-                        "target": host,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Host: {host}",
+                            "severity": "info",
+                            "description": f"DMitry discovered host {host} for {domain}",
+                            "evidence": raw,
+                            "tool": "dmitry",
+                            "target": host,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _IP_RE.match(line)
@@ -194,14 +204,16 @@ class DmitryParser:
                 key = f"ip:{ip}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"IP address: {ip}",
-                        "severity": "info",
-                        "description": f"DMitry discovered IP {ip}",
-                        "evidence": raw,
-                        "tool": "dmitry",
-                        "target": ip,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"IP address: {ip}",
+                            "severity": "info",
+                            "description": f"DMitry discovered IP {ip}",
+                            "evidence": raw,
+                            "tool": "dmitry",
+                            "target": ip,
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         return findings

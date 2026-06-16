@@ -21,7 +21,7 @@ class HttpxParser:
     def parse(self, output: str) -> list[dict]:
         if not output.strip():
             return []
-        first_line = next((l for l in output.splitlines() if l.strip()), "")
+        first_line = next((line for line in output.splitlines() if line.strip()), "")
         if _JSON_LINE_RE.match(first_line.strip()):
             return self._parse_json_output(output)
         return self._parse_text(output)
@@ -56,10 +56,17 @@ class HttpxParser:
         seen.add(dedup_key)
 
         status_code = str(obj.get("status_code", obj.get("StatusCode", obj.get("status", 0))))
-        content_length = obj.get("content_length", obj.get("ContentLength", obj.get("length", obj.get("content-length", ""))))
+        content_length = obj.get(
+            "content_length",
+            obj.get("ContentLength", obj.get("length", obj.get("content-length", ""))),
+        )
         title = obj.get("title", obj.get("Title", ""))
-        webserver = obj.get("webserver", obj.get("Webserver", obj.get("server", obj.get("Server", ""))))
-        tech = obj.get("tech", obj.get("Tech", obj.get("technologies", obj.get("Technologies", []))))
+        webserver = obj.get(
+            "webserver", obj.get("Webserver", obj.get("server", obj.get("Server", "")))
+        )
+        tech = obj.get(
+            "tech", obj.get("Tech", obj.get("technologies", obj.get("Technologies", [])))
+        )
         if isinstance(tech, str):
             tech = [t.strip() for t in tech.split(",") if t.strip()]
         cnames = obj.get("cnames", obj.get("Cnames", obj.get("cname", [])))
@@ -105,15 +112,17 @@ class HttpxParser:
         if tech:
             evidence_parts.append(f"tech: {', '.join(tech[:5])}")
 
-        findings.append({
-            "title": f"httpx: {url} ({status_code})",
-            "severity": severity,
-            "description": " | ".join(p for p in description_parts if p),
-            "evidence": " | ".join(evidence_parts),
-            "tool": "httpx",
-            "target": target,
-            "timestamp": _now_iso(),
-        })
+        findings.append(
+            {
+                "title": f"httpx: {url} ({status_code})",
+                "severity": severity,
+                "description": " | ".join(p for p in description_parts if p),
+                "evidence": " | ".join(evidence_parts),
+                "tool": "httpx",
+                "target": target,
+                "timestamp": _now_iso(),
+            }
+        )
 
         return findings
 
@@ -152,14 +161,17 @@ class HttpxParser:
             except (ValueError, TypeError):
                 pass
 
-            findings.append({
-                "title": f"httpx: {url}" + (f" ({status_code})" if status_code else ""),
-                "severity": severity,
-                "description": f"httpx probe: {url}" + (f" HTTP {status_code}" if status_code else ""),
-                "evidence": line,
-                "tool": "httpx",
-                "target": url.split("?")[0],
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"httpx: {url}" + (f" ({status_code})" if status_code else ""),
+                    "severity": severity,
+                    "description": f"httpx probe: {url}"
+                    + (f" HTTP {status_code}" if status_code else ""),
+                    "evidence": line,
+                    "tool": "httpx",
+                    "target": url.split("?")[0],
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

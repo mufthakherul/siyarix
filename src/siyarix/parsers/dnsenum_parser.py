@@ -73,7 +73,9 @@ def _looks_like_csv(text: str) -> bool:
     if not stripped:
         return False
     first = stripped.splitlines()[0].strip().lower()
-    return "," in first and any(kw in first for kw in ("type", "name", "address", "target", "domain", "host"))
+    return "," in first and any(
+        kw in first for kw in ("type", "name", "address", "target", "domain", "host")
+    )
 
 
 class DnsenumParser:
@@ -110,15 +112,17 @@ class DnsenumParser:
             elif rtype == "MX":
                 severity = "low"
 
-            findings.append({
-                "title": f"DNS {rtype}: {host}",
-                "severity": severity,
-                "description": f"dnsenum discovered {rtype} record {host} -> {value}",
-                "evidence": f"{host} IN {rtype} {value}",
-                "tool": "dnsenum",
-                "target": host,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"DNS {rtype}: {host}",
+                    "severity": severity,
+                    "description": f"dnsenum discovered {rtype} record {host} -> {value}",
+                    "evidence": f"{host} IN {rtype} {value}",
+                    "tool": "dnsenum",
+                    "target": host,
+                    "timestamp": _now_iso(),
+                }
+            )
         return findings
 
     def _parse_text(self, output: str) -> list[dict]:
@@ -140,44 +144,50 @@ class DnsenumParser:
                 tc_key = f"thread_complete:{base_domain}"
                 if tc_key not in seen:
                     seen.add(tc_key)
-                    findings.append({
-                        "title": "dnsenum thread completed",
-                        "severity": "info",
-                        "description": f"dnsenum completed enumeration threads for {base_domain}",
-                        "evidence": line,
-                        "tool": "dnsenum",
-                        "target": base_domain,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": "dnsenum thread completed",
+                            "severity": "info",
+                            "description": f"dnsenum completed enumeration threads for {base_domain}",
+                            "evidence": line,
+                            "tool": "dnsenum",
+                            "target": base_domain,
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
             if _WILDCARD_RE.search(line):
                 wk = f"wildcard:{base_domain}"
                 if wk not in seen:
                     seen.add(wk)
-                    findings.append({
-                        "title": "DNS wildcard detected",
-                        "severity": "medium",
-                        "description": f"DNS wildcard entries detected for {base_domain} — subdomain enumeration results may include false positives.",
-                        "evidence": line,
-                        "tool": "dnsenum",
-                        "target": base_domain,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": "DNS wildcard detected",
+                            "severity": "medium",
+                            "description": f"DNS wildcard entries detected for {base_domain} — subdomain enumeration results may include false positives.",
+                            "evidence": line,
+                            "tool": "dnsenum",
+                            "target": base_domain,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             if _ZONE_RE.search(line):
                 zk = f"zone_xfer:{base_domain}"
                 if zk not in seen:
                     seen.add(zk)
-                    findings.append({
-                        "title": "DNS zone transfer permitted",
-                        "severity": "high",
-                        "description": f"DNS zone transfer is permitted for {base_domain} — potential information disclosure.",
-                        "evidence": line,
-                        "tool": "dnsenum",
-                        "target": base_domain,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": "DNS zone transfer permitted",
+                            "severity": "high",
+                            "description": f"DNS zone transfer is permitted for {base_domain} — potential information disclosure.",
+                            "evidence": line,
+                            "tool": "dnsenum",
+                            "target": base_domain,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             mx_m = _MX_RE.match(line)
@@ -189,15 +199,17 @@ class DnsenumParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"Mail server: {target}",
-                    "severity": "low",
-                    "description": f"dnsenum discovered MX record {host} -> {target} (priority {priority})",
-                    "evidence": f"{host} IN MX {priority} {target}",
-                    "tool": "dnsenum",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Mail server: {target}",
+                        "severity": "low",
+                        "description": f"dnsenum discovered MX record {host} -> {target} (priority {priority})",
+                        "evidence": f"{host} IN MX {priority} {target}",
+                        "tool": "dnsenum",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             ns_m = _NS_RE.match(line)
@@ -208,15 +220,17 @@ class DnsenumParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"Name server: {target}",
-                    "severity": "low",
-                    "description": f"dnsenum discovered NS record {host} -> {target}",
-                    "evidence": f"{host} IN NS {target}",
-                    "tool": "dnsenum",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Name server: {target}",
+                        "severity": "low",
+                        "description": f"dnsenum discovered NS record {host} -> {target}",
+                        "evidence": f"{host} IN NS {target}",
+                        "tool": "dnsenum",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             cname_m = _CNAME_RE.match(line)
@@ -227,15 +241,17 @@ class DnsenumParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"CNAME: {host}",
-                    "severity": "info",
-                    "description": f"dnsenum discovered CNAME {host} -> {target}",
-                    "evidence": f"{host} IN CNAME {target}",
-                    "tool": "dnsenum",
-                    "target": host,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"CNAME: {host}",
+                        "severity": "info",
+                        "description": f"dnsenum discovered CNAME {host} -> {target}",
+                        "evidence": f"{host} IN CNAME {target}",
+                        "tool": "dnsenum",
+                        "target": host,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             txt_m = _TXT_RE.match(line)
@@ -246,15 +262,17 @@ class DnsenumParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"TXT record: {host}",
-                    "severity": "info",
-                    "description": f"dnsenum discovered TXT record {host} -> {text}",
-                    "evidence": f"{host} IN TXT {text}",
-                    "tool": "dnsenum",
-                    "target": host,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"TXT record: {host}",
+                        "severity": "info",
+                        "description": f"dnsenum discovered TXT record {host} -> {text}",
+                        "evidence": f"{host} IN TXT {text}",
+                        "tool": "dnsenum",
+                        "target": host,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             soa_detailed = _SOA_DETAIL_RE.match(line)
@@ -268,15 +286,17 @@ class DnsenumParser:
                 seen.add(dedup_key)
                 desc = f"DNS SOA: mname={mname}, rname={rname}"
                 evidence = f"SOA {mname} {rname} serial={serial}"
-                findings.append({
-                    "title": f"DNS SOA: {mname}",
-                    "severity": "info",
-                    "description": desc,
-                    "evidence": evidence,
-                    "tool": "dnsenum",
-                    "target": mname,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"DNS SOA: {mname}",
+                        "severity": "info",
+                        "description": desc,
+                        "evidence": evidence,
+                        "tool": "dnsenum",
+                        "target": mname,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             soa_m = _SOA_RE.match(line)
@@ -287,15 +307,17 @@ class DnsenumParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"DNS SOA: {mname}",
-                    "severity": "info",
-                    "description": f"DNS SOA record: mname={mname}, rname={rname}",
-                    "evidence": f"SOA {mname} {rname}",
-                    "tool": "dnsenum",
-                    "target": mname,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"DNS SOA: {mname}",
+                        "severity": "info",
+                        "description": f"DNS SOA record: mname={mname}, rname={rname}",
+                        "evidence": f"SOA {mname} {rname}",
+                        "tool": "dnsenum",
+                        "target": mname,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             bk = _BRACKET_RE.match(line)
@@ -308,15 +330,17 @@ class DnsenumParser:
                     continue
                 seen.add(dedup_key)
                 severity = "info"
-                findings.append({
-                    "title": f"DNS {rtype}: {host}",
-                    "severity": severity,
-                    "description": f"dnsenum discovered {rtype} record {host} -> {value}",
-                    "evidence": f"{host} IN {rtype} {value}",
-                    "tool": "dnsenum",
-                    "target": host,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"DNS {rtype}: {host}",
+                        "severity": severity,
+                        "description": f"dnsenum discovered {rtype} record {host} -> {value}",
+                        "evidence": f"{host} IN {rtype} {value}",
+                        "tool": "dnsenum",
+                        "target": host,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             m_t = _THREAD_RE.match(line)
@@ -332,15 +356,17 @@ class DnsenumParser:
                 evidence = f"{host} [{ip}]" if ip else host
                 if ip:
                     desc += f" [{ip}]"
-                findings.append({
-                    "title": f"Subdomain: {host}",
-                    "severity": "info",
-                    "description": desc,
-                    "evidence": evidence,
-                    "tool": "dnsenum",
-                    "target": host,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Subdomain: {host}",
+                        "severity": "info",
+                        "description": desc,
+                        "evidence": evidence,
+                        "tool": "dnsenum",
+                        "target": host,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             m = _HOST_RE.match(line)
@@ -364,14 +390,16 @@ class DnsenumParser:
             elif rtype in ("AXFR", "IXFR"):
                 severity = "high"
 
-            findings.append({
-                "title": f"DNS {rtype}: {host}",
-                "severity": severity,
-                "description": f"dnsenum discovered {rtype} record {host} -> {value}",
-                "evidence": f"{host} IN {rtype} {value}",
-                "tool": "dnsenum",
-                "target": host,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"DNS {rtype}: {host}",
+                    "severity": severity,
+                    "description": f"dnsenum discovered {rtype} record {host} -> {value}",
+                    "evidence": f"{host} IN {rtype} {value}",
+                    "tool": "dnsenum",
+                    "target": host,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

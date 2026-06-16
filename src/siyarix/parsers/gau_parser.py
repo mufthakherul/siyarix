@@ -1,4 +1,4 @@
-﻿# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Gau (getallurls) output parser — extracts URLs from plain-text line-per-URL output."""
 
@@ -46,63 +46,73 @@ class GauParser:
             seen.add(key)
 
             if _JS_RE.search(url):
-                findings.append({
-                    "title": f"GAU: JavaScript file — {url}",
-                    "severity": "info",
-                    "description": f"JavaScript source file discovered: {url}",
-                    "evidence": url,
-                    "tool": "gau",
-                    "target": url,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"GAU: JavaScript file — {url}",
+                        "severity": "info",
+                        "description": f"JavaScript source file discovered: {url}",
+                        "evidence": url,
+                        "tool": "gau",
+                        "target": url,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             if _PDF_RE.search(url):
-                findings.append({
-                    "title": f"GAU: PDF document — {url}",
-                    "severity": "info",
-                    "description": f"PDF document discovered: {url}",
-                    "evidence": url,
-                    "tool": "gau",
-                    "target": url,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"GAU: PDF document — {url}",
+                        "severity": "info",
+                        "description": f"PDF document discovered: {url}",
+                        "evidence": url,
+                        "tool": "gau",
+                        "target": url,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             if _ADMIN_RE.search(url):
-                findings.append({
-                    "title": f"GAU: Sensitive endpoint — {url}",
-                    "severity": "low",
-                    "description": f"Sensitive/admin endpoint discovered: {url}",
+                findings.append(
+                    {
+                        "title": f"GAU: Sensitive endpoint — {url}",
+                        "severity": "low",
+                        "description": f"Sensitive/admin endpoint discovered: {url}",
+                        "evidence": url,
+                        "tool": "gau",
+                        "target": url,
+                        "timestamp": _now_iso(),
+                    }
+                )
+                continue
+
+            findings.append(
+                {
+                    "title": f"GAU: URL discovered — {url}",
+                    "severity": "info",
+                    "description": f"URL discovered via gau/getallurls: {url}",
                     "evidence": url,
                     "tool": "gau",
                     "target": url,
                     "timestamp": _now_iso(),
-                })
-                continue
-
-            findings.append({
-                "title": f"GAU: URL discovered — {url}",
-                "severity": "info",
-                "description": f"URL discovered via gau/getallurls: {url}",
-                "evidence": url,
-                "tool": "gau",
-                "target": url,
-                "timestamp": _now_iso(),
-            })
+                }
+            )
 
         if summary_count:
             key = "summary:total"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": f"GAU: {summary_count} URLs",
-                    "severity": "info",
-                    "description": f"gau discovered {summary_count} URLs",
-                    "evidence": f"Total: {summary_count}",
-                    "tool": "gau",
-                    "target": "",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"GAU: {summary_count} URLs",
+                        "severity": "info",
+                        "description": f"gau discovered {summary_count} URLs",
+                        "evidence": f"Total: {summary_count}",
+                        "tool": "gau",
+                        "target": "",
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

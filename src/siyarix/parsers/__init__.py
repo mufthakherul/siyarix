@@ -142,7 +142,9 @@ class ParserRegistry:
             return versions[version]
         return versions.get(None)
 
-    def parse(self, tool_name: str, output: str, version: str | None = None) -> list[dict[str, Any]]:
+    def parse(
+        self, tool_name: str, output: str, version: str | None = None
+    ) -> list[dict[str, Any]]:
         parser = self.get(tool_name, version)
         if not parser:
             return []
@@ -195,6 +197,7 @@ class ParserRegistry:
 
         try:
             import siyarix_parsers  # type: ignore
+
             if hasattr(siyarix_parsers, "NmapRustParser"):
                 self.register("nmap", siyarix_parsers.NmapRustParser(), "rust")
             if hasattr(siyarix_parsers, "NucleiRustParser"):

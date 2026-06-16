@@ -44,16 +44,18 @@ class Sublist3rParser:
             if _SUBDOMAIN_RE.match(line):
                 sub = _SUBDOMAIN_RE.match(line).group("subdomain").rstrip(".")  # type: ignore
                 ip = _SUBDOMAIN_RE.match(line).group("ip") or ""  # type: ignore
-                findings.append({
-                    "title": f"Subdomain: {sub}",
-                    "severity": "info",
-                    "description": f"Sublist3r discovered subdomain {sub} under {base_domain}"
-                    + (f" (IP: {ip})" if ip else ""),
-                    "evidence": f"{sub}" + (f" [{ip}]" if ip else ""),
-                    "tool": "sublist3r",
-                    "target": sub,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Subdomain: {sub}",
+                        "severity": "info",
+                        "description": f"Sublist3r discovered subdomain {sub} under {base_domain}"
+                        + (f" (IP: {ip})" if ip else ""),
+                        "evidence": f"{sub}" + (f" [{ip}]" if ip else ""),
+                        "tool": "sublist3r",
+                        "target": sub,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             if not in_results:
@@ -63,15 +65,17 @@ class Sublist3rParser:
             if m:
                 sub = m.group("subdomain").rstrip(".")
                 ip = m.group("ip") or ""
-                findings.append({
-                    "title": f"Subdomain: {sub}",
-                    "severity": "info",
-                    "description": f"Sublist3r discovered subdomain {sub} under {base_domain}"
-                    + (f" (IP: {ip})" if ip else ""),
-                    "evidence": f"{sub}" + (f" [{ip}]" if ip else ""),
-                    "tool": "sublist3r",
-                    "target": sub,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Subdomain: {sub}",
+                        "severity": "info",
+                        "description": f"Sublist3r discovered subdomain {sub} under {base_domain}"
+                        + (f" (IP: {ip})" if ip else ""),
+                        "evidence": f"{sub}" + (f" [{ip}]" if ip else ""),
+                        "tool": "sublist3r",
+                        "target": sub,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

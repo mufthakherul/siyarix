@@ -1,4 +1,4 @@
-﻿# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 """S3Scanner bucket enumeration output parser — parses JSON/text results."""
 
@@ -10,7 +10,10 @@ import json
 import re
 
 _JSON_RE = re.compile(r"^\s*[{\[]")
-_BUCKET_RE = re.compile(r"(?P<bucket>[a-zA-Z0-9.\-]+)\s*(?:::\s*)?(?P<region>\S+)?\s*(?P<access>OPEN|CLOSED|AUTH|READ|LIST|WRITE)?", re.IGNORECASE)
+_BUCKET_RE = re.compile(
+    r"(?P<bucket>[a-zA-Z0-9.\-]+)\s*(?:::\s*)?(?P<region>\S+)?\s*(?P<access>OPEN|CLOSED|AUTH|READ|LIST|WRITE)?",
+    re.IGNORECASE,
+)
 
 _SUMMARY_RE = re.compile(
     r"(?:buckets?|found|total|scanned)[:\s]*(\d+)",
@@ -51,17 +54,19 @@ class S3scannerParser:
                         if accessible:
                             severity = "high" if "WRITE" in str(acl).upper() else "medium"
 
-                        findings.append({
-                            "title": f"S3 bucket: {bucket}",
-                            "severity": severity,
-                            "description": f"s3scanner discovered bucket {bucket}"
-                            + (f" in {region}" if region else "")
-                            + (" (ACCESSIBLE)" if accessible else ""),
-                            "evidence": f"Bucket: {bucket} | Region: {region} | ACL: {acl}",
-                            "tool": "s3scanner",
-                            "target": bucket,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"S3 bucket: {bucket}",
+                                "severity": severity,
+                                "description": f"s3scanner discovered bucket {bucket}"
+                                + (f" in {region}" if region else "")
+                                + (" (ACCESSIBLE)" if accessible else ""),
+                                "evidence": f"Bucket: {bucket} | Region: {region} | ACL: {acl}",
+                                "tool": "s3scanner",
+                                "target": bucket,
+                                "timestamp": _now_iso(),
+                            }
+                        )
             except json.JSONDecodeError:
                 pass
 
@@ -78,29 +83,39 @@ class S3scannerParser:
                 if key in seen:
                     continue
                 seen.add(key)
-                severity = "high" if access and access.upper() in ("OPEN", "WRITE", "LIST", "READ") else "info"
-                findings.append({
-                    "title": f"S3 bucket: {bucket}",
-                    "severity": severity,
-                    "description": f"s3scanner discovered bucket {bucket}" + (f" [Region: {region}]" if region else "") + (f" ({access})" if access else ""),
-                    "evidence": raw,
-                    "tool": "s3scanner",
-                    "target": bucket,
-                    "timestamp": _now_iso(),
-                })
+                severity = (
+                    "high"
+                    if access and access.upper() in ("OPEN", "WRITE", "LIST", "READ")
+                    else "info"
+                )
+                findings.append(
+                    {
+                        "title": f"S3 bucket: {bucket}",
+                        "severity": severity,
+                        "description": f"s3scanner discovered bucket {bucket}"
+                        + (f" [Region: {region}]" if region else "")
+                        + (f" ({access})" if access else ""),
+                        "evidence": raw,
+                        "tool": "s3scanner",
+                        "target": bucket,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         if summary_count:
             key = "summary:total"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": f"s3scanner: {summary_count} buckets",
-                    "severity": "info",
-                    "description": f"s3scanner found {summary_count} buckets",
-                    "evidence": f"Total: {summary_count}",
-                    "tool": "s3scanner",
-                    "target": "",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"s3scanner: {summary_count} buckets",
+                        "severity": "info",
+                        "description": f"s3scanner found {summary_count} buckets",
+                        "evidence": f"Total: {summary_count}",
+                        "tool": "s3scanner",
+                        "target": "",
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

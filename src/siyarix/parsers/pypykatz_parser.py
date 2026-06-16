@@ -53,19 +53,33 @@ class PypykatzParser:
                                     dedup_key = f"{username}|{domain}|{cred_type}"
                                     if dedup_key in seen:
                                         continue
-                                    if password or (nt_hash and nt_hash != "aad3b435b51404eeaad3b435b51404ee"):
+                                    if password or (
+                                        nt_hash and nt_hash != "aad3b435b51404eeaad3b435b51404ee"
+                                    ):
                                         seen.add(dedup_key)
-                                        findings.append({
-                                            "title": f"Credential ({cred_type}): {username}",
-                                            "severity": "critical",
-                                            "description": f"pypykatz extracted {cred_type} credential for {username}@{domain}",
-                                            "evidence": f"User: {username} | Domain: {domain}"
-                                            + (f" | Password: {password[:40]}" if password else "")
-                                            + (f" | NTLM: {nt_hash[:40]}" if nt_hash and nt_hash != "aad3b435b51404eeaad3b435b51404ee" else ""),
-                                            "tool": "pypykatz",
-                                            "target": domain,
-                                            "timestamp": _now_iso(),
-                                        })
+                                        findings.append(
+                                            {
+                                                "title": f"Credential ({cred_type}): {username}",
+                                                "severity": "critical",
+                                                "description": f"pypykatz extracted {cred_type} credential for {username}@{domain}",
+                                                "evidence": f"User: {username} | Domain: {domain}"
+                                                + (
+                                                    f" | Password: {password[:40]}"
+                                                    if password
+                                                    else ""
+                                                )
+                                                + (
+                                                    f" | NTLM: {nt_hash[:40]}"
+                                                    if nt_hash
+                                                    and nt_hash
+                                                    != "aad3b435b51404eeaad3b435b51404ee"
+                                                    else ""
+                                                ),
+                                                "tool": "pypykatz",
+                                                "target": domain,
+                                                "timestamp": _now_iso(),
+                                            }
+                                        )
 
                     for section in ("MSV", "WDIGEST", "LIVESS", "SSP", "SSP_CRED"):
                         section_data = credentials.get(section, {})
@@ -80,17 +94,24 @@ class PypykatzParser:
                                             continue
                                         if pw or (nt and nt != "aad3b435b51404eeaad3b435b51404ee"):
                                             seen.add(dedup_key)
-                                            findings.append({
-                                                "title": f"Credential ({section}/{subtype}): {username}",
-                                                "severity": "critical",
-                                                "description": f"pypykatz extracted {section} credential for {username}@{domain}",
-                                                "evidence": f"Type: {section}/{subtype} | User: {username}"
-                                                + (f" | Password: {pw[:40]}" if pw else "")
-                                                + (f" | NTLM: {nt[:40]}" if nt and nt != "aad3b435b51404eeaad3b435b51404ee" else ""),
-                                                "tool": "pypykatz",
-                                                "target": domain,
-                                                "timestamp": _now_iso(),
-                                            })
+                                            findings.append(
+                                                {
+                                                    "title": f"Credential ({section}/{subtype}): {username}",
+                                                    "severity": "critical",
+                                                    "description": f"pypykatz extracted {section} credential for {username}@{domain}",
+                                                    "evidence": f"Type: {section}/{subtype} | User: {username}"
+                                                    + (f" | Password: {pw[:40]}" if pw else "")
+                                                    + (
+                                                        f" | NTLM: {nt[:40]}"
+                                                        if nt
+                                                        and nt != "aad3b435b51404eeaad3b435b51404ee"
+                                                        else ""
+                                                    ),
+                                                    "tool": "pypykatz",
+                                                    "target": domain,
+                                                    "timestamp": _now_iso(),
+                                                }
+                                            )
                 return findings
             except json.JSONDecodeError:
                 pass
@@ -110,15 +131,17 @@ class PypykatzParser:
                     dedup_key = f"text:pwd:{user}:{pwd}"
                     if dedup_key not in seen:
                         seen.add(dedup_key)
-                        findings.append({
-                            "title": f"Credential (plaintext): {user}",
-                            "severity": "critical",
-                            "description": f"pypykatz extracted plaintext credential for {user}",
-                            "evidence": f"User: {user} | Password: {pwd}",
-                            "tool": "pypykatz",
-                            "target": "unknown",
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"Credential (plaintext): {user}",
+                                "severity": "critical",
+                                "description": f"pypykatz extracted plaintext credential for {user}",
+                                "evidence": f"User: {user} | Password: {pwd}",
+                                "tool": "pypykatz",
+                                "target": "unknown",
+                                "timestamp": _now_iso(),
+                            }
+                        )
                 continue
 
             logon_session = record.get("LogonSession", {})
@@ -135,19 +158,28 @@ class PypykatzParser:
                             dedup_key = f"{username}|{domain}|{cred_type}"
                             if dedup_key in seen:
                                 continue
-                            if password or (nt_hash and nt_hash != "aad3b435b51404eeaad3b435b51404ee"):
+                            if password or (
+                                nt_hash and nt_hash != "aad3b435b51404eeaad3b435b51404ee"
+                            ):
                                 seen.add(dedup_key)
-                                findings.append({
-                                    "title": f"Credential ({cred_type}): {username}",
-                                    "severity": "critical",
-                                    "description": f"pypykatz extracted {cred_type} credential for {username}@{domain}",
-                                    "evidence": f"User: {username} | Domain: {domain}"
-                                    + (f" | Password: {password[:40]}" if password else "")
-                                    + (f" | NTLM: {nt_hash[:40]}" if nt_hash and nt_hash != "aad3b435b51404eeaad3b435b51404ee" else ""),
-                                    "tool": "pypykatz",
-                                    "target": domain,
-                                    "timestamp": _now_iso(),
-                                })
+                                findings.append(
+                                    {
+                                        "title": f"Credential ({cred_type}): {username}",
+                                        "severity": "critical",
+                                        "description": f"pypykatz extracted {cred_type} credential for {username}@{domain}",
+                                        "evidence": f"User: {username} | Domain: {domain}"
+                                        + (f" | Password: {password[:40]}" if password else "")
+                                        + (
+                                            f" | NTLM: {nt_hash[:40]}"
+                                            if nt_hash
+                                            and nt_hash != "aad3b435b51404eeaad3b435b51404ee"
+                                            else ""
+                                        ),
+                                        "tool": "pypykatz",
+                                        "target": domain,
+                                        "timestamp": _now_iso(),
+                                    }
+                                )
 
             for section in ("MSV", "WDIGEST", "LIVESS", "SSP", "SSP_CRED"):
                 section_data = credentials.get(section, {})
@@ -162,16 +194,22 @@ class PypykatzParser:
                                     continue
                                 if pw or (nt and nt != "aad3b435b51404eeaad3b435b51404ee"):
                                     seen.add(dedup_key)
-                                    findings.append({
-                                        "title": f"Credential ({section}/{subtype}): {username}",
-                                        "severity": "critical",
-                                        "description": f"pypykatz extracted {section} credential for {username}@{domain}",
-                                        "evidence": f"Type: {section}/{subtype} | User: {username}"
-                                        + (f" | Password: {pw[:40]}" if pw else "")
-                                        + (f" | NTLM: {nt[:40]}" if nt and nt != "aad3b435b51404eeaad3b435b51404ee" else ""),
-                                        "tool": "pypykatz",
-                                        "target": domain,
-                                        "timestamp": _now_iso(),
-                                    })
+                                    findings.append(
+                                        {
+                                            "title": f"Credential ({section}/{subtype}): {username}",
+                                            "severity": "critical",
+                                            "description": f"pypykatz extracted {section} credential for {username}@{domain}",
+                                            "evidence": f"Type: {section}/{subtype} | User: {username}"
+                                            + (f" | Password: {pw[:40]}" if pw else "")
+                                            + (
+                                                f" | NTLM: {nt[:40]}"
+                                                if nt and nt != "aad3b435b51404eeaad3b435b51404ee"
+                                                else ""
+                                            ),
+                                            "tool": "pypykatz",
+                                            "target": domain,
+                                            "timestamp": _now_iso(),
+                                        }
+                                    )
 
         return findings

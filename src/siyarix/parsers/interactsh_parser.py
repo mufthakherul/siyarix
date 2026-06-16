@@ -52,16 +52,18 @@ class InteractshParser:
             if "cookie" in raw.lower() or "authorization" in raw.lower():
                 severity = "critical"
 
-            findings.append({
-                "title": f"OOB {protocol} interaction from {remote}",
-                "severity": severity,
-                "description": f"interactsh received {protocol} interaction from {remote}"
-                + (f" (id: {unique_id})" if unique_id else ""),
-                "evidence": f"Protocol: {protocol} | Remote: {remote}"
-                + (f"\nRaw: {raw[:200]}" if raw else ""),
-                "tool": "interactsh",
-                "target": remote,
-                "timestamp": timestamp,
-            })
+            findings.append(
+                {
+                    "title": f"OOB {protocol} interaction from {remote}",
+                    "severity": severity,
+                    "description": f"interactsh received {protocol} interaction from {remote}"
+                    + (f" (id: {unique_id})" if unique_id else ""),
+                    "evidence": f"Protocol: {protocol} | Remote: {remote}"
+                    + (f"\nRaw: {raw[:200]}" if raw else ""),
+                    "tool": "interactsh",
+                    "target": remote,
+                    "timestamp": timestamp,
+                }
+            )
 
         return findings

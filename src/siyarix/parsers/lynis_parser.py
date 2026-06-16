@@ -54,15 +54,17 @@ class LynisParser:
                 key = f"warning:{test_name}:{msg[:60]}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Lynis: Warning — {test_name}",
-                        "severity": "medium",
-                        "description": msg,
-                        "evidence": raw,
-                        "tool": "lynis",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Lynis: Warning — {test_name}",
+                            "severity": "medium",
+                            "description": msg,
+                            "evidence": raw,
+                            "tool": "lynis",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _SUGGESTION_RE.match(line_stripped)
@@ -71,15 +73,17 @@ class LynisParser:
                 key = f"suggestion:{msg[:80]}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": "Lynis: Suggestion",
-                        "severity": "low",
-                        "description": msg,
-                        "evidence": raw,
-                        "tool": "lynis",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": "Lynis: Suggestion",
+                            "severity": "low",
+                            "description": msg,
+                            "evidence": raw,
+                            "tool": "lynis",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _INFO_POS_RE.match(line_stripped)
@@ -102,46 +106,55 @@ class LynisParser:
                 key = f"info-pos:{test_name}:{msg[:60]}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Lynis: {test_name}",
-                        "severity": severity,
-                        "description": msg,
-                        "evidence": raw,
-                        "tool": "lynis",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
-
-            m = _INFO_NEG_RE.match(line_stripped)
-            if m:
-                msg = m.group(1).strip()
-                if any(kw in msg.lower() for kw in ("vulnerable", "not found", "missing", "error", "disabled")):
-                    key = f"neg:{msg[:80]}"
-                    if key not in seen:
-                        seen.add(key)
-                        findings.append({
-                            "title": "Lynis: Issue detected",
-                            "severity": "medium",
+                    findings.append(
+                        {
+                            "title": f"Lynis: {test_name}",
+                            "severity": severity,
                             "description": msg,
                             "evidence": raw,
                             "tool": "lynis",
                             "target": target,
                             "timestamp": _now_iso(),
-                        })
+                        }
+                    )
+
+            m = _INFO_NEG_RE.match(line_stripped)
+            if m:
+                msg = m.group(1).strip()
+                if any(
+                    kw in msg.lower()
+                    for kw in ("vulnerable", "not found", "missing", "error", "disabled")
+                ):
+                    key = f"neg:{msg[:80]}"
+                    if key not in seen:
+                        seen.add(key)
+                        findings.append(
+                            {
+                                "title": "Lynis: Issue detected",
+                                "severity": "medium",
+                                "description": msg,
+                                "evidence": raw,
+                                "tool": "lynis",
+                                "target": target,
+                                "timestamp": _now_iso(),
+                            }
+                        )
 
         if summary_data:
             for k, v in summary_data.items():
                 key = f"summary:{k}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Lynis: {k.replace('_', ' ').title()}",
-                        "severity": "info",
-                        "description": v[:200],
-                        "evidence": v[:200],
-                        "tool": "lynis",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Lynis: {k.replace('_', ' ').title()}",
+                            "severity": "info",
+                            "description": v[:200],
+                            "evidence": v[:200],
+                            "tool": "lynis",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         return findings

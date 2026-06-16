@@ -84,15 +84,17 @@ class SmbmapParser:
                             continue
                         seen.add(dedup_key)
                         severity = "critical" if "WRITE" in str(perm).upper() else "info"
-                        findings.append({
-                            "title": f"SMB share: {share} ({perm})",
-                            "severity": severity,
-                            "description": f"smbmap discovered share {share} on {target} with {perm} access",
-                            "evidence": json.dumps(item),
-                            "tool": "smbmap",
-                            "target": target,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"SMB share: {share} ({perm})",
+                                "severity": severity,
+                                "description": f"smbmap discovered share {share} on {target} with {perm} access",
+                                "evidence": json.dumps(item),
+                                "tool": "smbmap",
+                                "target": target,
+                                "timestamp": _now_iso(),
+                            }
+                        )
                     fname = item.get("filename", item.get("name", ""))
                     fsize = item.get("size", item.get("file_size", 0))
                     if fname and "permission" not in item:
@@ -100,38 +102,40 @@ class SmbmapParser:
                         if dedup_key in seen:
                             continue
                         seen.add(dedup_key)
-                        findings.append({
-                            "title": f"SMB file: {fname}",
-                            "severity": "info",
-                            "description": f"File {fname} ({fsize} bytes) on {target}",
-                            "evidence": json.dumps(item),
-                            "tool": "smbmap",
-                            "target": target,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"SMB file: {fname}",
+                                "severity": "info",
+                                "description": f"File {fname} ({fsize} bytes) on {target}",
+                                "evidence": json.dumps(item),
+                                "tool": "smbmap",
+                                "target": target,
+                                "timestamp": _now_iso(),
+                            }
+                        )
                     du = item.get("disk_usage", item.get("used", ""))
                     if du:
-                        findings.append({
-                            "title": "SMB disk usage",
-                            "severity": "info",
-                            "description": f"Disk usage: {du}",
-                            "evidence": json.dumps(item),
-                            "tool": "smbmap",
-                            "target": target,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": "SMB disk usage",
+                                "severity": "info",
+                                "description": f"Disk usage: {du}",
+                                "evidence": json.dumps(item),
+                                "tool": "smbmap",
+                                "target": target,
+                                "timestamp": _now_iso(),
+                            }
+                        )
                 return findings
             except json.JSONDecodeError:
                 pass
 
         target = "unknown"
         current_share = ""
-        in_recursive = False
 
         for line in stripped.splitlines():
             line = line.strip()
             if not line:
-                in_recursive = False
                 continue
 
             thm = _TARGET_HEADER_RE.match(line)
@@ -143,15 +147,17 @@ class SmbmapParser:
             if hm:
                 target = hm.group("host")
                 desc = hm.group("desc") or ""
-                findings.append({
-                    "title": f"SMB target: {target}",
-                    "severity": "info",
-                    "description": f"smbmap scanning target {target}: {desc}",
-                    "evidence": line,
-                    "tool": "smbmap",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"SMB target: {target}",
+                        "severity": "info",
+                        "description": f"smbmap scanning target {target}: {desc}",
+                        "evidence": line,
+                        "tool": "smbmap",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             if "target" in line.lower() and ":" in line and len(line.split()) < 6:
@@ -175,15 +181,17 @@ class SmbmapParser:
                     if dedup_key in seen:
                         continue
                     seen.add(dedup_key)
-                    findings.append({
-                        "title": f"SMB share: {share} ({perm})",
-                        "severity": severity,
-                        "description": f"smbmap discovered share {share} on {target} with {perm} access",
-                        "evidence": f"share: {share} permission: {perm} target: {target}",
-                        "tool": "smbmap",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"SMB share: {share} ({perm})",
+                            "severity": severity,
+                            "description": f"smbmap discovered share {share} on {target} with {perm} access",
+                            "evidence": f"share: {share} permission: {perm} target: {target}",
+                            "tool": "smbmap",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _SHARE_RE.match(line)
@@ -195,64 +203,70 @@ class SmbmapParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"SMB share: {current_share} ({perm})",
-                    "severity": severity,
-                    "description": f"smbmap discovered share {current_share} on {target} with {perm} access",
-                    "evidence": f"share: {current_share} permission: {perm} target: {target}",
-                    "tool": "smbmap",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"SMB share: {current_share} ({perm})",
+                        "severity": severity,
+                        "description": f"smbmap discovered share {current_share} on {target} with {perm} access",
+                        "evidence": f"share: {current_share} permission: {perm} target: {target}",
+                        "tool": "smbmap",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             du = _DISK_USAGE_RE.search(line)
             if du:
-                findings.append({
-                    "title": "SMB disk usage",
-                    "severity": "info",
-                    "description": f"Disk usage: {du.group(1)} used / {du.group(2)} total on {target}\\{current_share}",
-                    "evidence": line,
-                    "tool": "smbmap",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "SMB disk usage",
+                        "severity": "info",
+                        "description": f"Disk usage: {du.group(1)} used / {du.group(2)} total on {target}\\{current_share}",
+                        "evidence": line,
+                        "tool": "smbmap",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             rm = _RECURSIVE_DIR_RE.match(line)
             if rm:
-                in_recursive = True
                 dedup_key = f"dir|{target}|{current_share}|{rm.group('path')}"
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"SMB directory: {rm.group('path')}",
-                    "severity": "info",
-                    "description": f"Directory {rm.group('path')} in {current_share} on {target}",
-                    "evidence": line,
-                    "tool": "smbmap",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"SMB directory: {rm.group('path')}",
+                        "severity": "info",
+                        "description": f"Directory {rm.group('path')} in {current_share} on {target}",
+                        "evidence": line,
+                        "tool": "smbmap",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             rm = _RECURSIVE_FILE_RE.match(line)
             if rm:
-                in_recursive = True
                 dedup_key = f"file|{target}|{current_share}|{rm.group('path')}"
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"SMB file: {rm.group('path')}",
-                    "severity": "info",
-                    "description": f"File {rm.group('path')} in {current_share} on {target}",
-                    "evidence": line,
-                    "tool": "smbmap",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"SMB file: {rm.group('path')}",
+                        "severity": "info",
+                        "description": f"File {rm.group('path')} in {current_share} on {target}",
+                        "evidence": line,
+                        "tool": "smbmap",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             if "[" in line and "]" in line and ":" in line and len(line.split()) < 5:
@@ -264,14 +278,16 @@ class SmbmapParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"SMB file: {m.group('name')}",
-                    "severity": "info",
-                    "description": f"File {m.group('name')} ({m.group('size')} bytes) in {current_share} on {target}",
-                    "evidence": line,
-                    "tool": "smbmap",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"SMB file: {m.group('name')}",
+                        "severity": "info",
+                        "description": f"File {m.group('name')} ({m.group('size')} bytes) in {current_share} on {target}",
+                        "evidence": line,
+                        "tool": "smbmap",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

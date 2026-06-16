@@ -29,29 +29,40 @@ class ArjunParser:
                                 if dedup_key in seen:
                                     continue
                                 seen.add(dedup_key)
-                                severity = "medium" if any(x in str(info).lower() for x in ("reflected", "xss", "sqli", "injection")) else "info"
-                                findings.append({
-                                    "title": f"Parameter discovered: {param}",
-                                    "severity": severity,
-                                    "description": f"Arjun discovered parameter '{param}' on {url}",
-                                    "evidence": f"{param}={info}" if info else param,
-                                    "tool": "arjun",
-                                    "target": url,
-                                    "timestamp": _now_iso(),
-                                })
+                                severity = (
+                                    "medium"
+                                    if any(
+                                        x in str(info).lower()
+                                        for x in ("reflected", "xss", "sqli", "injection")
+                                    )
+                                    else "info"
+                                )
+                                findings.append(
+                                    {
+                                        "title": f"Parameter discovered: {param}",
+                                        "severity": severity,
+                                        "description": f"Arjun discovered parameter '{param}' on {url}",
+                                        "evidence": f"{param}={info}" if info else param,
+                                        "tool": "arjun",
+                                        "target": url,
+                                        "timestamp": _now_iso(),
+                                    }
+                                )
                         else:
                             dedup_key = f"{url}:{params}"
                             if dedup_key not in seen:
                                 seen.add(dedup_key)
-                                findings.append({
-                                    "title": f"Parameter discovered: {params}",
-                                    "severity": "info",
-                                    "description": f"Arjun discovered parameter(s) on {url}",
-                                    "evidence": str(params),
-                                    "tool": "arjun",
-                                    "target": url,
-                                    "timestamp": _now_iso(),
-                                })
+                                findings.append(
+                                    {
+                                        "title": f"Parameter discovered: {params}",
+                                        "severity": "info",
+                                        "description": f"Arjun discovered parameter(s) on {url}",
+                                        "evidence": str(params),
+                                        "tool": "arjun",
+                                        "target": url,
+                                        "timestamp": _now_iso(),
+                                    }
+                                )
             except json.JSONDecodeError:
                 pass
 
@@ -63,14 +74,16 @@ class ArjunParser:
                 dedup_key = f"url:{line[:100]}"
                 if dedup_key not in seen:
                     seen.add(dedup_key)
-                    findings.append({
-                        "title": "URL with parameters discovered",
-                        "severity": "info",
-                        "description": f"Arjun discovered parameters in URL: {line[:120]}",
-                        "evidence": line.strip(),
-                        "tool": "arjun",
-                        "target": line.split("?")[0],
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": "URL with parameters discovered",
+                            "severity": "info",
+                            "description": f"Arjun discovered parameters in URL: {line[:120]}",
+                            "evidence": line.strip(),
+                            "tool": "arjun",
+                            "target": line.split("?")[0],
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         return findings

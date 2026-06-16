@@ -44,7 +44,8 @@ _WORKGROUP_RE = re.compile(
 )
 
 _PRINTER_RE = re.compile(
-    r"Printer|print\s+queue|spool", re.IGNORECASE,
+    r"Printer|print\s+queue|spool",
+    re.IGNORECASE,
 )
 
 _GROUP_RE = re.compile(
@@ -99,45 +100,50 @@ class Enum4linuxParser:
                             if user in seen_users:
                                 continue
                             seen_users.add(user)
-                            findings.append({
-                                "title": f"User: {user}",
-                                "severity": "medium",
-                                "description": f"enum4linux discovered user {user!r}",
-                                "evidence": json.dumps(item),
-                                "tool": "enum4linux",
-                                "target": item.get("host", item.get("target", "unknown")),
-                                "timestamp": _now_iso(),
-                            })
+                            findings.append(
+                                {
+                                    "title": f"User: {user}",
+                                    "severity": "medium",
+                                    "description": f"enum4linux discovered user {user!r}",
+                                    "evidence": json.dumps(item),
+                                    "tool": "enum4linux",
+                                    "target": item.get("host", item.get("target", "unknown")),
+                                    "timestamp": _now_iso(),
+                                }
+                            )
                     if "share" in item:
                         share_name = item["share"]
                         if share_name in seen_shares:
                             continue
                         seen_shares.add(share_name)
-                        findings.append({
-                            "title": f"SMB share: {share_name}",
-                            "severity": "medium",
-                            "description": f"enum4linux discovered SMB share {share_name!r}",
-                            "evidence": json.dumps(item),
-                            "tool": "enum4linux",
-                            "target": item.get("host", "unknown"),
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"SMB share: {share_name}",
+                                "severity": "medium",
+                                "description": f"enum4linux discovered SMB share {share_name!r}",
+                                "evidence": json.dumps(item),
+                                "tool": "enum4linux",
+                                "target": item.get("host", "unknown"),
+                                "timestamp": _now_iso(),
+                            }
+                        )
                     if "os" in item:
-                        findings.append({
-                            "title": f"OS: {item['os']}",
-                            "severity": "info",
-                            "description": f"OS identified as {item['os']}",
-                            "evidence": json.dumps(item),
-                            "tool": "enum4linux",
-                            "target": item.get("host", "unknown"),
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"OS: {item['os']}",
+                                "severity": "info",
+                                "description": f"OS identified as {item['os']}",
+                                "evidence": json.dumps(item),
+                                "tool": "enum4linux",
+                                "target": item.get("host", "unknown"),
+                                "timestamp": _now_iso(),
+                            }
+                        )
                 return findings
             except json.JSONDecodeError:
                 pass
 
         target = "unknown"
-        current_section = ""
 
         for line in stripped.splitlines():
             line = line.strip()
@@ -148,7 +154,7 @@ class Enum4linuxParser:
 
             sh = _SECTION_HEADER_RE.match(line)
             if sh:
-                current_section = sh.group(1).strip()
+                sh.group(1).strip()
 
             if "target" in lower and ":" in line and len(line.split()) < 6:
                 parts = line.split(":", 1)
@@ -164,30 +170,34 @@ class Enum4linuxParser:
                 if dedup_key in seen_shares:
                     continue
                 seen_shares.add(dedup_key)
-                findings.append({
-                    "title": f"RID entry: {rid_val}",
-                    "severity": "low",
-                    "description": f"RID {rid_val} -> {rid_desc}",
-                    "evidence": line,
-                    "tool": "enum4linux",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"RID entry: {rid_val}",
+                        "severity": "low",
+                        "description": f"RID {rid_val} -> {rid_desc}",
+                        "evidence": line,
+                        "tool": "enum4linux",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             if "workgroup" in lower and ":" in line:
                 wm = _WORKGROUP_RE.match(line)
                 if wm:
                     wg = wm.group(1).strip()
-                    findings.append({
-                        "title": f"Workgroup: {wg}",
-                        "severity": "info",
-                        "description": f"enum4linux discovered workgroup/domain {wg} on {target}",
-                        "evidence": line,
-                        "tool": "enum4linux",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Workgroup: {wg}",
+                            "severity": "info",
+                            "description": f"enum4linux discovered workgroup/domain {wg} on {target}",
+                            "evidence": line,
+                            "tool": "enum4linux",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _USER_RE.search(line)
@@ -195,15 +205,17 @@ class Enum4linuxParser:
                 user = m.group("user").strip()
                 if user and len(user) > 1 and user not in seen_users:
                     seen_users.add(user)
-                    findings.append({
-                        "title": f"User: {user}",
-                        "severity": "medium",
-                        "description": f"enum4linux discovered user {user!r} on {target}",
-                        "evidence": f"user: {user} target: {target}",
-                        "tool": "enum4linux",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"User: {user}",
+                            "severity": "medium",
+                            "description": f"enum4linux discovered user {user!r} on {target}",
+                            "evidence": f"user: {user} target: {target}",
+                            "tool": "enum4linux",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _SHARE_RE.match(line)
@@ -211,81 +223,93 @@ class Enum4linuxParser:
                 share = m.group("share").strip()
                 if share and share not in seen_shares:
                     seen_shares.add(share)
-                    findings.append({
-                        "title": f"SMB share: {share}",
-                        "severity": "medium",
-                        "description": f"enum4linux discovered SMB share {share!r} on {target}",
-                        "evidence": f"share: {share} target: {target}",
-                        "tool": "enum4linux",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"SMB share: {share}",
+                            "severity": "medium",
+                            "description": f"enum4linux discovered SMB share {share!r} on {target}",
+                            "evidence": f"share: {share} target: {target}",
+                            "tool": "enum4linux",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             if _PRINTER_RE.search(lower):
-                findings.append({
-                    "title": "Printer information discovered",
-                    "severity": "low",
-                    "description": f"Printer/spooler info: {line}",
-                    "evidence": line,
-                    "tool": "enum4linux",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "Printer information discovered",
+                        "severity": "low",
+                        "description": f"Printer/spooler info: {line}",
+                        "evidence": line,
+                        "tool": "enum4linux",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             if _GROUP_RE.search(lower):
                 gm = _GROUP_RE.match(line)
                 if gm:
-                    findings.append({
-                        "title": f"Domain group: {gm.group(1).strip()}",
-                        "severity": "low",
-                        "description": f"Domain group on {target}: {gm.group(1).strip()}",
-                        "evidence": line,
-                        "tool": "enum4linux",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Domain group: {gm.group(1).strip()}",
+                            "severity": "low",
+                            "description": f"Domain group on {target}: {gm.group(1).strip()}",
+                            "evidence": line,
+                            "tool": "enum4linux",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             if _SESSION_RE.search(lower):
                 sm = _SESSION_RE.match(line)
                 if sm:
-                    findings.append({
-                        "title": "Active SMB sessions",
-                        "severity": "medium",
-                        "description": f"SMB session info: {sm.group(1).strip()}",
+                    findings.append(
+                        {
+                            "title": "Active SMB sessions",
+                            "severity": "medium",
+                            "description": f"SMB session info: {sm.group(1).strip()}",
+                            "evidence": line,
+                            "tool": "enum4linux",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
+                continue
+
+            if _POLICY_RE.search(lower) or _POLICY_DETAIL_RE.search(lower):
+                findings.append(
+                    {
+                        "title": "Password policy information",
+                        "severity": "low",
+                        "description": f"enum4linux gathered password policy info from {target}: {line}",
                         "evidence": line,
                         "tool": "enum4linux",
                         "target": target,
                         "timestamp": _now_iso(),
-                    })
-                continue
-
-            if _POLICY_RE.search(lower) or _POLICY_DETAIL_RE.search(lower):
-                findings.append({
-                    "title": "Password policy information",
-                    "severity": "low",
-                    "description": f"enum4linux gathered password policy info from {target}: {line}",
-                    "evidence": line,
-                    "tool": "enum4linux",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                    }
+                )
                 continue
 
             if _OS_RE.match(line):
                 os_info = _OS_RE.match(line).group(1).strip()  # type: ignore
                 if os_info:
-                    findings.append({
-                        "title": f"OS: {os_info}",
-                        "severity": "info",
-                        "description": f"enum4linux identified OS of {target} as {os_info}",
-                        "evidence": line,
-                        "tool": "enum4linux",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"OS: {os_info}",
+                            "severity": "info",
+                            "description": f"enum4linux identified OS of {target} as {os_info}",
+                            "evidence": line,
+                            "tool": "enum4linux",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             sids = _SID_RE.findall(line)
@@ -294,14 +318,16 @@ class Enum4linuxParser:
                 if dedup_key in seen_shares:
                     continue
                 seen_shares.add(dedup_key)
-                findings.append({
-                    "title": f"SID: {sid}",
-                    "severity": "low",
-                    "description": f"enum4linux discovered SID {sid} on {target}",
-                    "evidence": line,
-                    "tool": "enum4linux",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"SID: {sid}",
+                        "severity": "low",
+                        "description": f"enum4linux discovered SID {sid} on {target}",
+                        "evidence": line,
+                        "tool": "enum4linux",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

@@ -56,7 +56,7 @@ class DirbParser:
     def parse(self, output: str) -> list[dict]:
         if not output.strip():
             return []
-        first_line = next((l for l in output.splitlines() if l.strip()), "")
+        first_line = next((line for line in output.splitlines() if line.strip()), "")
         if first_line.lstrip().startswith("[") or first_line.lstrip().startswith("{"):
             try:
                 data = json.loads(output)
@@ -65,7 +65,7 @@ class DirbParser:
                 pass
         return self._parse_text(output)
 
-    def _parse_json(self, data) -> list[dict]:  # type: ignore
+    def _parse_json(self, data) -> list[dict]:
         findings: list[dict] = []
         seen: set[str] = set()
         results = data if isinstance(data, list) else data.get("results", data.get("sites", [data]))
@@ -75,7 +75,7 @@ class DirbParser:
             if not isinstance(r, dict):
                 continue
             url = r.get("url", r.get("URL", ""))
-            code = int(r.get("code", r.get("status", 0)))  # type: ignore
+            code = int(r.get("code", r.get("status", 0)))
             size = r.get("size", r.get("content_length", ""))
             redirect = r.get("redirect", r.get("location", ""))
             dedup_key = f"{url}:{code}"
@@ -88,15 +88,17 @@ class DirbParser:
                 desc += f" (size: {size})"
             if redirect:
                 desc += f" (redirect: {redirect})"
-            findings.append({
-                "title": f"DIRB discovered: {url} (HTTP {code})",
-                "severity": severity,
-                "description": desc,
-                "evidence": f"{url} -> HTTP {code}" + (f" -> {redirect}" if redirect else ""),
-                "tool": "dirb",
-                "target": url.rstrip("/").rsplit("/", 1)[0] if "/" in url.rstrip("/") else url,  # type: ignore
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"DIRB discovered: {url} (HTTP {code})",
+                    "severity": severity,
+                    "description": desc,
+                    "evidence": f"{url} -> HTTP {code}" + (f" -> {redirect}" if redirect else ""),
+                    "tool": "dirb",
+                    "target": url.rstrip("/").rsplit("/", 1)[0] if "/" in url.rstrip("/") else url,
+                    "timestamp": _now_iso(),
+                }
+            )
         return findings
 
     def _parse_text(self, output: str) -> list[dict]:
@@ -136,15 +138,19 @@ class DirbParser:
                     continue
                 seen.add(dedup_key)
                 severity = _SEVERITY_MAP.get(code, "info")
-                findings.append({
-                    "title": f"DIRB discovered: {url} (HTTP {code})",
-                    "severity": severity,
-                    "description": f"DIRB discovered {url} returning HTTP {code} (size: {size})",
-                    "evidence": f"{url} -> HTTP {code}",
-                    "tool": "dirb",
-                    "target": url.rstrip("/").rsplit("/", 1)[0] if "/" in url.rstrip("/") else url,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"DIRB discovered: {url} (HTTP {code})",
+                        "severity": severity,
+                        "description": f"DIRB discovered {url} returning HTTP {code} (size: {size})",
+                        "evidence": f"{url} -> HTTP {code}",
+                        "tool": "dirb",
+                        "target": url.rstrip("/").rsplit("/", 1)[0]
+                        if "/" in url.rstrip("/")
+                        else url,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             m = _LINE_RE.match(line)
@@ -158,16 +164,20 @@ class DirbParser:
                 seen.add(dedup_key)
                 severity = _SEVERITY_MAP.get(code, "info")
                 target = base_url if base_url != "unknown" else url
-                full_url = f"{base_url.rstrip('/')}/{url.lstrip('/')}" if base_url != "unknown" else url
-                findings.append({
-                    "title": f"DIRB discovered: {url} (HTTP {code})",
-                    "severity": severity,
-                    "description": f"DIRB discovered {url} returning HTTP {code} (size: {size})",
-                    "evidence": full_url + f" -> HTTP {code}",
-                    "tool": "dirb",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                full_url = (
+                    f"{base_url.rstrip('/')}/{url.lstrip('/')}" if base_url != "unknown" else url
+                )
+                findings.append(
+                    {
+                        "title": f"DIRB discovered: {url} (HTTP {code})",
+                        "severity": severity,
+                        "description": f"DIRB discovered {url} returning HTTP {code} (size: {size})",
+                        "evidence": full_url + f" -> HTTP {code}",
+                        "tool": "dirb",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             m = _CODE_RE.match(line)
@@ -179,15 +189,17 @@ class DirbParser:
                     continue
                 seen.add(dedup_key)
                 severity = _SEVERITY_MAP.get(code, "info")
-                findings.append({
-                    "title": f"DIRB discovered: {url} (HTTP {code})",
-                    "severity": severity,
-                    "description": f"DIRB discovered {url} returning HTTP {code}",
-                    "evidence": url,
-                    "tool": "dirb",
-                    "target": base_url if base_url != "unknown" else "unknown",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"DIRB discovered: {url} (HTTP {code})",
+                        "severity": severity,
+                        "description": f"DIRB discovered {url} returning HTTP {code}",
+                        "evidence": url,
+                        "tool": "dirb",
+                        "target": base_url if base_url != "unknown" else "unknown",
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             m = _FIND_RE.search(line)
@@ -200,14 +212,18 @@ class DirbParser:
                     continue
                 seen.add(dedup_key)
                 severity = _SEVERITY_MAP.get(code, "info")
-                findings.append({
-                    "title": f"DIRB discovered: {url} (HTTP {code})" if code else f"DIRB discovered: {url}",
-                    "severity": severity,
-                    "description": f"DIRB discovered {url} (size: {size})",
-                    "evidence": url,
-                    "tool": "dirb",
-                    "target": base_url if base_url != "unknown" else "unknown",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"DIRB discovered: {url} (HTTP {code})"
+                        if code
+                        else f"DIRB discovered: {url}",
+                        "severity": severity,
+                        "description": f"DIRB discovered {url} (size: {size})",
+                        "evidence": url,
+                        "tool": "dirb",
+                        "target": base_url if base_url != "unknown" else "unknown",
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

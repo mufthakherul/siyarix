@@ -16,17 +16,28 @@ _ROW_RE = re.compile(
     r"Chars:\s*(?P<chars>\d+)\s+"
     r"(?:Request:\s*)?(?P<payload>\S+)"
 )
-_ID_RE = re.compile(r"^(?P<id>\d+)\s+(?P<status>\d+)\s+(?P<lines>\d+)\s+(?P<words>\d+)\s+(?P<chars>\d+)\s+(?P<payload>\S+)")
+_ID_RE = re.compile(
+    r"^(?P<id>\d+)\s+(?P<status>\d+)\s+(?P<lines>\d+)\s+(?P<words>\d+)\s+(?P<chars>\d+)\s+(?P<payload>\S+)"
+)
 _SIMPLE_ROW_RE = re.compile(
     r"ID:\s*(?P<payload>\S+)\s+Response:\s*(?P<status>\d+)(?:\s+Size:\s*(?P<size>\d+))?",
 )
 _TARGET_URL_RE = re.compile(r"(?:Target|URL|url)[:\s]+(https?://\S+)", re.IGNORECASE)
 _BASELINE_RE = re.compile(r"(?i)(baseline|filter|excluded|discarded)")
 _SEVERITY_BY_STATUS = {
-    200: "info", 201: "info", 204: "info",
-    301: "low", 302: "low", 307: "low", 308: "low",
-    401: "medium", 403: "medium", 404: "info",
-    500: "high", 502: "high", 503: "high",
+    200: "info",
+    201: "info",
+    204: "info",
+    301: "low",
+    302: "low",
+    307: "low",
+    308: "low",
+    401: "medium",
+    403: "medium",
+    404: "info",
+    500: "high",
+    502: "high",
+    503: "high",
 }
 
 
@@ -51,7 +62,11 @@ class WfuzzParser:
                 target = tm.group(1)
                 continue
 
-            m = _SIMPLE_ROW_RE.match(line_stripped) or _ROW_RE.match(line_stripped) or _ID_RE.match(line_stripped)
+            m = (
+                _SIMPLE_ROW_RE.match(line_stripped)
+                or _ROW_RE.match(line_stripped)
+                or _ID_RE.match(line_stripped)
+            )
             if not m:
                 continue
 
@@ -74,14 +89,16 @@ class WfuzzParser:
 
             severity = _SEVERITY_BY_STATUS.get(status, "info")
 
-            findings.append({
-                "title": f"WFuzz: {payload} (HTTP {status})",
-                "severity": severity,
-                "description": f"Fuzzed payload {payload!r} returned HTTP {status} — lines {lines_count}, words {words_count}, chars {chars_count}",
-                "evidence": f"Status: {status}, Lines: {lines_count}, Words: {words_count}, Chars: {chars_count}, Payload: {payload}",
-                "tool": "wfuzz",
-                "target": target,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"WFuzz: {payload} (HTTP {status})",
+                    "severity": severity,
+                    "description": f"Fuzzed payload {payload!r} returned HTTP {status} — lines {lines_count}, words {words_count}, chars {chars_count}",
+                    "evidence": f"Status: {status}, Lines: {lines_count}, Words: {words_count}, Chars: {chars_count}, Payload: {payload}",
+                    "tool": "wfuzz",
+                    "target": target,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

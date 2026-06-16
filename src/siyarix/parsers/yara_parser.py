@@ -40,15 +40,17 @@ class YaraParser:
                 key = "summary:match"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"YARA: {m.group(1)} matches",
-                        "severity": "info",
-                        "description": f"YARA reported {m.group(1)} rule matches",
-                        "evidence": raw.strip(),
-                        "tool": "yara",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"YARA: {m.group(1)} matches",
+                            "severity": "info",
+                            "description": f"YARA reported {m.group(1)} rule matches",
+                            "evidence": raw.strip(),
+                            "tool": "yara",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _RULE_RE.match(line_stripped)
@@ -67,15 +69,17 @@ class YaraParser:
                     if string_ids:
                         evidence += f" [strings: {', '.join(string_ids)}]"
 
-                    findings.append({
-                        "title": f"YARA: {current_rule}",
-                        "severity": "medium",
-                        "description": description,
-                        "evidence": evidence,
-                        "tool": "yara",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"YARA: {current_rule}",
+                            "severity": "medium",
+                            "description": description,
+                            "evidence": evidence,
+                            "tool": "yara",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _RULE_DECL_RE.match(line_stripped)
@@ -84,21 +88,23 @@ class YaraParser:
                 key = f"rule:{current_rule}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"YARA: {current_rule}",
-                        "severity": "medium",
-                        "description": f"YARA rule match: {current_rule}",
-                        "evidence": raw,
-                        "tool": "yara",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"YARA: {current_rule}",
+                            "severity": "medium",
+                            "description": f"YARA rule match: {current_rule}",
+                            "evidence": raw,
+                            "tool": "yara",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _RULE_SIMPLE_RE.match(line_stripped)
             if m and current_rule == "":
                 current_rule = m.group(1)
-                offset_m = _OFFSET_RE.findall(line_stripped)
+                _OFFSET_RE.findall(line_stripped)
                 string_ids = _STRING_RE.findall(line_stripped)
                 key = f"rule:{current_rule}"
                 if key not in seen:
@@ -108,15 +114,17 @@ class YaraParser:
                     if string_ids:
                         evidence += f" [strings: {', '.join(string_ids)}]"
 
-                    findings.append({
-                        "title": f"YARA: {current_rule}",
-                        "severity": "medium",
-                        "description": description,
-                        "evidence": evidence,
-                        "tool": "yara",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"YARA: {current_rule}",
+                            "severity": "medium",
+                            "description": description,
+                            "evidence": evidence,
+                            "tool": "yara",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             meta_m = _META_RE.search(line_stripped)
@@ -126,14 +134,16 @@ class YaraParser:
                     key = f"meta:{current_rule}:{current_meta[:40]}"
                     if key not in seen:
                         seen.add(key)
-                        findings.append({
-                            "title": f"YARA: Metadata — {current_rule}",
-                            "severity": "info",
-                            "description": f"Rule {current_rule} — {current_meta}",
-                            "evidence": raw,
-                            "tool": "yara",
-                            "target": target,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"YARA: Metadata — {current_rule}",
+                                "severity": "info",
+                                "description": f"Rule {current_rule} — {current_meta}",
+                                "evidence": raw,
+                                "tool": "yara",
+                                "target": target,
+                                "timestamp": _now_iso(),
+                            }
+                        )
 
         return findings

@@ -117,15 +117,17 @@ class CommixParser:
                 key = "summary:total"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": f"Commix: {m.group(1)} findings",
-                        "severity": "info",
-                        "description": f"Commix reported {m.group(1)} vulnerable findings",
-                        "evidence": raw.strip(),
-                        "tool": "commix",
-                        "target": current_url,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Commix: {m.group(1)} findings",
+                            "severity": "info",
+                            "description": f"Commix reported {m.group(1)} vulnerable findings",
+                            "evidence": raw.strip(),
+                            "tool": "commix",
+                            "target": current_url,
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
             m = _URL_RE.search(line)
             if m:
@@ -161,16 +163,18 @@ class CommixParser:
                         evidence_parts.append(f"Param: {current_param}")
                     if current_os:
                         evidence_parts.append(f"OS: {current_os}")
-                    findings.append({
-                        "title": f"{shell_type.capitalize()} shell obtained (commix)",
-                        "severity": "critical",
-                        "description": f"commix obtained a {shell_type} pseudo-shell on {current_url} via parameter {current_param}"
-                        + (f" (OS: {current_os})" if current_os else ""),
-                        "evidence": " | ".join(evidence_parts),
-                        "tool": "commix",
-                        "target": current_url,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"{shell_type.capitalize()} shell obtained (commix)",
+                            "severity": "critical",
+                            "description": f"commix obtained a {shell_type} pseudo-shell on {current_url} via parameter {current_param}"
+                            + (f" (OS: {current_os})" if current_os else ""),
+                            "evidence": " | ".join(evidence_parts),
+                            "tool": "commix",
+                            "target": current_url,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _CMD_RESULT_RE.search(line)
@@ -178,15 +182,17 @@ class CommixParser:
                 key = f"cmd-result:{current_url}:{m.group(1)[:50]}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": "Command execution result",
-                        "severity": "info",
-                        "description": f"commix command output on {current_url}: {m.group(1)[:100]}",
-                        "evidence": m.group(1)[:200],
-                        "tool": "commix",
-                        "target": current_url,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": "Command execution result",
+                            "severity": "info",
+                            "description": f"commix command output on {current_url}: {m.group(1)[:100]}",
+                            "evidence": m.group(1)[:200],
+                            "tool": "commix",
+                            "target": current_url,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             if _VULN_RE.search(line):
@@ -201,17 +207,19 @@ class CommixParser:
                         evidence_parts.append(f"Tech: {current_tech}")
                     if current_os:
                         evidence_parts.append(f"OS: {current_os}")
-                    findings.append({
-                        "title": f"Command injection vulnerability ({current_tech or 'unknown'})",
-                        "severity": severity,
-                        "description": f"commix identified command injection on {current_url} via parameter {current_param}"
-                        + (f" using {current_tech} technique" if current_tech else "")
-                        + (f" (OS: {current_os})" if current_os else ""),
-                        "evidence": " | ".join(evidence_parts),
-                        "tool": "commix",
-                        "target": current_url,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Command injection vulnerability ({current_tech or 'unknown'})",
+                            "severity": severity,
+                            "description": f"commix identified command injection on {current_url} via parameter {current_param}"
+                            + (f" using {current_tech} technique" if current_tech else "")
+                            + (f" (OS: {current_os})" if current_os else ""),
+                            "evidence": " | ".join(evidence_parts),
+                            "tool": "commix",
+                            "target": current_url,
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         return findings
 
@@ -239,45 +247,51 @@ class CommixParser:
                     evidence_parts.append(f"Tech: {technique}")
                 if os_detected:
                     evidence_parts.append(f"OS: {os_detected}")
-                findings.append({
-                    "title": f"Command injection vulnerability ({technique or 'unknown'})",
-                    "severity": severity,
-                    "description": f"commix identified command injection on {url}"
-                    + (f" via parameter {param}" if param else "")
-                    + (f" using {technique}" if technique else "")
-                    + (f" (OS: {os_detected})" if os_detected else ""),
-                    "evidence": " | ".join(evidence_parts),
-                    "tool": "commix",
-                    "target": url,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Command injection vulnerability ({technique or 'unknown'})",
+                        "severity": severity,
+                        "description": f"commix identified command injection on {url}"
+                        + (f" via parameter {param}" if param else "")
+                        + (f" using {technique}" if technique else "")
+                        + (f" (OS: {os_detected})" if os_detected else ""),
+                        "evidence": " | ".join(evidence_parts),
+                        "tool": "commix",
+                        "target": url,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         if shell_type:
             key = f"shell:{url}:{shell_type}"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": f"{shell_type.capitalize()} shell obtained (commix)",
-                    "severity": "critical",
-                    "description": f"commix obtained a {shell_type} pseudo-shell on {url}",
-                    "evidence": f"Shell: {shell_type} | URL: {url}",
-                    "tool": "commix",
-                    "target": url,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"{shell_type.capitalize()} shell obtained (commix)",
+                        "severity": "critical",
+                        "description": f"commix obtained a {shell_type} pseudo-shell on {url}",
+                        "evidence": f"Shell: {shell_type} | URL: {url}",
+                        "tool": "commix",
+                        "target": url,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         if cmd_output:
             key = f"cmd:{url}:{str(cmd_output)[:50]}"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": "Command execution result",
-                    "severity": "info",
-                    "description": f"commix command output on {url}: {cmd_output[:100]}",
-                    "evidence": str(cmd_output)[:200],
-                    "tool": "commix",
-                    "target": url,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "Command execution result",
+                        "severity": "info",
+                        "description": f"commix command output on {url}: {cmd_output[:100]}",
+                        "evidence": str(cmd_output)[:200],
+                        "tool": "commix",
+                        "target": url,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

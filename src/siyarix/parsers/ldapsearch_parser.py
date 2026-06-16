@@ -44,14 +44,38 @@ _COMMENT_RE = re.compile(
 _VERSION_RE = re.compile(r"^#\s*version\s*:\s*\d+", re.IGNORECASE)
 
 _ATTRS = {
-    "cn", "sn", "uid", "ou", "dc", "o", "l", "st", "street",
-    "postalCode", "telephoneNumber", "mail", "userPassword",
-    "member", "memberOf", "description", "displayName",
-    "sAMAccountName", "userPrincipalName", "objectClass",
-    "objectCategory", "whenCreated", "whenChanged",
-    "badPwdCount", "lockoutTime", "pwdLastSet",
-    "userAccountControl", "servicePrincipalName",
-    "objectGUID", "objectSid", "objectguid", "objectsid",
+    "cn",
+    "sn",
+    "uid",
+    "ou",
+    "dc",
+    "o",
+    "l",
+    "st",
+    "street",
+    "postalCode",
+    "telephoneNumber",
+    "mail",
+    "userPassword",
+    "member",
+    "memberOf",
+    "description",
+    "displayName",
+    "sAMAccountName",
+    "userPrincipalName",
+    "objectClass",
+    "objectCategory",
+    "whenCreated",
+    "whenChanged",
+    "badPwdCount",
+    "lockoutTime",
+    "pwdLastSet",
+    "userAccountControl",
+    "servicePrincipalName",
+    "objectGUID",
+    "objectSid",
+    "objectguid",
+    "objectsid",
 }
 
 _SEVERITY_MAP: dict[str, str] = {
@@ -93,28 +117,32 @@ class LdapsearchParser:
                         dedup_key = f"dn|{dn}"
                         if dedup_key not in seen_dns:
                             seen_dns.add(dedup_key)
-                            findings.append({
-                                "title": f"LDAP entry: {dn[:60]}",
-                                "severity": "info",
-                                "description": f"ldapsearch returned LDAP entry with DN: {dn}",
-                                "evidence": dn,
-                                "tool": "ldapsearch",
-                                "target": dn,
-                                "timestamp": _now_iso(),
-                            })
+                            findings.append(
+                                {
+                                    "title": f"LDAP entry: {dn[:60]}",
+                                    "severity": "info",
+                                    "description": f"ldapsearch returned LDAP entry with DN: {dn}",
+                                    "evidence": dn,
+                                    "tool": "ldapsearch",
+                                    "target": dn,
+                                    "timestamp": _now_iso(),
+                                }
+                            )
                     if isinstance(attrs, dict):
                         for attr, values in attrs.items():
                             if isinstance(values, list):
                                 for val in values:
-                                    findings.append({
-                                        "title": f"LDAP attribute: {attr}",
-                                        "severity": _SEVERITY_MAP.get(attr.lower(), "info"),
-                                        "description": f"LDAP entry {dn} has {attr}: {str(val)[:100]}",
-                                        "evidence": f"{attr}: {str(val)[:200]}",
-                                        "tool": "ldapsearch",
-                                        "target": dn,
-                                        "timestamp": _now_iso(),
-                                    })
+                                    findings.append(
+                                        {
+                                            "title": f"LDAP attribute: {attr}",
+                                            "severity": _SEVERITY_MAP.get(attr.lower(), "info"),
+                                            "description": f"LDAP entry {dn} has {attr}: {str(val)[:100]}",
+                                            "evidence": f"{attr}: {str(val)[:200]}",
+                                            "tool": "ldapsearch",
+                                            "target": dn,
+                                            "timestamp": _now_iso(),
+                                        }
+                                    )
                 return findings
             except json.JSONDecodeError:
                 pass
@@ -122,7 +150,6 @@ class LdapsearchParser:
         current_dn = ""
         pending_attr = None
         pending_value = ""
-        in_binary = False
 
         for line in stripped.splitlines():
             stripped_line = line.strip()
@@ -131,31 +158,34 @@ class LdapsearchParser:
                 current_dn = ""
                 pending_attr = None
                 pending_value = ""
-                in_binary = False
                 continue
 
             if _SEARCH_STATS_RE.match(stripped_line):
                 rc = _RESULT_COUNT_RE.search(stripped_line)
                 if rc:
-                    findings.append({
-                        "title": f"LDAP result count: {rc.group(1)}",
-                        "severity": "info",
-                        "description": f"ldapsearch returned {rc.group(1)} entries",
-                        "evidence": stripped_line,
-                        "tool": "ldapsearch",
-                        "target": current_dn or "ldap",
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"LDAP result count: {rc.group(1)}",
+                            "severity": "info",
+                            "description": f"ldapsearch returned {rc.group(1)} entries",
+                            "evidence": stripped_line,
+                            "tool": "ldapsearch",
+                            "target": current_dn or "ldap",
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 else:
-                    findings.append({
-                        "title": f"LDAP search result: {stripped_line}",
-                        "severity": "info",
-                        "description": f"ldapsearch statistics: {stripped_line}",
-                        "evidence": stripped_line,
-                        "tool": "ldapsearch",
-                        "target": current_dn or "ldap",
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"LDAP search result: {stripped_line}",
+                            "severity": "info",
+                            "description": f"ldapsearch statistics: {stripped_line}",
+                            "evidence": stripped_line,
+                            "tool": "ldapsearch",
+                            "target": current_dn or "ldap",
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             if _VERSION_RE.match(stripped_line):
@@ -178,15 +208,17 @@ class LdapsearchParser:
                         value_display = value[:40] + "..."
                     else:
                         value_display = value[:100]
-                    findings.append({
-                        "title": f"LDAP attribute: {pending_attr}",
-                        "severity": severity,
-                        "description": f"LDAP entry {current_dn} has {pending_attr}: {value_display}",
-                        "evidence": f"{pending_attr}: {value[:200]}",
-                        "tool": "ldapsearch",
-                        "target": current_dn,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"LDAP attribute: {pending_attr}",
+                            "severity": severity,
+                            "description": f"LDAP entry {current_dn} has {pending_attr}: {value_display}",
+                            "evidence": f"{pending_attr}: {value[:200]}",
+                            "tool": "ldapsearch",
+                            "target": current_dn,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 pending_attr = None
                 pending_value = ""
 
@@ -205,15 +237,17 @@ class LdapsearchParser:
                     except Exception:
                         value = b64_val[:40]
                     severity = _SEVERITY_MAP.get(attr_lower, "info")
-                    findings.append({
-                        "title": f"LDAP binary attribute: {attr}",
-                        "severity": severity,
-                        "description": f"LDAP entry {current_dn} has binary {attr} (base64: {b64_val[:20]}...)",
-                        "evidence": f"{attr}:: {b64_val[:100]}",
-                        "tool": "ldapsearch",
-                        "target": current_dn,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"LDAP binary attribute: {attr}",
+                            "severity": severity,
+                            "description": f"LDAP entry {current_dn} has binary {attr} (base64: {b64_val[:20]}...)",
+                            "evidence": f"{attr}:: {b64_val[:100]}",
+                            "tool": "ldapsearch",
+                            "target": current_dn,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 current_dn = current_dn or "ldap"
                 continue
 
@@ -223,15 +257,17 @@ class LdapsearchParser:
                 dedup_key = f"dn|{current_dn}"
                 if dedup_key not in seen_dns:
                     seen_dns.add(dedup_key)
-                    findings.append({
-                        "title": f"LDAP entry: {current_dn[:60]}",
-                        "severity": "info",
-                        "description": f"ldapsearch returned LDAP entry with DN: {current_dn}",
-                        "evidence": current_dn,
-                        "tool": "ldapsearch",
-                        "target": current_dn,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"LDAP entry: {current_dn[:60]}",
+                            "severity": "info",
+                            "description": f"ldapsearch returned LDAP entry with DN: {current_dn}",
+                            "evidence": current_dn,
+                            "tool": "ldapsearch",
+                            "target": current_dn,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                 continue
 
             m = _ATTR_RE.match(line)
@@ -249,14 +285,16 @@ class LdapsearchParser:
                         value_display = value[:40] + "..."
                     else:
                         value_display = value[:100]
-                    findings.append({
-                        "title": f"LDAP attribute: {attr}",
-                        "severity": severity,
-                        "description": f"LDAP entry {current_dn} has {attr}: {value_display}",
-                        "evidence": f"{attr}: {value[:200]}",
-                        "tool": "ldapsearch",
-                        "target": current_dn,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"LDAP attribute: {attr}",
+                            "severity": severity,
+                            "description": f"LDAP entry {current_dn} has {attr}: {value_display}",
+                            "evidence": f"{attr}: {value[:200]}",
+                            "tool": "ldapsearch",
+                            "target": current_dn,
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         return findings

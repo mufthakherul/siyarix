@@ -9,9 +9,7 @@ from . import _now_iso
 import json
 import re
 
-_VULN_TYPE_RE = re.compile(
-    r"(\w+(?:\s+\w+)*)\s+(?:\{|\():?\s*(\d+)", re.IGNORECASE
-)
+_VULN_TYPE_RE = re.compile(r"(\w+(?:\s+\w+)*)\s+(?:\{|\():?\s*(\d+)", re.IGNORECASE)
 _URL_RE = re.compile(r"(https?://\S+)", re.IGNORECASE)
 _PARAM_RE = re.compile(r"(?:Parameter|param|argument)[:\s]+(\S+)", re.IGNORECASE)
 _EVIDENCE_RE = re.compile(r"(?:Evidence|Proof|Payload|description)[:\s]+(.+)", re.IGNORECASE)
@@ -57,28 +55,32 @@ class WapitiParser:
                                     url = vuln.get("url", "unknown")
                                     vuln_type = vuln.get("type", vuln.get("name", "unknown"))
                                     desc = vuln.get("description", vuln.get("detail", ""))
-                                    findings.append({
-                                        "title": f"Wapiti: {vuln_type}",
-                                        "severity": severity,
-                                        "description": desc or f"{vuln_type} at {url}",
-                                        "evidence": json.dumps(vuln),
-                                        "tool": "wapiti",
-                                        "target": url,
-                                        "timestamp": _now_iso(),
-                                    })
+                                    findings.append(
+                                        {
+                                            "title": f"Wapiti: {vuln_type}",
+                                            "severity": severity,
+                                            "description": desc or f"{vuln_type} at {url}",
+                                            "evidence": json.dumps(vuln),
+                                            "tool": "wapiti",
+                                            "target": url,
+                                            "timestamp": _now_iso(),
+                                        }
+                                    )
                             elif isinstance(vuln, str):
                                 dedup_key = vuln[:100]
                                 if dedup_key not in seen:
                                     seen.add(dedup_key)
-                                    findings.append({
-                                        "title": f"Wapiti: {vuln[:60]}",
-                                        "severity": "info",
-                                        "description": vuln,
-                                        "evidence": vuln,
-                                        "tool": "wapiti",
-                                        "target": "unknown",
-                                        "timestamp": _now_iso(),
-                                    })
+                                    findings.append(
+                                        {
+                                            "title": f"Wapiti: {vuln[:60]}",
+                                            "severity": "info",
+                                            "description": vuln,
+                                            "evidence": vuln,
+                                            "tool": "wapiti",
+                                            "target": "unknown",
+                                            "timestamp": _now_iso(),
+                                        }
+                                    )
                     elif isinstance(vuln_list, dict):
                         for vuln_type, vuln_items in vuln_list.items():
                             if isinstance(vuln_items, list):
@@ -86,16 +88,26 @@ class WapitiParser:
                                     dedup_key = f"{vuln_type}:{str(vuln)[:80]}"
                                     if dedup_key not in seen:
                                         seen.add(dedup_key)
-                                        url = vuln if isinstance(vuln, str) else vuln.get("url", "unknown")
-                                        findings.append({
-                                            "title": f"Wapiti: {vuln_type}",
-                                            "severity": "info",
-                                            "description": f"{vuln_type} at {url}",
-                                            "evidence": json.dumps(vuln) if not isinstance(vuln, str) else vuln,
-                                            "tool": "wapiti",
-                                            "target": url if isinstance(url, str) else "unknown",
-                                            "timestamp": _now_iso(),
-                                        })
+                                        url = (
+                                            vuln
+                                            if isinstance(vuln, str)
+                                            else vuln.get("url", "unknown")
+                                        )
+                                        findings.append(
+                                            {
+                                                "title": f"Wapiti: {vuln_type}",
+                                                "severity": "info",
+                                                "description": f"{vuln_type} at {url}",
+                                                "evidence": json.dumps(vuln)
+                                                if not isinstance(vuln, str)
+                                                else vuln,
+                                                "tool": "wapiti",
+                                                "target": url
+                                                if isinstance(url, str)
+                                                else "unknown",
+                                                "timestamp": _now_iso(),
+                                            }
+                                        )
                 if findings:
                     return findings
             except json.JSONDecodeError:
@@ -104,9 +116,7 @@ class WapitiParser:
         lines = output.splitlines()
         current_vuln_type = ""
         current_url = ""
-        current_param = ""
         current_evidence = ""
-        target = "unknown"
 
         for line in lines:
             line_stripped = line.strip()
@@ -126,19 +136,20 @@ class WapitiParser:
                             if key in current_vuln_type.lower():
                                 severity = val
                                 break
-                        findings.append({
-                            "title": f"Wapiti: {current_vuln_type.strip()}",
-                            "severity": severity,
-                            "description": f"{current_vuln_type.strip()} at {current_url}",
-                            "evidence": current_evidence or current_url,
-                            "tool": "wapiti",
-                            "target": current_url,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"Wapiti: {current_vuln_type.strip()}",
+                                "severity": severity,
+                                "description": f"{current_vuln_type.strip()} at {current_url}",
+                                "evidence": current_evidence or current_url,
+                                "tool": "wapiti",
+                                "target": current_url,
+                                "timestamp": _now_iso(),
+                            }
+                        )
 
                 current_vuln_type = vuln_m.group(1).strip()
                 current_url = url_m.group(1)
-                current_param = ""
                 current_evidence = ""
                 continue
 
@@ -147,7 +158,7 @@ class WapitiParser:
 
             param_m = _PARAM_RE.search(line_stripped)
             if param_m:
-                current_param = param_m.group(1)
+                param_m.group(1)
 
             ev_m = _EVIDENCE_RE.search(line_stripped)
             if ev_m:
@@ -162,18 +173,19 @@ class WapitiParser:
                         if key in current_vuln_type.lower():
                             severity = val
                             break
-                    findings.append({
-                        "title": f"Wapiti: {current_vuln_type.strip()}",
-                        "severity": severity,
-                        "description": f"{current_vuln_type.strip()} at {current_url} — {line_stripped}",
-                        "evidence": current_evidence or line_stripped,
-                        "tool": "wapiti",
-                        "target": current_url,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Wapiti: {current_vuln_type.strip()}",
+                            "severity": severity,
+                            "description": f"{current_vuln_type.strip()} at {current_url} — {line_stripped}",
+                            "evidence": current_evidence or line_stripped,
+                            "tool": "wapiti",
+                            "target": current_url,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                     current_vuln_type = ""
                     current_url = ""
-                    current_param = ""
                     current_evidence = ""
 
         if current_vuln_type and current_url:
@@ -185,14 +197,16 @@ class WapitiParser:
                     if key in current_vuln_type.lower():
                         severity = val
                         break
-                findings.append({
-                    "title": f"Wapiti: {current_vuln_type.strip()}",
-                    "severity": severity,
-                    "description": f"{current_vuln_type.strip()} at {current_url}",
-                    "evidence": current_evidence or current_url,
-                    "tool": "wapiti",
-                    "target": current_url,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Wapiti: {current_vuln_type.strip()}",
+                        "severity": severity,
+                        "description": f"{current_vuln_type.strip()} at {current_url}",
+                        "evidence": current_evidence or current_url,
+                        "tool": "wapiti",
+                        "target": current_url,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

@@ -40,8 +40,10 @@ class CheckovParser:
             for check in checks:
                 check_id = check.get("check_id", "unknown")
                 resource = check.get("resource", "")
-                guideline = check.get("guideline", check.get("guidelines", ""))
-                severity_raw = check.get("severity", check.get("check_result", {}).get("result", "INFO"))
+                check.get("guideline", check.get("guidelines", ""))
+                severity_raw = check.get(
+                    "severity", check.get("check_result", {}).get("result", "INFO")
+                )
                 file_path = check.get("file_path", check.get("filePath", ""))
                 repo_name = check.get("repo_name", check.get("repo", ""))
 
@@ -62,14 +64,16 @@ class CheckovParser:
 
                 target = resource or file_path or repo_name
 
-                findings.append({
-                    "title": f"Checkov: {check_id}",
-                    "severity": severity,
-                    "description": description,
-                    "evidence": f"Resource: {resource}, File: {file_path}",
-                    "tool": "checkov",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Checkov: {check_id}",
+                        "severity": severity,
+                        "description": description,
+                        "evidence": f"Resource: {resource}, File: {file_path}",
+                        "tool": "checkov",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

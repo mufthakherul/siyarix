@@ -12,10 +12,20 @@ _ROW_RE = re.compile(
     r"(?P<status>\d{3})\s+(?P<size>\S+)\s+(?P<url>https?://\S+)(?:\s+->\s+(?P<redirect>\S+))?"
 )
 _SEVERITY_BY_STATUS = {
-    200: "info", 201: "info", 204: "info",
-    301: "low", 302: "low", 303: "low", 307: "low", 308: "low",
-    400: "info", 401: "medium", 403: "medium",
-    500: "high", 502: "high", 503: "high",
+    200: "info",
+    201: "info",
+    204: "info",
+    301: "low",
+    302: "low",
+    303: "low",
+    307: "low",
+    308: "low",
+    400: "info",
+    401: "medium",
+    403: "medium",
+    500: "high",
+    502: "high",
+    503: "high",
 }
 
 
@@ -58,14 +68,18 @@ class DirsearchParser:
             if redirect:
                 description += f", redirects to {redirect}"
 
-            findings.append({
-                "title": f"Dirsearch: {url} (HTTP {status})",
-                "severity": severity,
-                "description": description,
-                "evidence": f"{url} [Status: {status}, Size: {size}" + (f", Redirect: {redirect}" if redirect else "") + "]",
-                "tool": "dirsearch",
-                "target": target,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"Dirsearch: {url} (HTTP {status})",
+                    "severity": severity,
+                    "description": description,
+                    "evidence": f"{url} [Status: {status}, Size: {size}"
+                    + (f", Redirect: {redirect}" if redirect else "")
+                    + "]",
+                    "tool": "dirsearch",
+                    "target": target,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

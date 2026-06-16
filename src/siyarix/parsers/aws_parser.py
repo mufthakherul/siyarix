@@ -12,12 +12,28 @@ import re
 _JSON_RE = re.compile(r"^\s*[{\[]")
 
 _KEYS_OF_INTEREST = [
-    "PublicAccessBlockConfiguration", "PubliclyAccessible", "AttachedPolicies",
-    "InstanceProfile", "Role", "PasswordLastUsed", "MFA",
-    "AccessKeys", "Groups", "BucketPolicy",
-    "IpPermissions", "IpRanges", "GroupId", "UserId",
-    "Effect", "Principal", "Action", "Resource",
-    "CloudTrail", "Logs", "KmsKeyId", "Encryption",
+    "PublicAccessBlockConfiguration",
+    "PubliclyAccessible",
+    "AttachedPolicies",
+    "InstanceProfile",
+    "Role",
+    "PasswordLastUsed",
+    "MFA",
+    "AccessKeys",
+    "Groups",
+    "BucketPolicy",
+    "IpPermissions",
+    "IpRanges",
+    "GroupId",
+    "UserId",
+    "Effect",
+    "Principal",
+    "Action",
+    "Resource",
+    "CloudTrail",
+    "Logs",
+    "KmsKeyId",
+    "Encryption",
 ]
 
 
@@ -39,15 +55,17 @@ class AwsParser:
             for line in output.splitlines():
                 line = line.strip()
                 if any(k.lower() in line.lower() for k in _KEYS_OF_INTEREST):
-                    findings.append({
-                        "title": f"AWS: {line.split(':')[0].strip()[:60]}",
-                        "severity": "info",
-                        "description": line.strip()[:200],
-                        "evidence": line.strip()[:200],
-                        "tool": "aws",
-                        "target": "aws-cloud",
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"AWS: {line.split(':')[0].strip()[:60]}",
+                            "severity": "info",
+                            "description": line.strip()[:200],
+                            "evidence": line.strip()[:200],
+                            "tool": "aws",
+                            "target": "aws-cloud",
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         return findings
 
@@ -60,17 +78,32 @@ class AwsParser:
                     self._walk(path, v, findings)
                 elif isinstance(v, str) and len(v) > 3 and len(v) < 500:
                     severity = "info"
-                    if any(x in lower_k for x in ("public", "expose", "open", "password", "secret", "key", "arn:aws:iam")):
-                        severity = "high" if "secret" in lower_k or "password" in lower_k else "medium"
-                    findings.append({
-                        "title": f"AWS {path[-60:]}",
-                        "severity": severity,
-                        "description": f"AWS CLI returned {k}: {v[:120]}",
-                        "evidence": f"{k}: {v[:200]}",
-                        "tool": "aws",
-                        "target": "aws-cloud",
-                        "timestamp": _now_iso(),
-                    })
+                    if any(
+                        x in lower_k
+                        for x in (
+                            "public",
+                            "expose",
+                            "open",
+                            "password",
+                            "secret",
+                            "key",
+                            "arn:aws:iam",
+                        )
+                    ):
+                        severity = (
+                            "high" if "secret" in lower_k or "password" in lower_k else "medium"
+                        )
+                    findings.append(
+                        {
+                            "title": f"AWS {path[-60:]}",
+                            "severity": severity,
+                            "description": f"AWS CLI returned {k}: {v[:120]}",
+                            "evidence": f"{k}: {v[:200]}",
+                            "tool": "aws",
+                            "target": "aws-cloud",
+                            "timestamp": _now_iso(),
+                        }
+                    )
         elif isinstance(node, list):
             for i, item in enumerate(node):
                 self._walk(f"{prefix}[{i}]", item, findings)

@@ -41,8 +41,14 @@ _LOGIN_HEADER_RE = re.compile(
 )
 
 _DETAIL_LABELS = {
-    "login", "name", "directory", "shell", "office",
-    "phone", "room", "home phone",
+    "login",
+    "name",
+    "directory",
+    "shell",
+    "office",
+    "phone",
+    "room",
+    "home phone",
 }
 
 _JSON_RE = re.compile(r"^\s*[{\[]")
@@ -75,26 +81,30 @@ class FingerParser:
                         if user in seen_users:
                             continue
                         seen_users.add(user)
-                        findings.append({
-                            "title": f"User info: {user}",
-                            "severity": "medium",
-                            "description": f"finger returned user info for {user}: realname={realname} home={home} shell={shell}",
-                            "evidence": json.dumps(item),
-                            "tool": "finger",
-                            "target": target,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"User info: {user}",
+                                "severity": "medium",
+                                "description": f"finger returned user info for {user}: realname={realname} home={home} shell={shell}",
+                                "evidence": json.dumps(item),
+                                "tool": "finger",
+                                "target": target,
+                                "timestamp": _now_iso(),
+                            }
+                        )
                     plan = item.get("plan", item.get("plan_file", ""))
                     if plan:
-                        findings.append({
-                            "title": f"Plan file: {user}",
-                            "severity": "medium",
-                            "description": f"finger retrieved plan file for user {user}",
-                            "evidence": plan[:500],
-                            "tool": "finger",
-                            "target": item.get("host", "unknown"),
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"Plan file: {user}",
+                                "severity": "medium",
+                                "description": f"finger retrieved plan file for user {user}",
+                                "evidence": plan[:500],
+                                "tool": "finger",
+                                "target": item.get("host", "unknown"),
+                                "timestamp": _now_iso(),
+                            }
+                        )
                 return findings
             except json.JSONDecodeError:
                 pass
@@ -110,28 +120,32 @@ class FingerParser:
                 in_plan = False
                 if plan_lines:
                     plan_content = "\n".join(plan_lines)
-                    findings.append({
-                        "title": f"Plan file: {current_user}",
-                        "severity": "medium",
-                        "description": f"finger retrieved plan file for user {current_user} on {target}:\n{plan_content[:200]}",
-                        "evidence": plan_content,
-                        "tool": "finger",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Plan file: {current_user}",
+                            "severity": "medium",
+                            "description": f"finger retrieved plan file for user {current_user} on {target}:\n{plan_content[:200]}",
+                            "evidence": plan_content,
+                            "tool": "finger",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
                     plan_lines = []
                 continue
 
             if "finger: " in line.lower() or "cannot" in line.lower() or "no such" in line.lower():
-                findings.append({
-                    "title": "finger lookup failed",
-                    "severity": "low",
-                    "description": line,
-                    "evidence": line,
-                    "tool": "finger",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "finger lookup failed",
+                        "severity": "low",
+                        "description": line,
+                        "evidence": line,
+                        "tool": "finger",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             if _PLAN_RE.match(line):
@@ -174,15 +188,17 @@ class FingerParser:
 
                     if username not in seen_users:
                         seen_users.add(username)
-                        findings.append({
-                            "title": f"Logged-in user: {username}",
-                            "severity": "medium",
-                            "description": f"finger discovered user {username} logged in from {host} on {target} (idle: {idle_desc})",
-                            "evidence": f"user: {username} host: {host} idle: {idle_desc} terminal: {m.group('terminal')}",
-                            "tool": "finger",
-                            "target": target,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"Logged-in user: {username}",
+                                "severity": "medium",
+                                "description": f"finger discovered user {username} logged in from {host} on {target} (idle: {idle_desc})",
+                                "evidence": f"user: {username} host: {host} idle: {idle_desc} terminal: {m.group('terminal')}",
+                                "tool": "finger",
+                                "target": target,
+                                "timestamp": _now_iso(),
+                            }
+                        )
                     current_user = username
                     continue
 
@@ -193,15 +209,17 @@ class FingerParser:
                         idle_raw = m.group("idle")
                         if username not in seen_users:
                             seen_users.add(username)
-                            findings.append({
-                                "title": f"Logged-in user: {username}",
-                                "severity": "medium",
-                                "description": f"finger discovered user {username} logged in on {target} (idle: {idle_raw})",
-                                "evidence": f"user: {username} idle: {idle_raw}",
-                                "tool": "finger",
-                                "target": target,
-                                "timestamp": _now_iso(),
-                            })
+                            findings.append(
+                                {
+                                    "title": f"Logged-in user: {username}",
+                                    "severity": "medium",
+                                    "description": f"finger discovered user {username} logged in on {target} (idle: {idle_raw})",
+                                    "evidence": f"user: {username} idle: {idle_raw}",
+                                    "tool": "finger",
+                                    "target": target,
+                                    "timestamp": _now_iso(),
+                                }
+                            )
                         current_user = username
                         continue
 
@@ -212,27 +230,35 @@ class FingerParser:
                 if label in _DETAIL_LABELS:
                     if label == "login":
                         current_user = value
-                    sev = "info" if label in ("directory", "shell", "office", "phone", "room", "home phone") else "medium"
-                    findings.append({
-                        "title": f"User {label}: {value}",
-                        "severity": sev,
-                        "description": f"finger returned user detail: {label} = {value}",
-                        "evidence": f"{label}: {value}",
-                        "tool": "finger",
-                        "target": target,
-                        "timestamp": _now_iso(),
-                    })
+                    sev = (
+                        "info"
+                        if label in ("directory", "shell", "office", "phone", "room", "home phone")
+                        else "medium"
+                    )
+                    findings.append(
+                        {
+                            "title": f"User {label}: {value}",
+                            "severity": sev,
+                            "description": f"finger returned user detail: {label} = {value}",
+                            "evidence": f"{label}: {value}",
+                            "tool": "finger",
+                            "target": target,
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         if plan_lines:
             plan_content = "\n".join(plan_lines)
-            findings.append({
-                "title": f"Plan file: {current_user}",
-                "severity": "medium",
-                "description": f"finger retrieved plan file for user {current_user} on {target}:\n{plan_content[:200]}",
-                "evidence": plan_content,
-                "tool": "finger",
-                "target": target,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"Plan file: {current_user}",
+                    "severity": "medium",
+                    "description": f"finger retrieved plan file for user {current_user} on {target}:\n{plan_content[:200]}",
+                    "evidence": plan_content,
+                    "tool": "finger",
+                    "target": target,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

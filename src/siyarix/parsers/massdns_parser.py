@@ -58,15 +58,17 @@ class MassdnsParser:
             if record_type:
                 evidence += f" [{record_type}]"
 
-            findings.append({
-                "title": f"Massdns: {name}",
-                "severity": "info",
-                "description": description,
-                "evidence": evidence,
-                "tool": "massdns",
-                "target": name,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"Massdns: {name}",
+                    "severity": "info",
+                    "description": description,
+                    "evidence": evidence,
+                    "tool": "massdns",
+                    "target": name,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings
 
@@ -84,15 +86,17 @@ class MassdnsParser:
                 sk = f"stats:{count}"
                 if sk not in seen:
                     seen.add(sk)
-                    findings.append({
-                        "title": f"Massdns summary: {count} resolved",
-                        "severity": "info",
-                        "description": f"Massdns resolved {count} domains",
-                        "evidence": line_stripped,
-                        "tool": "massdns",
-                        "target": "",
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Massdns summary: {count} resolved",
+                            "severity": "info",
+                            "description": f"Massdns resolved {count} domains",
+                            "evidence": line_stripped,
+                            "tool": "massdns",
+                            "target": "",
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
             m = _TEXT_LINE_RE.match(line_stripped)
             if m:
@@ -114,14 +118,16 @@ class MassdnsParser:
                 if record_type:
                     evidence += f" [{record_type}]"
 
-                findings.append({
-                    "title": f"Massdns: {domain}",
-                    "severity": "info",
-                    "description": description,
-                    "evidence": evidence,
-                    "tool": "massdns",
-                    "target": domain,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Massdns: {domain}",
+                        "severity": "info",
+                        "description": description,
+                        "evidence": evidence,
+                        "tool": "massdns",
+                        "target": domain,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

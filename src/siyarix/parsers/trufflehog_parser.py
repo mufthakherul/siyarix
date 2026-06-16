@@ -1,4 +1,4 @@
-﻿# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 """TruffleHog JSON output parser — extracts SourceMetadata, DetectorName, RawV2, and verified status."""
 
@@ -55,15 +55,17 @@ class TrufflehogParser:
             key = "summary:total"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": f"TruffleHog: {summary_m.group(1)} secrets",
-                    "severity": "info",
-                    "description": f"TruffleHog detected {summary_m.group(1)} secrets",
-                    "evidence": f"Total: {summary_m.group(1)}",
-                    "tool": "trufflehog",
-                    "target": "",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"TruffleHog: {summary_m.group(1)} secrets",
+                        "severity": "info",
+                        "description": f"TruffleHog detected {summary_m.group(1)} secrets",
+                        "evidence": f"Total: {summary_m.group(1)}",
+                        "tool": "trufflehog",
+                        "target": "",
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings
 
@@ -78,7 +80,7 @@ class TrufflehogParser:
             data = {}
 
         raw_v2 = obj.get("RawV2", obj.get("raw", obj.get("Raw", "")))
-        raw = obj.get("raw", raw_v2)
+        obj.get("raw", raw_v2)
 
         repo = ""
         file_path = ""
@@ -86,12 +88,12 @@ class TrufflehogParser:
         for key in ("Git", "Filesystem", "S3", "GCS", "Azure"):
             md = data.get(key, {}) if isinstance(data, dict) else {}
             if isinstance(md, dict):
-                repo = md.get("repository", md.get("repo", ""))  # type: ignore
-                file_path = md.get("file", md.get("path", ""))  # type: ignore
+                repo = md.get("repository", md.get("repo", ""))
+                file_path = md.get("file", md.get("path", ""))
                 line_num = md.get("line", 0)
 
         if not file_path and isinstance(data, dict):
-            file_path = data.get("file", data.get("path", ""))  # type: ignore
+            file_path = data.get("file", data.get("path", ""))
 
         target = file_path or repo or "unknown"
 

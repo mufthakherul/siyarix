@@ -36,15 +36,17 @@ class BloodhoundPythonParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"BloodHound: {kind.capitalize()} count — {count}",
-                    "severity": "info",
-                    "description": f"BloodHound Python discovered {count} {kind}",
-                    "evidence": line,
-                    "tool": "bloodhound-python",
-                    "target": "unknown",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"BloodHound: {kind.capitalize()} count — {count}",
+                        "severity": "info",
+                        "description": f"BloodHound Python discovered {count} {kind}",
+                        "evidence": line,
+                        "tool": "bloodhound-python",
+                        "target": "unknown",
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             try:
@@ -62,78 +64,88 @@ class BloodhoundPythonParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                enabled = props.get("enabled", True)
-                pwd_last = props.get("pwdlastset", "")
+                props.get("enabled", True)
+                props.get("pwdlastset", "")
                 has_spn = props.get("serviceprincipalnames", [])
                 severity = "medium" if has_spn else "info"
-                findings.append({
-                    "title": f"AD User: {name}",
-                    "severity": severity,
-                    "description": f"BloodHound discovered user {name} in {domain}"
-                    + (" (has SPN — AS-REP roastable)" if has_spn else ""),
-                    "evidence": f"User: {name} | Domain: {domain}",
-                    "tool": "bloodhound-python",
-                    "target": domain,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"AD User: {name}",
+                        "severity": severity,
+                        "description": f"BloodHound discovered user {name} in {domain}"
+                        + (" (has SPN — AS-REP roastable)" if has_spn else ""),
+                        "evidence": f"User: {name} | Domain: {domain}",
+                        "tool": "bloodhound-python",
+                        "target": domain,
+                        "timestamp": _now_iso(),
+                    }
+                )
             elif obj_type == "computer":
                 dedup_key = f"computer:{name}:{domain}"
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
                 os = props.get("operatingsystem", "unknown")
-                findings.append({
-                    "title": f"AD Computer: {name}",
-                    "severity": "info",
-                    "description": f"BloodHound discovered computer {name} ({os}) in {domain}",
-                    "evidence": f"Computer: {name} | OS: {os}",
-                    "tool": "bloodhound-python",
-                    "target": domain,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"AD Computer: {name}",
+                        "severity": "info",
+                        "description": f"BloodHound discovered computer {name} ({os}) in {domain}",
+                        "evidence": f"Computer: {name} | OS: {os}",
+                        "tool": "bloodhound-python",
+                        "target": domain,
+                        "timestamp": _now_iso(),
+                    }
+                )
             elif obj_type == "group":
                 dedup_key = f"group:{name}:{domain}"
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"AD Group: {name}",
-                    "severity": "info",
-                    "description": f"BloodHound discovered group {name} in {domain}",
-                    "evidence": f"Group: {name} | Domain: {domain}",
-                    "tool": "bloodhound-python",
-                    "target": domain,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"AD Group: {name}",
+                        "severity": "info",
+                        "description": f"BloodHound discovered group {name} in {domain}",
+                        "evidence": f"Group: {name} | Domain: {domain}",
+                        "tool": "bloodhound-python",
+                        "target": domain,
+                        "timestamp": _now_iso(),
+                    }
+                )
             elif obj_type == "session":
                 computer = props.get("computer", "?")
                 dedup_key = f"session:{name}:{computer}"
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"AD Session: {name} -> {computer}",
-                    "severity": "medium",
-                    "description": f"BloodHound discovered session: {name} logged into {computer}",
-                    "evidence": f"Session: {name} -> {computer}",
-                    "tool": "bloodhound-python",
-                    "target": domain,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"AD Session: {name} -> {computer}",
+                        "severity": "medium",
+                        "description": f"BloodHound discovered session: {name} logged into {computer}",
+                        "evidence": f"Session: {name} -> {computer}",
+                        "tool": "bloodhound-python",
+                        "target": domain,
+                        "timestamp": _now_iso(),
+                    }
+                )
             elif obj_type == "acl":
                 right_guid = props.get("rightguid", "?")
                 dedup_key = f"acl:{name}:{right_guid}"
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"AD ACE: {right_guid}",
-                    "severity": "low",
-                    "description": f"BloodHound discovered ACL: {name}",
-                    "evidence": f"ACE: {right_guid} | Principal: {name}",
-                    "tool": "bloodhound-python",
-                    "target": domain,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"AD ACE: {right_guid}",
+                        "severity": "low",
+                        "description": f"BloodHound discovered ACL: {name}",
+                        "evidence": f"ACE: {right_guid} | Principal: {name}",
+                        "tool": "bloodhound-python",
+                        "target": domain,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

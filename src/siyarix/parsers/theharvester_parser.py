@@ -97,15 +97,17 @@ class TheharvesterParser:
                 if attrib:
                     desc += f" (source: {attrib})"
                     evidence += f"; source:{attrib}"
-                findings.append({
-                    "title": f"{label}: {value}",
-                    "severity": default_severity,
-                    "description": desc,
-                    "evidence": evidence,
-                    "tool": "theharvester",
-                    "target": value,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"{label}: {value}",
+                        "severity": default_severity,
+                        "description": desc,
+                        "evidence": evidence,
+                        "tool": "theharvester",
+                        "target": value,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings
 
@@ -150,15 +152,17 @@ class TheharvesterParser:
                     if attribution:
                         desc += f" (source: {attribution})"
                         evidence += f"; source:{attribution}"
-                    findings.append({
-                        "title": f"Email: {email}",
-                        "severity": "medium",
-                        "description": desc,
-                        "evidence": evidence,
-                        "tool": "theharvester",
-                        "target": email,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Email: {email}",
+                            "severity": "medium",
+                            "description": desc,
+                            "evidence": evidence,
+                            "tool": "theharvester",
+                            "target": email,
+                            "timestamp": _now_iso(),
+                        }
+                    )
             elif current_section in ("hosts", "subdomains", "virtual hosts", "vhosts"):
                 hm = _HOST_RE.search(line)
                 if hm:
@@ -176,15 +180,17 @@ class TheharvesterParser:
                     if attribution:
                         desc += f" (source: {attribution})"
                         evidence += f"; source:{attribution}"
-                    findings.append({
-                        "title": f"Host: {host}",
-                        "severity": "info",
-                        "description": desc,
-                        "evidence": evidence,
-                        "tool": "theharvester",
-                        "target": host,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Host: {host}",
+                            "severity": "info",
+                            "description": desc,
+                            "evidence": evidence,
+                            "tool": "theharvester",
+                            "target": host,
+                            "timestamp": _now_iso(),
+                        }
+                    )
             elif current_section == "ips":
                 im = _IP_RE.match(line)
                 if im:
@@ -197,15 +203,17 @@ class TheharvesterParser:
                     if attribution:
                         desc += f" (source: {attribution})"
                         evidence += f"; source:{attribution}"
-                    findings.append({
-                        "title": f"IP: {ip}",
-                        "severity": "info",
-                        "description": desc,
-                        "evidence": evidence,
-                        "tool": "theharvester",
-                        "target": ip,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"IP: {ip}",
+                            "severity": "info",
+                            "description": desc,
+                            "evidence": evidence,
+                            "tool": "theharvester",
+                            "target": ip,
+                            "timestamp": _now_iso(),
+                        }
+                    )
             elif current_section in ("linkedin", "twitter", "people"):
                 if line.strip() and line not in seen:
                     seen.add(line)
@@ -214,14 +222,16 @@ class TheharvesterParser:
                     if attribution:
                         desc += f" (source: {attribution})"
                         evidence += f"; source:{attribution}"
-                    findings.append({
-                        "title": f"{current_section.capitalize()}: {line}",
-                        "severity": "info",
-                        "description": desc,
-                        "evidence": evidence,
-                        "tool": "theharvester",
-                        "target": line,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"{current_section.capitalize()}: {line}",
+                            "severity": "info",
+                            "description": desc,
+                            "evidence": evidence,
+                            "tool": "theharvester",
+                            "target": line,
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         return findings

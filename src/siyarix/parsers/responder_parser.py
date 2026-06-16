@@ -38,6 +38,7 @@ class ResponderParser:
         if _JSON_RE.match(stripped):
             try:
                 import json
+
                 data = json.loads(stripped)
                 items = data if isinstance(data, list) else [data]
                 for item in items:
@@ -51,15 +52,17 @@ class ResponderParser:
                         seen_hashes.add(dedup_key)
                         protocol = item.get("protocol", "SMB")
                         target = item.get("client_ip", item.get("from", "unknown"))
-                        findings.append({
-                            "title": f"Responder: {protocol} hash captured",
-                            "severity": "high",
-                            "description": f"NTLM hash captured via {protocol} poisoning from {target}",
-                            "evidence": json.dumps(item),
-                            "tool": "responder",
-                            "target": target,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": f"Responder: {protocol} hash captured",
+                                "severity": "high",
+                                "description": f"NTLM hash captured via {protocol} poisoning from {target}",
+                                "evidence": json.dumps(item),
+                                "tool": "responder",
+                                "target": target,
+                                "timestamp": _now_iso(),
+                            }
+                        )
                 return findings
             except json.JSONDecodeError:
                 pass
@@ -100,15 +103,17 @@ class ResponderParser:
                 if username != "unknown":
                     description += f" for user {username}"
 
-                findings.append({
-                    "title": f"Responder: {protocol} hash captured",
-                    "severity": severity,
-                    "description": description,
-                    "evidence": line_stripped,
-                    "tool": "responder",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Responder: {protocol} hash captured",
+                        "severity": severity,
+                        "description": description,
+                        "evidence": line_stripped,
+                        "tool": "responder",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             m = _PROTOCOL_CAPTURE_RE.search(line_stripped)
@@ -119,15 +124,17 @@ class ResponderParser:
                 if ip_m:
                     target = ip_m.group(1)
 
-                findings.append({
-                    "title": f"Responder: {protocol} capture event",
-                    "severity": "info",
-                    "description": f"Protocol {protocol} request captured from {target}",
-                    "evidence": line_stripped,
-                    "tool": "responder",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Responder: {protocol} capture event",
+                        "severity": "info",
+                        "description": f"Protocol {protocol} request captured from {target}",
+                        "evidence": line_stripped,
+                        "tool": "responder",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
             cm = _CHALLENGE_RESPONSE_RE.search(line_stripped)
             if cm:
@@ -135,25 +142,29 @@ class ResponderParser:
                 if dedup_key in seen_hashes:
                     continue
                 seen_hashes.add(dedup_key)
-                findings.append({
-                    "title": "Responder: Challenge/Response pair",
-                    "severity": "high",
-                    "description": f"NTLMv2 challenge/response data: {cm.group(1)[:80]}",
-                    "evidence": line_stripped,
-                    "tool": "responder",
-                    "target": target if "target" in dir() else "unknown",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "Responder: Challenge/Response pair",
+                        "severity": "high",
+                        "description": f"NTLMv2 challenge/response data: {cm.group(1)[:80]}",
+                        "evidence": line_stripped,
+                        "tool": "responder",
+                        "target": target if "target" in dir() else "unknown",
+                        "timestamp": _now_iso(),
+                    }
+                )
 
             if _NBTNS_RE.search(line_stripped) and "pois" in line_stripped.lower():
-                findings.append({
-                    "title": "Responder: NBT-NS/LLMNR poison response sent",
-                    "severity": "medium",
-                    "description": "Responder sent a poison response to a NBT-NS or LLMNR query",
-                    "evidence": line_stripped,
-                    "tool": "responder",
-                    "target": "unknown",
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "Responder: NBT-NS/LLMNR poison response sent",
+                        "severity": "medium",
+                        "description": "Responder sent a poison response to a NBT-NS or LLMNR query",
+                        "evidence": line_stripped,
+                        "tool": "responder",
+                        "target": "unknown",
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

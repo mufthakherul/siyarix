@@ -19,7 +19,7 @@ class WhatwebParser(BaseParser):
             url_match = URL_STATUS_RE.search(line)
             target = url_match.group(0) if url_match else ""
             techs = []
-            rest = line[url_match.end():] if url_match else line
+            rest = line[url_match.end() :] if url_match else line
             parts = rest.replace("[", " [").split()
             for part in parts:
                 m = TECH_RE.match(part.strip(" ,;"))

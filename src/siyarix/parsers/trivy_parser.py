@@ -66,14 +66,16 @@ class TrivyParser:
                     f"Severity: {severity_raw}, ID: {vuln_id}"
                 )
 
-                findings.append({
-                    "title": f"Trivy: {vuln_id} ({pkg_name})",
-                    "severity": severity,
-                    "description": description,
-                    "evidence": evidence,
-                    "tool": "trivy",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"Trivy: {vuln_id} ({pkg_name})",
+                        "severity": severity,
+                        "description": description,
+                        "evidence": evidence,
+                        "tool": "trivy",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

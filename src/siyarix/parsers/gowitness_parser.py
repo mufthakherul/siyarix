@@ -62,7 +62,9 @@ class GowitnessParser:
 
         status_code = entry.get("status_code", entry.get("StatusCode", entry.get("status", 0)))
         title = entry.get("title", entry.get("Title", ""))
-        screenshot_path = entry.get("screenshot_path", entry.get("ScreenshotPath", entry.get("filename", "")))
+        screenshot_path = entry.get(
+            "screenshot_path", entry.get("ScreenshotPath", entry.get("filename", ""))
+        )
         final_url = entry.get("final_url", entry.get("FinalUrl", ""))
         response_time = entry.get("response_time", entry.get("responseTime", ""))
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 from . import BaseParser, build_finding
 
+
 class WaybackurlsParser(BaseParser):
     """Parses Waybackurls raw URL list output."""
 
@@ -16,12 +17,14 @@ class WaybackurlsParser(BaseParser):
                 continue
             if line not in urls:
                 urls.add(line)
-                findings.append(build_finding(
-                    title="Wayback Machine URL",
-                    severity="info",
-                    description=f"Discovered historical URL: {line}",
-                    evidence=line,
-                    tool="waybackurls",
-                    target=line,
-                ))
+                findings.append(
+                    build_finding(
+                        title="Wayback Machine URL",
+                        severity="info",
+                        description=f"Discovered historical URL: {line}",
+                        evidence=line,
+                        tool="waybackurls",
+                        target=line,
+                    )
+                )
         return findings

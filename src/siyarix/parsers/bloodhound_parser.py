@@ -63,15 +63,17 @@ class BloodhoundParser:
                             target = label
                             title = f"BloodHound: {obj_type} {label}"
                             desc = f"{obj_type}: {label} (ObjectId: {obj_id})"
-                        findings.append({
-                            "title": title,
-                            "severity": severity,
-                            "description": desc,
-                            "evidence": json.dumps(item, default=str),
-                            "tool": "bloodhound",
-                            "target": target,
-                            "timestamp": _now_iso(),
-                        })
+                        findings.append(
+                            {
+                                "title": title,
+                                "severity": severity,
+                                "description": desc,
+                                "evidence": json.dumps(item, default=str),
+                                "tool": "bloodhound",
+                                "target": target,
+                                "timestamp": _now_iso(),
+                            }
+                        )
                 continue
 
             data_type = obj.get("type", "")
@@ -85,15 +87,17 @@ class BloodhoundParser:
                 seen.add(dedup_key)
                 upn = props.get("userprincipalname", "")
                 enabled = props.get("enabled", True)
-                findings.append({
-                    "title": f"BloodHound: User {sam}",
-                    "severity": "info",
-                    "description": f"AD user: {sam}, UPN: {upn}, Enabled: {enabled}",
-                    "evidence": json.dumps(props, default=str),
-                    "tool": "bloodhound",
-                    "target": sam,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"BloodHound: User {sam}",
+                        "severity": "info",
+                        "description": f"AD user: {sam}, UPN: {upn}, Enabled: {enabled}",
+                        "evidence": json.dumps(props, default=str),
+                        "tool": "bloodhound",
+                        "target": sam,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
             elif data_type == "computer" or data_type == "Computer":
                 name = props.get("name", "unknown")
@@ -103,15 +107,17 @@ class BloodhoundParser:
                 seen.add(dedup_key)
                 os = props.get("operatingsystem", "")
                 sam = props.get("samaccountname", "")
-                findings.append({
-                    "title": f"BloodHound: Computer {name}",
-                    "severity": "info",
-                    "description": f"Computer: {name}, OS: {os}, SAM: {sam}",
-                    "evidence": json.dumps(props, default=str),
-                    "tool": "bloodhound",
-                    "target": name,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"BloodHound: Computer {name}",
+                        "severity": "info",
+                        "description": f"Computer: {name}, OS: {os}, SAM: {sam}",
+                        "evidence": json.dumps(props, default=str),
+                        "tool": "bloodhound",
+                        "target": name,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
             elif data_type == "group" or data_type == "Group":
                 name = props.get("name", "unknown")
@@ -119,15 +125,17 @@ class BloodhoundParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"BloodHound: Group {name}",
-                    "severity": "info",
-                    "description": f"AD group: {name}",
-                    "evidence": json.dumps(props, default=str),
-                    "tool": "bloodhound",
-                    "target": name,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"BloodHound: Group {name}",
+                        "severity": "info",
+                        "description": f"AD group: {name}",
+                        "evidence": json.dumps(props, default=str),
+                        "tool": "bloodhound",
+                        "target": name,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
             elif data_type == "session" or data_type == "Session":
                 user = props.get("user", "")
@@ -136,15 +144,17 @@ class BloodhoundParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"BloodHound: Session {user} -> {computer}",
-                    "severity": "medium",
-                    "description": f"User {user} has an active session on {computer}",
-                    "evidence": json.dumps(props, default=str),
-                    "tool": "bloodhound",
-                    "target": computer,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"BloodHound: Session {user} -> {computer}",
+                        "severity": "medium",
+                        "description": f"User {user} has an active session on {computer}",
+                        "evidence": json.dumps(props, default=str),
+                        "tool": "bloodhound",
+                        "target": computer,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
             elif data_type == "acl" or data_type == "Acl" or data_type == "ACE":
                 principal = props.get("principal", "unknown")
@@ -153,14 +163,16 @@ class BloodhoundParser:
                 if dedup_key in seen:
                     continue
                 seen.add(dedup_key)
-                findings.append({
-                    "title": f"BloodHound: ACL {right} granted to {principal}",
-                    "severity": "medium",
-                    "description": f"Principal {principal} has {right} ACE",
-                    "evidence": json.dumps(props, default=str),
-                    "tool": "bloodhound",
-                    "target": principal,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"BloodHound: ACL {right} granted to {principal}",
+                        "severity": "medium",
+                        "description": f"Principal {principal} has {right} ACE",
+                        "evidence": json.dumps(props, default=str),
+                        "tool": "bloodhound",
+                        "target": principal,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

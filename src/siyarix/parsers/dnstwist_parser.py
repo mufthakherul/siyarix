@@ -34,7 +34,7 @@ class DnstwistParser:
                     dns_a = entry.get("dns-a", [])
                     dns_aaaa = entry.get("dns-aaaa", [])
                     mx = entry.get("dns-mx", [])
-                    ns = entry.get("dns-ns", [])
+                    entry.get("dns-ns", [])
                     score = entry.get("score", 0)
 
                     ips = []
@@ -57,15 +57,17 @@ class DnstwistParser:
                     if mx:
                         evidence += f" | MX: {mx}"
 
-                    findings.append({
-                        "title": f"Typosquat domain: {display_name}",
-                        "severity": severity,
-                        "description": desc,
-                        "evidence": evidence,
-                        "tool": "dnstwist",
-                        "target": domain,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"Typosquat domain: {display_name}",
+                            "severity": severity,
+                            "description": desc,
+                            "evidence": evidence,
+                            "tool": "dnstwist",
+                            "target": domain,
+                            "timestamp": _now_iso(),
+                        }
+                    )
             return findings
         except json.JSONDecodeError:
             pass
@@ -80,14 +82,16 @@ class DnstwistParser:
             if domain in seen:
                 continue
             seen.add(domain)
-            findings.append({
-                "title": f"Typosquat domain: {domain[:60]}",
-                "severity": "info",
-                "description": f"dnstwist discovered potential typosquat domain: {line}",
-                "evidence": line,
-                "tool": "dnstwist",
-                "target": "unknown",
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"Typosquat domain: {domain[:60]}",
+                    "severity": "info",
+                    "description": f"dnstwist discovered potential typosquat domain: {line}",
+                    "evidence": line,
+                    "tool": "dnstwist",
+                    "target": "unknown",
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

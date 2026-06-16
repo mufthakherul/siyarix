@@ -94,7 +94,7 @@ class XsstrikeParser:
                 continue
 
             m = _SUMMARY_RE.search(line)
-            summary_count = m.group(1) if m else None
+            m.group(1) if m else None
 
             m = _URL_RE.search(line)
             if m:
@@ -143,29 +143,33 @@ class XsstrikeParser:
                     if is_dom:
                         evidence_parts.append("DOM-based")
 
-                    findings.append({
-                        "title": f"XSS vulnerability ({xss_type})",
-                        "severity": severity,
-                        "description": f"XSStrike identified {xss_type} XSS on parameter {current_param} at {current_url}",
-                        "evidence": " | ".join(evidence_parts),
-                        "tool": "xsstrike",
-                        "target": current_url,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": f"XSS vulnerability ({xss_type})",
+                            "severity": severity,
+                            "description": f"XSStrike identified {xss_type} XSS on parameter {current_param} at {current_url}",
+                            "evidence": " | ".join(evidence_parts),
+                            "tool": "xsstrike",
+                            "target": current_url,
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
             if not _VULN_RE.search(line) and current_payload and current_url != "unknown":
                 key = f"payload:{current_url}:{current_param}:{current_payload[:50]}"
                 if key not in seen:
                     seen.add(key)
-                    findings.append({
-                        "title": "XSS payload generated",
-                        "severity": "info",
-                        "description": f"XSStrike generated payload for {current_url} param {current_param}",
-                        "evidence": f"Payload: {current_payload[:200]}",
-                        "tool": "xsstrike",
-                        "target": current_url,
-                        "timestamp": _now_iso(),
-                    })
+                    findings.append(
+                        {
+                            "title": "XSS payload generated",
+                            "severity": "info",
+                            "description": f"XSStrike generated payload for {current_url} param {current_param}",
+                            "evidence": f"Payload: {current_payload[:200]}",
+                            "tool": "xsstrike",
+                            "target": current_url,
+                            "timestamp": _now_iso(),
+                        }
+                    )
 
         return findings
 
@@ -205,28 +209,32 @@ class XsstrikeParser:
                 if is_dom:
                     evidence_parts.append("DOM-based")
 
-                findings.append({
-                    "title": f"XSS vulnerability ({label})",
-                    "severity": severity,
-                    "description": f"XSStrike identified {label} XSS on parameter {param} at {url}",
-                    "evidence": " | ".join(evidence_parts),
-                    "tool": "xsstrike",
-                    "target": url,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"XSS vulnerability ({label})",
+                        "severity": severity,
+                        "description": f"XSStrike identified {label} XSS on parameter {param} at {url}",
+                        "evidence": " | ".join(evidence_parts),
+                        "tool": "xsstrike",
+                        "target": url,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         if payload:
             key = f"payload:{url}:{param}:{payload[:50]}"
             if key not in seen:
                 seen.add(key)
-                findings.append({
-                    "title": "XSS payload generated",
-                    "severity": "info",
-                    "description": f"XSStrike generated payload for {url} param {param}",
-                    "evidence": f"Payload: {payload[:200]}",
-                    "tool": "xsstrike",
-                    "target": url,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "XSS payload generated",
+                        "severity": "info",
+                        "description": f"XSStrike generated payload for {url} param {param}",
+                        "evidence": f"Payload: {payload[:200]}",
+                        "tool": "xsstrike",
+                        "target": url,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

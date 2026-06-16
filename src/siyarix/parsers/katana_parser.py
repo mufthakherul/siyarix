@@ -55,14 +55,16 @@ class KatanaParser:
             elif status_code and int(status_code) >= 500:
                 severity = "high"
 
-            findings.append({
-                "title": f"Katana: {url}",
-                "severity": severity,
-                "description": description,
-                "evidence": f"URL: {url}, Source: {source}, Status: {status_code}, Type: {content_type}",
-                "tool": "katana",
-                "target": url_path,
-                "timestamp": _now_iso(),
-            })
+            findings.append(
+                {
+                    "title": f"Katana: {url}",
+                    "severity": severity,
+                    "description": description,
+                    "evidence": f"URL: {url}, Source: {source}, Status: {status_code}, Type: {content_type}",
+                    "tool": "katana",
+                    "target": url_path,
+                    "timestamp": _now_iso(),
+                }
+            )
 
         return findings

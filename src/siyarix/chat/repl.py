@@ -75,10 +75,38 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         )
         self._usage_tracker = UsageTracker(path=os.path.join(state_dir, "usage.json"))
         from ..output import OutputEngine
-
         self._output = OutputEngine()
         self._con = self._output.console
+        
+        
+        # --- Full Screen UI Engine State ---
+        import io
+        from prompt_toolkit.buffer import Buffer
+        self._ui_history_ansi = ""
+        self._ui_live_ansi = ""
+        self._ui_buf = io.StringIO()
+        self._ui_history_buffer = Buffer(read_only=True)
+        
+        # Intercept globals
+        console.file = self._ui_buf
+        console._force_terminal = True
+        self._con.file = self._ui_buf
+        self._con._force_terminal = True
+        # -----------------------------------
+        
         self._validate_provider_config_on_startup()
+
+    def _ui_flush(self) -> None:
+        """Drain the intercepted rich output into the history ANSI buffer."""
+        text = self._ui_buf.getvalue()
+        if text:
+            self._ui_history_ansi += text
+            self._ui_buf.truncate(0)
+            self._ui_buf.seek(0)
+            from prompt_toolkit.application.current import get_app
+            app = get_app()
+            if app and app.is_running:
+                app.invalidate()
 
     def _validate_provider_config_on_startup(self) -> None:
         """Check configured provider has valid API key / SDK / endpoint at startup."""
@@ -157,10 +185,17 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         self._print_welcome()
         asyncio.run(self._repl_loop())
 
+    async def _ui_flusher_task(self) -> None:
+        while self._running:
+            self._ui_flush()
+            await asyncio.sleep(0.05)
+
     async def _repl_loop(self) -> None:
         """Main async REPL loop."""
+        self._flusher = asyncio.create_task(self._ui_flusher_task())
         while self._running:
             try:
+                self._ui_flush()
                 user_input = await self._prompt_async()
                 if not user_input:
                     if self._esc_press_count > 0:
@@ -268,7 +303,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 header_html = HTML(
                     f'<style bg="ansiblack"> '
                     f'<style fg="ansiwhite">  █▓▒░ </style>'
-                    f'<style fg="ansiwhite" bold>SIYARIX ADVANCED ORCHESTRATOR</style>'
+                    f'<style fg="ansiwhite" bold>SIYARIX</style>'
                     f'<style fg="green"> v{_ver}</style>'
                     f'<style fg="ansiwhite"> ░▒▓█ </style>'
                     f'<style fg="bright_black" italic>  — terminal agent for cyber-security</style>'
@@ -276,6 +311,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 )
 
                 session: PromptSession = PromptSession()
+                session.app.full_screen = True
                 _orig_create = session._create_layout
 
                 def _patched_create(self_obj: Any) -> PTLayout:
@@ -289,7 +325,13 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                         ),
                         filter=Condition(lambda: True),
                     )
-                    return PTLayout(HSplit([top_bar, orig.container]))
+                    from prompt_toolkit.formatted_text import ANSI
+                    history_win = Window(
+                        FormattedTextControl(lambda: ANSI(self._ui_history_ansi + self._ui_live_ansi)),
+                        wrap_lines=True,
+                        always_hide_cursor=True
+                    )
+                    return PTLayout(HSplit([top_bar, history_win, orig.container]))
 
                 import types
                 session._create_layout = types.MethodType(_patched_create, session)  # type: ignore
@@ -622,8 +664,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
         Returns the clean response text (JSON wrapper stripped if present).
         """
-        from rich.live import Live
-
         if not provider_name or not api_key:
             prov_name, api_key = self._resolve_provider()
             if not prov_name or not api_key:
@@ -635,26 +675,37 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         gen = await llm_fn(system_prompt, user_prompt, stream=True, history=history)
         full_text = ""
         syntax_theme = self._settings.get("syntax_theme") or "monokai"
-        md = Markdown("", code_theme=syntax_theme)
-        panel = Panel(
-            md,
-            title="[bold green]◆ Siyarix[/bold green]",
-            border_style="green",
-            padding=(0, 2),
-        )
-        with Live(panel, refresh_per_second=12, transient=False) as live:
-            async for token in gen:
-                full_text += token
-                display_text = self._strip_json_wrapper(full_text)
-                md = Markdown(display_text, code_theme=syntax_theme)
-                panel = Panel(
-                    md,
-                    title="[bold green]◆ Siyarix[/bold green]",
-                    border_style="green",
-                    padding=(0, 2),
-                )
-                live.update(panel)
-        console.print()
+        
+        from prompt_toolkit.application.current import get_app
+
+        async for token in gen:
+            full_text += token
+            display_text = self._strip_json_wrapper(full_text)
+            md = Markdown(display_text, code_theme=syntax_theme)
+            panel = Panel(
+                md,
+                title="[bold green]◆ Siyarix[/bold green]",
+                border_style="green",
+                padding=(0, 2),
+            )
+            # Temporarily redirect to string buffer to get ANSI
+            import io
+            buf = io.StringIO()
+            from rich.console import Console
+            tmp_con = Console(file=buf, force_terminal=True, color_system="truecolor", width=self._con.size.width)
+            tmp_con.print(panel)
+            self._ui_live_ansi = buf.getvalue()
+            app = get_app()
+            if app and app.is_running:
+                app.invalidate()
+                
+        # Finalize
+        self._ui_history_ansi += self._ui_live_ansi
+        self._ui_live_ansi = ""
+        app = get_app()
+        if app and app.is_running:
+            app.invalidate()
+            
         return self._strip_json_wrapper(full_text)
 
     def _print_plan(self, plan: "Any") -> None:  # ExecutionPlan

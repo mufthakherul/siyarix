@@ -21,6 +21,7 @@ def _get_async_executor() -> Any:
     global _ASYNC_EXECUTOR
     if _ASYNC_EXECUTOR is None:
         from concurrent.futures import ThreadPoolExecutor
+
         _ASYNC_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="offline_store")
     return _ASYNC_EXECUTOR
 
@@ -146,7 +147,10 @@ class OfflineStore:
         return await loop.run_in_executor(
             _get_async_executor(),
             self.save_scan,
-            target, findings, mode, plan_id,
+            target,
+            findings,
+            mode,
+            plan_id,
         )
 
     def save_scan(
@@ -196,10 +200,11 @@ class OfflineStore:
         plan_id: str = "",
     ) -> str:
         """Parse raw tool output and save it as a structured scan.
-        
+
         This wires the offline registry directly to the parser ecosystem.
         """
         from .parsers import ParserRegistry
+
         registry = ParserRegistry()
         registry.discover()
         findings = registry.parse(tool, raw_output)
@@ -217,18 +222,30 @@ class OfflineStore:
                 conn.execute(
                     "INSERT OR REPLACE INTO plans (plan_id, goal, mode, status, step_count, completed_steps, failed_steps, data_json) "
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    (plan_id, goal, mode, "completed", len(steps), completed, failed, json.dumps(steps)),
+                    (
+                        plan_id,
+                        goal,
+                        mode,
+                        "completed",
+                        len(steps),
+                        completed,
+                        failed,
+                        json.dumps(steps),
+                    ),
                 )
 
     def _hash_finding(self, r: sqlite3.Row) -> str:
         """Create a reproducible hash for a finding to track changes across scans."""
         import hashlib
+
         core_data = f"{r['tool']}|{r['title']}|{r['port']}|{r['service']}".encode("utf-8")
         return hashlib.sha256(core_data).hexdigest()
 
     async def diff_scans_async(self, scan_a_id: str, scan_b_id: str) -> dict[str, Any]:
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(_get_async_executor(), self.diff_scans, scan_a_id, scan_b_id)
+        return await loop.run_in_executor(
+            _get_async_executor(), self.diff_scans, scan_a_id, scan_b_id
+        )
 
     def diff_scans(self, scan_a_id: str, scan_b_id: str) -> dict[str, Any]:
         conn = self._conn()
@@ -236,30 +253,45 @@ class OfflineStore:
         b = conn.execute("SELECT * FROM scans WHERE scan_id = ?", (scan_b_id,)).fetchone()
         if not a or not b:
             missing = scan_a_id if not a else scan_b_id
-            return {"error": f"Scan {missing!r} not found", "summary": {"new": 0, "resolved": 0, "changed": 0}}
-        
-        findings_a = conn.execute("SELECT * FROM findings WHERE scan_id = ?", (scan_a_id,)).fetchall()
-        findings_b = conn.execute("SELECT * FROM findings WHERE scan_id = ?", (scan_b_id,)).fetchall()
-        
+            return {
+                "error": f"Scan {missing!r} not found",
+                "summary": {"new": 0, "resolved": 0, "changed": 0},
+            }
+
+        findings_a = conn.execute(
+            "SELECT * FROM findings WHERE scan_id = ?", (scan_a_id,)
+        ).fetchall()
+        findings_b = conn.execute(
+            "SELECT * FROM findings WHERE scan_id = ?", (scan_b_id,)
+        ).fetchall()
+
         map_a = {self._hash_finding(r): r for r in findings_a}
         map_b = {self._hash_finding(r): r for r in findings_b}
-        
+
         hashes_a = set(map_a.keys())
         hashes_b = set(map_b.keys())
-        
+
         new_hashes = hashes_b - hashes_a
         resolved_hashes = hashes_a - hashes_b
         common_hashes = hashes_a & hashes_b
-        
+
         changed = 0
         for h in common_hashes:
-            if map_a[h]["severity"] != map_b[h]["severity"] or map_a[h]["description"] != map_b[h]["description"] or map_a[h]["cvss_score"] != map_b[h]["cvss_score"]:
+            if (
+                map_a[h]["severity"] != map_b[h]["severity"]
+                or map_a[h]["description"] != map_b[h]["description"]
+                or map_a[h]["cvss_score"] != map_b[h]["cvss_score"]
+            ):
                 changed += 1
-                
+
         return {
             "scan_a": {"target": a["target"], "total": len(findings_a), "scan_id": scan_a_id},
             "scan_b": {"target": b["target"], "total": len(findings_b), "scan_id": scan_b_id},
-            "summary": {"new": len(new_hashes), "resolved": len(resolved_hashes), "changed": changed},
+            "summary": {
+                "new": len(new_hashes),
+                "resolved": len(resolved_hashes),
+                "changed": changed,
+            },
             "new_findings": [map_b[h]["title"] for h in list(new_hashes)[:20]],
             "resolved_findings": [map_a[h]["title"] for h in list(resolved_hashes)[:20]],
         }
@@ -275,9 +307,13 @@ class OfflineStore:
         row = conn.execute("SELECT plan_id FROM plans ORDER BY created_at DESC LIMIT 1").fetchone()
         return row["plan_id"] if row else ""
 
-    async def search_findings_async(self, severity: str = "critical", limit: int = 50) -> list[dict[str, Any]]:
+    async def search_findings_async(
+        self, severity: str = "critical", limit: int = 50
+    ) -> list[dict[str, Any]]:
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(_get_async_executor(), self.search_findings, severity, limit)
+        return await loop.run_in_executor(
+            _get_async_executor(), self.search_findings, severity, limit
+        )
 
     def search_findings(self, severity: str = "critical", limit: int = 50) -> list[dict[str, Any]]:
         conn = self._conn()
@@ -296,7 +332,15 @@ class OfflineStore:
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(_get_async_executor(), self.search_findings_full, severity, tool, target, search_text, limit)
+        return await loop.run_in_executor(
+            _get_async_executor(),
+            self.search_findings_full,
+            severity,
+            tool,
+            target,
+            search_text,
+            limit,
+        )
 
     def search_findings_full(
         self,
@@ -319,13 +363,15 @@ class OfflineStore:
             conditions.append("target LIKE ?")
             params.append(f"%{target}%")
         if search_text:
-            conditions.append("(title LIKE ? OR description LIKE ? OR evidence LIKE ? OR service LIKE ?)")
+            conditions.append(
+                "(title LIKE ? OR description LIKE ? OR evidence LIKE ? OR service LIKE ?)"
+            )
             params.extend([f"%{search_text}%"] * 4)
-        where = " AND ".join(conditions) if conditions else "1=1"
-        rows = conn.execute(
-            f"SELECT * FROM findings WHERE {where} ORDER BY created_at DESC LIMIT ?",
-            (*params, limit),
-        ).fetchall()
+        query = "SELECT * FROM findings"
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY created_at DESC LIMIT ?"
+        rows = conn.execute(query, (*params, limit)).fetchall()
         return [dict(r) for r in rows]
 
     async def list_scans_async(self, limit: int = 20, offset: int = 0) -> list[dict[str, Any]]:
@@ -352,9 +398,8 @@ class OfflineStore:
             return None
         result = dict(row)
         result["findings"] = [
-            dict(f) for f in conn.execute(
-                "SELECT * FROM findings WHERE scan_id = ?", (scan_id,)
-            ).fetchall()
+            dict(f)
+            for f in conn.execute("SELECT * FROM findings WHERE scan_id = ?", (scan_id,)).fetchall()
         ]
         return result
 
@@ -371,7 +416,12 @@ class OfflineStore:
         data = []
         for s in scans:
             scan_dict = dict(s)
-            scan_dict["findings"] = [dict(f) for f in conn.execute("SELECT * FROM findings WHERE scan_id = ?", (s["scan_id"],)).fetchall()]
+            scan_dict["findings"] = [
+                dict(f)
+                for f in conn.execute(
+                    "SELECT * FROM findings WHERE scan_id = ?", (s["scan_id"],)
+                ).fetchall()
+            ]
             data.append(scan_dict)
         path.write_text(json.dumps(data, indent=2))
         return len(data)
@@ -385,23 +435,45 @@ class OfflineStore:
             with self._conn() as conn:
                 for scan in data:
                     scan_id = scan["scan_id"]
-                    existing = conn.execute("SELECT 1 FROM scans WHERE scan_id = ?", (scan_id,)).fetchone()
+                    existing = conn.execute(
+                        "SELECT 1 FROM scans WHERE scan_id = ?", (scan_id,)
+                    ).fetchone()
                     if not existing:
                         conn.execute(
                             "INSERT INTO scans (scan_id, target, mode, plan_id, started_at, completed_at, tool_count) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                            (scan_id, scan.get("target", ""), scan.get("mode", ""), scan.get("plan_id", ""), scan.get("started_at", ""), scan.get("completed_at", ""), scan.get("tool_count", 0)),
+                            (
+                                scan_id,
+                                scan.get("target", ""),
+                                scan.get("mode", ""),
+                                scan.get("plan_id", ""),
+                                scan.get("started_at", ""),
+                                scan.get("completed_at", ""),
+                                scan.get("tool_count", 0),
+                            ),
                         )
                         for f in scan.get("findings", []):
                             conn.execute(
                                 "INSERT INTO findings (scan_id, tool, tool_version, target, severity, title, description, evidence, port, service, technology, cvss_score, data_json) "
                                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                                 (
-                                    scan_id, f.get("tool", ""), f.get("tool_version", ""), f.get("target", ""), f.get("severity", ""), f.get("title", ""), f.get("description", ""), f.get("evidence", ""),
-                                    f.get("port", 0), f.get("service", ""), f.get("technology", ""), f.get("cvss_score", 0.0), f.get("data_json", "{}")
-                                )
+                                    scan_id,
+                                    f.get("tool", ""),
+                                    f.get("tool_version", ""),
+                                    f.get("target", ""),
+                                    f.get("severity", ""),
+                                    f.get("title", ""),
+                                    f.get("description", ""),
+                                    f.get("evidence", ""),
+                                    f.get("port", 0),
+                                    f.get("service", ""),
+                                    f.get("technology", ""),
+                                    f.get("cvss_score", 0.0),
+                                    f.get("data_json", "{}"),
+                                ),
                             )
                         count += 1
         return count
+
 
 __all__ = [
     "OfflineStore",

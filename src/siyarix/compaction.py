@@ -1,6 +1,7 @@
 """Context compaction system — manages token budgets, summarization, and pruning.
 
-OpenClaw pattern: src/context-engine/, src/agents/compaction*.ts
+Adapted from production-grade context-engine patterns: iterative chunk
+summarization, progressive fallback, and sliding-window pruning.
 """
 
 from __future__ import annotations
@@ -118,7 +119,8 @@ async def summarize_chunks(
 ) -> str:
     """Summarize chunks iteratively using an LLM.
 
-    OpenClaw: src/agents/compaction.ts summarizeChunks()
+    Iterative chunk summarization: each chunk is fed to the LLM in turn
+    and a running summary is accumulated across all chunks.
     """
     summaries: list[str] = []
 
@@ -157,9 +159,8 @@ async def summarize_with_fallback(
 ) -> tuple[str, bool]:
     """Summarize messages with progressive fallback.
 
-    OpenClaw: src/agents/compaction.ts summarizeWithFallback()
-
-    Returns (summary, success).
+    Progressive fallback: tries full summarisation first; if the budget
+    is exceeded, splits into halves and recurses. Returns (summary, success).
     """
     if not messages:
         return "", True
@@ -239,8 +240,6 @@ class ContextEngineRuntime:
 
 class CompactionEngine:
     """Manages context window budgeting, pruning, and summarization.
-
-    OpenClaw pattern: ContextEngine interface (src/context-engine/types.ts)
 
     Full lifecycle hooks (all optional):
       bootstrap()   — called when context is first initialised

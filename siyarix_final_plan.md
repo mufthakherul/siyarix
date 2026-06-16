@@ -14,10 +14,10 @@ After reading every core module, the actual architecture is more sophisticated t
 |-----------|-----------|---------------|
 | AI providers | "10 adapters" | **25 provider profiles** (including xai, zai, cerebras, minimax, moonshot, nvidia, fireworks, huggingface, llamacpp, localai, vllm, opencode_go) |
 | Routing modes | 3 modes | **4 modes**: REGISTRY, AUTONOMOUS, HYBRID, INTERACTIVE |
-| Tool call repair | Not documented | **Full OpenClaw-pattern repair engine** with bracket + XML syntax, Levenshtein fuzzy matching, promote-to-native pipeline |
+| Tool call repair | Not documented | **Full bracket + XML syntax tool-call repair engine** with Levenshtein fuzzy matching, promote-to-native pipeline |
 | Provider failover | "session-disabled tracking" | **8-reason classified failover** (AUTH, RATE_LIMIT, BILLING, TIMEOUT, SERVER_ERROR, CONTEXT_OVERFLOW, MODEL_NOT_FOUND, UNKNOWN) with exponential backoff (30s→60s→300s) |
 | Knowledge graph | "in-memory only" | **JSON persistence already built** — `save_json()` / `load_json()` exist in `knowledge_graph.py` — just not wired to startup/shutdown |
-| Event stream | Not documented | **Full typed OpenClaw event stream** (text_start/delta/end, thinking_start/delta/end, toolcall_start/delta/end) |
+| Event stream | Not documented | **Full typed event stream** (text_start/delta/end, thinking_start/delta/end, toolcall_start/delta/end) |
 | Execution engine | "sequential" | **DAG-aware parallel execution** via `AsyncWorkerPool` — already implemented |
 | Safety gate | "38 patterns" | **Full two-stage gate**: syntax check → `DangerAnalyzer` with 45+ patterns (Linux + Windows), 5-severity rating |
 | Cargo/Rust | Undocumented | **`packages/rust_parsers/`** — high-performance tool output parsers, `lib.rs` present |

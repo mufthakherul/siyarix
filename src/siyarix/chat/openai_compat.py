@@ -1,6 +1,5 @@
 """Unified OpenAI-compatible adapter — handles all OpenAI API-compatible providers.
 
-OpenClaw pattern: a single `openai-completions.ts` shared by ~15 providers.
 Provider-specific behavior is auto-detected via `detect_compat()` reading the
 provider name and base URL, emitting compat flags (thinking format, max tokens
 field, role support, etc.).
@@ -29,7 +28,9 @@ from ..exceptions import LLMProviderError
 class OpenAICompat:
     """Auto-detected compatibility flags for an OpenAI-compatible provider.
 
-    Mirrors OpenClaw's ``OpenAICompletionsCompat`` interface.
+    Flags capture per-provider quirks: thinking format location (choices vs.
+    dedicated field), max_tokens field name, role broadcast support, tool
+    prefix stripping, and Pinecone vector-store header injection.
     """
 
     # ── provider identity ──
@@ -162,7 +163,7 @@ MODEL_KEYS: dict[str, str] = {
 
 
 # ── detect_compat(): auto-detect provider flags ────────────────────────
-# Mirrors OpenClaw's detectCompat() in openai-completions.ts
+# Reads provider name + base URL and emits compat flags for that provider.
 
 
 def detect_compat(provider: str, base_url: str) -> OpenAICompat:
@@ -505,7 +506,9 @@ async def _gemini_stream(
 
 
 # ── Unified streaming function ─────────────────────────────────────────
-# Mirrors OpenClaw's openai-completions.ts streamOpenAICompletions()
+# Single streaming entry-point that handles chunk buffering, usage
+# accumulation, finish-reason detection, and stream cleanup across all
+# OpenAI-compatible providers.
 
 
 async def openai_stream(

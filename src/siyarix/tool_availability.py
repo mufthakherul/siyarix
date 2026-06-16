@@ -1,6 +1,5 @@
 """Tool availability evaluation — determine if tools are available before execution.
 
-OpenClaw pattern: src/tools/availability.ts
 Evaluates availability signals (always, auth, config, env, context) and
 Boolean expressions (allOf, anyOf) to determine if a tool can run.
 """

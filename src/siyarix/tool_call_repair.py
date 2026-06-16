@@ -1,7 +1,7 @@
 """Tool call repair — parse plain-text tool calls from model output.
 
-OpenClaw pattern: packages/tool-call-repair/
-Handles bracket syntax [tool_name]\n{args} and XML-ish syntax <function=name>.
+Handles bracket syntax [tool_name]{args} and XML-ish syntax <function=name>
+to reconstruct structured tool calls from models that output plain text.
 """
 
 from __future__ import annotations

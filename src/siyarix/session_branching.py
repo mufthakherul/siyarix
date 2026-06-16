@@ -1,6 +1,7 @@
 """Session branching — JSONL tree format for conversation branches.
 
-OpenClaw pattern: session-manager.ts JSONL tree with id/parentId.
+Uses a JSONL tree structure with id/parentId fields to represent
+forked conversations, preserving the full ancestry chain.
 """
 
 from __future__ import annotations

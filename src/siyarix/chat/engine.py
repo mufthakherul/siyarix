@@ -545,8 +545,8 @@ class LLMEngineMixin:
                     )
 
         # Build call function for the provider.
-        # OpenClaw pattern: no separate ping — check reachability via
-        # model listing, then proceed directly to the real chat request.
+        # No separate health ping — check reachability via model listing,
+        # then proceed directly to the real chat request.
         if api_key or provider_name in ("ollama", "lmstudio", "llamacpp", "vllm", "localai"):
             raw_llm_call = self._make_llm_call(provider_name, api_key or "")
 

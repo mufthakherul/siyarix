@@ -1,6 +1,5 @@
 """Granular assistant message event stream.
 
-OpenClaw pattern: AssistantMessageEventStream in llm/utils/event-stream.ts
 Provides typed events for each content block lifecycle phase:
   text_start, text_delta, text_end
   thinking_start, thinking_delta, thinking_end

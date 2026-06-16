@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class ProviderStateManager:
     """Persists provider cooldown/failure state across restarts.
 
-    Enhanced with OpenClaw patterns:
+    Features:
       - Exponential backoff cooldown (30s → 1min → 5min)
       - Per-reason cooldown tracking
       - Skip-known-bad cache per session
@@ -68,7 +68,8 @@ class ProviderStateManager:
     def _compute_cooldown(self, provider: str) -> float:
         """Exponential backoff: 30s → 60s → 300s based on failure count.
 
-        OpenClaw pattern: calculateAuthProfileCooldownMs().
+        Steps through COOLDOWN_STEPS by the consecutive failure count,
+        clamped to MAX_COOLDOWN.
         """
         count = self._failure_counts.get(provider, 0)
         step_idx = min(count - 1, len(self.COOLDOWN_STEPS) - 1)
@@ -128,7 +129,8 @@ class ProviderStateManager:
     def mark_skip_candidate(self, session_id: str, provider: str, model: str) -> None:
         """Skip-known-bad cache: remember a failing (provider, model) pair.
 
-        OpenClaw pattern: fallback-skip-cache.ts.
+        Each pair is cached for 5 minutes to avoid retrying recently failed
+        endpoints during the same session.
         """
         if session_id not in self._skip_cache:
             self._skip_cache[session_id] = {}
@@ -149,7 +151,8 @@ class ProviderStateManager:
     def get_available_providers(self, preferred: list[str] | None = None) -> list[str]:
         """Return list of non-disabled providers, with preferred ones first.
 
-        OpenClaw pattern: resolveModelCandidateChain() simplified.
+        Filters out disabled/cooldown providers and orders the result so that
+        preferred providers come first, followed by the rest alphabetically.
         """
         available = [
             p

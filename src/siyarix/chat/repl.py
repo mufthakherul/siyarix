@@ -265,8 +265,8 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 warnings.simplefilter("ignore", RuntimeWarning)
                 from prompt_toolkit.formatted_text import HTML
                 from prompt_toolkit.patch_stdout import patch_stdout
-                session: PromptSession = PromptSession()
-                
+                session = PromptSession(bottom_toolbar=get_bottom_toolbar)
+
                 pt_prompt = HTML('<style fg="ansicyan"><b>❯ </b></style><style fg="ansigray">Type your message or @path/to/file: </style>')
 
                 with patch_stdout():
@@ -275,7 +275,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                             pt_prompt,
                             key_bindings=esc_bindings,
                             completer=SmartAutocomplete(self._session),
-                            bottom_toolbar=get_bottom_toolbar,
                         )
                     ).strip()
         except KeyboardInterrupt:
@@ -285,6 +284,8 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             console.print(f"[red]prompt_toolkit failed: {exc}[/red]")
             console.print(traceback.format_exc())
             logger.debug("prompt_toolkit failed: %s", exc)
+            # Print toolbar info so the user still sees status even in fallback
+            console.print(f"  [dim]{provider} · {theme} · {self._mode}{target_str}  · ? for shortcuts · /help for all commands[/dim]")
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
                 answer = Prompt.ask(prompt_label, default="").strip()

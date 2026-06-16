@@ -280,15 +280,13 @@ jobs:
 
       - name: Install all linters
         run: |
-          pip install ruff pylint flake8 mypy isort
+          pip install ruff mypy
 
       - name: Run comprehensive lint
         run: |
-          echo "=== Ruff ===" && ruff check src tests . --output-format=concise || true
-          echo "=== Pylint ===" && pylint src --output-format=parseable || true
-          echo "=== Flake8 ===" && flake8 src tests --count || true
-          echo "=== MyPy ===" && mypy src --ignore-missing-imports --no-warn-unused-ignores --follow-imports=silent || true
-          echo "=== isort ===" && isort --check-only src tests || true
+          echo "=== Ruff Lint ===" && ruff check src tests || true
+          echo "=== Ruff Format ===" && ruff format --check src tests || true
+          echo "=== MyPy ===" && mypy src tests || true
 
   # Notify on failure
   notify-failure:

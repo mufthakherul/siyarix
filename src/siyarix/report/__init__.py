@@ -34,6 +34,29 @@ class ReportEngine:
     def __init__(self, cvss_scorer: CVSSScorer | None = None) -> None:
         self._cvss = cvss_scorer or CVSSScorer()
 
+    def build_report_from_kg(
+        self,
+        knowledge_graph: Any,
+        target: str = "",
+        config: ReportConfig | None = None,
+    ) -> Report:
+        """Build a report from a KnowledgeGraph by extracting finding nodes."""
+        findings = []
+        for node_id, node in knowledge_graph.nodes.items():
+            if node.properties.get("category") == "finding":
+                findings.append({
+                    "severity": node.properties.get("severity", "info"),
+                    "type": node.properties.get("type", "unknown"),
+                    "target": node.properties.get("target", ""),
+                    "description": node.label,
+                    "evidence": node.properties.get("evidence", ""),
+                    "port": node.properties.get("port"),
+                    "service": node.properties.get("service"),
+                    "cve": node.properties.get("cve"),
+                    "cvss_score": node.properties.get("cvss_score"),
+                })
+        return self.build_report(findings, target, config)
+
     def build_report(
         self,
         findings: list[dict[str, Any]],
@@ -284,7 +307,7 @@ class ReportEngine:
 
     def _render_html(self, report: Report) -> str:
         """Renders a premium, interactive HTML Dashboard."""
-        
+
         # --- 1. CSS Styles ---
         css = """
         :root {
@@ -365,7 +388,7 @@ class ReportEngine:
         th, td { padding: 1rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
         th { background: rgba(0,0,0,0.3); color: var(--text-muted); font-weight: 500; }
         """
-        
+
         # --- 2. JavaScript ---
         js = """
         function filterFindings(sev) {
@@ -381,10 +404,10 @@ class ReportEngine:
             });
         }
         """
-        
+
         # --- 3. HTML Generation ---
         counts = self._count_severities(report.findings)
-        
+
         html = [
             "<!DOCTYPE html><html lang='en'>",
             "<head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>",
@@ -392,78 +415,98 @@ class ReportEngine:
             "<link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=Fira+Code&display=swap' rel='stylesheet'>",
             f"<style>{css}</style>",
             f"<script>{js}</script>",
-            "</head><body><div class='dashboard'>"
+            "</head><body><div class='dashboard'>",
         ]
-        
+
         # Header
-        html.extend([
-            "<div class='header'>",
-            f"<h1>{report.config.title}</h1>",
-            "<div class='meta-tags'>",
-            f"<span>Target: <b>{report.metadata.get('target', 'N/A')}</b></span> | ",
-            f"<span>Generated: {report.generated_at}</span> | ",
-            f"<span>ID: {report.report_id}</span>",
-            "</div></div>"
-        ])
-        
+        html.extend(
+            [
+                "<div class='header'>",
+                f"<h1>{report.config.title}</h1>",
+                "<div class='meta-tags'>",
+                f"<span>Target: <b>{report.metadata.get('target', 'N/A')}</b></span> | ",
+                f"<span>Generated: {report.generated_at}</span> | ",
+                f"<span>ID: {report.report_id}</span>",
+                "</div></div>",
+            ]
+        )
+
         # Stats
-        html.extend([
-            "<div class='stats-grid'>",
-            f"<div class='stat-card'><div class='stat-val'>{len(report.findings)}</div><div class='stat-label'>Total Findings</div></div>",
-            f"<div class='stat-card'><div class='stat-val crit'>{counts.get('critical', 0)}</div><div class='stat-label'>Critical</div></div>",
-            f"<div class='stat-card'><div class='stat-val high'>{counts.get('high', 0)}</div><div class='stat-label'>High</div></div>",
-            f"<div class='stat-card'><div class='stat-val med'>{counts.get('medium', 0)}</div><div class='stat-label'>Medium</div></div>",
-            f"<div class='stat-card'><div class='stat-val low'>{counts.get('low', 0)}</div><div class='stat-label'>Low</div></div>",
-            "</div>"
-        ])
-        
+        html.extend(
+            [
+                "<div class='stats-grid'>",
+                f"<div class='stat-card'><div class='stat-val'>{len(report.findings)}</div><div class='stat-label'>Total Findings</div></div>",
+                f"<div class='stat-card'><div class='stat-val crit'>{counts.get('critical', 0)}</div><div class='stat-label'>Critical</div></div>",
+                f"<div class='stat-card'><div class='stat-val high'>{counts.get('high', 0)}</div><div class='stat-label'>High</div></div>",
+                f"<div class='stat-card'><div class='stat-val med'>{counts.get('medium', 0)}</div><div class='stat-label'>Medium</div></div>",
+                f"<div class='stat-card'><div class='stat-val low'>{counts.get('low', 0)}</div><div class='stat-label'>Low</div></div>",
+                "</div>",
+            ]
+        )
+
         # Filters
-        html.extend([
-            "<div class='filter-bar'>",
-            "<button class='filter-btn active' onclick=\"filterFindings('all')\">All Findings</button>",
-            "<button class='filter-btn' onclick=\"filterFindings('critical')\">Critical</button>",
-            "<button class='filter-btn' onclick=\"filterFindings('high')\">High</button>",
-            "<button class='filter-btn' onclick=\"filterFindings('medium')\">Medium</button>",
-            "<button class='filter-btn' onclick=\"filterFindings('low')\">Low</button>",
-            "<button class='filter-btn' onclick=\"filterFindings('info')\">Info</button>",
-            "</div>"
-        ])
-        
+        html.extend(
+            [
+                "<div class='filter-bar'>",
+                "<button class='filter-btn active' onclick=\"filterFindings('all')\">All Findings</button>",
+                "<button class='filter-btn' onclick=\"filterFindings('critical')\">Critical</button>",
+                "<button class='filter-btn' onclick=\"filterFindings('high')\">High</button>",
+                "<button class='filter-btn' onclick=\"filterFindings('medium')\">Medium</button>",
+                "<button class='filter-btn' onclick=\"filterFindings('low')\">Low</button>",
+                "<button class='filter-btn' onclick=\"filterFindings('info')\">Info</button>",
+                "</div>",
+            ]
+        )
+
         # Findings List
         html.append("<div class='findings-list'>")
         for f in report.findings:
-            sev = f.get('severity', 'info').lower()
-            html.extend([
-                f"<details class='finding-card {sev}'>",
-                f"<summary>{f.get('title', 'Unknown Finding')} <span class='badge' style='background: var(--{sev[:4]})'>{sev.upper()}</span></summary>",
-                "<div class='finding-details'>"
-            ])
-            
+            sev = f.get("severity", "info").lower()
+            html.extend(
+                [
+                    f"<details class='finding-card {sev}'>",
+                    f"<summary>{f.get('title', 'Unknown Finding')} <span class='badge' style='background: var(--{sev[:4]})'>{sev.upper()}</span></summary>",
+                    "<div class='finding-details'>",
+                ]
+            )
+
             # Details
-            html.append(f"<div class='detail-row'><span class='detail-label'>Description</span>{f.get('description', 'N/A')}</div>")
-            
-            if 'cvss' in f:
-                cv = f['cvss']
-                html.append(f"<div class='detail-row'><span class='detail-label'>CVSS Score</span>{cv.get('score')} ({cv.get('vector')})</div>")
-            
-            html.append(f"<div class='detail-row'><span class='detail-label'>Tool</span><code>{f.get('tool', 'N/A')}</code> targeting <code>{f.get('target', 'N/A')}</code></div>")
-            
-            if f.get('evidence'):
-                html.append(f"<div class='detail-row'><span class='detail-label'>Evidence Snapshot</span><pre>{f.get('evidence')}</pre></div>")
-                
+            html.append(
+                f"<div class='detail-row'><span class='detail-label'>Description</span>{f.get('description', 'N/A')}</div>"
+            )
+
+            if "cvss" in f:
+                cv = f["cvss"]
+                html.append(
+                    f"<div class='detail-row'><span class='detail-label'>CVSS Score</span>{cv.get('score')} ({cv.get('vector')})</div>"
+                )
+
+            html.append(
+                f"<div class='detail-row'><span class='detail-label'>Tool</span><code>{f.get('tool', 'N/A')}</code> targeting <code>{f.get('target', 'N/A')}</code></div>"
+            )
+
+            if f.get("evidence"):
+                html.append(
+                    f"<div class='detail-row'><span class='detail-label'>Evidence Snapshot</span><pre>{f.get('evidence')}</pre></div>"
+                )
+
             html.append("</div></details>")
-            
-        html.append("</div>") # End findings list
-        
+
+        html.append("</div>")  # End findings list
+
         # Appendix Table
-        html.extend([
-            "<h2 style='margin-top: 4rem; margin-bottom: 1rem;'>Raw Data Table</h2>",
-            "<table><thead><tr><th>Severity</th><th>Title</th><th>Tool</th><th>Target</th></tr></thead><tbody>"
-        ])
+        html.extend(
+            [
+                "<h2 style='margin-top: 4rem; margin-bottom: 1rem;'>Raw Data Table</h2>",
+                "<table><thead><tr><th>Severity</th><th>Title</th><th>Tool</th><th>Target</th></tr></thead><tbody>",
+            ]
+        )
         for f in report.findings:
-            html.append(f"<tr><td>{f.get('severity', 'info').upper()}</td><td>{f.get('title')}</td><td>{f.get('tool')}</td><td>{f.get('target')}</td></tr>")
+            html.append(
+                f"<tr><td>{f.get('severity', 'info').upper()}</td><td>{f.get('title')}</td><td>{f.get('tool')}</td><td>{f.get('target')}</td></tr>"
+            )
         html.append("</tbody></table>")
-        
+
         html.append("</div></body></html>")
         return "".join(html)
 

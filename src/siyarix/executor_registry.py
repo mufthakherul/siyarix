@@ -7,12 +7,12 @@ import asyncio
 import logging
 from typing import Any
 
-from .events import Event, EventType, get_event_bus
+from .events import Event, EventType
+from .exceptions import PermissionDeniedError, ToolExecutionError, ToolNotFoundError
 from .executor import BaseExecutor, StepExecutor
 from .models import ExecutionPlan, PlanStep, PlanStatus, StepStatus
 from .planner_registry import TOOL_ALTERNATIVES
-from .registry import RiskLevel, ToolRegistry
-from .worker_pool import AsyncWorkerPool
+from .registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +97,9 @@ class RegistryExecutor(BaseExecutor):
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 for i, res in enumerate(results):
                     if isinstance(res, BaseException):
-                        logger.error("Parallel step %s exception: %s", ready_steps[i].id, res, exc_info=res)
+                        logger.error(
+                            "Parallel step %s exception: %s", ready_steps[i].id, res, exc_info=res
+                        )
             else:
                 for s in ready_steps:
                     await self._execute_step(s, executor_fn)
@@ -113,7 +115,11 @@ class RegistryExecutor(BaseExecutor):
             Event(
                 type=EventType.PLAN_COMPLETE,
                 source="executor_registry",
-                data={"plan_id": plan.id, "status": plan.status.value, "progress": plan.progress_pct},
+                data={
+                    "plan_id": plan.id,
+                    "status": plan.status.value,
+                    "progress": plan.progress_pct,
+                },
             )
         )
         return plan
@@ -123,7 +129,11 @@ class RegistryExecutor(BaseExecutor):
             return
         step.status = StepStatus.RUNNING
         await self._event_bus.emit(
-            Event(type=EventType.PLAN_STEP_START, source="executor_registry", data={"step_id": step.id, "tool": step.tool})
+            Event(
+                type=EventType.PLAN_STEP_START,
+                source="executor_registry",
+                data={"step_id": step.id, "tool": step.tool},
+            )
         )
         if self._on_step_progress:
             self._on_step_progress(step)
@@ -139,13 +149,21 @@ class RegistryExecutor(BaseExecutor):
                 step.status = StepStatus.FAILED
                 self._tracker.record(step.tool, str(sorted(step.args.items())), False)
                 await self._event_bus.emit(
-                    Event(type=EventType.PLAN_STEP_FAILED, source="executor_registry", data={"step_id": step.id, "error": result.get("error", "")})
+                    Event(
+                        type=EventType.PLAN_STEP_FAILED,
+                        source="executor_registry",
+                        data={"step_id": step.id, "error": result.get("error", "")},
+                    )
                 )
             else:
                 step.status = StepStatus.COMPLETED
                 self._tracker.record(step.tool, str(sorted(step.args.items())), True)
                 await self._event_bus.emit(
-                    Event(type=EventType.PLAN_STEP_COMPLETE, source="executor_registry", data={"step_id": step.id, "duration_ms": step.duration_ms})
+                    Event(
+                        type=EventType.PLAN_STEP_COMPLETE,
+                        source="executor_registry",
+                        data={"step_id": step.id, "duration_ms": step.duration_ms},
+                    )
                 )
         except asyncio.TimeoutError:
             step.duration_ms = (__import__("time").monotonic() - start) * 1000
@@ -164,7 +182,9 @@ class RegistryExecutor(BaseExecutor):
         if self._on_step_progress:
             self._on_step_progress(step)
 
-    async def _try_execute(self, step: PlanStep, executor_fn: StepExecutor | None) -> dict[str, Any]:
+    async def _try_execute(
+        self, step: PlanStep, executor_fn: StepExecutor | None
+    ) -> dict[str, Any]:
         if executor_fn:
             return await executor_fn(step)
         if step.tool in self._custom_executors:
@@ -182,7 +202,14 @@ class RegistryExecutor(BaseExecutor):
         if guardrail and "BLOCKED" in guardrail:
             return {"status": "error", "error": guardrail}
 
-        result = await self._registry.execute(step.tool, **step.args)
+        try:
+            result = await self._registry.execute(step.tool, **step.args)
+        except ToolNotFoundError:
+            result = {"status": "error", "error": str(ToolNotFoundError), "tool": step.tool}
+        except ToolExecutionError as e:
+            result = {"status": "error", "error": str(e), "tool": step.tool}
+        except PermissionDeniedError:
+            raise
         result = await self._apply_dlp(result)
         if result.get("status") == "error":
             result = await self._handle_tool_error(step, result)
@@ -195,16 +222,25 @@ class RegistryExecutor(BaseExecutor):
         if any(x in err_msg for x in ["not found", "not recognized", "executable", "no such"]):
             try:
                 import sys as _sys
+
                 if _sys.stdout and _sys.stdout.isatty():
                     from rich.prompt import Confirm
                     from .tool_installer import ToolInstaller
-                    want = Confirm.ask(f"\n[yellow]Tool [cyan]{step.tool}[/cyan] is missing. Auto-install it?[/yellow]", default=True)
+
+                    want = Confirm.ask(
+                        f"\n[yellow]Tool [cyan]{step.tool}[/cyan] is missing. Auto-install it?[/yellow]",
+                        default=True,
+                    )
                     if want:
                         installer = ToolInstaller()
                         if installer.install_tool(step.tool):
                             from .tool_models import invalidate_which_cache
+
                             invalidate_which_cache()
-                            result = await self._registry.execute(step.tool, **step.args)
+                            try:
+                                result = await self._registry.execute(step.tool, **step.args)
+                            except (ToolNotFoundError, ToolExecutionError) as e:
+                                result = {"status": "error", "error": str(e), "tool": step.tool}
                             result = await self._apply_dlp(result)
             except Exception as exc:
                 logger.warning("Tool auto-install failed for %s: %s", step.tool, exc)
@@ -213,13 +249,18 @@ class RegistryExecutor(BaseExecutor):
     async def _try_alternatives(self, step: PlanStep, result: dict[str, Any]) -> dict[str, Any]:
         alt_tools = TOOL_ALTERNATIVES.get(step.tool, [])
         for alt in alt_tools:
-            if alt not in self._custom_executors and not (self._registry and self._registry.graph.get_tool(alt)):
+            if alt not in self._custom_executors and not (
+                self._registry and self._registry.graph.get_tool(alt)
+            ):
                 continue
             alt_args_key = str(sorted(step.args.items()))
             guardrail = self._tracker.record(alt, alt_args_key, False)
             if guardrail and "BLOCKED" in guardrail:
                 continue
-            alt_result = await self._registry.execute(alt, **step.args)
+            try:
+                alt_result = await self._registry.execute(alt, **step.args)
+            except (ToolNotFoundError, ToolExecutionError) as e:
+                alt_result = {"status": "error", "error": str(e), "tool": alt}
             if alt_result.get("status") != "error":
                 step.tool = alt
                 return alt_result
@@ -232,18 +273,28 @@ class RegistryExecutor(BaseExecutor):
             return await self.execute_plan(plan)
         try:
             from .workflow import WorkflowEngine, WorkflowStatus
+
             engine = WorkflowEngine()
             nodes = [
                 {
-                    "id": s.id, "name": s.tool or s.description,
-                    "step_fn": s.tool, "args": s.args, "timeout": s.timeout,
+                    "id": s.id,
+                    "name": s.tool or s.description,
+                    "step_fn": s.tool,
+                    "args": s.args,
+                    "timeout": s.timeout,
                 }
                 for s in plan.steps
             ]
             edges = [{"source": dep, "target": s.id} for s in plan.steps for dep in s.dependencies]
-            workflow = engine.create_workflow(name=plan.goal, description=plan.goal, nodes=nodes, edges=edges)
+            workflow = engine.create_workflow(
+                name=plan.goal, description=plan.goal, nodes=nodes, edges=edges
+            )
             wf_result = await engine.run_workflow(workflow)
-            plan.status = PlanStatus.COMPLETED if wf_result.status == WorkflowStatus.COMPLETED else PlanStatus.FAILED
+            plan.status = (
+                PlanStatus.COMPLETED
+                if wf_result.status == WorkflowStatus.COMPLETED
+                else PlanStatus.FAILED
+            )
         except Exception as exc:
             logger.warning("Workflow engine failed, falling back to sequential: %s", exc)
             plan = await self.execute_plan(plan)

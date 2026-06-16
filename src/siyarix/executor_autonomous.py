@@ -6,12 +6,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import shutil
 import time as _time
 from dataclasses import dataclass, field
 from typing import Any
 
-from .events import Event, EventType, get_event_bus
+from .events import Event, EventType
+from .exceptions import ToolExecutionError, ToolNotFoundError
 from .executor import BaseExecutor
 from .models import ExecutionPlan, PlanStep, PlanStatus, StepStatus
 
@@ -103,7 +103,11 @@ class AutonomousExecutor(BaseExecutor):
             Event(
                 type=EventType.PLAN_COMPLETE,
                 source="executor_autonomous",
-                data={"plan_id": plan.id, "status": plan.status.value, "progress": plan.progress_pct},
+                data={
+                    "plan_id": plan.id,
+                    "status": plan.status.value,
+                    "progress": plan.progress_pct,
+                },
             )
         )
         return plan
@@ -135,14 +139,20 @@ class AutonomousExecutor(BaseExecutor):
                 states.append(CommandResult(label="(no command)"))
         return states
 
-    async def _exec_one(self, step: PlanStep, state: CommandResult) -> tuple[PlanStep, dict[str, Any]]:
+    async def _exec_one(
+        self, step: PlanStep, state: CommandResult
+    ) -> tuple[PlanStep, dict[str, Any]]:
         """Execute a single plan step and capture output."""
         if not self._budget.consume_iteration():
             return step, {"status": "error", "error": "Budget exhausted"}
 
         step.status = StepStatus.RUNNING
         await self._event_bus.emit(
-            Event(type=EventType.PLAN_STEP_START, source="executor_autonomous", data={"step_id": step.id, "tool": step.tool or "shell"})
+            Event(
+                type=EventType.PLAN_STEP_START,
+                source="executor_autonomous",
+                data={"step_id": step.id, "tool": step.tool or "shell"},
+            )
         )
 
         if self._on_step_progress:
@@ -178,9 +188,21 @@ class AutonomousExecutor(BaseExecutor):
             state.done = True
 
             if success:
-                await self._event_bus.emit(Event(type=EventType.PLAN_STEP_COMPLETE, source="executor_autonomous", data={"step_id": step.id, "duration_ms": step.duration_ms}))
+                await self._event_bus.emit(
+                    Event(
+                        type=EventType.PLAN_STEP_COMPLETE,
+                        source="executor_autonomous",
+                        data={"step_id": step.id, "duration_ms": step.duration_ms},
+                    )
+                )
             else:
-                await self._event_bus.emit(Event(type=EventType.PLAN_STEP_FAILED, source="executor_autonomous", data={"step_id": step.id, "error": result.get("error", "")}))
+                await self._event_bus.emit(
+                    Event(
+                        type=EventType.PLAN_STEP_FAILED,
+                        source="executor_autonomous",
+                        data={"step_id": step.id, "error": result.get("error", "")},
+                    )
+                )
 
         except Exception as e:
             step.duration_ms = (_time.monotonic() - start) * 1000
@@ -201,11 +223,14 @@ class AutonomousExecutor(BaseExecutor):
         if handler:
             return await handler(step)
         if self._registry:
-            result = await self._registry.execute(step.tool, **step.args)
-            return self._try_parse_output(step, result)
+            try:
+                result = await self._registry.execute(step.tool, **step.args)
+                return self._try_parse_output(step, result)
+            except (ToolNotFoundError, ToolExecutionError) as e:
+                return {"status": "error", "error": str(e), "tool": step.tool}
         return {
-            "status": "error", 
-            "error": f"LLM generated step for tool '{step.tool}' without a raw shell command. Autonomous mode requires a 'command' field for execution."
+            "status": "error",
+            "error": f"LLM generated step for tool '{step.tool}' without a raw shell command. Autonomous mode requires a 'command' field for execution.",
         }
 
     async def _execute_shell_command(self, step: PlanStep, state: CommandResult) -> dict[str, Any]:
@@ -267,18 +292,28 @@ class AutonomousExecutor(BaseExecutor):
                     st = cmd_states[focus_idx]
                     elapsed = _time.time() - wave_start
                     icon = "·" if st.exit_code is None else ("✓" if not st.exit_code else "✗")
-                    border = "cyan" if st.exit_code is None else ("green" if not st.exit_code else "red")
-
-                    panel_content = "\n".join(st.lines[-200:]) if st.lines else (
-                        f"Running... ({elapsed:.1f}s)" if st.exit_code is None else "(no output)"
+                    border = (
+                        "cyan" if st.exit_code is None else ("green" if not st.exit_code else "red")
                     )
 
-                    live.update(RichPanel(
-                        panel_content,
-                        title=f"{icon} {st.label}",
-                        subtitle=f"Elapsed: {elapsed:.1f}s" if st.exit_code is None else None,
-                        border_style=border,
-                    ))
+                    panel_content = (
+                        "\n".join(st.lines[-200:])
+                        if st.lines
+                        else (
+                            f"Running... ({elapsed:.1f}s)"
+                            if st.exit_code is None
+                            else "(no output)"
+                        )
+                    )
+
+                    live.update(
+                        RichPanel(
+                            panel_content,
+                            title=f"{icon} {st.label}",
+                            subtitle=f"Elapsed: {elapsed:.1f}s" if st.exit_code is None else None,
+                            border_style=border,
+                        )
+                    )
 
         raw_results = await exec_task
 

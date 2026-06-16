@@ -871,15 +871,17 @@ class CommandHandlersMixin:
 
                 model_name = ""
                 if len(tokens) > 1 and selected != "auto":
-                    model_name = tokens[1].strip()
-                    model_key = f"{selected}_model"
-                    try:
-                        self._settings.set(model_key, model_name)
-                        console.print(f"[green]✓ Set {model_key} to: {model_name}[/green]")
-                    except KeyError:
-                        console.print(
-                            f"[green]✓ Provider set to {selected} (model name ignored for this provider)[/green]"
-                        )
+                    parts = tokens[1].strip().split(maxsplit=1)
+                    if len(parts) > 1:
+                        model_name = parts[1]
+                        model_key = f"{selected}_model"
+                        try:
+                            self._settings.set(model_key, model_name)
+                            console.print(f"[green]✓ Set {model_key} to: {model_name}[/green]")
+                        except KeyError:
+                            console.print(
+                                f"[green]✓ Provider set to {selected} (model name ignored for this provider)[/green]"
+                            )
                 console.print(f"[green]✓ Model provider set to: {selected}[/green]")
 
                 # ── Benchmark: quick validation call ──

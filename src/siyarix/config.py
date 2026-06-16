@@ -95,6 +95,7 @@ DEFAULTS: dict[str, Any] = {
     "vllm_model": "",
     "localai_url": "http://localhost:8080",
     "localai_model": "",
+    "registry_model": "",
     "_start_ollama_on_launch": False,
     # Shell & PATH
     "shell_completion_installed": False,
@@ -153,6 +154,7 @@ DESCRIPTIONS: dict[str, str] = {
     "vllm_model": "vLLM model name (default: empty for server default)",
     "localai_url": "LocalAI server URL (default: http://localhost:8080)",
     "localai_model": "LocalAI model name (default: empty for server default)",
+    "registry_model": "Offline/registry mode model name (unused — present for key consistency)",
     "max_waves": "Max plan-execute-measure cycles per goal (reduce for faster responses)",
     "agent_timeout": "Max seconds for agent execution (default: 1740 / 29 min)",
     "stealth_mode": "Enable advanced stealth and command argument evasion",

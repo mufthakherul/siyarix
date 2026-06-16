@@ -150,9 +150,11 @@ class SmartAutocomplete(Completer):
         # Path completion if text contains @ or looks like a path
         word = document.get_word_before_cursor(WORD=True)
         if word.startswith("@"):
-            document_copy = document.clone()
-            document_copy.text = document.text.replace("@", "")
-            document_copy.cursor_position -= 1
+            from prompt_toolkit.document import Document
+
+            adjusted = document.text.replace("@", "", 1)
+            pos = max(0, document.cursor_position - 1)
+            document_copy = Document(text=adjusted, cursor_position=pos)
             for completion in self._path_completer.get_completions(document_copy, complete_event):
                 yield completion
         elif "/" in word or "\\" in word or word.startswith("."):

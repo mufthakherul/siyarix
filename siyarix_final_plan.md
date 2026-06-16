@@ -1,5 +1,5 @@
 # Siyarix — Comprehensive Master Improvement Plan
-**Date:** June 2026 | **Based on:** Full source code audit (v2.0.0--->latest)  
+**Date:** June 13 2026 | **Based on:** Full source code audit (v2.0.0 latest)  
 **Files read:** planner.py · executor.py · core/__init__.py · permission_gate.py · security_hardening.py · providers/manager.py · providers/types.py · providers/state.py · registry.py · tool_call_repair.py · knowledge_graph.py · workflow.py · validators.py · subprocess_utils.py · opsec.py · chat/event_stream.py · tool_graph.py · pyproject.toml · graph.json (3,097 nodes, 5,871 edges, 10 hyperedges)
 
 > **Note on documentation:** Miraz confirmed the docs/ folder is based on v1/v2 and is out of date. All findings in this plan are sourced directly from the live source code, not from documentation.

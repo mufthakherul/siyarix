@@ -44,18 +44,26 @@ class NaturalLanguageParser:
 
     # Regex patterns for Entity Extraction
     PATTERNS = {
+        "cve": r"\bCVE-\d{4}-\d{4,7}\b",
+        "aws_s3": r"\b(?:[a-zA-Z0-9.\-_]{3,63}\.s3(?:-[a-z0-9-]+)?\.amazonaws\.com)\b",
+        "azure_blob": r"\b(?:[a-z0-9]{3,24}\.blob\.core\.windows\.net)\b",
         "url": r"https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+[/\w\.-]*",
+        "cidr": r"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/(?:[0-2]?[0-9]|3[0-2])\b",
         "ipv4": r"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b",
         "ipv6": r"\b(?:[A-Fa-f0-9]{1,4}:){7}[A-Fa-f0-9]{1,4}\b",
         "domain": r"\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b",
         "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
         "mac": r"\b(?:[0-9A-Fa-f]{2}[:-]){5}(?:[0-9A-Fa-f]{2})\b",
+        "sha256": r"\b[A-Fa-f0-9]{64}\b",
+        "sha1": r"\b[A-Fa-f0-9]{40}\b",
+        "md5": r"\b[A-Fa-f0-9]{32}\b",
+        "asn": r"\bAS\d{1,6}\b",
     }
 
     # Suffixes for lightweight stemming
     SUFFIXES = ["ing", "ed", "s", "es", "ly", "tion", "ity", "ment", "ness", "able", "ible"]
 
-    # Default Synonyms mapped to canonical terms
+    # Extended Ontology mapping synonyms to canonical forms (including MITRE tactics)
     DEFAULT_SYNONYMS = {
         "bug": "vuln",
         "cve": "vuln",
@@ -76,6 +84,20 @@ class NaturalLanguageParser:
         "mitm": "intercept",
         "sniff": "intercept",
         "phish": "social",
+        # MITRE ATT&CK & Advanced Slang mappings
+        "reconnaissance": "recon",
+        "weaponize": "exploit",
+        "delivery": "phish",
+        "lateral": "pivoting",
+        "movement": "pivoting",
+        "exfiltration": "exfil",
+        "dump": "brute",
+        "hashdump": "brute",
+        "privesc": "escalation",
+        "osint": "recon",
+        "fuzz": "fuzzing",
+        "dos": "denial",
+        "ddos": "denial",
     }
 
     def __init__(self, custom_synonyms: dict[str, str] | None = None) -> None:
@@ -177,9 +199,12 @@ class NaturalLanguageParser:
         return "", ""
 
     def extract_parameters(self, text: str) -> dict[str, str]:
-        """Extract modifier arguments (speed, ports, stealth, time, format, severity, wordlist)."""
+        """Extract modifier arguments with Negation Context Handling."""
         params = {}
         text_lower = text.lower()
+        
+        # Check for global negations in the context
+        is_negated = any(neg in text_lower for neg in ["not ", "no ", "without ", "skip ", "exclude "])
 
         # Port extraction
         port_match = re.search(r"\bport(?:s)?\s*([0-9,\-]+)\b", text_lower)
@@ -188,13 +213,23 @@ class NaturalLanguageParser:
         elif "all ports" in text_lower or "full ports" in text_lower:
             params["ports"] = "all"
 
-        # Speed / Stealth extraction
-        if any(word in text_lower for word in ["fast", "quick", "speedy", "rapid"]):
-            params["speed"] = "fast"
-        elif any(word in text_lower for word in ["stealth", "slow", "sneaky", "quiet", "evasive"]):
-            params["speed"] = "stealth"
-        elif any(word in text_lower for word in ["aggressive", "intense", "heavy"]):
-            params["speed"] = "aggressive"
+        # Speed / Stealth extraction (Negation Aware)
+        is_fast = any(word in text_lower for word in ["fast", "quick", "speedy", "rapid"])
+        is_stealth = any(word in text_lower for word in ["stealth", "slow", "sneaky", "quiet", "evasive"])
+        is_aggressive = any(word in text_lower for word in ["aggressive", "intense", "heavy"])
+
+        if is_negated:
+            if is_fast or is_aggressive:
+                params["speed"] = "stealth"
+            elif is_stealth:
+                params["speed"] = "fast"
+        else:
+            if is_fast:
+                params["speed"] = "fast"
+            elif is_stealth:
+                params["speed"] = "stealth"
+            elif is_aggressive:
+                params["speed"] = "aggressive"
 
         # Time / Duration extraction
         time_match = re.search(r"\b(?:timeout|max time|run for)\s*(\d+[smhd])\b", text_lower)
@@ -212,7 +247,10 @@ class NaturalLanguageParser:
         if "low" in text_lower:
             severities.append("low")
         if severities:
-            params["severity"] = ",".join(severities)
+            if is_negated and "low" in severities:
+                params["severity"] = "high,critical"
+            else:
+                params["severity"] = ",".join(severities)
 
         # Output Format extraction
         if "json" in text_lower:
@@ -224,13 +262,14 @@ class NaturalLanguageParser:
 
         # Protocol extraction
         if "udp" in text_lower:
-            params["protocol"] = "udp"
+            params["protocol"] = "tcp" if is_negated else "udp"
         elif "tcp" in text_lower:
-            params["protocol"] = "tcp"
+            params["protocol"] = "udp" if is_negated else "tcp"
 
         # Output verbosity
         if any(word in text_lower for word in ["verbose", "detail", "detailed"]):
-            params["verbose"] = "true"
+            if not is_negated:
+                params["verbose"] = "true"
             
         # Wordlist extraction
         wordlist_match = re.search(r"\bwordlist\s*([a-zA-Z0-9_./\-]+)\b", text_lower)
@@ -246,27 +285,75 @@ class NaturalLanguageParser:
             return 1.0  # Unknown words have high IDF
         return math.log(self._total_docs / (1 + df)) + 1.0
 
+    def _phonetic_simplify(self, word: str) -> str:
+        """Lightweight phonetic normalizer for cybersecurity typos."""
+        w = word.lower()
+        # Remove consecutive duplicates (e.g. 'ffuf' -> 'fuf', 'dirbuster' -> 'dirbuster')
+        w = re.sub(r'(.)\1+', r'\1', w)
+        # Basic phonetic substitutions
+        w = w.replace('ph', 'f').replace('y', 'i').replace('c', 'k')
+        return w
+
+    def _get_char_bigrams(self, word: str) -> set[str]:
+        if len(word) < 2:
+            return {word}
+        return set(word[i:i+2] for i in range(len(word)-1))
+
     def fuzzy_match(self, token: str, corpus_tokens: list[str]) -> bool:
-        """Check if a token fuzzy-matches any corpus token using difflib."""
+        """Check if a token fuzzy-matches any corpus token using Jaccard N-Gram similarity."""
         if not corpus_tokens:
             return False
-        # Only fuzzy match longer words to avoid false positives on small words
         if len(token) < 5:
             return token in corpus_tokens
 
-        # Find closest match
-        matches = difflib.get_close_matches(token, corpus_tokens, n=1, cutoff=0.75)
-        return len(matches) > 0
+        token_phonetic = self._phonetic_simplify(token)
+        token_bigrams = self._get_char_bigrams(token_phonetic)
+
+        for c_token in corpus_tokens:
+            if len(c_token) < 5:
+                if token == c_token:
+                    return True
+                continue
+                
+            # Fast difflib check for transpositions (like direcotry -> directory)
+            if difflib.get_close_matches(token, [c_token], n=1, cutoff=0.75):
+                return True
+
+            c_token_phonetic = self._phonetic_simplify(c_token)
+            c_bigrams = self._get_char_bigrams(c_token_phonetic)
+            
+            # Calculate Jaccard similarity for phonetic replacements
+            intersection = len(token_bigrams.intersection(c_bigrams))
+            union = len(token_bigrams.union(c_bigrams))
+            if union == 0:
+                continue
+                
+            similarity = intersection / union
+            if similarity >= 0.50:  # 50% overlap in phonetic bigrams is robust for typos
+                return True
+
+        return False
 
     def score_intent(
         self, tokens: list[str], corpus: dict[str, list[str]]
     ) -> tuple[str | None, float]:
-        """Calculate TF-IDF style similarity to find the best matching intent."""
+        """Calculate Okapi BM25 similarity to find the best matching intent.
+        
+        BM25 improves upon TF-IDF by capping term frequency saturation and properly
+        normalizing based on average document length, making it the industry standard
+        for information retrieval.
+        """
         best_match = None
         highest_score = 0.0
 
+        # Calculate average document length for BM25
+        avgdl = sum(len(doc) for doc in corpus.values()) / max(1, len(corpus))
+        k1 = 1.5  # Term frequency saturation parameter
+        b = 0.75  # Length normalization parameter
+
         for name, doc_tokens in corpus.items():
             score = 0.0
+            doc_len = len(doc_tokens)
             
             # Count term frequencies in the document
             doc_tf: dict[str, int] = defaultdict(int)
@@ -275,21 +362,23 @@ class NaturalLanguageParser:
 
             for token in tokens:
                 idf = self.get_idf(token)
+                term_freq = 0
                 
                 if "_" in token:
-                    # N-grams are weighted heavily
+                    # N-grams
                     if token in doc_tokens:
-                        score += 3.0 * idf
+                        term_freq = 3  # Boost N-gram matches
                 elif self.fuzzy_match(token, doc_tokens):
-                    # Weight exact name matches extremely high
                     if token == name:
-                        score += 6.0 * idf
+                        term_freq = 6  # Huge boost for exact name match
                     else:
-                        score += 1.0 * idf * doc_tf.get(token, 1)
+                        term_freq = doc_tf.get(token, 1)
 
-            # Normalize by document length penalty to prevent long docs from always winning
-            if doc_tokens:
-                score = score / math.pow(len(doc_tokens), 0.5)
+                if term_freq > 0:
+                    # Okapi BM25 scoring formula
+                    numerator = term_freq * (k1 + 1)
+                    denominator = term_freq + k1 * (1 - b + b * (doc_len / max(1.0, avgdl)))
+                    score += idf * (numerator / denominator)
 
             if score > highest_score:
                 highest_score = score

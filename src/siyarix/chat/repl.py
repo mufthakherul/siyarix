@@ -252,7 +252,48 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
+                from prompt_toolkit.layout import (
+                    Layout as PTLayout,
+                    HSplit,
+                    Window,
+                    FormattedTextControl,
+                )
+                from prompt_toolkit.layout.containers import ConditionalContainer
+                from prompt_toolkit.layout.dimension import Dimension
+                from prompt_toolkit.filters import Condition
+                from prompt_toolkit.formatted_text import HTML
+                from ..branding import resolve_version
+
+                _ver = resolve_version()
+                header_html = HTML(
+                    f'<style bg="ansiblack"> '
+                    f'<style fg="ansiwhite">  █▓▒░ </style>'
+                    f'<style fg="ansiwhite" bold>SIYARIX ADVANCED ORCHESTRATOR</style>'
+                    f'<style fg="green"> v{_ver}</style>'
+                    f'<style fg="ansiwhite"> ░▒▓█ </style>'
+                    f'<style fg="bright_black" italic>  — terminal agent for cyber-security</style>'
+                    f'</style>'
+                )
+
                 session: PromptSession = PromptSession()
+                _orig_create = session._create_layout
+
+                def _patched_create(self) -> PTLayout:
+                    orig = _orig_create()
+                    top_bar = ConditionalContainer(
+                        Window(
+                            FormattedTextControl(lambda: header_html),
+                            style="class:top-toolbar",
+                            dont_extend_height=True,
+                            height=Dimension(min=1),
+                        ),
+                        filter=Condition(lambda: True),
+                    )
+                    return PTLayout(HSplit([top_bar, orig.container]))
+
+                import types
+                session._create_layout = types.MethodType(_patched_create, session)
+
                 answer = (
                     await session.prompt_async(
                         "❯ ",
@@ -389,7 +430,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             ("░▒▓█ ", "bold magenta"),
             "\n",
             (
-                "Terminal copilot for offensive security — plan, inspect, execute.",
+                "Terminal agent for cyber-security — plan, inspect, execute.",
                 "dim italic white",
             ),
         )

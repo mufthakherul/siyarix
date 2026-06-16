@@ -75,10 +75,10 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         )
         self._usage_tracker = UsageTracker(path=os.path.join(state_dir, "usage.json"))
         from ..output import OutputEngine
+
         self._output = OutputEngine()
         self._con = self._output.console
-        
-                
+
         self._validate_provider_config_on_startup()
 
     def _ui_flush(self) -> None:
@@ -251,6 +251,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
         def get_bottom_toolbar() -> Any:
             from prompt_toolkit.formatted_text import HTML
+
             return HTML(
                 f'<style bg="ansiblack" fg="ansiwhite"> '
                 f'<style fg="ansicyan"><b>{provider}</b></style> · '
@@ -260,7 +261,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 f'<style fg="ansigray">{target_info}</style>  · '
                 f'<style fg="ansigray">{theme}</style>  · '
                 f'<style fg="ansigray">? /help</style> '
-                f'</style>'
+                f"</style>"
             )
 
         try:
@@ -268,9 +269,12 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 warnings.simplefilter("ignore", RuntimeWarning)
                 from prompt_toolkit.formatted_text import HTML
                 from prompt_toolkit.patch_stdout import patch_stdout
+
                 session = PromptSession(bottom_toolbar=get_bottom_toolbar)
 
-                pt_prompt = HTML('<style fg="ansicyan"><b>❯ </b></style><style fg="ansigray">Type your message or @path/to/file: </style>')
+                pt_prompt = HTML(
+                    '<style fg="ansicyan"><b>❯ </b></style><style fg="ansigray">Type your message or @path/to/file: </style>'
+                )
 
                 with patch_stdout():
                     answer = (
@@ -284,10 +288,13 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             raise
         except Exception as exc:
             import traceback
+
             console.print(f"[red]prompt_toolkit failed: {exc}[/red]")
             console.print(traceback.format_exc())
             logger.debug("prompt_toolkit failed: %s", exc)
-            console.print(f"  [dim]{provider} · {self._mode} · {persona} · session: {session_id}{target_info} · {theme} · ? /help[/dim]")
+            console.print(
+                f"  [dim]{provider} · {self._mode} · {persona} · session: {session_id}{target_info} · {theme} · ? /help[/dim]"
+            )
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
                 answer = Prompt.ask(prompt_label, default="").strip()
@@ -572,15 +579,16 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             if cleaned.endswith("```"):
                 cleaned = cleaned.rsplit("```", 1)[0]
             cleaned = cleaned.strip()
-            
+
         try:
             data = json.loads(cleaned)
             if isinstance(data, dict) and "response" in data:
                 return data["response"]
         except (json.JSONDecodeError, ValueError, TypeError):
             pass
-            
+
         import re
+
         match = re.search(r'\{\s*"response"\s*:\s*"(.*)', cleaned, re.DOTALL | re.IGNORECASE)
         if match:
             extracted = match.group(1)
@@ -590,10 +598,10 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 extracted = extracted[:-1]
             elif extracted.endswith('"\n}'):
                 extracted = extracted[:-3]
-                
-            extracted = extracted.replace('\\"', '"').replace('\\n', '\n').replace('\\\\', '\\')
+
+            extracted = extracted.replace('\\"', '"').replace("\\n", "\n").replace("\\\\", "\\")
             return extracted
-            
+
         return text
 
     def _get_conversation_history(self, max_messages: int = 50) -> list[dict]:
@@ -633,20 +641,29 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         gen = await llm_fn(system_prompt, user_prompt, stream=True, history=history)
         full_text = ""
         syntax_theme = self._settings.get("syntax_theme") or "monokai"
-        
+
         from rich.live import Live
         from rich.panel import Panel
 
         md = Markdown("", code_theme=syntax_theme)
-        panel = Panel(md, title="[bold green]◆ Siyarix[/bold green]", border_style="green", padding=(0, 2))
-        
+        panel = Panel(
+            md, title="[bold green]◆ Siyarix[/bold green]", border_style="green", padding=(0, 2)
+        )
+
         with Live(panel, console=console, refresh_per_second=15, transient=False) as live:
             async for token in gen:
                 full_text += token
                 display_text = self._strip_json_wrapper(full_text)
                 md = Markdown(display_text, code_theme=syntax_theme)
-                live.update(Panel(md, title="[bold green]◆ Siyarix[/bold green]", border_style="green", padding=(0, 2)))
-                
+                live.update(
+                    Panel(
+                        md,
+                        title="[bold green]◆ Siyarix[/bold green]",
+                        border_style="green",
+                        padding=(0, 2),
+                    )
+                )
+
         return self._strip_json_wrapper(full_text)
 
     def _print_plan(self, plan: "Any") -> None:  # ExecutionPlan

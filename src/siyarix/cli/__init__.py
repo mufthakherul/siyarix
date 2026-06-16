@@ -22,7 +22,6 @@ import json
 import logging
 import os
 import shutil
-import subprocess
 
 # Windows event loop policy for subprocess compatibility
 if os.name == "nt" and hasattr(asyncio, "WindowsSelectorEventLoopPolicy"):
@@ -455,7 +454,6 @@ def main_callback(
             )
 
 
-
 # Register security command group into the main CLI.
 app.add_typer(security_app, name="security")
 
@@ -614,7 +612,9 @@ def _completion_alias(
                 if cleaned != text:
                     rc.write_text(cleaned, encoding="utf-8")
             except OSError:
-                logger.warning("Failed to clean up broken completion line in %s", rc_name, exc_info=True)
+                logger.warning(
+                    "Failed to clean up broken completion line in %s", rc_name, exc_info=True
+                )
 
     # Write to stderr so eval "$(siyarix completion bash)" doesn't choke on the output
     print(
@@ -1605,12 +1605,15 @@ def generate_report(
                 "json": ReportFormat.JSON,
                 "sarif": ReportFormat.SARIF,
             }
-            out_path = engine.save(report, Path(output or "siyarix_report"), fmt_map.get(fmt, ReportFormat.HTML))
+            out_path = engine.save(
+                report, Path(output or "siyarix_report"), fmt_map.get(fmt, ReportFormat.HTML)
+            )
             console.print(f"[bold green]Report generated successfully:[/bold green] {out_path}")
         finally:
             await core.shutdown()
 
     import asyncio
+
     asyncio.run(_run())
 
 

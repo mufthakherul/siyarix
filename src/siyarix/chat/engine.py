@@ -50,7 +50,9 @@ class LLMEngineMixin:
         if self._session.target and self._session.target not in instruction:
             instruction = f"{instruction} on {self._session.target}"
 
-        await self._execute_instruction(instruction, target=self._session.target or "", show_plan=True)
+        await self._execute_instruction(
+            instruction, target=self._session.target or "", show_plan=True
+        )
 
     async def _execute_instruction(
         self,
@@ -419,7 +421,9 @@ class LLMEngineMixin:
                         label = filename.replace(".md", "")
                         prompt += f"\n\n## {label}\n{content}"
                 except OSError:
-                    logger.warning("Failed to read workspace context file %s", filename, exc_info=True)
+                    logger.warning(
+                        "Failed to read workspace context file %s", filename, exc_info=True
+                    )
 
         # ── Environment info (OS + shell) ──────────────────────────
         is_win = sys.platform == "win32"
@@ -536,7 +540,9 @@ class LLMEngineMixin:
                                 for m in discovered
                             ]
                 except Exception:
-                    logger.warning("Failed to discover provider models for %s", provider_name, exc_info=True)
+                    logger.warning(
+                        "Failed to discover provider models for %s", provider_name, exc_info=True
+                    )
 
         # Build call function for the provider.
         # OpenClaw pattern: no separate ping — check reachability via
@@ -562,6 +568,7 @@ class LLMEngineMixin:
                             output_tokens=out,
                         )
                 return result
+
             if provider_name in ("ollama", "lmstudio", "llamacpp", "vllm", "localai"):
                 if self._check_local_provider_running(provider_name):
                     llm_connected = True
@@ -803,7 +810,9 @@ class LLMEngineMixin:
             try:
                 from anthropic import AsyncAnthropic
             except ImportError:
-                raise LLMProviderError("anthropic package not installed. Run: pip install anthropic")
+                raise LLMProviderError(
+                    "anthropic package not installed. Run: pip install anthropic"
+                )
 
             anthropic_client = AsyncAnthropic(api_key=api_key)
             from ..providers import ProviderManager
@@ -1003,7 +1012,9 @@ class LLMEngineMixin:
                         logger.info("%s started successfully", binary)
                         return True
                 except Exception:
-                    logger.warning("%s health check failed (attempt %d/15)", binary, _ + 1, exc_info=True)
+                    logger.warning(
+                        "%s health check failed (attempt %d/15)", binary, _ + 1, exc_info=True
+                    )
             logger.warning("%s started but not responding within 30s", binary)
             return False
         except Exception as exc:
@@ -1048,6 +1059,7 @@ class LLMEngineMixin:
             if configured == "ollama":
                 try:
                     from ..providers.ollama_utils import ensure_ollama_running
+
                     ensure_ollama_running()
                 except Exception:
                     pass
@@ -1084,6 +1096,7 @@ class LLMEngineMixin:
             if prov == "ollama":
                 try:
                     from ..providers.ollama_utils import ensure_ollama_running
+
                     ensure_ollama_running()
                 except Exception:
                     pass

@@ -1,144 +1,263 @@
 # Prompt Architecture
 
-Prompts are constructed dynamically from system context, user input, and safety constraints.
+Siyarix constructs prompts dynamically from system context, user input, session state, persona configuration, and safety constraints. All prompts are defined in `src/siyarix/chat/prompts.py` and assembled at call time by `LLMEngineMixin`.
 
-## Prompt structure
+---
 
-Every AI request follows a structured format:
+## Prompt Structure
 
-```
-System: {system_context}
-User: {user_input}
-Context: {session_state}
-Constraints: {safety_rules}
-Output: {expected_format}
-```
-
-## System context
-
-The system context includes:
-
-```json
-{
-  "platform": "linux|darwin|win32",
-  "python_version": "3.11.0",
-  "shell": "bash|powershell|zsh",
-  "available_tools": ["nmap", "nuclei", "..."]
-}
-```
-
-This tells the AI what's available on the current system.
-
-## User input
-
-Natural language or structured command from the user:
-
-- "scan 10.0.0.1 for open ports"
-- "find vulnerabilities on example.com"
-- "/run nmap -sV target"
-
-## Session state
-
-Multi-turn context including:
-
-- Previous commands and their results
-- Current knowledge graph state (hosts, ports, vulns discovered)
-- Current target
-
-```json
-{
-  "conversation_history": [
-    {"role": "user", "content": "scan 10.0.0.1"},
-    {"role": "assistant", "content": "Found ports: 22, 80, 443"}
-  ],
-  "knowledge_graph": {
-    "hosts": ["10.0.0.1"],
-    "ports": {"10.0.0.1": [22, 80, 443]}
-  }
-}
-```
-
-## Safety constraints
-
-Attached to every prompt:
-
-```json
-{
-  "forbidden_commands": ["rm -rf", "dd", "format"],
-  "safe_mode": false
-}
-```
-
-The AI is instructed not to generate dangerous commands and to flag any that slip through.
-
-## Output format
-
-The AI is prompted to return structured JSON:
-
-```json
-{
-  "intent": "scan",
-  "target": "10.0.0.1",
-  "tools": ["nmap"],
-  "args": ["-sV", "-p", "1-1000"],
-  "confidence": 0.95
-}
-```
-
-## Prompt templates by task type
-
-### Planning
-
-Used by `TaskPlanner` to convert NL to execution plans:
+Every LLM request follows a layered structure:
 
 ```
-You are Siyarix, a senior cybersecurity professional with deep expertise
-across the entire security domain. Given the user's security objective,
-construct the exact shell commands to run and create an execution plan.
-You are NOT limited to any predefined tool list — use any binary on the system.
-Target: {target}
-User intent: {intent}
+[Persona Preamble] (optional — from persona system)
+[System Prompt]    (SIYARIX_SYSTEM_PROMPT or NEUTRAL_SYSTEM_PROMPT)
+[Platform Context] (dynamically injected — OS, shell, Windows warnings)
+[Conversation History] (truncated oldest-first to fit context window)
+[User Input]       (natural language or structured command)
 ```
 
-### Chat
+---
 
-Used by the interactive chat REPL:
+## Core System Prompts
 
-```
-You are Siyarix, an AI cybersecurity operations assistant.
-Session findings: {findings_summary}
-User: {message}
-```
+### SIYARIX_SYSTEM_PROMPT
 
-### Code review
-
-Used by `CoderBridge`:
+The full-spectrum system prompt (~100 lines) used with all named personas and universal mode:
 
 ```
-Review this code for security vulnerabilities:
-{code}
-Focus on: OWASP Top 10, injection flaws, auth bypasses.
+You are Siyarix, an elite cybersecurity professional operating in a
+terminal-driven environment.
+
+- Platform Context (OS, shell, Windows-specific warnings)
+- Operational Framework (Intent, Scope, Depth, Risk)
+- Decision Logic (needs_tools=true/false)
+- Output Format (JSON with needs_tools, reasoning, response, steps)
+- Tool Execution Steps (shell command construction)
+- Shell Quoting Rules (bash compatibility)
+- Output Analysis (post-execution synthesis)
+- Communication Standards (MITRE ATT&CK, CVEs, remediation)
 ```
 
-## Context window management
+### NEUTRAL_SYSTEM_PROMPT
 
-To prevent overflow:
+A minimal system prompt (~30 lines) for `persona = none`:
 
-1. Conversation is truncated oldest-first when exceeding limits
-2. Tool outputs are summarized: `nmap output: 5 ports found`
-3. Knowledge graph is summarized: `3 hosts, 12 ports, 2 vulns`
-4. Large result sets referenced by ID from offline store
+```
+You are Siyarix, a cybersecurity professional in a terminal-driven
+environment.
 
-## Response parsing
+- Platform Context
+- Approach (determine needs_tools)
+- Output Format (JSON)
+- Communication Standards
+```
 
-AI responses are parsed and validated:
+### Compact Variants
+
+Used for follow-up calls within the same interaction to reduce token usage:
+
+| Variant | Purpose |
+|---------|---------|
+| `COMPACT_PROMPT` | Continue as active persona with full instructions previously provided |
+| `COMPACT_NEUTRAL` | Continue as neutral Siyarix with minimal JSON output instruction |
 
 ```python
-def parse_ai_response(response: str) -> dict:
-    # Try JSON parse
-    # Fall back to regex extraction
-    # Fall back to rule-based interpretation
-    return structured_result
+COMPACT_PROMPT = """Continue as Siyarix in your active persona. Follow the full system instructions previously provided.
+
+When a security operation is described, output JSON: { "needs_tools": true, ... }
+For general chat or after tool execution, output JSON: { "needs_tools": false, ... }"""
 ```
 
-If the AI returns malformed output, the `RuleInterpreter` provides fallback parsing.
+---
+
+## Platform Context
+
+Injected dynamically at the top of every system prompt:
+
+```
+## Platform Context
+- OS: Windows 10 (AMD64)
+- Shell: cmd /c
+- WARNING: Windows system detected — commands must use Windows-compatible flags:
+  * nmap: use -sT (TCP connect) instead of -sS (SYN scan); omit -O
+  * Use forward slashes or escaped backslashes in paths
+  * For DNS: use nslookup if dig is unavailable
+  * Find binaries with `where` instead of `which`
+```
+
+Generated by `_platform_context()` in `prompts.py:14`.
+
+---
+
+## Conversation History
+
+Multi-turn context is managed by `ChatSession`:
+
+```python
+session = ChatSession()
+session.add_message("user", "scan 10.0.0.1")
+session.add_message("assistant", json_response)
+```
+
+### Context Window Management
+
+1. **Oldest-first truncation** when exceeding token limits
+2. **Tool output summarization**: `nmap output: 5 ports found`
+3. **Knowledge graph summarization**: `3 hosts, 12 ports, 2 vulns`
+4. **Compaction**: `CompactionEngine` compresses long histories via LLM summarization when `CONTEXT_OVERFLOW` is detected
+
+---
+
+## Output Format
+
+The LLM is instructed to return valid JSON:
+
+```json
+{
+  "needs_tools": true,
+  "reasoning": "Step-by-step analysis of the request",
+  "response": "Direct answer when needs_tools=false, or analysis post-execution",
+  "steps": [
+    {
+      "tool": "",
+      "command": "nmap -sV -p 1-1000 10.0.0.1",
+      "description": "Port scan target with service detection"
+    }
+  ]
+}
+```
+
+### Field Reference
+
+| Field | Type | When Present | Description |
+|-------|------|-------------|-------------|
+| `needs_tools` | `bool` | Always | Whether tool execution is required |
+| `reasoning` | `string` | Always | Step-by-step analysis and methodology |
+| `response` | `string` | Always | Direct answer or post-execution synthesis |
+| `steps` | `array` | `needs_tools=true` | List of shell commands to execute |
+
+Each step contains:
+
+| Sub-field | Type | Description |
+|-----------|------|-------------|
+| `tool` | `string` | Tool name (can be empty for raw commands) |
+| `command` | `string` | Exact shell command |
+| `description` | `string` | Purpose and what to look for in output |
+
+---
+
+## Tool Execution Prompting
+
+When `needs_tools=true`, the prompt instructs the LLM to construct shell commands:
+
+```
+## Tool Execution Steps (needs_tools=true)
+Each step is a raw shell command — any binary, script, or pipeline:
+{
+  "tool": "",
+  "command": "your exact shell command — flags, pipes, redirects, subshells",
+  "description": "What this command does, why it was chosen"
+}
+```
+
+Available tool categories listed in the prompt (non-exhaustive):
+
+- **Recon**: nmap, masscan, ffuf, gobuster, subfinder
+- **Exploitation**: metasploit, sqlmap, hydra
+- **Enumeration**: enum4linux, smbclient, ldapsearch, snmpwalk
+- **Web**: whatweb, wpscan, nikto, curl
+- **Crypto**: openssl, hashcat, john
+- **Network**: dig, whois, nslookup, tcpdump
+- **C2**: socat, netcat, chisel
+- **Analysis**: python3, perl, jq, grep, awk
+
+The LLM is NOT limited to this list — it can construct any command the task demands.
+
+---
+
+## Output Analysis Prompting
+
+Post-execution analysis instructions:
+
+```
+## Output Analysis (post-execution)
+- Analyse findings like a professional pentest report
+- Identify exposures, misconfigurations, and weaknesses with specific evidence
+- Correlate results across tools
+- Assign severity (Critical/High/Medium/Low/Info) with clear rationale
+- Provide precise, actionable remediation guidance
+- Suggest next-phase testing
+```
+
+---
+
+## Message Construction
+
+The `build_messages()` function in `openai_compat.py` assembles the messages array:
+
+```python
+def build_messages(system_prompt, user_prompt, history, *, compat=None):
+    messages = []
+    if system_prompt:
+        role = "developer" if compat and compat.supports_developer_role else "system"
+        messages.append({"role": role, "content": system_prompt})
+    if history:
+        for msg in history:
+            if msg.get("role") == "system":
+                continue  # Skip system messages from history
+            messages.append({"role": msg["role"], "content": msg["content"]})
+    messages.append({"role": "user", "content": user_prompt})
+    return messages
+```
+
+Key behaviors:
+- Uses `developer` role instead of `system` when the provider supports it (compat flag)
+- Strips duplicate system messages from conversation history
+- Appends user input as the final message
+
+---
+
+## Real Model Mapping
+
+Siyarix uses fictional model names internally for portability. `_map_real_model()` translates them before API calls:
+
+```python
+def _map_real_model(model: str) -> str:
+    m = model.lower()
+    if "gemini-3." in m or "gemini-4." in m:
+        return "gemini-2.0-flash" if "flash" in m else "gemini-1.5-pro"
+    if "gpt-5." in m:
+        return "gpt-4o-mini" if "mini" in m else "gpt-4o"
+    if "claude-sonnet-4" in m or "claude-opus-4" in m:
+        return "claude-3-5-sonnet-latest"
+    return model
+```
+
+---
+
+## Compact Variant Usage
+
+After the initial LLM call within an agent loop, subsequent calls use compact prompts to reduce token overhead:
+
+```python
+# First call: full persona + system prompt
+prompt = build_persona_prompt(persona) + "\n\n" + SIYARIX_SYSTEM_PROMPT
+
+# Subsequent calls in same interaction:
+prompt = COMPACT_PROMPT  # or COMPACT_NEUTRAL for persona=none
+```
+
+---
+
+## Related Modules
+
+| Module | Path | Purpose |
+|--------|------|---------|
+| `SIYARIX_SYSTEM_PROMPT` | `src/siyarix/chat/prompts.py:43` | Full system prompt |
+| `NEUTRAL_SYSTEM_PROMPT` | `src/siyarix/chat/prompts.py:105` | Minimal neutral prompt |
+| `COMPACT_PROMPT` | `src/siyarix/chat/prompts.py:135` | Compact variant for follow-up calls |
+| `COMPACT_NEUTRAL` | `src/siyarix/chat/prompts.py:140` | Compact neutral variant |
+| `_platform_context()` | `src/siyarix/chat/prompts.py:14` | Dynamic platform context injection |
+| `build_messages()` | `src/siyarix/chat/openai_compat.py:291` | Messages array construction |
+| `_map_real_model()` | `src/siyarix/chat/openai_compat.py:601` | Fictional-to-real model name mapping |
+| `CompactionEngine` | `src/siyarix/compaction.py` | Long context compression |

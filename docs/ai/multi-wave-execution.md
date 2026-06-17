@@ -1,22 +1,26 @@
 # Multi-Wave Execution & Live Streaming
 
-Siyarix uses a multi-wave execution loop that enables iterative, LLM-driven workflows. Instead of running a single batch of commands and stopping, the system can execute multiple waves, analyse results between waves, and decide whether to continue with deeper commands.
+Siyarix uses a multi-wave execution loop that enables iterative, LLM-driven workflows. Rather than executing a single batch of commands, the system runs multiple waves — each wave's results are analysed by the LLM to determine the next set of commands — enabling autonomous multi-step security operations.
 
-## Execution flow
+---
+
+## Execution Flow
 
 ```
 User request → LLM plans commands → Wave 1 executes →
   LLM analyses results → Wave 2 (if needed) → ... →
-  Final response
+  Final response (up to 5 waves)
 ```
 
-## Multi-wave loop
+---
 
-### How it works
+## Multi-Wave Loop
 
-1. The LLM analyses the user's request and produces a plan with one or more shell commands
-2. All commands in the plan run in parallel
-3. After completion, the LLM receives the outputs and analyses them
+### How It Works
+
+1. The LLM analyses the user's request and produces a JSON plan with shell commands
+2. All commands in the plan run **in parallel** within the wave
+3. After completion, the LLM receives all outputs and analyses them
 4. If more work is needed (missing data, tool not found, deeper recon required), the LLM generates a new plan for the next wave
 5. This repeats for up to **5 waves**
 
@@ -31,20 +35,33 @@ for wave in range(max_waves):
     plan = await llm.analyse_and_plan(wave_results)
 ```
 
-### When the LLM requests another wave
+### Wave Decision
 
-The LLM receives the original request plus all outputs from completed waves and decides:
+The LLM receives the original request plus all outputs from completed waves and responds with:
 
-- **`needs_tools=false`**: Present the final response to the user
-- **`needs_tools=true`**: Generate a new plan for the next wave (e.g., found open ports, now scan for vulnerabilities)
+- **`needs_tools=false`**: Present the final response to the user (done)
+- **`needs_tools=true`**: Generate a new plan for the next wave (e.g., found open ports → now scan for vulnerabilities)
 
-## Live streaming output
+### Parallel Execution Within Waves
 
-During execution, command output is streamed line-by-line in real time using a Rich Live display.
+All steps in a single wave execute concurrently:
 
-### Display behavior
+```python
+async def execute_wave(steps: list[dict]) -> list[dict]:
+    tasks = [execute_step(step) for step in steps]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    return [format_result(r, step) for r, step in zip(results, steps)]
+```
 
-- A single `Live` Panel shows the output of the currently focused command
+---
+
+## Live Streaming Output
+
+During execution, command output is streamed line-by-line in real time using a Rich `Live` display.
+
+### Display Behavior
+
+- A single `Live` Panel shows output of the currently focused command
 - The display auto-cycles through running commands as they complete
 - Each panel has a coloured border indicating status:
   - **Cyan**: Still running
@@ -66,13 +83,13 @@ with Live(console=console, refresh_per_second=10, screen=False) as live:
         live.update(RichPanel(...))
 ```
 
-### Streaming output capture
+### Streaming Output Capture
 
 Each command's stdout and stderr is captured line-by-line via `safe_run_async_stream`:
 
 ```python
 result = await safe_run_async_stream(
-    ["sh", "-c", command],
+    command,
     timeout=agent_timeout,
     validate=False,
     on_stdout=lambda line: state.lines.append(line),
@@ -80,13 +97,15 @@ result = await safe_run_async_stream(
 )
 ```
 
-The last 200 lines of each command's output are kept in memory for display.
+The last 200 lines of each command's output are retained in memory for display.
 
-## Command review
+---
 
-Before any execution begins, each shell command can be reviewed interactively.
+## Command Review
 
-### Review prompt
+Before execution begins, each shell command can be reviewed interactively via the permission gate.
+
+### Review Prompt
 
 When command review is enabled (default: on), each command shows a review panel:
 
@@ -100,8 +119,6 @@ When command review is enabled (default: on), each command shows a review panel:
 Review command [edit/run/step/cancel] (run):
 ```
 
-Options:
-
 | Choice | Effect |
 |--------|--------|
 | `run` | Execute the command as-is |
@@ -109,22 +126,22 @@ Options:
 | `step` | Execute but step through one at a time |
 | `cancel` | Skip/cancel this command |
 
-### Toggle review
+### Toggle Review
 
-The review prompt can be toggled on and off during a session:
-
-```
+```bash
 /command off    # Skip review, run all commands immediately
 /command on     # Show review prompt before each command
 ```
 
 The current state is shown with `/command` alone.
 
-### Review timing
+### Review Timing
 
-Commands are reviewed **before** the Live display starts, in a synchronous phase. This ensures the review panel is shown cleanly without terminal output conflicts. Once all commands are approved, execution begins with the Live display.
+Commands are reviewed **before** the Live display starts, in a synchronous phase. Once all commands are approved, execution begins with the Live display.
 
-## Wave summary
+---
+
+## Wave Summary
 
 After each wave completes, a summary panel is shown for each command:
 
@@ -138,3 +155,37 @@ After each wave completes, a summary panel is shown for each command:
 ```
 
 Each wave's output is fed back to the LLM to inform the next wave's plan.
+
+---
+
+## Event Streaming
+
+The `AssistantMessageEventStream` provides granular, event-driven output for streaming scenarios:
+
+- **Text tokens**: Incremental LLM response content
+- **Tool calls**: Structured function call objects
+- **Error events**: Provider errors with classification
+- **Wave boundaries**: Start/end markers for each execution wave
+
+---
+
+## Safety Integration
+
+Each command in every wave passes through the full safety pipeline:
+
+1. **DangerAnalysis** — `DangerAnalyzer` classifies command destructiveness
+2. **InputValidation** — `InputValidator` rejects injection patterns
+3. **SecretRedaction** — `SecretRedactor` strips credentials from output
+4. **Permission Gate** — Interactive review before execution
+
+---
+
+## Related Modules
+
+| Module | Path | Purpose |
+|--------|------|---------|
+| `LLMEngineMixin._execute_instruction` | `src/siyarix/chat/engine.py:57` | Multi-wave execution orchestrator |
+| `LLMEngineMixin._execute_agent` | `src/siyarix/chat/engine.py` | Agent loop with LLM-driven wave planning |
+| `AssistantMessageEventStream` | `src/siyarix/events.py` | Granular event streaming for UI |
+| `safe_run_async_stream` | `src/siyarix/subprocess_utils.py` | Async subprocess with line-by-line streaming |
+| `DangerAnalyzer` | `src/siyarix/security_hardening.py` | Pre-execution command danger classification |

@@ -43,7 +43,6 @@ class LLMEngineMixin:
 
     async def _handle_natural_language(self, user_input: str) -> None:
         """Process a natural language instruction."""
-        # Add user message to history
         self._session.add_message("user", user_input)
 
         # Inject target context if set and not already in input
@@ -267,7 +266,6 @@ class LLMEngineMixin:
             return
         elapsed = time.monotonic() - t0
 
-        # Save to offline store
         try:
             from ..offline_store import OfflineStore
 
@@ -472,7 +470,7 @@ class LLMEngineMixin:
         )
 
     def _should_use_compact(self) -> bool:
-        """Return True if we should send the compact (reminder) system prompt."""
+        """Indicate whether to send the compact system prompt."""
         return self._llm_calls > 0 and bool(self._llm_calls % self.SYSTEM_REFRESH_INTERVAL)
 
     def _build_system_prompt(self, compact: bool = False) -> str:
@@ -773,7 +771,7 @@ class LLMEngineMixin:
             if not plan or not plan.steps:
                 break
 
-            # Announce — skip hallucinated / placeholder tool names
+            # Skip hallucinated or placeholder tool names
             tool_labels = []
             for s in plan.steps:
                 if s.command:
@@ -833,7 +831,7 @@ class LLMEngineMixin:
                 cmd_label = f"$ {s.command}" if s.command else s.tool
                 all_outputs.append(f"• {cmd_label} ({s.description}):\n{output}\n")
 
-            # Ask LLM: are we done, or need another wave?
+            # Ask LLM whether processing is complete or another iteration is needed
             if llm_connected and llm_call_fn is not None:
                 wave_goal = (
                     f"Original request: {instruction_with_target}\n\n"
@@ -1140,7 +1138,7 @@ class LLMEngineMixin:
         skipping any that are disabled or in cooldown (persisted across restarts).
 
         Local providers (ollama, lmstudio, llamacpp, vllm, localai) that don't
-        need a real API key get the placeholder ``"local"`` so callers can
+        need a real API key supply ``"local"`` as fallback so callers can
         distinguish ``"no key needed"`` from ``"no provider found"``.
 
         The special ``"registry"`` provider represents offline mode and

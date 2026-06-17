@@ -80,6 +80,24 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         self._con = self._output.console
 
         self._validate_provider_config_on_startup()
+        self._connectivity_monitor = None
+
+    @property
+    def connectivity_monitor(self) -> Any:
+        if self._connectivity_monitor is None:
+            from ..connectivity import SmartModeController
+            self._connectivity_monitor = SmartModeController(
+                get_current_mode=lambda: self._mode,
+                set_mode=self._set_mode_internal,
+            )
+        return self._connectivity_monitor
+
+    def _set_mode_internal(self, new_mode: str) -> None:
+        """Internal mode setter used by the connectivity monitor."""
+        self._mode = new_mode
+        self._session.mode = new_mode
+        if new_mode == "offline":
+            self._settings.set("model_provider", "registry")
 
     def _ui_flush(self) -> None:
         pass
@@ -159,7 +177,18 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
     def run(self) -> None:
         """Start the interactive REPL loop."""
         self._print_welcome()
-        asyncio.run(self._repl_loop())
+        # Start connectivity monitor background check
+        try:
+            asyncio.run(self.connectivity_monitor.start())
+        except Exception:
+            logger.debug("Connectivity monitor not available", exc_info=True)
+        try:
+            asyncio.run(self._repl_loop())
+        finally:
+            try:
+                asyncio.run(self.connectivity_monitor.stop())
+            except Exception:
+                pass
 
     async def _ui_flusher_task(self) -> None:
         while self._running:
@@ -326,7 +355,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
     def _render_split_pane_layout(self, left_content: Any = None) -> None:
         """Render the terminal using side-by-side SplitPane layout."""
         if not left_content:
-            # Build a nice scroll of recent conversation/messages
+            # Build a scrollable view of recent conversation messages
             left_text = Text()
             if not self._session.messages:
                 left_text.append("Welcome to Siyarix Cyber Command.\n", style="bold cyan")

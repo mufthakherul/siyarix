@@ -12,7 +12,7 @@ Provides three production-grade security primitives:
     high / medium / low / info / safe) before execution, supporting both
     Linux and Windows-specific destructive patterns.
 
-Module-level singletons are exported for easy import::
+Module-level singletons are exported for import.
 
     from siyarix.security_hardening import validator, redactor, danger_analyzer
 

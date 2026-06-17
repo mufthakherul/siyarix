@@ -41,7 +41,6 @@ class NotificationDispatcher:
 
         payload: dict[str, Any] = {"content": message}
 
-        # Format for Slack if it's a Slack webhook
         if "slack.com" in self.webhook_url:
             payload = {"text": message}
 

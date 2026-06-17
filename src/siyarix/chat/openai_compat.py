@@ -371,7 +371,7 @@ def make_client(
     if not resolved_base_url or resolved_base_url.strip() == "":
         resolved_base_url = PROVIDER_CONFIG.get(provider, ("", "", ""))[0] or None
 
-    # Local providers may not have an API key; supply a placeholder to satisfy the SDK.
+    # Local providers may not have an API key; supply a fallback value for the SDK.
     resolved_key = api_key or "local"
 
     if resolved_base_url:
@@ -381,7 +381,7 @@ def make_client(
 
 # ── Gemini native REST API functions ────────────────────────────────────
 # Gemini's OpenAI-compatible endpoint does not support safety_settings,
-# so we call the native REST API directly.
+# Call the native REST API directly.
 
 _GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 

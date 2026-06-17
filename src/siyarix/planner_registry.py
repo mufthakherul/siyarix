@@ -643,7 +643,7 @@ class RegistryPlanner:
                 
                 all_steps.extend(sub_plan.steps)
                 last_step_ids = [s.id for s in sub_plan.steps if s.is_terminal or not any(other.id in s.dependencies for other in sub_plan.steps)]
-                # Fallback if the logic above is empty (it shouldn't be, but just in case)
+                # Fallback if the logic above returns empty
                 if not last_step_ids and sub_plan.steps:
                     last_step_ids = [sub_plan.steps[-1].id]
                     
@@ -651,7 +651,7 @@ class RegistryPlanner:
                     is_dag = True
             plan_type = PlanType.DAG if is_dag else PlanType.SEQUENTIAL
             
-            # Since we injected dependencies, if it wasn't already a DAG, it should be now if dependencies exist
+            # Injected dependencies should make this a DAG if dependencies exist
             if any(s.dependencies for s in all_steps):
                 plan_type = PlanType.DAG
                 

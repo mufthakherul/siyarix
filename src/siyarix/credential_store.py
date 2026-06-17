@@ -227,7 +227,7 @@ class CredentialStore:
         else:
             key = self._generate_fernet_key(password)
 
-        # If we generated a key and keyring is available, attempt to persist there
+        # Persist the key to keyring if available
         if use_keyring:
             try:
                 import keyring
@@ -681,7 +681,6 @@ class CredentialStore:
         if not cred:
             return None
 
-        # Check expiration
         if cred.expires_at and cred.expires_at < datetime.now(timezone.utc):
             logger.warning("Credential %s has expired", cred.name)
             return None

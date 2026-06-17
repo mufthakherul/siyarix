@@ -110,13 +110,10 @@ class HealthChecker:
         status = HealthStatus(state=HealthState.HEALTHY)
         status.uptime_seconds = time.time() - self.start_time
 
-        # Check model providers
         await self._check_model_providers(status)
 
-        # Check tool registry
         await self._check_tool_registry(status)
 
-        # Check system resources
         await self._check_system_resources(status)
 
         # Determine overall state

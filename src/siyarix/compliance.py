@@ -57,7 +57,7 @@ class ComplianceCheck:
         self.target = target
 
     async def run(self) -> ComplianceResult:
-        # Dummy check implementation
+        # Stub check implementation
         return ComplianceResult(
             check_id=self.check_id,
             status="PASSED",

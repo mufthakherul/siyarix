@@ -322,7 +322,7 @@ class KnowledgeGraph:
         if not edges:
             return float("inf")
 
-        # We take the cheapest edge if multiple exist between two nodes
+        # Pick the lowest-cost edge between two nodes
         costs = []
         for e in edges:
             base_cost = 10.0

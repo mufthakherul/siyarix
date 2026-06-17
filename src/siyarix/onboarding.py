@@ -1106,7 +1106,7 @@ class OnboardingWizard:
 
             self._settings.set("ollama_model", model_name)
         else:
-            # llama.cpp: try Ollama pull as convenience download
+            # llama.cpp: try pulling via Ollama as an alternative download method
             downloaded = False
             ollama_installed_by_us = False
             models_dir = Path.home() / ".siyarix" / "models"
@@ -1211,7 +1211,7 @@ class OnboardingWizard:
                     if not Confirm.ask("Try downloading manually instead?", default=True):
                         return
 
-            # If we installed Ollama just for this, offer to remove it
+            # Offer to remove Ollama if it was installed solely for this purpose
             if downloaded and ollama_installed_by_us:
                 self._console.print(
                     "[dim]Ollama is no longer needed — the GGUF file has been extracted.[/dim]"
@@ -2305,7 +2305,7 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
                 )
                 if not r.returncode:
                     return True
-                # Fallback: just remove the binary
+                # Fallback: remove the binary directly
                 bin_path = shutil.which("ollama") or "/usr/local/bin/ollama"
                 r = subprocess.run(
                     ["sudo", "rm", "-f", bin_path],

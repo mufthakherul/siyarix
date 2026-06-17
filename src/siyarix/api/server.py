@@ -37,7 +37,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
     """Verify JWT token."""
     api_key = os.getenv("SIYARIX_API_KEY")
     if not api_key:
-        # If no key configured, we allow any valid JWT (or we could just allow any string)
+        # Allow any valid JWT when no key is configured
         return credentials.credentials
     if credentials.credentials != api_key:
         raise HTTPException(
@@ -152,7 +152,7 @@ async def websocket_stream(websocket: WebSocket, session_id: str) -> None:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    # We will subscribe to the event bus
+    # Subscribe to the event bus
     from siyarix.events import get_event_bus
 
     bus = get_event_bus()
@@ -160,7 +160,7 @@ async def websocket_stream(websocket: WebSocket, session_id: str) -> None:
 
     async def event_handler(event: Any) -> None:
         try:
-            # We want to convert enum or dataclass to dict, simple approach:
+            # Convert enum or dataclass to dict
             data = {"type": str(event.type), "source": event.source, "data": event.data}
             await queue.put(data)
         except Exception as e:

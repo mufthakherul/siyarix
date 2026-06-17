@@ -89,6 +89,7 @@ HELP_CATEGORIES = [
             "/retest schedule|status": "Verification scans",
             "/stealth status|on|off": "Evasion configuration",
             "/audit export|status|verify": "Compliance and legal export",
+            "/queue status|list|retry|flush": "Offline command queue management",
         },
     ),
 ]

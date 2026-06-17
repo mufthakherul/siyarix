@@ -2,8 +2,8 @@
 
 """Input validation utilities with comprehensive checks.
 
-NOTE: This differs from ``validator.py`` which handles self-validation,
-verification, and recovery. This module contains input format validators
+Differs from ``validator.py`` which handles self-validation.
+This module contains input format validators
 (targets, ports, URLs, etc.) for user-supplied data.
 
 All regex patterns are compiled at module level for performance.  Every

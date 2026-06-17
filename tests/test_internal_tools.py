@@ -100,7 +100,7 @@ class TestInternalTools:
 # ═══════════════════════════════════════════════════════════════════
 # opsec.py (94% - missing 106, 145-151, 199-204, 201-200, 220-219, 223-217, 329-331)
 # ═══════════════════════════════════════════════════════════════════
-class TestInternalTools02Coverage:
+class TestInternalToolsGraph:
     """Cover internal_tools.py remaining lines."""
 
     def test_graph_analyzer_handler_shortest_path_no_source(self):
@@ -143,7 +143,7 @@ class TestInternalTools02Coverage:
 # 15. parsers/__init__.py (91% - missing lines 189, 191, 194->181,
 #     200-204, 206, 218-221)
 # ═══════════════════════════════════════════════════════════════════
-class TestInternalToolsCoverage:
+class TestInternalToolsCore:
     """Cover internal_tools.py remaining lines."""
 
     def test_graph_analyzer_handler_shortest_path_no_source(self):

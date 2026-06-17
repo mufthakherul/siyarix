@@ -110,7 +110,7 @@ class TestCompliance:
 # ═══════════════════════════════════════════════════════════════════
 # config.py (81% - missing many lines)
 # ═══════════════════════════════════════════════════════════════════
-class TestAuditLogCoverage:
+class TestAuditLogCore:
     """Cover remaining audit_log.py uncovered lines."""
 
     def test_audit_event_hash_compute_details_exception(self):
@@ -353,7 +353,7 @@ class TestAuditLogRichUnavailable:
         import siyarix.audit_log as al
         # RICH_AVAILABLE is set at module import time.
         assert hasattr(al, "RICH_AVAILABLE")
-class TestAuditLoggerCoverage:
+class TestAuditLoggerCore:
     """Cover remaining audit_log.py uncovered lines."""
 
     def test_load_config_success_sets_retention(self, tmp_path, monkeypatch):

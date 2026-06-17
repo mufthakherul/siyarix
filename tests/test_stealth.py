@@ -146,7 +146,7 @@ class TestStealthConfigScore:
         assert score == 9.0
 
 
-class TestStealthEngineExtra:
+class TestStealthEngineProxyRotation:
     def test_get_proxy_empty_list(self) -> None:
         engine = StealthEngine()
         engine.config.use_proxy_chain = True

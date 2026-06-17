@@ -80,7 +80,7 @@ class TestToolInstaller:
                 results = installer.auto_install_missing(["nmap"])
                 assert len(results) == 1
 
-class TestToolInstallerCoverage:
+class TestToolInstallerCore:
     """Cover uncovered lines in tool_installer.py."""
 
     def test_install_win_winget_success(self):

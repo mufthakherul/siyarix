@@ -1120,7 +1120,7 @@ class TestOfflineStoreMigration:
         store._migrate(conn)
         store._migrate(conn)
         version = conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
-        assert version["value"] == "3"
+        assert version["value"] == "4"
         store.close()
 
     def test_migration_error_handling(self, tmp_path):
@@ -1130,5 +1130,5 @@ class TestOfflineStoreMigration:
         conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', '1')")
         store._migrate(conn)
         version = conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
-        assert version["value"] == "3"
+        assert version["value"] == "4"
         store.close()

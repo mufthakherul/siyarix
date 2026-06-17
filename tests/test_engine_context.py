@@ -118,7 +118,7 @@ class TestCompressContext:
         assert len(result["xi_context"]["recent_executions"]) == 10
         assert len(result["xi_recommendations"]) == 5
 
-class TestContextCoverage:
+class TestContextCore:
     """Cover missing context.py lines."""
 
     def test_context_chunk_auto_assigns_ids(self):
@@ -231,7 +231,7 @@ class TestContextCoverage:
 # ═══════════════════════════════════════════════════════════════════
 # core/__init__.py (83% - selective key lines)
 # ═══════════════════════════════════════════════════════════════════
-class TestContextCoverage03:
+class TestContextEdgeCases:
     """Cover remaining context.py uncovered lines."""
 
     def test_context_chunk_post_init_empty_chunk_id(self):

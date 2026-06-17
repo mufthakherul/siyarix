@@ -17,7 +17,7 @@ import sys
 
 
 from siyarix.chat.openai_compat import _gemini_build_contents, _gemini_stream, _map_real_model, make_client, openai_complete, openai_stream
-class TestOpenAICompatCoverage:
+class TestOpenAICompatCore:
     """Cover remaining openai_compat.py lines."""
 
     def test_detect_compat_openrouter_thinking(self):

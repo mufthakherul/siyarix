@@ -99,7 +99,7 @@ class TestCVSSScorer:
         assert scorer._severity_from_score(2.0) == Severity.LOW
         assert scorer._severity_from_score(0.0) == Severity.NONE
 
-class TestCVSSCoverage:
+class TestCVSSCore:
     """Cover missing cvss_scorer.py lines: edge cases in score calculations."""
 
     def test_score_without_vector_creates_default(self):

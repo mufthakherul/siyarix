@@ -5,7 +5,7 @@ from pathlib import Path
 from siyarix.chat.engine import LLMEngineMixin
 from siyarix.exceptions import LLMProviderError
 
-class DummySettings:
+class FakeSettings:
     def __init__(self, data=None):
         self._data = data or {}
     def get(self, key, default=None):
@@ -13,11 +13,11 @@ class DummySettings:
     def set(self, key, val):
         self._data[key] = val
 
-class DummyProviderState:
+class FakeProviderState:
     def is_disabled(self, name):
         return False
 
-class DummyChatSession:
+class FakeChatSession:
     def __init__(self):
         self.session_id = "test-session"
         self.messages = []
@@ -25,9 +25,9 @@ class DummyChatSession:
 
 class SiyarixChatMock(LLMEngineMixin):
     def __init__(self, settings_data=None):
-        self._settings = DummySettings(settings_data)
-        self._provider_state = DummyProviderState()
-        self._session = DummyChatSession()
+        self._settings = FakeSettings(settings_data)
+        self._provider_state = FakeProviderState()
+        self._session = FakeChatSession()
 
     async def _handle_slash(self, cmd: str) -> None:
         pass

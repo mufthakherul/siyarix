@@ -515,7 +515,7 @@ def test_export_import(tmp_path, monkeypatch):
     count = new_store.import_encrypted(str(out), password="pw")
     assert count == 2
 
-class TestCredentialStoreCoverage:
+class TestCredentialStoreCore:
     """Cover key uncovered lines in credential_store.py."""
 
     def test_import_error_sets_flags(self):
@@ -665,7 +665,7 @@ class TestCredentialStoreCoverage:
 # ═══════════════════════════════════════════════════════════════════
 # cvss_scorer.py (92% - missing lines)
 # ═══════════════════════════════════════════════════════════════════
-class TestCredentialStoreCoverage02:
+class TestCredentialStoreEncryption:
     """Cover remaining credential_store.py uncovered lines."""
 
     def test_init_no_cryptography_raises(self):
@@ -860,7 +860,7 @@ class TestCredentialStoreCoverage02:
 # ═══════════════════════════════════════════════════════════════════
 # 9. audit_log.py (64% - many uncovered lines)
 # ═══════════════════════════════════════════════════════════════════
-class TestCredentialStoreCoverage03:
+class TestCredentialStorePersistence:
     """Cover remaining credential_store.py uncovered lines."""
 
     def test_init_encryption_keyring_success(self, tmp_path, monkeypatch):

@@ -217,7 +217,7 @@ async def test_agent_check_budget(agent):
     with pytest.raises(BudgetExceededError):
         await agent._check_budget()
 
-class TestCoreInitCoverage:
+class TestCoreInit:
     """Cover key uncovered lines in core/__init__.py."""
 
     @pytest.mark.asyncio
@@ -292,7 +292,7 @@ class TestCoreInitCoverage:
 # ═══════════════════════════════════════════════════════════════════
 # core/learning.py (77% - missing 47-55, 59-72, 80-82, 132-129, 147-148)
 # ═══════════════════════════════════════════════════════════════════
-class TestCoreCoverage:
+class TestCoreExecution:
     """Cover remaining core/__init__.py uncovered lines."""
 
     def test_core_properties(self):
@@ -414,7 +414,7 @@ class TestCoreCoverage:
 # ═══════════════════════════════════════════════════════════════════
 # 11. executor.py (82% - many uncovered lines/branches)
 # ═══════════════════════════════════════════════════════════════════
-class TestCoreCoverage03:
+class TestCoreErrorHandling:
     """Cover remaining core/__init__.py uncovered lines."""
 
     async def test_start_stealth_enabled(self, tmp_path):

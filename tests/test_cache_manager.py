@@ -213,7 +213,7 @@ class TestCachedDecorator:
     def test_decorator_singleton(self) -> None:
         assert cache_manager is not None
 
-class TestCacheManagerCoverage:
+class TestCacheManagerEviction:
     """Cover missing cache_manager lines."""
 
     def test_save_index_memory_only_returns_early(self):
@@ -278,7 +278,7 @@ class TestCacheManagerCoverage:
 # ═══════════════════════════════════════════════════════════════════
 # chat/commands.py (84% - missing 122-124, 139-140, 148, 152-155)
 # ═══════════════════════════════════════════════════════════════════
-class TestCacheManagerCoverage02More:
+class TestCacheManagerExpiry:
     """Cover remaining cache_manager.py lines 126-127, 192-193."""
 
     def test_get_import_error_returns_none(self):
@@ -309,7 +309,7 @@ def cred_store(tmp_path, monkeypatch):
     monkeypatch.setenv("SIYARIX_USE_KEYRING", "0")
     s = CredentialStore(master_password="test_master")
     return s
-class TestCacheManagerCoverageMore:
+class TestCacheManagerConcurrency:
     """Cover remaining cache_manager.py lines 126-127, 192-193."""
 
     def test_get_import_error_returns_none(self):

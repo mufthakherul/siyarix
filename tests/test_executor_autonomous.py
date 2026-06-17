@@ -126,7 +126,7 @@ def test_try_parse_output(executor):
     assert res["findings"] == {"parsed_key": "val"}
 
 import asyncio
-class TestExecutorAutonomousCoverage:
+class TestExecutorAutonomousCore:
     """Cover uncovered lines in executor_autonomous.py."""
 
     def test_command_review_setter(self):
@@ -213,7 +213,7 @@ class TestExecutorAutonomousCoverage:
 # ═══════════════════════════════════════════════════════════════════
 # executor_registry.py (59% - selective key lines)
 # ═══════════════════════════════════════════════════════════════════
-class TestExecutorAutonomousCoverage02:
+class TestExecutorAutonomousExceptions:
     """Cover remaining executor_autonomous.py uncovered lines."""
 
     def test_normalise_step_no_tool_has_command(self):
@@ -274,7 +274,7 @@ class TestExecutorAutonomousCoverage02:
 # ═══════════════════════════════════════════════════════════════════
 # 13. executor_registry.py (66% - many uncovered lines/branches)
 # ═══════════════════════════════════════════════════════════════════
-class TestExecutorAutonomousCoverage03:
+class TestExecutorAutonomousErrorHandling:
     """Cover remaining executor_autonomous.py uncovered lines."""
 
     async def test_exec_one_stealth_delay(self):

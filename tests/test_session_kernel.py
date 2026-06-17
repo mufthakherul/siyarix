@@ -36,7 +36,7 @@ def test_session_kernel_save_load_roundtrip(tmp_path: Path) -> None:
     assert loaded.operations[0].artifacts == ["plan-123"]
 
 from unittest.mock import patch, MagicMock, AsyncMock
-class TestSessionCoverageMore:
+class TestSessionEdgeCases:
     """Cover remaining session.py branches: branching property, branch path, save isinstance check."""
 
     def test_branching_property_already_initialized(self):

@@ -722,7 +722,7 @@ class TestDecomposeGoal:
 
     def test_step4_intent_map_ssl(self, planner: RegistryPlanner):
         plan = planner.decompose_goal("ssl check example.com")
-        assert plan.steps[0].tool == "nmap"
+        assert plan.steps[0].tool == "openssl"
 
     def test_step4_intent_map_alt_tool_selected(self, planner: RegistryPlanner):
         plan = planner.decompose_goal("scan 10.0.0.1", available_tools=["masscan"])
@@ -925,7 +925,7 @@ class TestToolAlternatives:
     def test_symmetry(self):
         assert "nmap" in TOOL_ALTERNATIVES["masscan"] if "masscan" in TOOL_ALTERNATIVES else True
 
-class TestPlannerRegistryCoverage:
+class TestPlannerRegistryCore:
     """Cover uncovered lines in planner_registry.py."""
 
     def test_build_index_adds_metadata_tags_and_descriptions(self):
@@ -998,7 +998,7 @@ class TestPlannerRegistryCoverage:
 # ═══════════════════════════════════════════════════════════════════
 # tool_installer.py (93% - missing 136-137, 156-157, 219-221)
 # ═══════════════════════════════════════════════════════════════════
-class TestPlannerRegistryCoverage02:
+class TestPlannerRegistryAdaptPlan:
     """Cover remaining planner_registry.py uncovered lines."""
 
     def test_build_index_tool_registry_get_tool_fallback(self):
@@ -1138,7 +1138,7 @@ class TestPlannerRegistryCoverage02:
         assert len(plans) >= 2
         plans_empty = planner.list_plans(status=PlanStatus.COMPLETED)
         assert len(plans_empty) == 0
-class TestPlannerRegistryCoverage03:
+class TestPlannerRegistryAlternatives:
     """Cover remaining planner_registry.py uncovered lines."""
 
     def test_decompose_goal_semantic_params_stealth(self):

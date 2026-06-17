@@ -250,7 +250,7 @@ class TestPlannerPlanMode:
         assert len(plan.steps) > 0
 
 
-class TestPlannerExtra:
+class TestPlannerIntegration:
     @pytest.fixture
     def planner(self):
         return Planner()
@@ -358,7 +358,7 @@ class TestPlannerExtra:
 
 # ── AutonomousPlanner extra tests ────────────────────────────────────
 
-class TestAutonomousPlannerExtra:
+class TestAutonomousPlannerIntegration:
     @pytest.fixture
     def ap(self):
         return AutonomousPlanner()

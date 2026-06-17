@@ -131,7 +131,7 @@ async def test_continuous_learning_query():
     assert results[0].action == "scan"
 
 import asyncio
-class TestLearningCoverage:
+class TestLearningCore:
     """Cover missing learning.py lines."""
 
     @pytest.mark.asyncio

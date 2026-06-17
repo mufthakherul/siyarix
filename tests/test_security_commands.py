@@ -194,7 +194,7 @@ class TestQueriesCommand:
         assert "q_dns_tunnel" not in output
 
 
-class TestMitreCoverage:
+class TestMitreCore:
     def test_mitre_coverage(self, cli: Typer, runner: CliRunner) -> None:
         output = invoke_security(cli, runner, ["mitre-coverage"])
         assert "T1059" in output
@@ -216,7 +216,7 @@ class TestPlaybooks:
         assert "Ransomware Response" in output
         assert "phishing" in output.lower()
 
-class TestCommandsCoverage:
+class TestCommandsCore:
     """Cover missing commands.py lines."""
 
     def test_save_sets_created_at_when_empty(self, tmp_path):
@@ -252,7 +252,7 @@ class TestCommandsCoverage:
 # ═══════════════════════════════════════════════════════════════════
 # chat/prompts.py (88% - missing line 34)
 # ═══════════════════════════════════════════════════════════════════
-class TestDLPCoverage:
+class TestDLPCore:
     """Cover missing DLP lines."""
 
     def test_redact_non_string_returns_unchanged(self):

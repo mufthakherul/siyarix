@@ -78,7 +78,7 @@ class TestBuildFinding:
 # BaseParser
 # ---------------------------------------------------------------------------
 
-class _SimpleParser(BaseParser):
+class _MinimalParser(BaseParser):
     def parse(self, output: str) -> list[dict[str, Any]]:
         return [{"title": output, "severity": "info", "description": "", "evidence": "", "tool": "simple", "target": ""}]
 
@@ -95,7 +95,7 @@ class _FailingParser(BaseParser):
 
 class TestBaseParserParseSafe:
     def test_success(self):
-        p = _SimpleParser()
+        p = _MinimalParser()
         result = p._parse_safe("hello")
         assert isinstance(result, list)
         assert len(result) == 1
@@ -112,14 +112,14 @@ class TestBaseParserParseSafe:
         assert result == []
 
     def test_empty_output(self):
-        p = _SimpleParser()
+        p = _MinimalParser()
         result = p._parse_safe("")
         assert isinstance(result, list)
 
 
 class TestBaseParserEnsureFields:
     def test_fills_defaults(self):
-        p = _SimpleParser()
+        p = _MinimalParser()
         result = p._ensure_fields({})
         assert result["title"] == "Unknown finding"
         assert result["severity"] == "info"
@@ -130,7 +130,7 @@ class TestBaseParserEnsureFields:
         assert "timestamp" in result
 
     def test_preserves_existing(self):
-        p = _SimpleParser()
+        p = _MinimalParser()
         result = p._ensure_fields({
             "title": "Custom",
             "severity": "high",
@@ -145,7 +145,7 @@ class TestBaseParserEnsureFields:
         assert result["tool"] == "mytool"
 
     def test_partial_defaults(self):
-        p = _SimpleParser()
+        p = _MinimalParser()
         result = p._ensure_fields({"title": "Only title"})
         assert result["title"] == "Only title"
         assert result["severity"] == "info"
@@ -467,7 +467,7 @@ class TestParserProtocol:
                 return []
         assert isinstance(Impl(), Parser)
 
-class TestParsersInitCoverage:
+class TestParsersInitCore:
     """Cover uncovered lines in parsers/__init__.py."""
 
     def test_parse_safe_non_list_return(self):
@@ -505,7 +505,7 @@ class TestParsersInitCoverage:
 # ═══════════════════════════════════════════════════════════════════
 # planner_registry.py (94% - selective key lines)
 # ═══════════════════════════════════════════════════════════════════
-class TestParsersInitCoverage02:
+class TestParsersInitErrors:
     """Cover parsers/__init__.py remaining uncovered lines."""
 
     def test_parser_registry_discover_skip_baseparser(self):
@@ -570,7 +570,7 @@ class TestParsersInitCoverage02:
 # ═══════════════════════════════════════════════════════════════════
 # 16. planner_registry.py (91% - many uncovered lines/branches)
 # ═══════════════════════════════════════════════════════════════════
-class TestParsersInitCoverage03:
+class TestParsersInitConcurrency:
     """Cover remaining parsers/__init__.py lines."""
 
     def test_discover_skips_non_type_globals(self):

@@ -3485,7 +3485,7 @@ class TestEnum4linuxParserAdditionalBranches:
 # 10. ike_scan_parser.py  — 108, 113->126, 130->134, 154->169, 191->204,
 #                           210->223, 227->240, 249->262, 268->281, 287->105
 # ============================================================================
-class TestEvilWinrmParserMoreBranches:
+class TestEvilWinrmParserEdgeCases:
     """Covers: text empty line, banner with IP, connect with IP."""
 
     def test_text_empty_line_skipped(self):

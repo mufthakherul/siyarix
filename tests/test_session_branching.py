@@ -477,7 +477,7 @@ class TestHasEntry:
         bs = BranchingSession(session_id="x")
         assert not bs._has_entry("nonexistent")
 
-class TestSessionCoverage:
+class TestSessionBranchingCore:
     """Cover missing session.py lines."""
 
     def test_branching_property_lazy_init(self):
@@ -541,7 +541,7 @@ class TestSessionCoverage:
 # ═══════════════════════════════════════════════════════════════════
 # compliance.py (0% - all 59 lines)
 # ═══════════════════════════════════════════════════════════════════
-class TestSessionCoverage02More:
+class TestSessionBranchingEdgeCases:
     """Cover remaining session.py branches: branching property, branch path, save isinstance check."""
 
     def test_branching_property_already_initialized(self):

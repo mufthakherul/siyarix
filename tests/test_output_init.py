@@ -429,7 +429,7 @@ class TestModuleFunctions:
     def test_formatter_args_defaults(self):
         assert "no_color" in _formatter_args
 
-class TestOutputCoverage:
+class TestOutputCore:
     """Cover uncovered lines in output/__init__.py."""
 
     def test_yaml_import_fail(self):

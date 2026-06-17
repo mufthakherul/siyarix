@@ -196,7 +196,7 @@ class TestOPSECManager:
     def test_module_singleton(self) -> None:
         assert isinstance(opsec_manager, OPSECManager)
 
-class TestOPSECCoverage:
+class TestOPSECCore:
     """Cover uncovered OPSEC lines."""
 
     def test_is_active_with_burn_after_reading(self):

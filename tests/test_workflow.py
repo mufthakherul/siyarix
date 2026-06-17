@@ -137,7 +137,7 @@ class TestWorkflowModel:
         assert wf.is_complete is False
 
 
-class TestWorkflowEngineExtra:
+class TestWorkflowEngineCancellation:
     @pytest.mark.asyncio
     async def test_run_workflow_cancelled_during_loop(self) -> None:
         engine = WorkflowEngine()

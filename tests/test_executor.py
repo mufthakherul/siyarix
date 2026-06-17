@@ -142,7 +142,7 @@ class TestSafeRunAsync:
         with pytest.raises(ValueError):
             await safe_run_async([])
 
-class TestExecutorCoverage:
+class TestExecutorCore:
     """Cover uncovered lines in executor.py."""
 
     def test_redact_value_sensitive_key(self):
@@ -204,7 +204,7 @@ class TestExecutorCoverage:
 # ═══════════════════════════════════════════════════════════════════
 # executor_autonomous.py (55% - selective key lines)
 # ═══════════════════════════════════════════════════════════════════
-class TestExecutorRegistryCoverage:
+class TestExecutorRegistryCore:
     """Cover uncovered lines in executor_registry.py."""
 
     def test_registry_property(self):
@@ -272,7 +272,7 @@ class TestExecutorRegistryCoverage:
 # ═══════════════════════════════════════════════════════════════════
 # internal_tools.py (7% - missing 9-78) - Full coverage
 # ═══════════════════════════════════════════════════════════════════
-class TestExecutorCoverage02:
+class TestExecutorToolErrors:
     """Cover remaining executor.py uncovered lines."""
 
     def test_redact_value_sensitive_short(self):
@@ -411,7 +411,7 @@ class TestExecutorCoverage02:
 # ═══════════════════════════════════════════════════════════════════
 # 12. executor_autonomous.py (81% - many uncovered lines/branches)
 # ═══════════════════════════════════════════════════════════════════
-class TestExecutorRegistryCoverage02:
+class TestExecutorRegistryAutonomous:
     """Cover remaining executor_registry.py uncovered lines."""
 
     def test_execute_step_cancelled_error(self):
@@ -500,7 +500,7 @@ class TestExecutorRegistryCoverage02:
 # ═══════════════════════════════════════════════════════════════════
 # 14. internal_tools.py (92% - missing 18, 24->38, 29->38, 66)
 # ═══════════════════════════════════════════════════════════════════
-class TestExecutorCoverage03:
+class TestExecutorErrorHandling:
     """Cover remaining executor.py uncovered lines."""
 
     def test_budget_reset(self):
@@ -590,7 +590,7 @@ class TestExecutorCoverage03:
 # ═══════════════════════════════════════════════════════════════════
 # 9. executor_autonomous.py (84% - missing stealth, live display, parse)
 # ═══════════════════════════════════════════════════════════════════
-class TestExecutorRegistryCoverage03:
+class TestExecutorRegistryPlanExecution:
     """Cover remaining executor_registry.py uncovered lines."""
 
     async def test_execute_plan_simple_sequential(self):

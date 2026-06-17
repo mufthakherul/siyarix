@@ -314,7 +314,7 @@ class TestPersistence:
             store.set("scan_timeout", "1")
             mock_save.assert_called_once()
 
-class TestConfigCoverage:
+class TestConfigCore:
     """Cover missing config.py lines: fallback TOML parser, backup, restore etc."""
 
     def _disable_tomllib(self):
@@ -495,7 +495,7 @@ class TestConfigCoverage:
 # ═══════════════════════════════════════════════════════════════════
 # context.py (55% - missing many lines)
 # ═══════════════════════════════════════════════════════════════════
-class TestConfigCoverage03:
+class TestConfigEdgeCases:
     """Cover remaining config.py uncovered lines."""
 
     @patch.dict(os.environ, {"SIYARIX_PERSONA": "bug_hunter"}, clear=True)

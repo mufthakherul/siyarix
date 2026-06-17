@@ -181,7 +181,7 @@ class TestRedact:
 # validate_not_empty (additional coverage)
 # ═══════════════════════════════════════════════════════════════════════════
 
-class TestValidateNotEmptyExtra:
+class TestValidateNotEmptyAdditional:
     def test_whitespace_only_with_custom_field(self) -> None:
         with pytest.raises(ValidationError, match="query cannot be empty"):
             validate_not_empty("   ", "query")
@@ -191,7 +191,7 @@ class TestValidateNotEmptyExtra:
 # validate_min_length (additional coverage)
 # ═══════════════════════════════════════════════════════════════════════════
 
-class TestValidateMinLengthExtra:
+class TestValidateMinLengthAdditional:
     def test_zero_min_len(self) -> None:
         validate_min_length("", 0)  # should pass
 
@@ -204,7 +204,7 @@ class TestValidateMinLengthExtra:
 # validate_hostname (additional coverage)
 # ═══════════════════════════════════════════════════════════════════════════
 
-class TestValidateHostnameExtra:
+class TestValidateHostnameAdditional:
     def test_localhost(self) -> None:
         validate_hostname("localhost")  # passes (H-05)
 
@@ -247,7 +247,7 @@ class TestValidateHostnameExtra:
 # validate_url (additional coverage)
 # ═══════════════════════════════════════════════════════════════════════════
 
-class TestValidateUrlExtra:
+class TestValidateUrlAdditional:
     def test_url_with_path(self) -> None:
         validate_url("https://example.com/path/to/resource?q=1")
 
@@ -432,7 +432,7 @@ class TestValidateEmail:
 # validate_target (additional coverage)
 # ═══════════════════════════════════════════════════════════════════════════
 
-class TestValidateTargetExtra:
+class TestValidateTargetAdditional:
     def test_ipv6(self) -> None:
         result = validate_target("fe80::1")
         assert result["type"] == "ipv6"

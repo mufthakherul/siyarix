@@ -212,7 +212,7 @@ class TestEdgeCases:
         assert p is not None
         assert p["name"] == "cloud security"
 
-class TestPromptsCoverage:
+class TestPromptsPlatformContext:
     """Cover prompts.py line 34 (non-Windows path in _platform_context)."""
 
     def test_platform_context_non_windows(self):
@@ -225,41 +225,41 @@ class TestPromptsCoverage:
 # ═══════════════════════════════════════════════════════════════════
 # chat/session.py (65% - missing 48-52, 56, 61, 63, 79-93, 108-111)
 # ═══════════════════════════════════════════════════════════════════
-class TestPromptsCoverage02More:
-    """Cover prompts.py line 24 (Windows path in _platform_context)."""
-
-    def test_platform_context_windows(self):
-        with patch("sys.platform", "win32"):
-            ctx = _platform_context()
-            assert "WARNING: Windows system detected" in ctx
-
-    def test_platform_context_non_windows_already_covered(self):
-        with patch("sys.platform", "linux"):
-            ctx = _platform_context()
-            assert "Unix-like system" in ctx
-
-
-# ═══════════════════════════════════════════════════════════════════
-# 4. chat/openai_compat.py (87% - many uncovered lines)
-# ═══════════════════════════════════════════════════════════════════
-class TestPromptsCoverageMore:
-    """Cover prompts.py line 24 (Windows path in _platform_context)."""
-
-    def test_platform_context_windows(self):
-        with patch("sys.platform", "win32"):
-            ctx = _platform_context()
-            assert "WARNING: Windows system detected" in ctx
-
-    def test_platform_context_non_windows_already_covered(self):
-        with patch("sys.platform", "linux"):
-            ctx = _platform_context()
-            assert "Unix-like system" in ctx
-
-
-# ═══════════════════════════════════════════════════════════════════
-# 4. chat/openai_compat.py (87% - many uncovered lines)
-# ═══════════════════════════════════════════════════════════════════
 class TestPromptsWindows:
+    """Cover prompts.py line 24 (Windows path in _platform_context)."""
+
+    def test_platform_context_windows(self):
+        with patch("sys.platform", "win32"):
+            ctx = _platform_context()
+            assert "WARNING: Windows system detected" in ctx
+
+    def test_platform_context_non_windows_already_covered(self):
+        with patch("sys.platform", "linux"):
+            ctx = _platform_context()
+            assert "Unix-like system" in ctx
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 4. chat/openai_compat.py (87% - many uncovered lines)
+# ═══════════════════════════════════════════════════════════════════
+class TestPromptsOpenAICompat:
+    """Cover prompts.py line 24 (Windows path in _platform_context)."""
+
+    def test_platform_context_windows(self):
+        with patch("sys.platform", "win32"):
+            ctx = _platform_context()
+            assert "WARNING: Windows system detected" in ctx
+
+    def test_platform_context_non_windows_already_covered(self):
+        with patch("sys.platform", "linux"):
+            ctx = _platform_context()
+            assert "Unix-like system" in ctx
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 4. chat/openai_compat.py (87% - many uncovered lines)
+# ═══════════════════════════════════════════════════════════════════
+class TestPromptsWindowsPath:
     """Line 24: lines.extend() inside if is_win."""
 
     def test_platform_context_windows(self):

@@ -541,7 +541,38 @@ class RegistryPlanner:
         for step_def in template:
             step = {**step_def, "args": {**step_def.get("args", {}), "target": clean_target}}
             if overrides:
-                step["args"].update(overrides.get("args", {}))
+                # Merge overrides carefully, and apply NLP-specific overrides mapping if applicable
+                override_args = overrides.get("args", {})
+                tool_name = step.get("tool")
+                
+                # Intelligent parameter mapping to avoid passing bad args to tools
+                if tool_name in ("nmap", "masscan"):
+                    if "speed" in override_args:
+                        step["args"]["flags"] = step["args"].get("flags", "") + f" -T{override_args['speed']} "
+                    if "ports" in override_args:
+                        step["args"]["flags"] = step["args"].get("flags", "") + f" -p {override_args['ports']} "
+                    if "threads" in override_args:
+                        step["args"]["flags"] = step["args"].get("flags", "") + f" --min-rate {override_args['threads']} "
+                elif tool_name in ("ffuf", "gobuster", "hydra"):
+                    if "threads" in override_args:
+                        step["args"]["threads"] = override_args["threads"]
+                    if "username" in override_args:
+                        step["args"]["username"] = override_args["username"]
+                    if "password" in override_args:
+                        step["args"]["password"] = override_args["password"]
+                elif tool_name == "nuclei":
+                    if "threads" in override_args:
+                        step["args"]["rate-limit"] = override_args["threads"]
+                        
+                # Merge the rest (this might overwrite some but it's okay)
+                for k, v in override_args.items():
+                    if k not in ("speed", "ports", "threads", "username", "password", "module"):
+                        step["args"][k] = v
+                
+                # Cleanup spaces
+                if "flags" in step["args"]:
+                    step["args"]["flags"] = step["args"]["flags"].strip()
+                    
             steps.append(step)
         plan_type = (
             PlanType.DAG if template_name in self._auto_dag_templates else PlanType.SEQUENTIAL
@@ -554,6 +585,42 @@ class RegistryPlanner:
         )
 
     def decompose_goal(self, goal: str, available_tools: list[str] | None = None) -> ExecutionPlan:
+        # Handle multi-step intents
+        intents = self._nlp.parse_multi(goal)
+        if len(intents) > 1:
+            all_steps = []
+            is_dag = False
+            last_step_ids = []
+            for intent in intents:
+                sub_plan = self.decompose_goal(intent.raw_text, available_tools)
+                
+                # If there are previous steps, make the first steps of THIS intent depend on the last steps of the PREVIOUS intent
+                if last_step_ids and sub_plan.steps:
+                    for step in sub_plan.steps:
+                        if not step.dependencies:
+                            step.dependencies.extend(last_step_ids)
+                
+                all_steps.extend(sub_plan.steps)
+                last_step_ids = [s.id for s in sub_plan.steps if s.is_terminal or not any(other.id in s.dependencies for other in sub_plan.steps)]
+                # Fallback if the logic above is empty (it shouldn't be, but just in case)
+                if not last_step_ids and sub_plan.steps:
+                    last_step_ids = [sub_plan.steps[-1].id]
+                    
+                if sub_plan.plan_type == PlanType.DAG:
+                    is_dag = True
+            plan_type = PlanType.DAG if is_dag else PlanType.SEQUENTIAL
+            
+            # Since we injected dependencies, if it wasn't already a DAG, it should be now if dependencies exist
+            if any(s.dependencies for s in all_steps):
+                plan_type = PlanType.DAG
+                
+            return self.create_plan(
+                goal=goal,
+                steps=[{"id": s.id, "description": s.description, "tool": s.tool, "args": s.args, "command": s.command, "dependencies": s.dependencies, "timeout": s.timeout} for s in all_steps],
+                context={"target": intents[0].target if intents else ""},
+                plan_type=plan_type,
+            )
+
         goal_lower = goal.lower()
         avail_set = set(available_tools or [])
 
@@ -618,19 +685,19 @@ class RegistryPlanner:
                 if intent.parameters.get("format") == "json":
                     flags += "-o result.json -of json "
 
-                if flags:
-                    args["flags"] = flags.strip()
+            if flags:
+                args["flags"] = flags.strip()
 
-                return self.create_plan(
-                    goal=goal,
-                    steps=[
-                        {
-                            "description": f"Execute {actual_tool} on {target}",
-                            "tool": actual_tool,
-                            "args": args,
-                        }
-                    ],
-                )
+            return self.create_plan(
+                goal=goal,
+                steps=[
+                    {
+                        "description": f"Execute {actual_tool} on {target}",
+                        "tool": actual_tool,
+                        "args": args,
+                    }
+                ],
+            )
 
         # ── Step 1: Match against named workflow templates ──────────────
         kw_map = [
@@ -660,11 +727,14 @@ class RegistryPlanner:
         # ── Step 2: Extract target ─────────────────────────────────────
         url_match = re.search(r"https?://[^\s]+", goal)
         host_match = re.search(r"\b(?:[\w-]+\.)+[a-z]{2,}\b", goal_lower)
+        ip_match = re.search(r"\b(?:\d{1,3}\.){3}\d{1,3}(?:/\d{1,2})?\b", goal)
         target = ""
         if url_match:
             target = url_match.group(0)
         elif host_match:
             target = host_match.group(0)
+        elif ip_match:
+            target = ip_match.group(0)
 
         # ── Step 3: Availability-weighted index search ──────────────────
         tool_match = None

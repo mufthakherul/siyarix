@@ -35,9 +35,10 @@ Two stages, evaluated in order:
 
 Validates command structure before any execution:
 
-- Length limits
-- Character restrictions
-- Shell injection pattern detection
+- Length limits on commands and arguments
+- Reject null bytes and control characters
+- Shell injection pattern detection (`;`, `|`, `` ` ``, `$()`)
+- Target format validation (IP, CIDR, hostname, URL)
 - Malformed command rejection
 
 ### Stage 2: Danger analysis
@@ -46,14 +47,16 @@ Pattern-matches against 38 dangerous command signatures:
 
 | Pattern | Example | Action |
 |---------|---------|--------|
-| Destructive disk ops | `dd`, `format`, `mkfs` | DENY |
-| Recursive deletion | `rm -rf /`, `rm -rf ~` | DENY |
-| System modification | `chmod 0 /`, `mknod` | DENY |
-| Network flooding | `ping -f`, `hping3 --flood` | FLAG |
+| Destructive disk ops | `dd`, `format`, `mkfs`, `mkswap`, `parted` | DENY |
+| Recursive deletion | `rm -rf /`, `rm -rf ~`, `rm -rf .`, `rm -rf /*` | DENY |
+| System modification | `chmod 0 /`, `mknod`, `chown 0` | DENY |
+| Network flooding | `ping -f`, `hping3 --flood`, `slowloris` | FLAG |
 | Privilege escalation | `sudo !!`, `su -` | FLAG |
 | Data exfiltration | `nc -e`, `curl --data @/etc` | FLAG |
+| Fork bomb | `:(){ :\|:& };:` | DENY |
+| Data destruction | `shred -z`, `wipe`, `srm`, `sfill` | FLAG |
 
-Commands failing any stage return `DENY` or `FLAG` (user confirmation required).
+Commands failing any stage return `DENY` (blocked, logged) or `FLAG` (user confirmation required).
 
 ## 2. Data protection
 
@@ -71,10 +74,11 @@ Bidirectional token masking protects sensitive data sent to AI providers:
 
 Encrypted vault for API keys and secrets:
 
-- **Encryption**: AES-256-GCM with key rotation support
+- **Encryption**: AES-256-GCM (primary) or Fernet (fallback)
 - **Key storage**: System keyring via `keyring` library
-- **Optional KMS**: AWS KMS envelope encryption
+- **Key rotation**: Re-encrypt all credentials with a new master key
 - **Auto-clear**: Session end cleanup
+- **Never persisted**: Keys decrypted only at runtime for the duration of a single request
 
 ### Secret redactor (`security_hardening.py`)
 

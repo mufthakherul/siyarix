@@ -44,35 +44,60 @@ class Provider:
         """Release resources."""
 ```
 
-## Registered providers
+## Provider Profiles (24 total)
 
-| Registry name | Adapter | When to use |
-|--------------|---------|-------------|
-| `openai` | OpenAI GPT-4o | General purpose, high quality |
-| `gemini` | Gemini 1.5 Pro | Large context windows, multimodal |
-| `anthropic` | Claude 3 Opus | Safety-conscious, complex reasoning |
-| `groq` | Groq Llama 3 70B | Low-latency inference |
-| `together` | Together Mixtral | Open-weight model aggregation |
-| `ollama` | Local Llama 3.1 | Fully offline, no API key needed |
-| `lmstudio` | LM Studio (any model) | Local models, GPU-accelerated |
-| `cloud` | Configurable cloud endpoint | Enterprise deployments |
-| `opencode` | OpenCode-compatible endpoint | Specific platform integration |
-| `noop` | Built-in no-op | Offline/testing, no external calls |
+### Cloud Providers
+
+| Registry name | SDK / API | Models |
+|--------------|-----------|--------|
+| `openai` | `openai` | GPT-4o, GPT-4, GPT-3.5-turbo |
+| `gemini` | `google-generativeai` | Gemini 2.0 Flash, 1.5 Pro |
+| `anthropic` | `anthropic` | Claude 3.5 Sonnet, Claude 3 Opus |
+| `groq` | `groq` | Llama 3 70B, Mixtral 8x7B |
+| `together` | `together` | Mixtral, DeepSeek, Llama |
+| `openrouter` | `openai` | Multi-model router |
+| `deepseek` | `openai` | DeepSeek-V2, DeepSeek-Coder |
+| `xai` | `openai` | Grok |
+| `mistral` | `mistralai` | Mistral Large, Small |
+| `perplexity` | `openai` | Sonar, Sonar-Pro |
+| `cerebras` | `openai` | Fast inference models |
+| `fireworks` | `openai` | Open model serving |
+| `zai` | `openai` | Z.AI models |
+| `minimax` | `openai` | MiniMax models |
+| `moonshot` | `openai` | Moonshot / Kimi |
+| `nvidia` | `openai` | NVIDIA Nemotron |
+| `huggingface` | `huggingface-hub` | Hugging Face Inference API |
+| `azure` | `openai` | Azure OpenAI (enterprise) |
+| `opencode_go` | `openai` | OpenCode Go |
+
+### Local Providers (no API key needed)
+
+| Registry name | Endpoint | Notes |
+|--------------|----------|-------|
+| `ollama` | `http://localhost:11434` | Pull any open-weight model |
+| `lmstudio` | `http://localhost:1234` | GUI + API server |
+| `llamacpp` | `http://localhost:8080` | Efficient CPU inference |
+| `vllm` | Configurable | High-throughput GPU serving |
+| `localai` | `http://localhost:8080` | Drop-in OpenAI replacement |
+
+### Fallback
+
+| Registry name | Description |
+|--------------|-------------|
+| `registry` | Heuristic/offline planner — no AI needed |
 
 ## Preference chains
 
-Each provider type has a fallback chain defined in `engine/providers.py`:
+Each provider type has a fallback chain. When the primary is unavailable, the system falls through to the next in order:
 
-```python
-PREFERENCE_MAP = {
-    "gemini": ["gemini", "openai", "anthropic", "groq", "together",
-               "ollama", "lmstudio", "cloud", "noop"],
-    "openai": ["openai", "gemini", "anthropic", ...],
-    ...
-}
+```
+gemini → openai → anthropic → groq → together → openrouter → deepseek → xai →
+mistral → perplexity → cerebras → fireworks → zai → minimax → moonshot →
+nvidia → huggingface → azure → opencode_go → ollama → lmstudio → llamacpp →
+vllm → localai → registry (heuristic)
 ```
 
-When `model_provider = "auto"`, the system scans configured providers in priority order, skipping any that were disabled this session due to rate-limit/auth errors. Providers are tried one at a time until one responds successfully or all are exhausted.
+When `model_provider = "auto"`, the system scans all configured providers in priority order, skipping any that were disabled this session due to rate-limit/auth errors. Providers are tried one at a time until one responds successfully or all are exhausted.
 
 ## Provider selection
 
@@ -115,9 +140,12 @@ Data masking is enforced by the `MaskingEngine` before any provider call.
 
 ## Local/offline operation
 
-Two providers require no API key:
+Five local providers require no API key:
 
-- **Ollama**: `ollama pull llama3.1 && ollama serve`
-- **LM Studio**: Start app, enable API server on port 1234
+- **Ollama**: `ollama pull llama3.1 && ollama serve` — port 11434
+- **LM Studio**: Start app, enable API server — port 1234
+- **llama.cpp**: `./server -m model.gguf` — port 8080
+- **vLLM**: `vllm serve model` — configurable port
+- **LocalAI**: `local-ai run` — port 8080
 
-The **noop** provider is always available and provides minimal responses for testing.
+The **registry** provider is always available as heuristic fallback with no external dependencies.

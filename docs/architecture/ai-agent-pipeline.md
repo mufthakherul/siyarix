@@ -38,16 +38,16 @@ Each `ExecutionPlan` contains:
 - **Dependencies**: Step ordering (step B depends on step A's output)
 - **Mode**: Registry (deterministic) or Autonomous (AI-driven)
 
-The planner tries AI providers in order of preference. If all fail, the `RuleInterpreter` provides heuristic fallback.
+The planner tries AI providers in order of preference (up to 24 provider profiles available). If all fail, the heuristic `RegistryPlanner` provides fallback without requiring any AI provider.
 
 ### 4. Permission gating
 
 Every step passes through the two-stage gate:
 
-1. **Syntax validation**: Is the command well-formed?
-2. **Danger analysis**: Does it match dangerous patterns (rm -rf, dd, format)?
+1. **Syntax validation**: Is the command well-formed? Checks length limits, character restrictions, shell injection patterns, target format.
+2. **Danger analysis**: Does it match dangerous patterns? Checks 38 signatures across categories: destructive disk ops, recursive deletion, system modification, network flooding, privilege escalation, data exfiltration, fork bombs.
 
-Gates return: `ALLOW`, `DENY`, or `FLAG` (requires user confirmation).
+Each gate returns: `ALLOW`, `DENY`, or `FLAG` (requires user confirmation).
 
 ### 5. Execution
 

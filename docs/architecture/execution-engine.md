@@ -131,7 +131,7 @@ AI-assisted with safety gates:
 
 ## Tool registry
 
-The `ToolRegistry` (`tool_registry.py`) maintains metadata for 100+ tools:
+The `ToolRegistry` (`registry.py`) maintains metadata for 100+ tools with a capability graph:
 
 ```python
 @dataclass

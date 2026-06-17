@@ -1,219 +1,155 @@
 <p align="center">
-  <img src="assets/logo.png" alt="Siyarix" width="120"/>
+  <img src="assets/logo.png" alt="Siyarix" width="160"/>
 </p>
 
 <h1 align="center">Siyarix</h1>
 
 <p align="center">
-  <b>CLI-based AI-Native Cybersecurity Orchestration Agent</b><br/>
-  Transform natural language security objectives into deterministic, tool-driven execution workflows<br/>
-  across 24 AI providers, 114+ tool parsers, and 50+ CLI commands.
+  <b>CLI-Based AI-Native Command Center for Modern Cybersecurity Operations</b><br/>
+  Orchestrate complex security workflows using natural language across 24+ AI providers, 
+  a massive 562+ tool registry, and 114+ specialized output parsers.
 </p>
 
 <p align="center">
   <a href="https://github.com/mufthakherul/siyarix">
-    <img src="https://img.shields.io/badge/Stars-See%20GitHub-blue?style=flat-square&logo=github" alt="Stars"/>
+    <img src="https://img.shields.io/badge/Stars-See%20GitHub-blue?style=for-the-badge&logo=github" alt="Stars"/>
   </a>
   <a href="https://github.com/mufthakherul/siyarix/releases">
-    <img src="https://img.shields.io/badge/Release-v3.0.0-blue?style=flat-square&logo=github" alt="Release"/>
+    <img src="https://img.shields.io/badge/Release-v3.0.0-blue?style=for-the-badge&logo=github" alt="Release"/>
   </a>
   <a href="https://github.com/mufthakherul/siyarix/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-blue?style=flat-square&logo=gnu" alt="License"/>
+    <img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-blue?style=for-the-badge&logo=gnu" alt="License"/>
   </a>
   <a href="https://github.com/mufthakherul/siyarix/actions/workflows/ci.yml">
     <img src="https://github.com/mufthakherul/siyarix/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"/>
   </a>
-  <a href="https://github.com/mufthakherul/siyarix/blob/main/pyproject.toml">
-    <img src="https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square&logo=python" alt="Python"/>
-  </a>
   <a href="https://pypi.org/project/siyarix/">
-    <img src="https://img.shields.io/badge/PyPI-v3.0.0-blue?style=flat-square&logo=pypi" alt="PyPI"/>
-  </a>
-  <a href="https://github.com/mufthakherul/siyarix/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/SPDX-AGPL--3.0--or--later-blue?style=flat-square" alt="SPDX"/>
+    <img src="https://img.shields.io/badge/PyPI-v3.0.0-blue?style=for-the-badge&logo=pypi" alt="PyPI"/>
   </a>
   <a href="https://www.codefactor.io/repository/github/mufthakherul/siyarix">
-    <img src="https://img.shields.io/badge/Quality-A%2B-brightgreen?style=flat-square" alt="Quality"/>
+    <img src="https://img.shields.io/badge/Quality-A%2B-brightgreen?style=for-the-badge" alt="Quality"/>
   </a>
 </p>
 
 <p align="center">
-  <a href="#installation">Installation</a> •
-  <a href="#quick-start">Quick Start</a> •
+  <a href="https://github.com/mufthakherul/siyarix/graphs/contributors">
+    <img src="https://img.shields.io/github/contributors/mufthakherul/siyarix?style=for-the-badge&logo=github&color=blue" alt="Contributors"/>
+  </a>
+  <a href="https://github.com/mufthakherul/siyarix/commits/main">
+    <img src="https://img.shields.io/github/last-commit/mufthakherul/siyarix?style=for-the-badge&logo=github&color=blue" alt="Last Commit"/>
+  </a>
+  <a href="https://github.com/mufthakherul/siyarix">
+    <img src="https://img.shields.io/github/repo-size/mufthakherul/siyarix?style=for-the-badge&logo=github&color=blue" alt="Repo Size"/>
+  </a>
+  <a href="https://github.com/mufthakherul/siyarix/issues">
+    <img src="https://img.shields.io/github/issues/mufthakherul/siyarix?style=for-the-badge&logo=github&color=blue" alt="Open Issues"/>
+  </a>
+  <a href="https://github.com/mufthakherul/siyarix/pulls?q=is%3Apr+is%3Aclosed">
+    <img src="https://img.shields.io/github/issues-pr-closed/mufthakherul/siyarix?style=for-the-badge&logo=github&color=blue" alt="Closed PRs"/>
+  </a>
+  <a href="https://pypi.org/project/siyarix/">
+    <img src="https://img.shields.io/pypi/dm/siyarix?style=for-the-badge&logo=pypi&color=blue" alt="Downloads"/>
+  </a>
+</p>
+
+<p align="center">
+  <a href="#overview">Overview</a> •
+  <a href="#siyarix-by-the-numbers">Stats</a> •
   <a href="#features">Features</a> •
-  <a href="#documentation">Documentation</a> •
-  <a href="#license">License</a>
+  <a href="#quick-start">Quick Start</a> •
+  <a href="docs/DOCS_MAP.md">Documentation</a>
 </p>
 
 ---
 
 ## Overview
 
-**Siyarix** is an AI-native cybersecurity operations platform that acts as your personal AI orchestration agent. It bridges the gap between natural language security objectives and deterministic tool execution — taking requests like *"scan this subnet for open ports"*, routing them through a multi-provider AI abstraction layer, generating structured execution plans, and running local security tools to deliver precise results.
+Meet **Siyarix**, your new AI-native cybersecurity operations platform. Think of it as a brilliant security analyst sitting right in your terminal, acting as your personal AI orchestration agent. 
+
+Siyarix bridges the gap between your natural language security goals and the complex, deterministic execution of command-line tools. Just tell Siyarix what you need in plain English—like *"scan this subnet for open ports"*—and it intelligently routes your request through a robust, multi-provider AI engine. It drafts a safe execution plan, runs the right local security tools, and delivers clean, precise, and actionable results.
+
+### The Lifecycle of a Request
 
 ```mermaid
 graph LR
-    A[Natural Language] --> B[Intent Router]
-    B --> C[AI Planner]
-    C --> D[Permission Gate]
-    D --> E[Execution Engine]
-    E --> F[114+ Parsers]
-    F --> G[Structured Results]
+    User([User Objective]) --> Router[Intent Router]
+    Router --> Context[Context Manager]
+    Context --> Planner[AI Planner]
+    Planner --> Gate{Permission Gate}
+    
+    subgraph "AI Core"
+        Planner --- Providers[24+ AI Providers]
+        Planner --- Personas[10+ Personas]
+    end
+    
+    Gate -- Approved --> Engine[Execution Engine]
+    Gate -- High Risk --> Review[Manual Review]
+    Review --> Engine
+    
+    Engine --> Registry[Tool Registry]
+    Registry --> Tools[562+ Tools]
+    Tools --> Parsers[114+ Parsers]
+    
+    Parsers --> Results[Structured Data]
+    Results --> Graph[Knowledge Graph]
+    Results --> Report[Rich Reports]
+    Results --> Audit[Tamper-Evident Audit]
+    
+    Results -.-> Feedback[Self-Correction Loop]
+    Feedback -.-> Planner
 ```
 
 ---
 
-## CLI Banner
+## Siyarix by the Numbers
 
-```
-   ███████╗██╗██╗   ██╗ █████╗ ██████╗ ██╗██╗  ██╗
-   ██╔════╝██║╚██╗ ██╔╝██╔══██╗██╔══██╗██║╚██╗██╔╝
-   ███████╗██║ ╚████╔╝ ███████║██████╔╝██║ ╚███╔╝
-   ╚════██║██║  ╚██╔╝  ██╔══██║██╔══██╗██║ ██╔██╗
-   ███████║██║   ██║   ██║  ██║██║  ██║██║██╔╝ ██╗
-   ╚══════╝╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝
+We believe in transparency and measurable performance. Siyarix is built to handle security at scale.
 
-                             S I Y A R I X
-```
-
----
-
-## Features
-
-### AI Orchestration
-
-| Capability | Detail |
-|------------|--------|
-| **24 AI Providers** | OpenAI, Gemini, Anthropic, Groq, Together, OpenRouter, DeepSeek, xAI, Mistral, Perplexity, Cerebras, Fireworks, Z.AI, MiniMax, Moonshot, NVIDIA, Hugging Face, Azure, OpenCode Go, Ollama, LM Studio, llama.cpp, vLLM, LocalAI |
-| **Multi-Provider Routing** | Automatic failover, circuit breakers, session-disabled provider tracking, preference chains |
-| **Multi-Model Ensemble** | Parallel LLM voting with configurable strategies (majority, consensus, weighted, best-score) |
-| **Persona System** | 10 security mindsets — red team, blue team, DFIR, cloud sec, app sec, network sec, threat intel, governance, purple team, security explorer |
-| **Multi-Wave Execution** | Iterative LLM-driven workflows with up to 5 waves, real-time streaming, and Live Rich display |
-| **Offline Fallback** | Heuristic rule-based planner when no AI provider is available |
-
-### Security Tooling
-
-| Capability | Detail |
-|------------|--------|
-| **50+ CLI Commands** | Scan, recon, exploit, discover, agent, profile, audit, report, health, metrics, and more |
-| **114+ Tool Parsers** | Structured output extraction from nmap, nuclei, masscan, metasploit, burpsuite, hydra, ffuf, gobuster, nikto, sqlmap, shodan, subfinder, amass, impacket, bettercap, and 100+ more |
-| **100+ Tool Registry** | Automatic discovery of tools on PATH with capability tagging, platform detection, version checking |
-| **Interactive Chat REPL** | Slash commands, multi-turn context, tab completion, SQLite-backed session persistence, Rich terminal UI |
-| **Command Review** | Interactive edit/run/step/cancel prompt before executing any shell command |
-
-### Security & Compliance
-
-| Capability | Detail |
-|------------|--------|
-| **Credential Vault** | AES-256-GCM encrypted storage, OS keyring integration, key rotation |
-| **Permission Gate** | Two-stage syntax check + danger analysis, 38 dangerous-command patterns |
-| **Tamper-Evident Audit** | SHA-256 chained audit trail, SIEM forwarding (Splunk/ELK) |
-| **Safe Mode** | Restrict to reconnaissance-only operations |
-| **Knowledge Graph** | In-memory entity relationship model with BFS traversal for attack path discovery |
-| **Compliance Frameworks** | SOC2, ISO27001, NIST, PCI-DSS, GDPR, HIPAA automated assessments |
-| **Threat Intelligence** | MITRE ATT&CK mapping (13 tactics, 24+ techniques), MISP/STIX feed ingestion |
-| **Deception** | Honeypot detection (9 signatures), canary tokens (7 types), trapdoor credentials |
-
-### Scanning & Analysis
-
-| Capability | Detail |
-|------------|--------|
-| **Cloud Scanning** | AWS (5 checks), Azure (3 checks), GCP (3 checks), Kubernetes, Docker |
-| **IaC Scanning** | Terraform (15 checks), CloudFormation, Helm (7 checks), Dockerfile, secret detection |
-| **Mobile Scanning** | Android APK analysis — dangerous permissions, insecure flags, hardcoded secrets |
-| **IoT Scanning** | Firmware analysis (16 indicators), serial port enumeration, device type detection |
-| **Import Engine** | Nessus, Burp Suite, Metasploit, STIX 2.x, OpenIOC format auto-detection and normalization |
-
-### Automation & Workflows
-
-| Capability | Detail |
-|------------|--------|
-| **Playbook Engine** | Reusable workflows with conditionals, loops, error handling, variables |
-| **Workflow Files** | YAML/JSON DAG-based multi-step pipelines with dependency resolution |
-| **Goal-Driven Agent** | Autonomous objective decomposition with Observe-Reason-Act loop |
-| **9 Interaction Modes** | Interactive shell, conversational AI, direct command, autonomous agent, workflow automation, TUI dashboard, guided wizard, team collaboration, headless API |
+| Category | Statistic |
+|----------|-----------|
+| 🧠 **AI Intelligence** | **24+** AI Providers with auto-failover & circuit breakers |
+| 🛠️ **Tool Registry** | **562+** Security tools recognized and mapped |
+| 📊 **Data Extraction** | **114+** Specialized parsers for structured insights |
+| 🛡️ **Safety Rules** | **38+** Critical danger patterns blocked by default |
+| 👤 **Security Personas** | **10** Specialized mindsets (Red Team, Blue Team, DFIR, etc.) |
+| 🕹️ **Interaction Modes** | **9** Distinct ways to interact (Chat, API, Autonomous, etc.) |
+| 🧪 **Test Coverage** | **100+** Automated unit & E2E tests |
+| 🚀 **Quality Assurance** | **47+** CI/CD workflows running on every commit |
 
 ---
 
-## Architecture
+## Key Features
 
-```
-User Input (CLI / Chat / Pipeline / API / Workflow)
-        |
-        ▼
-┌───────────────────────────────┐
-│       Intent Router           │
-│  (Exact → Heuristic →        │
-│   Keyword → LLM Fallback)    │
-└───────────┬───────────────────┘
-            │
-            ▼
-┌───────────────────────────────┐
-│      Task Planner             │
-│  (24 AI Providers with        │
-│   automatic failover,         │
-│   circuit breakers)           │
-└───────────┬───────────────────┘
-            │
-            ▼
-┌───────────────────────────────┐
-│     Permission Gate           │
-│  (Syntax Check → Danger       │
-│   Analysis → User Review)     │
-└───────────┬───────────────────┘
-            │
-            ▼
-┌───────────────────────────────┐
-│     Execution Engine          │
-│  (Parallel step execution,    │
-│   DAG dependency resolution,  │
-│   tool output parsing)        │
-└───────────┬───────────────────┘
-            │
-            ▼
-┌───────────────────────────────┐
-│    Output & Reporting         │
-│  (Table / JSON / YAML / CSV,  │
-│   Audit Log, Session Log,     │
-│   HTML/Markdown/PDF Reports)  │
-└───────────────────────────────┘
-```
+### 🧠 Intelligent AI Orchestration
+- **Multi-Provider Routing**: Dynamically switch between OpenAI, Gemini, Anthropic, or local models (Ollama/LM Studio).
+- **Multi-Model Ensemble**: Parallel LLM voting strategies for critical decision-making.
+- **Goal-Driven Agents**: Autonomous "Observe-Reason-Act" loop for complex objectives.
 
-Key architectural decisions:
+### 🛠️ Deep Security Integration
+- **Universal Tool Registry**: Automatic discovery and capability tagging for over 562 security tools.
+- **Extreme Parsing Engine**: Converts raw terminal noise into structured JSON, YAML, or Markdown.
+- **Knowledge Graph**: Builds an in-memory relationship model of your infrastructure as it scans.
 
-- **Provider abstraction**: 24 provider adapters registered through a `ProviderManager` singleton with preference-ordered fallback chains and no hard SDK dependencies
-- **Offline fallback**: Heuristic `RegistryPlanner` when no AI provider is available; local models via Ollama, LM Studio, llama.cpp, vLLM, LocalAI
-- **Safety-first**: Two-stage permission gate (syntax + danger), 38 dangerous-command patterns, safe mode, tamper-evident SHA-256 chained audit trail
-- **Plugin architecture**: Dynamic Python plugin loader from `~/.siyarix/plugins/`
-- **Event-driven**: Internal event bus for component communication and OpenTelemetry-powered observability
-- **Extreme parsing**: 114+ tool output parsers covering the most comprehensive set of security tools in the open-source ecosystem
-
----
-
-## Installation
-
-```bash
-pip install siyarix
-```
-
-With optional AI provider SDKs and extras:
-
-```bash
-pip install "siyarix[openai,gemini,anthropic,cli,siem]"
-# or install everything: pip install "siyarix[all]"
-```
-
-Requires Python 3.11+. See the [installation guide](docs/getting-started/installation.md) for platform-specific instructions (Homebrew, Winget, npm, Docker, source).
+### 🛡️ Built-in Safety & OPSEC
+- **Two-Stage Permission Gate**: Every AI-generated command is analyzed for danger before you see it.
+- **Encrypted Credential Vault**: AES-256-GCM storage for all your API keys and secrets.
+- **Tamper-Evident Audit Log**: Every action is recorded in a cryptographically chained audit trail.
+- **Stealth Mode**: Built-in features for TOR routing and honeypot detection.
 
 ---
 
 ## Quick Start
 
+The first time you run Siyarix, it will automatically launch an interactive **Onboarding Wizard** to help you configure your environment, AI providers, and security tools.
+
 ```bash
-# Interactive session (chat REPL)
+# Install via pip
+pip install siyarix
+
+# Launch the interactive session (triggers onboarding on first run)
 siyarix
 
-# Run a quick scan
+# Quick scan
 siyarix scan quick example.com
 
 # Natural language command
@@ -224,72 +160,39 @@ siyarix agent "find all vulnerabilities on our web server"
 
 # System health check
 siyarix health
-
-# Setup with first-run wizard
-siyarix init
 ```
 
-Set at least one AI provider API key (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`) or run local models via Ollama/LM Studio. See the [setup guide](docs/getting-started/setup.md) for details.
+---
+
+## Installation
+
+```bash
+pip install siyarix
+```
+
+For more options (Homebrew, npm, Winget, Docker) and optional extras for specific AI providers, see our [Installation Guide](docs/getting-started/installation.md).
 
 ---
 
 ## Documentation
 
-The full documentation lives in [`docs/`](docs/DOCS_MAP.md) and is built with MkDocs Material.
+Our documentation is comprehensive and designed to get you from beginner to expert in no time.
 
-| Section | Contents |
-|---------|----------|
-| `getting-started/` | Installation, setup, configuration, troubleshooting |
-| `user/` | CLI reference, interactive chat, security workflows, AI workflows, reporting, cloud/IaC/mobile/IoT scanning, compliance, playbooks, threat intel, deception, importing |
-| `developer/` | Codebase overview, contribution guide, module architecture, testing, building & packaging |
-| `architecture/` | System overview, AI agent pipeline, provider abstraction, execution engine, memory/state, security model, experience intelligence, interaction modes, intent routing |
-| `ai/` | Multi-provider routing, persona system, multi-wave execution, prompt architecture, agent reasoning, tool execution, safety/hallucination handling, multi-model ensemble |
-| `security/` | Ethical hacking policy, abuse prevention, threat model, vulnerability reporting, OPSEC, HSM integration |
-| `legal/` | AGPL-3.0 license guide, NOTICE explanation, disclaimer, trademark policy, responsible AI usage |
-
-Additional resources outside `docs/`:
-
-| Resource | Description |
-|----------|-------------|
-| [AI_PROVIDER_POLICY.md](AI_PROVIDER_POLICY.md) | Provider governance, failover, security boundaries |
-| [SECURITY.md](SECURITY.md) | Security policy and vulnerability reporting |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Contributor guide and development workflow |
-| [ETHICAL_USE.md](ETHICAL_USE.md) | Permitted and prohibited use |
-| [RESPONSIBLE_AI_USE.md](RESPONSIBLE_AI_USE.md) | AI governance and transparency |
-| [NOTICE](NOTICE) | Copyright notice, third-party attributions, provider architecture |
-| [GOVERNANCE.md](GOVERNANCE.md) | Project governance and decision-making |
-| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community guidelines |
+| Section | What's inside? |
+|---------|----------------|
+| [**Getting Started**](docs/getting-started/installation.md) | Installation, Setup, Onboarding, and Troubleshooting. |
+| [**User Guide**](docs/user/cli-commands.md) | CLI Reference, Workflows, Cloud/IaC/Mobile/IoT scanning. |
+| [**AI Internals**](docs/ai/agent-reasoning.md) | How the brain works: Routing, Personas, and Reasoning. |
+| [**Architecture**](docs/architecture/overview.md) | System design, Execution engine, and Security model. |
+| [**Security & Ethics**](docs/security/ethical-hacking-policy.md) | Ethical use, Threat models, and OPSEC. |
 
 ---
 
 ## Safety & Ethical Use
 
-Siyarix is designed for **authorized security testing, research, and defensive operations only**. It must not be used against systems without explicit permission.
+Siyarix is designed for **authorized security testing, research, and defensive operations only**. It must not be used against systems without explicit, documented permission. All actions are logged to a tamper-evident audit trail to ensure accountability.
 
-- Unauthorized access, exploitation without consent, and any illegal activity are strictly prohibited
-- Safe mode (`SIYARIX_SAFE_MODE=1`) restricts operations to reconnaissance only
-- The permission gate blocks 38 dangerous command patterns
-- All actions are logged to a tamper-evident SHA-256 chained audit trail
-- Bidirectional masking engine redacts sensitive data before sending to cloud AI providers
-
-See [ETHICAL_USE.md](ETHICAL_USE.md) and [RESPONSIBLE_AI_USE.md](RESPONSIBLE_AI_USE.md).
-
----
-
-## Performance
-
-- **102+ test files** with coverage targeting 75%+
-- **47 CI/CD workflows** across GitHub Actions — lint, test (3 OS x 3 Python), security audit, Docker, packaging, SBOM, code quality
-- **Cross-platform**: Windows, macOS, Linux, WSL2 — tested in CI
-- **Distribution channels**: PyPI, npm, Homebrew, Winget, Chocolatey, Debian/APT, Docker, HarmonyOS
-
----
-
-## License
-
-**GNU Affero General Public License v3.0 or later** — SPDX: `AGPL-3.0-or-later`.
-
-This is free software: you can redistribute and/or modify it under the terms of the AGPL-3.0 or any later version published by the Free Software Foundation. There is no warranty — see the [LICENSE](LICENSE) file for details.
+See [ETHICAL_USE.md](ETHICAL_USE.md) and [RESPONSIBLE_AI_USE.md](RESPONSIBLE_AI_USE.md) for more.
 
 ---
 
@@ -301,16 +204,10 @@ This is free software: you can redistribute and/or modify it under the terms of 
 
 ---
 
-## Disclaimer
+## License
 
-Siyarix is provided "as is", without warranty of any kind. It is a research and learning tool. Users are solely responsible for ensuring compliance with applicable laws and obtaining proper authorization before testing any system. The authors assume no liability for misuse or damages.
-
----
-
-## Vision
-
-The project explores how declarative AI orchestration can simplify multi-tool security workflows — reducing overhead while maintaining human oversight. Future directions include richer multi-agent coordination with shared reasoning, improved offline planning through heuristic learning, expanded plugin ecosystem, and deeper integration with enterprise security stacks.
+Siyarix is released under the **GNU Affero General Public License v3.0 or later** (AGPL-3.0-or-later). See the [LICENSE](LICENSE) file for full details.
 
 ---
 
-*SPDX-License-Identifier: AGPL-3.0-or-later*
+*Transforming how the world performs security operations, one command at a time.*

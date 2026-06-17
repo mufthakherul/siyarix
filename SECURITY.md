@@ -1,145 +1,97 @@
-# Security Policy
+# 🛡️ Security Policy
 
-**Effective Date:** May 2026
-**Version:** 1.0.0
+**Effective Date:** May 2026  
+**Version:** 3.0.0
 
-Siyarix is a cybersecurity platform that handles security-sensitive operations, API credentials, and target information. We take the security of the platform itself seriously and encourage responsible disclosure of vulnerabilities.
-
----
-
-## Supported Versions
-
-| Version | Supported |
-|---------|-----------|
-| 3.0.x (latest) | ✅ Active development — security patches provided |
-| < 3.0 | ❌ No longer supported |
-
-Only the latest minor release receives security patches. Users are encouraged to always run the most recent version.
+Siyarix is built by security professionals, for security professionals. Because we handle sensitive operations, API credentials, and target data, the security of the platform itself is our highest priority. We deeply value the role of the security community in keeping Siyarix safe and robust.
 
 ---
 
-## Reporting a Vulnerability
+## 🏗️ Supported Versions
 
-### Private Reporting Process
+We actively provide security patches for the following versions:
 
-If you discover a security vulnerability in Siyarix, **do not** open a public GitHub issue. Instead:
+| Version | Status | Security Patches |
+|---------|--------|------------------|
+| **v3.0.x (Latest)** | ✅ Stable | Active & High Priority |
+| **< v3.0** | ❌ EOL | None — Please upgrade immediately |
 
-1. **GitHub Security Advisories** (Preferred)
-   - Navigate to: `https://github.com/mufthakherul/siyarix/security/advisories`
-   - Click "New advisory" and fill out the form
-   - Provide sufficient detail for reproduction
+We recommend always running the latest minor release to ensure you have the most up-to-date security features and patches.
 
-2. **Email** (Alternative)
-   - Send details to the security contact (see maintainer profile on GitHub)
-   - Encrypt sensitive information using the maintainer's GPG key if available
+---
+
+## 🚨 Reporting a Vulnerability
+
+### Our Private Disclosure Process
+If you discover a security vulnerability, **please do not open a public GitHub issue.** We want to fix it before it can be exploited.
+
+1. **GitHub Security Advisories** (Preferred) 🌟
+   - Head over to: `https://github.com/mufthakherul/siyarix/security/advisories`
+   - Click "New advisory" and fill out the details.
+   - This is the safest and most efficient way to coordinate with us.
+
+2. **Private Email** (Alternative)
+   - Send details to the security contact listed on the maintainer's GitHub profile.
+   - We highly recommend using GPG encryption for sensitive details.
 
 ### What to Include
-
-- Type of vulnerability (XSS, command injection, credential exposure, etc.)
-- Full steps to reproduce
-- Affected component(s) and version(s)
-- Proof of concept or demonstration (if possible)
-- Your contact information for follow-up
-
-### Scope
-
-In-scope for security reports:
-- Privilege escalation within the platform
-- Credential vault weaknesses
-- Safety resolver bypass
-- Unauthorized command execution
-- Data masking failures
-- Authentication/authorization issues
-- Remote code execution
-
-Out-of-scope:
-- Dependency CVEs already publicly known and tracked
-- Theoretical attacks requiring physical access or advanced persistent threat capabilities
-- UI/UX issues that do not affect security
+The more detail you provide, the faster we can fix it! Please include:
+- **Type of vulnerability** (e.g., Command Injection, Credential Leak, RCE).
+- **Clear steps to reproduce** the issue.
+- **Affected component(s)** and version(s).
+- **Impact assessment**: What could an attacker achieve?
+- **Proof of Concept (PoC)**: If you have one, it helps immensely.
 
 ---
 
-## Disclosure & Embargo
+## 🎯 Scope
 
-- We will acknowledge receipt within **72 hours**.
-- We aim to triage and begin work on a fix within **5 business days**.
-- We request a **90-day embargo** from initial report to public disclosure, to allow time for patches and coordinated release.
-- We will coordinate with you on the disclosure timeline and credit.
-- If a fix cannot be produced within 90 days, we will negotiate an extended timeline transparently.
+### What We Care About (In-Scope)
+- Privilege escalation within the Siyarix environment.
+- Weaknesses in the **Credential Vault**.
+- Bypassing the **Safety Resolver** or Permission Gates.
+- Failures in the **Data Masking Engine**.
+- Unauthorized command execution or remote code execution (RCE).
 
----
-
-## Severity Classification
-
-| Severity | Response Time | Fix Target | Notification |
-|----------|---------------|------------|--------------|
-| 🔴 Critical | < 24h acknowledgment | 7 days | Security advisory + release notes |
-| 🟠 High | < 48h acknowledgment | 14 days | Security advisory + release notes |
-| 🟡 Medium | < 72h acknowledgment | 30 days | Release notes |
-| 🟢 Low | < 1 week acknowledgment | Next release | Release notes |
+### What We Track Elsewhere (Out-of-Scope)
+- Publicly known CVEs in upstream dependencies (these are handled by our automated CI/CD).
+- Theoretical attacks requiring physical access to the machine.
+- UI/UX bugs that don't have a direct security impact.
 
 ---
 
-## CVE Coordination
+## 🤝 Our Commitment to You
 
-We are prepared to coordinate CVE assignments for confirmed vulnerabilities through GitHub Security Advisories and/or MITRE. Reporters may request CVE credit.
-
----
-
-## Safe Harbor
-
-When conducting security research on Siyarix in accordance with this policy:
-
-- We will not pursue legal action against researchers who follow this disclosure process.
-- We will not threaten DMCA or similar claims for good-faith security research.
-- We consider security research conducted under this policy as authorized use.
-
-**However, this safe harbor does not extend to:**
-- Research that causes harm to users, systems, or data
-- Testing against production systems without authorization
-- Public disclosure before the embargo period ends
-- Exploitation of vulnerabilities beyond what is necessary to demonstrate them
+- **Acknowledgment**: We will acknowledge your report within **48–72 hours**.
+- **Triage**: We aim to begin working on a fix within **5 business days**.
+- **Embargo**: We request a **90-day embargo** from the report date before public disclosure. This gives our users time to patch.
+- **Coordination**: We will coordinate the disclosure timeline with you and ensure you are properly credited.
+- **CVEs**: We coordinate CVE assignments through GitHub Security Advisories and MITRE.
 
 ---
 
-## Security Features in Siyarix
+## 🛡️ Built-in Security Features
 
-Siyarix includes the following built-in security mechanisms:
+Siyarix is hardened by design. Here are some of the layers protecting you:
 
-| Feature | Description |
-|---------|-------------|
-| **Encrypted Credential Vault** | AES-256-GCM encryption for API keys and secrets |
-| **Safety Resolver** | Two-stage permission gate (syntax + danger analysis) |
-| **Data Masking Engine** | Bidirectional masking of sensitive data sent to AI providers |
-| **Permission Gates** | User approval required for high-risk operations |
-| **Kill Switch** | Emergency stop for running operations |
-| **Audit Logging** | Tamper-evident execution records |
-| **Input Validation** | Protection against injection and dangerous command patterns |
-| **RBAC** | Role-based access control for team deployments |
-| **Multi-Model Ensemble** | Parallel LLM voting for hallucination detection and response quality |
-| **Bidirectional Masking** | Session-scoped token redaction for AI provider calls |
-| **Plugin Security** | Sandboxed plugin loading from user directory |
+| Feature | How it Protects You |
+|---------|---------------------|
+| **Encrypted Vault** | All API keys are stored using **AES-256-GCM** encryption. |
+| **Safety Resolver** | A two-stage gate that analyzes every command for danger before execution. |
+| **Masking Engine** | Automatically redacts sensitive data (tokens, IPs) before sending them to AI providers. |
+| **Audit Trails** | Every single action is logged in a tamper-evident, cryptographically chained trail. |
+| **Kill Switch** | Instantly stop all running operations if something goes wrong. |
+| **Plugin Sandbox** | Plugins are loaded from a dedicated, restricted user directory. |
 
 ---
 
-## Dependency Security
+## 🕊️ Safe Harbor
 
-- All dependencies are pinned to specific versions in `pyproject.toml`.
-- Automated dependency scanning runs via GitHub Actions (`security.yml`).
-- `pip-audit` is used in CI to detect known vulnerabilities.
-- Critical dependencies (`cryptography`, `httpx`, `defusedxml`, etc.) are monitored for security advisories.
-
----
-
-## Contact
-
-For security-related inquiries not involving vulnerability disclosure:
-
-- GitHub Issues (for non-security bugs): Standard issue tracker
-- Security Advisories: GitHub Security tab on the repository
-
-*We appreciate the security community's help in keeping Siyarix safe for everyone.*
+We want to encourage good-faith security research. If you follow this policy:
+- We will **not** pursue legal action against you.
+- We consider your research **authorized** under the CFAA and similar laws.
+- We will work with you to understand and resolve the issue quickly.
 
 ---
 
-*SPDX-License-Identifier: AGPL-3.0-or-later*
+*Thank you for helping us keep Siyarix secure. Together, we can build a safer ecosystem for everyone. 🛡️*

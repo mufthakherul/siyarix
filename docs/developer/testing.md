@@ -1,10 +1,16 @@
 # Testing
 
-## Test framework
+Siyarix maintains a comprehensive test suite with **102+ test files** targeting **75%+ code coverage** across all modules.
 
-Siyarix uses **pytest** with **pytest-asyncio** for async test support.
+---
 
-## Running tests
+## Test Framework
+
+- **pytest** with `pytest-asyncio` (auto mode) for async test support
+- **pytest-cov** for coverage reporting
+- Custom markers: `bootstrap`, `cvss`, `report`, `stealth`, `terminal`, `tool_installer`, `e2e`, `integration`
+
+## Running Tests
 
 ```bash
 # Run all tests
@@ -27,32 +33,50 @@ pytest -x
 
 # Run tests in parallel
 pytest -n auto
+
+# Run only unit tests (skip integration)
+pytest -m "not integration"
 ```
 
-## Test structure
+## Test Structure
 
-Tests mirror the source structure:
+Tests mirror the source structure in `tests/`:
 
 ```
 tests/
-├── test_main.py
-├── test_chat.py
-├── test_config.py
-├── test_planner.py
-├── test_providers.py
-├── test_executor.py
-├── test_permission_gate.py
-├── test_knowledge_graph.py
-├── test_credential_store.py
-├── test_audit_log.py
+├── conftest.py              # Shared fixtures
+├── test_core.py             # Core agent tests
+├── test_cli_main.py         # CLI tests
+├── test_e2e.py              # End-to-end tests
+├── test_providers.py        # Provider tests
+├── test_planner.py          # Planner tests
+├── test_executor.py         # Executor tests
+├── test_credential_store.py # Credential vault tests
+├── test_permission_gate.py  # Permission gate tests
+├── test_knowledge_graph.py  # Knowledge graph tests
+├── test_audit_log.py        # Audit trail tests
 ├── test_parsers/
 │   ├── test_nmap_parser.py
 │   ├── test_nuclei_parser.py
-│   └── ...
-└── ...
+│   └── ... (100+ parser tests)
+├── test_security/
+│   ├── test_compliance.py
+│   ├── test_threat_intel.py
+│   └── test_deception.py
+├── test_engine/
+│   ├── test_recovery.py
+│   ├── test_safety.py
+│   └── test_steps.py
+├── test_xi/
+│   ├── test_context_tracker.py
+│   └── test_skill_profiler.py
+├── test_chat/
+│   ├── test_engine.py
+│   └── test_handlers.py
+└── ... (additional test files per module)
 ```
 
-## Writing tests
+## Writing Tests
 
 ### Async tests
 
@@ -88,35 +112,54 @@ def temp_config(tmp_path):
     del os.environ["SIYARIX_CONFIG"]
 ```
 
-## Coverage targets
+## Coverage Targets
 
 ```bash
 # Current coverage target: 75%+
 pytest --cov=siyarix --cov-report=term-missing
 ```
 
-## Linting
+Coverage is enforced in CI via `pyproject.toml` (`fail_under = 75`).
+
+## Code Quality
 
 ```bash
-# Run Ruff linter
+# Linting with Ruff
 ruff check src/ tests/
+ruff check --fix src/ tests/   # Auto-fix
 
-# Auto-fix issues
-ruff check --fix src/ tests/
-```
+# Formatting with Ruff
+ruff format src/ tests/
 
-## Type checking
-
-```bash
+# Type checking with MyPy (strict mode)
 mypy src/siyarix/
+
+# Dead code detection with Vulture
+vulture src/siyarix/
+
+# Security scanning with Bandit
+bandit -r src/siyarix/
 ```
 
-## Pre-commit hooks
+## CI Testing Matrix
 
-The repository includes pre-commit configuration. Install with:
+Tests run on every pull request and push to main via GitHub Actions (47 workflows):
+
+| Dimension | Values |
+|-----------|--------|
+| **Python** | 3.11, 3.12, 3.13 |
+| **OS** | ubuntu-latest, windows-latest, macos-latest |
+| **Tests** | Unit + integration + E2E |
+| **Lint** | Ruff + MyPy |
+| **Security** | Bandit (SARIF), pip-audit (critical/high fail) |
+| **Compatibility** | Build sdist/wheel, check-wheel-contents, twine check |
+
+## Pre-commit Hooks
+
+The repository includes pre-commit configuration:
 
 ```bash
 pre-commit install
 ```
 
-This runs Ruff and mypy automatically before each commit.
+This runs Ruff, MyPy, and other checks automatically before each commit. Configuration is in `.pre-commit-config.yaml`.

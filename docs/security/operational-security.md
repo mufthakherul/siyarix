@@ -12,7 +12,7 @@ Route outbound connections through TOR:
 siyarix config set proxy socks5://127.0.0.1:9050
 ```
 
-All HTTP/HTTPS traffic from tools and AI provider calls will route through TOR.
+All HTTP/HTTPS traffic from tools and AI provider calls routes through TOR.
 
 ### DNS over HTTPS
 
@@ -22,14 +22,11 @@ Prevent DNS leakage:
 siyarix config set proxy dns+https://dns.cloudflare.com/dns-query
 ```
 
-DNS queries use encrypted HTTPS instead of plain UDP.
-
 ### Traffic jitter
 
 Random delays between requests to avoid pattern detection:
 
 ```toml
-# settings.toml
 [jitter]
 enabled = true
 min_delay = 1.0
@@ -38,20 +35,14 @@ max_delay = 5.0
 
 ### User-Agent rotation
 
-Rotate HTTP User-Agent headers:
-
 ```toml
-# settings.toml
 client_profile = "desktop_chrome"
 # Options: desktop_chrome, desktop_firefox, android_mobile, ios_safari
 ```
 
 ### Proxy rotation
 
-Rotate through a pool of proxies:
-
 ```toml
-# settings.toml
 proxy_pool = "http://proxy1:8080,http://proxy2:8080,http://proxy3:8080"
 ```
 
@@ -88,36 +79,28 @@ After completing an assessment:
 siyarix session-log --clear
 ```
 
-Clears:
-
-- Command history
-- Knowledge graph
-- Tool outputs
-- Session logs (if configured)
+Clears command history, knowledge graph, tool outputs, and session logs.
 
 ## Audit logging
 
-All actions are logged regardless of OPSEC settings. The audit log is tamper-evident:
+All actions are logged regardless of OPSEC settings. The audit log is tamper-evident (SHA-256 hash chain):
 
 ```bash
-siyarix audit-log  # View audit trail
+siyarix audit-log   # View audit trail
 ```
 
 ## Red team simulation safety
 
-When conducting red team exercises:
-
-1. Define the rules of engagement in a workflow file
+1. Define rules of engagement in a workflow file
 2. Use persona `pentester` for standard assessment rules
 3. Enable safe mode for initial reconnaissance
 4. Press Ctrl+C for emergency stop
 5. Log all actions to the audit trail
 6. Generate comprehensive report after completion
 
-## Recommended configuration for assessments
+## Recommended assessment configuration
 
 ```toml
-# settings.toml
 stealth_mode = true
 proxy_pool = "socks5://127.0.0.1:9050,socks5://127.0.0.1:9051"
 client_profile = "desktop_chrome"

@@ -7,15 +7,15 @@ Siyarix implements multiple layers of abuse prevention to stop malicious or acci
 ```
 ┌─────────────────────────────────────────┐
 │    Command-level prevention             │
-│  ┌──────────┐  ┌──────────┐ │
-│  │  Danger  │  │  Syntax  │ │
-│  │ Analysis │  │  Check   │ │
-│  └──────────┘  └──────────┘ │
+│  ┌──────────┐  ┌──────────┐            │
+│  │  Danger  │  │  Syntax  │            │
+│  │ Analysis │  │  Check   │            │
+│  └──────────┘  └──────────┘            │
 ├─────────────────────────────────────────┤
 │    System-level prevention              │
 │  ┌──────────┐  ┌──────────┐  ┌──────┐ │
-│  │Kill Sw.  │  │ Safe     │  │OPSEC│ │
-│  │(emer-    │  │ Mode     │  │Evade│ │
+│  │Kill Sw.  │  │ Safe     │  │OPSEC │ │
+│  │(emer-    │  │ Mode     │  │Evade │ │
 │  │ gency)   │  │          │  │     │ │
 │  └──────────┘  └──────────┘  └──────┘ │
 ├─────────────────────────────────────────┤
@@ -53,8 +53,6 @@ Each stage returns `ALLOW`, `FLAG`, or `DENY`.
 
 ## 3. Emergency stop
 
-All running commands can be stopped immediately:
-
 - Press **Ctrl+C** once to cancel the current task
 - Press **Ctrl+C** twice to exit Siyarix entirely
 - The execution engine halts all subprocesses and cleans up
@@ -65,13 +63,11 @@ All running commands can be stopped immediately:
 export SIYARIX_SAFE_MODE=1
 ```
 
-Restricts all operations to reconnaissance only:
-
+Restricts to reconnaissance only:
 - Scanning tools only (nmap, masscan, nuclei passive)
 - No exploitation (metasploit, sqlmap active)
 - No destructive commands (dd, rm, format)
 - Permission gate at maximum strictness
-- Emergency stop via Ctrl+C
 
 ## 5. OPSEC controls
 
@@ -87,14 +83,14 @@ Restricts all operations to reconnaissance only:
 
 ## 6. Secret redaction
 
-Auto-redact 24 secret patterns from all output:
+Auto-redacts 24 secret patterns from all output:
 
 ```python
 PATTERNS = [
     r"-----BEGIN (RSA|EC|OPENSSH) PRIVATE KEY-----",
-    r"sk-[a-zA-Z0-9]{20,}",      # OpenAI keys
-    r"AKIA[0-9A-Z]{16}",          # AWS access keys
-    r"ghp_[a-zA-Z0-9]{36}",       # GitHub tokens
+    r"sk-[a-zA-Z0-9]{20,}",          # OpenAI keys
+    r"AKIA[0-9A-Z]{16}",             # AWS access keys
+    r"ghp_[a-zA-Z0-9]{36}",          # GitHub tokens
     r"eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+",  # JWTs
 ]
 ```

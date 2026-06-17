@@ -4,14 +4,14 @@ Siyarix is a cybersecurity operations tool. This document defines the boundaries
 
 ## Authorized use
 
-Siyarix may only be used against systems you own or have explicit written authorization to test. Authorized scenarios include:
+Siyarix may only be used against systems you own or have explicit written authorization to test:
 
 - **Your own infrastructure**: Systems, networks, and applications you own
 - **Authorized penetration tests**: Systems covered by a signed Statement of Work (SoW)
 - **Bug bounty programs**: Programs with explicit rules of engagement
 - **CTF competitions**: Authorized capture-the-flag environments
 - **Educational labs**: Isolated training environments (HackTheBox, TryHackMe, etc.)
-- **Research**: Systems where you have IRB or organizational approval
+- **Research**: Systems with IRB or organizational approval
 
 ## Prohibited use
 
@@ -22,12 +22,10 @@ The following are strictly prohibited:
 - Social engineering against non-consenting individuals
 - Data exfiltration beyond authorized scope
 - Modification or destruction of data without explicit permission
-- Using the tool for any illegal activity
-- Using the tool in violation of the Computer Fraud and Abuse Act (CFAA) or equivalent laws
+- Any illegal activity
+- Violation of the Computer Fraud and Abuse Act (CFAA) or equivalent laws
 
 ## Rules of engagement
-
-When conducting authorized testing:
 
 1. **Define scope**: Document what is in and out of scope before starting
 2. **Set boundaries**: Use safe mode (`SIYARIX_SAFE_MODE=1`) for initial reconnaissance
@@ -46,7 +44,7 @@ Users must comply with all applicable laws:
 
 ## Safe mode
 
-Safe mode restricts Siyarix to reconnaissance-only operations:
+Restricts Siyarix to reconnaissance-only operations:
 
 ```bash
 export SIYARIX_SAFE_MODE=1
@@ -57,21 +55,19 @@ In safe mode:
 - No exploitation tools are available
 - No destructive commands can be executed
 - Only scanning and enumeration tools are permitted
-- The permission gate enforces maximum strictness
+- Permission gate enforces maximum strictness
 
-## Irresponsible disclosure
+## Responsible disclosure
 
-Discovering a vulnerability does not give you the right to:
-
-- Exploit it beyond what is necessary to confirm its existence
-- Disclose it publicly without giving the vendor reasonable time to patch
-- Sell or trade vulnerability information without authorization
-- Use the vulnerability for personal gain
+- Do not exploit vulnerabilities beyond what is necessary to confirm existence
+- Do not disclose publicly without giving the vendor reasonable time to patch
+- Do not sell or trade vulnerability information without authorization
+- Do not use vulnerabilities for personal gain
 
 ## Reporting misuse
 
 If you discover misuse of Siyarix:
 
-- Open a security advisory at: https://github.com/mufthakherul/siyarix/security/advisories
+- Open a security advisory at https://github.com/mufthakherul/siyarix/security/advisories
 - Email the maintainers (details in SECURITY.md)
 - Include details of the misuse

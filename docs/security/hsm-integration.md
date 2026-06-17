@@ -1,30 +1,26 @@
 # HSM Integration
 
-Siyarix supports Hardware Security Modules (HSMs) for secure key storage and cryptographic operations.
+Siyarix supports Hardware Security Modules (HSMs) for secure key storage and cryptographic operations. **Note**: This feature is a stub implementation — basic HSM detection exists but full integration is not yet complete.
 
 ## Supported HSM types
 
-| Type | Library | Use case |
-|------|---------|----------|
-| YubiKey | `ykman` | Hardware-backed authentication |
-| PKCS#11 | `python-pkcs11` | Enterprise HSM devices |
-| TPM | (placeholder) | Trusted Platform Module |
-| Software fallback | Built-in | Development/testing |
+| Type | Library | Status |
+|------|---------|--------|
+| YubiKey | `ykman` | Stub |
+| PKCS#11 | `python-pkcs11` | Stub |
+| TPM | (placeholder) | Stub |
+| Software fallback | Built-in | Implemented |
 
 ## Usage
 
 ```bash
-# Check HSM status
 siyarix health
-# Shows: HSM: connected (YubiKey 5 NFC)
-
-# Store a secret in HSM
-siyarix creds set --hsm api_key
+# Shows: HSM: connected (YubiKey 5 NFC) — if detected
 ```
 
-## HSM service
+## HSM service (`hsm_manager.py`)
 
-The `HSMService` provides a unified interface:
+The `HSMService` provides a unified interface (stub implementation):
 
 ```python
 from siyarix.hsm_manager import HSMService
@@ -35,9 +31,7 @@ if status.connected:
     hsm.store_secret("my_key", "my_secret_value")
 ```
 
-## Cross-platform PKCS#11
-
-The HSM manager auto-discovers PKCS#11 libraries per platform:
+## Cross-platform PKCS#11 paths
 
 | Platform | Default path |
 |----------|-------------|
@@ -55,7 +49,7 @@ The HSM manager auto-discovers PKCS#11 libraries per platform:
 | `get_status()` | Get HSM connection and device status |
 | `list_keys()` | List available keys on the HSM |
 
-## Status reporting
+## Status data class
 
 ```python
 @dataclass
@@ -71,7 +65,7 @@ class HSMStatus:
 
 ## Use cases
 
-- **Enterprise deployments**: Meet FIPS/HSM compliance requirements
-- **Key protection**: Store API keys and signing keys in hardware
-- **Credential store backup**: HSM as root of trust for credential encryption
-- **Code signing**: Sign tool updates and reports with HSM-backed keys
+- Enterprise deployments: Meet FIPS/HSM compliance requirements
+- Key protection: Store API keys and signing keys in hardware
+- Credential store backup: HSM as root of trust for credential encryption
+- Code signing: Sign tool updates and reports with HSM-backed keys

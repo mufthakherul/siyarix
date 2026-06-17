@@ -1992,7 +1992,7 @@ class OnboardingWizard:
 
     def _pause(self) -> None:
         self._console.print()
-        Confirm.ask("[dim]Press Enter to continue[/dim]", default=True)
+        self._console.input("[dim]Press Enter to continue [/dim]")
 
     def _clear_screen(self) -> None:
         if hasattr(self, "_console") and self._console:

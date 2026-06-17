@@ -189,11 +189,28 @@ class ParserRegistry:
                 continue
             if not hasattr(obj, "parse"):
                 continue
-            tool_name = _class_to_tool_name(name)
+            
             instance = obj()
             if isinstance(instance, Parser):
                 version = getattr(instance, "version", None)
-                self.register(tool_name, instance, version)
+                
+                # Smart discovery: Use explicitly defined tool aliases if present
+                tool_names = []
+                if hasattr(obj, "TOOL_ALIASES") and getattr(obj, "TOOL_ALIASES"):
+                    aliases = getattr(obj, "TOOL_ALIASES")
+                    if isinstance(aliases, list):
+                        tool_names.extend(aliases)
+                    elif isinstance(aliases, str):
+                        tool_names.append(aliases)
+                elif hasattr(obj, "TOOL_NAME") and getattr(obj, "TOOL_NAME"):
+                    tool_names.append(getattr(obj, "TOOL_NAME"))
+                else:
+                    # Fallback to smart class name parsing and advanced overrides
+                    tool_names.extend(_class_to_tool_names(name))
+                
+                # Register under all resolved aliases
+                for tool_name in set(tool_names):
+                    self.register(tool_name, instance, version)
 
         try:
             import siyarix_parsers  # type: ignore
@@ -208,18 +225,52 @@ class ParserRegistry:
         return self._parsers
 
 
-def _class_to_tool_name(class_name: str) -> str:
-    """Convert ``NmapParser`` → ``nmap``, ``WhatwebParser`` → ``whatweb``, etc."""
+def _class_to_tool_names(class_name: str) -> list[str]:
+    """Smartly convert parser class names to all probable tool aliases.
+    E.g. ``AircrackParser`` → ``["aircrack-ng", "aircrack"]``
+    """
     if class_name.endswith("Parser"):
         stem = class_name[:-6]
     else:
         stem = class_name
+        
     result = []
     for i, ch in enumerate(stem):
         if ch.isupper() and i > 0:
             result.append("-")
         result.append(ch.lower())
-    return "".join(result)
+        
+    base_name = "".join(result)
+    names = [base_name]
+    
+    # Advanced intelligence: Map known mismatches and add common alias variations
+    OVERRIDES = {
+        "aircrack": ["aircrack-ng", "aircrack"],
+        "netcat": ["nc", "netcat", "ncat"],
+        "searchsploit": ["searchsploit", "exploitdb"],
+        "waybackurls": ["waybackurls", "gau"],
+        "finger": ["finger", "finger-enum"],
+        "kiterunner": ["kr", "kiterunner"],
+        "kxss": ["kxss", "ss"],
+        "naabu": ["naabu", "port-scanner"],
+        "pypykatz": ["pypykatz"],
+        "smbclient": ["smbclient", "smb"],
+        "hash-identifier": ["hash-identifier", "hashid"],
+        "zmap": ["zmap", "zgrab"],
+        "bloodhound-python": ["bloodhound-python"],
+        "ike-scan": ["ike-scan", "ikescan"],
+        "wfuzz": ["wfuzz", "fuzzer"],
+    }
+    
+    if base_name in OVERRIDES:
+        names.extend(OVERRIDES[base_name])
+        
+    # Also add standard variations (e.g. if name is foo-bar, also add foobar)
+    if "-" in base_name:
+        names.append(base_name.replace("-", ""))
+        names.append(base_name.replace("-", "_"))
+        
+    return list(set(names))
 
 
 # ---------------------------------------------------------------------------

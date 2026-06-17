@@ -87,16 +87,32 @@ Siyarix AI Cybersecurity Orchestration Agent
       interface (see src/siyarix/providers.py).  Any model that
       implements this interface can be used interchangeably.
 
-  2.  Supported Provider Families
-      - Google Gemini (primary test provider during development
-        due to available free-tier access)
-      - OpenAI (GPT-4, GPT-4o, GPT-3.5-turbo, etc.)
-      - Anthropic (Claude 3.5 Sonnet, etc.)
-      - Ollama (local open-weight models)
-      - LM Studio (self-hosted local models)
-      - Groq (cloud inference)
-      - Together AI (cloud inference)
-      - Custom / Compatible endpoints (any OpenAI-compatible API)
+   2.  Supported Provider Families
+       - Google Gemini (Gemini 2.0 Flash, 1.5 Pro)
+       - OpenAI (GPT-4o, GPT-4, GPT-3.5-turbo)
+       - Anthropic (Claude 3.5 Sonnet, Claude 3 Opus)
+       - Groq (Llama 3, Mixtral — cloud inference)
+       - Together AI (Mixtral, DeepSeek, open models)
+       - OpenRouter (multi-model router)
+       - DeepSeek (DeepSeek-V2, DeepSeek-Coder)
+       - xAI / Grok
+       - Mistral AI (Mistral Large, Small)
+       - Perplexity (Sonar, Sonar-Pro)
+       - Cerebras (fast inference)
+       - Fireworks AI (open model serving)
+       - Z.AI
+       - MiniMax
+       - Moonshot / Kimi
+       - NVIDIA Nemotron
+       - Hugging Face (Inference API)
+       - Azure OpenAI (enterprise managed)
+       - OpenCode Go
+       - Ollama (local open-weight models)
+       - LM Studio (self-hosted local models)
+       - llama.cpp (local efficient CPU inference)
+       - vLLM (local high-throughput GPU inference)
+       - LocalAI (local drop-in OpenAI replacement)
+       - Registry / Heuristic (offline, no AI needed)
 
   3.  Dynamic Provider Selection
       Providers are selected at runtime based on configuration,
@@ -141,8 +157,19 @@ Siyarix AI Cybersecurity Orchestration Agent
     - Anthropic PBC (Claude)
     - Groq, Inc.
     - Together Computer, Inc.
-    - Meta Platforms, Inc. (Llama models)
+    - DeepSeek
+    - xAI Corp.
     - Mistral AI
+    - Perplexity AI
+    - Cerebras Systems
+    - Fireworks AI
+    - Z.AI
+    - MiniMax
+    - Moonshot AI / Kimi
+    - NVIDIA Corporation
+    - Hugging Face, Inc.
+    - Microsoft Corporation (Azure OpenAI)
+    - Meta Platforms, Inc. (Llama models)
     - Any other AI model or cloud provider
 
   All product names, logos, and brands are property of their

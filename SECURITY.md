@@ -11,8 +11,8 @@ Siyarix is a cybersecurity platform that handles security-sensitive operations, 
 
 | Version | Supported |
 |---------|-----------|
-| 0.1.x (latest) | ✅ Active development — security patches provided |
-| < 0.1 | ❌ No longer supported |
+| 3.0.x (latest) | ✅ Active development — security patches provided |
+| < 3.0 | ❌ No longer supported |
 
 Only the latest minor release receives security patches. Users are encouraged to always run the most recent version.
 
@@ -109,13 +109,16 @@ Siyarix includes the following built-in security mechanisms:
 | Feature | Description |
 |---------|-------------|
 | **Encrypted Credential Vault** | AES-256-GCM encryption for API keys and secrets |
-| **Safety Resolver** | Heuristic command safety checks before execution |
+| **Safety Resolver** | Two-stage permission gate (syntax + danger analysis) |
 | **Data Masking Engine** | Bidirectional masking of sensitive data sent to AI providers |
 | **Permission Gates** | User approval required for high-risk operations |
 | **Kill Switch** | Emergency stop for running operations |
 | **Audit Logging** | Tamper-evident execution records |
 | **Input Validation** | Protection against injection and dangerous command patterns |
 | **RBAC** | Role-based access control for team deployments |
+| **Multi-Model Ensemble** | Parallel LLM voting for hallucination detection and response quality |
+| **Bidirectional Masking** | Session-scoped token redaction for AI provider calls |
+| **Plugin Security** | Sandboxed plugin loading from user directory |
 
 ---
 

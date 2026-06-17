@@ -75,7 +75,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the detailed contribution workflow.
 
 Siyarix follows [Semantic Versioning 2.0.0](https://semver.org/):
 
-- **Major (0.x.x)**: Pre-release development — breaking changes may occur
+- **Major (3.x.x)**: Significant releases with breaking changes
 - **Minor (x.1.x)**: New features, non-breaking additions
 - **Patch (x.x.2)**: Bug fixes, security patches
 
@@ -90,7 +90,8 @@ Siyarix follows [Semantic Versioning 2.0.0](https://semver.org/):
 
 ### 5.3 LTS Releases
 
-(Not applicable at current pre-release stage. LTS policy will be defined at v1.0.0.)
+Long-term support releases are provided for the most recent major version. 
+Security patches are backported for 6 months after a new major release.
 
 ---
 

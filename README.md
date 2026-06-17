@@ -5,9 +5,9 @@
 <h1 align="center">Siyarix</h1>
 
 <p align="center">
-  <b>CLI-based AI cybersecurity orchestration agent</b><br/>
-  Routes natural-language security tasks through a multi-provider AI abstraction layer<br/>
-  to plan and execute tool-based workflows.
+  <b>CLI-based AI-Native Cybersecurity Orchestration Agent</b><br/>
+  Transform natural language security objectives into deterministic, tool-driven execution workflows<br/>
+  across 24 AI providers, 114+ tool parsers, and 50+ CLI commands.
 </p>
 
 <p align="center">
@@ -26,28 +26,40 @@
   <a href="https://github.com/mufthakherul/siyarix/blob/main/pyproject.toml">
     <img src="https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square&logo=python" alt="Python"/>
   </a>
-  <a href="https://github.com/mufthakherul/siyarix/releases">
-    <img src="https://img.shields.io/badge/PyPI-pending-lightgrey?style=flat-square&logo=pypi" alt="PyPI"/>
+  <a href="https://pypi.org/project/siyarix/">
+    <img src="https://img.shields.io/badge/PyPI-v3.0.0-blue?style=flat-square&logo=pypi" alt="PyPI"/>
   </a>
   <a href="https://github.com/mufthakherul/siyarix/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/SPDX-AGPL--3.0--or--later-blue?style=flat-square" alt="SPDX"/>
+  </a>
+  <a href="https://www.codefactor.io/repository/github/mufthakherul/siyarix">
+    <img src="https://img.shields.io/badge/Quality-A%2B-brightgreen?style=flat-square" alt="Quality"/>
   </a>
 </p>
 
 <p align="center">
   <a href="#installation">Installation</a> •
   <a href="#quick-start">Quick Start</a> •
+  <a href="#features">Features</a> •
   <a href="#documentation">Documentation</a> •
   <a href="#license">License</a>
 </p>
 
 ---
 
-## Project Status
+## Overview
 
-**Early-stage / under active development.**
+**Siyarix** is an AI-native cybersecurity operations platform that acts as your personal AI orchestration agent. It bridges the gap between natural language security objectives and deterministic tool execution — taking requests like *"scan this subnet for open ports"*, routing them through a multi-provider AI abstraction layer, generating structured execution plans, and running local security tools to deliver precise results.
 
-Siyarix is an experimental project exploring how multi-provider AI orchestration can assist with security research, automated reconnaissance, and controlled assessment workflows. Expect breaking changes, incomplete features, and rough edges. Contributions and feedback welcome.
+```mermaid
+graph LR
+    A[Natural Language] --> B[Intent Router]
+    B --> C[AI Planner]
+    C --> D[Permission Gate]
+    D --> E[Execution Engine]
+    E --> F[114+ Parsers]
+    F --> G[Structured Results]
+```
 
 ---
 
@@ -66,57 +78,115 @@ Siyarix is an experimental project exploring how multi-provider AI orchestration
 
 ---
 
-## Overview
+## Features
 
-Siyarix takes natural-language objectives (e.g., *"scan this subnet for open ports"*) and routes them through a pluggable AI provider layer to generate structured execution plans. Those plans are then executed using locally available security tools (nmap, nuclei, metasploit, etc.), with results parsed, analyzed, and logged.
+### AI Orchestration
 
-The project is organized around three intersecting concerns:
+| Capability | Detail |
+|------------|--------|
+| **24 AI Providers** | OpenAI, Gemini, Anthropic, Groq, Together, OpenRouter, DeepSeek, xAI, Mistral, Perplexity, Cerebras, Fireworks, Z.AI, MiniMax, Moonshot, NVIDIA, Hugging Face, Azure, OpenCode Go, Ollama, LM Studio, llama.cpp, vLLM, LocalAI |
+| **Multi-Provider Routing** | Automatic failover, circuit breakers, session-disabled provider tracking, preference chains |
+| **Multi-Model Ensemble** | Parallel LLM voting with configurable strategies (majority, consensus, weighted, best-score) |
+| **Persona System** | 10 security mindsets — red team, blue team, DFIR, cloud sec, app sec, network sec, threat intel, governance, purple team, security explorer |
+| **Multi-Wave Execution** | Iterative LLM-driven workflows with up to 5 waves, real-time streaming, and Live Rich display |
+| **Offline Fallback** | Heuristic rule-based planner when no AI provider is available |
 
-| Area | Focus |
-|------|-------|
-| **AI orchestration** | Provider-agnostic task planning, failover routing, multi-model voting |
-| **Security tooling** | Unified CLI interface over 100+ open-source security tools |
+### Security Tooling
+
+| Capability | Detail |
+|------------|--------|
+| **50+ CLI Commands** | Scan, recon, exploit, discover, agent, profile, audit, report, health, metrics, and more |
+| **114+ Tool Parsers** | Structured output extraction from nmap, nuclei, masscan, metasploit, burpsuite, hydra, ffuf, gobuster, nikto, sqlmap, shodan, subfinder, amass, impacket, bettercap, and 100+ more |
+| **100+ Tool Registry** | Automatic discovery of tools on PATH with capability tagging, platform detection, version checking |
+| **Interactive Chat REPL** | Slash commands, multi-turn context, tab completion, SQLite-backed session persistence, Rich terminal UI |
+| **Command Review** | Interactive edit/run/step/cancel prompt before executing any shell command |
+
+### Security & Compliance
+
+| Capability | Detail |
+|------------|--------|
+| **Credential Vault** | AES-256-GCM encrypted storage, OS keyring integration, key rotation |
+| **Permission Gate** | Two-stage syntax check + danger analysis, 38 dangerous-command patterns |
+| **Tamper-Evident Audit** | SHA-256 chained audit trail, SIEM forwarding (Splunk/ELK) |
+| **Safe Mode** | Restrict to reconnaissance-only operations |
+| **Knowledge Graph** | In-memory entity relationship model with BFS traversal for attack path discovery |
+| **Compliance Frameworks** | SOC2, ISO27001, NIST, PCI-DSS, GDPR, HIPAA automated assessments |
+| **Threat Intelligence** | MITRE ATT&CK mapping (13 tactics, 24+ techniques), MISP/STIX feed ingestion |
+| **Deception** | Honeypot detection (9 signatures), canary tokens (7 types), trapdoor credentials |
+
+### Scanning & Analysis
+
+| Capability | Detail |
+|------------|--------|
+| **Cloud Scanning** | AWS (5 checks), Azure (3 checks), GCP (3 checks), Kubernetes, Docker |
+| **IaC Scanning** | Terraform (15 checks), CloudFormation, Helm (7 checks), Dockerfile, secret detection |
+| **Mobile Scanning** | Android APK analysis — dangerous permissions, insecure flags, hardcoded secrets |
+| **IoT Scanning** | Firmware analysis (16 indicators), serial port enumeration, device type detection |
+| **Import Engine** | Nessus, Burp Suite, Metasploit, STIX 2.x, OpenIOC format auto-detection and normalization |
+
+### Automation & Workflows
+
+| Capability | Detail |
+|------------|--------|
+| **Playbook Engine** | Reusable workflows with conditionals, loops, error handling, variables |
+| **Workflow Files** | YAML/JSON DAG-based multi-step pipelines with dependency resolution |
+| **Goal-Driven Agent** | Autonomous objective decomposition with Observe-Reason-Act loop |
+| **9 Interaction Modes** | Interactive shell, conversational AI, direct command, autonomous agent, workflow automation, TUI dashboard, guided wizard, team collaboration, headless API |
 
 ---
 
 ## Architecture
 
 ```
-User input (CLI / chat / pipeline)
+User Input (CLI / Chat / Pipeline / API / Workflow)
         |
-Intent Router (4-stage: exact match, heuristic, keyword, LLM fallback)
-        |
-Task Planner (provider registry with automatic failover, circuit breakers)
-        |
-Permission Gate (syntax check / danger analysis)
-        |
-Execution Engine (parallel step execution, tool parsing, result aggregation)
+        ▼
+┌───────────────────────────────┐
+│       Intent Router           │
+│  (Exact → Heuristic →        │
+│   Keyword → LLM Fallback)    │
+└───────────┬───────────────────┘
+            │
+            ▼
+┌───────────────────────────────┐
+│      Task Planner             │
+│  (24 AI Providers with        │
+│   automatic failover,         │
+│   circuit breakers)           │
+└───────────┬───────────────────┘
+            │
+            ▼
+┌───────────────────────────────┐
+│     Permission Gate           │
+│  (Syntax Check → Danger       │
+│   Analysis → User Review)     │
+└───────────┬───────────────────┘
+            │
+            ▼
+┌───────────────────────────────┐
+│     Execution Engine          │
+│  (Parallel step execution,    │
+│   DAG dependency resolution,  │
+│   tool output parsing)        │
+└───────────┬───────────────────┘
+            │
+            ▼
+┌───────────────────────────────┐
+│    Output & Reporting         │
+│  (Table / JSON / YAML / CSV,  │
+│   Audit Log, Session Log,     │
+│   HTML/Markdown/PDF Reports)  │
+└───────────────────────────────┘
 ```
 
 Key architectural decisions:
 
-- **Provider abstraction**: 10 provider adapters registered, preference-ordered fallback chains, no hard SDK dependency
-- **Offline fallback**: Heuristic planner when no AI provider is available; local models via Ollama/LM Studio
-- **Safety**: Two-stage permission gate, 38 dangerous-command patterns, emergency stop
-
----
-
-## Capabilities
-
-- CLI with 50+ commands across scan, recon, exploit, report, config, and security groups
-- Interactive chat REPL with slash commands, multi-turn context, and SQLite-backed session persistence
-- Multi-provider AI routing with automatic failover, circuit breakers, and session-disabled provider tracking
-- Persona system — 10 security mindsets (red team, blue team, DFIR, cloud, appsec, etc.) plus auto and universal modes
-- Multi-wave execution — LLM-driven iterative workflows with up to 5 waves and real-time streaming output
-- Command review — interactive edit/run/step/cancel prompt before executing any shell command
-- Security tool integration — 100+ tools discovered on PATH, 18+ output parsers
-- Credential management — encrypted vault (AES-256-GCM), keyring integration, key rotation
-- Knowledge graph — in-memory entity relationship modeling with BFS traversal
-- Cloud/IoT/IaC/mobile scanning — built-in checks for AWS, Azure, GCP, firmware, APKs, Terraform
-- Compliance frameworks — SOC2, ISO27001, NIST, PCI-DSS, GDPR, HIPAA automated assessments
-- Playbook engine — reusable workflows with variables, conditionals, loops, and error handling
-- Threat intelligence — MITRE ATT&CK mapping, MISP/STIX feed ingestion
-- Deception — honeypot detection (9 signatures), canary tokens (7 types), trapdoor credentials
+- **Provider abstraction**: 24 provider adapters registered through a `ProviderManager` singleton with preference-ordered fallback chains and no hard SDK dependencies
+- **Offline fallback**: Heuristic `RegistryPlanner` when no AI provider is available; local models via Ollama, LM Studio, llama.cpp, vLLM, LocalAI
+- **Safety-first**: Two-stage permission gate (syntax + danger), 38 dangerous-command patterns, safe mode, tamper-evident SHA-256 chained audit trail
+- **Plugin architecture**: Dynamic Python plugin loader from `~/.siyarix/plugins/`
+- **Event-driven**: Internal event bus for component communication and OpenTelemetry-powered observability
+- **Extreme parsing**: 114+ tool output parsers covering the most comprehensive set of security tools in the open-source ecosystem
 
 ---
 
@@ -140,33 +210,42 @@ Requires Python 3.11+. See the [installation guide](docs/getting-started/install
 ## Quick Start
 
 ```bash
-# Run a command
-siyarix scan quick example.com
-
-# Interactive session
+# Interactive session (chat REPL)
 siyarix
 
-# Natural language
+# Run a quick scan
+siyarix scan quick example.com
+
+# Natural language command
 siyarix run "enumerate services on 10.0.0.1"
+
+# Goal-driven autonomous agent
+siyarix agent "find all vulnerabilities on our web server"
+
+# System health check
+siyarix health
+
+# Setup with first-run wizard
+siyarix init
 ```
 
 Set at least one AI provider API key (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`) or run local models via Ollama/LM Studio. See the [setup guide](docs/getting-started/setup.md) for details.
 
+---
+
 ## Documentation
 
-The full documentation lives in [`docs/`](docs/DOCS_MAP.md).
+The full documentation lives in [`docs/`](docs/DOCS_MAP.md) and is built with MkDocs Material.
 
 | Section | Contents |
 |---------|----------|
 | `getting-started/` | Installation, setup, configuration, troubleshooting |
-| `user/` | CLI reference, security workflows, AI workflows, reporting, cloud/IaC/mobile/IoT scanning, compliance, playbooks, threat intel, deception, importing |
-| `developer/` | Codebase overview, contribution guide, module architecture, testing, building |
+| `user/` | CLI reference, interactive chat, security workflows, AI workflows, reporting, cloud/IaC/mobile/IoT scanning, compliance, playbooks, threat intel, deception, importing |
+| `developer/` | Codebase overview, contribution guide, module architecture, testing, building & packaging |
 | `architecture/` | System overview, AI agent pipeline, provider abstraction, execution engine, memory/state, security model, experience intelligence, interaction modes, intent routing |
-| `ai/` | Multi-provider routing, prompt architecture, agent reasoning, tool execution, safety/hallucination handling, multi-model ensemble |
+| `ai/` | Multi-provider routing, persona system, multi-wave execution, prompt architecture, agent reasoning, tool execution, safety/hallucination handling, multi-model ensemble |
 | `security/` | Ethical hacking policy, abuse prevention, threat model, vulnerability reporting, OPSEC, HSM integration |
 | `legal/` | AGPL-3.0 license guide, NOTICE explanation, disclaimer, trademark policy, responsible AI usage |
-
-Start with the [installation guide](docs/getting-started/installation.md).
 
 Additional resources outside `docs/`:
 
@@ -178,8 +257,6 @@ Additional resources outside `docs/`:
 | [ETHICAL_USE.md](ETHICAL_USE.md) | Permitted and prohibited use |
 | [RESPONSIBLE_AI_USE.md](RESPONSIBLE_AI_USE.md) | AI governance and transparency |
 | [NOTICE](NOTICE) | Copyright notice, third-party attributions, provider architecture |
-| [REBRANDING_AUDIT_REPORT.md](REBRANDING_AUDIT_REPORT.md) | License and branding compliance audit |
-| [LEGAL_AUDIT_REPORT.md](LEGAL_AUDIT_REPORT.md) | Complete legal framework audit |
 | [GOVERNANCE.md](GOVERNANCE.md) | Project governance and decision-making |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community guidelines |
 
@@ -193,8 +270,18 @@ Siyarix is designed for **authorized security testing, research, and defensive o
 - Safe mode (`SIYARIX_SAFE_MODE=1`) restricts operations to reconnaissance only
 - The permission gate blocks 38 dangerous command patterns
 - All actions are logged to a tamper-evident SHA-256 chained audit trail
+- Bidirectional masking engine redacts sensitive data before sending to cloud AI providers
 
 See [ETHICAL_USE.md](ETHICAL_USE.md) and [RESPONSIBLE_AI_USE.md](RESPONSIBLE_AI_USE.md).
+
+---
+
+## Performance
+
+- **102+ test files** with coverage targeting 75%+
+- **47 CI/CD workflows** across GitHub Actions — lint, test (3 OS x 3 Python), security audit, Docker, packaging, SBOM, code quality
+- **Cross-platform**: Windows, macOS, Linux, WSL2 — tested in CI
+- **Distribution channels**: PyPI, npm, Homebrew, Winget, Chocolatey, Debian/APT, Docker, HarmonyOS
 
 ---
 
@@ -210,7 +297,7 @@ This is free software: you can redistribute and/or modify it under the terms of 
 
 **MD MUFTHAKHERUL ISLAM MIRAZ**
 
-[github.com/mufthakherul/siyarix](https://github.com/mufthakherul/siyarix)
+[github.com/mufthakherul/siyarix](https://github.com/mufthakherul/siyarix) | [siyarix.dev](https://siyarix.dev)
 
 ---
 
@@ -222,7 +309,7 @@ Siyarix is provided "as is", without warranty of any kind. It is a research and 
 
 ## Vision
 
-The project explores how declarative AI orchestration can simplify multi-tool security workflows — reducing overhead while maintaining human oversight. Future directions include richer multi-agent coordination with shared reasoning, improved offline planning through heuristic learning, and a plugin system for community-contributed tools and providers.
+The project explores how declarative AI orchestration can simplify multi-tool security workflows — reducing overhead while maintaining human oversight. Future directions include richer multi-agent coordination with shared reasoning, improved offline planning through heuristic learning, expanded plugin ecosystem, and deeper integration with enterprise security stacks.
 
 ---
 

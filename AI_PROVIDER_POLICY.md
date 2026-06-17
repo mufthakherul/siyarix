@@ -17,17 +17,38 @@ Siyarix implements a **provider-agnostic abstraction layer** (`src/siyarix/provi
 Execution Engine
        │
        ▼
-Provider Interface (plan / chat / validate / close)
+ProviderManager (singleton — 24 provider profiles)
        │
-       ├── Google Gemini (via google-generativeai SDK)
-       ├── OpenAI (via openai SDK)
-       ├── Anthropic (via anthropic SDK)
-       ├── Ollama (local — REST API)
-       ├── LM Studio (local — OpenAI-compatible API)
-       ├── Groq (cloud — OpenAI-compatible API)
-       ├── Together (cloud — OpenAI-compatible API)
-       ├── Custom Endpoint (any OpenAI-compatible API)
-       └── NoopProvider (offline / testing — no external call)
+       ├── Cloud Providers
+       │   ├── OpenAI (GPT-4o, GPT-4, GPT-3.5-turbo)
+       │   ├── Google Gemini (Gemini 2.0 Flash, 1.5 Pro)
+       │   ├── Anthropic (Claude 3.5 Sonnet, Claude 3 Opus)
+       │   ├── Groq (Llama 3, Mixtral — low-latency)
+       │   ├── Together AI (Mixtral, Llama, DeepSeek)
+       │   ├── OpenRouter (multi-model router)
+       │   ├── DeepSeek (DeepSeek-V2, DeepSeek-Coder)
+       │   ├── xAI / Grok
+       │   ├── Mistral AI (Mistral Large, Small)
+       │   ├── Perplexity (Sonar, Sonar-Pro)
+       │   ├── Cerebras (fast inference)
+       │   ├── Fireworks AI (open models)
+       │   ├── Z.AI
+       │   ├── MiniMax
+       │   ├── Moonshot / Kimi
+       │   ├── NVIDIA Nemotron
+       │   ├── Hugging Face (Inference API)
+       │   ├── Azure OpenAI (enterprise)
+       │   └── OpenCode Go
+       │
+       ├── Local Providers (no API key needed)
+       │   ├── Ollama (local — REST API)
+       │   ├── LM Studio (local — OpenAI-compatible API)
+       │   ├── llama.cpp (local — efficient CPU inference)
+       │   ├── vLLM (local — high-throughput GPU)
+       │   └── LocalAI (local — drop-in OpenAI replacement)
+       │
+       └── Offline / Fallback
+           └── Registry / Heuristic Planner (no AI needed)
 ```
 
 ### 1.2 Interface Contract
@@ -88,7 +109,7 @@ provider_failover:
   - ollama
 ```
 
-### 3.3 Task-Based Routing (Future)
+### 3.3 Task-Based Routing
 
 The system may route different task types to different providers:
 

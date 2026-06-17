@@ -124,6 +124,42 @@ def _display_findings_table(findings: list[dict]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Shell completion helpers
+# ---------------------------------------------------------------------------
+
+
+def _generate_completion(shell: str, output_path: Path) -> bool:
+    """Generate a static shell completion script using Click's built-in
+    completion classes. Returns True on success.
+
+    The generated file is sourced from the shell rc file so that no Python
+    process is launched on terminal open. Completions only run Python when
+    Tab is pressed after ``siyarix`` (handled by the generated script).
+    """
+    _SHELL_MAP = {
+        "bash": "BashComplete",
+        "zsh": "ZshComplete",
+        "fish": "FishComplete",
+    }
+    if shell not in _SHELL_MAP:
+        return False
+
+    import click.shell_completion as _sc
+
+    comp_cls = _sc._available_shells.get(shell)
+    if comp_cls is None:
+        return False
+
+    from typer.main import get_command as _get_command
+
+    cmd = _get_command(app)
+    comp = comp_cls(cmd, {}, "siyarix", "_SIYARIX_COMPLETE")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(comp.source())
+    return True
+
+
+# ---------------------------------------------------------------------------
 # Initialize core systems
 # ---------------------------------------------------------------------------
 
@@ -629,7 +665,7 @@ def _completion_alias(
         file=sys.stderr,
     )
     print(
-        f'Or run: eval "$(_SIYARIX_COMPLETE={shell}_source siyarix)"',
+        f'Or run: eval "$(_SIYARIX_COMPLETE=source_{shell} siyarix)"',
         file=sys.stderr,
     )
 
@@ -1479,22 +1515,34 @@ def completions_install(
             shell = shell or "bash"
 
     shell = shell.lower()
+    comp_dir = get_config_dir() / "completions"
+    comp_dir.mkdir(parents=True, exist_ok=True)
+
     completions_map = {
         "bash": (
-            "~/.bashrc",
-            "_SIYARIX_COMPLETE=bash_source siyarix >> ~/.siyarix/complete.bash\necho 'source ~/.siyarix/complete.bash' >> ~/.bashrc",
+            Path("~/.bashrc").expanduser(),
+            comp_dir / "siyarix.bash",
+            f"source {comp_dir / 'siyarix.bash'}",
         ),
         "zsh": (
-            "~/.zshrc",
-            "_SIYARIX_COMPLETE=zsh_source siyarix >> ~/.siyarix/complete.zsh\necho 'source ~/.siyarix/complete.zsh' >> ~/.zshrc",
+            Path("~/.zshrc").expanduser(),
+            comp_dir / "siyarix.zsh",
+            f"source {comp_dir / 'siyarix.zsh'}",
         ),
         "fish": (
-            "~/.config/fish/completions/siyarix.fish",
-            "_SIYARIX_COMPLETE=fish_source siyarix > ~/.config/fish/completions/siyarix.fish",
+            Path("~/.config/fish/config.fish").expanduser(),
+            Path(f"~/.config/fish/completions/siyarix.fish").expanduser(),
+            f"source {comp_dir / 'siyarix.fish'}",
         ),
         "powershell": (
-            "$PROFILE",
-            "$env:_SIYARIX_COMPLETE='powershell_source'; siyarix | Out-String | Invoke-Expression",
+            Path.home() / ".config" / "powershell" / "profile.ps1",
+            comp_dir / "siyarix.powershell",
+            "$env:_SIYARIX_COMPLETE='source_powershell'; siyarix | Out-String | Invoke-Expression",
+        ),
+        "pwsh": (
+            Path.home() / ".config" / "powershell" / "profile.ps1",
+            comp_dir / "siyarix.powershell",
+            "$env:_SIYARIX_COMPLETE='source_powershell'; siyarix | Out-String | Invoke-Expression",
         ),
     }
 
@@ -1502,16 +1550,34 @@ def completions_install(
         console.print(f"[red]Unsupported shell: {shell}. Choose: bash, zsh, fish, powershell[/red]")
         raise typer.Exit(1)
 
-    target, instructions = completions_map[shell]
-    console.print(
-        Panel(
-            f"[bold]To install {shell} completions, run:[/bold]\n\n"
-            f"[green]{instructions}[/green]\n\n"
-            f"[dim]Then restart your shell or source {target}[/dim]",
-            title=f"Shell Completions ({shell})",
-            border_style="green",
-        )
-    )
+    rc_file, comp_file, source_line = completions_map[shell]
+
+    # Generate static completion file using Click's real completion classes
+    try:
+        _generate_completion(shell, comp_file)
+        console.print(f"[green]\u2713 Completion script generated: {comp_file}[/green]")
+    except Exception as exc:
+        console.print(f"[yellow]Could not generate completions: {exc}[/yellow]")
+        console.print("[dim]Fallback: adding eval line (runs Python on terminal open)[/dim]")
+        source_line = f'eval "$(_SIYARIX_COMPLETE=source_{shell} siyarix)"'
+
+    # Add source line to rc file
+    if rc_file.exists():
+        text = rc_file.read_text(encoding="utf-8")
+        # Clean up old eval lines
+        import re as _re
+        cleaned = _re.sub(r'\n# Siyarix completions\n.*?\n', '', text)
+        if source_line not in cleaned:
+            rc_file.write_text(f"{cleaned}\n# Siyarix completions\n{source_line}\n")
+            console.print(f"[green]\u2713 Source line added to {rc_file}[/green]")
+        else:
+            console.print(f"[dim]Completions already configured in {rc_file}[/dim]")
+    else:
+        rc_file.parent.mkdir(parents=True, exist_ok=True)
+        rc_file.write_text(f"# Siyarix completions\n{source_line}\n")
+        console.print(f"[green]\u2713 Created {rc_file}[/green]")
+
+    console.print(f"[dim]Restart your shell or run: source {rc_file}[/dim]")
 
 
 # ---------------------------------------------------------------------------

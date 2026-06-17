@@ -1,15 +1,102 @@
 site_name: Siyarix
+site_description: CLI-based AI cybersecurity orchestration agent
+repo_url: https://github.com/mufthakherul/siyarix
+repo_name: mufthakherul/siyarix
+
 theme:
   name: material
   palette:
     - scheme: slate
+      primary: indigo
+      accent: deep purple
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.action.edit
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - tables
+  - toc:
+      permalink: true
+
 nav:
   - Home: index.md
-  - Getting Started: getting-started/installation.md
-  - Routing Modes: architecture/interaction-modes.md
-  - CLI Reference: user/cli-commands.md
-  - AI Workflows: ai/multi-provider-routing.md
-  - Contributing: developer/contribution-guide.md
-  - Ethical Use: security/ethical-hacking-policy.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Setup: getting-started/setup.md
+      - First Run: getting-started/first-run.md
+      - Configuration: getting-started/configuration.md
+      - Troubleshooting: getting-started/troubleshooting.md
+  - User Guide:
+      - CLI Reference: user/cli-commands.md
+      - Interactive Chat: user/interactive-chat.md
+      - Security Workflows: user/security-workflows.md
+      - AI Workflows: user/ai-workflows.md
+      - Reporting: user/reporting.md
+      - Cloud Scanning: user/cloud-scanning.md
+      - Compliance: user/compliance-frameworks.md
+      - Threat Intelligence: user/threat-intelligence.md
+      - Playbooks: user/playbooks.md
+      - Workflow Files: user/workflow-files.md
+      - Deception & Tokens: user/deception-and-canary-tokens.md
+      - Importing Findings: user/importing-findings.md
+      - Offline Registry: user/offline-registry.md
+      - IaC Scanning: user/iac-scanning.md
+      - Mobile Scanning: user/mobile-scanning.md
+      - IoT Scanning: user/iot-scanning.md
+  - Developer Guide:
+      - Codebase Overview: developer/codebase-overview.md
+      - Contribution Guide: developer/contribution-guide.md
+      - Module Architecture: developer/module-architecture.md
+      - Testing: developer/testing.md
+      - Building: developer/building.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - AI Agent Pipeline: architecture/ai-agent-pipeline.md
+      - Provider Abstraction: architecture/provider-abstraction.md
+      - Execution Engine: architecture/execution-engine.md
+      - Memory & State: architecture/memory-and-state.md
+      - Security Model: architecture/security-model.md
+      - Experience Intelligence: architecture/experience-intelligence.md
+      - Interaction Modes: architecture/interaction-modes.md
+      - Intent Routing: architecture/intent-routing.md
+  - AI Internals:
+      - Multi-Provider Routing: ai/multi-provider-routing.md
+      - Persona System: ai/persona-system.md
+      - Multi-Wave Execution: ai/multi-wave-execution.md
+      - Prompt Architecture: ai/prompt-architecture.md
+      - Agent Reasoning: ai/agent-reasoning.md
+      - Tool Execution: ai/tool-execution.md
+      - Safety & Hallucination: ai/safety-and-hallucination.md
+      - Multi-Model Ensemble: ai/multi-model-ensemble.md
+  - Security:
+      - Ethical Policy: security/ethical-hacking-policy.md
+      - Abuse Prevention: security/abuse-prevention.md
+      - Threat Model: security/threat-model.md
+      - Vulnerability Reporting: security/vulnerability-reporting.md
+      - Operational Security: security/operational-security.md
+      - HSM Integration: security/hsm-integration.md
+  - Legal:
+      - AGPL Guide: legal/agpl-license-guide.md
+      - NOTICE Explained: legal/note-file-explained.md
+      - Disclaimer: legal/disclaimer.md
+      - Trademark Policy: legal/trademark-policy.md
+      - Responsible AI: legal/responsible-ai-usage.md
+
 plugins:
   - search

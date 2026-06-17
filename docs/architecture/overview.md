@@ -63,16 +63,16 @@ User (CLI / Chat / Pipeline)
 
 | Subsystem | Location | Purpose |
 |-----------|----------|---------|
-| CLI entry point | `main.py` | Typer app with 50+ commands |
-| Interactive chat | `chat.py` | REPL with slash commands |
-| Core kernel | `core/` | Event bus, routing, modes, session |
-| Execution engine | `engine/` | Plan execution, safety, recovery |
-| AI provider layer | `providers.py` | Multi-provider abstraction |
-| Task planner | `planner.py` | NL-to-plan conversion |
-| Tool registry | `tool_registry.py` | Tool discovery and metadata |
+| CLI entry point | `main.py`, `cli/` | Typer app and command definitions |
+| Interactive chat | `chat/` | REPL with slash commands |
+| Core logic | `core/` | Common types, interfaces, base classes |
+| Execution engine | `executor.py`, `executor_*.py` | Plan execution, safety, recovery |
+| AI provider layer | `providers/` | Multi-provider abstraction |
+| Task planner | `planner.py`, `planner_*.py` | NL-to-plan conversion |
+| Tool registry | `registry.py` | Tool discovery and metadata |
 | Parsers | `parsers/` | Tool output extraction |
-| Security | `credential_store.py`, `masking.py`, `permission_gate.py` | Security controls |
-| Persistence | `offline_store.py`, `session_manager.py` | SQLite storage |
+| Security | `credential_store.py`, `permission_gate.py` | Security controls |
+| Persistence | `offline_store.py`, `session_log.py` | SQLite storage |
 
 ## Data flow
 

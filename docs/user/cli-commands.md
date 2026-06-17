@@ -1,8 +1,8 @@
 # CLI Commands Reference
 
-Siyarix is a CLI-first tool built with Typer. This reference covers all command groups.
+Siyarix is a CLI-first platform built with Typer. This reference covers all available commands and sub-command groups in v3.0.0.
 
-## Global options
+## Global Options
 
 ```bash
 siyarix [OPTIONS] COMMAND [ARGS]...
@@ -10,176 +10,174 @@ siyarix [OPTIONS] COMMAND [ARGS]...
 
 | Option | Description |
 |--------|-------------|
-| `--config`, `-c` | Path to custom config file |
-| `--batch`, `-b` | Path to batch script file |
-| `--mode`, `-m` | Execution mode: `registry`, `autonomous`, `integrated` |
+| `--config`, `-c` | Path to custom config file (YAML/JSON) |
+| `--batch`, `-b` | Path to batch script file to execute |
+| `--mode`, `-m` | Execution mode: `autonomous`, `integrated`, `offline` |
 | `--target`, `-t` | Set initial target for the session |
+| `--session` | Resume a previous session by ID |
+| `--resume` | Resume the last existing session |
+| `--version` | Show version information |
 | `--help` | Show help message |
-| `--version` | Show version |
 
-## Usage modes
+## Usage Modes
 
-1. **Interactive shell**: `siyarix` (no subcommand) — launches the chat REPL
-2. **Direct command**: `siyarix scan 10.0.0.1` — executes and exits
-3. **Pipe mode**: `echo "scan 10.0.0.1" | siyarix` — batch commands via stdin
-4. **Batch file**: `siyarix --batch script.txt` — execute a script file
+1. **Interactive Chat**: `siyarix` (no subcommand) — launches the context-aware chat REPL
+2. **Direct Command**: `siyarix scan 10.0.0.1` — executes and exits
+3. **Pipe Mode**: `echo "scan 10.0.0.1" | siyarix` — batch commands via stdin
+4. **Batch File**: `siyarix --batch script.txt` — execute a script file
 
-## Command groups
+---
+
+## Core Commands
 
 ### Scan
 
-```
-siyarix scan <target>
-```
+Run security scans against one or more targets. Uses discovered tools on your `PATH`.
 
-Network scanning, service discovery, and port enumeration. Uses discovered tools on your PATH.
-
-| Subcommand | Description |
-|------------|-------------|
-| `siyarix scan quick <target>` | Quick port scan |
-| `siyarix scan full <target>` | Comprehensive scan |
-| `siyarix scan --list-tools` | List all discovered security tools |
-| `siyarix scan --all` | Run all available scanning tools |
-
-### Recon
-
-```
-siyarix recon <target>
+```bash
+siyarix scan <targets...> [OPTIONS]
 ```
 
-Reconnaissance and asset discovery.
+**Target Modifiers:** Supports `@targets.txt` multi-target mode. Prefix a file path with `@` to load targets line by line.
 
-### Run (natural language)
+| Option | Description |
+|--------|-------------|
+| `--tool`, `-t` | Specific tool to use |
+| `--mode`, `-m` | Execution mode (`autonomous`, `integrated`, `offline`) |
+| `--output`, `-o` | Output format: `table`, `json`, `yaml`, `csv` |
+| `--parallel`, `-p` | Number of parallel workers |
+| `--timeout` | Timeout per tool in seconds |
+| `--save`, `-s` | Save results to database |
+| `--dry-run` | Plan only, do not execute |
+| `--profile` | Use specific command profile |
 
-```
+### Run / Agent
+
+Convert natural language into structured commands or execute goal-driven autonomous agents.
+
+```bash
 siyarix run "scan my network for open ports"
-```
-
-Converts natural language into structured commands via AI planning.
-
-### Agent
-
-```
 siyarix agent "find all vulnerabilities on our web server"
 ```
 
-Goal-driven autonomous agent that decomposes objectives into sub-tasks.
+### Discover
 
-### Shell
+Asset and service discovery for specified targets.
 
-```
-siyarix shell <command>
-```
-
-Cross-platform shell helper. Provides platform-aware command execution.
-
-### Workflow
-
-```
-siyarix workflow run <file>
+```bash
+siyarix discover <target>
 ```
 
-Load and execute YAML/JSON workflow definitions.
+### Init
 
-### Chat
+Initialize Siyarix using the interactive setup wizard. Runs the ethics pledge, requirements check, provider setup, and persona configuration.
 
-```
-siyarix chat
-```
-
-Start interactive AI-powered session with slash commands, auto-complete, history.
-
-### Auth
-
-```
-siyarix auth set-key <provider>
+```bash
+siyarix init [--force] [--skip-requirements]
 ```
 
-Configure AI provider API keys interactively.
+### Palette & Render
+
+Command palette and profile execution.
+
+| Command | Description |
+|---------|-------------|
+| `siyarix palette` | Open an interactive command palette (requires `prompt_toolkit`) |
+| `siyarix render-cmd <name> [kv...]` | Render a saved command profile using provided key=value pairs |
+
+---
+
+## Sub-Command Groups
+
+### Profile
+
+Workspace and command profile management.
+
+| Command | Description |
+|---------|-------------|
+| `siyarix profile list-cmds` | List saved command profiles |
+| `siyarix profile save-cmd <name> <command>`| Save a reusable command profile |
+| `siyarix profile rm-cmd <name>` | Remove a saved command profile |
 
 ### Config
+
+CLI configuration and settings management.
 
 | Command | Description |
 |---------|-------------|
 | `siyarix config list` | Show all settings |
 | `siyarix config get <key>` | Get a single setting |
-| `siyarix config set <key> <value>` | Set a setting |
+| `siyarix config set <key> <value>`| Set a setting |
 | `siyarix config reset` | Reset to defaults |
-| `siyarix config edit` | Open config in editor |
+| `siyarix config edit` | Open config in default editor |
 
-### Creds
+### Auth
 
-| Command | Description |
-|---------|-------------|
-| `siyarix creds list` | List stored credentials |
-| `siyarix creds set <provider> <key>` | Store a credential |
-| `siyarix creds get <provider> <key>` | Retrieve a credential |
-| `siyarix creds delete <provider> <key>` | Delete a credential |
-| `siyarix creds rotate` | Rotate encryption key |
+Authentication & API keys configuration.
+
+```bash
+siyarix auth set-key <provider>
+```
+
+Configure AI provider API keys interactively.
 
 ### Security
 
-```
-siyarix security <subcommand>
-```
+Security operations management and workflows.
 
-Security operations management:
+| Command | Description |
+|---------|-------------|
+| `siyarix security incidents` | View and manage security incidents |
+| `siyarix security vulns` | Vulnerability management |
+| `siyarix security hunt` | Threat hunting operations |
+| `siyarix security mitre` | MITRE ATT&CK coverage mapping |
+| `siyarix security playbooks` | Incident response playbooks |
+| `siyarix security dashboard` | View security dashboard |
 
-| Subcommand | Description |
-|------------|-------------|
-| `incidents` | View and manage security incidents |
-| `vulns` | Vulnerability management |
-| `hunt` | Threat hunting operations |
-| `mitre` | MITRE ATT&CK coverage mapping |
-| `playbooks` | Incident response playbooks |
-| `dashboard` | Security dashboard |
+### Theme
 
-### Health
+Customize the terminal color themes.
 
-```
-siyarix health
-```
+| Command | Description |
+|---------|-------------|
+| `siyarix theme list` | List available color themes |
+| `siyarix theme set <name>` | Set the default color theme |
+| `siyarix theme preview [name]`| Preview a theme's appearance |
 
-System health check — components, latency, state.
+### Cache
 
-### Metrics
+Manage the LRU cache.
 
-```
-siyarix metrics
-```
+| Command | Description |
+|---------|-------------|
+| `siyarix cache status` | Show cache statistics |
+| `siyarix cache clear` | Clear all cached data |
 
-Performance metrics — scan counts, durations, planner stats.
+### Tool Registry
 
-### Themes
+Manage and view discovered tools and providers.
 
-```
-siyarix themes
-```
+| Command | Description |
+|---------|-------------|
+| `siyarix tool-registry providers` | List configured model providers (order of preference) |
 
-Preview available terminal color themes.
+### System & Ops
 
-### Palette
+| Group / Command | Description |
+|-----------------|-------------|
+| `siyarix audit ...` | Audit trail & compliance logs management |
+| `siyarix report ...` | Report generation & distribution |
+| `siyarix health` | System health checks (components, latency, state) |
+| `siyarix completions` | Generate and install shell completions |
 
-```
-siyarix palette
-```
+---
 
-Open interactive command palette for browsing available commands.
-
-### Discover
-
-```
-siyarix discover <target>
-```
-
-Asset and service discovery.
-
-## Exit codes
+## Exit Codes
 
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 1 | General error / unknown command |
+| 1 | General error / unknown command / target missing |
 | 2 | Validation error |
-| 3 | Permission denied |
+| 3 | Permission denied / file missing |
 | 4 | Timeout |

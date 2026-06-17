@@ -562,7 +562,10 @@ class OnboardingWizard:
         info_table = Table(box=box.SIMPLE, show_header=False)
         info_table.add_column("Property", style="cyan")
         info_table.add_column("Value")
-        info_table.add_row("Operating System", f"{system} {release}")
+        os_label = f"{system} {release}"
+        if linux_distro:
+            os_label += f" ({linux_distro})"
+        info_table.add_row("Operating System", os_label)
         if machine in _ARCH_MAP:
             info_table.add_row("Architecture", arch_label)
         info_table.add_row("CPU (logical)", cpu_label)
@@ -602,6 +605,7 @@ class OnboardingWizard:
 
         self._choices["platform"] = {
             "system": system,
+            "linux_distro": linux_distro,
             "os_name": os_name,
             "release": release,
             "version": version,
@@ -2069,34 +2073,67 @@ class OnboardingWizard:
                     )
 
                 if rc_file and rc_file.parent.exists():
-                    # Typer/Click shell completion via env-var: _<APP>_COMPLETE=<shell>_source <app>
                     typer_shell = shell
                     if shell == "pwsh":
                         typer_shell = "powershell"
+
+                    # Generate static completion file once (no Python on terminal open)
+                    comp_dir = get_config_dir() / "completions"
+                    comp_dir.mkdir(parents=True, exist_ok=True)
+                    comp_file = comp_dir / f"siyarix.{shell}"
+
                     if shell in ("powershell", "pwsh"):
-                        completion_cmd = (
-                            '$env:_SIYARIX_COMPLETE="powershell_source"; '
-                            "siyarix | Out-String | Invoke-Expression"
-                        )
+                        completion_cmd = f"$env:_SIYARIX_COMPLETE='source_powershell'; siyarix | Out-String | Invoke-Expression"
+                        source_line = completion_cmd
+                    elif shell == "fish":
+                        source_line = f"source {comp_file}"
                     else:
-                        completion_cmd = f'eval "$(_SIYARIX_COMPLETE={typer_shell}_source siyarix)"'
+                        source_line = f"source {comp_file}"
+
+                    # Generate the completion file (runs Python once now)
+                    from siyarix.cli import _generate_completion
+
+                    try:
+                        _generate_completion(typer_shell, comp_file)
+                        self._console.print(
+                            f"  [green]\u2713 Completion script generated: {comp_file}[/green]"
+                        )
+                    except Exception as exc:
+                        self._console.print(
+                            f"  [yellow]Could not generate completions: {exc}[/yellow]"
+                        )
+                        self._console.print(
+                            "  [dim]Fallback: using eval (runs on every terminal open)[/dim]"
+                        )
+                        source_line = f'eval "$(_SIYARIX_COMPLETE=source_{typer_shell} siyarix)"'
+
                     if rc_file.exists():
                         existing = rc_file.read_text(encoding="utf-8")
-                        # Clean up old broken eval line (siyarix completion — singular, no such command)
                         import re as _re
 
+                        # Clean up old eval lines
                         cleaned = _re.sub(
                             r'\neval "\$\(siyarix? completion \w+\)"\n?',
                             "",
                             existing,
                         )
+                        cleaned = _re.sub(
+                            r'\neval "\$\(_SIYARIX_COMPLETE=\w+_source siyarix\)"\n?',
+                            "",
+                            cleaned,
+                        )
+                        cleaned = _re.sub(
+                            r'\n# Siyarix completions\n.*?\n',
+                            "",
+                            cleaned,
+                        )
                         if cleaned != existing:
                             rc_file.write_text(cleaned, encoding="utf-8")
                             existing = cleaned
-                            self._console.print("  [dim]Removed old broken completion line.[/dim]")
-                        if completion_cmd not in existing:
+                            self._console.print("  [dim]Cleaned up old completion lines.[/dim]")
+                        if source_line not in existing:
                             with rc_file.open("a", encoding="utf-8") as f:
-                                f.write(f"\n# Siyarix completions\n{completion_cmd}\n")
+                                f.write(f"\n# Siyarix completions\n{source_line}\n")
                             self._console.print(
                                 f"  [green]\u2713 Completions added to {rc_file}[/green]"
                             )
@@ -2105,7 +2142,7 @@ class OnboardingWizard:
                     else:
                         rc_file.parent.mkdir(parents=True, exist_ok=True)
                         rc_file.write_text(
-                            f"# Siyarix completions\n{completion_cmd}\n", encoding="utf-8"
+                            f"# Siyarix completions\n{source_line}\n", encoding="utf-8"
                         )
                         self._console.print(
                             f"  [green]\u2713 Completions file created: {rc_file}[/green]"

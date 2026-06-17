@@ -35,7 +35,13 @@ The chat provides a full interactive shell with:
 | `/status` | Show session status |
 | `/history` | Show command history |
 | `/tools` | List available tools |
-| `/persona` | Switch active persona |
+| `/persona` | Switch active persona (redteam, blueteam, dfir, etc.) |
+| `/model` | Switch AI provider (openai, gemini, anthropic, etc.) |
+| `/command` | Toggle command review on/off |
+| `/key` | Set or rotate API keys |
+| `/theme` | Change terminal color theme |
+| `/branch` | Create or switch session branches |
+| `/export` | Export session findings to file |
 
 ## Natural language input
 

@@ -559,7 +559,7 @@ class TestExecutionEngine:
         engine = ExecutionEngine()
         engine.execute = AsyncMock(return_value=EngineResult(success=True))
         result = await engine.resume("plan123")
-        engine.execute.assert_awaited_once_with("Resume plan: plan123")
+        engine.execute.assert_awaited_once_with("Continue previous security plan (ID: plan123)")
         assert result.success is True
 
 

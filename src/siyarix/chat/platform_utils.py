@@ -148,8 +148,14 @@ def load_env_file() -> None:
 
     NOTE: API key env vars (*_API_KEY) are intentionally NOT loaded from .env
     for security. Use /key set <provider> <key> instead.
+
+    Dangerous variables (PATH, LD_PRELOAD, PYTHONPATH, etc.) are also blocked.
     """
     _api_key_patterns = ("_API_KEY", "_SECRET", "_PASSWORD", "_TOKEN")
+    _blocked_vars = {
+        "PATH", "LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH", "PYTHONSTARTUP",
+        "BASH_ENV", "IFS", "SHELLOPTS", "PERL5LIB", "RUBYLIB", "PYTHONHOME",
+    }
     env_path = get_config_dir() / ".env"
     if not env_path.exists():
         return
@@ -163,6 +169,9 @@ def load_env_file() -> None:
         if key and not os.environ.get(key):
             if any(p in key.upper() for p in _api_key_patterns):
                 logger.debug("Skipping %s from .env (use /key command instead)", key)
+                continue
+            if key.upper() in _blocked_vars:
+                logger.debug("Skipping blocked env var %s from .env", key)
                 continue
             os.environ[key] = val
 

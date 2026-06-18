@@ -187,12 +187,12 @@ class HealthChecker:
                         endpoints = {
                             "ollama": (11434, "/api/tags"),
                             "lmstudio": (1234, "/v1/models"),
-                            "llamacpp": (8080, "/health"),
+                            "llamacpp": (18080, "/health"),
                             "vllm": (8000, "/health"),
                             "localai": (8080, "/readyz"),
                         }
                         port, path = endpoints.get(provider_name, (11434, "/api/tags"))
-                        async with httpx.AsyncClient(timeout=2.0) as client:
+                        async with httpx.AsyncClient(timeout=0.5) as client:
                             resp = await client.get(f"http://localhost:{port}{path}")
                             available = resp.status_code == 200
                             message = (

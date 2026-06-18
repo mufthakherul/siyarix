@@ -9,6 +9,9 @@ import httpx
 
 import pytest
 
+# CREATE_NO_WINDOW only exists on Windows
+_CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+
 
 class TestEnsureOllamaRunning:
     def test_should_start_false_not_ollama_provider(self) -> None:
@@ -97,7 +100,7 @@ class TestEnsureOllamaRunning:
         mock_which.assert_called_once_with("ollama")
         mock_popen.assert_called_once_with(
             ["ollama", "serve"],
-            creationflags=subprocess.CREATE_NO_WINDOW,
+            creationflags=_CREATE_NO_WINDOW,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )

@@ -757,24 +757,24 @@ def cache_clear() -> None:
 @tool_registry_app.command("providers")
 def list_providers() -> None:
     """List configured model providers (order of preference)."""
-    engine = _get_engine()
-    planners = getattr(engine, "_planner", None)
-    if not planners:
-        console.print("[dim]No planner available[/dim]")
-        raise typer.Exit(1)
+    from ..providers.manager import ProviderManager
 
-    providers = getattr(planners, "_providers", [])
+    pm = ProviderManager.get_instance()
+    providers = pm.list_providers()
     if not providers:
         console.print("[dim]No providers registered[/dim]")
         return
 
     table = Table(title="Configured Model Providers", header_style="bold cyan")
-    table.add_column("Index", style="dim")
-    table.add_column("Provider Type", style="cyan")
-    table.add_column("Available", style="green")
-    for i, p in enumerate(providers, 1):
-        avail = getattr(p, "available", False)
-        table.add_row(str(i), type(p).__name__, str(avail))
+    table.add_column("Provider", style="cyan")
+    table.add_column("Display Name", style="white")
+    table.add_column("Configured", style="green")
+    for name in providers:
+        profile = pm.get_profile(name)
+        display = profile.display_name if profile else name.capitalize()
+        has_key = bool(pm.get_api_key(name))
+        status = "[green]✓[/green]" if has_key else "[dim]✗[/dim]"
+        table.add_row(name, display, status)
     console.print(table)
 
 

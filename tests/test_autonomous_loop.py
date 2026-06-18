@@ -15,7 +15,16 @@ from siyarix.validators import RecoveryAction, RecoveryPlan
 
 @pytest.fixture
 def agent():
-    return AgentCore(mode=AgentMode.REGISTRY)
+    import tempfile
+    from pathlib import Path
+    tmp_db = Path(tempfile.mkstemp(suffix=".db", prefix="siyarix_test_")[1])
+    core = AgentCore(mode=AgentMode.REGISTRY, db_path=tmp_db)
+    yield core
+    core._store.close()
+    try:
+        tmp_db.unlink(missing_ok=True)
+    except Exception:
+        pass
 
 
 @pytest.fixture

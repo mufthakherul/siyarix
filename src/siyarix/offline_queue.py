@@ -39,23 +39,31 @@ class OfflineCommandQueue:
         path = Path(db_path) if db_path else self._DB_PATH
         path.parent.mkdir(parents=True, exist_ok=True)
         self._db_path = str(path)
-        self._local = threading.local()
+        self._conn_instance: sqlite3.Connection | None = None
         self._lock = threading.Lock()
-        self._init_db()
+        try:
+            self._init_db()
+        except sqlite3.OperationalError:
+            import time
+            time.sleep(0.1)
+            self._init_db()
 
     def close(self) -> None:
-        conn = getattr(self._local, "conn", None)
-        if conn is not None:
-            conn.close()
-            self._local.conn = None
+        if self._conn_instance is not None:
+            try:
+                self._conn_instance.close()
+            except Exception:
+                pass
+            self._conn_instance = None
 
     def _conn(self) -> sqlite3.Connection:
-        if not hasattr(self._local, "conn") or self._local.conn is None:
-            self._local.conn = sqlite3.connect(self._db_path, timeout=10)
-            self._local.conn.row_factory = sqlite3.Row
-            self._local.conn.execute("PRAGMA journal_mode=WAL")
-            self._local.conn.execute("PRAGMA busy_timeout=5000")
-        return self._local.conn
+        if self._conn_instance is None:
+            self._conn_instance = sqlite3.connect(self._db_path, timeout=30, check_same_thread=False)
+            self._conn_instance.row_factory = sqlite3.Row
+            self._conn_instance.execute("PRAGMA journal_mode=WAL")
+            self._conn_instance.execute("PRAGMA busy_timeout=30000")
+            self._conn_instance.execute("PRAGMA synchronous=NORMAL")
+        return self._conn_instance
 
     def _init_db(self) -> None:
         conn = self._conn()
@@ -89,72 +97,72 @@ class OfflineCommandQueue:
         cmd_id = uuid.uuid4().hex
         now = datetime.now(timezone.utc).isoformat()
         with self._lock:
-            with self._conn() as conn:
-                conn.execute(
-                    "INSERT INTO queued_commands (id, instruction, target, mode, status, created_at, max_attempts, dependencies) "
-                    "VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)",
-                    (cmd_id, instruction, target, mode, now, max_attempts, json.dumps(dependencies or [])),
-                )
+            conn = self._conn()
+            conn.execute(
+                "INSERT INTO queued_commands (id, instruction, target, mode, status, created_at, max_attempts, dependencies) "
+                "VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)",
+                (cmd_id, instruction, target, mode, now, max_attempts, json.dumps(dependencies or [])),
+            )
         logger.info("Queued command %s: %s", cmd_id, instruction[:60])
         return cmd_id
 
     def dequeue(self, batch_size: int = 5) -> list[QueuedCommand]:
         with self._lock:
-            with self._conn() as conn:
-                rows = conn.execute(
-                    "SELECT * FROM queued_commands WHERE status = 'pending' ORDER BY created_at ASC LIMIT ?",
-                    (batch_size,),
-                ).fetchall()
-                result = []
-                for row in rows:
-                    cmd = QueuedCommand(
-                        id=row["id"],
-                        instruction=row["instruction"],
-                        target=row["target"],
-                        mode=row["mode"],
-                        status=row["status"],
-                        created_at=row["created_at"],
-                        attempts=row["attempts"],
-                        max_attempts=row["max_attempts"],
-                        last_error=row["last_error"],
-                        result_summary=row["result_summary"],
-                        dependencies=json.loads(row["dependencies"]),
-                    )
-                    result.append(cmd)
-                return result
+            conn = self._conn()
+            rows = conn.execute(
+                "SELECT * FROM queued_commands WHERE status = 'pending' ORDER BY created_at ASC LIMIT ?",
+                (batch_size,),
+            ).fetchall()
+            result = []
+            for row in rows:
+                cmd = QueuedCommand(
+                    id=row["id"],
+                    instruction=row["instruction"],
+                    target=row["target"],
+                    mode=row["mode"],
+                    status=row["status"],
+                    created_at=row["created_at"],
+                    attempts=row["attempts"],
+                    max_attempts=row["max_attempts"],
+                    last_error=row["last_error"],
+                    result_summary=row["result_summary"],
+                    dependencies=json.loads(row["dependencies"]),
+                )
+                result.append(cmd)
+            return result
 
     def mark_processing(self, cmd_id: str) -> None:
         with self._lock:
-            with self._conn() as conn:
-                conn.execute(
-                    "UPDATE queued_commands SET status = 'processing', attempts = attempts + 1 WHERE id = ?",
-                    (cmd_id,),
-                )
+            conn = self._conn()
+            conn.execute(
+                "UPDATE queued_commands SET status = 'processing', attempts = attempts + 1 WHERE id = ?",
+                (cmd_id,),
+            )
 
     def mark_completed(self, cmd_id: str, summary: str = "") -> None:
         with self._lock:
-            with self._conn() as conn:
-                conn.execute(
-                    "UPDATE queued_commands SET status = 'completed', result_summary = ? WHERE id = ?",
-                    (summary, cmd_id),
-                )
+            conn = self._conn()
+            conn.execute(
+                "UPDATE queued_commands SET status = 'completed', result_summary = ? WHERE id = ?",
+                (summary, cmd_id),
+            )
 
     def mark_failed(self, cmd_id: str, error: str) -> None:
         with self._lock:
-            with self._conn() as conn:
-                row = conn.execute(
-                    "SELECT attempts, max_attempts FROM queued_commands WHERE id = ?", (cmd_id,)
-                ).fetchone()
-                if row and row["attempts"] >= row["max_attempts"]:
-                    conn.execute(
-                        "UPDATE queued_commands SET status = 'failed', last_error = ? WHERE id = ?",
-                        (error, cmd_id),
-                    )
-                else:
-                    conn.execute(
-                        "UPDATE queued_commands SET status = 'pending', last_error = ? WHERE id = ?",
-                        (error, cmd_id),
-                    )
+            conn = self._conn()
+            row = conn.execute(
+                "SELECT attempts, max_attempts FROM queued_commands WHERE id = ?", (cmd_id,)
+            ).fetchone()
+            if row and row["attempts"] >= row["max_attempts"]:
+                conn.execute(
+                    "UPDATE queued_commands SET status = 'failed', last_error = ? WHERE id = ?",
+                    (error, cmd_id),
+                )
+            else:
+                conn.execute(
+                    "UPDATE queued_commands SET status = 'pending', last_error = ? WHERE id = ?",
+                    (error, cmd_id),
+                )
 
     def get_pending_count(self) -> int:
         conn = self._conn()
@@ -202,22 +210,22 @@ class OfflineCommandQueue:
 
     def retry_failed(self, max_items: int = 10) -> int:
         with self._lock:
-            with self._conn() as conn:
-                conn.execute(
-                    "UPDATE queued_commands SET status = 'pending', attempts = 0 WHERE status = 'failed' LIMIT ?",
-                    (max_items,),
-                )
-                count = conn.total_changes
-                return count
+            conn = self._conn()
+            conn.execute(
+                "UPDATE queued_commands SET status = 'pending', attempts = 0 WHERE status = 'failed' LIMIT ?",
+                (max_items,),
+            )
+            count = conn.total_changes
+            return count
 
     def clear_completed(self, older_than_days: int = 7) -> int:
         with self._lock:
-            with self._conn() as conn:
-                conn.execute(
-                    "DELETE FROM queued_commands WHERE status = 'completed' AND created_at < datetime('now', ?)",
-                    (f"-{older_than_days} days",),
-                )
-                return conn.total_changes
+            conn = self._conn()
+            conn.execute(
+                "DELETE FROM queued_commands WHERE status = 'completed' AND created_at < datetime('now', ?)",
+                (f"-{older_than_days} days",),
+            )
+            return conn.total_changes
 
     def stats(self) -> dict[str, int]:
         conn = self._conn()

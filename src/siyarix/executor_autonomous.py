@@ -248,7 +248,6 @@ class AutonomousExecutor(BaseExecutor):
         exec_result = await safe_run_async_stream(
             get_platform_shell_cmd(step.command or ""),
             timeout=cmd_timeout,
-            validate=False,
             on_stdout=lambda line: state.lines.append(line),
             on_stderr=lambda line: state.lines.append(line),
         )

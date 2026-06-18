@@ -349,7 +349,7 @@ def init_wizard(
 
     settings = SettingsStore()
     wizard = OnboardingWizard(settings=settings)
-    asyncio.run(wizard.run())
+    run_async(wizard.run())
 
 
 def _run_batch_lines(
@@ -875,13 +875,13 @@ def scan(
                 f"{len(expanded_targets)} targets", total=len(expanded_targets)
             )
             engine = _get_engine(mode)
-            result = asyncio.run(
+            result = run_async(
                 engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save)
             )
             progress.update(task_id, advance=len(expanded_targets))
     else:
         engine = _get_engine(mode)
-        result = asyncio.run(
+        result = run_async(
             engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save)
         )
 

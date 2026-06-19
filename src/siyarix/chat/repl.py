@@ -108,7 +108,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         self._con = self._output.console
 
         self._validate_provider_config_on_startup()
-        self._connectivity_monitor = None
+        self._connectivity_monitor: Any = None
 
     @property
     def connectivity_monitor(self) -> Any:

@@ -28,7 +28,7 @@ def ensure_ollama_running() -> None:
             if os.name == "nt":
                 subprocess.Popen(
                     ["ollama", "serve"],
-                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    creationflags=subprocess.CREATE_NO_WINDOW,  # type: ignore[attr-defined]
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )

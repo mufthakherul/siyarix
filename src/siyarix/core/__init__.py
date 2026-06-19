@@ -8,6 +8,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from enum import StrEnum
+from pathlib import Path
 from typing import Any
 
 from ..registry import ToolRegistry
@@ -289,13 +290,13 @@ class AgentCore:
 
     async def execute_goal(self, goal: AgentGoal, plan: ExecutionPlan | None = None) -> AgentResult:
         try:
-            from ..performance import PerformanceMonitor
+            from ..performance import PerformanceMonitor  # type: ignore[attr-defined]
             PerformanceMonitor().refresh_resources()
         except Exception:
             pass
 
         try:
-            from ..session_branching import SessionBranchManager
+            from ..session_branching import SessionBranchManager  # type: ignore[attr-defined]
             SessionBranchManager().add_compaction(f"start_goal_{int(time.time())}")
         except Exception:
             pass
@@ -303,7 +304,7 @@ class AgentCore:
         self._status = AgentStatus.PLANNING
         start = time.time()
         result = AgentResult(goal=goal.description)
-        self._workflow_engine.register_step("execute_goal_start", {"goal": goal.description})
+        self._workflow_engine.register_step("execute_goal_start", {"goal": goal.description})  # type: ignore[arg-type]
 
         if self._mode == AgentMode.REGISTRY:
             result = await self._execute_registry(goal, plan, start, result)
@@ -314,7 +315,7 @@ class AgentCore:
         else:
             result = await self._execute_interactive(goal, plan, start, result)
 
-        self._workflow_engine.register_step("execute_goal_end", {"success": result.success})
+        self._workflow_engine.register_step("execute_goal_end", {"success": result.success})  # type: ignore[arg-type]
 
         try:
             from ..output import OutputEngine

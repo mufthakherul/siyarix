@@ -179,6 +179,12 @@ SECURITY_MODEL_TIERS: list[dict[str, Any]] = [
     },
 ]
 
+Console: Any = None
+Panel: Any = None
+Prompt: Any = None
+Confirm: Any = None
+Table: Any = None
+box: Any = None
 try:
     from rich.console import Console
     from rich.markup import escape as rich_escape
@@ -188,12 +194,6 @@ try:
     from rich import box
 except ImportError:
     logger.warning("Rich library not installed; TUI features will be degraded")
-    Console = None  # type: ignore[assignment,misc]
-    Panel = None  # type: ignore[assignment,misc]
-    Prompt = None  # type: ignore[assignment,misc]
-    Confirm = None  # type: ignore[assignment,misc]
-    Table = None  # type: ignore[assignment,misc]
-    box = None  # type: ignore[assignment]
 
 
 # ── OnboardingWizard ────────────────────────────────────────────────────────
@@ -2083,7 +2083,7 @@ class OnboardingWizard:
                     comp_file = comp_dir / f"siyarix.{shell}"
 
                     if shell in ("powershell", "pwsh"):
-                        completion_cmd = f"$env:_SIYARIX_COMPLETE='source_powershell'; siyarix | Out-String | Invoke-Expression"
+                        completion_cmd = "$env:_SIYARIX_COMPLETE='source_powershell'; siyarix | Out-String | Invoke-Expression"
                         source_line = completion_cmd
                     elif shell == "fish":
                         source_line = f"source {comp_file}"
@@ -2390,7 +2390,7 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
             if os.name == "nt":
                 subprocess.Popen(
                     ["ollama", "serve"],
-                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    creationflags=subprocess.CREATE_NO_WINDOW,  # type: ignore[attr-defined]
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
@@ -2659,7 +2659,7 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
             if os.name == "nt":
                 subprocess.Popen(
                     cmd,
-                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    creationflags=subprocess.CREATE_NO_WINDOW,  # type: ignore[attr-defined]
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )

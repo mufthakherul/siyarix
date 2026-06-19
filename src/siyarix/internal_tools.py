@@ -17,21 +17,22 @@ def make_graph_analyzer_handler() -> ToolHandler:
         if path.exists():
             kg.load_json(str(path))
             
-        result = {}
+        result: dict[str, Any] = {}
         if action == "shortest_path":
             source = args.get("source")
             target = args.get("target")
             if source and target:
                 path_nodes = kg.shortest_path(source, target)
-                result = {"path": [n.label for n in path_nodes]} if path_nodes else {"error": "No path found"}
+                result = {"path": [n for n in path_nodes]} if path_nodes else {"error": "No path found"}
         elif action == "blast_radius":
             node_id = args.get("node_id")
             if node_id:
                 radius = kg.blast_radius(node_id)
-                result = {"blast_radius": [n.label for n in radius]}
+                result = {"blast_radius": [n for n in radius]}
         elif action == "find_crown_jewel_paths":
-            paths = kg.find_crown_jewel_paths()
-            result = {"paths": [[n.label for n in p] for p in paths]}
+            node_id = args.get("node_id")
+            paths = kg.find_crown_jewel_paths(node_id) if node_id else {}
+            result = {"paths": [[n for n in p] for p in paths.values()]}
         else:
             result = {"error": f"Unknown action: {action}. Supported: shortest_path, blast_radius, find_crown_jewel_paths"}
 
@@ -52,10 +53,10 @@ def make_threat_intel_handler() -> ToolHandler:
         
         from .threat_intel import ThreatIntelFeed, MITREAttackDB
         
-        result = {}
+        result: dict[str, Any] = {}
         if action == "cve_lookup":
             feed = ThreatIntelFeed()
-            data = getattr(feed, "query_cve", lambda x: {})(query) # Using getattr in case methods aren't exactly named this
+            data: dict[str, Any] = getattr(feed, "query_cve", lambda x: {})(query) # Using getattr in case methods aren't exactly named this
             if not data:
                 data = {"cve": query, "info": "No offline data found or method missing"}
             result = {"cve_data": data}

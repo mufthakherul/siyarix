@@ -166,17 +166,20 @@ class ToolInstaller:
         try:
             import winreg
 
-            with winreg.OpenKey(
-                winreg.HKEY_LOCAL_MACHINE,
+            with winreg.OpenKey(  # type: ignore[attr-defined]
+                winreg.HKEY_LOCAL_MACHINE,  # type: ignore[attr-defined]
                 r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
                 0,
-                winreg.KEY_READ,
+                winreg.KEY_READ,  # type: ignore[attr-defined]
             ) as key:
-                sys_path, _ = winreg.QueryValueEx(key, "PATH")
-            with winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER, r"Environment", 0, winreg.KEY_READ
+                sys_path, _ = winreg.QueryValueEx(key, "PATH")  # type: ignore[attr-defined]
+            with winreg.OpenKey(  # type: ignore[attr-defined]
+                winreg.HKEY_CURRENT_USER,  # type: ignore[attr-defined]
+                r"Environment",
+                0,
+                winreg.KEY_READ,  # type: ignore[attr-defined]
             ) as key:
-                user_path, _ = winreg.QueryValueEx(key, "PATH")
+                user_path, _ = winreg.QueryValueEx(key, "PATH")  # type: ignore[attr-defined]
             os.environ["PATH"] = sys_path + ";" + user_path + ";" + os.environ.get("PATH", "")
         except Exception as exc:
             logger.debug("Failed to refresh Windows PATH: %s", exc)

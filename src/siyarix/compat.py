@@ -217,7 +217,7 @@ class ExecutionEngine:
                 success=True,
                 summary=f"Dry-run: {len(plan_preview['steps'])} steps planned",
                 all_findings=[plan_preview],
-                plan_id=plan_preview["plan_id"],
+                plan_id=str(plan_preview["plan_id"] or ""),
             )
 
         mode_map = {

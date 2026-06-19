@@ -10,6 +10,7 @@ from typing import Any
 from .events import Event, EventType
 from .exceptions import PermissionDeniedError, ToolExecutionError, ToolNotFoundError
 from .executor import BaseExecutor, StepExecutor
+from .workflow import WorkflowStepFn
 from .models import ExecutionPlan, PlanStep, PlanStatus, StepStatus
 from .planner_registry import TOOL_ALTERNATIVES
 from .registry import ToolRegistry
@@ -235,6 +236,7 @@ class RegistryExecutor(BaseExecutor):
                 step.args["flags"] = new_flags
                 
                 try:
+                    assert self._registry is not None
                     retry_result = await self._registry.execute(step.tool, **step.args)
                     retry_result = await self._apply_dlp(retry_result)
                     if retry_result.get("status") != "error":
@@ -306,7 +308,7 @@ class RegistryExecutor(BaseExecutor):
             engine = WorkflowEngine()
             
             # Register a step executor that maps workflow args back to _try_execute
-            def _create_runner(tool_name: str) -> StepExecutor:
+            def _create_runner(tool_name: str) -> WorkflowStepFn:
                 async def runner(args: dict[str, Any]) -> dict[str, Any]:
                     step = PlanStep(id="wf_step", tool=tool_name, args=args)
                     return await self._try_execute(step, None)

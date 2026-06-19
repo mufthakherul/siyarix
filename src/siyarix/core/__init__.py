@@ -27,7 +27,8 @@ from ..events import Event, EventType, get_event_bus
 from ..exceptions import BudgetExceededError
 from ..knowledge_graph import KnowledgeGraph
 from ..stealth import StealthEngine
-from ..config import get_config_dir
+from ..config import get_config_dir, SettingsStore
+from ..permission_gate import PermissionGate
 from .swarm import SwarmRouter, SwarmTask
 from ..offline_store import OfflineStore
 from ..metrics import get_metrics
@@ -106,8 +107,23 @@ class AgentCore:
             autonomous_planner=self._planner_autonomous,
             registry_planner=self._planner_registry,
         )
-        self._executor_registry = RegistryExecutor(self._registry)
-        self._executor_autonomous = AutonomousExecutor(registry=self._registry)
+
+        # PermissionGate — enforce safe mode boundaries
+        _settings = SettingsStore()
+        _safe_mode = (
+            os.getenv("SIYARIX_SAFE_MODE", "0") == "1"
+            or _settings.get("_safe_mode", default=False)
+        )
+        self._permission_gate = PermissionGate() if _safe_mode else None
+
+        self._executor_registry = RegistryExecutor(
+            self._registry,
+            permission_gate=self._permission_gate,
+        )
+        self._executor_autonomous = AutonomousExecutor(
+            registry=self._registry,
+            permission_gate=self._permission_gate,
+        )
         self._validator = Validator()
         self._memory = MemoryManager()
         self._context = ContextManager(memory=self._memory)
@@ -371,7 +387,7 @@ class AgentCore:
         except Exception as e:
             result.success = False
             result.summary = f"Registry agent failed: {e}"
-            logger.exception("Registry agent execution failed")
+            logger.debug("Registry agent execution failed", exc_info=True)
         result.duration_ms = (time.time() - start) * 1000
         self._status = AgentStatus.COMPLETED if result.success else AgentStatus.FAILED
         self._history.append(result)

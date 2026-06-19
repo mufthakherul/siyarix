@@ -24,6 +24,7 @@ import logging
 import os
 import socket
 import sys
+import threading
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -193,6 +194,7 @@ class AuditLogger:
         self._unflushed_events: list[AuditEvent] = []
         self._sessions: dict[str, AuditSession] = {}
         self._dirty = False
+        self._lock = threading.Lock()
 
         self._retention_days = 365
         self._cached_source_ip: str | None = None
@@ -355,28 +357,29 @@ class AuditLogger:
         details: dict[str, Any] | None = None,
     ) -> AuditEvent:
         """Log audit event"""
-        prev_hash = self._events[-1].hash_current if self._events else None
+        with self._lock:
+            prev_hash = self._events[-1].hash_current if self._events else None
 
-        event = AuditEvent(
-            event_id=uuid.uuid4().hex,
-            timestamp=datetime.now(timezone.utc),
-            event_type=event_type,
-            severity=severity,
-            user=user,
-            session_id=session_id,
-            source_ip=self._get_source_ip(),
-            target=target,
-            action=action,
-            result=result,
-            details=details or {},
-        )
+            event = AuditEvent(
+                event_id=uuid.uuid4().hex,
+                timestamp=datetime.now(timezone.utc),
+                event_type=event_type,
+                severity=severity,
+                user=user,
+                session_id=session_id,
+                source_ip=self._get_source_ip(),
+                target=target,
+                action=action,
+                result=result,
+                details=details or {},
+            )
 
-        event.hash_prev = prev_hash
-        event.hash_current = event.compute_hash(prev_hash)
+            event.hash_prev = prev_hash
+            event.hash_current = event.compute_hash(prev_hash)
 
-        self._events.append(event)
-        self._unflushed_events.append(event)
-        self._dirty = True
+            self._events.append(event)
+            self._unflushed_events.append(event)
+            self._dirty = True
 
         self._count_by_type[event.event_type] = self._count_by_type.get(event.event_type, 0) + 1
         self._count_by_severity[event.severity] = self._count_by_severity.get(event.severity, 0) + 1

@@ -513,8 +513,8 @@ class CredentialStore:
                     self._creds_file.rename(self._creds_file.with_name("credentials.enc.obsolete"))
                 except Exception:
                     pass
-            except Exception as exc:
-                logger.error("Failed to load legacy credentials: %s", exc)
+            except Exception:
+                logger.exception("Failed to load legacy credentials")
 
         if self._creds_dir.exists():
             for filepath in self._creds_dir.glob("*.enc"):

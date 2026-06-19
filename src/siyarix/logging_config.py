@@ -52,6 +52,10 @@ def configure_logging(level: str | None = None, *, enable_console: bool = True) 
     ):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
+    # Suppress keyring backend debug spam at startup
+    for noisy in ("keyring.backend", "keyring"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+
     # Update existing console handler levels so reconfiguration takes effect
     for h in root.handlers:
         if isinstance(h, logging.StreamHandler):

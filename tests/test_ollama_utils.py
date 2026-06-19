@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import os as _real_os
 import subprocess
+import sys
 from unittest.mock import MagicMock, patch
 
 import httpx
 
 import pytest
+
 
 # CREATE_NO_WINDOW only exists on Windows
 _CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
@@ -79,6 +82,7 @@ class TestEnsureOllamaRunning:
 
         mock_which.assert_called_once_with("ollama")
 
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows-specific test")
     def test_ollama_not_reachable_starts_it_windows(self) -> None:
         mock_settings = MagicMock()
         mock_settings.get.side_effect = lambda key, default=None: {
@@ -92,6 +96,7 @@ class TestEnsureOllamaRunning:
             patch.object(httpx, "get", side_effect=Exception("Connection refused")),
             patch("siyarix.providers.ollama_utils.shutil.which", return_value="/usr/bin/ollama") as mock_which,
             patch("siyarix.providers.ollama_utils.os.name", "nt"),
+            patch("siyarix.providers.ollama_utils.subprocess.CREATE_NO_WINDOW", _CREATE_NO_WINDOW),
             patch("siyarix.providers.ollama_utils.subprocess.Popen") as mock_popen,
         ):
             from siyarix.providers.ollama_utils import ensure_ollama_running

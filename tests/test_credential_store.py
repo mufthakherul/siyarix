@@ -3,7 +3,6 @@ from __future__ import annotations
 import base64
 import json
 import os
-import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -464,7 +463,6 @@ class TestNormalizeKey:
 
 
 
-from siyarix.credential_store import CredentialStore
 
 
 def test_store_and_retrieve(tmp_path, monkeypatch):
@@ -956,11 +954,20 @@ class TestCredentialStorePersistence:
             result = cred_store.rotate_key(new_master_password="new_pw")
             assert result is True
 
-    def test_load_legacy_credentials_exception(self, cred_store, tmp_path):
+    def test_load_legacy_credentials_invalid_json(self, cred_store):
         cred_store._creds_file.write_text("not valid json")
         with patch("siyarix.credential_store.logger") as mock_log:
             cred_store._load()
-            mock_log.exception.assert_called()
+            mock_log.debug.assert_any_call(
+                "Legacy credential file uses a different key; treating as empty"
+            )
+
+    def test_load_legacy_credentials_unexpected_exception(self, cred_store):
+        with patch.object(cred_store, "_decrypt", side_effect=RuntimeError("unexpected")):
+            cred_store._creds_file.write_text("{}")
+            with patch("siyarix.credential_store.logger") as mock_log:
+                cred_store._load()
+                mock_log.exception.assert_called()
 
     def test_load_per_credential_file_kms(self, cred_store, tmp_path):
         kms_dir = cred_store._creds_dir

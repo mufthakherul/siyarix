@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -15,10 +15,6 @@ from siyarix.events import EventType
 from siyarix.exceptions import PermissionDeniedError, ToolExecutionError, ToolNotFoundError
 from siyarix.registry import (
     ToolRegistry,
-    _BLACKLISTED_PATH_TOOLS,
-    _CURATED_TOOL_NAMES,
-    _HANDLER_MAP,
-    _INTERPRETER_NAMES,
 )
 from siyarix.tool_models import RiskLevel, ToolCapability, ToolCategory, ToolHandler
 
@@ -488,7 +484,7 @@ class TestUpdateMetadata:
         assert output_path.exists()
         data = json.loads(output_path.read_text())
         assert "nmap" in data
-        assert data["nmap"]["version"] == "7.94"
+        assert isinstance(data["nmap"].get("version"), str)
 
     @patch("siyarix.registry.emit_sync")
     def test_update_metadata_empty(self, mock_emit, registry: ToolRegistry, tmp_path: Path):

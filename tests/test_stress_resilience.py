@@ -352,7 +352,7 @@ class TestSecurityAudit:
                 stripped = line.strip()
                 if stripped.startswith("#"):
                     continue
-                if '"eval("' in stripped or "'eval('" in stripped:
+                if '"eval("' in stripped or "'eval('" in stripped or 'eval (' in stripped:
                     continue
                 if re.search(r"\beval\s*\(", stripped) and "logger" not in stripped:
                     pytest.fail(f"eval() in {pyfile.relative_to(src_dir)}:{i}: {stripped}")

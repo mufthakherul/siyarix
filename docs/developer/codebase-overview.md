@@ -31,7 +31,6 @@ src/siyarix/
 ├── core/                    # Agent orchestration kernel
 │   ├── __init__.py          # AgentCore (639 lines) — 4 modes, planners, executors, sub-agents
 │   ├── pipeline.py          # CommandPipeline — chained command execution (| / then / and then)
-│   ├── learning.py          # ContinuousLearning — semantic memory via vector embeddings
 │   └── swarm.py             # SwarmRouter — multi-agent orchestration (Recon/Exploit/Report agents)
 │
 ├── providers/               # Multi-provider LLM abstraction layer

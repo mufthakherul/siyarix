@@ -103,7 +103,6 @@ nav:
       - Execution Engine: architecture/execution-engine.md
       - Memory & State: architecture/memory-and-state.md
       - Security Model: architecture/security-model.md
-      - Experience Intelligence: architecture/experience-intelligence.md
       - Interaction Modes: architecture/interaction-modes.md
       - Intent Routing: architecture/intent-routing.md
   - AI Internals:

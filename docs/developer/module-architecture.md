@@ -107,8 +107,7 @@ In-memory directed graph of discovered entities:
 3. **Multi-Wave**: `execute_multi_wave()` for complex objectives requiring iterative refinement
 4. **Sub-Agents**: `create_subagent()` / `execute_subagent()` for hierarchical task decomposition
 5. **Swarm**: Integrates with `SwarmRouter` for multi-agent campaigns (recon → exploit → report)
-6. **Continuous Learning**: Feeds experiences to `ContinuousLearning` for semantic memory
-7. **Observation**: Tracks results, budget, and goal completion status
+6. **Observation**: Tracks results, budget, and goal completion status
 
 ## Event Bus (`events.py`)
 
@@ -164,16 +163,6 @@ Comprehensive security report generation:
 - **Formats**: MARKDOWN (structured), HTML (interactive dashboard with CSS/JS), JSON (programmatic), SARIF (tool interoperability)
 - **CVSS**: Integrated `CVSSScorer` for vulnerability scoring enrichment
 - **Configuration**: Title, author, company, section toggles, scoring options
-
-## Continuous Learning (`core/learning.py`)
-
-Semantic memory system:
-
-- **Embeddings**: Generated via OpenAI, Ollama, or simulated (cosine similarity)
-- **Experience Storage**: Vector store with `(embedding, metadata, timestamp)` tuples
-- **Similarity Search**: Cosine similarity for finding related past experiences
-- **Feedback Loop**: Past experiences influence current planning decisions
-- **Persistence**: Experiences saved to `~/.siyarix/memory/`
 
 ## Swarm Architecture (`core/swarm.py`)
 

@@ -198,15 +198,6 @@ graph LR
     subgraph KM["Knowledge & Memory"]
         KG[KnowledgeGraph / BFS]:::km
         MM[MemoryManager]:::km
-        CL[ContinuousLearning]:::km
-        EXP[Experience Store]:::km
-        EMS[Embeddings / cosine similarity]:::km
-        
-        KG --> MM
-        MM --> CL
-        CL --> EXP
-        CL --> EMS
-        EMS -.->|similar recall| PlannerRouter
     end
 
     PRR -->|structured findings| KG
@@ -380,7 +371,7 @@ User Input → IntentRouter → Context Manager → Planner Router → Permissio
 | **NLP Engine** | Zero-dependency semantic parsing |
 | **PlannerRegistry** | Maps intents to plan templates |
 | **Context Manager** | Builds, compresses, and optimizes LLM context windows |
-| **MemoryManager** | Semantic memory with embeddings + ContinuousLearning |
+| **MemoryManager** | Semantic memory with embeddings |
 | **KnowledgeGraph** | In-memory directed graph of infrastructure entities |
 | **ExecutionEngine** | Plan construction, dependency resolution, parallel dispatch |
 | **PermissionGate** | Two-stage BLOCK/REVIEW/ALLOW security gate |

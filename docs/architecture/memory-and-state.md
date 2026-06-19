@@ -1,6 +1,6 @@
 # Memory & State Management
 
-Siyarix v3.0.0 uses a multi-layered memory and state management system spanning in-memory runtime state, SQLite-backed persistence, and file-based exports. The system includes a **KnowledgeGraph** for infrastructure relationships, **MemoryManager** with semantic memory and embeddings for continuous learning, **ChatSession** with branching support, **SessionKernel** for persistence, **CacheManager** with LRU + TTL, and a **Context Manager** for LLM context window optimization.
+Siyarix v3.0.0 uses a multi-layered memory and state management system spanning in-memory runtime state, SQLite-backed persistence, and file-based exports. The system includes a **KnowledgeGraph** for infrastructure relationships, **MemoryManager** with semantic memory and embeddings, **ChatSession** with branching support, **SessionKernel** for persistence, **CacheManager** with LRU + TTL, and a **Context Manager** for LLM context window optimization.
 
 ---
 
@@ -91,7 +91,7 @@ The `Compact` system optimizes the KnowledgeGraph for LLM context windows by:
 
 ## 2. MemoryManager
 
-Manages semantic memory with embeddings and continuous learning:
+Manages semantic memory with embeddings:
 
 ### Semantic Memory
 
@@ -106,14 +106,7 @@ class MemoryEntry:
     access_count: int                # Recency/frequency tracking
 ```
 
-### ContinuousLearning
 
-The `ContinuousLearning` subsystem:
-- Generates embeddings for observations and findings via configured provider
-- Stores embeddings in an in-memory vector index
-- Supports similarity search (cosine similarity) for context retrieval
-- Consolidates repeated patterns into abstract knowledge
-- Prunes low-importance entries based on access frequency and age
 
 ```python
 memory = MemoryManager()
@@ -276,7 +269,7 @@ Session Start
 Session Active
     │
     ├── KnowledgeGraph populated from tool outputs (real-time)
-    ├── Semantic memory updated via ContinuousLearning
+    ├── MemoryManager updated from tool outputs
     ├── Conversation history appended (deque maxlen=100)
     ├── Findings stored in OfflineStore
     ├── Commands logged to SessionKernel
@@ -302,7 +295,7 @@ Session End
 | Component | Role |
 |-----------|------|
 | **Context Manager** | Builds/compresses context from KG, memory, history |
-| **MemoryManager** | Semantic memory with embeddings + ContinuousLearning |
+| **MemoryManager** | Semantic memory with embeddings |
 | **KnowledgeGraph** | Real-time entity relationship graph |
 | **ChatSession** | Branching conversation storage (JSONL tree) |
 | **SessionKernel** | Session persistence and restore |

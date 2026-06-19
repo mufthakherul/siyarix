@@ -167,14 +167,6 @@ Before selection, each tool's availability is evaluated via `ToolAvailabilityCon
 
 ---
 
-## Continuous Learning
-
-Siyarix maintains a semantic vector memory of past experiences. When a tool command succeeds or fails:
-
-1. The command, output, and outcome are embedded into a vector store
-2. Similar future requests retrieve relevant past experiences
-3. The LLM receives these as additional context for informed decision-making
-
 ---
 
 ## Result Synthesis

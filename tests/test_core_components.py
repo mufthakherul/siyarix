@@ -1,8 +1,6 @@
-from siyarix.core.pipeline import CommandPipeline, PipelineStep, PipelineResult
-from siyarix.core.swarm import SwarmRouter, SwarmTask, ReconAgent, ExploitAgent, ReportAgent
-from unittest.mock import MagicMock, AsyncMock, patch
-import asyncio
-import json
+from siyarix.core.pipeline import CommandPipeline, PipelineStep
+from siyarix.core.swarm import SwarmRouter
+from unittest.mock import AsyncMock, patch
 import pytest
 
 

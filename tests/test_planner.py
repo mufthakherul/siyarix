@@ -141,17 +141,9 @@ class TestPlanner:
 
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 
-from siyarix.planner import (
-    ExecutionPlan,
-    PlanStatus,
-    PlanStep,
-    Planner,
-    StepStatus,
-)
 from siyarix.planner_autonomous import AutonomousPlanner
 
 

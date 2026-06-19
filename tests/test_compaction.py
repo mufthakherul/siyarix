@@ -4,9 +4,8 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
-import pytest
 
 from siyarix.compaction import (
     AssembleResult,
@@ -18,7 +17,6 @@ from siyarix.compaction import (
     estimate_tokens,
     _filter_oversized_messages,
     _format_messages_for_summary,
-    LlmCallable,
     MAX_COMPACTION_HISTORY,
     MIN_CHUNK_RATIO,
     MIN_PROMPT_BUDGET_RATIO,
@@ -28,7 +26,6 @@ from siyarix.compaction import (
     summarize_chunks,
     SUMMARIZATION_OVERHEAD_TOKENS,
     summarize_with_fallback,
-    SUMMARIZE_SYSTEM_PROMPT,
     TranscriptRewriteRequest,
 )
 

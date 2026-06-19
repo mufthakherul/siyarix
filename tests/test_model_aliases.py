@@ -256,18 +256,9 @@ class TestRegisterAlias:
 """Final coverage tests for siyarix.model_aliases — targets remaining uncovered lines and edge cases."""
 
 
-import copy
-from typing import Any
 
 import pytest
 
-from siyarix.model_aliases import (
-    _PROVIDER_ALIASES,
-    list_aliases,
-    normalize_model_id,
-    register_alias,
-    resolve_alias,
-)
 
 
 @pytest.fixture(autouse=True)

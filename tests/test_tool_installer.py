@@ -3,7 +3,6 @@ from __future__ import annotations
 from siyarix.tool_installer import ToolInstaller, ToolInstallResult
 from unittest.mock import patch
 import pytest
-import subprocess
 
 # SPDX-License-Identifier: AGPL-3.0-or-later
 

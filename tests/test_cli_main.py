@@ -1,7 +1,6 @@
 
 from __future__ import annotations
 from siyarix.__main__ import app
-from siyarix.__main__ import app as main_app
 from unittest.mock import MagicMock, patch
 import os
 import pytest
@@ -17,13 +16,11 @@ import sys
 
 
 def test_app_is_imported_from_main() -> None:
-    from siyarix.__main__ import app
 
     assert callable(app)
 
 
 def test_module_attributes() -> None:
-    import siyarix.__main__
 
     assert hasattr(siyarix.__main__, "app")
     assert callable(siyarix.__main__.app)
@@ -32,7 +29,6 @@ def test_module_attributes() -> None:
 @patch("siyarix.__main__.sys")
 @patch("siyarix.__main__.app", return_value=0)
 def test_main_block_calls_app(mock_app: MagicMock, mock_sys: MagicMock) -> None:
-    import siyarix.__main__
 
     siyarix.__main__.sys.exit(siyarix.__main__.app())
 
@@ -42,7 +38,6 @@ def test_main_block_calls_app(mock_app: MagicMock, mock_sys: MagicMock) -> None:
 @patch("siyarix.__main__.sys")
 @patch("siyarix.__main__.app", return_value=1)
 def test_main_block_passes_exit_code(mock_app: MagicMock, mock_sys: MagicMock) -> None:
-    import siyarix.__main__
 
     siyarix.__main__.sys.exit(siyarix.__main__.app())
 
@@ -50,8 +45,6 @@ def test_main_block_passes_exit_code(mock_app: MagicMock, mock_sys: MagicMock) -
 
 
 def test_main_block_via_subprocess() -> None:
-    import subprocess
-    import sys
 
     env = {k: v for k, v in os.environ.items()}
     env.setdefault("PYTHONIOENCODING", "utf-8")
@@ -67,7 +60,6 @@ def test_main_block_via_subprocess() -> None:
     )
     assert result.returncode == 0
 
-import pytest
 class TestMain:
     """Cover __main__.py line 9: sys.exit(app())."""
 
@@ -93,7 +85,6 @@ class TestMain02Coverage:
             with patch("siyarix.__main__.sys") as mock_sys:
                 mock_sys.exit.side_effect = SystemExit(0)
                 with pytest.raises(SystemExit):
-                    from siyarix.__main__ import app as main_app
                     exec("if __name__ == '__main__': sys.exit(app())",
                          {"__name__": "__main__", "sys": mock_sys, "app": mock_app})
                     mock_app.assert_called_once()
@@ -111,7 +102,6 @@ class TestMainCoverage:
             with patch("siyarix.__main__.sys") as mock_sys:
                 mock_sys.exit.side_effect = SystemExit(0)
                 with pytest.raises(SystemExit):
-                    from siyarix.__main__ import app as main_app
                     exec("if __name__ == '__main__': sys.exit(app())",
                          {"__name__": "__main__", "sys": mock_sys, "app": mock_app})
                     mock_app.assert_called_once()

@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -56,8 +56,6 @@ def test_audit_chain_tamper_detection(tmp_path, monkeypatch):
     assert res2["valid"] is False
     assert res2["broken_at"] is not None
 
-import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
 class TestCompliance:
     """Full coverage for compliance.py."""
 

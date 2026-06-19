@@ -121,17 +121,12 @@ def test_knowledge_graph_stats():
 
 import json
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from siyarix.knowledge_graph import (
-    KnowledgeGraph,
     Node,
-    Edge,
-    NodeType,
-    EdgeType,
 )
 
 

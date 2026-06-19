@@ -1,7 +1,6 @@
 from __future__ import annotations
 from .platform_utils import build_platform_context
 import asyncio
-import json
 import logging
 import os
 import shutil
@@ -176,7 +175,7 @@ class LLMEngineMixin:
             if registered_count > 1:
                 ensemble_result = await ensemble.plan(
                     instruction,
-                    voting_strategy=VotingStrategy.WEIGHTED,
+                    _voting_strategy=VotingStrategy.WEIGHTED,
                 )
                 if ensemble_result.selection_reason and registered_count > 1:
                     console.print(
@@ -199,7 +198,6 @@ class LLMEngineMixin:
             try:
                 from ..offline_queue import OfflineCommandQueue
                 queue = OfflineCommandQueue()
-                cache_key = f"plan:{plan.id}"
                 queue.enqueue(
                     instruction=instruction,
                     target=self._session.target or target,
@@ -910,7 +908,7 @@ class LLMEngineMixin:
         # -- Anthropic (native SDK) ---------------------------------------------
         if provider_name == "anthropic":
             try:
-                from anthropic import AsyncAnthropic
+                from anthropic import AsyncAnthropic  # type: ignore[import-not-found]
             except ImportError:
                 raise LLMProviderError(
                     "anthropic package not installed. Run: pip install anthropic"
@@ -939,7 +937,7 @@ class LLMEngineMixin:
                         async with anthropic_client.messages.stream(
                             model=model,
                             system=system_prompt,
-                            messages=msgs,  # type: ignore[arg-type]
+                            messages=msgs,
                             max_tokens=2000,
                             temperature=0.3,
                         ) as stream_ctx:
@@ -952,7 +950,7 @@ class LLMEngineMixin:
                 msg = await anthropic_client.messages.create(
                     model=model,
                     system=system_prompt,
-                    messages=msgs,  # type: ignore[arg-type]
+                    messages=msgs,
                     max_tokens=2000,
                     temperature=0.3,
                 )
@@ -1092,7 +1090,7 @@ class LLMEngineMixin:
             if os.name == "nt":
                 subprocess.Popen(
                     [binary, *args],
-                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    creationflags=subprocess.CREATE_NO_WINDOW,  # type: ignore[attr-defined]
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )

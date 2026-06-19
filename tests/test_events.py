@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timezone
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -13,9 +13,6 @@ from siyarix.events import (
     Event,
     EventBus,
     EventType,
-    HandlerFn,
-    _bus,
-    _bus_lock,
     _task_exception_callback,
     emit_sync,
     get_event_bus,
@@ -323,7 +320,6 @@ class TestEmitSync:
 
     def test_emit_sync_no_running_loop_success(self):
         reset_event_bus()
-        import siyarix.events as evmod
         bus = get_event_bus()
         handler = AsyncMock()
         bus.on(EventType.CUSTOM, handler)

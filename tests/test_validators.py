@@ -110,25 +110,17 @@ class TestValidateTarget:
 
 
 import ipaddress
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
-import pytest
 
-from siyarix.exceptions import ErrorContext, ErrorSeverity, ValidationError
-from siyarix.events import EventType
 from siyarix.planner import PlanStep
 from siyarix.validators import (
     RecoveryAction,
     RecoveryPlan,
     validate_cidr,
     validate_email,
-    validate_hostname,
-    validate_min_length,
-    validate_not_empty,
     validate_port,
     validate_port_range,
-    validate_target,
-    validate_url,
     ValidationResult,
     ValidationSeverity,
     Validator,

@@ -1034,32 +1034,6 @@ class TestDnstwistParser:
 
 """Comprehensive coverage tests for: covering 24 low-coverage parsers to reach >95% each."""
 
-import json
-import pytest
-from siyarix.parsers.crackmapexec_parser import CrackmapexecParser
-from siyarix.parsers.commix_parser import CommixParser
-from siyarix.parsers.dirb_parser import DirbParser
-from siyarix.parsers.pypykatz_parser import PypykatzParser
-from siyarix.parsers.gau_parser import GauParser
-from siyarix.parsers.mimikatz_parser import MimikatzParser
-from siyarix.parsers.wapiti_parser import WapitiParser
-from siyarix.parsers.smbclient_parser import SmbclientParser
-from siyarix.parsers.theharvester_parser import TheharvesterParser
-from siyarix.parsers.trufflehog_parser import TrufflehogParser
-from siyarix.parsers.wafw00f_parser import Wafw00fParser
-from siyarix.parsers.smbmap_parser import SmbmapParser
-from siyarix.parsers.feroxbuster_parser import FeroxbusterParser
-from siyarix.parsers.dalfox_parser import DalfoxParser
-from siyarix.parsers.gospider_parser import GospiderParser
-from siyarix.parsers.gowitness_parser import GowitnessParser
-from siyarix.parsers.hakrawler_parser import HakrawlerParser
-from siyarix.parsers.hash_identifier_parser import HashIdentifierParser
-from siyarix.parsers.kerbrute_parser import KerbruteParser
-from siyarix.parsers.lynis_parser import LynisParser
-from siyarix.parsers.massdns_parser import MassdnsParser
-from siyarix.parsers.recon_ng_parser import ReconNgParser
-from siyarix.parsers.seatbelt_parser import SeatbeltParser
-from siyarix.parsers.tcpdump_parser import TcpdumpParser
 
 
 def _check_finding(finding, expected_tool):
@@ -2076,8 +2050,6 @@ class TestDnsreconParserAdditionalBranches:
         assert isinstance(findings, list)
 
 
-import pytest
-import json
 from siyarix.parsers import ParserRegistry
 
 @pytest.fixture(scope="module")

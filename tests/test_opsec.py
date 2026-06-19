@@ -2,7 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 from siyarix.opsec import OPSECManager
-from siyarix.opsec import OPSECManager, OPSECStatus, opsec_manager, random_string
+from siyarix.opsec import OPSECStatus, opsec_manager, random_string
 from unittest.mock import MagicMock, patch
 
 # SPDX-License-Identifier: AGPL-3.0-or-later

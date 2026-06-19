@@ -109,27 +109,23 @@ def _load_dotenv(path: Path | None = None) -> None:
 
 
 def _display_findings_table(findings: list[dict]) -> None:
-    """Render scan findings as a Rich table."""
-    ftable = Table(title="Findings", header_style="bold red")
-    ftable.add_column("Severity", width=8)
+    """Render scan findings as a Rich table using theme-aware styling."""
+    from ..branding import severity_label, resolve_theme
+    settings = SettingsStore()
+    theme = resolve_theme(settings.get("theme"))
+    ftable = Table(title="Findings", header_style="bold", border_style="dim")
+    ftable.add_column("Severity", width=10)
     ftable.add_column("Type", style="cyan")
     ftable.add_column("Detail", style="white")
     for f in findings[:20]:
         sev = f.get("severity", "info")
-        sev_color = {
-            "critical": "red",
-            "high": "orange1",
-            "medium": "yellow",
-            "low": "cyan",
-            "info": "white",
-        }.get(sev, "white")
         ftable.add_row(
-            f"[{sev_color}]{sev}[/{sev_color}]",
+            severity_label(theme, sev),
             f.get("type", "—"),
             str(f.get("detail", f.get("description", "")))[:80],
         )
     if len(findings) > 20:
-        ftable.add_row("", f"[dim]… and {len(findings) - 20} more[/dim]", "")
+        ftable.add_row("", f"[dim]... and {len(findings) - 20} more[/dim]", "")
     console.print(ftable)
 
 
@@ -163,7 +159,7 @@ def _generate_completion(shell: str, output_path: Path) -> bool:
     from typer.main import get_command as _get_command
 
     cmd = _get_command(app)
-    comp = comp_cls(cmd, {}, "siyarix", "_SIYARIX_COMPLETE")
+    comp = comp_cls(cmd, {}, "siyarix", "_SIYARIX_COMPLETE")  # type: ignore[arg-type]
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(comp.source())
     return True
@@ -335,8 +331,6 @@ def init_wizard(
     Runs the full onboarding wizard: ethics pledge, requirements check,
     provider setup, mode and persona configuration.
     """
-    import asyncio
-
     home_dir = get_config_dir()
     marker = home_dir / ".initialized"
     if marker.exists() and not force:
@@ -502,7 +496,7 @@ def main_callback(
         # TTY: launch interactive chat
         if _IS_TTY:
             if mode and mode.lower() in ("offline", "registry"):
-                console.print(f"[yellow]⚡ Starting in offline mode — heuristic planning only[/yellow]")
+                console.print("[yellow]⚡ Starting in offline mode — heuristic planning only[/yellow]")
             start_chat(
                 mode=mode, target=target, session_id=session or None, resume=resume or bool(session)
             )
@@ -525,11 +519,11 @@ app.add_typer(profile_app, name="profile")
 @app.command()
 def palette() -> None:
     """Open an interactive command palette (uses prompt_toolkit if installed)."""
-    ptk_prompt: Any = None
-    WordCompleter: Any = None
+    _ptk_prompt: Any = None
+    _WordCompleter: Any = None
     try:
-        from prompt_toolkit import prompt as ptk_prompt
-        from prompt_toolkit.completion import WordCompleter
+        from prompt_toolkit import prompt as _ptk_prompt
+        from prompt_toolkit.completion import WordCompleter as _WordCompleter
 
         PTK = True
     except Exception as exc:
@@ -545,8 +539,8 @@ def palette() -> None:
     options += [f"saved: {p.name} -> {p.command}" for p in saved]
 
     if PTK:
-        choice = ptk_prompt(
-            "Select or search: ", completer=WordCompleter(options, ignore_case=True)
+        choice = _ptk_prompt(
+            "Select or search: ", completer=_WordCompleter(options, ignore_case=True)
         ).strip()
     else:
         for i, o in enumerate(options[:200], 1):
@@ -1543,7 +1537,7 @@ def completions_install(
         ),
         "fish": (
             Path("~/.config/fish/config.fish").expanduser(),
-            Path(f"~/.config/fish/completions/siyarix.fish").expanduser(),
+            Path("~/.config/fish/completions/siyarix.fish").expanduser(),
             f"source {comp_dir / 'siyarix.fish'}",
         ),
         "powershell": (

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import pytest
 from siyarix.parsers.dmitry_parser import DmitryParser
 from siyarix.parsers.findomain_parser import FindomainParser
 from siyarix.parsers.ike_scan_parser import IkeScanParser
@@ -202,14 +201,6 @@ class TestIkeScanParser:
 
 """Comprehensive coverage tests for: bloodhound, netcat, scoutsuite, dnsrecon, bloodhound-python, searchsploit."""
 
-import json
-import pytest
-from siyarix.parsers.bloodhound_parser import BloodhoundParser
-from siyarix.parsers.netcat_parser import NetcatParser
-from siyarix.parsers.scoutsuite_parser import ScoutsuiteParser
-from siyarix.parsers.dnsrecon_parser import DnsreconParser
-from siyarix.parsers.bloodhound_python_parser import BloodhoundPythonParser
-from siyarix.parsers.searchsploit_parser import SearchsploitParser
 
 
 def _check_finding(finding, expected_tool, min_fields=None):
@@ -929,33 +920,6 @@ class TestTcpdumpParser_extra_b8:
 """Targeted branch-coverage tests — hits uncovered lines in parser modules."""
 
 
-import json
-import pytest
-from siyarix.parsers.aircrack_parser import AircrackParser
-from siyarix.parsers.amass_parser import AmassParser
-from siyarix.parsers.arachni_parser import ArachniParser
-from siyarix.parsers.arjun_parser import ArjunParser
-from siyarix.parsers.aws_parser import AwsParser
-from siyarix.parsers.bandit_parser import BanditParser
-from siyarix.parsers.bettercap_parser import BettercapParser
-from siyarix.parsers.bloodhound_parser import BloodhoundParser
-from siyarix.parsers.bloodhound_python_parser import BloodhoundPythonParser
-from siyarix.parsers.burpsuite_parser import BurpsuiteParser
-from siyarix.parsers.certipy_parser import CertipyParser
-from siyarix.parsers.checkov_parser import CheckovParser
-from siyarix.parsers.commix_parser import CommixParser
-from siyarix.parsers.corsy_parser import CorsyParser
-from siyarix.parsers.dalfox_parser import DalfoxParser
-from siyarix.parsers.dig_parser import DigParser
-from siyarix.parsers.dirb_parser import DirbParser
-from siyarix.parsers.dirsearch_parser import DirsearchParser
-from siyarix.parsers.dmitry_parser import DmitryParser
-from siyarix.parsers.dnsenum_parser import DnsenumParser
-from siyarix.parsers.dnsmap_parser import DnsmapParser
-from siyarix.parsers.dnsrecon_parser import DnsreconParser
-from siyarix.parsers.dnsx_parser import DnsxParser
-from siyarix.parsers.enum4linux_parser import Enum4linuxParser
-from siyarix.parsers.ettercap_parser import EttercapParser
 
 
 def _check_finding(finding, expected_tool, min_fields=None):
@@ -1361,22 +1325,6 @@ class TestZmapParser:
 """Targeted branch-coverage tests for parsers with <95% coverage — hits every uncovered line."""
 
 
-import json
-import pytest
-from siyarix.parsers.bandit_parser import BanditParser
-from siyarix.parsers.finger_parser import FingerParser
-from siyarix.parsers.gitleaks_parser import GitleaksParser
-from siyarix.parsers.httpx_parser import HttpxParser
-from siyarix.parsers.jwt_tool_parser import JwtToolParser
-from siyarix.parsers.kubectl_parser import KubectlParser
-from siyarix.parsers.ldapsearch_parser import LdapsearchParser
-from siyarix.parsers.pypykatz_parser import PypykatzParser
-from siyarix.parsers.recon_ng_parser import ReconNgParser
-from siyarix.parsers.scoutsuite_parser import ScoutsuiteParser
-from siyarix.parsers.sslyze_parser import SslyzeParser
-from siyarix.parsers.sublist3r_parser import Sublist3rParser
-from siyarix.parsers.theharvester_parser import TheharvesterParser
-from siyarix.parsers.wapiti_parser import WapitiParser
 
 
 def _check(finding, expected_tool):
@@ -1547,26 +1495,7 @@ class TestZgrabParserAdditionalBranches:
 """Targeted branch-coverage tests — hits remaining uncovered lines in 18 parser modules."""
 
 
-import json
 
-from siyarix.parsers.arjun_parser import ArjunParser
-from siyarix.parsers.dnsenum_parser import DnsenumParser
-from siyarix.parsers.dnsmap_parser import DnsmapParser
-from siyarix.parsers.dnsrecon_parser import DnsreconParser
-from siyarix.parsers.dnstwist_parser import DnstwistParser
-from siyarix.parsers.enum4linux_parser import Enum4linuxParser
-from siyarix.parsers.evil_winrm_parser import EvilWinrmParser
-from siyarix.parsers.feroxbuster_parser import FeroxbusterParser
-from siyarix.parsers.finger_parser import FingerParser
-from siyarix.parsers.gitleaks_parser import GitleaksParser
-from siyarix.parsers.ike_scan_parser import IkeScanParser
-from siyarix.parsers.kubectl_parser import KubectlParser
-from siyarix.parsers.recon_ng_parser import ReconNgParser
-from siyarix.parsers.searchsploit_parser import SearchsploitParser
-from siyarix.parsers.smbclient_parser import SmbclientParser
-from siyarix.parsers.sublist3r_parser import Sublist3rParser
-from siyarix.parsers.wapiti_parser import WapitiParser
-from siyarix.parsers.yara_parser import YaraParser
 
 
 # ============================================================================

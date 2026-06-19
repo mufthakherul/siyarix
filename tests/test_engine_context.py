@@ -4,7 +4,7 @@ from siyarix.context import ContextChunk
 from siyarix.context import ContextManager
 from siyarix.context import ContextWindow
 from siyarix.context import compress_context
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import MagicMock
 
 # SPDX-License-Identifier: AGPL-3.0-or-later
 

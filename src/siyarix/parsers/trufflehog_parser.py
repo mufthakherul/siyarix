@@ -88,12 +88,12 @@ class TrufflehogParser:
         for key in ("Git", "Filesystem", "S3", "GCS", "Azure"):
             md = data.get(key, {}) if isinstance(data, dict) else {}
             if isinstance(md, dict):
-                repo = md.get("repository", md.get("repo", ""))
-                file_path = md.get("file", md.get("path", ""))
+                repo = str(md.get("repository", md.get("repo", "")))
+                file_path = str(md.get("file", md.get("path", "")))
                 line_num = md.get("line", 0)
 
         if not file_path and isinstance(data, dict):
-            file_path = data.get("file", data.get("path", ""))
+            file_path = str(data.get("file", data.get("path", "")))
 
         target = file_path or repo or "unknown"
 

@@ -3,16 +3,14 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
 
 from siyarix.parsers import Parser, _now_iso
 
 from siyarix.parsers import (
     BaseParser,
     ParserRegistry,
-    __all__ as parser_names,
     _class_to_tool_names,
     build_finding,
 )

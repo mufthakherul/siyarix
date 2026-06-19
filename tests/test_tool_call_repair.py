@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import json
 import re
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from siyarix.tool_call_repair import (
     _find_bracket_spans,

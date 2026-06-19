@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import pytest
 from siyarix.parsers.arachni_parser import ArachniParser
 from siyarix.parsers.burpsuite_parser import BurpsuiteParser
 from siyarix.parsers.commix_parser import CommixParser
@@ -214,15 +213,6 @@ class TestSearchsploitParser:
 
 """Comprehensive coverage tests for: dmitry, rustscan, dnsmap, enum4linux, yara, theharvester, smbclient, jwt_tool, smbmap, ldapsearch."""
 
-from siyarix.parsers.dmitry_parser import DmitryParser
-from siyarix.parsers.rustscan_parser import RustscanParser
-from siyarix.parsers.dnsmap_parser import DnsmapParser
-from siyarix.parsers.enum4linux_parser import Enum4linuxParser
-from siyarix.parsers.yara_parser import YaraParser
-from siyarix.parsers.theharvester_parser import TheharvesterParser
-from siyarix.parsers.smbclient_parser import SmbclientParser
-from siyarix.parsers.smbmap_parser import SmbmapParser
-from siyarix.parsers.ldapsearch_parser import LdapsearchParser
 
 
 def _check_finding(finding, expected_tool, min_fields=None):
@@ -682,14 +672,6 @@ class TestNiktoParser:
 
 """Comprehensive coverage tests for parser integrations."""
 
-from siyarix.parsers.gau_parser import GauParser
-from siyarix.parsers.mimikatz_parser import MimikatzParser
-from siyarix.parsers.responder_parser import ResponderParser
-from siyarix.parsers.sharphound_parser import SharphoundParser
-from siyarix.parsers.crackmapexec_parser import CrackmapexecParser
-from siyarix.parsers.dirb_parser import DirbParser
-from siyarix.parsers.pypykatz_parser import PypykatzParser
-from siyarix.parsers.finger_parser import FingerParser
 
 
 def _check_finding(finding, expected_tool, min_fields=None):
@@ -2723,17 +2705,6 @@ class TestWapitiParserBranches:
 
 
 
-from siyarix.parsers.dnsenum_parser import DnsenumParser
-from siyarix.parsers.evil_winrm_parser import EvilWinrmParser
-from siyarix.parsers.gowitness_parser import GowitnessParser
-from siyarix.parsers.john_parser import JohnParser
-from siyarix.parsers.smtp_user_enum_parser import SmtpUserEnumParser
-from siyarix.parsers.tcpdump_parser import TcpdumpParser
-from siyarix.parsers.trivy_parser import TrivyParser
-from siyarix.parsers.trufflehog_parser import TrufflehogParser
-from siyarix.parsers.volatility_parser import VolatilityParser
-from siyarix.parsers.wget_parser import WgetParser
-from siyarix.parsers.zgrab_parser import ZgrabParser
 
 
 # ============================================================================

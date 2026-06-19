@@ -98,11 +98,9 @@ class TestStealthEngine:
 """Extra tests for stealth targeting uncovered lines."""
 
 
-from unittest.mock import patch
 
 import pytest
 
-from siyarix.stealth import StealthConfig, StealthEngine
 
 
 class TestStealthConfigScore:

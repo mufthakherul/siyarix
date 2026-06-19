@@ -5,9 +5,8 @@
 from __future__ import annotations
 
 import os
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
-import pytest
 
 from siyarix.security_hardening import (
     DangerAnalyzer,
@@ -17,8 +16,6 @@ from siyarix.security_hardening import (
     validator,
     redactor,
     danger_analyzer,
-    _HAS_RICH,
-    _REDACT_PLACEHOLDER,
 )
 
 

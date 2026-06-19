@@ -91,16 +91,12 @@ def test_workflow_stats():
 """Extra tests for workflow targeting uncovered lines."""
 
 
-import asyncio
 
 import pytest
 
 from siyarix.workflow import (
     Workflow,
-    WorkflowEngine,
     WorkflowNode,
-    WorkflowStatus,
-    WorkflowStepStatus,
 )
 
 

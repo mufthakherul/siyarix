@@ -1,19 +1,13 @@
 from __future__ import annotations
 
 from siyarix.chat.openai_compat import (
-    OpenAICompat,
-    build_messages,
     detect_compat,
     make_openai_adapter,
     resolve_model,
 )
-from siyarix.exceptions import LLMProviderError
 from unittest.mock import patch, MagicMock, AsyncMock
 import asyncio
-import httpx
 import pytest
-import respx
-import sys
 
 
 from siyarix.chat.openai_compat import _gemini_build_contents, _gemini_stream, _map_real_model, make_client, openai_complete, openai_stream
@@ -105,7 +99,6 @@ class TestOpenAICompatCore:
                     result.append(token)
                 assert result == ["hello"]
 
-        import asyncio
         asyncio.run(_test())
 
     def test_gemini_stream_skips_bad_json(self):
@@ -127,7 +120,6 @@ class TestOpenAICompatCore:
                     result.append(token)
                 assert result == []
 
-        import asyncio
         asyncio.run(_test())
 
     def test_openai_stream_includes_tools(self):
@@ -144,7 +136,6 @@ class TestOpenAICompatCore:
                 result.append(token)
             assert result == ["hello"]
 
-        import asyncio
         asyncio.run(_test())
 
     def test_openai_complete_includes_tools(self):
@@ -161,7 +152,6 @@ class TestOpenAICompatCore:
             result = await openai_complete(mock_client, "model", "sys", "user", tools=[{"name": "test"}])
             assert result["content"] == "response"
 
-        import asyncio
         asyncio.run(_test())
 
     def test_openai_complete_exception_raises_llm_error(self):
@@ -171,7 +161,6 @@ class TestOpenAICompatCore:
             with pytest.raises(Exception, match="API call failed"):
                 await openai_complete(mock_client, "model", "sys", "user")
 
-        import asyncio
         asyncio.run(_test())
 
     def test_map_real_model_gemini_flash(self):

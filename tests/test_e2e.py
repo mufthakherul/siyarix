@@ -113,19 +113,14 @@ async def test_live_tool_fallback_recovery() -> None:
 
 
 import asyncio
-import json
-import os
-import signal
 import sys
 from pathlib import Path
-from typing import Any
-from unittest.mock import ANY, AsyncMock, MagicMock, patch, PropertyMock
+from unittest.mock import AsyncMock
 
 import pytest
 
 from siyarix.models import ExecutionPlan, PlanStep, PlanType, PlanStatus, StepStatus
 from siyarix.exceptions import PermissionDeniedError, BudgetExceededError
-from siyarix.providers import ProviderManager
 from siyarix.registry import ToolCapability, ToolCategory, ToolRegistry
 from siyarix.planner_registry import RegistryPlanner
 from siyarix.executor_registry import RegistryExecutor
@@ -133,7 +128,6 @@ from siyarix.executor_autonomous import AutonomousExecutor
 from siyarix.config import SettingsStore
 from siyarix.context import ContextManager
 from siyarix.compliance import ComplianceEngine
-from siyarix.credential_store import CredentialStore, CredentialType, Environment
 from siyarix.opsec import OPSECManager
 from siyarix.dlp import DLPEngine
 from siyarix.permission_gate import PermissionGate
@@ -261,7 +255,7 @@ def test_chat_slash_help():
 @pytest.mark.asyncio
 async def test_chat_session_full_lifecycle(tmp_path):
     """Create, add messages, save, load a chat session."""
-    from siyarix.chat.session import ChatSession, ChatMessage
+    from siyarix.chat.session import ChatSession
     session = ChatSession(session_id="e2e_test")
     session.add_message("user", "scan target")
     session.add_message("assistant", "OK, scanning...")
@@ -306,7 +300,6 @@ async def test_api_server_lifecycle():
 async def test_api_server_shutdown_cleanup():
     """Verify shutdown cleans up resources."""
     from siyarix.core import AgentCore
-    from pathlib import Path
     agent = AgentCore()
     agent._kg_path = MagicMock(spec=Path)
     agent._kg_path.parent = MagicMock(spec=Path)
@@ -787,7 +780,7 @@ def test_custom_exceptions():
     """Test custom exception hierarchy."""
     from siyarix.exceptions import (
         SiyarixException, ToolExecutionError, ToolNotFoundError,
-        PermissionDeniedError, BudgetExceededError, LLMProviderError,
+        PermissionDeniedError, LLMProviderError,
     )
 
     assert issubclass(ToolExecutionError, SiyarixException)
@@ -841,7 +834,6 @@ def test_metrics_recording():
 
 def test_safe_run_sync_basic():
     """Run a simple command synchronously."""
-    import sys
     from siyarix.subprocess_utils import safe_run_sync
     cmd = ["cmd", "/c", "echo", "hello"] if sys.platform == "win32" else ["echo", "hello"]
     result = safe_run_sync(cmd, timeout=5)

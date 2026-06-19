@@ -79,13 +79,12 @@ and import_scans with all edge cases."""
 
 
 import json
-import sqlite3
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from siyarix.offline_store import OfflineStore, _get_async_executor
+from siyarix.offline_store import _get_async_executor
 
 
 # ── Fixtures ─────────────────────────────────────────────────────────────
@@ -707,14 +706,10 @@ class TestAsyncMethods:
 
 
 import asyncio
-import json
-import sqlite3
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
-from siyarix.offline_store import OfflineStore
 
 
 class TestOfflineStoreInitAndClose:

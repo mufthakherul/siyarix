@@ -1,15 +1,11 @@
 
 from __future__ import annotations
 from siyarix.models import ExecutionPlan, PlanStatus
-from siyarix.models import ExecutionPlan, PlanStatus, PlanStep, PlanType, StepStatus
-from siyarix.models import ExecutionPlan, PlanStep, StepStatus
-from siyarix.models import PlanStatus
-from siyarix.models import PlanStep, StepStatus
-from siyarix.models import PlanStep, StepStatus, PlanStatus, ExecutionPlan
+from siyarix.models import PlanStep, PlanType, StepStatus
 from siyarix.nlp_engine import ParsedIntent
 from siyarix.planner_registry import RegistryPlanner
-from siyarix.planner_registry import RegistryPlanner, TOOL_ALTERNATIVES
-from unittest.mock import AsyncMock, MagicMock, patch
+from siyarix.planner_registry import TOOL_ALTERNATIVES
+from unittest.mock import MagicMock, patch
 import pytest
 import time
 
@@ -878,7 +874,6 @@ class TestQueryMethods:
 
     def test_list_plans_sorted_by_time(self, planner: RegistryPlanner):
         p1 = planner.create_plan("first")
-        import time
         time.sleep(0.05)
         p2 = planner.create_plan("second")
         plans = planner.list_plans()
@@ -957,7 +952,7 @@ class TestPlannerRegistryCore:
 
     def test_adapt_plan_refused_fallback(self):
         from siyarix.planner_registry import RegistryPlanner
-        from siyarix.models import ExecutionPlan, PlanStep, StepStatus
+        from siyarix.models import StepStatus
         planner = RegistryPlanner()
         step = PlanStep(tool="nmap", args={"target": "x"})
         step.status = StepStatus.FAILED
@@ -967,7 +962,7 @@ class TestPlannerRegistryCore:
 
     def test_adapt_plan_generic_retry(self):
         from siyarix.planner_registry import RegistryPlanner
-        from siyarix.models import ExecutionPlan, PlanStep, StepStatus
+        from siyarix.models import StepStatus
         planner = RegistryPlanner()
         step = PlanStep(tool="nmap", retry_count=0, max_retries=3)
         plan = ExecutionPlan(goal="test", steps=[step])
@@ -976,7 +971,7 @@ class TestPlannerRegistryCore:
 
     def test_adapt_plan_no_retry(self):
         from siyarix.planner_registry import RegistryPlanner
-        from siyarix.models import ExecutionPlan, PlanStep, StepStatus
+        from siyarix.models import StepStatus
         planner = RegistryPlanner()
         step = PlanStep(tool="nmap", retry_count=3, max_retries=3)
         plan = ExecutionPlan(goal="test", steps=[step])
@@ -985,7 +980,7 @@ class TestPlannerRegistryCore:
 
     def test_list_plans_with_status_filter(self):
         from siyarix.planner_registry import RegistryPlanner
-        from siyarix.models import ExecutionPlan, PlanStatus
+        from siyarix.models import PlanStatus
         planner = RegistryPlanner()
         p1 = planner.create_plan("test1")
         p1.status = PlanStatus.ACTIVE
@@ -1111,7 +1106,7 @@ class TestPlannerRegistryAdaptPlan:
                 assert plan is not None
 
     def test_adapt_plan_refused(self):
-        from siyarix.models import PlanStep, StepStatus, PlanStatus, ExecutionPlan
+        from siyarix.models import PlanStatus
         planner = RegistryPlanner()
         plan = ExecutionPlan(goal="test", steps=[])
         step = PlanStep(id="s1", tool="curl", args={"target": "http://example.com"})
@@ -1122,7 +1117,6 @@ class TestPlannerRegistryAdaptPlan:
 
     def test_adapt_plan_no_retry(self):
         planner = RegistryPlanner()
-        from siyarix.models import PlanStep, StepStatus
         step = MagicMock(spec=PlanStep, id="s1", tool="nmap", args={"target": "10.0.0.1"})
         step.can_retry = False
         plan = MagicMock()
@@ -1245,7 +1239,7 @@ class TestPlannerRegistryAlternatives:
             assert plan is not None
 
     def test_adapt_plan_nmap_filtered_recovery(self):
-        from siyarix.models import ExecutionPlan, PlanStep, StepStatus
+        from siyarix.models import StepStatus
         planner = RegistryPlanner()
         step = PlanStep(tool="nmap", args={"flags": "-sS"}, retry_count=0, max_retries=3)
         plan = ExecutionPlan(goal="test", steps=[step])
@@ -1253,7 +1247,6 @@ class TestPlannerRegistryAlternatives:
         assert step.status == StepStatus.PENDING
 
     def test_adapt_plan_nmap_permission_recovery(self):
-        from siyarix.models import ExecutionPlan, PlanStep, StepStatus
         planner = RegistryPlanner()
         step = PlanStep(tool="nmap", args={"flags": "-sS"}, retry_count=0, max_retries=3)
         plan = ExecutionPlan(goal="test", steps=[step])
@@ -1261,7 +1254,6 @@ class TestPlannerRegistryAlternatives:
         assert "sT" in step.args.get("flags", "")
 
     def test_adapt_plan_gobuster_404(self):
-        from siyarix.models import ExecutionPlan, PlanStep, StepStatus
         planner = RegistryPlanner()
         step = PlanStep(tool="gobuster", args={}, retry_count=0, max_retries=3)
         plan = ExecutionPlan(goal="test", steps=[step])
@@ -1269,7 +1261,6 @@ class TestPlannerRegistryAlternatives:
         assert "extensions" in step.args
 
     def test_adapt_plan_hydra_invalid_user(self):
-        from siyarix.models import ExecutionPlan, PlanStep, StepStatus
         planner = RegistryPlanner()
         step = PlanStep(tool="hydra", args={}, retry_count=0, max_retries=3)
         plan = ExecutionPlan(goal="test", steps=[step])
@@ -1277,7 +1268,6 @@ class TestPlannerRegistryAlternatives:
         assert "nsr" in step.args.get("flags", "")
 
     def test_adapt_plan_sqlmap_not_injectable(self):
-        from siyarix.models import ExecutionPlan, PlanStep, StepStatus
         planner = RegistryPlanner()
         step = PlanStep(tool="sqlmap", args={}, retry_count=0, max_retries=3)
         plan = ExecutionPlan(goal="test", steps=[step])

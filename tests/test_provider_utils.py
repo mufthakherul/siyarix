@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 import respx
 import httpx
 from unittest.mock import patch, MagicMock
@@ -200,36 +199,19 @@ def test_check_provider_health():
 
 
 
-import json
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import patch
 
-import httpx
-import pytest
 import respx
 
 from siyarix.provider_utils import (
-    _is_safe_url,
-    safe_http_get,
-    safe_http_post,
-    safe_http_get_raw,
-    resolve_provider_url,
-    is_reasoning_model,
-    build_model_definition,
-    list_provider_models,
     _list_ollama_models,
     _list_openai_compat_models,
     _enrich_ollama_model,
     _enrich_lmstudio_model,
     _enrich_vllm_model,
-    enrich_model,
     enrich_all_models,
     _enrich_ollama_models_batch,
-    discover_provider_models,
     _parse_num_ctx,
-    pull_model,
-    ensure_model_pulled,
-    check_provider_health,
-    PROVIDER_DEFAULTS,
 )
 
 

@@ -1,7 +1,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
@@ -38,7 +38,6 @@ def invoke_security(cli: Typer, runner: CliRunner, args: list[str]) -> str:
     return result.output
 
 
-from unittest.mock import patch, MagicMock, AsyncMock
 class TestSecurityGroup:
     def test_help(self, cli: Typer, runner: CliRunner) -> None:
         command = get_command(cli)

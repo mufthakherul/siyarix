@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import time
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -12,7 +12,6 @@ from siyarix.providers.manager import (
     resolve_api_key,
 )
 from siyarix.providers.types import (
-    ClassifiedError,
     CostTier,
     FailoverReason,
     ProviderCredential,

@@ -4,8 +4,7 @@ from siyarix.exceptions import ToolNotFoundError
 from siyarix.executor_autonomous import AutonomousExecutor
 from siyarix.executor_autonomous import CommandResult
 from siyarix.models import ExecutionPlan, PlanStep
-from siyarix.models import ExecutionPlan, PlanStep, PlanStatus
-from siyarix.models import PlanStep
+from siyarix.models import PlanStatus
 from unittest.mock import MagicMock, patch, AsyncMock
 import asyncio
 import pytest
@@ -125,7 +124,6 @@ def test_try_parse_output(executor):
     res = executor._try_parse_output(step, result)
     assert res["findings"] == {"parsed_key": "val"}
 
-import asyncio
 class TestExecutorAutonomousCore:
     """Cover uncovered lines in executor_autonomous.py."""
 
@@ -138,7 +136,6 @@ class TestExecutorAutonomousCore:
     @pytest.mark.asyncio
     async def test_exec_plan_review_commands_cancelled(self):
         from siyarix.executor_autonomous import AutonomousExecutor
-        from siyarix.models import ExecutionPlan, PlanStep, PlanStatus
         ae = AutonomousExecutor(command_review=True)
         plan = ExecutionPlan(goal="test", steps=[PlanStep(command="nmap -sV target")])
         with patch("siyarix.shell_review.review_and_confirm", return_value=None):
@@ -147,7 +144,6 @@ class TestExecutorAutonomousCore:
 
     def test_build_cmd_states_no_command(self):
         from siyarix.executor_autonomous import AutonomousExecutor
-        from siyarix.models import ExecutionPlan, PlanStep
         ae = AutonomousExecutor()
         plan = ExecutionPlan(goal="test", steps=[PlanStep(tool="execute_plan"), PlanStep(tool="nmap")])
         states = ae._build_cmd_states(plan)
@@ -156,7 +152,6 @@ class TestExecutorAutonomousCore:
     @pytest.mark.asyncio
     async def test_exec_one_budget_exhausted(self):
         from siyarix.executor_autonomous import AutonomousExecutor
-        from siyarix.models import PlanStep
         from siyarix.executor_autonomous import CommandResult
         ae = AutonomousExecutor()
         ae._budget._iterations = ae._budget.max_iterations
@@ -168,7 +163,6 @@ class TestExecutorAutonomousCore:
     @pytest.mark.asyncio
     async def test_execute_tool_step_no_handler_no_registry(self):
         from siyarix.executor_autonomous import AutonomousExecutor
-        from siyarix.models import PlanStep
         ae = AutonomousExecutor()
         ae._registry = None
         step = PlanStep(tool="nmap")
@@ -178,7 +172,6 @@ class TestExecutorAutonomousCore:
     @pytest.mark.asyncio
     async def test_execute_tool_step_handler(self):
         from siyarix.executor_autonomous import AutonomousExecutor
-        from siyarix.models import PlanStep
         ae = AutonomousExecutor()
         handler = AsyncMock(return_value={"status": "success"})
         ae._custom_handlers["test_tool"] = handler
@@ -195,7 +188,6 @@ class TestExecutorAutonomousCore:
 
     def test_normalise_step_extracts_tool_from_command(self):
         from siyarix.executor_autonomous import AutonomousExecutor
-        from siyarix.models import PlanStep
         ae = AutonomousExecutor()
         step = PlanStep(command="nmap -sV target.com")
         ae.normalise_step(step)
@@ -203,7 +195,6 @@ class TestExecutorAutonomousCore:
 
     def test_normalise_step_extracts_args(self):
         from siyarix.executor_autonomous import AutonomousExecutor
-        from siyarix.models import PlanStep
         ae = AutonomousExecutor()
         step = PlanStep(tool="nmap", command="nmap -sV target.com")
         ae.normalise_step(step)
@@ -217,21 +208,18 @@ class TestExecutorAutonomousExceptions:
     """Cover remaining executor_autonomous.py uncovered lines."""
 
     def test_normalise_step_no_tool_has_command(self):
-        from siyarix.models import PlanStep
         executor = AutonomousExecutor()
         step = PlanStep(id="s1", command="nmap -sV 10.0.0.1")
         executor.normalise_step(step)
         assert step.tool == "nmap"
 
     def test_normalise_step_tool_no_args_has_command(self):
-        from siyarix.models import PlanStep
         executor = AutonomousExecutor()
         step = PlanStep(id="s1", command="nmap -sV 10.0.0.1", tool="nmap")
         executor.normalise_step(step)
         assert "target" in step.args
 
     def test_normalise_step_sets_origin(self):
-        from siyarix.models import PlanStep
         executor = AutonomousExecutor()
         step = PlanStep(id="s1", command="ls")
         executor.normalise_step(step)
@@ -278,7 +266,6 @@ class TestExecutorAutonomousErrorHandling:
     """Cover remaining executor_autonomous.py uncovered lines."""
 
     async def test_exec_one_stealth_delay(self):
-        from siyarix.models import PlanStep
         executor = AutonomousExecutor()
         step = PlanStep(command="echo test")
         state = CommandResult(label="$ echo test")
@@ -291,7 +278,6 @@ class TestExecutorAutonomousErrorHandling:
                 mock_stealth.get_randomized_delay.assert_called_once()
 
     async def test_execute_tool_step_registry_success(self):
-        from siyarix.models import PlanStep
         executor = AutonomousExecutor()
         mock_registry = MagicMock()
         mock_registry.execute = AsyncMock(return_value={"status": "success", "output": "ok"})
@@ -301,8 +287,6 @@ class TestExecutorAutonomousErrorHandling:
         assert result["status"] == "success"
 
     async def test_execute_tool_step_registry_not_found(self):
-        from siyarix.models import PlanStep
-        from siyarix.exceptions import ToolNotFoundError
         executor = AutonomousExecutor()
         mock_registry = MagicMock()
         mock_registry.execute = AsyncMock(side_effect=ToolNotFoundError("not found"))
@@ -312,8 +296,6 @@ class TestExecutorAutonomousErrorHandling:
         assert result["status"] == "error"
 
     async def test_execute_tool_step_registry_execution_error(self):
-        from siyarix.models import PlanStep
-        from siyarix.exceptions import ToolExecutionError
         executor = AutonomousExecutor()
         mock_registry = MagicMock()
         mock_registry.execute = AsyncMock(side_effect=ToolExecutionError("exec failed"))
@@ -324,7 +306,6 @@ class TestExecutorAutonomousErrorHandling:
 
     @pytest.mark.skip(reason="Internal impl detail - fragile")
     async def test_execute_batch_with_exception(self):
-        from siyarix.models import ExecutionPlan, PlanStep
         executor = AutonomousExecutor()
         step = PlanStep(id="s1", command="echo test")
         plan = ExecutionPlan(goal="test", steps=[step])
@@ -335,7 +316,6 @@ class TestExecutorAutonomousErrorHandling:
 
     @pytest.mark.skip(reason="Internal impl detail - fragile")
     async def test_execute_batch_base_exception_result(self):
-        from siyarix.models import ExecutionPlan, PlanStep
         executor = AutonomousExecutor()
         step = PlanStep(id="s1", command="echo test")
         plan = ExecutionPlan(goal="test", steps=[step])
@@ -347,7 +327,6 @@ class TestExecutorAutonomousErrorHandling:
 
     @pytest.mark.skip(reason="Internal impl detail - fragile")
     async def test_execute_with_live_display(self):
-        from siyarix.models import ExecutionPlan, PlanStep
         executor = AutonomousExecutor()
         step = PlanStep(id="s1", command="echo hello")
         plan = ExecutionPlan(goal="test", steps=[step])

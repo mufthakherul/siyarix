@@ -5,12 +5,12 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, mock_open, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import yaml
 
-from siyarix.models import ExecutionPlan, PlanStep, PlanType
+from siyarix.models import ExecutionPlan, PlanType
 from siyarix.playbook import PlaybookEngine
 from siyarix.workflow import WorkflowEngine
 

@@ -2,10 +2,8 @@
 from __future__ import annotations
 from pathlib import Path
 from siyarix.chat.session import ChatSession
-from siyarix.config import get_config_dir as _real_get_config_dir
 from siyarix.session_branching import BranchEntry, BranchingSession, _new_id, _now
-from siyarix.session_branching import BranchingSession
-from unittest.mock import ANY, patch
+from unittest.mock import patch
 import json
 import pytest
 

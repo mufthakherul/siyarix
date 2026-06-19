@@ -5,9 +5,8 @@ import json
 import logging
 import sqlite3
 import threading
-import time
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -228,7 +227,7 @@ class OfflineCommandQueue:
             return conn.total_changes
 
     def stats(self) -> dict[str, int]:
-        conn = self._conn()
+        self._conn()
         return {
             "pending": self.get_pending_count(),
             "completed": self.get_completed_count(),

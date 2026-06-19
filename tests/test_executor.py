@@ -174,7 +174,7 @@ class TestExecutorCore:
         assert b.progress_pct == 100.0
 
     def test_guardrail_blocked_by_failures(self):
-        from siyarix.executor import GuardrailConfig, ToolCallTracker
+        from siyarix.executor import ToolCallTracker
         cfg = GuardrailConfig(exact_failure_block_after=2)
         tracker = ToolCallTracker()
         tracker._config = cfg
@@ -193,7 +193,6 @@ class TestExecutorCore:
 
     def test_permission_check_skipped_when_no_gate(self):
         from siyarix.executor import BaseExecutor
-        from siyarix.models import PlanStep
         be = BaseExecutor()
         be._permission_gate = None
         step = PlanStep(tool="nmap", args={"command": "nmap -sV"})
@@ -223,7 +222,6 @@ class TestExecutorRegistryCore:
     @pytest.mark.asyncio
     async def test_execute_step_timeout_error(self):
         from siyarix.executor_registry import RegistryExecutor
-        from siyarix.models import PlanStep, StepStatus
         re = RegistryExecutor()
         step = PlanStep(tool="nmap", timeout=0.001)
         with patch.object(re, "_try_execute", AsyncMock(side_effect=__import__("asyncio").TimeoutError)):
@@ -233,9 +231,6 @@ class TestExecutorRegistryCore:
     @pytest.mark.asyncio
     async def test_try_execute_permission_denied_in_execute_step(self):
         from siyarix.executor_registry import RegistryExecutor
-        from siyarix.models import PlanStep, StepStatus
-        from siyarix.exceptions import PermissionDeniedError
-        from siyarix.registry import ToolRegistry
         re = RegistryExecutor(registry=MagicMock(spec=ToolRegistry))
         re._permission_gate = MagicMock()
         re._budget.consume_tool_call = MagicMock(return_value=True)
@@ -249,7 +244,6 @@ class TestExecutorRegistryCore:
     @pytest.mark.asyncio
     async def test_execute_workflow_non_dag(self):
         from siyarix.executor_registry import RegistryExecutor
-        from siyarix.models import ExecutionPlan
         plan = ExecutionPlan(goal="test")
         re = RegistryExecutor()
         with patch.object(re, "execute_plan", AsyncMock(return_value=plan)):
@@ -259,7 +253,6 @@ class TestExecutorRegistryCore:
     @pytest.mark.asyncio
     async def test_execute_workflow_fallback(self):
         from siyarix.executor_registry import RegistryExecutor
-        from siyarix.models import ExecutionPlan, PlanType
         plan = ExecutionPlan(goal="test", plan_type=PlanType.DAG)
         re = RegistryExecutor()
         with patch("siyarix.workflow.WorkflowEngine") as MockWE:
@@ -415,7 +408,6 @@ class TestExecutorRegistryAutonomous:
     """Cover remaining executor_registry.py uncovered lines."""
 
     def test_execute_step_cancelled_error(self):
-        from siyarix.models import PlanStep
         executor = RegistryExecutor()
         step = PlanStep(id="s1", tool="nmap", timeout=5)
         with patch.object(executor._budget, "consume_iteration", return_value=True):
@@ -424,7 +416,6 @@ class TestExecutorRegistryAutonomous:
                     asyncio.run(executor._execute_step(step, None))
 
     def test_try_execute_custom_executor(self):
-        from siyarix.models import PlanStep
         executor = RegistryExecutor()
         step = PlanStep(id="s1", tool="custom_tool")
         mock_fn = AsyncMock(return_value={"status": "success"})
@@ -434,7 +425,6 @@ class TestExecutorRegistryAutonomous:
         assert result["status"] == "success"
 
     def test_try_execute_no_registry_no_tool(self):
-        from siyarix.models import PlanStep
         executor = RegistryExecutor()
         step = PlanStep(id="s1", tool="")
         import asyncio
@@ -442,7 +432,6 @@ class TestExecutorRegistryAutonomous:
         assert result["status"] == "error"
 
     def test_try_execute_budget_exhausted(self):
-        from siyarix.models import PlanStep
         executor = RegistryExecutor()
         executor._budget._tool_calls = 100
         executor._budget.max_tool_calls = 100
@@ -452,7 +441,6 @@ class TestExecutorRegistryAutonomous:
         assert result["status"] == "error"
 
     def test_try_execute_guardrail_blocked(self):
-        from siyarix.models import PlanStep
         executor = RegistryExecutor()
         executor._registry = MagicMock()
         executor._tracker._failure_counts["nmap"] = 10
@@ -463,8 +451,6 @@ class TestExecutorRegistryAutonomous:
         assert "BLOCKED" in result.get("error", "")
 
     def test_try_execute_tool_not_found(self):
-        from siyarix.models import PlanStep
-        from siyarix.exceptions import ToolNotFoundError
         executor = RegistryExecutor()
         mock_registry = MagicMock()
         mock_registry.execute.side_effect = ToolNotFoundError("not found")
@@ -476,8 +462,6 @@ class TestExecutorRegistryAutonomous:
         assert result["status"] == "error"
 
     def test_try_execute_tool_execution_error(self):
-        from siyarix.models import PlanStep
-        from siyarix.exceptions import ToolExecutionError
         executor = RegistryExecutor()
         mock_registry = MagicMock()
         mock_registry.execute.side_effect = ToolExecutionError("exec error")
@@ -488,7 +472,6 @@ class TestExecutorRegistryAutonomous:
         assert result["status"] == "error"
 
     def test_handle_tool_error_auto_install(self):
-        from siyarix.models import PlanStep
         executor = RegistryExecutor()
         step = PlanStep(id="s1", tool="nmap")
         result = {"status": "error", "error": "not found: nmap"}
@@ -545,8 +528,6 @@ class TestExecutorErrorHandling:
         assert tracker._failure_counts == {}
 
     def test_base_executor_permission_check_gate_blocks(self):
-        from siyarix.models import PlanStep
-        from siyarix.exceptions import PermissionDeniedError
         executor = BaseExecutor()
         gate = MagicMock()
         gate.check.return_value = MagicMock(allowed=False, reason="blocked by policy")
@@ -556,8 +537,6 @@ class TestExecutorErrorHandling:
             asyncio.run(executor._check_permissions(step))
 
     def test_base_executor_permission_check_requires_review_cancelled(self):
-        from siyarix.models import PlanStep
-        from siyarix.exceptions import PermissionDeniedError
         executor = BaseExecutor()
         gate = MagicMock()
         gate.check.return_value = MagicMock(allowed=True, requires_review=True, reason="high risk")
@@ -569,7 +548,6 @@ class TestExecutorErrorHandling:
                 asyncio.run(executor._check_permissions(step))
 
     def test_base_executor_permission_check_requires_review_modified(self):
-        from siyarix.models import PlanStep
         executor = BaseExecutor()
         gate = MagicMock()
         gate.check.return_value = MagicMock(allowed=True, requires_review=True, reason="check flags")
@@ -594,7 +572,6 @@ class TestExecutorRegistryPlanExecution:
     """Cover remaining executor_registry.py uncovered lines."""
 
     async def test_execute_plan_simple_sequential(self):
-        from siyarix.models import ExecutionPlan, PlanStep, PlanType
         plan = ExecutionPlan(
             goal="test",
             plan_type=PlanType.SEQUENTIAL,
@@ -611,7 +588,6 @@ class TestExecutorRegistryPlanExecution:
                 assert result is plan
 
     async def test_try_execute_custom_executor(self):
-        from siyarix.models import PlanStep
         executor = RegistryExecutor()
         step = PlanStep(tool="custom")
         mock_fn = AsyncMock(return_value={"status": "success"})
@@ -620,15 +596,12 @@ class TestExecutorRegistryPlanExecution:
 
     @pytest.mark.skip(reason="Requires complex mock setup")
     async def test_try_execute_permission_denied_raised(self):
-        from siyarix.models import PlanStep
-        from siyarix.exceptions import PermissionDeniedError
         executor = RegistryExecutor()
         with patch.object(executor, "_check_permissions", AsyncMock(side_effect=PermissionDeniedError("denied"))):
             with pytest.raises(PermissionDeniedError):
                 await executor._try_execute(PlanStep(tool="nmap"), None)
 
     async def test_handle_tool_error_not_found_not_tty(self):
-        from siyarix.models import PlanStep
         executor = RegistryExecutor()
         step = PlanStep(tool="nmap")
         result = {"status": "error", "error": "not found: nmap"}
@@ -638,7 +611,6 @@ class TestExecutorRegistryPlanExecution:
             assert final["status"] == "error"
 
     async def test_handle_tool_error_not_found_tty_declines_install(self):
-        from siyarix.models import PlanStep
         executor = RegistryExecutor()
         step = PlanStep(tool="nmap")
         result = {"status": "error", "error": "not found: nmap"}
@@ -649,7 +621,6 @@ class TestExecutorRegistryPlanExecution:
                 assert final["status"] == "error"
 
     async def test_try_alternatives_no_match(self):
-        from siyarix.models import PlanStep
         executor = RegistryExecutor()
         executor._registry = MagicMock()
         step = PlanStep(tool="nonexistent_tool", args={"target": "x"})
@@ -659,7 +630,6 @@ class TestExecutorRegistryPlanExecution:
 
     @pytest.mark.skip(reason="Requires complex mock setup")
     async def test_try_alternatives_fails_returns_original(self):
-        from siyarix.models import PlanStep
         executor = RegistryExecutor()
         mock_reg = MagicMock()
         mock_reg.graph.get_tool.return_value = MagicMock()

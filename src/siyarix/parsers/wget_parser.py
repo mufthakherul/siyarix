@@ -97,7 +97,7 @@ class WgetParser:
         for item in items:
             if not isinstance(item, dict):
                 continue
-            url = item.get("url", item.get("URL", "unknown"))
+            url = str(item.get("url", item.get("URL", "unknown")))
             status_code = str(item.get("status_code", item.get("status", "")))
             size = item.get("size", item.get("length", ""))
             filename = item.get("filename", item.get("file", ""))

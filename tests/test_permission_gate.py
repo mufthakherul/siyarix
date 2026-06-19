@@ -82,14 +82,13 @@ class TestPermissionGate:
 """Extra tests for permission_gate targeting uncovered lines."""
 
 
-import json
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import patch
 
 import pytest
 
-from siyarix.permission_gate import GateResult, GateStage, PermissionGate
+from siyarix.permission_gate import GateStage
 
 
 class TestGateResultInvalidStage:

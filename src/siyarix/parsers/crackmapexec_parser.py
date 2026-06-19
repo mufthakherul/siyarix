@@ -44,7 +44,7 @@ class CrackmapexecParser:
                 for item in items:
                     if not isinstance(item, dict):
                         continue
-                    host = item.get("host", item.get("ip", "unknown"))
+                    host = str(item.get("host", item.get("ip", "unknown")))
                     if host != "unknown":
                         target = host
                     user = item.get("username", item.get("user", ""))

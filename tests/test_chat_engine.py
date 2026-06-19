@@ -1,7 +1,5 @@
 import pytest
-import os
 from unittest.mock import MagicMock, patch, AsyncMock
-from pathlib import Path
 from siyarix.chat.engine import LLMEngineMixin
 from siyarix.exceptions import LLMProviderError
 

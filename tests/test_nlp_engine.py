@@ -49,12 +49,8 @@ def test_nlp_scoring():
 
 
 
-import math
-from unittest.mock import MagicMock, patch
 
-import pytest
 
-from siyarix.nlp_engine import NaturalLanguageParser, ParsedIntent
 
 
 # ── custom_synonyms (line 113) ───────────────────────────────────────────

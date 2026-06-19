@@ -631,7 +631,7 @@ class RegistryPlanner:
         if len(intents) > 1:
             all_steps = []
             is_dag = False
-            last_step_ids = []
+            last_step_ids: list[str] = []
             for intent in intents:
                 sub_plan = self.decompose_goal(intent.raw_text, available_tools)
                 
@@ -819,7 +819,6 @@ class RegistryPlanner:
             intent_map = {
                 "headers": ("curl", "HTTP headers check", "-sIL"),
                 "http": ("curl", "HTTP headers check", "-sIL"),
-                "redirect": ("curl", "HTTP headers check", "-sIL"),
                 "tech": ("whatweb", "Technology fingerprinting", ""),
                 "framework": ("whatweb", "Technology fingerprinting", ""),
                 "wp": ("wpscan", "WordPress vulnerability scan", ""),

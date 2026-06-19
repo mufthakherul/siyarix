@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import builtins
-import json
 import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -48,7 +47,6 @@ class TestTryLoadToml:
         assert data.get("key") == "value"
 
     def test_tomli_fallback(self, tmp_path):
-        import builtins
 
         orig_import = builtins.__import__
         fp = tmp_path / "test.toml"
@@ -64,7 +62,6 @@ class TestTryLoadToml:
             assert data.get("greeting") == "hello"
 
     def test_fallback_parser(self, tmp_path):
-        import builtins
 
         orig_import = builtins.__import__
         fp = tmp_path / "test.toml"
@@ -83,7 +80,6 @@ class TestTryLoadToml:
             assert data.get("rate") == 3.14
 
     def test_fallback_parser_float(self, tmp_path):
-        import builtins
 
         orig_import = builtins.__import__
         fp = tmp_path / "test.toml"
@@ -433,7 +429,7 @@ class TestConfigCore:
         assert result is None
 
     def test_restore_latest_oserror(self, tmp_path):
-        from siyarix.config import SettingsStore, get_config_dir
+        from siyarix.config import SettingsStore
         backup_dir = get_config_dir() / "backups"
         backup_dir.mkdir(parents=True)
         (backup_dir / "settings_20250101_120000.toml").write_text("k=v")

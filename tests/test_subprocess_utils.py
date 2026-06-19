@@ -6,12 +6,10 @@ from __future__ import annotations
 
 
 import asyncio
-import os
 import signal
 import subprocess
 import sys
-import threading
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -23,10 +21,8 @@ from siyarix.subprocess_utils import (
     _ORPHAN_LOCK,
     _ORPHAN_TRACKER,
     _prepare_env,
-    _SHELL_METACHARS,
     _use_thread_fallback,
     _validate_cmd_list,
-    _VERSION_CMP_RE,
     detect_package_manager,
     get_platform_shell_cmd,
     safe_run_async,
@@ -656,27 +652,12 @@ orphan-tracking branches, safe_run_async_stream thread-fallback pipe-readers,
 kill-exception pass, and full async streaming path."""
 
 
-import asyncio
 import itertools
-import os
-import signal
 import subprocess
-import sys
-import threading
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
-from siyarix.subprocess_utils import (
-    ExecutionResult,
-    _cleanup_orphans,
-    _kill_process,
-    _ORPHAN_LOCK,
-    _ORPHAN_TRACKER,
-    _validate_cmd_list,
-    safe_run_async,
-    safe_run_async_stream,
-)
 
 
 # ── helpers ──────────────────────────────────────────────────────────────

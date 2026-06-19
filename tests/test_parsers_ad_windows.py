@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import pytest
 from siyarix.parsers.bloodhound_parser import BloodhoundParser
 from siyarix.parsers.bloodhound_python_parser import BloodhoundPythonParser
 from siyarix.parsers.certipy_parser import CertipyParser

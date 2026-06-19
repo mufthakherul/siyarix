@@ -50,7 +50,7 @@ class KerbruteParser:
                         if user in seen_users:
                             continue
                         seen_users.add(user)
-                        target = item.get("domain", item.get("host", target))
+                        target = str(item.get("domain", item.get("host", target)))
                         findings.append(
                             {
                                 "title": f"Kerbrute: Valid user — {user}",

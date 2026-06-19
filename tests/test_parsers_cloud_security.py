@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import pytest
 from siyarix.parsers.aircrack_parser import AircrackParser
 from siyarix.parsers.aws_parser import AwsParser
 from siyarix.parsers.bandit_parser import BanditParser
@@ -388,18 +387,6 @@ class TestLdapsearchParser:
 
 """Comprehensive coverage tests for parser integrations."""
 
-import json
-import pytest
-from siyarix.parsers.gau_parser import GauParser
-from siyarix.parsers.mimikatz_parser import MimikatzParser
-from siyarix.parsers.zgrab_parser import ZgrabParser
-from siyarix.parsers.finger_parser import FingerParser
-from siyarix.parsers.wafw00f_parser import Wafw00fParser
-from siyarix.parsers.wget_parser import WgetParser
-from siyarix.parsers.xsstrike_parser import XsstrikeParser
-from siyarix.parsers.evil_winrm_parser import EvilWinrmParser
-from siyarix.parsers.recon_ng_parser import ReconNgParser
-from siyarix.parsers.smtp_user_enum_parser import SmtpUserEnumParser
 
 
 def _check_finding(finding, expected_tool, min_fields=None):
@@ -566,29 +553,6 @@ class TestSmtpUserEnumParser:
 
 """Comprehensive coverage tests for parser integrations."""
 
-import json
-import pytest
-from siyarix.parsers.sublist3r_parser import Sublist3rParser
-from siyarix.parsers.sslscan_parser import SslscanParser
-from siyarix.parsers.kerbrute_parser import KerbruteParser
-from siyarix.parsers.massdns_parser import MassdnsParser
-from siyarix.parsers.gitleaks_parser import GitleaksParser
-from siyarix.parsers.gowitness_parser import GowitnessParser
-from siyarix.parsers.gospider_parser import GospiderParser
-from siyarix.parsers.wfuzz_parser import WfuzzParser
-from siyarix.parsers.feroxbuster_parser import FeroxbusterParser
-from siyarix.parsers.assetfinder_parser import AssetfinderParser
-from siyarix.parsers.aws_parser import AwsParser
-from siyarix.parsers.arachni_parser import ArachniParser
-from siyarix.parsers.dalfox_parser import DalfoxParser
-from siyarix.parsers.impacket_parser import ImpacketParser
-from siyarix.parsers.bandit_parser import BanditParser
-from siyarix.parsers.certipy_parser import CertipyParser
-from siyarix.parsers.bloodhound_parser import BloodhoundParser
-from siyarix.parsers.ettercap_parser import EttercapParser
-from siyarix.parsers.dnsenum_parser import DnsenumParser
-from siyarix.parsers.dnsrecon_parser import DnsreconParser
-from siyarix.parsers.nikto_parser import NiktoParser
 
 
 def _check_finding(finding, expected_tool, min_fields=None):
@@ -1024,24 +988,6 @@ class TestFingerParser_extra_b6:
 
 """Comprehensive coverage tests for: bloodhound, sherlock, dirb, commix, sublist3r, semgrep, zaproxy, s3scanner, exiftool, dnsx, ffuf, curl, katana, shuffledns, naabu, dnstwist."""
 
-import json
-import pytest
-from siyarix.parsers.bloodhound_parser import BloodhoundParser
-from siyarix.parsers.sherlock_parser import SherlockParser
-from siyarix.parsers.dirb_parser import DirbParser
-from siyarix.parsers.commix_parser import CommixParser
-from siyarix.parsers.sublist3r_parser import Sublist3rParser
-from siyarix.parsers.semgrep_parser import SemgrepParser
-from siyarix.parsers.zaproxy_parser import ZaproxyParser
-from siyarix.parsers.s3scanner_parser import S3scannerParser
-from siyarix.parsers.exiftool_parser import ExiftoolParser
-from siyarix.parsers.dnsx_parser import DnsxParser
-from siyarix.parsers.ffuf_parser import FfufParser
-from siyarix.parsers.curl_parser import CurlParser
-from siyarix.parsers.katana_parser import KatanaParser
-from siyarix.parsers.shuffledns_parser import ShufflednsParser
-from siyarix.parsers.naabu_parser import NaabuParser
-from siyarix.parsers.dnstwist_parser import DnstwistParser
 
 
 def _check_finding(finding, expected_tool):
@@ -1884,61 +1830,6 @@ class TestEttercapParserBranches:
 
 """Targeted tests for parsers 26-78 — each focused on exact uncovered branches to reach >95%."""
 
-import json
-import pytest
-from siyarix.parsers.evil_winrm_parser import EvilWinrmParser
-from siyarix.parsers.findomain_parser import FindomainParser
-from siyarix.parsers.finger_parser import FingerParser
-from siyarix.parsers.gitleaks_parser import GitleaksParser
-from siyarix.parsers.gowitness_parser import GowitnessParser
-from siyarix.parsers.hashcat_parser import HashcatParser
-from siyarix.parsers.httpx_parser import HttpxParser
-from siyarix.parsers.hydra_parser import HydraParser
-from siyarix.parsers.ike_scan_parser import IkeScanParser
-from siyarix.parsers.impacket_parser import ImpacketParser
-from siyarix.parsers.interactsh_parser import InteractshParser
-from siyarix.parsers.john_parser import JohnParser
-from siyarix.parsers.jwt_tool_parser import JwtToolParser
-from siyarix.parsers.kiterunner_parser import KiterunnerParser
-from siyarix.parsers.kubectl_parser import KubectlParser
-from siyarix.parsers.ldapsearch_parser import LdapsearchParser
-from siyarix.parsers.masscan_parser import MasscanParser
-from siyarix.parsers.metasploit_parser import MetasploitParser
-from siyarix.parsers.netcat_parser import NetcatParser
-from siyarix.parsers.nmap_parser import NmapParser
-from siyarix.parsers.nuclei_parser import NucleiParser
-from siyarix.parsers.prowler_parser import ProwlerParser
-from siyarix.parsers.pypykatz_parser import PypykatzParser
-from siyarix.parsers.recon_ng_parser import ReconNgParser
-from siyarix.parsers.responder_parser import ResponderParser
-from siyarix.parsers.rustscan_parser import RustscanParser
-from siyarix.parsers.scoutsuite_parser import ScoutsuiteParser
-from siyarix.parsers.searchsploit_parser import SearchsploitParser
-from siyarix.parsers.sharphound_parser import SharphoundParser
-from siyarix.parsers.shodan_parser import ShodanParser
-from siyarix.parsers.smbclient_parser import SmbclientParser
-from siyarix.parsers.smbmap_parser import SmbmapParser
-from siyarix.parsers.smtp_user_enum_parser import SmtpUserEnumParser
-from siyarix.parsers.sqlmap_parser import SqlmapParser
-from siyarix.parsers.ssh_audit_parser import SshAuditParser
-from siyarix.parsers.sslscan_parser import SslscanParser
-from siyarix.parsers.sslyze_parser import SslyzeParser
-from siyarix.parsers.sublist3r_parser import Sublist3rParser
-from siyarix.parsers.syft_parser import SyftParser
-from siyarix.parsers.tcpdump_parser import TcpdumpParser
-from siyarix.parsers.testssl_parser import TestsslParser
-from siyarix.parsers.theharvester_parser import TheharvesterParser
-from siyarix.parsers.trivy_parser import TrivyParser
-from siyarix.parsers.trufflehog_parser import TrufflehogParser
-from siyarix.parsers.volatility_parser import VolatilityParser
-from siyarix.parsers.wafw00f_parser import Wafw00fParser
-from siyarix.parsers.wapiti_parser import WapitiParser
-from siyarix.parsers.wget_parser import WgetParser
-from siyarix.parsers.wpscan_parser import WpscanParser
-from siyarix.parsers.xsstrike_parser import XsstrikeParser
-from siyarix.parsers.yara_parser import YaraParser
-from siyarix.parsers.zgrab_parser import ZgrabParser
-from siyarix.parsers.zmap_parser import ZmapParser
 
 
 def _check(finding, expected_tool):

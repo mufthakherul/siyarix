@@ -1,7 +1,7 @@
 
 from __future__ import annotations
 from siyarix.worker_pool import AsyncWorkerPool
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock
 import asyncio
 import pytest
 
@@ -77,14 +77,10 @@ def test_worker_pool_basic():
 """Extra tests for worker_pool targeting uncovered lines."""
 
 
-import asyncio
-
-import pytest
-
-from siyarix.worker_pool import AsyncWorkerPool
 
 
-from unittest.mock import patch, MagicMock, AsyncMock
+
+
 class TestAsyncWorkerPoolValidation:
     def test_max_workers_zero_raises(self) -> None:
         with pytest.raises(ValueError, match="max_workers must be > 0"):

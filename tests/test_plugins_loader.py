@@ -5,13 +5,11 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call, AsyncMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from siyarix.plugins.loader import PluginLoader
-from siyarix.registry import ToolRegistry
-from siyarix.providers.manager import ProviderManager
 
 
 # ── Fixtures ─────────────────────────────────────────────────────────────

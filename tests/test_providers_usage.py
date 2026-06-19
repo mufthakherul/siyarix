@@ -5,7 +5,6 @@ import logging
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 from siyarix.providers.types import CostTier
 from siyarix.providers.usage import UsageRecord, UsageTotals, UsageTracker

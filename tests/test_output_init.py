@@ -5,12 +5,9 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from siyarix.output import (
     OutputEngine,
@@ -412,14 +409,12 @@ class TestModuleFunctions:
         assert f.fmt == "json"
 
     def test_set_formatter_string(self):
-        import sys
 
         _out_mod = sys.modules["siyarix.output"]
         set_formatter("json", no_color=True, verbose=1)
         assert _out_mod.output.format == OutputFormat.JSON
 
     def test_set_formatter_object(self):
-        import sys
 
         _out_mod = sys.modules["siyarix.output"]
         f = OutputFormatter(fmt="yaml")
@@ -571,7 +566,6 @@ class TestOutputCore:
 
     def test_get_formatter_invalid_verbose(self):
         from siyarix.output import get_formatter
-        import sys
         fmt = get_formatter("table")
         assert fmt is not None
 

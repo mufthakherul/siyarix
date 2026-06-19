@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import os
 import time
 from pathlib import Path
@@ -213,7 +212,6 @@ async def test_agent_check_budget(agent):
     agent._usage_tracker.session_totals.return_value = MagicMock(total_tokens=9999999, estimated_cost_usd=0.0)
     agent._max_tokens_per_session = 1000
     
-    from siyarix.exceptions import BudgetExceededError
     with pytest.raises(BudgetExceededError):
         await agent._check_budget()
 
@@ -231,7 +229,6 @@ class TestCoreInit:
     @pytest.mark.asyncio
     async def test_check_budget_token_limit(self):
         from siyarix.core import AgentCore
-        from siyarix.exceptions import BudgetExceededError
         agent = AgentCore()
         with patch.object(agent._usage_tracker, "session_totals") as mock_st:
             mock_st.return_value.total_tokens = 999999
@@ -242,7 +239,6 @@ class TestCoreInit:
     @pytest.mark.asyncio
     async def test_check_budget_cost_limit(self):
         from siyarix.core import AgentCore
-        from siyarix.exceptions import BudgetExceededError
         agent = AgentCore()
         with patch.object(agent._usage_tracker, "session_totals") as mock_st:
             mock_st.return_value.total_tokens = 0
@@ -277,7 +273,7 @@ class TestCoreInit:
 
     @pytest.mark.asyncio
     async def test_execute_subagent_lifecycle(self):
-        from siyarix.core import AgentCore, AgentGoal
+        from siyarix.core import AgentCore
         agent = AgentCore()
         mock_sub = AsyncMock()
         mock_sub.start = AsyncMock()
@@ -305,7 +301,6 @@ class TestCoreExecution:
         record.total_tokens = 200000
         record.estimated_cost_usd = 0.5
         core._usage_tracker.session_totals.return_value = record
-        from siyarix.exceptions import BudgetExceededError
         with pytest.raises(BudgetExceededError, match="token limit"):
             await core._check_budget()
 
@@ -316,7 +311,6 @@ class TestCoreExecution:
         record.total_tokens = 100
         record.estimated_cost_usd = 10.0
         core._usage_tracker.session_totals.return_value = record
-        from siyarix.exceptions import BudgetExceededError
         with pytest.raises(BudgetExceededError, match="cost limit"):
             await core._check_budget()
 
@@ -586,7 +580,6 @@ class TestCoreErrorHandling:
 
 @pytest.fixture
 def cred_store(tmp_path, monkeypatch):
-    from siyarix.credential_store import CredentialStore
     monkeypatch.setenv("SIYARIX_CONFIG_DIR", str(tmp_path / "siyarix"))
     monkeypatch.setenv("SIYARIX_USE_KEYRING", "0")
     s = CredentialStore(master_password="test_master")

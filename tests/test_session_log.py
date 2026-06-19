@@ -252,12 +252,6 @@ from unittest.mock import patch
 
 import pytest
 
-from siyarix.session_log import (
-    CommandEntry,
-    SafetyEvent,
-    SessionLog,
-    SessionLogger,
-)
 
 
 class TestSessionLoggerListLogs:

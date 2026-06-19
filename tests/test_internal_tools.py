@@ -3,11 +3,10 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-import os
 
 from siyarix.internal_tools import make_graph_analyzer_handler, make_threat_intel_handler
 class TestInternalTools:
@@ -104,19 +103,16 @@ class TestInternalToolsGraph:
     """Cover internal_tools.py remaining lines."""
 
     def test_graph_analyzer_handler_shortest_path_no_source(self):
-        import asyncio
         handler = make_graph_analyzer_handler()
         result = asyncio.run(handler(action="shortest_path", args={}))
         assert result["status"] == "success"
 
     def test_graph_analyzer_handler_blast_radius_no_node(self):
-        import asyncio
         handler = make_graph_analyzer_handler()
         result = asyncio.run(handler(action="blast_radius", args={}))
         assert result["status"] == "success"
 
     def test_graph_analyzer_handler_find_crown_jewels(self):
-        import asyncio
         handler = make_graph_analyzer_handler()
         with patch("siyarix.knowledge_graph.KnowledgeGraph") as MockKG:
             mock_kg = MagicMock()
@@ -129,7 +125,6 @@ class TestInternalToolsGraph:
                 assert "paths" in result["output"]
 
     def test_threat_intel_handler_mitre_lookup_empty(self):
-        import asyncio
         handler = make_threat_intel_handler()
         with patch("siyarix.threat_intel.MITREAttackDB") as MockDB:
             mock_db = MagicMock()
@@ -147,19 +142,16 @@ class TestInternalToolsCore:
     """Cover internal_tools.py remaining lines."""
 
     def test_graph_analyzer_handler_shortest_path_no_source(self):
-        import asyncio
         handler = make_graph_analyzer_handler()
         result = asyncio.run(handler(action="shortest_path", args={}))
         assert result["status"] == "success"
 
     def test_graph_analyzer_handler_blast_radius_no_node(self):
-        import asyncio
         handler = make_graph_analyzer_handler()
         result = asyncio.run(handler(action="blast_radius", args={}))
         assert result["status"] == "success"
 
     def test_graph_analyzer_handler_find_crown_jewels(self):
-        import asyncio
         handler = make_graph_analyzer_handler()
         with patch("siyarix.knowledge_graph.KnowledgeGraph") as MockKG:
             mock_kg = MagicMock()
@@ -172,7 +164,6 @@ class TestInternalToolsCore:
                 assert "paths" in result["output"]
 
     def test_threat_intel_handler_mitre_lookup_empty(self):
-        import asyncio
         handler = make_threat_intel_handler()
         with patch("siyarix.threat_intel.MITREAttackDB") as MockDB:
             mock_db = MagicMock()

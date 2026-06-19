@@ -75,8 +75,8 @@ class DirbParser:
         for r in results:
             if not isinstance(r, dict):
                 continue
-            url = r.get("url", r.get("URL", ""))
-            code = int(r.get("code", r.get("status", 0)))
+            url = str(r.get("url", r.get("URL", "")))
+            code = int(r.get("code") or r.get("status") or 0)
             size = r.get("size", r.get("content_length", ""))
             redirect = r.get("redirect", r.get("location", ""))
             dedup_key = f"{url}:{code}"

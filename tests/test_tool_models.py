@@ -287,8 +287,7 @@ class TestWhichCacheGlobal:
 import importlib
 import json
 import subprocess
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -302,7 +301,6 @@ from siyarix.tool_metadata import (
     risk_for_tool,
     tags_for_tool,
 )
-from siyarix.tool_models import RiskLevel, ToolCategory
 from siyarix.tool_version import _load_db as tv_load_db
 from siyarix.tool_version import bulk_detect, detect_version, get_tool_metadata
 
@@ -317,7 +315,6 @@ class TestToolMetadataLoadDB:
         mock_exists.return_value = True
         mock_read.side_effect = PermissionError("denied")
         # Need to reset _load_db's Path import path
-        import importlib
         import siyarix.tool_metadata as tm
         importlib.reload(tm)
         from siyarix.tool_metadata import _load_db as ld
@@ -328,7 +325,6 @@ class TestToolMetadataLoadDB:
     @patch("pathlib.Path.exists")
     def test_load_db_file_not_found(self, mock_exists):
         mock_exists.return_value = False
-        import importlib
         import siyarix.tool_metadata as tm
         importlib.reload(tm)
         from siyarix.tool_metadata import _load_db as ld

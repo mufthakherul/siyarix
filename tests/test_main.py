@@ -22,8 +22,6 @@ def test_all_contains_app() -> None:
 """Final coverage tests for siyarix.main — covers the single re-export."""
 
 
-from siyarix.cli import app as cli_app
-from siyarix.main import __all__, app
 
 
 def test_app_is_re_exported() -> None:

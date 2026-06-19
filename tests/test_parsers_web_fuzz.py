@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import pytest
 from siyarix.parsers.arjun_parser import ArjunParser
 from siyarix.parsers.corsy_parser import CorsyParser
 from siyarix.parsers.curl_parser import CurlParser
@@ -21,7 +20,6 @@ from siyarix.parsers.wget_parser import WgetParser
 
 from siyarix.parsers.aquatone_parser import AquatoneParser
 from siyarix.parsers.gobuster_parser import GobusterParser
-from siyarix.parsers.kxss_parser import KxssParser
 from siyarix.parsers.paramspider_parser import ParamspiderParser
 from siyarix.parsers.waybackurls_parser import WaybackurlsParser
 def _check_finding(finding, expected_tool, min_fields=None):
@@ -556,7 +554,6 @@ class TestDirbParser_extra_b7:
     def test_text_code_format(self):
         # _CODE_RE requires trailing whitespace which strip() removes
         # Test the regex directly
-        import re
         from siyarix.parsers.dirb_parser import _CODE_RE
         m = _CODE_RE.match("+200 http://example.com/page ")
         assert m is not None

@@ -1,8 +1,5 @@
 import pytest
-import respx
-import httpx
 from unittest.mock import patch, MagicMock, AsyncMock
-import sys
 
 from siyarix.onboarding import OnboardingWizard
 

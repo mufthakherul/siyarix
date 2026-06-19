@@ -138,12 +138,15 @@ class LLMEngineMixin:
                 if prov_name and api_key:
                     compact = self._should_use_compact()
                     sys_prompt = self._build_system_prompt(compact=compact)
-                    response = await self._stream_assistant_response(
-                        sys_prompt,
-                        instruction,
-                        prov_name,
-                        api_key,
-                        history=self._get_conversation_history(),
+                    response = await asyncio.wait_for(
+                        self._stream_assistant_response(
+                            sys_prompt,
+                            instruction,
+                            prov_name,
+                            api_key,
+                            history=self._get_conversation_history(),
+                        ),
+                        timeout=120.0,
                     )
                     self._llm_calls += 1
                 else:
@@ -652,7 +655,10 @@ class LLMEngineMixin:
 
             # Wrap it to capture token counts from non-streaming responses
             async def llm_call_fn(system_prompt: str, user_prompt: str, **kwargs: Any) -> Any:
-                result = await raw_llm_call(system_prompt, user_prompt, **kwargs)
+                result = await asyncio.wait_for(
+                    raw_llm_call(system_prompt, user_prompt, **kwargs),
+                    timeout=120.0,
+                )
                 if not kwargs.get("stream") and isinstance(result, dict):
                     nonlocal total_input_tokens
                     nonlocal total_output_tokens

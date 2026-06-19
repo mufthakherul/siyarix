@@ -483,6 +483,12 @@ class NaturalLanguageParser:
                 intent.tool_name = tool_match
                 intent.confidence = tool_score
 
+        # Minimum confidence threshold — garbled/unrecognised input drops to None
+        if intent.confidence < 0.15:
+            intent.tool_name = None
+            intent.template_name = None
+            intent.confidence = 0.0
+
         return intent
 
     def parse_multi(self, text: str) -> list[ParsedIntent]:

@@ -1,4 +1,4 @@
-.PHONY: install install-dev test lint typecheck clean build build-all build-python build-npm build-deb build-docker build-installers docker-build docker-up docker-down help install-sh install-ps1
+.PHONY: install install-dev test lint typecheck clean build build-all build-python build-deb build-docker build-installers docker-build docker-up docker-down help install-sh install-ps1
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -55,15 +55,8 @@ benchmark: ## Run performance benchmarks
 clean: ## Clean build artifacts and caches
 	rm -rf build/ dist/ *.egg-info/ *.deb
 	rm -rf .pytest_cache/ .mypy_cache/ .ruff_cache/ .coverage htmlcov/
-	rm -rf packages/npm/*.tgz
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name '*.pyc' -delete
-
-# === NPM Package ===
-
-build-npm: ## Build npm package
-	@echo "Building npm package..."
-	cd packages/npm && npm pack --dry-run && npm pack
 
 # === DEB Package ===
 
@@ -93,7 +86,7 @@ install-ps1: ## Test install.ps1 locally (dry-run)
 
 # === All Builds ===
 
-build-all: clean build build-npm build-deb build-installers ## Build all package formats
+build-all: clean build build-deb build-installers ## Build all package formats
 
 # === Docker ===
 

@@ -175,5 +175,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tamper-evident SHA-256 chained audit trail
 - Stealth mode, kill switch, and OPSEC manager
 - CI/CD pipelines with full linting, type checking, security audit, and coverage
-- Docker, Debian, Homebrew, npm, and Winget packaging
+- Docker, Debian, Homebrew, and Winget packaging
 - Comprehensive test suite with 959+ tests

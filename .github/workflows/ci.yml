@@ -50,7 +50,7 @@ jobs:
             BASE="HEAD~1"
             HEAD="HEAD"
           else
-            BASE="HEAD"
+            BASE="$(git rev-list --max-parents=0 HEAD)"
             HEAD="HEAD"
           fi
           CHANGED=$(git diff --name-only --diff-filter=ACMRT "$BASE" "$HEAD" | grep -E '\.py$' | tr '\n' ' ' || true)

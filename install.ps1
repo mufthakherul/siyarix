@@ -4,7 +4,7 @@
 #   One-liner: irm https://siyarix.dev/install.ps1 | iex
 #
 # Supports: Windows 10/11, Windows Server
-# Package managers: pip, winget, chocolatey, npm
+# Package managers: pip, winget, chocolatey
 # =============================================================================
 $__script_version = "3.0.0"
 
@@ -82,15 +82,7 @@ function Install-ViaChoco {
   }
 }
 
-function Install-ViaNpm {
-  Write-Info "Installing via npm..."
-  try {
-    npm install -g @mufthakherul/siyarix
-    return $true
-  } catch {
-    return $false
-  }
-}
+
 
 function Install-ViaPipx {
   Write-Info "Installing via pipx..."

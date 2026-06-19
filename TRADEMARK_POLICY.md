@@ -102,7 +102,7 @@ The only official Siyarix distribution channels are:
 | **Python Package (PyPI)** | `https://pypi.org/project/siyarix/` |
 | **Docker Images** | Official images published by the Siyarix project on Docker Hub / GitHub Container Registry |
 | **Homebrew Tap** | Official Homebrew formula maintained by the project |
-| **npm Package** | Official npm distribution maintained by the project |
+
 | **Chocolatey Package** | Official Chocolatey package maintained by the project |
 | **Winget Package** | Official Winget manifest maintained by the project |
 | **Debian Repository** | Official `.deb` packages maintained by the project |

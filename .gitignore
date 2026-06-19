@@ -51,7 +51,6 @@ Cargo.lock
 .gemini/
 .github/copilot-instructions.md
 GEMINI.md
-uv.lock
 graphify-out/
 .graphifyignore
 *.swp

@@ -159,7 +159,7 @@ Intent Router --> Context Manager --> AI Planner --> Permission Gate
 
 ### Deployment
 
-- **Package Distribution**: PyPI (pip), Homebrew, Chocolatey, Winget, npm, .deb, Docker
+- **Package Distribution**: PyPI (pip), Homebrew, Chocolatey, Winget, .deb, Docker
 - **Docker Compose**: Multi-service orchestration with worker, dashboard, Redis, OpenTelemetry collector
 - **CI/CD**: 47 GitHub Actions workflows including CI, Docker publish, release, CodeQL, SBOM, secrets scan, docs deploy, smoke tests, chaos testing, benchmarks, Dependabot
 
@@ -197,7 +197,7 @@ siyarix health
 pip install siyarix
 ```
 
-For alternative package managers (Homebrew, npm, Chocolatey, Winget, .deb, Docker) and optional extras for specific AI providers, see the [Installation Guide](docs/getting-started/installation.md).
+For alternative package managers (Homebrew, Chocolatey, Winget, .deb, Docker) and optional extras for specific AI providers, see the [Installation Guide](docs/getting-started/installation.md).
 
 ---
 

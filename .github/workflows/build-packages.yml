@@ -70,47 +70,6 @@ jobs:
           path: dist/
           retention-days: 14
 
-  build-npm:
-    name: NPM Package
-    runs-on: ubuntu-latest
-    needs: resolve-version
-    defaults:
-      run:
-        working-directory: packages/npm
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Set version
-        run: |
-          VER="${{ needs.resolve-version.outputs.version }}"
-          node -e "const p=require('./package.json'); p.version='${VER}'; require('fs').writeFileSync('package.json', JSON.stringify(p, null, 2)+'\n')"
-
-      - name: Validate JS entrypoints
-        run: |
-          for file in bin/siyarix.js bin/siyarix-install.js lib/installer.js; do
-            if [[ -f "$file" ]]; then
-              node --check "$file"
-            else
-              echo "::warning::Skipping missing file: $file"
-            fi
-          done
-
-      - name: npm audit
-        run: npm audit --audit-level=high || true
-
-      - name: Pack
-        run: npm pack --dry-run
-
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-package
-          path: packages/npm/*.tgz
-          retention-days: 14
 
   build-deb:
     name: DEB Package
@@ -155,7 +114,7 @@ jobs:
         with:
           scandir: "."
           severity: error
-          ignore: ".venv packages/npm packages/deb"
+          ignore: ".venv packages/deb"
 
       - name: Shellcheck harmonyos installer
         run: bash -n packages/harmonyos/install-harmonyos.sh
@@ -171,7 +130,7 @@ jobs:
   check-matrix:
     name: Package Build Matrix
     runs-on: ubuntu-latest
-    needs: [build-python, build-npm, build-deb, build-installers]
+    needs: [build-python, build-deb, build-installers]
     if: always()
     steps:
       - run: |
@@ -180,6 +139,6 @@ jobs:
           echo "| Package | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Python (sdist/wheel) | ${{ needs.build-python.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| NPM | ${{ needs.build-npm.result }} |" >> $GITHUB_STEP_SUMMARY
+
           echo "| DEB | ${{ needs.build-deb.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Installers | ${{ needs.build-installers.result }} |" >> $GITHUB_STEP_SUMMARY

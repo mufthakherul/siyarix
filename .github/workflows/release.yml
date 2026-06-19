@@ -11,10 +11,6 @@ on:
         description: Publish to PyPI
         type: boolean
         default: true
-      publish_npm:
-        description: Publish to npm
-        type: boolean
-        default: true
       publish_apt:
         description: Build APT repository
         type: boolean
@@ -206,93 +202,6 @@ jobs:
           python -c "import siyarix; print('Package OK:', siyarix.__version__)"
           python -m pytest --pyargs siyarix -v --tb=short -x -m "not integration" --timeout=60 || true
 
-  build-npm:
-    name: Build NPM Package
-    runs-on: ubuntu-latest
-    needs: validate-tag
-    defaults:
-      run:
-        working-directory: packages/npm
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          registry-url: "https://registry.npmjs.org"
-
-      - name: Update version
-        run: |
-          VER="${{ needs.validate-tag.outputs.version }}"
-          node -e "const p=require('./package.json'); p.version='${VER}'; require('fs').writeFileSync('package.json', JSON.stringify(p, null, 2)+'\n')"
-
-      - name: Validate & lint
-        run: |
-          for file in bin/siyarix.js bin/siyarix-install.js lib/installer.js; do
-            if [[ -f "$file" ]]; then
-              node --check "$file"
-            else
-              echo "::warning::Skipping missing file: $file"
-            fi
-          done
-          npm audit --audit-level=high || true
-          npm pack --dry-run
-
-      - name: Pack
-        run: npm pack
-
-      - name: Upload npm package
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-npm
-          path: packages/npm/*.tgz
-          retention-days: 30
-
-  publish-npm:
-    name: Publish to npm
-    runs-on: ubuntu-latest
-    needs: [validate-tag, build-npm]
-    if: ${{ github.event.inputs.publish_npm != 'false' }}
-    defaults:
-      run:
-        working-directory: packages/npm
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          registry-url: "https://registry.npmjs.org"
-
-      - name: Update version
-        run: |
-          VER="${{ needs.validate-tag.outputs.version }}"
-          node -e "const p=require('./package.json'); p.version='${VER}'; require('fs').writeFileSync('package.json', JSON.stringify(p, null, 2)+'\n')"
-
-      - name: Check existing npm version
-        id: npm-version
-        run: |
-          VER="${{ needs.validate-tag.outputs.version }}"
-          if npm view "@mufthakherul/siyarix@${VER}" version >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::Version ${VER} already exists on npm. Skipping publish."
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Publish with provenance
-        if: env.NODE_AUTH_TOKEN != '' && steps.npm-version.outputs.exists != 'true'
-        run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Skip notice
-        if: env.NODE_AUTH_TOKEN == ''
-        run: echo "::warning::NPM_TOKEN is not configured; skipping publish."
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   build-deb:
     name: Build DEB Package
@@ -450,7 +359,7 @@ jobs:
   create-github-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [validate-tag, build-python, build-npm, build-deb, build-installers, build-docker]
+    needs: [validate-tag, build-python, build-deb, build-installers, build-docker]
     if: always()
     permissions:
       contents: write
@@ -482,7 +391,6 @@ jobs:
           files: |
             artifacts/dist-python/*.whl
             artifacts/dist-python/*.tar.gz
-            artifacts/dist-npm/*.tgz
             artifacts/dist-deb/*.deb
             artifacts/dist-installers/*
         env:
@@ -511,7 +419,7 @@ jobs:
   summary:
     name: Release Summary
     runs-on: ubuntu-latest
-    needs: [validate-tag, create-github-release, publish-pypi, publish-npm, publish-apt, submit-winget, generate-attestations]
+    needs: [validate-tag, create-github-release, publish-pypi, publish-apt, submit-winget, generate-attestations]
     if: always()
     steps:
       - name: Generate summary
@@ -521,7 +429,7 @@ jobs:
           echo "| Package | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| PyPI (siyarix) | ${{ needs.publish-pypi.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| npm (@mufthakherul/siyarix) | ${{ needs.publish-npm.result }} |" >> $GITHUB_STEP_SUMMARY
+
           echo "| APT (deb) | ${{ needs.publish-apt.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Winget | ${{ needs.submit-winget.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Docker (ghcr.io) | ${{ needs.build-docker.result }} |" >> $GITHUB_STEP_SUMMARY
@@ -535,7 +443,7 @@ jobs:
           echo '| pip | `pip install siyarix` |' >> $GITHUB_STEP_SUMMARY
           echo '| pipx | `pipx install siyarix` |' >> $GITHUB_STEP_SUMMARY
           echo '| uv | `uv tool install siyarix` |' >> $GITHUB_STEP_SUMMARY
-          echo '| npm | `npm install -g @mufthakherul/siyarix` |' >> $GITHUB_STEP_SUMMARY
+
           echo '| APT (Kali/Debian/Ubuntu) | `sudo apt install siyarix` |' >> $GITHUB_STEP_SUMMARY
           echo '| Homebrew (macOS) | `brew install siyarix` |' >> $GITHUB_STEP_SUMMARY
           echo '| Docker | `docker run ghcr.io/mufthakherul/siyarix:latest` |' >> $GITHUB_STEP_SUMMARY

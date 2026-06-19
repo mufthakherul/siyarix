@@ -110,7 +110,7 @@ Siyarix follows [Semantic Versioning 2.0.0](https://semver.org/):
    - [PyPI](https://pypi.org/project/siyarix/) (pip)
    - [GitHub Releases](https://github.com/mufthakherul/siyarix/releases) (source, binaries)
    - Docker Hub / GitHub Container Registry (container images)
-   - Package managers (Homebrew, Chocolatey, Winget, npm, .deb) as applicable
+   - Package managers (Homebrew, Chocolatey, Winget, .deb) as applicable
 6. Release notes are generated from commit history following the [Keep a Changelog](https://keepachangelog.com/) format
 
 ### 5.3 Security Releases

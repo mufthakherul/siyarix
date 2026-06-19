@@ -42,7 +42,7 @@ siyarix/
 ├── src/siyarix/          # Package source (78+ modules)
 ├── tests/                # Test suite
 ├── packages/             # Platform-specific packages
-│   ├── npm/              # npm launcher
+
 │   ├── homebrew/         # Homebrew formula
 │   ├── winget/           # Winget manifest
 │   ├── chocolatey/       # Chocolatey package
@@ -63,15 +63,6 @@ siyarix/
 ```bash
 brew install --build-from-source packages/homebrew/siyarix.rb
 ```
-
-### npm
-
-```bash
-cd packages/npm
-npm publish --access public
-```
-
-Usage: `npx @mufthakherul/siyarix --help`
 
 ### Winget
 
@@ -116,7 +107,6 @@ docker run -v ~/.siyarix:/root/.siyarix siyarix:latest run "scan x"  # With conf
 | `make security` | Bandit + trufflehog + gitleaks + pip-audit |
 | `make coverage` | Tests with coverage report |
 | `make build` | Build sdist + wheel |
-| `make build-npm` | Build npm package |
 | `make build-deb` | Build .deb package |
 | `make build-docker` | Build Docker image |
 | `make docker-up` | Start Docker services |
@@ -140,5 +130,4 @@ docker run -v ~/.siyarix:/root/.siyarix siyarix:latest run "scan x"  # With conf
 10. Tag release: `git tag v3.0.0 && git push --tags`
 11. Build and publish Docker image
 12. Update Homebrew formula
-13. Publish npm package
-14. Update Winget/Chocolatey manifests
+13. Update Winget/Chocolatey manifests

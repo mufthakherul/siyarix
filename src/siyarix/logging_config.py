@@ -56,6 +56,10 @@ def configure_logging(level: str | None = None, *, enable_console: bool = True) 
     for noisy in ("keyring.backend", "keyring"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
+    # Suppress openai/urllib3 connection noise (stderr pollution)
+    for noisy in ("openai", "openai._base_client", "urllib3", "urllib3.connectionpool"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+
     # Update existing console handler levels so reconfiguration takes effect
     for h in root.handlers:
         if isinstance(h, logging.StreamHandler):

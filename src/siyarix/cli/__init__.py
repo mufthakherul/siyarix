@@ -112,7 +112,7 @@ def _display_findings_table(findings: list[dict]) -> None:
     """Render scan findings as a Rich table using theme-aware styling."""
     from ..branding import severity_label, resolve_theme
     settings = SettingsStore()
-    theme = resolve_theme(settings.get("theme"))
+    theme = resolve_theme(settings.get("color_theme"))
     ftable = Table(title="Findings", header_style="bold", border_style="dim")
     ftable.add_column("Severity", width=10)
     ftable.add_column("Type", style="cyan")
@@ -419,7 +419,7 @@ def main_callback(
         "integrated",
         "--mode",
         "-m",
-        help="Execution mode: autonomous|integrated|offline",
+        help="Execution mode: autonomous|integrated|offline|registry",
     ),
     target: str = typer.Option("", "--target", "-t", help="Set initial target for the session"),
     session: str = typer.Option("", "--session", help="Resume a previous session by ID"),
@@ -519,6 +519,19 @@ app.add_typer(profile_app, name="profile")
 @app.command()
 def palette() -> None:
     """Open an interactive command palette (uses prompt_toolkit if installed)."""
+    store = CommandProfileStore()
+    intents = sorted(CROSS_PLATFORM_COMMANDS.keys())
+    options = [f"intent: {i}" for i in intents]
+    saved = store.list_credentials()
+    options += [f"saved: {p.name} -> {p.command}" for p in saved]
+
+    # Non-TTY mode: print palette and exit
+    if not sys.stdin.isatty():
+        console.print("[bold]Available palette commands:[/bold]")
+        for o in options:
+            console.print(f"  {o}")
+        return
+
     _ptk_prompt: Any = None
     _WordCompleter: Any = None
     try:
@@ -531,12 +544,6 @@ def palette() -> None:
 
         logging.getLogger(__name__).debug("prompt_toolkit not available: %s", exc)
         PTK = False
-
-    store = CommandProfileStore()
-    intents = sorted(CROSS_PLATFORM_COMMANDS.keys())
-    options = [f"intent: {i}" for i in intents]
-    saved = store.list_credentials()
-    options += [f"saved: {p.name} -> {p.command}" for p in saved]
 
     if PTK:
         choice = _ptk_prompt(
@@ -554,7 +561,6 @@ def palette() -> None:
                 console.print("[red]Invalid selection[/red]")
                 return
         else:
-            # simple filter
             matches = [o for o in options if sel.lower() in o.lower()]
             if not matches:
                 console.print("[dim]No matches[/dim]")
@@ -719,9 +725,6 @@ def theme_preview(
 cache_app = typer.Typer(help="💾 Cache management")
 app.add_typer(cache_app, name="cache")
 
-report_app = typer.Typer(help="📊 Report generation & distribution")
-app.add_typer(report_app, name="report")
-
 tool_registry_app = typer.Typer(help="🛠 Tool discovery & registry")
 app.add_typer(tool_registry_app, name="tool-registry")
 
@@ -784,15 +787,16 @@ _active_theme: str = config.get("color_theme") or "default"
 # ---------------------------------------------------------------------------
 @app.command()
 def scan(
-    targets: list[str] = typer.Argument(help="Target(s): IP, CIDR, URL, hostname, or @file.txt"),
+    ctx: typer.Context,
+    targets: list[str] = typer.Argument(..., help="Target IPs, hostnames, URLs, or @file.txt"),
     tool: str = typer.Option("", "--tool", "-t", help="Specific tool to use"),
     mode: str = typer.Option(
-        "integrated",
+        None,
         "--mode",
         "-m",
-        help="Execution mode: autonomous|integrated|offline",
+        help="Execution mode: autonomous|integrated|offline|registry",
     ),
-    output: str = typer.Option("table", "--output", "-o", help="Output: table|json|yaml|csv"),
+    output: str = typer.Option("table", "--output", "-o", help="Output: table|json|yaml|csv|html|quiet"),
     _parallel: int = typer.Option(3, "--parallel", "-p", help="Parallel workers"),
     timeout: int = typer.Option(300, "--timeout", help="Timeout per tool (seconds)"),
     save: bool = typer.Option(False, "--save", "-s", help="Save results to database"),
@@ -812,6 +816,10 @@ def scan(
     """
     if not no_banner and not _CI_MODE:
         print_banner(console, _active_theme)
+
+    # Resolve mode from parent callback if not explicitly provided
+    if mode is None:
+        mode = str(ctx.parent.params.get("mode", "integrated"))
 
     # Support @targets.txt multi-target mode (Chapter 15 Hidden Features)
     expanded_targets: list[str] = []
@@ -842,6 +850,13 @@ def scan(
         except ValidationError as exc:
             console.print(f"[red]Invalid target '{target}': {exc}[/red]")
             raise typer.Exit(1)
+
+    # Validate output format early before any execution
+    valid_outputs = ("table", "json", "yaml", "csv", "html", "quiet")
+    output = output.lower()
+    if output not in valid_outputs:
+        console.print(f"[red]Invalid output format '{output}'. Valid: {', '.join(valid_outputs)}[/red]")
+        raise typer.Exit(1)
 
     instruction = f"scan {' '.join(expanded_targets)}"
     if tool:
@@ -885,7 +900,6 @@ def scan(
 
     # Display findings according to the requested output format
     if result.all_findings:
-        output = output.lower()
         if output in ("json", "yaml", "csv"):
             output_engine = OutputEngine(output_format=output)
             if output == "json":
@@ -913,6 +927,48 @@ def scan(
         target=",".join(targets),
         details={"summary": result.summary, "findings": len(result.all_findings)},
     )
+
+
+@app.command(name="scan-quick", hidden=False)
+def scan_quick(
+    targets: list[str] = typer.Argument(..., help="Target IPs, hostnames, or @file.txt"),
+    mode: str = typer.Option(None, "--mode", "-m", help="Execution mode"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
+) -> None:
+    """Quick scan preset — fast port discovery (top 100 ports, no service detection)."""
+    tool = "nmap"
+    updated_targets = [f"{t} --top-ports 100" for t in targets]
+    return scan(typer.Context, updated_targets, tool=tool, mode=mode or "registry",
+                output="table", _parallel=3, timeout=120, save=False, _notify=False,
+                dry_run=dry_run, no_banner=True, profile="")
+
+
+@app.command(name="scan-full", hidden=False)
+def scan_full(
+    targets: list[str] = typer.Argument(..., help="Target IPs, hostnames, or @file.txt"),
+    mode: str = typer.Option(None, "--mode", "-m", help="Execution mode"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
+) -> None:
+    """Full scan preset — all ports, service + OS detection, default scripts."""
+    tool = "nmap"
+    updated_targets = [f"{t} -p- -sV -O -sC" for t in targets]
+    return scan(typer.Context, updated_targets, tool=tool, mode=mode or "registry",
+                output="table", _parallel=3, timeout=600, save=False, _notify=False,
+                dry_run=dry_run, no_banner=True, profile="")
+
+
+@app.command(name="scan-web", hidden=False)
+def scan_web(
+    targets: list[str] = typer.Argument(..., help="Target URLs or domains"),
+    mode: str = typer.Option(None, "--mode", "-m", help="Execution mode"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
+) -> None:
+    """Web scan preset — HTTP service enumeration (whatweb, nikto, nuclei)."""
+    tool = "whatweb+nikto+nuclei"
+    updated_targets = [f"http://{t}" if "://" not in t else t for t in targets]
+    return scan(typer.Context, updated_targets, tool=tool, mode=mode or "registry",
+                output="table", _parallel=3, timeout=300, save=False, _notify=False,
+                dry_run=dry_run, no_banner=True, profile="")
 
 
 @app.command()
@@ -954,9 +1010,15 @@ def discover(
 
 @app.command()
 def run(
+    ctx: typer.Context,
     command: str = typer.Argument(help="Natural language command or tool name"),
     target: str = typer.Option("", "--target", "-t", help="Target for the command"),
-    mode: str = typer.Option("integrated", "--mode", "-m", help="Execution mode"),
+    mode: str = typer.Option(
+        None,
+        "--mode",
+        "-m",
+        help="Execution mode: autonomous|integrated|offline|registry",
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
     save: bool = typer.Option(False, "--save", "-s", help="Persist workflow execution"),
     resume_plan: str = typer.Option(
@@ -973,6 +1035,10 @@ def run(
     """
     if not no_banner and not _CI_MODE:
         print_banner(console, _active_theme)
+
+    # Resolve mode from parent callback if not explicitly provided
+    if mode is None:
+        mode = str(ctx.parent.params.get("mode", "integrated"))
 
     # Handle --resume
     if resume_plan:

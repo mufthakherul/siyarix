@@ -131,7 +131,8 @@ class CommandProfileStore:
         data = json.loads(path.read_text(encoding="utf-8"))
         return CommandProfile(**data)
 
-    def list_credentials(self) -> list[CommandProfile]:
+    def list_profiles(self) -> list[CommandProfile]:
+        """List all saved command profiles."""
         profiles: list[CommandProfile] = []
         for p in sorted(self._profiles_dir.glob("*.json")):
             try:
@@ -140,6 +141,9 @@ class CommandProfileStore:
             except Exception:
                 continue
         return profiles
+
+    # Backward-compatible alias (deprecated — use list_profiles)
+    list_credentials = list_profiles
 
     def delete(self, name: str) -> bool:
         path = self._path(name)

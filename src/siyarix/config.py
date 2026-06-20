@@ -237,12 +237,29 @@ class SettingsStore:
     """TOML-backed settings manager for the Siyarix CLI.
 
     All reads fall back to DEFAULTS when a key is not set.
+
+    Uses singleton pattern to prevent divergent in-memory state.
+    Pass an explicit *path* to bypass the singleton (useful for tests).
     """
 
+    _instance: SettingsStore | None = None
+
+    def __new__(cls, path: Path | None = None) -> SettingsStore:
+        if path is not None:
+            # Explicit path bypasses singleton (for testing)
+            instance = super().__new__(cls)
+            return instance
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
     def __init__(self, path: Path | None = None) -> None:
+        if hasattr(self, "_initialized") and self._initialized and path is None:
+            return  # Already initialized singleton
         self._path = path or get_settings_file()
         self._data: dict[str, Any] = {**DEFAULTS, **_try_load_toml(self._path)}
         self._apply_env_overrides()
+        self._initialized = True
 
     def _apply_env_overrides(self) -> None:
         for env_key, config_key in _ENV_TO_CONFIG.items():

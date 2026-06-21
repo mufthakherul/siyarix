@@ -254,6 +254,7 @@ def safe_run_sync(
         cp = subprocess.run(
             cmd,
             capture_output=capture_output,
+            stdin=subprocess.DEVNULL,
             text=text,
             timeout=timeout,
             check=False,
@@ -291,7 +292,7 @@ async def safe_run_async(
                 loop.run_in_executor(
                     None,
                     lambda: subprocess.run(
-                        cmd, capture_output=True, text=True, timeout=timeout, check=False, env=exec_env
+                        cmd, capture_output=True, stdin=subprocess.DEVNULL, text=True, timeout=timeout, check=False, env=exec_env
                     ),
                 ),
                 timeout=timeout + 5,
@@ -321,7 +322,11 @@ async def safe_run_async(
         )
     try:
         proc = await asyncio.create_subprocess_exec(
-            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, env=exec_env
+            *cmd,
+            stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            env=exec_env,
         )  # nosec B603
     except FileNotFoundError:
         logger.debug("safe_run_async binary not found: %s", cmd[0] if cmd else "?")
@@ -379,6 +384,7 @@ async def safe_run_async_stream(
                 None,
                 lambda: subprocess.Popen(
                     cmd,
+                    stdin=subprocess.DEVNULL,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
@@ -459,7 +465,11 @@ async def safe_run_async_stream(
 
     try:
         async_proc = await asyncio.create_subprocess_exec(
-            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, env=exec_env
+            *cmd,
+            stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            env=exec_env,
         )  # nosec B603
     except FileNotFoundError:
         logger.debug("safe_run_async_stream binary not found: %s", cmd[0] if cmd else "?")

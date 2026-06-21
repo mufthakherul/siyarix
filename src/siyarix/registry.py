@@ -20,7 +20,6 @@ from .exceptions import (
     ToolExecutionError,
     ToolNotFoundError,
 )
-from .parsers import ParserRegistry
 
 # Expose models, graph, handlers, and metadata via the registry module
 from .tool_models import (
@@ -37,7 +36,7 @@ from .tool_metadata import (
     describe_tool,
     tags_for_tool,
 )
-from .tool_version import detect_version, get_tool_metadata
+from .tool_version import detect_version, get_tool_metadata, parallel_detect
 
 from .tool_handlers import (
     make_nmap_handler,
@@ -148,6 +147,7 @@ class ToolRegistry:
     def __init__(self, permission_gate: Any = None) -> None:
         self._graph = ToolCapabilityGraph()
         self._handlers: dict[str, ToolHandler] = {}
+        from .parsers import ParserRegistry
         self._parser_registry = ParserRegistry()
         self._loaded = False
         self._load_count = 0
@@ -289,6 +289,7 @@ class ToolRegistry:
         self._parser_registry.discover()
         count = 0
         tools_to_register: list[tuple[ToolCapability, ToolHandler | None]] = []
+        version_checks: list[tuple[str, str]] = []
 
         for name in _CURATED_TOOL_NAMES:
             binary = _cached_which(name)
@@ -296,7 +297,7 @@ class ToolRegistry:
                 meta = get_tool_metadata(name)
                 version = meta.get("version", "") if meta else ""
                 if not version:
-                    version = detect_version(name, binary)
+                    version_checks.append((name, binary))
                 handler_factory = _HANDLER_MAP.get(name)
                 cap, handler = self._build_tool_capability(name, binary, version, handler_factory)
                 tools_to_register.append((cap, handler))
@@ -305,14 +306,14 @@ class ToolRegistry:
         for name in _INTERPRETER_NAMES:
             binary = _cached_which(name)
             if binary:
-                version = detect_version(name, binary)
+                version_checks.append((name, binary))
                 tools_to_register.append(
                     (
                         ToolCapability(
                             name=name,
                             binary=name,
                             installed=True,
-                            version=version,
+                            version="",
                             category=ToolCategory.UTILITY,
                             risk_level=RiskLevel.SAFE,
                             description=f"{name} interpreter/compiler",
@@ -322,6 +323,13 @@ class ToolRegistry:
                     )
                 )
                 count += 1
+
+        # Run version detection in parallel (I/O-bound subprocess calls)
+        if version_checks:
+            versions = parallel_detect(version_checks, max_workers=10)
+            for cap, _ in tools_to_register:
+                if cap.name in versions:
+                    cap.version = versions[cap.name]
 
         if tools_to_register:
             self.register_many(tools_to_register)
@@ -370,6 +378,7 @@ class ToolRegistry:
         count = 0
         seen: set[str] = set()
         tools_to_register: list[tuple[ToolCapability, ToolHandler | None]] = []
+        version_checks: list[tuple[str, str]] = []
         path_dirs = os.environ.get("PATH", "").split(os.pathsep)
 
         for path_dir in path_dirs:
@@ -394,7 +403,7 @@ class ToolRegistry:
                     meta = get_tool_metadata(entry)
                     version = meta.get("version", "") if meta else ""
                     if not version:
-                        version = detect_version(entry, full)
+                        version_checks.append((entry, full))
                     personas = meta.get("personas", []) if meta else []
                     category = (
                         ToolCategory(meta["category"])
@@ -409,7 +418,7 @@ class ToolRegistry:
                                 name=entry,
                                 binary=entry,
                                 installed=True,
-                                version=version,
+                                version="",
                                 category=category,
                                 risk_level=(
                                     RiskLevel(meta["risk_level"])
@@ -427,6 +436,13 @@ class ToolRegistry:
             except OSError as e:
                 logger.debug("Failed to scan directory %s: %s", path_dir, e)
                 continue
+
+        # Run version detection in parallel for any tools without cached version
+        if version_checks:
+            versions = parallel_detect(version_checks, max_workers=10)
+            for cap, _ in tools_to_register:
+                if cap.name in versions:
+                    cap.version = versions[cap.name]
 
         if tools_to_register:
             self.register_many(tools_to_register)

@@ -69,6 +69,13 @@ class RegistryPlanner:
             "dns_recon",
             "full_audit",
             "smb_enum",
+            "passive_recon",
+            "osint_recon",
+            "external_recon",
+            "email_recon",
+            "subdomain_enum",
+            "dir_brute",
+            "ct_log",
         }
         self._cron_path = "/etc/crontab" if os.name != "nt" else "C:\\Windows\\System32\\Tasks"
         self._templates: dict[str, list[dict[str, Any]]] = self._build_templates()
@@ -355,6 +362,33 @@ class RegistryPlanner:
                 {"description": "Subdomain discovery", "tool": "subfinder", "args": {}},
                 {"description": "WHOIS registration lookup", "tool": "whois", "args": {}},
             ],
+            "passive_recon": [
+                {
+                    "description": "Web technology stack fingerprinting",
+                    "tool": "whatweb",
+                    "args": {},
+                },
+                {
+                    "description": "Passive subdomain enumeration via public sources",
+                    "tool": "subfinder",
+                    "args": {},
+                },
+                {
+                    "description": "DNS record enumeration (A, AAAA, MX, TXT, NS, CNAME, SOA)",
+                    "tool": "dig",
+                    "args": {},
+                },
+                {
+                    "description": "WHOIS registration and domain ownership lookup",
+                    "tool": "whois",
+                    "args": {},
+                },
+                {
+                    "description": "Certificate transparency log inspection",
+                    "tool": "openssl",
+                    "args": {"flags": "s_client -connect {target}:443 -servername {target}"},
+                },
+            ],
             "smb_enum": [
                 {
                     "description": "SMB port scan and service detection",
@@ -376,6 +410,38 @@ class RegistryPlanner:
                     "tool": "nmap",
                     "args": {"flags": "-sV -p 445 --script smb-os-discovery,smb-security-mode"},
                 },
+            ],
+            "osint_recon": [
+                {"description": "WHOIS domain registration and ownership lookup", "tool": "whois", "args": {}},
+                {"description": "DNS record enumeration (A, AAAA, MX, TXT, NS, CNAME, SOA)", "tool": "dig", "args": {}},
+                {"description": "DNS zone transfer attempt", "tool": "dig", "args": {"flags": "AXFR"}},
+                {"description": "Certificate transparency log search via crt.sh", "tool": "curl", "args": {"flags": "-s https://crt.sh/?q={target}&output=json"}},
+                {"description": "Passive subdomain enumeration", "tool": "subfinder", "args": {}},
+                {"description": "Aggressive subdomain discovery", "tool": "amass", "args": {}},
+                {"description": "Technology stack fingerprinting", "tool": "whatweb", "args": {}},
+            ],
+            "external_recon": [
+                {"description": "Shodan internet device search", "tool": "shodan", "args": {"flags": "search"}},
+                {"description": "Certificate transparency log analysis", "tool": "curl", "args": {"flags": "-s https://crt.sh/?q=%25.{target}&output=json"}},
+                {"description": "Technology stack fingerprinting", "tool": "whatweb", "args": {}},
+                {"description": "Passive subdomain enumeration", "tool": "subfinder", "args": {}},
+                {"description": "WHOIS registration lookup", "tool": "whois", "args": {}},
+                {"description": "Full DNS record enumeration", "tool": "dig", "args": {}},
+            ],
+            "email_recon": [
+                {"description": "Email address harvesting via theHarvester", "tool": "theHarvester", "args": {"flags": "-d {target} -b all"}},
+                {"description": "MX record lookup for mail servers", "tool": "dig", "args": {"flags": "MX {target}"}},
+                {"description": "SMTP server enumeration", "tool": "nmap", "args": {"flags": "--script smtp-* -p 25,465,587"}},
+                {"description": "SPF and DMARC DNS record check", "tool": "dig", "args": {"flags": "TXT {target}"}},
+            ],
+            "ct_log": [
+                {"description": "Certificate transparency log search", "tool": "curl", "args": {"flags": "-s https://crt.sh/?q=%25.{target}&output=json"}},
+            ],
+            "subdomain_enum": [
+                {"description": "Passive subdomain enumeration", "tool": "subfinder", "args": {}},
+            ],
+            "dir_brute": [
+                {"description": "Directory and file brute-force enumeration", "tool": "gobuster", "args": {"mode": "dir"}},
             ],
         }
 
@@ -575,8 +641,9 @@ class RegistryPlanner:
             template = self.resolve_alternatives(template_name, available_tools)
         url_match = re.search(r"https?://[^\s]+", target)
         host_match = re.search(r"\b(?:[\w-]+\.)+[a-z]{2,}\b", target.lower())
+        ip_match = re.search(r"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:/\d{1,2})?\b", target)
         clean_target = (
-            url_match.group(0) if url_match else (host_match.group(0) if host_match else target)
+            url_match.group(0) if url_match else (host_match.group(0) if host_match else (ip_match.group(0) if ip_match else target))
         )
         steps = []
         for step_def in template:
@@ -632,8 +699,11 @@ class RegistryPlanner:
             all_steps = []
             is_dag = False
             last_step_ids: list[str] = []
-            for intent in intents:
-                sub_plan = self.decompose_goal(intent.raw_text, available_tools)
+            for i, intent in enumerate(intents):
+                # For all sub-commands in a "then" chain, use lightweight matching
+                # to avoid template over-expansion (e.g., "subdomain enumeration"
+                # → 6-step recon_full when only subfinder was intended)
+                sub_plan = self._decompose_lightweight(intent.raw_text, available_tools)
                 
                 # If there are previous steps, make the first steps of THIS intent depend on the last steps of the PREVIOUS intent
                 if last_step_ids and sub_plan.steps:
@@ -665,21 +735,233 @@ class RegistryPlanner:
         goal_lower = goal.lower()
         avail_set = set(available_tools or [])
 
-        # ── Step 0: NLP Semantic Intent Parsing ─────────────────────────
-        intent = self._nlp.parse(goal)
-        target = intent.target
+        # Early target extraction (used by Step 0.5 and later steps)
+        url_match_step0 = re.search(r"(?:https?|tcp|udp|ws|wss)://[^\s]+", goal)
+        host_match_step0 = re.search(r"\b(?:[\w-]+\.)+[a-z]{2,}\b", goal_lower)
+        ip_match_step0 = re.search(r"\b(?:\d{1,3}\.){3}\d{1,3}(?:/\d{1,2})?\b", goal)
+        asn_match_step0 = re.search(r"\bAS\d+\b", goal)
+        target = ""
+        if url_match_step0:
+            target = url_match_step0.group(0)
+        elif host_match_step0:
+            target = host_match_step0.group(0)
+        elif ip_match_step0:
+            target = ip_match_step0.group(0)
+        elif asn_match_step0:
+            target = asn_match_step0.group(0)
 
-        # If NLP engine has high confidence in a template
-        if intent.template_name and intent.confidence > 1.5:
-            return self.create_from_template(
-                intent.template_name,
-                target,
-                overrides={"args": intent.parameters},
-                available_tools=avail_set,
+        # ASN lookup shortcut: if target is an AS number, use whois
+        if asn_match_step0:
+            return self.create_plan(
+                goal=goal,
+                steps=[{"description": "ASN ownership lookup", "tool": "whois", "args": {"target": target}}],
             )
 
-        # If NLP engine has high confidence in a specific tool
-        if intent.tool_name and intent.confidence > 1.5:
+        # ── Step 0.5: Direct tool keyword match (bypasses templates) ───
+        # Runs BEFORE Step 0 NLP so explicit tool names always take priority
+        direct_tool_keywords = {
+            "dcsync": ("impacket-secretsdump", "DCSync attack", "-just-dc"),
+            "kerberoast": ("impacket-GetUserSPNs", "Kerberoasting", "-dc-ip"),
+            "asrep": ("impacket-GetNPUsers", "AS-REP roasting", "-dc-ip -request"),
+            "bloodhound": ("bloodhound-python", "BloodHound AD collector", ""),
+            "zerologon": ("nmap", "Zerologon check", "--script smb-vuln-zerologon -p 445"),
+            "petitpotam": ("nmap", "PetitPotam check", "--script smb-vuln-petitpotam -p 445"),
+            "censys": ("censys", "Censys certificate/device search", ""),
+            "shodan": ("shodan", "Shodan internet device search", "search"),
+            "uncover": ("uncover", "Shodan/Censys search via CLI", ""),
+            "subjack": ("subjack", "Subdomain takeover detection", ""),
+            "interactsh": ("interactsh", "OOB interaction testing client", "-c"),
+            "ssllabs": ("ssllabs-scan", "SSL Labs API scanner", ""),
+            "testssl": ("testssl.sh", "SSL/TLS comprehensive testing", "--full"),
+            "dnsx": ("dnsx", "DNS toolkit and probing", ""),
+            "massdns": ("massdns", "High-speed DNS brute-force resolver", ""),
+            "puredns": ("puredns", "DNS brute-force with wildcard filtering", ""),
+            "cloud_enum": ("cloud_enum", "Cloud storage enumeration", ""),
+            "scoutsuite": ("scoutsuite", "Multi-cloud security auditing", ""),
+            "prowler": ("prowler", "AWS security auditing", ""),
+            "waybackurls": ("waybackurls", "Wayback Machine URL discovery", ""),
+            "gitleaks": ("gitleaks", "Git repository secret scanning", ""),
+            "trufflehog": ("trufflehog", "Git secret scanning", ""),
+            "sherlock": ("sherlock", "Username search across social networks", ""),
+            "holehe": ("holehe", "Email-to-account mapping", ""),
+            "maigret": ("maigret", "Username search engine", ""),
+            "arjun": ("arjun", "HTTP parameter discovery", ""),
+            "paramspider": ("paramspider", "Parameter mining from URLs", ""),
+            "gospider": ("gospider", "Web spider and content discovery", ""),
+            "katana": ("katana", "Web crawler and URL discovery", ""),
+            "theharvester": ("theHarvester", "Email/subdomain OSINT harvesting", ""),
+            "the harvester": ("theHarvester", "Email/subdomain OSINT harvesting", ""),
+            "httpx": ("httpx", "HTTP endpoint probing", ""),
+            "gau": ("gau", "GetAllUrls from Wayback Machine", ""),
+            "testssl": ("testssl.sh", "SSL/TLS comprehensive testing", "--full"),
+            "testssl.sh": ("testssl.sh", "SSL/TLS comprehensive testing", "--full"),
+            "ssllabs": ("ssllabs-scan", "SSL Labs API scanner", ""),
+            "responder": ("responder", "LLMNR/NBT-NS responder", "-I eth0"),
+            "impacket": ("impacket", "Impacket toolkit", ""),
+            "searchsploit": ("searchsploit", "Exploit search", ""),
+            "waybackurls": ("waybackurls", "Wayback Machine URL discovery", ""),
+            "takeover": ("subjack", "Subdomain takeover detection", ""),
+            "nikto": ("nikto", "Web server vulnerability scan", ""),
+            "exposed panel": ("nuclei", "Exposed panel scan", "-t http/exposed-panels"),
+            "ssl labs": ("ssllabs-scan", "SSL Labs API scanner", ""),
+            "labs": ("ssllabs-scan", "SSL Labs API scanner", ""),
+            "secret": ("trufflehog", "Git secret scanning", ""),
+            "amass": ("amass", "Aggressive subdomain discovery", ""),
+            "subfinder": ("subfinder", "Passive subdomain enumeration", ""),
+            "sublist3r": ("sublist3r", "Subdomain search via Sublist3r", ""),
+            "assetfinder": ("assetfinder", "Asset discovery via public sources", ""),
+            "crtsh": ("curl", "Certificate transparency via crt.sh", "-s https://crt.sh/?q=%25.{target}&output=json"),
+            "crt.sh": ("curl", "Certificate transparency via crt.sh", "-s https://crt.sh/?q=%25.{target}&output=json"),
+            "wayback": ("waybackurls", "Wayback Machine URL discovery", ""),
+            "nmap": ("nmap", "Nmap network scanner", "-sT -T4 --top-ports 100"),
+            "whatweb": ("whatweb", "Web technology fingerprinting", ""),
+            "wpscan": ("wpscan", "WordPress vulnerability scanner", ""),
+            "gobuster": ("gobuster", "Directory/file brute force", ""),
+            "ffuf": ("ffuf", "Web fuzzer", ""),
+            "nikto": ("nikto", "Web server vulnerability scanner", ""),
+            "nuclei": ("nuclei", "Template-based vulnerability scanner", ""),
+            "curl": ("curl", "HTTP/S request tool", "-sIL"),
+            "dig": ("dig", "DNS lookup utility", ""),
+            "whois": ("whois", "WHOIS lookup", ""),
+            "openssl": ("openssl", "SSL/TLS certificate inspection", "s_client -connect {target}:443"),
+            "dirb": ("dirb", "Directory brute force tool", ""),
+            "dirsearch": ("dirsearch", "Web path discovery tool", ""),
+            "rustscan": ("rustscan", "Fast port scanner", ""),
+            "naabu": ("naabu", "Fast port scanner", ""),
+        }
+        # ── Step 0.5: Direct tool keyword match ─────────────────────────
+        # Matches explicit tool names in the goal. Early-position keywords
+        # (first 5 words) always match. Late-position keywords only match
+        # if no "comprehensive recon" keywords also appear (to prevent
+        # incidental tool mentions like "including Shodan" from overriding
+        # templates like external_recon).
+        comprehensive_keywords = {"attack surface", "external attack surface",
+            "attack surface mapping", "external recon", "full external",
+            "edge discovery", "external perimeter", "full recon",
+            "comprehensive scan", "comprehensive recon", "full scope",
+            "full audit", "security posture", "digital footprint",
+            "footprint analysis", "osint recon"}
+        has_comprehensive = any(kw in goal_lower for kw in comprehensive_keywords)
+        words = goal_lower.split()
+        best_kw = None
+        best_pos = None
+        best_tool = None
+        best_desc = None
+        best_flags = None
+        # Check for "with {tool}" / "using {tool}" pattern for preference boost
+        with_phrase = re.search(r'\b(?:with|using|via)\s+(\w+)', goal_lower)
+        prefer_tool = with_phrase.group(1) if with_phrase else None
+        for kw, (tool, desc, flags) in direct_tool_keywords.items():
+            if kw in words:
+                pos = words.index(kw)
+                # Boost for "with/using/via" tool (prefer explicitly mentioned tools)
+                if prefer_tool and kw == prefer_tool:
+                    pos = max(0, pos - 10)  # Strong boost
+                # Early position: always match
+                # Late position: only match if no comprehensive keyword also present
+                if pos <= 5 or not has_comprehensive:
+                    if best_pos is None or pos < best_pos:
+                        best_pos = pos
+                        best_kw = kw
+                        best_tool = tool
+                        best_desc = desc
+                        best_flags = flags
+        # Check for multi-word direct tool keywords (e.g., "ct log", "ssl labs")
+        # that can't match via split() word boundary check
+        if not best_kw:
+            multi_word_checks = [
+                ("ct log", "curl", "Certificate transparency log search", "-s https://crt.sh/?q=%25.{target}&output=json"),
+                ("ct logs", "curl", "Certificate transparency log search", "-s https://crt.sh/?q=%25.{target}&output=json"),
+                ("ssl labs", "ssllabs-scan", "SSL Labs API scanner", ""),
+                ("exposed panel", "nuclei", "Exposed panel scan", "-t http/exposed-panels"),
+                ("login page", "nuclei", "Exposed login panel scan", "-t http/exposed-panels"),
+                ("the harvester", "theHarvester", "Email/subdomain OSINT harvesting", ""),
+            ]
+            for kw, tool, desc, flags in multi_word_checks:
+                if kw in goal_lower:
+                    # Skip if comprehensive recon keywords are also present
+                    if has_comprehensive:
+                        continue
+                    best_kw = kw
+                    best_tool = tool
+                    best_desc = desc
+                    best_flags = flags
+                    break
+        if best_kw:
+            # Check for compound tool pattern: "Use/Run {tool1} and {tool2}"
+            compound_match = re.search(
+                r'\b(?:use|run)\s+(\w+)\s+and\s+(\w+)\b',
+                goal_lower
+            )
+            compound_tools = []
+            if compound_match:
+                kw1, kw2 = compound_match.groups()
+                for needle, (tool, desc, flags) in direct_tool_keywords.items():
+                    if needle == kw1 or needle == kw2:
+                        compound_tools.append((tool, desc, flags))
+            if len(compound_tools) >= 2:
+                steps = []
+                for tool, desc, flags in compound_tools:
+                    actual_tool = tool
+                    if tool not in avail_set and tool in TOOL_ALTERNATIVES:
+                        for alt in TOOL_ALTERNATIVES[tool]:
+                            if alt in avail_set:
+                                actual_tool = alt
+                                break
+                    steps.append({"description": desc, "tool": actual_tool, "args": {"target": target, "flags": flags}})
+                return self.create_plan(goal=goal, steps=steps, plan_type=PlanType.DAG)
+
+            actual_tool = best_tool
+            if best_tool not in avail_set and best_tool in TOOL_ALTERNATIVES:
+                for alt in TOOL_ALTERNATIVES[best_tool]:
+                    if alt in avail_set:
+                        actual_tool = alt
+                        break
+            return self.create_plan(
+                goal=goal,
+                steps=[{"description": best_desc, "tool": actual_tool, "args": {"target": target, "flags": best_flags}}],
+            )
+
+        # ── Step 1: Match against named workflow templates ──────────────
+        kw_map = [
+            # Place more specific templates first to prevent over-matching
+            (("ssl", "tls", "cipher suite"), "ssl_audit"),
+            (("http header", "response header", "security header"), "headers_check"),
+            (("cors", "cross-origin", "cross origin", "preflight"), "cors_check"),
+            (("dns recon", "dns enumeration", "dns record", "nameserver", "mx record", "dns resolution"), "dns_recon"),
+            (("subdomain", "subdomain enum", "subdomain discover", "dns enum", "dnsrecon", "subdomain brute"), "recon_full"),
+            (("network scan", "infrastructure scan", "port scan", "full port scan", "open ports", "tcp scan"), "network_scan"),
+            (("brute force", "crack password", "password crack", "credential brute"), "brute_force"),
+            # Specific AD attack tools (before generic ad_assessment)
+            (("dcsync", "dc sync", "domain replication"), "ad_assessment"),
+            (("kerberoast", "kerberoasting"), "ad_assessment"),
+            (("asrep", "as-rep", "asrep roast"), "ad_assessment"),
+            (("bloodhound", "bloodhound collector", "bloodhound-python"), "ad_assessment"),
+            (("zerologon", "zerologon check"), "ad_assessment"),
+            (("petitpotam", "petitpotam check"), "ad_assessment"),
+            # Wireless & Bluetooth (before generic wifi_audit)
+            (("deauth", "deauthentication", "beacon flood", "aireplay"), "wifi_audit"),
+            (("bluetooth", "bt scan", "hci0", "bluez"), "wifi_audit"),
+            (("wifi", "wireless", "wpa", "wpa2", "wep", "handshake"), "wifi_audit"),
+            (("ad ", "active directory", "domain controller"), "ad_assessment"),
+            (("external recon", "external attack surface", "internet scan", "external perimeter", "full external", "edge discovery", "attack surface", "attack surface mapping", "red team", "bug bounty"), "external_recon"),
+            (("osint recon", "open source", "recon-ng", "osint gather", "osint intelligence", "osint assessment", "osint investigation", "osint collection", "osint automation", "deep osint", "full osint", "complete osint", "thorough osint", "target profile", "target profiling", "adversary recon", "reconnaissance lifecycle", "full scope", "tier 1 osint", "osint profiling", "automated recon", "recon pipeline", "continuous recon", "recon automation", "digital footprint", "footprint analysis"), "osint_recon"),
+            (("email recon", "email enum", "email harvest", "smtp enum", "mail server"), "email_recon"),
+            (("cloud audit", "cloud infrastructure", "cloud assets", "cloud storage", "aws", "s3 ", "azure", "gcp"), "cloud_audit"),
+            (("smb enum", "smb", "smb share", "windows share", "cifs", "netbios", "crackmapexec", "netexec", "enum4linux"), "smb_enum"),
+            (("privesc", "privilege escalation", "linux audit", "suid"), "linux_privesc"),
+            (("web audit", "web scan", "website", "webapp", "web app"), "web_audit"),
+            (("vuln scan", "cve scan", "vulnerability scan"), "vuln_scan"),
+            (("passive recon", "passive osint", "passive scan", "passive reconnaissance", "passive intel", "passive intelligence", "passive information", "stealth osint", "non intrusive", "initial access", "pre engagement", "quiet recon"), "passive_recon"),
+            (("full audit", "full scan", "comprehensive scan", "comprehensive recon", "thorough check", "thorough recon", "full recon", "security posture", "pentest", "penetration test", "security assessment", "security audit"), "full_audit"),
+        ]
+        for keywords, template_name in kw_map:
+            if any(kw in goal_lower for kw in keywords):
+                return self.create_from_template(template_name, goal, available_tools=avail_set)
+
+        # ── Step 0: NLP Semantic Intent Parsing (after direct keywords) ──
+        intent = self._nlp.parse(goal)
+        if intent.tool_name and intent.confidence > 3.5:
             actual_tool = intent.tool_name
             if actual_tool not in avail_set and available_tools:
                 for alt in TOOL_ALTERNATIVES.get(actual_tool, []):
@@ -689,7 +971,6 @@ class RegistryPlanner:
             args = {"target": target}
             flags = ""
 
-            # Apply Semantic Parameters
             if actual_tool in ("nmap", "masscan"):
                 if intent.parameters.get("speed") == "fast":
                     flags += "-T4 "
@@ -697,21 +978,18 @@ class RegistryPlanner:
                     flags += "-sS -T2 "
                 else:
                     flags += "-sT -T4 "
-
                 if intent.parameters.get("ports") == "all":
                     flags += "-p- "
                 elif intent.parameters.get("ports"):
                     flags += f"-p {intent.parameters['ports']} "
                 else:
                     flags += "--top-ports 100 "
-
                 if intent.parameters.get("verbose"):
                     flags += "-v "
                 if intent.parameters.get("timeout"):
                     flags += f"--host-timeout {intent.parameters['timeout']} "
                 if intent.parameters.get("format") == "xml":
                     flags += "-oX - "
-
             elif actual_tool == "nuclei":
                 if intent.parameters.get("severity"):
                     flags += f"-s {intent.parameters['severity']} "
@@ -719,7 +997,6 @@ class RegistryPlanner:
                     flags += "-json-export "
                 if intent.parameters.get("timeout"):
                     flags += f"-timeout {intent.parameters['timeout'].replace('s', '')} "
-
             elif actual_tool in ("ffuf", "gobuster"):
                 if intent.parameters.get("timeout"):
                     flags += f"-t {intent.parameters['timeout'].replace('s', '')} "
@@ -739,46 +1016,6 @@ class RegistryPlanner:
                     }
                 ],
             )
-
-        # ── Step 1: Match against named workflow templates ──────────────
-        kw_map = [
-            (("brute", "crack", "password", "credential"), "brute_force"),
-            (("wifi", "wireless", "wpa"), "wifi_audit"),
-            (
-                ("ad ", "active directory", "domain controller", "kerberos", "ldap", "smb"),
-                "ad_assessment",
-            ),
-            (("cloud", "aws", "s3 ", "azure", "gcp"), "cloud_audit"),
-            (("privesc", "privilege escalation", "root", "suid", "linux audit"), "linux_privesc"),
-            (
-                ("network scan", "infrastructure", "port scan", "full scan", "open ports"),
-                "network_scan",
-            ),
-            (("web", "website", "webapp", "web app", "cms"), "web_audit"),
-            (("subdomain", "subdomain", "dns enum", "dnsrecon"), "recon_full"),
-            (("vuln", "cve", "vulnerability", "exploit"), "vuln_scan"),
-            (("dns recon", "dns enum", "dns record", "nameserver", "mx record"), "dns_recon"),
-            (("smb", "netbios", "windows share", "cifs"), "smb_enum"),
-            (("full scan", "full audit", "comprehensive scan", "thorough check"), "full_audit"),
-            (("http header", "response header", "security header"), "headers_check"),
-            (("cors", "cross-origin", "cross origin"), "cors_check"),
-            (("ssl", "tls", "certificate", "https cert", "cipher"), "ssl_audit"),
-        ]
-        for keywords, template_name in kw_map:
-            if any(kw in goal_lower for kw in keywords):
-                return self.create_from_template(template_name, goal, available_tools=avail_set)
-
-        # ── Step 2: Extract target ─────────────────────────────────────
-        url_match = re.search(r"https?://[^\s]+", goal)
-        host_match = re.search(r"\b(?:[\w-]+\.)+[a-z]{2,}\b", goal_lower)
-        ip_match = re.search(r"\b(?:\d{1,3}\.){3}\d{1,3}(?:/\d{1,2})?\b", goal)
-        target = ""
-        if url_match:
-            target = url_match.group(0)
-        elif host_match:
-            target = host_match.group(0)
-        elif ip_match:
-            target = ip_match.group(0)
 
         # ── Step 3: Availability-weighted index search ──────────────────
         tool_match = None
@@ -814,7 +1051,210 @@ class RegistryPlanner:
                 ],
             )
 
+        # ── Step 3.5: Compound vulnerability request ───────────────────
+        # If text mentions multiple specific vuln keywords, use vuln_scan template
+        if target:
+            compound_vuln_keywords = {"log4j", "log4shell", "heartbleed", "shellshock", "shellsock",
+                                       "spring4shell", "struts", "zerologon", "petitpotam"}
+            found_vulns = [kw for kw in compound_vuln_keywords if kw in goal_lower]
+            # Also check for "and" connecting multiple security terms
+            and_vuln_pattern = r"\b(?:log4j|heartbleed|shellshock|cve-\d+|xss|sqli|lfi|rfi|ssrf|idor)\s+and\s+(?:\w+\s+)*\b(?:log4j|heartbleed|shellshock|cve-\d+|xss|sqli|lfi|rfi|ssrf|idor)\b"
+            if len(found_vulns) >= 2 or re.search(and_vuln_pattern, goal_lower):
+                return self.create_from_template("vuln_scan", goal, available_tools=avail_set)
+            # Compound web vuln: open redirect + clickjacking → combine curl + nuclei
+            if "open redirect" in goal_lower and ("clickjack" in goal_lower or "x-frame" in goal_lower):
+                return self.create_plan(
+                    goal=goal,
+                    plan_type=PlanType.DAG,
+                    steps=[
+                        {"description": "Open redirect scan", "tool": "nuclei", "args": {"target": target.replace('https://', '').replace('http://', '').split('/')[0], "flags": "-t http/redirect"}},
+                        {"description": "Clickjacking protection check", "tool": "curl", "args": {"target": target, "flags": "-sI -X OPTIONS"}},
+                    ],
+                )
+
         # ── Step 4: Intent-based tool selection ─────────────────────────
+        # Also try intent matching even without a target (e.g., "find tech stack")
+        if not target:
+            intent_map = {
+                "tech": ("whatweb", "Technology fingerprinting", ""),
+                "framework": ("whatweb", "Technology fingerprinting", ""),
+                "wp": ("wpscan", "WordPress vulnerability scan", ""),
+                "wordpress": ("wpscan", "WordPress vulnerability scan", ""),
+                "cms": ("whatweb", "CMS fingerprinting", ""),
+                "vuln": ("nuclei", "Vulnerability scan", "-t http"),
+                "cve": ("nuclei", "CVE scan", "-t http/cves"),
+                "fuzz": ("ffuf", "Directory fuzzing", f"-w {_COMMON_WORDLIST}"),
+                "directories": ("gobuster", "Directory enumeration", f"dir -w {_COMMON_WORDLIST}"),
+                "dirbust": ("gobuster", "Directory enumeration", f"dir -w {_COMMON_WORDLIST}"),
+                "endpoint": ("gobuster", "Endpoint enumeration", f"dir -w {_COMMON_WORDLIST}"),
+                "sqli": ("sqlmap", "SQL injection scan", "--batch --random-agent"),
+                "sql": ("sqlmap", "SQL injection scan", "--batch --random-agent"),
+                "xss": ("nuclei", "XSS scan", "-t http/xss"),
+                "dns": ("dig", "DNS enumeration", ""),
+                "whois": ("whois", "WHOIS lookup", ""),
+                "searchsploit": ("searchsploit", "Exploit search", ""),
+                "crack": ("hashcat", "Hash cracking", ""),
+                "exploit search": ("searchsploit", "Exploit search", ""),
+                "kerberoast": ("impacket-GetUserSPNs", "Kerberoasting", "-dc-ip"),
+                "asrep": ("impacket-GetNPUsers", "AS-REP roasting", "-dc-ip -request"),
+                "bloodhound": ("bloodhound-python", "BloodHound AD collector", ""),
+                "dcsync": ("impacket-secretsdump", "DCSync attack", "-just-dc"),
+                "zerologon": ("nmap", "Zerologon check", "--script smb-vuln-zerologon -p 445"),
+                "petitpotam": ("nmap", "PetitPotam check", "--script smb-vuln-petitpotam -p 445"),
+                "activemq": ("nmap", "ActiveMQ discovery", "-p 61616,8161"),
+                "deauth": ("aircrack-ng", "Deauthentication attack", ""),
+                "bluetooth": ("bluetoothctl", "Bluetooth device discovery", "scan on"),
+                "ssrf": ("nuclei", "SSRF vulnerability scan", "-t http/ssrf"),
+                "idor": ("nuclei", "IDOR scan", "-t http/idor"),
+                "lfi": ("nuclei", "LFI scan", "-t http/lfi"),
+                "rfi": ("nuclei", "RFI scan", "-t http/rfi"),
+                "clickjack": ("curl", "Clickjacking check", "-sI -X OPTIONS"),
+                "deserialization": ("nuclei", "Insecure deserialization scan", "-t http/deserialization"),
+                "open redirect": ("nuclei", "Open redirect scan", "-t http/redirect"),
+                "broken access": ("nuclei", "Broken access control scan", "-t http/access-control"),
+                "shodan": ("shodan", "Shodan internet device search", "search"),
+                "censys": ("censys", "Censys certificate/device search", ""),
+                "theharvester": ("theHarvester", "Email/subdomain OSINT harvesting", "-b all"),
+                "the harvester": ("theHarvester", "Email/subdomain OSINT harvesting", "-b all"),
+                "google dork": ("curl", "Google dorking search", ""),
+                "gau": ("gau", "Get all URLs from Wayback Machine", ""),
+                "wayback": ("waybackurls", "Wayback Machine URL discovery", ""),
+                "waybackurls": ("waybackurls", "Wayback Machine URL discovery", ""),
+                "httpx": ("httpx", "HTTP endpoint probing", "-status-code -title -tech-detect"),
+                "katana": ("katana", "Web crawler and URL discovery", ""),
+                "gospider": ("gospider", "Web spider and content discovery", "-s"),
+                "uncover": ("uncover", "Shodan/Censys search via CLI", ""),
+                "subjack": ("subjack", "Subdomain takeover detection", ""),
+                "subdomain takeover": ("subjack", "Subdomain takeover detection", ""),
+                "takeover": ("subjack", "Subdomain takeover detection", ""),
+                "trufflehog": ("trufflehog", "Git secret scanning", ""),
+                "gitleaks": ("gitleaks", "Git repository secret scanning", ""),
+                "sherlock": ("sherlock", "Username search across social networks", ""),
+                "holehe": ("holehe", "Email-to-account mapping", ""),
+                "maigret": ("maigret", "Username search engine", ""),
+                "dnsx": ("dnsx", "DNS toolkit and probing", ""),
+                "massdns": ("massdns", "High-speed DNS brute-force resolver", ""),
+                "puredns": ("puredns", "DNS brute-force with wildcard filtering", ""),
+                "arjun": ("arjun", "HTTP parameter discovery", ""),
+                "paramspider": ("paramspider", "Parameter mining from URLs", ""),
+                "cloud_enum": ("cloud_enum", "Cloud storage enumeration", ""),
+                "scoutsuite": ("scoutsuite", "Multi-cloud security auditing", ""),
+                "prowler": ("prowler", "AWS security auditing", ""),
+                "certificate transparency": ("curl", "Certificate transparency log search", "-s https://crt.sh/?q=%25.{target}&output=json"),
+                "crtsh": ("curl", "Certificate transparency log search", "-s https://crt.sh/?q=%25.{target}&output=json"),
+                "crt.sh": ("curl", "Certificate transparency log search", "-s https://crt.sh/?q=%25.{target}&output=json"),
+                "interactsh": ("interactsh", "OOB interaction testing client", "-c"),
+                "testssl": ("testssl.sh", "SSL/TLS comprehensive testing", ""),
+                "ssllabs": ("ssllabs-scan", "SSL Labs API scanner", ""),
+                "email osint": ("theHarvester", "Email OSINT harvesting", "-b all"),
+                "reverse whois": ("whois", "Reverse WHOIS lookup", ""),
+                "asn recon": ("whois", "ASN ownership lookup", ""),
+                "asn": ("whois", "ASN ownership lookup", ""),
+                "gau": ("gau", "GetAllUrls from Wayback Machine", ""),
+                "exposed panel": ("nuclei", "Exposed panel scan", "-t http/exposed-panels"),
+                "nikto": ("nikto", "Web server vulnerability scan", ""),
+                "dork": ("curl", "Google dorking search", ""),
+                "adcs": ("nmap", "AD CS certificate services discovery", "-p 80,443,49443"),
+                "secret": ("trufflehog", "Git secret scanning", ""),
+                "gitleaks": ("gitleaks", "Git repository secret scanning", ""),
+                "asn": ("whois", "ASN ownership lookup", ""),
+                "rdap": ("whois", "RDAP lookup", ""),
+                "registrar": ("whois", "Registrar lookup", ""),
+                "registration": ("whois", "Domain registration lookup", ""),
+                "zone transfer": ("dig", "DNS zone transfer", "AXFR"),
+                "aaaa": ("dig", "AAAA record lookup", ""),
+                "spf": ("dig", "SPF record lookup", "TXT"),
+                "dmarc": ("dig", "DMARC record lookup", "TXT"),
+                "crawl": ("katana", "Web crawling and URL discovery", ""),
+                "spider": ("gospider", "Web spidering and content discovery", "-s"),
+                "url": ("gau", "URL discovery from Wayback Machine", ""),
+                "parameter": ("arjun", "HTTP parameter discovery", ""),
+                "param": ("arjun", "HTTP parameter discovery", ""),
+                "leak": ("trufflehog", "Secret leak detection", ""),
+                "api key": ("trufflehog", "API key secret scanning", ""),
+                "credential": ("trufflehog", "Credential leak detection", ""),
+                "social media": ("sherlock", "Social media profile search", ""),
+                "social network": ("sherlock", "Social network account search", ""),
+                "account": ("sherlock", "Account discovery across platforms", ""),
+                "profile": ("sherlock", "User profile search", ""),
+                "footprint": ("sherlock", "Digital footprint search", ""),
+                "user lookup": ("sherlock", "Username reconnaissance", ""),
+                "digital footprint": ("sherlock", "Digital footprint analysis", ""),
+                "identity": ("sherlock", "Identity OSINT search", ""),
+                "email check": ("holehe", "Email verification", ""),
+                "email verify": ("holehe", "Email verification", ""),
+                "emails": ("theHarvester", "Email OSINT harvesting", "-b all"),
+                "email": ("theHarvester", "Email OSINT harvesting", "-b all"),
+                "container": ("nmap", "Container discovery", "-p 2375,2376"),
+                "joomla": ("whatweb", "Joomla CMS detection", ""),
+                "drupal": ("whatweb", "Drupal CMS detection", ""),
+                "magento": ("whatweb", "Magento CMS detection", ""),
+                "nginx": ("whatweb", "Nginx web server detection", ""),
+                "apache": ("whatweb", "Apache web server detection", ""),
+                "iis": ("whatweb", "IIS web server detection", ""),
+                "tomcat": ("whatweb", "Apache Tomcat detection", ""),
+                "server": ("whatweb", "Web server fingerprinting", ""),
+                "js": ("gospider", "JavaScript file discovery", "-s"),
+                "javascript": ("gospider", "JavaScript endpoint discovery", "-s"),
+                "nmap": ("nmap", "Nmap network scanner", "-sT -T4 --top-ports 100"),
+                "whatweb": ("whatweb", "Web technology fingerprinting", ""),
+                "wpscan": ("wpscan", "WordPress vulnerability scanner", ""),
+                "gobuster": ("gobuster", "Directory/file brute force", ""),
+                "ffuf": ("ffuf", "Web fuzzer", ""),
+                "nikto": ("nikto", "Web server vulnerability scanner", ""),
+                "nuclei": ("nuclei", "Template-based vulnerability scanner", ""),
+                "curl": ("curl", "HTTP/S request tool", "-sIL"),
+                "dig": ("dig", "DNS lookup utility", ""),
+                "openssl": ("openssl", "SSL/TLS certificate inspection", "s_client -connect {target}:443"),
+                "dirb": ("dirb", "Directory brute force tool", ""),
+                "dirsearch": ("dirsearch", "Web path discovery tool", ""),
+                "rustscan": ("rustscan", "Fast port scanner", ""),
+                "naabu": ("naabu", "Fast port scanner", ""),
+                "alive": ("httpx", "HTTP live host probing", "-status-code -title -tech-detect"),
+                "content": ("gobuster", "Content discovery", "dir -w " + _COMMON_WORDLIST),
+                "ct log": ("curl", "Certificate transparency log search", "-s https://crt.sh/?q=%25.{target}&output=json"),
+                "url parameters": ("arjun", "URL parameter discovery", ""),
+                "admin panel": ("nuclei", "Exposed admin panel scan", "-t http/exposed-panels"),
+                "login page": ("nuclei", "Exposed login panel scan", "-t http/exposed-panels"),
+        }
+            GENERIC_KEYWORDS = frozenset({"scan", "run", "do", "get", "find", "check", "test", "list", "show", "explore", "discover", "probe", "http", "url"})
+            matched_keyword = None
+            best_score = -999999
+            for keyword in intent_map:
+                if keyword not in goal_lower:
+                    continue
+                pos = goal_lower.index(keyword)
+                word_starts_at_boundary = (pos == 0 or not goal_lower[pos-1].isalnum())
+                if not word_starts_at_boundary:
+                    continue
+                is_complete_word = (
+                    pos + len(keyword) >= len(goal_lower) or not goal_lower[pos + len(keyword)].isalnum()
+                )
+                score = 10000
+                score += 5000 if is_complete_word else 0
+                score += max(0, 500 - pos) * 20
+                score += len(keyword) * 3
+                if keyword in GENERIC_KEYWORDS:
+                    score -= 50000
+                tool_name = intent_map[keyword][0]
+                if tool_name in goal_lower.split():
+                    score += 50000
+                if score > best_score:
+                    best_score = score
+                    matched_keyword = keyword
+            if matched_keyword:
+                tool, desc, flags = intent_map[matched_keyword]
+                actual_tool = tool
+                if tool not in avail_set and tool in TOOL_ALTERNATIVES:
+                    for alt in TOOL_ALTERNATIVES[tool]:
+                        if alt in avail_set:
+                            actual_tool = alt
+                            break
+                return self.create_plan(
+                    goal=goal,
+                    steps=[{"description": desc, "tool": actual_tool, "args": {"target": "", "flags": flags}}],
+                )
+
         if target:
             intent_map = {
                 "headers": ("curl", "HTTP headers check", "-sIL"),
@@ -877,18 +1317,217 @@ class RegistryPlanner:
                 "gcp": ("curl", "GCP metadata check", "-sI"),
                 "docker": ("nmap", "Docker discovery", "-sT -p 2375,2376"),
                 "k8s": ("nmap", "Kubernetes discovery", "-sT -p 6443,10250,10255"),
+                "kubernetes": ("nmap", "Kubernetes discovery", "-sT -p 6443,10250,10255"),
+                "kube": ("nmap", "Kubernetes discovery", "-sT -p 6443,10250,10255"),
                 "api": ("curl", "API endpoint check", "-s -o /dev/null -w '%{http_code}'"),
                 "waf": ("nmap", "WAF detection", "--script http-waf-detect -p 80,443"),
                 "cdn": ("curl", "CDN detection", "-sI"),
                 "ldap": ("nmap", "LDAP enumeration", "--script ldap-rootdse -p 389"),
                 "kerberos": ("nmap", "Kerberos enumeration", "--script krb5-enum-users -p 88"),
                 "ntlm": ("nmap", "NTLM info", "--script http-ntlm-info -p 80,443"),
-            }
+                "log4j": ("nuclei", "Log4j vulnerability scan", "-t http/exposures -id CVE-2021-44228"),
+                "log4shell": ("nuclei", "Log4Shell vulnerability scan", "-t http/exposures -id CVE-2021-44228"),
+                "heartbleed": ("nmap", "Heartbleed vulnerability check", "--script ssl-heartbleed -p 443"),
+                "shellshock": ("nuclei", "Shellshock vulnerability scan", "-t http/shellshock"),
+                "shellsock": ("nuclei", "Shellshock vulnerability scan", "-t http/shellshock"),
+                "spring4shell": ("nuclei", "Spring4Shell vulnerability scan", "-t http/cves -id CVE-2022-22965"),
+                "springshell": ("nuclei", "Spring4Shell vulnerability scan", "-t http/cves -id CVE-2022-22965"),
+                "struts": ("nuclei", "Apache Struts vulnerability scan", "-t http/cves -id CVE-2017-5638"),
+                "traceroute": ("tracert" if _IS_WIN else "traceroute", "Network traceroute", ""),
+                "tracert": ("tracert" if _IS_WIN else "traceroute", "Network traceroute", ""),
+                "busting": ("gobuster", "Directory busting", f"dir -w {_COMMON_WORDLIST}"),
+                "dirbust": ("gobuster", "Directory busting", f"dir -w {_COMMON_WORDLIST}"),
+                "zone transfer": ("dig", "DNS zone transfer", "AXFR"),
+                "axfr": ("dig", "DNS zone transfer", "AXFR"),
+                "live hosts": ("nmap", "Host discovery", "-sn"),
+                "host discovery": ("nmap", "Host discovery", "-sn"),
+                "ping sweep": ("nmap", "Ping sweep", "-sn"),
+                "up hosts": ("nmap", "Host discovery", "-sn"),
+                "searchsploit": ("searchsploit", "Exploit search", ""),
+                "exploit search": ("searchsploit", "Exploit search", ""),
+                "responder": ("responder", "LLMNR/NBT-NS responder", "-I eth0"),
+                "impacket": ("impacket", "Impacket toolkit", ""),
+                "bloodhound": ("bloodhound-python", "BloodHound AD collector", ""),
+                "zerologon": ("nmap", "Zerologon check", "--script smb-vuln-zerologon -p 445"),
+                "petitpotam": ("nmap", "PetitPotam check", "--script smb-vuln-petitpotam -p 445"),
+                "dcsync": ("impacket-secretsdump", "DCSync attack", "-just-dc"),
+                "kerberoast": ("impacket-GetUserSPNs", "Kerberoasting", "-dc-ip"),
+                "asrep": ("impacket-GetNPUsers", "AS-REP roasting", "-dc-ip -request"),
+                "snmp": ("nmap", "SNMP enumeration", "--script snmp-* -p 161"),
+                "smtp": ("nmap", "SMTP enumeration", "--script smtp-* -p 25,465,587"),
+                "imap": ("nmap", "IMAP enumeration", "--script imap-* -p 143,993"),
+                "redis": ("nmap", "Redis enumeration", "--script redis-info -p 6379"),
+                "mongodb": ("nmap", "MongoDB enumeration", "--script mongodb-* -p 27017"),
+                "mysql": ("nmap", "MySQL enumeration", "--script mysql-* -p 3306"),
+                "mssql": ("nmap", "MSSQL enumeration", "--script ms-sql-* -p 1433"),
+                "elasticsearch": ("nmap", "Elasticsearch discovery", "--script http-title -p 9200"),
+                "memcached": ("nmap", "Memcached discovery", "--script memcached-info -p 11211"),
+                "jenkins": ("nmap", "Jenkins discovery", "-sT -p 8080,8443,50000"),
+                "kafka": ("nmap", "Kafka discovery", "-p 9092,9093"),
+                "postgresql": ("nmap", "PostgreSQL enumeration", "--script pgsql-* -p 5432"),
+                "postgres": ("nmap", "PostgreSQL enumeration", "--script pgsql-* -p 5432"),
+                "rabbitmq": ("nmap", "RabbitMQ discovery", "--script amqp-info -p 5672"),
+                "cassandra": ("nmap", "Cassandra discovery", "--script cassandra-* -p 9042"),
+                "adcs": ("nmap", "AD CS certificate services discovery", "--script http-title -p 80,443,49443"),
+                "graphql": ("curl", "GraphQL introspection", "-s -d '{\"query\":\"{__schema{types{name}}}\"}' http://{target}/graphql"),
+                "swagger": ("curl", "Swagger/OpenAPI discovery", "-s http://{target}/swagger-ui.html"),
+                "websocket": ("curl", "WebSocket upgrade check", "-s -H 'Upgrade: websocket' -H 'Connection: Upgrade' http://{target}"),
+                "oauth": ("nmap", "OAuth endpoint discovery", "--script http-oauth* -p 80,443"),
+                "git": ("curl", "Exposed .git check", "-s http://{target}/.git/HEAD"),
+                ".git": ("curl", "Exposed .git check", "-s http://{target}/.git/HEAD"),
+                "exposed panels": ("nuclei", "Exposed panel scan", "-t http/exposed-panels"),
+                "cve": ("nuclei", "CVE scan", "-t http/cves"),
+                "cve-2021-44228": ("nuclei", "Log4j CVE scan", "-t http/exposures -id CVE-2021-44228"),
+                "cve-2022-22965": ("nuclei", "Spring4Shell CVE scan", "-t http/cves -id CVE-2022-22965"),
+                "cve-2014-6271": ("nuclei", "Shellshock CVE scan", "-t http/shellshock"),
+                "cve-2014-0160": ("nmap", "Heartbleed CVE scan", "--script ssl-heartbleed -p 443"),
+                "cve-2017-5638": ("nuclei", "Struts CVE scan", "-t http/cves -id CVE-2017-5638"),
+                "cve-2023-46604": ("nuclei", "ActiveMQ CVE scan", "-t http/cves -id CVE-2023-46604"),
+                "cve-2023-34362": ("nmap", "MOVEit CVE scan", "--script http-vuln-moveit* -p 80,443"),
+                "ssrf": ("nuclei", "SSRF vulnerability scan", "-t http/ssrf"),
+                "idor": ("nuclei", "IDOR scan", "-t http/idor"),
+                "lfi": ("nuclei", "LFI scan", "-t http/lfi"),
+                "rfi": ("nuclei", "RFI scan", "-t http/rfi"),
+                "clickjack": ("curl", "Clickjacking check", "-sI -X OPTIONS"),
+                "deserialization": ("nuclei", "Insecure deserialization scan", "-t http/deserialization"),
+                "open redirect": ("nuclei", "Open redirect scan", "-t http/redirect"),
+                "broken access": ("nuclei", "Broken access control scan", "-t http/access-control"),
+                "bloodhound": ("bloodhound-python", "BloodHound AD collector", ""),
+                "activemq": ("nmap", "ActiveMQ discovery", "-p 61616,8161"),
+                "deauth": ("aircrack-ng", "Deauthentication attack", ""),
+                "bluetooth": ("bluetoothctl", "Bluetooth device discovery", "scan on"),
+                "shodan": ("shodan", "Shodan internet device search", "search {target}"),
+                "censys": ("censys", "Censys certificate/device search", "--query {target}"),
+                "theharvester": ("theHarvester", "Email/subdomain OSINT harvesting", "-d {target} -b all"),
+                "the harvester": ("theHarvester", "Email/subdomain OSINT harvesting", "-d {target} -b all"),
+                "gau": ("gau", "Get all URLs from Wayback Machine", ""),
+                "httpx": ("httpx", "HTTP endpoint probing", "-u {target} -status-code -title -tech-detect"),
+                "katana": ("katana", "Web crawler and URL discovery", "-u {target}"),
+                "gospider": ("gospider", "Web spider and content discovery", "-s {target}"),
+                "uncover": ("uncover", "Shodan/Censys search via CLI", "--query {target}"),
+                "subjack": ("subjack", "Subdomain takeover detection", "-d {target}"),
+                "trufflehog": ("trufflehog", "Git secret scanning", ""),
+                "gitleaks": ("gitleaks", "Git repository secret scanning", "--path {target}"),
+                "sherlock": ("sherlock", "Username search across social networks", ""),
+                "holehe": ("holehe", "Email-to-account mapping", ""),
+                "maigret": ("maigret", "Username search engine", ""),
+                "dnsx": ("dnsx", "DNS toolkit and probing", "-d {target}"),
+                "massdns": ("massdns", "High-speed DNS brute-force resolver", "-r resolvers.txt -t A {target}"),
+                "puredns": ("puredns", "DNS brute-force with wildcard filtering", "resolve {target}"),
+                "arjun": ("arjun", "HTTP parameter discovery", "-u {target}"),
+                "paramspider": ("paramspider", "Parameter mining from URLs", "-d {target}"),
+                "cloud_enum": ("cloud_enum", "Cloud storage enumeration", "-k {target}"),
+                "scoutsuite": ("scoutsuite", "Multi-cloud security auditing", ""),
+                "prowler": ("prowler", "AWS security auditing", ""),
+                "certificate transparency": ("curl", "Certificate transparency log search", "-s https://crt.sh/?q=%25.{target}&output=json"),
+                "crtsh": ("curl", "Certificate transparency log search", "-s https://crt.sh/?q=%25.{target}&output=json"),
+                "crt.sh": ("curl", "Certificate transparency log search", "-s https://crt.sh/?q=%25.{target}&output=json"),
+                "interactsh": ("interactsh", "OOB interaction testing client", "-c https://{target}"),
+                "testssl": ("testssl.sh", "SSL/TLS comprehensive testing", "--full {target}"),
+                "ssllabs": ("ssllabs-scan", "SSL Labs API scanner", "--host {target}"),
+                "email osint": ("theHarvester", "Email OSINT harvesting", "-d {target} -b all"),
+                "reverse whois": ("whois", "Reverse WHOIS lookup", ""),
+                "asn recon": ("whois", "ASN ownership lookup", "-h {target}"),
+                "wayback": ("waybackurls", "Wayback Machine URL discovery", ""),
+                "waybackurls": ("waybackurls", "Wayback Machine URL discovery", ""),
+                "exposed panel": ("nuclei", "Exposed panel scan", "-t http/exposed-panels"),
+                "takeover": ("subjack", "Subdomain takeover detection", ""),
+                "nikto": ("nikto", "Web server vulnerability scan", ""),
+                "dork": ("curl", "Google dorking search", ""),
+                "http probe": ("httpx", "HTTP endpoint probing", "-status-code -title -tech-detect"),
+                "http parameter": ("arjun", "HTTP parameter discovery", ""),
+                "asn": ("whois", "ASN ownership lookup", ""),
+                "rdap": ("whois", "RDAP lookup", ""),
+                "registrar": ("whois", "Registrar lookup", ""),
+                "registration": ("whois", "Domain registration lookup", ""),
+                "aaaa": ("dig", "AAAA record lookup", ""),
+                "spf": ("dig", "SPF record lookup", "TXT"),
+                "dmarc": ("dig", "DMARC record lookup", "TXT"),
+                "crawl": ("katana", "Web crawling and URL discovery", ""),
+                "spider": ("gospider", "Web spidering and content discovery", "-s"),
+                "url": ("gau", "URL discovery from Wayback Machine", ""),
+                "url discovery": ("gau", "URL discovery from Wayback Machine", ""),
+                "url parameter": ("arjun", "HTTP parameter discovery", ""),
+                "parameter": ("arjun", "HTTP parameter discovery", ""),
+                "param": ("arjun", "HTTP parameter discovery", ""),
+                "leak": ("trufflehog", "Secret leak detection", ""),
+                "credential": ("trufflehog", "Credential leak detection", ""),
+                "social media": ("sherlock", "Social media profile search", ""),
+                "social network": ("sherlock", "Social network account search", ""),
+                "account": ("sherlock", "Account discovery across platforms", ""),
+                "profile": ("sherlock", "User profile search", ""),
+                "footprint": ("sherlock", "Digital footprint search", ""),
+                "identity": ("sherlock", "Identity OSINT search", ""),
+                "email check": ("holehe", "Email verification", ""),
+                "email verify": ("holehe", "Email verification", ""),
+                "emails": ("theHarvester", "Email OSINT harvesting", "-b all"),
+                "email": ("theHarvester", "Email OSINT harvesting", ""),
+                "container": ("nmap", "Container discovery", "-sT -p 2375,2376"),
+                "joomla": ("whatweb", "Joomla CMS detection", ""),
+                "drupal": ("whatweb", "Drupal CMS detection", ""),
+                "magento": ("whatweb", "Magento CMS detection", ""),
+                "nginx": ("whatweb", "Nginx web server detection", ""),
+                "apache": ("whatweb", "Apache web server detection", ""),
+                "iis": ("whatweb", "IIS web server detection", ""),
+                "tomcat": ("whatweb", "Apache Tomcat detection", ""),
+                "server": ("whatweb", "Web server fingerprinting", ""),
+                "js": ("gospider", "JavaScript file discovery", "-s {target}"),
+                "javascript": ("gospider", "JavaScript endpoint discovery", "-s {target}"),
+                "nmap": ("nmap", "Nmap network scanner", "-sT -T4 --top-ports 100"),
+                "whatweb": ("whatweb", "Web technology fingerprinting", ""),
+                "wpscan": ("wpscan", "WordPress vulnerability scanner", ""),
+                "gobuster": ("gobuster", "Directory/file brute force", ""),
+                "ffuf": ("ffuf", "Web fuzzer", ""),
+                "nikto": ("nikto", "Web server vulnerability scanner", ""),
+                "nuclei": ("nuclei", "Template-based vulnerability scanner", ""),
+                "curl": ("curl", "HTTP/S request tool", "-sIL"),
+                "dig": ("dig", "DNS lookup utility", ""),
+                "openssl": ("openssl", "SSL/TLS certificate inspection", "s_client -connect {target}:443"),
+                "dirb": ("dirb", "Directory brute force tool", ""),
+                "dirsearch": ("dirsearch", "Web path discovery tool", ""),
+                "rustscan": ("rustscan", "Fast port scanner", ""),
+                "naabu": ("naabu", "Fast port scanner", ""),
+                "alive": ("httpx", "HTTP live host probing", "-status-code -title -tech-detect"),
+                "content": ("gobuster", "Content discovery", "dir -w " + _COMMON_WORDLIST),
+                "ct log": ("curl", "Certificate transparency log search", "-s https://crt.sh/?q=%25.{target}&output=json"),
+                "url parameters": ("arjun", "URL parameter discovery", ""),
+                "bucket": ("curl", "Cloud storage bucket check", "-sI"),
+                "buckets": ("curl", "Cloud storage bucket check", "-sI"),
+                "admin panel": ("nuclei", "Exposed admin panel scan", "-t http/exposed-panels"),
+                "login page": ("nuclei", "Exposed login panel scan", "-t http/exposed-panels"),
+        }
+            # Score each keyword by position and specificity
             matched_keyword = None
-            for keyword in sorted(intent_map, key=len, reverse=True):
-                if keyword in goal_lower:
+            best_score = -999999
+            GENERIC_KEYWORDS = frozenset({"scan", "run", "do", "get", "find", "check", "test", "list", "show", "explore", "discover", "probe", "http", "url"})
+            for keyword in intent_map:
+                if keyword not in goal_lower:
+                    continue
+                pos = goal_lower.index(keyword)
+                # Word starts at boundary (preceded by space or at start)
+                word_starts_at_boundary = (pos == 0 or not goal_lower[pos-1].isalnum())
+                if not word_starts_at_boundary:
+                    continue  # Skip matches that don't start at word boundary
+                # Check if full keyword matches completely or is a prefix
+                is_complete_word = (
+                    pos + len(keyword) >= len(goal_lower) or not goal_lower[pos + len(keyword)].isalnum()
+                )
+                
+                score = 10000  # Base score for word boundary match
+                score += 5000 if is_complete_word else 0  # Prefer complete word matches over prefixes
+                score += max(0, 500 - pos) * 20  # Position heavily weighted
+                # Specificity bonus: longer keywords are more specific
+                score += len(keyword) * 3
+                # Heavily penalize overly generic keywords
+                if keyword in GENERIC_KEYWORDS:
+                    score -= 50000
+                # Massive bonus if a tool name is mentioned as a word in the text
+                tool_name = intent_map[keyword][0]
+                if tool_name in goal_lower.split():
+                    score += 50000
+                if score > best_score:
+                    best_score = score
                     matched_keyword = keyword
-                    break
             if matched_keyword:
                 tool, desc, flags = intent_map[matched_keyword]
                 actual_tool = tool
@@ -990,6 +1629,335 @@ class RegistryPlanner:
                         "tool": "nmap",
                         "args": {"flags": "-sT -T4 --top-ports 100"},
                     },
+                ],
+            )
+        return self.create_plan(goal=goal)
+
+    def _decompose_lightweight(self, goal: str, available_tools: list[str] | None = None) -> ExecutionPlan:
+        """Lightweight decomposition for sub-commands in 'then' chains.
+        
+        Skips template and NLP expansion to avoid over-expanding
+        (e.g., 'port scan on example.com' → single nmap step, not network_scan template).
+        """
+        goal_lower = goal.lower()
+        avail_set = set(available_tools or [])
+
+        # Early target extraction
+        url_match = re.search(r"(?:https?|tcp|udp|ws|wss)://[^\s]+", goal)
+        host_match = re.search(r"\b(?:[\w-]+\.)+[a-z]{2,}\b", goal_lower)
+        ip_match = re.search(r"\b(?:\d{1,3}\.){3}\d{1,3}(?:/\d{1,2})?\b", goal)
+        asn_match = re.search(r"\bAS\d+\b", goal)
+        target = ""
+        if url_match:
+            target = url_match.group(0)
+        elif host_match:
+            target = host_match.group(0)
+        elif ip_match:
+            target = ip_match.group(0)
+        elif asn_match:
+            target = asn_match.group(0)
+
+        # ASN shortcut
+        if asn_match:
+            return self.create_plan(
+                goal=goal,
+                steps=[{"description": "ASN ownership lookup", "tool": "whois", "args": {"target": target}}],
+            )
+
+        # Step 0.5: Direct tool keyword match
+        direct_tool_keywords = {
+            "nmap": ("nmap", "Nmap network scanner", "-sT -T4 --top-ports 100"),
+            "masscan": ("masscan", "Mass port scanner", ""),
+            "whatweb": ("whatweb", "Web technology fingerprinting", ""),
+            "gobuster": ("gobuster", "Directory/file brute force", ""),
+            "ffuf": ("ffuf", "Web fuzzer", ""),
+            "curl": ("curl", "HTTP/S request tool", "-sIL"),
+            "dig": ("dig", "DNS lookup utility", ""),
+            "whois": ("whois", "WHOIS lookup", ""),
+            "nuclei": ("nuclei", "Template-based vulnerability scanner", ""),
+            "nikto": ("nikto", "Web server vulnerability scanner", ""),
+            "wpscan": ("wpscan", "WordPress vulnerability scanner", ""),
+            "subfinder": ("subfinder", "Passive subdomain enumeration", ""),
+            "amass": ("amass", "Aggressive subdomain discovery", ""),
+            "gau": ("gau", "GetAllUrls from Wayback Machine", ""),
+            "httpx": ("httpx", "HTTP endpoint probing", ""),
+            "katana": ("katana", "Web crawler and URL discovery", ""),
+            "gospider": ("gospider", "Web spider and content discovery", ""),
+            "arjun": ("arjun", "HTTP parameter discovery", ""),
+            "paramspider": ("paramspider", "Parameter mining from URLs", ""),
+            "theharvester": ("theHarvester", "Email/subdomain OSINT harvesting", ""),
+            "the harvester": ("theHarvester", "Email/subdomain OSINT harvesting", ""),
+            "shodan": ("shodan", "Shodan internet device search", "search"),
+            "censys": ("censys", "Censys certificate/device search", ""),
+            "uncover": ("uncover", "Shodan/Censys search via CLI", ""),
+            "subjack": ("subjack", "Subdomain takeover detection", ""),
+            "subdomain": ("subfinder", "Subdomain enumeration", ""),
+            "port scan": ("nmap", "Port scan", "-sT -T4 --top-ports 100"),
+            "directory": ("gobuster", "Directory enumeration", f"dir -w {_COMMON_WORDLIST}"),
+            "takeover": ("subjack", "Subdomain takeover detection", ""),
+            "holehe": ("holehe", "Email-to-account mapping", ""),
+            "sherlock": ("sherlock", "Username search across social networks", ""),
+            "waybackurls": ("waybackurls", "Wayback Machine URL discovery", ""),
+            "puredns": ("puredns", "DNS brute-force with wildcard filtering", ""),
+            "ssl": ("openssl", "SSL/TLS certificate inspection", "s_client -connect {target}:443"),
+            "alive": ("httpx", "HTTP live host probing", "-status-code -title -tech-detect"),
+            "parameter": ("arjun", "HTTP parameter discovery", ""),
+            "parameters": ("arjun", "HTTP parameter discovery", ""),
+            "cloud_enum": ("cloud_enum", "Cloud storage enumeration", ""),
+            "scoutsuite": ("scoutsuite", "Multi-cloud security auditing", ""),
+            "prowler": ("prowler", "AWS security auditing", ""),
+            "gitleaks": ("gitleaks", "Git repository secret scanning", ""),
+            "trufflehog": ("trufflehog", "Git secret scanning", ""),
+            "maigret": ("maigret", "Username search engine", ""),
+            "dirb": ("dirb", "Directory brute force tool", ""),
+            "dirsearch": ("dirsearch", "Web path discovery tool", ""),
+            "rustscan": ("rustscan", "Fast port scanner", ""),
+            "naabu": ("naabu", "Fast port scanner", ""),
+            "interactsh": ("interactsh", "OOB interaction testing client", "-c"),
+            "ssllabs": ("ssllabs-scan", "SSL Labs API scanner", ""),
+            "testssl": ("testssl.sh", "SSL/TLS comprehensive testing", "--full"),
+            "dnsx": ("dnsx", "DNS toolkit and probing", ""),
+            "massdns": ("massdns", "High-speed DNS brute-force resolver", ""),
+            "impacket": ("impacket", "Impacket toolkit", ""),
+            "responder": ("responder", "LLMNR/NBT-NS responder", "-I eth0"),
+            "searchsploit": ("searchsploit", "Exploit search", ""),
+            "bloodhound": ("bloodhound-python", "BloodHound AD collector", ""),
+            "sqlmap": ("sqlmap", "SQL injection scan", "--batch --random-agent"),
+            "sublist3r": ("sublist3r", "Subdomain search via Sublist3r", ""),
+            "assetfinder": ("assetfinder", "Asset discovery via public sources", ""),
+            "crtsh": ("curl", "Certificate transparency via crt.sh", "-s https://crt.sh/?q=%25.{target}&output=json"),
+            "crt.sh": ("curl", "Certificate transparency via crt.sh", "-s https://crt.sh/?q=%25.{target}&output=json"),
+            "hydra": ("hydra", "Brute force authentication", ""),
+            "hashcat": ("hashcat", "Hash cracking tool", ""),
+            "openssl": ("openssl", "SSL/TLS certificate inspection", "s_client -connect {target}:443"),
+            "wayback": ("waybackurls", "Wayback Machine URL discovery", ""),
+            "bucket": ("curl", "Cloud storage bucket check", "-sI"),
+            "buckets": ("curl", "Cloud storage bucket check", "-sI"),
+        }
+        words = goal_lower.split()
+        # Check for "with {tool}" / "using {tool}" pattern for preference boost
+        with_phrase = re.search(r'\b(?:with|using|via)\s+(\w+)', goal_lower)
+        prefer_tool = with_phrase.group(1) if with_phrase else None
+        best_kw = None
+        best_pos = None
+        best_tool = None
+        best_desc = None
+        best_flags = None
+        for kw, (tool, desc, flags) in direct_tool_keywords.items():
+            if kw in words:
+                pos = words.index(kw)
+                if prefer_tool and kw == prefer_tool:
+                    pos = max(0, pos - 10)
+                if best_pos is None or pos < best_pos:
+                    best_pos = pos
+                    best_kw = kw
+                    best_tool = tool
+                    best_desc = desc
+                    best_flags = flags
+        if best_kw:
+            actual_tool = best_tool
+            if best_tool not in avail_set and best_tool in TOOL_ALTERNATIVES:
+                for alt in TOOL_ALTERNATIVES[best_tool]:
+                    if alt in avail_set:
+                        actual_tool = alt
+                        break
+            return self.create_plan(
+                goal=goal,
+                steps=[{"description": best_desc, "tool": actual_tool, "args": {"target": target, "flags": best_flags}}],
+            )
+
+        # Step 3: Availability-weighted index search
+        tool_match = None
+        if available_tools:
+            if self._keyword_index:
+                candidates = self._search_index(goal)
+                for c in candidates:
+                    if c in avail_set:
+                        pattern = r"(?<!\w)" + re.escape(c.lower()) + r"(?!\w)"
+                        if re.search(pattern, goal_lower):
+                            tool_match = c
+                            break
+            if not tool_match:
+                for t in available_tools:
+                    if len(t) < 3:
+                        continue
+                    pattern = r"(?<!\w)" + re.escape(t.lower()) + r"(?!\w)"
+                    if re.search(pattern, goal_lower):
+                        tool_match = t
+                        break
+        if tool_match:
+            return self.create_plan(
+                goal=goal,
+                steps=[
+                    {
+                        "description": f"Execute {tool_match} on {target}",
+                        "tool": tool_match,
+                        "args": {
+                            "target": target,
+                            "flags": "-sT -T4 --top-ports 100" if tool_match == "nmap" else "",
+                        },
+                    }
+                ],
+            )
+
+        # Step 4a: Intent-based tool selection (without target)
+        no_target_intent_map = {
+            "email": ("theHarvester", "Email OSINT harvesting", "-b all"),
+            "emails": ("theHarvester", "Email OSINT harvesting", "-b all"),
+            "urls": ("gau", "URL discovery from Wayback Machine", ""),
+            "url": ("gau", "URL discovery from Wayback Machine", ""),
+            "subdomain": ("subfinder", "Subdomain enumeration", ""),
+            "subdomains": ("subfinder", "Subdomain enumeration", ""),
+            "vulnerabilities": ("nuclei", "Vulnerability scan", "-t http"),
+            "vuln": ("nuclei", "Vulnerability scan", "-t http"),
+            "parameter": ("arjun", "HTTP parameter discovery", ""),
+            "parameters": ("arjun", "HTTP parameter discovery", ""),
+            "ssl": ("openssl", "SSL/TLS certificate inspection", ""),
+            "dns": ("dig", "DNS enumeration", ""),
+            "tech": ("whatweb", "Technology fingerprinting", ""),
+            "framework": ("whatweb", "Technology fingerprinting", ""),
+            "cms": ("whatweb", "CMS fingerprinting", ""),
+            "wp": ("wpscan", "WordPress vulnerability scan", ""),
+            "wordpress": ("wpscan", "WordPress vulnerability scan", ""),
+            "fuzz": ("ffuf", "Directory fuzzing", f"-w {_COMMON_WORDLIST}"),
+            "directories": ("gobuster", "Directory enumeration", f"dir -w {_COMMON_WORDLIST}"),
+            "cve": ("nuclei", "CVE scan", "-t http/cves"),
+            "xss": ("nuclei", "XSS scan", "-t http/xss"),
+            "sqli": ("sqlmap", "SQL injection scan", "--batch --random-agent"),
+            "sql": ("sqlmap", "SQL injection scan", "--batch --random-agent"),
+            "smb": ("nmap", "SMB enumeration", "--script smb-*"),
+            "whois": ("whois", "WHOIS lookup", ""),
+            "header": ("curl", "HTTP headers check", "-sIL"),
+            "headers": ("curl", "HTTP headers check", "-sIL"),
+            "cloud": ("curl", "Cloud asset check", "-sI"),
+            "bucket": ("curl", "Cloud storage bucket check", "-sI"),
+            "buckets": ("curl", "Cloud storage bucket check", "-sI"),
+        }
+        GENERIC_NO_TARGET = frozenset({"scan", "run", "do", "get", "find", "check", "test", "list", "show"})
+        best_score = -999999
+        matched_keyword = None
+        for keyword in no_target_intent_map:
+            if keyword not in goal_lower:
+                continue
+            pos = goal_lower.index(keyword)
+            word_starts_at_boundary = (pos == 0 or not goal_lower[pos-1].isalnum())
+            if not word_starts_at_boundary:
+                continue
+            is_complete_word = (
+                pos + len(keyword) >= len(goal_lower) or not goal_lower[pos + len(keyword)].isalnum()
+            )
+            score = 10000
+            score += 5000 if is_complete_word else 0
+            score += max(0, 500 - pos) * 20
+            score += len(keyword) * 3
+            if keyword in GENERIC_NO_TARGET:
+                score -= 50000
+            tool_name = no_target_intent_map[keyword][0]
+            if tool_name in goal_lower.split():
+                score += 50000
+            if score > best_score:
+                best_score = score
+                matched_keyword = keyword
+        if matched_keyword:
+            tool, desc, flags = no_target_intent_map[matched_keyword]
+            actual_tool = tool
+            if tool not in avail_set and tool in TOOL_ALTERNATIVES:
+                for alt in TOOL_ALTERNATIVES[tool]:
+                    if alt in avail_set:
+                        actual_tool = alt
+                        break
+            return self.create_plan(
+                goal=goal,
+                steps=[{"description": desc, "tool": actual_tool, "args": {"target": target, "flags": flags}}],
+            )
+
+        # Step 4b: Intent-based tool selection (with target)
+        if target:
+            intent_map = {
+                "subdomain": ("subfinder", "Subdomain enumeration", ""),
+                "subdomains": ("subfinder", "Subdomain enumeration", ""),
+                "port": ("nmap", "Port scan", "-sT -T4 --top-ports 100"),
+                "ports": ("nmap", "Port scan", "-sT -T4 --top-ports 100"),
+                "directory": ("gobuster", "Directory enumeration", f"dir -w {_COMMON_WORDLIST}"),
+                "directories": ("gobuster", "Directory enumeration", f"dir -w {_COMMON_WORDLIST}"),
+                "dns": ("dig", "DNS enumeration", ""),
+                "whois": ("whois", "WHOIS lookup", ""),
+                "tech": ("whatweb", "Technology fingerprinting", ""),
+                "header": ("curl", "HTTP headers check", "-sIL"),
+                "headers": ("curl", "HTTP headers check", "-sIL"),
+                "vuln": ("nuclei", "Vulnerability scan", "-t http"),
+                "web": ("whatweb", "Web technology fingerprinting", ""),
+                "takeover": ("subjack", "Subdomain takeover detection", ""),
+                "ssl": ("openssl", "SSL/TLS certificate inspection", "s_client -connect {target}:443"),
+                "parameter": ("arjun", "HTTP parameter discovery", ""),
+                "parameters": ("arjun", "HTTP parameter discovery", ""),
+                "alive": ("httpx", "HTTP live host probing", "-status-code -title -tech-detect"),
+                "bucket": ("curl", "Cloud storage bucket check", "-sI"),
+                "buckets": ("curl", "Cloud storage bucket check", "-sI"),
+                "ct log": ("curl", "Certificate transparency log search", "-s https://crt.sh/?q=%25.{target}&output=json"),
+                "subdomains takeover": ("subjack", "Subdomain takeover detection", ""),
+                "cloud": ("curl", "Cloud asset check", "-sI"),
+                "urls": ("gau", "URL discovery from Wayback Machine", ""),
+                "url": ("gau", "URL discovery from Wayback Machine", ""),
+            }
+            GENERIC_KEYWORDS = frozenset({"scan", "run", "do", "get", "find", "check", "test", "list", "show", "explore", "discover", "probe", "http", "url"})
+            best_score = -999999
+            matched_keyword = None
+            for keyword in intent_map:
+                if keyword not in goal_lower:
+                    continue
+                pos = goal_lower.index(keyword)
+                word_starts_at_boundary = (pos == 0 or not goal_lower[pos-1].isalnum())
+                if not word_starts_at_boundary:
+                    continue
+                is_complete_word = (
+                    pos + len(keyword) >= len(goal_lower) or not goal_lower[pos + len(keyword)].isalnum()
+                )
+                score = 10000
+                score += 5000 if is_complete_word else 0
+                score += max(0, 500 - pos) * 20
+                score += len(keyword) * 3
+                if keyword in GENERIC_KEYWORDS:
+                    score -= 50000
+                tool_name = intent_map[keyword][0]
+                if tool_name in goal_lower.split():
+                    score += 50000
+                if score > best_score:
+                    best_score = score
+                    matched_keyword = keyword
+            if matched_keyword:
+                tool, desc, flags = intent_map[matched_keyword]
+                actual_tool = tool
+                if tool not in avail_set and tool in TOOL_ALTERNATIVES:
+                    for alt in TOOL_ALTERNATIVES[tool]:
+                        if alt in avail_set:
+                            actual_tool = alt
+                            break
+                clean_target = target.replace("https://", "").replace("http://", "").split("/")[0]
+                return self.create_plan(
+                    goal=goal,
+                    steps=[{"description": desc + (f" (via {actual_tool})" if actual_tool != tool else ""),
+                            "tool": actual_tool, "args": {"target": clean_target, "flags": flags}}],
+                )
+
+        # Fallback: single nmap port scan if target present
+        if target:
+            return self.create_plan(
+                goal=goal,
+                steps=[{"description": "Port scan", "tool": "nmap", "args": {"target": target, "flags": "-sT -T4 --top-ports 100"}}],
+            )
+
+        # If no target but has action keywords, return generic probe
+        goal_keywords = {
+            "scan", "recon", "audit", "check", "enum", "enumerate", "analyze", "analyse",
+            "explore", "map", "discover", "probe", "test", "hack", "pentest",
+        }
+        if any(kw in goal_lower.split() for kw in goal_keywords):
+            return self.create_plan(
+                goal=goal,
+                steps=[
+                    {"description": "Technology fingerprinting", "tool": "whatweb", "args": {}},
+                    {"description": "Port scan", "tool": "nmap", "args": {"flags": "-sT -T4 --top-ports 100"}},
                 ],
             )
         return self.create_plan(goal=goal)

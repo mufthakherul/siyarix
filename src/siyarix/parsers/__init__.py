@@ -12,6 +12,7 @@ provides tool → parser lookup for registry-mode execution.
 
 from __future__ import annotations
 
+import importlib
 import logging
 from datetime import UTC, datetime
 from typing import Any, Protocol, runtime_checkable
@@ -178,6 +179,7 @@ class ParserRegistry:
         Discovers both ``BaseParser`` subclasses and any class whose name
         ends with ``Parser`` and implements a ``parse`` method.
         """
+        _lazy_import_parsers()
         for name, obj in list(globals().items()):
             if not isinstance(obj, type):
                 continue
@@ -274,121 +276,54 @@ def _class_to_tool_names(class_name: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Auto-import all parser classes
+# Lazy parser module loading — parsers are imported on first discover() call
 # ---------------------------------------------------------------------------
 
-from .aircrack_parser import AircrackParser  # noqa: F401, E402
-from .amass_parser import AmassParser  # noqa: F401, E402
-from .aquatone_parser import AquatoneParser  # noqa: F401, E402
-from .arachni_parser import ArachniParser  # noqa: F401, E402
-from .arjun_parser import ArjunParser  # noqa: F401, E402
-from .assetfinder_parser import AssetfinderParser  # noqa: F401, E402
-from .aws_parser import AwsParser  # noqa: F401, E402
-from .bandit_parser import BanditParser  # noqa: F401, E402
-from .bettercap_parser import BettercapParser  # noqa: F401, E402
-from .bloodhound_parser import BloodhoundParser  # noqa: F401, E402
-from .bloodhound_python_parser import BloodhoundPythonParser  # noqa: F401, E402
-from .burpsuite_parser import BurpsuiteParser  # noqa: F401, E402
-from .certipy_parser import CertipyParser  # noqa: F401, E402
-from .checkov_parser import CheckovParser  # noqa: F401, E402
-from .commix_parser import CommixParser  # noqa: F401, E402
-from .corsy_parser import CorsyParser  # noqa: F401, E402
-from .crackmapexec_parser import CrackmapexecParser  # noqa: F401, E402
-from .curl_parser import CurlParser  # noqa: F401, E402
-from .dalfox_parser import DalfoxParser  # noqa: F401, E402
-from .dig_parser import DigParser  # noqa: F401, E402
-from .dirb_parser import DirbParser  # noqa: F401, E402
-from .dirsearch_parser import DirsearchParser  # noqa: F401, E402
-from .dmitry_parser import DmitryParser  # noqa: F401, E402
-from .dnsenum_parser import DnsenumParser  # noqa: F401, E402
-from .dnsmap_parser import DnsmapParser  # noqa: F401, E402
-from .dnsrecon_parser import DnsreconParser  # noqa: F401, E402
-from .dnstwist_parser import DnstwistParser  # noqa: F401, E402
-from .dnsx_parser import DnsxParser  # noqa: F401, E402
-from .enum4linux_parser import Enum4linuxParser  # noqa: F401, E402
-from .ettercap_parser import EttercapParser  # noqa: F401, E402
-from .evil_winrm_parser import EvilWinrmParser  # noqa: F401, E402
-from .exiftool_parser import ExiftoolParser  # noqa: F401, E402
-from .feroxbuster_parser import FeroxbusterParser  # noqa: F401, E402
-from .ffuf_parser import FfufParser  # noqa: F401, E402
-from .findomain_parser import FindomainParser  # noqa: F401, E402
-from .finger_parser import FingerParser  # noqa: F401, E402
-from .gau_parser import GauParser  # noqa: F401, E402
-from .gitleaks_parser import GitleaksParser  # noqa: F401, E402
-from .gobuster_parser import GobusterParser  # noqa: F401, E402
-from .gospider_parser import GospiderParser  # noqa: F401, E402
-from .gowitness_parser import GowitnessParser  # noqa: F401, E402
-from .grype_parser import GrypeParser  # noqa: F401, E402
-from .hakrawler_parser import HakrawlerParser  # noqa: F401, E402
-from .hash_identifier_parser import HashIdentifierParser  # noqa: F401, E402
-from .hashcat_parser import HashcatParser  # noqa: F401, E402
-from .httpx_parser import HttpxParser  # noqa: F401, E402
-from .hydra_parser import HydraParser  # noqa: F401, E402
-from .ike_scan_parser import IkeScanParser  # noqa: F401, E402
-from .impacket_parser import ImpacketParser  # noqa: F401, E402
-from .interactsh_parser import InteractshParser  # noqa: F401, E402
-from .john_parser import JohnParser  # noqa: F401, E402
-from .jwt_tool_parser import JwtToolParser  # noqa: F401, E402
-from .katana_parser import KatanaParser  # noqa: F401, E402
-from .kerbrute_parser import KerbruteParser  # noqa: F401, E402
-from .kiterunner_parser import KiterunnerParser  # noqa: F401, E402
-from .kubectl_parser import KubectlParser  # noqa: F401, E402
-from .kxss_parser import KxssParser  # noqa: F401, E402
-from .ldapsearch_parser import LdapsearchParser  # noqa: F401, E402
-from .lynis_parser import LynisParser  # noqa: F401, E402
-from .masscan_parser import MasscanParser  # noqa: F401, E402
-from .massdns_parser import MassdnsParser  # noqa: F401, E402
-from .metasploit_parser import MetasploitParser  # noqa: F401, E402
-from .mimikatz_parser import MimikatzParser  # noqa: F401, E402
-from .naabu_parser import NaabuParser  # noqa: F401, E402
-from .netcat_parser import NetcatParser  # noqa: F401, E402
-from .nikto_parser import NiktoParser  # noqa: F401, E402
-from .nmap_parser import NmapParser  # noqa: F401, E402
-from .nuclei_parser import NucleiParser  # noqa: F401, E402
-from .paramspider_parser import ParamspiderParser  # noqa: F401, E402
-from .prowler_parser import ProwlerParser  # noqa: F401, E402
-from .pypykatz_parser import PypykatzParser  # noqa: F401, E402
-from .recon_ng_parser import ReconNgParser  # noqa: F401, E402
-from .responder_parser import ResponderParser  # noqa: F401, E402
-from .rustscan_parser import RustscanParser  # noqa: F401, E402
-from .s3scanner_parser import S3scannerParser  # noqa: F401, E402
-from .scoutsuite_parser import ScoutsuiteParser  # noqa: F401, E402
-from .searchsploit_parser import SearchsploitParser  # noqa: F401, E402
-from .seatbelt_parser import SeatbeltParser  # noqa: F401, E402
-from .semgrep_parser import SemgrepParser  # noqa: F401, E402
-from .sharphound_parser import SharphoundParser  # noqa: F401, E402
-from .sherlock_parser import SherlockParser  # noqa: F401, E402
-from .shodan_parser import ShodanParser  # noqa: F401, E402
-from .shuffledns_parser import ShufflednsParser  # noqa: F401, E402
-from .smbclient_parser import SmbclientParser  # noqa: F401, E402
-from .smbmap_parser import SmbmapParser  # noqa: F401, E402
-from .smtp_user_enum_parser import SmtpUserEnumParser  # noqa: F401, E402
-from .sqlmap_parser import SqlmapParser  # noqa: F401, E402
-from .ssh_audit_parser import SshAuditParser  # noqa: F401, E402
-from .sslscan_parser import SslscanParser  # noqa: F401, E402
-from .sslyze_parser import SslyzeParser  # noqa: F401, E402
-from .subfinder_parser import SubfinderParser  # noqa: F401, E402
-from .sublist3r_parser import Sublist3rParser  # noqa: F401, E402
-from .syft_parser import SyftParser  # noqa: F401, E402
-from .tcpdump_parser import TcpdumpParser  # noqa: F401, E402
-from .testssl_parser import TestsslParser  # noqa: F401, E402
-from .theharvester_parser import TheharvesterParser  # noqa: F401, E402
-from .trivy_parser import TrivyParser  # noqa: F401, E402
-from .trufflehog_parser import TrufflehogParser  # noqa: F401, E402
-from .volatility_parser import VolatilityParser  # noqa: F401, E402
-from .wafw00f_parser import Wafw00fParser  # noqa: F401, E402
-from .wapiti_parser import WapitiParser  # noqa: F401, E402
-from .waybackurls_parser import WaybackurlsParser  # noqa: F401, E402
-from .wfuzz_parser import WfuzzParser  # noqa: F401, E402
-from .wget_parser import WgetParser  # noqa: F401, E402
-from .whatweb_parser import WhatwebParser  # noqa: F401, E402
-from .whois_parser import WhoisParser  # noqa: F401, E402
-from .wpscan_parser import WpscanParser  # noqa: F401, E402
-from .xsstrike_parser import XsstrikeParser  # noqa: F401, E402
-from .yara_parser import YaraParser  # noqa: F401, E402
-from .zaproxy_parser import ZaproxyParser  # noqa: F401, E402
-from .zgrab_parser import ZgrabParser  # noqa: F401, E402
-from .zmap_parser import ZmapParser  # noqa: F401, E402
+_PARSER_MODULES: list[str] = [
+    "aircrack_parser", "amass_parser", "aquatone_parser", "arachni_parser",
+    "arjun_parser", "assetfinder_parser", "aws_parser", "bandit_parser",
+    "bettercap_parser", "bloodhound_parser", "bloodhound_python_parser",
+    "burpsuite_parser", "certipy_parser", "checkov_parser", "commix_parser",
+    "corsy_parser", "crackmapexec_parser", "curl_parser", "dalfox_parser",
+    "dig_parser", "dirb_parser", "dirsearch_parser", "dmitry_parser",
+    "dnsenum_parser", "dnsmap_parser", "dnsrecon_parser", "dnstwist_parser",
+    "dnsx_parser", "enum4linux_parser", "ettercap_parser", "evil_winrm_parser",
+    "exiftool_parser", "feroxbuster_parser", "ffuf_parser", "findomain_parser",
+    "finger_parser", "gau_parser", "gitleaks_parser", "gobuster_parser",
+    "gospider_parser", "gowitness_parser", "grype_parser", "hakrawler_parser",
+    "hash_identifier_parser", "hashcat_parser", "httpx_parser", "hydra_parser",
+    "ike_scan_parser", "impacket_parser", "interactsh_parser", "john_parser",
+    "jwt_tool_parser", "katana_parser", "kerbrute_parser", "kiterunner_parser",
+    "kubectl_parser", "kxss_parser", "ldapsearch_parser", "lynis_parser",
+    "masscan_parser", "massdns_parser", "metasploit_parser", "mimikatz_parser",
+    "naabu_parser", "netcat_parser", "nikto_parser", "nmap_parser",
+    "nuclei_parser", "paramspider_parser", "prowler_parser", "pypykatz_parser",
+    "recon_ng_parser", "responder_parser", "rustscan_parser", "s3scanner_parser",
+    "scoutsuite_parser", "searchsploit_parser", "seatbelt_parser", "semgrep_parser",
+    "sharphound_parser", "sherlock_parser", "shodan_parser", "shuffledns_parser",
+    "smbclient_parser", "smbmap_parser", "smtp_user_enum_parser", "sqlmap_parser",
+    "ssh_audit_parser", "sslscan_parser", "sslyze_parser", "subfinder_parser",
+    "sublist3r_parser", "syft_parser", "tcpdump_parser", "testssl_parser",
+    "theharvester_parser", "trivy_parser", "trufflehog_parser", "volatility_parser",
+    "wafw00f_parser", "wapiti_parser", "waybackurls_parser", "wfuzz_parser",
+    "wget_parser", "whatweb_parser", "whois_parser", "wpscan_parser",
+    "xsstrike_parser", "yara_parser", "zaproxy_parser", "zgrab_parser", "zmap_parser",
+]
+
+_parsers_loaded = False
+
+
+def _lazy_import_parsers() -> None:
+    global _parsers_loaded
+    if _parsers_loaded:
+        return
+    _parsers_loaded = True
+    for mod_name in _PARSER_MODULES:
+        mod = importlib.import_module(f".{mod_name}", __package__)
+        for attr_name in dir(mod):
+            obj = getattr(mod, attr_name)
+            if isinstance(obj, type) and attr_name.endswith("Parser") and attr_name not in ("BaseParser", "Parser"):
+                globals().setdefault(attr_name, obj)
 
 __all__ = [
     "Parser",

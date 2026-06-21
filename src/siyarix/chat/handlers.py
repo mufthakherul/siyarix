@@ -21,6 +21,7 @@ from .session import ChatSession
 from .ui import ConfigPanel
 from ..subprocess_utils import safe_run_sync
 from .platform_utils import (
+    pip_install_args,
     provider_env_var,
     CROSS_PLATFORM_COMMANDS,
     normalize_shell,
@@ -395,13 +396,7 @@ class CommandHandlersMixin:
                     console.print(f"[dim]Installing {pkg_name} — this may take a moment...[/dim]")
                     try:
                         res = safe_run_sync(
-                            [
-                                sys.executable,
-                                "-m",
-                                "pip",
-                                "install",
-                                pkg_name,
-                            ],
+                            pip_install_args(pkg_name),
                             timeout=600,
                         )
                         if not res.exit_code:

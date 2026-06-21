@@ -313,6 +313,18 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
         self._print_goodbye()
 
+    def _terminal_supports_raw(self) -> bool:
+        """Check if the terminal supports raw mode (required by prompt_toolkit)."""
+        try:
+            import termios
+
+            fd = sys.stdin.fileno()
+            attrs = termios.tcgetattr(fd)
+            termios.tcsetattr(fd, termios.TCSANOW, attrs)
+            return True
+        except Exception:
+            return False
+
     async def _prompt_async(self) -> str:
         """Display the input prompt and read a line."""
         if not sys.stdin.isatty():
@@ -338,6 +350,16 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         provider = self._settings.get("model_provider") or "auto"
         persona = self._settings.get("persona") or "auto"
         session_id = self._session.session_id[:8] if self._session.session_id else ""
+
+        # If terminal doesn't support raw mode, skip prompt_toolkit entirely
+        if not self._terminal_supports_raw():
+            console.print(
+                f"  [dim]{provider} · {self._mode} · {persona} · session: {session_id}{target_info} · {theme} · ? /help[/dim]"
+            )
+            try:
+                return Prompt.ask(prompt_label, default="").strip()
+            except (EOFError, KeyboardInterrupt):
+                return ""
 
         def get_bottom_toolbar() -> Any:
             from prompt_toolkit.formatted_text import HTML

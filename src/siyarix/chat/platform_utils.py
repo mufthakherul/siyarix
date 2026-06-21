@@ -10,6 +10,31 @@ from siyarix.config import get_config_dir
 
 logger = logging.getLogger(__name__)
 
+
+def is_kali_linux() -> bool:
+    """Detect if running on Kali Linux (needs --break-system-packages for pip)."""
+    if _platform.system() != "Linux":
+        return False
+    try:
+        # Check /etc/os-release for ID=kali
+        with open("/etc/os-release") as f:
+            for line in f:
+                if line.strip() == "ID=kali":
+                    return True
+    except (FileNotFoundError, OSError):
+        pass
+    # Fallback: check for Kali-specific motd file
+    return os.path.exists("/etc/kali-motd")
+
+
+def pip_install_args(package: str, *extra: str) -> list[str]:
+    """Build pip install command args, adding --break-system-packages on Kali."""
+    args = [sys.executable, "-m", "pip", "install", package, *extra]
+    if is_kali_linux():
+        args.append("--break-system-packages")
+    return args
+
+
 CROSS_PLATFORM_COMMANDS: dict[str, dict[str, str]] = {
     "nmap_scan": {
         "bash": "nmap -sV {target}",

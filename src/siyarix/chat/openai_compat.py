@@ -351,8 +351,10 @@ def make_client(
 
                 print(msg)
                 if Confirm.ask("Install openai package now?", default=True):
+                    from siyarix.chat.platform_utils import pip_install_args
+
                     r = subprocess.run(
-                        [sys.executable, "-m", "pip", "install", "openai>=2.31.0"],
+                        pip_install_args("openai>=2.31.0"),
                         capture_output=True,
                         text=True,
                         timeout=120,

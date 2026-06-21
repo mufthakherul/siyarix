@@ -54,7 +54,6 @@ from ..branding import available_themes, print_banner
 from ..chat import start_chat, CommandProfile, CommandProfileStore, CROSS_PLATFORM_COMMANDS
 from ..config import SettingsStore, get_config_dir
 from ..compat import IntentRouter, SessionKernel, ExecutionEngine, ExecutionMode
-from ..credential_store import CredentialStore
 from ..registry import ToolRegistry
 from ..exceptions import ValidationError
 from ..health import get_health
@@ -189,24 +188,31 @@ _PROVIDER_ENV_MAP: dict[str, str] = {
     "together": "TOGETHER_API_KEY",
 }
 
-# Load API keys from CredentialStore into environment (in-memory only).
-# Lazy-loaded on first auth command to avoid unnecessary startup delay.
-creds: CredentialStore | None = None
-try:
-    creds = CredentialStore()
-    for provider, env_var in _PROVIDER_ENV_MAP.items():
-        if not os.environ.get(env_var):
-            try:
-                key = creds.retrieve(provider, "api_key")
-                if key:
-                    os.environ[env_var] = key
-            except Exception:
-                logger.debug("API key not available for provider %s", provider)
-except Exception:
-    logger.debug("CredentialStore not available")
-    creds = None
 intent_router = IntentRouter()
 session_kernel = SessionKernel()
+
+
+_creds_store: Any = None
+
+
+def _get_creds() -> Any:
+    global _creds_store
+    if _creds_store is None:
+        try:
+            from ..credential_store import CredentialStore
+            _creds_store = CredentialStore()
+            for provider, env_var in _PROVIDER_ENV_MAP.items():
+                if not os.environ.get(env_var):
+                    try:
+                        key = _creds_store.retrieve(provider, "api_key")
+                        if key:
+                            os.environ[env_var] = key
+                    except Exception:
+                        logger.debug("API key not available for provider %s", provider)
+        except Exception:
+            logger.debug("CredentialStore not available")
+            _creds_store = False
+    return _creds_store if _creds_store else None
 
 
 def _resolve_key(provider: str) -> str:
@@ -214,6 +220,15 @@ def _resolve_key(provider: str) -> str:
     from ..providers import resolve_api_key
 
     env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
+    if not os.environ.get(env_var):
+        cs = _get_creds()
+        if cs:
+            try:
+                key = cs.retrieve(provider, "api_key")
+                if key:
+                    os.environ[env_var] = key
+            except Exception:
+                logger.debug("API key not in credential store for provider %s", provider)
     val = resolve_api_key(provider, env_var) or ""
     if val:
         os.environ[env_var] = val
@@ -224,9 +239,10 @@ def _store_key(provider: str, key: str) -> None:
     """Store API key in CredentialStore and environment."""
     env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
     os.environ[env_var] = key
-    if creds:
+    cs = _get_creds()
+    if cs:
         try:
-            creds.store(provider, key, "api_key")
+            cs.store(provider, key, "api_key")
         except Exception:
             logger.warning("Failed to store API key for provider %s", provider, exc_info=True)
 
@@ -235,9 +251,10 @@ def _delete_key(provider: str) -> None:
     """Delete API key from CredentialStore and environment."""
     env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
     os.environ.pop(env_var, None)
-    if creds:
+    cs = _get_creds()
+    if cs:
         try:
-            creds.delete(provider, "api_key")
+            cs.delete(provider, "api_key")
         except Exception:
             logger.warning("Failed to delete API key for provider %s", provider, exc_info=True)
 
@@ -1541,7 +1558,8 @@ def auth_show() -> None:
 
         env_key = get_provider_env_var(prov)
         from_env = bool(os.getenv(env_key))
-        from_creds = bool(creds.retrieve(prov, "api_key")) if creds else False
+        cs = _get_creds()
+        from_creds = bool(cs.retrieve(prov, "api_key")) if cs else False
         if from_env:
             status, source = "✓ Set", "Environment variable"
         elif from_creds:

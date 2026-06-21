@@ -188,6 +188,20 @@ class ToolInstaller:
         """Install on Linux/macOS. Tries sudo first, falls back to user-only."""
         pm = self._detect_pm()
 
+        # Map common tool names to correct package names per package manager
+        _APT_PKG_MAP = {
+            "metasploit": "metasploit-framework",
+            "impacket": "python3-impacket",
+            "mimikatz": "",  # not in apt repos; skip
+            "exiftool": "libimage-exiftool-perl",
+        }
+        if pm in ("apt", "apt-get"):
+            mapped = _APT_PKG_MAP.get(tool)
+            if mapped == "":
+                self._print(f"  [yellow]{tool} is not available via apt; install manually.[/yellow]")
+                return False
+            pkg = mapped or pkg
+
         if pm in ("apt", "apt-get"):
             self._print("  Updating package index...")
             subprocess.run(

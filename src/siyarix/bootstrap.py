@@ -221,12 +221,13 @@ class BootstrapEngine:
     def auto_install_packages(self, packages: list[str]) -> dict[str, bool]:
         """Auto-install approved packages (T10)."""
         import subprocess  # nosec B404
+        from siyarix.chat.platform_utils import pip_install_args
 
         results: dict[str, bool] = {}
         for pkg in packages:
             try:
                 result = subprocess.run(
-                    [sys.executable, "-m", "pip", "install", pkg],
+                    pip_install_args(pkg),
                     capture_output=True,
                     text=True,
                     timeout=300,

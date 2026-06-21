@@ -2202,10 +2202,12 @@ class OnboardingWizard:
         self._console.print()
 
     def _pip_install(self, package: str) -> bool:
+        from siyarix.chat.platform_utils import pip_install_args
+
         self._console.print(f"  Installing [cyan]{package}[/cyan]...")
         try:
             result = subprocess.run(
-                [sys.executable, "-m", "pip", "install", package, "--quiet"],
+                pip_install_args(package, "--quiet"),
                 capture_output=True,
                 text=True,
                 timeout=300,
@@ -2693,18 +2695,21 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
     def _restart_siyarix() -> None:
         print("\033[2J\033[H", end="", flush=True)
         OnboardingWizard._restore_tty()
+        args = [sys.executable, "-m", "siyarix"] + sys.argv[1:]
         if os.name == "nt":
             creationflags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
             subprocess.Popen(
-                ["start", "cmd", "/c", sys.executable, "-m", "siyarix"] + sys.argv[1:],
+                ["start", "cmd", "/c"] + args,
                 shell=True,  # nosec - required for 'start' on windows but safe here
                 creationflags=creationflags,
             )
+            sys.exit(0)
         else:
-            subprocess.Popen(
-                [sys.executable, "-m", "siyarix"] + sys.argv[1:],
-            )
-        sys.exit(0)
+            try:
+                os.execv(sys.executable, args)
+            except Exception:
+                subprocess.Popen(args)
+                sys.exit(0)
 
 
 __all__ = [

@@ -12,7 +12,10 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .parsers import ParserRegistry
 
 from .events import Event, EventType, emit_sync
 from .exceptions import (
@@ -36,7 +39,7 @@ from .tool_metadata import (
     describe_tool,
     tags_for_tool,
 )
-from .tool_version import detect_version, get_tool_metadata, parallel_detect
+from .tool_version import get_tool_metadata, parallel_detect
 
 from .tool_handlers import (
     make_nmap_handler,

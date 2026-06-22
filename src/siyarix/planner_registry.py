@@ -50,6 +50,440 @@ TOOL_ALTERNATIVES: dict[str, list[str]] = {
 }
 
 
+# Shared multi-word keyword to tool mappings used by both decompose_goal and _decompose_lightweight
+_MULTI_WORD_CHECKS = [
+
+            ("ct log", "curl", "Certificate transparency log search", "-s https://crt.sh/?q=%25.{target}&output=json"),
+            ("ct logs", "curl", "Certificate transparency log search", "-s https://crt.sh/?q=%25.{target}&output=json"),
+            ("ssl labs", "ssllabs-scan", "SSL Labs API scanner", ""),
+            ("exposed panel", "nuclei", "Exposed panel scan", "-t http/exposed-panels"),
+            ("login page", "nuclei", "Exposed login panel scan", "-t http/exposed-panels"),
+            ("the harvester", "theHarvester", "Email/subdomain OSINT harvesting", ""),
+            # ── Blue Team / Defensive NLP patterns ────────────────────
+            ("event log", "wevtutil", "Windows Event Log analysis", "qe Security"),
+            ("failed login", "journalctl", "Failed login detection", "-u sshd"),
+            ("auth log", "journalctl", "Authentication log analysis", "-u sshd"),
+            ("packet capture", "tcpdump", "Network packet capture", "-i eth0 -w capture.pcap"),
+            ("memory forensics", "volatility", "Memory forensics analysis", "-f"),
+            ("malware analysis", "strings", "Malware static analysis", ""),
+            ("reverse engineering", "ghidra", "Reverse engineering", ""),
+            ("forensic analysis", "autopsy", "Digital forensic analysis", ""),
+            ("incident response", "ps", "Incident response evidence collection", "aux"),
+            ("disk analysis", "sleuthkit", "Disk image analysis", ""),
+            ("cis benchmark", "lynis", "CIS benchmark audit", "audit system"),
+            ("endpoint detection", "osquery", "Endpoint detection query", ""),
+            ("threat hunting", "yara", "Threat hunting with YARA", ""),
+            ("sigma rule", "sigmac", "Sigma rule creation", ""),
+            ("vulnerability scan", "nessus", "Vulnerability scanning", ""),
+            ("penetration test", "metasploit", "Penetration testing", ""),
+            ("security audit", "lynis", "Security audit", "audit system"),
+            ("cloud audit", "prowler", "Cloud security audit", ""),
+            ("pcap analysis", "tshark", "PCAP analysis", "-r"),
+            ("network forensics", "tshark", "Network forensic analysis", "-r"),
+            ("disk image", "sleuthkit", "Disk image analysis", ""),
+            ("malware sample", "cape", "Malware sample analysis", ""),
+            ("phishing email", "clamav", "Phishing email scan", ""),
+            ("ransomware detection", "yara", "Ransomware detection", ""),
+            ("forensic evidence", "volatility", "Forensic evidence collection", "-f"),
+            ("legal hold", "dd", "Legal hold evidence preservation", ""),
+            ("misp threat", "curl", "MISP threat intel query", ""),
+            ("ioc in siem", "yara", "IOC-to-SIEM correlation", ""),
+            # ── OS/System / Syslog patterns ───────────────────────────
+            ("check system log", "journalctl", "System log check", ""),
+            ("check system logs", "journalctl", "System log check", ""),
+            ("audit log analysis", "journalctl", "Log analysis", ""),
+            ("parse syslog", "journalctl", "Syslog parsing", ""),
+            ("search syslog", "journalctl", "Syslog search", ""),
+            ("syslog audit", "journalctl", "Syslog audit", ""),
+            ("syslog monitor", "journalctl", "Syslog monitoring", "-f"),
+            ("syslog real", "journalctl", "Real-time syslog tail", "-f"),
+            ("system log", "journalctl", "System log analysis", ""),
+            ("system logs", "journalctl", "System log analysis", ""),
+            ("kernel panic", "journalctl", "Kernel panic log", "-k"),
+            ("ssh brute force", "journalctl", "SSH brute force detection", "-u sshd"),
+            ("ssh authentication", "journalctl", "SSH authentication log", "-u sshd"),
+            ("authentication failure", "journalctl", "Authentication failure log", "-u sshd"),
+            ("failed authentication", "journalctl", "Failed authentication log", "-u sshd"),
+            ("application log", "journalctl", "Application log analysis", "-u"),
+            ("cron job audit", "journalctl", "Cron job audit", "-u cron"),
+            ("kernel message", "journalctl", "Kernel message check", "-k"),
+            ("privilege escalation attempt", "journalctl", "Privilege escalation audit", "-u sshd"),
+            ("brute force detection", "journalctl", "Brute force detection", "-u sshd"),
+            ("blocked connection", "journalctl", "Blocked connection log", "-u firewall"),
+            ("log analysis", "journalctl", "System log analysis", ""),
+            # ── Windows Event Log patterns ─────────────────────────────
+            ("windows security", "wevtutil", "Windows security log analysis", "qe Security"),
+            ("failed password", "wevtutil", "Failed password audit", "qe Security"),
+            ("window event", "wevtutil", "Windows Event Log analysis", "qe Security"),
+            ("windows event", "wevtutil", "Windows Event Log analysis", "qe Security"),
+            ("event log", "wevtutil", "Windows Event Log analysis", "qe Security"),
+            ("event id", "wevtutil", "Windows Event ID search", "qe Security"),
+            ("process creation", "wevtutil", "Process creation event monitoring", "qe Security"),
+            ("account lockout", "wevtutil", "Account lockout event check", "qe Security"),
+            ("logon failure", "wevtutil", "Logon failure analysis", "qe Security"),
+            ("security event", "wevtutil", "Security event log review", "qe Security"),
+            ("user login", "wevtutil", "User login event audit", "qe Security"),
+            ("login event", "wevtutil", "Login event analysis", "qe Security"),
+            ("event 4624", "wevtutil", "Logon event analysis", "qe Security"),
+            ("event 4625", "wevtutil", "Failed logon event analysis", "qe Security"),
+            ("event 4688", "wevtutil", "Process creation event analysis", "qe Security"),
+            ("event 4732", "wevtutil", "Security group member added", "qe Security"),
+            ("event 4720", "wevtutil", "User account creation", "qe Security"),
+            ("event log 4625", "wevtutil", "Failed logon event", "qe Security"),
+            ("security log", "wevtutil", "Security log analysis", "qe Security"),
+            # ── Splunk / SIEM patterns ─────────────────────────────────
+            ("query splunk", "curl", "Splunk query execution", ""),
+            ("search splunk", "curl", "Splunk search", ""),
+            ("splunk alert", "curl", "Splunk alert creation", ""),
+            ("splunk correlation rule", "curl", "Splunk correlation rule", ""),
+            ("splunk query", "curl", "Splunk query", ""),
+            ("splunk search", "curl", "Splunk search", ""),
+            ("splunk detection rule", "curl", "Splunk detection rule", ""),
+            ("splunk dashboard", "curl", "Splunk dashboard creation", ""),
+            ("splunk lookup", "curl", "Splunk lookup table", ""),
+            ("splunk saved search", "curl", "Splunk saved search", ""),
+            ("splunk index", "curl", "Splunk index search", ""),
+            ("splunk report", "curl", "Splunk report creation", ""),
+            # ── Azure Sentinel patterns ────────────────────────────────
+            ("azure sentinel", "curl", "Azure Sentinel query", ""),
+            ("sentinel incident", "curl", "Azure Sentinel incident review", ""),
+            ("sentinel alert", "curl", "Azure Sentinel alert rule", ""),
+            ("sentinel detection rule", "curl", "Azure Sentinel detection rule", ""),
+            ("sentinel analytics", "curl", "Azure Sentinel analytics rule", ""),
+            ("sentinel hunting", "curl", "Azure Sentinel hunting query", ""),
+            # ── Elasticsearch patterns ─────────────────────────────────
+            ("elasticsearch query", "curl", "Elasticsearch query", ""),
+            ("elasticsearch search", "curl", "Elasticsearch search", ""),
+            ("elastic query", "curl", "Elasticsearch query", ""),
+            ("elastic search", "curl", "Elasticsearch search", ""),
+            ("elastic index", "curl", "Elasticsearch index search", ""),
+            # ── QRadar patterns ────────────────────────────────────────
+            ("qradar search", "curl", "QRadar search", ""),
+            ("qradar query", "curl", "QRadar query", ""),
+            ("qradar offense", "curl", "QRadar offense check", ""),
+            ("qradar rule", "curl", "QRadar rule creation", ""),
+            # ── VirusTotal / Threat Intel patterns ─────────────────────
+            ("virustotal", "curl", "VirusTotal hash lookup", ""),
+            ("malware hash", "curl", "Malware hash check", ""),
+            ("file hash check", "curl", "File hash threat lookup", ""),
+            ("ioc indicator", "curl", "IOC indicator check", ""),
+            ("ioc indicators", "curl", "IOC indicator lookup", ""),
+            ("threat intel", "curl", "Threat intelligence lookup", ""),
+            ("threat intelligence", "curl", "Threat intelligence lookup", ""),
+            ("threat feed", "curl", "Threat feed query", ""),
+            ("threat report", "curl", "Threat report query", ""),
+            ("intelligence feed", "curl", "Threat intelligence feed query", ""),
+            ("malicious ip", "curl", "Suspicious IP threat lookup", ""),
+            ("suspicious ip", "curl", "Suspicious IP threat lookup", ""),
+            ("suspicious domain", "curl", "Suspicious domain check", ""),
+            ("domain reputation", "curl", "Domain reputation check", ""),
+            ("otx threat", "curl", "OTX threat intelligence query", ""),
+            ("alienvault", "curl", "AlienVault OTX query", ""),
+            # ── Sigma rules patterns ───────────────────────────────────
+            ("sigma rule", "sigmac", "Sigma rule creation", ""),
+            ("sigma conversion", "sigmac", "Sigma rule conversion", ""),
+            ("sigma query", "sigmac", "Sigma rule creation", ""),
+            ("sigma detection", "sigmac", "Sigma detection rule", ""),
+            ("sigma log", "sigmac", "Sigma log source rule", ""),
+            ("sigma translate", "sigmac", "Sigma rule translation", ""),
+            ("convert sigma", "sigmac", "Sigma rule conversion", ""),
+            ("create sigma", "sigmac", "Sigma rule creation", ""),
+            ("detection rule", "sigmac", "Detection rule creation", ""),
+            # ── YARA rules patterns ────────────────────────────────────
+            ("yara rule", "yara", "YARA rule scanning", ""),
+            ("yara detection", "yara", "YARA detection rule", ""),
+            ("yara scan", "yara", "YARA scan", ""),
+            ("yara file", "yara", "YARA file scan", ""),
+            ("malware pattern", "yara", "YARA pattern matching", ""),
+            # ── Memory / Volatility patterns ───────────────────────────
+            ("memory analysis", "volatility", "Memory analysis", "-f"),
+            ("memory image", "volatility", "Memory image analysis", "-f"),
+            ("memory dump", "volatility", "Memory dump analysis", "-f"),
+            ("memory forensics", "volatility", "Memory forensics analysis", "-f"),
+            ("process hollow", "volatility", "Process hollowing detection", "-f"),
+            ("injected code", "volatility", "Code injection detection", "-f"),
+            ("ransomware memory", "volatility", "Ransomware memory analysis", "-f"),
+            ("process memory", "volatility", "Process memory dump", "-f"),
+            ("registry hive from memory", "volatility", "Registry hive extraction", "-f"),
+            ("hidden process in memory", "volatility", "Hidden process detection", "-f"),
+            ("mimikatz detection", "volatility", "Mimikatz detection in memory", "-f"),
+            ("cobalt strike", "volatility", "Cobalt Strike beacon detection", "-f"),
+            ("beacon detection", "volatility", "Beacon detection in memory", "-f"),
+            # ── Network / PCAP patterns ────────────────────────────────
+            ("pcap analysis", "tshark", "PCAP analysis", "-r"),
+            ("pcap file", "tshark", "PCAP file analysis", "-r"),
+            ("full pcap", "tshark", "Full PCAP analysis", "-r"),
+            ("network capture", "tcpdump", "Network traffic capture", "-i eth0 -w capture.pcap"),
+            ("live traffic", "tcpdump", "Live traffic monitoring", "-i eth0"),
+            ("network traffic", "tcpdump", "Network traffic monitoring", "-i eth0"),
+            ("traffic analysis", "tshark", "Traffic analysis", "-r"),
+            ("dns query analysis", "tshark", "DNS query analysis", "-Y dns -r"),
+            ("dns tunneling", "tshark", "DNS tunneling analysis", "-r"),
+            ("dns exfiltrat", "tshark", "DNS exfiltration detection", "-Y dns -r"),
+            ("data exfiltrat", "tshark", "Data exfiltration detection", "-r"),
+            ("ssl tls handshake", "tshark", "SSL/TLS handshake analysis", "-Y ssl.handshake -r"),
+            ("tcp stream", "tshark", "TCP stream analysis", "-z follow,tcp,ascii"),
+            ("ip conversation", "tshark", "IP conversation analysis", "-z conv,ip"),
+            ("http object", "tshark", "HTTP object extraction", "--export-objects http,"),
+            ("smb traffic", "tshark", "SMB traffic analysis", "-Y smb -r"),
+            ("arp poisoning", "tcpdump", "ARP poisoning detection", "-i eth0 arp"),
+            ("rogue dhcp", "tcpdump", "Rogue DHCP detection", "-i eth0 port 67"),
+            ("netflow", "tshark", "NetFlow analysis", "-r"),
+            ("suspicious connection", "tshark", "Suspicious connection analysis", "-r"),
+            # ── Malware / Binary Analysis patterns ─────────────────────
+            ("malware analysis", "strings", "Malware static analysis", ""),
+            ("malware sample", "strings", "Malware sample analysis", ""),
+            ("suspicious binary", "strings", "Suspicious binary analysis", ""),
+            ("ransomware note", "strings", "Ransom note analysis", ""),
+            ("ransom note", "strings", "Ransom note analysis", ""),
+            ("email attachment", "strings", "Email attachment analysis", ""),
+            ("office macro", "strings", "Office macro analysis", ""),
+            ("vba code", "strings", "VBA code analysis", ""),
+            ("embedded url", "strings", "Embedded URL extraction", ""),
+            ("hardcoded credential", "strings", "Hardcoded credential extraction", ""),
+            ("config data", "strings", "Malware config extraction", ""),
+            ("malware family", "strings", "Malware family identification", ""),
+            ("pe file", "pestudio", "PE file analysis", ""),
+            ("pe structure", "pestudio", "PE structure analysis", ""),
+            ("malicious indicator", "pestudio", "Malicious indicator scan", ""),
+            ("malicious dll", "objdump", "Malicious DLL analysis", ""),
+            ("elf binary", "objdump", "ELF binary analysis", "-d"),
+            ("api call analysis", "objdump", "API call analysis", ""),
+            ("import address", "objdump", "Import address table analysis", "-x"),
+            ("binary analysis", "objdump", "Binary code analysis", "-d"),
+            ("export function", "objdump", "DLL export analysis", "-x"),
+            # ── Reverse Engineering patterns ───────────────────────────
+            ("reverse engineering", "ghidra", "Reverse engineering", ""),
+            ("control flow", "ghidra", "Control flow analysis", ""),
+            ("c2 protocol", "ghidra", "C2 protocol reverse engineering", ""),
+            ("encryption routine", "ghidra", "Encryption routine analysis", ""),
+            (".net decompil", "ghidra", ".NET decompilation", ""),
+            ("memory section", "radare2", "Memory section analysis", ""),
+            ("anti-debug", "radare2", "Anti-debugging analysis", ""),
+            ("packed binary", "radare2", "Packed binary analysis", ""),
+            ("obfuscated algorithm", "radare2", "Algorithm deobfuscation", ""),
+            ("suspicious function", "radare2", "Suspicious function analysis", ""),
+            # ── Incident Response patterns ─────────────────────────────
+            ("incident response", "ps", "incident response evidence collection", "aux"),
+            ("live system", "ps", "Live system evidence collection", "aux"),
+            ("system information", "ps", "System information collection", "aux"),
+            ("timeline reconstruction", "ps", "Incident timeline reconstruction", "aux"),
+            ("suspicious process", "ps", "Suspicious process analysis", "aux"),
+            ("active connection", "netstat", "Active connection analysis", "-ano"),
+            ("network connection", "netstat", "List network connections", "-ano"),
+            ("network exposure", "netstat", "Network exposure audit", "-ano"),
+            ("listening port", "netstat", "Listening port audit", "-ano"),
+            ("running process", "ps", "Running process check", "aux"),
+            # ── Forensics / Disk patterns ──────────────────────────────
+            ("disk image", "sleuthkit", "Disk image analysis", ""),
+            ("disk forensics", "sleuthkit", "Disk forensic analysis", ""),
+            ("forensic analysis", "sleuthkit", "Digital forensic analysis", ""),
+            ("disk analysis", "sleuthkit", "Disk analysis", ""),
+            ("deleted file", "sleuthkit", "Deleted file recovery", ""),
+            ("file system metadata", "sleuthkit", "File system metadata analysis", ""),
+            ("partition table", "sleuthkit", "Partition analysis", ""),
+            ("unallocated space", "sleuthkit", "Unallocated space analysis", ""),
+            ("slack space", "sleuthkit", "Slack space analysis", ""),
+            ("chrome history", "sleuthkit", "Browser history extraction", ""),
+            ("browser history", "sleuthkit", "Browser forensics", ""),
+            ("email artifact", "sleuthkit", "Email artifact extraction", ""),
+            ("prefetch file", "sleuthkit", "Prefetch file analysis", ""),
+            ("memory acquisition", "dd", "Memory acquisition", "if=/proc/kcore"),
+            ("forensic imaging", "dd", "Forensic disk imaging", "if=/dev/sda"),
+            ("forensic disk", "dd", "Forensic disk imaging", "if=/dev/sda"),
+            ("capture memory", "dd", "Memory acquisition", "if=/proc/kcore"),
+            ("legal hold", "dd", "Legal hold evidence preservation", ""),
+            ("preserve evidence", "wevtutil", "Evidence preservation", "qe Security"),
+            ("forensic evidence", "volatility", "Forensic evidence collection", "-f"),
+            # ── System Hardening / CIS patterns ────────────────────────
+            ("cis benchmark", "lynis", "CIS benchmark audit", "audit system"),
+            ("hardening audit", "lynis", "System hardening audit", "audit system"),
+            ("security baseline", "lynis", "Security baseline check", "audit system"),
+            ("lynis audit", "lynis", "System audit via Lynis", "audit system"),
+            ("openscap scan", "openscap", "OpenSCAP compliance scan", "oval eval"),
+            ("compliance scan", "openscap", "Compliance scan", "oval eval"),
+            ("oval scan", "openscap", "OVAL compliance scan", "oval eval"),
+            ("soc2", "openscap", "SOC2 compliance scan", "oval eval"),
+            ("pci dss", "openscap", "PCI DSS compliance scan", "oval eval"),
+            ("hipaa", "openscap", "HIPAA compliance scan", "oval eval"),
+            ("gdpr", "openscap", "GDPR compliance scan", "oval eval"),
+            ("nist 800", "openscap", "NIST 800-53 compliance scan", "oval eval"),
+            ("sox compliance", "net", "SOX compliance audit", "user"),
+            ("iso 27001", "openscap", "ISO 27001 compliance scan", "oval eval"),
+            ("access control audit", "openscap", "Access control audit", "oval eval"),
+            ("logging mechanism audit", "openscap", "Logging mechanism audit", "oval eval"),
+            # ── File Integrity / Detection patterns ────────────────────
+            ("file integrity", "aide", "File integrity check", "--check"),
+            ("aide check", "aide", "File integrity via AIDE", "--check"),
+            ("tripwire check", "tripwire", "Tripwire integrity check", "--check"),
+            ("unauthorized change", "aide", "Unauthorized change detection", "--check"),
+            ("rollback change", "aide", "File change rollback", "--check"),
+            ("rootkit detection", "chkrootkit", "Rootkit detection scan", "-q"),
+            ("chkrootkit scan", "chkrootkit", "Rootkit scan via chkrootkit", "-q"),
+            ("rkhunter check", "rkhunter", "Rootkit check via rkhunter", "--check"),
+            ("kernel module check", "lsmod", "Kernel module audit", ""),
+            ("loadable kernel", "lsmod", "Loadable kernel module check", ""),
+            # ── Endpoint Detection patterns ────────────────────────────
+            ("endpoint detection", "osquery", "Endpoint detection query", ""),
+            ("osquery query", "osquery", "Endpoint query via osquery", ""),
+            ("osquery scan", "osquery", "Endpoint scan via osquery", ""),
+            ("antivirus scan", "clamav", "Antivirus scan", ""),
+            ("clamav scan", "clamav", "ClamAV scan", ""),
+            ("malware scan", "clamav", "Malware scan", ""),
+            ("viru scan", "clamav", "Virus scan", ""),
+            # ── Disk Encryption patterns ───────────────────────────────
+            ("disk encryption", "cryptsetup", "Disk encryption verification", "luksStatus"),
+            ("luks check", "cryptsetup", "LUKS encryption status", "luksStatus"),
+            ("encryption check", "cryptsetup", "Encryption verification", "luksStatus"),
+            ("backup encrypted", "cryptsetup", "Backup encryption check", "luksStatus"),
+            # ── Cloud Security patterns ────────────────────────────────
+            ("cloud security", "prowler", "Cloud security audit", ""),
+            ("prowler scan", "prowler", "Cloud audit via Prowler", ""),
+            ("aws security", "prowler", "AWS security audit", ""),
+            # ── Windows AD / Service patterns ──────────────────────────
+            ("password policy", "net", "Password policy audit", "accounts"),
+            ("domain controller audit", "net", "Domain controller audit", "group \"Domain Controllers\""),
+            ("ad domain", "net", "AD domain audit", "user /domain"),
+            ("domain admin group", "net", "Domain admin group audit", "group \"Domain Admins\""),
+            ("service account", "net", "Service account review", "user /domain"),
+            ("password never expires", "net", "Password expiry audit", "user"),
+            ("stale user account", "net", "Stale account audit", "user"),
+            ("user right audit", "secedit", "User rights assignment", ""),
+            ("windows service", "sc", "Windows service audit", "query"),
+            ("suspicious driver", "sc", "Suspicious driver check", "query"),
+            ("scheduled task", "schtasks", "Scheduled task audit", ""),
+            ("process creation", "wevtutil", "Process creation event monitoring", "qe Security"),
+            # ── Honeypot patterns ──────────────────────────────────────
+            ("deploy honeypot", "cat", "Honeypot deployment", ""),
+            ("honeypot deployment", "cat", "Honeypot deployment", ""),
+            ("cowrie honeypot", "cat", "Cowrie SSH honeypot", ""),
+            ("cowrie ssh", "cat", "Cowrie SSH honeypot", ""),
+            ("web honeypot", "cat", "Web application honeypot", ""),
+            ("honey file", "cat", "Honey file monitoring", ""),
+            ("monitor honeypot", "cat", "Honeypot log monitoring", ""),
+            ("honeypot log", "cat", "Honeypot log analysis", ""),
+            # ── Backup / DR patterns ───────────────────────────────────
+            ("backup verification", "cat", "Backup verification", ""),
+            ("backup integrity", "cat", "Backup integrity check", ""),
+            ("backup replication", "cat", "Backup replication check", ""),
+            ("backup retention", "cat", "Backup retention check", ""),
+            ("backup log", "cat", "Backup log check", ""),
+            ("verify backup", "cat", "Backup verification", ""),
+            ("verify logging", "cat", "Logging configuration check", ""),
+            # ── Database Security patterns ─────────────────────────────
+            ("database security", "cat", "Database security audit", ""),
+            ("database user", "cat", "Database user audit", ""),
+            ("database permission", "cat", "Database permission review", ""),
+            ("database audit log", "cat", "Database audit log analysis", ""),
+            # ── Patch Management patterns ──────────────────────────────
+            ("patch compliance", "nuclei", "Patch compliance audit", ""),
+            ("patch deployment", "nuclei", "Patch deployment verification", ""),
+            ("missing patch", "nuclei", "Missing security patch scan", ""),
+            ("unpatched vulnerability", "nuclei", "Unpatched vulnerability scan", ""),
+            ("deployment status", "nuclei", "Deployment status check", ""),
+            ("reboot status", "cat", "Reboot status check", ""),
+            ("kernel version", "cat", "Kernel version check", ""),
+            # ── Container Security patterns ────────────────────────────
+            ("container security", "curl", "Container security audit", ""),
+            ("docker image", "curl", "Docker image vulnerability scan", ""),
+            ("docker daemon", "cat", "Docker daemon security audit", ""),
+            ("kubernetes rbac", "curl", "Kubernetes RBAC audit", ""),
+            ("pod security", "curl", "Pod security standard audit", ""),
+            ("container runtime", "cat", "Container runtime security audit", ""),
+            # ── Network Security patterns ──────────────────────────────
+            ("firewall rule", "iptables", "Firewall rule check", "-L -n -v"),
+            ("block outbound", "iptables", "Block outbound traffic", "-A OUTPUT -j DROP"),
+            ("block malicious", "iptables", "Block malicious IP", "-A INPUT -s"),
+            ("isolate host", "iptables", "Host isolation", "-A INPUT -j DROP"),
+            ("quarantine host", "iptables", "Host quarantine", "-A INPUT -j DROP"),
+            ("disable account", "net", "Disable user account", "user"),
+            ("disable compromised", "net", "Disable compromised account", "user"),
+            # ── Additional catch-all patterns ──────────────────────────
+            ("verify certificate", "openssl", "Certificate verification", "x509"),
+            ("verify logging", "cat", "Logging configuration check", ""),
+            ("failover procedure", "cat", "Disaster recovery failover test", ""),
+            ("bare metal restore", "cat", "Bare metal restore test", ""),
+            ("secure boot", "cat", "Secure boot verification", ""),
+            ("tpm configuration", "cat", "TPM configuration check", ""),
+            ("sudoers audit", "cat", "Sudoers audit", ""),
+            ("sql injection detection", "cat", "SQL injection log check", ""),
+            ("connection string", "cat", "Connection string review", ""),
+            ("embedded domain", "strings", "Embedded domain extraction", ""),
+            ("network blocking", "iptables", "Network blocking from IOCs", ""),
+            # ── MISP / Threat Platform patterns ────────────────────────
+            ("misp query", "curl", "MISP query", ""),
+            ("misp event", "curl", "MISP event lookup", ""),
+            ("misp ioc", "curl", "MISP IOC lookup", ""),
+            ("misp feed", "curl", "MISP feed check", ""),
+            ("threat intel platform", "curl", "Threat intelligence platform query", ""),
+            ("triage collection", "volatility", "Triage collection", "-f"),
+            ("compromised host", "volatility", "Compromised host analysis", "-f"),
+            # ── Original red team multi-word patterns ─────────────────
+            ("gpp password", "nmap", "GPP password check in SYSVOL", "--script smb-enum-gpp -p 445"),
+            ("gpp passwords", "nmap", "GPP password check in SYSVOL", "--script smb-enum-gpp -p 445"),
+            ("domain trust", "nmap", "Domain trust enumeration", "--script smb-enum-domains -p 445"),
+            ("domain trusts", "nmap", "Domain trust enumeration", "--script smb-enum-domains -p 445"),
+            ("sid history", "nmap", "SID history enumeration", "--script smb-enum-sessions -p 445"),
+            ("lsa secret", "reg", "Extract LSA secrets from registry", "save HKLM\\SECURITY"),
+            ("lsa secrets", "reg", "Extract LSA secrets from registry", "save HKLM\\SECURITY"),
+            ("password spray", "hydra", "Password spraying attack", ""),
+            ("password spraying", "hydra", "Password spraying attack", ""),
+            ("owa password", "hydra", "OWA password spraying", ""),
+            ("wmi connection", "impacket-wmiexec", "WMI remote execution", ""),
+            ("reverse tunnel", "chisel", "Reverse tunnel setup", "client"),
+            ("ssh tunnel", "ssh", "SSH tunnel setup", "-R"),
+            ("scheduled task", "schtasks", "Create scheduled task", "/create /tn updater /tr"),
+            ("golden ticket", "mimikatz", "Forge golden ticket", "kerberos::golden"),
+            ("silver ticket", "mimikatz", "Forge silver ticket", "kerberos::silver"),
+            ("cross-forest", "nmap", "Cross-forest trust enumeration", "--script smb-enum-domains -p 445"),
+            ("cross forest", "nmap", "Cross-forest trust enumeration", "--script smb-enum-domains -p 445"),
+            ("proxy chain", "proxychains", "Proxy chain setup", ""),
+            ("domain fronting", "nginx", "Domain fronting setup", ""),
+            ("suid binary", "find", "SUID binary discovery", "/ -perm -4000 -type f 2>/dev/null"),
+            ("suid binaries", "find", "SUID binary discovery", "/ -perm -4000 -type f 2>/dev/null"),
+            ("world writable", "find", "World-writable file search", "/ -writable -type d 2>/dev/null"),
+            ("world-writable", "find", "World-writable file search", "/ -writable -type d 2>/dev/null"),
+            ("cron job", "cat", "Cron job inspection", ""),
+            ("cron jobs", "cat", "Cron job inspection", ""),
+            ("cron path", "cat", "Cron path inspection", ""),
+            ("cron paths", "cat", "Cron path inspection", ""),
+            ("authorized key", "ssh", "SSH authorized_keys backdoor", ""),
+            ("authorized_keys", "ssh", "SSH authorized_keys backdoor", ""),
+            ("systemd service", "systemctl", "Manage systemd service", ""),
+            ("registry run", "reg", "Add registry Run key", 'add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'),
+            ("windows service", "sc", "Windows service audit", "query"),
+            ("suspicious driver", "sc", "Suspicious driver check", "query"),
+            ("privilege escalation", "cat", "Privilege escalation audit", ""),
+            ("default password", "crackmapexec", "Default password check", ""),
+            ("email security", "dig", "Email security configuration audit", ""),
+            ("content discovery", "gobuster", "Web content discovery", "dir -w " + _COMMON_WORDLIST),
+            ("mass port", "masscan", "Mass port scanner", ""),
+            ("ad user", "nmap", "AD user enumeration", "--script ldap-search -p 389"),
+            ("ad users", "nmap", "AD user enumeration", "--script ldap-search -p 389"),
+            ("full ad assessment", "nmap", "Full AD security assessment", "--script ldap-search -p 389"),
+            # ── Additional patterns to cover blue team test goals ───────
+            ("monitor syslog", "journalctl", "Real-time syslog monitoring", "-f"),
+            ("search elastic", "curl", "Elasticsearch search", ""),
+            ("dmz traffic", "tcpdump", "DMZ traffic capture", "-i eth0 -w capture.pcap"),
+            ("dmz interface", "tcpdump", "DMZ interface packet capture", "-i eth0 -w capture.pcap"),
+            ("on the dmz", "tcpdump", "DMZ network capture", "-i eth0 -w capture.pcap"),
+            ("windows registry", "reg", "Windows registry query", "query"),
+            ("forensic triage", "volatility", "Forensic triage collection", "-f"),
+            ("block all outbound", "iptables", "Block all outbound traffic", "-A OUTPUT -j DROP"),
+            ("static analysis", "strings", "Static analysis of binary", ""),
+            ("sandbox analysis", "cape", "Sandbox analysis", ""),
+            ("sandbox environment", "cape", "Sandbox environment analysis", ""),
+            ("through the sandbox", "cape", "Sandbox execution analysis", ""),
+            ("lsass dump", "volatility", "LSASS dump detection", "-f"),
+            ("soc 2", "openscap", "SOC 2 compliance scan", "oval eval"),
+            ("database backup", "cat", "Database backup verification", ""),
+            ("disaster recovery plan", "cat", "Disaster recovery validation", ""),
+            ("failover test", "cat", "Failover test", ""),
+            ("canary token", "cat", "Canary token deployment", ""),
+            ("database backup encryption", "cryptsetup", "Database backup encryption check", "luksStatus"),
+        ]
+
+
 class RegistryPlanner:
     """Heuristic planner using templates, keyword index, and intent matching.
 
@@ -551,7 +985,26 @@ class RegistryPlanner:
     # ── Core planning ─────────────────────────────────────────────────────
 
     def plan(self, goal: str, available_tools: list[str] | None = None) -> ExecutionPlan:
-        """Main entry point — decompose a user goal into an execution plan."""
+        """Main entry point — decompose a user goal into an execution plan.
+
+        Priority order:
+        1. **CLS high-confidence skill** (≥ 70% confidence) — fastest path, uses learned patterns.
+        2. **NLP-guided decomposition** via :meth:`decompose_goal`.
+        """
+        # ── CLS Learned Skill Pre-check ───────────────────────────────────────────
+        try:
+            from .learning_system import get_learning_system
+            _cls = get_learning_system()
+            _skill = _cls.query_skill(goal, min_confidence=0.70)
+            if _skill:
+                _plan = self._plan_from_learned_skill(_skill, goal, available_tools)
+                if _plan and _plan.steps:
+                    _plan.context["cls_source"] = _skill.skill_id
+                    _plan.context["cls_confidence"] = _skill.confidence
+                    return _plan
+        except Exception as _exc:  # pragma: no cover
+            import logging as _log
+            _log.getLogger(__name__).debug("CLS pre-check failed (registry): %s", _exc)
         return self.decompose_goal(goal, available_tools)
 
     def smart_plan(self, text: str, available_tools: list[str] | None = None) -> ExecutionPlan:
@@ -560,8 +1013,19 @@ class RegistryPlanner:
         Uses the trained NaturalLanguageParser to extract intent, target,
         and parameters from natural language. Falls back to decompose_goal()
         when confidence is low or no template matches.
+
+        The NLP parser is injected with CLS-learned synonyms and corpus entries
+        before scoring so that learned vocabulary improves intent matching.
         """
         avail_set = set(available_tools or [])
+
+        # Inject CLS knowledge into NLP before parsing
+        try:
+            from .learning_system import get_learning_system
+            get_learning_system().inject_into_nlp(self._nlp)
+        except Exception:
+            pass
+
         intent = self._nlp.parse(text)
 
         context = {
@@ -588,6 +1052,71 @@ class RegistryPlanner:
                 pass
 
         return self.decompose_goal(text, available_tools)
+
+    def _plan_from_learned_skill(
+        self,
+        skill: Any,
+        goal: str,
+        available_tools: list[str] | None = None,
+    ) -> ExecutionPlan | None:
+        """Build an :class:`ExecutionPlan` from a CLS :class:`~siyarix.learning_system.LearnedSkill`.
+
+        Extracts the real target from *goal* (same logic as :meth:`decompose_goal`),
+        replaces ``{target}`` placeholders in every step, and assembles an
+        :class:`ExecutionPlan`.
+
+        Returns ``None`` if the skill has no steps or the plan would be empty.
+        """
+        if not skill or not skill.steps:
+            return None
+
+        # Extract real target from goal
+        target = ""
+        url_m = re.search(r"(?:https?|tcp|udp)://[^\s]+", goal)
+        host_m = re.search(r"\b(?:[\w-]+\.)+[a-z]{2,}\b", goal, re.IGNORECASE)
+        ip_m = re.search(r"\b(?:\d{1,3}\.){3}\d{1,3}(?:/\d{1,2})?\b", goal)
+        if url_m:
+            target = url_m.group(0)
+        elif host_m:
+            target = host_m.group(0)
+        elif ip_m:
+            target = ip_m.group(0)
+
+        avail_set = set(available_tools or [])
+        try:
+            from .learning_system import get_learning_system
+            step_dicts = get_learning_system().instantiate_skill(skill, target)
+        except Exception:
+            return None
+
+        plan_steps: list[PlanStep] = []
+        for i, s in enumerate(step_dicts):
+            tool = s.get("tool", "")
+            # Apply TOOL_ALTERNATIVES if needed
+            if tool and tool not in avail_set and tool in TOOL_ALTERNATIVES:
+                for alt in TOOL_ALTERNATIVES[tool]:
+                    if alt in avail_set:
+                        tool = alt
+                        break
+            plan_steps.append(
+                PlanStep(
+                    id=f"cls_{i:03d}",
+                    description=s.get("description", f"Step {i + 1}"),
+                    tool=tool,
+                    command=s.get("command", ""),
+                    args=s.get("args", {}),
+                )
+            )
+
+        if not plan_steps:
+            return None
+
+        return ExecutionPlan(
+            goal=goal,
+            steps=plan_steps,
+            plan_type=PlanType.SEQUENTIAL,
+            context={"source": "learned_skill", "skill_id": skill.skill_id},
+        )
 
     def create_plan(
         self,
@@ -793,13 +1322,10 @@ class RegistryPlanner:
             "the harvester": ("theHarvester", "Email/subdomain OSINT harvesting", ""),
             "httpx": ("httpx", "HTTP endpoint probing", ""),
             "gau": ("gau", "GetAllUrls from Wayback Machine", ""),
-            "testssl": ("testssl.sh", "SSL/TLS comprehensive testing", "--full"),
             "testssl.sh": ("testssl.sh", "SSL/TLS comprehensive testing", "--full"),
-            "ssllabs": ("ssllabs-scan", "SSL Labs API scanner", ""),
             "responder": ("responder", "LLMNR/NBT-NS responder", "-I eth0"),
             "impacket": ("impacket", "Impacket toolkit", ""),
             "searchsploit": ("searchsploit", "Exploit search", ""),
-            "waybackurls": ("waybackurls", "Wayback Machine URL discovery", ""),
             "takeover": ("subjack", "Subdomain takeover detection", ""),
             "nikto": ("nikto", "Web server vulnerability scan", ""),
             "exposed panel": ("nuclei", "Exposed panel scan", "-t http/exposed-panels"),
@@ -818,7 +1344,6 @@ class RegistryPlanner:
             "wpscan": ("wpscan", "WordPress vulnerability scanner", ""),
             "gobuster": ("gobuster", "Directory/file brute force", ""),
             "ffuf": ("ffuf", "Web fuzzer", ""),
-            "nikto": ("nikto", "Web server vulnerability scanner", ""),
             "nuclei": ("nuclei", "Template-based vulnerability scanner", ""),
             "curl": ("curl", "HTTP/S request tool", "-sIL"),
             "dig": ("dig", "DNS lookup utility", ""),
@@ -828,6 +1353,45 @@ class RegistryPlanner:
             "dirsearch": ("dirsearch", "Web path discovery tool", ""),
             "rustscan": ("rustscan", "Fast port scanner", ""),
             "naabu": ("naabu", "Fast port scanner", ""),
+            # ── Blue Team / Defensive tools ────────────────────────────
+            "journalctl": ("journalctl", "Linux system log analysis", "-u"),
+            "wevtutil": ("wevtutil", "Windows Event Log management", "qe Security"),
+            "tcpdump": ("tcpdump", "Network packet capture", "-i eth0 -w capture.pcap"),
+            "tshark": ("tshark", "Packet capture analysis", "-r"),
+            "zeek": ("zeek", "Network security monitoring", ""),
+            "suricata": ("suricata", "IDS/IPS engine", "-c /etc/suricata/suricata.yaml"),
+            "snort": ("snort", "Network intrusion detection", "-q -A console"),
+            "yara": ("yara", "Malware pattern matching", ""),
+            "sigmac": ("sigmac", "Sigma rule converter", ""),
+            "volatility": ("volatility", "Memory forensics framework", "-f"),
+            "autopsy": ("autopsy", "Digital forensics platform", ""),
+            "sleuthkit": ("sleuthkit", "Forensic analysis toolkit", ""),
+            "strings": ("strings", "Extract strings from binary files", ""),
+            "ghidra": ("ghidra", "Reverse engineering framework", ""),
+            "radare2": ("radare2", "Reverse engineering toolkit", ""),
+            "objdump": ("objdump", "Binary disassembly and analysis", "-d"),
+            "lynis": ("lynis", "Security auditing tool", "audit system"),
+            "openscap": ("openscap", "Compliance and vulnerability scanning", "oval eval"),
+            "aide": ("aide", "File integrity monitoring", "--check"),
+            "tripwire": ("tripwire", "File integrity checking", "--check"),
+            "chkrootkit": ("chkrootkit", "Rootkit detection scanner", "-q"),
+            "rkhunter": ("rkhunter", "Rootkit hunter scanner", "--check"),
+            "osquery": ("osquery", "Endpoint querying via SQL", ""),
+            "clamav": ("clamav", "Antivirus scanning engine", ""),
+            "cape": ("cape", "Malware sandbox analysis", ""),
+            "pestudio": ("pestudio", "PE file analysis tool", ""),
+            "cryptsetup": ("cryptsetup", "Disk encryption management", "luksStatus"),
+            "lsmod": ("lsmod", "List loaded kernel modules", ""),
+            "secedit": ("secedit", "Windows security policy editor", "/export"),
+            "Get-WinEvent": ("wevtutil", "Windows Event Log query via PowerShell", ""),
+            "schtasks": ("schtasks", "Windows scheduled task management", "/query"),
+            "netstat": ("netstat", "Network connection listing", "-ano"),
+            "iptables": ("iptables", "Firewall rule management", "-L -n -v"),
+            "splunk": ("splunk", "SIEM platform query", ""),
+            "elasticsearch": ("curl", "Elasticsearch data store query", ""),
+            "sentinel": ("sentinel", "Azure Sentinel SIEM query", ""),
+            "qradar": ("curl", "QRadar SIEM query", ""),
+            "misp": ("curl", "MISP threat intelligence platform", ""),
         }
         # ── Step 0.5: Direct tool keyword match ─────────────────────────
         # Matches explicit tool names in the goal. Early-position keywords
@@ -866,27 +1430,6 @@ class RegistryPlanner:
                         best_tool = tool
                         best_desc = desc
                         best_flags = flags
-        # Check for multi-word direct tool keywords (e.g., "ct log", "ssl labs")
-        # that can't match via split() word boundary check
-        if not best_kw:
-            multi_word_checks = [
-                ("ct log", "curl", "Certificate transparency log search", "-s https://crt.sh/?q=%25.{target}&output=json"),
-                ("ct logs", "curl", "Certificate transparency log search", "-s https://crt.sh/?q=%25.{target}&output=json"),
-                ("ssl labs", "ssllabs-scan", "SSL Labs API scanner", ""),
-                ("exposed panel", "nuclei", "Exposed panel scan", "-t http/exposed-panels"),
-                ("login page", "nuclei", "Exposed login panel scan", "-t http/exposed-panels"),
-                ("the harvester", "theHarvester", "Email/subdomain OSINT harvesting", ""),
-            ]
-            for kw, tool, desc, flags in multi_word_checks:
-                if kw in goal_lower:
-                    # Skip if comprehensive recon keywords are also present
-                    if has_comprehensive:
-                        continue
-                    best_kw = kw
-                    best_tool = tool
-                    best_desc = desc
-                    best_flags = flags
-                    break
         if best_kw:
             # Check for compound tool pattern: "Use/Run {tool1} and {tool2}"
             compound_match = re.search(
@@ -931,7 +1474,7 @@ class RegistryPlanner:
             (("dns recon", "dns enumeration", "dns record", "nameserver", "mx record", "dns resolution"), "dns_recon"),
             (("subdomain", "subdomain enum", "subdomain discover", "dns enum", "dnsrecon", "subdomain brute"), "recon_full"),
             (("network scan", "infrastructure scan", "port scan", "full port scan", "open ports", "tcp scan"), "network_scan"),
-            (("brute force", "crack password", "password crack", "credential brute"), "brute_force"),
+            (("brute force", "crack password", "password crack", "credential brute", "crack the password"), "brute_force"),
             # Specific AD attack tools (before generic ad_assessment)
             (("dcsync", "dc sync", "domain replication"), "ad_assessment"),
             (("kerberoast", "kerberoasting"), "ad_assessment"),
@@ -958,6 +1501,30 @@ class RegistryPlanner:
         for keywords, template_name in kw_map:
             if any(kw in goal_lower for kw in keywords):
                 return self.create_from_template(template_name, goal, available_tools=avail_set)
+
+        # ── Step 0.5: Multi-word direct tool keywords fallback ──────────
+        # Runs after template matching so named workflows take priority
+        # over broader substring patterns.
+        for kw, tool, desc, flags in _MULTI_WORD_CHECKS:
+            if kw in goal_lower:
+                if has_comprehensive:
+                    continue
+                best_kw = kw
+                best_tool = tool
+                best_desc = desc
+                best_flags = flags
+                break
+        if best_kw:
+            actual_tool = best_tool
+            if best_tool not in avail_set and best_tool in TOOL_ALTERNATIVES:
+                for alt in TOOL_ALTERNATIVES[best_tool]:
+                    if alt in avail_set:
+                        actual_tool = alt
+                        break
+            return self.create_plan(
+                goal=goal,
+                steps=[{"description": best_desc, "tool": actual_tool, "args": {"target": target, "flags": best_flags}}],
+            )
 
         # ── Step 0: NLP Semantic Intent Parsing (after direct keywords) ──
         intent = self._nlp.parse(goal)
@@ -1150,14 +1717,11 @@ class RegistryPlanner:
                 "reverse whois": ("whois", "Reverse WHOIS lookup", ""),
                 "asn recon": ("whois", "ASN ownership lookup", ""),
                 "asn": ("whois", "ASN ownership lookup", ""),
-                "gau": ("gau", "GetAllUrls from Wayback Machine", ""),
                 "exposed panel": ("nuclei", "Exposed panel scan", "-t http/exposed-panels"),
                 "nikto": ("nikto", "Web server vulnerability scan", ""),
                 "dork": ("curl", "Google dorking search", ""),
                 "adcs": ("nmap", "AD CS certificate services discovery", "-p 80,443,49443"),
                 "secret": ("trufflehog", "Git secret scanning", ""),
-                "gitleaks": ("gitleaks", "Git repository secret scanning", ""),
-                "asn": ("whois", "ASN ownership lookup", ""),
                 "rdap": ("whois", "RDAP lookup", ""),
                 "registrar": ("whois", "Registrar lookup", ""),
                 "registration": ("whois", "Domain registration lookup", ""),
@@ -1201,7 +1765,6 @@ class RegistryPlanner:
                 "wpscan": ("wpscan", "WordPress vulnerability scanner", ""),
                 "gobuster": ("gobuster", "Directory/file brute force", ""),
                 "ffuf": ("ffuf", "Web fuzzer", ""),
-                "nikto": ("nikto", "Web server vulnerability scanner", ""),
                 "nuclei": ("nuclei", "Template-based vulnerability scanner", ""),
                 "curl": ("curl", "HTTP/S request tool", "-sIL"),
                 "dig": ("dig", "DNS lookup utility", ""),
@@ -1336,7 +1899,6 @@ class RegistryPlanner:
                 "traceroute": ("tracert" if _IS_WIN else "traceroute", "Network traceroute", ""),
                 "tracert": ("tracert" if _IS_WIN else "traceroute", "Network traceroute", ""),
                 "busting": ("gobuster", "Directory busting", f"dir -w {_COMMON_WORDLIST}"),
-                "dirbust": ("gobuster", "Directory busting", f"dir -w {_COMMON_WORDLIST}"),
                 "zone transfer": ("dig", "DNS zone transfer", "AXFR"),
                 "axfr": ("dig", "DNS zone transfer", "AXFR"),
                 "live hosts": ("nmap", "Host discovery", "-sn"),
@@ -1376,7 +1938,6 @@ class RegistryPlanner:
                 "git": ("curl", "Exposed .git check", "-s http://{target}/.git/HEAD"),
                 ".git": ("curl", "Exposed .git check", "-s http://{target}/.git/HEAD"),
                 "exposed panels": ("nuclei", "Exposed panel scan", "-t http/exposed-panels"),
-                "cve": ("nuclei", "CVE scan", "-t http/cves"),
                 "cve-2021-44228": ("nuclei", "Log4j CVE scan", "-t http/exposures -id CVE-2021-44228"),
                 "cve-2022-22965": ("nuclei", "Spring4Shell CVE scan", "-t http/cves -id CVE-2022-22965"),
                 "cve-2014-6271": ("nuclei", "Shellshock CVE scan", "-t http/shellshock"),
@@ -1392,7 +1953,6 @@ class RegistryPlanner:
                 "deserialization": ("nuclei", "Insecure deserialization scan", "-t http/deserialization"),
                 "open redirect": ("nuclei", "Open redirect scan", "-t http/redirect"),
                 "broken access": ("nuclei", "Broken access control scan", "-t http/access-control"),
-                "bloodhound": ("bloodhound-python", "BloodHound AD collector", ""),
                 "activemq": ("nmap", "ActiveMQ discovery", "-p 61616,8161"),
                 "deauth": ("aircrack-ng", "Deauthentication attack", ""),
                 "bluetooth": ("bluetoothctl", "Bluetooth device discovery", "scan on"),
@@ -1478,7 +2038,6 @@ class RegistryPlanner:
                 "wpscan": ("wpscan", "WordPress vulnerability scanner", ""),
                 "gobuster": ("gobuster", "Directory/file brute force", ""),
                 "ffuf": ("ffuf", "Web fuzzer", ""),
-                "nikto": ("nikto", "Web server vulnerability scanner", ""),
                 "nuclei": ("nuclei", "Template-based vulnerability scanner", ""),
                 "curl": ("curl", "HTTP/S request tool", "-sIL"),
                 "dig": ("dig", "DNS lookup utility", ""),
@@ -1733,6 +2292,44 @@ class RegistryPlanner:
             "wayback": ("waybackurls", "Wayback Machine URL discovery", ""),
             "bucket": ("curl", "Cloud storage bucket check", "-sI"),
             "buckets": ("curl", "Cloud storage bucket check", "-sI"),
+            # ── Blue Team / Defensive tools ────────────────────────────
+            "journalctl": ("journalctl", "Linux system log analysis", "-u"),
+            "wevtutil": ("wevtutil", "Windows Event Log management", "qe Security"),
+            "tcpdump": ("tcpdump", "Network packet capture", "-i eth0 -w capture.pcap"),
+            "tshark": ("tshark", "Packet capture analysis", "-r"),
+            "zeek": ("zeek", "Network security monitoring", ""),
+            "suricata": ("suricata", "IDS/IPS engine", "-c /etc/suricata/suricata.yaml"),
+            "snort": ("snort", "Network intrusion detection", "-q -A console"),
+            "yara": ("yara", "Malware pattern matching", ""),
+            "sigmac": ("sigmac", "Sigma rule converter", ""),
+            "volatility": ("volatility", "Memory forensics framework", "-f"),
+            "autopsy": ("autopsy", "Digital forensics platform", ""),
+            "sleuthkit": ("sleuthkit", "Forensic analysis toolkit", ""),
+            "ghidra": ("ghidra", "Reverse engineering framework", ""),
+            "radare2": ("radare2", "Reverse engineering toolkit", ""),
+            "objdump": ("objdump", "Binary disassembly and analysis", "-d"),
+            "lynis": ("lynis", "Security auditing tool", "audit system"),
+            "openscap": ("openscap", "Compliance and vulnerability scanning", "oval eval"),
+            "aide": ("aide", "File integrity monitoring", "--check"),
+            "tripwire": ("tripwire", "File integrity checking", "--check"),
+            "chkrootkit": ("chkrootkit", "Rootkit detection scanner", "-q"),
+            "rkhunter": ("rkhunter", "Rootkit hunter scanner", "--check"),
+            "osquery": ("osquery", "Endpoint querying via SQL", ""),
+            "clamav": ("clamav", "Antivirus scanning engine", ""),
+            "cape": ("cape", "Malware sandbox analysis", ""),
+            "pestudio": ("pestudio", "PE file analysis tool", ""),
+            "cryptsetup": ("cryptsetup", "Disk encryption management", "luksStatus"),
+            "lsmod": ("lsmod", "List loaded kernel modules", ""),
+            "secedit": ("secedit", "Windows security policy editor", "/export"),
+            "Get-WinEvent": ("wevtutil", "Windows Event Log query via PowerShell", ""),
+            "schtasks": ("schtasks", "Windows scheduled task management", "/query"),
+            "netstat": ("netstat", "Network connection listing", "-ano"),
+            "iptables": ("iptables", "Firewall rule management", "-L -n -v"),
+            "strings": ("strings", "Extract strings from binary files", ""),
+            "tail": ("tail", "Real-time log tailing", "-f"),
+            "sc": ("sc", "Windows service control manager", "query"),
+            "reg": ("reg", "Windows registry management", "query"),
+            "misp": ("curl", "MISP threat intelligence platform", ""),
         }
         words = goal_lower.split()
         # Check for "with {tool}" / "using {tool}" pattern for preference boost
@@ -1765,6 +2362,20 @@ class RegistryPlanner:
                 goal=goal,
                 steps=[{"description": best_desc, "tool": actual_tool, "args": {"target": target, "flags": best_flags}}],
             )
+
+        # Step 2b: Multi-word keyword fallback (shared list)
+        for kw, tool, desc, flags in _MULTI_WORD_CHECKS:
+            if kw in goal_lower:
+                actual_tool = tool
+                if tool not in avail_set and tool in TOOL_ALTERNATIVES:
+                    for alt in TOOL_ALTERNATIVES[tool]:
+                        if alt in avail_set:
+                            actual_tool = alt
+                            break
+                return self.create_plan(
+                    goal=goal,
+                    steps=[{"description": desc, "tool": actual_tool, "args": {"target": target, "flags": flags}}],
+                )
 
         # Step 3: Availability-weighted index search
         tool_match = None

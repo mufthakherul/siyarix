@@ -332,7 +332,6 @@ def make_client(
     and applies any provider-specific client customizations.
     """
     import subprocess
-    import sys
 
     for _attempt in range(2):
         try:

@@ -287,6 +287,9 @@ class AutonomousExecutor(BaseExecutor):
             with Live(refresh_per_second=10, screen=False) as live:
                 while not done_set:
                     await asyncio.sleep(0.1)
+                    if exec_task.done():
+                        done_set = True
+                        break
                     if cmd_states[focus_idx].done:
                         unfinished = [i for i, st in enumerate(cmd_states) if not st.done]
                         if unfinished:

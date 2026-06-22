@@ -193,6 +193,29 @@ class RegistryExecutor(BaseExecutor):
         if not self._registry or not step.tool:
             return {"status": "error", "error": f"No executor for: {step.tool}"}
 
+        # Guardrail checks
+        if step.tool:
+            fail_count = self._tracker._failure_counts.get(step.tool, 0)
+            if fail_count >= self._tracker._config.exact_failure_block_after:
+                return {
+                    "status": "error",
+                    "error": f"BLOCKED: {step.tool} failed {fail_count} times",
+                    "tool": step.tool,
+                }
+            consecutive = self._tracker._consecutive_same.get(step.tool, 0)
+            if consecutive >= self._tracker._config.same_tool_failure_halt_after:
+                return {
+                    "status": "error",
+                    "error": f"HALTED: {step.tool} called {consecutive} times consecutively",
+                    "tool": step.tool,
+                }
+            if self._tracker._no_progress_count >= self._tracker._config.no_progress_block_after:
+                return {
+                    "status": "error",
+                    "error": f"BLOCKED: No progress for {self._tracker._no_progress_count} calls",
+                    "tool": step.tool,
+                }
+
         if self._permission_gate:
             await self._check_permissions(step)
         if not self._budget.consume_tool_call():
@@ -356,6 +379,9 @@ class RegistryExecutor(BaseExecutor):
         return plan
 
 
+Executor = RegistryExecutor
+
 __all__ = [
     "RegistryExecutor",
+    "Executor",
 ]

@@ -50,11 +50,13 @@ atexit.register(_restore_tty)
 def _signal_restore_tty(*_: Any) -> None:
     _restore_tty()
 
-for _sig in (signal.SIGTERM, signal.SIGHUP):
-    try:
-        signal.signal(_sig, _signal_restore_tty)
-    except Exception:
-        pass
+for _sig_name in ("SIGTERM", "SIGHUP"):
+    _sig = getattr(signal, _sig_name, None)
+    if _sig is not None:
+        try:
+            signal.signal(_sig, _signal_restore_tty)
+        except Exception:
+            pass
 
 
 class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):

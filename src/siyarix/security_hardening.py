@@ -45,6 +45,7 @@ __all__ = [
     "SecretRedactor",
     "DangerAnalyzer",
     "DangerReport",
+    "SeccompProfile",
     "validator",
     "redactor",
     "danger_analyzer",
@@ -761,6 +762,104 @@ class DangerAnalyzer:
             return "safe"
         reason_texts = ", ".join(r.split("] ", 1)[1] if "] " in r else r for r in report.reasons)
         return f"{report.severity.upper()}: {reason_texts}"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════
+# SeccompProfile
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class SeccompProfile:
+    """Generate seccomp profiles for sandboxed execution.
+
+    Provides a Docker-compatible seccomp JSON profile that restricts
+    dangerous syscalls while allowing normal tool execution.
+    """
+
+    _DEFAULT_PROFILE: dict[str, Any] = {
+        "defaultAction": "SCMP_ACT_ALLOW",
+        "architectures": ["SCMP_ARCH_X86_64", "SCMP_ARCH_X86", "SCMP_ARCH_AARCH64"],
+        "syscalls": [
+            {
+                "names": [
+                    "acct",
+                    "add_key",
+                    "bpf",
+                    "clock_adjtime",
+                    "clock_settime",
+                    "create_module",
+                    "delete_module",
+                    "finit_module",
+                    "get_kernel_syms",
+                    "get_mempolicy",
+                    "init_module",
+                    "ioperm",
+                    "iopl",
+                    "kcmp",
+                    "kexec_file_load",
+                    "kexec_load",
+                    "keyctl",
+                    "lookup_dcookie",
+                    "mbind",
+                    "mount",
+                    "move_pages",
+                    "name_to_handle_at",
+                    "nfsservctl",
+                    "open_by_handle_at",
+                    "perf_event_open",
+                    "personality",
+                    "pivot_root",
+                    "process_vm_readv",
+                    "process_vm_writev",
+                    "ptrace",
+                    "query_module",
+                    "quotactl",
+                    "reboot",
+                    "request_key",
+                    "setdomainname",
+                    "sethostname",
+                    "setns",
+                    "set_mempolicy",
+                    "settimeofday",
+                    "stime",
+                    "swapoff",
+                    "swapon",
+                    "sysfs",
+                    "syslog",
+                    "umount",
+                    "umount2",
+                    "unshare",
+                    "uselib",
+                    "userfaultfd",
+                    "ustat",
+                    "vm86old",
+                    "vm86",
+                ],
+                "action": "SCMP_ACT_ERRNO",
+            },
+        ],
+    }
+
+    @classmethod
+    def generate_docker_seccomp(cls) -> str:
+        """Generate a Docker-compatible seccomp profile JSON file.
+
+        Returns the path to the generated profile file, which is cached
+        in the application's temp directory.
+        """
+        import json
+        import tempfile
+        from pathlib import Path
+
+        profile_dir = Path(tempfile.gettempdir()) / "siyarix" / "seccomp"
+        profile_dir.mkdir(parents=True, exist_ok=True)
+        profile_path = profile_dir / "docker_seccomp.json"
+
+        if not profile_path.exists():
+            profile_path.write_text(json.dumps(cls._DEFAULT_PROFILE, indent=2))
+
+        return str(profile_path)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

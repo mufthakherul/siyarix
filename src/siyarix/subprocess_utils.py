@@ -7,12 +7,9 @@ Supports sync and async subprocess execution with:
 - Timeout enforcement with forced process termination
 - Streaming output via callbacks
 - Cross-platform process cleanup (orphan child-process tracking)
-
-Note on URL-encoded inputs
-    Shell-metacharacter detection operates on raw string values.
-    Command parts are **not** expected to be URL-encoded; passing
-    percent-encoded payloads is the caller's responsibility to avoid.
-    This is by design — decoding would open an injection vector.
+- Path traversal protection
+- Resource usage limits per tool
+- Seccomp/sandboxing integration
 """
 
 from __future__ import annotations
@@ -45,38 +42,24 @@ __all__ = [
     "safe_run_sandboxed",
 ]
 
-# Track orphan child processes for cleanup on parent crash.
-# All mutations must be guarded by ``_ORPHAN_LOCK``.
 _ORPHAN_TRACKER: set[int] = set()
 _ORPHAN_LOCK = threading.Lock()
 
-# Thread-safe session cache for the sudo/administrator password.
-# Only resides in memory for security.
 _SUDO_PASSWORD_CACHE: str | None = None
 _SUDO_PASSWORD_LOCK = threading.Lock()
 
-# Shell metacharacters to detect injection attempts
-# Shell metacharacters to detect injection attempts.
-# ``\r`` is included to block carriage-return injection (CRLF smuggling).
 _SHELL_METACHARS = frozenset({";", "|", "&", "`", "$", ">", "<", "\n", "\r", "\x00", "\x1b"})
 
-# Pre-compiled pattern for version-comparison operators adjacent to digits
-# (e.g. ``>=3.9``, ``<=2.0``, ``==1.5``).  Only these are stripped before
-# metachar scanning so that bare ``>`` / ``<`` / ``=`` are still caught.
 _VERSION_CMP_RE = re.compile(r"(?<=\d)(?:>=|<=|==)|(?:>=|<=|==)(?=\d)")
+
+_PATH_TRAVERSAL_RE = re.compile(r"(?:\.\.[\\/]|%2e%2e[\\/%])", re.IGNORECASE)
 
 
 @_atexit.register
 def _cleanup_orphans_atexit() -> None:
-    """Clean up orphaned child processes on interpreter exit.
-
-    Runs during interpreter shutdown where modules may already be
-    partially torn down, so we catch *everything* to avoid noisy
-    tracebacks on exit.
-    """
     try:
         _cleanup_orphans(is_exit=True)
-    except Exception:  # noqa: BLE001 – shutdown resilience
+    except Exception:
         pass
 
 
@@ -93,19 +76,12 @@ class ExecutionResult:
 
 
 def _cleanup_orphans(is_exit: bool = False) -> None:
-    """Attempt to kill all tracked orphan child processes.
-
-    Thread-safe: acquires ``_ORPHAN_LOCK`` while iterating/mutating
-    the tracker set.
-    """
     with _ORPHAN_LOCK:
         pids = list(_ORPHAN_TRACKER)
     for pid in pids:
         try:
             if sys.platform == "win32":
                 if is_exit:
-                    import signal
-
                     os.kill(pid, signal.SIGTERM)
                 else:
                     subprocess.run(
@@ -123,57 +99,41 @@ def _cleanup_orphans(is_exit: bool = False) -> None:
 
 
 async def _kill_process(proc: asyncio.subprocess.Process) -> None:
-    """Force-kill a subprocess and all children."""
     try:
-        if sys.platform == "win32":
-            proc.kill()
-        else:
-            pgid = None
-            try:
-                pgid = os.getpgid(proc.pid)
-            except (OSError, ProcessLookupError):
-                logger.debug("Could not get pgid for PID %s (may have exited)", proc.pid)
-            if pgid and pgid > 1:
-                try:
-                    os.killpg(pgid, signal.SIGKILL)
-                except PermissionError:
-                    # If we don't have permission to kill the process group (e.g. sudo), try killing the process directly
-                    proc.kill()
-            else:
-                proc.kill()
+        proc.kill()
     except ProcessLookupError:
         logger.debug("Process PID %s already exited during kill", proc.pid)
     except Exception as exc:
-        logger.debug("First kill attempt failed for PID %s: %s, trying fallback", proc.pid, exc)
-        try:
-            proc.kill()
-        except Exception as fallback_exc:
-            logger.debug("Fallback proc.kill() failed for PID %s: %s", proc.pid, fallback_exc)
+        logger.debug("Failed to kill process PID %s: %s", proc.pid, exc)
 
-
-# ── Error message helpers ──────────────────────────────────────────────
 
 _SIGNAL_NAMES: dict[int, str] = {
     1: "SIGHUP", 2: "SIGINT", 3: "SIGQUIT", 6: "SIGABRT",
     8: "SIGFPE", 9: "SIGKILL", 11: "SIGSEGV", 15: "SIGTERM",
 }
 
+
 def _signal_name(signum: int) -> str:
     return _SIGNAL_NAMES.get(signum, f"signal {signum}")
 
 
+def _check_path_traversal(cmd: list[str]) -> None:
+    """Check for path traversal patterns in command arguments."""
+    for i, part in enumerate(cmd):
+        if _PATH_TRAVERSAL_RE.search(part):
+            raise ValueError(
+                f"command part at index {i} contains path traversal pattern: {part!r}"
+            )
+
+
 def _format_not_found(cmd: list[str]) -> str:
-    """Return a user-friendly 'binary not found' message with install hints."""
-    # When the command is wrapped in ``sh -c "tool ..."``, extract the tool name.
     if len(cmd) >= 3 and os.path.basename(cmd[0]).lower() in ("sh", "bash") and cmd[1] == "-c":
         parts = cmd[2].strip().split()
         name = parts[0] if parts else "?"
-        # Skip sudo prefix in the inner command
         if name == "sudo" and len(parts) > 1:
             name = parts[1] if parts[1] != "-S" else (parts[2] if len(parts) > 2 else "?")
     else:
         name = cmd[0] if cmd else "?"
-        # Skip sudo prefix
         if name == "sudo" and len(cmd) > 1:
             name = cmd[1] if cmd[1] != "-S" else (cmd[2] if len(cmd) > 2 else "?")
     hints: list[str] = []
@@ -185,14 +145,13 @@ def _format_not_found(cmd: list[str]) -> str:
         hints.append(f"sudo pacman -S {name}")
     elif shutil.which("dnf"):
         hints.append(f"sudo dnf install {name}")
-    msg = f"Tool '{name}' is not installed or not found in PATH."
+    msg = f"Binary not found: '{name}' is not installed or not found in PATH."
     if hints:
         msg += f"\nInstall it with: {hints[0]}"
     return msg
 
 
 def _describe_exit(exit_code: int) -> str:
-    """Describe a non‑zero exit code — e.g. killed by signal, crash, etc."""
     if exit_code == -1:
         return "Internal error"
     if exit_code < 0:
@@ -202,7 +161,6 @@ def _describe_exit(exit_code: int) -> str:
 
 
 def detect_package_manager() -> str:
-    """Detect the available system package manager."""
     is_win = os.name == "nt"
     checks: list[tuple[str, str]] = []
     if is_win:
@@ -223,56 +181,31 @@ def detect_package_manager() -> str:
 
 
 def get_platform_shell_cmd(command: str) -> list[str]:
-    """Return a platform-appropriate shell command list for *command*.
-
-    - Windows: ``["cmd", "/c", command]``
-    - Unix:    ``["sh",  "-c", command]``
-    """
     if sys.platform == "win32":
         return ["cmd", "/c", command]
     return ["sh", "-c", command]
 
 
 def _validate_cmd_list(cmd: list[str]) -> None:
-    """Validate that *cmd* is a well-formed command list free of shell metacharacters.
-
-    Version-comparison operators (``>=``, ``<=``, ``==``) are only
-    stripped when they appear adjacent to a digit (e.g. ``>=3.9``)
-    and ONLY if we are not running a shell, so that bare ``>``/``<``/``=``
-    characters are still caught.
-
-    Raises:
-        ValueError: If any element fails validation.
-    """
     import urllib.parse
 
     if not isinstance(cmd, list) or not cmd:
         raise ValueError("cmd must be a non-empty list of strings")
-
-    is_shell = bool(
-        cmd
-        and os.path.basename(cmd[0]).lower()
-        in ("sh", "bash", "cmd", "cmd.exe", "powershell", "pwsh")
-    )
 
     for i, part in enumerate(cmd):
         if not isinstance(part, str):
             raise ValueError(
                 f"all command parts must be strings, got {type(part).__name__} at index {i}"
             )
+
+    _check_path_traversal(cmd)
+
+    for i, part in enumerate(cmd):
         if not part:
             raise ValueError(f"command part at index {i} is empty")
 
-        # H-06: Decode URL-encoded inputs to prevent bypasses
         decoded = urllib.parse.unquote(part)
 
-        # When running through an explicit shell (sh -c, cmd /c etc.) the
-        # command part is legitimate shell syntax and must not be flagged.
-        if is_shell:
-            continue
-
-        # M-14: Strip version-comparison operators (e.g. >=3.9) that could
-        # otherwise hide bare > / < metacharacters.
         cleaned = _VERSION_CMP_RE.sub("", decoded)
 
         for ch in _SHELL_METACHARS:
@@ -283,16 +216,20 @@ def _validate_cmd_list(cmd: list[str]) -> None:
 
 
 def _prepare_env(env: dict[str, str] | None = None) -> dict[str, str]:
-    from siyarix.stealth import stealth_engine
     exec_env = os.environ.copy()
     if env:
         exec_env.update(env)
-    if stealth_engine.config.enabled:
-        proxy = stealth_engine.get_current_proxy()
-        if proxy:
-            exec_env["HTTP_PROXY"] = proxy
-            exec_env["HTTPS_PROXY"] = proxy
-            exec_env["ALL_PROXY"] = proxy
+    try:
+        from siyarix.stealth import stealth_engine
+
+        if stealth_engine.config.enabled:
+            proxy = stealth_engine.get_current_proxy()
+            if proxy:
+                exec_env["HTTP_PROXY"] = proxy
+                exec_env["HTTPS_PROXY"] = proxy
+                exec_env["ALL_PROXY"] = proxy
+    except (ImportError, AttributeError):
+        pass
     return exec_env
 
 
@@ -304,15 +241,6 @@ def safe_run_sync(
     cwd: str | None = None,
     env: dict[str, str] | None = None,
 ) -> ExecutionResult:
-    """Run *cmd* synchronously with validation and timeout.
-
-    Returns:
-        The completed process result.
-
-    Raises:
-        ValueError: If *cmd* fails validation.
-        subprocess.TimeoutExpired: If the process exceeds *timeout*.
-    """
     _validate_cmd_list(cmd)
     _cleanup_orphans()
     exec_env = _prepare_env(env)
@@ -326,7 +254,7 @@ def safe_run_sync(
             check=False,
             cwd=cwd,
             env=exec_env,
-        )  # nosec B603
+        )
         return ExecutionResult(exit_code=cp.returncode, stdout=cp.stdout, stderr=cp.stderr)
     except subprocess.TimeoutExpired:
         logger.debug("safe_run_sync timeout for cmd=%s", cmd)
@@ -337,7 +265,6 @@ def safe_run_sync(
 
 
 def _use_thread_fallback() -> bool:
-    """Return True when asyncio subprocess is unavailable (Windows SelectorEventLoop)."""
     if os.name != "nt":
         return False
     loop = asyncio.get_running_loop()
@@ -345,10 +272,6 @@ def _use_thread_fallback() -> bool:
 
 
 def _verify_sudo_password(password: str) -> bool:
-    """Verify a sudo password by attempting ``sudo -S -k true``.
-
-    Returns ``True`` if the password is accepted, ``False`` otherwise.
-    """
     try:
         cp = subprocess.run(
             ["sudo", "-S", "-k", "true"],
@@ -363,26 +286,17 @@ def _verify_sudo_password(password: str) -> bool:
 
 
 def _get_sudo_password() -> str | None:
-    """Retrieve the sudo/administrator password from cache, env, config, or prompt the user securely.
-
-    When prompting interactively the password is **verified** immediately
-    via ``sudo -S -k true``.  Up to 3 attempts are allowed; on the third
-    the user is warned it is the last chance.
-    """
     global _SUDO_PASSWORD_CACHE
-    
-    # 1. Check in-memory session cache
+
     if _SUDO_PASSWORD_CACHE is not None:
         return _SUDO_PASSWORD_CACHE
 
-    # 2. Check environment variable
     val = os.environ.get("SIYARIX_SUDO_PASSWORD")
     if val:
         with _SUDO_PASSWORD_LOCK:
             _SUDO_PASSWORD_CACHE = val
         return val
 
-    # 3. Check SettingsStore config
     try:
         from siyarix.config import SettingsStore
         store = SettingsStore()
@@ -395,20 +309,15 @@ def _get_sudo_password() -> str | None:
     except Exception:
         pass
 
-    # 4. Prompt the user interactively (if tty is available), with retry logic.
-    #    Use getpass.getpass() as primary — it is more reliable across terminal
-    #    states than rich's Prompt.ask().  Rich markup is NOT used in the
-    #    plain-text fallback since we write directly to stderr.
     if sys.stdin.isatty():
         banner = (
             "\n"
-            "╔══════════════════════════════════════════════════════════╗\n"
-            "║  Sudo/administrator password required for this command  ║\n"
-            "║  (type it below — input is hidden for security)         ║\n"
-            "║                                                        ║\n"
-            "║  Tip: set SIYARIX_SUDO_PASSWORD env var or configure   ║\n"
-            "║       sudo_password in settings to skip this prompt.   ║\n"
-            "╚══════════════════════════════════════════════════════════╝\n"
+            "Sudo/administrator password required for this command\n"
+            "(type it below -- input is hidden for security)\n"
+            "\n"
+            "Tip: set SIYARIX_SUDO_PASSWORD env var or configure\n"
+            "     sudo_password in settings to skip this prompt.\n"
+            "\n"
         )
         sys.stderr.write(banner)
         sys.stderr.flush()
@@ -436,7 +345,6 @@ def _get_sudo_password() -> str | None:
             if not password:
                 continue
 
-            # Verify the password immediately
             if _verify_sudo_password(password):
                 with _SUDO_PASSWORD_LOCK:
                     _SUDO_PASSWORD_CACHE = password
@@ -452,7 +360,6 @@ def _get_sudo_password() -> str | None:
             sys.stderr.write(msg)
             sys.stderr.flush()
 
-        # All attempts exhausted
         return None
 
     else:
@@ -517,11 +424,11 @@ async def safe_run_async(
             stderr=cp.stderr or "",
             duration_ms=(time.monotonic() - start) * 1000,
         )
-    # Sudo elevation detection & rewriting
+
     modified_cmd = list(cmd)
     has_sudo = False
     password = None
-    
+
     if modified_cmd:
         if modified_cmd[0] == "sudo":
             has_sudo = True
@@ -530,11 +437,11 @@ async def safe_run_async(
                 if re.search(r"\bsudo\b", part):
                     has_sudo = True
                     break
-                    
+
     if has_sudo:
         password = _get_sudo_password()
         if password is None:
-            logger.error("sudo required but no password available — returning error")
+            logger.error("sudo required but no password available -- returning error")
             return ExecutionResult(
                 exit_code=-1,
                 stderr=(
@@ -565,7 +472,7 @@ async def safe_run_async(
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=exec_env,
-        )  # nosec B603
+        )
     except FileNotFoundError:
         logger.debug("safe_run_async binary not found: %s", cmd[0] if cmd else "?")
         return ExecutionResult(
@@ -597,13 +504,13 @@ async def safe_run_async(
         stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         exit_code = proc.returncode if proc.returncode is not None else -1
     except asyncio.TimeoutError:
-        logger.warning("safe_run_async timeout (%ds) for cmd=%s — killing process", timeout, cmd)
+        logger.warning("safe_run_async timeout (%ds) for cmd=%s -- killing process", timeout, cmd)
         timed_out = True
         await _kill_process(proc)
         try:
             stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=1.0)
         except asyncio.TimeoutError:
-            logger.debug("safe_run_async — drain after kill timed out for cmd=%s", cmd)
+            logger.debug("safe_run_async -- drain after kill timed out for cmd=%s", cmd)
             stdout_bytes, stderr_bytes = b"", b""
         exit_code = -1
     finally:
@@ -616,7 +523,6 @@ async def safe_run_async(
         timeout_msg = f"Command timed out after {timeout}s and was killed."
         stderr_text = f"{timeout_msg}\n{stderr_text}" if stderr_text else timeout_msg
     elif exit_code in (126, 127):
-        # Shell exit codes: 127 = command not found, 126 = not executable.
         tool_hint = _format_not_found(cmd)
         stderr_text = f"{tool_hint}\n{stderr_text}" if stderr_text else tool_hint
     elif exit_code < 0:
@@ -639,7 +545,6 @@ async def safe_run_async_stream(
     max_output_bytes: int | None = None,
     env: dict[str, str] | None = None,
 ) -> ExecutionResult:
-    """Run a command and stream output line-by-line via callbacks."""
     if validate:
         _validate_cmd_list(cmd)
     exec_env = _prepare_env(env)
@@ -660,8 +565,8 @@ async def safe_run_async_stream(
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
-                    bufsize=1,  # Line buffered
-                    errors="replace",  # Handle encoding issues gracefully
+                    bufsize=1,
+                    errors="replace",
                     env=exec_env,
                 ),
             )
@@ -720,12 +625,10 @@ async def safe_run_async_stream(
             readers.append(t)
 
         try:
-            logger.debug("Waiting for process exit: %s", cmd)
             exit_code = await asyncio.wait_for(
                 loop.run_in_executor(None, sync_proc.wait),
                 timeout=timeout,
             )
-            logger.debug("Process exited with code %d: %s", exit_code, cmd)
         except asyncio.TimeoutError:
             logger.warning("safe_run_async_stream (thread) timeout for cmd=%s", cmd)
             try:
@@ -735,7 +638,6 @@ async def safe_run_async_stream(
             exit_code = -1
             stderr_lines.append(f"Command timed out after {timeout}s and was killed.")
 
-        # Signal-death and missing-tool detection (applies when not a timeout)
         if exit_code is not None and exit_code < 0:
             sig_msg = f"Process terminated by {_signal_name(-exit_code)}."
             stderr_lines.append(sig_msg)
@@ -753,11 +655,10 @@ async def safe_run_async_stream(
             duration_ms=(time.monotonic() - start) * 1000,
         )
 
-    # Sudo elevation detection & rewriting
     modified_cmd = list(cmd)
     has_sudo = False
     password = None
-    
+
     if modified_cmd:
         if modified_cmd[0] == "sudo":
             has_sudo = True
@@ -766,11 +667,11 @@ async def safe_run_async_stream(
                 if re.search(r"\bsudo\b", part):
                     has_sudo = True
                     break
-                    
+
     if has_sudo:
         password = _get_sudo_password()
         if password is None:
-            logger.error("sudo required but no password available — returning error")
+            logger.error("sudo required but no password available -- returning error")
             return ExecutionResult(
                 exit_code=-1,
                 stderr=(
@@ -801,7 +702,7 @@ async def safe_run_async_stream(
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=exec_env,
-        )  # nosec B603
+        )
     except FileNotFoundError:
         logger.debug("safe_run_async_stream binary not found: %s", cmd[0] if cmd else "?")
         return ExecutionResult(
@@ -851,17 +752,14 @@ async def safe_run_async_stream(
         if s is not None:
             await _read_stream(s, lines, cb)
 
-    # Start the reader tasks
     stdout_task = asyncio.create_task(_safe_read(async_proc.stdout, stdout_lines, on_stdout))
     stderr_task = asyncio.create_task(_safe_read(async_proc.stderr, stderr_lines, on_stderr))
 
     timed_out = False
     try:
-        # Wait for the process to exit first
         await asyncio.wait_for(async_proc.wait(), timeout=timeout)
         exit_code = async_proc.returncode if async_proc.returncode is not None else -1
-        
-        # After process exits, give reader tasks 1 second to drain the remaining output
+
         try:
             await asyncio.wait_for(
                 asyncio.gather(stdout_task, stderr_task),
@@ -872,12 +770,10 @@ async def safe_run_async_stream(
             stdout_task.cancel()
             stderr_task.cancel()
     except asyncio.TimeoutError:
-        logger.warning("safe_run_async_stream timeout (%ds) for cmd=%s — killing process", timeout, cmd)
+        logger.warning("safe_run_async_stream timeout (%ds) for cmd=%s -- killing process", timeout, cmd)
         timed_out = True
-        # The process itself timed out
         await _kill_process(async_proc)
-        
-        # After process is killed, give reader tasks 1 second to drain the remaining output
+
         try:
             await asyncio.wait_for(
                 asyncio.gather(stdout_task, stderr_task),
@@ -893,7 +789,6 @@ async def safe_run_async_stream(
             with _ORPHAN_LOCK:
                 _ORPHAN_TRACKER.discard(async_proc.pid)
 
-    # Annotate stderr with timeout / signal-death / missing-tool info
     if timed_out:
         timeout_msg = f"Command timed out after {timeout}s and was killed."
         stderr_lines.append(timeout_msg)
@@ -919,11 +814,21 @@ def safe_run_sandboxed(
     cwd: str | None = None,
     env: dict[str, str] | None = None,
     allow_network: bool = False,
+    use_seccomp: bool = True,
+    seccomp_profile: str | None = None,
 ) -> ExecutionResult:
     """Run a command inside a sandbox if available, otherwise fallback to restricted env.
 
     Attempts to use `bwrap` (Bubblewrap) on Linux or Docker. If neither are available,
     runs the command normally but with a restricted PATH and sanitized environment.
+
+    Args:
+        command: The command to run.
+        timeout: Timeout in seconds (default 60).
+        cwd: Working directory.
+        env: Additional environment variables.
+        allow_network: If True, allow network access.
+        use_seccomp: If True and using bwrap, apply a restrictive seccomp profile.
     """
     sandbox_cmd = []
 
@@ -939,6 +844,8 @@ def safe_run_sandboxed(
             "/proc",
             "--unshare-all",
         ]
+        if seccomp_profile and use_seccomp:
+            sandbox_cmd.extend(["--seccomp", str(seccomp_profile)])
         if allow_network:
             sandbox_cmd.remove("--unshare-all")
             sandbox_cmd.extend(
@@ -950,15 +857,16 @@ def safe_run_sandboxed(
         sandbox_cmd.extend(["--"])
         sandbox_cmd.extend(command)
     elif shutil.which("docker"):
-        # basic docker fallback
         img = "alpine:latest" if not allow_network else "ubuntu:latest"
         sandbox_cmd = ["docker", "run", "--rm", "--network", "host" if allow_network else "none"]
+        if use_seccomp:
+            from .security_hardening import SeccompProfile
+            sandbox_cmd.extend(["--security-opt", f"seccomp={SeccompProfile.generate_docker_seccomp()}"])
         if cwd:
             sandbox_cmd.extend(["-v", f"{Path(cwd).resolve()}:/workspace", "-w", "/workspace"])
         sandbox_cmd.append(img)
         sandbox_cmd.extend(command)
     else:
-        # Fallback to restricted environment
         sandbox_cmd = command
         restricted_env = {"PATH": "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"}
         if env:

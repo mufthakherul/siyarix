@@ -1,7 +1,11 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+"""Async utilities — safely run coroutines from sync contexts."""
+
 from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -20,19 +24,17 @@ def run_async(coro: Any) -> Any:
         return asyncio.run(coro)
 
     # An event loop is already running — run in a new thread
-    import threading
-
-    result: list = []
-    exception: list = []
+    result_holder: list[Any] = []
+    exception_holder: list[Exception] = []
 
     def _run() -> None:
         new_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(new_loop)
         try:
             r = new_loop.run_until_complete(coro)
-            result.append(r)
+            result_holder.append(r)
         except Exception as e:
-            exception.append(e)
+            exception_holder.append(e)
         finally:
             new_loop.close()
 
@@ -40,6 +42,6 @@ def run_async(coro: Any) -> Any:
     t.start()
     t.join()
 
-    if exception:
-        raise exception[0]
-    return result[0]
+    if exception_holder:
+        raise exception_holder[0]
+    return result_holder[0]

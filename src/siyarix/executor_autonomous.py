@@ -165,11 +165,18 @@ class AutonomousExecutor(BaseExecutor):
 
         self.normalise_step(step)
 
-        from siyarix.stealth import stealth_engine
-        if stealth_engine.config.enabled:
-            delay = stealth_engine.get_randomized_delay(1.0)
-            if delay > 0:
-                await asyncio.sleep(delay)
+        try:
+            from siyarix.stealth import stealth_engine
+            stealth_enabled = bool(stealth_engine.config.enabled)
+        except (ImportError, AttributeError):
+            stealth_enabled = False
+        if stealth_enabled:
+            try:
+                delay = stealth_engine.get_randomized_delay(1.0)
+                if delay > 0:
+                    await asyncio.sleep(delay)
+            except Exception:
+                pass
 
         start = _time.monotonic()
         try:
@@ -334,7 +341,7 @@ class AutonomousExecutor(BaseExecutor):
         wants exclusive control of the terminal.
         """
         import re as _re
-        from siyarix.subprocess_utils import _get_sudo_password as _gsp
+        from siyarix.subprocess_utils import _get_sudo_password as _gsp  # type: ignore[attr-defined]
 
         needs_sudo = False
         for step in plan.steps:

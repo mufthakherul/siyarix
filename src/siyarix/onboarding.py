@@ -20,6 +20,7 @@ Walks the user through a multi-step process:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -2087,7 +2088,7 @@ class OnboardingWizard:
         try:
             from siyarix.health import get_health
 
-            health = await get_health().check_all()
+            health = await asyncio.wait_for(get_health().check_all(), timeout=10.0)
             for comp in health.components:
                 if comp.state.value != "healthy":
                     health_warnings.append(f"{comp.name}: {comp.message}")

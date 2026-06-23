@@ -80,8 +80,9 @@ def normalize_model_id(provider: str | None, model_id: str) -> str:
         if m:
             major, minor, variant = m.group(1), m.group(2), m.group(3)
             if int(major) >= 3:
-                if model_id == f"gemini-{major}.{minor}-{variant}" if variant else False:
-                    pass
+                if variant:
+                    normalized = f"gemini-{major}.{minor}-{variant}"
+                    return normalized
 
     # 3. Anthropic: replace dots with dashes (claude-opus-4.8 → claude-opus-4-8)
     if provider == "anthropic" or provider in ("openrouter", "vercel-ai-gateway"):

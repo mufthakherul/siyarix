@@ -28,12 +28,17 @@ class WebhookDispatcher:
         self.bus.on(None, self._on_event)
 
     async def _on_event(self, event: Event) -> None:
-        """Listen for findings and trigger webhooks if critical."""
-        if event.type == EventType.CUSTOM and event.data.get("sub_type") == "finding":
+        if event.type != EventType.CUSTOM:
+            return
+        if event.data.get("sub_type") == "finding":
             finding = event.data.get("finding", {})
             severity = finding.get("severity", "info").lower()
             if severity in ("high", "critical"):
-                await self.dispatch_alert(finding)
+                await self._dispatch_alert(finding)
+
+    async def _dispatch_alert(self, finding: dict[str, Any]) -> None:
+        """Async alert dispatch."""
+        await self.dispatch_alert(finding)
 
     async def dispatch_alert(self, finding: dict[str, Any]) -> None:
         """Send an alert to the configured webhook."""

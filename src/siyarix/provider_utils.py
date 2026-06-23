@@ -2,10 +2,12 @@
 """Generic local provider utilities: model listing, enrichment, pull.
 
 Supports all local providers (ollama, lmstudio, llamacpp, vllm, localai)
-with a unified interface. Patterns adapted from production-grade toolkits:
-  - Provider-specific model listing + enrichment
-  - On-demand model pull (Ollama only)
-  - SSRF-safe HTTP helpers
+with a unified interface. All HTTP requests are SSRF-safe.
+
+Security features:
+- SSRF-safe HTTP helpers with hostname allowlisting
+- API key redaction in logs
+- TLS verification for external connections
 """
 
 from __future__ import annotations
@@ -18,8 +20,6 @@ from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
-
-# ── Constants ────────────────────────────────────────────────────────────
 
 DEFAULT_CONTEXT_WINDOW = 128_000
 DEFAULT_MAX_TOKENS = 8192
@@ -75,8 +75,12 @@ PROVIDER_DEFAULTS: dict[str, dict[str, Any]] = {
     },
 }
 
-
-# ── SSRF-safe HTTP helpers ───────────────────────────────────────────────
+# SSRF blocklist for provider URLs
+_SSRF_BLOCKED_HOSTS: list[re.Pattern[str]] = [
+    re.compile(r"^169\.254\.", re.I),
+    re.compile(r"^0\.0\.0\.0$"),
+    re.compile(r"^metadata\.", re.I),
+]
 
 
 def _is_safe_url(url: str) -> bool:
@@ -92,6 +96,9 @@ def _is_safe_url(url: str) -> bool:
         if parsed.scheme not in ("http", "https"):
             return False
         host = (parsed.hostname or "").lower()
+        for blocked in _SSRF_BLOCKED_HOSTS:
+            if blocked.search(host):
+                return False
         if host in ("localhost", "127.0.0.1", "::1", "[::1]"):
             return True
         if host.startswith("127."):
@@ -108,15 +115,45 @@ def _is_safe_url(url: str) -> bool:
         return False
 
 
+def _verify_tls(url: str) -> bool:
+    """Determine whether TLS verification should be enabled for a URL.
+
+    Disables verification for localhost/private IPs (self-signed certs)
+    and enables it for external URLs.
+    """
+    from urllib.parse import urlparse
+
+    try:
+        host = (urlparse(url).hostname or "").lower()
+        if host in ("localhost", "127.0.0.1", "::1", "[::1]"):
+            return False
+        if host.startswith("127."):
+            return False
+        import ipaddress
+
+        try:
+            addr = ipaddress.ip_address(host)
+            if addr.is_private or addr.is_loopback:
+                return False
+        except ValueError:
+            pass
+    except Exception:
+        pass
+    return True
+
+
 def safe_http_get(url: str, timeout: float = 10.0) -> Any:
     """SSRF-safe HTTP GET — only allows localhost/private IPs."""
     if not _is_safe_url(url):
         logger.warning("Blocked unsafe GET: %s", url)
         return None
     try:
-        resp = httpx.get(url, timeout=timeout)
+        resp = httpx.get(url, timeout=timeout, verify=_verify_tls(url))
         resp.raise_for_status()
         return resp.json()
+    except httpx.HTTPError as exc:
+        logger.debug("HTTP GET failed for %s: %s", url, exc)
+        return None
     except Exception as exc:
         logger.debug("HTTP GET failed for %s: %s", url, exc)
         return None
@@ -130,7 +167,10 @@ def safe_http_post(
         logger.warning("Blocked unsafe POST: %s", url)
         return None
     try:
-        return httpx.post(url, json=payload, timeout=timeout)
+        return httpx.post(url, json=payload, timeout=timeout, verify=_verify_tls(url))
+    except httpx.HTTPError as exc:
+        logger.debug("HTTP POST failed for %s: %s", url, exc)
+        return None
     except Exception as exc:
         logger.debug("HTTP POST failed for %s: %s", url, exc)
         return None
@@ -142,15 +182,15 @@ def safe_http_get_raw(url: str, timeout: float = 10.0) -> httpx.Response | None:
         logger.warning("Blocked unsafe GET: %s", url)
         return None
     try:
-        resp = httpx.get(url, timeout=timeout)
+        resp = httpx.get(url, timeout=timeout, verify=_verify_tls(url))
         resp.raise_for_status()
         return resp
+    except httpx.HTTPError as exc:
+        logger.debug("HTTP GET failed for %s: %s", url, exc)
+        return None
     except Exception as exc:
         logger.debug("HTTP GET failed for %s: %s", url, exc)
         return None
-
-
-# ── Shared helpers ───────────────────────────────────────────────────────
 
 
 def resolve_provider_url(provider: str, base_url: str | None = None) -> str:
@@ -164,11 +204,6 @@ def resolve_provider_url(provider: str, base_url: str | None = None) -> str:
 
 
 def is_reasoning_model(model_name: str) -> bool:
-    """Detect reasoning models by name heuristic.
-
-    Matches substrings like r1, qwq, thinking, reason, think
-    to identify models that emit extended reasoning tokens.
-    """
     return bool(re.search(r"r1|qwq|reasoning|think|reason", model_name, re.IGNORECASE))
 
 
@@ -178,27 +213,26 @@ def build_model_definition(
     capabilities: list[str] | None = None,
     max_tokens: int | None = None,
 ) -> dict[str, Any]:
-    """Build a model definition dict matching ProviderManager expectations."""
+    """Build a model definition dict compatible with ModelInfo fields."""
     has_vision = capabilities is not None and "vision" in capabilities
-    reasoning = is_reasoning_model(model_name)
-    if capabilities is not None:
-        reasoning = reasoning or "thinking" in capabilities
     supports_tools = capabilities is None or "tools" in capabilities
+    supports_structured_output = capabilities is not None and "structured_output" in capabilities
+    supports_function_calling = supports_tools
+    has_reasoning = is_reasoning_model(model_name) or (capabilities is not None and "thinking" in capabilities)
     return {
         "name": model_name,
         "supports_vision": has_vision,
         "supports_tools": supports_tools,
-        "context_window": context_window or DEFAULT_CONTEXT_WINDOW,
-        "max_tokens": max_tokens or DEFAULT_MAX_TOKENS,
-        "reasoning": reasoning,
+        "supports_structured_output": supports_structured_output,
+        "supports_function_calling": supports_function_calling,
+        "context_window": context_window if context_window is not None else DEFAULT_CONTEXT_WINDOW,
+        "max_tokens": max_tokens if max_tokens is not None else DEFAULT_MAX_TOKENS,
+        "cost_tier": "free",
+        "reasoning": has_reasoning,
     }
 
 
-# ── Provider-specific model listing ──────────────────────────────────────
-
-
 def _list_ollama_models(base_url: str) -> list[dict[str, Any]]:
-    """GET /api/tags."""
     url = f"{base_url}/api/tags"
     data = safe_http_get(url, timeout=5.0)
     if not data or not isinstance(data, dict):
@@ -207,7 +241,6 @@ def _list_ollama_models(base_url: str) -> list[dict[str, Any]]:
 
 
 def _list_openai_compat_models(base_url: str, timeout: float = 5.0) -> list[dict[str, Any]]:
-    """GET /v1/models for OpenAI-compatible providers."""
     url = f"{base_url}/v1/models"
     data = safe_http_get(url, timeout=timeout)
     if not data or not isinstance(data, dict):
@@ -217,10 +250,6 @@ def _list_openai_compat_models(base_url: str, timeout: float = 5.0) -> list[dict
 
 
 def list_provider_models(provider: str, base_url: str | None = None) -> list[dict[str, Any]]:
-    """List available models for any local provider.
-
-    Returns list of dicts with at least {'name': '<model_id>'}.
-    """
     resolved = resolve_provider_url(provider, base_url)
     provider = provider.lower()
 
@@ -235,13 +264,9 @@ def list_provider_models(provider: str, base_url: str | None = None) -> list[dic
     return []
 
 
-# ── Provider-specific model enrichment ───────────────────────────────────
-
-
 def _enrich_ollama_model(
     model_name: str, base_url: str
 ) -> tuple[int | None, list[str] | None, int | None]:
-    """POST /api/show and extract context_length + capabilities."""
     url = f"{base_url}/api/show"
     resp = safe_http_post(url, {"name": model_name}, timeout=5.0)
     if resp is None:
@@ -282,7 +307,6 @@ def _enrich_ollama_model(
 def _enrich_lmstudio_model(
     model_entry: dict[str, Any],
 ) -> tuple[int | None, list[str] | None, int | None]:
-    """Extract context window and capabilities from LM Studio model metadata."""
     ctx: int | None = None
     caps: list[str] | None = None
     max_tok: int | None = None
@@ -312,7 +336,6 @@ def _enrich_lmstudio_model(
 def _enrich_vllm_model(
     model_entry: dict[str, Any],
 ) -> tuple[int | None, list[str] | None, int | None]:
-    """Extract context window from vLLM model metadata (max_model_len)."""
     ctx: int | None = None
     max_tok: int | None = None
     for key, value in model_entry.items():
@@ -330,10 +353,6 @@ def enrich_model(
     model_entry: dict[str, Any] | None = None,
     base_url: str | None = None,
 ) -> dict[str, Any]:
-    """Enrich a single model with context window and capabilities.
-
-    Returns a model definition dict.
-    """
     ctx: int | None = None
     caps: list[str] | None = None
     max_tok: int | None = None
@@ -363,10 +382,6 @@ def enrich_all_models(
     concurrency: int = 8,
     limit: int = 200,
 ) -> list[dict[str, Any]]:
-    """Enrich all models for a provider with context window + capabilities.
-
-    Ollama uses batched /api/show calls; others read metadata from listing.
-    """
     provider = provider.lower()
 
     if provider == "ollama":
@@ -390,7 +405,6 @@ def _enrich_ollama_models_batch(
     concurrency: int = 8,
     limit: int = 200,
 ) -> list[dict[str, Any]]:
-    """Batch-enrich Ollama models with concurrent /api/show calls."""
     import asyncio
 
     base = resolve_provider_url("ollama", base_url)
@@ -432,18 +446,11 @@ def _enrich_ollama_models_batch(
     return enriched
 
 
-# ── Provider discovery ───────────────────────────────────────────────────
-
-
 def discover_provider_models(
     provider: str,
     base_url: str | None = None,
     enrich: bool = True,
 ) -> list[dict[str, Any]]:
-    """Discover and optionally enrich all models for a provider.
-
-    Returns list of model definition dicts compatible with ProviderProfile.models.
-    """
     models = list_provider_models(provider, base_url)
     if not models:
         return []
@@ -454,15 +461,7 @@ def discover_provider_models(
     return [build_model_definition(m.get("name", "")) for m in models]
 
 
-# ── Model pulling (Ollama only) ──────────────────────────────────────────
-
-
 def _parse_num_ctx(parameters: Any) -> int | None:
-    """Extract num_ctx from Modelfile parameters string.
-
-    Parses the Modelfile's PARAMETER line to get the context window size
-    that the model was created with (e.g., "num_ctx 4096").
-    """
     if not isinstance(parameters, str) or not parameters.strip():
         return None
     last_value: int | None = None
@@ -481,11 +480,6 @@ def pull_model(
     base_url: str | None = None,
     on_status: Callable[[str, int | None], None] | None = None,
 ) -> tuple[bool, str]:
-    """Pull a model for providers that support it (Ollama only for now).
-
-    Streams NDJSON pull progress from Ollama's API and reports status
-    via the optional on_status callback. Returns (ok: bool, message: string).
-    """
     provider = provider.lower()
     if provider != "ollama":
         return False, f"Model pull not supported for {provider}"
@@ -555,11 +549,6 @@ def ensure_model_pulled(
     base_url: str | None = None,
     console: Any = None,
 ) -> bool:
-    """Check if model exists; pull if missing (Ollama only).
-
-    Lists local models and triggers a pull if the requested model is not
-    found. Returns True if model is available.
-    """
     provider = provider.lower()
     models = list_provider_models(provider, base_url)
     installed = [m.get("name", "") for m in models]
@@ -570,7 +559,7 @@ def ensure_model_pulled(
     if provider != "ollama":
         if console:
             console.print(
-                f"[yellow]⚠ Model '{model_name}' not found — cannot auto-pull for {provider}[/yellow]"
+                f"[yellow]WARNING Model '{model_name}' not found cannot auto-pull for {provider}[/yellow]"
             )
         return False
 
@@ -579,24 +568,20 @@ def ensure_model_pulled(
 
     def _on_status(status: str, pct: int | None) -> None:
         if console and pct is not None:
-            console.print(f"\r[dim]  {status} — {pct}%[/dim]", end="")
+            console.print(f"\r[dim]  {status} -- {pct}%[/dim]", end="")
         elif console:
             console.print(f"\r[dim]  {status}[/dim]", end="")
 
     ok, msg = pull_model(provider, model_name, base_url, on_status=_on_status)
     if console:
         if ok:
-            console.print(f"\r[green]✓ {msg}[/green]")
+            console.print(f"\r[green]Y {msg}[/green]")
         else:
-            console.print(f"\r[red]✗ {msg}[/red]")
+            console.print(f"\r[red]X {msg}[/red]")
     return ok
 
 
-# ── Health check ─────────────────────────────────────────────────────────
-
-
 def check_provider_health(provider: str, base_url: str | None = None) -> bool:
-    """Check if a provider is reachable via its health endpoint."""
     provider = provider.lower()
     resolved = resolve_provider_url(provider, base_url)
     cfg = PROVIDER_DEFAULTS.get(provider)

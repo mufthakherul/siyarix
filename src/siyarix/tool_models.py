@@ -39,7 +39,7 @@ class RiskLevel(StrEnum):
 _TOOL_WHICH_CACHE: dict[str, str | None] = {}
 
 
-@functools.lru_cache(maxsize=1024)
+@functools.lru_cache(maxsize=None)
 def _cached_which(name: str) -> str | None:
     result = shutil.which(name)
     _TOOL_WHICH_CACHE[name] = result

@@ -306,8 +306,8 @@ class AgentCore:
 
     async def execute_goal(self, goal: AgentGoal, plan: ExecutionPlan | None = None) -> AgentResult:
         try:
-            from ..performance import PerformanceMonitor  # type: ignore[attr-defined]
-            PerformanceMonitor().refresh_resources()
+            from ..performance import PerformanceOptimizer
+            PerformanceOptimizer().refresh_resources()
         except Exception:
             pass
 
@@ -320,7 +320,9 @@ class AgentCore:
         self._status = AgentStatus.PLANNING
         start = time.time()
         result = AgentResult(goal=goal.description)
-        self._workflow_engine.register_step("execute_goal_start", {"goal": goal.description})  # type: ignore[arg-type]
+        async def _goal_start(args: dict[str, Any]) -> dict[str, Any]:
+            return {"status": "started", "goal": goal.description}
+        self._workflow_engine.register_step("execute_goal_start", _goal_start)
 
         if self._mode == AgentMode.REGISTRY:
             result = await self._execute_registry(goal, plan, start, result)
@@ -339,7 +341,7 @@ class AgentCore:
             out = OutputEngine()
             out.export_to_file(dataclasses.asdict(result), f"siyarix_scan_{int(time.time())}.json")
         except Exception as e:
-            logger.debug(f"Failed to export result: {e}")
+            logger.debug("Failed to export result: %s", e)
 
         return result
 
@@ -391,7 +393,7 @@ class AgentCore:
         result.duration_ms = (time.time() - start) * 1000
         self._status = AgentStatus.COMPLETED if result.success else AgentStatus.FAILED
         self._history.append(result)
-        
+
         # Record metrics and offline store
         self._metrics.record_scan(duration=result.duration_ms / 1000.0, successful=result.success, findings_count=len(result.findings))
         await self._store.save_scan_async(target=goal.target or goal.description, findings=result.findings, mode=self._mode.value, plan_id=plan.id if plan else "")
@@ -426,9 +428,9 @@ class AgentCore:
                     }
                     for t in self._registry.list_tools()
                 ]
-                
+
                 context_history = self._context.get_history()
-                
+
                 plan = await self._planner_autonomous.plan(
                     goal.description,
                     llm_call=llm_call,

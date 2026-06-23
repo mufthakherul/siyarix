@@ -7,8 +7,10 @@ regex patterns for extracting version numbers from tool output.
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import logging
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -137,8 +139,7 @@ def detect_version(name: str, binary_path: str | None = None) -> str:
         # Restore original working directory in case the tool changed it
         try:
             if Path.cwd() != orig_cwd:
-                import os as _os
-                _os.chdir(orig_cwd)
+                os.chdir(orig_cwd)
         except OSError:
             pass
     return ""

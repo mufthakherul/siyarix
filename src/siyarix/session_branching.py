@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Session branching — JSONL tree format for conversation branches.
 
 Uses a JSONL tree structure with id/parentId fields to represent
@@ -9,8 +11,8 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -31,7 +33,7 @@ class BranchEntry:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _new_id() -> str:
@@ -120,7 +122,7 @@ class BranchingSession:
         return self.append_entry("label", content=label, metadata=metadata)
 
     def add_branch_summary(
-        self, summary: str, metadata: dict[str, Any] | None = None
+        self, summary: str, metadata: dict[str, Any] | None = None,
     ) -> BranchEntry:
         """Add a branch summary entry (created when branching)."""
         return self.append_entry("branch_summary", content=summary, metadata=metadata)
@@ -205,8 +207,7 @@ class BranchingSession:
         """Persist the session to a JSONL file."""
         self._path.parent.mkdir(parents=True, exist_ok=True)
         with open(self._path, "w", encoding="utf-8") as f:
-            for entry in self._entries:
-                f.write(json.dumps(asdict(entry), ensure_ascii=False) + "\n")
+            f.writelines(json.dumps(asdict(entry), ensure_ascii=False) + "\n" for entry in self._entries)
         self._dirty = False
         return self._path
 
@@ -250,7 +251,7 @@ class BranchingSession:
                         continue
                     data = json.loads(line)
                     entry = BranchEntry(
-                        **{k: v for k, v in data.items() if k in BranchEntry.__dataclass_fields__}
+                        **{k: v for k, v in data.items() if k in BranchEntry.__dataclass_fields__},
                     )
                     self._entries.append(entry)
             if self._entries:

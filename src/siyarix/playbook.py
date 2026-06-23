@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -94,8 +95,6 @@ class PlaybookEngine:
                     "role": resolved_step.get("role", "assistant"),
                     "goal": resolved_step.get("goal", ""),
                 }
-
-            import json
 
             # Embed advanced execution metadata into args so the executor can access them
             if condition:

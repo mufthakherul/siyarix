@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Context compaction system — manages token budgets, summarization, and pruning.
 
 Adapted from production-grade context-engine patterns: iterative chunk
@@ -7,8 +8,9 @@ summarization, progressive fallback, and sliding-window pruning.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 logger = logging.getLogger(__name__)
 

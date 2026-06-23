@@ -84,7 +84,7 @@ class CacheManager:
 
             if opsec_manager.status.memory_only:
                 return
-        except ImportError:
+        except Exception:
             pass
 
         try:
@@ -129,7 +129,7 @@ class CacheManager:
 
             if opsec_manager.status.memory_only:
                 return data
-        except ImportError:
+        except Exception:
             pass
 
         try:
@@ -147,7 +147,7 @@ class CacheManager:
             from siyarix.opsec import opsec_manager
 
             memory_only = opsec_manager.status.memory_only
-        except ImportError:
+        except Exception:
             memory_only = False
 
         entry = CacheEntry(

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+"""Connectivity monitoring and smart mode switching."""
+
 from __future__ import annotations
 
 import asyncio

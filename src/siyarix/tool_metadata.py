@@ -19,8 +19,8 @@ def _load_db() -> dict[str, Any]:
     if _DB is not None:
         return _DB
     try:
-        from pathlib import Path
         import json
+        from pathlib import Path
 
         p = Path(__file__).parent / "data" / "cyber_tools.json"
         if p.exists():

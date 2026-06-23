@@ -9,8 +9,8 @@ import sys
 from pathlib import Path
 
 from siyarix.config import get_config_dir
-from siyarix.registry import ToolRegistry
 from siyarix.providers.manager import ProviderManager
+from siyarix.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
 

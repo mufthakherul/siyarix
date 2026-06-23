@@ -258,7 +258,14 @@ Respond with ONLY valid JSON:
         data = self._parse_llm_response(raw)
 
         if not isinstance(data, dict):
-            raise ValueError("LLM returned plain text instead of a valid JSON tool plan")
+            return self.create_plan(
+                goal=goal,
+                context={
+                    "reasoning": "",
+                    "response": str(raw) if raw else "",
+                    "llm_planned": True,
+                },
+            )
 
         if not data.get("needs_tools"):
             return self.create_plan(
@@ -313,15 +320,27 @@ Respond with ONLY valid JSON:
         )
 
     def _parse_llm_response(self, raw: Any) -> dict[str, Any] | None:
-        tool_calls = raw.get("tool_calls") if isinstance(raw, dict) else None
-        if tool_calls and len(tool_calls) > 0:
-            func_args = tool_calls[0].function.arguments
-            if isinstance(func_args, str):
-                try:
-                    return json.loads(func_args)
-                except json.JSONDecodeError:
-                    return None
-            return func_args
+        if isinstance(raw, dict):
+            tool_calls = raw.get("tool_calls")
+            if tool_calls and len(tool_calls) > 0:
+                func_args = tool_calls[0].function.arguments
+                if isinstance(func_args, str):
+                    try:
+                        return json.loads(func_args)
+                    except json.JSONDecodeError:
+                        return None
+                return func_args
+
+            if "needs_tools" in raw or "steps" in raw:
+                return raw
+
+            if "tasks" in raw and isinstance(raw["tasks"], list):
+                return {
+                    "needs_tools": True,
+                    "reasoning": "Tasks from LLM response",
+                    "steps": raw["tasks"],
+                    "response": str(raw),
+                }
 
         response = raw.get("content", "") if isinstance(raw, dict) else str(raw)
         cleaned = response.strip()
@@ -394,14 +413,15 @@ Respond with ONLY valid JSON:
             valid_cmds = []
             is_conversational = False
             for line in lines:
-                # Exclude obvious conversational english
                 if re.match(r"^[A-Z][a-z]+ .*[.!?]$", line) or re.match(r"^(Sure|Here|I will|Let me|Yes|No|Okay)\b", line, re.IGNORECASE):
                     is_conversational = True
                     break
                 if line.startswith("#"):
                     continue
-                # Commands generally start with an alphanumeric or explicit path symbol
                 if not line.endswith('.') and not line.startswith('"') and not line.startswith("'") and re.match(r"^[a-zA-Z0-9_\-\./]", line):
+                    if not re.search(r'[\d\-=\/\$\\]', line):
+                        is_conversational = True
+                        break
                     valid_cmds.append(line)
                 else:
                     is_conversational = True

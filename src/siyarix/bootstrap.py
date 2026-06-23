@@ -72,7 +72,7 @@ class BootstrapEngine:
             system=_sys,
             release=platform.release(),
             shell=self._detect_shell(),  # nosec B604 – false positive, method call not subprocess
-            terminal=os.environ.get("TERM", "unknown"),
+            terminal=self._detect_terminal_from_env(),
             python_version=sys.version,
         )
         # Detect WSL
@@ -297,14 +297,8 @@ class BootstrapEngine:
 
         logger.info("Siyarix first-run bootstrap starting...")
 
-        # T1-T2: Platform detection
+        # T1-T3: Platform, shell, and terminal detection
         self._result.platform = self.detect_platform()
-
-        # T3: Terminal/shell detection
-        detected_shell = self._detect_shell()
-        detected_terminal = self._detect_terminal_from_env()
-        self._result.platform.shell = detected_shell
-        self._result.platform.terminal = detected_terminal
 
         # T5: Python version check
         if not self.check_python_version():
@@ -341,7 +335,7 @@ class BootstrapEngine:
                         c = None
                     installer = ToolInstaller(console=c)
                     installer.auto_install_missing(approved_tools)
-                    
+
                     # Re-check tools after installation
                     tools = self.check_runtime_tools()
                     self._result.tools_found = sum(1 for v in tools.values() if v)

@@ -724,7 +724,7 @@ class CredentialStore:
 
     def list_credentials(
         self, cred_type: str | None = None, environment: str | None = None
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """List credentials (metadata only, no values)"""
         creds: list[Credential] = list(self._credentials.values())
 
@@ -769,7 +769,7 @@ class CredentialStore:
             self._save(cred)
         return True
 
-    def check_expiring(self, days: int = 7) -> list[dict]:
+    def check_expiring(self, days: int = 7) -> list[dict[str, Any]]:
         """Check for expiring credentials"""
         cutoff = datetime.now(timezone.utc) + timedelta(days=days)
         expiring = []

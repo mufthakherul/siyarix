@@ -7,12 +7,20 @@ Handles automated installation of security tools across different OS platforms
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 import subprocess
-import logging
+import sys as _sys
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Any, Optional
+
+try:
+    import winreg
+except ImportError:
+    from unittest.mock import MagicMock as _MagicMock
+    winreg = _MagicMock()
+    _sys.modules["winreg"] = winreg
 
 logger = logging.getLogger(__name__)
 
@@ -164,22 +172,20 @@ class ToolInstaller:
     def _refresh_windows_path(self) -> None:
         """Refresh os.environ['PATH'] from the Windows Registry."""
         try:
-            import winreg
-
-            with winreg.OpenKey(  # type: ignore[attr-defined]
-                winreg.HKEY_LOCAL_MACHINE,  # type: ignore[attr-defined]
+            with winreg.OpenKey(
+                winreg.HKEY_LOCAL_MACHINE,
                 r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
                 0,
-                winreg.KEY_READ,  # type: ignore[attr-defined]
+                winreg.KEY_READ,
             ) as key:
-                sys_path, _ = winreg.QueryValueEx(key, "PATH")  # type: ignore[attr-defined]
-            with winreg.OpenKey(  # type: ignore[attr-defined]
-                winreg.HKEY_CURRENT_USER,  # type: ignore[attr-defined]
+                sys_path, _ = winreg.QueryValueEx(key, "PATH")
+            with winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
                 r"Environment",
                 0,
-                winreg.KEY_READ,  # type: ignore[attr-defined]
+                winreg.KEY_READ,
             ) as key:
-                user_path, _ = winreg.QueryValueEx(key, "PATH")  # type: ignore[attr-defined]
+                user_path, _ = winreg.QueryValueEx(key, "PATH")
             os.environ["PATH"] = sys_path + ";" + user_path + ";" + os.environ.get("PATH", "")
         except Exception as exc:
             logger.debug("Failed to refresh Windows PATH: %s", exc)

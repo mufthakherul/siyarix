@@ -88,8 +88,13 @@ class RegistryExecutor(BaseExecutor):
                     continue
                 break
 
-            can_parallel = plan.plan_type.value in ("parallel", "dag") or (
-                plan.plan_type.value == "sequential"
+            plan_type_val = (
+                plan.plan_type.value
+                if hasattr(plan.plan_type, "value")
+                else str(plan.plan_type or "")
+            )
+            can_parallel = plan_type_val in ("parallel", "dag") or (
+                plan_type_val == "sequential"
                 and len(ready_steps) > 1
                 and all(not s.dependencies for s in ready_steps)
             )
@@ -244,21 +249,21 @@ class RegistryExecutor(BaseExecutor):
 
     async def _handle_tool_error(self, step: PlanStep, result: dict[str, Any]) -> dict[str, Any]:
         err_msg = str(result.get("error", "")).lower()
-        
+
         # 1. Self-Correction Heuristic: Stripping unrecognized arguments
         if "unrecognized option" in err_msg or "invalid option" in err_msg:
             # Try to extract the bad flag from the error message using regex
             import re
             match = re.search(r"(?:unrecognized option|invalid option)\s+['\"]?(-{1,2}[\w-]+)['\"]?", err_msg)
             bad_flag = match.group(1) if match else None
-            
+
             if bad_flag and "flags" in step.args:
                 logger.info(f"Self-correcting tool {step.tool}: stripping bad flag {bad_flag}")
                 new_flags = step.args["flags"].replace(bad_flag, "").strip()
                 # Clean up double spaces
                 new_flags = " ".join(new_flags.split())
                 step.args["flags"] = new_flags
-                
+
                 try:
                     assert self._registry is not None
                     retry_result = await self._registry.execute(step.tool, **step.args)
@@ -267,7 +272,7 @@ class RegistryExecutor(BaseExecutor):
                         return retry_result
                 except Exception:
                     pass
-        
+
         # 2. Missing Tool Installation Heuristic
         if any(x in err_msg for x in [
             "not found", "not installed", "unavailable",
@@ -339,18 +344,18 @@ class RegistryExecutor(BaseExecutor):
             from .workflow import WorkflowEngine, WorkflowStatus
 
             engine = WorkflowEngine()
-            
+
             # Register a step executor that maps workflow args back to _try_execute
             def _create_runner(tool_name: str) -> WorkflowStepFn:
                 async def runner(args: dict[str, Any]) -> dict[str, Any]:
                     step = PlanStep(id="wf_step", tool=tool_name, args=args)
                     return await self._try_execute(step, None)
                 return runner
-                
+
             if self._registry:
                 for tool in self._registry.list_tools():
                     engine.register_step(tool.name, _create_runner(tool.name))
-                    
+
             for tool_name in self._custom_executors:
                 engine.register_step(tool_name, _create_runner(tool_name))
 
@@ -369,14 +374,14 @@ class RegistryExecutor(BaseExecutor):
                 name=plan.goal, description=plan.goal, nodes=nodes, edges=edges
             )
             wf_result = await engine.run_workflow(workflow)
-            
+
             # Map statuses back
             for s in plan.steps:
                 wf_node = wf_result.get_node(s.id)
                 if wf_node:
                     s.status = StepStatus(wf_node.status.value)
                     s.result = wf_node.result
-            
+
             plan.status = (
                 PlanStatus.COMPLETED
                 if wf_result.status == WorkflowStatus.COMPLETED

@@ -392,11 +392,11 @@ class NaturalLanguageParser:
     def __init__(self, custom_synonyms: dict[str, str] | None = None) -> None:
         self._tool_corpus: dict[str, list[str]] = {}
         self._template_corpus: dict[str, list[str]] = {}
-        
+
         # IDF (Inverse Document Frequency) components
         self._doc_frequencies: dict[str, int] = defaultdict(int)
         self._total_docs: int = 0
-        
+
         self.synonyms = self.DEFAULT_SYNONYMS.copy()
         if custom_synonyms:
             self.synonyms.update(custom_synonyms)
@@ -405,11 +405,11 @@ class NaturalLanguageParser:
         """Calculate document frequencies for IDF weighting."""
         self._doc_frequencies.clear()
         self._total_docs = len(self._tool_corpus) + len(self._template_corpus)
-        
+
         for tokens in self._tool_corpus.values():
             for t in set(tokens):
                 self._doc_frequencies[t] += 1
-                
+
         for tokens in self._template_corpus.values():
             for t in set(tokens):
                 self._doc_frequencies[t] += 1
@@ -518,7 +518,7 @@ class NaturalLanguageParser:
         """Extract modifier arguments with Negation Context Handling."""
         params = {}
         text_lower = text.lower()
-        
+
         # Check for global negations in the context
         is_negated = any(neg in text_lower for neg in ["not ", "no ", "without ", "skip ", "exclude "])
 
@@ -586,7 +586,7 @@ class NaturalLanguageParser:
         if any(word in text_lower for word in ["verbose", "detail", "detailed"]):
             if not is_negated:
                 params["verbose"] = "true"
-            
+
         # Wordlist extraction
         wordlist_match = re.search(r"\bwordlist\s*([a-zA-Z0-9_./\-]+)\b", text_lower)
         if wordlist_match:
@@ -601,7 +601,7 @@ class NaturalLanguageParser:
         user_match = re.search(r"\b(?:user|username)\s+([a-zA-Z0-9_.\-]+)\b", text_lower)
         if user_match:
             params["username"] = user_match.group(1)
-            
+
         pass_match = re.search(r"\b(?:pass|password)\s+([a-zA-Z0-9_.\-!@#$%^&*]+)\b", text_lower)
         if pass_match:
             params["password"] = pass_match.group(1)
@@ -649,20 +649,20 @@ class NaturalLanguageParser:
                 if token == c_token:
                     return True
                 continue
-                
+
             # Fast difflib check for transpositions (like direcotry -> directory)
             if difflib.get_close_matches(token, [c_token], n=1, cutoff=0.75):
                 return True
 
             c_token_phonetic = self._phonetic_simplify(c_token)
             c_bigrams = self._get_char_bigrams(c_token_phonetic)
-            
+
             # Calculate Jaccard similarity for phonetic replacements
             intersection = len(token_bigrams.intersection(c_bigrams))
             union = len(token_bigrams.union(c_bigrams))
             if union == 0:
                 continue
-                
+
             similarity = intersection / union
             if similarity >= 0.50:  # 50% overlap in phonetic bigrams is robust for typos
                 return True
@@ -673,7 +673,7 @@ class NaturalLanguageParser:
         self, tokens: list[str], corpus: dict[str, list[str]]
     ) -> tuple[str | None, float]:
         """Calculate Okapi BM25 similarity to find the best matching intent.
-        
+
         BM25 improves upon TF-IDF by capping term frequency saturation and properly
         normalizing based on average document length, making it the industry standard
         for information retrieval.
@@ -689,7 +689,7 @@ class NaturalLanguageParser:
         for name, doc_tokens in corpus.items():
             score = 0.0
             doc_len = len(doc_tokens)
-            
+
             # Count term frequencies in the document
             doc_tf: dict[str, int] = defaultdict(int)
             for t in doc_tokens:
@@ -698,7 +698,7 @@ class NaturalLanguageParser:
             for token in tokens:
                 idf = self.get_idf(token)
                 term_freq = 0
-                
+
                 if "_" in token:
                     # N-grams
                     if token in doc_tokens:
@@ -763,7 +763,7 @@ class NaturalLanguageParser:
         # Split text by unambiguous multi-step conjunctions
         split_pattern = r"\b(?:and then|followed by|&&|,\s*then|then)\b"
         parts = re.split(split_pattern, text, flags=re.IGNORECASE)
-        
+
         intents = []
         for part in parts:
             part = part.strip()

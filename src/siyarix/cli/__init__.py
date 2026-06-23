@@ -61,7 +61,6 @@ from ..logging_config import configure_logging
 from ..metrics import get_metrics
 from ..security_commands import security_app
 
-from ..output import OutputEngine
 from ..validators import validate_target
 from ..async_utils import run_async
 
@@ -838,7 +837,28 @@ def scan(
     if mode is None:
         mode = str(ctx.parent.params.get("mode", "integrated"))
 
-    # Support @targets.txt multi-target mode (Chapter 15 Hidden Features)
+    _execute_scan_core(
+        targets, tool=tool, mode=mode, output=output,
+        timeout=timeout, save=save, dry_run=dry_run,
+        no_banner=no_banner, profile=profile,
+        parallel=_parallel, notify=_notify,
+    )
+
+
+def _execute_scan_core(
+    targets: list[str],
+    tool: str = "",
+    mode: str = "integrated",
+    output: str = "table",
+    timeout: int = 300,
+    save: bool = False,
+    dry_run: bool = False,
+    no_banner: bool = False,
+    profile: str = "",
+    parallel: int = 3,
+    notify: bool = False,
+) -> Any:
+    """Core scan execution logic (shared between scan and presets)."""
     expanded_targets: list[str] = []
     for t in targets:
         if t.startswith("@"):
@@ -856,29 +876,23 @@ def scan(
                 raise typer.Exit(3)
         else:
             expanded_targets.append(t)
-
     if not expanded_targets:
         console.print("[red]No targets specified. Use siyarix scan <target> or @file.txt[/red]")
         raise typer.Exit(1)
-
     for target in expanded_targets:
         try:
             validate_target(target)
         except ValidationError as exc:
             console.print(f"[red]Invalid target '{target}': {exc}[/red]")
             raise typer.Exit(1)
-
-    # Validate output format early before any execution
     valid_outputs = ("table", "json", "yaml", "csv", "html", "quiet")
     output = output.lower()
     if output not in valid_outputs:
         console.print(f"[red]Invalid output format '{output}'. Valid: {', '.join(valid_outputs)}[/red]")
         raise typer.Exit(1)
-
     instruction = f"scan {' '.join(expanded_targets)}"
     if tool:
         instruction += f" with {tool}"
-
     audit.log(
         event_type=AuditEventType.SCAN_START,
         severity=AuditSeverity.INFO,
@@ -888,8 +902,6 @@ def scan(
         target=",".join(expanded_targets),
         details={"tool": tool, "mode": mode, "targets": expanded_targets},
     )
-
-    # Show progress for multi-target scans
     if len(expanded_targets) > 1:
         with Progress(
             SpinnerColumn(),
@@ -910,40 +922,39 @@ def scan(
         result = run_async(
             engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save)
         )
-
     if dry_run:
         console.print("[yellow]Dry run complete — no commands executed.[/yellow]")
-        return
-
-    # Display findings according to the requested output format
+        return result
     if result.all_findings:
         if output in ("json", "yaml", "csv"):
-            output_engine = OutputEngine(output_format=output)
-            if output == "json":
-                output_engine.print_json(result.all_findings)
-            elif output == "yaml":
-                output_engine.print_yaml(result.all_findings)
-            elif output == "csv":
-                if result.all_findings:
-                    findings_dicts = [
-                        f.to_dict() if hasattr(f, "to_dict") else vars(f)
-                        for f in result.all_findings
-                    ]
-                    output_engine.print_csv(findings_dicts)
-                else:
-                    console.print("[yellow]No findings to export.[/yellow]")
+            try:
+                from ..output import OutputEngine
+                output_engine = OutputEngine(output_format=output)
+                if output == "json":
+                    output_engine.print_json(result.all_findings)
+                elif output == "yaml":
+                    output_engine.print_yaml(result.all_findings)
+                elif output == "csv":
+                    if result.all_findings:
+                        findings_dicts = [
+                            f.to_dict() if hasattr(f, "to_dict") else vars(f)
+                            for f in result.all_findings
+                        ]
+                        output_engine.print_csv(findings_dicts)
+            except ImportError:
+                _display_findings_table(result.all_findings)
         else:
             _display_findings_table(result.all_findings)
-
     audit.log(
         event_type=AuditEventType.SCAN_COMPLETE,
         severity=AuditSeverity.INFO,
         user=os.getenv("USER", os.getenv("USERNAME", "cli")),
         action="scan",
         result="success" if result.success else "failed",
-        target=",".join(targets),
+        target=",".join(expanded_targets),
         details={"summary": result.summary, "findings": len(result.all_findings)},
     )
+    return result
 
 
 @app.command(name="scan-quick", hidden=False)
@@ -955,9 +966,11 @@ def scan_quick(
     """Quick scan preset — fast port discovery (top 100 ports, no service detection)."""
     tool = "nmap"
     updated_targets = [f"{t} --top-ports 100" for t in targets]
-    return scan(typer.Context, updated_targets, tool=tool, mode=mode or "registry",
-                output="table", _parallel=3, timeout=120, save=False, _notify=False,
-                dry_run=dry_run, no_banner=True, profile="")
+    _execute_scan_core(
+        updated_targets, tool=tool, mode=mode or "registry",
+        output="table", timeout=120, save=False,
+        dry_run=dry_run, no_banner=True, profile="",
+    )
 
 
 @app.command(name="scan-full", hidden=False)
@@ -969,9 +982,11 @@ def scan_full(
     """Full scan preset — all ports, service + OS detection, default scripts."""
     tool = "nmap"
     updated_targets = [f"{t} -p- -sV -O -sC" for t in targets]
-    return scan(typer.Context, updated_targets, tool=tool, mode=mode or "registry",
-                output="table", _parallel=3, timeout=600, save=False, _notify=False,
-                dry_run=dry_run, no_banner=True, profile="")
+    _execute_scan_core(
+        updated_targets, tool=tool, mode=mode or "registry",
+        output="table", timeout=600, save=False,
+        dry_run=dry_run, no_banner=True, profile="",
+    )
 
 
 @app.command(name="scan-web", hidden=False)
@@ -983,9 +998,11 @@ def scan_web(
     """Web scan preset — HTTP service enumeration (whatweb, nikto, nuclei)."""
     tool = "whatweb+nikto+nuclei"
     updated_targets = [f"http://{t}" if "://" not in t else t for t in targets]
-    return scan(typer.Context, updated_targets, tool=tool, mode=mode or "registry",
-                output="table", _parallel=3, timeout=300, save=False, _notify=False,
-                dry_run=dry_run, no_banner=True, profile="")
+    _execute_scan_core(
+        updated_targets, tool=tool, mode=mode or "registry",
+        output="table", timeout=300, save=False,
+        dry_run=dry_run, no_banner=True, profile="",
+    )
 
 
 @app.command()
@@ -1360,7 +1377,7 @@ def report(
     ext = Path(output).suffix.lower()
     if ext in {".json", ".csv"}:
         fmt = ext.lstrip(".")
-        audit.export(format=fmt, filepath=output, days=days)
+        audit.export(export_format=fmt, filepath=output, days=days)
         console.print(f"[green]✓ Report generated: {output}[/green]")
         return
 
@@ -1416,7 +1433,7 @@ def logs(
         if ext not in {".json", ".csv"}:
             console.print("[red]Unsupported export format. Use .json or .csv.[/red]")
             raise typer.Exit(1)
-        audit.export(format=ext.lstrip("."), filepath=output, days=days)
+        audit.export(export_format=ext.lstrip("."), filepath=output, days=days)
         console.print(f"[green]✓ Audit log exported to {output}[/green]")
         return
 
@@ -1752,7 +1769,11 @@ def generate_report(
 ) -> None:
     """Generate a security assessment report from the knowledge graph."""
     from ..core import AgentCore, AgentMode
-    from ..report import ReportEngine, ReportFormat
+    try:
+        from ..report import ReportEngine, ReportFormat
+    except ImportError:
+        console.print("[red]Report engine not available in this build.[/red]")
+        raise typer.Exit(1)
 
     core = AgentCore(mode=AgentMode.REGISTRY)
 

@@ -9,7 +9,6 @@ import re
 from typing import Any
 
 from .events import Event, EventType, emit_sync
-from .nlp_engine import NaturalLanguageParser
 from .models import (
     ExecutionPlan,
     PlanStatus,
@@ -17,6 +16,7 @@ from .models import (
     PlanType,
     StepStatus,
 )
+from .nlp_engine import NaturalLanguageParser
 
 _IS_WIN = os.name == "nt"
 
@@ -1182,7 +1182,7 @@ class RegistryPlanner:
                 # Merge overrides carefully, and apply NLP-specific overrides mapping if applicable
                 override_args = overrides.get("args", {})
                 tool_name = step.get("tool")
-                
+
                 # Intelligent parameter mapping to avoid passing bad args to tools
                 if tool_name in ("nmap", "masscan"):
                     if "speed" in override_args:
@@ -1201,16 +1201,16 @@ class RegistryPlanner:
                 elif tool_name == "nuclei":
                     if "threads" in override_args:
                         step["args"]["rate-limit"] = override_args["threads"]
-                        
+
                 # Merge the rest (this might overwrite some but it's okay)
                 for k, v in override_args.items():
                     if k not in ("speed", "ports", "threads", "username", "password", "module"):
                         step["args"][k] = v
-                
+
                 # Cleanup spaces
                 if "flags" in step["args"]:
                     step["args"]["flags"] = step["args"]["flags"].strip()
-                    
+
             steps.append(step)
         plan_type = (
             PlanType.DAG if template_name in self._auto_dag_templates else PlanType.SEQUENTIAL
@@ -1234,27 +1234,27 @@ class RegistryPlanner:
                 # to avoid template over-expansion (e.g., "subdomain enumeration"
                 # → 6-step recon_full when only subfinder was intended)
                 sub_plan = self._decompose_lightweight(intent.raw_text, available_tools)
-                
+
                 # If there are previous steps, make the first steps of THIS intent depend on the last steps of the PREVIOUS intent
                 if last_step_ids and sub_plan.steps:
                     for step in sub_plan.steps:
                         if not step.dependencies:
                             step.dependencies.extend(last_step_ids)
-                
+
                 all_steps.extend(sub_plan.steps)
                 last_step_ids = [s.id for s in sub_plan.steps if s.is_terminal or not any(other.id in s.dependencies for other in sub_plan.steps)]
                 # Fallback if the logic above returns empty
                 if not last_step_ids and sub_plan.steps:
                     last_step_ids = [sub_plan.steps[-1].id]
-                    
+
                 if sub_plan.plan_type == PlanType.DAG:
                     is_dag = True
             plan_type = PlanType.DAG if is_dag else PlanType.SEQUENTIAL
-            
+
             # Injected dependencies should make this a DAG if dependencies exist
             if any(s.dependencies for s in all_steps):
                 plan_type = PlanType.DAG
-                
+
             return self.create_plan(
                 goal=goal,
                 steps=[{"id": s.id, "description": s.description, "tool": s.tool, "args": s.args, "command": s.command, "dependencies": s.dependencies, "timeout": s.timeout} for s in all_steps],
@@ -2070,7 +2070,7 @@ class RegistryPlanner:
                 is_complete_word = (
                     pos + len(keyword) >= len(goal_lower) or not goal_lower[pos + len(keyword)].isalnum()
                 )
-                
+
                 score = 10000  # Base score for word boundary match
                 score += 5000 if is_complete_word else 0  # Prefer complete word matches over prefixes
                 score += max(0, 500 - pos) * 20  # Position heavily weighted
@@ -2193,7 +2193,7 @@ class RegistryPlanner:
 
     def _decompose_lightweight(self, goal: str, available_tools: list[str] | None = None) -> ExecutionPlan:
         """Lightweight decomposition for sub-commands in 'then' chains.
-        
+
         Skips template and NLP expansion to avoid over-expanding
         (e.g., 'port scan on example.com' → single nmap step, not network_scan template).
         """

@@ -19,8 +19,8 @@ from .models import (
     StepStatus,
     StepType,
 )
-from .planner_registry import RegistryPlanner, TOOL_ALTERNATIVES
 from .planner_autonomous import AutonomousPlanner
+from .planner_registry import TOOL_ALTERNATIVES, RegistryPlanner
 
 logger = logging.getLogger(__name__)
 

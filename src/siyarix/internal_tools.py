@@ -9,14 +9,14 @@ def make_graph_analyzer_handler() -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         action = kwargs.get("action", "")
         args = kwargs.get("args", {})
-        
+
         from .knowledge_graph import KnowledgeGraph
         from .config import get_config_dir
         kg = KnowledgeGraph()
         path = get_config_dir() / "knowledge_graph.json"
         if path.exists():
             kg.load_json(str(path))
-            
+
         result: dict[str, Any] = {}
         if action == "shortest_path":
             source = args.get("source")
@@ -50,9 +50,9 @@ def make_threat_intel_handler() -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         action = kwargs.get("action", "")
         query = kwargs.get("query", "")
-        
+
         from .threat_intel import ThreatIntelFeed, MITREAttackDB
-        
+
         result: dict[str, Any] = {}
         if action == "cve_lookup":
             feed = ThreatIntelFeed()

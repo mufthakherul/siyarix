@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Webhook Notification Dispatcher for Siyarix."""
 
+from __future__ import annotations
+
 import logging
 import os
 import httpx
@@ -46,7 +48,7 @@ class NotificationDispatcher:
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.post(self.webhook_url, json=payload, timeout=10.0)
+                response = await client.post(self.webhook_url, json=payload)
                 response.raise_for_status()
                 logger.info("Notification dispatched successfully.")
         except Exception as e:

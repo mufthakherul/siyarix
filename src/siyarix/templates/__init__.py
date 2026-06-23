@@ -1,1 +1,1 @@
-# __init__.py
+# SPDX-License-Identifier: AGPL-3.0-or-later

@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from siyarix.config import get_config_dir
+from .config import get_config_dir
 from .registry import RiskLevel
 
 logger = logging.getLogger(__name__)

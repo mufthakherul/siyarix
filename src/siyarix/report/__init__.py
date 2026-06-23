@@ -9,22 +9,21 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from ..cvss_scorer import CVSSScorer
-
 from .models import Report, ReportConfig, ReportFormat, ReportSection
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "ReportEngine",
     "Report",
     "ReportConfig",
-    "ReportSection",
+    "ReportEngine",
     "ReportFormat",
+    "ReportSection",
 ]
 
 
@@ -147,7 +146,7 @@ class ReportEngine:
             counts[sev] = counts.get(sev, 0) + 1
         return counts
 
-    def _build_executive_summary(self, findings: list[dict], target: str) -> ReportSection:
+    def _build_executive_summary(self, findings: list[dict[str, Any]], target: str) -> ReportSection:
         counts = self._count_severities(findings)
         total = len(findings)
         section = ReportSection(title="Executive Summary")
@@ -155,7 +154,7 @@ class ReportEngine:
             "## Executive Summary",
             "",
             f"**Assessment Target:** {target or 'N/A'}",
-            f"**Date:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
+            f"**Date:** {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}",
             f"**Total Findings:** {total}",
             "",
             "### Severity Breakdown",
@@ -171,7 +170,7 @@ class ReportEngine:
             critical_high = counts.get("critical", 0) + counts.get("high", 0)
             if critical_high > 0:
                 lines.append(
-                    f"\n**⚠️ {critical_high} critical/high severity finding(s) require immediate attention.**"
+                    f"\n**⚠️ {critical_high} critical/high severity finding(s) require immediate attention.**",
                 )
             else:
                 lines.append("\nNo critical or high severity findings detected.")
@@ -196,7 +195,7 @@ class ReportEngine:
 - Exploitation verification: sqlmap, hydra (as applicable)"""
         return section
 
-    def _build_findings_section(self, findings: list[dict]) -> ReportSection:
+    def _build_findings_section(self, findings: list[dict[str, Any]]) -> ReportSection:
         section = ReportSection(title="Findings")
         subsections = []
 
@@ -209,7 +208,7 @@ class ReportEngine:
             if sev not in sev_groups:
                 continue
             sub = ReportSection(
-                title=f"{sev.capitalize()} Severity Findings ({len(sev_groups[sev])})"
+                title=f"{sev.capitalize()} Severity Findings ({len(sev_groups[sev])})",
             )
             lines = [f"### {sev.capitalize()} Severity Findings\n"]
             for i, finding in enumerate(sev_groups[sev], 1):
@@ -223,7 +222,7 @@ class ReportEngine:
                 lines.append(f"- **Description:** {desc}  ")
                 if cvss:
                     lines.append(
-                        f"- **CVSS Score:** {cvss.get('score', 'N/A')} ({cvss.get('severity', 'N/A')})  "
+                        f"- **CVSS Score:** {cvss.get('score', 'N/A')} ({cvss.get('severity', 'N/A')})  ",
                     )
                     lines.append(f"- **CVSS Vector:** {cvss.get('vector', 'N/A')}  ")
                 if evidence:
@@ -235,7 +234,7 @@ class ReportEngine:
         section.subsections = subsections
         return section
 
-    def _build_evidence_section(self, findings: list[dict]) -> ReportSection:
+    def _build_evidence_section(self, findings: list[dict[str, Any]]) -> ReportSection:
         section = ReportSection(title="Evidence")
         lines = ["## Evidence Collection\n"]
         for i, f in enumerate(findings[:20], 1):
@@ -249,7 +248,7 @@ class ReportEngine:
         section.content = "\n".join(lines)
         return section
 
-    def _build_remediation_section(self, findings: list[dict]) -> ReportSection:
+    def _build_remediation_section(self, findings: list[dict[str, Any]]) -> ReportSection:
         section = ReportSection(title="Remediation Guidance")
         sev_map: dict[str, str] = {
             "critical": "Immediate remediation required within 24 hours",
@@ -271,7 +270,7 @@ class ReportEngine:
         section.content = "\n".join(lines)
         return section
 
-    def _build_appendix(self, findings: list[dict]) -> ReportSection:
+    def _build_appendix(self, findings: list[dict[str, Any]]) -> ReportSection:
         section = ReportSection(title="Appendix: Raw Findings Data")
         lines = ["## Appendix: Tool Output Summary\n"]
         tool_counts: dict[str, int] = {}
@@ -298,16 +297,17 @@ class ReportEngine:
             "",
         ]
         for section in report.sections:
-            lines.append(section.content)
-            lines.append("")
-            for sub in section.subsections:
-                lines.append(sub.content)
+            if section.content:
+                lines.append(section.content)
                 lines.append("")
+            for sub in section.subsections:
+                if sub.content:
+                    lines.append(sub.content)
+                    lines.append("")
         return "\n".join(lines)
 
     def _render_html(self, report: Report) -> str:
         """Renders a premium, interactive HTML Dashboard."""
-
         # --- 1. CSS Styles ---
         css = """
         :root {
@@ -327,7 +327,7 @@ class ReportEngine:
         .header { text-align: center; margin-bottom: 3rem; padding-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
         h1 { font-size: 2.5rem; margin-bottom: 0.5rem; color: #FFF; text-shadow: 0 0 20px var(--border-glow); }
         .meta-tags { display: flex; justify-content: center; gap: 1rem; color: var(--text-muted); font-size: 0.9rem; }
-        
+
         /* Stats Grid */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }
         .stat-card {
@@ -340,14 +340,14 @@ class ReportEngine:
         .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
         .stat-val { font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem; }
         .stat-label { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
-        
+
         /* Severities */
         .crit { color: var(--crit); text-shadow: 0 0 15px rgba(255,42,85,0.4); }
         .high { color: var(--high); text-shadow: 0 0 15px rgba(255,139,61,0.4); }
         .med { color: var(--med); }
         .low { color: var(--low); }
         .info { color: var(--info); }
-        
+
         /* Filter Bar */
         .filter-bar { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
         .filter-btn {
@@ -356,7 +356,7 @@ class ReportEngine:
             cursor: pointer; font-size: 0.9rem; transition: all 0.2s;
         }
         .filter-btn:hover, .filter-btn.active { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); }
-        
+
         /* Findings List */
         .finding-card {
             background: var(--bg-card); border-left: 4px solid var(--info);
@@ -367,7 +367,7 @@ class ReportEngine:
         .finding-card.high { border-color: var(--high); }
         .finding-card.medium { border-color: var(--med); }
         .finding-card.low { border-color: var(--low); }
-        
+
         summary {
             padding: 1.2rem 1.5rem; cursor: pointer; list-style: none;
             display: flex; justify-content: space-between; align-items: center;
@@ -376,13 +376,13 @@ class ReportEngine:
         summary::-webkit-details-marker { display: none; }
         summary:hover { background: rgba(255,255,255,0.02); }
         .badge { font-size: 0.8rem; padding: 0.2rem 0.6rem; border-radius: 12px; background: rgba(255,255,255,0.1); margin-left: 1rem; }
-        
+
         .finding-details { padding: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); }
         .detail-row { margin-bottom: 1rem; }
         .detail-label { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 0.3rem; }
         code, pre { font-family: 'Fira Code', monospace; background: rgba(0,0,0,0.4); padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9em; }
         pre { padding: 1rem; overflow-x: auto; border: 1px solid rgba(255,255,255,0.05); }
-        
+
         /* Table */
         table { width: 100%; border-collapse: collapse; margin: 2rem 0; background: var(--bg-card); border-radius: 8px; overflow: hidden; }
         th, td { padding: 1rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
@@ -394,7 +394,7 @@ class ReportEngine:
         function filterFindings(sev) {
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
-            
+
             document.querySelectorAll('.finding-card').forEach(card => {
                 if (sev === 'all' || card.classList.contains(sev)) {
                     card.style.display = 'block';
@@ -412,7 +412,7 @@ class ReportEngine:
             "<!DOCTYPE html><html lang='en'>",
             "<head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>",
             f"<title>{report.config.title}</title>",
-            "" if getattr(report.config, "offline", False) else
+            "" if not getattr(report.config, "offline", False) else
             "<link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=Fira+Code&display=swap' rel='stylesheet'>",
             "<style>"
             + ("body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}"
@@ -434,7 +434,7 @@ class ReportEngine:
                 f"<span>Generated: {report.generated_at}</span> | ",
                 f"<span>ID: {report.report_id}</span>",
                 "</div></div>",
-            ]
+            ],
         )
 
         # Stats
@@ -447,7 +447,7 @@ class ReportEngine:
                 f"<div class='stat-card'><div class='stat-val med'>{counts.get('medium', 0)}</div><div class='stat-label'>Medium</div></div>",
                 f"<div class='stat-card'><div class='stat-val low'>{counts.get('low', 0)}</div><div class='stat-label'>Low</div></div>",
                 "</div>",
-            ]
+            ],
         )
 
         # Filters
@@ -461,7 +461,7 @@ class ReportEngine:
                 "<button class='filter-btn' onclick=\"filterFindings('low')\">Low</button>",
                 "<button class='filter-btn' onclick=\"filterFindings('info')\">Info</button>",
                 "</div>",
-            ]
+            ],
         )
 
         # Findings List
@@ -473,27 +473,27 @@ class ReportEngine:
                     f"<details class='finding-card {sev}'>",
                     f"<summary>{f.get('title', 'Unknown Finding')} <span class='badge' style='background: var(--{sev[:4]})'>{sev.upper()}</span></summary>",
                     "<div class='finding-details'>",
-                ]
+                ],
             )
 
             # Details
             html.append(
-                f"<div class='detail-row'><span class='detail-label'>Description</span>{f.get('description', 'N/A')}</div>"
+                f"<div class='detail-row'><span class='detail-label'>Description</span>{f.get('description', 'N/A')}</div>",
             )
 
             if "cvss" in f:
                 cv = f["cvss"]
                 html.append(
-                    f"<div class='detail-row'><span class='detail-label'>CVSS Score</span>{cv.get('score')} ({cv.get('vector')})</div>"
+                    f"<div class='detail-row'><span class='detail-label'>CVSS Score</span>{cv.get('score')} ({cv.get('vector')})</div>",
                 )
 
             html.append(
-                f"<div class='detail-row'><span class='detail-label'>Tool</span><code>{f.get('tool', 'N/A')}</code> targeting <code>{f.get('target', 'N/A')}</code></div>"
+                f"<div class='detail-row'><span class='detail-label'>Tool</span><code>{f.get('tool', 'N/A')}</code> targeting <code>{f.get('target', 'N/A')}</code></div>",
             )
 
             if f.get("evidence"):
                 html.append(
-                    f"<div class='detail-row'><span class='detail-label'>Evidence Snapshot</span><pre>{f.get('evidence')}</pre></div>"
+                    f"<div class='detail-row'><span class='detail-label'>Evidence Snapshot</span><pre>{f.get('evidence')}</pre></div>",
                 )
 
             html.append("</div></details>")
@@ -505,11 +505,11 @@ class ReportEngine:
             [
                 "<h2 style='margin-top: 4rem; margin-bottom: 1rem;'>Raw Data Table</h2>",
                 "<table><thead><tr><th>Severity</th><th>Title</th><th>Tool</th><th>Target</th></tr></thead><tbody>",
-            ]
+            ],
         )
         for f in report.findings:
             html.append(
-                f"<tr><td>{f.get('severity', 'info').upper()}</td><td>{f.get('title')}</td><td>{f.get('tool')}</td><td>{f.get('target')}</td></tr>"
+                f"<tr><td>{f.get('severity', 'info').upper()}</td><td>{f.get('title')}</td><td>{f.get('tool')}</td><td>{f.get('target')}</td></tr>",
             )
         html.append("</tbody></table>")
 
@@ -550,8 +550,8 @@ class ReportEngine:
                         "physicalLocation": {
                             "artifactLocation": {"uri": f.get("target", "unknown")},
                             "region": {"snippet": {"text": f.get("evidence", "")[:100]}},
-                        }
-                    }
+                        },
+                    },
                 ],
             }
             if cvss:
@@ -573,7 +573,7 @@ class ReportEngine:
                         "generated_at": report.generated_at,
                         "total_findings": len(report.findings),
                     },
-                }
+                },
             ],
         }
         return json.dumps(sarif_output, indent=2, default=str)

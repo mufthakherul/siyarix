@@ -13,7 +13,7 @@ import json
 import logging
 import os
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -128,7 +128,7 @@ class SessionLogger:
             return []
         logs: list[dict[str, Any]] = []
         for path in sorted(
-            self._log_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
+            self._log_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True,
         ):
             if not path.stat().st_size:
                 logger.debug("Skipping empty session log: %s", path)
@@ -146,7 +146,7 @@ class SessionLogger:
                         "commands": len(data.get("commands", [])),
                         "tool_count": len(data.get("tool_usage", {})),
                         "safety_events": len(data.get("safety_events", [])),
-                    }
+                    },
                 )
             except Exception:
                 logger.debug("Skipping unparseable session log: %s", path)
@@ -221,16 +221,16 @@ class SessionLogger:
                             "name": "Siyarix",
                             "version": log.llm_provider or "unknown",
                             "informationUri": "https://siyarix.ai",
-                        }
+                        },
                     },
                     "invocations": [
                         {
                             "startTimeUtc": log.timestamp_start,
                             "endTimeUtc": log.timestamp_end,
-                        }
+                        },
                     ],
                     "results": [],
-                }
+                },
             ],
         }
         for cmd in log.commands:
@@ -238,7 +238,7 @@ class SessionLogger:
                 {
                     "message": {"text": cmd.input},
                     "ruleId": f"CMD-{cmd.id:04d}",
-                }
+                },
             )
         return json.dumps(sarif, indent=2, default=str)
 
@@ -268,7 +268,7 @@ class SessionLogger:
         log.commands.append(
             CommandEntry(
                 id=cmd_id,
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
                 input=input_text,
                 masked_input=masked_input,
                 ai_plan=ai_plan or [],
@@ -276,7 +276,7 @@ class SessionLogger:
                 execution_time_ms=execution_time_ms,
                 output_summary=output_summary,
                 full_output_ref=ref,
-            )
+            ),
         )
         self.save(log)
         try:
@@ -309,7 +309,7 @@ class SessionLogger:
         log = self.load(session_id)
         if not log:
             return False
-        log.timestamp_end = datetime.now(timezone.utc).isoformat()
+        log.timestamp_end = datetime.now(UTC).isoformat()
         self.save(log)
         return True
 
@@ -323,7 +323,7 @@ class SessionLogger:
     ) -> SessionLog:
         log = SessionLog(
             session_id=session_id,
-            timestamp_start=datetime.now(timezone.utc).isoformat(),
+            timestamp_start=datetime.now(UTC).isoformat(),
             timestamp_end="",
             persona=persona,
             llm_provider=llm_provider,
@@ -337,9 +337,9 @@ class SessionLogger:
 session_logger = SessionLogger()
 
 __all__ = [
-    "SessionLog",
     "CommandEntry",
     "SafetyEvent",
+    "SessionLog",
     "SessionLogger",
     "session_logger",
 ]

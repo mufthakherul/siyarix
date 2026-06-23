@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""
-Interactive review loop for LLM-generated shell commands.
+"""Interactive review loop for LLM-generated shell commands.
 Provides EDIT / RUN / STEP / CANCEL prompts before execution.
 Auto-approves in non-TTY/CI mode to prevent blocking.
 
@@ -68,7 +67,7 @@ def review_command(original: str, tool: str, reason: str) -> ReviewResult:
             ),
             title="Command Execution Review",
             border_style="yellow",
-        )
+        ),
     )
 
     while True:
@@ -108,4 +107,4 @@ def review_and_confirm(original: str, tool: str, reason: str) -> str | None:
     return original
 
 
-__all__ = ["ReviewResult", "review_command", "review_and_confirm", "ReviewDecision"]
+__all__ = ["ReviewDecision", "ReviewResult", "review_and_confirm", "review_command"]

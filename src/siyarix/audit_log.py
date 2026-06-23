@@ -3,15 +3,14 @@
 """Enterprise Audit Logger — structured logs, compliance, tamper-evident.
 
 Features:
-  • Structured JSON audit trails
+  • Structured JSON audit trails with SHA-256 chain of custody
   • Compliance frameworks (SOC 2, ISO 27001, NIST)
-  • Tamper-evident hashing (chain of custody)
+  • Tamper-evident hashing (chain of custody verification)
   • Log rotation & retention policies
   • Real-time monitoring & alerting
-  • Export to JSON, CSV, PDF, Splunk
+  • Export to JSON, CSV
   • User attribution & session tracking
   • Event correlation & anomaly detection
-  • SIEM integration (Splunk, ELK, Sentinel)
 """
 
 from __future__ import annotations
@@ -23,6 +22,7 @@ import json
 import logging
 import os
 import socket
+import stat
 import sys
 import threading
 import uuid
@@ -32,19 +32,18 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-# SIEM forwarding deferred to v2.0
+from .security_hardening import redactor
 
 try:
-    import tomllib  # Python 3.11+
+    import tomllib
 except ImportError:
     try:
-        import tomli as tomllib  # type: ignore[import-not-found,no-redef]
+        import tomli as tomllib
     except ImportError:
-        tomllib = None  # type: ignore[assignment]
+        tomllib = None
 
 try:
     from rich.console import Console
-
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -78,6 +77,13 @@ class AuditEventType(StrEnum):
     SYSTEM_ERROR = "system_error"
     SECURITY_APPROVAL = "security_approval"
     SECURITY_DENIAL = "security_denial"
+    CREDENTIAL_ROTATED = "credential_rotated"
+    PERMISSION_CHANGE = "permission_change"
+    SESSION_TIMEOUT = "session_timeout"
+    RATE_LIMIT_HIT = "rate_limit_hit"
+    DLP_VIOLATION = "dlp_violation"
+    FILE_INTEGRITY = "file_integrity"
+    CONTAINER_CHECK = "container_check"
 
 
 class AuditSeverity(StrEnum):
@@ -90,7 +96,6 @@ class AuditSeverity(StrEnum):
     CRITICAL = "critical"
 
 
-# Valid Rich color mapping per severity (no "orange" — not a Rich color)
 _SEVERITY_COLORS: dict[str, str] = {
     AuditSeverity.INFO: "green",
     AuditSeverity.LOW: "cyan",
@@ -119,9 +124,9 @@ class AuditEvent:
     hash_current: str | None = None
 
     def compute_hash(self, prev_hash: str | None = None) -> str:
-        """Compute tamper-evident hash"""
+        """Compute tamper-evident SHA-256 hash (first 16 hex chars)."""
         try:
-            details_str = json.dumps(self.details, sort_keys=True)
+            details_str = json.dumps(self.details, sort_keys=True, default=str)
         except Exception:
             details_str = str(self.details)
         data = (
@@ -137,16 +142,22 @@ class AuditEvent:
             "timestamp": self.timestamp.isoformat(),
             "event_type": self.event_type,
             "severity": self.severity,
-            "user": self.user,
+            "user": redactor.redact(self.user) if self.user not in ("system", "") else self.user,
             "session_id": self.session_id,
             "source_ip": self.source_ip,
             "target": self.target,
             "action": self.action,
             "result": self.result,
-            "details": self.details,
+            "details": self._redact_details(),
             "hash_prev": self.hash_prev,
             "hash_current": self.hash_current,
         }
+
+    def _redact_details(self) -> dict[str, Any]:
+        """Redact sensitive values in details dict."""
+        if not self.details:
+            return {}
+        return redactor.redact_dict(self.details)
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict())
@@ -181,7 +192,7 @@ class AuditSession:
 
 
 class AuditLogger:
-    """Enterprise audit logging system"""
+    """Enterprise audit logging system with tamper-evident chain."""
 
     def __init__(self, log_startup: bool = True) -> None:
         from .config import get_config_dir
@@ -198,18 +209,17 @@ class AuditLogger:
 
         self._retention_days = 365
         self._cached_source_ip: str | None = None
-        self._count_by_type: dict[str, int] = {et: 0 for et in AuditEventType}
-        self._count_by_severity: dict[str, int] = {s: 0 for s in AuditSeverity}
+        self._count_by_type: dict[str, int] = {et.value: 0 for et in AuditEventType}
+        self._count_by_severity: dict[str, int] = {s.value: 0 for s in AuditSeverity}
 
         self._load_config()
         self._load_events()
         if log_startup:
             self._startup_event()
-        # Ensure events are flushed on process exit
         atexit.register(self._flush_on_exit)
 
     def _load_config(self) -> None:
-        """Load audit configuration"""
+        """Load audit configuration."""
         config_file = self._config_dir / "audit.toml"
         if config_file.exists() and tomllib is not None:
             try:
@@ -219,10 +229,9 @@ class AuditLogger:
                 logger.exception("Failed to load audit config: %s", exc)
 
     def _load_events(self) -> None:
-        """Load existing events from disk (last 1000 only to limit memory)"""
+        """Load existing events from disk (last 1000 only to limit memory)."""
         if self._audit_db.exists():
             try:
-                # JSONL format
                 lines = self._audit_db.read_text().splitlines()
                 self._parse_events_from_dicts(
                     [json.loads(line) for line in lines[-1000:] if line.strip()]
@@ -263,7 +272,7 @@ class AuditLogger:
                 logger.warning("Failed to parse event: %s", exc)
 
     def _save_events(self) -> None:
-        """Save events to disk atomically."""
+        """Save events to disk atomically with secure permissions."""
         if not self._unflushed_events:
             return
 
@@ -274,26 +283,33 @@ class AuditLogger:
                 self._unflushed_events.clear()
                 self._dirty = False
                 return
-        except ImportError:
+        except Exception:
             pass
 
         try:
             self._config_dir.mkdir(parents=True, exist_ok=True)
-            # Append-only JSONL writing to prevent data loss
             lines = [json.dumps(e.to_dict()) + "\n" for e in self._unflushed_events]
             with self._audit_db.open("a", encoding="utf-8") as f:
                 f.writelines(lines)
+            try:
+                if os.name != "nt":
+                    current = stat.S_IMODE(self._audit_db.stat().st_mode)
+                    if current & 0o077:
+                        self._audit_db.chmod(current & 0o700)
+            except Exception:
+                pass
             self._unflushed_events.clear()
             self._dirty = False
         except Exception as exc:
             logger.error("Failed to save audit events: %s", exc)
 
     def _flush_on_exit(self) -> None:
-        if self._dirty:
-            self._save_events()
+        with self._lock:
+            if self._dirty:
+                self._save_events()
 
     def _startup_event(self) -> None:
-        """Log system startup — uses the correct SYSTEM_START type."""
+        """Log system startup."""
         try:
             version = importlib.metadata.version("siyarix")
         except Exception:
@@ -309,7 +325,7 @@ class AuditLogger:
         )
 
     def _get_source_ip(self) -> str:
-        """Get source IP"""
+        """Get source IP."""
         if self._cached_source_ip is None:
             try:
                 self._cached_source_ip = socket.gethostbyname(socket.gethostname())
@@ -319,7 +335,7 @@ class AuditLogger:
         return self._cached_source_ip
 
     def start_session(self, user: str) -> str:
-        """Start audit session"""
+        """Start audit session."""
         session_id = uuid.uuid4().hex
         session = AuditSession(
             session_id=session_id,
@@ -331,7 +347,7 @@ class AuditLogger:
         return session_id
 
     def end_session(self, session_id: str) -> None:
-        """End audit session"""
+        """End audit session."""
         if session_id in self._sessions:
             sess = self._sessions[session_id]
             sess.end_time = datetime.now(timezone.utc)
@@ -356,7 +372,7 @@ class AuditLogger:
         session_id: str = "",
         details: dict[str, Any] | None = None,
     ) -> AuditEvent:
-        """Log audit event"""
+        """Log audit event."""
         with self._lock:
             prev_hash = self._events[-1].hash_current if self._events else None
 
@@ -384,11 +400,9 @@ class AuditLogger:
         self._count_by_type[event.event_type] = self._count_by_type.get(event.event_type, 0) + 1
         self._count_by_severity[event.severity] = self._count_by_severity.get(event.severity, 0) + 1
 
-        # Update session
         if session_id and session_id in self._sessions:
             self._sessions[session_id].events_count += 1
 
-        # Real-time console output (stderr to avoid polluting stdout pipes)
         if RICH_AVAILABLE and os.getenv("SIYARIX_AUDIT_VERBOSE", "0") == "1":
             console = Console(stderr=True)
             color = _SEVERITY_COLORS.get(severity, "white")
@@ -397,10 +411,6 @@ class AuditLogger:
                 f"{event.user} | {event.action} | {event.target}[/{color}]"
             )
 
-        # SIEM dispatch (now delegated to plugins)
-        pass
-
-        # Persist immediately to prevent data loss on crash
         self._save_events()
 
         return event
@@ -412,7 +422,7 @@ class AuditLogger:
         severity: str | None = None,
         limit: int = 100,
     ) -> list[dict]:
-        """Query audit events"""
+        """Query audit events."""
         events = list(self._events)
 
         if event_type:
@@ -425,9 +435,10 @@ class AuditLogger:
         return [e.to_dict() for e in events[-limit:]]
 
     def verify_chain(self) -> dict[str, Any]:
-        """Verify tamper-evident chain"""
+        """Verify tamper-evident chain of all events."""
         valid = True
         broken_at = None
+        errors: list[str] = []
 
         for i, event in enumerate(self._events):
             if i > 0:
@@ -435,12 +446,28 @@ class AuditLogger:
                 if event.hash_prev != expected_prev:
                     valid = False
                     broken_at = event.event_id
+                    errors.append(
+                        f"Chain break at event {i} ({event.event_id}): "
+                        f"expected prev_hash {expected_prev}, got {event.hash_prev}"
+                    )
                     break
+
+            expected_hash = event.compute_hash(event.hash_prev)
+            if event.hash_current != expected_hash:
+                valid = False
+                errors.append(
+                    f"Event {i} ({event.event_id}) hash mismatch: "
+                    f"expected {expected_hash}, got {event.hash_current}"
+                )
+                if broken_at is None:
+                    broken_at = event.event_id
+                break
 
         return {
             "valid": valid,
             "total_events": len(self._events),
             "broken_at": broken_at,
+            "errors": errors,
             "chain_integrity": "intact" if valid else "compromised",
         }
 
@@ -450,7 +477,7 @@ class AuditLogger:
         filepath: str | None = None,
         days: int = 30,
     ) -> str | None:
-        """Export audit logs"""
+        """Export audit logs."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         events = [e for e in self._events if e.timestamp >= cutoff]
 
@@ -480,12 +507,18 @@ class AuditLogger:
             data = json.dumps([e.to_dict() for e in events], indent=2)
 
         if filepath:
-            Path(filepath).write_text(data, encoding="utf-8")
+            output_path = Path(filepath)
+            output_path.write_text(data, encoding="utf-8")
+            try:
+                if os.name != "nt":
+                    os.chmod(output_path, stat.S_IMODE(output_path.stat().st_mode) & 0o700)
+            except Exception:
+                pass
             return None
         return data
 
     def get_statistics(self) -> dict[str, Any]:
-        """Get audit statistics"""
+        """Get audit statistics."""
         return {
             "total_events": len(self._events),
             "total_sessions": len(self._sessions),
@@ -501,31 +534,37 @@ class AuditLogger:
     def cleanup_old_events(self) -> None:
         """Remove events older than retention period and rewrite the audit file."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=self._retention_days)
-        retained_events = []
-        for e in self._events:
-            if e.timestamp >= cutoff:
-                retained_events.append(e)
-            else:
-                self._count_by_type[e.event_type] = max(
-                    0, self._count_by_type.get(e.event_type, 0) - 1
-                )
-                self._count_by_severity[e.severity] = max(
-                    0, self._count_by_severity.get(e.severity, 0) - 1
-                )
-        self._events = retained_events
-        # Rewrite the full JSONL file with retained events (not just unflushed)
+        with self._lock:
+            retained_events = []
+            for e in self._events:
+                if e.timestamp >= cutoff:
+                    retained_events.append(e)
+                else:
+                    self._count_by_type[e.event_type] = max(
+                        0, self._count_by_type.get(e.event_type, 0) - 1
+                    )
+                    self._count_by_severity[e.severity] = max(
+                        0, self._count_by_severity.get(e.severity, 0) - 1
+                    )
+            self._events = retained_events
         try:
             self._config_dir.mkdir(parents=True, exist_ok=True)
-            lines = [json.dumps(e.to_dict()) + "\n" for e in self._events]
+            with self._lock:
+                lines = [json.dumps(e.to_dict()) + "\n" for e in self._events]
             with self._audit_db.open("w", encoding="utf-8") as f:
                 f.writelines(lines)
-            self._unflushed_events.clear()
-            self._dirty = False
+            try:
+                if os.name != "nt":
+                    os.chmod(self._audit_db, stat.S_IMODE(self._audit_db.stat().st_mode) & 0o700)
+            except Exception:
+                pass
+            with self._lock:
+                self._unflushed_events.clear()
+                self._dirty = False
         except Exception as exc:
             logger.error("Failed to rewrite audit log after cleanup: %s", exc)
 
 
-# Module-level instance initialized lazily via __getattr__ to avoid import side effects
 _audit_instance: AuditLogger | None = None
 
 
@@ -548,8 +587,7 @@ def log_event(
     session_id: str = "",
     details: dict | None = None,
 ) -> AuditEvent:
-    """Convenience function to log event"""
-    # use lazy 'audit' resolution
+    """Convenience function to log event."""
     return __getattr__("audit").log(
         event_type, severity, user, action, result, target, session_id, details
     )

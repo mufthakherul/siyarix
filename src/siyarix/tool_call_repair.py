@@ -17,6 +17,9 @@ MAX_PAYLOAD_LENGTH = 262144
 BRACKET_TOOL_RE = re.compile(
     r"\[TOOL_[\w-]+\]|\[tool(?::[\w-]+)?\]|\[([\w-]+)\](?:\s*\n|\s+)(\{)", re.IGNORECASE | re.DOTALL
 )
+FUNCTION_CALL_RE = re.compile(
+    r"(?:function|tool|action)_call:\s*\n*\s*\{", re.IGNORECASE | re.DOTALL
+)
 XML_TOOL_RE = re.compile(r"<function=(\w+)>(.*?)</function>", re.DOTALL)
 
 CLOSING_MARKERS = [
@@ -187,6 +190,8 @@ def has_plain_text_tool_calls(text: str) -> bool:
         return True
     if XML_TOOL_RE.search(text):
         return True
+    if FUNCTION_CALL_RE.search(text):
+        return True
     for marker in CLOSING_MARKERS:
         if marker in text:
             return True
@@ -275,6 +280,7 @@ __all__ = [
     "MAX_PAYLOAD_LENGTH",
     "BRACKET_TOOL_RE",
     "XML_TOOL_RE",
+    "FUNCTION_CALL_RE",
     "CLOSING_MARKERS",
     "find_json_object_end",
     "parse_bracket_tool_calls",

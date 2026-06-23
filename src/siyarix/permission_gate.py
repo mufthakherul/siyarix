@@ -1,22 +1,22 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""
-Two-stage permission gate for runtime safety enforcement.
+"""Two-stage permission gate for runtime safety enforcement.
 
 Syntax Check -> Danger Analysis
 """
 
 from __future__ import annotations
 
-import time
 import json
+import logging
+import re
+import time
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
-from .security_hardening import DangerAnalyzer
 from .config import get_config_dir
-from enum import StrEnum
-import logging
+from .security_hardening import DangerAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,12 @@ class GateResult:
 
 
 class PermissionGate:
+    _RESTRICTED_PATTERNS = [
+        re.compile(r"\brm\b[\s]+(?:-[a-zA-Z]*[rf][a-zA-Z]*[\s]*)*(?:-[a-zA-Z]*[rf])", re.IGNORECASE),
+        re.compile(r"\brm\b\s+--(?:recursive|force)", re.IGNORECASE),
+        re.compile(r"\bmkfs\b", re.IGNORECASE),
+        re.compile(r"\bdd\b\s+if=", re.IGNORECASE),
+    ]
     def __init__(self, rate_limit_calls: int = 100, rate_limit_period: float = 60.0) -> None:
         self._danger_analyzer = DangerAnalyzer()
         self._calls: list[float] = []
@@ -75,20 +81,13 @@ class PermissionGate:
             pass
 
     def check(
-        self, command: str, tool: str = "", context: dict[str, Any] | None = None
+        self, command: str, tool: str = "", context: dict[str, Any] | None = None,
     ) -> GateResult:
         now = time.time()
         self._calls = [t for t in self._calls if now - t < self.rate_limit_period]
 
-        if context and context.get("restricted_payload"):
-            import re as _re
-            _RESTRICTED_PATTERNS = [
-                r"\brm\b[\s]+(?:-[a-zA-Z]*[rf][a-zA-Z]*[\s]*)*(?:-[a-zA-Z]*[rf])",
-                r"\brm\b\s+--(?:recursive|force)",
-                r"\bmkfs\b",
-                r"\bdd\b\s+if=",
-            ]
-            if any(_re.search(p, command) for p in _RESTRICTED_PATTERNS):
+        if context and isinstance(context, dict) and context.get("restricted_payload"):
+            if any(p.search(command) for p in self._RESTRICTED_PATTERNS):
                 return GateResult(
                     False,
                     GateStage.FORBIDDEN,
@@ -100,7 +99,7 @@ class PermissionGate:
         if len(self._calls) >= self.rate_limit_calls:
             self._save_state(force=True)
             return GateResult(
-                False, GateStage.FORBIDDEN, "Rate limit exceeded", tool=tool, command=command
+                False, GateStage.FORBIDDEN, "Rate limit exceeded", tool=tool, command=command,
             )
 
         self._calls.append(now)

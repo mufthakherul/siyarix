@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any, Callable, Coroutine
 
@@ -28,12 +29,12 @@ class CommandPipeline:
         steps: list[PipelineStep] = []
         if "|" in instruction:
             parts = [p.strip() for p in instruction.split("|") if p.strip()]
-        elif " and then " in instruction.lower():
-            parts = [p.strip() for p in instruction.lower().split(" and then ") if p.strip()]
-        elif " then " in instruction.lower():
-            parts = [p.strip() for p in instruction.lower().split(" then ") if p.strip()]
-        elif " followed by " in instruction.lower():
-            parts = [p.strip() for p in instruction.lower().split(" followed by ") if p.strip()]
+        elif re.search(r"\band\s+then\b", instruction, re.IGNORECASE):
+            parts = [p.strip() for p in re.split(r"\band\s+then\b", instruction, flags=re.IGNORECASE) if p.strip()]
+        elif re.search(r"\bthen\b", instruction, re.IGNORECASE) and "and then" not in instruction.lower():
+            parts = [p.strip() for p in re.split(r"\bthen\b", instruction, flags=re.IGNORECASE) if p.strip()]
+        elif re.search(r"\bfollowed\s+by\b", instruction, re.IGNORECASE):
+            parts = [p.strip() for p in re.split(r"\bfollowed\s+by\b", instruction, flags=re.IGNORECASE) if p.strip()]
         else:
             return [PipelineStep(instruction=instruction)]
 

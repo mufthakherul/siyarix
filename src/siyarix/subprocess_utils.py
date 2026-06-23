@@ -266,11 +266,14 @@ def _validate_cmd_list(cmd: list[str]) -> None:
         # H-06: Decode URL-encoded inputs to prevent bypasses
         decoded = urllib.parse.unquote(part)
 
-        # M-14: Strip version-comparison operators only when adjacent to digits,
-        # AND only if not running a shell (where it could hide redirections).
-        cleaned = decoded
-        if not is_shell:
-            cleaned = _VERSION_CMP_RE.sub("", decoded)
+        # When running through an explicit shell (sh -c, cmd /c etc.) the
+        # command part is legitimate shell syntax and must not be flagged.
+        if is_shell:
+            continue
+
+        # M-14: Strip version-comparison operators (e.g. >=3.9) that could
+        # otherwise hide bare > / < metacharacters.
+        cleaned = _VERSION_CMP_RE.sub("", decoded)
 
         for ch in _SHELL_METACHARS:
             if ch in cleaned:

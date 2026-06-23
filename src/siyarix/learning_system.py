@@ -89,23 +89,46 @@ class LearnedSkill:
         return self.success_count / max(self.usage_count, 1)
 
     def recalculate_confidence(self) -> None:
-        """Update confidence using Bayesian-smoothed formula.
+        """Full-featured Bayesian confidence with time decay and complexity weighting.
 
-        Rewards both accuracy (success_count/usage_count) AND data volume
-        (logarithmic usage boost) so a skill needs multiple successful
-        observations before reaching high confidence.
+        Formula (Beta-Binomial with pessimistic prior):
+            base  = (success_count + prior_alpha) / (usage_count + prior_alpha + prior_beta)
+            where prior_alpha=2.0, prior_beta=1.0 prevents 1/1 → 100 %
 
-        Formula:
-            base   = success_count / usage_count
-            boost  = min(0.25, log(1 + usage_count) * 0.06)
-            conf   = min(1.0, base + base * boost)
+        Time decay:
+            Skills lose ~0.5 % per day since last use, floor at 50 %.
+
+        Complexity weight:
+            Skills with many steps need more evidence; floor at 70 %.
+
+        Volume bonus:
+            Logarithmic bonus for high-usage skills (diminishing returns, max +10 %).
         """
         if self.usage_count == 0:
             self.confidence = 0.0
             return
-        base = self.success_count / self.usage_count
-        boost = min(0.25, math.log(1.0 + self.usage_count) * 0.06)
-        self.confidence = min(1.0, base + base * boost)
+
+        # ── Bayesian base with pessimistic prior ────────────────────────
+        # Prevents a single success from reaching 100 % confidence
+        prior_alpha = 3.0  # fictitious failures
+        prior_beta = 1.0   # fictitious successes
+        numerator = self.success_count + prior_beta
+        denominator = self.usage_count + prior_alpha + prior_beta
+        base = numerator / denominator if denominator else 0.0
+
+        # ── Time decay ──────────────────────────────────────────────────
+        days_since_use = max(0.0, (time.time() - self.last_used) / 86400.0)
+        decay = max(0.5, 1.0 - days_since_use * 0.005)
+
+        # ── Complexity weight ───────────────────────────────────────────
+        # More steps = needs more evidence to reach high confidence
+        complexity = max(1, len(self.steps))
+        complexity_weight = max(0.7, 1.0 - (complexity - 1) * 0.04)
+
+        # ── Volume bonus (multiplicative, capped) ───────────────────────
+        volume_bonus = min(0.10, math.log(1.0 + self.usage_count) * 0.02)
+
+        self.confidence = min(1.0, base * decay * complexity_weight * (1.0 + volume_bonus))
 
     # ── Serialisation helpers ───────────────────────────────────────────
 
@@ -241,22 +264,25 @@ class ContinuousLearningSystem:
             logger.warning("CLS: failed to load skills: %s", exc)
 
     def _row_to_skill(self, row: sqlite3.Row) -> LearnedSkill:
-        steps_raw = json.loads(row["steps_json"])
+        # Convert to a plain dict first — sqlite3.Row.get() is only available
+        # in Python >= 3.11, and using dict(row) is portable across versions.
+        d = dict(row)
+        steps_raw = json.loads(d["steps_json"])
         steps = [LearnedStep(**s) for s in steps_raw]
         return LearnedSkill(
-            skill_id=row["skill_id"],
-            intent_pattern=row["intent_pattern"],
+            skill_id=d["skill_id"],
+            intent_pattern=d["intent_pattern"],
             steps=steps,
-            confidence=row["confidence"],
-            usage_count=row["usage_count"],
-            success_count=row["success_count"],
-            tokens=json.loads(row["tokens_json"]),
-            synonyms=json.loads(row["synonyms_json"]),
-            created_at=row["created_at"],
-            last_used=row["last_used"],
-            source=row["source"],
-            tags=json.loads(row.get("tags_json", "[]") or "[]"),
-            notes=row.get("notes", "") or "",
+            confidence=d["confidence"],
+            usage_count=d["usage_count"],
+            success_count=d["success_count"],
+            tokens=json.loads(d["tokens_json"]),
+            synonyms=json.loads(d["synonyms_json"]),
+            created_at=d["created_at"],
+            last_used=d["last_used"],
+            source=d["source"],
+            tags=json.loads(d.get("tags_json", "[]") or "[]"),
+            notes=d.get("notes", "") or "",
         )
 
     def _save_skill(self, skill: LearnedSkill) -> None:
@@ -396,15 +422,48 @@ class ContinuousLearningSystem:
 
     # ── Similarity ──────────────────────────────────────────────────────
 
-    def _compute_similarity(self, tokens_a: list[str], tokens_b: list[str]) -> float:
-        """Jaccard similarity over NLP token sets."""
-        if not tokens_a or not tokens_b:
-            return 0.0
-        set_a = set(tokens_a)
-        set_b = set(tokens_b)
-        inter = len(set_a & set_b)
-        union = len(set_a | set_b)
-        return inter / union if union else 0.0
+    def _compute_similarity(
+        self,
+        tokens_a: list[str],
+        tokens_b: list[str],
+        steps_a: list[LearnedStep] | None = None,
+        steps_b: list[LearnedStep] | None = None,
+        pattern_a: str = "",
+        pattern_b: str = "",
+    ) -> float:
+        """Multi‑faceted similarity combining token Jaccard, tool overlap, and intent pattern match.
+
+        Returns a float in [0.0, 1.0].
+        """
+        # 1 — Token Jaccard (primary signal)
+        token_sim = 0.0
+        if tokens_a and tokens_b:
+            set_a = set(tokens_a)
+            set_b = set(tokens_b)
+            inter = len(set_a & set_b)
+            union = len(set_a | set_b)
+            token_sim = inter / union if union else 0.0
+
+        # 2 — Tool overlap bonus (up to +0.25)
+        tool_bonus = 0.0
+        if steps_a and steps_b:
+            tools_a = {s.tool for s in steps_a if s.tool}
+            tools_b = {s.tool for s in steps_b if s.tool}
+            if tools_a and tools_b:
+                t_inter = len(tools_a & tools_b)
+                t_union = len(tools_a | tools_b)
+                tool_bonus = (t_inter / t_union) * 0.25
+
+        # 3 — Intent pattern containment (up to +0.10)
+        pattern_bonus = 0.0
+        if pattern_a and pattern_b:
+            a_lower = pattern_a.lower()
+            b_lower = pattern_b.lower()
+            if a_lower in b_lower or b_lower in a_lower:
+                shorter = min(len(a_lower), len(b_lower))
+                pattern_bonus = 0.10 * (min(len(a_lower), len(b_lower)) / max(len(a_lower), len(b_lower), 1))
+
+        return min(1.0, token_sim + tool_bonus + pattern_bonus)
 
     # ── Synonym extraction ──────────────────────────────────────────────
 
@@ -429,30 +488,20 @@ class ContinuousLearningSystem:
         steps: list[dict[str, Any]],
         source: str,
     ) -> LearnedSkill:
-        """Return the best matching existing skill or create a new one."""
+        """Return the best matching existing skill or create a new one.
+
+        Matching tiers:
+            >= 0.65  → strong match (update existing)
+            0.35–0.64 → partial match (merge into best candidate)
+            <  0.35  → no match (create new)
+        """
         goal_tokens = self._tokenize(anon_goal)
 
-        # Search for a similar existing skill (similarity >= 0.55)
-        best_skill: LearnedSkill | None = None
-        best_sim = 0.0
-        for skill in self._skills.values():
-            sim = self._compute_similarity(goal_tokens, skill.tokens)
-            if sim > best_sim:
-                best_sim = sim
-                best_skill = skill
-
-        if best_skill and best_sim >= 0.55:
-            logger.debug(
-                "CLS: matched existing skill '%s' (sim=%.2f)",
-                best_skill.intent_pattern[:50], best_sim,
-            )
-            return best_skill
-
-        # Build fresh LearnedStep list
-        learned_steps: list[LearnedStep] = []
+        # Convert incoming dict-steps to LearnedStep for similarity comparison
+        incoming_learned: list[LearnedStep] = []
         for s in steps:
             cmd = s.get("command") or s.get("command_template") or ""
-            learned_steps.append(
+            incoming_learned.append(
                 LearnedStep(
                     tool=s.get("tool", ""),
                     command_template=cmd,
@@ -461,10 +510,40 @@ class ContinuousLearningSystem:
                 )
             )
 
+        # Search for similar existing skills
+        best_skill: LearnedSkill | None = None
+        best_sim = 0.0
+        for skill in self._skills.values():
+            sim = self._compute_similarity(
+                goal_tokens, skill.tokens,
+                steps_a=incoming_learned, steps_b=skill.steps,
+                pattern_a=anon_goal, pattern_b=skill.intent_pattern,
+            )
+            if sim > best_sim:
+                best_sim = sim
+                best_skill = skill
+
+        # Tier 1: Strong match — reuse existing skill
+        if best_skill and best_sim >= 0.65:
+            logger.debug(
+                "CLS: strong match '%s' (sim=%.2f)",
+                best_skill.intent_pattern[:50], best_sim,
+            )
+            return best_skill
+
+        # Tier 2: Partial match — merge into best candidate
+        if best_skill and best_sim >= 0.35:
+            logger.debug(
+                "CLS: partial match '%s' (sim=%.2f) — will merge",
+                best_skill.intent_pattern[:50], best_sim,
+            )
+            return best_skill
+
+        # Tier 3: No match — create brand-new skill
         skill = LearnedSkill(
             skill_id=str(uuid.uuid4()),
             intent_pattern=anon_goal,
-            steps=learned_steps,
+            steps=incoming_learned,
             confidence=0.0,
             usage_count=0,
             success_count=0,
@@ -479,6 +558,33 @@ class ContinuousLearningSystem:
 
     # ── Core learning logic ─────────────────────────────────────────────
 
+    def _merge_steps(
+        self, existing_steps: list[LearnedStep], incoming_steps: list[dict[str, Any]]
+    ) -> list[LearnedStep]:
+        """Merge incoming steps into existing steps, avoiding tool-level duplicates.
+
+        When the same tool appears in both lists the newer command_template and
+        description are kept (most recent observation wins).
+        """
+        merged: dict[str, LearnedStep] = {}
+        for s in existing_steps:
+            if s.tool:
+                merged[s.tool] = s
+        for s in incoming_steps:
+            tool = s.get("tool", "")
+            cmd = s.get("command") or s.get("command_template") or ""
+            desc = s.get("description", "")
+            args = s.get("args", {})
+            # Always prefer the incoming (newer) version of each tool step
+            if tool:
+                merged[tool] = LearnedStep(
+                    tool=tool,
+                    command_template=cmd,
+                    description=desc,
+                    args=args,
+                )
+        return list(merged.values())
+
     def _learn_from_observation(
         self,
         anon_goal: str,
@@ -490,27 +596,23 @@ class ContinuousLearningSystem:
         duration_ms: float = 0.0,
         mode: str = "integrated",
     ) -> LearnedSkill:
-        """Create or update a :class:`LearnedSkill` from a single observation."""
+        """Create or update a :class:`LearnedSkill` from a single observation.
+
+        * Matches against existing skills via multi-tier similarity.
+        * Merges steps by tool (deduplicates, keeps newest).
+        * Enriches synonyms and intent pattern on each observation.
+        """
         skill = self._find_or_create_skill(anon_goal, steps, source)
 
-        # Update step templates when this is the first observation or a success
-        if steps and (skill.usage_count == 0 or success):
-            new_steps: list[LearnedStep] = []
-            for s in steps:
-                cmd = s.get("command") or s.get("command_template") or ""
-                new_steps.append(
-                    LearnedStep(
-                        tool=s.get("tool", ""),
-                        command_template=cmd,
-                        description=s.get("description", ""),
-                        args=s.get("args", {}),
-                    )
-                )
-            skill.steps = new_steps
-            skill.intent_pattern = anon_goal
-            skill.tokens = self._tokenize(anon_goal)
-            # Merge in newly learned synonyms
-            skill.synonyms.update(self._extract_synonyms(anon_goal, steps))
+        # ── Merge steps (deduplicate by tool, newest wins) ──────────────
+        if steps:
+            merged = self._merge_steps(skill.steps, steps)
+            skill.steps = merged
+
+        # ── Update metadata on every observation ────────────────────────
+        skill.intent_pattern = anon_goal
+        skill.tokens = self._tokenize(anon_goal)
+        skill.synonyms.update(self._extract_synonyms(anon_goal, steps))
 
         skill.usage_count += 1
         if success:
@@ -528,8 +630,13 @@ class ContinuousLearningSystem:
         )
 
         logger.info(
-            "CLS: skill updated | pattern='%s' | confidence=%.2f | usage=%d | success=%d",
-            skill.intent_pattern[:55], skill.confidence, skill.usage_count, skill.success_count,
+            "CLS: skill %s | pattern='%s' | confidence=%.2f | usage=%d | success=%d | steps=%d",
+            "updated" if skill.usage_count > 1 else "created",
+            skill.intent_pattern[:55],
+            skill.confidence,
+            skill.usage_count,
+            skill.success_count,
+            len(skill.steps),
         )
         return skill
 
@@ -646,13 +753,131 @@ class ContinuousLearningSystem:
             logger.debug("CLS: observe_offline_plan error: %s", exc, exc_info=True)
             return None
 
+    # ── Skill maintenance ───────────────────────────────────────────────
+
+    def _prune_skills(self, max_age_days: float = 180.0, min_usage: int = 1) -> int:
+        """Remove skills that are stale, low-quality, or have never been used.
+
+        Criteria:
+            - Zero usage and older than 7 days (never useful)
+            - Usage >= *min_usage* but last used more than *max_age_days* ago
+              and confidence below 0.30
+        """
+        now = time.time()
+        pruned: list[str] = []
+        for sid, skill in list(self._skills.items()):
+            age_days = (now - skill.created_at) / 86400.0
+            idle_days = (now - skill.last_used) / 86400.0
+
+            # Never used and older than a week → remove
+            if skill.usage_count == 0 and age_days > 7.0:
+                pruned.append(sid)
+                continue
+
+            # Low confidence and idle too long → remove
+            if skill.usage_count >= min_usage and idle_days > max_age_days and skill.confidence < 0.30:
+                pruned.append(sid)
+                continue
+
+        for sid in pruned:
+            self.delete_skill(sid)
+
+        if pruned:
+            logger.info("CLS: pruned %d stale skill(s)", len(pruned))
+        return len(pruned)
+
+    def _decay_skills(self) -> int:
+        """Recompute confidence for all skills, applying time decay.
+
+        Called periodically to ensure old, unused skills naturally
+        lose confidence.
+        """
+        decayed = 0
+        for skill in self._skills.values():
+            old_conf = skill.confidence
+            skill.recalculate_confidence()
+            if abs(skill.confidence - old_conf) > 0.01:
+                decayed += 1
+                self._save_skill(skill)
+        if decayed:
+            logger.debug("CLS: decayed %d skill(s)", decayed)
+        return decayed
+
+    def _merge_skills(self) -> int:
+        """Find and merge similar skills (redundancy reduction).
+
+        Scans all skill pairs; if two skills have similarity >= 0.70 their
+        counts are combined and the weaker one is deleted.
+        """
+        sids = list(self._skills.keys())
+        merged = 0
+        for i in range(len(sids)):
+            if sids[i] not in self._skills:
+                continue
+            a = self._skills[sids[i]]
+            for j in range(i + 1, len(sids)):
+                if sids[j] not in self._skills:
+                    continue
+                b = self._skills[sids[j]]
+                sim = self._compute_similarity(
+                    a.tokens, b.tokens,
+                    steps_a=a.steps, steps_b=b.steps,
+                    pattern_a=a.intent_pattern, pattern_b=b.intent_pattern,
+                )
+                if sim < 0.70:
+                    continue
+                # Merge b into a (keep the one with higher total usage)
+                if b.usage_count > a.usage_count:
+                    a, b = b, a
+                a.usage_count += b.usage_count
+                a.success_count += b.success_count
+                a.steps = self._merge_steps(
+                    a.steps,
+                    [{"tool": s.tool, "command": s.command_template,
+                      "description": s.description, "args": s.args}
+                     for s in b.steps],
+                )
+                a.synonyms.update(b.synonyms)
+                a.tags = list(dict.fromkeys(a.tags + b.tags))
+                # Keep the older creation time
+                a.created_at = min(a.created_at, b.created_at)
+                a.last_used = max(a.last_used, b.last_used)
+                a.recalculate_confidence()
+                a.source = f"{a.source}+{b.source}"
+                self._save_skill(a)
+                self.delete_skill(b.skill_id)
+                merged += 1
+
+        if merged:
+            logger.info("CLS: merged %d duplicate skill pair(s)", merged)
+        return merged
+
+    def maintain(self, *, force: bool = False) -> dict[str, int]:
+        """Run all maintenance tasks: prune, decay, merge.
+
+        This is safe to call periodically (e.g. once per session or after
+        every N observations) to keep the skill library lean and relevant.
+
+        Returns a dict with counts of each action taken.
+        """
+        result: dict[str, int] = {}
+        result["pruned"] = self._prune_skills()
+        result["decayed"] = self._decay_skills()
+        result["merged"] = self._merge_skills()
+        if any(result.values()):
+            logger.info(
+                "CLS: maintenance complete — pruned=%d decayed=%d merged=%d",
+                result["pruned"], result["decayed"], result["merged"],
+            )
+        return result
+
     # ── Query API ───────────────────────────────────────────────────────
 
     def find_high_confidence_skill(
         self,
         goal: str,
         target: str = "",
-        threshold: float = 0.90,
+        threshold: float = 0.80,
     ) -> LearnedSkill | None:
         """Return the best matching skill at or above *threshold*.
 
@@ -675,7 +900,10 @@ class ContinuousLearningSystem:
         for skill in self._skills.values():
             if skill.confidence < threshold:
                 continue
-            sim = self._compute_similarity(goal_tokens, skill.tokens)
+            sim = self._compute_similarity(
+                goal_tokens, skill.tokens,
+                pattern_a=anon_goal, pattern_b=skill.intent_pattern,
+            )
             # Combined score: penalise low-usage skills slightly
             volume_factor = min(1.0, math.log(1 + skill.usage_count) / math.log(6))
             combined = sim * skill.confidence * (0.7 + 0.3 * volume_factor)
@@ -717,7 +945,10 @@ class ContinuousLearningSystem:
         for skill in self._skills.values():
             if skill.confidence < min_confidence:
                 continue
-            sim = self._compute_similarity(goal_tokens, skill.tokens)
+            sim = self._compute_similarity(
+                goal_tokens, skill.tokens,
+                pattern_a=anon_goal, pattern_b=skill.intent_pattern,
+            )
             score = sim * skill.confidence
             if score > best_score:
                 best_score = score
@@ -968,25 +1199,53 @@ class ContinuousLearningSystem:
         return imported
 
     def stats(self) -> dict[str, Any]:
-        """Return statistics about the learning system."""
+        """Return comprehensive statistics about the learning system."""
         skills = list(self._skills.values())
         total = len(skills)
         avg_conf = sum(s.confidence for s in skills) / max(total, 1)
         total_obs = sum(s.usage_count for s in skills)
         total_success = sum(s.success_count for s in skills)
+
+        # Tool distribution across all skills
+        tool_counter: dict[str, int] = {}
+        for s in skills:
+            for step in s.steps:
+                if step.tool:
+                    tool_counter[step.tool] = tool_counter.get(step.tool, 0) + 1
+
+        # Skill age buckets
+        now = time.time()
+        young = sum(1 for s in skills if (now - s.created_at) / 86400.0 < 7.0)
+        mature = sum(1 for s in skills if 7.0 <= (now - s.created_at) / 86400.0 < 60.0)
+        old = sum(1 for s in skills if (now - s.created_at) / 86400.0 >= 60.0)
+
+        # Confidence distribution — more granular buckets
+        conf_buckets = {
+            "elite (>= 0.90)": sum(1 for s in skills if s.confidence >= 0.90),
+            "high (0.70–0.89)": sum(1 for s in skills if 0.70 <= s.confidence < 0.90),
+            "medium (0.40–0.69)": sum(1 for s in skills if 0.40 <= s.confidence < 0.70),
+            "low (0.10–0.39)": sum(1 for s in skills if 0.10 <= s.confidence < 0.40),
+            "negligible (< 0.10)": sum(1 for s in skills if s.confidence < 0.10),
+        }
+
         return {
             "total_skills": total,
-            "high_confidence": sum(1 for s in skills if s.confidence >= 0.90),
-            "medium_confidence": sum(1 for s in skills if 0.50 <= s.confidence < 0.90),
-            "low_confidence": sum(1 for s in skills if s.confidence < 0.50),
+            "confidence_distribution": conf_buckets,
             "avg_confidence": round(avg_conf, 3),
             "total_observations": total_obs,
             "total_successes": total_success,
             "overall_success_rate": round(total_success / max(total_obs, 1), 3),
+            "total_steps": sum(len(s.steps) for s in skills),
+            "avg_steps_per_skill": round(sum(len(s.steps) for s in skills) / max(total, 1), 1),
+            "avg_usage_per_skill": round(total_obs / max(total, 1), 1),
+            "tool_coverage": len(tool_counter),
+            "top_tools": dict(sorted(tool_counter.items(), key=lambda x: -x[1])[:10]),
+            "age_buckets_days": {"young (<7)": young, "mature (7–60)": mature, "old (>60)": old},
+            "total_synonyms": sum(len(s.synonyms) for s in skills),
             "sources": {
-                "llm": sum(1 for s in skills if s.source == "llm"),
-                "offline": sum(1 for s in skills if s.source == "offline"),
-                "imported": sum(1 for s in skills if s.source == "imported"),
+                "llm": sum(1 for s in skills if "llm" in s.source),
+                "offline": sum(1 for s in skills if "offline" in s.source),
+                "imported": sum(1 for s in skills if "imported" in s.source),
             },
             "db_path": str(self._db_path),
         }

@@ -18,6 +18,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from siyarix.config import get_config_dir
+from siyarix._platform import (
+    get_platform_id as _get_platform_id,
+    is_wsl as _is_wsl,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +72,7 @@ class BootstrapEngine:
 
     def detect_platform(self) -> PlatformInfo:
         _sys = platform.system()
+        pid = _get_platform_id()
         info = PlatformInfo(
             system=_sys,
             release=platform.release(),
@@ -75,12 +80,11 @@ class BootstrapEngine:
             terminal=self._detect_terminal_from_env(),
             python_version=sys.version,
         )
-        # Detect WSL
-        if _sys == "Linux" and (
-            "microsoft" in platform.release().lower() or "wsl" in platform.release().lower()
-        ):
-            info.is_wsl = True
-        # Detect package manager
+        info.is_wsl = _is_wsl()
+        if pid == "android":
+            info.terminal = "Termux"
+        elif pid == "ios":
+            info.terminal = "iSH"
         from .subprocess_utils import detect_package_manager
 
         info.package_manager = detect_package_manager()

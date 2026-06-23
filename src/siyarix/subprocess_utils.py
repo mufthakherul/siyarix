@@ -20,7 +20,6 @@ import logging
 import os
 import re
 import shutil
-import signal
 import subprocess
 import sys
 import threading
@@ -29,6 +28,22 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any
+
+from ._platform import (
+    get_platform_id,
+    get_platform_shell_cmd as _get_platform_shell_cmd,
+    get_termux_prefix as _get_termux_prefix,
+    has_signal as _has_signal,
+    is_linux as _is_linux,
+    is_mobile as _is_mobile,
+    is_windows as _is_windows,
+    set_event_loop_policy,
+)
+
+if _has_signal():
+    import signal as _signal
+else:
+    _signal = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -80,9 +95,10 @@ def _cleanup_orphans(is_exit: bool = False) -> None:
         pids = list(_ORPHAN_TRACKER)
     for pid in pids:
         try:
-            if sys.platform == "win32":
+            if _is_windows():
                 if is_exit:
-                    os.kill(pid, signal.SIGTERM)
+                    if _signal:
+                        os.kill(pid, _signal.SIGTERM)
                 else:
                     subprocess.run(
                         ["taskkill", "/F", "/T", "/PID", str(pid)],
@@ -91,7 +107,8 @@ def _cleanup_orphans(is_exit: bool = False) -> None:
                         check=False,
                     )
             else:
-                os.kill(pid, signal.SIGTERM)
+                if _signal:
+                    os.kill(pid, _signal.SIGTERM)
         except (OSError, PermissionError, subprocess.SubprocessError):
             logger.debug("Failed to kill orphan PID %d (already exited)", pid)
         with _ORPHAN_LOCK:
@@ -127,7 +144,7 @@ def _check_path_traversal(cmd: list[str]) -> None:
 
 
 def _format_not_found(cmd: list[str]) -> str:
-    if len(cmd) >= 3 and os.path.basename(cmd[0]).lower() in ("sh", "bash") and cmd[1] == "-c":
+    if len(cmd) >= 3 and Path(cmd[0]).name.lower() in ("sh", "bash") and cmd[1] == "-c":
         parts = cmd[2].strip().split()
         name = parts[0] if parts else "?"
         if name == "sudo" and len(parts) > 1:
@@ -137,14 +154,30 @@ def _format_not_found(cmd: list[str]) -> str:
         if name == "sudo" and len(cmd) > 1:
             name = cmd[1] if cmd[1] != "-S" else (cmd[2] if len(cmd) > 2 else "?")
     hints: list[str] = []
-    if shutil.which("apt-get"):
-        hints.append(f"sudo apt-get install {name}")
-    elif shutil.which("brew"):
-        hints.append(f"brew install {name}")
-    elif shutil.which("pacman"):
-        hints.append(f"sudo pacman -S {name}")
-    elif shutil.which("dnf"):
-        hints.append(f"sudo dnf install {name}")
+    pid = get_platform_id()
+    if pid == "android":
+        hints.append(f"pkg install {name}")
+    elif pid == "ios":
+        hints.append(f"apk add {name}")
+    elif pid == "harmonyos":
+        hints.append(f"ohpm install {name}")
+    elif pid == "windows":
+        hints.append(f"winget install {name}")
+        hints.append(f"choco install {name}")
+    elif pid == "macos":
+        if shutil.which("brew"):
+            hints.append(f"brew install {name}")
+    else:
+        if shutil.which("apt-get"):
+            hints.append(f"sudo apt-get install {name}")
+        elif shutil.which("brew"):
+            hints.append(f"brew install {name}")
+        elif shutil.which("pacman"):
+            hints.append(f"sudo pacman -S {name}")
+        elif shutil.which("dnf"):
+            hints.append(f"sudo dnf install {name}")
+        elif shutil.which("apk"):
+            hints.append(f"apk add {name}")
     msg = f"Binary not found: '{name}' is not installed or not found in PATH."
     if hints:
         msg += f"\nInstall it with: {hints[0]}"
@@ -161,29 +194,13 @@ def _describe_exit(exit_code: int) -> str:
 
 
 def detect_package_manager() -> str:
-    is_win = os.name == "nt"
-    checks: list[tuple[str, str]] = []
-    if is_win:
-        checks += [("winget", "winget"), ("choco", "choco")]
-    else:
-        checks += [("apt-get", "apt"), ("apt", "apt")]
-    checks += [
-        ("brew", "brew"),
-        ("pkg", "pkg"),
-        ("pacman", "pacman"),
-        ("dnf", "dnf"),
-        ("apk", "apk"),
-    ]
-    for binary, name in checks:
-        if shutil.which(binary):
-            return name
-    return "pip"
+    from ._platform import detect_package_manager_platform
+
+    return detect_package_manager_platform()
 
 
 def get_platform_shell_cmd(command: str) -> list[str]:
-    if sys.platform == "win32":
-        return ["cmd", "/c", command]
-    return ["sh", "-c", command]
+    return _get_platform_shell_cmd(command)
 
 
 def _validate_cmd_list(cmd: list[str]) -> None:
@@ -238,12 +255,14 @@ def safe_run_sync(
     timeout: float = 10,
     capture_output: bool = True,
     text: bool = True,
-    cwd: str | None = None,
+    cwd: str | Path | None = None,
     env: dict[str, str] | None = None,
 ) -> ExecutionResult:
     _validate_cmd_list(cmd)
     _cleanup_orphans()
     exec_env = _prepare_env(env)
+    if cwd is not None and not isinstance(cwd, str):
+        cwd = str(cwd)
     try:
         cp = subprocess.run(
             cmd,
@@ -265,13 +284,23 @@ def safe_run_sync(
 
 
 def _use_thread_fallback() -> bool:
-    if os.name != "nt":
+    if not _is_windows():
         return False
-    loop = asyncio.get_running_loop()
-    return isinstance(loop, asyncio.SelectorEventLoop)
+    try:
+        loop = asyncio.get_running_loop()
+        if isinstance(loop, asyncio.ProactorEventLoop):
+            return True
+        if isinstance(loop, asyncio.SelectorEventLoop):
+            return True
+        return False
+    except RuntimeError:
+        set_event_loop_policy()
+        return True
 
 
 def _verify_sudo_password(password: str) -> bool:
+    if _is_windows() or not shutil.which("sudo"):
+        return False
     try:
         cp = subprocess.run(
             ["sudo", "-S", "-k", "true"],
@@ -687,7 +716,7 @@ async def safe_run_async_stream(
             if "-S" not in modified_cmd:
                 modified_cmd.insert(1, "-S")
         else:
-            is_shell = len(modified_cmd) >= 3 and os.path.basename(modified_cmd[0]).lower() in ("sh", "bash", "pwsh", "powershell") and modified_cmd[1] == "-c"
+            is_shell = len(modified_cmd) >= 3 and Path(modified_cmd[0]).name.lower() in ("sh", "bash", "pwsh", "powershell", "dash") and modified_cmd[1] == "-c"
             if is_shell:
                 shell_str = modified_cmd[2]
                 new_shell_str = re.sub(r"\bsudo\b(?! -S\b)(?!\s*-S\b)", "sudo -S", shell_str)
@@ -811,7 +840,7 @@ async def safe_run_async_stream(
 def safe_run_sandboxed(
     command: list[str],
     timeout: float = 60.0,
-    cwd: str | None = None,
+    cwd: str | Path | None = None,
     env: dict[str, str] | None = None,
     allow_network: bool = False,
     use_seccomp: bool = True,
@@ -821,6 +850,7 @@ def safe_run_sandboxed(
 
     Attempts to use `bwrap` (Bubblewrap) on Linux or Docker. If neither are available,
     runs the command normally but with a restricted PATH and sanitized environment.
+    On Windows/mobile, directly falls back to restricted env.
 
     Args:
         command: The command to run.
@@ -832,7 +862,7 @@ def safe_run_sandboxed(
     """
     sandbox_cmd = []
 
-    if sys.platform == "linux" and shutil.which("bwrap"):
+    if not _is_windows() and not _is_mobile() and _is_linux() and shutil.which("bwrap"):
         sandbox_cmd = [
             "bwrap",
             "--ro-bind",
@@ -853,22 +883,30 @@ def safe_run_sandboxed(
             )
 
         if cwd:
-            sandbox_cmd.extend(["--bind", cwd, cwd])
+            cwd_str = str(cwd)
+            sandbox_cmd.extend(["--bind", cwd_str, cwd_str])
         sandbox_cmd.extend(["--"])
         sandbox_cmd.extend(command)
-    elif shutil.which("docker"):
+    elif shutil.which("docker") and not _is_mobile():
         img = "alpine:latest" if not allow_network else "ubuntu:latest"
         sandbox_cmd = ["docker", "run", "--rm", "--network", "host" if allow_network else "none"]
         if use_seccomp:
             from .security_hardening import SeccompProfile
             sandbox_cmd.extend(["--security-opt", f"seccomp={SeccompProfile.generate_docker_seccomp()}"])
         if cwd:
-            sandbox_cmd.extend(["-v", f"{Path(cwd).resolve()}:/workspace", "-w", "/workspace"])
+            cwd_str = str(Path(cwd).resolve())
+            sandbox_cmd.extend(["-v", f"{cwd_str}:/workspace", "-w", "/workspace"])
         sandbox_cmd.append(img)
         sandbox_cmd.extend(command)
     else:
         sandbox_cmd = command
-        restricted_env = {"PATH": "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"}
+        pid_safe = get_platform_id()
+        if pid_safe == "android":
+            restricted_env = {"PATH": f"{_get_termux_prefix()}/bin:/system/bin"}
+        elif pid_safe == "ios":
+            restricted_env = {"PATH": "/usr/local/bin:/usr/bin:/bin"}
+        else:
+            restricted_env = {"PATH": "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"}
         if env:
             restricted_env.update(env)
         env = restricted_env

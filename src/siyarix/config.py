@@ -334,12 +334,24 @@ class SettingsStore:
     def edit(self) -> None:
         """Open settings file in $EDITOR."""
         self._save()  # ensure file exists
-        import platform as _platform
-        import shlex
+        from ._platform import is_windows, get_platform_id, get_termux_prefix
 
-        default_editor = "notepad.exe" if _platform.system().lower() == "windows" else "nano"
+        is_win = is_windows()
+        pid = get_platform_id()
+        if is_win:
+            default_editor = "notepad.exe"
+        elif pid == "android":
+            default_editor = f"{get_termux_prefix()}/bin/nano"
+        elif pid == "ios":
+            default_editor = "vi"
+        else:
+            default_editor = "nano"
         editor = os.getenv("EDITOR", default_editor)
-        editor_cmd = [editor] if _platform.system().lower() == "windows" else shlex.split(editor)
+        if is_win:
+            editor_cmd = [editor]
+        else:
+            import shlex
+            editor_cmd = shlex.split(editor)
         try:
             safe_run_sync(editor_cmd + [str(self._path)], timeout=3600)
         except Exception:

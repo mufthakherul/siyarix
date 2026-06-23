@@ -21,6 +21,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 from siyarix.config import get_config_dir
+from siyarix._platform import safe_chmod as _safe_chmod
 
 HAS_AESGCM = False
 
@@ -280,17 +281,7 @@ class CredentialStore:
         self._config_dir.mkdir(parents=True, exist_ok=True)
         # write raw key material and protect file permissions on POSIX systems
         self._key_file.write_bytes(raw_key)
-        try:
-            # restrict permissions to owner only where supported
-            if os.name != "nt":
-                os.chmod(self._key_file, 0o600)
-            else:
-                logger.warning(
-                    "Key file %s is not permission-restricted on Windows", self._key_file
-                )
-        except Exception as exc:
-            # best-effort; log but continue
-            logger.exception("Failed to set permissions on credential store key file: %s", exc)
+        _safe_chmod(self._key_file, 0o600)
         return base64.urlsafe_b64encode(raw_key)
 
     @staticmethod

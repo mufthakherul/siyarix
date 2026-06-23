@@ -269,16 +269,25 @@ class RegistryExecutor(BaseExecutor):
                     pass
         
         # 2. Missing Tool Installation Heuristic
-        if any(x in err_msg for x in ["not found", "not recognized", "executable", "no such"]):
+        if any(x in err_msg for x in [
+            "not found", "not installed", "unavailable",
+            "not recognized", "executable", "no such",
+        ]):
             try:
                 import sys as _sys
 
                 if _sys.stdout and _sys.stdout.isatty():
                     from rich.prompt import Confirm
                     from .tool_installer import ToolInstaller
+                    from .subprocess_utils import _format_not_found
+
+                    # Show a clear pre-install message with install hint
+                    hint = _format_not_found([step.tool])
+                    console = __import__("rich").console.Console(stderr=True)
+                    console.print(f"\n[yellow]{hint}[/yellow]")
 
                     want = Confirm.ask(
-                        f"\n[yellow]Tool [cyan]{step.tool}[/cyan] is missing. Auto-install it?[/yellow]",
+                        f"\n[yellow]Install [cyan]{step.tool}[/cyan] now?[/yellow]",
                         default=True,
                     )
                     if want:
@@ -288,7 +297,7 @@ class RegistryExecutor(BaseExecutor):
 
                             invalidate_which_cache()
                             if self._registry is None:
-                                return {"status": "error", "error": "Registry not initialized", "tool": step.tool}
+                                return {"status": "error", "error": "Registry not initialised", "tool": step.tool}
                             try:
                                 result = await self._registry.execute(step.tool, **step.args)
                             except (ToolNotFoundError, ToolExecutionError) as e:
@@ -296,7 +305,7 @@ class RegistryExecutor(BaseExecutor):
                             result = await self._apply_dlp(result)
             except Exception as exc:
                 logger.warning("Tool auto-install failed for %s: %s", step.tool, exc)
-                
+
         return result
 
     async def _try_alternatives(self, step: PlanStep, result: dict[str, Any]) -> dict[str, Any]:

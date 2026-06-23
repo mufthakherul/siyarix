@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import sys
 import time as _time
 from dataclasses import dataclass, field
 from typing import Any
@@ -89,6 +90,10 @@ class AutonomousExecutor(BaseExecutor):
             if not approved:
                 plan.status = PlanStatus.CANCELLED
                 return plan
+
+        # Pre-gather sudo passwords before any live display starts,
+        # so the user is prompted while the terminal is free.
+        self._prefetch_sudo_passwords(plan)
 
         cmd_states = self._build_cmd_states(plan)
         exec_tasks = [self._exec_one(s, st) for s, st in zip(plan.steps, cmd_states)]
@@ -240,17 +245,49 @@ class AutonomousExecutor(BaseExecutor):
         }
 
     async def _execute_shell_command(self, step: PlanStep, state: CommandResult) -> dict[str, Any]:
-        """Execute a shell command with subprocess."""
+        """Execute a shell command with subprocess.
+
+        If the command fails because a tool is not installed and we are in a
+        TTY, the user is prompted to auto‑install the missing tool and the
+        command is retried once.
+        """
         from .subprocess_utils import get_platform_shell_cmd, safe_run_async_stream
 
         cmd_timeout = int(step.timeout or 300)
+        shell_cmd = get_platform_shell_cmd(step.command or "")
 
         exec_result = await safe_run_async_stream(
-            get_platform_shell_cmd(step.command or ""),
+            shell_cmd,
             timeout=cmd_timeout,
             on_stdout=lambda line: state.lines.append(line),
             on_stderr=lambda line: state.lines.append(line),
         )
+
+        # ── Auto‑install prompt when a tool is missing ──────────────
+        if exec_result.exit_code in (126, 127) and sys.stdout and sys.stdout.isatty():
+            tool_name = self._extract_tool_from_command(step.command or "")
+            if tool_name:
+                from rich.prompt import Confirm
+                from .tool_installer import ToolInstaller
+                from .tool_models import invalidate_which_cache
+
+                want = Confirm.ask(
+                    f"\n[yellow]Tool [cyan]{tool_name}[/cyan] is required but not installed."
+                    f"\nDo you want to install it now?[/yellow]",
+                    default=True,
+                )
+                if want:
+                    installer = ToolInstaller()
+                    if installer.install_tool(tool_name):
+                        invalidate_which_cache()
+                        state.lines.append(f"✓ {tool_name} installed — retrying command")
+                        # Retry once
+                        exec_result = await safe_run_async_stream(
+                            shell_cmd,
+                            timeout=cmd_timeout,
+                            on_stdout=lambda line: state.lines.append(line),
+                            on_stderr=lambda line: state.lines.append(line),
+                        )
 
         state.exit_code = exec_result.exit_code
         state.output = exec_result.stdout
@@ -263,6 +300,50 @@ class AutonomousExecutor(BaseExecutor):
             "error": exec_result.stderr,
             "exit_code": exec_result.exit_code,
         }
+
+    @staticmethod
+    def _extract_tool_from_command(command: str) -> str | None:
+        """Extract the primary tool name from a shell command string."""
+        import shlex as _shlex
+        try:
+            parts = _shlex.split(command)
+        except Exception:
+            parts = command.strip().split()
+        if not parts:
+            return None
+        idx = 0
+        # Skip shell wrapper (sh -c "tool ...")
+        if parts[idx] in ("sh", "bash") and len(parts) > idx + 1 and parts[idx + 1] == "-c":
+            inner = _shlex.split(parts[idx + 2]) if len(parts) > idx + 2 else []
+            parts = inner
+            idx = 0
+        if not parts:
+            return None
+        # Skip sudo prefix
+        if parts[idx] in ("sudo", "doas"):
+            idx += 1
+            if idx < len(parts) and parts[idx] == "-S":
+                idx += 1
+        return parts[idx] if idx < len(parts) else None
+
+    def _prefetch_sudo_passwords(self, plan: ExecutionPlan) -> None:
+        """Pre-cache sudo passwords for any plan steps that need them.
+
+        Calling this *before* the Live display starts avoids the conflict
+        between ``rich.prompt.Prompt`` and ``rich.live.Live``, each of which
+        wants exclusive control of the terminal.
+        """
+        import re as _re
+        from siyarix.subprocess_utils import _get_sudo_password as _gsp
+
+        needs_sudo = False
+        for step in plan.steps:
+            if step.command and _re.search(r"\bsudo\b", step.command):
+                needs_sudo = True
+                break
+
+        if needs_sudo:
+            _gsp()  # caches the password in the module-level global
 
     async def _execute_with_live_display(
         self,

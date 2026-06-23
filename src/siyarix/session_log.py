@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -264,7 +263,7 @@ class SessionLogger:
         if not log:
             return False
         cmd_id = len(log.commands) + 1
-        ref = os.path.join("logs", session_id, f"cmd_{cmd_id:02d}_output.txt").replace("\\", "/")
+        ref = str(Path("logs") / session_id / f"cmd_{cmd_id:02d}_output.txt").replace("\\", "/")
         log.commands.append(
             CommandEntry(
                 id=cmd_id,

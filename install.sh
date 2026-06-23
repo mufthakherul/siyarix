@@ -3,8 +3,10 @@
 # Siyarix Universal Installer
 #   One-liner: curl -fsSL https://siyarix.dev/install.sh | bash
 #
-# Supports: Linux (Debian/Ubuntu/Kali/RHEL/Fedora/Arch), macOS, HarmonyOS, BSD
-# Package managers: pip, pipx, apt, brew, dnf, yum, pacman, ohpm, hpm, snap
+# Supports: Linux (Debian/Ubuntu/Kali/RHEL/Fedora/Arch), macOS, Windows/WSL,
+#           Android/Termux, iOS/iSH, HarmonyOS, BSD
+# Package managers: pip, pipx, apt, brew, dnf, yum, pacman, ohpm, hpm, snap,
+#                   pkg (Termux), apk (Alpine/iSH), winget, choco
 # =============================================================================
 set -euo pipefail
 
@@ -13,6 +15,8 @@ PYTHON_MIN_MAJOR=3
 PYTHON_MIN_MINOR=11
 INSTALL_METHOD=""
 DRY_RUN="${SIYARIX_DRY_RUN:-0}"
+OS_ID=""
+OS_LIKE=""
 
 banner() {
   cat << 'EOF'
@@ -80,6 +84,11 @@ install_via_pip() {
     run pipx install siyarix 2>/dev/null && return 0
   fi
   INSTALL_METHOD="pip"
+  if is_kali_linux; then
+    run python3 -m pip install --upgrade --break-system-packages siyarix 2>/dev/null &&
+      return 0
+    run python3 -m pip install --user siyarix 2>/dev/null && return 0
+  fi
   run python3 -m pip install --upgrade siyarix 2>/dev/null ||
     run python3 -m pip install --user siyarix 2>/dev/null ||
     run pip install siyarix 2>/dev/null
@@ -88,6 +97,14 @@ install_via_pip() {
 install_via_brew() {
   INSTALL_METHOD="brew"
   info "Installing via Homebrew..."
+  # macOS-specific: ensure Homebrew is on PATH
+  if ! command -v brew &>/dev/null; then
+    if [ -f "/opt/homebrew/bin/brew" ]; then
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+    elif [ -f "/usr/local/bin/brew" ]; then
+      eval "$(/usr/local/bin/brew shellenv)"
+    fi
+  fi
   run brew install siyarix 2>/dev/null || warn "Homebrew formula not yet in core tap"
 }
 
@@ -134,20 +151,68 @@ install_via_snap() {
   install_via_pip
 }
 
+install_via_pkg_termux() {
+  INSTALL_METHOD="pkg"
+  info "Installing via pkg (Termux)..."
+  run pkg update -y
+  run pkg install -y python clang make libffi openssl binutils
+  install_via_pip
+}
+
+install_via_apk_ish() {
+  INSTALL_METHOD="apk"
+  info "Installing via apk (iSH/Alpine)..."
+  run apk update
+  run apk add python3 py3-pip
+  install_via_pip
+}
+
+is_kali_linux() {
+  [ -f /etc/os-release ] && grep -qi "ID=kali" /etc/os-release 2>/dev/null
+}
+
+is_termux() {
+  [ -n "${TERMUX_VERSION:-}" ] || [ -d "/data/data/com.termux" ]
+}
+
+is_ish() {
+  [ -n "${TERM_PROGRAM:-}" ] && echo "$TERM_PROGRAM" | grep -qi "ish" 2>/dev/null
+}
+
+is_harmonyos() {
+  [ -f "/system/etc/param/ohos.para" ] || [ -n "${OHOS_ARCH:-}" ] || (uname -a 2>/dev/null | grep -qi "ohos")
+}
+
+is_wsl() {
+  uname -r 2>/dev/null | grep -qi "microsoft\|wsl"
+}
+
 # --- Detect OS ---
 detect_os() {
-  case "$(uname -s)" in
-    Linux)
-      if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        OS_ID="${ID}"
-        OS_LIKE="${ID_LIKE:-}"
-      fi
+  if is_termux; then
+    echo "termux"
+  elif is_ish; then
+    echo "ish"
+  elif is_harmonyos; then
+    echo "harmonyos"
+  elif [ "$(uname -s)" = "Linux" ]; then
+    if [ -f /etc/os-release ]; then
+      . /etc/os-release
+      OS_ID="${ID}"
+      OS_LIKE="${ID_LIKE:-}"
+    fi
+    if is_wsl; then
+      echo "wsl"
+    else
       echo "linux"
-      ;;
-    Darwin) echo "macos" ;;
-    *) echo "other" ;;
-  esac
+    fi
+  elif [ "$(uname -s)" = "Darwin" ]; then
+    echo "macos"
+  elif [ "$(uname -s)" = "MINGW"* ] || [ "$(uname -s)" = "MSYS"* ] || [ "$(uname -s)" = "CYGWIN"* ]; then
+    echo "windows"
+  else
+    echo "other"
+  fi
 }
 
 # --- Main ---
@@ -201,6 +266,27 @@ main() {
     return 0
   fi
 
+  # Detect OS
+  OS="$(detect_os)"
+  info "Detected OS: ${OS}"
+
+  # Platform-specific Python installation
+  case "$OS" in
+    termux)
+      if ! command -v python3 &>/dev/null; then
+        warn "Python not found on Termux. Use install_android.sh for full Termux setup."
+        info "Quick: pkg install python && pip install siyarix"
+        exit 1
+      fi
+      ;;
+    ish)
+      if ! command -v python3 &>/dev/null; then
+        info "Installing Python via apk..."
+        run apk update && run apk add python3 py3-pip
+      fi
+      ;;
+  esac
+
   # Check Python
   if ! check_python; then
     err "Python ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR}+ is required."
@@ -215,10 +301,31 @@ main() {
     exit 1
   fi
 
-  OS="$(detect_os)"
-  info "Detected OS: ${OS} (${OS_ID:-unknown})"
-
+  # Platform-specific installation with fallbacks
   case "$OS" in
+    termux)
+      install_via_pkg_termux
+      ;;
+    ish)
+      install_via_apk_ish
+      ;;
+    harmonyos)
+      if command -v ohpm &>/dev/null; then
+        INSTALL_METHOD="ohpm"
+        info "HarmonyOS detected. Installing via ohpm..."
+        run ohpm install @siyarix/cli 2>/dev/null || install_via_pip
+      else
+        install_via_pip
+      fi
+      ;;
+    wsl)
+      install_via_pip
+      WSL_DISPLAY="${DISPLAY:-}"
+      if [ -z "$WSL_DISPLAY" ]; then
+        warn "WSL: No DISPLAY set. GUI features may not work."
+        warn "Set DISPLAY=:0 or install VcXsrv/WSLg."
+      fi
+      ;;
     linux)
       case "${OS_ID:-}" in
         kali|debian|ubuntu|pop|linuxmint|elementary|zorin)
@@ -230,6 +337,9 @@ main() {
         arch|manjaro|endeavouros)
           install_via_pacman
           ;;
+        alpine)
+          install_via_pip
+          ;;
         *)
           install_via_snap
           ;;
@@ -239,8 +349,20 @@ main() {
       if command -v brew &>/dev/null; then
         install_via_brew
       else
+        info "Homebrew not found. Installing via pip..."
         install_via_pip
       fi
+      # macOS-specific: add to PATH if needed
+      if [ -d "$HOME/Library/Python/3.11/bin" ]; then
+        export PATH="$HOME/Library/Python/3.11/bin:$PATH"
+      fi
+      if [ -d "$HOME/Library/Python/3.12/bin" ]; then
+        export PATH="$HOME/Library/Python/3.12/bin:$PATH"
+      fi
+      ;;
+    windows)
+      install_via_pip
+      warn "For better Windows integration, run install.ps1 in PowerShell"
       ;;
     *)
       install_via_pip

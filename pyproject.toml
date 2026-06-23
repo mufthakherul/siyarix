@@ -18,6 +18,12 @@ classifiers = [
   "License :: OSI Approved :: GNU Affero General Public License v3",
   "Natural Language :: English",
   "Operating System :: OS Independent",
+  "Operating System :: MacOS :: MacOS X",
+  "Operating System :: Microsoft :: Windows :: Windows 10",
+  "Operating System :: Microsoft :: Windows :: Windows 11",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: Android",
+  "Operating System :: iOS",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -26,6 +32,7 @@ classifiers = [
   "Topic :: Security :: Vulnerability Management",
   "Topic :: System :: Networking",
   "Topic :: System :: Systems Administration",
+  "Topic :: System :: Operating System",
   "Topic :: Software Development :: Libraries :: Application Frameworks",
   "Typing :: Typed",
 ]
@@ -45,11 +52,20 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+terminal = [
+  "rich>=13",
+  "prompt_toolkit>=3.0",
+  "textual>=0.50.0",
+  "pywin32>=306; sys_platform == 'win32'",
+  "colorama>=0.4.6; sys_platform == 'win32'",
+]
 cli = [
   "typer>=0.12",
   "rich>=13",
   "prompt_toolkit>=3.0",
   "textual>=0.50.0",
+  "pywin32>=306; sys_platform == 'win32'",
+  "colorama>=0.4.6; sys_platform == 'win32'",
 ]
 siem = [
   "httpx>=0.27",
@@ -78,10 +94,20 @@ security = [
   "safety>=3.2.0",
   "pip-audit>=2.7.0",
 ]
+mobile = [
+  "siyarix[terminal]",
+  "httpx>=0.27",
+]
+windows = [
+  "siyarix[terminal]",
+  "pywin32>=306; sys_platform == 'win32'",
+  "colorama>=0.4.6; sys_platform == 'win32'",
+]
 all = [
-  "siyarix[cli,siem,autonomous,api,security]",
+  "siyarix[cli,siem,autonomous,api,security,mobile,windows]",
 ]
 dev = [
+  "siyarix[terminal]",
   "pytest>=8.0",
   "pytest-asyncio>=0.24",
   "pytest-cov>=5.0",

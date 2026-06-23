@@ -1,26 +1,41 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# =============================================================================
+# Siyarix - Docker Compose
+# =============================================================================
+# Usage:
+#   docker compose up -d siyarix          # Python base (default)
+#   docker compose up -d siyarix-kali     # Kali base
+#   docker compose --profile telemetry up # with OpenTelemetry
+# =============================================================================
+
 services:
+  # ----  Main service (Python base)  ----------------------------------------
   siyarix:
     build:
       context: .
-      target: production
+      target: python
       args:
         SIYARIX_VERSION: ${SIYARIX_VERSION:-3.0.0}
     image: siyarix:${SIYARIX_TAG:-latest}
     container_name: siyarix
     restart: unless-stopped
+    stdin_open: true
+    tty: true
     environment:
       - SIYARIX_LOG_LEVEL=${SIYARIX_LOG_LEVEL:-INFO}
       - SIYARIX_PERSONA=${SIYARIX_PERSONA:-bug_hunter}
       - SIYARIX_PROVIDER=${SIYARIX_PROVIDER:-noop}
       - SIYARIX_NO_TELEMETRY=${SIYARIX_NO_TELEMETRY:-1}
       - SIYARIX_HOME=/home/siyarix/.siyarix
-      - SIYARIX_MODE=${SIYARIX_MODE:-cli}
+      - SIYARIX_CONFIG_MODE=${SIYARIX_CONFIG_MODE:-}
       - REDIS_URL=${REDIS_URL:-}
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     volumes:
-      - siyarix_data:/home/siyarix/.siyarix
-    stdin_open: true
-    tty: true
+      - siyarix_config:/home/siyarix/.siyarix
+      - siyarix_output:/home/siyarix/output
+      - ${SIYARIX_CUSTOM_DIR:-./custom}:/home/siyarix/custom:ro
+    ports:
+      - "${SIYARIX_API_PORT:-8000}:8000"
     networks:
       - siyarix_net
     healthcheck:
@@ -38,70 +53,53 @@ services:
           cpus: '0.25'
           memory: 128M
 
-  siyarix-worker:
+  # ----  Kali variant (full pentest suite)  ---------------------------------
+  siyarix-kali:
     build:
       context: .
-      target: production
+      target: kali
       args:
         SIYARIX_VERSION: ${SIYARIX_VERSION:-3.0.0}
-    image: siyarix:${SIYARIX_TAG:-latest}
-    container_name: siyarix-worker
+    image: siyarix:${SIYARIX_TAG_KALI:-kali}
+    container_name: siyarix-kali
     restart: unless-stopped
-    command: ["siyarix", "worker"]
+    stdin_open: true
+    tty: true
     environment:
-      - SIYARIX_MODE=worker
-      - REDIS_URL=redis://redis:6379
-      - SIYARIX_HOME=/home/siyarix/.siyarix
       - SIYARIX_LOG_LEVEL=${SIYARIX_LOG_LEVEL:-INFO}
-    depends_on:
-      redis:
-        condition: service_healthy
+      - SIYARIX_PERSONA=${SIYARIX_PERSONA:-bug_hunter}
+      - SIYARIX_PROVIDER=${SIYARIX_PROVIDER:-noop}
+      - SIYARIX_NO_TELEMETRY=${SIYARIX_NO_TELEMETRY:-1}
+      - SIYARIX_HOME=/home/siyarix/.siyarix
+      - SIYARIX_CONFIG_MODE=${SIYARIX_CONFIG_MODE:-}
+      - REDIS_URL=${REDIS_URL:-}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     volumes:
-      - siyarix_data:/home/siyarix/.siyarix
-    networks:
-      - siyarix_net
-    deploy:
-      replicas: 3
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 128M
-
-  siyarix-dashboard:
-    build:
-      context: .
-      target: production
-      args:
-        SIYARIX_VERSION: ${SIYARIX_VERSION:-3.0.0}
-    image: siyarix:${SIYARIX_TAG:-latest}
-    container_name: siyarix-dashboard
-    restart: unless-stopped
-    command: ["siyarix", "dashboard"]
+      - siyarix_kali_config:/home/siyarix/.siyarix
+      - siyarix_output:/home/siyarix/output
+      - ${SIYARIX_CUSTOM_DIR:-./custom}:/home/siyarix/custom:ro
     ports:
-      - "${SIYARIX_DASHBOARD_PORT:-8090}:8090"
-    environment:
-      - SIYARIX_DASHBOARD_PORT=8090
-      - SIYARIX_DASHBOARD_HOST=0.0.0.0
-      - REDIS_URL=redis://redis:6379
-      - SIYARIX_HOME=/home/siyarix/.siyarix
-      - SIYARIX_LOG_LEVEL=${SIYARIX_LOG_LEVEL:-INFO}
-    depends_on:
-      redis:
-        condition: service_healthy
+      - "${SIYARIX_KALI_API_PORT:-8001}:8000"
     networks:
       - siyarix_net
+    healthcheck:
+      test: ["CMD-SHELL", "siyarix --help > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+    profiles:
+      - kali
     deploy:
       resources:
         limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
           cpus: '0.5'
           memory: 256M
-        reservations:
-          cpus: '0.1'
-          memory: 64M
 
+  # ----  Redis (optional, enables caching)  ---------------------------------
   redis:
     image: redis:7-alpine
     container_name: siyarix-redis
@@ -127,6 +125,7 @@ services:
           cpus: '0.1'
           memory: 32M
 
+  # ----  OpenTelemetry Collector (optional, telemetry profile)  -------------
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
     container_name: siyarix-otel
@@ -159,7 +158,11 @@ networks:
         - subnet: 172.28.0.0/16
 
 volumes:
-  siyarix_data:
-    name: siyarix_data
+  siyarix_config:
+    name: siyarix_config
+  siyarix_kali_config:
+    name: siyarix_kali_config
+  siyarix_output:
+    name: siyarix_output
   redis_data:
     name: siyarix_redis_data

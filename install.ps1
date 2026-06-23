@@ -3,8 +3,8 @@
 # Siyarix Universal Installer for Windows
 #   One-liner: irm https://siyarix.dev/install.ps1 | iex
 #
-# Supports: Windows 10/11, Windows Server, Windows Server Core
-# Package managers: pipx, pip, winget, chocolatey
+# Supports: Windows 10/11, Windows Server 2019/2022/2025, Windows Server Core
+# Package managers: pipx, pip, winget, chocolatey, scoop
 # =============================================================================
 
 $ErrorActionPreference = 'Stop'
@@ -17,7 +17,7 @@ function Write-Banner {
    ███████╗██║╚████╔╝ ███████║██████╔╝██║ ╚███╔╝
    ╚════██║██║ ╚██╔╝  ██╔══██║██╔══██╗██║ ██╔██╗
    ███████║██║  ██║   ██║  ██║██║  ██║██║██╔╝ ██╗
-   ╚══════╝╚═╝  ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝
+   ╚══════╝╚═╝  ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝
    AI Cybersecurity Orchestration Agent v$__script_version
 "@
   Write-Host "`nSiyarix — AI Cybersecurity Orchestration Agent`n" -ForegroundColor Cyan
@@ -27,6 +27,46 @@ function Write-Info  { Write-Host "==>" -ForegroundColor Blue -NoNewline; Write-
 function Write-Ok    { Write-Host "  ✓" -ForegroundColor Green -NoNewline; Write-Host " $args" }
 function Write-Warn  { Write-Host "  !" -ForegroundColor Yellow -NoNewline; Write-Host " $args" }
 function Write-Err   { Write-Host "  ✗" -ForegroundColor Red -NoNewline; Write-Host " $args" }
+
+function Get-PowerShellVersion {
+  $psVer = $PSVersionTable.PSVersion
+  return "$($psVer.Major).$($psVer.Minor)"
+}
+
+function Test-LongPathSupport {
+  try {
+    $regPath = "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
+    $val = Get-ItemProperty -Path $regPath -Name "LongPathsEnabled" -ErrorAction SilentlyContinue
+    return ($val.LongPathsEnabled -eq 1)
+  } catch {
+    return $false
+  }
+}
+
+function Enable-LongPathSupport {
+  if (-not (Test-LongPathSupport)) {
+    Write-Warn "Windows long path support is not enabled."
+    Write-Warn "To enable: Open gpedit.msc → Computer Config → Admin Templates → System → Filesystem → Enable Win32 long paths"
+    Write-Warn "Or run as Administrator:"
+    Write-Warn '  reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f'
+    Write-Warn ""
+  }
+}
+
+function Update-Path {
+  param([string]$PathToAdd)
+  try {
+    $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+    if ($currentPath -notlike "*$PathToAdd*") {
+      [Environment]::SetEnvironmentVariable("PATH", "$currentPath;$PathToAdd", "User")
+      Write-Ok "Added $PathToAdd to PATH"
+      # Update current session PATH
+      $env:PATH = "$env:PATH;$PathToAdd"
+    }
+  } catch {
+    Write-Warn "Failed to update PATH: $_"
+  }
+}
 
 function Test-Python {
   try {
@@ -84,7 +124,16 @@ function Install-ViaChoco {
   }
 }
 
-
+function Install-ViaScoop {
+  Write-Info "Installing via Scoop..."
+  try {
+    scoop bucket add extras 2>$null
+    scoop install siyarix
+    return $true
+  } catch {
+    return $false
+  }
+}
 
 function Install-ViaPipx {
   Write-Info "Installing via pipx..."
@@ -107,15 +156,36 @@ function Test-Admin {
   }
 }
 
+# --- Execution Policy Check ---
+function Test-ExecutionPolicy {
+  $policy = Get-ExecutionPolicy -Scope CurrentUser
+  if ($policy -eq "Restricted" -or $policy -eq "AllSigned") {
+    Write-Warn "Current execution policy: $policy"
+    Write-Warn "To run scripts, set: Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned"
+    return $false
+  }
+  return $true
+}
+
 # --- Main ---
 function Main {
   Write-Banner
+
+  # PowerShell version check
+  $psVer = Get-PowerShellVersion
+  Write-Info "PowerShell version: $psVer"
+
+  # Execution policy check
+  Test-ExecutionPolicy | Out-Null
+
+  # Long path support check
+  Enable-LongPathSupport
 
   # Admin check (elevation not required for user-install but warn if winget/choco will be used)
   $isAdmin = Test-Admin
   if (-not $isAdmin) {
     Write-Warn "Not running as Administrator."
-    Write-Warn "Winget and Chocolatey installers may require elevation."
+    Write-Warn "Winget, Chocolatey, and Scoop installers may require elevation."
     Write-Warn "Re-run from an elevated PowerShell if those methods fail.`n"
   }
 
@@ -169,12 +239,13 @@ function Main {
     Write-Warn "pip not found. The pip installer will attempt to bootstrap it."
   }
 
-  # Try installers in order of preference
+  # Try installers in order of preference (pipx/win-wrap aware)
   $installers = @(
     { Install-ViaPipx }.GetNewClosure(),
     { Install-ViaPip }.GetNewClosure(),
     { Install-ViaWinget }.GetNewClosure(),
-    { Install-ViaChoco }.GetNewClosure()
+    { Install-ViaChoco }.GetNewClosure(),
+    { Install-ViaScoop }.GetNewClosure()
   )
 
   $installed = $false
@@ -187,6 +258,12 @@ function Main {
       $lastError = $_.Exception.Message
       continue
     }
+  }
+
+  # Update PATH for pip install --user locations
+  $pythonUserBase = python -c "import site; print(site.USER_BASE)" 2>$null
+  if ($pythonUserBase) {
+    Update-Path -PathToAdd "$pythonUserBase\Scripts"
   }
 
   if ($installed) {

@@ -41,6 +41,7 @@ htmlcov/
 bandit-*.json
 pip-audit.json
 safety-report.json
+siyarix_scan_*.json
 *.tmp
 *.bak
 *.orig

@@ -151,6 +151,56 @@ async def _kill_process(proc: asyncio.subprocess.Process) -> None:
             logger.debug("Fallback proc.kill() failed for PID %s: %s", proc.pid, fallback_exc)
 
 
+# ── Error message helpers ──────────────────────────────────────────────
+
+_SIGNAL_NAMES: dict[int, str] = {
+    1: "SIGHUP", 2: "SIGINT", 3: "SIGQUIT", 6: "SIGABRT",
+    8: "SIGFPE", 9: "SIGKILL", 11: "SIGSEGV", 15: "SIGTERM",
+}
+
+def _signal_name(signum: int) -> str:
+    return _SIGNAL_NAMES.get(signum, f"signal {signum}")
+
+
+def _format_not_found(cmd: list[str]) -> str:
+    """Return a user-friendly 'binary not found' message with install hints."""
+    # When the command is wrapped in ``sh -c "tool ..."``, extract the tool name.
+    if len(cmd) >= 3 and os.path.basename(cmd[0]).lower() in ("sh", "bash") and cmd[1] == "-c":
+        parts = cmd[2].strip().split()
+        name = parts[0] if parts else "?"
+        # Skip sudo prefix in the inner command
+        if name == "sudo" and len(parts) > 1:
+            name = parts[1] if parts[1] != "-S" else (parts[2] if len(parts) > 2 else "?")
+    else:
+        name = cmd[0] if cmd else "?"
+        # Skip sudo prefix
+        if name == "sudo" and len(cmd) > 1:
+            name = cmd[1] if cmd[1] != "-S" else (cmd[2] if len(cmd) > 2 else "?")
+    hints: list[str] = []
+    if shutil.which("apt-get"):
+        hints.append(f"sudo apt-get install {name}")
+    elif shutil.which("brew"):
+        hints.append(f"brew install {name}")
+    elif shutil.which("pacman"):
+        hints.append(f"sudo pacman -S {name}")
+    elif shutil.which("dnf"):
+        hints.append(f"sudo dnf install {name}")
+    msg = f"Tool '{name}' is not installed or not found in PATH."
+    if hints:
+        msg += f"\nInstall it with: {hints[0]}"
+    return msg
+
+
+def _describe_exit(exit_code: int) -> str:
+    """Describe a non‑zero exit code — e.g. killed by signal, crash, etc."""
+    if exit_code == -1:
+        return "Internal error"
+    if exit_code < 0:
+        name = _signal_name(-exit_code)
+        return f"Killed by {name}"
+    return f"Exited with code {exit_code}"
+
+
 def detect_package_manager() -> str:
     """Detect the available system package manager."""
     is_win = os.name == "nt"
@@ -291,8 +341,31 @@ def _use_thread_fallback() -> bool:
     return isinstance(loop, asyncio.SelectorEventLoop)
 
 
+def _verify_sudo_password(password: str) -> bool:
+    """Verify a sudo password by attempting ``sudo -S -k true``.
+
+    Returns ``True`` if the password is accepted, ``False`` otherwise.
+    """
+    try:
+        cp = subprocess.run(
+            ["sudo", "-S", "-k", "true"],
+            input=f"{password}\n".encode(),
+            capture_output=True,
+            timeout=5,
+            check=False,
+        )
+        return cp.returncode == 0
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return False
+
+
 def _get_sudo_password() -> str | None:
-    """Retrieve the sudo/administrator password from cache, env, config, or prompt the user securely."""
+    """Retrieve the sudo/administrator password from cache, env, config, or prompt the user securely.
+
+    When prompting interactively the password is **verified** immediately
+    via ``sudo -S -k true``.  Up to 3 attempts are allowed; on the third
+    the user is warned it is the last chance.
+    """
     global _SUDO_PASSWORD_CACHE
     
     # 1. Check in-memory session cache
@@ -319,29 +392,71 @@ def _get_sudo_password() -> str | None:
     except Exception:
         pass
 
-    # 4. Prompt the user interactively (if tty is available)
+    # 4. Prompt the user interactively (if tty is available), with retry logic.
+    #    Use getpass.getpass() as primary — it is more reliable across terminal
+    #    states than rich's Prompt.ask().  Rich markup is NOT used in the
+    #    plain-text fallback since we write directly to stderr.
     if sys.stdin.isatty():
-        try:
-            from rich.prompt import Prompt
-            from rich.console import Console
-            console = Console(stderr=True)
-            password = Prompt.ask(
-                "[bold yellow]Sudo/Administrator password required for tool execution[/bold yellow]",
-                password=True,
-                console=console
+        banner = (
+            "\n"
+            "╔══════════════════════════════════════════════════════════╗\n"
+            "║  Sudo/administrator password required for this command  ║\n"
+            "║  (type it below — input is hidden for security)         ║\n"
+            "║                                                        ║\n"
+            "║  Tip: set SIYARIX_SUDO_PASSWORD env var or configure   ║\n"
+            "║       sudo_password in settings to skip this prompt.   ║\n"
+            "╚══════════════════════════════════════════════════════════╝\n"
+        )
+        sys.stderr.write(banner)
+        sys.stderr.flush()
+
+        import getpass as _getpass
+
+        max_attempts = 3
+        for attempt in range(1, max_attempts + 1):
+            is_last = attempt == max_attempts
+            label = (
+                "Sudo/Administrator password: "
+                if not is_last
+                else "Sudo/Administrator password (LAST ATTEMPT): "
             )
-            with _SUDO_PASSWORD_LOCK:
-                _SUDO_PASSWORD_CACHE = password
-            return password
-        except Exception:
+
             try:
-                import getpass
-                password = getpass.getpass("Sudo/Administrator password required for tool execution: ")
+                password = _getpass.getpass(label)
+            except (EOFError, KeyboardInterrupt):
+                sys.stderr.write("\nPassword entry cancelled.\n")
+                sys.stderr.flush()
+                return None
+            except Exception:
+                password = None
+
+            if not password:
+                continue
+
+            # Verify the password immediately
+            if _verify_sudo_password(password):
                 with _SUDO_PASSWORD_LOCK:
                     _SUDO_PASSWORD_CACHE = password
                 return password
-            except Exception:
-                pass
+
+            msg = (
+                "Incorrect password. Please try again.\n"
+                if not is_last
+                else "Incorrect password after 3 attempts. "
+                       "The command will fail unless you configure the password "
+                       "via the SIYARIX_SUDO_PASSWORD env var or settings.\n"
+            )
+            sys.stderr.write(msg)
+            sys.stderr.flush()
+
+        # All attempts exhausted
+        return None
+
+    else:
+        logger.warning(
+            "sudo required but no TTY available to prompt for password. "
+            "Set SIYARIX_SUDO_PASSWORD env var or configure sudo_password in settings."
+        )
 
     return None
 
@@ -369,17 +484,21 @@ async def safe_run_async(
             logger.debug("safe_run_async (thread) executor timeout for cmd=%s", cmd)
             return ExecutionResult(
                 exit_code=-1,
-                stderr="Command timed out",
+                stderr=f"Command timed out after {timeout}s (executor) and was killed.",
                 duration_ms=(time.monotonic() - start) * 1000,
             )
         except subprocess.TimeoutExpired:
             logger.debug("safe_run_async (thread) subprocess timeout for cmd=%s", cmd)
-            return ExecutionResult(exit_code=-1, duration_ms=(time.monotonic() - start) * 1000)
+            return ExecutionResult(
+                exit_code=-1,
+                stderr=f"Command timed out after {timeout}s and was killed.",
+                duration_ms=(time.monotonic() - start) * 1000,
+            )
         except FileNotFoundError:
             logger.debug("safe_run_async (thread) binary not found: %s", cmd[0] if cmd else "?")
             return ExecutionResult(
                 exit_code=-1,
-                stderr=f"Binary not found: {cmd[0] if cmd else '?'}",
+                stderr=_format_not_found(cmd),
                 duration_ms=(time.monotonic() - start) * 1000,
             )
         except OSError as exc:
@@ -411,16 +530,28 @@ async def safe_run_async(
                     
     if has_sudo:
         password = _get_sudo_password()
-        if password:
-            if modified_cmd[0] == "sudo":
-                if "-S" not in modified_cmd:
-                    modified_cmd.insert(1, "-S")
-            else:
-                is_shell = len(modified_cmd) >= 3 and os.path.basename(modified_cmd[0]).lower() in ("sh", "bash", "pwsh", "powershell") and modified_cmd[1] == "-c"
-                if is_shell:
-                    shell_str = modified_cmd[2]
-                    new_shell_str = re.sub(r"\bsudo\b(?! -S\b)(?!\s*-S\b)", "sudo -S", shell_str)
-                    modified_cmd[2] = new_shell_str
+        if password is None:
+            logger.error("sudo required but no password available — returning error")
+            return ExecutionResult(
+                exit_code=-1,
+                stderr=(
+                    "sudo password is required for this command.\n"
+                    "Provide it via one of:\n"
+                    "  1. Set the SIYARIX_SUDO_PASSWORD environment variable\n"
+                    "  2. Configure sudo_password in settings\n"
+                    "  3. Run in an interactive terminal to be prompted"
+                ),
+                duration_ms=(time.monotonic() - start) * 1000,
+            )
+        if modified_cmd[0] == "sudo":
+            if "-S" not in modified_cmd:
+                modified_cmd.insert(1, "-S")
+        else:
+            is_shell = len(modified_cmd) >= 3 and os.path.basename(modified_cmd[0]).lower() in ("sh", "bash", "pwsh", "powershell") and modified_cmd[1] == "-c"
+            if is_shell:
+                shell_str = modified_cmd[2]
+                new_shell_str = re.sub(r"\bsudo\b(?! -S\b)(?!\s*-S\b)", "sudo -S", shell_str)
+                modified_cmd[2] = new_shell_str
 
     stdin_val = asyncio.subprocess.PIPE if (has_sudo and password) else asyncio.subprocess.DEVNULL
 
@@ -436,7 +567,7 @@ async def safe_run_async(
         logger.debug("safe_run_async binary not found: %s", cmd[0] if cmd else "?")
         return ExecutionResult(
             exit_code=-1,
-            stderr=f"Binary not found: {cmd[0] if cmd else '?'}",
+            stderr=_format_not_found(cmd),
             duration_ms=(time.monotonic() - start) * 1000,
         )
     except OSError as exc:
@@ -458,15 +589,18 @@ async def safe_run_async(
         except Exception as exc:
             logger.debug("Failed writing sudo password to stdin: %s", exc)
 
+    timed_out = False
     try:
         stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         exit_code = proc.returncode if proc.returncode is not None else -1
     except asyncio.TimeoutError:
+        logger.warning("safe_run_async timeout (%ds) for cmd=%s — killing process", timeout, cmd)
+        timed_out = True
         await _kill_process(proc)
         try:
             stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=1.0)
         except asyncio.TimeoutError:
-            logger.debug("Timeout communicating/draining after process kill")
+            logger.debug("safe_run_async — drain after kill timed out for cmd=%s", cmd)
             stdout_bytes, stderr_bytes = b"", b""
         exit_code = -1
     finally:
@@ -474,10 +608,21 @@ async def safe_run_async(
             with _ORPHAN_LOCK:
                 _ORPHAN_TRACKER.discard(proc.pid)
     duration_ms = (time.monotonic() - start) * 1000
+    stderr_text = stderr_bytes.decode("utf-8", errors="replace")
+    if timed_out:
+        timeout_msg = f"Command timed out after {timeout}s and was killed."
+        stderr_text = f"{timeout_msg}\n{stderr_text}" if stderr_text else timeout_msg
+    elif exit_code in (126, 127):
+        # Shell exit codes: 127 = command not found, 126 = not executable.
+        tool_hint = _format_not_found(cmd)
+        stderr_text = f"{tool_hint}\n{stderr_text}" if stderr_text else tool_hint
+    elif exit_code < 0:
+        sig_msg = f"Process terminated by {_signal_name(-exit_code)}."
+        stderr_text = f"{sig_msg}\n{stderr_text}" if stderr_text else sig_msg
     return ExecutionResult(
         exit_code=exit_code,
         stdout=stdout_bytes.decode("utf-8", errors="replace"),
-        stderr=stderr_bytes.decode("utf-8", errors="replace"),
+        stderr=stderr_text,
         duration_ms=duration_ms,
     )
 
@@ -523,7 +668,7 @@ async def safe_run_async_stream(
             )
             return ExecutionResult(
                 exit_code=-1,
-                stderr=f"Binary not found: {cmd[0] if cmd else '?'}",
+                stderr=_format_not_found(cmd),
                 duration_ms=(time.monotonic() - start) * 1000,
             )
         except OSError as exc:
@@ -585,6 +730,15 @@ async def safe_run_async_stream(
             except Exception:
                 pass
             exit_code = -1
+            stderr_lines.append(f"Command timed out after {timeout}s and was killed.")
+
+        # Signal-death and missing-tool detection (applies when not a timeout)
+        if exit_code is not None and exit_code < 0:
+            sig_msg = f"Process terminated by {_signal_name(-exit_code)}."
+            stderr_lines.append(sig_msg)
+        elif exit_code in (126, 127):
+            tool_hint = _format_not_found(cmd)
+            stderr_lines.append(tool_hint)
 
         for t in readers:
             t.join(timeout=2)
@@ -612,16 +766,28 @@ async def safe_run_async_stream(
                     
     if has_sudo:
         password = _get_sudo_password()
-        if password:
-            if modified_cmd[0] == "sudo":
-                if "-S" not in modified_cmd:
-                    modified_cmd.insert(1, "-S")
-            else:
-                is_shell = len(modified_cmd) >= 3 and os.path.basename(modified_cmd[0]).lower() in ("sh", "bash", "pwsh", "powershell") and modified_cmd[1] == "-c"
-                if is_shell:
-                    shell_str = modified_cmd[2]
-                    new_shell_str = re.sub(r"\bsudo\b(?! -S\b)(?!\s*-S\b)", "sudo -S", shell_str)
-                    modified_cmd[2] = new_shell_str
+        if password is None:
+            logger.error("sudo required but no password available — returning error")
+            return ExecutionResult(
+                exit_code=-1,
+                stderr=(
+                    "sudo password is required for this command.\n"
+                    "Provide it via one of:\n"
+                    "  1. Set the SIYARIX_SUDO_PASSWORD environment variable\n"
+                    "  2. Configure sudo_password in settings\n"
+                    "  3. Run in an interactive terminal to be prompted"
+                ),
+                duration_ms=(time.monotonic() - start) * 1000,
+            )
+        if modified_cmd[0] == "sudo":
+            if "-S" not in modified_cmd:
+                modified_cmd.insert(1, "-S")
+        else:
+            is_shell = len(modified_cmd) >= 3 and os.path.basename(modified_cmd[0]).lower() in ("sh", "bash", "pwsh", "powershell") and modified_cmd[1] == "-c"
+            if is_shell:
+                shell_str = modified_cmd[2]
+                new_shell_str = re.sub(r"\bsudo\b(?! -S\b)(?!\s*-S\b)", "sudo -S", shell_str)
+                modified_cmd[2] = new_shell_str
 
     stdin_val = asyncio.subprocess.PIPE if (has_sudo and password) else asyncio.subprocess.DEVNULL
 
@@ -637,7 +803,7 @@ async def safe_run_async_stream(
         logger.debug("safe_run_async_stream binary not found: %s", cmd[0] if cmd else "?")
         return ExecutionResult(
             exit_code=-1,
-            stderr=f"Binary not found: {cmd[0] if cmd else '?'}",
+            stderr=_format_not_found(cmd),
             duration_ms=(time.monotonic() - start) * 1000,
         )
     except OSError as exc:
@@ -686,6 +852,7 @@ async def safe_run_async_stream(
     stdout_task = asyncio.create_task(_safe_read(async_proc.stdout, stdout_lines, on_stdout))
     stderr_task = asyncio.create_task(_safe_read(async_proc.stderr, stderr_lines, on_stderr))
 
+    timed_out = False
     try:
         # Wait for the process to exit first
         await asyncio.wait_for(async_proc.wait(), timeout=timeout)
@@ -702,6 +869,8 @@ async def safe_run_async_stream(
             stdout_task.cancel()
             stderr_task.cancel()
     except asyncio.TimeoutError:
+        logger.warning("safe_run_async_stream timeout (%ds) for cmd=%s — killing process", timeout, cmd)
+        timed_out = True
         # The process itself timed out
         await _kill_process(async_proc)
         
@@ -720,6 +889,17 @@ async def safe_run_async_stream(
         if async_proc.pid:
             with _ORPHAN_LOCK:
                 _ORPHAN_TRACKER.discard(async_proc.pid)
+
+    # Annotate stderr with timeout / signal-death / missing-tool info
+    if timed_out:
+        timeout_msg = f"Command timed out after {timeout}s and was killed."
+        stderr_lines.append(timeout_msg)
+    elif exit_code in (126, 127):
+        tool_hint = _format_not_found(cmd)
+        stderr_lines.append(tool_hint)
+    elif exit_code < 0:
+        sig_msg = f"Process terminated by {_signal_name(-exit_code)}."
+        stderr_lines.append(sig_msg)
 
     duration_ms = (time.monotonic() - start) * 1000
     return ExecutionResult(

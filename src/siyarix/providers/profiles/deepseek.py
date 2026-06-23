@@ -14,17 +14,29 @@ def register_profile(manager: ProviderManager) -> None:
             display_name="DeepSeek",
             models=[
                 ModelInfo(
+                    "deepseek-v4-pro",
+                    supports_tools=True,
+                    supports_structured_output=False,
+                    context_window=1000000,
+                    cost_tier=CostTier.MEDIUM,
+                ),
+                ModelInfo(
                     "deepseek-v4-flash",
                     supports_tools=True,
                     context_window=1000000,
                     cost_tier=CostTier.LOW,
                 ),
                 ModelInfo(
-                    "deepseek-v4-pro",
+                    "deepseek-v3.2",
                     supports_tools=True,
-                    supports_structured_output=False,
-                    context_window=1000000,
-                    cost_tier=CostTier.MEDIUM,
+                    context_window=128000,
+                    cost_tier=CostTier.LOW,
+                ),
+                ModelInfo(
+                    "deepseek-r1",
+                    supports_tools=False,
+                    context_window=128000,
+                    cost_tier=CostTier.LOW,
                 ),
                 ModelInfo("deepseek-chat", context_window=131072, cost_tier=CostTier.LOW),
                 ModelInfo(

@@ -20,6 +20,8 @@ def register_profile(manager: ProviderManager) -> None:
                     "qwen-3-235b-a22b-instruct-2507", context_window=128000, cost_tier=CostTier.LOW
                 ),
                 ModelInfo("llama3.1-8b", context_window=128000, cost_tier=CostTier.FREE),
+                ModelInfo("llama-3.3-70b", context_window=128000, cost_tier=CostTier.LOW),
+                ModelInfo("kimi-k2.7-code", context_window=131072, cost_tier=CostTier.LOW),
             ],
             default_model="zai-glm-4.7",
             api_key_env="CEREBRAS_API_KEY",

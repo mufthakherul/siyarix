@@ -5,9 +5,7 @@ from ..types import CostTier, ModelInfo, ProviderProfile
 
 
 def register_profile(manager: ProviderManager) -> None:
-    # Adjust indentation
 
-    # ── Google Gemini ──────────────────────────────────────────────
     manager.register(
         ProviderProfile(
             name="gemini",
@@ -28,89 +26,75 @@ def register_profile(manager: ProviderManager) -> None:
                     cost_tier=CostTier.MEDIUM,
                 ),
                 ModelInfo(
-                    "gemini-3.1-pro-preview",
-                    supports_vision=True,
-                    supports_structured_output=True,
-                    context_window=1048576,
-                    cost_tier=CostTier.HIGH,
-                ),
-                ModelInfo(
                     "gemini-3.1-pro",
                     supports_vision=True,
                     supports_structured_output=True,
                     context_window=2000000,
-                    cost_tier=CostTier.HIGH,
+                    cost_tier=CostTier.MEDIUM,
                 ),
                 ModelInfo(
                     "gemini-3.1-flash",
                     supports_vision=True,
                     supports_structured_output=True,
-                    context_window=1048576,
-                    cost_tier=CostTier.MEDIUM,
+                    context_window=1000000,
+                    cost_tier=CostTier.LOW,
                 ),
                 ModelInfo(
                     "gemini-3.1-flash-lite",
                     supports_vision=True,
                     supports_structured_output=True,
-                    context_window=1048576,
+                    context_window=1000000,
                     cost_tier=CostTier.LOW,
                 ),
                 ModelInfo(
                     "gemini-3-flash-preview",
                     supports_vision=True,
                     supports_structured_output=True,
-                    context_window=1048576,
-                    cost_tier=CostTier.MEDIUM,
+                    context_window=1000000,
+                    cost_tier=CostTier.LOW,
                 ),
                 ModelInfo(
                     "gemini-3.0-pro",
                     supports_vision=True,
                     supports_structured_output=True,
-                    context_window=1048576,
+                    context_window=2000000,
                     cost_tier=CostTier.MEDIUM,
                 ),
                 ModelInfo(
                     "gemini-3.0-flash",
                     supports_vision=True,
                     supports_structured_output=True,
-                    context_window=1048576,
+                    context_window=1000000,
                     cost_tier=CostTier.LOW,
                 ),
                 ModelInfo(
                     "gemini-2.5-pro",
                     supports_vision=True,
                     supports_structured_output=True,
-                    context_window=1048576,
+                    context_window=1000000,
                     cost_tier=CostTier.MEDIUM,
                 ),
                 ModelInfo(
                     "gemini-2.5-flash",
                     supports_vision=True,
                     supports_structured_output=True,
-                    context_window=1048576,
+                    context_window=1000000,
                     cost_tier=CostTier.LOW,
                 ),
                 ModelInfo(
                     "gemini-2.5-flash-lite",
                     supports_vision=True,
                     supports_structured_output=True,
-                    context_window=1048576,
-                    cost_tier=CostTier.FREE,
-                ),
-                ModelInfo(
-                    "gemini-2.0-flash",
-                    supports_vision=True,
-                    supports_structured_output=True,
-                    context_window=1048576,
-                    cost_tier=CostTier.FREE,
+                    context_window=1000000,
+                    cost_tier=CostTier.LOW,
                 ),
             ],
             api_key_env="GEMINI_API_KEY",
             max_context_tokens=2000000,
             supports_streaming=True,
             supports_vision=True,
-            priority=9,
-            cost_tier=CostTier.LOW,
+            priority=8,
+            cost_tier=CostTier.MEDIUM,
             docs_url="https://ai.google.dev/gemini-api/docs/models",
         )
     )

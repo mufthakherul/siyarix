@@ -5,19 +5,24 @@ from ..types import CostTier, ModelInfo, ProviderProfile
 
 
 def register_profile(manager: ProviderManager) -> None:
-    # Adjust indentation
 
-    # ── Anthropic ───────────────────────────────────────────────────
     manager.register(
         ProviderProfile(
             name="anthropic",
             display_name="Anthropic",
             models=[
                 ModelInfo(
+                    "claude-fable-5",
+                    supports_vision=True,
+                    supports_structured_output=True,
+                    context_window=1000000,
+                    cost_tier=CostTier.HIGH,
+                ),
+                ModelInfo(
                     "claude-opus-4-8",
                     supports_vision=True,
                     supports_structured_output=True,
-                    context_window=1048576,
+                    context_window=200000,
                     cost_tier=CostTier.HIGH,
                 ),
                 ModelInfo(
@@ -39,21 +44,49 @@ def register_profile(manager: ProviderManager) -> None:
                     supports_vision=True,
                     supports_structured_output=True,
                     context_window=200000,
-                    cost_tier=CostTier.HIGH,
+                    cost_tier=CostTier.MEDIUM,
                 ),
                 ModelInfo(
                     "claude-haiku-4-5",
                     supports_vision=True,
                     supports_structured_output=True,
                     context_window=200000,
+                    cost_tier=CostTier.LOW,
+                ),
+                ModelInfo(
+                    "claude-sonnet-4",
+                    supports_vision=True,
+                    supports_structured_output=True,
+                    context_window=200000,
                     cost_tier=CostTier.MEDIUM,
+                ),
+                ModelInfo(
+                    "claude-sonnet-4-5",
+                    supports_vision=True,
+                    supports_structured_output=True,
+                    context_window=200000,
+                    cost_tier=CostTier.MEDIUM,
+                ),
+                ModelInfo(
+                    "claude-opus-4",
+                    supports_vision=True,
+                    supports_structured_output=True,
+                    context_window=200000,
+                    cost_tier=CostTier.HIGH,
+                ),
+                ModelInfo(
+                    "claude-opus-4-5",
+                    supports_vision=True,
+                    supports_structured_output=True,
+                    context_window=200000,
+                    cost_tier=CostTier.HIGH,
                 ),
             ],
             api_key_env="ANTHROPIC_API_KEY",
-            max_context_tokens=1048576,
+            max_context_tokens=1000000,
             supports_streaming=True,
             supports_vision=True,
-            priority=10,
+            priority=9,
             cost_tier=CostTier.HIGH,
             docs_url="https://docs.anthropic.com/en/docs/about-claude/models",
         )

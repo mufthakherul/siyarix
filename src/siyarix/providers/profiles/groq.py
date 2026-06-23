@@ -43,6 +43,11 @@ def register_profile(manager: ProviderManager) -> None:
                 ModelInfo("openai/gpt-oss-120b", context_window=128000, cost_tier=CostTier.LOW),
                 ModelInfo("openai/gpt-oss-20b", context_window=128000, cost_tier=CostTier.FREE),
                 ModelInfo("qwen/qwen3-32b", context_window=128000, cost_tier=CostTier.FREE),
+                ModelInfo(
+                    "deepseek-r1-distill-llama-70b",
+                    context_window=131072,
+                    cost_tier=CostTier.FREE,
+                ),
             ],
             api_key_env="GROQ_API_KEY",
             max_context_tokens=262144,

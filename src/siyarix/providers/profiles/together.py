@@ -43,9 +43,22 @@ def register_profile(manager: ProviderManager) -> None:
                     cost_tier=CostTier.LOW,
                 ),
                 ModelInfo(
+                    "moonshotai/Kimi-K2.7-Code",
+                    supports_vision=True,
+                    context_window=262144,
+                    cost_tier=CostTier.LOW,
+                ),
+                ModelInfo(
                     "Qwen/Qwen2.5-7B-Instruct-Turbo", context_window=32768, cost_tier=CostTier.FREE
                 ),
+                ModelInfo("Qwen/Qwen3.7-Max-0225", context_window=131072, cost_tier=CostTier.MEDIUM),
                 ModelInfo("zai-org/GLM-5.1", context_window=202800, cost_tier=CostTier.LOW),
+                ModelInfo(
+                    "minimax/MiniMax-M3",
+                    supports_vision=True,
+                    context_window=1000000,
+                    cost_tier=CostTier.MEDIUM,
+                ),
             ],
             api_key_env="TOGETHER_API_KEY",
             max_context_tokens=512000,

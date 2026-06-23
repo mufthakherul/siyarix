@@ -5,9 +5,7 @@ from ..types import CostTier, ModelInfo, ProviderProfile
 
 
 def register_profile(manager: ProviderManager) -> None:
-    # Adjust indentation
 
-    # ── OpenAI ──────────────────────────────────────────────────────
     manager.register(
         ProviderProfile(
             name="openai",
@@ -17,14 +15,14 @@ def register_profile(manager: ProviderManager) -> None:
                     "gpt-5.5",
                     supports_vision=True,
                     supports_structured_output=True,
-                    context_window=1000000,
+                    context_window=1050000,
                     cost_tier=CostTier.HIGH,
                 ),
                 ModelInfo(
                     "gpt-5.5-pro",
                     supports_vision=True,
-                    supports_structured_output=False,
-                    context_window=1000000,
+                    supports_structured_output=True,
+                    context_window=1050000,
                     cost_tier=CostTier.HIGH,
                 ),
                 ModelInfo(
@@ -58,12 +56,19 @@ def register_profile(manager: ProviderManager) -> None:
                 ModelInfo(
                     "gpt-5.3-codex",
                     supports_vision=True,
-                    supports_structured_output=False,
+                    supports_structured_output=True,
                     context_window=400000,
                     cost_tier=CostTier.HIGH,
                 ),
                 ModelInfo(
                     "gpt-5.2",
+                    supports_vision=True,
+                    supports_structured_output=True,
+                    context_window=400000,
+                    cost_tier=CostTier.MEDIUM,
+                ),
+                ModelInfo(
+                    "gpt-5",
                     supports_vision=True,
                     supports_structured_output=True,
                     context_window=400000,
@@ -93,7 +98,7 @@ def register_profile(manager: ProviderManager) -> None:
                 ModelInfo(
                     "o4-mini",
                     supports_vision=True,
-                    supports_structured_output=False,
+                    supports_structured_output=True,
                     context_window=200000,
                     cost_tier=CostTier.MEDIUM,
                 ),
@@ -107,21 +112,21 @@ def register_profile(manager: ProviderManager) -> None:
                 ModelInfo(
                     "o3",
                     supports_vision=True,
-                    supports_structured_output=False,
+                    supports_structured_output=True,
                     context_window=200000,
                     cost_tier=CostTier.HIGH,
                 ),
                 ModelInfo(
                     "o3-mini",
                     supports_vision=False,
-                    supports_structured_output=False,
+                    supports_structured_output=True,
                     context_window=200000,
                     cost_tier=CostTier.MEDIUM,
                 ),
                 ModelInfo(
                     "o3-pro",
                     supports_vision=True,
-                    supports_structured_output=False,
+                    supports_structured_output=True,
                     context_window=200000,
                     cost_tier=CostTier.HIGH,
                 ),
@@ -148,7 +153,7 @@ def register_profile(manager: ProviderManager) -> None:
                 ),
             ],
             api_key_env="OPENAI_API_KEY",
-            max_context_tokens=1000000,
+            max_context_tokens=1050000,
             supports_streaming=True,
             supports_vision=True,
             priority=10,

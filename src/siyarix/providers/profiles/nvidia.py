@@ -14,7 +14,17 @@ def register_profile(manager: ProviderManager) -> None:
             display_name="NVIDIA",
             models=[
                 ModelInfo(
+                    "nvidia/nemotron-3-ultra-550b-a55b",
+                    context_window=1000000,
+                    cost_tier=CostTier.HIGH,
+                ),
+                ModelInfo(
                     "nvidia/nemotron-3-super-120b-a12b",
+                    context_window=1000000,
+                    cost_tier=CostTier.LOW,
+                ),
+                ModelInfo(
+                    "nvidia/nemotron-3-nano-30b-a3b",
                     context_window=1000000,
                     cost_tier=CostTier.LOW,
                 ),
@@ -26,6 +36,12 @@ def register_profile(manager: ProviderManager) -> None:
                 ),
                 ModelInfo("minimaxai/minimax-m2.7", context_window=204000, cost_tier=CostTier.LOW),
                 ModelInfo("z-ai/glm-5.1", context_window=202800, cost_tier=CostTier.LOW),
+                ModelInfo(
+                    "minimaxai/minimax-m3",
+                    supports_vision=True,
+                    context_window=1000000,
+                    cost_tier=CostTier.MEDIUM,
+                ),
             ],
             default_model="nvidia/nemotron-3-super-120b-a12b",
             api_key_env="NVIDIA_API_KEY",

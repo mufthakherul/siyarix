@@ -61,7 +61,7 @@ def register_profile(manager: ProviderManager) -> None:
                     cost_tier=CostTier.MEDIUM,
                 ),
             ],
-            default_model="mistral-large-latest",
+            default_model="mistral-medium-3-5",
             api_key_env="MISTRAL_API_KEY",
             base_url="https://api.mistral.ai",
             max_context_tokens=262000,

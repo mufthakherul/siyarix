@@ -730,7 +730,7 @@ class LLMEngineMixin:
                     from ..learning_system import get_learning_system
                     _cls = get_learning_system()
                     _hi_skill = _cls.find_high_confidence_skill(
-                        instruction_with_target, _real_target, threshold=0.90
+                        instruction_with_target, _real_target, threshold=0.80
                     )
                     if _hi_skill:
                         console.print(

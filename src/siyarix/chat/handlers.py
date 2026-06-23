@@ -868,24 +868,28 @@ class CommandHandlersMixin:
 
                 model_name = ""
                 if len(tokens) > 1 and selected != "auto":
-                    parts = tokens[1].strip().split(maxsplit=1)
-                    if len(parts) > 1:
-                        model_name = parts[1]
-                        model_key = f"{selected}_model"
-                        try:
-                            self._settings.set(model_key, model_name)
-                            console.print(f"[green]✓ Set {model_key} to: {model_name}[/green]")
-                        except KeyError:
-                            console.print(
-                                f"[green]✓ Provider set to {selected} (model name ignored for this provider)[/green]"
-                            )
+                    model_name = tokens[1].strip()
+                    model_key = f"{selected}_model"
+                    try:
+                        self._settings.set(model_key, model_name)
+                        console.print(f"[green]✓ Set {model_key} to: {model_name}[/green]")
+                    except KeyError:
+                        console.print(
+                            f"[green]✓ Provider set to {selected} (model name ignored for this provider)[/green]"
+                        )
                 console.print(f"[green]✓ Model provider set to: {selected}[/green]")
 
                 # ── Benchmark: quick validation call ──
                 if selected != "auto" and selected != "registry" and selected in all_providers:
                     profile = pm.get_profile(selected)
                     key = self._resolve_api_key(selected, profile.api_key_env if profile else "")
-                    if key or not (profile and profile.api_key_env):
+                    needs_key = profile is not None and bool(profile.api_key_env)
+                    if needs_key and not key:
+                        console.print(
+                            f"[yellow]  ⚠ {selected} requires an API key. "
+                            f"Use /key {selected} <value> to set it.[/yellow]"
+                        )
+                    elif key or not needs_key:
                         with console.status(
                             f"[dim]Validating {selected}...[/dim]", spinner="point"
                         ):
@@ -893,10 +897,12 @@ class CommandHandlersMixin:
                                 import asyncio
 
                                 bench_fn = self._make_llm_call(selected, key or "")
-                                from ..chat.openai_compat import MODEL_KEYS as _MK
+                                bench_model = model_name or ""
+                                if not bench_model:
+                                    from ..chat.openai_compat import MODEL_KEYS as _MK
 
-                                bench_key = _MK.get(selected, f"{selected}_model")
-                                bench_model = self._settings.get(bench_key) or ""
+                                    bench_key = _MK.get(selected, f"{selected}_model")
+                                    bench_model = self._settings.get(bench_key) or ""
                                 if not bench_model and profile:
                                     bench_model = profile.default_model
                                 result = await asyncio.wait_for(

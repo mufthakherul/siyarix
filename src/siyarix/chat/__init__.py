@@ -2,7 +2,8 @@
 
 """Siyarix Chat — Interactive REPL / Conversation Mode.
 
-A full-featured interactive shell for Siyarix, similar to leading enterprise terminal agents, specialized for cybersecurity workflows.
+A full-featured interactive shell for Siyarix, similar to leading enterprise
+terminal agents, specialized for cybersecurity workflows.
 """
 
 from .repl import SiyarixChat, start_chat
@@ -25,8 +26,29 @@ from .platform_utils import (
     get_shell_platform,
     get_security_commands,
 )
-from .ui import SmartAutocomplete
+from .ui import SmartAutocomplete, render_welcome_banner, SplitPane, ConfigPanel
 from .session import ChatSession, ChatMessage
+from .prompts import (
+    mode_color,
+    make_prompt_top,
+    make_prompt_bottom,
+    make_prompt_bar,
+    mode_prompt_hint,
+)
+from .console import (
+    panel_response,
+    mode_border,
+    severity_style,
+    print_severity,
+    print_error,
+    print_warning,
+    print_info,
+    print_success,
+    table_from_dicts,
+    tree_from_dict,
+    status_spinner,
+    progress_bar,
+)
 
 __all__ = [
     "start_chat",
@@ -49,4 +71,24 @@ __all__ = [
     "SmartAutocomplete",
     "ChatSession",
     "ChatMessage",
+    "render_welcome_banner",
+    "SplitPane",
+    "ConfigPanel",
+    "mode_color",
+    "make_prompt_top",
+    "make_prompt_bottom",
+    "make_prompt_bar",
+    "mode_prompt_hint",
+    "panel_response",
+    "mode_border",
+    "severity_style",
+    "print_severity",
+    "print_error",
+    "print_warning",
+    "print_info",
+    "print_success",
+    "table_from_dicts",
+    "tree_from_dict",
+    "status_spinner",
+    "progress_bar",
 ]

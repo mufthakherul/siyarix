@@ -1,14 +1,130 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""System prompt templates for Siyarix chat.
+"""System prompt templates and UI prompt components for Siyarix chat.
 
 All prompts live here so they can be imported without duplicating or drifting.
+Also provides the professional prompt bar rendering functions.
 """
 
 from __future__ import annotations
 
 import sys
 import platform as _platform
+
+from rich.text import Text
+from rich.console import RenderableType
+
+# ── Mode colour map ───────────────────────────────────────────────────────
+
+MODE_COLORS: dict[str, str] = {
+    "offline": "bright_yellow",
+    "registry": "bright_yellow",
+    "autonomous": "bright_magenta",
+    "integrated": "bright_cyan",
+    "stealth": "bright_red",
+    "verbose": "bright_green",
+    "quiet": "bright_black",
+    "redteam": "bold red",
+    "blueteam": "bold blue",
+    "compliance": "bright_yellow",
+    "audit": "bright_magenta",
+    "expert": "bright_cyan",
+    "beginner": "bright_green",
+    "interactive": "bright_cyan",
+    "batch": "bright_magenta",
+}
+
+
+def mode_color(mode: str) -> str:
+    return MODE_COLORS.get(mode, "bright_cyan")
+
+
+# ── Professional Prompt Rendering ─────────────────────────────────────────
+
+
+def make_prompt_top(
+    mode: str,
+    provider: str,
+    session_id: str,
+    msg_count: int,
+    uptime_seconds: float,
+    theme: str = "cyber-noir",
+) -> RenderableType:
+    """Render the top line of the professional prompt:
+    ╭─ siyarix [mode] [provider] ─╮
+    """
+    mc = mode_color(mode)
+    hours, rem = divmod(int(uptime_seconds), 3600)
+    minutes, secs = divmod(rem, 60)
+    uptime_str = f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+    title_parts = [
+        ("▌", "dim"),
+        ("siyarix", "bold bright_white"),
+        ("  ", ""),
+        (f"[{mode}]", mc),
+        (" ", ""),
+        (f"{provider}", "bright_blue"),
+        (" ", ""),
+        (f"msgs:{msg_count}", "dim"),
+        (" ", ""),
+        (f"up:{uptime_str}", "dim"),
+        (" ", ""),
+        (f"sid:{session_id[:6]}", "dim italic"),
+        ("▐", "dim"),
+    ]
+    return Text.assemble(*title_parts)
+
+
+def make_prompt_bottom(show_hint: bool = True) -> RenderableType:
+    """Render the input line:
+    ╰─ ➜
+    """
+    parts = [
+        ("╰─ ", "dim"),
+        ("➜ ", "bold bright_cyan"),
+    ]
+    if show_hint:
+        parts.append(("(Tab: autocomplete, ?: help)", "dim italic"))
+    return Text.assemble(*parts)
+
+
+def mode_prompt_hint(mode: str) -> str:
+    """Return a mode-specific one-line hint shown in the prompt area."""
+    hints = {
+        "redteam": "Red Team — offensive operations active",
+        "blueteam": "Blue Team — defensive posture active",
+        "stealth": "Stealth — evasion measures active",
+        "offline": "Offline — local-only execution",
+        "autonomous": "Autonomous — AI-driven operations",
+        "verbose": "Verbose — full output enabled",
+        "quiet": "Quiet — minimal output",
+        "compliance": "Compliance — audit mode active",
+        "audit": "Audit — logging & verification active",
+        "expert": "Expert — advanced controls unlocked",
+        "beginner": "Beginner — guided assistance active",
+        "batch": "Batch — non-interactive execution",
+        "interactive": "Interactive — full control",
+    }
+    return hints.get(mode, "")
+
+
+def make_prompt_bar(
+    mode: str,
+    provider: str,
+    session_id: str,
+    msg_count: int,
+    uptime_seconds: float,
+    theme: str = "cyber-noir",
+    show_hint: bool = True,
+) -> RenderableType:
+    """Combined professional prompt with top bar and input line."""
+    top = make_prompt_top(mode, provider, session_id, msg_count, uptime_seconds, theme)
+    bottom = make_prompt_bottom(show_hint)
+    return Text.assemble(top, "\n", bottom)
+
+
+# ── Platform context helper (unchanged from original) ─────────────────────
 
 
 def _platform_context() -> str:
@@ -38,6 +154,9 @@ def _platform_context() -> str:
             ]
         )
     return "\n".join(lines)
+
+
+# ── System prompt templates (unchanged) ───────────────────────────────────
 
 
 SIYARIX_SYSTEM_PROMPT = f"""You are Siyarix, an elite cybersecurity professional operating in a terminal-driven environment.
@@ -139,3 +258,17 @@ For general chat or after tool execution, output JSON: { "needs_tools": false, "
 
 COMPACT_NEUTRAL = """Continue as Siyarix following the system instructions previously provided.
 Output JSON: { "needs_tools", "reasoning", "response", "steps" } when tools are needed."""
+
+
+__all__ = [
+    "mode_color",
+    "MODE_COLORS",
+    "make_prompt_top",
+    "make_prompt_bottom",
+    "make_prompt_bar",
+    "mode_prompt_hint",
+    "SIYARIX_SYSTEM_PROMPT",
+    "NEUTRAL_SYSTEM_PROMPT",
+    "COMPACT_PROMPT",
+    "COMPACT_NEUTRAL",
+]

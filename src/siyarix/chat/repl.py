@@ -3,61 +3,80 @@ import asyncio
 import atexit
 import json
 import logging
-import os
-import signal
 import sys
 import time
 import warnings
 from collections import deque
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from ..config import get_config_dir
+
+from .._platform import (
+    is_windows as _plat_is_windows,
+    has_signal as _plat_has_signal,
+    has_termios as _plat_has_termios,
+)
+
+if _plat_has_signal():
+    import signal as _signal
+else:
+    _signal = None  # type: ignore
 
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.text import Text
+from rich.columns import Columns
+from rich.table import Table
 from prompt_toolkit import PromptSession
 from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.formatted_text import HTML
 
 from .session import ChatSession
-from .ui import SmartAutocomplete, SplitPane
+from .ui import SmartAutocomplete, SplitPane, render_welcome_banner
 from ..config import SettingsStore
 from .platform_utils import detect_shell, get_shell_platform, build_platform_context
 from .commands import command_history
 from .handlers import CommandHandlersMixin
 from .engine import LLMEngineMixin
-from .console import console
+from .console import console, panel_response, mode_border
+from .prompts import (
+    mode_color, make_prompt_top, make_prompt_bottom,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def _restore_tty() -> None:
     """Restore TTY to cooked mode if put in raw mode by prompt_toolkit."""
+    if not _plat_has_termios():
+        return
     try:
-        import termios
+        import termios as _termios_mod
         fd = sys.stdin.fileno()
-        attrs = termios.tcgetattr(fd)
-        if attrs[3] & (termios.ECHO | termios.ICANON) == 0:
-            attrs[3] |= termios.ECHO | termios.ICANON
-            termios.tcsetattr(fd, termios.TCSANOW, attrs)
+        attrs = _termios_mod.tcgetattr(fd)
+        if attrs[3] & (_termios_mod.ECHO | _termios_mod.ICANON) == 0:
+            attrs[3] |= _termios_mod.ECHO | _termios_mod.ICANON
+            _termios_mod.tcsetattr(fd, _termios_mod.TCSANOW, attrs)
     except Exception:
         pass
 
 
 atexit.register(_restore_tty)
 
-# Restore TTY on SIGTERM/SIGHUP too
+# Restore TTY on SIGTERM/SIGHUP too (not on Windows)
 def _signal_restore_tty(*_: Any) -> None:
     _restore_tty()
 
-for _sig_name in ("SIGTERM", "SIGHUP"):
-    _sig = getattr(signal, _sig_name, None)
-    if _sig is not None:
-        try:
-            signal.signal(_sig, _signal_restore_tty)
-        except Exception:
-            pass
+if _signal is not None:
+    for _sig_name in ("SIGTERM", "SIGHUP", "SIGQUIT"):
+        _sig = getattr(_signal, _sig_name, None)
+        if _sig is not None:
+            try:
+                _signal.signal(_sig, _signal_restore_tty)
+            except Exception:
+                pass
 
 
 class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
@@ -100,11 +119,11 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         self._tool_cache: list[Any] | None = None
         from ..providers import UsageTracker, ProviderStateManager
 
-        state_dir = str(get_config_dir())
+        state_dir = get_config_dir()
         self._provider_state = ProviderStateManager(
-            path=os.path.join(state_dir, "provider_state.json")
+            path=str(state_dir / "provider_state.json")
         )
-        self._usage_tracker = UsageTracker(path=os.path.join(state_dir, "usage.json"))
+        self._usage_tracker = UsageTracker(path=str(state_dir / "usage.json"))
         from ..output import OutputEngine
 
         self._output = OutputEngine()
@@ -211,28 +230,27 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
     def run(self) -> None:
         """Start the interactive REPL loop."""
-        import signal as _signal
-
         self._print_welcome()
 
         # Install SIGTSTP handler to restore terminal before Ctrl+Z suspend
         _orig_tstp: Any = None
-        if hasattr(_signal, "SIGTSTP"):
+        if _signal is not None and hasattr(_signal, "SIGTSTP"):
 
             def _tstp_handler(signum: int, frame: Any) -> None:
                 try:
                     console.print()
                 except Exception:
                     pass
-                try:
-                    import termios as _termios
+                if _plat_has_termios():
+                    try:
+                        import termios as _termios
 
-                    _termios.tcsetattr(
-                        sys.stdin.fileno(), _termios.TCSANOW,
-                        _termios.tcgetattr(sys.stdin.fileno()),
-                    )
-                except Exception:
-                    pass
+                        _termios.tcsetattr(
+                            sys.stdin.fileno(), _termios.TCSANOW,
+                            _termios.tcgetattr(sys.stdin.fileno()),
+                        )
+                    except Exception:
+                        pass
                 if _orig_tstp:
                     _orig_tstp(signum, frame)
 
@@ -356,12 +374,14 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
     def _terminal_supports_raw(self) -> bool:
         """Check if the terminal supports raw mode (required by prompt_toolkit)."""
+        if not _plat_has_termios() or _plat_is_windows():
+            return False
         try:
-            import termios
+            import termios as _termios_mod
 
             fd = sys.stdin.fileno()
-            attrs = termios.tcgetattr(fd)
-            termios.tcsetattr(fd, termios.TCSANOW, attrs)
+            attrs = _termios_mod.tcgetattr(fd)
+            _termios_mod.tcsetattr(fd, _termios_mod.TCSANOW, attrs)
             return True
         except Exception:
             return False
@@ -396,7 +416,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         return user_input
 
     async def _prompt_async(self) -> str:
-        """Display the input prompt and read a line."""
+        """Display the professional input prompt and read a line."""
         if not sys.stdin.isatty():
             try:
                 return input().strip()
@@ -404,79 +424,59 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 return ""
 
         esc_bindings = self._make_full_bindings()
-        prompt_label = Text.assemble(
-            ("❯ ", "bold cyan"), ("Type your message or @path/to/file", "dim")
-        )
 
         # Gather status information
-        target_info = f" ({self._session.target})" if self._session.target else ""
-        mode_color = {
-            "offline": "ansiyellow",
-            "registry": "ansiyellow",
-            "autonomous": "ansimagenta",
-            "integrated": "ansicyan",
-            "stealth": "ansired",
-            "verbose": "ansigreen",
-            "quiet": "ansibright_black",
-            "redteam": "bold red",
-            "blueteam": "bold blue",
-            "compliance": "ansiyellow",
-            "audit": "ansimagenta",
-            "expert": "ansicyan",
-            "beginner": "ansigreen",
-            "interactive": "ansicyan",
-            "batch": "ansimagenta",
-        }.get(self._mode, "ansicyan")
         theme = self._settings.get("color_theme") or "cyber-noir"
         provider = self._settings.get("model_provider") or "auto"
-        persona = self._settings.get("persona") or "auto"
         session_id = self._session.session_id[:8] if self._session.session_id else ""
+        msg_count = len(self._session.messages)
+        uptime_delta = datetime.now(timezone.utc) - self._session.created_at
+        uptime_secs = uptime_delta.total_seconds()
 
-        # If terminal doesn't support raw mode, skip prompt_toolkit entirely
+        # If terminal doesn't support raw mode, skip prompt_toolkit
         if not self._terminal_supports_raw():
-            console.print(
-                f"  [dim]{provider} · {self._mode} · {persona} · session: {session_id}{target_info} · {theme} · ? /help[/dim]"
-            )
+            top_bar = make_prompt_top(self._mode, provider, session_id, msg_count, uptime_secs, theme)
+            input_hint = make_prompt_bottom(show_hint=True)
+            console.print(top_bar)
             try:
-                return Prompt.ask(prompt_label, default="").strip()
+                return Prompt.ask(input_hint, default="").strip()
             except (EOFError, KeyboardInterrupt):
                 return ""
 
         def get_bottom_toolbar() -> Any:
-            from prompt_toolkit.formatted_text import HTML
-
+            mc = mode_color(self._mode).replace("bold ", "")
             return HTML(
                 f'<style bg="ansiblack" fg="ansiwhite"> '
-                f'<style fg="ansicyan"><b>{provider}</b></style> · '
-                f'<style fg="{mode_color}">{self._mode}</style> · '
-                f'<style fg="ansimagenta">{persona}</style> · '
-                f'<style fg="ansigray">session: {session_id}</style>'
-                f'<style fg="ansigray">{target_info}</style>  · '
-                f'<style fg="ansigray">{theme}</style>  · '
-                f'<style fg="ansigray">? /help</style> '
-                f"</style>"
+                f'<b>siyarix</b> · '
+                f'<style fg="{mc}">{self._mode}</style> · '
+                f'{provider} · '
+                f'session: {session_id} · '
+                f'msgs: {msg_count} · '
+                f'<style fg="ansigray">Tab: autocomplete | ?: help | Ctrl+L: clear</style>'
+                f'</style>'
             )
 
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
-                from prompt_toolkit.formatted_text import HTML
                 from prompt_toolkit.patch_stdout import patch_stdout
 
-                session: PromptSession[Any] = PromptSession(
+                pt_session: PromptSession[Any] = PromptSession(
                     bottom_toolbar=get_bottom_toolbar,
                     multiline=True,
                     vi_mode=False,
                 )
 
+                top_bar = make_prompt_top(self._mode, provider, session_id, msg_count, uptime_secs, theme)
+                console.print(top_bar)
+
                 pt_prompt = HTML(
-                    '<style fg="ansicyan"><b>❯ </b></style><style fg="ansigray">'
-                    'Type your message (Alt+Enter for newline): </style>'
+                    '<style fg="ansicyan"><b>╰─➜ </b></style>'
                 )
 
                 with patch_stdout():
                     answer = (
-                        await session.prompt_async(
+                        await pt_session.prompt_async(
                             pt_prompt,
                             key_bindings=esc_bindings,
                             completer=SmartAutocomplete(self._session),
@@ -490,12 +490,11 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             console.print(f"[red]prompt_toolkit failed: {exc}[/red]")
             console.print(traceback.format_exc())
             logger.debug("prompt_toolkit failed: %s", exc)
-            console.print(
-                f"  [dim]{provider} · {self._mode} · {persona} · session: {session_id}{target_info} · {theme} · ? /help[/dim]"
-            )
+            top_bar = make_prompt_top(self._mode, provider, session_id, msg_count, uptime_secs, theme)
+            console.print(top_bar)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
-                answer = Prompt.ask(prompt_label, default="").strip()
+                answer = Prompt.ask("╰─➜ ", default="").strip()
         return answer
 
     def _make_full_bindings(self) -> Any:
@@ -594,6 +593,27 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         def _on_enter(event: Any) -> None:
             event.app.current_buffer.validate_and_handle()
 
+        # Ctrl+H - show keyboard shortcuts
+        @kb.add(Keys.ControlH)
+        def _on_ctrlh(event: Any) -> None:
+            shortcuts_table = Table(title="Keyboard Shortcuts", header_style="bold cyan", box=None)
+            shortcuts_table.add_column("Key", style="cyan", no_wrap=True)
+            shortcuts_table.add_column("Action", style="white")
+            shortcuts_table.add_row("Tab", "Autocomplete / Suggest")
+            shortcuts_table.add_row("Enter", "Submit input")
+            shortcuts_table.add_row("Alt+Enter", "Insert newline (multi-line)")
+            shortcuts_table.add_row("Esc", "Cancel task / Double Esc to exit")
+            shortcuts_table.add_row("Ctrl+C", "Cancel / Double Ctrl+C to exit")
+            shortcuts_table.add_row("Ctrl+L", "Clear screen")
+            shortcuts_table.add_row("Ctrl+A", "Go to beginning of line")
+            shortcuts_table.add_row("Ctrl+E", "Go to end of line")
+            shortcuts_table.add_row("Ctrl+U", "Delete to start of line")
+            shortcuts_table.add_row("Ctrl+K", "Delete to end of line")
+            shortcuts_table.add_row("Ctrl+W", "Delete word backward")
+            shortcuts_table.add_row("Ctrl+H", "Show this help")
+            shortcuts_table.add_row("↑/↓", "Command history navigation")
+            console.print(shortcuts_table)
+
         return kb
 
     def _render_split_pane_layout(self, left_content: Any = None) -> None:
@@ -635,14 +655,8 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
     def _print_welcome(self) -> None:
         """Print the welcome banner with system status overview using a premium layout."""
-        console.print()  # ensure cursor is on a fresh line before the banner
-        from ..branding import resolve_version
-        from rich.layout import Layout
-        from rich.align import Align
-        from rich.text import Text
-        from .commands import CommandRegistry
+        console.print()
 
-        ver = resolve_version()
         provider_status = self._gather_provider_status()
         shell_info = get_shell_platform()
         theme = self._settings.get("color_theme") or "cyber-noir"
@@ -653,7 +667,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         findings_count = 0
         try:
             from ..offline_store import OfflineStore
-
             store = OfflineStore()
             stats = store.stats()
             scans_count = stats.get("total_scans", 0)
@@ -664,7 +677,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         tool_count = 0
         try:
             from ..registry import ToolRegistry
-
             reg = ToolRegistry()
             reg.scan_path()
             tool_count = len(reg.list_tools())
@@ -674,127 +686,21 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         command_count = sum(1 for m in self._session.messages if m.role == "user")
         msg_count = len(self._session.messages)
 
-        layout = Layout()
-        layout.split_column(
-            Layout(name="header", size=4),
-            Layout(name="main", size=8),
-            Layout(name="footer", size=5),
+        layout = render_welcome_banner(
+            mode=self._mode,
+            provider=provider,
+            persona=persona,
+            theme=theme,
+            session_id=self._session.session_id or "",
+            shell_info=shell_info,
+            scans_count=scans_count,
+            findings_count=findings_count,
+            tool_count=tool_count,
+            llm_calls=self._llm_calls,
+            command_count=command_count,
+            msg_count=msg_count,
+            provider_status=provider_status,
         )
-        layout["main"].split_row(
-            Layout(name="session_info", ratio=1),
-            Layout(name="system_stats", ratio=1),
-            Layout(name="quick_actions", ratio=1),
-            Layout(name="runtime", ratio=1),
-        )
-
-        header_text = Text.assemble(
-            (" █▓▒░ ", "bold magenta"),
-            ("SIYARIX ADVANCED ORCHESTRATOR ", "bold cyan"),
-            (f"v{ver} ", "bold green"),
-            ("░▒▓█ ", "bold magenta"),
-            "\n",
-            (
-                "Terminal agent for cyber-security — plan, inspect, execute.",
-                "dim italic white",
-            ),
-        )
-
-        layout["header"].update(
-            Panel(
-                Align.center(header_text, vertical="middle"),
-                style="cyan",
-                border_style="bold magenta",
-            )
-        )
-
-        layout["session_info"].update(
-            Panel(
-                f"[bold #00ffcc]Platform:[/bold #00ffcc] [white]{shell_info}[/white]\n"
-                f"[bold #00ffcc]Mode:[/bold #00ffcc] [white]{self._mode}[/white]\n"
-                f"[bold #00ffcc]Provider:[/bold #00ffcc] [white]{provider}[/white]\n"
-                f"[bold #00ffcc]Persona:[/bold #00ffcc] [white]{persona}[/white]\n"
-                f"[bold #00ffcc]Theme:[/bold #00ffcc] [white]{theme}[/white]\n"
-                f"[bold #00ffcc]Session:[/bold #00ffcc] [white]{self._session.session_id[:8]}[/white]",
-                title="[bold]Session[/bold]",
-                border_style="cyan",
-            )
-        )
-
-        layout["system_stats"].update(
-            Panel(
-                f"[bold #ff00ff]Scans:[/bold #ff00ff] [white]{scans_count}[/white]\n"
-                f"[bold #ff00ff]Findings:[/bold #ff00ff] [white]{findings_count}[/white]\n"
-                f"[bold #ff00ff]Tools:[/bold #ff00ff] [white]{tool_count}[/white]\n"
-                f"[bold #ff00ff]Commands:[/bold #ff00ff] [white]{command_count}[/white]\n"
-                f"[bold #ff00ff]Messages:[/bold #ff00ff] [white]{msg_count}[/white]\n"
-                f"[bold #ff00ff]Provider Calls:[/bold #ff00ff] [white]{self._llm_calls}[/white]",
-                title="[bold]Telemetry[/bold]",
-                border_style="magenta",
-            )
-        )
-
-        # Dynamic quick actions from command registry
-        top_cmds = CommandRegistry.top_commands(8)
-        quick_lines = []
-        for c in top_cmds[:6]:
-            name_display = c.usage if c.usage else c.name
-            quick_lines.append(
-                f"[bold white]{name_display}[/bold white]  [dim]— {c.description[:30]}[/dim]\n"
-            )
-        if not quick_lines:
-            quick_lines = [
-                "[bold white]/help[/bold white]  [dim]— all commands[/dim]\n",
-                "[bold white]/scan <tgt>[/bold white]  [dim]— scan target[/dim]\n",
-                "[bold white]/model <name>[/bold white]  [dim]— switch LLM[/dim]\n",
-                "[bold white]/mode <mode>[/bold white]  [dim]— switch mode[/dim]\n",
-                "[bold white]/theme <name>[/bold white]  [dim]— UI theme[/dim]\n",
-            ]
-
-        layout["quick_actions"].update(
-            Panel(
-                "".join(quick_lines),
-                title="[bold]Quick Actions[/bold]",
-                border_style="green",
-            )
-        )
-
-        configured = [k for k, (icon, _) in provider_status.items() if icon == "✓"]
-        runtime_txt = ""
-        if configured:
-            runtime_txt = f"[bold green]✓[/bold green] [dim]{', '.join(configured[:3])}[/dim]\n"
-            if len(configured) > 3:
-                runtime_txt += f"[dim]+ {len(configured) - 3} more[/dim]"
-        else:
-            available = [k for k, (icon, _) in provider_status.items() if icon == "⚠"]
-            if available:
-                runtime_txt = f"[bold yellow]⚠[/bold yellow] [dim]Available (local): {', '.join(available[:2])}[/dim]"
-            else:
-                runtime_txt = "[dim]No providers configured[/dim]"
-
-        layout["runtime"].update(
-            Panel(runtime_txt, title="[bold]LLM Status[/bold]", border_style="yellow")
-        )
-
-        mode_tips = {
-            "redteam": "[red]Press Tab for autocomplete | /help for commands | /scan <target> to recon | /stealth for evasion[/red]",
-            "blueteam": "[blue]Press Tab for autocomplete | /help for commands | /audit for compliance | /review on for safety[/blue]",
-            "stealth": "[red]Stealth mode active — /stealth status to check | /opsec for operational security[/red]",
-            "offline": "[yellow]Offline mode — no LLM needed | /queue for queued commands | /scan <target> for local scans[/yellow]",
-            "autonomous": "[magenta]Autonomous mode — AI-driven | /model to configure LLM | /agent run <goal> for sub-agents[/magenta]",
-        }
-        tip = mode_tips.get(self._mode,
-            "[dim]Press Tab for autocomplete | ? or /help for all commands[/dim]")
-
-        layout["footer"].update(
-            Panel(
-                "[bold cyan]Type natural language[/bold cyan] to plan work, or use slash commands.\n"
-                f"[dim] Examples:[/dim] [green]scan 10.0.0.5[/green]  [green]enumerate example.com[/green]  [green]/theme cyber-noir[/green]\n"
-                f" {tip}",
-                title="[bold bright_black]SYSTEM LOG[/bold bright_black]",
-                border_style="bright_black",
-            )
-        )
-
         console.print(layout)
 
     def _gather_provider_status(self) -> dict[str, tuple[str, str]]:
@@ -853,16 +759,13 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
     def _print_assistant(self, message: str) -> None:
         if self._con is not None:
-            from rich.markdown import Markdown
-            from rich.panel import Panel
-
             syntax_theme = self._settings.get("syntax_theme") or "monokai"
             self._con.print(
-                Panel(
-                    Markdown(message, code_theme=syntax_theme),
-                    title="[bold green]\u25c6 Siyarix[/bold green]",
-                    border_style="green",
-                    padding=(0, 2),
+                panel_response(
+                    message,
+                    mode=self._mode,
+                    title="\u25c6 Siyarix",
+                    syntax_theme=syntax_theme,
                 )
             )
         else:
@@ -944,9 +847,11 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         from rich.live import Live
         from rich.panel import Panel
 
+        border = mode_border(self._mode)
         md = Markdown("", code_theme=syntax_theme)
         panel = Panel(
-            md, title="[bold green]◆ Siyarix[/bold green]", border_style="green", padding=(0, 2)
+            md, title=f"[bold {border}]◆ Siyarix[/bold {border}]",
+            border_style=border, padding=(0, 2)
         )
 
         with Live(panel, console=console, refresh_per_second=15, transient=False) as live:
@@ -957,8 +862,8 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 live.update(
                     Panel(
                         md,
-                        title="[bold green]◆ Siyarix[/bold green]",
-                        border_style="green",
+                        title=f"[bold {border}]◆ Siyarix[/bold {border}]",
+                        border_style=border,
                         padding=(0, 2),
                     )
                 )
@@ -981,7 +886,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
     def _print_results(self, result: "Any", elapsed: float) -> None:  # EngineResult
         from ..planner import StepStatus
-        from rich.columns import Columns
 
         success_count = sum(1 for r in result.step_results if r.status == StepStatus.COMPLETED)
         failed_count = len(result.step_results) - success_count
@@ -1089,9 +993,18 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
     def _print_goodbye(self) -> None:
         self._session.save(self._SESSIONS_DIR / f"{self._session.session_id}.json")
-        self._output.print_info(f"Session saved: {self._session.session_id[:8]}")
-        self._output.print_info(f"Resume with: siyarix --session {self._session.session_id}")
-        self._output.print_info("Settings persist in config/.env — stay curious, stay ethical.")
+        from ..branding import resolve_version
+        from rich.panel import Panel
+        ver = resolve_version()
+        console.print(Panel(
+            f"[bold cyan]Siyarix v{ver}[/bold cyan]\n\n"
+            f"[green]✓[/green] Session saved: [cyan]{self._session.session_id[:8]}[/cyan]\n"
+            f"[green]✓[/green] Resume with: [cyan]siyarix --session {self._session.session_id}[/cyan]\n"
+            f"[green]✓[/green] Settings persist in config/.env\n\n"
+            f"[dim]Stay curious. Stay ethical.[/dim]",
+            title="[bold]Session Summary[/bold]",
+            border_style="cyan",
+        ))
 
 
 def start_chat(

@@ -64,10 +64,34 @@ class CommandInfo:
     hidden: bool = False
     handler: str = ""                  # method name on CommandHandlersMixin
     mode_filter: list[str] | None = None  # e.g. ["autonomous", "integrated"] means available only in these modes
+    examples: list[str] = field(default_factory=list)  # usage examples
+    notes: str = ""                    # additional help notes
 
     @property
     def all_names(self) -> list[str]:
         return [self.name] + self.aliases
+
+    def format_detailed(self) -> str:
+        """Return a detailed help string for this command."""
+        parts = [f"[bold cyan]{self.usage or self.name}[/bold cyan]"]
+        parts.append(f"  [dim]{self.description}[/dim]")
+        if self.aliases:
+            parts.append(f"  [bold]Aliases:[/bold] {', '.join(self.aliases)}")
+        if self.args:
+            parts.append("  [bold]Arguments:[/bold]")
+            for arg in self.args:
+                opt = " [dim](optional)[/dim]" if arg.optional else ""
+                choices = f" [yellow]{{{', '.join(arg.choices)}}}[/yellow]" if arg.choices else ""
+                parts.append(f"    [cyan]{arg.name}[/cyan]: {arg.description}{opt}{choices}")
+        if self.mode_filter:
+            parts.append(f"  [bold]Available in modes:[/bold] {', '.join(self.mode_filter)}")
+        if self.examples:
+            parts.append("  [bold]Examples:[/bold]")
+            for ex in self.examples:
+                parts.append(f"    [green]{ex}[/green]")
+        if self.notes:
+            parts.append(f"  [dim]ℹ {self.notes}[/dim]")
+        return "\n".join(parts)
 
 
 # ── Command Registry ──────────────────────────────────────────────────────
@@ -209,6 +233,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("category", "Filter help by category name", optional=True),
         ],
         handler="_cmd_help",
+        examples=["/help", "/help Navigation", "/help mode", "/help /scan"],
+        notes="Use /help <category> to filter commands. Use /help <command> for detailed help.",
     ),
     # ── Navigation ──
     CommandInfo(
@@ -217,6 +243,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Exit chat mode",
         aliases=["/quit", "/bye"],
         handler="_cmd_exit",
+        examples=["/exit", "/quit"],
+        notes="Saves session before exiting.",
     ),
     CommandInfo(
         name="/clear",
@@ -225,6 +253,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/clear",
         aliases=["/clean", "/cls"],
         handler="_cmd_clear",
+        examples=["/clear", "/cls"],
+        notes="Clears the terminal and resets conversation history.",
     ),
     CommandInfo(
         name="/new",
@@ -232,6 +262,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Start a fresh conversation",
         aliases=["/fresh"],
         handler="_cmd_new",
+        examples=["/new", "/fresh"],
+        notes="Clears all messages from current session context.",
     ),
     CommandInfo(
         name="/cancel",
@@ -239,6 +271,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Cancel current task without exiting",
         aliases=["/esc"],
         handler="_cmd_esc",
+        examples=["/cancel", "/esc"],
+        notes="Cancels any running operation without exiting the REPL.",
     ),
     CommandInfo(
         name="/history",
@@ -250,6 +284,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("filter", "Keyword to search for", optional=True),
         ],
         handler="_cmd_history",
+        examples=["/history", "/history 50", "/history 20 scan"],
+        notes="Shows last N messages. Provide a filter keyword to narrow results.",
     ),
     CommandInfo(
         name="/search",
@@ -258,6 +294,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/search <text>",
         args=[ArgInfo("text", "Keyword to search for")],
         handler="_cmd_search",
+        examples=["/search nmap", "/search vulnerability"],
+        notes="Finds all messages containing the keyword.",
     ),
     # ── Session ──
     CommandInfo(
@@ -266,6 +304,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Show detailed session metadata",
         aliases=["/info"],
         handler="_cmd_session",
+        examples=["/session", "/info"],
+        notes="Displays session ID, created/last active timestamps, mode, target, and context keys.",
     ),
     CommandInfo(
         name="/save",
@@ -274,6 +314,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/save [session_id]",
         args=[ArgInfo("session_id", "Optional custom session ID", optional=True)],
         handler="_cmd_save",
+        examples=["/save", "/save my_engagement_001"],
+        notes="Saves to ~/.config/siyarix/sessions/. Sessions auto-save on exit.",
     ),
     CommandInfo(
         name="/load",
@@ -282,6 +324,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/load <session_id>",
         args=[ArgInfo("session_id", "Session ID to load")],
         handler="_cmd_load",
+        examples=["/load abc12345", "/load"],
+        notes="Without arguments, lists all saved sessions for selection.",
     ),
     CommandInfo(
         name="/fork",
@@ -293,6 +337,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("summary", "Summary of the fork", optional=True),
         ],
         handler="_cmd_fork",
+        examples=["/fork", "/fork 5 Exploration path B"],
+        notes="Creates a snapshot of the session at the given message index.",
     ),
     CommandInfo(
         name="/diff",
@@ -304,6 +350,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("session_b", "Second session ID"),
         ],
         handler="_cmd_diff",
+        examples=["/diff abc123 def456"],
+        notes="Compares findings between two scan sessions.",
     ),
     CommandInfo(
         name="/log",
@@ -315,12 +363,16 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("session_id", "Session ID (for show/export)", optional=True),
         ],
         handler="_cmd_log",
+        examples=["/log list", "/log show abc123", "/log export abc123 --format json --output log.json"],
+        notes="Formats: json, markdown, sarif. Use --output to save to file.",
     ),
     CommandInfo(
         name="/reset",
         category=CommandCategory.SESSION,
         description="Reset mode and target to defaults",
         handler="_cmd_reset",
+        examples=["/reset"],
+        notes="Resets mode to 'integrated' and clears target.",
     ),
     CommandInfo(
         name="/stats",
@@ -329,6 +381,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/stats [detail]",
         args=[ArgInfo("detail", "Show detailed breakdown", optional=True)],
         handler="_cmd_stats",
+        examples=["/stats", "/stats detail"],
+        notes="With 'detail' shows command usage frequency breakdown.",
     ),
     # ── Configuration ──
     CommandInfo(
@@ -340,6 +394,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("action", "show, set <key> <value>, get <key>, list, tools"),
         ],
         handler="_cmd_config",
+        examples=["/config", "/config set color_theme cyber-noir", "/config get model_provider", "/config list"],
+        notes="Modified values are highlighted in yellow in the table.",
     ),
     CommandInfo(
         name="/key",
@@ -352,6 +408,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("key", "API key value", optional=True),
         ],
         handler="_cmd_key",
+        examples=["/key list", "/key set gemini AIza...", "/key remove openai", "/key rotate"],
+        notes="Keys can be stored in credential store (cryptography) or ephemeral env vars.",
     ),
     CommandInfo(
         name="/theme",
@@ -363,6 +421,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("theme", "Theme name", optional=True),
         ],
         handler="_cmd_theme",
+        examples=["/theme", "/theme list", "/theme cyber-noir dracula", "/theme preview"],
+        notes="Syntax themes: monokai, dracula, nord, github-dark, etc.",
     ),
     CommandInfo(
         name="/alias",
@@ -375,6 +435,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("command", "Command to alias", optional=True),
         ],
         handler="_cmd_alias",
+        examples=["/alias list", "/alias set sc /scan", "/alias remove sc"],
+        notes="Aliases are persisted to ~/.config/siyarix/aliases.json.",
     ),
     CommandInfo(
         name="/language",
@@ -385,6 +447,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("lang", "Language code (en, fr, de, es, etc.)", optional=True),
         ],
         handler="_cmd_language",
+        examples=["/language", "/language list", "/language fr"],
+        notes="LLM response language depends on provider support.",
     ),
     CommandInfo(
         name="/savecmd",
@@ -396,12 +460,16 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("command", "Command to save"),
         ],
         handler="_cmd_savecmd",
+        examples=["/savecmd my_scan scan 10.0.0.1"],
+        notes="Saved profiles can be run with /cmd <name>.",
     ),
     CommandInfo(
         name="/cmds",
         category=CommandCategory.CONFIGURATION,
         description="List saved command profiles",
         handler="_cmd_cmds",
+        examples=["/cmds"],
+        notes="Shows name, command, and creation timestamp for each profile.",
     ),
     CommandInfo(
         name="/cmd",
@@ -410,6 +478,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/cmd <profile_name>",
         args=[ArgInfo("profile_name", "Name of saved profile")],
         handler="_cmd_cmd",
+        examples=["/cmd my_scan"],
+        notes="Prompts for confirmation before executing.",
     ),
     # ── Mode ──
     CommandInfo(
@@ -427,6 +497,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         ],
         aliases=["/m"],
         handler="_cmd_mode",
+        examples=["/mode", "/mode integrated", "/m stealth"],
+        notes="Core modes: autonomous (LLM-driven), integrated (hybrid), offline (no LLM). Team modes: redteam, blueteam.",
     ),
     CommandInfo(
         name="/model",
@@ -438,6 +510,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("model_name", "Specific model name (optional)", optional=True),
         ],
         handler="_cmd_model",
+        examples=["/model gemini", "/model openai gpt-4o", "/model anthropic claude-sonnet-4-20250514"],
+        notes="Validates the provider connection after switching.",
     ),
     CommandInfo(
         name="/provider",
@@ -447,6 +521,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         aliases=["/providers"],
         args=[ArgInfo("name", "Provider name to inspect", optional=True)],
         handler="_cmd_provider",
+        examples=["/provider", "/provider gemini", "/providers"],
+        notes="Shows type, cost tier, capabilities, models, and configuration status.",
     ),
     CommandInfo(
         name="/persona",
@@ -455,6 +531,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/persona [list|<name>]",
         args=[ArgInfo("name", "Persona name", optional=True)],
         handler="_cmd_persona",
+        examples=["/persona", "/persona list", "/persona pentester"],
+        notes="Personas shape LLM behavior. 'auto' selects based on mode.",
     ),
     CommandInfo(
         name="/redteam",
@@ -462,9 +540,11 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Switch to red team mode (offensive focus)",
         aliases=["/offensive"],
         handler="_cmd_redteam",
+        examples=["/redteam", "/offensive"],
         mode_filter=["blueteam", "integrated", "autonomous", "stealth",
                       "verbose", "quiet", "expert", "beginner",
                       "interactive", "batch", "compliance", "audit"],
+        notes="Sets persona to 'red-team' and activates offensive posture.",
     ),
     CommandInfo(
         name="/blueteam",
@@ -472,9 +552,11 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Switch to blue team mode (defensive focus)",
         aliases=["/defensive"],
         handler="_cmd_blueteam",
+        examples=["/blueteam", "/defensive"],
         mode_filter=["redteam", "integrated", "autonomous", "stealth",
                       "verbose", "quiet", "expert", "beginner",
                       "interactive", "batch", "compliance", "audit"],
+        notes="Sets persona to 'blue-team' and activates defensive posture.",
     ),
     # ── Tools ──
     CommandInfo(
@@ -484,6 +566,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/tools [category]",
         args=[ArgInfo("category", "Tool category filter", optional=True)],
         handler="_cmd_tools",
+        examples=["/tools", "/tools recon", "/tools exploitation"],
+        notes="Tools are discovered from PATH at startup. Categories: recon, exploitation, web, etc.",
     ),
     CommandInfo(
         name="/run",
@@ -492,6 +576,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/run <command>",
         args=[ArgInfo("command", "Command or tool to run")],
         handler="_cmd_run",
+        examples=["/run nmap -sV 10.0.0.1", "/run gobuster dir -u https://example.com"],
+        notes="Executes raw shell commands with output captured back into context.",
     ),
     CommandInfo(
         name="/scan",
@@ -500,6 +586,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/scan <target>",
         args=[ArgInfo("target", "Target IP/hostname/URL")],
         handler="_cmd_scan",
+        examples=["/scan 10.0.0.1", "/scan example.com"],
+        notes="Uses the current target if not specified. Runs full recon pipeline.",
     ),
     CommandInfo(
         name="/target",
@@ -508,6 +596,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/target [host]",
         args=[ArgInfo("host", "Target host/IP/URL", optional=True)],
         handler="_cmd_target",
+        examples=["/target", "/target 10.0.0.5", "/target example.com"],
+        notes="Affects all subsequent scan/recon commands as default target.",
     ),
     CommandInfo(
         name="/intents",
@@ -516,6 +606,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/intents [filter]",
         args=[ArgInfo("filter", "Keyword to filter intents", optional=True)],
         handler="_cmd_intents",
+        examples=["/intents", "/intents scan"],
+        notes="Cross-platform command translations for Linux, macOS, and Windows.",
     ),
     CommandInfo(
         name="/translate",
@@ -524,12 +616,16 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/translate <intent>",
         args=[ArgInfo("intent", "Command intent to translate")],
         handler="_cmd_translate",
+        examples=["/translate port_scan"],
+        notes="Shows the command for each shell variant (bash, powershell, cmd).",
     ),
     CommandInfo(
         name="/security-cmds",
         category=CommandCategory.TOOLS,
         description="Show security commands for current platform",
         handler="_cmd_security_cmds",
+        examples=["/security-cmds"],
+        notes="Lists platform-specific security commands with descriptions.",
     ),
     CommandInfo(
         name="/plugins",
@@ -538,6 +634,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/plugins [list|status]",
         args=[ArgInfo("action", "list or status", optional=True)],
         handler="_cmd_plugins",
+        examples=["/plugins", "/plugins list", "/plugins status"],
+        notes="Plugins directory: ~/.config/siyarix/plugins/. Supports .py and .yaml.",
     ),
     CommandInfo(
         name="/playbook",
@@ -549,6 +647,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("path", "Playbook file path", optional=True),
         ],
         handler="_cmd_playbook",
+        examples=["/playbook list", "/playbook show my_scan", "/playbook run my_scan"],
+        notes="Playbooks are YAML files in ~/.config/siyarix/playbooks/ with a 'steps' list.",
     ),
     # ── Analysis ──
     CommandInfo(
@@ -556,12 +656,16 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         category=CommandCategory.ANALYSIS,
         description="Show current session context",
         handler="_cmd_context",
+        examples=["/context"],
+        notes="Displays recent conversation context summary.",
     ),
     CommandInfo(
         name="/examples",
         category=CommandCategory.ANALYSIS,
         description="Show practical prompt examples",
         handler="_cmd_examples",
+        examples=["/examples"],
+        notes="Useful prompt patterns for common security tasks.",
     ),
     CommandInfo(
         name="/review",
@@ -570,6 +674,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/review [on|off]",
         args=[ArgInfo("state", "on or off", optional=True)],
         handler="_cmd_review",
+        examples=["/review", "/review on", "/review off"],
+        notes="When on, every command is reviewed before execution.",
     ),
     CommandInfo(
         name="/intel",
@@ -581,6 +687,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("indicator", "CVE, IP, domain to look up", optional=True),
         ],
         handler="_cmd_intel",
+        examples=["/intel lookup CVE-2023-1234", "/intel lookup 8.8.8.8", "/intel status"],
+        notes="Uses AlienVault OTX for threat intelligence data.",
     ),
     CommandInfo(
         name="/kb",
@@ -592,6 +700,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("query", "Search query", optional=True),
         ],
         handler="_cmd_kb",
+        examples=["/kb search sql injection", "/kb list"],
+        notes="Searches the local knowledge graph.",
     ),
     # ── Report ──
     CommandInfo(
@@ -603,6 +713,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("format", "Output format (markdown, html, json)", optional=True),
         ],
         handler="_cmd_report",
+        examples=["/report", "/report html"],
+        notes="Generates from session findings. Output saved to sessions/reports/.",
     ),
     CommandInfo(
         name="/export",
@@ -614,6 +726,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("path", "Output file path", optional=True),
         ],
         handler="_cmd_export",
+        examples=["/export json", "/export md ./conversation.md", "/export html"],
+        notes="PDF export requires pdfkit or weasyprint.",
     ),
     # ── System ──
     CommandInfo(
@@ -621,42 +735,56 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         category=CommandCategory.SYSTEM,
         description="Show session and runtime status dashboard",
         handler="_cmd_status",
+        examples=["/status"],
+        notes="Shows mode, provider, target, messages, findings, uptime, shell info.",
     ),
     CommandInfo(
         name="/env",
         category=CommandCategory.SYSTEM,
         description="Show terminal environment summary",
         handler="_cmd_env",
+        examples=["/env"],
+        notes="Safe environment keys only (no secrets).",
     ),
     CommandInfo(
         name="/platform",
         category=CommandCategory.SYSTEM,
         description="Show platform and shell information",
         handler="_cmd_platform",
+        examples=["/platform"],
+        notes="Detailed OS, terminal, runtime, and flags information.",
     ),
     CommandInfo(
         name="/version",
         category=CommandCategory.SYSTEM,
         description="Show Siyarix version",
         handler="_cmd_version",
+        examples=["/version"],
+        notes="Shows the installed Siyarix package version.",
     ),
     CommandInfo(
         name="/uptime",
         category=CommandCategory.SYSTEM,
         description="Show chat session uptime",
         handler="_cmd_uptime",
+        examples=["/uptime"],
+        notes="Time elapsed since the current session was created.",
     ),
     CommandInfo(
         name="/shells",
         category=CommandCategory.SYSTEM,
         description="List supported shells",
         handler="_cmd_shells",
+        examples=["/shells"],
+        notes="Shows shell name and support tier (full/basic).",
     ),
     CommandInfo(
         name="/upgrade",
         category=CommandCategory.SYSTEM,
         description="Check for Siyarix updates",
         handler="_cmd_upgrade",
+        examples=["/upgrade"],
+        notes="Runs pip install --dry-run --upgrade siyarix to check.",
     ),
     CommandInfo(
         name="/docs",
@@ -665,18 +793,24 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/docs [section]",
         args=[ArgInfo("section", "Documentation section", optional=True)],
         handler="_cmd_docs",
+        examples=["/docs", "/docs commands", "/docs providers"],
+        notes="Sections: getting-started, commands, configuration, providers, plugins, playbooks, api, troubleshooting.",
     ),
     CommandInfo(
         name="/bug",
         category=CommandCategory.SYSTEM,
         description="Report a bug (opens GitHub issues)",
         handler="_cmd_bug",
+        examples=["/bug"],
+        notes="Opens https://github.com/mufthakherul/siyarix/issues/new",
     ),
     CommandInfo(
         name="/suggest",
         category=CommandCategory.SYSTEM,
         description="Suggest a feature (opens GitHub discussions)",
         handler="_cmd_suggest",
+        examples=["/suggest"],
+        notes="Opens GitHub discussions for feature ideas.",
     ),
     CommandInfo(
         name="/tutorial",
@@ -685,6 +819,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/tutorial [topic]",
         args=[ArgInfo("topic", "Tutorial topic", optional=True)],
         handler="_cmd_tutorial",
+        examples=["/tutorial", "/tutorial scanning"],
+        notes="Topics: basics, scanning, recon, exploitation, reporting, playbooks, aliases, learning.",
     ),
     CommandInfo(
         name="/benchmark",
@@ -696,6 +832,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("model", "Model to benchmark", optional=True),
         ],
         handler="_cmd_benchmark",
+        examples=["/benchmark", "/benchmark gemini", "/benchmark openai gpt-4o"],
+        notes="Tests short, medium, and long prompts. Reports time, characters, and chars/s.",
     ),
     # ── Learning ──
     CommandInfo(
@@ -705,6 +843,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/learn [on|off|status]",
         args=[ArgInfo("state", "on, off, or status", optional=True)],
         handler="_cmd_learn",
+        examples=["/learn", "/learn on", "/learn off", "/learn status"],
+        notes="CLS learns from repeated workflows and auto-suggests skills.",
     ),
     CommandInfo(
         name="/skills",
@@ -712,6 +852,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Manage learned skills",
         usage="/skills [stats|list|add|export]",
         handler="_cmd_skills",
+        examples=["/skills stats", "/skills list", "/skills add 1. scan ports; 2. check services.", "/skills export ~/skills.json"],
+        notes="Skills are learned patterns that can be exported and shared.",
     ),
     CommandInfo(
         name="/feedback",
@@ -723,14 +865,18 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("comment", "Optional comment", optional=True),
         ],
         handler="_cmd_feedback",
+        examples=["/feedback 5 Great analysis!", "/feedback bad"],
+        notes="Saved to ~/.config/siyarix/feedback/ for model improvement.",
     ),
     # ── Advanced Operations ──
     CommandInfo(
         name="/split",
         category=CommandCategory.ADVANCED,
         description="Toggle split pane view",
-        usage="/split [timeline|metrics|cheatsheet|attack_map]",
+        usage="/split [timeline|metrics|cheatsheet|attack_map|off]",
         handler="_cmd_split",
+        examples=["/split", "/split timeline", "/split attack_map", "/split off"],
+        notes="Displays side-by-side panels with contextual information.",
     ),
     CommandInfo(
         name="/batch",
@@ -739,6 +885,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/batch run <file>",
         args=[ArgInfo("file", "Batch script file path")],
         handler="_cmd_batch",
+        examples=["/batch run targets.txt"],
+        notes="Each line is executed sequentially. '#' lines are skipped as comments.",
     ),
     CommandInfo(
         name="/opsec",
@@ -746,6 +894,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Operational security controls",
         usage="/opsec isolate|burn|status|disable",
         handler="_cmd_opsec",
+        examples=["/opsec status", "/opsec isolate", "/opsec burn", "/opsec disable"],
+        notes="Isolate: enables TOR + DoH. Burn: destroys session artifacts.",
     ),
     CommandInfo(
         name="/stealth",
@@ -753,6 +903,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Evasion configuration",
         usage="/stealth status|on|off|level <level>",
         handler="_cmd_stealth",
+        examples=["/stealth status", "/stealth on", "/stealth level heavy"],
+        notes="Levels: none, light, medium, heavy, paranoid. Controls jitter, UA rotation, proxy chain.",
     ),
     CommandInfo(
         name="/audit",
@@ -760,6 +912,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Compliance and legal export",
         usage="/audit export|status|verify",
         handler="_cmd_audit",
+        examples=["/audit status", "/audit export", "/audit verify"],
+        notes="Maintains a cryptographic chain of custody for all operations.",
     ),
     CommandInfo(
         name="/queue",
@@ -767,6 +921,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Offline command queue management",
         usage="/queue status|list|retry|clear|flush",
         handler="_cmd_queue",
+        examples=["/queue status", "/queue list", "/queue retry", "/queue flush"],
+        notes="Queues commands for retry in offline mode. Flush executes pending now.",
     ),
     CommandInfo(
         name="/cache",
@@ -774,6 +930,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Cache management",
         usage="/cache status|clear|invalidate [domain]",
         handler="_cmd_cache",
+        examples=["/cache status", "/cache clear", "/cache invalidate example.com"],
+        notes="Manages the DNS/HTTP response cache to reduce duplicate requests.",
     ),
     CommandInfo(
         name="/performance",
@@ -781,6 +939,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Resource optimization",
         usage="/performance status|tune|configure",
         handler="_cmd_performance",
+        examples=["/performance status", "/performance tune"],
+        notes="Auto-tunes concurrent agent count and memory limits based on system resources.",
     ),
     CommandInfo(
         name="/campaign",
@@ -788,6 +948,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Multi-target campaign management",
         usage="/campaign list|create|status",
         handler="_cmd_campaign",
+        examples=["/campaign list", "/campaign create my_campaign"],
+        notes="Manages multi-target security testing campaigns.",
     ),
     CommandInfo(
         name="/ticket",
@@ -795,6 +957,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="External ticket creation",
         usage="/ticket create|list",
         handler="_cmd_ticket",
+        examples=["/ticket create SQL injection found on /login", "/ticket list"],
+        notes="Creates internal tickets (Jira/GitHub integration not yet available).",
     ),
     CommandInfo(
         name="/retest",
@@ -802,6 +966,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Verification scan scheduling",
         usage="/retest schedule|status",
         handler="_cmd_retest",
+        examples=["/retest schedule", "/retest status"],
+        notes="Schedules follow-up scans to verify fix efficacy.",
     ),
     CommandInfo(
         name="/agent",
@@ -809,6 +975,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Sub-agent lifecycle management",
         usage="/agent run <goal>|status",
         handler="_cmd_agent",
+        examples=["/agent run enumerate all open ports on 10.0.0.1", "/agent status"],
+        notes="Spawns autonomous sub-agents for delegated tasks.",
     ),
     CommandInfo(
         name="/siem",
@@ -816,6 +984,8 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="SIEM/SOAR integration (legacy)",
         usage="/siem connect|status",
         handler="_cmd_siem",
+        examples=["/siem status"],
+        notes="SIEM integration has been migrated to a separate plugin.",
     ),
 ]
 

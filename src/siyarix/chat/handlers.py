@@ -16,7 +16,7 @@ from rich.table import Table
 
 from ..branding import available_themes, print_theme_preview
 from ..config import get_config_dir
-from .commands import CommandProfile, CommandProfileStore, HELP_CATEGORIES, SLASH_HELP
+from .commands import CommandCategory, CommandProfile, CommandProfileStore, CommandRegistry, SLASH_HELP
 from .session import ChatSession
 from .ui import ConfigPanel
 from ..subprocess_utils import safe_run_sync
@@ -169,24 +169,126 @@ class CommandHandlersMixin:
                 hint = f"  Did you mean: {', '.join(suggestions)}"
             console.print(f"[red]Unknown command: {command}[/red] — type [cyan]/help[/cyan]{hint}")
 
-    def _cmd_help(self, _: str) -> None:
-        """Show categorized help."""
-        console.print(
-            Panel(
-                "[bold cyan]Siyarix Chat Commands[/bold cyan]\n"
-                "Type [cyan]/command[/cyan] to execute. "
-                "Press [cyan]?[/cyan] at any time to see this help.",
-                border_style="cyan",
+    def _cmd_help(self, args: str) -> None:
+        """Show categorized help system with detailed lookup support."""
+        from rich.table import Table as RichTable
+        from rich.panel import Panel as RichPanel
+        from ..branding import resolve_version
+
+        query = args.strip().lower() if args else ""
+
+        # ── Detailed help for a specific command ──
+        if query.startswith("/"):
+            cmd_info = CommandRegistry.get(query)
+            if cmd_info:
+                console.print(RichPanel(
+                    cmd_info.format_detailed(),
+                    title=f"[bold cyan]Command: {cmd_info.name}[/bold cyan]",
+                    border_style="cyan",
+                ))
+                return
+            # Fuzzy search for close matches
+            close = CommandRegistry.search(query.lstrip("/"))
+            if close:
+                console.print(f"[yellow]Unknown command: {query}[/yellow]")
+                console.print("[dim]Did you mean:[/dim]")
+                for c in close[:5]:
+                    console.print(f"  [cyan]{c.name}[/cyan] — [dim]{c.description[:60]}[/dim]")
+            else:
+                console.print(f"[red]Unknown command: {query}[/red] — type [cyan]/help[/cyan] for all commands")
+            return
+
+        # ── Help for a specific category ──
+        category_map_lower = {cat.value.lower(): cat for cat in CommandCategory}
+        if query and query in category_map_lower:
+            cat = category_map_lower[query]
+            cmds = CommandRegistry.by_category(cat)
+            if cmds:
+                table = RichTable(
+                    title=f"[bold]{cat.value}[/bold] ({len(cmds)} commands)",
+                    header_style="bold cyan",
+                    padding=(0, 1),
+                )
+                table.add_column("Command", style="cyan", no_wrap=True)
+                table.add_column("Description", style="white")
+                table.add_column("Usage", style="dim", no_wrap=True)
+                for c in cmds:
+                    if not c.hidden:
+                        usage = c.usage or c.name
+                        desc = c.description
+                        aliases_str = f" ({', '.join(c.aliases)})" if c.aliases else ""
+                        table.add_row(c.name, f"{desc}{aliases_str}", usage)
+                console.print(table)
+                return
+
+        # ── Keyword search ──
+        if query:
+            results = CommandRegistry.search(query)
+            if results:
+                table = RichTable(
+                    title=f"[bold]Search: '{query}'[/bold] ({len(results)} matches)",
+                    header_style="bold cyan",
+                )
+                table.add_column("Command", style="cyan", no_wrap=True)
+                table.add_column("Category", style="magenta")
+                table.add_column("Description", style="white")
+                for c in results[:25]:
+                    table.add_row(c.name, c.category.value, c.description[:70])
+                console.print(table)
+                if len(results) > 25:
+                    console.print(f"[dim]... and {len(results) - 25} more matches[/dim]")
+                return
+            console.print(f"[yellow]No results for '{query}'[/yellow]")
+            console.print("[dim]Try a category name or browse below.[/dim]")
+
+        # ── Full categorized help ──
+        ver = resolve_version()
+        total_visible = len(CommandRegistry.visible_commands())
+        total_all = len(CommandRegistry.all_commands())
+
+        # Summary header
+        summary_parts = []
+        for cat in CommandCategory:
+            cmds = CommandRegistry.by_category(cat)
+            visible = [c for c in cmds if not c.hidden]
+            if visible:
+                summary_parts.append(f"[bold]{cat.value}:[/bold] {len(visible)}")
+        summary_line = "  │  ".join(summary_parts)
+
+        console.print(RichPanel(
+            f"[bold cyan]Siyarix Command Reference[/bold cyan] [dim]v{ver}[/dim]\n"
+            f"[dim]{total_visible} visible · {total_all} total commands[/dim]\n\n"
+            f"{summary_line}\n\n"
+            f"[dim]Type [/dim][cyan]/help <command>[/cyan][dim] for detailed help\n"
+            f"Type [/dim][cyan]/help <category>[/cyan][dim] to filter by category\n"
+            f"Type [/dim][cyan]/help <keyword>[/cyan][dim] to search[/dim]",
+            border_style="cyan",
+            padding=(1, 2),
+        ))
+
+        for cat in CommandCategory:
+            cmds = CommandRegistry.by_category(cat)
+            visible = [c for c in cmds if not c.hidden]
+            if not visible:
+                continue
+            table = RichTable(
+                title=f"[bold]{cat.value}[/bold] ({len(visible)})",
+                padding=(0, 1),
+                box=None,
+                header_style="bold bright_black",
             )
-        )
-        for category, cmds in HELP_CATEGORIES:
-            table = Table(title=category, padding=(0, 2))
             table.add_column("Command", style="cyan", no_wrap=True)
             table.add_column("Description", style="white")
-            for cmd, desc in cmds.items():
-                table.add_row(cmd, desc)
+            table.add_column("Usage", style="dim", no_wrap=True)
+            for c in visible:
+                usage = c.usage or c.name
+                desc = c.description
+                aliases_str = f" ({', '.join(c.aliases)})" if c.aliases else ""
+                table.add_row(c.name, f"{desc}{aliases_str}", usage)
             console.print(table)
             console.print()
+
+        console.print("[dim]Tip:[/dim] Use [cyan]/help <command>[/cyan] for examples, arguments, and notes.")
 
     def _cmd_exit(self, _: str) -> None:
         self._running = False

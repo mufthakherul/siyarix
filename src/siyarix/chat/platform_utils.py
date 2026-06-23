@@ -4,9 +4,17 @@ import platform as _platform
 import os
 import shutil
 import sys
+from pathlib import Path
 from typing import Any
 
 from siyarix.config import get_config_dir
+from siyarix._platform import (
+    is_windows as _is_windows,
+    is_termux as _is_termux,
+    is_ish as _is_ish,
+    get_platform_id,
+    get_termux_prefix,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -16,15 +24,14 @@ def is_kali_linux() -> bool:
     if _platform.system() != "Linux":
         return False
     try:
-        # Check /etc/os-release for ID=kali
-        with open("/etc/os-release") as f:
-            for line in f:
+        os_release = Path("/etc/os-release")
+        if os_release.exists():
+            for line in os_release.read_text().splitlines():
                 if line.strip() == "ID=kali":
                     return True
     except (FileNotFoundError, OSError):
         pass
-    # Fallback: check for Kali-specific motd file
-    return os.path.exists("/etc/kali-motd")
+    return Path("/etc/kali-motd").exists()
 
 
 def pip_install_args(package: str, *extra: str) -> list[str]:
@@ -40,72 +47,100 @@ CROSS_PLATFORM_COMMANDS: dict[str, dict[str, str]] = {
         "bash": "nmap -sV {target}",
         "powershell": "nmap -sV {target}",
         "cmd": "nmap -sV {target}",
+        "termux": "nmap -sV {target}",
+        "ish": "nmap -sV {target}",
     },
     "ping_host": {
         "bash": "ping -c 4 {target}",
         "powershell": "ping -n 4 {target}",
         "cmd": "ping -n 4 {target}",
+        "termux": "ping -c 4 {target}",
+        "ish": "ping -c 4 {target}",
     },
     "traceroute": {
         "bash": "traceroute {target}",
         "powershell": "tracert {target}",
         "cmd": "tracert {target}",
+        "termux": "traceroute {target}",
+        "ish": "traceroute {target}",
     },
     "dns_lookup": {
         "bash": "nslookup {target}",
         "powershell": "nslookup {target}",
         "cmd": "nslookup {target}",
+        "termux": "nslookup {target}",
+        "ish": "nslookup {target}",
     },
     "whois_query": {
         "bash": "whois {target}",
         "powershell": "whois {target}",
         "cmd": "whois {target}",
+        "termux": "whois {target}",
+        "ish": "whois {target}",
     },
-    "netstat": {"bash": "netstat -tulpn", "powershell": "netstat -an", "cmd": "netstat -an"},
+    "netstat": {"bash": "netstat -tulpn", "powershell": "netstat -an", "cmd": "netstat -an", "termux": "netstat -tulpn", "ish": "netstat -tulpn"},
     "list_processes": {
         "bash": "ps aux",
         "powershell": "Get-Process | Format-Table",
         "cmd": "tasklist",
+        "termux": "ps aux",
+        "ish": "ps aux",
     },
     "disk_usage": {
         "bash": "df -h",
         "powershell": "Get-PSDrive | Where Used",
         "cmd": "wmic logicaldisk get size,freespace,caption",
+        "termux": "df -h",
+        "ish": "df -h",
     },
     "curl_request": {
         "bash": "curl -s {target}",
         "powershell": "curl -s {target}",
         "cmd": "curl {target}",
+        "termux": "curl -s {target}",
+        "ish": "curl -s {target}",
     },
     "dig_dns": {
         "bash": "dig {target}",
         "powershell": "Resolve-DnsName {target}",
         "cmd": "nslookup {target}",
+        "termux": "dig {target}",
+        "ish": "dig {target}",
     },
     "tcpdump": {
         "bash": "tcpdump -i any port {port}",
         "powershell": "Get-NetTCPConnection",
         "cmd": "netstat -an",
+        "termux": "tcpdump -i any port {port}",
+        "ish": "tcpdump -i any port {port}",
     },
     "ssh_connect": {
         "bash": "ssh {user}@{target}",
         "powershell": "ssh {user}@{target}",
         "cmd": "ssh {user}@{target}",
+        "termux": "ssh {user}@{target}",
+        "ish": "ssh {user}@{target}",
     },
     "check_firewall": {
         "bash": "iptables -L -n",
         "powershell": "netsh advfirewall show allprofiles",
         "cmd": "netsh advfirewall show allprofiles",
+        "termux": "ip6tables -L -n 2>/dev/null || echo 'iptables unavailable on device'",
+        "ish": "iptables -L -n 2>/dev/null || echo 'iptables unavailable'",
     },
     "enum_shares": {
         "bash": "smbclient -L {target}",
         "powershell": "Get-SmbShare",
         "cmd": "net view {target}",
+        "termux": "smbclient -L {target} 2>/dev/null || echo 'smbclient not installed'",
+        "ish": "smbclient -L {target} 2>/dev/null || echo 'smbclient not installed'",
     },
     "http_headers": {
         "bash": "curl -I {target}",
         "powershell": "curl -I {target}",
         "cmd": "curl -I {target}",
+        "termux": "curl -I {target}",
+        "ish": "curl -I {target}",
     },
 }
 
@@ -144,16 +179,20 @@ def build_platform_context() -> dict[str, Any]:
 
 
 def detect_shell() -> str:
-    if os.name == "nt":
+    if _is_windows():
         return os.environ.get("COMSPEC", "cmd.exe")
     shell = os.environ.get("SHELL", "")
     if shell:
         return shell
-    for sh in ("pwsh", "powershell", "bash", "zsh", "fish", "sh"):
+    for sh in ("pwsh", "powershell", "bash", "zsh", "fish", "sh", "dash"):
         found = shutil.which(sh)
         if found:
             return found
-    return os.environ.get("COMSPEC", "cmd.exe") if os.name == "nt" else "/bin/sh"
+    if _is_termux():
+        return f"{get_termux_prefix()}/bin/bash"
+    if _is_ish():
+        return "/bin/sh"
+    return "/bin/sh"
 
 
 def get_shell_platform() -> str:
@@ -211,10 +250,8 @@ def normalize_shell(shell: str) -> _Shell:
 
 
 def get_security_commands(shell: str = "") -> dict[str, str]:
-    import sys
-
-    is_win = sys.platform == "win32"
-    if is_win:
+    pid = get_platform_id()
+    if pid == "windows":
         return {
             "Firewall status": "netsh advfirewall show allprofiles state",
             "Open ports": "netstat -an | findstr LISTEN",
@@ -231,6 +268,35 @@ def get_security_commands(shell: str = "") -> dict[str, str]:
             "DNS cache": "ipconfig /displaydns",
             "ARP table": "arp -a",
             "Route table": "route print",
+        }
+    if pid == "android":
+        return {
+            "Listening ports": "ss -tulpn 2>/dev/null || netstat -tulpn",
+            "Running processes": "ps aux",
+            "Open files": "lsof -i 2>/dev/null || echo 'lsof not available'",
+            "System logs": "logcat -d -t 100 2>/dev/null || dmesg | tail -100",
+            "DNS resolution": "cat /etc/resolv.conf 2>/dev/null || getprop net.dns1 2>/dev/null",
+            "ARP table": "ip neigh 2>/dev/null || cat /proc/net/arp",
+            "Route table": "ip route 2>/dev/null || cat /proc/net/route",
+            "Disk usage": "df -h",
+            "Network interfaces": "ip addr 2>/dev/null || ifconfig",
+            "Kernel info": "uname -a",
+            "Battery": "termux-battery-status 2>/dev/null || echo 'termux-api not installed'",
+            "Sensors": "termux-sensor -s 2>/dev/null || echo 'termux-api not installed'",
+            "WiFi info": "termux-wifi-scaninfo 2>/dev/null || echo 'termux-api not installed'",
+            "Cell location": "termux-location 2>/dev/null || echo 'termux-api not installed'",
+        }
+    if pid == "ios":
+        return {
+            "Listening ports": "netstat -tulpn 2>/dev/null || lsof -i",
+            "Running processes": "ps aux",
+            "Open files": "lsof -i 2>/dev/null || echo 'lsof partially available'",
+            "System logs": "dmesg | tail -100 2>/dev/null || log show --last 5m 2>/dev/null | tail -100",
+            "DNS resolution": "cat /etc/resolv.conf",
+            "ARP table": "arp -a 2>/dev/null || ip neigh 2>/dev/null",
+            "Route table": "netstat -rn 2>/dev/null || ip route 2>/dev/null",
+            "Disk usage": "df -h",
+            "Network interfaces": "ifconfig",
         }
     return {
         "Listening ports": "ss -tulpn",

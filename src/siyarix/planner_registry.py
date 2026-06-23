@@ -47,6 +47,7 @@ TOOL_ALTERNATIVES: dict[str, list[str]] = {
     "dig": ["nslookup", "host"],
     "aircrack-ng": ["hashcat", "john"],
     "sqlmap": ["jSQL", "sqlninja"],
+    "ping": ["nmap", "fping", "hping3"],
 }
 
 
@@ -1339,15 +1340,8 @@ class RegistryPlanner:
             "crtsh": ("curl", "Certificate transparency via crt.sh", "-s https://crt.sh/?q=%25.{target}&output=json"),
             "crt.sh": ("curl", "Certificate transparency via crt.sh", "-s https://crt.sh/?q=%25.{target}&output=json"),
             "wayback": ("waybackurls", "Wayback Machine URL discovery", ""),
-            "nmap": ("nmap", "Nmap network scanner", "-sT -T4 --top-ports 100"),
-            "whatweb": ("whatweb", "Web technology fingerprinting", ""),
-            "wpscan": ("wpscan", "WordPress vulnerability scanner", ""),
-            "gobuster": ("gobuster", "Directory/file brute force", ""),
-            "ffuf": ("ffuf", "Web fuzzer", ""),
-            "nuclei": ("nuclei", "Template-based vulnerability scanner", ""),
-            "curl": ("curl", "HTTP/S request tool", "-sIL"),
-            "dig": ("dig", "DNS lookup utility", ""),
             "whois": ("whois", "WHOIS lookup", ""),
+            "ping": ("ping", "ICMP ping connectivity test", "-c 4"),
             "openssl": ("openssl", "SSL/TLS certificate inspection", "s_client -connect {target}:443"),
             "dirb": ("dirb", "Directory brute force tool", ""),
             "dirsearch": ("dirsearch", "Web path discovery tool", ""),
@@ -1460,6 +1454,9 @@ class RegistryPlanner:
                     if alt in avail_set:
                         actual_tool = alt
                         break
+            count_m = re.search(r'\bfor\s+(\d+)\s+time', goal_lower)
+            if count_m and actual_tool == "ping":
+                best_flags = f"-c {count_m.group(1)}"
             return self.create_plan(
                 goal=goal,
                 steps=[{"description": best_desc, "tool": actual_tool, "args": {"target": target, "flags": best_flags}}],
@@ -1779,6 +1776,7 @@ class RegistryPlanner:
                 "url parameters": ("arjun", "URL parameter discovery", ""),
                 "admin panel": ("nuclei", "Exposed admin panel scan", "-t http/exposed-panels"),
                 "login page": ("nuclei", "Exposed login panel scan", "-t http/exposed-panels"),
+                "ping": ("ping", "ICMP ping connectivity test", "-c 4"),
         }
             GENERIC_KEYWORDS = frozenset({"scan", "run", "do", "get", "find", "check", "test", "list", "show", "explore", "discover", "probe", "http", "url"})
             matched_keyword = None
@@ -2054,6 +2052,7 @@ class RegistryPlanner:
                 "buckets": ("curl", "Cloud storage bucket check", "-sI"),
                 "admin panel": ("nuclei", "Exposed admin panel scan", "-t http/exposed-panels"),
                 "login page": ("nuclei", "Exposed login panel scan", "-t http/exposed-panels"),
+                "ping": ("ping", "ICMP ping connectivity test", "-c 4"),
         }
             # Score each keyword by position and specificity
             matched_keyword = None
@@ -2233,6 +2232,7 @@ class RegistryPlanner:
             "curl": ("curl", "HTTP/S request tool", "-sIL"),
             "dig": ("dig", "DNS lookup utility", ""),
             "whois": ("whois", "WHOIS lookup", ""),
+            "ping": ("ping", "ICMP ping connectivity test", "-c 4"),
             "nuclei": ("nuclei", "Template-based vulnerability scanner", ""),
             "nikto": ("nikto", "Web server vulnerability scanner", ""),
             "wpscan": ("wpscan", "WordPress vulnerability scanner", ""),
@@ -2358,6 +2358,9 @@ class RegistryPlanner:
                     if alt in avail_set:
                         actual_tool = alt
                         break
+            count_m = re.search(r'\bfor\s+(\d+)\s+time', goal_lower)
+            if count_m and actual_tool == "ping":
+                best_flags = f"-c {count_m.group(1)}"
             return self.create_plan(
                 goal=goal,
                 steps=[{"description": best_desc, "tool": actual_tool, "args": {"target": target, "flags": best_flags}}],
@@ -2438,6 +2441,7 @@ class RegistryPlanner:
             "sql": ("sqlmap", "SQL injection scan", "--batch --random-agent"),
             "smb": ("nmap", "SMB enumeration", "--script smb-*"),
             "whois": ("whois", "WHOIS lookup", ""),
+            "ping": ("ping", "ICMP ping connectivity test", "-c 4"),
             "header": ("curl", "HTTP headers check", "-sIL"),
             "headers": ("curl", "HTTP headers check", "-sIL"),
             "cloud": ("curl", "Cloud asset check", "-sI"),
@@ -2485,6 +2489,7 @@ class RegistryPlanner:
         # Step 4b: Intent-based tool selection (with target)
         if target:
             intent_map = {
+                "ping": ("ping", "ICMP ping connectivity test", "-c 4"),
                 "subdomain": ("subfinder", "Subdomain enumeration", ""),
                 "subdomains": ("subfinder", "Subdomain enumeration", ""),
                 "port": ("nmap", "Port scan", "-sT -T4 --top-ports 100"),

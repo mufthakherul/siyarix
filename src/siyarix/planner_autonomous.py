@@ -258,10 +258,7 @@ Respond with ONLY valid JSON:
         data = self._parse_llm_response(raw)
 
         if not isinstance(data, dict):
-            return self.create_plan(
-                goal=goal,
-                context={"response": str(data) if data else "", "llm_planned": True},
-            )
+            raise ValueError("LLM returned plain text instead of a valid JSON tool plan")
 
         if not data.get("needs_tools"):
             return self.create_plan(
@@ -328,13 +325,105 @@ Respond with ONLY valid JSON:
 
         response = raw.get("content", "") if isinstance(raw, dict) else str(raw)
         cleaned = response.strip()
-        cleaned = re.sub(r"^[\s]*```(?:json)?\s*\n?", "", cleaned)
-        cleaned = re.sub(r"\n?\s*```\s*$", "", cleaned)
-        cleaned = cleaned.strip()
+        # 1. Try to parse as JSON first
+        cleaned_json = re.sub(r"^[\s]*```(?:json)?\s*\n?", "", cleaned)
+        cleaned_json = re.sub(r"\n?\s*```\s*$", "", cleaned_json)
+        cleaned_json = cleaned_json.strip()
         try:
-            return json.loads(cleaned)
+            data = json.loads(cleaned_json)
+            if isinstance(data, dict) and ("needs_tools" in data or "steps" in data):
+                return data
         except json.JSONDecodeError:
-            return None
+            pass
+
+        # 2. Try YAML parsing
+        try:
+            import yaml
+            data = yaml.safe_load(cleaned_json)
+            if isinstance(data, dict) and ("needs_tools" in data or "steps" in data):
+                return data
+        except Exception:
+            pass
+
+        # 3. Try Markdown code blocks
+        code_blocks = re.findall(r"```(?:bash|sh|zsh|cmd|powershell|)\n(.*?)\n```", cleaned, re.DOTALL | re.IGNORECASE)
+        if code_blocks:
+            steps = []
+            for block in code_blocks:
+                for line in block.splitlines():
+                    cmd = line.strip()
+                    if cmd and not cmd.startswith("#"):
+                        steps.append({
+                            "tool": "execute_plan",
+                            "command": cmd,
+                            "description": f"Extracted from markdown: {cmd[:30]}",
+                            "args": {}
+                        })
+            if steps:
+                return {
+                    "needs_tools": True,
+                    "reasoning": "Extracted commands from Markdown code blocks.",
+                    "steps": steps,
+                    "response": cleaned
+                }
+
+        # 4. Try XML tags
+        xml_commands = re.findall(r"<(?:command|cmd|execute)>(.*?)</(?:command|cmd|execute)>", cleaned, re.DOTALL | re.IGNORECASE)
+        if xml_commands:
+            steps = []
+            for cmd in xml_commands:
+                cmd = cmd.strip()
+                if cmd:
+                    steps.append({
+                        "tool": "execute_plan",
+                        "command": cmd,
+                        "description": f"Extracted from XML: {cmd[:30]}",
+                        "args": {}
+                    })
+            if steps:
+                return {
+                    "needs_tools": True,
+                    "reasoning": "Extracted commands from XML tags.",
+                    "steps": steps,
+                    "response": cleaned
+                }
+        # 5. Direct raw execution fallback (Multi-line)
+        # If the output has NO conversational text, treat every line as a shell command.
+        lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
+        if lines:
+            valid_cmds = []
+            is_conversational = False
+            for line in lines:
+                # Exclude obvious conversational english
+                if re.match(r"^[A-Z][a-z]+ .*[.!?]$", line) or re.match(r"^(Sure|Here|I will|Let me|Yes|No|Okay)\b", line, re.IGNORECASE):
+                    is_conversational = True
+                    break
+                if line.startswith("#"):
+                    continue
+                # Commands generally start with an alphanumeric or explicit path symbol
+                if not line.endswith('.') and not line.startswith('"') and not line.startswith("'") and re.match(r"^[a-zA-Z0-9_\-\./]", line):
+                    valid_cmds.append(line)
+                else:
+                    is_conversational = True
+                    break
+
+            if not is_conversational and valid_cmds:
+                steps = []
+                for cmd in valid_cmds:
+                    steps.append({
+                        "tool": "execute_plan",
+                        "command": cmd,
+                        "description": f"Raw command: {cmd[:30]}",
+                        "args": {}
+                    })
+                return {
+                    "needs_tools": True,
+                    "reasoning": "Direct raw execution fallback.",
+                    "steps": steps,
+                    "response": cleaned
+                }
+
+        return None
 
     def create_plan(
         self,

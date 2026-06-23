@@ -7,7 +7,6 @@ regex patterns for extracting version numbers from tool output.
 
 from __future__ import annotations
 
-import concurrent.futures
 import json
 import logging
 import re

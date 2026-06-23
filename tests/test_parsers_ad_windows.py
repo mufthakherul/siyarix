@@ -3388,7 +3388,7 @@ class TestSmbclientParserAdditionalBranches:
         assert isinstance(findings, list)
 
     def test_file_re_match(self):
-        """258-279: _FILE_RE handler — note that _SHARE_RE is checked
+        r"""258-279: _FILE_RE handler — note that _SHARE_RE is checked
            first (line 237) and matches any line with two \S+ tokens,
            which always includes _FILE_RE lines.  The _FILE_RE block
            (lines 258-279) is structurally dead code because _SHARE_RE's

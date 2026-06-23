@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _JSON_RE = re.compile(r"^\s*[{\[]")
 
@@ -15,8 +16,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class KubectlParser:
     """Parse kubectl JSON output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         if not _JSON_RE.match(output):
             for line in output.splitlines():
                 line = line.strip()
@@ -33,7 +36,7 @@ class KubectlParser:
                         "tool": "kubectl",
                         "target": "kubernetes",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             return findings
 
@@ -44,7 +47,7 @@ class KubectlParser:
             pass
         return findings
 
-    def _parse_items(self, data, findings: list[dict]) -> None:  # type: ignore
+    def _parse_items(self, data, findings: list[dict[str, Any]]) -> None:  # type: ignore
         if isinstance(data, dict):
             kind = data.get("kind", "Unknown")
             name = data.get("metadata", {}).get("name", "unknown")
@@ -74,7 +77,7 @@ class KubectlParser:
                             "tool": "kubectl",
                             "target": ns,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
             elif kind == "Service":
                 findings.append(
@@ -86,7 +89,7 @@ class KubectlParser:
                         "tool": "kubectl",
                         "target": ns,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif kind in ("Role", "ClusterRole"):
                 rules = spec.get("rules", [])
@@ -106,7 +109,7 @@ class KubectlParser:
                                 "tool": "kubectl",
                                 "target": ns,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
             else:
                 findings.append(
@@ -118,7 +121,7 @@ class KubectlParser:
                         "tool": "kubectl",
                         "target": ns,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
         elif isinstance(data, list):
             for item in data:

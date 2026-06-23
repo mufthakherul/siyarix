@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _JSON_RE = re.compile(r"^\s*[{\[]")
 
@@ -15,8 +16,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class SharphoundParser:
     """Parse SharpHound JSON output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         any_json = False
         for line in output.splitlines():
@@ -51,7 +54,7 @@ class SharphoundParser:
                             "tool": "sharphound",
                             "target": "unknown",
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         return findings
@@ -78,7 +81,7 @@ class SharphoundParser:
                         "tool": "sharphound",
                         "target": domain,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif obj_type.lower() == "group":
                 dedup_key = f"group:{name}:{domain}"
@@ -94,7 +97,7 @@ class SharphoundParser:
                         "tool": "sharphound",
                         "target": domain,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif obj_type.lower() == "computer":
                 dedup_key = f"computer:{name}:{domain}"
@@ -111,7 +114,7 @@ class SharphoundParser:
                         "tool": "sharphound",
                         "target": domain,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif obj_type.lower() == "session":
                 computer = props.get("computer", props.get("Computer", "?"))
@@ -128,7 +131,7 @@ class SharphoundParser:
                         "tool": "sharphound",
                         "target": domain,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif obj_type.lower() == "acl":
                 dedup_key = f"acl:{name}:{domain}"
@@ -144,5 +147,5 @@ class SharphoundParser:
                         "tool": "sharphound",
                         "target": domain,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )

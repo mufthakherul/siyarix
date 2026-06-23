@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _VULN_RE = re.compile(
     r"(?:vulnerable|command injection|injection found|os command|RCE|injectable|cmdi)",
@@ -73,8 +74,10 @@ _SUMMARY_RE = re.compile(
 class CommixParser:
     """Parse commix output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         trimmed = output.strip()
 
@@ -126,7 +129,7 @@ class CommixParser:
                             "tool": "commix",
                             "target": current_url,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
             m = _URL_RE.search(line)
@@ -173,7 +176,7 @@ class CommixParser:
                             "tool": "commix",
                             "target": current_url,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -191,7 +194,7 @@ class CommixParser:
                             "tool": "commix",
                             "target": current_url,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -218,15 +221,15 @@ class CommixParser:
                             "tool": "commix",
                             "target": current_url,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         return findings
 
-    def _parse_json_record(self, record: dict, seen: set[str] | None = None) -> list[dict]:
+    def _parse_json_record(self, record: dict, seen: set[str] | None = None) -> list[dict[str, Any]]:
         if seen is None:
             seen = set()
-        findings: list[dict] = []
+        findings: list[dict[str, Any]] = []
         url = record.get("url", record.get("target", "unknown"))
         param = record.get("parameter", record.get("param", ""))
         technique = record.get("technique", record.get("type", ""))
@@ -259,7 +262,7 @@ class CommixParser:
                         "tool": "commix",
                         "target": url,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         if shell_type:
@@ -275,7 +278,7 @@ class CommixParser:
                         "tool": "commix",
                         "target": url,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         if cmd_output:
@@ -291,7 +294,7 @@ class CommixParser:
                         "tool": "commix",
                         "target": url,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

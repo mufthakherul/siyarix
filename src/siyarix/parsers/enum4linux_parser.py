@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import Any
 
 from . import _now_iso
 
@@ -78,8 +79,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class Enum4linuxParser:
     """Parse enum4linux output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         stripped = output.strip()
         if not stripped:
             return findings
@@ -109,7 +112,7 @@ class Enum4linuxParser:
                                     "tool": "enum4linux",
                                     "target": item.get("host", item.get("target", "unknown")),
                                     "timestamp": _now_iso(),
-                                }
+                                },
                             )
                     if "share" in item:
                         share_name = item["share"]
@@ -125,7 +128,7 @@ class Enum4linuxParser:
                                 "tool": "enum4linux",
                                 "target": item.get("host", "unknown"),
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                     if "os" in item:
                         findings.append(
@@ -137,7 +140,7 @@ class Enum4linuxParser:
                                 "tool": "enum4linux",
                                 "target": item.get("host", "unknown"),
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 return findings
             except json.JSONDecodeError:
@@ -179,7 +182,7 @@ class Enum4linuxParser:
                         "tool": "enum4linux",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -196,7 +199,7 @@ class Enum4linuxParser:
                             "tool": "enum4linux",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -214,7 +217,7 @@ class Enum4linuxParser:
                             "tool": "enum4linux",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -232,7 +235,7 @@ class Enum4linuxParser:
                             "tool": "enum4linux",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -246,7 +249,7 @@ class Enum4linuxParser:
                         "tool": "enum4linux",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -262,7 +265,7 @@ class Enum4linuxParser:
                             "tool": "enum4linux",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -278,7 +281,7 @@ class Enum4linuxParser:
                             "tool": "enum4linux",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -292,7 +295,7 @@ class Enum4linuxParser:
                         "tool": "enum4linux",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -308,7 +311,7 @@ class Enum4linuxParser:
                             "tool": "enum4linux",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -327,7 +330,7 @@ class Enum4linuxParser:
                         "tool": "enum4linux",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

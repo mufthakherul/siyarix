@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _JSON_RE = re.compile(r"^\s*[{\[]")
 
@@ -15,8 +16,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class SslyzeParser:
     """Parse sslyze JSON output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         if not _JSON_RE.match(output):
             for line in output.splitlines():
@@ -43,7 +46,7 @@ class SslyzeParser:
                                 "tool": "sslyze",
                                 "target": "unknown",
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                         break
             return findings
@@ -56,7 +59,7 @@ class SslyzeParser:
         server_info = data.get("server_info", data.get("server", {}))
         hostname = server_info.get("hostname", server_info.get("host", "unknown"))
         port = server_info.get(
-            "port", server_info.get("network_configuration", {}).get("port", 443)
+            "port", server_info.get("network_configuration", {}).get("port", 443),
         )
 
         results = data.get("results", data.get("scan_results", {}))
@@ -77,7 +80,7 @@ class SslyzeParser:
                                 "tool": "sslyze",
                                 "target": f"{hostname}:{port}",
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
         elif isinstance(results, dict):
             for scan_type, scan_result in results.items():
@@ -85,17 +88,17 @@ class SslyzeParser:
                     scan_result_data = scan_result.get("result", scan_result)
                     if isinstance(scan_result_data, dict):
                         self._parse_scan_result(
-                            scan_type, scan_result_data, hostname, port, findings, seen
+                            scan_type, scan_result_data, hostname, port, findings, seen,
                         )
 
         return findings
 
     def _parse_scan_result(
-        self, scan_type: str, data: dict, hostname: str, port: int, findings: list, seen: set[str]
+        self, scan_type: str, data: dict, hostname: str, port: int, findings: list, seen: set[str],
     ) -> None:
         if "tls_version" in scan_type or "protocol" in scan_type.lower():
             tls_version = data.get("tls_version", scan_type)
-            supports = data.get("supports", data.get("is_protocol_enabled", None))
+            supports = data.get("supports", data.get("is_protocol_enabled"))
             dedup_key = f"proto:{hostname}:{tls_version}"
             if dedup_key in seen:
                 return
@@ -115,7 +118,7 @@ class SslyzeParser:
                     "tool": "sslyze",
                     "target": f"{hostname}:{port}",
                     "timestamp": _now_iso(),
-                }
+                },
             )
         elif "cipher" in scan_type.lower():
             accepted_ciphers = data.get("accepted_ciphers", data.get("accepted_cipher_list", []))
@@ -138,7 +141,7 @@ class SslyzeParser:
                                 "tool": "sslyze",
                                 "target": f"{hostname}:{port}",
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
         elif "certificate" in scan_type.lower():
             cert = (
@@ -161,5 +164,5 @@ class SslyzeParser:
                             "tool": "sslyze",
                             "target": f"{hostname}:{port}",
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )

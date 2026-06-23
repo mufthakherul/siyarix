@@ -4,12 +4,13 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import csv
+import io
 import json
 import re
-import io
+from typing import Any
+
+from . import _now_iso
 
 _BRACKET_RECORD_RE = re.compile(
     r"\[\*\]\s+(?P<type>[A-Z]+)\s+(?P<name>\S+)\s+(?P<value>\S.*)",
@@ -76,7 +77,9 @@ def _looks_like_csv(text: str) -> bool:
 class DnsreconParser:
     """Parse dnsrecon output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
         if _looks_like_json(output):
             try:
                 return self._parse_json(output)
@@ -89,10 +92,13 @@ class DnsreconParser:
                 pass
         return self._parse_text(output)
 
-    def _parse_json(self, json_str: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_json(self, json_str: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
-        data = json.loads(json_str)
+        try:
+            data = json.loads(json_str)
+        except (json.JSONDecodeError, ValueError, TypeError):
+            raise
         records = data if isinstance(data, list) else [data]
 
         for record in records:
@@ -108,9 +114,7 @@ class DnsreconParser:
             severity = "info"
             if record_type in ("AXFR", "IXFR"):
                 severity = "high"
-            elif record_type == "NS":
-                severity = "low"
-            elif record_type in ("MX", "SOA"):
+            elif record_type == "NS" or record_type in ("MX", "SOA"):
                 severity = "low"
 
             desc = f"dnsrecon discovered {record_type} record {name} -> {value}"
@@ -131,12 +135,12 @@ class DnsreconParser:
                     "tool": "dnsrecon",
                     "target": name,
                     "timestamp": _now_iso(),
-                }
+                },
             )
         return findings
 
-    def _parse_csv(self, csv_str: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_csv(self, csv_str: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         reader = csv.DictReader(io.StringIO(csv_str))
 
@@ -153,9 +157,7 @@ class DnsreconParser:
             severity = "info"
             if record_type in ("AXFR", "IXFR"):
                 severity = "high"
-            elif record_type == "NS":
-                severity = "low"
-            elif record_type in ("MX", "SOA"):
+            elif record_type == "NS" or record_type in ("MX", "SOA"):
                 severity = "low"
 
             findings.append(
@@ -167,12 +169,12 @@ class DnsreconParser:
                     "tool": "dnsrecon",
                     "target": name,
                     "timestamp": _now_iso(),
-                }
+                },
             )
         return findings
 
-    def _parse_text(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_text(self, output: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         target_domain = "unknown"
 
@@ -201,7 +203,7 @@ class DnsreconParser:
                             "tool": "dnsrecon",
                             "target": target_domain,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
             if _ZONE_TRANSFER_RE.search(line):
@@ -217,7 +219,7 @@ class DnsreconParser:
                             "tool": "dnsrecon",
                             "target": target_domain,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -243,7 +245,7 @@ class DnsreconParser:
                         "tool": "dnsrecon",
                         "target": name,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -264,7 +266,7 @@ class DnsreconParser:
                         "tool": "dnsrecon",
                         "target": name,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -292,7 +294,7 @@ class DnsreconParser:
                         "tool": "dnsrecon",
                         "target": mname,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -313,7 +315,7 @@ class DnsreconParser:
                         "tool": "dnsrecon",
                         "target": mname,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -335,9 +337,7 @@ class DnsreconParser:
             severity = "info"
             if record_type in ("AXFR", "IXFR"):
                 severity = "high"
-            elif record_type == "NS":
-                severity = "low"
-            elif record_type in ("MX", "SOA"):
+            elif record_type == "NS" or record_type in ("MX", "SOA"):
                 severity = "low"
 
             findings.append(
@@ -349,7 +349,7 @@ class DnsreconParser:
                     "tool": "dnsrecon",
                     "target": name,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from __future__ import annotations
+
 import json
 from typing import Any
+
 from . import BaseParser, build_finding
 
 
@@ -10,6 +12,8 @@ class CorsyParser(BaseParser):
     """Parses Corsy JSON output for CORS misconfigurations."""
 
     def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
         findings = []
         try:
             data = json.loads(output)
@@ -26,7 +30,7 @@ class CorsyParser(BaseParser):
                                 evidence=json.dumps(detail),
                                 tool="corsy",
                                 target=url,
-                            )
+                            ),
                         )
             return findings
         except json.JSONDecodeError:
@@ -43,6 +47,6 @@ class CorsyParser(BaseParser):
                         evidence=line.strip(),
                         tool="corsy",
                         target="",
-                    )
+                    ),
                 )
         return findings

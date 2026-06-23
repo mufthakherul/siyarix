@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _WARNING_RE = re.compile(r"^\[\!\]\s*(.*)")
 _SUGGESTION_RE = re.compile(r"^\[\*\]\s*(.*)")
@@ -23,8 +24,10 @@ _SUMMARY_RE = re.compile(
 class LynisParser:
     """Parse Lynis audit output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         target = "localhost"
         summary_data: dict[str, str] = {}
@@ -63,7 +66,7 @@ class LynisParser:
                             "tool": "lynis",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -82,7 +85,7 @@ class LynisParser:
                             "tool": "lynis",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -115,7 +118,7 @@ class LynisParser:
                             "tool": "lynis",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
             m = _INFO_NEG_RE.match(line_stripped)
@@ -137,7 +140,7 @@ class LynisParser:
                                 "tool": "lynis",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
 
         if summary_data:
@@ -154,7 +157,7 @@ class LynisParser:
                             "tool": "lynis",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         return findings

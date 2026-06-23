@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _URL_RE = re.compile(r"^(?P<url>https?://\S+)", re.IGNORECASE)
 
@@ -50,8 +51,10 @@ _METHOD_RE = re.compile(r"^\[(?P<method>[A-Z]+)\]\s*(?P<url>https?://\S+)", re.I
 class HakrawlerParser:
     """Parse hakrawler URL-per-line output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         for line in output.splitlines():
             line = line.strip()
@@ -103,6 +106,6 @@ class HakrawlerParser:
                     "tool": "hakrawler",
                     "target": url,
                     "timestamp": _now_iso(),
-                }
+                },
             )
         return findings

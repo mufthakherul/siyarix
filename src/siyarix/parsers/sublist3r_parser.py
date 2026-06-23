@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _SUBDOMAIN_RE = re.compile(
     r"(?P<subdomain>[a-zA-Z0-9][\w\-\.]+[a-zA-Z0-9])\s*[\(\[_]?(?P<ip>[\d.]+)?[\)\]_]?",
@@ -21,8 +22,10 @@ _SECTION_RE = re.compile(
 class Sublist3rParser:
     """Parse Sublist3r output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         base_domain = "unknown"
         in_results = False
 
@@ -54,7 +57,7 @@ class Sublist3rParser:
                         "tool": "sublist3r",
                         "target": sub,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -75,7 +78,7 @@ class Sublist3rParser:
                         "tool": "sublist3r",
                         "target": sub,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

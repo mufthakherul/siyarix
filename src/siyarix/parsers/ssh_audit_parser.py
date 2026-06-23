@@ -4,15 +4,16 @@
 
 from __future__ import annotations
 
+import re
+from typing import Any
+
 from . import _now_iso
 
-import re
-
 _FINDING_RE = re.compile(
-    r"^[(\[](?P<severity>info|medium|high|fail|warn)[)\]]\s+(?P<finding>.+)", re.IGNORECASE
+    r"^[(\[](?P<severity>info|medium|high|fail|warn)[)\]]\s+(?P<finding>.+)", re.IGNORECASE,
 )
 _ALGORITHM_RE = re.compile(
-    r"(?:algorithm|kex|key\s*exchange|host\s*key|cipher|mac|compression)[\s:]+(.+)", re.IGNORECASE
+    r"(?:algorithm|kex|key\s*exchange|host\s*key|cipher|mac|compression)[\s:]+(.+)", re.IGNORECASE,
 )
 _KEX_RE = re.compile(r"\[kex\]\s+(.+)", re.IGNORECASE)
 _HOST_KEY_RE = re.compile(r"\[host_key\]\s+(.+)", re.IGNORECASE)
@@ -33,8 +34,10 @@ _SEVERITY_MAP = {
 class SshAuditParser:
     """Parse ssh-audit output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         target = "unknown"
         lines = output.splitlines()
@@ -76,7 +79,7 @@ class SshAuditParser:
                         "tool": "ssh_audit",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -95,7 +98,7 @@ class SshAuditParser:
                             "tool": "ssh_audit",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -114,7 +117,7 @@ class SshAuditParser:
                             "tool": "ssh_audit",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -133,7 +136,7 @@ class SshAuditParser:
                             "tool": "ssh_audit",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         return findings

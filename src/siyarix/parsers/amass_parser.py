@@ -4,17 +4,20 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
+from typing import Any
+
+from . import _now_iso
 
 
 class AmassParser:
     """Parses OWASP Amass JSONL output into finding dicts."""
 
-    def parse(self, jsonl_output: str) -> list[dict]:
+    def parse(self, jsonl_output: str) -> list[dict[str, Any]]:
         """Parse amass JSONL output and return a list of finding dicts."""
-        findings: list[dict] = []
+        if not jsonl_output or not jsonl_output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
 
         for line in jsonl_output.splitlines():
             line = line.strip()
@@ -41,7 +44,7 @@ class AmassParser:
                     "tool": "amass",
                     "target": name,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

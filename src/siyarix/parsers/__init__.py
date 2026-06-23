@@ -144,7 +144,7 @@ class ParserRegistry:
         return versions.get(None)
 
     def parse(
-        self, tool_name: str, output: str, version: str | None = None
+        self, tool_name: str, output: str, version: str | None = None,
     ) -> list[dict[str, Any]]:
         parser = self.get(tool_name, version)
         if not parser:
@@ -191,25 +191,25 @@ class ParserRegistry:
                 continue
             if not hasattr(obj, "parse"):
                 continue
-            
+
             instance = obj()
             if isinstance(instance, Parser):
                 version = getattr(instance, "version", None)
-                
+
                 # Smart discovery: Use explicitly defined tool aliases if present
                 tool_names = []
-                if hasattr(obj, "TOOL_ALIASES") and getattr(obj, "TOOL_ALIASES"):
-                    aliases = getattr(obj, "TOOL_ALIASES")
+                if hasattr(obj, "TOOL_ALIASES") and obj.TOOL_ALIASES:
+                    aliases = obj.TOOL_ALIASES
                     if isinstance(aliases, list):
                         tool_names.extend(aliases)
                     elif isinstance(aliases, str):
                         tool_names.append(aliases)
-                elif hasattr(obj, "TOOL_NAME") and getattr(obj, "TOOL_NAME"):
-                    tool_names.append(getattr(obj, "TOOL_NAME"))
+                elif hasattr(obj, "TOOL_NAME") and obj.TOOL_NAME:
+                    tool_names.append(obj.TOOL_NAME)
                 else:
                     # Fallback to smart class name parsing and advanced overrides
                     tool_names.extend(_class_to_tool_names(name))
-                
+
                 # Register under all resolved aliases
                 for tool_name in set(tool_names):
                     self.register(tool_name, instance, version)
@@ -229,22 +229,19 @@ class ParserRegistry:
 
 def _class_to_tool_names(class_name: str) -> list[str]:
     """Smartly convert parser class names to all probable tool aliases.
-    E.g. ``AircrackParser`` → ``["aircrack-ng", "aircrack"]``
+    E.g. ``AircrackParser`` → ``["aircrack-ng", "aircrack"]``.
     """
-    if class_name.endswith("Parser"):
-        stem = class_name[:-6]
-    else:
-        stem = class_name
-        
+    stem = class_name.removesuffix("Parser")
+
     result = []
     for i, ch in enumerate(stem):
         if ch.isupper() and i > 0:
             result.append("-")
         result.append(ch.lower())
-        
+
     base_name = "".join(result)
     names = [base_name]
-    
+
     # Advanced intelligence: Map known mismatches and add common alias variations
     OVERRIDES = {
         "aircrack": ["aircrack-ng", "aircrack"],
@@ -263,15 +260,15 @@ def _class_to_tool_names(class_name: str) -> list[str]:
         "ike-scan": ["ike-scan", "ikescan"],
         "wfuzz": ["wfuzz", "fuzzer"],
     }
-    
+
     if base_name in OVERRIDES:
         names.extend(OVERRIDES[base_name])
-        
+
     # Also add standard variations (e.g. if name is foo-bar, also add foobar)
     if "-" in base_name:
         names.append(base_name.replace("-", ""))
         names.append(base_name.replace("-", "_"))
-        
+
     return list(set(names))
 
 
@@ -326,11 +323,6 @@ def _lazy_import_parsers() -> None:
                 globals().setdefault(attr_name, obj)
 
 __all__ = [
-    "Parser",
-    "BaseParser",
-    "ParserRegistry",
-    "build_finding",
-    "_now_iso",
     "AircrackParser",
     "AmassParser",
     "AquatoneParser",
@@ -339,6 +331,7 @@ __all__ = [
     "AssetfinderParser",
     "AwsParser",
     "BanditParser",
+    "BaseParser",
     "BettercapParser",
     "BloodhoundParser",
     "BloodhoundPythonParser",
@@ -400,6 +393,8 @@ __all__ = [
     "NmapParser",
     "NucleiParser",
     "ParamspiderParser",
+    "Parser",
+    "ParserRegistry",
     "ProwlerParser",
     "PypykatzParser",
     "ReconNgParser",
@@ -443,4 +438,6 @@ __all__ = [
     "ZaproxyParser",
     "ZgrabParser",
     "ZmapParser",
+    "_now_iso",
+    "build_finding",
 ]

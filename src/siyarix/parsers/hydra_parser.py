@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _CRED_RE = re.compile(
     r"\[(?P<port>\d+)\]\[(?P<service>[^\]]+)\]\s*host:\s*(?P<host>\S+)\s+login:\s*(?P<login>\S+)\s+password:\s*(?P<password>\S+)",
@@ -17,8 +18,10 @@ _CRED_RE = re.compile(
 class HydraParser:
     """Parse hydra output into normalized credential finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         for line in output.splitlines():
             line = line.strip()
             if not line:
@@ -40,6 +43,6 @@ class HydraParser:
                     "tool": "hydra",
                     "target": host,
                     "timestamp": _now_iso(),
-                }
+                },
             )
         return findings

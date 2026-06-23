@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from __future__ import annotations
+
 from typing import Any
+
 from . import BaseParser, build_finding
 
 
@@ -9,6 +11,8 @@ class WaybackurlsParser(BaseParser):
     """Parses Waybackurls raw URL list output."""
 
     def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
         findings = []
         urls = set()
         for line in output.splitlines():
@@ -25,6 +29,6 @@ class WaybackurlsParser(BaseParser):
                         evidence=line,
                         tool="waybackurls",
                         target=line,
-                    )
+                    ),
                 )
         return findings

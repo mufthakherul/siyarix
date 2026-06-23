@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _SMB_VERSION_RE = re.compile(r"SMB\s+version[:\s]*(\S+)", re.IGNORECASE)
 _PWNED_RE = re.compile(r"(Pwn3d!|PWNED)", re.IGNORECASE)
@@ -26,8 +27,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class CrackmapexecParser:
     """Parse crackmapexec/netexec output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         target = "unknown"
         stripped = output.strip()
         if not stripped:
@@ -63,7 +66,7 @@ class CrackmapexecParser:
                                 "tool": "crackmapexec",
                                 "target": host,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                     pwned = item.get("pwned", item.get("admin", False))
                     if pwned:
@@ -80,7 +83,7 @@ class CrackmapexecParser:
                                 "tool": "crackmapexec",
                                 "target": host,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 return findings
             except json.JSONDecodeError:
@@ -115,7 +118,7 @@ class CrackmapexecParser:
                                 "tool": "crackmapexec",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 elif _SAM_RE.search(msg):
                     if dedup_key not in seen_hosts:
@@ -129,7 +132,7 @@ class CrackmapexecParser:
                                 "tool": "crackmapexec",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 elif _DCSYNC_RE.search(msg):
                     if dedup_key not in seen_hosts:
@@ -143,7 +146,7 @@ class CrackmapexecParser:
                                 "tool": "crackmapexec",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 elif "SMB" in msg or "smb" in msg:
                     sv = _SMB_VERSION_RE.search(msg)
@@ -157,7 +160,7 @@ class CrackmapexecParser:
                                 "tool": "crackmapexec",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 elif ":" in msg:
                     parts = msg.split(":", 1)
@@ -175,7 +178,7 @@ class CrackmapexecParser:
                                 "tool": "crackmapexec",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 continue
 
@@ -192,7 +195,7 @@ class CrackmapexecParser:
                             "tool": "crackmapexec",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -214,7 +217,7 @@ class CrackmapexecParser:
                             "tool": "crackmapexec",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
             sv = _SMB_VERSION_RE.search(line_stripped)
@@ -228,7 +231,7 @@ class CrackmapexecParser:
                         "tool": "crackmapexec",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
             if "SMBv1" in line_stripped:
@@ -241,7 +244,7 @@ class CrackmapexecParser:
                         "tool": "crackmapexec",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
             if "signing" in line_stripped.lower() and "false" in line_stripped.lower():
@@ -254,7 +257,7 @@ class CrackmapexecParser:
                         "tool": "crackmapexec",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

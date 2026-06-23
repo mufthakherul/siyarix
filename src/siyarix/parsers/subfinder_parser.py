@@ -4,15 +4,19 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from . import _now_iso
 
 
 class SubfinderParser:
     """Parses Subfinder text output into finding dicts."""
 
-    def parse(self, text_output: str) -> list[dict]:
+    def parse(self, text_output: str) -> list[dict[str, Any]]:
         """Parse subfinder text output and return a list of finding dicts."""
-        findings: list[dict] = []
+        if not text_output or not text_output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
 
         for line in text_output.splitlines():
             line = line.strip()
@@ -30,7 +34,7 @@ class SubfinderParser:
                     "tool": "subfinder",
                     "target": line,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

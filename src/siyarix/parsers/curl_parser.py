@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 from __future__ import annotations
 
 import re
@@ -42,7 +44,7 @@ class CurlParser(BaseParser):
         }
         present = []
         missing = []
-        for hdr, (short, full) in security_headers.items():
+        for hdr, (_short, full) in security_headers.items():
             if hdr in headers:
                 present.append(full)
             else:
@@ -53,13 +55,13 @@ class CurlParser(BaseParser):
                 build_finding(
                     title=f"HTTP {status_code} {status_text}",
                     severity="info"
-                    if status_code.startswith("2") or status_code.startswith("3")
+                    if status_code.startswith(("2", "3"))
                     else "medium",
                     description=f"HTTP response status {status_code}",
                     evidence=f"HTTP/{status_code} {status_text}",
                     tool="curl",
                     target=target,
-                )
+                ),
             )
 
         if present:
@@ -71,7 +73,7 @@ class CurlParser(BaseParser):
                     evidence=", ".join(present),
                     tool="curl",
                     target=target,
-                )
+                ),
             )
         if missing:
             findings.append(
@@ -82,7 +84,7 @@ class CurlParser(BaseParser):
                     evidence=", ".join(missing),
                     tool="curl",
                     target=target,
-                )
+                ),
             )
 
         interesting = {"server", "x-powered-by", "x-aspnet-version"}
@@ -96,7 +98,7 @@ class CurlParser(BaseParser):
                         evidence=f"{hdr}: {headers[hdr]}",
                         tool="curl",
                         target=target,
-                    )
+                    ),
                 )
 
         return findings

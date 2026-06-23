@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _JSON_RE = re.compile(r"^\s*[{\[]")
 
@@ -40,8 +41,10 @@ _KEYS_OF_INTEREST = [
 class AwsParser:
     """Parse AWS CLI JSON output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         if not _JSON_RE.match(output):
             return findings
 
@@ -64,12 +67,12 @@ class AwsParser:
                             "tool": "aws",
                             "target": "aws-cloud",
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         return findings
 
-    def _walk(self, prefix: str, node, findings: list[dict]) -> None:  # type: ignore
+    def _walk(self, prefix: str, node, findings: list[dict[str, Any]]) -> None:  # type: ignore
         if isinstance(node, dict):
             for k, v in node.items():
                 path = f"{prefix}.{k}" if prefix else k
@@ -102,7 +105,7 @@ class AwsParser:
                             "tool": "aws",
                             "target": "aws-cloud",
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
         elif isinstance(node, list):
             for i, item in enumerate(node):

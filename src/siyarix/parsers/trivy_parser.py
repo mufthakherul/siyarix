@@ -4,12 +4,11 @@
 
 from __future__ import annotations
 
+import json
+from typing import Any
+
 from . import _now_iso
 
-import json
-import re
-
-_JSON_LINE_RE = re.compile(r"^\s*[{[]")
 _SEVERITY_MAP = {
     "CRITICAL": "critical",
     "HIGH": "high",
@@ -23,8 +22,10 @@ _SEVERITY_MAP = {
 class TrivyParser:
     """Parse Trivy JSON output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
 
         try:
@@ -75,7 +76,7 @@ class TrivyParser:
                         "tool": "trivy",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

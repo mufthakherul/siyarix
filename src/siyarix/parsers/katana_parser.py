@@ -4,24 +4,24 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
-import re
+from typing import Any
 
-_JSON_LINE_RE = re.compile(r"^\s*[{[]")
+from . import _now_iso
 
 
 class KatanaParser:
     """Parse katana JSON output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
 
         for line in output.splitlines():
             line_stripped = line.strip()
-            if not line_stripped or not _JSON_LINE_RE.match(line_stripped):
+            if not line_stripped:
                 continue
 
             try:
@@ -64,7 +64,7 @@ class KatanaParser:
                     "tool": "katana",
                     "target": url_path,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _WAF_RE = re.compile(
     r"(?:WAF\s+)?(?:detected|identified|found|behind)\s*[:\s]*(?P<waf>.+)",
@@ -65,7 +66,6 @@ _WAF_NAMES = {
     "reboot",
     "wordfence",
     "securesphere",
-    "stackpath",
     "airlock",
     "appwall",
     "serverdefender",
@@ -88,8 +88,10 @@ def _normalize_waf_name(raw: str) -> str:
 class Wafw00fParser:
     """Parse wafw00f output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         trimmed = output.strip()
 
@@ -97,14 +99,14 @@ class Wafw00fParser:
             return findings
 
         # Try JSON output
-        if trimmed.startswith("{") or trimmed.startswith("["):
+        if trimmed.startswith(("{", "[")):
             try:
                 data = json.loads(trimmed)
                 if isinstance(data, list):
                     for item in data:
                         findings.extend(self._parse_json_record(item, seen))
                     return findings
-                elif isinstance(data, dict):
+                if isinstance(data, dict):
                     findings.extend(self._parse_json_record(data, seen))
                     return findings
             except json.JSONDecodeError:
@@ -133,7 +135,7 @@ class Wafw00fParser:
                             "tool": "wafw00f",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -160,7 +162,7 @@ class Wafw00fParser:
                             "tool": "wafw00f",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -199,15 +201,15 @@ class Wafw00fParser:
                             "tool": "wafw00f",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         return findings
 
-    def _parse_json_record(self, record: dict, seen: set[str] | None = None) -> list[dict]:
+    def _parse_json_record(self, record: dict, seen: set[str] | None = None) -> list[dict[str, Any]]:
         if seen is None:
             seen = set()
-        findings: list[dict] = []
+        findings: list[dict[str, Any]] = []
         url = record.get("url", record.get("target", "unknown"))
         detected = record.get("detected", record.get("waf_detected", False))
 
@@ -224,7 +226,7 @@ class Wafw00fParser:
                         "tool": "wafw00f",
                         "target": url,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             return findings
 
@@ -270,7 +272,7 @@ class Wafw00fParser:
                         "tool": "wafw00f",
                         "target": url,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

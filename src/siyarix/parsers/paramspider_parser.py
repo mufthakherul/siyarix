@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from __future__ import annotations
+
 from typing import Any
+
 from . import BaseParser, build_finding
 
 
@@ -9,6 +11,8 @@ class ParamspiderParser(BaseParser):
     """Parses Paramspider URL parameter output."""
 
     def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
         findings = []
         for line in output.splitlines():
             line = line.strip()
@@ -22,6 +26,6 @@ class ParamspiderParser(BaseParser):
                     evidence=line,
                     tool="paramspider",
                     target=line,
-                )
+                ),
             )
         return findings

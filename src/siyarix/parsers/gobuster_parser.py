@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 # HTTP status code → severity
 _STATUS_SEVERITY: dict[int, str] = {
@@ -35,16 +36,18 @@ def _severity_for_status(status: int) -> str:
 class GobusterParser:
     """Parses gobuster text output lines into finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
+    def parse(self, output: str) -> list[dict[str, Any]]:
         """Parse gobuster *output* and return a list of finding dicts."""
-        findings: list[dict] = []
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         target = "unknown"
 
         for line in output.splitlines():
             line = line.strip()
 
             # Extract base URL from gobuster header
-            if line.startswith("Url:") or line.startswith("Url "):
+            if line.startswith(("Url:", "Url ")):
                 parts = line.split(":", 1)
                 if len(parts) == 2:
                     target = parts[1].strip()
@@ -71,7 +74,7 @@ class GobusterParser:
                     "tool": "gobuster",
                     "target": target,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

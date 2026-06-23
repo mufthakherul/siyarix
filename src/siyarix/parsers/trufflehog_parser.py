@@ -4,12 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
 
-_JSON_LINE_RE = re.compile(r"^\s*[{[]")
+from . import _now_iso
 
 _SUMMARY_RE = re.compile(
     r"(?:secrets|findings|results|total)[:\s]*(\d+)",
@@ -20,8 +19,10 @@ _SUMMARY_RE = re.compile(
 class TrufflehogParser:
     """Parse TruffleHog JSON output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
 
         try:
@@ -29,7 +30,7 @@ class TrufflehogParser:
         except json.JSONDecodeError:
             for line in output.splitlines():
                 line_stripped = line.strip()
-                if not line_stripped or not _JSON_LINE_RE.match(line_stripped):
+                if not line_stripped:
                     continue
                 try:
                     data = json.loads(line_stripped)
@@ -64,7 +65,7 @@ class TrufflehogParser:
                         "tool": "trufflehog",
                         "target": "",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings
@@ -74,10 +75,7 @@ class TrufflehogParser:
         verified = obj.get("Verified", obj.get("verified", False))
 
         source_metadata = obj.get("SourceMetadata", {}) or {}
-        if isinstance(source_metadata, dict):
-            data = source_metadata.get("Data", {}) or {}
-        else:
-            data = {}
+        data = source_metadata.get("Data", {}) or {} if isinstance(source_metadata, dict) else {}
 
         raw_v2 = obj.get("RawV2", obj.get("raw", obj.get("Raw", "")))
         obj.get("raw", raw_v2)

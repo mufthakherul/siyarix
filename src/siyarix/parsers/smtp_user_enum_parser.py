@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import Any
 
 from . import _now_iso
 
@@ -74,8 +75,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class SmtpUserEnumParser:
     """Parse smtp-user-enum output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         stripped = output.strip()
         if not stripped:
             return findings
@@ -107,7 +110,7 @@ class SmtpUserEnumParser:
                                 "tool": "smtp-user-enum",
                                 "target": host,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                     elif user and exists in (
                         False,
@@ -126,7 +129,7 @@ class SmtpUserEnumParser:
                                 "tool": "smtp-user-enum",
                                 "target": host,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 return findings
             except json.JSONDecodeError:
@@ -171,7 +174,7 @@ class SmtpUserEnumParser:
                         "tool": "smtp-user-enum",
                         "target": host,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -179,20 +182,19 @@ class SmtpUserEnumParser:
             if sr:
                 code = sr.group(1)
                 smtp_msg = sr.group(2)
-                if code == "220":
-                    if not banner_found:
-                        banner_found = True
-                        findings.append(
-                            {
-                                "title": "SMTP connection established",
-                                "severity": "info",
-                                "description": f"SMTP server responded with code {code}: {smtp_msg}",
-                                "evidence": line,
-                                "tool": "smtp-user-enum",
-                                "target": host,
-                                "timestamp": _now_iso(),
-                            }
-                        )
+                if code == "220" and not banner_found:
+                    banner_found = True
+                    findings.append(
+                        {
+                            "title": "SMTP connection established",
+                            "severity": "info",
+                            "description": f"SMTP server responded with code {code}: {smtp_msg}",
+                            "evidence": line,
+                            "tool": "smtp-user-enum",
+                            "target": host,
+                            "timestamp": _now_iso(),
+                        },
+                    )
                 continue
 
             vrfy = _VRFY_RE.search(line)
@@ -238,7 +240,7 @@ class SmtpUserEnumParser:
                             "tool": "smtp-user-enum",
                             "target": host,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -258,21 +260,20 @@ class SmtpUserEnumParser:
                                 "tool": "smtp-user-enum",
                                 "target": host,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
-                else:
-                    if user not in seen_users:
-                        findings.append(
-                            {
-                                "title": f"SMTP user does not exist: {user}",
-                                "severity": "info",
-                                "description": f"smtp-user-enum confirmed user {user} does not exist on {host}:{port} via {method}",
-                                "evidence": f"host: {host} port: {port} method: {method} user: {user} status: {status}",
-                                "tool": "smtp-user-enum",
-                                "target": host,
-                                "timestamp": _now_iso(),
-                            }
-                        )
+                elif user not in seen_users:
+                    findings.append(
+                        {
+                            "title": f"SMTP user does not exist: {user}",
+                            "severity": "info",
+                            "description": f"smtp-user-enum confirmed user {user} does not exist on {host}:{port} via {method}",
+                            "evidence": f"host: {host} port: {port} method: {method} user: {user} status: {status}",
+                            "tool": "smtp-user-enum",
+                            "target": host,
+                            "timestamp": _now_iso(),
+                        },
+                    )
                 continue
 
             em = _EXISTS_RE.search(line)
@@ -289,7 +290,7 @@ class SmtpUserEnumParser:
                             "tool": "smtp-user-enum",
                             "target": host,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
             rs = _RESULTS_SUMMARY_RE.search(line)
@@ -303,7 +304,7 @@ class SmtpUserEnumParser:
                         "tool": "smtp-user-enum",
                         "target": host,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         if not seen_users:
@@ -316,7 +317,7 @@ class SmtpUserEnumParser:
                     "tool": "smtp-user-enum",
                     "target": host,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

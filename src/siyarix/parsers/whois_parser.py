@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 from __future__ import annotations
 
 import re
@@ -25,6 +27,8 @@ class WhoisParser(BaseParser):
     }
 
     def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
         findings: list[dict[str, Any]] = []
         target = ""
         records: list[str] = []
@@ -51,6 +55,6 @@ class WhoisParser(BaseParser):
                     evidence="\n".join(records[:10]),
                     tool="whois",
                     target=target,
-                )
+                ),
             )
         return findings

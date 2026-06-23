@@ -4,14 +4,18 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from . import _now_iso
 
 
 class EttercapParser:
     """Parse ettercap output into normalized findings."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         for line in output.splitlines():
             line = line.strip()
             if not line:
@@ -27,7 +31,7 @@ class EttercapParser:
                         "tool": "ettercap",
                         "target": "network",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif "ssl strip" in lowered or "https" in lowered:
                 findings.append(
@@ -39,7 +43,7 @@ class EttercapParser:
                         "tool": "ettercap",
                         "target": "network",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif "host" in lowered and ("added" in lowered or "detected" in lowered):
                 findings.append(
@@ -51,6 +55,6 @@ class EttercapParser:
                         "tool": "ettercap",
                         "target": "network",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
         return findings

@@ -4,17 +4,18 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _SUCCESS_RE = re.compile(r"^\[\*\]\s*(.*)")
 _TEMPLATE_RE = re.compile(r"(?:Template|Certificate\s+Template)[:\s]+(.+)", re.IGNORECASE)
 _CA_INFO_RE = re.compile(
-    r"(?:CA\s+Name|Certificate\s+Authority|CA\s+Server)[:\s]+(.+)", re.IGNORECASE
+    r"(?:CA\s+Name|Certificate\s+Authority|CA\s+Server)[:\s]+(.+)", re.IGNORECASE,
 )
 _PKCS12_RE = re.compile(
-    r"(?:Saved\s+)?(?:PKCS12|\.p12|certificate|\.pfx)\s*(?:to|file)?[:\s]*(\S+)", re.IGNORECASE
+    r"(?:Saved\s+)?(?:PKCS12|\.p12|certificate|\.pfx)\s*(?:to|file)?[:\s]*(\S+)", re.IGNORECASE,
 )
 _ESC_RE = re.compile(r"(ESC[0-9]+)", re.IGNORECASE)
 _VULN_RE = re.compile(r"(?:Vulnerable|vuln|VULN|weakness)", re.IGNORECASE)
@@ -26,8 +27,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class CertipyParser:
     """Parse Certipy output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         target = "unknown"
         stripped = output.strip()
         if not stripped:
@@ -66,7 +69,7 @@ class CertipyParser:
                                 "tool": "certipy",
                                 "target": ca or target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 return findings
             except json.JSONDecodeError:
@@ -101,7 +104,7 @@ class CertipyParser:
                                 "tool": "certipy",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
 
                 if _VULN_RE.search(msg):
@@ -114,7 +117,7 @@ class CertipyParser:
                             "tool": "certipy",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
                 if "enabled" in msg.lower():
@@ -127,7 +130,7 @@ class CertipyParser:
                             "tool": "certipy",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
                 tm = _TEMPLATE_RE.search(msg)
@@ -145,7 +148,7 @@ class CertipyParser:
                                 "tool": "certipy",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
 
                 cm = _CA_INFO_RE.search(msg)
@@ -159,7 +162,7 @@ class CertipyParser:
                             "tool": "certipy",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
                 pm = _PKCS12_RE.search(msg)
@@ -173,7 +176,7 @@ class CertipyParser:
                             "tool": "certipy",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
                 uid_m = _UID_RE.search(msg)
@@ -187,7 +190,7 @@ class CertipyParser:
                             "tool": "certipy",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
             if "Got certificate" in line_stripped or "certificate" in line_stripped.lower():
@@ -202,7 +205,7 @@ class CertipyParser:
                             "tool": "certipy",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         return findings

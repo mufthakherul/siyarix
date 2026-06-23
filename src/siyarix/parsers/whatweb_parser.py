@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 from __future__ import annotations
 
 import re
@@ -11,6 +13,8 @@ TECH_RE = re.compile(r"(\w[\w.\-]*)(?:\[([^\]]*)\])?")
 
 class WhatwebParser(BaseParser):
     def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
         findings: list[dict[str, Any]] = []
         for line in output.splitlines():
             line = line.strip()
@@ -36,6 +40,6 @@ class WhatwebParser(BaseParser):
                         evidence=", ".join(techs),
                         tool="whatweb",
                         target=target,
-                    )
+                    ),
                 )
         return findings

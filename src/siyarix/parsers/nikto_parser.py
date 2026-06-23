@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 # OSVDB ranges mapped to severity
 _OSVDB_SEVERITY: list[tuple[range, str]] = [
@@ -32,9 +33,11 @@ def _severity_for_osvdb(osvdb_id: int) -> str:
 class NiktoParser:
     """Parses nikto text output (lines starting with ``+``) into finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
+    def parse(self, output: str) -> list[dict[str, Any]]:
         """Parse nikto text *output* and return a list of finding dicts."""
-        findings: list[dict] = []
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         target_ip = "unknown"
         target_host = "unknown"
         target_port = "80"
@@ -61,10 +64,7 @@ class NiktoParser:
             content = line[1:].strip()
             # Skip header/summary lines
             if (
-                content.startswith("Target")
-                or content.startswith("Start Time")
-                or content.startswith("End Time")
-                or content.startswith("1 host")
+                content.startswith(("Target", "Start Time", "End Time", "1 host"))
             ):
                 continue
 
@@ -83,7 +83,7 @@ class NiktoParser:
                     "tool": "nikto",
                     "target": target,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _LINE_RE = re.compile(r"^(\S+)\s*[:,\t]\s*(\S+)$")
 _IP_RE = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
@@ -16,8 +17,10 @@ _DOMAIN_RE = re.compile(r"^([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})")
 class ShufflednsParser:
     """Parse shuffledns plain-text output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
 
         for line in output.splitlines():
@@ -57,7 +60,7 @@ class ShufflednsParser:
                     "tool": "shuffledns",
                     "target": domain,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

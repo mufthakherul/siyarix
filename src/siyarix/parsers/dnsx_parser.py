@@ -4,12 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
 
-_JSON_LINE_RE = re.compile(r"^\s*[{[]")
+from . import _now_iso
 
 _LOOKS_LIKE_JSON_RE = re.compile(r"^\s*[{\[]")
 
@@ -19,8 +18,10 @@ _IP_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 class DnsxParser:
     """Parse dnsx JSON output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
 
         for line in output.splitlines():
@@ -66,7 +67,7 @@ class DnsxParser:
                     "tool": "dnsx",
                     "target": host,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

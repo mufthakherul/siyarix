@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _EMAIL_RE = re.compile(
     r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
@@ -62,8 +63,10 @@ _SUMMARY_RE = re.compile(
 class DmitryParser:
     """Parse DMitry output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         domain = "unknown"
 
@@ -101,7 +104,7 @@ class DmitryParser:
                             "tool": "dmitry",
                             "target": domain,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -120,7 +123,7 @@ class DmitryParser:
                             "tool": "dmitry",
                             "target": domain,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -139,7 +142,7 @@ class DmitryParser:
                             "tool": "dmitry",
                             "target": domain,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -158,7 +161,7 @@ class DmitryParser:
                             "tool": "dmitry",
                             "target": domain,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -176,7 +179,7 @@ class DmitryParser:
                             "tool": "dmitry",
                             "target": email,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
             m = _HOST_RE.match(line)
@@ -194,7 +197,7 @@ class DmitryParser:
                             "tool": "dmitry",
                             "target": host,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -213,7 +216,7 @@ class DmitryParser:
                             "tool": "dmitry",
                             "target": ip,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         return findings

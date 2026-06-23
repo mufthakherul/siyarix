@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _VALID_USER_RE = re.compile(
     r"(?:\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2}\s+>\s+)?\[\+\]\s+(?:VALID USER(?:NAME)?|Found|User found)[:\s]\s*(\S+)",
@@ -26,8 +27,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class KerbruteParser:
     """Parse kerbrute output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         target = "unknown"
         stripped = output.strip()
         if not stripped:
@@ -60,7 +63,7 @@ class KerbruteParser:
                                 "tool": "kerbrute",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                     hash_val = item.get("hash", item.get("asrep", ""))
                     if hash_val:
@@ -73,7 +76,7 @@ class KerbruteParser:
                                 "tool": "kerbrute",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 return findings
             except json.JSONDecodeError:
@@ -103,7 +106,7 @@ class KerbruteParser:
                         "tool": "kerbrute",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -118,7 +121,7 @@ class KerbruteParser:
                         "tool": "kerbrute",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -138,7 +141,7 @@ class KerbruteParser:
                         "tool": "kerbrute",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -152,7 +155,7 @@ class KerbruteParser:
                         "tool": "kerbrute",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -174,7 +177,7 @@ class KerbruteParser:
                         "tool": "kerbrute",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
             us = _USER_STATS_RE.search(line_stripped)
@@ -188,7 +191,7 @@ class KerbruteParser:
                         "tool": "kerbrute",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

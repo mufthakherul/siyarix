@@ -4,12 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
-import re
+from typing import Any
 
-_JSON_LINE_RE = re.compile(r"^\s*[{[]")
+from . import _now_iso
 
 
 class HttpxParser:
@@ -18,20 +16,20 @@ class HttpxParser:
     Handles JSON lines output (default with ``-json``) and plain text fallback.
     """
 
-    def parse(self, output: str) -> list[dict]:
+    def parse(self, output: str) -> list[dict[str, Any]]:
         if not output.strip():
             return []
         first_line = next((line for line in output.splitlines() if line.strip()), "")
-        if _JSON_LINE_RE.match(first_line.strip()):
+        if first_line.startswith("{"):
             return self._parse_json_output(output)
         return self._parse_text(output)
 
-    def _parse_json_output(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_json_output(self, output: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         for line in output.splitlines():
             line_stripped = line.strip()
-            if not line_stripped or not _JSON_LINE_RE.match(line_stripped):
+            if not line_stripped:
                 continue
             try:
                 obj = json.loads(line_stripped)
@@ -42,10 +40,10 @@ class HttpxParser:
 
         return findings
 
-    def _parse_json_obj(self, obj: dict, seen: set[str] | None = None) -> list[dict]:
+    def _parse_json_obj(self, obj: dict, seen: set[str] | None = None) -> list[dict[str, Any]]:
         if seen is None:
             seen = set()
-        findings: list[dict] = []
+        findings: list[dict[str, Any]] = []
         url = obj.get("url", obj.get("URL", obj.get("input", "")))
         if not url:
             return findings
@@ -62,10 +60,10 @@ class HttpxParser:
         )
         title = obj.get("title", obj.get("Title", ""))
         webserver = obj.get(
-            "webserver", obj.get("Webserver", obj.get("server", obj.get("Server", "")))
+            "webserver", obj.get("Webserver", obj.get("server", obj.get("Server", ""))),
         )
         tech = obj.get(
-            "tech", obj.get("Tech", obj.get("technologies", obj.get("Technologies", [])))
+            "tech", obj.get("Tech", obj.get("technologies", obj.get("Technologies", []))),
         )
         if isinstance(tech, str):
             tech = [t.strip() for t in tech.split(",") if t.strip()]
@@ -121,13 +119,13 @@ class HttpxParser:
                 "tool": "httpx",
                 "target": target,
                 "timestamp": _now_iso(),
-            }
+            },
         )
 
         return findings
 
-    def _parse_text(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_text(self, output: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         for line in output.splitlines():
             line = line.strip()
@@ -138,7 +136,7 @@ class HttpxParser:
             url = ""
             status_code = ""
             for p in parts:
-                if p.startswith("http://") or p.startswith("https://"):
+                if p.startswith(("http://", "https://")):
                     url = p
                 elif p.isdigit() and len(p) == 3:
                     status_code = p
@@ -171,7 +169,7 @@ class HttpxParser:
                     "tool": "httpx",
                     "target": url.split("?")[0],
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

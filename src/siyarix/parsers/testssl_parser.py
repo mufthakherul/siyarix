@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _FINDING_RE = re.compile(
     r"^\s*\[(?P<severity>INFO|LOW|MEDIUM|HIGH|CRITICAL)\]\s+(?P<description>.+)",
@@ -15,7 +16,7 @@ _FINDING_RE = re.compile(
 _CVE_RE = re.compile(r"CVE-\d{4}-\d{4,7}", re.IGNORECASE)
 _IP_RE = re.compile(r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})")
 _HOSTNAME_RE = re.compile(
-    r"(?:Testing|Scanning|scanning)\s+(?:now\s+)?(?:at\s+)?(\S+)", re.IGNORECASE
+    r"(?:Testing|Scanning|scanning)\s+(?:now\s+)?(?:at\s+)?(\S+)", re.IGNORECASE,
 )
 _SEVERITY_MAP = {
     "INFO": "info",
@@ -29,8 +30,10 @@ _SEVERITY_MAP = {
 class TestsslParser:
     """Parse testssl.sh output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         target = "unknown"
         lines = output.splitlines()
@@ -55,7 +58,7 @@ class TestsslParser:
             cve_ids = _CVE_RE.findall(description)
             cve_str = ", ".join(cve_ids) if cve_ids else ""
 
-            dedup_key = cve_str if cve_str else description[:80]
+            dedup_key = cve_str or description[:80]
             if dedup_key in seen:
                 continue
             seen.add(dedup_key)
@@ -77,7 +80,7 @@ class TestsslParser:
                     "tool": "testssl",
                     "target": target,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

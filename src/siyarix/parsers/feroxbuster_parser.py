@@ -4,14 +4,14 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
 
-_JSON_LINE_RE = re.compile(r"^\s*[{[]")
+from . import _now_iso
+
 _ROW_RE = re.compile(
-    r"(?P<status>\d{3})\s+(?:\S+\s+)?(?P<size>\d+)(?:\s+(?P<lines>\d+)\s+(?P<words>\d+))?\s+(?P<url>\S+)"
+    r"(?P<status>\d{3})\s+(?:\S+\s+)?(?P<size>\d+)(?:\s+(?P<lines>\d+)\s+(?P<words>\d+))?\s+(?P<url>\S+)",
 )
 _URL_RE = re.compile(r"https?://\S+", re.IGNORECASE)
 _SEVERITY_BY_STATUS = {
@@ -34,15 +34,16 @@ _WILDCARD_RE = re.compile(r"(?i)(wildcard|filter|excluded|discarded)\s+(\d+)")
 class FeroxbusterParser:
     """Parse feroxbuster output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
-        lines = output.splitlines()
 
-        if lines and _JSON_LINE_RE.match(lines[0].strip()):
+        if output.strip().startswith("{"):
             return self._parse_json(output)
 
-        for line in lines:
+        for line in output.splitlines():
             line_stripped = line.strip()
             if not line_stripped:
                 continue
@@ -75,13 +76,13 @@ class FeroxbusterParser:
                     "tool": "feroxbuster",
                     "target": url,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings
 
-    def _parse_json(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_json(self, output: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         lines = output.splitlines()
 
@@ -116,7 +117,7 @@ class FeroxbusterParser:
                     "tool": "feroxbuster",
                     "target": url,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

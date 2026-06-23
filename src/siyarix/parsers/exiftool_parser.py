@@ -4,12 +4,12 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
+import contextlib
 import json
 import re
+from typing import Any
 
-_JSON_LINE_RE = re.compile(r"^\s*[{[]")
+from . import _now_iso
 
 _EXIF_FIELDS = (
     "Make",
@@ -39,8 +39,10 @@ _SUMMARY_RE = re.compile(
 class ExiftoolParser:
     """Parse exiftool JSON output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         trimmed = output.strip()
 
@@ -50,16 +52,12 @@ class ExiftoolParser:
         # Try JSON array or object
         data = None
         if trimmed.startswith("{"):
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 data = json.loads(trimmed)
-            except json.JSONDecodeError:
-                pass
 
         if trimmed.startswith("["):
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 data = json.loads(trimmed)
-            except json.JSONDecodeError:
-                pass
 
         if data is None:
             return findings
@@ -78,7 +76,7 @@ class ExiftoolParser:
 
             extracted = {}
             for field in _EXIF_FIELDS:
-                if field in entry and entry[field]:
+                if entry.get(field):
                     extracted[field] = entry[field]
 
             if not extracted:
@@ -128,7 +126,7 @@ class ExiftoolParser:
                     "tool": "exiftool",
                     "target": source_file,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

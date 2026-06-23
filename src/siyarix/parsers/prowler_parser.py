@@ -4,12 +4,11 @@
 
 from __future__ import annotations
 
+import json
+from typing import Any
+
 from . import _now_iso
 
-import json
-import re
-
-_JSON_LINE_RE = re.compile(r"^\s*[{[]")
 _SEVERITY_MAP = {
     "critical": "critical",
     "high": "high",
@@ -23,13 +22,15 @@ _SEVERITY_MAP = {
 class ProwlerParser:
     """Parse Prowler JSON output (one JSON object per line) into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
 
         for line in output.splitlines():
             line_stripped = line.strip()
-            if not line_stripped or not _JSON_LINE_RE.match(line_stripped):
+            if not line_stripped:
                 continue
 
             try:
@@ -71,7 +72,7 @@ class ProwlerParser:
                     "tool": "prowler",
                     "target": target,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

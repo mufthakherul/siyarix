@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from . import _now_iso
 
@@ -14,8 +15,10 @@ _ENDPOINT_RE = re.compile(r"(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\S+)")
 class BettercapParser:
     """Parse bettercap output into normalized findings."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         for line in output.splitlines():
             line = line.strip()
             if not line:
@@ -31,7 +34,7 @@ class BettercapParser:
                         "tool": "bettercap",
                         "target": "network",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif "endpoint" in lowered or "new device" in lowered:
                 m = _ENDPOINT_RE.search(line)
@@ -44,7 +47,7 @@ class BettercapParser:
                         "tool": "bettercap",
                         "target": m.group(1) if m else "network",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif "spoofing" in lowered or "mitm" in lowered:
                 findings.append(
@@ -56,6 +59,6 @@ class BettercapParser:
                         "tool": "bettercap",
                         "target": "network",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
         return findings

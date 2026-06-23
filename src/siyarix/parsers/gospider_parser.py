@@ -4,26 +4,28 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
 
-_JSON_LINE_RE = re.compile(r"^\s*[{[]")
+from . import _now_iso
+
 _SUBDOMAIN_RE = re.compile(r"(?i)(?:subdomain|Subdomain|sub):\s*(\S+)")
 
 
 class GospiderParser:
     """Parse gospider JSON output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         subdomains_found: set[str] = set()
 
         for line in output.splitlines():
             line_stripped = line.strip()
-            if not line_stripped or not _JSON_LINE_RE.match(line_stripped):
+            if not line_stripped:
                 continue
 
             try:
@@ -61,7 +63,7 @@ class GospiderParser:
                                 "tool": "gospider",
                                 "target": sub,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
 
             severity = "info"
@@ -89,7 +91,7 @@ class GospiderParser:
                     "tool": "gospider",
                     "target": url_path,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

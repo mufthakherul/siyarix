@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _SECTION_RE = re.compile(r"^\s*([\w\s#*]+)\s*$")
 _MSV_RE = re.compile(r"msv|msv1_0", re.IGNORECASE)
@@ -33,8 +34,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class MimikatzParser:
     """Parse mimikatz output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         stripped = output.strip()
         if not stripped:
             return findings
@@ -69,7 +72,7 @@ class MimikatzParser:
                                     "tool": "mimikatz",
                                     "target": domain,
                                     "timestamp": _now_iso(),
-                                }
+                                },
                             )
                         if password and "(null)" not in password:
                             findings.append(
@@ -81,7 +84,7 @@ class MimikatzParser:
                                     "tool": "mimikatz",
                                     "target": domain,
                                     "timestamp": _now_iso(),
-                                }
+                                },
                             )
                 return findings
             except json.JSONDecodeError:
@@ -109,7 +112,7 @@ class MimikatzParser:
                         "tool": "mimikatz",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -123,7 +126,7 @@ class MimikatzParser:
                         "tool": "mimikatz",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -137,7 +140,7 @@ class MimikatzParser:
                         "tool": "mimikatz",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -151,7 +154,7 @@ class MimikatzParser:
                         "tool": "mimikatz",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -203,7 +206,7 @@ class MimikatzParser:
                                 "tool": "mimikatz",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                     current_user = ""
                     current_domain = ""
@@ -227,7 +230,7 @@ class MimikatzParser:
                                     "tool": "mimikatz",
                                     "target": target,
                                     "timestamp": _now_iso(),
-                                }
+                                },
                             )
 
         return findings

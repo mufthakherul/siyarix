@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from __future__ import annotations
+
 import json
 from typing import Any
+
 from . import BaseParser, build_finding
 
 
@@ -10,6 +12,8 @@ class KiterunnerParser(BaseParser):
     """Parses Kiterunner API discovery output."""
 
     def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
         findings = []
         for line in output.splitlines():
             line = line.strip()
@@ -28,7 +32,7 @@ class KiterunnerParser(BaseParser):
                             evidence=line,
                             tool="kiterunner",
                             target=url,
-                        )
+                        ),
                     )
                 except json.JSONDecodeError:
                     pass
@@ -43,6 +47,6 @@ class KiterunnerParser(BaseParser):
                             evidence=line,
                             tool="kiterunner",
                             target=parts[1],
-                        )
+                        ),
                     )
         return findings

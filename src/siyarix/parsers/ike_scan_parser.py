@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _VENDOR_RE = re.compile(
     r"(?:Vendor|Fingerprint|vendor\s*ID)[:\s]+(.+)",
@@ -97,8 +98,10 @@ _SUMMARY_RE = re.compile(
 class IkeScanParser:
     """Parse ike-scan output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         current_ip = "unknown"
 
@@ -121,7 +124,7 @@ class IkeScanParser:
                             "tool": "ike-scan",
                             "target": current_ip,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -153,7 +156,7 @@ class IkeScanParser:
                 key = f"showback:{ip}:{status}"
                 if key not in seen:
                     seen.add(key)
-                    if status == "SA" or status == "HANDSHAKE":
+                    if status in {"SA", "HANDSHAKE"}:
                         current_ip = ip
                         findings.append(
                             {
@@ -164,7 +167,7 @@ class IkeScanParser:
                                 "tool": "ike-scan",
                                 "target": ip,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 continue
 
@@ -199,7 +202,7 @@ class IkeScanParser:
                             "tool": "ike-scan",
                             "target": ip,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -218,7 +221,7 @@ class IkeScanParser:
                             "tool": "ike-scan",
                             "target": current_ip,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -235,7 +238,7 @@ class IkeScanParser:
                             "tool": "ike-scan",
                             "target": current_ip,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -257,7 +260,7 @@ class IkeScanParser:
                             "tool": "ike-scan",
                             "target": current_ip,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -276,7 +279,7 @@ class IkeScanParser:
                             "tool": "ike-scan",
                             "target": current_ip,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -295,7 +298,7 @@ class IkeScanParser:
                             "tool": "ike-scan",
                             "target": current_ip,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         return findings

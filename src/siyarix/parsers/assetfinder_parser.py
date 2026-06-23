@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _SUBDOMAIN_RE = re.compile(
     r"^(?P<sub>[a-zA-Z0-9][\w.\-]*[a-zA-Z0-9])\s*$",
@@ -21,8 +22,10 @@ _SUMMARY_RE = re.compile(
 class AssetfinderParser:
     """Parse assetfinder output (one subdomain per line) into findings."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
 
         summary_m = _SUMMARY_RE.search(output)
@@ -45,7 +48,7 @@ class AssetfinderParser:
                         "tool": "assetfinder",
                         "target": sub,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         if summary_count:
@@ -61,7 +64,7 @@ class AssetfinderParser:
                         "tool": "assetfinder",
                         "target": "",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

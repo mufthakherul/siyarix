@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _RULE_RE = re.compile(r"^(\w+)\s+\[(?:match|offset|addr)\s*[:=]?\s*(\S+)\]", re.IGNORECASE)
 _RULE_SIMPLE_RE = re.compile(r"^(\w+)\s*$")
@@ -23,8 +24,10 @@ _SUMMARY_RE = re.compile(
 class YaraParser:
     """Parse yara scan output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         target = ""
         current_rule = ""
@@ -49,7 +52,7 @@ class YaraParser:
                             "tool": "yara",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -78,7 +81,7 @@ class YaraParser:
                             "tool": "yara",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -97,7 +100,7 @@ class YaraParser:
                             "tool": "yara",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -123,7 +126,7 @@ class YaraParser:
                             "tool": "yara",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -143,7 +146,7 @@ class YaraParser:
                                 "tool": "yara",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
 
         return findings

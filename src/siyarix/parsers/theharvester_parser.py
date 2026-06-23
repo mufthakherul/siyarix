@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _EMAIL_RE = re.compile(
     r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
@@ -52,7 +53,9 @@ def _looks_like_json(text: str) -> bool:
 class TheharvesterParser:
     """Parse theHarvester output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
         if _looks_like_json(output):
             try:
                 return self._parse_json(output)
@@ -60,9 +63,12 @@ class TheharvesterParser:
                 pass
         return self._parse_text(output)
 
-    def _parse_json(self, json_str: str) -> list[dict]:
-        data = json.loads(json_str)
-        findings: list[dict] = []
+    def _parse_json(self, json_str: str) -> list[dict[str, Any]]:
+        try:
+            data = json.loads(json_str)
+        except (json.JSONDecodeError, ValueError, TypeError):
+                return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         domain = data.get("domain", "unknown")
 
@@ -106,13 +112,13 @@ class TheharvesterParser:
                         "tool": "theharvester",
                         "target": value,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings
 
-    def _parse_text(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_text(self, output: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         domain = "unknown"
         current_section = ""
@@ -161,15 +167,13 @@ class TheharvesterParser:
                             "tool": "theharvester",
                             "target": email,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
             elif current_section in ("hosts", "subdomains", "virtual hosts", "vhosts"):
                 hm = _HOST_RE.search(line)
                 if hm:
                     host = hm.group("host")
-                elif _URL_RE.match(line):
-                    host = line.strip()
-                elif line.startswith(("http://", "https://", "www.", "mail.")):
+                elif _URL_RE.match(line) or line.startswith(("http://", "https://", "www.", "mail.")):
                     host = line.strip()
                 else:
                     host = line.strip()
@@ -189,7 +193,7 @@ class TheharvesterParser:
                             "tool": "theharvester",
                             "target": host,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
             elif current_section == "ips":
                 im = _IP_RE.match(line)
@@ -212,7 +216,7 @@ class TheharvesterParser:
                             "tool": "theharvester",
                             "target": ip,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
             elif current_section in ("linkedin", "twitter", "people"):
                 if line.strip() and line not in seen:
@@ -231,7 +235,7 @@ class TheharvesterParser:
                             "tool": "theharvester",
                             "target": line,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         return findings

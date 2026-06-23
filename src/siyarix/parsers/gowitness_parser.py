@@ -4,19 +4,19 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
-import re
+from typing import Any
 
-_JSON_LINE_RE = re.compile(r"^\s*[{[]")
+from . import _now_iso
 
 
 class GowitnessParser:
     """Parse gowitness JSON report into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
 
         try:
@@ -36,7 +36,7 @@ class GowitnessParser:
 
         for line in output.splitlines():
             line_stripped = line.strip()
-            if not line_stripped or not _JSON_LINE_RE.match(line_stripped):
+            if not line_stripped:
                 continue
             try:
                 data = json.loads(line_stripped)
@@ -63,7 +63,7 @@ class GowitnessParser:
         status_code = entry.get("status_code", entry.get("StatusCode", entry.get("status", 0)))
         title = entry.get("title", entry.get("Title", ""))
         screenshot_path = entry.get(
-            "screenshot_path", entry.get("ScreenshotPath", entry.get("filename", ""))
+            "screenshot_path", entry.get("ScreenshotPath", entry.get("filename", "")),
         )
         final_url = entry.get("final_url", entry.get("FinalUrl", ""))
         response_time = entry.get("response_time", entry.get("responseTime", ""))

@@ -4,12 +4,13 @@
 
 from __future__ import annotations
 
+import re
+from typing import Any
+
 from . import _now_iso
 
-import re
-
 _CONNECT_RE = re.compile(
-    r"(?:Connecting|Established|Connected|Session)\s+.*?(?:to|with|established)", re.IGNORECASE
+    r"(?:Connecting|Established|Connected|Session)\s+.*?(?:to|with|established)", re.IGNORECASE,
 )
 _BANNER_RE = re.compile(r"(?:Evil.WinRM|WinRM|PS\s+session|PowerShell\s+session)", re.IGNORECASE)
 _IP_PORT_RE = re.compile(r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::(\d+))?")
@@ -24,8 +25,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class EvilWinrmParser:
     """Parse evil-winrm output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         target = "unknown"
         username = "unknown"
         stripped = output.strip()
@@ -58,7 +61,7 @@ class EvilWinrmParser:
                                     "tool": "evil_winrm",
                                     "target": host,
                                     "timestamp": _now_iso(),
-                                }
+                                },
                             )
                 return findings
             except json.JSONDecodeError:
@@ -92,7 +95,7 @@ class EvilWinrmParser:
                             "tool": "evil_winrm",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -123,7 +126,7 @@ class EvilWinrmParser:
                             "tool": "evil_winrm",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -143,7 +146,7 @@ class EvilWinrmParser:
                         "tool": "evil_winrm",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

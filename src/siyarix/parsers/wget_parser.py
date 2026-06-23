@@ -4,18 +4,18 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
 from typing import Any
 
+from . import _now_iso
+
 _ERROR_RE = re.compile(
-    r"(?i)(?:ERROR|Failed|unable to resolve|cannot connect|connection refused|timeout|name or service not known)"
+    r"(?i)(?:ERROR|Failed|unable to resolve|cannot connect|connection refused|timeout|name or service not known)",
 )
 
 _HTTP_ERROR_RE = re.compile(
-    r"(?i)(?P<code>404|403|500|502|503|401|400)\s+(?P<text>Not Found|Forbidden|Server Error|Bad Gateway|Service Unavailable|Unauthorized|Bad Request)"
+    r"(?i)(?P<code>404|403|500|502|503|401|400)\s+(?P<text>Not Found|Forbidden|Server Error|Bad Gateway|Service Unavailable|Unauthorized|Bad Request)",
 )
 
 _URL_RE = re.compile(
@@ -40,15 +40,15 @@ _SAVED_RE = re.compile(
 )
 
 _SPIDER_RE = re.compile(
-    r"(?i)(?:Spider mode enabled|Remote file exists|Remote file does not exist|URL:.*\d+)"
+    r"(?i)(?:Spider mode enabled|Remote file exists|Remote file does not exist|URL:.*\d+)",
 )
 
 _RECURSIVE_RE = re.compile(
-    r"(?i)(?:Entering\s+(?P<dir>\S+)|(?P<downloaded>\d+) files? downloaded|Found \d+ links?)"
+    r"(?i)(?:Entering\s+(?P<dir>\S+)|(?P<downloaded>\d+) files? downloaded|Found \d+ links?)",
 )
 
 _STATUS_LINE_RE = re.compile(
-    r"(?i)^HTTP request sent, awaiting response\.\.\.\s*(?P<code>\d+)\s+(?P<text>.+)$"
+    r"(?i)^HTTP request sent, awaiting response\.\.\.\s*(?P<code>\d+)\s+(?P<text>.+)$",
 )
 
 _STATUS_SEVERITY: dict[str, str] = {
@@ -76,13 +76,13 @@ class WgetParser:
     and error detection with status-code-based severity.
     """
 
-    def parse(self, output: str) -> list[dict]:
+    def parse(self, output: str) -> list[dict[str, Any]]:
         if not output.strip():
             return []
         first_line = next((line for line in output.splitlines() if line.strip()), "")
         stripped = first_line.lstrip()
 
-        if stripped.startswith("[") or stripped.startswith("{"):
+        if stripped.startswith(("[", "{")):
             try:
                 data = json.loads(output)
                 return self._parse_json(data)
@@ -90,8 +90,8 @@ class WgetParser:
                 pass
         return self._parse_text(output)
 
-    def _parse_json(self, data: Any) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_json(self, data: Any) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         items = data if isinstance(data, list) else [data]
         for item in items:
@@ -129,12 +129,12 @@ class WgetParser:
                     "tool": "wget",
                     "target": url,
                     "timestamp": _now_iso(),
-                }
+                },
             )
         return findings
 
-    def _parse_text(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_text(self, output: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         current_url = "unknown"
         spider_mode = False
@@ -167,7 +167,7 @@ class WgetParser:
                             "tool": "wget",
                             "target": current_url,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -189,7 +189,7 @@ class WgetParser:
                         "tool": "wget",
                         "target": current_url,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -213,7 +213,7 @@ class WgetParser:
                         "tool": "wget",
                         "target": current_url,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -233,7 +233,7 @@ class WgetParser:
                                 "tool": "wget",
                                 "target": current_url,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 continue
 
@@ -251,7 +251,7 @@ class WgetParser:
                             "tool": "wget",
                             "target": current_url,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -269,7 +269,7 @@ class WgetParser:
                             "tool": "wget",
                             "target": current_url,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         if spider_mode and not findings:
@@ -282,7 +282,7 @@ class WgetParser:
                     "tool": "wget",
                     "target": current_url,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

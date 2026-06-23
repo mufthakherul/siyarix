@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _JSON_RE = re.compile(r"^\s*[{\[]")
 
@@ -48,8 +49,10 @@ _SUMMARY_RE = re.compile(
 class VolatilityParser:
     """Parse Volatility 3 JSON output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         if _JSON_RE.match(output):
             try:
@@ -65,7 +68,7 @@ class VolatilityParser:
                 if isinstance(rows, list) and isinstance(columns, list):
                     for row in rows:
                         if isinstance(row, list):
-                            row_dict = dict(zip(columns, row))
+                            row_dict = dict(zip(columns, row, strict=False))
                             self._process_row(plugin, row_dict, findings, seen)
             except json.JSONDecodeError:
                 pass
@@ -89,7 +92,7 @@ class VolatilityParser:
                             "tool": "volatility",
                             "target": "memory",
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         return findings
@@ -122,7 +125,7 @@ class VolatilityParser:
                         "tool": "volatility",
                         "target": "memory",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
         elif plugin_type == "network":
             proto = row.get("Proto", row.get("protocol", ""))
@@ -141,7 +144,7 @@ class VolatilityParser:
                         "tool": "volatility",
                         "target": "memory",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
         elif plugin_type == "malware":
             key = f"malware:{pid}:{name}"
@@ -157,7 +160,7 @@ class VolatilityParser:
                         "tool": "volatility",
                         "target": "memory",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
         elif plugin_type == "file":
             key = f"file:{name}"
@@ -172,7 +175,7 @@ class VolatilityParser:
                         "tool": "volatility",
                         "target": "memory",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
         elif plugin_type == "registry":
             key = f"reg:{name}"
@@ -187,5 +190,5 @@ class VolatilityParser:
                         "tool": "volatility",
                         "target": "memory",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )

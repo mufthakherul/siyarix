@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import Any
 
 from . import _now_iso
 
@@ -60,8 +61,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class SmbmapParser:
     """Parse smbmap output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         stripped = output.strip()
         if not stripped:
             return findings
@@ -93,7 +96,7 @@ class SmbmapParser:
                                 "tool": "smbmap",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                     fname = item.get("filename", item.get("name", ""))
                     fsize = item.get("size", item.get("file_size", 0))
@@ -111,7 +114,7 @@ class SmbmapParser:
                                 "tool": "smbmap",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                     du = item.get("disk_usage", item.get("used", ""))
                     if du:
@@ -124,7 +127,7 @@ class SmbmapParser:
                                 "tool": "smbmap",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 return findings
             except json.JSONDecodeError:
@@ -156,7 +159,7 @@ class SmbmapParser:
                         "tool": "smbmap",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -190,7 +193,7 @@ class SmbmapParser:
                             "tool": "smbmap",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -212,7 +215,7 @@ class SmbmapParser:
                         "tool": "smbmap",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -227,7 +230,7 @@ class SmbmapParser:
                         "tool": "smbmap",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -246,7 +249,7 @@ class SmbmapParser:
                         "tool": "smbmap",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -265,7 +268,7 @@ class SmbmapParser:
                         "tool": "smbmap",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -287,7 +290,7 @@ class SmbmapParser:
                         "tool": "smbmap",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

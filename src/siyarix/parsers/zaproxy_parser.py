@@ -4,12 +4,13 @@
 
 from __future__ import annotations
 
+import re
+from typing import Any
+
 from . import _now_iso
 
-import re
-
 _ALERT_RE = re.compile(
-    r"(?i)\b(alert|risk|vulnerab|scripting|xss|sqli|injection|csrf|cross)\b|\[(high|medium|low|critical|info)\]"
+    r"(?i)\b(alert|risk|vulnerab|scripting|xss|sqli|injection|csrf|cross)\b|\[(high|medium|low|critical|info)\]",
 )
 _TARGET_RE = re.compile(r"(?i)\bhttps?://\S+")
 
@@ -17,8 +18,10 @@ _TARGET_RE = re.compile(r"(?i)\bhttps?://\S+")
 class ZaproxyParser:
     """Parse ZAP output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         target = "unknown"
 
         for line in output.splitlines():
@@ -52,7 +55,7 @@ class ZaproxyParser:
                     "tool": "zaproxy",
                     "target": target,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

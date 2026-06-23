@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _SEVERITY_BY_LEVEL = {
     "critical": "critical",
@@ -23,8 +24,10 @@ _TARGET_RE = re.compile(r"target URL appears to be '(?P<url>[^']+)'")
 class SqlmapParser:
     """Parse sqlmap output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         target = "unknown"
 
         for line in output.splitlines():
@@ -55,7 +58,7 @@ class SqlmapParser:
                     "tool": "sqlmap",
                     "target": target,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

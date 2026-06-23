@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _JSON_RE = re.compile(r"^\s*[{\[]")
 
@@ -15,8 +16,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class ScoutsuiteParser:
     """Parse ScoutSuite JSON report into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         if not _JSON_RE.match(output):
             return findings
 
@@ -43,13 +46,13 @@ class ScoutsuiteParser:
 
         services = data.get("services", {})
         if isinstance(services, dict):
-            for service_name, service_data in services.items():
+            for service_data in services.values():
                 findings_data = service_data.get("findings", {})
                 if isinstance(findings_data, dict):
                     for finding_key, finding_data in findings_data.items():
                         if isinstance(finding_data, dict):
                             self._extract_finding(
-                                finding_key, finding_data, provider, aws_account_id, findings, seen
+                                finding_key, finding_data, provider, aws_account_id, findings, seen,
                             )
 
         rulesets = data.get("rule_results", {})
@@ -72,13 +75,13 @@ class ScoutsuiteParser:
                                     "tool": "scoutsuite",
                                     "target": str(aws_account_id),
                                     "timestamp": _now_iso(),
-                                }
+                                },
                             )
 
         return findings
 
     def _extract_finding(
-        self, key: str, data: dict, provider: str, account_id: str, findings: list, seen: set
+        self, key: str, data: dict, provider: str, account_id: str, findings: list, seen: set,
     ) -> None:
         description = data.get("description", data.get("dashboard_name", key))
         severity_str = data.get("severity", data.get("level", "info")).lower()
@@ -105,7 +108,7 @@ class ScoutsuiteParser:
                         "tool": "scoutsuite",
                         "target": str(account_id),
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
         elif items:
             dedup_key = f"{key}|{service}|{region}"
@@ -121,5 +124,5 @@ class ScoutsuiteParser:
                     "tool": "scoutsuite",
                     "target": str(account_id),
                     "timestamp": _now_iso(),
-                }
+                },
             )

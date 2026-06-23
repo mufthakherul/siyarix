@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _VULN_TYPE_RE = re.compile(r"(\w+(?:\s+\w+)*)\s+(?:\{|\():?\s*(\d+)", re.IGNORECASE)
 _URL_RE = re.compile(r"(https?://\S+)", re.IGNORECASE)
@@ -35,8 +36,10 @@ _SEVERITY_MAP = {
 class WapitiParser:
     """Parse wapiti vulnerability scanner output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
 
         stripped = output.strip()
@@ -64,7 +67,7 @@ class WapitiParser:
                                             "tool": "wapiti",
                                             "target": url,
                                             "timestamp": _now_iso(),
-                                        }
+                                        },
                                     )
                             elif isinstance(vuln, str):
                                 dedup_key = vuln[:100]
@@ -79,7 +82,7 @@ class WapitiParser:
                                             "tool": "wapiti",
                                             "target": "unknown",
                                             "timestamp": _now_iso(),
-                                        }
+                                        },
                                     )
                     elif isinstance(vuln_list, dict):
                         for vuln_type, vuln_items in vuln_list.items():
@@ -106,7 +109,7 @@ class WapitiParser:
                                                 if isinstance(url, str)
                                                 else "unknown",
                                                 "timestamp": _now_iso(),
-                                            }
+                                            },
                                         )
                 if findings:
                     return findings
@@ -145,7 +148,7 @@ class WapitiParser:
                                 "tool": "wapiti",
                                 "target": current_url,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
 
                 current_vuln_type = vuln_m.group(1).strip()
@@ -182,7 +185,7 @@ class WapitiParser:
                             "tool": "wapiti",
                             "target": current_url,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                     current_vuln_type = ""
                     current_url = ""
@@ -206,7 +209,7 @@ class WapitiParser:
                         "tool": "wapiti",
                         "target": current_url,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

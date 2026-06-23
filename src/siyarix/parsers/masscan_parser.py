@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _OPEN_RE = re.compile(r"^Discovered open port (?P<port>\d+)/(?P<proto>\w+) on (?P<host>\S+)")
 
@@ -14,8 +15,10 @@ _OPEN_RE = re.compile(r"^Discovered open port (?P<port>\d+)/(?P<proto>\w+) on (?
 class MasscanParser:
     """Parse masscan output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         for line in output.splitlines():
             line = line.strip()
             if not line:
@@ -35,6 +38,6 @@ class MasscanParser:
                     "tool": "masscan",
                     "target": host,
                     "timestamp": _now_iso(),
-                }
+                },
             )
         return findings

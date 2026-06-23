@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _JSON_RE = re.compile(r"^\s*[{\[]")
 
@@ -23,8 +24,10 @@ _SEVERITY_MAP = {
 class ArachniParser:
     """Parse Arachni JSON report output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         if _JSON_RE.match(output):
             try:
@@ -35,7 +38,7 @@ class ArachniParser:
                     severity_raw = issue.get("severity", "info").lower()
                     severity = _SEVERITY_MAP.get(severity_raw, "info")
                     description = issue.get(
-                        "description", issue.get("check", {}).get("description", "")
+                        "description", issue.get("check", {}).get("description", ""),
                     )
                     url = issue.get("vector", {}).get("action", "unknown")
                     parameter = issue.get("vector", {}).get("input", "")
@@ -73,7 +76,7 @@ class ArachniParser:
                             "tool": "arachni",
                             "target": url,
                             "timestamp": issue.get("generated_at", _now_iso()),
-                        }
+                        },
                     )
             except json.JSONDecodeError:
                 pass
@@ -98,7 +101,7 @@ class ArachniParser:
                             "tool": "arachni",
                             "target": "unknown",
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                     break
 

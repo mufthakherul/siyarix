@@ -4,12 +4,13 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
 from xml.etree.ElementTree import ParseError as _ParseError
 
-import defusedxml.ElementTree as _ET  
+import defusedxml.ElementTree as _ET
+
+from . import _now_iso
 
 _DEFUSEDXML = True
 
@@ -56,11 +57,9 @@ def _severity_for_port(port: int) -> str:
 class NmapParser:
     """Parses nmap XML (preferred) or plain-text output into normalised finding dicts."""
 
-    def parse(self, xml_output: str) -> list[dict]:
-        """Parse *xml_output* and return a list of finding dicts.
-
-        Falls back to text parsing if the input is not valid XML.
-        """
+    def parse(self, xml_output: str) -> list[dict[str, Any]]:
+        if not xml_output or not xml_output.strip():
+            return []
         try:
             return self._parse_xml(xml_output)
         except _ParseError:
@@ -70,9 +69,9 @@ class NmapParser:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _parse_xml(self, xml_str: str) -> list[dict]:
+    def _parse_xml(self, xml_str: str) -> list[dict[str, Any]]:
         root = _ET.fromstring(xml_str)
-        findings: list[dict] = []
+        findings: list[dict[str, Any]] = []
 
         for host in root.findall("host"):
             address_el = host.find("address")
@@ -115,14 +114,14 @@ class NmapParser:
                         "tool": "nmap",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings
 
-    def _parse_text(self, text: str) -> list[dict]:
+    def _parse_text(self, text: str) -> list[dict[str, Any]]:
         """Fallback plain-text parser for nmap default output."""
-        findings: list[dict] = []
+        findings: list[dict[str, Any]] = []
         current_host = "unknown"
         host_re = re.compile(r"Nmap scan report for (.+)")
         port_re = re.compile(r"(\d+)/(\w+)\s+open\s+(\S+)(.*)")
@@ -151,6 +150,6 @@ class NmapParser:
                         "tool": "nmap",
                         "target": current_host,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
         return findings

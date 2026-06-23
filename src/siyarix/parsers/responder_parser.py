@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _HASH_CAPTURED_RE = re.compile(
     r"\[(\w+)\]\s*(?:Captured| Poisoned| sending ).*?(?:hash|NTLMv2|challenge|response)",
@@ -14,7 +15,7 @@ _HASH_CAPTURED_RE = re.compile(
 )
 _PROTOCOL_CAPTURE_RE = re.compile(r"\[(\w+)\].*?(?:from|client).*?(?:\d{1,3}\.){3}\d{1,3}")
 _CHALLENGE_RESPONSE_RE = re.compile(
-    r"NTLMv2\s*(?:Client|Server|Challenge|Response|Hash).*?:?\s*(\S+)", re.IGNORECASE
+    r"NTLMv2\s*(?:Client|Server|Challenge|Response|Hash).*?:?\s*(\S+)", re.IGNORECASE,
 )
 _CLIENT_IP_RE = re.compile(r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})")
 _USERNAME_RE = re.compile(r"(?:USER|Username|User)\s*[:\-]\s*(\S+)", re.IGNORECASE)
@@ -27,8 +28,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class ResponderParser:
     """Parse Responder output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         stripped = output.strip()
         if not stripped:
             return findings
@@ -61,7 +64,7 @@ class ResponderParser:
                                 "tool": "responder",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 return findings
             except json.JSONDecodeError:
@@ -78,7 +81,7 @@ class ResponderParser:
             if m:
                 protocol = m.group(1)
                 severity = "high"
-                if protocol.upper() in ("MDNS",):
+                if protocol.upper() == "MDNS":
                     severity = "medium"
 
                 target = "unknown"
@@ -112,7 +115,7 @@ class ResponderParser:
                         "tool": "responder",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -133,7 +136,7 @@ class ResponderParser:
                         "tool": "responder",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
             cm = _CHALLENGE_RESPONSE_RE.search(line_stripped)
@@ -151,7 +154,7 @@ class ResponderParser:
                         "tool": "responder",
                         "target": target if "target" in dir() else "unknown",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
             if _NBTNS_RE.search(line_stripped) and "pois" in line_stripped.lower():
@@ -164,7 +167,7 @@ class ResponderParser:
                         "tool": "responder",
                         "target": "unknown",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

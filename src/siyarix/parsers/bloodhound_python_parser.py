@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _JSON_RE = re.compile(r"^\s*[{\[]")
 
@@ -20,8 +21,10 @@ class BloodhoundPythonParser:
         re.IGNORECASE,
     )
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         for line in output.splitlines():
             line = line.strip()
@@ -45,7 +48,7 @@ class BloodhoundPythonParser:
                         "tool": "bloodhound-python",
                         "target": "unknown",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -78,7 +81,7 @@ class BloodhoundPythonParser:
                         "tool": "bloodhound-python",
                         "target": domain,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif obj_type == "computer":
                 dedup_key = f"computer:{name}:{domain}"
@@ -95,7 +98,7 @@ class BloodhoundPythonParser:
                         "tool": "bloodhound-python",
                         "target": domain,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif obj_type == "group":
                 dedup_key = f"group:{name}:{domain}"
@@ -111,7 +114,7 @@ class BloodhoundPythonParser:
                         "tool": "bloodhound-python",
                         "target": domain,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif obj_type == "session":
                 computer = props.get("computer", "?")
@@ -128,7 +131,7 @@ class BloodhoundPythonParser:
                         "tool": "bloodhound-python",
                         "target": domain,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif obj_type == "acl":
                 right_guid = props.get("rightguid", "?")
@@ -145,7 +148,7 @@ class BloodhoundPythonParser:
                         "tool": "bloodhound-python",
                         "target": domain,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

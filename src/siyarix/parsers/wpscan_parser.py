@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _URL_RE = re.compile(r"^\[\+\]\s*URL:\s*(?P<url>\S+)")
 _VULN_RE = re.compile(r"(?i)\b(vulnerable|vulnerability|CVE-\d{4}-\d+)\b")
@@ -17,8 +18,10 @@ _PLUGIN_RE = re.compile(r"^\[\+\]\s*(?P<name>[^:]+):\s*(?P<value>.+)$")
 class WpscanParser:
     """Parse WPScan output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         target = "unknown"
 
         for line in output.splitlines():
@@ -44,7 +47,7 @@ class WpscanParser:
                         "tool": "wpscan",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -60,7 +63,7 @@ class WpscanParser:
                         "tool": "wpscan",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

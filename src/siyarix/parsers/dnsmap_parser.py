@@ -4,11 +4,12 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import csv
 import io
 import re
+from typing import Any
+
+from . import _now_iso
 
 _FIND_RE = re.compile(
     r"(?:found|discovered)\s*(?:sub)?domain\s*[:\s]\s*(?P<domain>\S+)"
@@ -61,8 +62,10 @@ def _ip_severity(ip: str) -> str:
 class DnsmapParser:
     """Parse dnsmap output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         trimmed = output.strip()
 
@@ -91,7 +94,7 @@ class DnsmapParser:
                                 "tool": "dnsmap",
                                 "target": domain,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 if findings:
                     return findings
@@ -120,7 +123,7 @@ class DnsmapParser:
                         "tool": "dnsmap",
                         "target": domain,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -141,7 +144,7 @@ class DnsmapParser:
                         "tool": "dnsmap",
                         "target": domain,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -161,7 +164,7 @@ class DnsmapParser:
                         "tool": "dnsmap",
                         "target": domain,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -181,7 +184,7 @@ class DnsmapParser:
                         "tool": "dnsmap",
                         "target": domain,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

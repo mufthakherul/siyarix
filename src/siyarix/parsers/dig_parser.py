@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 from __future__ import annotations
 
 import re
@@ -13,11 +15,13 @@ RECORD_RE = re.compile(
 
 class DigParser(BaseParser):
     def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
         findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         for line in output.splitlines():
             line = line.strip()
-            if not line or line.startswith(";") or line.startswith(";;"):
+            if not line or line.startswith((";", ";;")):
                 continue
             m = RECORD_RE.match(line)
             if m:
@@ -36,6 +40,6 @@ class DigParser(BaseParser):
                         evidence=f"{domain} {rtype} {value}",
                         tool="dig",
                         target=domain,
-                    )
+                    ),
                 )
         return findings

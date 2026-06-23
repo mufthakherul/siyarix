@@ -4,11 +4,12 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import csv
 import io
 import re
+from typing import Any
+
+from . import _now_iso
 
 _HOST_RE = re.compile(
     r"(?P<host>\S+)\s+(?:IN\s+)?(?P<type>[A-Z]+)\s+(?P<value>\S.*)",
@@ -81,7 +82,9 @@ def _looks_like_csv(text: str) -> bool:
 class DnsenumParser:
     """Parse dnsenum output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
         if _looks_like_csv(output):
             try:
                 return self._parse_csv(output)
@@ -89,8 +92,8 @@ class DnsenumParser:
                 pass
         return self._parse_text(output)
 
-    def _parse_csv(self, csv_str: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_csv(self, csv_str: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         reader = csv.DictReader(io.StringIO(csv_str))
 
@@ -107,9 +110,7 @@ class DnsenumParser:
             severity = "info"
             if rtype in ("AXFR", "IXFR"):
                 severity = "high"
-            elif rtype == "NS":
-                severity = "low"
-            elif rtype == "MX":
+            elif rtype in {"NS", "MX"}:
                 severity = "low"
 
             findings.append(
@@ -121,12 +122,12 @@ class DnsenumParser:
                     "tool": "dnsenum",
                     "target": host,
                     "timestamp": _now_iso(),
-                }
+                },
             )
         return findings
 
-    def _parse_text(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_text(self, output: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         base_domain = "unknown"
 
@@ -153,7 +154,7 @@ class DnsenumParser:
                             "tool": "dnsenum",
                             "target": base_domain,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
             if _WILDCARD_RE.search(line):
@@ -169,7 +170,7 @@ class DnsenumParser:
                             "tool": "dnsenum",
                             "target": base_domain,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -186,7 +187,7 @@ class DnsenumParser:
                             "tool": "dnsenum",
                             "target": base_domain,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -208,7 +209,7 @@ class DnsenumParser:
                         "tool": "dnsenum",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -229,7 +230,7 @@ class DnsenumParser:
                         "tool": "dnsenum",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -250,7 +251,7 @@ class DnsenumParser:
                         "tool": "dnsenum",
                         "target": host,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -271,7 +272,7 @@ class DnsenumParser:
                         "tool": "dnsenum",
                         "target": host,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -295,7 +296,7 @@ class DnsenumParser:
                         "tool": "dnsenum",
                         "target": mname,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -316,7 +317,7 @@ class DnsenumParser:
                         "tool": "dnsenum",
                         "target": mname,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -339,7 +340,7 @@ class DnsenumParser:
                         "tool": "dnsenum",
                         "target": host,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -365,7 +366,7 @@ class DnsenumParser:
                         "tool": "dnsenum",
                         "target": host,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -383,9 +384,7 @@ class DnsenumParser:
             seen.add(dedup_key)
 
             severity = "info"
-            if rtype == "NS":
-                severity = "low"
-            elif rtype == "MX":
+            if rtype in {"NS", "MX"}:
                 severity = "low"
             elif rtype in ("AXFR", "IXFR"):
                 severity = "high"
@@ -399,7 +398,7 @@ class DnsenumParser:
                     "tool": "dnsenum",
                     "target": host,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

@@ -4,14 +4,18 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from . import _now_iso
 
 
 class HashcatParser:
     """Parse hashcat --show style lines into normalized findings."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         for line in output.splitlines():
             line = line.strip()
             if not line or ":" not in line:
@@ -30,6 +34,6 @@ class HashcatParser:
                     "tool": "hashcat",
                     "target": "offline-hashset",
                     "timestamp": _now_iso(),
-                }
+                },
             )
         return findings

@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _SEVERITY_BY_STATUS = {
     200: "info",
@@ -24,7 +25,7 @@ _SEVERITY_BY_STATUS = {
 }
 
 _ROW_RE = re.compile(
-    r"^(?P<path>\S+)\s+\[Status:\s*(?P<status>\d+),\s*Size:\s*(?P<size>\d+),\s*Words:\s*(?P<words>\d+),\s*Lines:\s*(?P<lines>\d+)\]"
+    r"^(?P<path>\S+)\s+\[Status:\s*(?P<status>\d+),\s*Size:\s*(?P<size>\d+),\s*Words:\s*(?P<words>\d+),\s*Lines:\s*(?P<lines>\d+)\]",
 )
 _URL_RE = re.compile(r"^::\s*URL:\s*(?P<url>\S+)")
 
@@ -32,8 +33,10 @@ _URL_RE = re.compile(r"^::\s*URL:\s*(?P<url>\S+)")
 class FfufParser:
     """Parse ffuf output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         base_url = "unknown"
 
         for line in output.splitlines():
@@ -66,7 +69,7 @@ class FfufParser:
                     "tool": "ffuf",
                     "target": base_url,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

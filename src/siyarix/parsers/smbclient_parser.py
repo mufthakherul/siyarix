@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import Any
 
 from . import _now_iso
 
@@ -60,8 +61,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class SmbclientParser:
     """Parse smbclient output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         stripped = output.strip()
         if not stripped:
             return findings
@@ -92,7 +95,7 @@ class SmbclientParser:
                                 "tool": "smbclient",
                                 "target": server,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                     fname = item.get("filename", item.get("name", ""))
                     if fname:
@@ -109,7 +112,7 @@ class SmbclientParser:
                                 "tool": "smbclient",
                                 "target": server,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 return findings
             except json.JSONDecodeError:
@@ -139,7 +142,7 @@ class SmbclientParser:
                         "tool": "smbclient",
                         "target": server,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -155,7 +158,7 @@ class SmbclientParser:
                         "tool": "smbclient",
                         "target": server,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -171,7 +174,7 @@ class SmbclientParser:
                         "tool": "smbclient",
                         "target": sv,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 if server == "unknown":
                     server = sv
@@ -188,7 +191,7 @@ class SmbclientParser:
                         "tool": "smbclient",
                         "target": server,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -204,7 +207,7 @@ class SmbclientParser:
                         "tool": "smbclient",
                         "target": server,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -227,7 +230,7 @@ class SmbclientParser:
                         "tool": "smbclient",
                         "target": server,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -251,7 +254,7 @@ class SmbclientParser:
                         "tool": "smbclient",
                         "target": server,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -275,7 +278,7 @@ class SmbclientParser:
                         "tool": "smbclient",
                         "target": server,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

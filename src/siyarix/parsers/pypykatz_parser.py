@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _JSON_RE = re.compile(r"^\s*[{\[]")
 
@@ -25,8 +26,10 @@ _USERNAME_LINE_RE = re.compile(
 class PypykatzParser:
     """Parse pypykatz JSON output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         stripped = output.strip()
         if not stripped:
@@ -78,7 +81,7 @@ class PypykatzParser:
                                                 "tool": "pypykatz",
                                                 "target": domain,
                                                 "timestamp": _now_iso(),
-                                            }
+                                            },
                                         )
 
                     for section in ("MSV", "WDIGEST", "LIVESS", "SSP", "SSP_CRED"):
@@ -110,7 +113,7 @@ class PypykatzParser:
                                                     "tool": "pypykatz",
                                                     "target": domain,
                                                     "timestamp": _now_iso(),
-                                                }
+                                                },
                                             )
                 return findings
             except json.JSONDecodeError:
@@ -140,7 +143,7 @@ class PypykatzParser:
                                 "tool": "pypykatz",
                                 "target": "unknown",
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 continue
 
@@ -178,7 +181,7 @@ class PypykatzParser:
                                         "tool": "pypykatz",
                                         "target": domain,
                                         "timestamp": _now_iso(),
-                                    }
+                                    },
                                 )
 
             for section in ("MSV", "WDIGEST", "LIVESS", "SSP", "SSP_CRED"):
@@ -209,7 +212,7 @@ class PypykatzParser:
                                             "tool": "pypykatz",
                                             "target": domain,
                                             "timestamp": _now_iso(),
-                                        }
+                                        },
                                     )
 
         return findings

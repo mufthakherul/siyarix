@@ -4,12 +4,11 @@
 
 from __future__ import annotations
 
+import json
+from typing import Any
+
 from . import _now_iso
 
-import json
-import re
-
-_JSON_LINE_RE = re.compile(r"^\s*[{[]")
 _SEVERITY_MAP = {
     "CRITICAL": "critical",
     "HIGH": "high",
@@ -24,8 +23,10 @@ _SEVERITY_MAP = {
 class CheckovParser:
     """Parse Checkov JSON output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
 
         try:
@@ -42,7 +43,7 @@ class CheckovParser:
                 resource = check.get("resource", "")
                 check.get("guideline", check.get("guidelines", ""))
                 severity_raw = check.get(
-                    "severity", check.get("check_result", {}).get("result", "INFO")
+                    "severity", check.get("check_result", {}).get("result", "INFO"),
                 )
                 file_path = check.get("file_path", check.get("filePath", ""))
                 repo_name = check.get("repo_name", check.get("repo", ""))
@@ -73,7 +74,7 @@ class CheckovParser:
                         "tool": "checkov",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

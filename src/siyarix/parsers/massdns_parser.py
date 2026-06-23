@@ -4,12 +4,12 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
 
-_JSON_LINE_RE = re.compile(r"^\s*[{[]")
+from . import _now_iso
+
 _TEXT_LINE_RE = re.compile(r"^(\S+)\s+([aA\d]+)\s+(\S+)")
 _IP_RE = re.compile(r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})")
 
@@ -22,14 +22,15 @@ _STATS_RE = re.compile(
 class MassdnsParser:
     """Parse massdns JSON or plain-text output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        lines = output.splitlines()
-        if lines and _JSON_LINE_RE.match(lines[0].strip()):
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        if output.strip().startswith("{"):
             return self._parse_json(output)
         return self._parse_text(output)
 
-    def _parse_json(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_json(self, output: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         for line in output.splitlines():
             line_stripped = line.strip()
@@ -67,13 +68,13 @@ class MassdnsParser:
                     "tool": "massdns",
                     "target": name,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings
 
-    def _parse_text(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_text(self, output: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         for line in output.splitlines():
             line_stripped = line.strip()
@@ -95,7 +96,7 @@ class MassdnsParser:
                             "tool": "massdns",
                             "target": "",
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
             m = _TEXT_LINE_RE.match(line_stripped)
@@ -127,7 +128,7 @@ class MassdnsParser:
                         "tool": "massdns",
                         "target": domain,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

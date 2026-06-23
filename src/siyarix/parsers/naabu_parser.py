@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _TCP_PORT_RE = re.compile(
     r"(?P<host>[\d.]+|[\w.\-]+)\s*[:\]]+(?P<port>\d+)(?::(?P<proto>\w+))?",
@@ -18,7 +19,6 @@ _HOST_RE = re.compile(
     re.IGNORECASE,
 )
 
-_JSON_LINE_RE = re.compile(r"^\s*\{.*\}\s*$")
 
 _PORT_SEVERITY: dict[int, str] = {
     21: "medium",
@@ -54,7 +54,9 @@ def _looks_like_json(text: str) -> bool:
 class NaabuParser:
     """Parse naabu output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
         if _looks_like_json(output):
             try:
                 return self._parse_json(output)
@@ -62,10 +64,13 @@ class NaabuParser:
                 pass
         return self._parse_text(output)
 
-    def _parse_json(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_json(self, output: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
-        data = json.loads(output)
+        try:
+            data = json.loads(output)
+        except (json.JSONDecodeError, ValueError, TypeError):
+                return []
         records = data if isinstance(data, list) else [data]
 
         for record in records:
@@ -92,12 +97,12 @@ class NaabuParser:
                     "tool": "naabu",
                     "target": host,
                     "timestamp": _now_iso(),
-                }
+                },
             )
         return findings
 
-    def _parse_text(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_text(self, output: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
 
         for line in output.splitlines():
@@ -129,7 +134,7 @@ class NaabuParser:
                         "tool": "naabu",
                         "target": host_found,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

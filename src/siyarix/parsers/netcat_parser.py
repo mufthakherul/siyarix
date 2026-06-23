@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _BANNER_RE = re.compile(
     r"(?P<target>[\w.\-]+)(?::(?P<port>\d+))?\s*(?:is\s+)?"
@@ -44,8 +45,10 @@ _SUMMARY_RE = re.compile(
 class NetcatParser:
     """Parse netcat/nc output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         total_bytes = 0
 
@@ -81,7 +84,7 @@ class NetcatParser:
                             "tool": "netcat",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -101,7 +104,7 @@ class NetcatParser:
                             "tool": "netcat",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -122,7 +125,7 @@ class NetcatParser:
                             "tool": "netcat",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -142,7 +145,7 @@ class NetcatParser:
                             "tool": "netcat",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -161,7 +164,7 @@ class NetcatParser:
                             "tool": "netcat",
                             "target": "unknown",
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         if total_bytes:
@@ -177,7 +180,7 @@ class NetcatParser:
                         "tool": "netcat",
                         "target": "unknown",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

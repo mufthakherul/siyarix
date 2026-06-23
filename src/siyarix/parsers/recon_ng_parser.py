@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
-import re
 import json
+import re
+from typing import Any
+
+from . import _now_iso
 
 _TABLE_RE = re.compile(
     r"\|\s*(?P<row>\d+)\s*\|.*\|",
@@ -17,7 +18,6 @@ _KEYVAL_RE = re.compile(
     r"\s+(?P<key>\w[\w\s]*?)\s*(?:\||:)\s*(?P<value>\S.*)",
 )
 
-_JSON_LINE_RE = re.compile(r"^\s*\{.*\}\s*$")
 
 _FOUND_RE = re.compile(
     r"\[\+\]\s+'([^']+)'\s+found",
@@ -54,7 +54,9 @@ def _looks_like_json(text: str) -> bool:
 class ReconNgParser:
     """Parse recon-ng output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
         if _looks_like_json(output):
             try:
                 return self._parse_json(output)
@@ -62,10 +64,13 @@ class ReconNgParser:
                 pass
         return self._parse_text(output)
 
-    def _parse_json(self, json_str: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_json(self, json_str: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
-        data = json.loads(json_str)
+        try:
+            data = json.loads(json_str)
+        except (json.JSONDecodeError, ValueError, TypeError):
+            raise
         records = data if isinstance(data, list) else [data]
 
         for record in records:
@@ -84,12 +89,12 @@ class ReconNgParser:
                         "tool": "recon-ng",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
         return findings
 
-    def _parse_text(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_text(self, output: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         headers: list[str] = []
         current_module = ""
@@ -111,10 +116,10 @@ class ReconNgParser:
                 if not headers:
                     headers = cells
                 elif len(cells) > 1 and cells[0].isdigit():
-                    row_data = dict(zip(headers[1:], cells[1:]))
+                    row_data = dict(zip(headers[1:], cells[1:], strict=False))
                     target = "unknown"
                     for tk in _TARGET_KEYS:
-                        if tk in row_data and row_data[tk]:
+                        if row_data.get(tk):
                             target = row_data[tk]
                             break
                     dedup_key = f"{target}:" + ";".join(f"{k}={v}" for k, v in row_data.items())
@@ -132,7 +137,7 @@ class ReconNgParser:
                             "tool": "recon-ng",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -155,7 +160,7 @@ class ReconNgParser:
                         "tool": "recon-ng",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -178,7 +183,7 @@ class ReconNgParser:
                         "tool": "recon-ng",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

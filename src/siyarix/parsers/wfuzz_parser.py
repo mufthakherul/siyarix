@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _ROW_RE = re.compile(
     r"^(?P<id>\S+)\s+"
@@ -14,10 +15,10 @@ _ROW_RE = re.compile(
     r"Lines:\s*(?P<lines>\d+)\s+"
     r"Word:\s*(?P<words>\d+)\s+"
     r"Chars:\s*(?P<chars>\d+)\s+"
-    r"(?:Request:\s*)?(?P<payload>\S+)"
+    r"(?:Request:\s*)?(?P<payload>\S+)",
 )
 _ID_RE = re.compile(
-    r"^(?P<id>\d+)\s+(?P<status>\d+)\s+(?P<lines>\d+)\s+(?P<words>\d+)\s+(?P<chars>\d+)\s+(?P<payload>\S+)"
+    r"^(?P<id>\d+)\s+(?P<status>\d+)\s+(?P<lines>\d+)\s+(?P<words>\d+)\s+(?P<chars>\d+)\s+(?P<payload>\S+)",
 )
 _SIMPLE_ROW_RE = re.compile(
     r"ID:\s*(?P<payload>\S+)\s+Response:\s*(?P<status>\d+)(?:\s+Size:\s*(?P<size>\d+))?",
@@ -44,8 +45,10 @@ _SEVERITY_BY_STATUS = {
 class WfuzzParser:
     """Parse wfuzz output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         target = "unknown"
 
@@ -98,7 +101,7 @@ class WfuzzParser:
                     "tool": "wfuzz",
                     "target": target,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

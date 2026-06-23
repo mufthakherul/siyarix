@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _TEXT_PORT_RE = re.compile(
     r"(?:Open|Port)\s+(?P<port>\d+)\s*[:\-/]\s*(?P<proto>\w+)?\s*(?P<state>\S+)?",
@@ -23,7 +24,6 @@ _GREPPABLE_RE = re.compile(
     r"(?P<host>\S+):(?P<port>\d+)(?::(?P<proto>\w+))?",
 )
 
-_JSON_LINE_RE = re.compile(r"^\s*\{.*\}\s*$")
 
 _OPEN_HOST_PORT_RE = re.compile(
     r"Open\s+(?P<host>\S+):(?P<port>\d+)",
@@ -76,7 +76,9 @@ def _looks_like_json(text: str) -> bool:
 class RustscanParser:
     """Parse RustScan output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
         if _looks_like_json(output):
             try:
                 return self._parse_json(output)
@@ -84,10 +86,13 @@ class RustscanParser:
                 pass
         return self._parse_text(output)
 
-    def _parse_json(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_json(self, output: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
-        data = json.loads(output)
+        try:
+            data = json.loads(output)
+        except (json.JSONDecodeError, ValueError, TypeError):
+                return []
         records = data if isinstance(data, list) else [data]
 
         for record in records:
@@ -123,12 +128,12 @@ class RustscanParser:
                             "tool": "rustscan",
                             "target": host,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
         return findings
 
-    def _parse_text(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_text(self, output: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         host = "unknown"
         banner = ""
@@ -181,7 +186,7 @@ class RustscanParser:
                         "tool": "rustscan",
                         "target": host_g,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -206,7 +211,7 @@ class RustscanParser:
                         "tool": "rustscan",
                         "target": host_g,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -236,7 +241,7 @@ class RustscanParser:
                         "tool": "rustscan",
                         "target": host,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

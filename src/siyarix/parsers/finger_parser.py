@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import Any
 
 from . import _now_iso
 
@@ -57,8 +58,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class FingerParser:
     """Parse finger output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         stripped = output.strip()
         if not stripped:
             return findings
@@ -90,7 +93,7 @@ class FingerParser:
                                 "tool": "finger",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                     plan = item.get("plan", item.get("plan_file", ""))
                     if plan:
@@ -103,7 +106,7 @@ class FingerParser:
                                 "tool": "finger",
                                 "target": item.get("host", "unknown"),
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 return findings
             except json.JSONDecodeError:
@@ -129,7 +132,7 @@ class FingerParser:
                             "tool": "finger",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                     plan_lines = []
                 continue
@@ -144,7 +147,7 @@ class FingerParser:
                         "tool": "finger",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -197,7 +200,7 @@ class FingerParser:
                                 "tool": "finger",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                     current_user = username
                     continue
@@ -218,7 +221,7 @@ class FingerParser:
                                     "tool": "finger",
                                     "target": target,
                                     "timestamp": _now_iso(),
-                                }
+                                },
                             )
                         current_user = username
                         continue
@@ -244,7 +247,7 @@ class FingerParser:
                             "tool": "finger",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         if plan_lines:
@@ -258,7 +261,7 @@ class FingerParser:
                     "tool": "finger",
                     "target": target,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

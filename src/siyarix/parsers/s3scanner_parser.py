@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _JSON_RE = re.compile(r"^\s*[{\[]")
 _BUCKET_RE = re.compile(
@@ -24,8 +25,10 @@ _SUMMARY_RE = re.compile(
 class S3scannerParser:
     """Parse s3scanner output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
 
         summary_m = _SUMMARY_RE.search(output)
@@ -65,7 +68,7 @@ class S3scannerParser:
                                 "tool": "s3scanner",
                                 "target": bucket,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
             except json.JSONDecodeError:
                 pass
@@ -99,7 +102,7 @@ class S3scannerParser:
                         "tool": "s3scanner",
                         "target": bucket,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         if summary_count:
@@ -115,7 +118,7 @@ class S3scannerParser:
                         "tool": "s3scanner",
                         "target": "",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

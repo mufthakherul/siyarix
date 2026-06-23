@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _JSON_RE = re.compile(r"^\s*[{\[]")
 
@@ -15,8 +16,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class ZgrabParser:
     """Parse zgrab JSON output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         for line in output.splitlines():
             line = line.strip()
@@ -45,13 +48,13 @@ class ZgrabParser:
                 "bacnet",
             ):
                 proto_data = inner.get(
-                    protocol, data.get(f"{protocol}_response", {}).get("result", {})
+                    protocol, data.get(f"{protocol}_response", {}).get("result", {}),
                 )
                 if isinstance(proto_data, dict) and (
                     proto_data.get("status", "") == "success" or bool(proto_data)
                 ):
                     findings.extend(
-                        self._parse_protocol(protocol, proto_data, ip, domain, timestamp, seen)
+                        self._parse_protocol(protocol, proto_data, ip, domain, timestamp, seen),
                     )
 
             if not findings and ip:
@@ -68,15 +71,15 @@ class ZgrabParser:
                             "tool": "zgrab",
                             "target": ip,
                             "timestamp": timestamp,
-                        }
+                        },
                     )
 
         return findings
 
     def _parse_protocol(
-        self, protocol: str, data: dict, ip: str, domain: str, timestamp: str, seen: set[str]
-    ) -> list[dict]:
-        r: list[dict] = []
+        self, protocol: str, data: dict, ip: str, domain: str, timestamp: str, seen: set[str],
+    ) -> list[dict[str, Any]]:
+        r: list[dict[str, Any]] = []
         if protocol == "tls":
             tls_data = data.get("tls", data)
             if tls_data.get("handshake_done"):
@@ -92,7 +95,7 @@ class ZgrabParser:
                             "tool": "zgrab",
                             "target": ip,
                             "timestamp": timestamp,
-                        }
+                        },
                     )
             cert = tls_data.get("certificate", {})
             if isinstance(cert, dict):
@@ -112,7 +115,7 @@ class ZgrabParser:
                             "tool": "zgrab",
                             "target": ip,
                             "timestamp": timestamp,
-                        }
+                        },
                     )
             cipher = tls_data.get("cipher_suite", "")
             if cipher:
@@ -130,7 +133,7 @@ class ZgrabParser:
                             "tool": "zgrab",
                             "target": ip,
                             "timestamp": timestamp,
-                        }
+                        },
                     )
         elif protocol == "http":
             dedup_key = f"http:{ip}"
@@ -147,7 +150,7 @@ class ZgrabParser:
                     "tool": "zgrab",
                     "target": ip,
                     "timestamp": timestamp,
-                }
+                },
             )
         elif protocol == "ssh":
             banner = data.get("banner", {}).get("banner", "")
@@ -163,7 +166,7 @@ class ZgrabParser:
                         "tool": "zgrab",
                         "target": ip,
                         "timestamp": timestamp,
-                    }
+                    },
                 )
 
         return r

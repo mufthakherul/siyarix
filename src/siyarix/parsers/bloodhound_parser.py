@@ -4,19 +4,19 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
-import re
+from typing import Any
 
-_JSON_LINE_RE = re.compile(r"^\s*[{[]")
+from . import _now_iso
 
 
 class BloodhoundParser:
     """Parse BloodHound JSON output (one JSON object per line) into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         lines = output.splitlines()
 
@@ -25,7 +25,6 @@ class BloodhoundParser:
             if not line_stripped:
                 continue
 
-            if not _JSON_LINE_RE.match(line_stripped):
                 continue
 
             try:
@@ -72,14 +71,14 @@ class BloodhoundParser:
                                 "tool": "bloodhound",
                                 "target": target,
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 continue
 
             data_type = obj.get("type", "")
             props = obj.get("props", obj.get("properties", {}))
 
-            if data_type == "user" or data_type == "User":
+            if data_type in {"user", "User"}:
                 sam = props.get("samaccountname", props.get("name", "unknown"))
                 dedup_key = f"user:{sam}"
                 if dedup_key in seen:
@@ -96,10 +95,10 @@ class BloodhoundParser:
                         "tool": "bloodhound",
                         "target": sam,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
-            elif data_type == "computer" or data_type == "Computer":
+            elif data_type in {"computer", "Computer"}:
                 name = props.get("name", "unknown")
                 dedup_key = f"computer:{name}"
                 if dedup_key in seen:
@@ -116,10 +115,10 @@ class BloodhoundParser:
                         "tool": "bloodhound",
                         "target": name,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
-            elif data_type == "group" or data_type == "Group":
+            elif data_type in {"group", "Group"}:
                 name = props.get("name", "unknown")
                 dedup_key = f"group:{name}"
                 if dedup_key in seen:
@@ -134,10 +133,10 @@ class BloodhoundParser:
                         "tool": "bloodhound",
                         "target": name,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
-            elif data_type == "session" or data_type == "Session":
+            elif data_type in {"session", "Session"}:
                 user = props.get("user", "")
                 computer = props.get("computer", "")
                 dedup_key = f"session:{user}:{computer}"
@@ -153,10 +152,10 @@ class BloodhoundParser:
                         "tool": "bloodhound",
                         "target": computer,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
-            elif data_type == "acl" or data_type == "Acl" or data_type == "ACE":
+            elif data_type in {"acl", "Acl", "ACE"}:
                 principal = props.get("principal", "unknown")
                 right = props.get("righttype", props.get("ace_type", ""))
                 dedup_key = f"acl:{principal}:{right}"
@@ -172,7 +171,7 @@ class BloodhoundParser:
                         "tool": "bloodhound",
                         "target": principal,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

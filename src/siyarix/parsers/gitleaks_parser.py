@@ -4,12 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
 
-_JSON_LINE_RE = re.compile(r"^\s*[{[]")
+from . import _now_iso
 
 _SUMMARY_RE = re.compile(
     r"(?:leaks|secrets|findings|audit)[:\s]*(\d+)",
@@ -20,13 +19,15 @@ _SUMMARY_RE = re.compile(
 class GitleaksParser:
     """Parse Gitleaks JSON output (one JSON object per line) into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
 
         for line in output.splitlines():
             line_stripped = line.strip()
-            if not line_stripped or not _JSON_LINE_RE.match(line_stripped):
+            if not line_stripped:
                 continue
 
             try:
@@ -58,7 +59,7 @@ class GitleaksParser:
                         "tool": "gitleaks",
                         "target": "",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

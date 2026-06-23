@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
 
+from . import _now_iso
 
 _SAMBA_CRED_RE = re.compile(r"(\S+)\s*:\s*(\d+)\s*:\s*(\S+)\s*:\s*(\S+)\s*:::?")
 
@@ -15,8 +15,10 @@ _SAMBA_CRED_RE = re.compile(r"(\S+)\s*:\s*(\d+)\s*:\s*(\S+)\s*:\s*(\S+)\s*:::?")
 class ImpacketParser:
     """Parse impacket output into normalized findings."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         for line in output.splitlines():
             line = line.strip()
             if not line:
@@ -33,7 +35,7 @@ class ImpacketParser:
                         "tool": "impacket",
                         "target": sm.group(1),
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif "krb5" in lowered or "kerberos" in lowered:
                 findings.append(
@@ -45,7 +47,7 @@ class ImpacketParser:
                         "tool": "impacket",
                         "target": "domain",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif "wmi" in lowered and ("exec" in lowered or "result" in lowered):
                 findings.append(
@@ -57,7 +59,7 @@ class ImpacketParser:
                         "tool": "impacket",
                         "target": "windows",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif "smb" in lowered and ("share" in lowered or "open" in lowered):
                 findings.append(
@@ -69,6 +71,6 @@ class ImpacketParser:
                         "tool": "impacket",
                         "target": "smb",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
         return findings

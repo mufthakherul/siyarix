@@ -4,12 +4,12 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
 
-_JSON_LINE_RE = re.compile(r"^\s*[{[]")
+from . import _now_iso
+
 _TEXT_POC_RE = re.compile(r"(?:POC|PoC|poc|Payload|param|parameter)[:\s]+(.+)", re.IGNORECASE)
 _TEXT_VULN_RE = re.compile(r"(?:XSS|vulnerability|found|detected)", re.IGNORECASE)
 _TEXT_URL_RE = re.compile(r"(https?://\S+)", re.IGNORECASE)
@@ -19,15 +19,15 @@ _TEXT_PARAM_RE = re.compile(r"(?:Parameter|param)[:\s]+(\S+)", re.IGNORECASE)
 class DalfoxParser:
     """Parse dalfox XSS scanner JSON output (with text fallback) into normalized finding dicts."""
 
-    def parse(self: DalfoxParser, output: str) -> list[dict]:
-        lines = output.splitlines()
-
-        if lines and _JSON_LINE_RE.match(lines[0].strip()):
+    def parse(self: DalfoxParser, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        if output.strip().startswith(("{", "[")):
             return self._parse_json(output)
         return self._parse_text(output)
 
-    def _parse_json(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_json(self, output: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         for line in output.splitlines():
             line_stripped = line.strip()
@@ -77,8 +77,8 @@ class DalfoxParser:
             "timestamp": _now_iso(),
         }
 
-    def _parse_text(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_text(self, output: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         target = "unknown"
         for line in output.splitlines():
@@ -109,7 +109,7 @@ class DalfoxParser:
                         "tool": "dalfox",
                         "target": url,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
             if url_m and "target" in line_stripped.lower():

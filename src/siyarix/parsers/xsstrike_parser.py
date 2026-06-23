@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _VULN_RE = re.compile(
     r"(?:vulnerab|xss|reflected|injected|payload\s+works|dom\s*based)",
@@ -53,8 +54,10 @@ _SUMMARY_RE = re.compile(
 class XsstrikeParser:
     """Parse XSStrike output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         trimmed = output.strip()
 
@@ -152,7 +155,7 @@ class XsstrikeParser:
                             "tool": "xsstrike",
                             "target": current_url,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
             if not _VULN_RE.search(line) and current_payload and current_url != "unknown":
@@ -168,15 +171,15 @@ class XsstrikeParser:
                             "tool": "xsstrike",
                             "target": current_url,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         return findings
 
-    def _parse_json_record(self, record: dict, seen: set[str] | None = None) -> list[dict]:
+    def _parse_json_record(self, record: dict, seen: set[str] | None = None) -> list[dict[str, Any]]:
         if seen is None:
             seen = set()
-        findings: list[dict] = []
+        findings: list[dict[str, Any]] = []
         url = record.get("url", record.get("target", "unknown"))
         param = record.get("parameter", record.get("param", "unknown"))
         payload = record.get("payload", "")
@@ -218,7 +221,7 @@ class XsstrikeParser:
                         "tool": "xsstrike",
                         "target": url,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         if payload:
@@ -234,7 +237,7 @@ class XsstrikeParser:
                         "tool": "xsstrike",
                         "target": url,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

@@ -4,28 +4,29 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _PACKET_RE = re.compile(
     r"(?P<time>\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s+"
     r"(?P<proto>\S+)\s+"
     r"(?P<src>\S+)\s*>\s*(?P<dst>\S+)\s*:?"
-    r"(?:\s+(?P<detail>.*))?"
+    r"(?:\s+(?P<detail>.*))?",
 )
 
 _ARP_RE = re.compile(
     r"(?P<time>\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s+"
     r"ARP,\s+(?P<op>Request|Reply|Gratuitous|Probe)\s+"
     r"(?:who-has\s+)?(?P<target>\S+)\s+"
-    r"(?:tell|say|is-at)\s+(?P<sender>\S+)"
+    r"(?:tell|say|is-at)\s+(?P<sender>\S+)",
 )
 
 _DNS_RE = re.compile(
     r"(?P<time>\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s+"
     r"(?P<src>\S+)\s*>\s*(?P<dst>\S+)\s*:?"
-    r"\s+(?P<dns_op>\d+)\s+[A-Z]+\??\s+(?P<query>\S+)"
+    r"\s+(?P<dns_op>\d+)\s+[A-Z]+\??\s+(?P<query>\S+)",
 )
 
 _ICMP_RE = re.compile(
@@ -58,8 +59,10 @@ _SUMMARY_RE = re.compile(
 class TcpdumpParser:
     """Parse tcpdump text output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         summary_lines: list[str] = []
 
@@ -88,7 +91,7 @@ class TcpdumpParser:
                             "tool": "tcpdump",
                             "target": m.group("target"),
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -116,7 +119,7 @@ class TcpdumpParser:
                             "tool": "tcpdump",
                             "target": m.group("dst"),
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -151,7 +154,7 @@ class TcpdumpParser:
                             "tool": "tcpdump",
                             "target": m.group("dst"),
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -169,7 +172,7 @@ class TcpdumpParser:
                             "tool": "tcpdump",
                             "target": m.group("dst"),
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -187,7 +190,7 @@ class TcpdumpParser:
                             "tool": "tcpdump",
                             "target": m.group("query"),
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -212,7 +215,7 @@ class TcpdumpParser:
                         "tool": "tcpdump",
                         "target": m.group("dst"),
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         if summary_lines:
@@ -225,7 +228,7 @@ class TcpdumpParser:
                     "tool": "tcpdump",
                     "target": "unknown",
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _HASH_TYPE_RE = re.compile(r"(?:Hash|hash)[:\s]+(\S+)", re.IGNORECASE)
 _POSSIBLE_RE = re.compile(r"(?:Possible|algorithm|type)[:\s]+(.+)", re.IGNORECASE)
@@ -20,8 +21,10 @@ _SUMMARY_RE = re.compile(
 class HashIdentifierParser:
     """Parse hash-identifier output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         target = "unknown"
         output.splitlines()
@@ -48,7 +51,7 @@ class HashIdentifierParser:
                             "tool": "hash_identifier",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -67,7 +70,7 @@ class HashIdentifierParser:
                             "tool": "hash_identifier",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -103,7 +106,7 @@ class HashIdentifierParser:
                             "tool": "hash_identifier",
                             "target": target,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         if summary_count:
@@ -119,7 +122,7 @@ class HashIdentifierParser:
                         "tool": "hash_identifier",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

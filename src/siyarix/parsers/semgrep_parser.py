@@ -4,12 +4,12 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
 
-_JSON_LINE_RE = re.compile(r"^\s*[{[]")
+from . import _now_iso
+
 _SEVERITY_MAP = {
     "ERROR": "high",
     "WARNING": "medium",
@@ -28,13 +28,11 @@ _SUMMARY_RE = re.compile(
 class SemgrepParser:
     """Parse Semgrep JSON output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
-        lines = output.splitlines()
-
-        if not lines or not _JSON_LINE_RE.match(lines[0].strip()):
-            return findings
 
         try:
             data = json.loads(output)
@@ -69,7 +67,7 @@ class SemgrepParser:
                         "tool": "semgrep",
                         "target": path,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         if summary_count:
@@ -85,7 +83,7 @@ class SemgrepParser:
                         "tool": "semgrep",
                         "target": "",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

@@ -4,17 +4,20 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
+from typing import Any
+
+from . import _now_iso
 
 
 class ShodanParser:
     """Parses Shodan JSON output into finding dicts."""
 
-    def parse(self, json_output: str) -> list[dict]:
+    def parse(self, json_output: str) -> list[dict[str, Any]]:
         """Parse Shodan JSON output and return a list of finding dicts."""
-        findings: list[dict] = []
+        if not json_output or not json_output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
 
         # Shodan CLI `shodan host --save json` or similar often produces JSONL
         for line in json_output.splitlines():
@@ -42,7 +45,7 @@ class ShodanParser:
                     "tool": "shodan",
                     "target": ip_str,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
             # Add vulnerabilities if any
@@ -56,7 +59,7 @@ class ShodanParser:
                         "tool": "shodan",
                         "target": ip_str,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

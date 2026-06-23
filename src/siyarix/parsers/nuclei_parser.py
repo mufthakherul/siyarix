@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
+from typing import Any
+
+from . import _now_iso
 
 _SEVERITY_MAP: dict[str, str] = {
     "critical": "critical",
@@ -21,9 +22,11 @@ _SEVERITY_MAP: dict[str, str] = {
 class NucleiParser:
     """Parses nuclei JSONL output (one JSON object per line) into finding dicts."""
 
-    def parse(self, jsonl_output: str) -> list[dict]:
+    def parse(self, jsonl_output: str) -> list[dict[str, Any]]:
         """Parse nuclei JSONL *output* and return a list of finding dicts."""
-        findings: list[dict] = []
+        if not jsonl_output or not jsonl_output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
 
         for line in jsonl_output.splitlines():
             line = line.strip()
@@ -63,7 +66,7 @@ class NucleiParser:
                     "tool": "nuclei",
                     "target": record.get("host", matched_at),
                     "timestamp": timestamp,
-                }
+                },
             )
 
         return findings

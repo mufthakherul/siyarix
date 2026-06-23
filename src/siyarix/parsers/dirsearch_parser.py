@@ -4,12 +4,13 @@
 
 from __future__ import annotations
 
+import re
+from typing import Any
+
 from . import _now_iso
 
-import re
-
 _ROW_RE = re.compile(
-    r"(?P<status>\d{3})\s+(?P<size>\S+)\s+(?P<url>https?://\S+)(?:\s+->\s+(?P<redirect>\S+))?"
+    r"(?P<status>\d{3})\s+(?P<size>\S+)\s+(?P<url>https?://\S+)(?:\s+->\s+(?P<redirect>\S+))?",
 )
 _SEVERITY_BY_STATUS = {
     200: "info",
@@ -32,8 +33,10 @@ _SEVERITY_BY_STATUS = {
 class DirsearchParser:
     """Parse dirsearch output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         target = "unknown"
 
@@ -79,7 +82,7 @@ class DirsearchParser:
                     "tool": "dirsearch",
                     "target": target,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

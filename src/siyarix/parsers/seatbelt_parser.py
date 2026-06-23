@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _JSON_RE = re.compile(r"^\s*[{\[]")
 
@@ -15,8 +16,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class SeatbeltParser:
     """Parse Seatbelt JSON output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen_commands: set[str] = set()
         stripped = output.strip()
         if not stripped:
@@ -58,7 +61,7 @@ class SeatbeltParser:
                             "tool": "seatbelt",
                             "target": host,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 return findings
             except json.JSONDecodeError:
@@ -85,7 +88,7 @@ class SeatbeltParser:
                     "tool": "seatbelt",
                     "target": "localhost",
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         return findings

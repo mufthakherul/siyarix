@@ -4,11 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
 from typing import Any
+
+from . import _now_iso
 
 _FIND_RE = re.compile(
     r"==>\s*(?P<url>\S+)\s*[<\-]+.*?(?:CODE[:\s]*(?P<code>\d+))?(?:.*?SIZE[:\s]*(?P<size>\d+))?",
@@ -54,7 +54,7 @@ _SEVERITY_MAP: dict[int, str] = {
 class DirbParser:
     """Parse DIRB output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
+    def parse(self, output: str) -> list[dict[str, Any]]:
         if not output.strip():
             return []
         first_line = next((line for line in output.splitlines() if line.strip()), "")
@@ -66,8 +66,8 @@ class DirbParser:
                 pass
         return self._parse_text(output)
 
-    def _parse_json(self, data: Any) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_json(self, data: Any) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         results = data if isinstance(data, list) else data.get("results", data.get("sites", [data]))
         if isinstance(results, dict):
@@ -98,12 +98,12 @@ class DirbParser:
                     "tool": "dirb",
                     "target": url.rstrip("/").rsplit("/", 1)[0] if "/" in url.rstrip("/") else url,
                     "timestamp": _now_iso(),
-                }
+                },
             )
         return findings
 
-    def _parse_text(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_text(self, output: str) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         base_url = "unknown"
 
@@ -150,7 +150,7 @@ class DirbParser:
                         if "/" in url.rstrip("/")
                         else url,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -177,7 +177,7 @@ class DirbParser:
                         "tool": "dirb",
                         "target": target,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -199,7 +199,7 @@ class DirbParser:
                         "tool": "dirb",
                         "target": base_url if base_url != "unknown" else "unknown",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -224,7 +224,7 @@ class DirbParser:
                         "tool": "dirb",
                         "target": base_url if base_url != "unknown" else "unknown",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

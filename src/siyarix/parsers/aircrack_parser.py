@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
 
+from . import _now_iso
 
 _KEY_FOUND_RE = re.compile(r"KEY FOUND!\s*\[\s*([^\]]+)\s*\]", re.IGNORECASE)
 
@@ -15,8 +15,10 @@ _KEY_FOUND_RE = re.compile(r"KEY FOUND!\s*\[\s*([^\]]+)\s*\]", re.IGNORECASE)
 class AircrackParser:
     """Parse aircrack-ng output into normalized findings."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         for line in output.splitlines():
             line = line.strip()
             if not line:
@@ -33,7 +35,7 @@ class AircrackParser:
                         "tool": "aircrack-ng",
                         "target": "wireless",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif "handshake" in lowered and "captured" in lowered:
                 findings.append(
@@ -45,7 +47,7 @@ class AircrackParser:
                         "tool": "aircrack-ng",
                         "target": "wireless",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
             elif "deauth" in lowered or "deauthenticating" in lowered:
                 findings.append(
@@ -57,6 +59,6 @@ class AircrackParser:
                         "tool": "aircrack-ng",
                         "target": "wireless",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
         return findings

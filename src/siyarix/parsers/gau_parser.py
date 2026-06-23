@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import re
+from typing import Any
+
+from . import _now_iso
 
 _URL_RE = re.compile(r"(https?://\S+)", re.IGNORECASE)
 _JS_RE = re.compile(r"\.js(\?|$)", re.IGNORECASE)
@@ -22,8 +23,10 @@ _SUMMARY_RE = re.compile(
 class GauParser:
     """Parse gau/getallurls URL-per-line output into normalized finding dicts."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
 
         summary_m = _SUMMARY_RE.search(output)
@@ -55,7 +58,7 @@ class GauParser:
                         "tool": "gau",
                         "target": url,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -69,7 +72,7 @@ class GauParser:
                         "tool": "gau",
                         "target": url,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -83,7 +86,7 @@ class GauParser:
                         "tool": "gau",
                         "target": url,
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
                 continue
 
@@ -96,7 +99,7 @@ class GauParser:
                     "tool": "gau",
                     "target": url,
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         if summary_count:
@@ -112,7 +115,7 @@ class GauParser:
                         "tool": "gau",
                         "target": "",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

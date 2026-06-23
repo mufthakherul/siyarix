@@ -7,6 +7,7 @@ from __future__ import annotations
 import base64
 import json
 import re
+from typing import Any
 
 from . import _now_iso
 
@@ -96,8 +97,10 @@ _JSON_RE = re.compile(r"^\s*[{\[]")
 class LdapsearchParser:
     """Parse ldapsearch output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         stripped = output.strip()
         if not stripped:
             return findings
@@ -126,7 +129,7 @@ class LdapsearchParser:
                                     "tool": "ldapsearch",
                                     "target": dn,
                                     "timestamp": _now_iso(),
-                                }
+                                },
                             )
                     if isinstance(attrs, dict):
                         for attr, values in attrs.items():
@@ -141,7 +144,7 @@ class LdapsearchParser:
                                             "tool": "ldapsearch",
                                             "target": dn,
                                             "timestamp": _now_iso(),
-                                        }
+                                        },
                                     )
                 return findings
             except json.JSONDecodeError:
@@ -172,7 +175,7 @@ class LdapsearchParser:
                             "tool": "ldapsearch",
                             "target": current_dn or "ldap",
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 else:
                     findings.append(
@@ -184,7 +187,7 @@ class LdapsearchParser:
                             "tool": "ldapsearch",
                             "target": current_dn or "ldap",
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -204,7 +207,7 @@ class LdapsearchParser:
                 value = pending_value.strip()
                 if attr_lower in _ATTRS or attr_lower.replace("-", "").isalpha():
                     severity = _SEVERITY_MAP.get(attr_lower, "info")
-                    if attr_lower in ("userpassword",) and len(value) > 40:
+                    if attr_lower == "userpassword" and len(value) > 40:
                         value_display = value[:40] + "..."
                     else:
                         value_display = value[:100]
@@ -217,7 +220,7 @@ class LdapsearchParser:
                             "tool": "ldapsearch",
                             "target": current_dn,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 pending_attr = None
                 pending_value = ""
@@ -246,7 +249,7 @@ class LdapsearchParser:
                             "tool": "ldapsearch",
                             "target": current_dn,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 current_dn = current_dn or "ldap"
                 continue
@@ -266,7 +269,7 @@ class LdapsearchParser:
                             "tool": "ldapsearch",
                             "target": current_dn,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -281,7 +284,7 @@ class LdapsearchParser:
                 attr_lower = attr.lower()
                 if attr_lower in _ATTRS or attr_lower.replace("-", "").isalpha():
                     severity = _SEVERITY_MAP.get(attr_lower, "info")
-                    if attr_lower in ("userpassword",) and len(value) > 40:
+                    if attr_lower == "userpassword" and len(value) > 40:
                         value_display = value[:40] + "..."
                     else:
                         value_display = value[:100]
@@ -294,7 +297,7 @@ class LdapsearchParser:
                             "tool": "ldapsearch",
                             "target": current_dn,
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         return findings

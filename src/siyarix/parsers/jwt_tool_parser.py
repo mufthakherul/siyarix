@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from . import _now_iso
-
 import json
 import re
+from typing import Any
+
+from . import _now_iso
 
 _VULN_RE = re.compile(
     r"(?:vulnerability|issue|attack|weakness|finding)[\s:]+(.+)",
@@ -52,8 +53,10 @@ _ROLE_RE = re.compile(
 class JwtToolParser:
     """Parse jwt_tool output into normalized finding dictionaries."""
 
-    def parse(self, output: str) -> list[dict]:
-        findings: list[dict] = []
+    def parse(self, output: str) -> list[dict[str, Any]]:
+        if not output or not output.strip():
+            return []
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         current_token = ""
         algo = "unknown"
@@ -96,7 +99,7 @@ class JwtToolParser:
                         decoded_payload = json.loads(
                             __import__("base64")
                             .urlsafe_b64decode(padded)
-                            .decode("utf-8", errors="replace")
+                            .decode("utf-8", errors="replace"),
                         )
                 except Exception:
                     pass
@@ -123,7 +126,7 @@ class JwtToolParser:
                             "tool": "jwt_tool",
                             "target": current_token[:40] + "..." if current_token else "unknown",
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -140,7 +143,7 @@ class JwtToolParser:
                             "tool": "jwt_tool",
                             "target": current_token[:40] + "..." if current_token else "unknown",
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -159,7 +162,7 @@ class JwtToolParser:
                             "tool": "jwt_tool",
                             "target": current_token[:40] + "..." if current_token else "unknown",
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
                 continue
 
@@ -181,7 +184,7 @@ class JwtToolParser:
                                 if current_token
                                 else "unknown",
                                 "timestamp": _now_iso(),
-                            }
+                            },
                         )
                 continue
 
@@ -205,7 +208,7 @@ class JwtToolParser:
                             "tool": "jwt_tool",
                             "target": current_token[:40] + "..." if current_token else "unknown",
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         if signature_valid is not None:
@@ -221,13 +224,13 @@ class JwtToolParser:
                         "tool": "jwt_tool",
                         "target": current_token[:40] + "..." if current_token else "unknown",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings
 
-    def _parse_json_output(self, record: dict) -> list[dict]:
-        findings: list[dict] = []
+    def _parse_json_output(self, record: dict) -> list[dict[str, Any]]:
+        findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         token = record.get("token", "")
         algo = record.get("algorithm", "unknown")
@@ -243,7 +246,7 @@ class JwtToolParser:
                     "tool": "jwt_tool",
                     "target": token[:40] + "..." if token else "unknown",
                     "timestamp": _now_iso(),
-                }
+                },
             )
 
         payload = record.get("payload", {})
@@ -266,7 +269,7 @@ class JwtToolParser:
                             "tool": "jwt_tool",
                             "target": token[:40] + "..." if token else "unknown",
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         issues = record.get("issues", [])
@@ -284,7 +287,7 @@ class JwtToolParser:
                             "tool": "jwt_tool",
                             "target": token[:40] + "..." if token else "unknown",
                             "timestamp": _now_iso(),
-                        }
+                        },
                     )
 
         if record.get("signature_valid") is not None:
@@ -301,7 +304,7 @@ class JwtToolParser:
                         "tool": "jwt_tool",
                         "target": token[:40] + "..." if token else "unknown",
                         "timestamp": _now_iso(),
-                    }
+                    },
                 )
 
         return findings

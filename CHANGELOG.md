@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### AI & Provider Ecosystem
-- **24 AI provider profiles** with `ProviderManager` singleton architecture: OpenAI, Google Gemini, Anthropic, Groq, Together AI, OpenRouter, DeepSeek, xAI (Grok), Mistral AI, Perplexity, Cerebras, Fireworks AI, Z.AI, MiniMax, Moonshot (Kimi), NVIDIA Nemotron, Hugging Face Inference, Azure OpenAI, OpenCode Go, Ollama, LM Studio, llama.cpp, vLLM, LocalAI, plus offline Registry (heuristic/offline fallback)
+- **24 AI provider profiles** with `ProviderManager` singleton architecture: OpenAI, Google Gemini, Anthropic, Groq, Together AI, OpenRouter, DeepSeek, xAI (Grok), Mistral AI, Perplexity, Cerebras, Fireworks AI, Z.AI, MiniMax, Moonshot (Kimi), NVIDIA Nemotron, Hugging Face Inference, Azure OpenAI, OpenCode Zen, Ollama, LM Studio, llama.cpp, vLLM, LocalAI, plus offline Registry (heuristic/offline fallback)
 - **Multi-Model Ensemble** subsystem with 4 voting strategies: MAJORITY, CONSENSUS, WEIGHTED, BEST_SCORE, with complexity-tiered routing
 - **Continuous Learning** system (`core/learning.py`): semantic memory via vector embeddings with cosine similarity search and experience recording
 - Multi-Provider failover with circuit breaker pattern and exponential backoff

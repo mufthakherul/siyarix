@@ -17,7 +17,7 @@ from .zai import register_profile as register_zai
 from .minimax import register_profile as register_minimax
 from .moonshot import register_profile as register_moonshot
 from .nvidia import register_profile as register_nvidia
-from .opencode_go import register_profile as register_opencode_go
+from .opencode_zen import register_profile as register_opencode_zen
 from .huggingface import register_profile as register_huggingface
 from .azure import register_profile as register_azure
 from .ollama import register_profile as register_ollama
@@ -45,7 +45,7 @@ def register_all_profiles(manager: ProviderManager) -> None:
     register_minimax(manager)
     register_moonshot(manager)
     register_nvidia(manager)
-    register_opencode_go(manager)
+    register_opencode_zen(manager)
     register_huggingface(manager)
     register_azure(manager)
     register_ollama(manager)

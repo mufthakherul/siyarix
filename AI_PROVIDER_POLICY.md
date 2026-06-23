@@ -39,7 +39,7 @@ ProviderManager (singleton -- 24+ provider profiles)
        |   +-- NVIDIA Nemotron (Nemotron-4, Llama-3.1-Nemotron)
        |   +-- Hugging Face (Inference API, Inference Endpoints)
        |   +-- Azure OpenAI (enterprise OpenAI with managed compliance)
-       |   +-- OpenCode Go (lightweight hosted inference)
+       |   +-- OpenCode Zen (lightweight hosted inference)
        |
        +-- Local Providers (no data leaves host)
        |   +-- Ollama (REST API -- supports 100+ open models)

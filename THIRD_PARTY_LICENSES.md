@@ -75,7 +75,7 @@ These dependencies are used for development, testing, and CI/CD:
 
 Siyarix **does not bundle any AI models**. AI capabilities are provided through:
 
-- **Cloud API Providers**: OpenAI, Google Gemini, Anthropic, Groq, Together AI, OpenRouter, DeepSeek, xAI, Mistral AI, Perplexity, Cerebras, Fireworks AI, Z.AI, MiniMax, Moonshot, NVIDIA, Hugging Face, Azure OpenAI, OpenCode Go -- each subject to their respective terms of service, privacy policies, and data processing agreements
+- **Cloud API Providers**: OpenAI, Google Gemini, Anthropic, Groq, Together AI, OpenRouter, DeepSeek, xAI, Mistral AI, Perplexity, Cerebras, Fireworks AI, Z.AI, MiniMax, Moonshot, NVIDIA, Hugging Face, Azure OpenAI, OpenCode Zen -- each subject to their respective terms of service, privacy policies, and data processing agreements
 
 - **Local Model Runtimes**: Ollama, LM Studio, llama.cpp, vLLM, LocalAI -- these run entirely on the user's machine and are subject to the licenses of the individual models loaded (typically permissive licenses for open-weight models such as Llama, Mistral, Gemma, Phi, etc.)
 

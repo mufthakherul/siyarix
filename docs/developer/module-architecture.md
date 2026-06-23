@@ -56,7 +56,7 @@ Each stage returns one of: `ALLOW` (pass), `DENY` (block with reason), or `REVIE
 
 Singleton managing 24 provider profiles through a unified interface:
 
-- **Cloud providers**: 19 profiles (OpenAI, Anthropic, Gemini, Groq, Together, DeepSeek, Mistral, OpenRouter, Perplexity, xAI, Cerebras, Fireworks, HuggingFace, MiniMax, Moonshot, NVIDIA, Azure, OpenCodeGo, Z.AI) — require API keys
+- **Cloud providers**: 19 profiles (OpenAI, Anthropic, Gemini, Groq, Together, DeepSeek, Mistral, OpenRouter, Perplexity, xAI, Cerebras, Fireworks, HuggingFace, MiniMax, Moonshot, NVIDIA, Azure, OpenCodeZen, Z.AI) — require API keys
 - **Local providers**: 5 profiles (Ollama, LM Studio, llama.cpp, vLLM, LocalAI) — no API key, auto-start support
 - **Fallback**: Registry (heuristic planner) — always available, no AI required
 

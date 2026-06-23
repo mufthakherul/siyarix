@@ -106,7 +106,7 @@ Siyarix AI Cybersecurity Orchestration Agent
        - NVIDIA Nemotron
        - Hugging Face (Inference API)
        - Azure OpenAI (enterprise managed)
-       - OpenCode Go
+       - OpenCode Zen
        - Ollama (local open-weight models)
        - LM Studio (self-hosted local models)
        - llama.cpp (local efficient CPU inference)

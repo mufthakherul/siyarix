@@ -93,7 +93,7 @@ graph LR
             MOON[Moonshot / Kimi]
             NVI[NVIDIA NIM]
             AZ[Azure OpenAI]
-            OC[OpenCodeGo]
+            OC[OpenCodeZen]
             ZAI[Z.AI]
         end
         

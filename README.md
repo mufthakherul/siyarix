@@ -112,7 +112,7 @@ Intent Router --> Context Manager --> AI Planner --> Permission Gate
 
 ### AI Orchestration
 
-- **24+ AI Providers**: OpenAI, Anthropic (Claude), Google Gemini, Groq, Mistral AI, Together AI, OpenRouter, DeepSeek, xAI (Grok), Perplexity, Cerebras, Fireworks AI, HuggingFace Inference, Azure OpenAI, NVIDIA Nemotron, MiniMax, Moonshot (Kimi), vLLM, Ollama, LM Studio, llama.cpp, LocalAI, OpenCodeGo, ZAI, plus offline heuristic registry
+- **24+ AI Providers**: OpenAI, Anthropic (Claude), Google Gemini, Groq, Mistral AI, Together AI, OpenRouter, DeepSeek, xAI (Grok), Perplexity, Cerebras, Fireworks AI, HuggingFace Inference, Azure OpenAI, NVIDIA Nemotron, MiniMax, Moonshot (Kimi), vLLM, Ollama, LM Studio, llama.cpp, LocalAI, OpenCodeZen, ZAI, plus offline heuristic registry
 - **Multi-Provider Failover**: Automatic circuit breaker pattern with exponential backoff across configured providers
 - **Multi-Model Ensemble**: Parallel LLM voting (MAJORITY, CONSENSUS, WEIGHTED, BEST_SCORE) for critical decisions
 - **Swarm Multi-Agent Orchestration**: Decompose complex objectives across specialized sub-agents

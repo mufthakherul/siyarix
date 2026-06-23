@@ -162,7 +162,7 @@ class HealthChecker:
 
         name_map["cloud"] = "Cloud"
         name_map["custom"] = "Custom"
-        name_map["opencode"] = "OpenCode"
+        name_map["opencode"] = "OpenCode Zen"
         entries.extend(
             [
                 ("cloud", "SIYARIX_SERVER_URL", False),

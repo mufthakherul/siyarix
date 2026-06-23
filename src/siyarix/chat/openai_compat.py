@@ -125,7 +125,7 @@ PROVIDER_CONFIG: dict[str, tuple[str, str, str]] = {
         "nvidia/nemotron-3-super-120b-a12b",
         "NVIDIA_API_KEY",
     ),
-    "opencode-go": ("https://opencode.ai/zen/go/v1", "deepseek-v4-flash", "OPENCODE_GO_API_KEY"),
+    "opencode-zen": ("https://opencode.ai/zen/v1", "deepseek-v4-flash", "OPENCODE_API_KEY"),
     "huggingface": ("https://api-inference.huggingface.co/v1", "", "HUGGINGFACE_API_KEY"),
     "azure": ("", "gpt-5.5", "AZURE_OPENAI_API_KEY"),
     "llamacpp": ("http://localhost:18080", "", ""),
@@ -153,7 +153,7 @@ MODEL_KEYS: dict[str, str] = {
     "minimax": "minimax_model",
     "moonshot": "moonshot_model",
     "nvidia": "nvidia_model",
-    "opencode-go": "opencode_go_model",
+    "opencode-zen": "opencode_zen_model",
     "huggingface": "huggingface_model",
     "llamacpp": "llamacpp_model",
     "vllm": "vllm_model",
@@ -196,7 +196,7 @@ def detect_compat(provider: str, base_url: str) -> OpenAICompat:
             is_zai,
             is_moonshot,
             is_deepseek,
-            provider == "opencode-go",
+            provider == "opencode-zen",
             "opencode.ai" in effective_base,
             is_cloudflare,
             "chutes.ai" in effective_base,
@@ -375,9 +375,16 @@ def make_client(
     # Local providers may not have an API key; supply a fallback value for the SDK.
     resolved_key = api_key or "local"
 
+    extra_kwargs = {}
+    if provider == "openrouter":
+        extra_kwargs["default_headers"] = {
+            "HTTP-Referer": "https://github.com/mufthakherul/siyarix",
+            "X-Title": "Siyarix",
+        }
+
     if resolved_base_url:
-        return AsyncOpenAI(api_key=resolved_key, base_url=resolved_base_url)
-    return AsyncOpenAI(api_key=resolved_key)
+        return AsyncOpenAI(api_key=resolved_key, base_url=resolved_base_url, **extra_kwargs)
+    return AsyncOpenAI(api_key=resolved_key, **extra_kwargs)
 
 
 # ── Gemini native REST API functions ────────────────────────────────────

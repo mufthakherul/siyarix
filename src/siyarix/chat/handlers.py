@@ -835,7 +835,7 @@ class CommandHandlersMixin:
                 "auto",
                 "cloud",
                 "custom",
-                "opencode",
+                "opencode-zen",
             }
 
             # ── Cross-mode validation for "registry" provider ──
@@ -869,7 +869,8 @@ class CommandHandlersMixin:
                 model_name = ""
                 if len(tokens) > 1 and selected != "auto":
                     model_name = tokens[1].strip()
-                    model_key = f"{selected}_model"
+                    from ..chat.openai_compat import MODEL_KEYS
+                    model_key = MODEL_KEYS.get(selected, f"{selected}_model")
                     try:
                         self._settings.set(model_key, model_name)
                         console.print(f"[green]✓ Set {model_key} to: {model_name}[/green]")
@@ -906,7 +907,7 @@ class CommandHandlersMixin:
                                 if not bench_model and profile:
                                     bench_model = profile.default_model
                                 result = await asyncio.wait_for(
-                                    bench_fn("Respond with exactly: OK", "ping"),
+                                    bench_fn("Respond with exactly: OK", "ping", model=bench_model),
                                     timeout=15.0,
                                 )
                                 if not isinstance(result, dict):
@@ -954,7 +955,7 @@ class CommandHandlersMixin:
 
         lines.append("[bold]Cloud:[/bold]  Requires SIYARIX_SERVER_URL + SIYARIX_API_KEY\n")
         lines.append("[bold]Custom:[/bold]  Requires CUSTOM_API_KEY\n")
-        lines.append("[bold]opencode:[/bold]  Requires OPENCODE_API_KEY\n\n")
+        lines.append("[bold]opencode-zen:[/bold]  Requires OPENCODE_API_KEY\n\n")
         lines.append(
             "[dim]Use /key <provider> <value> to store credentials and /model <provider> <model-name> to select models.[/dim]"
         )

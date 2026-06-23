@@ -97,7 +97,7 @@ class Provider(ABC):
 | `nvidia` | `openai` | NVIDIA Nemotron |
 | `huggingface` | `huggingface-hub` | Hugging Face Inference API |
 | `azure` | `openai` | Azure OpenAI (enterprise, managed AD) |
-| `opencode_go` | `openai` | OpenCode Go backend |
+| `opencode_zen` | `openai` | OpenCode Zen backend |
 
 ### Local Providers (No API Key)
 
@@ -158,7 +158,7 @@ When `model_provider = "auto"`, the system traverses the preference chain in ord
 ```
 gemini → openai → anthropic → groq → together → openrouter → deepseek → xai →
 mistral → perplexity → cerebras → fireworks → zai → minimax → moonshot →
-nvidia → huggingface → azure → opencode_go → ollama → lmstudio → llamacpp →
+nvidia → huggingface → azure → opencode_zen → ollama → lmstudio → llamacpp →
 vllm → localai → registry (heuristic)
 ```
 

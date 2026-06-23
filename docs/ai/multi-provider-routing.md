@@ -26,7 +26,7 @@ Siyarix v3.0.0 supports **24 AI providers**, all accessed through a unified Open
 | NVIDIA NIM | Cloud | `NVIDIA_API_KEY` | Nemotron-3-Super | `integrate.api.nvidia.com/v1` |
 | HuggingFace | Cloud | `HUGGINGFACE_API_KEY` | (varies) | `api-inference.huggingface.co/v1` |
 | Azure OpenAI | Cloud | `AZURE_OPENAI_API_KEY` | gpt-5.5 | (user-configured) |
-| OpenCodeGo | Cloud | `OPENCODE_GO_API_KEY` | deepseek-v4-flash | `opencode.ai/zen/go/v1` |
+| OpenCodeZen | Cloud | `OPENCODE_API_KEY` | deepseek-v4-flash | `opencode.ai/zen/v1` |
 | Ollama | Local | — | drana-infinity-7b | `localhost:11434/v1` |
 | LM Studio | Local | — | (varies) | `localhost:1234` |
 | llama.cpp | Local | — | (varies) | `localhost:18080` |

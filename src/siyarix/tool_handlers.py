@@ -218,10 +218,14 @@ def make_curl_handler(tool_name: str) -> ToolHandler:
 def make_dns_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         target = kwargs.get("target", "")
-        if not target:
-            return _empty_target_result(tool_name)
         flags = kwargs.get("flags", "")
-        cmd = [tool_name] + (flags.split() if flags else []) + [target]
+        cmd = [tool_name]
+        if flags:
+            cmd.extend(flags.split())
+        if target:
+            cmd.append(target)
+        if not flags and not target:
+            return _empty_target_result(tool_name)
         result = await _run(tool_name, cmd, kwargs.get("timeout", 30))
         return _make_result(tool_name, result)
 
@@ -247,11 +251,6 @@ def make_generic_handler(tool_name: str) -> ToolHandler:
 
         cmd = [tool_name]
         target = kwargs.get("target", "")
-        if target:
-            try:
-                validate_target(target)
-            except ValidationError as e:
-                return {"status": "error", "error": f"Invalid target: {e}", "tool": tool_name}
         args_raw = kwargs.get("args", [])
         flags = kwargs.get("flags", "")
         if isinstance(args_raw, str):

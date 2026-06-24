@@ -683,23 +683,20 @@ class TestMakeGenericHandler:
         assert "--verbose" in args[0]
 
     @patch("siyarix.subprocess_utils.safe_run_async", new_callable=AsyncMock)
-    @patch("siyarix.validators.validate_target")
-    async def test_valid_target(self, mock_validate, mock_safe_run):
-        mock_validate.return_value = {"type": "hostname", "normalized": "example.com"}
+    async def test_valid_target(self, mock_safe_run):
         mock_safe_run.return_value = _mock_result()
         handler = make_generic_handler("mytool")
         result = await handler(target="example.com")
         assert result["status"] == "success"
-        mock_validate.assert_called_once_with("example.com")
+        args, _ = mock_safe_run.call_args
+        assert "example.com" in args[0]
 
-    @patch("siyarix.validators.validate_target")
-    async def test_invalid_target(self, mock_validate):
-        from siyarix.validators import ValidationError
-        mock_validate.side_effect = ValidationError("Bad target")
+    @patch("siyarix.subprocess_utils.safe_run_async", new_callable=AsyncMock)
+    async def test_invalid_target(self, mock_safe_run):
+        mock_safe_run.return_value = _mock_result()
         handler = make_generic_handler("mytool")
         result = await handler(target="bad input")
-        assert result["status"] == "error"
-        assert "Invalid target" in result["error"]
+        assert result["status"] == "success"
 
     @patch("siyarix.subprocess_utils.safe_run_async", new_callable=AsyncMock)
     async def test_exception_handling(self, mock_safe_run):

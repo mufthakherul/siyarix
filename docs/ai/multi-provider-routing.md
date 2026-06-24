@@ -1,5 +1,9 @@
 # 🔀 Multi-Provider Routing
 
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+
+
 Siyarix boasts robust support for **25 AI providers** (24 cloud/local + 1 offline registry), all accessible through a unified, OpenAI-compatible adapter located in `openai_compat.py`. 
 
 At the heart of this system is the `ProviderManager` singleton. Think of it as the air traffic controller for your AI requests—it handles provider registration, credential pooling, seamless failover, exponential-backoff cooldowns, and smart multi-model ensemble decisions.

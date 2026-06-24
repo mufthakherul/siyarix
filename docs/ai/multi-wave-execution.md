@@ -1,5 +1,9 @@
 # 🌊 Multi-Wave Execution & Live Streaming
 
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+
+
 Siyarix leverages a sophisticated, **multi-wave execution loop** to power its iterative, LLM-driven workflows. Instead of merely firing off a single batch of commands and hoping for the best, Siyarix operates in sequential "waves." 
 
 After each wave, the LLM analyzes the results to intelligently determine the next steps. This progressive approach unlocks truly autonomous, multi-step security operations! Plus, context is seamlessly carried over between waves, empowering the LLM to learn and build upon its previous findings as it works through complex tasks.
@@ -227,7 +231,7 @@ Time: 12.3s | Mode: integrated | Persona: redteam | LLM: connected
 
 ## 🔒 Comprehensive Safety Integration
 
-Executing AI-generated commands requires a rock-solid safety net. *Every single command*, across *every single wave*, must successfully pass through Siyarix's strict safety pipeline:
+Executing AI-generated commands requires a reliable safety net. *Every single command*, across *every single wave*, must successfully pass through Siyarix's strict safety pipeline:
 
 1. **🚦 PermissionGate**: A strict two-stage review. It first validates syntax, then performs a danger analysis. It outright blocks critical threats and flags high/medium risks for your explicit review.
 2. **🛡️ InputValidator**: Actively scans for and rejects injection patterns (e.g., dangerous shell metacharacters, path traversals, or null bytes).

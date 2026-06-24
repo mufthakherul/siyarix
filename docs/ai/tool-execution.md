@@ -1,5 +1,9 @@
 # 🚀 Tool Execution Architecture
 
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+
+
 Welcome to the **Tool Execution Pipeline** documentation! This guide explains how AI-planned tools are seamlessly discovered, registered, evaluated, and executed within Siyarix. 
 
 Our pipeline is designed to be robust and secure, handling everything from cross-platform installation and availability checks to output parsing and error recovery. 

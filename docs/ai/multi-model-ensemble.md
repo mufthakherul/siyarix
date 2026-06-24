@@ -1,14 +1,18 @@
 # 🧠 Multi-Model Ensemble
 
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+
+
 Ever wish you could ask a panel of experts a question and go with the majority opinion? That's exactly what the `ProviderManager.ensemble_decide()` method does! 
 
-By running a single query across multiple AI providers simultaneously, this method returns the **majority-vote result**. This approach gives your application three massive superpowers:
+By running a single query across multiple AI providers simultaneously, this method returns the **majority-vote result**. This approach gives your application three large superpowers:
 - **Hallucination Resistance:** Catches when one AI model goes completely off the rails.
 - **Consensus Validation:** Builds confidence when multiple top-tier models agree.
 - **Graceful Degradation:** Keeps your app running smoothly even if an individual provider fails or times out.
 
 > [!NOTE]
-> Currently, this is a lightweight, production-grade implementation embedded directly in `ProviderManager` rather than a standalone class. We have an exciting roadmap for a more feature-rich ensemble, including weighted voting strategies and advanced hallucination scoring!
+> Currently, this is a lightweight, functional implementation embedded directly in `ProviderManager` rather than a standalone class. We have an exciting roadmap for a more feature-rich ensemble, including weighted voting strategies and advanced hallucination scoring!
 
 ---
 
@@ -96,7 +100,7 @@ return most_common
 
 Right now, we use a straightforward **majority vote** (plurality) system. Whichever response text occurs most frequently across your selected providers is declared the winner. 
 
-Because AI ensemble decision-making is an emerging field, we've focused heavily on creating a rock-solid, reliable foundation:
+Because AI ensemble decision-making is an emerging field, we've focused heavily on creating a reliable, reliable foundation:
 
 | Aspect | Behavior |
 |--------|----------|

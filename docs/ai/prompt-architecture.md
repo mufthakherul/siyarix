@@ -1,5 +1,9 @@
 # 🧠 Prompt Architecture
 
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+
+
 Welcome to the **Prompt Architecture** of Siyarix! This document outlines how Siyarix dynamically constructs the prompts that power its intelligence. 
 
 By pulling together system context, your input, session state, persona configurations, and safety constraints, Siyarix builds the perfect prompt for every situation. All prompt definitions live in `src/siyarix/chat/prompts.py` and are pieced together right when they're needed by `LLMEngineMixin._build_system_prompt()` in `chat/engine.py`.
@@ -44,7 +48,7 @@ This is the full-spectrum system prompt (~60 lines) used whenever a specific per
 - **Communication Standards**: Guidelines on tone, MITRE ATT&CK references, and CVEs.
 
 ```python
-SIYARIX_SYSTEM_PROMPT = f"""You are Siyarix, an elite cybersecurity professional operating in a terminal-driven environment.
+SIYARIX_SYSTEM_PROMPT = f"""You are Siyarix, an dedicated cybersecurity professional operating in a terminal-driven environment.
 
 {_platform_context()}
 
@@ -200,7 +204,7 @@ LLMs have memory limits (the context window). When a conversation gets too long,
 4. **Compaction Engine**: When `CONTEXT_OVERFLOW` hits, the `CompactionEngine` actively uses the LLM to summarize long histories into bite-sized summaries.
 
 > [!WARNING]
-> If you notice Siyarix "forgetting" very early details in a massive session, it's because the Compaction Engine or truncation has kicked in to keep the context window manageable!
+> If you notice Siyarix "forgetting" very early details in a large session, it's because the Compaction Engine or truncation has kicked in to keep the context window manageable!
 
 ---
 

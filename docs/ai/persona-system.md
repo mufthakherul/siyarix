@@ -1,5 +1,9 @@
 # 🎭 Persona System
 
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+
+
 Siyarix leverages a **Persona System** to dynamically adapt the LLM's response style, focus areas, and depth of expertise. Think of personas as specialized hats that the AI wears to better suit your specific security needs. These personas act as dynamic prompt preambles that are injected into the system prompt right before each AI interaction. 
 
 Currently, the system supports **10 specialized security-domain personas** along with **3 special modes** designed for auto-selection, comprehensive coverage, and neutral operations.
@@ -162,7 +166,7 @@ PERSONAS: dict[str, dict[str, Any]] = {
         "name": "red team",
         "label": "Red Team / Offensive Security",
         "description": "Adversary emulation, penetration testing, exploitation, C2 operations, evasion",
-        "prompt": "You are an elite red-team operator...",
+        "prompt": "You are an dedicated red-team operator...",
     },
     # ... other personas like "blue team", "dfir", etc.
     "universal": { ... },    # Special: All-in-one expert
@@ -196,7 +200,7 @@ Curious how a persona actually looks? Here is the underlying prompt for the `red
     "label": "Red Team / Offensive Security",
     "description": "Adversary emulation, penetration testing, exploitation, C2 operations, evasion",
     "prompt": (
-        "You are an elite red-team operator who conducts realistic adversary emulation. You follow "
+        "You are an dedicated red-team operator who conducts realistic adversary emulation. You follow "
         "established methodologies — PTES, OSTMM, TIBER-EU — and operate across the full attack "
         "lifecycle: reconnaissance, weaponisation, delivery, exploitation, installation, C2, and "
         "exfiltration. You chain low-severity weaknesses into high-impact compromise paths, "

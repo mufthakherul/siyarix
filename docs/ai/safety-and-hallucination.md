@@ -1,5 +1,9 @@
 # 🛡️ Safety, Security & Hallucination Resistance
 
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+
+
 Welcome to the core of Siyarix's defense mechanism! When operating an autonomous or semi-autonomous AI system, safety and security are paramount. 
 
 > [!IMPORTANT]
@@ -230,7 +234,7 @@ The operator has four choices:
 
 ## 6. 📜 AuditLogger
 
-Located in `src/siyarix/audit_log.py`, the **AuditLogger** provides an enterprise-grade audit trail with a tamper-evident chain of custody, ensuring absolute accountability.
+Located in `src/siyarix/audit_log.py`, the **AuditLogger** provides an solid audit trail with a tamper-evident chain of custody, ensuring absolute accountability.
 
 ### 🧩 The Event System
 
@@ -337,7 +341,7 @@ Need to dive into the code? Here's where to find everything:
 | **PermissionGate** | `src/siyarix/permission_gate.py:49` | Enforces syntax checks and danger policies. |
 | **DLPEngine** | `src/siyarix/dlp.py:29` | Prevents sensitive data loss in outputs. |
 | **ShellReview** | `src/siyarix/shell_review.py:48` | Human-in-the-loop interactive reviews. |
-| **AuditLogger** | `src/siyarix/audit_log.py:194` | Tamper-evident, enterprise auditing. |
+| **AuditLogger** | `src/siyarix/audit_log.py:194` | Tamper-evident, personal auditing. |
 | **Validator** | `src/siyarix/validators.py:598` | Format validation and AI plan recovery. |
 | **SeccompProfile** | `src/siyarix/security_hardening.py:771` | Docker syscall restriction profiles. |
 

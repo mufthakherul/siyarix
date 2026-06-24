@@ -1,8 +1,12 @@
 # 🧠 Agent Reasoning Pipeline
 
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+
+
 Welcome to the **Agent Reasoning Pipeline**! This is the "brain" of Siyarix, responsible for taking a user's objective and turning it into real, executed actions. 
 
-Think of it as a smart traffic cop: the **Planner Router** directs requests to either an AI-driven planner (using a Large Language Model or LLM) or a rule-based heuristic planner. This depends on the mode you are running. In autonomous mode, the system follows a dynamic **Observe–Reason–Act–Reflect** loop. In registry or offline mode, it relies on rock-solid, deterministic templates.
+Think of it as a smart traffic cop: the **Planner Router** directs requests to either an AI-driven planner (using a Large Language Model or LLM) or a rule-based heuristic planner. This depends on the mode you are running. In autonomous mode, the system follows a dynamic **Observe–Reason–Act–Reflect** loop. In registry or offline mode, it relies on reliable, deterministic templates.
 
 > [!NOTE]
 > The dual-planner architecture ensures that Siyarix remains fully functional whether you have an active LLM connection or are operating completely offline.
@@ -46,7 +50,7 @@ This is our pure, AI-driven planner. It relies entirely on the LLM to figure thi
 ### ⚙️ RegistryPlanner
 *(Found in `src/siyarix/planner_registry.py`)*
 
-This is our rock-solid, deterministic planner. It operates entirely without an LLM! 
+This is our reliable, deterministic planner. It operates entirely without an LLM! 
 
 **Key Features:**
 - **🔍 Keyword Matching**: It uses an inverted keyword index to map plain English words to specific security tools.

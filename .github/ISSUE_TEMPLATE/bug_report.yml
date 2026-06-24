@@ -14,8 +14,8 @@ body:
     id: version
     attributes:
       label: Siyarix Version
-      description: What version of Siyarix are you running? (e.g. v3.0.0)
-      placeholder: v3.0.0
+      description: What version of Siyarix are you running? (e.g. v1.0.0)
+      placeholder: v1.0.0
     validations:
       required: true
   - type: dropdown

@@ -1,5 +1,9 @@
 # 🚦 Intent Routing
 
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+
+
 Welcome to the **Intent Routing** subsystem! Think of this as the intelligent traffic cop of the application. It listens to what the user wants to do (their input), figures out how risky that action is, and directs it down the safest and most efficient execution path. 
 
 This system teams up with two other key components:
@@ -155,7 +159,7 @@ Once we understand what the user wants to do, the `Planner` class (in `siyarix/p
 |---------------|------------------------|------------------|
 | `registry` / `offline` | `RegistryPlanner` | Uses strict heuristics. Completely AI-free! |
 | `autonomous` | `AutonomousPlanner` | Relies entirely on an LLM. No fallback if the LLM fails. |
-| `integrated` (Default) | Tries `Autonomous`, then `Registry` | The best of both worlds. AI-first, with a rock-solid heuristic fallback. |
+| `integrated` (Default) | Tries `Autonomous`, then `Registry` | The best of both worlds. AI-first, with a reliable heuristic fallback. |
 
 Here's an example of how a plan is requested:
 
@@ -197,7 +201,7 @@ TOOL_ALTERNATIVES = {
 
 ### 🧩 Multi-Word Intent Matching
 
-We've baked in over 500 multi-word patterns that translate natural language into specific tool commands. This covers a massive range of cybersecurity operations:
+We've baked in over 500 multi-word patterns that translate natural language into specific tool commands. This covers a large range of cybersecurity operations:
 
 - 🕵️ **Reconnaissance**: Subdomain enumeration, port scanning, tech fingerprinting.
 - 🎯 **Vulnerability Scanning**: Seamlessly kicking off Nuclei, Nikto, or SQLMap.

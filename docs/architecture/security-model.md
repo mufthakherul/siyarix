@@ -1,5 +1,9 @@
 # 🛡️ Siyarix Security Model
 
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+
+
 Siyarix implements a robust, defense-in-depth security model designed to protect your data, enforce operational security (OPSEC), and ensure safe execution at all times. Our architecture spans multiple critical layers—from input validation and permission gating to stealth operations and tamper-evident auditing. Each layer is independently configurable, allowing you to combine them for graduated, context-aware safety policies.
 
 > [!NOTE]

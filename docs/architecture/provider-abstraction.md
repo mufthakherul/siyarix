@@ -1,5 +1,9 @@
 # 🧩 Provider Abstraction Layer
 
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+
+
 Welcome to the **Provider Abstraction Layer**! This component is the beating heart of our AI infrastructure. It smoothly decouples all AI-dependent components from specific model backends, making our system resilient, flexible, and fully provider-agnostic.
 
 Think of it as an intelligent traffic controller for your AI models. It effortlessly manages **26 different provider profiles** with features like automatic failover, circuit breaking, exponential backoff, and token usage tracking. Plus, it brings everything together under a single, unified `OpenAICompat` adapter. 
@@ -119,7 +123,7 @@ These providers require authentication but offer the most powerful, cutting-edge
 | `moonshot` | `openai` | Moonshot / Kimi |
 | `nvidia` | `openai` | NVIDIA Nemotron |
 | `huggingface` | `huggingface-hub` | Hugging Face Inference API |
-| `azure` | `openai` | Azure OpenAI (enterprise, managed AD) |
+| `azure` | `openai` | Azure OpenAI (personal, managed AD) |
 | `opencode_zen` | `openai` | OpenCode Zen backend |
 
 ### 💻 Local Providers (No API Key Required)

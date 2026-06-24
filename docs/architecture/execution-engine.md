@@ -1,5 +1,9 @@
 # ⚙️ Execution Engine
 
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+
+
 The execution subsystem is the beating heart of Siyarix. It takes abstract `ExecutionPlan` objects and transforms them into real-world, executed commands. Built on a robust, layered architecture, it features a shared **BaseExecutor** that provides critical services like budget tracking, safety guardrails, Data Loss Prevention (DLP) integration, and strict permission gating for all specialized executors.
 
 > [!NOTE]

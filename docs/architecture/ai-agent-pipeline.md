@@ -1,5 +1,9 @@
 # 🤖 AI Agent Pipeline Architecture
 
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+
+
 Welcome to the heart of Siyarix! The AI agent pipeline is the central nervous system that takes user inputs and transforms them into intelligent, goal-driven actions. 
 
 Orchestrated by the `AgentCore`, this pipeline processes every request through a structured, highly secure lifecycle: **Plan → Execute → Observe-Reason-Act**. It supports four different operational modes and features an autonomous feedback loop, budget checking, and multi-wave execution to ensure your goals are met safely and efficiently.

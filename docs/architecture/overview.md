@@ -1,5 +1,9 @@
 # 🏗️ System Architecture Overview
 
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+
+
 Siyarix v1.0.0 is an AI-native cybersecurity operations platform that acts as the intelligent bridge between natural language intent and deterministic tool execution. Its architecture is built around a robust layered orchestration model, where the central **AgentCore** intelligently dispatches tasks across four distinct operational modes. It routes user intent through a series of planners, security gates, executors, and persistence layers, ensuring safe, efficient, and precise execution.
 
 > [!NOTE]

@@ -1,5 +1,9 @@
 # 🎮 Interaction Modes
 
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+
+
 Siyarix is designed to adapt to your workflow. We support four distinct interaction modes: **REGISTRY**, **AUTONOMOUS**, **HYBRID**, and **INTERACTIVE**. 
 
 These modes are available across our two primary interfaces: 
@@ -175,7 +179,7 @@ Iteration 3: WordPress version identified as 5.6.2
 
 ## 3️⃣ HYBRID Mode
 
-**HYBRID Mode** is the sweet spot. It offers a balanced approach by combining the dynamic reasoning of AI planning with the rock-solid reliability of registry fallbacks.
+**HYBRID Mode** is the sweet spot. It offers a balanced approach by combining the dynamic reasoning of AI planning with the reliable reliability of registry fallbacks.
 
 ### ✨ Characteristics
 

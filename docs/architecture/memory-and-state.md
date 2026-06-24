@@ -1,6 +1,10 @@
 # 🧠 Memory & State Management
 
-Welcome to the heart of Siyarix! This document outlines our multi-layered memory and state management system. We designed this architecture to flawlessly handle everything from lightning-fast in-memory processing to rock-solid SQLite persistence and portable file-based exports.
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+
+
+Welcome to the heart of Siyarix! This document outlines our multi-layered memory and state management system. We designed this architecture to flawlessly handle everything from lightning-fast in-memory processing to reliable SQLite persistence and portable file-based exports.
 
 At a high level, the system comprises several specialized components:
 - **KnowledgeGraph**: Connects the dots on infrastructure relationships.

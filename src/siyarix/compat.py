@@ -200,6 +200,8 @@ class ExecutionEngine:
         from .core import AgentCore, AgentMode, AgentGoal, AgentResult
         from .models import StepResult
 
+        progress_callback = kwargs.get("progress_callback")
+
         # Handle dry_run: return early with plan preview
         dry_run = kwargs.get("dry_run", False)
         if dry_run:
@@ -229,6 +231,7 @@ class ExecutionEngine:
         agent = AgentCore(
             mode=mode_map.get(self._mode, AgentMode.HYBRID),
             registry=self._registry,
+            progress_callback=progress_callback,
         )
         await agent.start()
         try:

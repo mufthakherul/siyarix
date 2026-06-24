@@ -97,6 +97,7 @@ class AgentCore:
         mode: AgentMode = AgentMode.REGISTRY,
         registry: ToolRegistry | None = None,
         db_path: str | Path | None = None,
+        progress_callback: Any | None = None,
     ) -> None:
         self._mode = mode
         self._status = AgentStatus.IDLE
@@ -148,6 +149,7 @@ class AgentCore:
         except Exception as e:
             logger.warning("Failed to initialize notifications: %s", e)
 
+        self._progress_callback = progress_callback
         self._history: list[AgentResult] = []
         self._kg_path = get_config_dir() / "knowledge_graph.json"
         self._knowledge_graph = KnowledgeGraph()
@@ -335,14 +337,6 @@ class AgentCore:
 
         self._workflow_engine.register_step("execute_goal_end", {"success": result.success})  # type: ignore[arg-type]
 
-        try:
-            from ..output import OutputEngine
-            import dataclasses
-            out = OutputEngine()
-            out.export_to_file(dataclasses.asdict(result), f"siyarix_scan_{int(time.time())}.json")
-        except Exception as e:
-            logger.debug("Failed to export result: %s", e)
-
         return result
 
     async def _execute_registry(
@@ -373,6 +367,8 @@ class AgentCore:
                             data={"step_id": step_id, "tool": s.tool, "status": s.status.value},
                         )
                     )
+                    if self._progress_callback:
+                        self._progress_callback(s, step_progress)
 
             self._executor_registry.set_progress_callback(on_step)
             await self._validator.validate_plan(plan.steps)

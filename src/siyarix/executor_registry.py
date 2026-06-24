@@ -348,25 +348,35 @@ class RegistryExecutor(BaseExecutor):
 
             engine = WorkflowEngine()
 
-            # Register a step executor that maps workflow args back to _try_execute
-            def _create_runner(tool_name: str) -> WorkflowStepFn:
-                async def runner(args: dict[str, Any]) -> dict[str, Any]:
-                    step = PlanStep(id="wf_step", tool=tool_name, args=args)
-                    return await self._try_execute(step, None)
-                return runner
+            # Register a step executor per step so we can report progress
+            for s in plan.steps:
+                async def _run_step(args: dict[str, Any], _step: PlanStep = s) -> dict[str, Any]:
+                    _step.status = StepStatus.RUNNING
+                    if self._on_step_progress:
+                        res = self._on_step_progress(_step)
+                        if hasattr(res, "__await__"):
+                            await res
+                    _result = await self._try_execute(_step, None)
+                    _step.result = _result
+                    _step.status = (
+                        StepStatus.COMPLETED
+                        if _result.get("status") != "error"
+                        else StepStatus.FAILED
+                    )
+                    _step.duration_ms = _result.get("duration_ms", 0)
+                    if self._on_step_progress:
+                        res = self._on_step_progress(_step)
+                        if hasattr(res, "__await__"):
+                            await res
+                    return _result
 
-            if self._registry:
-                for tool in self._registry.list_tools():
-                    engine.register_step(tool.name, _create_runner(tool.name))
-
-            for tool_name in self._custom_executors:
-                engine.register_step(tool_name, _create_runner(tool_name))
+                engine.register_step(s.id, _run_step)
 
             nodes = [
                 {
                     "id": s.id,
                     "name": s.tool or s.description,
-                    "step_fn": s.tool,
+                    "step_fn": s.id,
                     "args": s.args,
                     "timeout": s.timeout,
                 }
@@ -382,7 +392,6 @@ class RegistryExecutor(BaseExecutor):
             for s in plan.steps:
                 wf_node = wf_result.get_node(s.id)
                 if wf_node:
-                    s.status = StepStatus(wf_node.status.value)
                     s.result = wf_node.result
 
             plan.status = (

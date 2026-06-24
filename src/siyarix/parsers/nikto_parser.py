@@ -62,7 +62,6 @@ class NiktoParser:
                 continue
 
             content = line[1:].strip()
-            # Skip header/summary lines
             if (
                 content.startswith(("Target", "Start Time", "End Time", "1 host"))
             ):

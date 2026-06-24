@@ -20,8 +20,6 @@ class SubfinderParser:
 
         for line in text_output.splitlines():
             line = line.strip()
-            # Subfinder often outputs subdomains directly, one per line.
-            # Skip empty lines or banner lines (often start with brackets or are very long)
             if not line or " " in line or line.startswith("["):
                 continue
 

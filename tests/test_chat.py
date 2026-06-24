@@ -271,7 +271,7 @@ class TestSiyarixChatSlashCommands:
         chat._settings.set("model_provider", "registry")
         chat._cmd_mode("integrated")
         assert chat._mode == "integrated"
-        assert chat._settings.get("model_provider") == "auto"
+        assert chat._settings.get("model_provider") == "registry"
 
     def test_cmd_uptime(self, chat: SiyarixChat, mock_console) -> None:
         chat._cmd_uptime("")

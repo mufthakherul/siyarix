@@ -2,8 +2,6 @@
 import sys
 sys.path.insert(0, 'src')
 from siyarix import RegistryPlanner
-from siyarix.models import PlanType
-import re
 
 planner = RegistryPlanner()
 

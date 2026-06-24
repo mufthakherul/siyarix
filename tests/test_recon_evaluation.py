@@ -322,7 +322,7 @@ def run_tests():
         for f in failures:
             print(f"  - {f}")
 
-        print(f"\nDebug: checking actual plans...")
+        print("\nDebug: checking actual plans...")
         p = RegistryPlanner()
         p.build_index(AVAILABLE_TOOLS)
         for cmd in failures[:15]:

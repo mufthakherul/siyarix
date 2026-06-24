@@ -6,6 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
+from siyarix.credential_store import CredentialStore
+
 from siyarix.cache_manager import (
     CACHE_DOMAINS,
     CacheEntry,

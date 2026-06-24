@@ -30,5 +30,5 @@ for g in fail_goals:
         print(f'  EXPECTED: tools={expected_tools}, min={min_steps}, max={max_steps}')
     else:
         print(f'GOAL: {g}')
-        print(f'  NOT FOUND')
+        print('  NOT FOUND')
     print()

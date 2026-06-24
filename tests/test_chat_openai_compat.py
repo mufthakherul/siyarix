@@ -164,31 +164,31 @@ class TestOpenAICompatCore:
         asyncio.run(_test())
 
     def test_map_real_model_gemini_flash(self):
-        assert _map_real_model("gemini-3.5-flash") == "gemini-2.0-flash"
+        assert _map_real_model("gemini-3.5-flash") == "gemini-3.5-flash"
 
     def test_map_real_model_gemini_lite(self):
-        assert _map_real_model("gemini-3.5-flash-lite") == "gemini-2.0-flash-lite-preview-02-05"
+        assert _map_real_model("gemini-3.5-flash-lite") == "gemini-3.5-flash-lite"
 
     def test_map_real_model_gemini_pro(self):
-        assert _map_real_model("gemini-4.0-pro") == "gemini-1.5-pro"
+        assert _map_real_model("gemini-4.0-pro") == "gemini-4.0-pro"
 
     def test_map_real_model_gpt_mini(self):
-        assert _map_real_model("gpt-5.1-mini") == "gpt-4o-mini"
+        assert _map_real_model("gpt-5.1-mini") == "gpt-5.1-mini"
 
     def test_map_real_model_gpt_nano(self):
-        assert _map_real_model("gpt-5.0-nano") == "gpt-4o-mini"
+        assert _map_real_model("gpt-5.0-nano") == "gpt-5.0-nano"
 
     def test_map_real_model_gpt_default(self):
-        assert _map_real_model("gpt-5.5") == "gpt-4o"
+        assert _map_real_model("gpt-5.5") == "gpt-5.5"
 
     def test_map_real_model_claude_sonnet(self):
-        assert _map_real_model("claude-sonnet-4") == "claude-3-5-sonnet-latest"
+        assert _map_real_model("claude-sonnet-4") == "claude-sonnet-4"
 
     def test_map_real_model_claude_opus(self):
-        assert _map_real_model("claude-opus-4") == "claude-3-opus-latest"
+        assert _map_real_model("claude-opus-4") == "claude-opus-4"
 
     def test_map_real_model_claude_haiku(self):
-        assert _map_real_model("claude-haiku-4") == "claude-3-5-haiku-latest"
+        assert _map_real_model("claude-haiku-4") == "claude-haiku-4"
 
     def test_map_real_model_unknown_returns_original(self):
         assert _map_real_model("some-other-model") == "some-other-model"

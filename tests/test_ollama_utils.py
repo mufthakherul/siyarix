@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os as _real_os
 import subprocess
 import sys
 from unittest.mock import MagicMock, patch

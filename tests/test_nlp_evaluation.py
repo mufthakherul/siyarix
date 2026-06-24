@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from siyarix.planner_registry import RegistryPlanner
-from siyarix.nlp_engine import NaturalLanguageParser
-from siyarix.models import PlanType
 
 planner = RegistryPlanner()
 

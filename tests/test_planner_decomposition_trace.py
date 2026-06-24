@@ -1,9 +1,8 @@
 """Debug trace for decompose_goal on specific commands."""
 
 from siyarix import RegistryPlanner
-from siyarix.nlp_engine import NaturalLanguageParser
-from siyarix.models import PlanType
-import re, os
+import re
+import os
 
 _IS_WIN = os.name == "nt"
 
@@ -158,7 +157,7 @@ if target:
     intent_map = {"port": ("nmap", "Port scan", "-sT -T4 --top-ports 100")}
     # Check just the REAL intent_map scanning
     GENERIC = frozenset({"scan", "run", "do", "get", "find", "check", "test", "list", "show", "explore", "discover", "probe"})
-    print(f"[4] Searching intent_map...")
+    print("[4] Searching intent_map...")
     # Only show what matches
     for kw in goal_lower.split():
         print(f"    word={kw!r}")

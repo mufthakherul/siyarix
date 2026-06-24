@@ -627,7 +627,6 @@ import itertools
 import subprocess
 from unittest.mock import patch
 
-import pytest
 
 
 

@@ -1,58 +1,73 @@
-# Contribution Guide
+# 🤝 Contribution Guide
 
-Thank you for contributing to Siyarix. Whether you are a security professional, Python developer, documentation writer, or student, your contributions help build the future of AI-native security orchestration. Please read and follow these guidelines.
+Thank you for your interest in contributing to Siyarix! 🎉 Whether you are a seasoned security professional, a Python developer, a documentation writer, or an enthusiastic student, your contributions are what help build the future of AI-native security orchestration. 
 
-## Prerequisites
+Please read and follow these guidelines to ensure a smooth and collaborative experience.
 
-- Python 3.11+
-- Git
-- Familiarity with `asyncio`, type hints, and `pytest`
-- GitHub account
+> [!NOTE]
+> We welcome all kinds of contributions—from typo fixes to entirely new AI provider integrations! If you're planning a major change, please open an issue first so we can discuss the design.
 
-## Development Setup
+## 🧰 Prerequisites
+
+Before diving in, make sure you have the following ready:
+- **Python 3.11+**
+- **Git**
+- Familiarity with `asyncio`, Python type hints, and `pytest`
+- A GitHub account
+
+## 🛠️ Development Setup
+
+Getting Siyarix running locally is a breeze:
 
 ```bash
+# 1. Clone your fork
 git clone https://github.com/YOUR-USERNAME/siyarix.git
 cd siyarix
+
+# 2. Create and activate a virtual environment
 python -m venv .venv
-# source .venv/bin/activate   (Linux/macOS)
-# .\.venv\Scripts\Activate.ps1  (Windows)
+source .venv/bin/activate         # Linux/macOS
+# .\.venv\Scripts\Activate.ps1    # Windows
+
+# 3. Install in editable mode with development dependencies
 pip install -e ".[all,cli,siem,dev]"
 ```
 
-### Verify Your Setup
+### ✅ Verify Your Setup
+
+Ensure everything is configured correctly before writing code:
 
 ```bash
 pytest -q           # Run the test suite
-ruff check .        # Lint checking
-mypy src/siyarix/   # Static type checking
+ruff check .        # Check for linting errors
+mypy src/siyarix/   # Verify static type checking
 ```
 
-## Workflow
+## 🔄 Contribution Workflow
 
-1. Find or create an issue — discuss significant changes before starting
-2. Create a branch: `git checkout -b feat/my-feature`
-3. Make changes following code conventions
-4. Run quality checks:
+1. **Find or create an issue:** Discuss significant changes with maintainers before starting work.
+2. **Branch out:** Create a fresh branch for your work: `git checkout -b feat/my-awesome-feature`.
+3. **Write code:** Make your changes, ensuring you follow our code conventions.
+4. **Run Quality Checks:** 
    ```bash
-   pytest                          # Run tests (asyncio_mode=auto)
-   ruff check src/ tests/          # Lint
-   mypy src/siyarix/               # Type check (strict mode)
+   pytest                          # Ensure tests pass
+   ruff check src/ tests/          # Ensure code is lint-free
+   mypy src/siyarix/               # Ensure type strictness
    ```
-5. Commit with conventional commit message (DCO signed)
-6. Push and open a pull request targeting `main`
+5. **Commit:** Use conventional commit messages and ensure your commit is DCO signed (`git commit -s`).
+6. **Push & PR:** Push your branch and open a Pull Request targeting the `main` branch.
 
-## Code Conventions
+## 📏 Code Conventions
 
-### Style
+### 🎨 Style
 
-- PEP 8 as enforced by Ruff (line length: 100)
-- Type hints on all public functions and methods (`disallow_untyped_defs` in mypy)
-- `from __future__ import annotations` at top of every module
-- Dataclasses for structured data
-- `asyncio` for I/O-bound operations
+- We follow **PEP 8**, strictly enforced by **Ruff** (line length: 100).
+- **Type hints** are mandatory on all public functions and methods (`disallow_untyped_defs`).
+- Include `from __future__ import annotations` at the top of every module.
+- Use **Dataclasses** for structured data.
+- Prefer `asyncio` for any I/O-bound operations.
 
-### Naming
+### 🏷️ Naming Conventions
 
 | Element | Convention | Example |
 |---------|-----------|---------|
@@ -62,24 +77,24 @@ mypy src/siyarix/   # Static type checking
 | Constants | UPPER_CASE | `DEFAULTS` |
 | Private | Leading underscore | `_get_engine()` |
 
-### Imports
+### 📦 Imports
 
-Group in order separated by blank lines:
-1. Standard library (`os`, `sys`, `asyncio`)
-2. Third-party (`typer`, `rich`, `pydantic`)
-3. Internal (`siyarix.config`, `.audit_log`)
+Organize your imports in blocks, separated by blank lines:
+1. Standard library (e.g., `os`, `sys`, `asyncio`)
+2. Third-party (e.g., `typer`, `rich`, `pydantic`)
+3. Internal Siyarix modules (e.g., `siyarix.config`, `.audit_log`)
 
-### Error Handling
+### ⚠️ Error Handling
 
-- Raise `SiyarixException` subclasses for domain errors
-- Use specific exception types; avoid bare `except:`
-- Map exceptions to exit codes via `exit_code_for()`
+- Always raise specific `SiyarixException` subclasses for domain errors.
+- **Never** use bare `except:` blocks.
+- Map exceptions correctly to exit codes via `exit_code_for()`.
 
-## Commit Conventions
+## 📝 Commit Conventions
 
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
+We strictly follow [Conventional Commits](https://www.conventionalcommits.org/):
 
-```
+```text
 <type>(<scope>): <description>
 
 [optional body]
@@ -87,105 +102,76 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 [optional footer]
 ```
 
-| Type | Usage |
-|------|-------|
-| `feat` | New feature |
-| `fix` | Bug fix |
-| `docs` | Documentation |
-| `test` | Adding/updating tests |
-| `refactor` | Code change (neither fix nor add) |
-| `perf` | Performance improvement |
-| `style` | Formatting, linting (no logic change) |
-| `ci` | CI/CD configuration |
-| `chore` | Build, dependencies, tooling |
-| `security` | Security fix or hardening |
+**Common Types:** `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `style`, `ci`, `chore`, `security`.
 
-### DCO Sign-off
+> [!IMPORTANT]
+> **DCO Sign-off Required!**
+> Every single commit must include a `Signed-off-by` trailer certifying the [Developer Certificate of Origin](https://developercertificate.org/).
+> You can easily do this by adding the `-s` flag to your commit command:
+> `git commit -s -m "feat(core): add awesome new planner"`
 
-Every commit must include a `Signed-off-by` trailer certifying the [Developer Certificate of Origin](https://developercertificate.org/):
+## 🔍 Pull Request Process
 
-```bash
-git commit -s -m "type(scope): description"
-```
+### Before Opening a PR
+Ensure your branch meets all requirements:
+- All tests pass (`pytest -q`).
+- Linter is happy (`ruff check`).
+- Types are strict (`mypy src/siyarix/`).
+- You've added tests for new functionality.
+- You've updated documentation if behavior changed.
 
-## Pull Request Process
+### Review Process
+- At least one maintainer review is required.
+- CI pipelines must pass completely.
+- Address review feedback promptly. Do not force-push after a review has started; add new commits instead.
 
-### Before Opening
+## 🤖 Adding a New AI Provider
 
-- All tests pass: `pytest -q`
-- Lint clean: `ruff check src/ tests/`
-- Type checks pass: `mypy src/siyarix/`
-- New functionality includes tests
-- Changed behavior includes documentation updates
+1. Create a provider profile in `src/siyarix/providers/profiles/`.
+2. Register it inside the `ProviderManager`.
+3. Add the corresponding API key environment variable to the setup documentation.
+4. Write tests in `tests/test_providers.py`.
+5. Update the provider lists in the general documentation.
 
-### PR Description
+## 🛠️ Adding a New Tool Parser
 
-Include what changed, why (link to issue), how it was tested, and screenshots/logs for UI changes.
+1. Create your parser in `src/siyarix/parsers/`, ensuring it implements the `BaseParser` protocol.
+2. Register it in `ParserRegistry`.
+3. Provide test fixtures containing sample tool output.
+4. Add comprehensive tests in `tests/test_parsers/`.
 
-### Review
+## 🔌 Plugins & Extensions
 
-- At least one maintainer review required
-- CI must pass (tests, lint, type check, security scan)
-- Address review feedback promptly
-- Do not force-push after review has started; use additional commits
+Siyarix supports dynamic plugins out of `~/.siyarix/plugins/`. When contributing core plugins:
+1. Follow existing patterns found in `src/siyarix/`.
+2. Register your module through the correct registry.
+3. Update `pyproject.toml` with any external dependencies under the appropriate `extras`.
+4. Include tests!
 
-## Adding a New AI Provider
+## 🔐 Security Contributions
 
-1. Create a provider profile in `src/siyarix/providers/profiles/`
-2. Register in `ProviderManager`
-3. Add API key environment variable to setup docs
-4. Add tests in `tests/test_providers.py`
-5. Update provider lists in documentation
+> [!CAUTION]
+> **Never report security vulnerabilities via public GitHub issues!**
+> Please follow our [Security Policy](../security/vulnerability-reporting.md) for responsible disclosure.
 
-## Adding a New Tool Parser
+- Standard Pull Requests are always welcome for non-critical hardening!
+- Security contributors will be credited in our release notes (with permission).
 
-1. Create parser in `src/siyarix/parsers/` implementing `BaseParser` protocol
-2. Register in `ParserRegistry`
-3. Add test fixtures with sample tool output
-4. Add tests in `tests/test_parsers/`
+## 🧠 AI-Generated Code Disclosure
 
-## Plugins & Extensions
+- You are fundamentally responsible for all code you submit, regardless of how it was authored.
+- If the majority of your PR was AI-generated, **disclose this in the PR description**.
+- AI-generated code must meet all human standards (tests, linting, docs). Maintainers reserve the right to request modifications.
 
-Siyarix supports dynamic plugin discovery from `~/.siyarix/plugins/`. When contributing a plugin, parser, provider adapter, or tool handler:
+## ⚖️ Licensing
 
-1. Follow existing patterns in `src/siyarix/`
-2. Register your module through the appropriate registry
-3. Add external dependencies to `pyproject.toml` under the correct extras group
-4. Include tests for your plugin
+By contributing, you agree that your contributions will be licensed under the **AGPL-3.0-or-later**.
+- Every source file must include this header:
+  ```python
+  # SPDX-License-Identifier: AGPL-3.0-or-later
+  ```
 
-## Security Contributions
+> [!NOTE]
+> **Corporate Contributors:** Please ensure you have authorization from your employer to contribute under the AGPL-3.0-or-later license before submitting code.
 
-- Follow the project security policy for vulnerability disclosure
-- **Do not** report security vulnerabilities via public GitHub issues
-- Standard PRs welcome for non-critical hardening
-- Contributors credited in release notes (with permission)
-
-## AI-Generated Code Disclosure
-
-- You are responsible for all submitted code regardless of authorship method
-- Disclose AI assistance in PR description if majority was AI-generated
-- AI-generated code must follow all project standards and include tests
-- Maintainers may request modifications to AI-generated contributions
-
-## Licensing
-
-By contributing, you agree that your contributions are licensed under AGPL-3.0-or-later. Every commit must be DCO-signed.
-
-### Corporate Contributors
-
-- Confirm your employer's open-source contribution policy
-- By signing off, you represent you have authorization to contribute under AGPL-3.0-or-later
-- Do not submit proprietary code without explicit written permission
-- Use your personal GitHub account
-
-### Plugin Exception
-
-Third-party plugins in `~/.siyarix/plugins/` are not required to be AGPL-licensed. See [Plugin Exception](../legal/plugin-exception.md).
-
-### SPDX Header
-
-Every source file must include:
-
-```python
-# SPDX-License-Identifier: AGPL-3.0-or-later
-```
+Third-party plugins placed in `~/.siyarix/plugins/` are an exception and are not required to be AGPL-licensed. See our [Plugin Exception](../legal/plugin-exception.md) for details.

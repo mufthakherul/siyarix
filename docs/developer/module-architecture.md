@@ -1,241 +1,109 @@
-# Module Architecture
+# 🏛️ Module Architecture
 
-This document describes the internal architecture of key Siyarix v1.0.0 modules — how they interact, their data flows, and design patterns.
+Curious how Siyarix ticks under the hood? This document breaks down the internal architecture of key Siyarix v1.0.0 modules, detailing how they interact, data flows, and the design patterns that power the platform.
 
-## Module Organization
+## 🧩 Module Organization
 
-Siyarix is organized into the following top-level package directories and standalone modules:
+Siyarix is neatly organized into top-level package directories and standalone modules. Here's your map:
 
 | Module | Responsibility |
 |--------|----------------|
-| `core/` | Agent orchestration kernel: `AgentCore`, `SwarmRouter`, `CommandPipeline` |
-| `chat/` | Interactive REPL: engine, handlers, session management, UI, streaming |
-| `providers/` | 24-provider LLM abstraction: `ProviderManager`, failover, usage tracking |
-| `parsers/` | 80+ tool output parsers with auto-discovery |
-| `plugins/` | Dynamic plugin loader from `~/.siyarix/plugins/` |
-| `output/` | Rendering engine: 8 formats, 12 themes, file export |
-| `report/` | Security report generator: MARKDOWN, HTML, JSON, SARIF |
-| `templates/` | Onboarding wizard text templates, ASCII art |
-| `data/` | Static tool registry (`cyber_tools.json`) |
-| `offline_registry/` | Offline-mode heuristic planning without AI dependency |
-| `deep_scan.py` | `DeepScanEngine` — multi-layered reconnaissance methodology |
-| `learning_system.py` | `LearningSystem` — continuous, privacy-preserving skill learning |
-| `workflow.py` | DAG-based workflow engine with conditional execution |
-| `session_branching.py` | JSONL tree format for forked conversation branches |
-| `stealth.py` | Stealth/evasion engine for covert operations |
-| `opsec.py` | Operational security controls and countermeasures |
-| `dlp.py` | Data Loss Prevention with bidirectional token masking |
-| `permission_gate.py` | Two-stage command permission control |
-| `validators.py` | Input validation and injection prevention |
-| `credential_store.py` | AES-256-GCM encrypted credential vault |
-| `audit_log.py` | SHA-256 tamper-evident audit trail |
-| `config.py` | TOML-backed settings store |
-| `bootstrap.py` | First-run bootstrap and platform detection |
-| `onboarding.py` | Interactive 11-step setup wizard |
-| (and 40+ additional standalone modules) | |
+| `core/` | 🧠 The orchestrator kernel: `AgentCore`, `SwarmRouter`, and `CommandPipeline`. |
+| `chat/` | 💬 The interactive REPL: UI, session management, and the core LLM engine. |
+| `providers/` | ☁️ The 24-provider LLM abstraction layer with failover and usage tracking. |
+| `parsers/` | 🔍 80+ auto-discovering tool output parsers. |
+| `plugins/` | 🔌 Dynamic plugin loader (loads from `~/.siyarix/plugins/`). |
+| `output/` | 🎨 The rendering engine (8 formats, 12 themes). |
+| `report/` | 📊 The security report generator (Markdown, HTML, SARIF, JSON). |
+| `stealth.py` | 🥷 Stealth and evasion engine for covert ops. |
+| `dlp.py` | 🛡️ Data Loss Prevention with bidirectional token masking. |
+| `permission_gate.py`| 🚧 Two-stage command access control. |
+| `credential_store.py`| 🔐 AES-256-GCM encrypted credential vault. |
+| `workflow.py` | 🔄 DAG-based workflow engine. |
 
-## Execution Engine (`executor.py`, `executor_registry.py`, `executor_autonomous.py`)
+*(And 40+ additional specialized standalone modules!)*
 
-The execution engine operates in three modes, dispatched by the planner:
+## ⚙️ Execution Engine (`executor.py`, `executor_registry.py`, `executor_autonomous.py`)
 
-| Mode | Planner | Permission | Autonomy | Use Case |
-|------|---------|------------|----------|----------|
-| `REGISTRY` | RegistryPlanner (template) | Full gate | None | Offline, deterministic |
-| `AUTONOMOUS` | AutonomousPlanner (LLM) | Minimal | Full | Unattended operation |
-| `HYBRID` (default) | Combined | Full gate | User confirmation | Interactive security work |
+The Execution Engine is the muscle of Siyarix. It operates in three distinct modes, dispatched by the Task Planner:
 
-### Execution Flow
+| Mode | Planner | Permission Level | Autonomy | Best For |
+|------|---------|------------------|----------|----------|
+| `REGISTRY` | RegistryPlanner (template) | Full gate | None | Offline, deterministic tasks. |
+| `AUTONOMOUS`| AutonomousPlanner (LLM) | Minimal | Full | Unattended AI-driven operations. |
+| `HYBRID` *(Default)*| Combined | Full gate | User confirmation | Interactive, guided security work. |
 
-1. Planner produces `ExecutionPlan` with ordered `ExecutionStep` objects
-2. Each step validated through `PermissionGate` (ALLOW/DENY/REVIEW)
-3. Steps execute with dependency-driven parallelism via `asyncio.gather()`
-4. Tool output routed through `ParserRegistry.get(tool_name).parse(output)`
-5. Structured findings ingested into `KnowledgeGraph`
-6. Errors handled with exponential backoff via `ProviderStateManager`
+### 🌊 Execution Flow
+1. The **Planner** generates an `ExecutionPlan` full of `ExecutionStep` objects.
+2. Each step must pass through the **PermissionGate** (which returns ALLOW, DENY, or REVIEW).
+3. Steps execute with high-performance parallelism using `asyncio.gather()`.
+4. Output is seamlessly parsed via the **ParserRegistry**.
+5. Structured findings are permanently ingested into the **KnowledgeGraph**.
+6. Transient errors trigger automatic exponential backoffs via the **ProviderStateManager**.
 
-### Worker Pool
+> [!TIP]
+> **Worker Pool Throttling:** Siyarix uses `asyncio.Semaphore` in `worker_pool.py` to bound concurrency. This prevents resource exhaustion when the agent tries to run 100 tools at once!
 
-`worker_pool.py` bounds concurrency using `asyncio.Semaphore`, preventing resource exhaustion when executing parallel tool chains. Default max concurrent tools is configurable via `default_parallel` setting.
+## 🗺️ Task Planners (`planner.py`, `planner_registry.py`, `planner_autonomous.py`)
 
-## Task Planners (`planner.py`, `planner_registry.py`, `planner_autonomous.py`)
+Siyarix features a robust dual-planner architecture:
 
-### Planner Router (`planner.py`)
+- **Registry Planner:** A deterministic, template-based planner that relies on keyword matching and intent classification. Zero AI dependency; it always works, even offline.
+- **Autonomous Planner:** The LLM-driven genius. It translates natural language goals into structured execution plans. It natively supports self-repair if the initial tool call is malformed!
+- **Planner Router:** Automatically dynamically routes between the two depending on user mode and cloud provider availability.
 
-Routes between two planner implementations based on mode and provider availability. Falls back to registry planning when no AI provider is reachable.
+## 🚧 Permission Gate (`permission_gate.py`)
 
-### Registry Planner (`planner_registry.py`)
+Security agents shouldn't nuke your hard drive. Before any command executes, Siyarix runs a rigid two-stage review:
 
-Deterministic planning using `PlannerRegistry`, a template store that maps tool capabilities to execution plans. Uses intent classification, keyword matching, and parameter extraction. No AI dependency — always available.
+1. **Syntax Gate:** Checks structural limits, shell injection attempts, and character restrictions.
+2. **Danger Analysis:** Scans against 38+ dangerous categories (e.g., fork bombs, network floods, privilege escalation).
 
-### Autonomous Planner (`planner_autonomous.py`)
+It will return `ALLOW`, `DENY` (with an explanation), or prompt the user for `REVIEW`.
 
-LLM-driven planning that generates structured execution plans from natural language goals. Uses `ProviderManager` for provider resolution with failover. Supports multi-call repair when initial plan is malformed (via `ToolCallRepair`).
+## ☁️ Provider Manager (`providers/manager.py`)
 
-### Pipeline
+Siyarix integrates an astonishing **24 AI providers** behind a single, unified `ProviderManager`:
 
-```
-User Input → IntentRouter → Intent Extraction → Target/Parameter Parsing →
-Planner Selection (by mode/provider) → Plan Generation →
-Plan Validation → Permission Gate → Execution → Result Processing
-```
+- **Cloud (19 profiles):** OpenAI, Anthropic, Gemini, Groq, DeepSeek, and more.
+- **Local (5 profiles):** Ollama, LM Studio, llama.cpp, vLLM. Zero API keys needed!
+- **Fallback:** Offline heuristic registry.
 
-## Permission Gate (`permission_gate.py`)
+> [!IMPORTANT]
+> **The Failover Chain**
+> If your primary provider goes down, Siyarix doesn't crash. It seamlessly fails over to your secondary cloud provider, then drops to Local LLMs, and ultimately falls back to the Offline Registry if all else fails.
 
-Two-stage access control executed before every command:
+## 🔐 Credential Store (`credential_store.py`)
 
-1. **Syntax Gate**: Validates command structure, length limits, character restrictions, shell injection patterns
-2. **Danger Analysis**: Pattern-matches against 38+ dangerous command categories (disk destruction, fork bombs, network floods, privilege escalation, credential exfiltration, etc.)
+Your API keys are precious. Siyarix guards them aggressively:
+- **Encryption:** AES-256-GCM (32-byte key, 12-byte nonce).
+- **Storage:** Handled safely via the OS system keyring.
+- **Memory Safety:** Credentials are automatically scrubbed from memory when a session ends.
+- Keys are **never** logged to the console or written to configuration files in plain text.
 
-Each stage returns one of: `ALLOW` (pass), `DENY` (block with reason), or `REVIEW` (require user confirmation). The gate integrates with `DLP` engine for data exfiltration detection and `InputValidator` for injection prevention.
+## 🛡️ DLP Engine (`dlp.py`)
 
-## Provider Manager (`providers/manager.py`)
+Our **Data Loss Prevention** engine ensures you don't leak secrets to third-party LLM providers:
+- Evaluates traffic against 40+ regex patterns (AWS keys, Passwords, SSH keys).
+- **Bidirectional Masking:** It masks data before it goes to the cloud, and unmasks it when displaying responses back to you locally!
 
-Singleton managing 24 provider profiles through a unified interface:
+## 🧠 Knowledge Graph (`knowledge_graph.py`)
 
-- **Cloud providers**: 19 profiles (OpenAI, Anthropic, Gemini, Groq, Together, DeepSeek, Mistral, OpenRouter, Perplexity, xAI, Cerebras, Fireworks, HuggingFace, MiniMax, Moonshot, NVIDIA, Azure, OpenCodeZen, Z.AI) — require API keys
-- **Local providers**: 5 profiles (Ollama, LM Studio, llama.cpp, vLLM, LocalAI) — no API key, auto-start support
-- **Fallback**: Registry (heuristic planner) — always available, no AI required
+Siyarix builds an in-memory directed graph of everything it learns:
+- **Nodes:** Hosts, ports, vulnerabilities, credentials.
+- **Edges:** Relationships (e.g., `runs_on`, `has_vulnerability`).
+- **Power:** Used heavily by the Report Engine for mapping evidence and providing rich context.
 
-### Failover Chain
+## 🐝 Swarm Architecture (`core/swarm.py`)
 
-```
-Primary Provider → Secondary → ... → Local Provider → Registry (heuristic)
-```
+For complex campaigns, Siyarix deploys a Swarm of specialized sub-agents:
+- **ReconAgent:** Maps the terrain and discovers assets.
+- **ExploitAgent:** Safely validates discovered vulnerabilities.
+- **ReportAgent:** Synthesizes the data into actionable intelligence.
 
-Circuit breaker opens after 3 failures within 60 seconds. `ProviderStateManager` tracks per-provider cooldown with exponential backoff (30s → 60s → 300s). Skip-known-bad cache prevents retrying failing providers within a session.
+The `SwarmRouter` coordinates task decomposition and smooth handoffs between these specialized phases.
 
-## Credential Store (`credential_store.py`)
+## 📈 Learning System (`learning_system.py`)
 
-Encrypted vault for API keys and secrets:
-
-- Encryption: AES-256-GCM with 32-byte key and 12-byte nonce
-- Key storage: OS system keyring via `keyring` library
-- File fallback: Fernet (AES-128-CBC) encrypted JSON file in `~/.siyarix/credentials.json`
-- Key rotation: `siyarix auth rotate` re-encrypts all credentials with a new key
-- Auto-clear: Credentials cleared from memory on session end
-- KMS support: Optional AWS KMS envelope encryption for enterprise deployments
-- Security: Keys never written to source code, config files, logs, or debug output
-
-## DLP Engine (`dlp.py`)
-
-Data Loss Prevention with bidirectional token masking:
-
-- Masks sensitive data before sending to cloud AI providers (40+ regex patterns)
-- Session-scoped: masks are consistent within a session
-- Bidirectional: can reverse masks for local display
-- Pattern types: IP addresses, hostnames, email addresses, API keys, JWT tokens, SSH keys, passwords, credit cards, AWS keys, Slack tokens, GitHub tokens, private keys
-
-## Knowledge Graph (`knowledge_graph.py`)
-
-In-memory directed graph of discovered entities:
-
-- **Nodes**: hosts, ports, services, vulnerabilities, credentials, domains, findings
-- **Edges**: relationships (runs_on, has_vulnerability, uses_credential, resolves_to)
-- **Operations**: add_node, add_edge, find_neighbors, bfs_shortest_path, node/edge CRUD, find_by_label, find_by_type
-- **Traversal**: BFS, DFS, shortest path analysis
-- **Persistence**: JSON export/import with full graph serialization
-- **Integration**: ReportEngine queries KG for evidence and relationship mapping
-
-## Agent Core (`core/__init__.py`)
-
-`AgentCore` is the central orchestrator (639 lines) that manages the full agent lifecycle:
-
-1. **Start/Shutdown**: Initialize sub-systems, providers, memory, context, stealth
-2. **Goal Execution**: `execute_goal()` routes to mode-specific execution (`_execute_registry`, `_execute_autonomous`, `_execute_hybrid`, `_execute_interactive`)
-3. **Multi-Wave**: `execute_multi_wave()` for complex objectives requiring iterative refinement — supports up to 25 waves with budget checking
-4. **Sub-Agents**: `create_subagent()` / `execute_subagent()` for hierarchical task decomposition
-5. **Swarm**: Integrates with `SwarmRouter` for multi-agent campaigns (recon → exploit → report)
-6. **Observation**: Tracks results, budget, and goal completion status
-
-## Event Bus (`events.py`)
-
-In-process publish/subscribe system:
-
-- `EventBus` singleton with typed event dispatch
-- Events include: finding discovered, plan created, step executed, error occurred, session created
-- Supports multiple subscribers per event type
-- Used by: `AuditLogger`, `Notifications`, `MetricsCollector`, `SessionLog`
-- Zero external dependencies — pure Python implementation
-
-## Interactive Chat (`chat/`)
-
-Full-featured REPL with:
-
-- 40+ slash commands via `CommandHandlersMixin` (help, scan, run, model, provider, theme, opsec, intel, etc.)
-- Multi-turn conversation with context retention and compression
-- `SmartAutocomplete` for context-aware tab completion (commands, tools, models, providers, paths)
-- Session branching with JSONL tree format via `BranchingSession`
-- Persona switching mid-session
-- Provider switching at runtime
-- Command review toggle
-- Real-time Rich notification panels
-- `SplitPane` for timeline, metrics, cheatsheet views
-
-## LLM Engine (`chat/engine.py`)
-
-The `LLMEngineMixin` (1355 lines) implements the core AI interaction loop:
-
-1. **Provider Resolution**: Selects provider via `ProviderManager` with failover
-2. **Context Building**: Builds system prompt with persona, platform context, tool availability
-3. **Agent Execution**: `_execute_agent()` runs observe-reason-act loop with up to 25 waves
-4. **Multi-Wave**: Each wave executes LLM calls, parallel tool execution, and LLM synthesis
-5. **Streaming**: `AssistantMessageEventStream` provides granular per-block events (text, thinking, tool calls)
-6. **Retry**: Automatic retry with compaction for long contexts
-7. **Local Provider Auto-Start**: Detects and starts Ollama/llama.cpp if configured
-
-## Output Engine (`output/__init__.py`)
-
-Premium output rendering with 8 formats and 12 themes:
-
-- **Formats**: TABLE (Rich), JSON, YAML, CSV, HTML, XML, RAW, QUIET
-- **Themes**: CYBER_NOIR, MATRIX, BLOODMOON, ARCTIC, GOLDENROD, ECLIPSE, SYNTHWAVE, DARK, LIGHT, NEON, MINIMAL, DEFAULT
-- **Features**: Progress bars, live dashboards, export to file, gradient banners, syntax highlighting
-- **Graceful degradation**: Falls back to plain print when Rich is unavailable
-
-## Report Engine (`report/__init__.py`)
-
-Comprehensive security report generation:
-
-- **Input**: Raw findings list or `KnowledgeGraph` query
-- **Sections**: Executive summary, methodology, findings (by severity), evidence, remediation, appendix
-- **Formats**: MARKDOWN (structured), HTML (interactive dashboard with CSS/JS), JSON (programmatic), SARIF (tool interoperability)
-- **CVSS**: Integrated `CVSSScorer` for vulnerability scoring enrichment
-- **Configuration**: Title, author, company, section toggles, scoring options
-
-## Swarm Architecture (`core/swarm.py`)
-
-Multi-agent orchestration for complex campaigns:
-
-- **SpecializedAgent** base class with `analyze()` async method
-- **Agent Roles**: `ReconAgent` (discovery), `ExploitAgent` (vulnerability validation), `ReportAgent` (findings synthesis)
-- **SwarmRouter**: Task decomposition, agent dispatch, result aggregation
-- **Campaign Flow**: Recon → Exploit → Report with handoff between phases
-
-## Deep Scan Engine (`deep_scan.py`)
-
-The `DeepScanEngine` provides structured multi-layered reconnaissance:
-
-- Profiles for different scan depths (quick, standard, comprehensive)
-- Multi-pass execution: discovery → fingerprinting → vulnerability detection → deep analysis
-- OS fingerprinting, port/service correlation, and vulnerability mapping
-- Aggregates results across multiple tools into a unified finding set
-
-## Learning System (`learning_system.py`)
-
-The `LearningSystem` implements continuous learning from execution history:
-
-- Observes LLM and offline planner actions, capturing successful patterns
-- Privacy-preserving: real targets are never stored (replaced with `{target}` placeholders)
-- Uses BM25-style Jaccard similarity over NLP token sets — no ML framework dependencies
-- Bayesian confidence scoring that rewards both accuracy and data volume
-- Dual-mode integration: high-confidence skills auto-execute before LLM consultation in integrated mode
-
-## Workflow Engine (`workflow.py`)
-
-DAG-based workflow execution with:
-
-- Directed acyclic graph of workflow steps with conditional branching
-- Step-level status tracking (PENDING, RUNNING, COMPLETED, FAILED, SKIPPED)
-- Pause/resume support for long-running campaigns
-- Retry policies and timeout enforcement per step
-- Parameter passing between steps via shared context dictionary
+Siyarix gets smarter over time. The **Learning System** continuously observes executions and builds a persistent, privacy-preserving skill library. 
+It utilizes BM25-style Jaccard similarity and Bayesian confidence scoring—all implemented natively in standard Python without bulky Machine Learning frameworks!

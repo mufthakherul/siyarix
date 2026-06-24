@@ -2,7 +2,7 @@
 
 Siyarix is a CLI-first platform built on the blazing fast **Typer** framework. Everything you can do in Siyarix is accessible via the `siyarix` command-line binary.
 
-Whether you are running a single scan, automating a massive batch job, or spinning up the interactive chat, this reference guide has you covered.
+Whether you are running a single scan, automating a large batch job, or spinning up the interactive chat, this reference guide has you covered.
 
 ---
 

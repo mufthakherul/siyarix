@@ -72,7 +72,7 @@ siyarix creds rotate
 **Why our Vault is Secure:**
 - **Key Storage:** Uses your OS system keyring (Keychain on macOS, Credential Manager on Windows) as the primary storage.
 - **Key Derivation:** We use PBKDF2 with SHA-256 and 600,000 iterations (meeting OWASP recommendations).
-- **Enterprise Ready:** Supports AWS KMS envelope encryption (`SIYARIX_KMS_PROVIDER=aws`).
+- **capable Ready:** Supports AWS KMS envelope encryption (`SIYARIX_KMS_PROVIDER=aws`).
 - **Memory Safe:** Credentials are automatically cleared from memory the moment your session ends.
 - **Zero Hardcoding:** Keys are *never* written to source code, plain config files, logs, or debug outputs.
 

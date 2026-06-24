@@ -1,3 +1,6 @@
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+
 # 📓 Playbook Engine
 
 Why do the same tasks manually over and over? The Playbook Engine allows you to create reusable, multi-step workflows for incident response, vulnerability assessments, and routine security checks. 

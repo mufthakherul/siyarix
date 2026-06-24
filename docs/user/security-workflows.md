@@ -52,7 +52,7 @@ siyarix scan-deep 10.0.0.1 --save
 
 ## 🕸️ Web Application Testing
 
-Web apps are often the weakest link. Siyarix chains together industry-standard tools (like Nikto, Nuclei, WPScan, and WhatWeb) dynamically based on what it fingerprints.
+Web apps are often the weakest link. Siyarix chains together standard tools (like Nikto, Nuclei, WPScan, and WhatWeb) dynamically based on what it fingerprints.
 
 ```bash
 # 🚨 OWASP Top 10 automated scan

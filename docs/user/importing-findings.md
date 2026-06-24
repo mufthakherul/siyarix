@@ -1,3 +1,6 @@
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+
 # 📥 Finding Import Pipeline
 
 Security teams use a lot of different tools. Siyarix wants to be your central hub! The Finding Import Pipeline will allow you to ingest scan results from external security tools, translating them into a single, unified format for easy analysis and reporting.

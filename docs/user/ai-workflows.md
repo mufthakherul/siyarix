@@ -1,6 +1,6 @@
 # 🤖 AI-Powered Workflows
 
-Welcome to the future of security operations! Siyarix leverages cutting-edge AI providers to understand your natural language requests, select the right tools, and autonomously execute complex plans. Simply tell Siyarix what you want to do, and our execution engine will turn your intent into a structured, step-by-step plan.
+Welcome to the future of security operations! Siyarix leverages modern AI providers to understand your natural language requests, select the right tools, and autonomously execute complex plans. Simply tell Siyarix what you want to do, and our execution engine will turn your intent into a structured, step-by-step plan.
 
 ---
 
@@ -27,7 +27,7 @@ Behind the scenes, the execution engine processes your input through these steps
 
 ## 🎯 Goal-Driven Autonomous Agent
 
-Want to tackle a massive task while you grab a coffee? Meet the autonomous agent.
+Want to tackle a large task while you grab a coffee? Meet the autonomous agent.
 
 ```bash
 siyarix agent "enumerate all subdomains, find live hosts, scan for vulns, and report"
@@ -95,7 +95,7 @@ To keep the AI sharp and focused, we manage its memory (context window) carefull
 
 - **Smart Forgetting**: Old conversations are truncated so the AI doesn't get overwhelmed.
 - **Summarization**: Verbose tool outputs are summarized to keep things concise.
-- **Offline Storage**: Massive result sets are stored safely offline and referenced when needed.
+- **Offline Storage**: large result sets are stored safely offline and referenced when needed.
 
 ---
 

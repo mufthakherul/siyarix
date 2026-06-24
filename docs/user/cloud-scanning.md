@@ -1,3 +1,6 @@
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+
 # ☁️ Cloud Security Scanning
 
 Securing your cloud environments doesn't have to be a headache. Siyarix comes packed with multi-cloud security scanning capabilities right out of the box, covering AWS, Azure, GCP, Kubernetes, and Docker. 

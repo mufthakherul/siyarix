@@ -1,3 +1,6 @@
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+
 # 🔌 IoT Security Scanning
 
 The Internet of Things (IoT) is notoriously difficult to secure. Siyarix aims to change that by providing a comprehensive toolkit for analyzing firmware, enumerating serial ports, and detecting embedded devices.
@@ -46,4 +49,4 @@ We are building a powerful suite of tools tailored specifically for hardware and
 
 ## 📣 Stay Tuned!
 
-Securing the physical world is a massive challenge, and the IoT scanner is a key part of Siyarix's future. Keep an eye on our releases for updates on supported devices and firmware formats!
+Securing the physical world is a large challenge, and the IoT scanner is a key part of Siyarix's future. Keep an eye on our releases for updates on supported devices and firmware formats!

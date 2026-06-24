@@ -1,3 +1,6 @@
+> [!NOTE]
+> 👋 **Welcome to Siyarix!** This is a personal passion project built by a single developer. It's currently under active development and growing fast. Expect rough edges, but lots of love! ❤️
+
 # 📚 Siyarix Documentation (v1.0.0)
 
 Welcome to the official documentation for **Siyarix**! 👋 
@@ -66,6 +69,16 @@ Siyarix is designed to empower a wide variety of security professionals:
 | **SOC Analyst** | Streamlining incident response, accelerating your threat hunting, and automatically mapping findings to the MITRE ATT&CK framework. |
 | **Cloud Architect** | Validating your Infrastructure as Code (IaC) and performing consistent, multi-cloud posture scanning. |
 | **Security Researcher** | Providing a robust parser framework and AI-assisted analysis so you can focus on finding novel vulnerabilities rather than writing glue code. |
+
+## 🤝 Contributing
+
+Siyarix started as a personal passion project, but it is **now officially public** and growing fast! 
+
+We **warmly welcome** contributors of all skill levels. Whether you want to fix a typo in the documentation, add a new AI provider, or write a parser for a security tool you love, your help is deeply appreciated. 
+
+> 👋 **Heads Up:** To better support our growing community of contributors, Siyarix will soon be moving to its very own dedicated GitHub organization (`siyarix/siyarix`). Don't worry, all links will seamlessly redirect!
+
+Check out our [Contribution Guide](developer/contribution-guide.md) to get started. Let's build the future of AI-assisted security together!
 
 ---
 

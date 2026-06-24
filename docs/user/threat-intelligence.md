@@ -1,3 +1,6 @@
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+
 # 🌐 Threat Intelligence
 
 A security tool is only as good as the data it uses. Siyarix integrates directly with real-world threat intelligence feeds, allowing you to instantly perform IP reputation lookups and enrich your CVE data. 
@@ -54,7 +57,7 @@ result = await manager.analyze_target("CVE-2024-0001")  # Routes to NVD
 
 ## 🗺️ MITRE ATT&CK Integration (Coming Soon)
 
-We are building a massive `MITREAttackDB` layer! Soon, Siyarix will automatically map findings to specific threat actor tactics and techniques.
+We are building a large `MITREAttackDB` layer! Soon, Siyarix will automatically map findings to specific threat actor tactics and techniques.
 
 ```bash
 # 📊 View your current MITRE ATT&CK coverage right now!

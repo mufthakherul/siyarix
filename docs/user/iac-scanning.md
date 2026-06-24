@@ -1,3 +1,6 @@
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+
 # 🏗️ Infrastructure as Code (IaC) Scanning
 
 Catch security flaws before they ever reach production! Infrastructure as Code (IaC) scanning allows you to analyze your configuration files for vulnerabilities, misconfigurations, and exposed secrets early in the development lifecycle.

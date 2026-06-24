@@ -1,3 +1,6 @@
+> [!NOTE]
+> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+
 # 📋 Compliance Frameworks
 
 Navigating compliance audits can be overwhelming, but Siyarix is here to help simplify the process. We are actively building out automated probes and evidence collection to assess your systems against six major industry compliance frameworks!

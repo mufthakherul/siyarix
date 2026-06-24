@@ -18,7 +18,7 @@ Siyarix supports a wide variety of formats for different use cases:
 |--------|--------------------|
 | **TABLE** | Beautiful, human-readable terminal output *(Default)* |
 | **JSON** | Machine-readable data for scripting and integrations |
-| **JSONL** | JSON Lines, perfect for streaming massive datasets |
+| **JSONL** | JSON Lines, perfect for streaming large datasets |
 | **YAML** | Clean, structured data |
 | **CSV** | Importing into Excel or databases |
 | **HTML** | Sharing findings with non-technical stakeholders |
@@ -63,7 +63,7 @@ A standard Siyarix report includes:
 
 ## 🔒 Audit Logging
 
-Trust, but verify. Every single action taken in Siyarix is logged to an enterprise-grade, tamper-evident audit trail.
+Trust, but verify. Every single action taken in Siyarix is logged to an capable, tamper-evident audit trail.
 
 ```bash
 # 📄 Export logs for compliance (like SOC 2)

@@ -1,6 +1,6 @@
 # Agent Reasoning Pipeline
 
-The agent reasoning pipeline transforms user objectives into executed actions through structured **observe–reason–act–reflect** loops. Siyarix v3.0.0 supports three execution modes — **integrated**, **autonomous**, and **registry/offline** — each with a distinct reasoning strategy.
+The agent reasoning pipeline transforms user objectives into executed actions through structured **observe–reason–act–reflect** loops. Siyarix v1.0.0 supports three execution modes — **integrated**, **autonomous**, and **registry/offline** — each with a distinct reasoning strategy.
 
 ---
 

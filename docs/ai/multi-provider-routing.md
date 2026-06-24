@@ -1,6 +1,6 @@
 # Multi-Provider Routing
 
-Siyarix v3.0.0 supports **24 AI providers**, all accessed through a unified OpenAI-compatible adapter (`openai_compat.py`). The `ProviderManager` singleton manages provider registration, credential pooling, failover, circuit breakers, and cooldown state with exponential backoff.
+Siyarix v1.0.0 supports **24 AI providers**, all accessed through a unified OpenAI-compatible adapter (`openai_compat.py`). The `ProviderManager` singleton manages provider registration, credential pooling, failover, circuit breakers, and cooldown state with exponential backoff.
 
 ---
 

@@ -54,8 +54,8 @@ class OfflineStore:
             self._local.conn.row_factory = sqlite3.Row
             self._local.conn.execute("PRAGMA journal_mode=WAL")
             self._local.conn.execute("PRAGMA busy_timeout=5000")
-        return self._local.conn
-
+        from typing import cast
+        return cast(sqlite3.Connection, self._local.conn)
     def _init_db(self) -> None:
         conn = self._conn()
         conn.executescript("""
@@ -469,7 +469,7 @@ class OfflineStore:
                 "UPDATE command_cache SET last_used = datetime('now'), use_count = use_count + 1 WHERE cache_key = ?",
                 (cache_key,),
             )
-            return row["result_json"]
+            return str(row["result_json"])
         return None
 
     def cache_set(self, cache_key: str, result_json: str, tool: str = "", target: str = "", ttl_seconds: int = 86400) -> None:

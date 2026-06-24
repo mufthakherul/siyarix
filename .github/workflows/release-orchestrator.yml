@@ -120,7 +120,7 @@ jobs:
               ),
               "install.sh": lambda t: re.sub(
                   r'(?m)^SIYARIX_VERSION="\$\{SIYARIX_VERSION:-[^"]+\}"$',
-                  f'SIYARIX_VERSION="${{SIYARIX_VERSION:-{version}}}"',
+                  'SIYARIX_VERSION="${SIYARIX_VERSION:-' + version + '}"',
                   t,
                   count=1,
               ),

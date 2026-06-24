@@ -315,10 +315,10 @@ jobs:
                 title: `CI Failure on ${context.ref.replace('refs/heads/', '')}`,
                 body: `CI pipeline failed on branch \`${context.ref.replace('refs/heads/', '')}\`.
 
-        Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}
-        Commit: ${context.sha}
+                Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}
+                Commit: ${context.sha}
 
-        Please investigate and resolve the issues.`,
+                Please investigate and resolve the issues.`,
                 labels: ['ci-failure', 'bug']
               });
             }

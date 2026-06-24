@@ -61,4 +61,4 @@ jobs:
 
           Automated sync triggered by ${{ github.event_name }}
           Commit: ${{ github.sha }}"
-          git push
+          git push || echo "::warning::Failed to push to wiki. Ensure the Wiki is initialized in the GitHub UI and the token has push permissions."

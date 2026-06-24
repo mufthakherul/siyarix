@@ -1,45 +1,63 @@
-# Tool Execution
+# 🚀 Tool Execution Architecture
 
-AI-planned tools are executed through a structured pipeline that handles discovery, registration, availability evaluation, invocation, output parsing, error recovery, cross-platform installation, and version detection.
+Welcome to the **Tool Execution Pipeline** documentation! This guide explains how AI-planned tools are seamlessly discovered, registered, evaluated, and executed within Siyarix. 
 
----
-
-## Tool Lifecycle
-
-```
-Discovery (ToolRegistry) → Registration (ToolCapabilityGraph)
-  → Availability Check (ToolAvailabilityContext)
-  → Permission Gate (PermissionGate + ShellReview)
-  → Invocation (ToolHandlers / internal_tools)
-  → Output Capture (safe_run_async / safe_run_async_stream)
-  → Danger Analysis (DangerAnalyzer)
-  → DLP Redaction (DLPEngine)
-  → Finding Storage (Knowledge Graph)
-  → Version Detection (ToolVersion)
-  → Installation (ToolInstaller)
-```
+Our pipeline is designed to be robust and secure, handling everything from cross-platform installation and availability checks to output parsing and error recovery. 
 
 ---
 
-## Tool Registry
+## 🔄 The Tool Lifecycle
 
-`ToolRegistry` (in `registry.py`) is the central hub for tool management. It maintains a `ToolCapabilityGraph` for capability-based lookups, a handler map for tool-specific invocation, and a `ParserRegistry` for output parsing.
+Understanding the tool lifecycle is key to working with Siyarix. Every time a tool is invoked, it flows through this structured pipeline:
+
+```text
+Discovery 🔍 (ToolRegistry) 
+  → Registration 📝 (ToolCapabilityGraph)
+  → Availability Check ✅ (ToolAvailabilityContext)
+  → Permission Gate 🛡️ (PermissionGate + ShellReview)
+  → Invocation ⚡ (ToolHandlers / internal_tools)
+  → Output Capture 📥 (safe_run_async / safe_run_async_stream)
+  → Danger Analysis 🚨 (DangerAnalyzer)
+  → DLP Redaction 🕵️ (DLPEngine)
+  → Finding Storage 💾 (Knowledge Graph)
+  → Version Detection 🏷️ (ToolVersion)
+  → Installation 📦 (ToolInstaller)
+```
+
+> [!NOTE]  
+> This pipeline ensures that no tool is executed blindly. Every step adds a layer of security, context, or functionality!
+
+---
+
+## 🗂️ Tool Registry
+
+The `ToolRegistry` (found in `registry.py`) is the beating heart of our tool management system. Think of it as the central hub that keeps track of what tools can do, how to call them, and how to understand their output. 
+
+It maintains:
+- **`ToolCapabilityGraph`**: For capability-based lookups and chaining.
+- **Handler Map**: For tool-specific invocations.
+- **`ParserRegistry`**: For parsing complex tool outputs into structured data.
 
 ```python
 from siyarix.registry import ToolRegistry
 
 registry = ToolRegistry()
-registry.discover_from_path()  # Discover curated + interpreter tools
-registry.scan_path()           # Scan every executable on $PATH
+
+# Discover curated tools and interpreter environments
+registry.discover_from_path()  
+
+# Scan every executable available on the system's $PATH
+registry.scan_path()           
 ```
 
-### Registration
+### 📝 Registration
 
-Tools are registered as `ToolCapability` objects with optional custom handlers:
+Tools are registered as `ToolCapability` objects. These objects hold all the metadata needed to safely and effectively use a tool.
 
 ```python
 from siyarix.tool_models import ToolCapability, ToolCategory, RiskLevel
 
+# Example: Registering Nmap
 tool = ToolCapability(
     name="nmap",
     description="Network port scanner and service detector",
@@ -50,102 +68,112 @@ tool = ToolCapability(
     installed=True,
     version="7.95",
 )
+
+# Register the tool along with its custom handler
 registry.register(tool, handler_factory=make_nmap_handler)
 ```
 
-### Supported Tools (Curated)
+> [!TIP]
+> Always provide clear and descriptive tags when registering custom tools. Tags are heavily used by the AI to find the right tool for the job!
 
-26 curated security tools with dedicated handler mappings:
+### 🛠️ Supported Tools (Curated)
+
+Out of the box, Siyarix includes **26 curated security tools** mapped to dedicated handlers, ensuring they work perfectly from day one:
 
 | Tool | Category | Handler |
 |------|----------|---------|
-| nmap | RECON | `make_nmap_handler` |
-| nikto | SCANNING | `make_web_handler` |
-| nuclei | SCANNING | `make_web_handler` |
-| gobuster | SCANNING | `make_web_handler` |
-| ffuf | SCANNING | `make_web_handler` |
-| hydra | EXPLOITATION | `make_brute_handler` |
-| masscan | RECON | `make_portscan_handler` |
-| amass | RECON | `make_recon_handler` |
-| subfinder | RECON | `make_recon_handler` |
-| wpscan | SCANNING | `make_web_handler` |
-| sqlmap | SCANNING | `make_web_handler` |
-| shodan | RECON | `make_recon_handler` |
-| bettercap | NETWORK | `make_network_handler` |
-| ettercap | NETWORK | `make_network_handler` |
-| aircrack-ng | NETWORK | `make_network_handler` |
-| hashcat | CRYPTO | `make_crypto_handler` |
-| john | CRYPTO | `make_crypto_handler` |
-| burpsuite | WEB | `make_web_handler` |
-| zaproxy | WEB | `make_web_handler` |
-| whatweb | WEB | `make_web_handler` |
-| curl | UTILITY | `make_curl_handler` |
-| wget | UTILITY | `make_curl_handler` |
-| dig | RECON | `make_dns_handler` |
-| whois | RECON | `make_whois_handler` |
-| graph_analyzer | REPORTING | `make_graph_analyzer_handler` |
-| threat_intel | REPORTING | `make_threat_intel_handler` |
+| **nmap** | `RECON` | `make_nmap_handler` |
+| **nikto** | `SCANNING` | `make_web_handler` |
+| **nuclei** | `SCANNING` | `make_web_handler` |
+| **gobuster** | `SCANNING` | `make_web_handler` |
+| **ffuf** | `SCANNING` | `make_web_handler` |
+| **hydra** | `EXPLOITATION` | `make_brute_handler` |
+| **masscan** | `RECON` | `make_portscan_handler` |
+| **amass** | `RECON` | `make_recon_handler` |
+| **subfinder** | `RECON` | `make_recon_handler` |
+| **wpscan** | `SCANNING` | `make_web_handler` |
+| **sqlmap** | `SCANNING` | `make_web_handler` |
+| **shodan** | `RECON` | `make_recon_handler` |
+| **bettercap** | `NETWORK` | `make_network_handler` |
+| **ettercap** | `NETWORK` | `make_network_handler` |
+| **aircrack-ng** | `NETWORK` | `make_network_handler` |
+| **hashcat** | `CRYPTO` | `make_crypto_handler` |
+| **john** | `CRYPTO` | `make_crypto_handler` |
+| **burpsuite** | `WEB` | `make_web_handler` |
+| **zaproxy** | `WEB` | `make_web_handler` |
+| **whatweb** | `WEB` | `make_web_handler` |
+| **curl** | `UTILITY` | `make_curl_handler` |
+| **wget** | `UTILITY` | `make_curl_handler` |
+| **dig** | `RECON` | `make_dns_handler` |
+| **whois** | `RECON` | `make_whois_handler` |
+| **graph_analyzer**| `REPORTING` | `make_graph_analyzer_handler` |
+| **threat_intel** | `REPORTING` | `make_threat_intel_handler` |
 
-Plus 20+ system/interpreter tools (ls, date, df, free, ps, uname, python3, node, go, etc.) and all executables discovered on `$PATH`.
+*Plus 20+ built-in system/interpreter tools (like `ls`, `python3`, `node`, `go`) and any executables discovered on your `$PATH`.*
 
 ---
 
-## Tool Data Model
+## 📊 Tool Data Model
 
-### ToolCapability
+### 🧩 ToolCapability
+
+The `ToolCapability` dataclass represents everything we know about a tool:
 
 ```python
 @dataclass
 class ToolCapability:
-    name: str                           # Tool name
-    description: str                    # Human-readable description
-    category: ToolCategory              # RECON, SCANNING, EXPLOITATION, etc.
-    risk_level: RiskLevel               # SAFE, LOW, MEDIUM, HIGH, CRITICAL
-    aliases: list[str]                  # Alternative names
-    tags: list[str]                     # Capability tags
-    inputs: dict[str, str]              # Expected input parameters
-    input_schema: dict[str, Any]        # JSON schema for inputs
-    outputs: dict[str, str]             # Output structure
-    dependencies: list[str]             # Required tools
-    related_tools: list[str]            # Similar tools
-    workflows: list[str]                # Associated workflows
-    binary: str                         # Path to binary
-    version: str                        # Detected version
-    installed: bool                     # Available on PATH
-    source: str                         # Source of tool metadata
-    metadata: dict[str, Any]            # Additional metadata (personas, etc.)
-    parser: str                         # Parser module name
-    availability: dict | None           # Availability expression
-    usage_count: int                    # Number of times used
-    last_used: float                    # Timestamp of last usage
-    avg_duration_ms: float              # Average execution time
+    name: str                           # The tool's command name
+    description: str                    # What the tool does
+    category: ToolCategory              # Functional category (e.g., RECON)
+    risk_level: RiskLevel               # Safety rating (SAFE to CRITICAL)
+    aliases: list[str]                  # Other names for this tool
+    tags: list[str]                     # Keywords for AI matching
+    inputs: dict[str, str]              # What inputs the tool expects
+    input_schema: dict[str, Any]        # JSON schema for input validation
+    outputs: dict[str, str]             # What the tool returns
+    dependencies: list[str]             # Other tools required to run
+    related_tools: list[str]            # Similar alternatives
+    workflows: list[str]                # Known workflow associations
+    binary: str                         # Absolute or relative path to the binary
+    version: str                        # Current installed version
+    installed: bool                     # Is it available on the system?
+    source: str                         # Where this metadata came from
+    metadata: dict[str, Any]            # Extra info (e.g., ideal personas)
+    parser: str                         # Name of the parser module to use
+    availability: dict | None           # Logic rules for when this tool can run
+    usage_count: int                    # Telemetry: times used
+    last_used: float                    # Telemetry: timestamp of last use
+    avg_duration_ms: float              # Telemetry: average runtime
 ```
 
-### ToolCategory
+### 🗂️ ToolCategory
 
-| Category | Example Tools |
+Tools are grouped into logical categories to help the AI select the right approach:
+
+| Category | Typical Tools |
 |----------|--------------|
-| `RECON` | nmap, masscan, amass, subfinder, shodan, dig, whois |
-| `SCANNING` | nikto, nuclei, wpscan, sqlmap, gobuster, ffuf |
-| `EXPLOITATION` | hydra, metasploit |
-| `POST_EXPLOIT` | mimikatz, bloodhound, impacket |
+| `RECON` | nmap, masscan, amass, shodan |
+| `SCANNING` | nikto, nuclei, sqlmap, gobuster |
+| `EXPLOITATION`| hydra, metasploit |
+| `POST_EXPLOIT`| mimikatz, bloodhound |
 | `REPORTING` | graph_analyzer, threat_intel |
-| `NETWORK` | bettercap, ettercap, aircrack-ng |
+| `NETWORK` | bettercap, aircrack-ng |
 | `WEB` | burpsuite, zaproxy, whatweb |
 | `CRYPTO` | hashcat, john |
-| `FORENSICS` | volatility, yara, exiftool |
-| `CONTAINER` | trivy, grype, kube-bench |
-| `CLOUD` | prowler, scoutsuite, pacu |
-| `DEVSECOPS` | semgrep, gitleaks, trufflehog |
-| `UTILITY` | curl, dig, nslookup, whois, jq, python3 |
+| `FORENSICS` | volatility, yara |
+| `CONTAINER` | trivy, kube-bench |
+| `CLOUD` | prowler, scoutsuite |
+| `DEVSECOPS` | semgrep, gitleaks |
+| `UTILITY` | curl, jq, python3 |
 
 ---
 
-## Tool Capability Graph
+## 🕸️ Tool Capability Graph
 
-`ToolCapabilityGraph` (in `tool_graph.py`) maintains a graph of tool relationships and supports:
+The `ToolCapabilityGraph` (`tool_graph.py`) isn't just a list—it's an intelligent graph that understands how tools relate to one another. 
 
-### Pathfinding for Tool Chaining
+### 🔗 Pathfinding for Tool Chaining
+Want to automatically pass the output of one tool to another? The graph finds the path:
 
 ```python
 from siyarix.tool_graph import ToolCapabilityGraph
@@ -155,342 +183,207 @@ graph.add_tool(nmap_capability)
 graph.add_tool(searchsploit_capability)
 graph.add_edge(ToolEdge(source="nmap", target="searchsploit", weight=0.8))
 
-# Find chain from nmap → searchsploit
-chain = graph.get_chain("nmap", "searchsploit")  # ["nmap", "searchsploit"]
+# Automatically figure out how to chain nmap into searchsploit
+chain = graph.get_chain("nmap", "searchsploit")  # Returns: ["nmap", "searchsploit"]
 ```
 
-### Optimal Tool Scoring
+### 🎯 Optimal Tool Selection
+When the AI knows the goal but not the specific tool, it asks the graph to score the best available options:
 
 ```python
-# Score tools by relevance to a goal
-results = graph.find_optimal_tools("port scan", available=["nmap", "masscan", "curl"])
-# Returns scored ToolCapability list, ordered by relevance
+# Score and rank available tools based on a natural language goal
+results = graph.find_optimal_tools("fast port scan", available=["nmap", "masscan", "curl"])
 ```
 
-### Category and Availability Lookups
-
-```python
-graph.get_tools_by_category(ToolCategory.RECON)
-graph.get_available_tools()
-graph.get_tool("nmap")               # Also resolves aliases
-```
+> [!IMPORTANT]
+> The capability graph is what gives the AI its "intuition" to choose `masscan` over `nmap` when speed is the primary objective!
 
 ---
 
-## Tool Handlers
+## 🎮 Tool Handlers
 
-Tool-specific invocation handlers in `tool_handlers.py` manage arguments and execution for each tool:
+A tool handler (`tool_handlers.py`) acts as the translator between our Python pipeline and the raw CLI tool. It safely constructs commands, validates arguments, and manages timeouts.
 
-| Handler | Tools | Features |
-|---------|-------|----------|
-| `make_nmap_handler` | nmap | Flags, target, timeout |
-| `make_portscan_handler` | masscan, rustscan | Flags, target, timeout |
-| `make_web_handler` | nikto, nuclei, gobuster, ffuf, wpscan, sqlmap, whatweb, burpsuite, zaproxy | Target flags, stealth decoys, extra args |
-| `make_recon_handler` | amass, subfinder, shodan | Tool-specific subcommands |
-| `make_brute_handler` | hydra | Service, username, wordlist |
-| `make_network_handler` | bettercap, ettercap, aircrack-ng | Mode-specific arguments |
-| `make_crypto_handler` | hashcat, john | Hash file, wordlist, mode |
-| `make_curl_handler` | curl, wget | Flags, target |
-| `make_dns_handler` | dig, nslookup | Flags, target |
-| `make_whois_handler` | whois | Target |
-| `make_generic_handler` | Any tool | Target validation, args, flags |
+### 📝 Example: A Custom Handler
 
-### Example Handler
+Here is how a typical handler wraps a tool:
 
 ```python
 def make_nmap_handler(tool_name: str) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         target = kwargs.get("target", "")
+        
+        # Guard against empty targets
         if not target:
             return {"status": "error", "error": "No target specified", "tool": tool_name}
+            
         flags = kwargs.get("flags", "-sT -T4 --top-ports 100")
         cmd = [tool_name] + flags.split() + [target]
+        
+        # Execute safely
         result = await _run(tool_name, cmd, kwargs.get("timeout", 120))
-        return {"status": "success" if not result.exit_code else "error", "output": result.stdout, ...}
+        
+        return {
+            "status": "success" if not result.exit_code else "error", 
+            "output": result.stdout
+        }
     return handler
 ```
 
-### Internal Tools
-
-`internal_tools.py` provides built-in handlers that operate on Siyarix's own data:
-
-| Handler | Tool | Actions |
-|---------|------|---------|
-| `make_graph_analyzer_handler` | graph_analyzer | shortest_path, blast_radius, find_crown_jewel_paths (via KnowledgeGraph) |
-| `make_threat_intel_handler` | threat_intel | cve_lookup, mitre_lookup (via ThreatIntelFeed, MITREAttackDB) |
+### 🧠 Internal Tools
+Not all tools are external binaries. Some (`internal_tools.py`) interact directly with Siyarix's own memory and databases:
+- `graph_analyzer`: Queries the Knowledge Graph (e.g., shortest paths, blast radius).
+- `threat_intel`: Performs lookups against built-in CVE and MITRE databases.
 
 ---
 
-## Tool Availability Evaluation
+## 🚦 Availability Evaluation
 
-`ToolAvailabilityContext` evaluates whether a tool can run in the current environment:
+Before a tool is even suggested to the AI, `ToolAvailabilityContext` checks if it can actually run in the current environment. 
 
-```python
-from siyarix.tool_availability import (
-    ToolAvailabilityContext,
-    evaluate_availability,
-    check_tool_available,
-)
-```
+### 📡 Availability Signals
+Signals are JSON expressions that define requirements:
 
-### Availability Signals
+| Requirement | Example Expression |
+|-------------|--------------------|
+| API Key | `{"auth": {"provider": "openai"}}` |
+| Config Flag | `{"config": {"key": "stealth", "value": "enabled"}}` |
+| Environment | `{"env": {"var": "API_KEY"}}` |
+| Binary Path | `{"installed": {"name": "nmap"}}` |
 
-| Signal | Evaluates | Expression |
-|--------|-----------|------------|
-| `always` | Always available | `{"always": true}` |
-| `auth` | Provider API key configured | `{"auth": {"provider": "openai"}}` |
-| `config` | Config value set/matches | `{"config": {"key": "feature_x", "value": "enabled"}}` |
-| `env` | Environment variable set/matches | `{"env": {"var": "API_KEY"}}` |
-| `installed` | Binary exists on PATH | `{"installed": {"name": "nmap"}}` |
-
-### Boolean Expressions
+### 🔀 Boolean Logic
+You can combine signals for complex requirements:
 
 ```python
-# All must pass
+# The tool requires BOTH nmap installed AND stealth mode enabled
 result = evaluate_availability({
     "allOf": [
         {"installed": {"name": "nmap"}},
         {"env": {"var": "STEALTH_MODE"}}
     ]
 }, ctx)
-
-# Any must pass
-result = evaluate_availability({
-    "anyOf": [
-        {"installed": {"name": "nmap"}},
-        {"installed": {"name": "masscan"}}
-    ]
-}, ctx)
-```
-
-The signal system is extensible — custom signals can be registered via `register_signal()`.
-
----
-
-## Tool Metadata
-
-`tool_metadata.py` provides tool categorization and metadata lookup with a two-tier fallback:
-
-1. **`data/cyber_tools.json`** — extensible JSON database of tool definitions
-2. **Built-in static mappings** — fallback for tools not yet in the database
-
-```python
-from siyarix.tool_metadata import categorize_tool, risk_for_tool, describe_tool, tags_for_tool, personas_for_tool
-
-cat = categorize_tool("nmap")          # ToolCategory.RECON
-risk = risk_for_tool("metasploit")      # RiskLevel.HIGH
-desc = describe_tool("nuclei")          # "Template-based vulnerability scanner"
-tags = tags_for_tool("nmap")            # ["port-scan", "network", "service-detection"]
-personas = personas_for_tool("nuclei")  # ["pentester", "redteam", "blueteam", "devsecops"]
-```
-
-### Tool Version
-
-`tool_version.py` provides JSON database access for tool metadata:
-
-```python
-from siyarix.tool_version import get_tool_metadata
-
-meta = get_tool_metadata("nuclei")
-# Returns: {"description": "...", "category": "scanning", "risk_level": "medium", ...}
 ```
 
 ---
 
-## Tool Selection
+## 🏷️ Tool Metadata & Fallbacks
 
-### Capability-Based Selection
-
-```python
-registry.get_by_tags(["port_scanning"])
-# Returns: [nmap, masscan, rustscan, ...]
-```
-
-### Search
+Tool metadata (`tool_metadata.py`) is gathered using a reliable two-tier system:
+1. **`data/cyber_tools.json`**: Our primary, extensible database of tool definitions.
+2. **Built-in static mappings**: Safe defaults for tools not yet present in the JSON file.
 
 ```python
-registry.search("vulnerability scanner", top_k=5)
-# Scored by name match → tag match → description match
-```
+from siyarix.tool_metadata import categorize_tool, risk_for_tool, describe_tool
 
-### Alternatives
-
-```python
-registry.get_tool_alternatives("nmap")
-# Returns: ["masscan", "rustscan", "naabu"]
+category = categorize_tool("nmap")     # Returns: ToolCategory.RECON
+risk = risk_for_tool("metasploit")     # Returns: RiskLevel.HIGH
+desc = describe_tool("nuclei")         # Returns: "Template-based vulnerability scanner"
 ```
 
 ---
 
-## Execution
+## ⚡ Execution Engine
 
-Commands are executed via `subprocess_utils.py` which provides three execution modes:
+At the core of execution is `subprocess_utils.py`, built for ultimate safety and performance. 
 
-```python
-from siyarix.subprocess_utils import (
-    safe_run_async,        # Standard async execution
-    safe_run_async_stream, # Streaming with line-by-line output
-    safe_run_sync,         # Synchronous execution
-    safe_run_sandboxed,    # Sandboxed execution with bwrap/Docker
-)
-```
+It provides multiple execution modes:
+- `safe_run_async`: Standard non-blocking execution.
+- `safe_run_async_stream`: Real-time, line-by-line streaming.
+- `safe_run_sync`: Standard blocking execution.
+- `safe_run_sandboxed`: Isolated execution via `bwrap` or Docker.
 
-### Execution Features
-
-| Feature | Description |
-|---------|-------------|
-| **Timeout** | Process killed after `timeout` seconds |
-| **Environment injection** | API keys, proxy settings injected as env vars |
-| **PTY support** | Interactive tools via PTY allocation |
-| **Output capture** | stdout + stderr with configurable size limits |
-| **Streaming** | Line-by-line output for real-time display |
-| **Injection guards** | Pre-execution arg validation and sanitization |
-| **Orphan tracking** | Process cleanup on exit via `_ORPHAN_TRACKER` |
-| **Sudo support** | Automatic password prompting via TTY or `SIYARIX_SUDO_PASSWORD` |
-| **Destructive pattern detection** | Blocks rm -rf /, mkfs, dd, fork bombs |
-| **Path traversal protection** | Blocks ../ and %2e%2e patterns |
-
-### Sandboxed Execution
-
-```python
-result = safe_run_sandboxed(
-    command=["nmap", "-sV", target],
-    timeout=60,
-    allow_network=False,
-    use_seccomp=True,
-)
-# Uses bwrap on Linux, Docker fallback, restricted env on Windows/mobile
-```
+### 🛡️ Security Features
+Execution isn't just about running commands; it's about running them *safely*.
+- **Destructive Pattern Detection**: Automatically blocks commands like `rm -rf /` or fork bombs.
+- **Path Traversal Protection**: Stops `../` payload injections.
+- **Orphan Tracking**: Ensures lingering processes are cleaned up.
+- **Sudo Support**: Handles password prompts seamlessly.
+- **Sandboxing**: Runs high-risk tools in restricted environments.
 
 ---
 
-## Output Parsing
+## 🧩 Output Parsing
 
-Parsers convert raw tool output into structured `Finding` objects. Located in `src/siyarix/parsers/`. The `ParserRegistry` in `ToolRegistry` maps tools to their parsers.
+Running a tool is only half the battle. `ParserRegistry` automatically converts messy CLI output into structured `Finding` objects. 
 
-```python
-# Automatic parsing when executing via ToolRegistry
-result = await registry.execute("nmap", target="10.0.0.1")
-# result["findings"] contains parsed Finding objects
-```
-
-### Finding Lifecycle
-
-1. **Parsed** from raw tool output by dedicated parser
-2. **Added** to the knowledge graph via `_ingest_finding_to_graph()`
-3. **Stored** in the offline store
-4. **Logged** to the audit trail
-5. **Deduplicated** by MD5 hash across (target, port, CVE, severity)
-6. **Displayed** to the user
+### 🔄 The Finding Lifecycle
+1. **Parse**: The dedicated parser reads the raw stdout.
+2. **Ingest**: Sent to the Knowledge Graph via `_ingest_finding_to_graph()`.
+3. **Store**: Saved to the offline local database.
+4. **Log**: Recorded in the audit trail.
+5. **Deduplicate**: Filtered by MD5 hash (target + port + CVE + severity) to prevent noise.
+6. **Display**: Presented cleanly to the user.
 
 ---
 
-## Tool Installation
+## 📦 Automated Installation
 
-`ToolInstaller` (in `tool_installer.py`) handles automated installation across platforms:
+Missing a tool? The `ToolInstaller` (`tool_installer.py`) has your back. It abstracts package management across OS platforms.
 
 ```python
 from siyarix.tool_installer import ToolInstaller
 
 installer = ToolInstaller()
-result = installer.install("nmap")
-# ToolInstallResult(tool="nmap", success=True, method="auto")
+
+# Automatically detects OS and runs the right package manager
+result = installer.install("nmap") 
 ```
 
-### Platform Support
-
-| Platform | Package Managers Used |
-|----------|---------------------|
-| Windows | `winget` → `choco` (with predefined Winget ID mappings) |
-| Linux | `apt-get` → `pacman` → `dnf` → `apk` |
-| macOS | `brew` |
-
-### Winget ID Mappings (Windows)
-
-| Tool | Winget ID |
-|------|-----------|
-| nmap | `Insecure.Nmap` |
-| openssl | `ShiningLight.OpenSSL` |
-| git | `Git.Git` |
-| curl | `cURL.cURL` |
-| ffuf | `ffuf.ffuf` |
-| nuclei | `ProjectDiscovery.Nuclei` |
-| yara | `VirusTotal.YARA` |
-
-### Batch Installation
-
-```python
-results = installer.auto_install_missing(["nmap", "ffuf", "nuclei"])
-```
+> [!TIP]
+> **Windows Users**: The installer uses Winget (falling back to Choco). It includes predefined mappings so asking for `nmap` automatically translates to `winget install Insecure.Nmap`.
 
 ---
 
-## Error Handling
+## 🩹 Error Handling & Recovery
 
-### Tool Not Found
+Siyarix is designed to gracefully recover from tool failures.
 
-`safe_run_async` automatically generates installation hints:
-
-```
+### 🚫 Tool Not Found
+If a tool is missing, the system doesn't just crash. It provides actionable installation hints:
+```text
 Binary not found: 'nmap' is not installed or not found in PATH.
 Install it with: winget install Insecure.Nmap
 ```
 
-### Tool Execution Failure
-
-```python
-# Automatic retry with -Pn flag for filtered ports
-recovery = await validator.plan_recovery(failed_step, "connection refused")
-# RecoveryPlan(action=RETRY, modified_step={...flags: "... -Pn"})
-```
-
-### Registry-Level Execution Pipeline
-
-When executing via `ToolRegistry.execute()`:
-
-1. Availability check (against `tool.availability` expression)
-2. Permission gate check (`PermissionGate`)
-3. Interactive review (`ShellReview.review_and_confirm`)
-4. Handler invocation with timing
-5. Automatic parser dispatch for output analysis
-6. Usage statistics tracking (usage_count, avg_duration_ms)
+### 🔁 Auto-Recovery
+If a tool fails during execution (e.g., "Connection Refused" during a ping sweep), the AI can automatically propose a recovery plan, such as modifying the flags (e.g., adding `-Pn`).
 
 ---
 
-## Custom Tools
+## 🛠️ Adding Custom Tools
 
-Tools can be loaded from a custom JSON file at `config_dir / custom_tools.json`:
+Extending Siyarix is incredibly simple. Just add your tool to `custom_tools.json` in your configuration directory:
 
 ```json
 {
-    "my-tool": {
-        "description": "Custom security scanner",
+    "my-custom-scanner": {
+        "description": "Proprietary internal security scanner",
         "category": "scanning",
         "risk_level": "medium",
-        "aliases": ["mt"],
-        "tags": ["custom", "scanner"],
-        "binary": "my-tool",
-        "version": "1.0"
+        "aliases": ["mcs"],
+        "tags": ["custom", "internal-only"],
+        "binary": "my-custom-scanner",
+        "version": "1.2"
     }
 }
 ```
 
 ---
 
-## Related Modules
+## 📚 Module Reference
 
-| Module | Path | Purpose |
-|--------|------|---------|
-| `ToolRegistry` | `src/siyarix/registry.py` | Central tool registry with discovery, handlers, parsers |
-| `ToolCapability` | `src/siyarix/tool_models.py` | Tool data model (name, category, risk, tags, etc.) |
-| `ToolCapabilityGraph` | `src/siyarix/tool_graph.py` | Tool chaining, similarity graph, optimal scoring |
-| `ToolHandlers` | `src/siyarix/tool_handlers.py` | Tool-specific invocation handlers (11 handlers) |
-| `InternalTools` | `src/siyarix/internal_tools.py` | Built-in graph_analyzer and threat_intel handlers |
-| `ToolAvailability` | `src/siyarix/tool_availability.py` | Pre-execution availability evaluation with extensible signals |
-| `ToolInstaller` | `src/siyarix/tool_installer.py` | Cross-platform auto-installation (winget/choco/apt/brew) |
-| `ToolMetadata` | `src/siyarix/tool_metadata.py` | Tool categorization, risk, description, tags, personas |
-| `ToolVersion` | `src/siyarix/tool_version.py` | JSON database access for tool metadata |
-| `ToolCallRepair` | `src/siyarix/tool_call_repair.py` | Plain-text tool call parsing and promotion |
-| `subprocess_utils.py` | `src/siyarix/subprocess_utils.py` | Async subprocess execution (safe_run_async + streaming + sandboxed) |
-| `security_hardening.py` | `src/siyarix/security_hardening.py` | Danger analysis, input validation, secret redaction |
-| `parsers/` | `src/siyarix/parsers/` | Tool-specific output parsers (100+) |
+Need to dive deeper? Here is where everything lives:
+
+| Module | Location | What it does |
+|--------|----------|--------------|
+| **ToolRegistry** | `src/siyarix/registry.py` | Central hub for discovery, handlers, and parsers. |
+| **ToolCapability** | `src/siyarix/tool_models.py` | Data models and enums. |
+| **ToolGraph** | `src/siyarix/tool_graph.py` | Graph logic for chaining and scoring. |
+| **ToolHandlers** | `src/siyarix/tool_handlers.py` | Wrapper logic for external binaries. |
+| **InternalTools** | `src/siyarix/internal_tools.py` | Handlers for internal Siyarix systems. |
+| **Availability** | `src/siyarix/tool_availability.py` | Context and signal evaluation. |
+| **Installer** | `src/siyarix/tool_installer.py` | OS-agnostic auto-installer. |
+| **Metadata** | `src/siyarix/tool_metadata.py` | Categorization and tagging engine. |
+| **Execution** | `src/siyarix/subprocess_utils.py` | Secure, async process execution. |
+| **Security** | `src/siyarix/security_hardening.py` | Threat analysis and DLP redaction. |
+| **Parsers** | `src/siyarix/parsers/` | 100+ modules turning text into JSON. |

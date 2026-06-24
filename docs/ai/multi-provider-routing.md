@@ -1,10 +1,14 @@
-# Multi-Provider Routing
+# 🔀 Multi-Provider Routing
 
-Siyarix supports **25 AI providers** (24 cloud/local + 1 offline registry), all accessed through a unified OpenAI-compatible adapter in `openai_compat.py`. The `ProviderManager` singleton manages provider registration, credential pooling, failover, exponential-backoff cooldown, and multi-model ensemble decisions.
+Siyarix boasts robust support for **25 AI providers** (24 cloud/local + 1 offline registry), all accessible through a unified, OpenAI-compatible adapter located in `openai_compat.py`. 
+
+At the heart of this system is the `ProviderManager` singleton. Think of it as the air traffic controller for your AI requests—it handles provider registration, credential pooling, seamless failover, exponential-backoff cooldowns, and smart multi-model ensemble decisions.
 
 ---
 
-## Supported Providers
+## 🌐 Supported Providers
+
+Siyarix integrates with a wide array of top-tier AI providers. Here's a quick look at what's supported out of the box:
 
 | Provider | Type | Env Variable | Default Model | Base URL |
 |----------|------|-------------|---------------|----------|
@@ -34,9 +38,14 @@ Siyarix supports **25 AI providers** (24 cloud/local + 1 offline registry), all 
 | LocalAI | Local | — | (varies) | `localhost:8080/v1` |
 | Registry | Heuristic | — | — | — |
 
+> [!TIP]
+> Local providers like Ollama, LM Studio, and others typically don't require an API key environment variable. Siyarix is smart enough to handle them seamlessly!
+
 ---
 
-## Architecture
+## 🏗️ Architecture
+
+Understanding how Siyarix routes a user request can help you debug and optimize your configuration. Here's a simplified flow:
 
 ```
 User Input → _execute_instruction()
@@ -65,11 +74,14 @@ User Input → _execute_instruction()
                            (persistent cooldown across restarts via JSON)
 ```
 
+> [!NOTE]
+> The `ProviderStateManager` ensures that failure cooldowns persist even if you restart Siyarix, preventing endless retry loops on failing APIs.
+
 ---
 
-## Provider Manager (Singleton)
+## 🎛️ Provider Manager (Singleton)
 
-`ProviderManager` is a thread-safe singleton that centralises all provider logic:
+The `ProviderManager` is a thread-safe singleton, meaning there's only ever one instance running, and it safely handles requests from multiple threads. It centralizes all provider logic.
 
 ```python
 from siyarix.providers import ProviderManager
@@ -77,9 +89,9 @@ from siyarix.providers import ProviderManager
 pm = ProviderManager.get_instance()
 ```
 
-### Registration
+### 📝 Registration
 
-All 25 providers register via individual profile files in `src/siyarix/providers/profiles/`:
+All 25 providers are registered using individual profile files located in `src/siyarix/providers/profiles/`. This modular approach makes it super easy to add new providers in the future.
 
 ```python
 pm.register(ProviderProfile(
@@ -98,7 +110,7 @@ pm.register(ProviderProfile(
 ))
 ```
 
-Each profile defines models via `ModelInfo` dataclasses:
+Each profile defines its supported models using the `ModelInfo` dataclass, ensuring Siyarix knows exactly what each model is capable of:
 
 ```python
 ModelInfo(
@@ -111,9 +123,9 @@ ModelInfo(
 )
 ```
 
-### Auto-Detect
+### 🕵️ Auto-Detect
 
-When `model_provider = "auto"`, `ProviderManager.auto_detect_provider()` scans profiles in priority order:
+If you set `model_provider = "auto"`, Siyarix isn't just guessing. `ProviderManager.auto_detect_provider()` intelligently scans through profiles based on priority, looking for configured API keys or running local endpoints.
 
 ```python
 def auto_detect_provider(self) -> str | None:
@@ -125,23 +137,24 @@ def auto_detect_provider(self) -> str | None:
     return None
 ```
 
-### Preference Ordering
+### ⚖️ Preference Ordering
 
-`list_profiles()` respects `provider_priority` from `settings.toml`:
+You can control the priority of providers via your `settings.toml` file. The `list_profiles()` function respects this configuration.
 
 ```toml
 provider_priority = "openai, gemini, anthropic, groq"
 ```
 
-Providers are sorted by (index in priority list, -priority).
+Providers are sorted first by their index in your priority list, and then by their default priority score.
 
 ---
 
-## Provider Data Models
+## 📦 Provider Data Models
 
-All provider data models live in `src/siyarix/providers/types.py`:
+To keep things organized, all data structures representing providers and models are stored in `src/siyarix/providers/types.py`.
 
 ### ProviderProfile
+This defines everything Siyarix needs to know about a provider.
 
 ```python
 @dataclass
@@ -167,6 +180,7 @@ class ProviderProfile:
 ```
 
 ### ProviderCredential
+This keeps track of API keys, URLs, and the current health status of the credential.
 
 ```python
 @dataclass
@@ -185,6 +199,7 @@ class ProviderCredential:
 ```
 
 ### ModelInfo
+Details the specific capabilities of an individual model.
 
 ```python
 @dataclass
@@ -198,13 +213,14 @@ class ModelInfo:
     cost_tier: CostTier = CostTier.MEDIUM
 ```
 
-### Enums
-
-- **FailoverReason**: AUTH, RATE_LIMIT, BILLING, TIMEOUT, SERVER_ERROR, CONTEXT_OVERFLOW, MODEL_NOT_FOUND, UNKNOWN
-- **CostTier**: FREE, LOW, MEDIUM, HIGH
-- **ProviderType**: CLOUD, LOCAL
+### 🏷️ Enums
+We use standardized enums to keep categories consistent:
+- **FailoverReason**: `AUTH`, `RATE_LIMIT`, `BILLING`, `TIMEOUT`, `SERVER_ERROR`, `CONTEXT_OVERFLOW`, `MODEL_NOT_FOUND`, `UNKNOWN`
+- **CostTier**: `FREE`, `LOW`, `MEDIUM`, `HIGH`
+- **ProviderType**: `CLOUD`, `LOCAL`
 
 ### ClassifiedError
+When something goes wrong, it's classified into an actionable format.
 
 ```python
 @dataclass
@@ -219,17 +235,18 @@ class ClassifiedError:
 
 ---
 
-## Error Classification & Failover
+## 🛡️ Error Classification & Failover
+
+Robust error handling is critical when working with external APIs. Siyarix is designed to handle hiccups gracefully.
 
 ### Classification Strategy
 
-`ProviderManager.classify_error()` uses a multi-pass strategy:
+When an API call fails, `ProviderManager.classify_error()` kicks into action using a multi-pass strategy:
+1. **HTTP status code**: Quickly maps standard errors (like 429 for rate limits) to a `FailoverReason`.
+2. **Error message text**: Scans the error response for keywords (e.g., "rate limit", "timeout", "401").
+3. **Credential rotation hints**: Detects auth or billing failures to trigger credential rotation.
 
-1. **HTTP status code** — maps to `FailoverReason`
-2. **Error message text** — scans for keywords ("rate limit", "timeout", "401", etc.)
-3. **Credential rotation** hints returned for auth/billing failures
-
-### Failover Reasons
+### Failover Reasons & Actions
 
 | Reason | HTTP Status | Retryable | Action |
 |--------|------------|-----------|--------|
@@ -242,22 +259,23 @@ class ClassifiedError:
 | `MODEL_NOT_FOUND` | 404 | No | Fall back to alternative model |
 | `UNKNOWN` | — | No | Propagate error |
 
-### Failure Recording
+> [!WARNING]
+> If a credential fails due to `AUTH` or `BILLING` issues, Siyarix marks it as "dead" to prevent burning through retries and instantly pivots to a fallback provider.
 
-`ProviderManager.record_failure()` handles circuit-breaking logic:
+### Failure Recording (Circuit Breaking)
 
-- **AUTH/BILLING**: Credential marked as "dead" — no further attempts
-- **RATE_LIMIT**: Exponential backoff, `min(3600, 10 * (2^failure_count))` seconds
-- **TIMEOUT/SERVER_ERROR**: Shorter backoff, `min(300, 5 * (2^failure_count))` seconds
-- Delegates to `ProviderStateManager` for persistent across-restart tracking
+`ProviderManager.record_failure()` is Siyarix's built-in circuit breaker:
+- **AUTH/BILLING**: Immediate halt. No further attempts with this credential.
+- **RATE_LIMIT**: Calculates an exponential backoff time (up to an hour) to let the API recover.
+- **TIMEOUT/SERVER_ERROR**: Uses a shorter backoff curve (up to 5 minutes) since these are often temporary glitches.
 
 ```python
 pm.record_failure(provider, classified.reason)
 ```
 
-### Per-Session Skip-Known-Bad Cache
+### Per-Session "Skip-Known-Bad" Cache
 
-`ProviderStateManager` maintains a per-session cache that remembers failing `(provider, model)` pairs for 5 minutes:
+Nobody likes waiting for the same failing model over and over. `ProviderStateManager` keeps a short-term memory (5 minutes) of failing `(provider, model)` combos to skip them entirely.
 
 ```python
 state_manager.mark_skip_candidate(session_id, "openai", "gpt-5.5")
@@ -266,44 +284,45 @@ state_manager.is_candidate_skipped(session_id, "openai", "gpt-5.5")  # True for 
 
 ### Availability Checks
 
+Need to know who's ready to work?
+
 ```python
 pm.get_available_providers(preferred=["openai", "gemini"])
-# Returns only non-cooldown providers, preferred ones first
+# Returns only non-cooldown providers, with preferred ones at the top of the list
 ```
 
 ---
 
-## Provider State Manager
+## 💾 Provider State Manager
 
-`ProviderStateManager` persists cooldown/failure state across restarts to a **JSON file** (`provider_state.json`):
+API state shouldn't be lost when you restart the app. The `ProviderStateManager` persists cooldown and failure states to a lightweight **JSON file** (`provider_state.json`).
 
 ```python
 COOLDOWN_STEPS = [30.0, 60.0, 300.0]
 MAX_COOLDOWN = 300.0
 ```
 
-State is loaded on init and saved on every failure/success event. The persistent state tracks:
-
-- **`disabled`**: Per-provider cooldown expiration timestamps
-- **`failure_counts`**: Consecutive failure counts per provider
-- **`last_fail_time`**: Timestamp of the most recent failure
+This ensures that if you hit an hour-long rate limit, restarting Siyarix won't accidentally hammer the API again. It tracks:
+- **`disabled`**: Timestamps for when cooldowns expire.
+- **`failure_counts`**: How many times a provider has failed consecutively.
+- **`last_fail_time`**: When the most recent failure happened.
 
 ```python
-state_manager.record_failure(provider, reason)  # Saves to JSON
-state_manager.record_success(provider)           # Clears cooldown
-state_manager.is_disabled(provider)              # Check cooldown
-state_manager.cooldown_remaining(provider)       # Seconds until available
+state_manager.record_failure(provider, reason)  # Saves to JSON automatically
+state_manager.record_success(provider)           # Clears cooldown status
+state_manager.is_disabled(provider)              # Checks if still in cooldown
+state_manager.cooldown_remaining(provider)       # Time left until ready
 ```
 
 ---
 
-## Credential Resolution
+## 🔑 Credential Resolution
 
-`resolve_api_key()` is the canonical key-resolution function, with three-tier fallback:
+Finding the right API key is handled by `resolve_api_key()`. It uses a smart, three-tier fallback approach:
 
-1. **Credential Store** — `CredentialStore.retrieve(provider, "api_key")`
-2. **Environment Variable** — `PROVIDER_API_KEY` or profile-specific env var
-3. **Empty string** — local providers (Ollama, LM Studio) may not need a key
+1. **Credential Store**: Checks the secure `CredentialStore` (`CredentialStore.retrieve(provider, "api_key")`).
+2. **Environment Variable**: Looks for standard env vars like `OPENAI_API_KEY`.
+3. **Empty String**: Allows local providers (like Ollama) to proceed without a key.
 
 ```python
 def resolve_api_key(provider: str, env_var: str | None = None) -> str | None:
@@ -312,13 +331,11 @@ def resolve_api_key(provider: str, env_var: str | None = None) -> str | None:
     # 3. Return None
 ```
 
-`get_provider_env_var()` resolves the canonical env var name for any provider.
-
 ---
 
-## Model ID Normalization
+## 🪪 Model ID Normalization
 
-`model_aliases.py` provides provider-specific model name resolution:
+Model names change, and standardizing them is crucial. `model_aliases.py` ensures that no matter what the user types, Siyarix knows the correct internal name.
 
 ```python
 from siyarix.model_aliases import normalize_model_id, resolve_alias, list_aliases, register_alias
@@ -328,13 +345,11 @@ model = normalize_model_id("gemini", "gemini-3-pro")        # → "gemini-3.1-pr
 model = normalize_model_id("deepseek", "deepseek-v4")       # → "deepseek-v4-flash"
 ```
 
-`ProviderManager.resolve_model_id()` wraps this for centralised access.
-
 ---
 
-## Ollama Utilities
+## 🦙 Ollama Utilities
 
-`ollama_utils.py` provides Ollama-specific helpers:
+Working with local models should be frictionless. `ollama_utils.py` provides helpers to ensure Ollama is running when you need it.
 
 ```python
 from siyarix.providers.ollama_utils import ensure_ollama_running
@@ -343,21 +358,26 @@ from siyarix.providers.ollama_utils import ensure_ollama_running
 ensure_ollama_running()
 ```
 
-Auto-launch is triggered when `model_provider` is set to `"ollama"` or when `_start_ollama_on_launch` is enabled in settings.
+> [!TIP]
+> Siyarix can automatically launch Ollama if `model_provider` is set to `"ollama"` or if `_start_ollama_on_launch` is enabled in your settings!
 
 ---
 
-## Provider Selection
+## 🎯 Provider Selection
+
+Need to ask an AI a question? Here's how Siyarix decides who gets the job.
 
 ```python
 # Auto-detect the first available provider
 provider, model = pm.select_provider(preferred=None)
 
-# Use a specific provider
+# Explicitly request a specific provider
 provider, model = pm.select_provider(preferred="openai")
 ```
 
 ### Capability-Based Filtering
+
+You can also ask Siyarix for providers that meet specific criteria:
 
 ```python
 # Get all cloud providers supporting function calling
@@ -372,9 +392,9 @@ vision_providers = pm.get_providers_by_capability(vision=True)
 
 ---
 
-## Usage Tracking
+## 📊 Usage Tracking
 
-`UsageTracker` (in `usage.py`) tracks token consumption and estimated cost per provider:
+Keep an eye on your API costs! The `UsageTracker` (found in `usage.py`) monitors token consumption and estimates costs per provider.
 
 ```python
 from siyarix.providers import UsageTracker
@@ -385,21 +405,26 @@ print(tracker.summary())
 # LLM calls: 1 | Tokens: 500↑ 150↓ | Est. cost: $0.0086
 ```
 
-Usage is persisted to JSON and can be loaded across sessions.
+> [!IMPORTANT]
+> Usage statistics are persisted to JSON, allowing you to track costs and token limits across multiple sessions.
 
 ---
 
-## Health Check
+## 🩺 Health Check
+
+Wondering if your providers are online? Run the health check command:
 
 ```bash
 siyarix health
 ```
 
-Checks all configured providers, reporting status (available/unavailable), latency, and error counts.
+This command pings all configured providers and reports back on their availability, latency, and any recent errors.
 
 ---
 
-## Provider Statistics
+## 📈 Provider Statistics
+
+For programmatic access to provider health:
 
 ```python
 stats = pm.stats()
@@ -412,7 +437,9 @@ stats = pm.stats()
 
 ---
 
-## Related Modules
+## 📁 Related Modules
+
+Want to dive deeper into the code? Here is where everything lives:
 
 | Module | Path | Purpose |
 |--------|------|---------|

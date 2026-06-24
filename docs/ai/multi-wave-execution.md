@@ -1,24 +1,38 @@
-# Multi-Wave Execution & Live Streaming
+# 🌊 Multi-Wave Execution & Live Streaming
 
-Siyarix uses a multi-wave execution loop that enables iterative, LLM-driven workflows. Rather than executing a single batch of commands, the system runs multiple waves — each wave's results are analysed by the LLM to determine the next set of commands — enabling autonomous multi-step security operations. Context is carried over between waves, allowing the LLM to build on previous findings progressively.
+Siyarix leverages a sophisticated, **multi-wave execution loop** to power its iterative, LLM-driven workflows. Instead of merely firing off a single batch of commands and hoping for the best, Siyarix operates in sequential "waves." 
 
----
+After each wave, the LLM analyzes the results to intelligently determine the next steps. This progressive approach unlocks truly autonomous, multi-step security operations! Plus, context is seamlessly carried over between waves, empowering the LLM to learn and build upon its previous findings as it works through complex tasks.
 
-## Execution Flow
-
-```
-User request → LLM analyses & plans → Wave 1 executes →
-  LLM analyses wave results → Wave 2 (if needed) → ...
-  → Final response (up to configurable max waves)
-```
+> [!NOTE]
+> Think of a wave as a single, complete thought process: *Plan ➡️ Execute ➡️ Analyze ➡️ Repeat.*
 
 ---
 
-## Multi-Wave Loop
+## 🔄 Execution Flow
 
-### LLM-Driven Wave Orchestration (Integrated/Autonomous Modes)
+Here is a simplified look at how the multi-wave loop operates from start to finish:
 
-The `LLMEngineMixin._execute_agent()` method in `chat/engine.py` orchestrates the multi-wave loop:
+```text
+User Request 
+  ↳ LLM Analyzes & Plans 
+      ↳ Wave 1 Executes 
+          ↳ LLM Analyzes Results 
+              ↳ Wave 2 Executes (if needed) 
+                  ↳ ... 
+                      ↳ Final Response Delivered (capped at a configurable max waves)
+```
+
+> [!TIP]
+> This continuous feedback loop ensures that every subsequent action is deeply informed by real-time execution results.
+
+---
+
+## 🔁 The Multi-Wave Loop Explained
+
+### 🧠 LLM-Driven Wave Orchestration (Integrated & Autonomous Modes)
+
+At the heart of the system is the `LLMEngineMixin._execute_agent()` method found in `chat/engine.py`. This method acts as the master orchestrator for the multi-wave loop. Here is an inside look at how it works:
 
 ```python
 max_waves = self._settings.get("max_waves") or 12
@@ -28,28 +42,28 @@ for wave in range(max_waves):
     if not plan or not plan.steps:
         break
 
-    # Execute via AutonomousExecutor with live display
+    # 🚀 Execute via AutonomousExecutor with live display enabled
     plan = await agent.executor_autonomous.execute_plan(plan, live_display=True)
 
-    # If cancelled by user, stop
+    # 🛑 If cancelled by the user, immediately stop the loop
     if plan.status.name == "CANCELLED":
         break
 
-    # Collect outputs for next wave context
+    # 🗂️ Collect all outputs to build context for the next wave
     for s in plan.steps:
         result = s.result or {}
         output = (result.get("output") or "").strip()
         all_outputs.append(f"• {cmd_label}:\n{output}\n")
 
-    # Ask LLM: are we done or more work needed?
+    # 🤖 Ask the LLM: Are we done, or is more work needed?
     if llm_connected:
         wave_goal = (
             f"Original request: {instruction}\n\n"
             f"Completed execution wave {wave + 1}. Results so far:\n\n"
             f"{''.join(all_outputs)}\n\n"
-            "Analyse these results. Decide: is the original request fully satisfied?\n"
+            "Analyze these results. Decide: is the original request fully satisfied?\n"
             "- If YES → set needs_tools=false and provide a final response.\n"
-            "- If NO and only 1-2 more commands → set needs_tools=true.\n"
+            "- If NO and only 1-2 more commands are needed → set needs_tools=true.\n"
             "- Prefer stopping early with a good summary over endless waves."
         )
         plan = await agent.planner_autonomous.plan(
@@ -62,31 +76,34 @@ for wave in range(max_waves):
         plan = None
 ```
 
-### Context Carry-Over Between Waves
+> [!IMPORTANT]
+> The orchestrator ensures that Siyarix does not get stuck in an endless loop. It sets a hard limit on waves (`max_waves`, defaulting to 12) and explicitly instructs the LLM to prefer early summarization over unnecessary probing.
 
-Each wave's output is collected and fed into the next wave's LLM analysis prompt. The carry-over includes:
+### 🧠 Memory & Context Carry-Over
 
-- **Original user request** — preserved across all waves
-- **All prior command outputs** — accumulated results from every executed wave
-- **Execution metadata** — tool used, command run, exit status
-- **Wave number** — enables the LLM to gauge progress
+One of the most powerful features of the multi-wave loop is its memory. Each wave's output is collected and injected directly into the LLM's next analysis prompt. 
 
-The accumulated context helps the LLM make informed decisions about whether to continue, refine, or conclude.
+This rich context package includes:
 
-### Wave Decision
+- **🎯 The Original Request**: The user's initial prompt is preserved across all waves to ensure the system stays focused on the end goal.
+- **📈 Historical Outputs**: Accumulated results from *every* executed wave.
+- **🛠️ Execution Metadata**: Details like the specific tools used, the exact commands run, and their exit statuses.
+- **⏱️ Wave Counter**: Knowing the current wave number helps the LLM gauge its progress and prevent endless loops.
 
-The LLM receives the original request plus all outputs from completed waves and produces a new plan:
+This accumulated context acts as a "short-term memory," allowing the LLM to make highly informed decisions about whether to pivot, drill deeper, or successfully conclude the operation.
 
-- **`needs_tools=false`**: Present the final response to the user (done)
-- **`needs_tools=true`**: Generate a new plan for the next wave (e.g., found open ports → now scan for vulnerabilities)
+### ⚖️ The Wave Decision
 
-The prompt explicitly instructs the LLM to prefer early summarisation over endless probing.
+At the end of every wave, the LLM takes a step back, reviews the accumulated context, and makes a crucial decision by formulating a new plan:
+
+- **`needs_tools=false`**: The objective is achieved! The LLM will now synthesize the findings and present a polished final response to the user.
+- **`needs_tools=true`**: More work is required. The LLM generates a brand-new plan for the next wave (e.g., *Wave 1 found open ports ➡️ Wave 2 will now run vulnerability scans against them*).
 
 ---
 
-### AgentCore Multi-Wave (Core Mode)
+### ⚙️ AgentCore Multi-Wave (Core Mode)
 
-`AgentCore.execute_multi_wave()` in `core/__init__.py` provides a structured multi-wave interface for programmatic use:
+For programmatic access, `AgentCore.execute_multi_wave()` (located in `core/__init__.py`) provides a structured and deeply integrated multi-wave interface:
 
 ```python
 async def execute_multi_wave(self, goal: AgentGoal, max_waves: int = 5) -> AgentResult:
@@ -103,43 +120,49 @@ async def execute_multi_wave(self, goal: AgentGoal, max_waves: int = 5) -> Agent
             constraints={**goal.constraints, "context": wave_context},
         )
         wave_result = await self.execute_goal(wave_goal, plan)
+        
         all_findings.extend(wave_result.findings)
+        
+        # Early termination check
         if not wave_result.findings:
             break
+            
+        # Plan the next wave if supported
         if hasattr(self._planner, "plan_next_wave"):
             plan = self._planner.plan_next_wave(wave_result.findings, goal)
         else:
             plan = None
+            
     return AgentResult(goal=goal.description, findings=all_findings, success=True)
 ```
 
-Key aspects:
+**Key architectural features:**
 
-- **Context carry-over**: Previous findings (up to 20) are injected into each wave's goal context
-- **Early termination**: Breaks if a wave produces no new findings
-- **Findings accumulation**: All findings across waves are merged and deduplicated
+- **Context Injection**: The last 20 findings are dynamically injected into each subsequent wave's goal context.
+- **Early Termination Mechanism**: If a wave produces zero new findings, the loop smartly breaks to save time and resources.
+- **Findings Accumulation**: All discoveries across the waves are automatically merged and deduplicated.
 
 ---
 
-## Live Streaming Display
+## 📺 Live Streaming Display
 
-During execution, command output is streamed line-by-line in real time using the `AutonomousExecutor` with live display enabled.
+Watching an LLM run commands blindly can be stressful. To keep users fully informed, Siyarix streams command outputs line-by-line in real-time using the `AutonomousExecutor`!
 
-### Display Behavior
+### 🎨 Display Behaviors
 
-- A single Live panel shows output of the currently focused command
-- The display auto-cycles through running commands as they complete
-- Coloured borders indicate status:
-  - **Cyan**: Still running
-  - **Green**: Completed successfully
-  - **Red**: Failed (non-zero exit code)
-- Panel title shows the command and a status indicator
+- A clean, focused **Live Panel** displays the output of the currently executing command.
+- The UI automatically cycles through commands as they execute and complete.
+- **Color-coded borders** provide instant status recognition:
+  - 🔵 **Cyan**: Command is actively running.
+  - 🟢 **Green**: Command completed successfully (Zero exit code).
+  - 🔴 **Red**: Command failed (Non-zero exit code).
+- The panel title clearly indicates the exact command running and a brief status summary.
 
-### Per-Wave Output Display
+### 📊 Per-Wave Output Summary
 
-After each wave completes, summary panels are shown for each command:
+Once a wave successfully completes, beautiful summary panels are generated for each executed command:
 
-```
+```text
 ╭─ ✓ $ nmap -sS -sV -O -Pn example.com ───────────────────╮
 │ PORT     STATE  SERVICE    VERSION                       │
 │ 22/tcp   open   ssh        OpenSSH 8.9p1                 │
@@ -150,15 +173,15 @@ After each wave completes, summary panels are shown for each command:
 
 ---
 
-## Command Review
+## 🛡️ Interactive Command Review
 
-Before execution begins, each shell command can be reviewed interactively via the permission gate.
+Security and control are paramount. Before Siyarix executes *any* shell command, you have the opportunity to interactively review it via the integrated permission gate.
 
-### Review Prompt
+### 🔍 Review Prompt Interface
 
-When command review is enabled (default: on), each command shows a review panel:
+When command review is active (which is the default setting), Siyarix pauses and presents a clear review panel:
 
-```
+```text
 ╭──────────────── Command Execution Review ─────────────────╮
 │ Tool: raw                                                 │
 │ Reason: Raw shell command from LLM plan                   │
@@ -168,76 +191,93 @@ When command review is enabled (default: on), each command shows a review panel:
 Review command [edit/run/step/cancel] (run):
 ```
 
-| Choice | Effect |
-|--------|--------|
-| `run` | Execute the command as-is |
-| `edit` | Edit the command before execution |
-| `step` | Execute but step through one at a time |
-| `cancel` | Skip/cancel this command |
+Here is how you can interact with the prompt:
 
-### Toggle Review
+| Command | Action |
+| :--- | :--- |
+| `run` | Execute the command exactly as proposed. |
+| `edit` | Drop into an editor to tweak the command before running it. |
+| `step` | Execute, but continue to step through commands one by one. |
+| `cancel` | Safely abort and skip this specific command. |
+
+### 🎛️ Toggling Review Mode
+
+You can easily manage the review state via built-in slash commands:
 
 ```bash
-/command on     # Show review prompt before each command
-/command off     # Skip review, run all commands immediately
-/command         # Show current review state
+/command on      # Enable review prompt before every command
+/command off     # Go full auto: skip reviews and run everything immediately
+/command         # Check the current state of the review gate
 ```
+
+> [!WARNING]
+> Using `/command off` gives the LLM full autonomy over shell execution. Ensure you are operating in a safe environment before disabling reviews!
 
 ---
 
-## Wave Summary & Stats
+## 📈 Wave Summaries & Stats
 
-After each wave completes, a bottom stats line shows relevant information:
+At the conclusion of each wave, Siyarix prints a clean, unobtrusive stats line at the bottom of the terminal, keeping you updated on the session context:
 
-```
+```text
 Time: 12.3s | Mode: integrated | Persona: redteam | LLM: connected
 ```
 
 ---
 
-## Safety Integration
+## 🔒 Comprehensive Safety Integration
 
-Each command in every wave passes through the full safety pipeline:
+Executing AI-generated commands requires a rock-solid safety net. *Every single command*, across *every single wave*, must successfully pass through Siyarix's strict safety pipeline:
 
-1. **PermissionGate** — two-stage review: syntax validation followed by danger analysis (blocks critical, flags high/medium for review)
-2. **InputValidator** — rejects injection patterns (shell metacharacters, path traversal, null bytes)
-3. **DLPEngine** — strips secrets and PII from output
-4. **ShellReview** — interactive prompt before execution (edit/run/step/cancel)
-5. **Orphan process tracking** — ensures cleanup on timeout or user interrupt
-
----
-
-## CLS Pre-Execution (Integrated Mode)
-
-Before the LLM planning phase in integrated mode, the `LearningSystem` (CLS) may execute high-confidence cached skills (≥ 80% confidence) to provide rich base context. Results from these pre-executed steps are fed into the LLM's first-wave prompt, potentially reducing the number of waves needed.
+1. **🚦 PermissionGate**: A strict two-stage review. It first validates syntax, then performs a danger analysis. It outright blocks critical threats and flags high/medium risks for your explicit review.
+2. **🛡️ InputValidator**: Actively scans for and rejects injection patterns (e.g., dangerous shell metacharacters, path traversals, or null bytes).
+3. **🔏 DLPEngine**: Automatically scrubs secrets, tokens, and Personally Identifiable Information (PII) from the command outputs before they are processed or displayed.
+4. **👀 ShellReview**: The interactive human-in-the-loop prompt (edit/run/step/cancel) detailed above.
+5. **🧹 Orphan Process Tracking**: Ensures robust cleanup of hanging processes upon timeouts or user interrupts, preventing resource leaks.
 
 ---
 
-## Adversarial Review
+## ⚡ CLS Pre-Execution (Integrated Mode)
 
-Before execution, the plan is reviewed by the `AdversarialTester` (via `chat/stubs.py`) which flags potentially dangerous or suspicious patterns:
+In Integrated Mode, Siyarix features an intelligent optimization: **Continuous Learning System (CLS) Pre-Execution**. 
 
-```
+Before the LLM even begins its initial planning phase, the CLS may automatically execute cached, high-confidence skills (those with ≥ 80% confidence). By gathering this rich base context *before* Wave 1, Siyarix feeds a much more detailed picture to the LLM's first prompt. 
+
+> [!TIP]
+> CLS Pre-Execution dramatically reduces the total number of waves needed to complete a task, significantly speeding up complex operations!
+
+---
+
+## 🕵️‍♂️ Adversarial Review
+
+Before any execution occurs, Siyarix passes the LLM's plan through the `AdversarialTester` (located in `chat/stubs.py`). This component actively hunts for and flags potentially dangerous, destructive, or suspicious command patterns.
+
+```text
 ┌──────────────────────────────────────────────────────┐
 │ 🔍 Adversarial Review (3 findings) — 1 critical      │
 │                                                      │
 │ 🔴 [CRITICAL] Command uses full disk wipe patterns   │
-│    Suggestion: Consider using safe alternatives       │
-│ ⚠ [HIGH] Command may expose sensitive data           │
-│    Suggestion: Review command parameters              │
+│    Suggestion: Consider using safe alternatives      │
+│ ⚠  [HIGH] Command may expose sensitive data          │
+│    Suggestion: Review command parameters             │
 └──────────────────────────────────────────────────────┘
 ```
 
+> [!CAUTION]
+> If an adversarial review flags a critical issue, Siyarix will aggressively halt or demand explicit user intervention.
+
 ---
 
-## Related Modules
+## 📚 Related Modules Reference
 
-| Module | Path | Purpose |
-|--------|------|---------|
-| `LLMEngineMixin._execute_agent` | `src/siyarix/chat/engine.py:619` | Multi-wave execution orchestrator with context carry-over |
-| `AgentCore.execute_multi_wave` | `src/siyarix/core/__init__.py:286` | Structured multi-wave execution for programmatic use |
-| `AutonomousExecutor.execute_plan` | `src/siyarix/executor_autonomous.py` | Live-display execution engine |
-| `AutonomousPlanner.plan` | `src/siyarix/planner_autonomous.py` | LLM-driven planner for wave analysis and planning |
-| `safe_run_async_stream` | `src/siyarix/subprocess_utils.py` | Async subprocess with line-by-line streaming |
-| `ShellReview` | `src/siyarix/shell_review.py` | Interactive command review (edit/run/step/cancel) |
-| `PermissionGate` | `src/siyarix/permission_gate.py` | Two-stage syntax + danger check |
+Looking to dive deeper into the code? Here is a quick map of the modules that power the multi-wave execution loop:
+
+| Module | File Path | Primary Purpose |
+| :--- | :--- | :--- |
+| **`LLMEngineMixin._execute_agent`** | `src/siyarix/chat/engine.py:619` | The core multi-wave execution orchestrator, handling context carry-over. |
+| **`AgentCore.execute_multi_wave`** | `src/siyarix/core/__init__.py:286` | Structured multi-wave execution interface designed for programmatic use. |
+| **`AutonomousExecutor.execute_plan`** | `src/siyarix/executor_autonomous.py` | The execution engine responsible for the live terminal display. |
+| **`AutonomousPlanner.plan`** | `src/siyarix/planner_autonomous.py` | The LLM-driven planner that analyzes wave results and generates the next steps. |
+| **`safe_run_async_stream`** | `src/siyarix/subprocess_utils.py` | Async subprocess handler providing line-by-line streaming output. |
+| **`ShellReview`** | `src/siyarix/shell_review.py` | Handles the interactive command review prompt (edit/run/step/cancel). |
+| **`PermissionGate`** | `src/siyarix/permission_gate.py` | Executes the two-stage syntax and danger validation checks. |

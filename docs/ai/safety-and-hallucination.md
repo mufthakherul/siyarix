@@ -1,79 +1,91 @@
-# Safety, Security & Hallucination Resistance
+# 🛡️ Safety, Security & Hallucination Resistance
 
-Siyarix implements a multi-layered safety architecture that protects the host system, operator data, and audit trail integrity. Every command passes through staged validation, danger classification, secret redaction, and interactive review before execution, with comprehensive audit logging for compliance and forensic analysis.
+Welcome to the core of Siyarix's defense mechanism! When operating an autonomous or semi-autonomous AI system, safety and security are paramount. 
 
----
-
-## Safety Pipeline
-
-Every tool command flows through these stages:
-
-```
-User input → InputValidator → PermissionGate → DangerAnalyzer → DLPEngine → ShellReview → AuditLogger
-```
+> [!IMPORTANT]
+> Siyarix implements a robust, multi-layered safety architecture designed to protect your host system, secure operator data, and maintain the absolute integrity of your audit trails. Every single command passes through stages of validation, danger classification, secret redaction, and interactive review before it ever executes.
 
 ---
 
-## 1. InputValidator
+## 🛤️ The Safety Pipeline
 
-Located in `src/siyarix/security_hardening.py`, validates and sanitises user-supplied targets before they reach the executor.
+Think of the safety pipeline as a series of rigorous checkpoints. Every tool and command must successfully pass through these stages before execution:
 
-### Target Validation
+> [!NOTE]
+> **Workflow:** `User input` ➔ `InputValidator` ➔ `PermissionGate` ➔ `DangerAnalyzer` ➔ `DLPEngine` ➔ `ShellReview` ➔ `AuditLogger`
 
-Auto-detects and validates target format:
+---
+
+## 1. 🔍 InputValidator
+
+Located in `src/siyarix/security_hardening.py`, the **InputValidator** is your first line of defense. It thoroughly validates and sanitizes any user-supplied targets to ensure they are safe before reaching the executor.
+
+### 🎯 Target Validation
+
+The validator automatically detects and verifies the format of your targets:
 
 ```python
 from siyarix.security_hardening import validator
 
-# Validates IP, hostname, or URL
+# Validates IP, hostname, or URL seamlessly
 valid, msg = validator.validate_target("10.0.0.1")
 valid, msg = validator.validate_ip("192.168.1.0/24")
 valid, msg = validator.validate_hostname("example.com")
 valid, msg = validator.validate_url("https://example.com")
 ```
 
-### Injection Detection
+### 💉 Injection Detection
 
-Checks for shell injection patterns:
+To prevent malicious activity, the validator actively looks for and blocks shell injection patterns:
+
+> [!WARNING]
+> Any command containing the following patterns will be immediately blocked to prevent shell injection attacks.
 
 | Pattern | Example | Severity |
 |---------|---------|----------|
-| Shell pipe/redirection | `|`, `;`, `&`, `` ` `` | Blocked |
-| Command substitution | `$(...)` | Blocked |
-| Path traversal | `../`, `..\\`, `%2e%2e` | Blocked |
-| Null byte | `\x00` | Blocked |
-| Newline injection | `\r\n` | Blocked |
-| Format string | `%x`, `%n` | Blocked |
-| SQL injection keywords | `SELECT`, `DROP`, `UNION` + `'` or `"` | Blocked |
-| Backtick execution | `` `cmd` `` | Blocked |
+| Shell pipe/redirection | `|`, `;`, `&`, `` ` `` | ⛔ Blocked |
+| Command substitution | `$(...)` | ⛔ Blocked |
+| Path traversal | `../`, `..\\`, `%2e%2e` | ⛔ Blocked |
+| Null byte | `\x00` | ⛔ Blocked |
+| Newline injection | `\r\n` | ⛔ Blocked |
+| Format string | `%x`, `%n` | ⛔ Blocked |
+| SQL injection keywords | `SELECT`, `DROP`, `UNION` + `'` or `"` | ⛔ Blocked |
+| Backtick execution | `` `cmd` `` | ⛔ Blocked |
 
-### Argument Sanitisation
+### 🧼 Argument Sanitisation
+
+If you need to clean up an argument safely, the validator can strip out dangerous characters:
 
 ```python
 safe = validator.sanitize_arg("target; rm -rf /")
 # Returns: "target rm -rf " (shell metacharacters stripped)
 ```
 
-Removes null bytes, carriage returns, newlines, ANSI escape sequences, backticks, `$()`, `${}`, `|`, `;`, `&`, `<`, `>`, and collapses `../` traversals.
+> [!TIP]
+> This sanitisation removes null bytes, carriage returns, newlines, ANSI escape sequences, backticks, `$()`, `${}`, `|`, `;`, `&`, `<`, `>`, and collapses dangerous `../` path traversals.
 
 ---
 
-## 2. DangerAnalyzer
+## 2. ⚠️ DangerAnalyzer
 
-Also in `security_hardening.py`, classifies commands by destructiveness before execution.
+Also found in `src/siyarix/security_hardening.py`, the **DangerAnalyzer** evaluates commands to determine how destructive they might be before they are allowed to run.
 
-### Danger Levels
+### 🚥 Danger Levels
+
+Commands are classified into six severity levels, guiding how the system responds:
 
 | Severity | Recommendation | Example Patterns |
 |----------|---------------|------------------|
-| **Critical** | Blocked | `sudo rm -rf /`, `mkfs`, `dd if=`, fork bombs, format drive, `chmod 777 /`, credential exfiltration |
-| **High** | Confirm | `shutdown`, `reboot`, `halt`, pipe curl/wget to shell, SQL DROP/DELETE without WHERE, `Remove-Item -Recurse` |
-| **Medium** | Caution | `rm`, `killall`, `iptables -F`, netcat listener, crontab edit, PowerShell encoded command |
-| **Low** | Info | `chmod`, `chown`, `crontab` |
-| **Info** | Note | `sudo` |
-| **Safe** | — | No patterns matched |
+| **Critical** | ⛔ Blocked | `sudo rm -rf /`, `mkfs`, `dd if=`, fork bombs, format drive, `chmod 777 /`, credential exfiltration |
+| **High** | ✋ Confirm | `shutdown`, `reboot`, `halt`, pipe curl/wget to shell, SQL DROP/DELETE without WHERE, `Remove-Item -Recurse` |
+| **Medium** | ⚡ Caution | `rm`, `killall`, `iptables -F`, netcat listener, crontab edit, PowerShell encoded command |
+| **Low** | ℹ️ Info | `chmod`, `chown`, `crontab` |
+| **Info** | 📝 Note | `sudo` |
+| **Safe** | ✅ — | No patterns matched |
 
-### Usage
+### 🛠️ Usage
+
+Using the analyzer is straightforward:
 
 ```python
 from siyarix.security_hardening import danger_analyzer
@@ -84,88 +96,76 @@ print(report.is_dangerous)    # True
 print(report.recommendation)  # "⚡ CAUTION — Review this command before execution."
 ```
 
-The analyzer covers both Linux and Windows destructive patterns, including registry manipulation, shadow copy deletion, event log clearing, and scheduled task abuse.
+> [!NOTE]
+> The analyzer protects both Linux and Windows environments, covering destructive patterns like registry manipulation, shadow copy deletion, event log clearing, and scheduled task abuse.
 
-### Formatted Warning
+### 🎨 Formatted Warning
+
+You can also output these warnings directly to the console with beautiful, color-coded formatting:
 
 ```python
 from rich.console import Console
 danger_analyzer.format_warning(report, Console())
 ```
 
-Renders a colour-coded Rich panel with severity, reasons, and recommendation.
-
 ---
 
-## 3. PermissionGate
+## 3. 🚧 PermissionGate
 
-Located in `src/siyarix/permission_gate.py`, provides two-stage runtime safety enforcement.
+Located in `src/siyarix/permission_gate.py`, the **PermissionGate** acts as the bouncer for your runtime environment, providing a strict two-stage safety enforcement protocol.
 
-### Two-Stage Check
+### ⚖️ Two-Stage Check
 
-**Stage 1 — Syntax check**: Validates the command is non-empty and syntactically valid.
-
-**Stage 2 — Danger analysis**: Delegates to `DangerAnalyzer` and maps severity to enforcement action:
+1. **Stage 1 — Syntax Check**: Ensures the command is not empty and is syntactically valid.
+2. **Stage 2 — Danger Analysis**: Consults the `DangerAnalyzer` and decides what action to take based on the severity:
 
 | Danger Severity | Gate Result | Action |
 |----------------|-------------|--------|
-| `critical` | `FORBIDDEN` | Blocked with reason |
-| `high` / `medium` | `REVIEW` | Allowed with `requires_review=True` |
-| `low` / `info` / `safe` | `APPROVED` | Allowed |
+| `critical` | `FORBIDDEN` | Blocked with a clear reason. |
+| `high` / `medium` | `REVIEW` | Allowed, but flagged with `requires_review=True`. |
+| `low` / `info` / `safe` | `APPROVED` | Approved for execution. |
 
-### Rate Limiting
+### ⏱️ Rate Limiting
 
-Tracks call frequency with configurable limits:
+To prevent abuse or runaway scripts, the gate limits how often commands can be called:
 
 ```python
 gate = PermissionGate(rate_limit_calls=100, rate_limit_period=60.0)
 ```
 
-- Default: 100 calls per 60 seconds
-- State persisted to `rate_limit.json` in config directory
-- Rate limit exceeded → `FORBIDDEN` result
+> [!TIP]
+> By default, the limit is 100 calls per 60 seconds. The state is saved in `rate_limit.json` in your config directory. Exceeding this limit results in a `FORBIDDEN` action.
 
-### Restricted Payload Detection
+### 🧨 Restricted Payload Detection
 
-When `context={"restricted_payload": True}` is passed, checks for destructive patterns (`rm -rf`, `mkfs`, `dd if=`) before rate limiting.
+If you pass `context={"restricted_payload": True}`, the gate proactively checks for highly destructive patterns (like `rm -rf`, `mkfs`, `dd if=`) *before* even applying the rate limit.
 
-### GateResult
+### 📊 Gate Stages Overview
 
-```python
-@dataclass
-class GateResult:
-    allowed: bool             # True if command passes
-    stage: GateStage          # Which stage the result originates from
-    reason: str               # Human-readable explanation
-    tool: str                 # Tool name
-    command: str              # Original command
-    requires_review: bool     # True if user confirmation needed
-```
+The gate returns a `GateResult` dataclass indicating the command's status:
 
-### Gate Stages
-
-| Stage | Meaning |
+| Stage | What it Means |
 |-------|---------|
-| `SYNTAX` | Failed basic syntax validation |
-| `FORBIDDEN` | Blocked by danger or rate limit |
-| `PERMISSION` | Under permission evaluation |
-| `REVIEW` | Passed syntax check but requires user review |
-| `APPROVED` | Fully approved for execution |
+| `SYNTAX` | Failed basic syntax validation. |
+| `FORBIDDEN` | Blocked either by danger analysis or rate limiting. |
+| `PERMISSION` | Currently under permission evaluation. |
+| `REVIEW` | Passed syntax checks, but requires manual user review. |
+| `APPROVED` | Fully approved and ready for execution. |
 
 ---
 
-## 4. DLPEngine
+## 4. 🕵️‍♂️ DLPEngine (Data Loss Prevention)
 
-Located in `src/siyarix/dlp.py`, scans and redacts sensitive information from tool outputs.
+Found in `src/siyarix/dlp.py`, the **DLPEngine** scans tool outputs and automatically redacts sensitive information to prevent leaks.
 
-### Redaction Patterns
+### 🔐 Redaction Patterns
 
-| Category | Patterns |
+| Category | Patterns Handled |
 |----------|----------|
 | **Secrets** | AWS keys (`AKIA...`), GCP keys (`AIza...`), Slack tokens (`xoxb-...`), GitHub tokens (`ghp_...`), Bearer tokens, Private keys (PEM) |
-| **PII** (optional) | Email addresses, US Social Security numbers |
+| **PII** (Optional) | Email addresses, US Social Security numbers |
 
-### Usage
+### 🛠️ Usage
 
 ```python
 from siyarix.dlp import DLPEngine
@@ -178,35 +178,31 @@ safe_output = dlp.redact("API key: AKIAIOSFODNN7EXAMPLE")
 safe_dict = dlp.redact_dict({"token": "ghp_xxxxxxxxxxxxxxxxxxxx"})
 ```
 
-Secrets are redacted with their category name: `[REDACTED AWS_KEY]`, `[REDACTED GITHUB_TOKEN]`, etc.
+> [!NOTE]
+> Secrets aren't just hidden; they are clearly labeled with their category name (e.g., `[REDACTED AWS_KEY]`) so you know exactly what was removed.
 
-### SecretRedactor (security_hardening.py)
+### 🛡️ SecretRedactor (Comprehensive)
 
-A more comprehensive redactor in `security_hardening.py` covers 20+ patterns including:
-
-- OpenAI (`sk-...`), Anthropic (`sk-ant-...`), DeepSeek (`sk-ds...`), xAI (`xai-...`), Mistral API keys
-- AWS access/secret keys, GCP service accounts, Azure connection strings
-- JWTs, GitHub tokens, GitLab tokens, Slack tokens, Google API keys
-- Bearer/Basic auth, passwords in URLs, private key markers
-- Generic `secret=value`, `password=value` key-value pairs
+For even stricter redaction, `security_hardening.py` provides a `SecretRedactor` that covers over 20+ patterns, including AI API keys (OpenAI, Anthropic, DeepSeek, xAI, Mistral), cloud credentials, and generic `password=value` pairs.
 
 ```python
 from siyarix.security_hardening import redactor
 
 safe = redactor.redact("Key: sk-ant-xxxxxxxxxxxxxxxxxxxx")
-safe_dict = redactor.redact_dict({"credentials": {"password": "hunter2"}})
-safe_env = redactor.redact_env()  # os.environ with secrets masked
+safe_env = redactor.redact_env()  # Automatically masks secrets in os.environ
 ```
 
 ---
 
-## 5. ShellReview
+## 5. 🧑‍💻 ShellReview
 
-Located in `src/siyarix/shell_review.py`, provides interactive command review with four decisions.
+Located in `src/siyarix/shell_review.py`, the **ShellReview** module pauses execution to let the human operator review what the AI wants to run.
 
-### Review Prompt
+### 👁️ Review Prompt
 
-```
+When a command needs review, the operator sees a clean, interactive prompt:
+
+```text
 ╭──────────────── Command Execution Review ─────────────────╮
 │ Tool: raw                                                 │
 │ Reason: Raw shell command from LLM plan                   │
@@ -216,279 +212,135 @@ Located in `src/siyarix/shell_review.py`, provides interactive command review wi
 Review command [edit/run/step/cancel] (run):
 ```
 
-### Review Decisions
+### 🕹️ Review Decisions
+
+The operator has four choices:
 
 | Decision | Behavior |
 |----------|----------|
-| `run` | Execute the command as-is |
-| `edit` | Edit the command interactively, then execute modified version |
-| `step` | Execute but step through commands one at a time |
-| `cancel` | Skip/cancel this command entirely |
+| `run` | Execute the command exactly as shown. |
+| `edit` | Interactively modify the command before running it. |
+| `step` | Execute, but step through subsequent commands one by one. |
+| `cancel` | Skip or cancel this command entirely. |
 
-### Non-TTY / CI Mode
-
-Auto-approves all commands when stdin/stdout are not TTYs (CI pipelines, non-interactive shells):
-
-```python
-if not _is_interactive():
-    return ReviewResult(decision=ReviewDecision.RUN, edited_command=original)
-```
-
-### Integration
-
-Importable by all executors:
-
-```python
-from siyarix.shell_review import review_and_confirm, review_command
-
-reviewed = review_and_confirm("nmap -sV target", "nmap", "Port scan")
-if reviewed is None:
-    return  # Cancelled
-# Execute reviewed command
-```
+> [!TIP]
+> **CI / Non-TTY Mode:** If the system detects it's running in a non-interactive environment (like a CI pipeline), it will automatically approve commands to prevent the process from hanging indefinitely.
 
 ---
 
-## 6. AuditLogger
+## 6. 📜 AuditLogger
 
-Located in `src/siyarix/audit_log.py`, provides enterprise-grade audit trail with tamper-evident chain of custody.
+Located in `src/siyarix/audit_log.py`, the **AuditLogger** provides an enterprise-grade audit trail with a tamper-evident chain of custody, ensuring absolute accountability.
 
-### Event System
+### 🧩 The Event System
 
-```python
-from siyarix.audit_log import AuditEventType, AuditSeverity, AuditEvent, AuditLogger
-```
-
-Every event is a structured dataclass:
+Every single action generates a structured `AuditEvent`:
 
 ```python
 @dataclass
 class AuditEvent:
-    event_id: str               # UUID hex
+    event_id: str               # Unique UUID hex
     timestamp: datetime         # UTC timestamp
-    event_type: str             # Event category
+    event_type: str             # Category of the event
     severity: str               # info / low / medium / high / critical
-    user: str                   # Attributed user
-    session_id: str             # Session identifier
-    source_ip: str              # Originating IP
-    target: str                 # Target resource
-    action: str                 # Action performed
+    user: str                   # The user who triggered the event
+    session_id: str             # Unique session identifier
+    source_ip: str              # Originating IP address
+    target: str                 # What resource was targeted
+    action: str                 # The action performed
     result: str                 # success / failure / denied
-    details: dict               # Arbitrary structured data
-    hash_prev: str | None       # Previous event's hash (chain link)
+    details: dict               # Any extra structured data
+    hash_prev: str | None       # Link to the previous event's hash
     hash_current: str | None    # This event's hash
 ```
 
-### Tamper-Evident Chain
+### 🔗 Tamper-Evident Chain
 
-Each event's hash incorporates the previous event's hash:
+To guarantee that logs haven't been altered, each event's hash incorporates the hash of the *previous* event, creating an unbreakable chain.
 
-```python
-def compute_hash(self, prev_hash: str | None = None) -> str:
-    data = (
-        f"{self.timestamp.isoformat()}{self.event_type}{self.severity}"
-        f"{self.user}{self.session_id}{self.source_ip}{self.target}"
-        f"{self.action}{self.result}{details_str}{prev_hash or ''}"
-    )
-    return hashlib.sha256(data.encode()).hexdigest()[:16]
-```
-
-### Chain Verification
+> [!IMPORTANT]
+> You can verify the integrity of your entire audit chain at any time. If someone tries to modify a past log entry, the chain will break, and the system will alert you.
 
 ```python
 audit = AuditLogger()
-result = audit.verify_chain()
-
-# Returns:
-# {
-#     "valid": True,
-#     "total_events": 142,
-#     "broken_at": None,
-#     "errors": [],
-#     "chain_integrity": "intact",
-# }
+result = audit.verify_chain() # Returns a validation dictionary
 ```
 
-### Event Types (87 defined)
+### 🏷️ Event Types
 
-| Category | Events |
-|----------|--------|
-| **Authentication** | `auth_login`, `auth_logout`, `auth_failed` |
-| **Scanning** | `scan_start`, `scan_complete`, `scan_failed` |
-| **Incidents** | `incident_create`, `incident_update`, `incident_close` |
-| **Vulnerabilities** | `vuln_create`, `vuln_update` |
-| **Security** | `security_approval`, `security_denial`, `dlp_violation`, `rate_limit_hit` |
-| **System** | `system_start`, `system_error`, `config_change`, `credential_rotated` |
-| **Plugins** | `plugin_install`, `plugin_remove` |
-| **API** | `api_key_create`, `api_key_revoke` |
-| **Compliance** | `compliance_check`, `permission_change` |
-| **Containers** | `container_check`, `file_integrity` |
+There are 87 defined event types spanning across multiple categories, including:
+- **Authentication:** `auth_login`, `auth_logout`
+- **Security:** `security_approval`, `dlp_violation`, `rate_limit_hit`
+- **System:** `system_start`, `config_change`
 
-### Session Tracking
+### 💾 Export & CLI
 
-```python
-session_id = audit.start_session(user="alice")
-# ... perform operations ...
-audit.end_session(session_id)
-```
-
-### Logging Events
-
-```python
-from siyarix.audit_log import audit, log_event
-
-# Via module-level singleton
-audit.log(
-    event_type=AuditEventType.SCAN_START,
-    severity=AuditSeverity.INFO,
-    user="alice",
-    action="port_scan",
-    result="success",
-    target="10.0.0.1",
-    session_id=session_id,
-    details={"ports": "1-1000", "tool": "nmap"},
-)
-
-# Via convenience function
-log_event(
-    event_type=AuditEventType.SECURITY_DENIAL,
-    severity=AuditSeverity.HIGH,
-    user="alice",
-    action="command_blocked",
-    result="denied",
-    details={"command": "rm -rf /", "reason": "critical destructive pattern"},
-)
-```
-
-### Export
-
-```python
-# Export to JSON (returns string)
-json_data = audit.export(export_format="json", days=30)
-
-# Export to file (returns None)
-audit.export(export_format="json", filepath="audit_export.json", days=30)
-
-# Export to CSV
-csv_data = audit.export(export_format="csv", days=7)
-```
-
-### CLI Commands
+You can easily export your logs or check status via code or CLI commands:
 
 | Command | Purpose |
 |---------|---------|
-| `/audit status` | Show audit statistics and chain integrity |
-| `/audit export` | Export audit logs (JSON or CSV) |
-| `/audit verify` | Verify tamper-evident chain integrity |
+| `/audit status` | View audit statistics and check chain integrity. |
+| `/audit export` | Export logs to JSON or CSV formats. |
+| `/audit verify` | Manually verify the tamper-evident chain. |
 
-### Retention and Cleanup
-
-- Default retention: 365 days (configurable via `audit.toml`)
-- `cleanup_old_events()` removes events older than retention period and rewrites the audit file
-- In-memory limit: last 1000 events loaded from disk; full persistence via JSONL with SHA-256 chain
-
-### OpSec Integration
-
-In memory-only mode (via `opsec_manager`), events are tracked in memory but never written to disk:
-
-```python
-if opsec_manager.status.memory_only:
-    self._unflushed_events.clear()
-    self._dirty = False
-    return
-```
+> [!NOTE]
+> By default, logs are retained for 365 days. In highly sensitive "OpSec Memory-Only" mode, events are tracked in memory and *never* written to disk.
 
 ---
 
-## 7. SeccompProfile
+## 7. 🐳 SeccompProfile
 
-Located in `security_hardening.py`, generates Docker-compatible seccomp profiles for sandboxed execution.
+Found in `security_hardening.py`, this module generates Docker-compatible `seccomp` profiles to heavily sandbox executions.
 
-### Restricted Syscalls
+### 🚫 Restricted Syscalls
 
-Blocks 50+ dangerous syscalls while allowing normal tool execution:
-
-```
-acct, add_key, bpf, clock_adjtime, clock_settime, create_module,
-delete_module, finit_module, init_module, ioperm, iopl, kexec_*, mount,
-open_by_handle_at, perf_event_open, pivot_root, ptrace, reboot, setns,
-swapoff, swapon, umount, unshare, userfaultfd, ...
-```
-
-### Usage
+It proactively blocks over 50 dangerous system calls (like `mount`, `ptrace`, `reboot`, and `add_key`) while still allowing standard tools to function normally.
 
 ```python
 from siyarix.security_hardening import SeccompProfile
 
 profile_path = SeccompProfile.generate_docker_seccomp()
-# Returns path to cached JSON profile: /tmp/siyarix/seccomp/docker_seccomp.json
+# Returns the path to your secure JSON profile
 ```
 
 ---
 
-## 8. Validator
+## 8. ✅ Validator
 
-Located in `src/siyarix/validators.py`, provides input format validators separate from the injection-detection focused `InputValidator`.
+Located in `src/siyarix/validators.py`, the **Validator** class focuses on ensuring that inputs and AI-generated plans are formatted correctly and make sense.
 
-### Validated Types
+### 📐 Validated Types
 
-| Function | Validates |
-|----------|-----------|
-| `validate_target` | Auto-detect IP, CIDR, hostname, or URL |
-| `validate_hostname` | RFC 1123 hostname (supports single-label, localhost, numeric TLDs) |
-| `validate_url` | HTTP/HTTPS URLs with required dot in host |
-| `validate_ip` | IPv4/IPv6 address |
-| `validate_cidr` | CIDR notation with `ipaddress.ip_network` |
-| `validate_port` | Single port 1–65535 |
-| `validate_port_range` | Dash-separated range (`80-443`) or single port |
-| `validate_email` | Simplified RFC 5321 email |
-| `validate_not_empty` | Non-blank string |
-| `validate_min_length` | Minimum character length |
+It handles strict formatting checks for elements like:
+- IP Addresses (IPv4/IPv6) & CIDR blocks
+- RFC-compliant Hostnames & URLs
+- Ports, Port Ranges, and Emails
 
-### PlanStep Validation
+### 🤖 PlanStep Validation & Recovery
 
-The `Validator` class validates `PlanStep` objects before execution:
+Before the AI executes a plan, the validator checks every `PlanStep` (e.g., verifying it has a tool, arguments, and a valid timeout). 
 
-```python
-from siyarix.validators import Validator
-
-v = Validator()
-results = await v.validate_plan(steps)  # List[ValidationResult]
-```
-
-Checks:
-- Step has a tool specified
-- Step has arguments (except report/summary tools)
-- Step timeout is positive
-
-### Recovery Planning
-
-When validation fails, `plan_recovery()` suggests corrective actions:
-
-| Error | Recovery |
-|-------|----------|
-| `nmap` filtered ports | Add `-Pn` flag |
-| `nikto` / `nuclei` refused | Try alternative tool |
-| `gobuster` / `ffuf` all 404s | Add more extensions |
-| Max retries exceeded | Skip step |
-
-```python
-recovery = await v.plan_recovery(failed_step, "filtered")
-# RecoveryPlan(action=RETRY, modified_step=..., message="Adding -Pn flag")
-```
+> [!TIP]
+> If a command fails, `plan_recovery()` steps in to suggest smart, automated fixes. For example, if `nmap` reports all filtered ports, the recovery planner might automatically suggest adding the `-Pn` flag to try again.
 
 ---
 
-## Related Modules
+## 📚 Module Quick Reference
 
-| Module | Path | Purpose |
+Need to dive into the code? Here's where to find everything:
+
+| Module | Location | Purpose |
 |--------|------|---------|
-| `InputValidator` | `src/siyarix/security_hardening.py:88` | Target validation, injection detection, sanitisation |
-| `DangerAnalyzer` | `src/siyarix/security_hardening.py:650` | Command danger classification (6 severity levels) |
-| `SecretRedactor` | `src/siyarix/security_hardening.py:328` | Comprehensive secret redaction (20+ patterns) |
-| `PermissionGate` | `src/siyarix/permission_gate.py:49` | Two-stage gate: syntax check + danger analysis |
-| `DLPEngine` | `src/siyarix/dlp.py:29` | Data loss prevention for tool outputs |
-| `ShellReview` | `src/siyarix/shell_review.py:48` | Interactive command review (edit/run/step/cancel) |
-| `AuditLogger` | `src/siyarix/audit_log.py:194` | Enterprise audit with SHA-256 tamper-evident chain |
-| `Validator` | `src/siyarix/validators.py:598` | PlanStep validation with recovery planning |
-| `SeccompProfile` | `src/siyarix/security_hardening.py:771` | Docker-compatible syscall restriction profiles |
+| **InputValidator** | `src/siyarix/security_hardening.py:88` | Validates targets and detects shell injection. |
+| **DangerAnalyzer** | `src/siyarix/security_hardening.py:650` | Classifies the danger level of commands. |
+| **SecretRedactor** | `src/siyarix/security_hardening.py:328` | Masks API keys, tokens, and passwords. |
+| **PermissionGate** | `src/siyarix/permission_gate.py:49` | Enforces syntax checks and danger policies. |
+| **DLPEngine** | `src/siyarix/dlp.py:29` | Prevents sensitive data loss in outputs. |
+| **ShellReview** | `src/siyarix/shell_review.py:48` | Human-in-the-loop interactive reviews. |
+| **AuditLogger** | `src/siyarix/audit_log.py:194` | Tamper-evident, enterprise auditing. |
+| **Validator** | `src/siyarix/validators.py:598` | Format validation and AI plan recovery. |
+| **SeccompProfile** | `src/siyarix/security_hardening.py:771` | Docker syscall restriction profiles. |
+
+---
+
+*This document serves as your guide to maintaining a secure, hallucination-resistant, and auditable Siyarix environment.*

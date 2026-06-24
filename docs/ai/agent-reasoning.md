@@ -1,14 +1,19 @@
-# Agent Reasoning Pipeline
+# 🧠 Agent Reasoning Pipeline
 
-The agent reasoning pipeline transforms user objectives into executed actions through a **Planner Router** architecture that dispatches requests to either an LLM-driven planner or a heuristic registry planner depending on the execution mode. The system supports an **Observe–Reason–Act–Reflect** loop in autonomous mode and deterministic template-based planning in registry/offline mode.
+Welcome to the **Agent Reasoning Pipeline**! This is the "brain" of Siyarix, responsible for taking a user's objective and turning it into real, executed actions. 
+
+Think of it as a smart traffic cop: the **Planner Router** directs requests to either an AI-driven planner (using a Large Language Model or LLM) or a rule-based heuristic planner. This depends on the mode you are running. In autonomous mode, the system follows a dynamic **Observe–Reason–Act–Reflect** loop. In registry or offline mode, it relies on rock-solid, deterministic templates.
+
+> [!NOTE]
+> The dual-planner architecture ensures that Siyarix remains fully functional whether you have an active LLM connection or are operating completely offline.
 
 ---
 
-## Planner Architecture
+## 🏛️ Planner Architecture
 
-Siyarix uses a two-planner system coordinated by a unified `Planner` router:
+Siyarix utilizes a two-planner system, all smoothly coordinated by a unified `Planner` router:
 
-```
+```text
 User Request
     │
     ▼
@@ -24,109 +29,68 @@ User Request
 └─────────────────────────────────────────┘
 ```
 
-### AutonomousPlanner
+### 🤖 AutonomousPlanner
+*(Found in `src/siyarix/planner_autonomous.py`)*
 
-`AutonomousPlanner` (in `planner_autonomous.py`) is a pure LLM-driven planner with no heuristic fallback. The LLM is responsible for verifying tool availability, installing missing tools, and constructing correct shell commands.
+This is our pure, AI-driven planner. It relies entirely on the LLM to figure things out—from verifying if tools are available to installing missing ones and writing the exact shell commands needed.
 
-Key design features:
+**Key Features:**
+- **🧠 Session-aware Token Optimization**: We save on processing costs by sending full tool details only on the first call. Later calls use a much shorter, compact prompt.
+- **🗣️ Multi-format Response Parsing**: Whether the LLM replies in JSON, YAML, Markdown, XML, or just plain text, our system can understand and extract the commands.
+- **🛠️ Native Tool Calling**: When available, we prefer structured tool calls directly from the LLM for better accuracy.
+- **🛡️ Structured Execution (`execute_plan`)**: We provide the LLM with a strict function definition to ensure the plan it generates is properly formatted and safe.
 
-- **Session-aware token optimisation**: Tool schemas are sent only on the first call of a session. Subsequent calls use a compact prompt.
-- **Multi-format response parsing**: The planner parses LLM responses from JSON, YAML, Markdown code blocks, XML tags, and raw text with heuristic conversational filtering.
-- **OpenAI tool calling support**: When available, structured tool calls (`tool_calls`) are preferred over free-form text responses.
-- **`execute_plan` function schema**: A structured function definition is passed to the LLM to constrain output to a validated format.
+> [!TIP]
+> The `AutonomousPlanner` works best when the LLM provider supports native structured tool calling (like OpenAI's `tool_calls`).
 
-```python
-plan = await autonomous_planner.plan(
-    goal="scan 10.0.0.1",
-    llm_call=llm_call_fn,
-    tool_schemas=tool_dicts,
-    available_tools=tool_names,
-    history=conversation_history,
-    is_first_call=True,
-)
-```
+### ⚙️ RegistryPlanner
+*(Found in `src/siyarix/planner_registry.py`)*
 
-### RegistryPlanner
+This is our rock-solid, deterministic planner. It operates entirely without an LLM! 
 
-`RegistryPlanner` (in `planner_registry.py`) is a deterministic heuristic planner that operates with no LLM dependency. It uses:
-
-- **Inverted keyword index** — maps user request keywords to tool names
-- **Template-based workflow generation** — 25+ predefined DAG templates (recon_full, web_audit, network_scan, cloud_audit, vuln_scan, dns_recon, ad_assessment, linux_privesc, etc.)
-- **Intent extraction** — `NaturalLanguageParser` extracts intent and target from natural language
-- **Tool alternatives** — fallback chains when a tool is unavailable (e.g., nmap → masscan → rustscan)
-
-```python
-plan = registry_planner.plan(
-    goal="scan 10.0.0.1",
-    available_tools=tool_names,
-)
-```
+**Key Features:**
+- **🔍 Keyword Matching**: It uses an inverted keyword index to map plain English words to specific security tools.
+- **📋 Pre-built Templates**: It features over 25 predefined templates (like `recon_full`, `network_scan`, `linux_privesc`) to handle common workflows out of the box.
+- **🎯 Intent Extraction**: A Natural Language Parser picks up on what you want to do (intent) and what you want to target.
+- **🔄 Smart Fallbacks**: If your first-choice tool isn't installed, it automatically rolls over to the next best thing (e.g., swapping `nmap` for `masscan`).
 
 ---
 
-## Execution Modes
+## 🚀 Execution Modes
 
-`AgentCore` (in `core/__init__.py`) supports four execution modes:
+The `AgentCore` module (`src/siyarix/core/__init__.py`) is the main engine, and it supports four different ways of running:
 
-| Mode | Planner | Executor | LLM Required |
-|------|---------|----------|-------------|
-| `REGISTRY` | RegistryPlanner | RegistryExecutor | No |
-| `AUTONOMOUS` | AutonomousPlanner | AutonomousExecutor | Yes |
-| `HYBRID` | AutonomousPlanner → RegistryPlanner | Both | Optional |
-| `INTERACTIVE` | RegistryPlanner | RegistryExecutor with user approval | No |
+| Mode | Planner Used | Executor Used | Needs an LLM? |
+|------|--------------|---------------|---------------|
+| **`REGISTRY`** | RegistryPlanner | RegistryExecutor | No ❌ |
+| **`AUTONOMOUS`** | AutonomousPlanner | AutonomousExecutor | Yes ✅ |
+| **`HYBRID`** | AutonomousPlanner → RegistryPlanner | Both | Optional ⚠️ |
+| **`INTERACTIVE`** | RegistryPlanner | RegistryExecutor (needs your OK) | No ❌ |
 
-### Observe–Reason–Act–Reflect Loop (Autonomous Mode)
+---
 
-The `LLMEngineMixin._execute_agent()` method implements a multi-turn reasoning loop with the AutonomousPlanner:
+## 🔄 The Observe–Reason–Act–Reflect Loop
 
-```
-while objective_incomplete and iterations < max_waves:
-    # Observe
-    state = collect_environment_state()
-    findings = previous_execution_results
+When running in **Autonomous Mode**, Siyarix works in a continuous, multi-turn loop—just like a human expert would! Here is how the `LLMEngineMixin._execute_agent()` method handles it:
 
-    # Reason
-    analysis = llm_analyses_results(wave_outputs)
-    next_plan = autonomous_planner.plan(analysis)
+### 1️⃣ Observe
+First, the agent looks around to understand its environment. It collects:
+- **Environment State**: Operating system, available tools, current directory.
+- **Session State**: What have we talked about so far? What were the results of the last commands?
+- **Target Context**: IPs, domains, or URLs you specified.
+- **Tool Availability**: A quick check of the `ToolRegistry` to see what is installed.
 
-    # Act
-    result = executor_autonomous.execute_plan(next_plan)
-    context.add_history(result)
+### 2️⃣ Reason
+Next, the LLM puts on its thinking cap. We send it a structured prompt containing the system instructions, conversation history, tool schemas, and your goal.
 
-    # Reflect
-    if result.indicates_new_targets:
-        objectives.add(result.new_targets)
-```
+It then returns a structured plan, looking something like this:
 
-### 1. Observe
-
-The agent collects all available context:
-
-- **Environment state**: OS, shell type, available tools, current working directory
-- **Session state**: conversation history, execution results from previous waves
-- **Target context**: user-specified target (IP, domain, URL) injected into instructions
-- **Tool availability**: results from `ToolRegistry` scan, checked via `ToolAvailabilityContext`
-- **CLS pre-execution**: High-confidence cached skills may be executed before the LLM call to provide rich base context
-
-### 2. Reason
-
-The LLM receives a structured prompt containing:
-
-```
-Persona Preamble (optional) + System Prompt + Platform Context +
-Conversation History + Tool Schemas + User Goal
-```
-
-It returns a structured plan via JSON or tool calls:
-
-```python
+```json
 {
-    "needs_tools": True,
-    "reasoning": "Step-by-step analysis of the request",
-    "response": "Direct answer when needs_tools=false, or synthesis post-execution",
+    "needs_tools": true,
+    "reasoning": "I need to check for open ports to identify running services.",
     "steps": [
         {
-            "tool": "",
             "command": "nmap -sV -p 1-1000 10.0.0.1",
             "description": "Port scan target with service detection"
         }
@@ -134,92 +98,49 @@ It returns a structured plan via JSON or tool calls:
 }
 ```
 
-The AutonomousPlanner's `_parse_llm_response()` method supports multiple response formats:
+### 3️⃣ Act
+Now it's time to execute the plan! The commands are run in "waves." Before anything actually runs, it goes through a rigorous safety check:
+1. **PermissionGate**: Checks for syntax errors and dangerous commands.
+2. **Input Validation**: Prevents sneaky stuff like shell injection or path traversal.
+3. **Shell Review**: (Optional) Prompts you to approve, edit, or cancel the command.
+4. **Execution**: Runs the command safely with a timeout and tracks any stray processes.
+5. **DLP & Secret Redaction**: Automatically scrubs API keys, passwords, and sensitive tokens from the output before the LLM sees it.
 
-1. Native `tool_calls` (structured function arguments)
-2. JSON with `needs_tools` / `steps` fields
-3. YAML with matching fields
-4. Markdown code blocks (extracted as raw commands)
-5. XML tags (`<function=name>...</function>`)
-6. Direct raw text (filtered heuristically for conversational vs. command content)
+> [!WARNING]
+> Security is our top priority. The agent will never run highly destructive commands without explicit review, and sensitive data is aggressively redacted!
 
-### 3. Act
+### 4️⃣ Reflect
+Finally, the LLM reviews the output of the commands. Did we get what we needed? 
+- If yes, it sets `needs_tools=false` and provides a final answer.
+- If no, it sets `needs_tools=true` and creates a new plan for the next wave. 
 
-Commands from the LLM plan are executed per wave:
-
-```python
-for wave in range(max_waves):
-    if not plan or not plan.steps:
-        break
-    plan = await executor_autonomous.execute_plan(plan, live_display=True)
-```
-
-Each command passes through:
-
-1. **PermissionGate** — two-stage review: syntax validation → danger analysis
-2. **Input validation** — `InputValidator` checks injection patterns (shell metacharacters, path traversal, null bytes)
-3. **Shell review** — `review_and_confirm()` interactive prompt (edit/run/step/cancel) when enabled
-4. **Execution** — via `safe_run_async_stream` with timeout, line-by-line output capture, and orphan process tracking
-5. **DLP redaction** — `DLPEngine` strips secrets, API keys, tokens from output
-6. **Secret redaction** — `SecretRedactor` handles 25+ credential patterns
-
-### 4. Reflect
-
-After each wave, the LLM receives all command outputs and decides whether to:
-
-- **Continue** (`needs_tools=true`): Generate a new plan for the next wave
-- **Conclude** (`needs_tools=false`): Synthesize findings into a final response
-
-Up to **12 waves** execute per instruction by default (configurable via `max_waves` setting).
+> [!IMPORTANT]
+> The agent can loop up to **12 waves** per instruction by default. If it hits that limit, it will stop and ask you for further guidance.
 
 ---
 
-## Tool Call Repair
+## 🔧 Tool Call Repair
 
-When an LLM outputs tool calls as plain text instead of structured JSON, `ToolCallRepair` parses and promotes them to native format:
+Sometimes, LLMs get confused and spit out tool calls as plain text instead of structured JSON. No problem! The `ToolCallRepair` module acts as a safety net to parse and fix these mistakes automatically.
 
-```python
-from siyarix.tool_call_repair import (
-    promote_to_native_tool_calls,
-    parse_plain_text_tool_calls,
-    has_plain_text_tool_calls,
-)
-```
-
-### Supported Syntaxes
+### Supported Formats
 
 | Syntax | Example |
 |--------|---------|
-| Bracket | `[nmap]{"target": "10.0.0.1", "flags": "-sV"}` |
-| XML | `<function=nmap><parameter=target>10.0.0.1</parameter></function>` |
-| Function call | `function_call: {"name": "nmap", "args": {...}}` |
-| Closing markers | `[END_TOOL_REQUEST]`, `[/tool]`, `[/function]`, `<\|call\|>` |
+| **Bracket** | `[nmap]{"target": "10.0.0.1", "flags": "-sV"}` |
+| **XML** | `<function=nmap><parameter=target>10.0.0.1</parameter></function>` |
+| **Function Call** | `function_call: {"name": "nmap", "args": {...}}` |
 
-### Fuzzy Name Matching
-
-When `fuzzy=True`, tool names are matched with Levenshtein distance ≤ 2, supporting:
-
-- Exact match
-- Case-insensitive match
-- Substring match
-- Typo tolerance (edit distance ≤ 2)
+### 🎯 Fuzzy Name Matching
+If the LLM makes a typo (like calling `nmaps` instead of `nmap`), our fuzzy matching kicks in. It can tolerate minor spelling mistakes, case differences, and substrings to keep the pipeline moving smoothly.
 
 ---
 
-## Shell Review
+## 🛡️ Shell Review
 
-`shell_review.py` provides interactive review of LLM-generated shell commands:
+Want to keep a close eye on what the agent is doing? `shell_review.py` provides an interactive prompt for you to review commands before they run.
 
-```python
-from siyarix.shell_review import review_and_confirm, review_command, ReviewDecision
-
-# Returns edited command or None if cancelled
-result = review_and_confirm("nmap -sV 10.0.0.1", tool="nmap", reason="Port scan")
-```
-
-The review prompt:
-
-```
+```text
 ╭──────────────── Command Execution Review ─────────────────╮
 │ Tool: raw                                                 │
 │ Reason: Raw shell command from LLM plan                   │
@@ -229,116 +150,89 @@ The review prompt:
 Review command [edit/run/step/cancel] (run):
 ```
 
-| Choice | Effect |
-|--------|--------|
-| `run` | Execute the command as-is |
-| `edit` | Edit the command before execution |
-| `step` | Execute but step through one at a time |
-| `cancel` | Skip/cancel this command |
+- **`run`**: Execute as-is.
+- **`edit`**: Tweak the command first.
+- **`step`**: Run commands one by one.
+- **`cancel`**: Skip it entirely.
 
-Auto-approves all commands in non-TTY/CI mode to prevent blocking.
+> [!NOTE]
+> In automated environments (like CI/CD pipelines), Shell Review automatically approves commands so it doesn't get stuck waiting for human input.
 
 ---
 
-## Heuristic Fallback (Registry Mode)
+## 🛟 Heuristic Fallback (Registry Mode)
 
-When no LLM provider is available, the `RegistryPlanner` engine provides deterministic planning using templates and keyword matching:
+When your LLM is down, offline, or just unreachable, the `RegistryPlanner` steps in to save the day using deterministic logic. 
 
-```
-Input: "scan 10.0.0.1"
-  → Extract intent: "scan"
-  → Extract target: "10.0.0.1"
-  → Match template: "recon_full" or "network_scan"
-  → Build multi-step plan with nmap, whatweb, gobuster, subfinder, amass, nuclei
-  → Return structured ExecutionPlan
-```
+Here is how it thinks:
+1. You say: *"scan 10.0.0.1"*
+2. It extracts intent: **"scan"**
+3. It extracts target: **"10.0.0.1"**
+4. It matches a template: **`network_scan`**
+5. It builds a multi-step plan using tools like `nmap`, `whatweb`, and `nuclei`.
 
-Patterns are defined with 400+ multi-word intent matches across red team, blue team, forensics, cloud, container, and compliance domains.
-
-### Template-Based Workflows
-
-Pre-built workflow templates include:
-
-| Template | Steps |
-|----------|-------|
+### 📑 Popular Templates
+| Template Name | What it Runs |
+|---------------|--------------|
 | `recon_full` | nmap → whatweb → gobuster → subfinder → amass → nuclei |
 | `web_audit` | curl → whatweb → nuclei → ffuf → wpscan → nikto |
-| `network_scan` | nmap full TCP → nmap service → dig → whois → masscan |
-| `vuln_scan` | nuclei → nikto → wpscan → sqlmap |
-| `ad_assessment` | nmap DC ports → smb-protocols → ldap-rootdse → krb5-enum-users |
-| `linux_privesc` | uname → find SUID → find writable → cat cron |
-| `dns_recon` | dig ANY → subfinder → amass → whois |
-| `cloud_audit` | curl → whatweb → dig ANY → openssl |
+| `linux_privesc`| uname → find SUID → find writable → cat cron |
 
 ---
 
-## Dependency Resolution & Parallel Execution
+## ⚡ Dependency Resolution & Parallel Execution
 
-Steps are organized into layers for execution:
+Siyarix is smart about how it runs tasks. It organizes steps into **Layers**.
 
-```
-Layer 1: Recon (no dependencies)
-Layer 2: Scan (depends on recon results)
-Layer 3: Enumerate (depends on scan results)
-Layer 4: Vuln Scan (depends on enumerate results)
-Layer 5: Report (depends on all previous)
+```text
+Layer 1: Recon (Runs immediately)
+Layer 2: Scan (Waits for Recon to finish)
+Layer 3: Enumerate (Waits for Scan to finish)
 ```
 
-Independent steps within the same layer execute concurrently via `asyncio.gather`. Dependency ordering is determined by the plan type (`SEQUENTIAL` or `DAG`).
+Tasks within the same layer (like scanning 5 different ports) run **concurrently** to save time, making your scans lightning fast! ⚡
 
 ---
 
-## Result Synthesis
+## 📊 Result Synthesis
 
-After all waves complete, the agent:
-
-1. **Deduplicates findings** — MD5-hash based on (target, port, CVE, severity)
-2. **Correlates related findings** across tools
-3. **Assigns severity** (Critical/High/Medium/Low/Info)
-4. **Generates summary** with completion statistics
-5. **Ingests findings** into the knowledge graph for persistent analysis
-
----
-
-## Validation & Recovery
-
-The `Validator` class (`validators.py`) provides step-level validation and recovery planning:
-
-```python
-from siyarix.validators import Validator, RecoveryAction, RecoveryPlan
-
-validator = Validator()
-results = await validator.validate_plan(plan.steps)
-# If a step fails:
-recovery = await validator.plan_recovery(failed_step, error)
-```
-
-Recovery actions include:
-
-| Action | Behavior |
-|--------|----------|
-| `RETRY` | Retry with modified arguments (e.g., add `-Pn` for filtered ports) |
-| `RETRY_ALTERNATIVE` | Try an alternative tool (e.g., nuclei → nikto) |
-| `SKIP` | Skip the step |
-| `ABORT` | Abort entire plan |
-| `DEGRADE` | Degrade execution mode |
+Once the agent has finished all its waves, it doesn't just dump raw text on you. It synthesizes the data:
+1. **Deduplicates**: Removes repeated findings (based on target, port, and vulnerability).
+2. **Correlates**: Connects the dots between different tools.
+3. **Scores Severity**: Tags issues as Critical, High, Medium, Low, or Info.
+4. **Summarizes**: Gives you a clean, easy-to-read report.
+5. **Logs to Graph**: Saves the findings into a knowledge graph so it remembers them for next time.
 
 ---
 
-## Related Modules
+## 🩺 Validation & Recovery
 
-| Module | Path | Purpose |
-|--------|------|---------|
-| `Planner` | `src/siyarix/planner.py` | Unified planner router — dispatches by mode |
-| `AutonomousPlanner` | `src/siyarix/planner_autonomous.py` | LLM-driven planner with session-aware optimisation |
-| `RegistryPlanner` | `src/siyarix/planner_registry.py` | Heuristic planner with templates and keyword index |
-| `AgentCore` | `src/siyarix/core/__init__.py` | Central orchestrator with mode-aware execution |
-| `LLMEngineMixin` | `src/siyarix/chat/engine.py` | Agent loop with multi-wave LLM-driven planning |
-| `ToolCallRepair` | `src/siyarix/tool_call_repair.py` | Plain-text tool call parsing and promotion |
-| `ShellReview` | `src/siyarix/shell_review.py` | Interactive command review before execution |
-| `Validator` | `src/siyarix/validators.py` | Step validation and recovery planning |
-| `ToolRegistry` | `src/siyarix/registry.py` | Tool discovery and capability indexing |
-| `ToolCapabilityGraph` | `src/siyarix/tool_graph.py` | Tool chaining and similarity graph |
-| `ToolAvailability` | `src/siyarix/tool_availability.py` | Pre-execution availability evaluation |
-| `DangerAnalyzer` | `src/siyarix/security_hardening.py` | Command danger classification |
-| `CompactionEngine` | `src/siyarix/compaction.py` | Context window compaction for long histories |
+Things fail. Ports are closed, tools crash. The `Validator` class (`src/siyarix/validators.py`) is our safety net, offering step-level validation and smart recovery.
+
+If a step fails, the agent can:
+- **`RETRY`**: Try again with a slight change (e.g., adding `-Pn` to an nmap scan).
+- **`RETRY_ALTERNATIVE`**: Switch tools completely (e.g., if `nuclei` fails, try `nikto`).
+- **`SKIP`**: Just move on to the next step.
+- **`DEGRADE`**: Fall back to a simpler execution mode.
+
+---
+
+## 🗂️ Related Modules Reference
+
+Curious about the code? Here is where everything lives:
+
+| Module | Location | What it Does |
+|--------|----------|--------------|
+| **Planner Router** | `src/siyarix/planner.py` | The main traffic cop |
+| **AutonomousPlanner**| `src/siyarix/planner_autonomous.py` | The LLM-driven AI planner |
+| **RegistryPlanner** | `src/siyarix/planner_registry.py` | The offline, rule-based planner |
+| **AgentCore** | `src/siyarix/core/__init__.py` | Central orchestrator |
+| **LLMEngineMixin** | `src/siyarix/chat/engine.py` | Agent loop with multi-wave planning |
+| **ToolCallRepair** | `src/siyarix/tool_call_repair.py` | Fixes broken LLM tool calls |
+| **ShellReview** | `src/siyarix/shell_review.py` | Interactive command approval |
+| **Validator** | `src/siyarix/validators.py` | Error handling and recovery |
+| **ToolRegistry** | `src/siyarix/registry.py` | Tool discovery and capability indexing |
+| **ToolCapabilityGraph** | `src/siyarix/tool_graph.py` | Tool chaining and similarity graph |
+| **ToolAvailability** | `src/siyarix/tool_availability.py` | Pre-execution availability evaluation |
+| **DangerAnalyzer** | `src/siyarix/security_hardening.py` | Keeps dangerous commands in check |
+| **CompactionEngine** | `src/siyarix/compaction.py` | Context window compaction for long histories |

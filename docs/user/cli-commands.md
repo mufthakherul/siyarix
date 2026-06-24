@@ -1,310 +1,160 @@
-# CLI Commands Reference
+# ⌨️ CLI Commands Reference
 
-Siyarix is a CLI-first security operations platform built on **Typer**. All functionality is accessible via the `siyarix` binary with subcommands and command groups.
+Siyarix is a CLI-first platform built on the blazing fast **Typer** framework. Everything you can do in Siyarix is accessible via the `siyarix` command-line binary.
+
+Whether you are running a single scan, automating a massive batch job, or spinning up the interactive chat, this reference guide has you covered.
 
 ---
 
-## Global Options
+## 🌍 Global Options
+
+You can attach these flags to almost *any* Siyarix command.
 
 ```bash
 siyarix [OPTIONS] COMMAND [ARGS]...
 ```
 
-| Option | Description |
+| Option | What it does |
 |--------|-------------|
-| `--config`, `-c` | Path to custom config file (YAML/JSON) |
-| `--batch`, `-b` | Path to batch script file to execute |
-| `--mode`, `-m` | Execution mode: `autonomous`, `integrated`, `offline`, `registry` |
-| `--target`, `-t` | Set initial target for the session |
-| `--session` | Resume a previous session by ID |
-| `--resume` | Resume the last existing session |
-| `--version` | Show version information |
-| `--help` | Show help message |
+| `--config`, `-c` | Pass in a custom configuration file (YAML/JSON) instead of the default settings. |
+| `--batch`, `-b` | Have a script full of Siyarix commands? Point this to your script to run them all! |
+| `--mode`, `-m` | Force a specific execution mode (`autonomous`, `integrated`, `offline`, or `registry`). |
+| `--target`, `-t` | Pre-set the initial target (IP, URL, or CIDR) for your session. |
+| `--session` | Pick up right where you left off by providing a previous Session ID. |
+| `--resume` | A shortcut to instantly resume your most recent session. |
+| `--version` | Print the current Siyarix version. |
+| `--help` | See the help menu for the current command. |
 
 ---
 
-## Usage Modes
+## 🎮 The 5 Usage Modes
 
-1. **Interactive REPL**: `siyarix` (no subcommand) — launches the context-aware chat interface with 54+ slash commands
-2. **Direct Command**: `siyarix scan 10.0.0.1` — executes and exits
-3. **Pipe Mode**: `echo "scan 10.0.0.1" | siyarix` — batch commands via stdin
-4. **Batch File**: `siyarix --batch script.txt` — execute a script file
-5. **Goal-Driven Agent**: `siyarix agent "enumerate services"` — autonomous Observe-Reason-Act loop
+There is no "wrong" way to use Siyarix. Pick the workflow that fits your task:
+
+1. **Interactive REPL:** `siyarix` *(No subcommand)*
+   - Launches our beautiful, context-aware terminal chat interface featuring over 54+ slash commands.
+2. **Direct Execution:** `siyarix scan 10.0.0.1`
+   - Run a single command, get the result, and exit cleanly. Perfect for quick checks.
+3. **Pipe Mode:** `echo "scan 10.0.0.1" | siyarix`
+   - Feed commands directly into Siyarix from other terminal tools via standard input.
+4. **Batch Mode:** `siyarix --batch script.txt`
+   - Execute a sequence of pre-written commands.
+5. **Autonomous Agent:** `siyarix agent "enumerate services"`
+   - Give Siyarix a high-level goal and let its Observe-Reason-Act loop figure out how to achieve it.
 
 ---
 
-## Core Commands
+## 🚀 Core Commands
+
+These are the commands you will use every single day.
 
 ### `init`
-
-Interactive setup wizard — ethics pledge, requirements check, provider setup, and persona configuration:
-
+Relaunch the interactive 11-step setup wizard to configure your AI providers and terminal preferences.
 ```bash
 siyarix init [--force] [--skip-requirements]
 ```
 
 ### `scan`
-
-Run security scans against one or more targets using discovered tools on `PATH`. Supports `@targets.txt` multi-target mode.
-
+Run security scans against one or more targets using the tools installed on your system.
 ```bash
 siyarix scan <targets...> [OPTIONS]
+
+# 💡 Pro-Tip: You can scan hundreds of IPs at once using a file!
+siyarix scan @targets.txt
 ```
 
-| Option | Description |
-|--------|-------------|
-| `--tool`, `-t` | Specific tool to use |
-| `--mode`, `-m` | Execution mode (`autonomous`, `integrated`, `offline`, `registry`) |
-| `--output`, `-o` | Output format (`table`, `json`, `yaml`, `csv`, `html`, `quiet`) |
-| `--parallel`, `-p` | Number of parallel workers |
-| `--timeout` | Timeout per tool in seconds |
-| `--save`, `-s` | Save results to database |
-| `--dry-run` | Plan only, do not execute |
-| `--notify` | Send notification on completion |
-| `--no-banner` | Suppress ASCII banner |
-| `--profile` | Use specific command profile |
-
-Scan presets for specialized workflows:
-
-| Subcommand | Description |
-|------------|-------------|
-| `siyarix scan-quick <target>` | Fast port discovery (top 100 ports, no service detection) |
-| `siyarix scan-full <target>` | All ports, service + OS detection, default scripts |
-| `siyarix scan-deep <target>` | Multi-pass deep scan (4 progressive phases) |
-| `siyarix scan-web <target>` | Web application security scan (whatweb, nikto, nuclei) |
-
-> **Note:** Cloud provider scanning, mobile APK analysis, and IoT device scanning are under active development and not yet available as dedicated subcommands. These capabilities are on the Siyarix roadmap.
+**Scan Presets (The Fast Track):**
+- `siyarix scan-quick <target>`: Rapid port discovery (Top 100 ports, no deep service detection).
+- `siyarix scan-full <target>`: Scans all ports, fingerprints the OS, and runs default scripts.
+- `siyarix scan-deep <target>`: A heavy, multi-pass scan for maximum reconnaissance.
+- `siyarix scan-web <target>`: Specifically hunts for web application vulnerabilities (runs `nikto`, `whatweb`, `nuclei`).
 
 ### `discover`
-
-Asset and service discovery for specified targets:
-
+A lightweight command to map out the assets and services running on a target.
 ```bash
-siyarix discover <target> [--deep] [--export file]
+siyarix discover <target> [--deep] [--export results.json]
 ```
-
-| Option | Description |
-|--------|-------------|
-| `--deep`, `-d` | Deep discovery (OS, services, vulnerabilities) |
-| `--export`, `-e` | Export to file (JSON/YAML) |
 
 ### `run`
-
-Convert natural language into structured execution plans:
-
+The magic command. Speak to Siyarix in natural language, and it will build and execute a plan.
 ```bash
-siyarix run "scan my network for open ports" [OPTIONS]
+siyarix run "scan my network for open ports and output to a table"
 ```
-
-| Option | Description |
-|--------|-------------|
-| `--target`, `-t` | Target for the command |
-| `--mode`, `-m` | Execution mode |
-| `--dry-run` | Plan only, do not execute |
-| `--save`, `-s` | Persist workflow execution |
-| `--resume`, `-r` | Resume a persisted plan by ID (or `latest`) |
 
 ### `agent`
-
-Goal-driven autonomous agent with Observe-Reason-Act loop:
-
+Unleash the autonomous agent! Tell Siyarix the ultimate goal, and it will iterate through multiple phases (Observe, Reason, Act) until it finishes the job.
 ```bash
-siyarix agent "find all vulnerabilities on our web server" [OPTIONS]
+siyarix agent "find all vulnerabilities on our web server" --max-iter 15
 ```
-
-| Option | Description |
-|--------|-------------|
-| `--target`, `-t` | Target host/IP/URL |
-| `--max-iter`, `-n` | Maximum agent iterations (default: 10) |
-| `--mode`, `-m` | Agent mode: `registry` (deterministic), `autonomous` (full AI), `integrated` (hybrid) |
-| `--stealth`, `-s` | Enable stealth mode |
 
 ### `health`
-
-Comprehensive system health check — model providers, tools, resources, and component status:
-
+Run a comprehensive diagnostic check on your AI providers, terminal tools, RAM, and CPU.
 ```bash
-siyarix health [--output table|json]
-```
-
-### `metrics`
-
-Session performance metrics — scan counts, durations, tool usage, cache hit rates:
-
-```bash
-siyarix metrics [--output table|json|prometheus] [--export file]
-```
-
-### `ci-gate`
-
-CI/CD pipeline compliance gate — fails the build if security thresholds are not met:
-
-```bash
-siyarix ci-gate [--allow-degraded]
-```
-
-### `report`
-
-Generate assessment reports from the knowledge graph:
-
-```bash
-siyarix report generate [--format html|markdown|json|sarif] [--output file]
-```
-
-### `version`
-
-Display installed version and build information:
-
-```bash
-siyarix version
-```
-
-### `palette`
-
-Open interactive command palette (requires `prompt_toolkit`):
-
-```bash
-siyarix palette
-```
-
-### `render-cmd`
-
-Render a saved command profile with key=value substitution:
-
-```bash
-siyarix render-cmd <name> [key=value ...]
+siyarix health
 ```
 
 ---
 
-## Sub-Command Groups
+## 🗂️ Management & Utility Commands
 
-### `auth`
-
-API key management for AI providers:
-
+### `auth` & `creds`
+Manage your encrypted API keys and tool credentials.
 ```bash
-siyarix auth set-key <provider> --key <api_key>
-siyarix auth show
+siyarix auth set-key openai      # Securely input an API key
+siyarix auth show                # See your active providers
+siyarix creds list               # List stored tool credentials
+siyarix creds rotate             # Rotate your vault's AES encryption key
 ```
 
-Supported providers: openai, gemini, anthropic, groq, together, openrouter.
-
-### `profile`
-
-Command profile management for reusable command templates:
-
-| Command | Description |
-|---------|-------------|
-| `siyarix profile save-cmd <name> <command>` | Save a reusable command profile |
-| `siyarix profile list-cmds` | List saved command profiles |
-| `siyarix profile rm-cmd <name>` | Remove a saved command profile |
-
-### `audit`
-
-Tamper-evident audit trail management using SHA-256 hash chaining:
-
-| Command | Description |
-|---------|-------------|
-| `siyarix audit report <framework>` | Generate compliance audit report |
-| `siyarix audit logs` | View detailed audit logs |
-| `siyarix audit verify` | Verify audit chain integrity |
-
 ### `config`
-
-CLI configuration and settings management:
-
-| Command | Description |
-|---------|-------------|
-| `siyarix config list` | Show all settings |
-| `siyarix config get <key>` | Get a single setting |
-| `siyarix config set <key> <value>` | Set a setting |
-| `siyarix config reset [key]` | Reset a setting (or all) to defaults |
-
-### `completions`
-
-Generate and install shell completions:
-
+Tweak Siyarix's settings directly from the CLI.
 ```bash
-siyarix completions install [bash|zsh|fish|powershell]
+siyarix config list                  # View all settings
+siyarix config set log_level debug   # Change a setting
+siyarix config edit                  # Open settings in your text editor
 ```
 
 ### `theme`
-
-Terminal color theme customization:
-
-| Command | Description |
-|---------|-------------|
-| `siyarix theme list` | List available color themes |
-| `siyarix theme set <name>` | Set default color theme |
-| `siyarix theme preview [name]` | Preview a theme |
-| `siyarix theme appearance [name]` | Alias for theme preview |
-
-Available themes: `CYBER_NOIR`, `MATRIX`, `BLOODMOON`, `ARCTIC`, `GOLDENROD`, `ECLIPSE`, `SYNTHWAVE`, `DARK`, `LIGHT`, `NEON`, `MINIMAL`, `DEFAULT`.
-
-### `cache`
-
-Manage the LRU cache:
-
-| Command | Description |
-|---------|-------------|
-| `siyarix cache status` | Show cache statistics |
-| `siyarix cache clear` | Clear all cached data |
-
-### `tool-registry`
-
-Manage and inspect discovered tools and providers:
-
-| Command | Description |
-|---------|-------------|
-| `siyarix tool-registry list` | List all discovered tools on PATH |
-| `siyarix tool-registry providers` | List configured model providers with preference order |
-| `siyarix tool-registry update-metadata <path>` | Regenerate tool metadata file |
-
-### `security`
-
-Security operations commands — incident management, vulnerability tracking, threat hunting, MITRE ATT&CK coverage, and dashboards:
-
-| Command | Description |
-|---------|-------------|
-| `siyarix security dashboard` | Show security operations dashboard |
-| `siyarix security incidents` | List security incidents |
-| `siyarix security incident <id>` | Show incident details |
-| `siyarix security incident-create` | Create a new security incident |
-| `siyarix security vulnerabilities` | List vulnerabilities with CVSS scores |
-| `siyarix security remediation-plan` | Generate prioritized remediation plan |
-| `siyarix security hunt <query_id>` | Execute a threat hunt query |
-| `siyarix security queries` | List available threat hunting queries |
-| `siyarix security mitre-coverage` | Show MITRE ATT&CK technique coverage |
-| `siyarix security playbooks` | List incident response playbooks |
-
-### `compliance`
-
-Run compliance assessments against security frameworks:
-
+Customize the look and feel of the terminal.
 ```bash
-siyarix compliance run <framework> <target>
+siyarix theme list
+siyarix theme set cyber_noir
+siyarix theme preview            # Preview what they all look like!
 ```
 
-Supported frameworks: SOC2, NIST, GDPR, PCI-DSS, ISO-27001, HIPAA.
-
 ### `playbook`
+Execute or validate YAML-based Incident Response playbooks.
+```bash
+siyarix playbook run ./playbooks/incident_response.yaml
+siyarix playbook validate ./playbooks/my_draft.yaml
+```
 
-Execute, list, and validate YAML playbooks:
-
-| Command | Description |
-|---------|-------------|
-| `siyarix playbook run <path>` | Execute a YAML playbook file |
-| `siyarix playbook list` | List playbooks in a directory |
-| `siyarix playbook validate <path>` | Validate a playbook file |
+### `report`
+Generate gorgeous, board-ready assessment reports straight from your scan data.
+```bash
+siyarix report generate --format html --output pentest_report.html
+```
 
 ---
 
-## Exit Codes
+## 🛡️ Advanced Operations Subgroups
 
-| Code | Meaning |
+Siyarix includes dedicated subgroups for specialized security tasks:
+
+- **`siyarix audit`**: Manage tamper-evident audit trails using SHA-256 hash chaining.
+- **`siyarix security`**: Manage incidents, track vulnerabilities, and hunt for threats mapped to the MITRE ATT&CK framework.
+- **`siyarix compliance`**: Automatically run compliance assessments against frameworks like SOC2, HIPAA, NIST, and GDPR.
+- **`siyarix ci-gate`**: Drop Siyarix into a CI/CD pipeline. It will automatically fail the build if security thresholds aren't met!
+
+---
+
+## 🛑 Exit Codes
+
+Integrating Siyarix into a script? Here is what our exit codes mean:
+
+| Exit Code | What it means |
 |------|---------|
-| 0 | Success |
-| 1 | General error / unknown command / target missing |
-| 2 | Health check failure / validation error |
-| 3 | Critical findings detected / file missing |
+| **0** | **Success!** Everything ran perfectly. |
+| **1** | **General Error.** Usually an unknown command or a missing target. |
+| **2** | **Validation Error.** A health check failed, or your syntax was invalid. |
+| **3** | **Critical Findings!** We completed the scan and found high-severity issues. |

@@ -1,48 +1,49 @@
-# IoT Security Scanning (Under Active Development)
+# 🔌 IoT Security Scanning
 
-Siyarix's IoT security scanning capability is currently under active development. An `IoTScanner` stub has been created, and the full implementation — including firmware analysis, serial port scanning, and device detection — is on the roadmap.
+The Internet of Things (IoT) is notoriously difficult to secure. Siyarix aims to change that by providing a comprehensive toolkit for analyzing firmware, enumerating serial ports, and detecting embedded devices.
+
+> [!WARNING]
+> **Active Development Notice**: Siyarix's IoT scanning module is currently under active development. An `IoTScanner` stub is present in the code, and we are working on the underlying analysis engines.
 
 ---
 
-## Current Status
+## 🚧 Current Status
 
-An `IoTScanner` class exists as a stub. It accepts a target path and returns an empty result set. No actual firmware analysis, serial enumeration, or device identification has been implemented yet.
+Right now, the `IoTScanner` class is just a placeholder. You can invoke it, but it will not yet extract or analyze firmware.
 
 ```python
 from siyarix.chat.stubs import IoTScanner
 
 scanner = IoTScanner()
+
+# This is a stub! It currently returns an empty dictionary {}.
 result = scanner.scan_firmware("firmware.bin")
-# result == {}  (stub - returns empty)
 ```
 
 ---
 
-## Planned Capabilities
+## 🔮 Planned Capabilities
 
-The IoT scanner roadmap includes:
+We are building a powerful suite of tools tailored specifically for hardware and embedded systems.
 
-### Firmware Analysis
+### 📦 Firmware Analysis
+- **Hardcoded Credentials**: Automatically extracting embedded passwords, API keys, and backdoors from binary images.
+- **Debug Interfaces**: Hunting down development or debug modes (like SSH or Telnet) left active in production builds.
+- **Certificate Inspection**: Extracting and validating hardcoded TLS certificates and private keys.
+- **OTA Security**: Analyzing Over-The-Air update mechanisms for vulnerabilities and missing signatures.
 
-- **Hardcoded credentials**: Detect embedded passwords and secrets
-- **Debug interfaces**: Identify debug modes left active in production builds
-- **Certificate inspection**: Find hardcoded TLS certificates and keys
-- **OTA security**: Verify firmware update mechanisms
+### 🔌 Serial Port Scanning
+- **Baud Rate Detection**: Automatically fuzzing and detecting correct baud rates.
+- **Interface Enumeration**: Identifying exposed UART, JTAG, and SPI interfaces.
+- **Protocol Identification**: Detecting and communicating via common IoT protocols (MQTT, CoAP, etc.).
 
-### Serial Port Scanning
-
-- **Baud rate detection**: Auto-detect across standard rates
-- **Interface enumeration**: Identify UART, JTAG, and SPI interfaces
-- **Protocol identification**: Detect common IoT protocols
-
-### Device Type Detection
-
-- **Chipset identification**: ESP32, Arduino, STM32, Raspberry Pi, Nordic nRF5x
-- **Binary analysis**: ELF, GZip, UBIFS, raw binary images
-- **OS fingerprinting**: RTOS, embedded Linux, bare-metal
+### 🖥️ Device Type Detection
+- **Chipset Identification**: Profiling devices like ESP32, Arduino, STM32, Raspberry Pi, and Nordic nRF5x.
+- **Binary Analysis**: Parsing and extracting files from ELF, GZip, UBIFS, and raw binary images.
+- **OS Fingerprinting**: Detecting the underlying operating system (RTOS, embedded Linux, or bare-metal).
 
 ---
 
-## Stay Tuned
+## 📣 Stay Tuned!
 
-The IoT scanner is being actively developed. Updates on supported device types, firmware formats, and release timelines will be shared as the implementation progresses.
+Securing the physical world is a massive challenge, and the IoT scanner is a key part of Siyarix's future. Keep an eye on our releases for updates on supported devices and firmware formats!

@@ -1,173 +1,138 @@
-# Interactive Chat (REPL) Mode
+# 💬 Interactive Chat (REPL)
 
-The Siyarix REPL is the primary interaction interface — a full-featured interactive shell with AI-assisted planning, 54+ slash commands, split-pane layout, and SmartAutocomplete via `prompt_toolkit`.
+Welcome to the beating heart of Siyarix! 
+
+While you can certainly run Siyarix commands one-by-one from your standard terminal, the true power of the platform unlocks when you enter the **Interactive Chat Mode** (also known as the REPL - Read-Eval-Print Loop). 
+
+Think of it as a dedicated, context-aware command center where you and your AI co-pilot work together to hunt down vulnerabilities.
 
 ---
 
-## Launching
+## 🚀 Launching the Chat
+
+Getting in is easy. Just type the main command with no arguments:
 
 ```bash
-siyarix        # Opens the REPL directly (default when no subcommand given)
+siyarix
 ```
+
+Instantly, you will be dropped into a beautiful, `prompt_toolkit`-powered shell.
 
 ---
 
-## Slash Commands
+## 🗣️ Natural Language Execution
 
-All available slash commands in the REPL:
+Once inside, you don't need to memorize obscure flags. You can literally just talk to Siyarix:
 
-| Command | Description |
-|---------|-------------|
-| `/help` | Show all slash commands (or `/help <cmd>` for details) |
-| `/exit` | Exit the session |
-| `/clear` | Clear conversation history |
-| `/new` | Start a new conversation thread |
-| `/history` | Show command history |
-| `/tools` | List available tools from the registry |
-| `/platform` | Show platform information |
-| `/status` | Show session status |
-| `/session` | Session management details |
-| `/uptime` | Show session uptime |
-| `/env` | Show environment variables |
-| `/intents` | Show parsed intent history |
-| `/shells` | List available shell tools |
-| `/search` | Search through findings and history |
-| `/examples` | Show usage examples |
-| `/reset` | Reset session state |
-| `/key` | Set or rotate API keys |
-| `/theme` | Change terminal color theme |
-| `/mode` | Switch interaction mode |
-| `/model` | Switch AI provider model |
-| `/provider` | Show/switch AI provider |
-| `/report` | Generate a session report |
-| `/split` | Toggle split-pane layout |
-| `/batch` | Execute batch commands |
-| `/opsec` | Operational security checks |
-| `/siem` | SIEM integration commands |
-| `/intel` | Threat intelligence operations |
-| `/performance` | Show performance metrics |
-| `/cache` | Cache management |
-| `/campaign` | Campaign management for red team ops |
-| `/kb` | Knowledge base queries |
-| `/ticket` | Ticket/issue management |
-| `/retest` | Re-run previous tests |
-| `/stealth` | Toggle stealth mode |
-| `/audit` | Audit trail commands |
-| `/queue` | View execution queue |
-| `/diff` | Diff between scan results |
-| `/log` | View session logs |
-| `/save` | Save current session |
-| `/review` | Review session context |
-| `/persona` | Set active persona |
-| `/scan` | Quick scan command |
-| `/savecmd` | Save a command profile |
-| `/cmds` | List saved command profiles |
-| `/cmd` | Run a saved command profile |
-| `/context` | Show session context |
-| `/version` | Show Siyarix version |
-| `/config` | View/change configuration |
-| `/agent` | Launch an autonomous agent |
-| `/cancel` | Cancel current operation |
-| `/esc` | Alias for /cancel |
-| `/security-cmds` | List security commands for shell |
-| `/run` | Run a command or tool |
-| `/translate` | Translate intent to shell command |
-| `/target` | Set or show current target |
-| `/load` | Load a session from file |
-| `/fork` | Fork the current session |
-| `/export` | Export session data |
-| `/plugins` | List available plugins |
-| `/alias` | Manage command aliases |
-| `/language` | Set interface language |
-| `/learn` | Learn from session context |
-| `/feedback` | Submit feedback |
-| `/redteam` | Switch to red team mode |
-| `/blueteam` | Switch to blue team mode |
-| `/benchmark` | Run performance benchmarks |
-| `/upgrade` | Check for upgrades |
-| `/docs` | Open documentation |
-| `/tutorial` | Start an interactive tutorial |
-| `/bug` | Report a bug |
-| `/suggest` | Suggest a feature |
-| `/playbook` | Execute a playbook |
-| `/stats` | Show session statistics |
-| `/skills` | List available skills |
-
----
-
-## Natural Language Input
-
-Type any natural language command and the AI interprets it via the execution engine:
-
-```
+```text
 > scan 192.168.1.1
 > find all open ports on example.com
 > run a vulnerability scan against the web server
 > what tools do I have available?
 ```
 
----
-
-## Split-Pane Layout
-
-Toggle a vertical split-pane view with `/split`:
-
-- **Left pane**: Input area with conversation
-- **Right pane**: Live output, logs, or status information
-
-Change the right-pane view with `/split <timeline|metrics|cheatsheet|attack_map>`.
+The AI engine automatically intercepts your natural language, interprets your intent, builds an execution plan, and runs the necessary tools behind the scenes.
 
 ---
 
-## SmartAutocomplete
+## 🪄 The Magic of SmartAutocomplete
 
-The REPL includes `SmartAutocomplete` with:
+We hate typing out long IP addresses and file paths just as much as you do. The REPL comes equipped with **SmartAutocomplete**:
 
-- Tab completion for commands, targets, and file paths
-- Context-aware suggestions based on conversation history
-- Slash command discovery (type `/` to see all commands)
-
----
-
-## Session Management
-
-Sessions are persisted to SQLite (`~/.siyarix/sessions.db`):
-
-- Commands executed with timestamps
-- AI conversation history (multi-turn context)
-- Findings and results
-- Session duration and metadata
+- Hit `Tab` to autocomplete commands, target IPs, and file paths.
+- Siyarix remembers your conversation history and provides **context-aware suggestions**.
+- Type `/` to instantly see a dropdown list of every available slash command.
 
 ---
 
-## Credential Store
+## 🪟 Split-Pane Layout
 
-API keys and secrets are stored with **AES-256-GCM** encryption in the local credential store. Manage keys via `/key` or the `auth` CLI command group.
+Want to keep an eye on the logs while you chat? Siyarix supports a gorgeous vertical split-pane view. 
 
----
+Just type `/split` in the chat!
 
-## Pipe and Batch Mode
+- **Left Pane:** Your input area and conversation history.
+- **Right Pane:** Live output, raw logs, or status information.
 
-Commands can be piped via stdin:
-
-```powershell
-echo "scan 10.0.0.1" | siyarix
-```
-
-Or loaded from a batch file:
-
-```bash
-siyarix --batch commands.txt
-```
+*Pro-Tip: You can change what the right pane shows! Try typing `/split timeline`, `/split metrics`, or `/split attack_map`.*
 
 ---
 
-## Keyboard Shortcuts
+## 🗃️ Session Management & Memory
 
-| Shortcut | Action |
+Siyarix doesn't suffer from amnesia. Your entire session is seamlessly persisted to a local SQLite database (`~/.siyarix/sessions.db`). 
+
+This means Siyarix remembers:
+- The exact commands you ran and when you ran them.
+- Your entire multi-turn conversation with the AI.
+- The findings and results of previous scans (so it can use them as context for future commands!).
+
+Want to pick up where you left off tomorrow? You can resume any session perfectly.
+
+---
+
+## ⌨️ Keyboard Shortcuts
+
+Navigate the REPL like a pro with these hotkeys:
+
+| Shortcut | What it does |
 |----------|--------|
-| `Tab` | Auto-complete |
-| `Up` / `Down` | Navigate command history |
-| `Ctrl+C` | Cancel current operation |
-| `Ctrl+L` | Clear screen |
-| `Ctrl+D` | Exit REPL |
+| `Tab` | Triggers the Smart Auto-complete |
+| `Up` / `Down` | Navigate through your command history |
+| `Ctrl+C` | Cancels whatever tool is currently running |
+| `Ctrl+L` | Clears the screen to keep things tidy |
+| `Ctrl+D` | Exits the REPL cleanly |
+
+---
+
+## 📜 The Slash Command Reference
+
+If you want to bypass natural language and issue direct commands to the Siyarix engine, use slash commands. Siyarix boasts over **54+ slash commands** for total control.
+
+*(Don't try to memorize these! Just type `/` in the REPL and hit `Tab` to see them all.)*
+
+### Core Controls
+| Command | Description |
+|---------|-------------|
+| `/help` | Show all slash commands (or `/help <cmd>` for details) |
+| `/exit` | Exit the session |
+| `/clear` | Clear the terminal screen |
+| `/new` | Start a brand new, clean conversation thread |
+| `/history`| Show your command history |
+
+### AI & Persona Management
+| Command | Description |
+|---------|-------------|
+| `/persona`| Switch the AI's mindset (e.g., to Red Team or Blue Team) |
+| `/model` | Switch the AI provider model on the fly |
+| `/provider`| See or switch your active AI provider |
+| `/agent` | Launch an autonomous agent to achieve a goal |
+
+### Security Operations
+| Command | Description |
+|---------|-------------|
+| `/scan` | Run a quick scan directly from the chat |
+| `/target` | Set or show the current default target IP/URL |
+| `/tools` | List all available security tools from the registry |
+| `/opsec` | Run operational security checks on your environment |
+| `/stealth`| Toggle OPSEC stealth mode on or off |
+| `/report` | Generate an assessment report of your current findings |
+| `/diff` | Compare the results of two different scans |
+
+### Customization & State
+| Command | Description |
+|---------|-------------|
+| `/theme` | Change the terminal color theme |
+| `/split` | Toggle the split-pane layout |
+| `/config` | View or change configuration settings |
+| `/key` | Set or rotate your encrypted API keys |
+| `/save` | Manually save the current session state |
+| `/load` | Load a previously saved session |
+
+---
+
+## ⏭️ Next Steps
+
+You are now a master of the CLI and the REPL. 
+
+Ready to put it all together? Check out the **[Security Workflows](security-workflows.md)** guide to see how Siyarix handles real-world penetration testing and incident response scenarios!

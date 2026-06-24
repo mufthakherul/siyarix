@@ -1,61 +1,70 @@
-# Deception Technology & Canary Tokens (Under Active Development)
+# 🪤 Deception Technology & Canary Tokens
 
-Siyarix's deception technology capabilities are currently under active development. A `CanaryTokenManager` stub and related components have been created, and the full implementation — including honeypot detection, canary token deployment, and trapdoor credentials — is on the roadmap.
+Catch attackers in the act! Deception technology flips the script, allowing you to lay traps for malicious actors inside your network. 
+
+> [!WARNING]
+> **Active Development Notice**: Siyarix's deception capabilities are currently under heavy construction! A `CanaryTokenManager` stub exists, and we are working hard on the full implementation, which will include honeypots, canary tokens, and trapdoor credentials.
 
 ---
 
-## Current Status
+## 🚧 Current Status
 
-A `CanaryTokenManager` class exists as a stub in the codebase. It supports minimal operations (deploy, list, status, summary) but returns empty or placeholder results. The full deception technology suite has not yet been implemented.
+Right now, the `CanaryTokenManager` class is acting as a placeholder in the codebase. You can call the commands, but they will currently return empty results while we finish building the engine.
 
 ```python
 from siyarix.chat.stubs import CanaryTokenManager, CanaryTokenType
 
 manager = CanaryTokenManager()
-manager.deploy_to_target("webapp.example.com", [CanaryTokenType.WEB])
-# Returns None (stub)
 
+# This is a stub! It currently returns None.
+manager.deploy_to_target("webapp.example.com", [CanaryTokenType.WEB])
+
+# This is a stub! It currently returns an empty list [].
 tokens = manager.list_tokens()
-# Returns [] (stub)
 ```
 
 ---
 
-## Planned Capabilities
+## 🔮 Planned Capabilities
 
-### Canary Tokens
+We are building a robust suite of deception tools. Here is what you can expect in upcoming releases:
 
-| Token Type | Description | Deployment Target |
-|------------|-------------|-------------------|
-| WEB | URL that alerts on request | Web access logs |
-| DNS (planned) | DNS name that alerts on resolution | DNS zone files |
-| AWS Key (planned) | Fake AWS credential that alerts on use | Config files |
-| Credential (planned) | Fake username/password pair | Credential stores |
-| File (planned) | File that alerts on open | Filesystem |
-| DB Record (planned) | Database record that alerts on query | Database tables |
-| API Key (planned) | Fake API key that alerts on use | Config/code |
+### 🐤 Canary Tokens
 
-### Honeypot Detection (Planned)
+Canary tokens are fake digital assets. When an attacker touches them, you get an immediate, high-fidelity alert.
 
-- Signature-based identification of known honeypots (Cowrie, Dionaea, Honeyd, Glastopf, T-Pot)
-- SSH banner analysis
-- HTTP response fingerprinting
-- Service behavior pattern matching
+| Token Type | How It Traps Attackers | Where We Deploy It |
+|------------|------------------------|--------------------|
+| **WEB** | A unique URL that triggers an alert the moment it's requested. | Web access logs, emails |
+| **DNS** *(planned)* | A unique DNS name that alerts you when someone tries to resolve it. | DNS zone files |
+| **AWS Key** *(planned)* | A fake AWS credential that screams if someone tries to use it. | Config files, GitHub |
+| **Credential** *(planned)* | A juicy-looking username and password pair. | Credential stores, memory |
+| **File** *(planned)* | A document that alerts you the second it is opened. | Desktop, shared drives |
+| **DB Record** *(planned)* | A fake database entry that triggers when queried. | Production databases |
+| **API Key** *(planned)* | A decoy API key waiting to be scraped. | Config files, source code |
 
-### Fake Banners (Planned)
+### 🍯 Honeypot Detection (Planned)
 
-- Realistic decoy banners for SSH, HTTP, FTP, and other services
-- Customizable service fingerprints
-- Automated deployment to decoy systems
+Want to know if you're exploring a real system or a trap? Siyarix will be able to detect known honeypots:
+- **Signature Analysis**: Identifying common honeypots like Cowrie, Dionaea, Honeyd, and T-Pot.
+- **Banner Analysis**: Checking SSH banners for deceptive patterns.
+- **Fingerprinting**: Analyzing HTTP responses and service behaviors for anomalies.
 
-### Trapdoor Credentials (Planned)
+### 🎭 Fake Banners (Planned)
 
-- Fake credentials that trigger alerts on use
-- Integration with credential store
-- Alert routing and notification
+Confuse attackers by making your systems look like something else!
+- Deploy highly realistic decoy banners for SSH, HTTP, FTP, etc.
+- Customize service fingerprints to waste attackers' time.
+- Fully automated deployment across your decoy infrastructure.
+
+### 🚪 Trapdoor Credentials (Planned)
+
+- Generate fake credentials that exist solely to trigger alarms when used.
+- Seamless integration with your existing credential stores.
+- Instant alert routing directly to your security team.
 
 ---
 
-## Stay Tuned
+## 📣 Stay Tuned!
 
-The deception technology suite is being actively developed. Updates on feature availability and release timelines will be shared as the implementation progresses.
+We are incredibly excited about the deception technology suite. We are actively developing these features and will share updates and release timelines as soon as they are ready!

@@ -1,125 +1,121 @@
-# Reporting and Output
+# 📊 Reporting and Output
 
-Siyarix provides structured output in multiple formats, comprehensive report generation from the knowledge graph, audit logging with tamper-evident SHA-256 chaining, and system health/metrics monitoring.
+Data is only useful if you can understand it. Siyarix provides incredibly flexible output formats, comprehensive report generation, tamper-evident audit logging, and detailed system health metrics.
 
 ---
 
-## Output Formats
+## 📝 Output Formats
 
-Set the default output format:
+Want data presented your way? Set your preferred default format easily:
 
 ```bash
 siyarix config set default_output_format json
 ```
 
-| Format | Description |
-|--------|-------------|
-| `TABLE` | Rich formatted table (default) |
-| `JSON` | Machine-readable JSON |
-| `JSONL` | JSON lines format |
-| `YAML` | YAML structured output |
-| `CSV` | Comma-separated values |
-| `HTML` | HTML report |
-| `XML` | XML structured output |
-| `MARKDOWN` | Markdown-formatted output |
-| `RAW` | Raw unformatted output |
-| `QUIET` | Minimal output |
+Siyarix supports a wide variety of formats for different use cases:
 
-### Scan Output Validation
+| Format | What It's Good For |
+|--------|--------------------|
+| **TABLE** | Beautiful, human-readable terminal output *(Default)* |
+| **JSON** | Machine-readable data for scripting and integrations |
+| **JSONL** | JSON Lines, perfect for streaming massive datasets |
+| **YAML** | Clean, structured data |
+| **CSV** | Importing into Excel or databases |
+| **HTML** | Sharing findings with non-technical stakeholders |
+| **XML** | Legacy system integrations |
+| **MARKDOWN**| Dropping directly into Jira or GitHub issues |
+| **RAW** | The unadulterated tool output |
+| **QUIET** | Silence! Only show critical errors |
 
-The `siyarix scan` command validates `--output` against: `table`, `json`, `yaml`, `csv`, `html`, `quiet`.
+> [!TIP]
+> You can always override the default format on the fly using the `--output` flag (e.g., `siyarix scan --output html`).
 
 ---
 
-## Report Generation
+## 📄 Report Generation
+
+Need to hand something to your boss or a client? Generate a comprehensive report instantly:
 
 ```bash
 siyarix report generate --format html --output report.html
 ```
 
-### Report Formats
+### Supported Report Formats
 
-| Format | Use Case |
-|--------|----------|
-| HTML | Client-ready reports with formatting |
-| JSON | Machine-readable, pipeline integration |
-| Markdown | Quick documentation, issue tracking |
-| SARIF | Static Analysis Results Interchange Format |
+| Format | Best Used For |
+|--------|---------------|
+| **HTML** | Client-ready, styled reports with charts and graphs. |
+| **JSON** | Pushing results directly into CI/CD pipelines or SIEMs. |
+| **Markdown**| Quick documentation or team wikis. |
+| **SARIF** | Integrating with standard static analysis tools (like GitHub Advanced Security). |
 
-### Report Sections
+### What's Inside the Report?
 
-- **Executive Summary**: High-level findings overview
-- **Methodology**: Approach and tools used
-- **Findings**: Detailed vulnerability descriptions with severity
-- **Evidence**: Command outputs, data collected
-- **Remediation**: Suggested fixes for each finding
-- **Appendix**: Additional technical details
+A standard Siyarix report includes:
+- **Executive Summary**: The "too long; didn't read" overview of your security posture.
+- **Methodology**: Exactly how the scan was performed and what tools were used.
+- **Findings**: Deep dives into vulnerabilities, ranked by severity.
+- **Evidence**: The raw proof (command outputs, intercepted data).
+- **Remediation**: Step-by-step instructions on how to fix the problems!
+- **Appendix**: Extra technical details for the engineering team.
 
 ---
 
-## Audit Logging
+## 🔒 Audit Logging
 
-All actions are logged to an enterprise-grade audit trail:
+Trust, but verify. Every single action taken in Siyarix is logged to an enterprise-grade, tamper-evident audit trail.
 
 ```bash
+# 📄 Export logs for compliance (like SOC 2)
 siyarix audit report soc2 -o audit-report.md
+
+# 📜 View the raw audit logs
 siyarix audit logs
+
+# ✅ Verify the logs haven't been tampered with
 siyarix audit verify
 ```
 
 ### Audit System Features
-
-- **Tamper evidence**: SHA-256 hash chain linking entries
-- **Session tracking**: Every command tied to a session ID
-- **Export**: Logs in JSON or CSV
-- **Filtering**: By event type, user, severity, or date range
-
-### Audit Record Fields
-
-| Field | Description |
-|-------|-------------|
-| `timestamp` | ISO 8601 timestamp |
-| `session_id` | Unique session identifier |
-| `event_type` | Type of event (command, auth, scan, etc.) |
-| `severity` | INFO, WARNING, ERROR, CRITICAL |
-| `user` | User identity |
-| `target` | Target of the action |
-| `result` | Outcome (success, failed, started) |
+- **Tamper Evidence**: Siyarix uses a cryptographic SHA-256 hash chain. If a log file is manually edited, Siyarix will know!
+- **Session Tracking**: Every command is tied to a specific session ID.
+- **Export Options**: Export logs to JSON or CSV for your SIEM.
+- **Advanced Filtering**: Filter logs by event type, user, severity, or specific date ranges.
 
 ---
 
-## Metrics
+## 📈 System Metrics
+
+Curious about how much work Siyarix is doing?
 
 ```bash
 siyarix metrics
 ```
 
-Performance statistics:
+The metrics dashboard gives you performance statistics at a glance:
+- Total number of scans performed
+- Success vs. failure rates
+- Average duration of your scans
+- Total vulnerabilities found
+- How many AI plans were generated
+- Total AI model calls and API errors
 
-- Total scans performed
-- Successful/failed scans
-- Average scan duration
-- Total findings
-- Plans generated
-- Model call counts and errors
-
-Supports `--output table|json|prometheus` and `--export` for file output.
+*Supports `--output table|json|prometheus` for seamless monitoring integration!*
 
 ---
 
-## Health Check
+## 🩺 Health Check
+
+Is everything running smoothly? Run a quick diagnostic check:
 
 ```bash
 siyarix health
 ```
 
-Comprehensive system health report:
-
-- Component status (Python, core modules, AI providers)
-- Platform information (OS, Python version, shell)
-- System state (initialized, configured)
-- Storage usage
-- Model provider reachability
-- Tool availability on PATH
-
-Supports `--output table|json` for different display formats.
+This generates a comprehensive system report covering:
+- **Component Status**: Are Python, core modules, and AI providers functioning?
+- **Platform Info**: OS details, shell type, and Python version.
+- **System State**: Is Siyarix properly initialized and configured?
+- **Storage**: How much disk space are your offline databases using?
+- **Network**: Can Siyarix reach your configured AI providers?
+- **Tool Check**: Are your essential security tools (Nmap, Nikto, etc.) actually installed and on your PATH?

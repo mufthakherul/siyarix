@@ -1,14 +1,15 @@
-# Workflow Files
+# 🔀 Workflow Files
 
-Siyarix supports DAG-native workflow execution through its `WorkflowEngine`. Workflows define a directed acyclic graph of steps with explicit dependency ordering, enabling parallel execution of independent tasks.
+At the heart of Siyarix is the `WorkflowEngine`, a powerful system that uses Directed Acyclic Graphs (DAGs) to execute complex, multi-step processes. Workflows allow you to define dependencies between tasks, ensuring that steps run in the correct order—and in parallel when they don't depend on each other!
 
-> **Note:** Workflow files are executed programmatically via the `WorkflowEngine` API or through `siyarix playbook run` (the primary CLI entry point). There is no dedicated `siyarix workflow run` CLI command.
+> [!NOTE]
+> Workflow files are executed programmatically via the `WorkflowEngine` API or through the primary CLI command: `siyarix playbook run`. (There is no dedicated `siyarix workflow run` command).
 
 ---
 
-## Workflow Format
+## 📝 The Workflow Format
 
-### YAML Example
+Workflows are written in clean, easy-to-read YAML. Here is an example of a standard network assessment:
 
 ```yaml
 name: network-assessment
@@ -17,58 +18,65 @@ steps:
   - id: recon
     instruction: "scan subdomains of {{target}}"
     mode: integrated
-    depends_on: []
+    depends_on: [] # Runs immediately
 
   - id: port-scan
     instruction: "nmap -sV -p 1-1000 {{target}}"
     mode: registry
-    depends_on: [recon]
+    depends_on: [recon] # Waits for recon
 
   - id: vuln-scan
     instruction: "run vulnerability scan on {{target}}"
     mode: integrated
-    depends_on: [port-scan]
+    depends_on: [port-scan] # Waits for port-scan
 
   - id: report
     instruction: "generate report from findings"
     mode: integrated
-    depends_on: [vuln-scan]
-    retries: 2
-    timeout: 600
+    depends_on: [vuln-scan] # Waits for vuln-scan
+    retries: 2             # Try up to 3 times total!
+    timeout: 600           # Kill if it takes over 10 minutes
 ```
 
 ---
 
-## Step Specification
+## ⚙️ Step Specification
 
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `id` | Yes | — | Unique step identifier |
-| `instruction` | Yes | — | Command or natural language instruction |
-| `mode` | No | `integrated` | Execution mode (`registry`, `autonomous`, `integrated`) |
-| `depends_on` | No | `[]` | List of step IDs this step depends on |
-| `retries` | No | `0` | Number of retries on failure |
-| `timeout` | No | `300` | Step timeout in seconds |
-| `persist` | No | `true` | Whether to persist results to offline store |
+Every step in a workflow is highly configurable. Here is what you can define:
+
+| Field | Required? | Default | What It Does |
+|-------|-----------|---------|--------------|
+| `id` | **Yes** | — | A unique identifier for the step (e.g., `recon`). |
+| `instruction` | **Yes** | — | The command or natural language instruction to execute. |
+| `mode` | No | `integrated`| The AI execution mode (`registry`, `autonomous`, or `integrated`). |
+| `depends_on` | No | `[]` | A list of step IDs that must finish before this step can start. |
+| `retries` | No | `0` | How many times to automatically retry if the step fails. |
+| `timeout` | No | `300` | The maximum time (in seconds) the step is allowed to run. |
+| `persist` | No | `true` | Should the results be saved to the offline database? |
 
 ---
 
-## Execution
+## 🚀 Execution
+
+Executing a workflow from the command line is simple:
 
 ```bash
-# Run a workflow via playbook command (primary CLI access)
+# 🏃 Run a workflow file directly
 siyarix playbook run network-assessment.yaml
 
-# Run with variable overrides
+# 🎯 Inject custom variables at runtime
 siyarix playbook run assessment.yml --var target=example.com
 ```
 
-### Programmatic API
+### 💻 Programmatic API
+You can also build and run workflows dynamically in Python!
 
 ```python
 from siyarix.workflow import WorkflowEngine
 
 engine = WorkflowEngine()
+
+# Build the graph dynamically
 workflow = engine.create_workflow(
     name="my-workflow",
     nodes=[
@@ -76,15 +84,17 @@ workflow = engine.create_workflow(
     ],
     edges=[],
 )
+
+# Execute it!
 await engine.run_workflow(workflow)
 ```
 
 ---
 
-## Step States
+## 🚦 How It Works Under the Hood
 
-Each step progresses through these states:
-
+### Step States
+Every step transitions through a strict lifecycle:
 ```
 PENDING → RUNNING → COMPLETED
                ↓
@@ -93,35 +103,15 @@ PENDING → RUNNING → COMPLETED
            SKIPPED
 ```
 
----
+### Dependency Resolution
+Siyarix executes steps in **topological order**. 
+- Steps with empty `depends_on` arrays run first. 
+- Independent steps run simultaneously! 
+- The engine uses an `asyncio.Semaphore(4)` to prevent overwhelming your system, bounding execution to 4 concurrent tasks by default.
 
-## Dependency Resolution
+### Retries & Persistence
+- **Retries**: If a network glitch causes a step to fail, Siyarix automatically tries again based on your `retries` configuration (up to a default max of 3 attempts).
+- **Persistence**: Every output, finding, error, and timestamp is safely stored in the `OfflineStore` for later review.
 
-Steps are executed in topological order. Steps with no dependencies run first (in parallel where possible), followed by their dependents. The runtime uses `asyncio.Semaphore(4)` to bound concurrency.
-
----
-
-## Retries
-
-The `WorkflowNode` supports `max_retries` (default: 3) and tracks `retry_count` for automatic retry on failure. Configured via the `retries` field in workflow definitions.
-
----
-
-## Persistence
-
-Workflow results are persisted to the `OfflineStore`:
-
-- Each step's output (findings, errors, duration)
-- Overall workflow status and timing
-- Plan ID for later retrieval
-
----
-
-## Validation
-
-The playbook system validates:
-
-- All step IDs are unique
-- All dependency references resolve
-- No circular dependencies
-- Required fields are present
+### Strict Validation
+Before Siyarix runs a single command, it validates your entire workflow. It ensures all IDs are unique, dependencies actually exist, and prevents catastrophic circular dependencies!

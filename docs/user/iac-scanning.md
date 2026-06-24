@@ -1,58 +1,67 @@
-# Infrastructure as Code Scanning (Under Active Development)
+# 🏗️ Infrastructure as Code (IaC) Scanning
 
-Siyarix's Infrastructure as Code (IaC) scanning capability is currently under active development. An `IaCScanner` stub has been created, and the full implementation — including Terraform, CloudFormation, Helm, and Dockerfile analysis — is on the roadmap.
+Catch security flaws before they ever reach production! Infrastructure as Code (IaC) scanning allows you to analyze your configuration files for vulnerabilities, misconfigurations, and exposed secrets early in the development lifecycle.
+
+> [!WARNING]
+> **Active Development Notice**: Siyarix's IaC scanning capability is currently under active development. An `IaCScanner` stub is in place, and we are actively building out the engines for Terraform, CloudFormation, Helm, and Dockerfiles.
 
 ---
 
-## Current Status
+## 🚧 Current Status
 
-An `IaCScanner` class exists as a stub. It accepts a path and returns an empty result set. No actual scanning, pattern matching, or AST parsing has been implemented yet.
+Currently, the `IaCScanner` class exists as a stub. You can interact with it, but it does not yet perform actual AST parsing or pattern matching.
 
 ```python
 from siyarix.chat.stubs import IaCScanner
 
 scanner = IaCScanner()
+
+# This is a stub! It currently returns an empty dictionary {}.
 result = scanner.scan_path("infrastructure/terraform")
-# result == {}  (stub - returns empty)
 ```
 
 ---
 
-## Planned Capabilities
+## 🔮 Planned Capabilities
 
-The IaC scanner roadmap includes:
+We are building a comprehensive IaC scanner. Here is what is on the roadmap:
 
-| Format | Scope |
-|--------|-------|
-| Terraform | `.tf`, `.tfvars` — HCL analysis |
-| CloudFormation | `.yaml`, `.json` — resource configuration checks |
-| Helm | `values.yaml`, templates — Kubernetes security |
-| Dockerfile | `Dockerfile` — container build best practices |
-| Generic secrets | Pattern-based secret detection across all files |
+| Format | What We Will Analyze |
+|--------|----------------------|
+| **Terraform** | Deep HCL analysis of `.tf` and `.tfvars` files. |
+| **CloudFormation** | Resource configuration checks in `.yaml` and `.json`. |
+| **Helm** | Kubernetes security checks inside `values.yaml` and templates. |
+| **Dockerfile** | Container build best practices and security validations. |
+| **Generic Secrets** | Aggressive, pattern-based secret detection across *all* files. |
 
-### Planned Checks
+### 🕵️ What We Will Detect
 
-The full scanner will detect:
+Once fully operational, the scanner will automatically hunt down:
 
-- **Misconfigurations**: Public S3 buckets, open security groups, IAM over-privilege
-- **Secrets exposure**: Hardcoded API keys, passwords, tokens, private keys
-- **Compliance violations**: Encryption disabled, logging off, insecure defaults
-- **Supply chain risks**: Unpinned container tags, unofficial base images
+- **Misconfigurations**: Publicly exposed S3 buckets, wide-open security groups, and overly permissive IAM roles.
+- **Exposed Secrets**: Hardcoded API keys, database passwords, access tokens, and private keys left in your code.
+- **Compliance Violations**: Resources deployed with encryption disabled, logging turned off, or insecure default settings.
+- **Supply Chain Risks**: Identifying unpinned container tags or the use of risky, unofficial base images.
 
 ---
 
-## CI/CD Integration (Planned)
+## 🔄 CI/CD Integration (Planned)
+
+Security should be automated! We are designing the IaC scanner to integrate seamlessly into your pipelines.
 
 ```bash
-# Future usage will include:
+# 🗣️ Future natural language support:
 siyarix run "scan IaC templates for security issues"
 
-# With dedicated CI gate
+# 🛑 Future CI/CD blocking gate:
 siyarix ci-gate
 ```
 
+> [!TIP]
+> The `siyarix ci-gate` command will allow you to automatically fail your build pipeline if critical security issues are found in your infrastructure code!
+
 ---
 
-## Stay Tuned
+## 📣 Stay Tuned!
 
-The IaC scanner is being actively developed. Updates on supported formats, check coverage, and release timelines will be shared as the implementation progresses.
+The IaC scanner is one of our top priorities. We are actively writing the parsing engines and will provide updates on supported formats and release timelines as development progresses.

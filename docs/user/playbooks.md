@@ -1,23 +1,28 @@
-# Playbook Engine
+# 📓 Playbook Engine
 
-The playbook engine provides reusable, multi-step incident response and assessment workflows using YAML playbooks with variable substitution and DAG-based step execution.
+Why do the same tasks manually over and over? The Playbook Engine allows you to create reusable, multi-step workflows for incident response, vulnerability assessments, and routine security checks. 
 
----
-
-## Step Types
-
-| Step Type | Description |
-|-----------|-------------|
-| `tool` | Execute a security tool via the tool registry |
-| `agent` | Delegate a sub-goal to the autonomous agent |
-
-> **Note:** The step type system currently supports `tool` (default) and `agent` step types. Additional step types such as conditional branching, loops, and delays are on the roadmap for future releases.
+Using simple YAML files, you can define steps, variables, and dependencies, and Siyarix's DAG (Directed Acyclic Graph) engine will execute them flawlessly.
 
 ---
 
-## Creating Playbooks
+## 🧱 Step Types
 
-Playbooks are defined as **YAML files** (not JSON). The engine uses `yaml.safe_load` for parsing:
+A playbook is made up of individual steps. Currently, Siyarix supports two main types:
+
+| Step Type | What It Does |
+|-----------|--------------|
+| `tool` | Executes a specific security tool from the Siyarix tool registry. (This is the default type). |
+| `agent` | Delegates a complex, sub-goal directly to the autonomous AI agent. |
+
+> [!NOTE]
+> We are actively working on expanding the step types! Look out for conditional branching, loops, and delays in future releases.
+
+---
+
+## ✍️ Creating Playbooks
+
+Playbooks are written in standard **YAML** format. Here is an example of a web vulnerability scan playbook:
 
 ```yaml
 name: web-vuln-scan
@@ -31,24 +36,26 @@ steps:
     tool: nmap
     args:
       flags: "-sn"
-    depends_on: []
+    depends_on: [] # This runs first!
 
   - id: port-scan
     type: tool
     tool: nmap
     args:
       flags: "-p {{port_range}} -sV"
-    depends_on: [recon]
+    depends_on: [recon] # Waits for 'recon' to finish
 
   - id: vuln-scan
     type: tool
     tool: nuclei
     args:
       severity: "high,critical"
-    depends_on: [port-scan]
+    depends_on: [port-scan] # Waits for 'port-scan' to finish
 ```
 
-### Programmatic Usage
+### 💻 Programmatic Usage
+
+You can load and run playbooks directly via Python:
 
 ```python
 from siyarix.playbook import PlaybookEngine
@@ -60,9 +67,9 @@ engine.load("my-playbook.yml")
 
 ---
 
-## Variables
+## 🔀 Variables
 
-Playbooks support `{{variable}}` substitution using `_resolve_vars()`:
+Make your playbooks dynamic! You can inject variables using the `{{variable_name}}` syntax.
 
 ```yaml
 vars:
@@ -75,53 +82,60 @@ steps:
       flags: "-p {{port_range}} {{target}}"
 ```
 
-Variables can be provided at runtime via the `--var` flag:
+You can easily override these variables at runtime using the `--var` flag:
 
 ```bash
 siyarix playbook run my-playbook.yml --var target=10.0.0.1 --var port_range=1-5000
 ```
 
-Environment variables are accessible as `{{env.HOME}}`, `{{env.PATH}}`, and other allowlisted variables.
+> [!TIP]
+> You can also access safe environment variables directly in your playbook using `{{env.HOME}}`, `{{env.PATH}}`, etc.
 
 ---
 
-## Running Playbooks
+## 🏃 Running Playbooks
+
+Executing playbooks via the CLI is simple:
 
 ```bash
-# Run a playbook from a file path
+# 🚀 Run a playbook
 siyarix playbook run my-playbook.yml
 
-# Run with variable overrides
+# 🎯 Run with custom variables
 siyarix playbook run assessment.yml --var target=example.com
 
-# List available playbooks in a directory
+# 📂 List all available playbooks in a folder
 siyarix playbook list --dir playbooks/
 
-# Validate a playbook file
+# ✅ Check a playbook for syntax errors
 siyarix playbook validate my-playbook.yml
 ```
 
 ---
 
-## Error Handling
+## 🛡️ Error Handling
 
-Each step supports a `retries` field to configure automatic retry on failure:
+Security tools fail. Networks drop. Siyarix handles this gracefully. 
+
+You can configure automatic retries and timeouts for every step:
 
 ```yaml
 steps:
   - id: vuln-scan
     tool: nuclei
-    retries: 2
-    timeout: 300
+    retries: 2       # Try up to 3 times total
+    timeout: 300     # Kill the tool if it takes longer than 5 minutes
 ```
 
-The playbook engine runs within the `WorkflowEngine`, which handles DAG scheduling, parallel execution (via `asyncio.Semaphore(4)`), and per-step timeout enforcement.
+Behind the scenes, the `WorkflowEngine` manages the complex DAG scheduling, handles parallel execution safely (limiting to 4 concurrent tasks by default), and enforces strict timeouts.
 
 ---
 
-## Use Cases
+## 🎯 Key Use Cases
 
-- **Standardized assessments**: Ensure every scan follows the same process
-- **Incident response**: Pre-defined containment and analysis workflows
-- **Onboarding**: Automate the setup process for new team members
-- **Compliance**: Repeatable evidence collection for audit cycles
+Why should you use playbooks?
+
+- **Standardized Assessments**: Ensure junior and senior analysts perform scans exactly the same way.
+- **Incident Response**: Execute pre-defined, high-speed containment and analysis workflows during a breach.
+- **Onboarding**: Automate the setup process for new team members with a single command.
+- **Compliance**: Generate repeatable, consistent evidence for your audit cycles.

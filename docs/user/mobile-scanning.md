@@ -1,48 +1,49 @@
-# Mobile Application Scanning (Under Active Development)
+# 📱 Mobile Application Scanning
 
-Siyarix's mobile application security scanning capability is currently under active development. A `MobileScanner` stub has been created, and the full implementation — including APK analysis, iOS IPA support, and dynamic analysis — is on the roadmap.
+Mobile apps often carry the keys to your kingdom. Siyarix is building a dedicated mobile scanning engine to help you tear down APKs and IPAs, hunting for dangerous permissions, insecure flags, and hardcoded secrets.
+
+> [!WARNING]
+> **Active Development Notice**: The mobile application security scanner is currently under active development. A `MobileScanner` stub exists, and the full analysis pipeline is being built.
 
 ---
 
-## Current Status
+## 🚧 Current Status
 
-A `MobileScanner` class exists as a stub. It accepts a path and returns an empty result set. No actual APK analysis, permission scanning, or vulnerability detection has been implemented yet.
+Currently, the `MobileScanner` class acts as a placeholder. You can feed it an app package, but it doesn't perform actual decompilation or analysis yet.
 
 ```python
 from siyarix.chat.stubs import MobileScanner
 
 scanner = MobileScanner()
+
+# This is a stub! It currently returns an empty dictionary {}.
 result = scanner.scan_apk("app.apk")
-# result == {}  (stub - returns empty)
 ```
 
 ---
 
-## Planned Capabilities
+## 🔮 Planned Capabilities
 
-The mobile scanner roadmap includes:
+Our roadmap for mobile security is extensive. Here is what Siyarix will soon be able to do:
 
-### Android APK Analysis
+### 🤖 Android APK Analysis
+- **Dangerous Permissions**: Detecting apps that ask for too much (e.g., unnecessary access to Location, Camera, or SMS).
+- **Insecure Flags**: Flagging risky Android manifest settings like `allowBackup="true"`, `debuggable="true"`, or `usesCleartextTraffic="true"`.
+- **Hardcoded Secrets**: Automatically decompiling the APK to hunt down API keys, tokens, and passwords buried in the code.
+- **Manifest Analysis**: Mapping out exported components, intent filters, and the app's overall attack surface.
 
-- **Dangerous permissions**: Detect over-privileged permission requests (location, camera, SMS, etc.)
-- **Insecure flags**: `allowBackup`, `debuggable`, `usesCleartextTraffic`
-- **Hardcoded secrets**: API keys, tokens, passwords in decompiled code
-- **Manifest analysis**: Exported components, intent filters, and attack surface
+### 🍏 iOS IPA Analysis
+- **Plist Inspection**: Scanning `Info.plist` files for sensitive configuration data.
+- **Binary Analysis**: Checking the compiled binary for modern security protections (PIE, ARC, stack canaries).
+- **Entitlement Review**: Identifying over-provisioned app capabilities.
 
-### iOS IPA Analysis
-
-- **Plist inspection**: Sensitive data in Info.plist
-- **Binary analysis**: PIE, ARC, stack canary checks
-- **Entitlement review**: Capability over-provisioning
-
-### Dynamic Analysis (Roadmap)
-
-- **Network traffic interception**: Detect cleartext and weak TLS
-- **Runtime injection testing**: Attempt common manipulation techniques
-- **Data storage analysis**: Insecure local storage detection
+### 🕵️ Dynamic Analysis (Future Roadmap)
+- **Network Interception**: Automatically proxying traffic to detect cleartext communication and weak TLS configurations.
+- **Runtime Injection**: Testing how the app handles common memory manipulation techniques.
+- **Data Storage Analysis**: Inspecting local databases and file systems for insecurely stored data.
 
 ---
 
-## Stay Tuned
+## 📣 Stay Tuned!
 
-The mobile scanner is being actively developed. Updates on platform support, check coverage, and release timelines will be shared as the implementation progresses.
+The mobile scanning module will bring massive value to developers and security researchers alike. We will provide updates on platform support and feature availability as the development progresses!

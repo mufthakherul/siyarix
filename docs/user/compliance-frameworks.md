@@ -1,90 +1,95 @@
-# Compliance Frameworks
+# 📋 Compliance Frameworks
 
-Siyarix can assess targets against six industry compliance frameworks through automated probe execution and evidence collection. The compliance assessment framework is being actively developed — all check results currently return a `NOT_EVALUATED` status as the evaluation logic is being built out.
+Navigating compliance audits can be overwhelming, but Siyarix is here to help simplify the process. We are actively building out automated probes and evidence collection to assess your systems against six major industry compliance frameworks!
 
----
-
-## Supported Frameworks
-
-| Framework | Full Name | Controls |
-|-----------|-----------|----------|
-| PCI-DSS | Payment Card Industry Data Security Standard | 3 |
-| ISO 27001 | Information Security Management Standard | 3 |
-| NIST 800-53 | Security and Privacy Controls | 3 |
-| SOC 2 | Service Organization Control 2 | 3 |
-| GDPR | General Data Protection Regulation | 2 |
-| HIPAA | Health Insurance Portability and Accountability Act | 2 |
+> [!WARNING]
+> **Active Development Notice**: The compliance assessment engine is currently a work in progress! At the moment, running compliance checks will return a `NOT_EVALUATED` status because we are carefully building out the underlying evaluation logic.
 
 ---
 
-## Running Compliance Checks
+## 🏛️ Supported Frameworks
+
+Once fully implemented, Siyarix will help you assess your posture against:
+
+| Framework | Full Name | Planned Controls |
+|-----------|-----------|------------------|
+| **PCI-DSS** | Payment Card Industry Data Security Standard | 3 |
+| **ISO 27001** | Information Security Management Standard | 3 |
+| **NIST 800-53** | Security and Privacy Controls | 3 |
+| **SOC 2** | Service Organization Control 2 | 3 |
+| **GDPR** | General Data Protection Regulation | 2 |
+| **HIPAA** | Health Insurance Portability and Accountability Act | 2 |
+
+---
+
+## 🏃 Running Compliance Checks
+
+It's designed to be incredibly simple to run a check against any target:
 
 ```bash
-# Check a specific framework against a target
+# Check a specific framework against your target infrastructure
 siyarix compliance run SOC2 10.0.0.1
 siyarix compliance run PCI-DSS webapp.example.com
 siyarix compliance run GDPR customer-db.internal
 ```
 
-The `compliance run` command takes two positional arguments: the framework name and the target.
+> [!NOTE]
+> The `compliance run` command requires two things: the **Framework Name** and the **Target**.
 
-### Current Status
-
-The compliance engine is under active development. Each `ComplianceCheck.run()` currently returns `NOT_EVALUATED` — the assessment probes and evidence collection logic are being implemented. Evidence data and target information are captured and stored for future evaluation.
-
----
-
-## Control Examples by Framework
-
-### PCI-DSS
-
-| Control ID | Title |
-|-----------|-------|
-| Req-1.1 | Firewall configuration standards |
-| Req-6.1 | Security patching process |
-| Req-10.1 | Audit trail implementation |
-
-### SOC 2
-
-| Control ID | Title |
-|-----------|-------|
-| cc1.1 | Control environment |
-| cc6.1 | Logical and physical access |
-| cc6.2 | Access provisioning and deprovisioning |
-
-### GDPR
-
-| Control ID | Title |
-|-----------|-------|
-| Art. 32 | Security of processing |
-| Art. 33 | Breach notification |
+### Current Engine Status
+Right now, calling `ComplianceCheck.run()` acts as a placeholder and returns `NOT_EVALUATED`. Behind the scenes, we are actively writing the assessment probes and evidence collection modules. Currently, evidence data and target metadata *are* being captured and stored for future evaluation.
 
 ---
 
-## Automated Evidence Collection
+## 🔎 Control Examples by Framework
 
-Each compliance control is assessed via automated probes. The evidence collection system stores assessment data in structured format for audit readiness:
+Here is a sneak peek at the types of controls Siyarix will automatically verify for you:
 
-- **Tool detection**: Required security tools present on systems
-- **Process verification**: Logging, monitoring, and response processes
-- **Configuration checks**: Encryption, access controls, audit settings
-- **Documentation scan**: Policy and procedure documents present
+### 💳 PCI-DSS
+| Control ID | What We Check For |
+|-----------|-------------------|
+| **Req-1.1** | Strict firewall configuration standards |
+| **Req-6.1** | Robust security patching processes |
+| **Req-10.1** | Comprehensive audit trail implementation |
+
+### 🏢 SOC 2
+| Control ID | What We Check For |
+|-----------|-------------------|
+| **cc1.1** | Sound control environment practices |
+| **cc6.1** | Logical and physical access restrictions |
+| **cc6.2** | Secure access provisioning and deprovisioning |
+
+### 🌍 GDPR
+| Control ID | What We Check For |
+|-----------|-------------------|
+| **Art. 32** | Overall security of processing |
+| **Art. 33** | Proper breach notification mechanisms |
 
 ---
 
-## Output
+## 🕵️ Automated Evidence Collection
 
-Each control result includes:
+Audits require proof! Siyarix doesn't just say "pass" or "fail"; it collects the receipts. Our automated probes gather structured evidence for your auditors, including:
 
-| Field | Description |
-|-------|-------------|
-| `check_id` | Framework-specific identifier |
-| `status` | Assessment result (currently `NOT_EVALUATED`) |
-| `evidence_data` | Supporting information |
-| `message` | Status description |
+- **Tool Detection**: Proving required security tools (like AV or EDR) are actively running.
+- **Process Verification**: Ensuring logging, monitoring, and response mechanisms are configured.
+- **Configuration Checks**: Verifying encryption standards, access controls, and audit settings.
+- **Documentation Scans**: Checking if required policy and procedure documents actually exist.
+
+---
+
+## 📄 Understanding the Output
+
+Every control we assess provides clear, structured feedback:
+
+| Field | What It Means |
+|-------|---------------|
+| `check_id` | The specific identifier for the framework (e.g., cc1.1) |
+| `status` | Did you pass? (Currently defaults to `NOT_EVALUATED`) |
+| `evidence_data` | The hard proof we collected to support the status |
+| `message` | A human-readable description of what we found |
 
 ### Example Output
-
 ```json
 {
   "framework": "SOC2",
@@ -101,12 +106,14 @@ Each control result includes:
 
 ---
 
-## Report Generation
+## 📊 Report Generation
+
+When audit time comes, you need beautiful, easy-to-read reports. Siyarix makes it a breeze!
 
 ```bash
-# Generate a compliance-focused report
+# 📄 Generate a stunning HTML compliance report
 siyarix report generate --format html --output compliance-report.html
 
-# Export as JSON for pipeline integration
+# 💻 Export raw JSON data for your CI/CD pipelines
 siyarix report generate --format json
 ```

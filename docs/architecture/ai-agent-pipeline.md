@@ -1,280 +1,187 @@
-# AI Agent Pipeline
+# 🤖 AI Agent Pipeline Architecture
 
-The AI agent pipeline processes user input through a structured lifecycle of **Plan → Execute → Observe-Reason-Act**, orchestrated by the `AgentCore`. The pipeline supports four operational modes and an autonomous **Observe-Reason-Act** loop for goal-driven operation, with budget checking and multi-wave execution.
+Welcome to the heart of Siyarix! The AI agent pipeline is the central nervous system that takes user inputs and transforms them into intelligent, goal-driven actions. 
 
----
-
-## Agent Lifecycle
-
-```
-                     ┌──────────────────┐
-                     │   User Input     │
-                     └────────┬─────────┘
-                              ▼
-                     ┌──────────────────┐
-                     │  IntentRouter    │
-                     │  (keyword:       │
-                     │   scan/recon/web │
-                     │   /brute/exploit)│
-                     └────────┬─────────┘
-                              ▼
-                     ┌──────────────────┐
-                     │  Context Manager │
-                     │  (build/compress  │
-                     │   context window) │
-                     └────────┬─────────┘
-                              ▼
-                     ┌──────────────────┐
-          ┌──────────│  Planner Router  │──────────┐
-          ▼          └──────────────────┘          ▼
-   ┌─────────────┐                       ┌─────────────────┐
-   │ Registry    │                       │ Autonomous      │
-   │ Planner     │                       │ Planner (LLM)   │
-   │ (heuristic) │                       │ (dynamic)       │
-   └──────┬──────┘                       └────────┬────────┘
-          │                                       │
-          └──────────────┬────────────────────────┘
-                         ▼
-                ┌──────────────────┐
-                │  PermissionGate  │──→ DLP Engine
-                │  (BLOCK/REVIEW/  │
-                │   ALLOW)         │
-                │  + DLP redaction │
-                └────────┬─────────┘
-                         ▼
-                ┌──────────────────┐
-                │  ExecutionEngine │
-                │  (plan → steps)  │
-                │  Validator       │
-                │  (recovery)      │
-                └────────┬─────────┘
-                         ▼
-                ┌──────────────────┐
-                │  Observe-Reason- │
-                │  Act Loop        │
-                │  (autonomous)    │
-                │  + Budget Check  │
-                │  + Multi-Wave    │
-                └──────────────────┘
-```
+Orchestrated by the `AgentCore`, this pipeline processes every request through a structured, highly secure lifecycle: **Plan → Execute → Observe-Reason-Act**. It supports four different operational modes and features an autonomous feedback loop, budget checking, and multi-wave execution to ensure your goals are met safely and efficiently.
 
 ---
 
-## Stage 1: Intent Routing
+## 🔄 The Agent Lifecycle
 
-The `IntentRouter` classifies input through keyword matching:
+Think of the lifecycle as a well-oiled factory assembly line. Each request goes through a series of checkpoints to ensure it is understood, planned, validated, and executed correctly.
+
+```mermaid
+flowchart TD
+    User([User Input]) --> Router[IntentRouter]
+    Router --> CM[Context Manager]
+    CM --> PR[Planner Router]
+    
+    PR -->|Heuristic| RP[Registry Planner]
+    PR -->|Dynamic| AP[Autonomous Planner LLM]
+    
+    RP --> Gate[PermissionGate + DLP Engine]
+    AP --> Gate
+    
+    Gate -->|Allow/Review| Exec[ExecutionEngine]
+    
+    Exec --> ORA[Observe-Reason-Act Loop]
+    ORA -->|Autonomous| ORA
+```
+
+> [!NOTE]
+> The diagram above simplifies the flow, but in reality, the `PermissionGate` and `DLP Engine` act as a unified security checkpoint, not sequential steps.
+
+---
+
+## 🎯 Stage 1: Intent Routing
+
+The very first step is understanding what the user wants. The `IntentRouter` classifies the input by looking for specific keywords to determine the operational mode, risk tier, and latency expectations.
 
 | Keyword | Mode | Risk Tier | Latency |
 |---------|------|-----------|---------|
-| scan, nmap, port scan | scan | MEDIUM | ~0ms |
-| recon, enumerate, discover | recon | LOW | ~0ms |
-| web, http, nikto, nuclei | web | MEDIUM | ~0ms |
-| brute, crack, password | brute | HIGH | ~0ms |
-| exploit, metasploit, attack | exploit | HIGH | ~0ms |
+| `scan`, `nmap`, `port scan` | **scan** | MEDIUM | ~0ms |
+| `recon`, `enumerate`, `discover` | **recon** | LOW | ~0ms |
+| `web`, `http`, `nikto`, `nuclei` | **web** | MEDIUM | ~0ms |
+| `brute`, `crack`, `password` | **brute** | HIGH | ~0ms |
+| `exploit`, `metasploit`, `attack` | **exploit** | HIGH | ~0ms |
 
-Produces an `IntentRoute` with:
-- `mode`: scan / recon / web / brute / exploit / general
-- `risk_tier`: LOW / MEDIUM / HIGH
-- `requires_confirmation`: Boolean
+Once classified, the router produces an `IntentRoute` that specifies the mode, risk tier, and whether human confirmation is required before proceeding.
 
 ---
 
-## Stage 2: Context Building
+## 🧠 Stage 2: Context Building
 
-The **Context Manager** constructs the LLM context window:
+Before the AI can plan, it needs to understand the current situation. The **Context Manager** gathers all necessary background information to create the LLM's context window.
 
-- Conversation history (deque, max 300 per session)
-- Knowledge Graph entity summaries
-- Current operational phase
-- Tool availability from ToolRegistry
-- Session metadata (target, mode, findings)
-- **CompactionEngine** optimizes context for LLM token limits (`analyze_tokens`, `compress_context`)
+Here's what goes into the context:
+- **Conversation History:** A rolling window of up to 300 recent messages.
+- **Knowledge Graph Summaries:** Information about known entities (e.g., target IPs, domains).
+- **Current Phase:** Where we are in the operation.
+- **Tool Availability:** What tools can be used right now.
+- **Session Metadata:** Information about the target, mode, and previous findings.
 
-Output: A compressed, structured context passed to the planner.
-
----
-
-## Stage 3: Planning
-
-### Planner Router
-
-Selects the planning strategy based on mode:
-
-```python
-if mode == "registry" or mode == "offline":
-    plan = planner_registry.plan(goal, available_tools)
-elif mode == "autonomous":
-    plan = await autonomous_planner.plan(goal, llm_call, ...)
-else:  # integrated (default)
-    plan = await planner.plan(goal, mode="integrated", ...)
-```
-
-### RegistryPlanner (Heuristic)
-
-- Uses keyword index to map intents → plan templates
-- 500+ multi-word intent patterns for tool selection
-- Tool alternative chains for graceful degradation
-- Deterministic, no AI dependency
-- Always available as fallback in offline/air-gapped environments
-
-### AutonomousPlanner (LLM-Driven)
-
-- Receives intent + compressed context + tool schemas
-- Returns structured `ExecutionPlan` with tool names, ordering, arguments
-- Driven by configured AI provider via the ProviderManager
-- Supports ToolCallRepair for malformed LLM output
+> [!TIP]
+> To keep things fast and within token limits, the **CompactionEngine** actively compresses and optimizes this context before it reaches the planner.
 
 ---
 
-## Stage 4: Permission Gating & DLP
+## 📝 Stage 3: Planning
 
-Every planned step passes through the permission gate:
+Once the context is set, the system needs a plan of action. The **Planner Router** decides which planning strategy to use based on the current mode.
 
-1. **Syntax Validation**: Length limits, null bytes, shell injection patterns, target format
-2. **Danger Analysis**: 38+ signatures for destructive/recon/exploit patterns
-3. **DLP Inspection**: Data leak prevention pattern detection (24+ signatures)
+### 🛠️ RegistryPlanner (Heuristic & Deterministic)
+Used in `registry` or `offline` modes. 
+- **How it works:** Maps intents directly to pre-defined plan templates using a keyword index.
+- **Why it's great:** With over 500 multi-word intent patterns, it's fast, deterministic, and requires no AI. It acts as a bulletproof fallback in air-gapped or offline environments.
 
-Returns one of:
-- `ALLOW` — proceeds without input
-- `REVIEW` — requires user confirmation
-- `BLOCK` — permanently denied and logged
-
-The PermissionGate and DLP Engine work together as a combined security layer rather than sequential separate stages.
-
----
-
-## Stage 5: Execution
-
-The execution subsystem transforms plans into executed commands:
-
-1. **BaseExecutor** validates plan structure and budget
-2. **Validator** checks step integrity (tool presence, arguments, timeout)
-3. **AsyncWorkerPool** dispatches steps with bounded concurrency
-4. **Route** output through tool-specific parsers
-5. **Extract** findings into KnowledgeGraph
-6. **Handle** errors with recovery actions (RETRY, RETRY_ALTERNATIVE, SKIP, ABORT)
-
-Two main executor types based on mode:
-
-| Executor | Mode | Behavior |
-|----------|------|----------|
-| `RegistryExecutor` | REGISTRY | Deterministic, template-driven, no AI |
-| `AutonomousExecutor` | AUTONOMOUS | Full autonomy, loop until objective met |
+### 🤖 AutonomousPlanner (LLM-Driven)
+Used in `autonomous` mode.
+- **How it works:** Feeds the intent, compressed context, and available tools to an AI model.
+- **Why it's great:** It returns a structured `ExecutionPlan` detailing exactly which tools to run, in what order, and with what arguments. It even includes self-healing capabilities (`ToolCallRepair`) if the LLM makes a syntax mistake!
 
 ---
 
-## Stage 6: Observe-Reason-Act Loop (Autonomous Mode)
+## 🛡️ Stage 4: Permission Gating & DLP
 
-For `AUTONOMOUS` mode, the system runs an autonomous loop:
+Security is our top priority. Before any plan is executed, every single step must pass through our unified security layer.
 
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   Observe    │────▶│    Reason    │────▶│     Act      │
-│              │     │              │     │              │
-│ • Tool output│     │ • Analyze    │     │ • Execute    │
-│ • Env state  │     │ • Update KG  │     │   commands   │
-│ • Scan res.  │     │ • Select     │     │ • Run tools  │
-│ • Errors     │     │   next action│     │ • Invoke     │
-│              │     │ • Check      │     │   sub-agents │
-│              │     │   completion │     │              │
-└──────────────┘     └──────────────┘     └──────────────┘
-        ▲                                         │
-        └─────────────────────────────────────────┘
-                     (feedback loop)
-```
+1. **Syntax Validation:** Checks for dangerous patterns like shell injections, null bytes, or invalid target formats.
+2. **Danger Analysis:** Scans against 38+ signatures for destructive or high-risk behaviors.
+3. **Data Leak Prevention (DLP):** Inspects the plan using 24+ signatures to ensure sensitive data isn't accidentally leaked or transmitted improperly.
 
-**Observe**: Collect environment state, tool outputs, scan results, errors
-**Reason**: Analyze findings, update KnowledgeGraph, select next action via LLM
-**Act**: Execute selected commands, run tools, invoke sub-agents via Swarm
+**Possible Outcomes:**
+- 🟢 **ALLOW:** The action is safe and proceeds immediately.
+- 🟡 **REVIEW:** The action is risky and requires manual user confirmation.
+- 🔴 **BLOCK:** The action violates core safety rules and is permanently denied and logged.
 
-Reflection is integrated within the Observe-Reason-Act loop rather than being a separate stage.
-
-Loop terminates when:
-- Objective is achieved (verified by LLM)
-- Max iteration limit is reached (default: 10 iterations)
-- Budget is exhausted (token or cost limit)
-- User interrupts with Ctrl+C
-- Safety gate blocks critical action
+> [!IMPORTANT]  
+> If you are running in `strict` safety mode, many actions will default to `REVIEW` or `BLOCK` to ensure maximum safety.
 
 ---
 
-## Multi-Wave Execution
+## ⚙️ Stage 5: Execution
 
-The `AgentCore.execute_multi_wave()` method enables progressive execution:
+Now it's time to turn the plan into reality! The execution subsystem handles the heavy lifting:
 
-```python
-result = await agent.execute_multi_wave(goal, max_waves=5)
-```
+1. **Validate:** `BaseExecutor` double-checks the plan structure and ensures you have enough budget left.
+2. **Check Integrity:** The `Validator` ensures all tools are installed and arguments are correct.
+3. **Dispatch:** The `AsyncWorkerPool` runs the steps concurrently (but within safe limits).
+4. **Parse Output:** Results are routed through tool-specific parsers.
+5. **Extract Knowledge:** Important findings are saved directly into the Knowledge Graph.
+6. **Handle Errors:** If something breaks, the system can gracefully `RETRY`, `SKIP`, or try an `ALTERNATIVE`.
 
-Each wave:
-1. Executes the goal with context from previous waves
-2. Collects findings
-3. Feeds findings as context for the next wave
-4. Stops when no new findings are discovered
+We use two main executors:
+- `RegistryExecutor`: For deterministic, template-driven execution.
+- `AutonomousExecutor`: For full autonomy, capable of looping until the objective is met.
 
 ---
 
-## Budget Checking
+## ♾️ Stage 6: Observe-Reason-Act Loop (Autonomous Mode)
 
-The `_check_budget()` method enforces session-level limits:
+When running in `AUTONOMOUS` mode, the agent doesn't just run a script and stop. It thinks, adapts, and reacts using the **Observe-Reason-Act** loop.
 
-```python
-async def _check_budget(self):
-    record = self._usage_tracker.session_totals()
-    if record.total_tokens >= self._max_tokens_per_session:
-        raise BudgetExceededError("Session token limit reached.")
-    if record.estimated_cost_usd >= self._max_cost_usd:
-        raise BudgetExceededError("Session cost limit reached.")
-```
+> [!NOTE]  
+> Unlike traditional architectures, reflection and learning are built natively into this loop rather than existing as a separate stage.
+
+1. 👁️ **Observe:** Collects environment state, tool outputs, scan results, and any errors.
+2. 🧠 **Reason:** Analyzes these findings, updates the Knowledge Graph, and uses the LLM to decide the absolute best next move.
+3. ⚡ **Act:** Executes the chosen commands, runs tools, or even delegates tasks to specialized sub-agents.
+
+**When does the loop end?**
+The agent will keep working until:
+- The objective is successfully achieved (verified by the LLM).
+- It hits the maximum iteration limit (default is 10 loops).
+- The session budget (tokens or cost) runs out.
+- The user manually interrupts the process (e.g., hitting `Ctrl+C`).
+- The Permission Gate blocks a critical action.
+
+---
+
+## 🌊 Multi-Wave Execution
+
+Some tasks require deep, progressive exploration. The `AgentCore.execute_multi_wave()` method handles this brilliantly.
+
+Each "wave" executes the goal using the context and findings from the previous waves. It continuously feeds newly discovered intelligence back into the next wave, stopping only when no new findings are uncovered.
+
+---
+
+## 💰 Budget Checking
+
+To prevent runaway costs or endless loops, the pipeline enforces strict session-level limits. Before any major action, `_check_budget()` ensures we are within safe operating bounds.
 
 | Limit | Default | Environment Variable |
 |-------|---------|---------------------|
 | Max tokens per session | 100,000 | `SIYARIX_MAX_TOKENS` |
 | Max cost per session | $2.00 | `SIYARIX_MAX_COST_USD` |
 
----
-
-## Streaming Event System
-
-During execution, all pipeline stages emit events through the **EventBus**:
-
-```
-EventBus topic types (from EventType enum):
-  AGENT_START          → Agent started
-  PLAN_CREATED         → ExecutionPlan created
-  PLAN_STEP_START      → Step execution begins
-  PLAN_STEP_COMPLETE   → Step completed successfully
-  PLAN_STEP_FAILED     → Step failed
-  PLAN_COMPLETE        → Plan completed (success or failure)
-  AGENT_COMPLETE       → Agent execution complete
-  VALIDATION_FAILED    → Step validation failed
-  CUSTOM               → Custom/sub-type events
-```
+> [!WARNING]  
+> If the limit is reached, the agent will throw a `BudgetExceededError` and immediately pause operations. You can adjust these limits via your environment variables.
 
 ---
 
-## Autonomous Agent Loop Configuration
+## 📡 Streaming Event System
 
-```python
-# Default configuration (AgentCore level)
-max_iterations = 10             # CLI agent default
-max_tokens_per_session = 100000
-max_cost_usd = 2.00
-safety_mode = "strict"           # strict | permissive (via SIYARIX_SAFE_MODE env)
-```
+As the pipeline runs, you're never left in the dark. All stages emit real-time events through the **EventBus**. 
+
+Some key events include:
+- `AGENT_START`: The agent has woken up.
+- `PLAN_CREATED`: A plan of attack has been formulated.
+- `PLAN_STEP_START`: A specific tool or command is starting.
+- `PLAN_STEP_FAILED`: Something went wrong (the agent will try to recover!).
+- `AGENT_COMPLETE`: The mission is over.
 
 ---
 
-## Output & Results
+## 🏁 Outputs & Results
 
-After execution, the pipeline produces:
+Once the pipeline finishes its work, it doesn't just dump raw text. It produces beautifully structured, highly useful artifacts:
 
 | Output | Destination | Format |
 |--------|-------------|--------|
-| Findings | KnowledgeGraph | In-memory directed graph |
-| Report | ReportEngine | MARKDOWN, HTML, JSON + CVSS |
-| Audit Trail | AuditLogger | Tamper-evident SHA-256 chain |
-| Session Log | ChatSession | JSONL tree format |
-| Metrics | MetricsCollector | Execution metrics |
-| Offline Backup | OfflineStore | SQLite WAL mode |
-| Learned Skills | Continuous Learning System | SQLite + anonymized patterns |
+| **Findings** | KnowledgeGraph | In-memory directed graph |
+| **Report** | ReportEngine | Markdown, HTML, JSON (with CVSS scoring) |
+| **Audit Trail** | AuditLogger | Tamper-evident SHA-256 chain |
+| **Session Log** | ChatSession | JSONL tree format |
+| **Metrics** | MetricsCollector | Execution metrics & statistics |
+| **Offline Backup**| OfflineStore | SQLite WAL mode |
+| **Learned Skills**| Continuous Learning | SQLite + anonymized patterns |

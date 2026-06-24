@@ -1,20 +1,27 @@
-# Provider Abstraction Layer
+# 🧩 Provider Abstraction Layer
 
-The Provider Abstraction Layer decouples all AI-dependent components from specific model backends. It manages 26 provider profiles with automatic failover, circuit breaking, exponential backoff, token usage tracking, and a unified `OpenAICompat` adapter. Provider state is persisted as JSON for cross-session continuity.
+Welcome to the **Provider Abstraction Layer**! This component is the beating heart of our AI infrastructure. It smoothly decouples all AI-dependent components from specific model backends, making our system resilient, flexible, and fully provider-agnostic.
+
+Think of it as an intelligent traffic controller for your AI models. It effortlessly manages **26 different provider profiles** with features like automatic failover, circuit breaking, exponential backoff, and token usage tracking. Plus, it brings everything together under a single, unified `OpenAICompat` adapter. 
+
+> [!NOTE]  
+> Provider states are intelligently persisted as JSON files. This ensures your AI configuration and cooldown statuses carry over seamlessly across different sessions!
 
 ---
 
-## Architecture
+## 🏗️ Architecture Overview
 
-```
+Here is a bird's-eye view of how the abstraction layer sits within the overall system:
+
+```text
 ┌──────────────────────────────────────────────────────┐
-│                Consumer Layer                         │
+│                Consumer Layer                        │
 │  (Planner, ChatSession, AutonomousExecutor, Swarm)   │
 └─────────────────────────┬────────────────────────────┘
                           │
                           ▼
 ┌──────────────────────────────────────────────────────┐
-│                   ProviderManager                     │
+│                   ProviderManager                    │
 │                                                      │
 │  • Provider selection (preference chain + scoring)   │
 │  • Failover orchestration                            │
@@ -22,7 +29,7 @@ The Provider Abstraction Layer decouples all AI-dependent components from specif
 │  • Rate limiting                                     │
 │  • DLP data redaction                                │
 │  • Provider filtering by capability                  │
-└──────┬───────────┬───────────┬───────────┬──────────┘
+└──────┬───────────┬───────────┬───────────┬───────────┘
        │           │           │           │
        ▼           ▼           ▼           ▼
 ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
@@ -35,13 +42,16 @@ The Provider Abstraction Layer decouples all AI-dependent components from specif
   26 Provider Profiles (cloud, local, heuristic fallback)
 ```
 
-> `*`: The `OpenAICompat` adapter (`siyarix/chat/openai_compat.py`) provides a unified OpenAI-compatible API across all providers that support the OpenAI chat completions protocol.
+> [!TIP]
+> `*` **The `OpenAICompat` adapter** (`siyarix/chat/openai_compat.py`) acts as a universal translator. It provides a standardized OpenAI-compatible API across *all* providers that support the OpenAI chat completions protocol!
 
 ---
 
-## Provider Interface
+## 🔌 The Provider Interface
 
-Providers are defined as data profiles rather than abstract base classes. The types module (`siyarix/providers/types.py`) provides the core data models:
+Unlike traditional object-oriented systems that use heavy abstract base classes, we define providers using lightweight data profiles. This makes them incredibly fast to load and easy to configure.
+
+You can find the core data models in the types module (`siyarix/providers/types.py`):
 
 ```python
 @dataclass
@@ -50,10 +60,10 @@ class ProviderProfile:
     display_name: str
     provider_type: str           # "cloud" | "local" | "heuristic"
     base_url: str
-    api_key_env: str | None      # Environment variable name
+    api_key_env: str | None      # Which environment variable holds the key?
     models: list[ModelInfo]
-    capabilities: set[str]       # "chat", "embed", "function_calling", "vision", etc.
-    priority: int                # Position in preference chain
+    capabilities: set[str]       # e.g., "chat", "embed", "function_calling", "vision"
+    priority: int                # Position in the preference chain
     rate_limit: int | None = None
     timeout: int = 60
 ```
@@ -65,15 +75,15 @@ class ModelInfo:
     display_name: str
     context_window: int
     max_output_tokens: int
-    capabilities: set[str]       # "chat", "vision", "function_calling", "json_mode"
+    capabilities: set[str]       # What can this model do?
 ```
 
-### Provider Selection
+### 🎯 Provider Selection
 
-Providers can be filtered by capability:
+Need a provider with specific superpowers? Filtering is built right in:
 
 ```python
-# Get providers with specific capabilities
+# Grab providers with the exact capabilities you need:
 vision_providers = pm.get_providers_by_capability("vision")
 free_providers = pm.get_providers_by_capability("free")
 local_providers = pm.get_providers_by_capability("local")
@@ -82,9 +92,13 @@ fn_call_providers = pm.get_providers_by_capability("function_calling")
 
 ---
 
-## 26 Provider Profiles
+## 🌐 The 26 Provider Profiles
 
-### Cloud Providers (API Key Required)
+Our system is ready out-of-the-box to connect with an impressive array of AI backends. 
+
+### ☁️ Cloud Providers (API Key Required)
+
+These providers require authentication but offer the most powerful, cutting-edge models.
 
 | Registry Name | SDK / API | Notable Models |
 |--------------|-----------|----------------|
@@ -108,35 +122,40 @@ fn_call_providers = pm.get_providers_by_capability("function_calling")
 | `azure` | `openai` | Azure OpenAI (enterprise, managed AD) |
 | `opencode_zen` | `openai` | OpenCode Zen backend |
 
-### Local Providers (No API Key)
+### 💻 Local Providers (No API Key Required)
+
+Run AI completely offline, free, and secure directly on your own hardware!
 
 | Registry Name | Default Endpoint | Notes |
 |--------------|-----------------|-------|
-| `ollama` | `http://localhost:11434` | Pull any open-weight model |
-| `lmstudio` | `http://localhost:1234` | GUI + API server |
-| `llamacpp` | `http://localhost:8080` | Efficient CPU/GPU inference |
-| `vllm` | Configurable | High-throughput GPU serving |
-| `localai` | `http://localhost:8080` | Drop-in OpenAI replacement |
+| `ollama` | `http://localhost:11434` | The easiest way to pull and run open-weight models |
+| `lmstudio` | `http://localhost:1234` | Awesome GUI + local API server |
+| `llamacpp` | `http://localhost:8080` | Highly efficient CPU/GPU inference |
+| `vllm` | Configurable | Built for high-throughput GPU serving |
+| `localai` | `http://localhost:8080` | A seamless drop-in OpenAI replacement |
 
-### Heuristic Fallback
+### 🛠️ Heuristic Fallback
+
+When all else fails, we have reliable, non-AI fallbacks.
 
 | Name | Description |
 |------|-------------|
-| `registry` | RegistryPlanner — no AI, always available, offline-safe |
+| `registry` | RegistryPlanner — A 100% rule-based system, always available and offline-safe. |
 
 ---
 
-## OpenAICompat Adapter
+## 🤝 OpenAICompat Adapter
 
-The `OpenAICompat` adapter (`siyarix/chat/openai_compat.py`) provides a unified API layer across all providers that support the OpenAI chat completions protocol. This covers 14+ providers, enabling a single code path for:
+Dealing with dozens of different API specifications is a headache. That's why we created the `OpenAICompat` adapter (`siyarix/chat/openai_compat.py`). It acts as a universal bridge for over 14+ providers.
 
-- Chat completions
-- Streaming responses
-- Embedding generation
-- Tool/function calling
-- Response format control (JSON mode, structured output)
+By standardizing around the OpenAI chat completions protocol, you write your code *once*, and it automatically supports:
+- 💬 Chat completions & Streaming responses
+- 🧠 Embedding generation
+- ⚙️ Tool and function calling
+- 📋 Structured output (JSON mode)
 
 ```python
+# Look how easy it is to swap providers!
 adapter = OpenAICompat(provider="openai", api_key=...)
 adapter = OpenAICompat(provider="groq", api_key=...)
 adapter = OpenAICompat(provider="deepseek", api_key=...)
@@ -144,84 +163,83 @@ adapter = OpenAICompat(provider="deepseek", api_key=...)
 
 ---
 
-## ProviderManager
+## 🧠 ProviderManager
 
-The `ProviderManager` in `siyarix/providers/manager.py` is the central coordinator:
+The `ProviderManager` (`siyarix/providers/manager.py`) is the smart coordinator of the entire system.
 
-### Selection Logic
+### 🚦 Selection Logic
 
-Providers are selected based on:
+How does it decide which AI to use? It evaluates several factors dynamically:
+1. **User Preference**: Starts with your `model_provider` config.
+2. **Key Availability**: Checks the `CredentialStore` for valid API keys.
+3. **Health Status**: Performs quick connectivity tests.
+4. **Task Matching**: Ensures the provider supports the requested feature (like vision or function calling).
+5. **Cooldowns**: Actively avoids providers that recently failed.
+6. **Historical Reliability**: Deprioritizes providers with high error rates.
 
-1. **User preference**: `model_provider` config setting
-2. **API key presence**: Credential availability via CredentialStore
-3. **Availability**: Health check and connectivity test
-4. **Task requirements**: Capability matching (vision, function calling, etc.)
-5. **Cooldown status**: Previously failed providers are skipped
-6. **Timeout/error history**: Providers with high error rates are deprioritized
+### ⛓️ The Preference Chain
 
-### Preference Chain
+When set to `model_provider = "auto"`, the system acts autonomously, marching down a prioritized list until it finds a working model:
 
-When `model_provider = "auto"`, the system traverses the preference chain in order, skipping any provider that is in cooldown or circuit-broken:
+> Gemini → OpenAI → Anthropic → Groq → Together → OpenRouter → DeepSeek → xAI → Mistral → Perplexity → Cerebras → Fireworks → ZAI → MiniMax → Moonshot → NVIDIA → HuggingFace → Azure → OpenCode Zen → Ollama → LM Studio → llama.cpp → vLLM → LocalAI → Registry (Heuristic)
 
-```
-gemini → openai → anthropic → groq → together → openrouter → deepseek → xai →
-mistral → perplexity → cerebras → fireworks → zai → minimax → moonshot →
-nvidia → huggingface → azure → opencode_zen → ollama → lmstudio → llamacpp →
-vllm → localai → registry (heuristic)
-```
+### 🔄 Failover Behavior
 
-### Failover Behavior
+> [!IMPORTANT]
+> Our architecture guarantees robust failovers. If an AI provider goes down, your app doesn't crash—it seamlessly routes to the next best option!
 
-```
-Request → Provider A (preferred)
+```text
+Request → Provider A (Preferred)
               │
-              ├── Success → Return result, record success
+              ├── ✅ Success → Return result, record success
               │
-              └── Failure → record_failure()
+              └── ❌ Failure → Trigger record_failure()
                             │
                             ▼
-                    ProviderStateManager records cooldown
+                    ProviderStateManager enforces cooldown
                             │
                             ▼
-                    Provider B (next in chain)
+                    Provider B (Next in chain)
                             │
-                            ├── Success → Return result
+                            ├── ✅ Success → Return result
                             │
-                            └── Failure → Continue chain
+                            └── ❌ Failure → Continue chain
                                           │
                                           ▼
-                                  Registry (heuristic fallback)
+                                  Registry (Heuristic fallback)
 ```
 
-### Stats
+### 📊 Live Statistics
+
+Want to know how your providers are performing?
 
 ```python
 stats = provider_manager.stats()
-# Returns usage statistics, error rates, current state for all providers
+# You instantly get detailed usage stats, error rates, and current statuses!
 ```
 
 ---
 
-## Circuit Breaking
+## ⚡ Circuit Breaking
 
-Circuit-breaking is handled by `ProviderManager.record_failure()`:
+To protect your system from hanging endlessly on broken APIs, we use a **Circuit Breaker** pattern via `ProviderManager.record_failure()`.
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| Failure threshold | 3 | Consecutive failures before opening |
-| Recovery timeout | 60s | Time before half-open retry |
-| Cooldown duration | 300s | Provider cooldown after circuit open |
+| Parameter | Default | What it means |
+|-----------|---------|---------------|
+| **Failure threshold** | 3 | How many consecutive errors trigger a circuit "trip" (opening the circuit). |
+| **Recovery timeout** | 60s | Time to wait before cautiously trying the provider again (half-open). |
+| **Cooldown duration** | 300s | Total time a provider is "benched" after failing hard. |
 
 ```python
-state = provider_manager.record_failure("openai")  # CLOSED → OPEN after 3 failures
-state = provider_manager.record_success("gemini")  # CLOSED or HALF_OPEN → CLOSED
+state = provider_manager.record_failure("openai")  # Trips to OPEN after 3 strikes
+state = provider_manager.record_success("gemini")  # Restores trust, moving back to CLOSED
 ```
 
 ---
 
-## ProviderStateManager
+## 💾 ProviderStateManager
 
-Persists provider state across sessions using JSON:
+Your system's memory isn't wiped when you restart. The `ProviderStateManager` saves the exact state of your providers into a simple JSON file (`provider_state.json`).
 
 ```python
 @dataclass
@@ -237,137 +255,141 @@ class ProviderState:
     total_cost: float
 ```
 
-Stored in `provider_state.json` at the config directory. This ensures:
-- Failed providers remain in cooldown across restarts
-- Rate-limited providers are skipped until reset
-- Cost tracking persists across sessions
+> [!TIP]  
+> Because this is saved to disk, if a provider hits a rate limit right before you close your app, it will *still* correctly skip that provider when you reboot!
 
 ---
 
-## UsageTracker
+## 📈 UsageTracker
 
-Tracks token usage and cost per provider:
+Keep your AI costs under control! The `UsageTracker` monitors every single token and penny.
 
-| Metric | Tracked Per |
-|--------|-------------|
-| Prompt tokens | Request |
-| Completion tokens | Response |
-| Total tokens | Request + response |
-| Estimated cost | Provider rate card |
-| Request count | Per session |
-| Latency | Per request |
+| Metric | How it's tracked |
+|--------|------------------|
+| **Prompt tokens** | Per Request |
+| **Completion tokens** | Per Response |
+| **Total tokens** | Request + Response |
+| **Estimated cost** | Based on the provider's specific rate card |
+| **Request count** | Per Session |
+| **Latency** | Per Request |
 
 ```python
 tracker = UsageTracker()
 tracker.record("openai", prompt_tokens=150, completion_tokens=450, latency=2.3)
 summary = tracker.get_summary("openai")
+# Instantly see exactly what you spent:
 # UsageSummary(total_tokens=600, total_cost=0.009, avg_latency=2.3, request_count=1)
 ```
 
 ---
 
-## Exponential Backoff
+## ⏱️ Exponential Backoff
 
-When a provider fails with a transient error, exponential backoff is applied:
+When an API blinks with a temporary error (like a 429 Rate Limit or 503 Server Error), we don't just hammer it. We respectfully back off using jittered exponential delays:
 
 ```python
+# Formula for our smart delays
 backoff = min(2 ** attempt + random.uniform(0, JITTER), MAX_DELAY)
 ```
 
 | Attempt | Delay Range | Max Delay |
 |---------|-------------|-----------|
-| 1 | 1.0–2.0s | 30s |
-| 2 | 2.0–3.0s | 30s |
-| 3 | 4.0–5.0s | 30s |
-| 4 | 8.0–9.0s | 30s |
-| 5+ | 16.0–17.0s | 30s |
+| 1st Try | 1.0 – 2.0s | 30s |
+| 2nd Try | 2.0 – 3.0s | 30s |
+| 3rd Try | 4.0 – 5.0s | 30s |
+| 4th Try | 8.0 – 9.0s | 30s |
+| 5th+ Try | 16.0 – 17.0s | 30s |
 
 ---
 
-## Ollama Utilities
+## 🦙 Ollama Utilities
 
-`siyarix/providers/ollama_utils.py` provides Ollama-specific helpers:
+Running models locally? `siyarix/providers/ollama_utils.py` makes it a breeze with dedicated helpers for Ollama:
 
-- Model discovery via `ollama list`
-- Model pulling with progress tracking
-- Endpoint health checks
-- Automatic model selection based on available hardware
-
----
-
-## Security & Data Masking
-
-The `DLPEngine` in `siyarix/dlp.py` handles data masking before provider calls:
-
-| Data Type | Before Provider | After Receiving |
-|-----------|----------------|-----------------|
-| IP addresses | `10.x.x.x` | Unmasked for local use |
-| Credentials | `[REDACTED]` | Permanently redacted |
-| API keys | `[REDACTED]` | Permanently redacted |
-| Internal hostnames | `example.com` | Unmasked for local use |
-| JWTs / tokens | `[REDACTED]` | Permanently redacted |
+- 🔍 **Auto-Discovery:** Automatically lists your downloaded models.
+- ⬇️ **Smart Pulling:** Downloads missing models with live progress tracking.
+- ❤️ **Health Checks:** Monitors your local endpoint's vitals.
+- 💻 **Hardware Awareness:** Intelligently selects models that fit your specific GPU/CPU constraints.
 
 ---
 
-## ModelAliases
+## 🛡️ Security & Data Masking (DLP)
 
-The `ModelAliases` system in `siyarix/model_aliases.py` resolves model name variants:
+We take your data seriously. Before *any* information leaves your machine and hits a cloud provider, our `DLPEngine` (`siyarix/dlp.py`) scrubs it clean.
 
-| Alias | Resolves To |
-|-------|-------------|
-| `gpt-4` | `gpt-4-turbo`, `gpt-4o` (precedence order) |
-| `claude-3` | `claude-3-opus`, `claude-3-sonnet` |
-| `gemini-pro` | `gemini-1.5-pro`, `gemini-2.0-flash` |
-| `llama-3` | `llama-3-70b`, `llama-3-8b` |
-| `mixtral` | `mixtral-8x7b`, `mixtral-8x22b` |
+> [!WARNING]  
+> Never disable the DLPEngine in a production cloud environment!
+
+| Data Type | Sent to Cloud Provider | Behavior for Local Models |
+|-----------|------------------------|---------------------------|
+| **IP addresses** | Masked as `10.x.x.x` | Sent safely unmasked |
+| **Credentials** | `[REDACTED]` | Permanently redacted |
+| **API keys** | `[REDACTED]` | Permanently redacted |
+| **Internal hostnames** | Masked as `example.com` | Sent safely unmasked |
+| **JWTs / tokens** | `[REDACTED]` | Permanently redacted |
 
 ---
 
-## Component Relationships
+## 🏷️ ModelAliases
 
-```
+AI companies change their model names all the time. The `ModelAliases` system (`siyarix/model_aliases.py`) abstracts this away so your code never breaks when a new version drops!
+
+| Your Code Asks For | We Actually Route To |
+|--------------------|----------------------|
+| `gpt-4` | `gpt-4-turbo` or `gpt-4o` (automatically uses the best available) |
+| `claude-3` | `claude-3-opus` or `claude-3-sonnet` |
+| `gemini-pro` | `gemini-1.5-pro` or `gemini-2.0-flash` |
+| `llama-3` | `llama-3-70b` or `llama-3-8b` |
+| `mixtral` | `mixtral-8x7b` or `mixtral-8x22b` |
+
+---
+
+## 🗺️ Component Relationships Map
+
+Here is how all these incredible features tie together:
+
+```text
                    ┌────────────────────────┐
-                   │     Consumer Layer      │
-                   │  (Planner, Chat, etc.)  │
+                   │     Consumer Layer     │
+                   │  (Planner, Chat, etc.) │
                    └────────┬───────────────┘
                             │
                             ▼
                    ┌────────────────────────┐
-                   │    ProviderManager      │
+                   │    ProviderManager     │
                    │                        │
                    │  ┌──────────────────┐  │
-                   │  │  Preference Chain│  │
+                   │  │ ⛓️ Pref. Chain    │  │
                    │  │  + Failover      │  │
                    │  └──────────────────┘  │
                    │  ┌──────────────────┐  │
-                   │  │  Circuit Breaker │  │
+                   │  │ ⚡ Circuit Break  │  │
                    │  │  (record_failure)│  │
                    │  └──────────────────┘  │
                    │  ┌──────────────────┐  │
-                   │  │  Exponential     │  │
-                   │  │  Backoff         │  │
+                   │  │ ⏱️ Exp. Backoff   │  │
                    │  └──────────────────┘  │
                    │  ┌──────────────────┐  │
-                   │  │  DLP Redaction   │  │
+                   │  │ 🛡️ DLP Redaction  │  │
                    │  └──────────────────┘  │
                    │  ┌──────────────────┐  │
-                   │  │  Capability      │  │
-                   │  │  Filtering       │  │
+                   │  │ 🎯 Capability     │  │
+                   │  │    Filtering     │  │
                    │  └──────────────────┘  │
                    └────────┬───────────────┘
                             │
               ┌─────────────┼─────────────┐
               ▼             ▼             ▼
     ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-    │OpenAICompat  │ │ProviderState │ │  Ollama      │
-    │Adapter       │ │ Manager      │ │  Utils       │
-    │(14+ providers)│ │ (JSON file)  │ │ (local)      │
+    │ OpenAICompat │ │ ProviderState│ │ Ollama       │
+    │ Adapter      │ │ Manager      │ │ Utils        │
+    │ (14+ APIs)   │ │ (JSON File)  │ │ (Local AI)   │
     └──────────────┘ └──────────────┘ └──────────────┘
                             │
                             ▼
                    ┌────────────────────────┐
-                   │    UsageTracker         │
-                   │  (tokens + cost per     │
-                   │   provider)             │
+                   │     UsageTracker       │
+                   │  (Tokens + Cost Per    │
+                   │   Provider)            │
                    └────────────────────────┘
 ```

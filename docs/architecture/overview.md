@@ -1,10 +1,18 @@
-# System Architecture Overview
+# 🏗️ System Architecture Overview
 
-Siyarix v1.0.0 is an AI-native cybersecurity operations platform that bridges natural language intent with deterministic tool execution. The architecture follows a layered orchestration model where an **AgentCore** dispatches across four operational modes, routing intent through planners, gates, executors, and persistence layers.
+Siyarix v1.0.0 is an AI-native cybersecurity operations platform that acts as the intelligent bridge between natural language intent and deterministic tool execution. Its architecture is built around a robust layered orchestration model, where the central **AgentCore** intelligently dispatches tasks across four distinct operational modes. It routes user intent through a series of planners, security gates, executors, and persistence layers, ensuring safe, efficient, and precise execution.
+
+> [!NOTE]
+> This architecture is designed from the ground up to be resilient, modular, and highly adaptable to both cloud and offline (air-gapped) environments.
 
 ---
 
-## High-Level Architecture
+## 🗺️ High-Level Architecture
+
+*The following diagram illustrates the flow of data and control across Siyarix's primary architectural layers.*
+
+> [!TIP]
+> **Reading the Graph:** The flow generally moves from the top (Entry Layer) down through orchestration, planning, provider integration, security validation, and finally execution. Follow the arrows to trace how an initial command translates into action!
 
 ```mermaid
 graph LR
@@ -315,115 +323,131 @@ graph LR
 
 ---
 
-## Core Design Principles
+## 🎯 Core Design Principles
+
+Our foundation is built upon these fundamental pillars to ensure maximum reliability and flexibility:
 
 | Principle | Description |
 |-----------|-------------|
-| **CLI-First** | All functionality is accessible without GUI dependencies |
-| **AI-Native** | AI planning is the default path with heuristic fallback |
-| **Provider-Agnostic** | 26 provider profiles via a unified OpenAICompat adapter |
-| **Offline-Capable** | Full operation in air-gapped environments via local inference + heuristic planning |
-| **Safety-Gated** | Every command passes PermissionGate + DLP Engine |
-| **Continuously Learning** | The Continuous Learning System observes execution patterns and builds a privacy-preserving skill library |
-| **Extensible** | PluginLoader, ToolRegistry, and dynamic discovery |
+| 💻 **CLI-First** | All functionality is fully accessible via the command line without any graphical user interface (GUI) dependencies. |
+| 🧠 **AI-Native** | AI-driven planning is our default path, seamlessly falling back to reliable heuristic templates when needed. |
+| 🔌 **Provider-Agnostic** | Easily switch between 26 built-in provider profiles, all unified under a standard OpenAI-compatible adapter. |
+| 🚫 **Offline-Capable** | Full operational capability in air-gapped environments using local inference and deterministic heuristic planning. |
+| 🛡️ **Safety-Gated** | **Security First:** Every command must successfully pass through our Permission Gate and Data Loss Prevention (DLP) engine before execution. |
+| 📚 **Continuously Learning** | The system quietly observes execution patterns over time, building a privacy-preserving skill library to improve future runs. |
+| 🧩 **Extensible** | Highly modular design featuring a `PluginLoader`, `ToolRegistry`, and dynamic capability discovery. |
 
 ---
 
-## AgentCore: The Orchestrator
+## 🧠 AgentCore: The Orchestrator
 
-The `AgentCore` (`siyarix/core/__init__.py`) is the central dispatcher operating in four modes:
+The `AgentCore` module (`siyarix/core/__init__.py`) acts as the "brain" and central dispatcher of the platform. It operates dynamically in one of four distinct modes depending on the task's requirements:
 
-| Mode | Planner | Permission | Autonomy | Use Case |
-|------|---------|------------|----------|----------|
-| **REGISTRY** | RegistryPlanner (heuristic) | Full gate | None | Deterministic, offline-safe execution |
-| **AUTONOMOUS** | AutonomousPlanner (LLM) | Minimal | Full | Goal-driven autonomous agents |
-| **HYBRID** | Autonomous + Registry fallback | Full gate | Conditional | AI-guided with automatic fallback |
-| **INTERACTIVE** | RegistryPlanner + user approval | Full gate | Per-step | User-in-the-loop interactive mode |
+> [!IMPORTANT]
+> The orchestrator automatically balances autonomy with safety. The mode selected defines how much control the AI has versus the heuristic engine, and how many permission gates are enforced.
 
----
-
-## Data Flow (End-to-End)
-
-```
-User Input → IntentRouter → Context Manager → Planner Router → Permission Gate → DLP → ExecutionEngine → Results Pipeline
-```
-
-1. **User Input** arrives via CLI, REPL, pipeline, or batch
-2. **IntentRouter** classifies input via keyword matching (compat.py)
-3. **Context Manager** builds/compresses the context window
-4. **Planner Router** (Planner class) selects between RegistryPlanner (heuristic) and AutonomousPlanner (LLM-based)
-5. **PermissionGate** performs two-stage review (syntax → danger analysis), returns BLOCK / REVIEW / ALLOW
-6. **DLP Engine** inspects for data leak patterns
-7. **Execution Engine** (BaseExecutor / RegistryExecutor / AutonomousExecutor) executes plan steps with budget tracking, guardrails, and DLP
-8. **Results Pipeline** routes through parsers → KnowledgeGraph → ReportEngine → AuditLogger → ChatSession
-9. **Continuous Learning System** observes results and builds anonymized skill library
+| Mode | Planner Used | Permission Gate | Autonomy Level | Primary Use Case |
+|------|--------------|-----------------|----------------|------------------|
+| ⚙️ **REGISTRY** | `RegistryPlanner` (Heuristic) | Full | None | Deterministic, offline-safe tool execution. |
+| 🤖 **AUTONOMOUS** | `AutonomousPlanner` (LLM-driven) | Minimal | Full | Goal-driven autonomous agent campaigns. |
+| 🔄 **HYBRID** | Autonomous with Registry fallback | Full | Conditional | AI-guided operations with automatic, safe fallbacks if the AI gets stuck. |
+| 🧑‍💻 **INTERACTIVE** | RegistryPlanner + User approval | Full | Per-step | User-in-the-loop mode requiring explicit human consent before actions. |
 
 ---
 
-## Key Subsystems
+## 🌊 Data Flow (End-to-End)
 
-| Subsystem | Responsibility |
-|-----------|---------------|
-| **AgentCore** | Central orchestrator with 4-mode dispatch |
-| **IntentRouter** | Keyword-based intent classification (compat.py) |
-| **NLP Engine** | Zero-dependency semantic parsing with BM25 scoring |
-| **Planner Router** | Dispatches between heuristic and LLM-based planning |
-| **RegistryPlanner** | Heuristic template-based planning with 500+ intent patterns |
-| **AutonomousPlanner** | LLM-driven plan generation |
-| **Context Manager** | Builds, compresses, and optimizes LLM context windows |
-| **MemoryManager** | Semantic memory with embeddings |
-| **KnowledgeGraph** | In-memory directed graph of infrastructure entities |
-| **Continuous Learning System** | Privacy-preserving skill library from observed execution |
-| **DeepScanEngine** | Multi-pass progressive scanning with discovery, fingerprint, vulnerability, enumeration passes |
-| **WorkflowEngine** | DAG-based workflow execution |
-| **PermissionGate** | Two-stage BLOCK/REVIEW/ALLOW security gate |
-| **DLP Engine** | Data leak prevention via 24+ pattern signatures |
-| **ProviderManager** | 26 provider profiles with failover and circuit breaking |
-| **ProviderStateManager** | Cooldown/failure persistence across sessions (JSON file) |
-| **UsageTracker** | Token usage and cost tracking per provider |
-| **OpenAICompat Adapter** | Unified API across all providers |
-| **EventBus** | Pub/sub event system for inter-component communication |
-| **CacheManager** | LRU + TTL with disk persistence |
-| **CredentialStore** | AES-256-GCM encrypted credential vault |
-| **AuditLogger** | Tamper-evident chain with SHA-256 linking |
-| **OutputEngine** | 10 output formats, 7 unique themes, branding support |
-| **ChatSession** | Branching support (JSONL tree format) |
-| **SessionKernel** | Session persistence and restore (JSON/JSONL) |
-| **HealthChecker** | System health monitoring |
-| **MetricsCollector** | Execution metrics and analytics |
-| **StealthEngine** | Covert operations (TOR, DoH, traffic jitter) |
-| **OPSECManager** | Operational security controls with policy profiles |
-| **SwarmRouter** | Experimental multi-agent orchestration (Recon, Exploit, Report) |
-| **CommandPipeline** | Parses chained commands via pipe, then operators |
-| **PluginLoader** | Dynamic plugin discovery and loading |
-| **AsyncWorkerPool** | Bounded async concurrency with semaphore |
-| **OfflineStore / OfflineQueue** | SQLite-backed offline operations |
-| **CompactionEngine** | LLM context window optimization (token analysis + compression) |
-| **ModelAliases** | Resolve model name variants |
-| **Playbook Engine** | Playbook execution |
-| **Compliance Engine** | Framework assessments (NIST, CIS, PCI-DSS) |
-| **CVSSScorer** | CVSS 3.1 scoring with vector computation |
-| **Threat Intelligence** | AlienVaultOTX, NVDDatabase, MITREAttackDB integrations |
-| **ToolCall Repair** | Parsing plain-text tool calls from LLM output |
-| **Validator** | Plan validation and step-level recovery actions |
-| **ShellReview** | Command safety review with user confirmation |
-| **Branding** | Theme definitions, severity styles, banner printing |
-| **Personas** | Agent persona definitions for role-based behavior |
-| **SecurityHardening** | Input sanitization, shell injection prevention |
-| **SecurityCommands** | Typer security command group |
-| **Onboarding** | 11-step interactive onboarding wizard |
-| **SessionLog** | Session activity logging |
-| **SessionBranching** | Session forking and compaction management |
+Wondering how a simple command turns into a complex security operation? Here is the lifecycle of a request:
+
+> [!NOTE]
+> `User Input` ➡️ `IntentRouter` ➡️ `Context Manager` ➡️ `Planner Router` ➡️ `Permission Gate` ➡️ `DLP` ➡️ `ExecutionEngine` ➡️ `Results Pipeline`
+
+1. **User Input** arrives via your choice of interface: CLI, interactive REPL, pipeline, or batch script.
+2. **Intent Classification:** The `IntentRouter` classifies the input using swift keyword matching (via `compat.py`).
+3. **Context Building:** The **Context Manager** dynamically builds and optimally compresses the context window for LLMs.
+4. **Plan Generation:** The **Planner Router** (`Planner` class) decides whether to use the deterministic `RegistryPlanner` or the LLM-powered `AutonomousPlanner`.
+5. **Security Validation:** The plan enters the **PermissionGate** for a rigorous two-stage review (syntax checks followed by danger analysis), yielding a strict `BLOCK`, `REVIEW`, or `ALLOW` status.
+6. **Data Loss Prevention:** The **DLP Engine** meticulously inspects the payload for potential data leak patterns or sensitive secrets.
+7. **Execution:** The **Execution Engine** (`BaseExecutor` / `RegistryExecutor` / `AutonomousExecutor`) carries out the plan steps. It tightly tracks execution budgets, enforces guardrails, and applies DLP checks in real-time.
+8. **Result Processing:** The **Results Pipeline** routes outputs through specialized parsers, updates the `KnowledgeGraph`, feeds the `ReportEngine`, secures logs in the `AuditLogger`, and updates the `ChatSession`.
+9. **Learning:** Finally, the **Continuous Learning System** observes the results, extracting anonymized behaviors to enrich the platform's skill library for next time.
 
 ---
 
-## Component Relationships
+## 🛠️ Key Subsystems
 
-```
+Siyarix is composed of numerous modular, specialized subsystems. Here’s a breakdown of the critical components doing the heavy lifting:
+
+> [!TIP]
+> You can find most of these subsystems isolated into their own dedicated modules within the codebase, ensuring clean separation of concerns.
+
+| Subsystem | Core Responsibility |
+|-----------|---------------------|
+| 🧠 **AgentCore** | Central orchestrator handling the 4-mode dispatch logic. |
+| 🚦 **IntentRouter** | Rapid, keyword-based user intent classification. |
+| 🗣️ **NLP Engine** | Zero-dependency semantic parsing utilizing BM25 scoring. |
+| 🔀 **Planner Router** | Intelligently dispatches between heuristic and LLM-based planning mechanisms. |
+| 📋 **RegistryPlanner** | Reliable heuristic template-based planning utilizing over 500 predefined intent patterns. |
+| 🤖 **AutonomousPlanner** | Dynamic, LLM-driven plan generation for complex tasks. |
+| 📦 **Context Manager** | Builds, compresses, and optimizes context windows to save tokens and improve LLM accuracy. |
+| 💾 **MemoryManager** | Handles semantic memory using vector embeddings. |
+| 🕸️ **KnowledgeGraph** | An in-memory, directed graph structure mapping out discovered infrastructure entities. |
+| 🎓 **Continuous Learning System** | Quietly builds a privacy-preserving skill library from observed executions. |
+| 🔍 **DeepScanEngine** | Executes multi-pass progressive scanning (discovery ➡️ fingerprinting ➡️ vulnerabilities ➡️ enumeration). |
+| 🔄 **WorkflowEngine** | Manages complex, DAG-based (Directed Acyclic Graph) workflow execution. |
+| 🛡️ **PermissionGate** | The rigorous two-stage `BLOCK/REVIEW/ALLOW` security sentry. |
+| 🔒 **DLP Engine** | Prevents data leaks using over 24 comprehensive pattern signatures. |
+| 🌩️ **ProviderManager** | Manages 26 different LLM provider profiles, complete with failover routing and circuit breaking. |
+| ⏸️ **ProviderStateManager** | Persists cooldowns and failure states across sessions (via JSON). |
+| 📊 **UsageTracker** | Precisely tracks token usage and financial costs per provider. |
+| 🔌 **OpenAICompat Adapter** | Provides a seamless, unified API interface across all 26 supported LLM providers. |
+| 📣 **EventBus** | A lightweight pub/sub event system for decoupled inter-component communication. |
+| ⚡ **CacheManager** | Disk-persisted caching utilizing LRU and TTL strategies. |
+| 🔑 **CredentialStore** | A highly secure, AES-256-GCM encrypted vault for credentials. |
+| 📝 **AuditLogger** | Maintains a tamper-evident audit trail with SHA-256 cryptographic linking. |
+| 📤 **OutputEngine** | Renders outputs in 10 diverse formats and 7 unique aesthetic themes, with custom branding support. |
+| 💬 **ChatSession** | Advanced chat management with full branching support (using a JSONL tree format). |
+| 💾 **SessionKernel** | Core session persistence and restoration handling. |
+| 🩺 **HealthChecker** | Performs periodic self-checks to ensure system health and stability. |
+| 📈 **MetricsCollector** | Gathers robust execution metrics and analytics. |
+| 🥷 **StealthEngine** | Facilitates covert operations (e.g., TOR routing, DoH, traffic jittering). |
+| 📋 **OPSECManager** | Enforces rigorous operational security controls via definable policy profiles. |
+| 🐝 **SwarmRouter** | *(Experimental)* Orchestrates a multi-agent swarm (e.g., Recon Agent ➡️ Exploit Agent ➡️ Report Agent). |
+| ⛓️ **CommandPipeline** | Parses chained CLI commands via pipes and logic operators. |
+| 🧩 **PluginLoader** | Enables dynamic discovery and loading of external plugins. |
+| ⚙️ **AsyncWorkerPool** | Manages bounded asynchronous concurrency using strict semaphores. |
+| 📴 **OfflineStore / OfflineQueue** | SQLite-backed systems enabling robust queueing and storage for offline/disconnected environments. |
+| 🗜️ **CompactionEngine** | Optimizes LLM context windows through advanced token analysis and text compression strategies. |
+| 🏷️ **ModelAliases** | Intelligently resolves variant or shorthand LLM model names. |
+| 📖 **Playbook Engine** | Executes predefined, structured security playbooks. |
+| ✅ **Compliance Engine** | Runs automated framework assessments (e.g., NIST, CIS, PCI-DSS). |
+| 🧮 **CVSSScorer** | Computes precise CVSS 3.1 scores utilizing environmental vectors. |
+| 🌐 **Threat Intelligence** | Integrates dynamically with AlienVault OTX, NVD, and the MITRE ATT&CK database. |
+| 🛠️ **ToolCall Repair** | Automatically repairs and parses plain-text or malformed tool calls emitted by LLMs. |
+| 🚑 **Validator** | Validates generated plans and enacts step-level recovery actions upon failure. |
+| 👀 **ShellReview** | Pauses execution for explicit user confirmation before running potentially dangerous shell commands. |
+| 🎨 **Branding** | Manages custom theme definitions, severity styling, and banner rendering. |
+| 🎭 **Personas** | Defines distinct agent personas for tailored, role-based behavioral responses. |
+| 🛡️ **SecurityHardening** | Enforces deep input sanitization and strict shell injection prevention measures. |
+| ⌨️ **SecurityCommands** | Provides the Typer-based CLI interface for security-specific commands. |
+| 🚀 **Onboarding** | A friendly, 11-step interactive wizard for first-time users. |
+| 📓 **SessionLog** | Maintains a clean, human-readable log of session activities. |
+| 🌿 **SessionBranching** | Expertly manages session forking and context compaction across branches. |
+
+---
+
+## 🔗 Component Relationships
+
+Understanding how the primary components interact is crucial. Here is a simplified relationship graph:
+
+> [!WARNING]
+> While modular, modifying interactions between the Core Orchestrator and the Execution Gateways should be done with extreme care to maintain security boundaries.
+
+```text
                  ┌─────────────────────────────┐
-                 │        AgentCore             │
-                 │  (REGISTRY | AUTONOMOUS |    │
-                 │   HYBRID | INTERACTIVE)      │
+                 │        AgentCore            │
+                 │  (REGISTRY | AUTONOMOUS |   │
+                 │   HYBRID | INTERACTIVE)     │
                  └──────┬──────────────────────┘
                         │
           ┌─────────────┼─────────────┐
@@ -464,13 +488,15 @@ User Input → IntentRouter → Context Manager → Planner Router → Permissio
 
 ---
 
-## Scalability & Performance
+## 🚀 Scalability & Performance
 
-- **AsyncWorkerPool**: Bounded `asyncio` pool with semaphore for controlled concurrency (backpressure via bounded queue)
-- **CacheManager**: LRU + TTL with disk persistence for repeated operations
-- **KnowledgeGraph**: In-memory entity model for real-time environment awareness
-- **MetricsCollector**: Execution metrics for observability
-- **HealthChecker**: Periodic system health verification
-- **OfflineQueue**: Request queuing for disconnected environments
-- **CompactionEngine**: LLM context window optimization (token analysis, compression strategies)
-- **ToolCallTracker**: Tool failure tracking with guardrail thresholds (exact fail block, same-tool halt, no-progress block)
+Siyarix is built for speed and resource efficiency, ensuring it scales elegantly from a local laptop to large-scale infrastructure environments:
+
+- ⚡ **AsyncWorkerPool**: A heavily optimized, bounded `asyncio` pool utilizing semaphores to ensure controlled, safe concurrency. It handles backpressure seamlessly via bounded queues.
+- 🗄️ **CacheManager**: Implements smart LRU (Least Recently Used) and TTL (Time-To-Live) caching strategies, backed by disk persistence to radically speed up repetitive operations.
+- 🕸️ **KnowledgeGraph**: Operates as a lightning-fast, in-memory entity model providing immediate real-time awareness of the target environment.
+- 📊 **MetricsCollector**: Silently gathers deep execution metrics to provide total observability into system performance.
+- 🩺 **HealthChecker**: Runs periodic, non-intrusive self-checks to verify system stability and component readiness.
+- 📴 **OfflineQueue**: Safely queues requests when operating in disconnected environments, dispatching them the moment connectivity is restored.
+- 🗜️ **CompactionEngine**: Intelligently optimizes the LLM context window using real-time token analysis and advanced text compression strategies, keeping LLM costs low and speeds high.
+- 🚦 **ToolCallTracker**: Actively monitors tool failures against strict guardrail thresholds. It implements protective measures like exact-fail blocking, same-tool halting, and no-progress blocking to prevent infinite loops and wasted resources.

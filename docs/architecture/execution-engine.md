@@ -1,17 +1,22 @@
-# Execution Engine
+# ⚙️ Execution Engine
 
-The execution subsystem transforms `ExecutionPlan` objects into executed commands. It is built on a layered architecture with a shared **BaseExecutor** providing budget tracking, guardrails, DLP integration, and permission gating for all specialized executors.
+The execution subsystem is the beating heart of Siyarix. It takes abstract `ExecutionPlan` objects and transforms them into real-world, executed commands. Built on a robust, layered architecture, it features a shared **BaseExecutor** that provides critical services like budget tracking, safety guardrails, Data Loss Prevention (DLP) integration, and strict permission gating for all specialized executors.
+
+> [!NOTE]
+> The Execution Engine ensures that every action Siyarix takes is safe, tracked, and within defined operational boundaries.
 
 ---
 
-## Architecture
+## 🏗️ Architecture Overview
 
-```
+The system uses a parent-child inheritance model where the `BaseExecutor` handles the heavy lifting of security and limits, allowing specialized executors to focus on running commands.
+
+```text
 ExecutionPlan (from Planner)
          │
          ▼
 ┌───────────────────────────────────────────────────────────┐
-│                   BaseExecutor                             │
+│                   BaseExecutor                            │
 │                                                           │
 │  Shared across all executor variants:                     │
 │  • ExecutionBudget (iterations, tool calls, duration)     │
@@ -36,7 +41,14 @@ ExecutionPlan (from Planner)
 
 ---
 
-## Plan Structure
+## 📋 Plan Structure
+
+At the core of the engine is the `ExecutionPlan`, a data structure that dictates what needs to be done, how, and in what order.
+
+> [!IMPORTANT]
+> A well-formed `ExecutionPlan` is crucial for successful execution. The `plan_type` determines how the engine approaches the tasks (e.g., sequentially or via a complex DAG).
+
+### 📝 ExecutionPlan
 
 ```python
 @dataclass
@@ -54,7 +66,9 @@ class ExecutionPlan:
     confidence: float = 1.0
 ```
 
-### PlanStep
+### 🛠️ PlanStep
+
+Each step within a plan represents a single actionable item.
 
 ```python
 @dataclass
@@ -76,86 +90,70 @@ class PlanStep:
 
 ---
 
-## Shared Infrastructure (BaseExecutor)
+## 🛡️ Shared Infrastructure (`BaseExecutor`)
 
-The `BaseExecutor` in `siyarix/executor.py` provides common functionality shared by all executor variants:
+The `BaseExecutor` (found in `siyarix/executor.py`) acts as the parent class for all executors, providing a unified safety and performance net.
 
-### ExecutionBudget
-
-Tracks and enforces resource consumption limits:
+### 💰 ExecutionBudget
+Tracks and enforces resource consumption to prevent runaway processes.
 
 | Limit | Default | Description |
 |-------|---------|-------------|
-| `max_iterations` | 50 | Maximum planning/execution iterations |
-| `max_tool_calls` | 100 | Maximum tool invocations |
-| `max_duration_s` | 600 | Maximum wall-clock execution time |
+| `max_iterations` | 50 | Maximum planning/execution cycles allowed. |
+| `max_tool_calls` | 100 | Maximum number of tool invocations. |
+| `max_duration_s` | 600 | Maximum wall-clock execution time (in seconds). |
 
-The budget is checked before every step, and exhaustion flags prevent further execution.
+> [!WARNING]
+> The budget is checked before *every* step. If any limit is exhausted, execution is halted immediately.
 
-### ToolCallTracker
-
-Records tool-call outcomes and enforces guardrail policies:
+### 🚦 ToolCallTracker
+Monitors how tools are performing and enforces guardrail policies to prevent spam or infinite loops.
 
 | Guardrail | Threshold | Action |
 |-----------|-----------|--------|
-| Exact failure warn | 2 failures | Warning logged |
-| Exact failure block | 5 failures | Tool blocked |
-| Same-tool failure halt | 8 consecutive | Tool halted |
-| No-progress block | 5 calls with same args | Blocked |
+| **Exact failure warn** | 2 failures | Logs a warning for visibility. |
+| **Exact failure block** | 5 failures | Blocks the tool from further use. |
+| **Same-tool failure halt** | 8 consecutive | Halts the tool entirely. |
+| **No-progress block** | 5 calls with identical args | Blocks the call to prevent looping. |
 
-Failure state persists to `tool_failures.json` for continuity across sessions.
+> [!TIP]
+> Failure states are persisted to `tool_failures.json` to maintain context and safety across different sessions!
 
-### Permission Gate Integration
+### 🔐 Permission Gate Integration
+Every single step is scrutinized by the `PermissionGate` before it runs:
+1. **Blocked:** If the command is on the blocklist, a `PermissionDeniedError` is raised.
+2. **Review Required:** The engine pauses and invokes `review_and_confirm()` to get user approval.
+3. **Resolution:** The user can approve, modify, or cancel the pending command.
 
-Every step can be checked against the `PermissionGate` before execution. The flow is:
-
-1. Check if command is blocked → raise `PermissionDeniedError`
-2. If review required → invoke `review_and_confirm()` for user approval
-3. User can approve, modify, or cancel the command
-
-### DLP Redaction
-
-After execution, results are passed through the `DLPEngine` to redact sensitive values before they enter the KnowledgeGraph or session log.
+### 🕵️‍♂️ DLP Redaction
+Security doesn't stop at execution. Results are scrubbed by the `DLPEngine` to redact sensitive values (like API keys or PII) *before* they are saved to the KnowledgeGraph or session logs.
 
 ---
 
-## Executor Types
+## 🚀 Executor Types
 
-Siyarix provides two main executor implementations, with mode dispatching handled by the `AgentCore`:
+Siyarix provides specialized executors to handle different operational modes. The `AgentCore` dispatches work to the appropriate executor based on the current mode.
 
-### RegistryExecutor (`siyarix/executor_registry.py`)
+### 🧩 RegistryExecutor (`siyarix/executor_registry.py`)
+Executes plan steps using predefined tools from the `ToolRegistry`. It features full guardrail protection and Dependency Graph (DAG) support.
 
-Executes plan steps through the `ToolRegistry` with full guardrails and DAG support.
-
-| Feature | Description |
-|---------|-------------|
-| **Tool dispatch** | Executes via ToolRegistry capability lookup |
-| **Parallel execution** | Steps without dependencies run concurrently via AsyncWorkerPool |
-| **DAG workflows** | Delegates to WorkflowEngine for DAG-based plans |
-| **Auto-install** | Prompts user to install missing tools at runtime |
-| **Alternative fallback** | Falls back through TOOL_ALTERNATIVES on tool failure |
-| **Self-correction** | Strips unrecognized flags and retries |
-| **Custom executors** | Register per-tool handlers via `register_executor()` |
+- **Tool Dispatch:** Looks up and runs capabilities directly from the registry.
+- **Parallel Execution:** Steps without dependencies run concurrently to speed up workflows.
+- **Auto-install:** Prompts the user to install missing tools on the fly.
+- **Self-correction:** Automatically strips unrecognized flags and retries commands.
 
 ```python
 executor = RegistryExecutor(registry=ToolRegistry(), max_workers=5)
 result = await executor.execute_plan(plan)
 ```
 
-### AutonomousExecutor (`siyarix/executor_autonomous.py`)
+### 🤖 AutonomousExecutor (`siyarix/executor_autonomous.py`)
+Built for raw power, this executor runs shell commands generated by the LLM, complete with live streaming output.
 
-Executes raw shell commands generated by the LLM with live streaming output.
-
-| Feature | Description |
-|---------|-------------|
-| **Shell command execution** | Executes via platform subprocess with timeout |
-| **Live streaming** | Rich live display showing real-time output per command |
-| **Command review** | Pre-execution user confirmation for all shell commands |
-| **Stealth integration** | Random delay injection when StealthEngine is active |
-| **Sudo password pre-fetch** | Caches sudo passwords before live display starts |
-| **Auto-install prompt** | Detects missing tools (exit code 126/127) and offers install |
-| **Parser integration** | Routes output through tool-specific parsers |
-| **Custom tool handlers** | Register handlers for non-command tool steps |
+- **Live Streaming:** Rich, real-time terminal output for every command.
+- **Stealth Integration:** Injects random execution delays when the `StealthEngine` is active to evade detection.
+- **Sudo Caching:** Pre-fetches sudo passwords before the live display begins to prevent visual stuttering.
+- **Parser Integration:** Automatically routes raw terminal output into structured tool parsers.
 
 ```python
 executor = AutonomousExecutor(
@@ -166,54 +164,51 @@ executor = AutonomousExecutor(
 result = await executor.execute_plan(plan, live_display=True)
 ```
 
-### Mode-to-Executor Mapping
+### 🗺️ Mode-to-Executor Mapping
+How `AgentCore.execute_goal()` decides which executor to use:
 
-The `AgentCore.execute_goal()` in `siyarix/core/__init__.py` dispatches based on mode:
-
-| Mode | Method | Executor | Description |
-|------|--------|----------|-------------|
-| **REGISTRY** | `_execute_registry()` | RegistryExecutor | Heuristic planning, tool-based execution |
-| **AUTONOMOUS** | `_execute_autonomous()` | AutonomousExecutor | LLM planning, shell command execution |
-| **HYBRID** | `_execute_hybrid()` | Autonomous → Registry fallback | Tries autonomous first, falls back to registry |
-| **INTERACTIVE** | `_execute_interactive()` | RegistryExecutor with user approval | Plan preview + user confirmation |
-
----
-
-## Dependency Resolution
-
-Steps are organized into dependency layers using the `get_ready_steps()` method on `ExecutionPlan`:
-
-```
-Layer 0: [recon_scan, dns_enum]          # No dependencies
-Layer 1: [nuclei_scan, nikto_scan]        # Depends on recon_scan
-Layer 2: [metasploit_exploit]             # Depends on nuclei + nikto
-```
-
-Steps within the same layer execute concurrently via `AsyncWorkerPool.submit()`.
-Cross-layer dependencies enforce sequential execution.
+| Mode | Executor | Description |
+|------|----------|-------------|
+| **REGISTRY** | `RegistryExecutor` | Safer, heuristic planning based on registered tools. |
+| **AUTONOMOUS** | `AutonomousExecutor` | Dynamic LLM planning executing raw shell commands. |
+| **HYBRID** | Both (Fallback) | Tries autonomous first; falls back to the registry if it fails. |
+| **INTERACTIVE** | `RegistryExecutor` (w/ Approval) | Previews the plan and waits for user confirmation. |
 
 ---
 
-## AsyncWorkerPool
+## 🔗 Dependency Resolution
 
-Bounded async concurrency via semaphore:
+Steps aren't just run blindly; they are organized into dependency layers using `ExecutionPlan.get_ready_steps()`.
+
+```text
+Layer 0: [recon_scan, dns_enum]          # No dependencies (Runs first)
+Layer 1: [nuclei_scan, nikto_scan]        # Depends on Layer 0
+Layer 2: [metasploit_exploit]             # Depends on Layer 1
+```
+
+> [!NOTE]
+> Steps within the same layer execute concurrently via the `AsyncWorkerPool`. However, cross-layer dependencies strictly enforce sequential execution to ensure prerequisites are met.
+
+---
+
+## ⚡ AsyncWorkerPool
+
+Siyarix handles concurrency gracefully using bounded async workers and semaphores.
 
 ```python
 pool = AsyncWorkerPool(max_workers=5, max_queue=100)
 result = await pool.submit(coro_func, *args)
 await pool.close(timeout=30.0)
 ```
-
-- Configurable max concurrent workers
-- Backpressure via bounded queue semaphore
-- Graceful task cancellation on shutdown
-- Task tracking with auto-cleanup via done callbacks
+- **Backpressure control:** Keeps memory and CPU usage in check.
+- **Graceful shutdown:** Cancels tasks safely when the system stops.
+- **Auto-cleanup:** Tracks tasks and cleans up via done callbacks.
 
 ---
 
-## Output Parsing
+## 🔍 Output Parsing
 
-Tool output is routed through tool-specific parsers:
+Raw output isn't very useful to an AI. Siyarix routes raw tool output through specialized parsers to extract structured data.
 
 ```python
 parser_registry = ParserRegistry()
@@ -221,65 +216,54 @@ parser_registry.discover()
 parser_registry.parse(tool, output)
 ```
 
-Each parser extracts structured findings:
-- **Port Scanners**: ports, protocols, service versions, banners
-- **Vuln Scanners**: vulnerability IDs, severity, CVSS vectors, descriptions
-- **Web Scanners**: URLs, technologies, directories, forms
-- **Recon Tools**: subdomains, DNS records, WHOIS data
+**Examples of extracted findings:**
+- 🔌 **Port Scanners:** Ports, protocols, service versions, banners.
+- 🐛 **Vuln Scanners:** CVE IDs, severity levels, CVSS vectors.
+- 🌐 **Web Scanners:** URLs, tech stacks, exposed directories.
 
-Findings are immediately inserted into the **KnowledgeGraph** for downstream reasoning.
+> [!IMPORTANT]
+> Once parsed, findings are immediately inserted into the **KnowledgeGraph**, empowering the LLM to make better downstream decisions.
 
 ---
 
-## Error Recovery
+## 🩹 Error Recovery
 
-The `Validator` class in `siyarix/validators.py` implements plan validation and step-level recovery:
+Things go wrong. The `Validator` class (`siyarix/validators.py`) ensures the engine can recover intelligently from failures.
 
-### RecoveryAction Enum
+### 🔄 Recovery Actions
 
 | Action | Description |
 |--------|-------------|
-| `RETRY` | Retry with modified step (e.g., adding `-Pn` flag) |
-| `RETRY_ALTERNATIVE` | Try alternative tool (e.g., nuclei → nikto) |
-| `SKIP` | Skip step entirely |
-| `ABORT` | Abort entire plan |
-| `ESCALATE` | Escalate to user decision |
-| `DEGRADE` | Continue with degraded functionality |
+| `RETRY` | Try again with a modified step (e.g., adding a `-Pn` flag). |
+| `RETRY_ALTERNATIVE`| Swap the tool entirely (e.g., fallback from Nuclei to Nikto). |
+| `SKIP` | Abandon the step and move on. |
+| `ESCALATE` | Pause and ask the user what to do. |
 
-### Specific Recovery Patterns
+### 🛠️ Specific Recovery Patterns
 
 | Scenario | Detection | Action |
 |----------|-----------|--------|
-| Nmap filtered ports | Error contains "filtered" | Retry with `-Pn` flag |
-| Web scanner refused | Error contains "refused" | Swap tool (nikto ↔ nuclei) |
-| Directory brute 404s | Error contains "404" | Add more file extensions |
-| Generic transient | `step.can_retry` | Simple retry with increment |
-| Exhausted retries | `retry_count >= max_retries` | Skip step |
-
-### Validation Pipeline
-
-```python
-validator = Validator()
-results = await validator.validate_plan(plan.steps)
-recovery = await validator.plan_recovery(failed_step, error)
-```
+| **Nmap filtered ports** | Output contains "filtered" | Retry with `-Pn` flag. |
+| **Web scanner refused** | Error contains "refused" | Swap tool (Nikto ↔ Nuclei). |
+| **Exhausted retries** | `retry_count >= max_retries` | Skip step entirely. |
 
 ---
 
-## CommandPipeline
+## ⛓️ CommandPipeline
 
-The `CommandPipeline` in `siyarix/core/pipeline.py` parses chained instructions:
+The `CommandPipeline` (`siyarix/core/pipeline.py`) allows for natural language command chaining:
 
-```
+```text
 scan 10.0.0.1 then nmap -sV 10.0.0.1
 scan 10.0.0.1 and then enumerate services
 ```
-
-Supports pipe (`|`), "then", "and then", "followed by" separators. Each step is executed sequentially with previous output passed as context.
+It supports natural separators like `|`, `then`, `and then`, and `followed by`. Previous step outputs are automatically passed forward as context.
 
 ---
 
-## EngineResult
+## 📊 EngineResult
+
+When execution finishes, it returns a comprehensive `EngineResult` summarizing everything that happened.
 
 ```python
 @dataclass
@@ -297,45 +281,43 @@ class EngineResult:
 
 ---
 
-## Multi-Wave Execution
+## 🌊 Multi-Wave Execution
 
-The `AgentCore` supports multi-wave execution for autonomous mode:
+For deep, autonomous operations, the `AgentCore` can execute goals in "waves."
 
 ```python
 result = await agent.execute_multi_wave(goal, max_waves=5)
 ```
 
-Each wave:
-1. Executes the goal with context from previous waves
-2. Collects findings
-3. Feeds findings as context for the next wave
-4. Stops when no new findings are discovered
+**How it works:**
+1. Executes the goal using current context.
+2. Collects new findings.
+3. Feeds those findings back in as context for the next wave.
+4. Naturally stops when no new findings are discovered.
 
 ---
 
-## Budget Checking
+## 💸 Session Budgeting
 
-The `_check_budget()` method enforces session-level limits:
+In addition to per-plan limits, Siyarix enforces session-level limits to prevent runaway LLM costs.
 
 | Limit | Default | Environment Variable |
 |-------|---------|---------------------|
-| Max tokens per session | 100,000 | `SIYARIX_MAX_TOKENS` |
-| Max cost per session | $2.00 | `SIYARIX_MAX_COST_USD` |
+| **Max tokens** | 100,000 | `SIYARIX_MAX_TOKENS` |
+| **Max cost** | $2.00 | `SIYARIX_MAX_COST_USD` |
 
 ---
 
-## Integration Points
+## 🔌 Integration Points
 
-| Component | Integration |
-|-----------|------------|
-| **PermissionGate** | Pre-execution BLOCK/REVIEW/ALLOW per step |
-| **DLP Engine** | Post-execution data leak inspection on results |
-| **KnowledgeGraph** | Findings inserted in real-time |
-| **AuditLogger** | Every execution logged with SHA-256 chain |
-| **EventBus** | Events emitted per step lifecycle |
-| **MetricsCollector** | Execution duration, success rate, error rate |
-| **CacheManager** | Cached tool outputs (LRU + TTL) |
-| **OfflineStore** | Results persisted for offline retrieval |
-| **Validator** | Plan validation and step recovery |
-| **StealthEngine** | Random delay injection for covert ops |
-| **Continuous Learning System** | Observes execution for skill learning |
+The Execution Engine doesn't work in isolation. It hooks into the entire Siyarix ecosystem:
+
+| Component | Integration Role |
+|-----------|------------------|
+| **PermissionGate** | Evaluates steps for BLOCK/REVIEW/ALLOW states pre-execution. |
+| **DLP Engine** | Scrubs results for sensitive data post-execution. |
+| **KnowledgeGraph** | Receives structured findings in real-time. |
+| **AuditLogger** | Records every execution with a cryptographic SHA-256 chain. |
+| **StealthEngine** | Requests random delay injections for covert operations. |
+| **MetricsCollector** | Tracks duration, success rates, and error frequencies. |
+| **Continuous Learning**| Observes execution outcomes to improve future planning. |

@@ -1,53 +1,51 @@
-# Multi-Agent Framework (Experimental / Stub)
+# 🤖 Multi-Agent Framework (Experimental / Stub)
 
-The Multi-Agent Framework in Siyarix is **experimental** and provides a stub implementation for future multi-agent collaboration. It is not yet production-ready and should not be relied upon for operational use.
+Welcome to the **Multi-Agent Framework** in Siyarix! 👋 This section provides a foundational stub implementation for our upcoming multi-agent collaboration features.
 
----
-
+> [!WARNING]
 > **Status: EXPERIMENTAL — STUB IMPLEMENTATION**
->
-> This framework provides placeholder infrastructure for future development. All agents return mock data and are not connected to real tool execution.
+> 
+> This framework is currently a placeholder infrastructure intended for future development. It is **not yet production-ready** and should not be relied upon for operational use. All agents currently return mock data and are not connected to real tool execution.
 
 ---
 
-## Architecture
+## 🏗️ Architecture Overview
 
+The architecture is designed around a central orchestrator, the `SwarmRouter`, which manages various specialized agents.
+
+```mermaid
+graph TD
+    A[SwarmRouter] --> B[ReconAgent stub]
+    A --> C[ExploitAgent stub]
+    A --> D[ReportAgent stub]
+    
+    B -.->|mock: open ports, services, OS detection| B
+    C -.->|mock: vuln check, brute, exploit| C
+    D -.->|mock: findings, summary, report| D
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                       SwarmRouter                           │
-│                                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │ ReconAgent   │  │ ExploitAgent │  │ ReportAgent  │     │
-│  │ (stub)       │  │ (stub)       │  │ (stub)       │     │
-│  │              │  │              │  │              │     │
-│  │ mock:        │  │ mock:        │  │ mock:        │     │
-│  │ open ports,  │  │ vuln check,  │  │ findings,    │     │
-│  │ services,    │  │ brute,       │  │ summary,     │     │
-│  │ OS detection │  │ exploit      │  │ report       │     │
-│  └──────────────┘  └──────────────┘  └──────────────┘     │
-│                                                             │
-│  All agents sleep 2 seconds, return hardcoded mock data     │
-└─────────────────────────────────────────────────────────────┘
-```
+
+> [!NOTE]
+> Currently, all agents simulate execution by sleeping for 2 seconds and returning hardcoded mock data.
 
 ---
 
-## Core Components (siyarix/core/swarm.py)
+## 🧩 Core Components (`siyarix/core/swarm.py`)
 
-### SwarmRouter
+### 🚦 `SwarmRouter`
 
-Orchestrates the multi-agent workflow. Accepts a goal, selects appropriate agents, and returns aggregated results.
+The `SwarmRouter` is the heart of our multi-agent workflow. It accepts a specific goal, selects the most appropriate agents, and returns the aggregated results from their tasks.
 
 ```python
 router = SwarmRouter(provider="openai")
 results = await router.run(goal="Scan 10.0.0.1 for vulnerabilities")
 ```
 
-Returns a list of `SwarmTask` results from each involved agent.
+> [!TIP]
+> The `run` method returns a list of `SwarmTask` results from each agent involved in achieving the goal.
 
-### SpecializedAgent (Base Class)
+### 🕵️ `SpecializedAgent` (Base Class)
 
-All agents inherit from `SpecializedAgent`:
+All specialized agents inherit from the `SpecializedAgent` base class, establishing a consistent and predictable structure:
 
 ```python
 @dataclass
@@ -61,7 +59,9 @@ class SpecializedAgent:
         ...
 ```
 
-### SwarmTask
+### 📋 `SwarmTask`
+
+A `SwarmTask` represents a specific unit of work assigned to an agent. It tracks the progress and outcome of the task.
 
 ```python
 @dataclass
@@ -79,81 +79,90 @@ class SwarmTask:
 
 ---
 
-## Available Agents (Stubs)
+## 🎭 Available Agents (Stubs)
 
-### ReconAgent
+Here are the agents currently stubbed out in the framework:
 
-| Aspect | Current Behavior |
-|--------|-----------------|
+### 🔍 ReconAgent
+
+| Aspect | Details |
+|--------|---------|
 | **Intent** | Network reconnaissance |
-| **Description** | Scans for open ports, running services, OS detection on target |
-| **Provider** | openai |
-| **Actual Behavior** | Sleeps 2s, returns hardcoded mock with open ports (22, 80, 443, 3306, 8080), services, OS detection |
+| **Description** | Scans for open ports, running services, and performs OS detection on the target. |
+| **Provider** | `openai` |
+| **Actual Behavior** | Sleeps 2s, then returns a hardcoded mock containing open ports (22, 80, 443, 3306, 8080), services, and OS detection info. |
 | **Readiness** | ❌ Not functional |
 
-### ExploitAgent
+### 💥 ExploitAgent
 
-| Aspect | Current Behavior |
-|--------|-----------------|
+| Aspect | Details |
+|--------|---------|
 | **Intent** | Vulnerability exploitation |
-| **Description** | Checks for known vulnerabilities, brute force, exploits |
-| **Provider** | openai |
-| **Actual Behavior** | Sleeps 2s, returns hardcoded mock with vulnerabilities and exploit attempts |
+| **Description** | Checks for known vulnerabilities, performs brute-force attacks, and attempts exploits. |
+| **Provider** | `openai` |
+| **Actual Behavior** | Sleeps 2s, then returns a hardcoded mock detailing simulated vulnerabilities and exploit attempts. |
 | **Readiness** | ❌ Not functional |
 
-### ReportAgent
+### 📝 ReportAgent
 
-| Aspect | Current Behavior |
-|--------|-----------------|
+| Aspect | Details |
+|--------|---------|
 | **Intent** | Report generation |
-| **Description** | Analyzes findings and generates comprehensive reports |
-| **Provider** | openai |
-| **Actual Behavior** | Sleeps 2s, returns hardcoded mock with findings, summary, severity assessment |
+| **Description** | Analyzes all findings and generates comprehensive, actionable reports. |
+| **Provider** | `openai` |
+| **Actual Behavior** | Sleeps 2s, then returns a hardcoded mock featuring findings, a summary, and a severity assessment. |
 | **Readiness** | ❌ Not functional |
 
 ---
 
-## Additional Stubs (siyarix/chat/stubs.py)
+## 🛠️ Additional Stubs (`siyarix/chat/stubs.py`)
 
-The `chat/stubs.py` module contains additional stubs used for CLI chat demo/testing:
+The `chat/stubs.py` module houses extra stubs used specifically for CLI chat demonstrations and testing:
 
-- **SimulatedAgent**: Returns mock responses mimicking different agent behaviors
-- **SimulatedCollaboration**: Stubs for multi-agent collaboration scenarios
-- **SimulatedFindings**: Pre-defined mock findings for testing
+- 🤖 **SimulatedAgent**: Returns mock responses to mimic different agent behaviors and personalities.
+- 🤝 **SimulatedCollaboration**: Provides stubs to demonstrate multi-agent collaboration scenarios.
+- 🎯 **SimulatedFindings**: Contains pre-defined mock findings used for predictable testing.
 
-These are used exclusively for development and demonstration, never in production execution.
+> [!CAUTION]
+> These stubs are meant **exclusively** for development and demonstration purposes. They should never be used in production execution.
 
 ---
 
-## Limitations (Current)
+## 🚧 Current Limitations
+
+Since this is an experimental stub, there are several limitations to be aware of:
 
 | Limitation | Detail |
 |------------|--------|
-| No inter-agent communication | Agents don't share findings or coordinate |
-| No state machine | No lifecycle management (idle→running→completed) |
-| No AgentMessage protocol | No structured messaging between agents |
-| No real tool access | All results are mock/hardcoded |
-| Fixed 2s sleep | Simulates async execution, not real concurrency |
-| No task decomposition | Goals are passed as-is, no sub-tasking |
-| No result passing | Agent A's output is not fed to Agent B |
-| No error propagation | Failures are captured but not acted upon |
+| **No inter-agent communication** | Agents currently operate in isolation and don't share findings or coordinate. |
+| **No state machine** | There is no true lifecycle management (e.g., idle → running → completed). |
+| **No AgentMessage protocol** | A structured messaging system between agents hasn't been implemented yet. |
+| **No real tool access** | All results are currently mocked or hardcoded. |
+| **Fixed 2s sleep** | Concurrency is merely simulated using a standard sleep, not real asynchronous execution. |
+| **No task decomposition** | Goals are passed as-is; agents cannot break them down into smaller sub-tasks. |
+| **No result passing** | The output from one agent is not currently fed into another (e.g., Agent A → Agent B). |
+| **No error propagation** | Failures are captured but not dynamically acted upon by the system. |
 
 ---
 
-## Planned Capabilities (Future)
+## 🚀 Planned Capabilities (Future)
 
-- **Dynamic agent spawning** based on goal complexity
-- **Inter-agent message bus** with publish/subscribe
-- **Task decomposition** via LLM planning
-- **Sharing KnowledgeGraph** across agents
-- **Sequential chaining** with output dependencies
-- **Agent lifecycle** with health checks and restart
-- **Real tool delegation** through `RegistryExecutor`
-- **Sub-agent coordination** for large-scale operations
+We have exciting plans to evolve this framework! Here’s what’s on the roadmap:
+
+- ✨ **Dynamic agent spawning** based on the complexity of the assigned goal.
+- 📬 **Inter-agent message bus** utilizing a robust publish/subscribe model.
+- 🧠 **Task decomposition** powered by LLM planning.
+- 🕸️ **Sharing KnowledgeGraph** across all active agents.
+- 🔗 **Sequential chaining** to manage complex output dependencies.
+- 🔄 **Agent lifecycle management**, complete with health checks and automatic restarts.
+- 🛠️ **Real tool delegation** executed through a `RegistryExecutor`.
+- 🌐 **Sub-agent coordination** designed for large-scale, intricate operations.
 
 ---
 
-## Integration with AgentCore
+## 🔌 Integration with AgentCore
+
+The Swarm framework is designed to be highly modular and opt-in. 
 
 ```python
 class AgentCore:
@@ -167,15 +176,18 @@ class AgentCore:
         return await self.swarm.run(goal)
 ```
 
-Swarm is opt-in and injected from outside. AgentCore does not create a SwarmRouter by default.
+> [!IMPORTANT]
+> The Swarm router is injected from the outside. `AgentCore` does **not** create a `SwarmRouter` by default, ensuring the system remains lightweight when multi-agent features are not required.
 
 ---
 
-## Use Cases (Future)
+## 🎯 Future Use Cases
+
+Once fully realized, the Multi-Agent Framework will support powerful scenarios:
 
 | Scenario | Agents Involved | Future Flow |
 |----------|----------------|-------------|
-| Full pentest of single host | Recon → Exploit → Report | Sequential chaining |
-| Network segment assessment | Recon (scaling) → Report | Scaled recon + analysis |
-| Multi-vector attack | Recon → Exploit (multiple) → Report | Parallel exploitation |
-| Continuous monitoring | Recon (scheduled) → Report | Periodic execution |
+| **Full pentest of a single host** | Recon → Exploit → Report | Sequential chaining of agents. |
+| **Network segment assessment** | Recon (scaling) → Report | Scaled reconnaissance followed by consolidated analysis. |
+| **Multi-vector attack** | Recon → Exploit (multiple) → Report | Parallel exploitation across different attack vectors. |
+| **Continuous monitoring** | Recon (scheduled) → Report | Periodic, automated execution and reporting. |

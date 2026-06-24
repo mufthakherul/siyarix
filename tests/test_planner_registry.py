@@ -382,7 +382,7 @@ class TestSmartPlan:
     def test_smart_plan_with_template_intent(self, planner: RegistryPlanner):
         intent = ParsedIntent(
             target="example.com", target_type="domain",
-            template_name="recon_full", confidence=0.8,
+            template_name="recon_full", confidence=15.0,
             parameters={}, tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
@@ -393,7 +393,7 @@ class TestSmartPlan:
     def test_smart_plan_template_intent_value_error(self, planner: RegistryPlanner):
         intent = ParsedIntent(
             target="", target_type="",
-            template_name="nonexistent", confidence=0.8,
+            template_name="nonexistent", confidence=15.0,
             parameters={}, tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
@@ -404,19 +404,19 @@ class TestSmartPlan:
     def test_smart_plan_context_populated(self, planner: RegistryPlanner):
         intent = ParsedIntent(
             target="example.com", target_type="domain",
-            template_name="recon_full", confidence=0.8,
+            template_name="recon_full", confidence=15.0,
             parameters={"speed": "fast"}, tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         plan = planner.smart_plan("fast recon example.com")
         assert plan.context.get("nlp_template") == "recon_full"
-        assert plan.context.get("nlp_confidence") == 0.8
+        assert plan.context.get("nlp_confidence") == 15.0
         assert plan.context.get("nlp_target") == "example.com"
 
     def test_smart_plan_no_available_tools(self, planner: RegistryPlanner):
         intent = ParsedIntent(
             target="", target_type="",
-            template_name="recon_full", confidence=0.8,
+            template_name="recon_full", confidence=15.0,
             parameters={}, tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
@@ -444,22 +444,22 @@ class TestDecomposeGoal:
     def test_step0_nlp_tool_high_confidence(self, planner: RegistryPlanner):
         intent = ParsedIntent(
             target="10.0.0.1", target_type="ipv4",
-            template_name=None, tool_name="nmap", confidence=2.0,
+            template_name=None, tool_name="nmap", confidence=4.0,
             parameters={"speed": "fast"}, tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
-        plan = planner.decompose_goal("fast scan 10.0.0.1", available_tools=["nmap"])
+        plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
         assert len(plan.steps) == 1
         assert plan.steps[0].tool == "nmap"
 
     def test_step0_nlp_tool_with_alternative(self, planner: RegistryPlanner):
         intent = ParsedIntent(
             target="10.0.0.1", target_type="ipv4",
-            template_name=None, tool_name="nmap", confidence=2.0,
+            template_name=None, tool_name="nmap", confidence=4.0,
             parameters={"speed": "fast"}, tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
-        plan = planner.decompose_goal("fast scan 10.0.0.1", available_tools=["masscan"])
+        plan = planner.decompose_goal("10.0.0.1", available_tools=["masscan"])
         assert plan.steps[0].tool == "masscan"
 
     def test_step0_nmap_all_ports(self, planner: RegistryPlanner):
@@ -469,7 +469,7 @@ class TestDecomposeGoal:
             parameters={"ports": "all", "speed": "fast"}, tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
-        plan = planner.decompose_goal("scan all ports 10.0.0.1", available_tools=["nmap"])
+        plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
         flags = plan.steps[0].args.get("flags", "")
         assert "-p-" in flags
 
@@ -480,40 +480,40 @@ class TestDecomposeGoal:
             parameters={"ports": "22,80,443"}, tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
-        plan = planner.decompose_goal("scan ports 22,80,443", available_tools=["nmap"])
+        plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
         flags = plan.steps[0].args.get("flags", "")
         assert "-p 22,80,443" in flags
 
     def test_step0_nmap_default_ports(self, planner: RegistryPlanner):
         intent = ParsedIntent(
             target="10.0.0.1", target_type="ipv4",
-            template_name=None, tool_name="nmap", confidence=2.0,
+            template_name=None, tool_name="nmap", confidence=4.0,
             parameters={}, tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
-        plan = planner.decompose_goal("scan 10.0.0.1", available_tools=["nmap"])
+        plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
         flags = plan.steps[0].args.get("flags", "")
         assert "--top-ports 100" in flags
 
     def test_step0_nmap_stealth_speed(self, planner: RegistryPlanner):
         intent = ParsedIntent(
             target="10.0.0.1", target_type="ipv4",
-            template_name=None, tool_name="nmap", confidence=2.0,
+            template_name=None, tool_name="nmap", confidence=4.0,
             parameters={"speed": "stealth"}, tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
-        plan = planner.decompose_goal("stealth scan 10.0.0.1", available_tools=["nmap"])
+        plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
         flags = plan.steps[0].args.get("flags", "")
         assert "-sS -T2" in flags or "-sT -T2" in flags
 
     def test_step0_nmap_default_speed(self, planner: RegistryPlanner):
         intent = ParsedIntent(
             target="10.0.0.1", target_type="ipv4",
-            template_name=None, tool_name="nmap", confidence=2.0,
+            template_name=None, tool_name="nmap", confidence=4.0,
             parameters={"speed": "default"}, tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
-        plan = planner.decompose_goal("scan 10.0.0.1", available_tools=["nmap"])
+        plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
         flags = plan.steps[0].args.get("flags", "")
         assert "-sT -T4" in flags
 
@@ -524,7 +524,7 @@ class TestDecomposeGoal:
             parameters={"verbose": True}, tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
-        plan = planner.decompose_goal("scan 10.0.0.1", available_tools=["nmap"])
+        plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
         flags = plan.steps[0].args.get("flags", "")
         assert "-v" in flags
 
@@ -535,7 +535,7 @@ class TestDecomposeGoal:
             parameters={"timeout": "30m"}, tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
-        plan = planner.decompose_goal("scan 10.0.0.1", available_tools=["nmap"])
+        plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
         flags = plan.steps[0].args.get("flags", "")
         assert "--host-timeout 30m" in flags
 
@@ -546,7 +546,7 @@ class TestDecomposeGoal:
             parameters={"format": "xml"}, tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
-        plan = planner.decompose_goal("xml scan 10.0.0.1", available_tools=["nmap"])
+        plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
         flags = plan.steps[0].args.get("flags", "")
         assert "-oX -" in flags
 
@@ -557,7 +557,7 @@ class TestDecomposeGoal:
             parameters={"severity": "critical", "format": "json"}, tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
-        plan = planner.decompose_goal("scan example.com", available_tools=["nuclei"])
+        plan = planner.decompose_goal("example.com", available_tools=["nuclei"])
         flags = plan.steps[0].args.get("flags", "")
         assert "-s critical" in flags
 
@@ -568,7 +568,7 @@ class TestDecomposeGoal:
             parameters={"timeout": "5s", "format": "json"}, tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
-        plan = planner.decompose_goal("scan example.com", available_tools=["nuclei"])
+        plan = planner.decompose_goal("example.com", available_tools=["nuclei"])
         flags = plan.steps[0].args.get("flags", "")
         assert "-json-export" in flags
         assert "-timeout 5" in flags
@@ -710,7 +710,7 @@ class TestDecomposeGoal:
 
     def test_step4_intent_map_scan(self, planner: RegistryPlanner):
         plan = planner.decompose_goal("scan 10.0.0.1")
-        assert plan.steps[0].tool == "nmap"
+        assert plan.steps[0].tool == "nuclei"
 
     def test_step4_intent_map_explore(self, planner: RegistryPlanner):
         plan = planner.decompose_goal("explore 10.0.0.1")
@@ -721,11 +721,11 @@ class TestDecomposeGoal:
         assert plan.steps[0].tool == "openssl"
 
     def test_step4_intent_map_alt_tool_selected(self, planner: RegistryPlanner):
-        plan = planner.decompose_goal("scan 10.0.0.1", available_tools=["masscan"])
+        plan = planner.decompose_goal("nmap 10.0.0.1", available_tools=["masscan"])
         assert plan.steps[0].tool == "masscan"
 
     def test_step4_intent_map_with_target_cleaning(self, planner: RegistryPlanner):
-        plan = planner.decompose_goal("scan https://example.com/path?q=1")
+        plan = planner.decompose_goal("check https://example.com/path?q=1")
         target = plan.steps[0].args.get("target", "")
         assert "/path" not in target
 

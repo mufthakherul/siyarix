@@ -1165,16 +1165,9 @@ class RegistryPlanner:
         context: dict[str, Any] | None = None,
     ) -> ExecutionPlan:
         plan_steps = []
-        seen_steps: set[tuple[str, str]] = set()
         if steps:
             for i, step_def in enumerate(steps):
                 tool = step_def.get("tool", "")
-                args_str = json.dumps(step_def.get("args", {}), sort_keys=True)
-                cmd = step_def.get("command", "") or ""
-                key = (tool, args_str + cmd)
-                if key in seen_steps:
-                    continue
-                seen_steps.add(key)
                 plan_steps.append(
                     PlanStep(
                         id=step_def.get("id", f"step_{i:03d}"),
@@ -1218,8 +1211,9 @@ class RegistryPlanner:
         url_match = re.search(r"https?://[^\s]+", target)
         host_match = re.search(r"\b(?:[\w-]+\.)+[a-z]{2,}\b", target.lower())
         ip_match = re.search(r"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:/\d{1,2})?\b", target)
+        file_match = re.search(r"/[/\w.\-]+", target)
         clean_target = (
-            url_match.group(0) if url_match else (host_match.group(0) if host_match else (ip_match.group(0) if ip_match else target))
+            url_match.group(0) if url_match else (host_match.group(0) if host_match else (ip_match.group(0) if ip_match else (file_match.group(0) if file_match else target)))
         )
         steps = []
         for step_def in template:
@@ -1389,6 +1383,19 @@ class RegistryPlanner:
             "whois": ("whois", "WHOIS lookup", ""),
             "ping": ("ping", "ICMP ping connectivity test", "-c 4"),
             "openssl": ("openssl", "SSL/TLS certificate inspection", "s_client -connect {target}:443"),
+            # ── Common security tool names (explicit mention → single tool) ──
+            "nmap": ("nmap", "Nmap network scanner", "-sT -T4 --top-ports 100"),
+            "masscan": ("masscan", "Mass port scanner", ""),
+            "nuclei": ("nuclei", "Template-based vulnerability scanner", ""),
+            "nikto": ("nikto", "Web server vulnerability scan", ""),
+            "wpscan": ("wpscan", "WordPress vulnerability scanner", ""),
+            "sqlmap": ("sqlmap", "SQL injection scanner", "--batch --random-agent"),
+            "gobuster": ("gobuster", "Directory/file brute force", ""),
+            "whatweb": ("whatweb", "Web technology fingerprinting", ""),
+            "curl": ("curl", "HTTP/S request tool", "-sIL"),
+            "dig": ("dig", "DNS lookup utility", ""),
+            "hydra": ("hydra", "Brute force authentication", ""),
+            "hashcat": ("hashcat", "Hash cracking tool", ""),
             "dirb": ("dirb", "Directory brute force tool", ""),
             "dirsearch": ("dirsearch", "Web path discovery tool", ""),
             "rustscan": ("rustscan", "Fast port scanner", ""),
@@ -1518,6 +1525,8 @@ class RegistryPlanner:
             (("subdomain", "subdomain enum", "subdomain discover", "dns enum", "dnsrecon", "subdomain brute"), "recon_full"),
             (("network scan", "infrastructure scan", "port scan", "full port scan", "open ports", "tcp scan"), "network_scan"),
             (("brute force", "crack password", "password crack", "credential brute", "crack the password"), "brute_force"),
+            # File hash / checksum operations (after brute_force so "crack password hash" hits brute_force first)
+            (("hash", "checksum", "md5", "md5sum", "sha1", "sha1sum", "sha256", "sha256sum", "sha512", "sha512sum", "b2sum", "compute hash", "generate checksum", "hash of", "file hash", "hash sum", "hash file"), "file_hash"),
             # Specific AD attack tools (before generic ad_assessment)
             (("dcsync", "dc sync", "domain replication"), "ad_assessment"),
             (("kerberoast", "kerberoasting"), "ad_assessment"),
@@ -1537,7 +1546,7 @@ class RegistryPlanner:
             (("smb enum", "smb", "smb share", "windows share", "cifs", "netbios", "crackmapexec", "netexec", "enum4linux"), "smb_enum"),
             (("privesc", "privilege escalation", "linux audit", "suid"), "linux_privesc"),
             (("web audit", "web scan", "website", "webapp", "web app"), "web_audit"),
-            (("vuln scan", "cve scan", "vulnerability scan"), "vuln_scan"),
+            (("scan", "vuln scan", "cve scan", "vulnerability scan"), "vuln_scan"),
             (("passive recon", "passive osint", "passive scan", "passive reconnaissance", "passive intel", "passive intelligence", "passive information", "stealth osint", "non intrusive", "initial access", "pre engagement", "quiet recon"), "passive_recon"),
             (("full audit", "full scan", "comprehensive scan", "comprehensive recon", "thorough check", "thorough recon", "full recon", "security posture", "pentest", "penetration test", "security assessment", "security audit"), "full_audit"),
         ]

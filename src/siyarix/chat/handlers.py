@@ -898,7 +898,7 @@ class CommandHandlersMixin:
             console.print(f"[green]✓ Mode switched to: {args} (provider locked to registry)[/green]")
         else:
             current_provider = self._settings.get("model_provider") or "auto"
-            if current_provider == "registry" and (old_mode == "offline" or args == "integrated"):
+            if current_provider == "registry" and args != "integrated":
                 self._settings.set("model_provider", "auto")
                 console.print(f"[green]✓ Mode switched to: {args} (provider reset to auto)[/green]")
             else:

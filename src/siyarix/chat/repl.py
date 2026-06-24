@@ -132,6 +132,11 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         self._con = self._output.console
 
         self._validate_provider_config_on_startup()
+        # Reset provider from "registry" to "auto" if mode requires an LLM
+        if self._mode not in ("offline", "integrated"):
+            prov = (self._settings.get("model_provider") or "auto").lower().strip()
+            if prov == "registry":
+                self._settings.set("model_provider", "auto")
         self._connectivity_monitor: Any = None
 
     @property

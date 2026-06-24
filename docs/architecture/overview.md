@@ -11,19 +11,14 @@ graph LR
     %% ===== ENTRY LAYER =====
     User([Operator / TTY]) --> CLI
     User --> REPL
-    User --> API
-    
+
     CLI[CLI / Typer]:::entry
     REPL[REPL / prompt_toolkit]:::entry
-    API[REST API / FastAPI]:::entry
-    WS[WebSocket / v1/stream]:::entry
     PIPELINE[Pipeline / chained]:::entry
     BATCH[Batch / script mode]:::entry
-    
+
     CLI --> AgentCore
     REPL --> AgentCore
-    API --> AgentCore
-    WS --> AgentCore
     PIPELINE --> AgentCore
     BATCH --> AgentCore
 
@@ -34,12 +29,12 @@ graph LR
         NLP[NLP Engine / zero-dep]:::core
         CtxMgr[Context Manager]:::core
         Comp[Compaction Engine]:::core
-        
+
         AgentCore -->|dispatch| IR
         IR -->|classify intent| NLP
         IR -->|route| PlannerRouter
         NLP -->|semantic parse| PlannerRouter
-        
+
         subgraph Modes["AgentCore Modes"]
             REG[REGISTRY]
             AUTO[AUTONOMOUS]
@@ -54,11 +49,9 @@ graph LR
         PlannerRouter[Planner Router]:::plan
         RP[RegistryPlanner]:::plan
         AP[AutonomousPlanner]:::plan
-        PR[PlannerRegistry / templates]:::plan
-        
+
         PlannerRouter --> RP
         PlannerRouter --> AP
-        RP -->|template match| PR
         AP -->|LLM generate| ProviderMgr
     end
 
@@ -68,13 +61,14 @@ graph LR
         OA[OpenAICompat Adapter]:::prov
         PS[ProviderStateManager]:::prov
         UT[UsageTracker]:::prov
-        PL[ModelAliases]:::prov
-        
+        MA[ModelAliases]:::prov
+        OLL[OllamaUtils]:::prov
+
         ProviderMgr --> OA
         ProviderMgr --> PS
         ProviderMgr --> UT
-        OA --> PL
-        
+        OA --> MA
+
         subgraph Cloud["Cloud Providers"]
             OAI[OpenAI / GPT]
             ANT[Anthropic / Claude]
@@ -94,18 +88,18 @@ graph LR
             NVI[NVIDIA NIM]
             AZ[Azure OpenAI]
             OC[OpenCodeZen]
-            ZAI[Z.AI]
+            ZAI[Z.A.I.]
         end
-        
+
         subgraph Local["Local / Offline"]
-            OLL[Ollama]
+            OLLM[Ollama]
             LMS[LM Studio]
             LCP[llama.cpp]
             VLL[vLLM]
             LAI[LocalAI]
             REGP[Registry / heuristic]
         end
-        
+
         OA --> Cloud
         OA --> Local
     end
@@ -119,7 +113,9 @@ graph LR
         SG[StealthEngine]:::sec
         OM[OPSECManager]:::sec
         SH[SecurityHardening]:::sec
-        
+        SHV[ShellReview]:::sec
+        TCR[ToolCallRepair]:::sec
+
         PG -->|stage 1| SyntaxGate[Syntax Gate]
         PG -->|stage 2| DA
         PG --> DLP
@@ -130,22 +126,20 @@ graph LR
 
     %% ===== EXECUTION LAYER =====
     subgraph EXEC["Execution Layer"]
-        EE[ExecutionEngine]:::exec
-        BE[BaseExecutor]:::exec
+        EE[ExecutionEngine / compat]:::exec
+        BE[BaseExecutor / budget + guardrails]:::exec
         RE[RegistryExecutor]:::exec
         AE[AutonomousExecutor]:::exec
-        WP[WorkerPool / semaphore]:::exec
-        CP[CommandPipeline]:::exec
-        SR[ShellReview]:::exec
-        TCR[ToolCallRepair]:::exec
-        
+        WP[AsyncWorkerPool / semaphore]:::exec
+        TCP[CommandPipeline]:::exec
+        VAL[Validator / recovery]:::exec
+
         EE --> BE
         EE --> RE
         EE --> AE
         EE --> WP
-        EE --> CP
-        BE --> SR
-        AE --> TCR
+        EE --> TCP
+        BE --> VAL
     end
 
     PG -->|ALLOW / REVIEW| EE
@@ -159,7 +153,7 @@ graph LR
         TCG[ToolCapabilityGraph]:::tool
         TM[ToolMetadata]:::tool
         TV[ToolVersion]:::tool
-        
+
         TR --> TA
         TA --> TI
         TR --> TCG
@@ -194,24 +188,28 @@ graph LR
 
     TH -->|tool output| PRR
 
-    %% ===== KNOWLEDGE & MEMORY LAYER =====
-    subgraph KM["Knowledge & Memory"]
+    %% ===== KNOWLEDGE, LEARNING & MEMORY LAYER =====
+    subgraph KML["Knowledge, Learning & Memory"]
         KG[KnowledgeGraph / BFS]:::km
-        MM[MemoryManager]:::km
+        MM[MemoryManager / semantic]:::km
+        CLS[Continuous Learning System]:::km
+        DS[DeepScanEngine]:::km
     end
 
     PRR -->|structured findings| KG
+    AE -->|observe| CLS
+    RE -->|observe| CLS
 
     %% ===== PERSISTENCE LAYER =====
     subgraph PERSIST["Persistence Layer"]
         CS[ChatSession / branching]:::persist
-        SK[SessionKernel]:::persist
+        SK[SessionKernel / JSON+JSONL]:::persist
         CRD[CredentialStore / AES-256-GCM]:::persist
         CACHE[CacheManager / LRU+TTL]:::persist
         OQS[OfflineQueue]:::persist
         OSS[OfflineStore / SQLite]:::persist
         SLOG[SessionLog]:::persist
-        
+
         CS -->|JSONL tree| SK
         CRD -->|keyring + file| SK
     end
@@ -222,12 +220,12 @@ graph LR
     subgraph OBSERV["Observability"]
         EB[EventBus / pub-sub]:::obs
         AL[AuditLogger / SHA-256 chain]:::obs
-        MC[MetricsCollector / Prometheus]:::obs
+        MC[MetricsCollector]:::obs
         HC[HealthChecker]:::obs
         NOTIF[Notifications]:::obs
         WH[Webhooks]:::obs
         PERF[PerformanceOptimizer]:::obs
-        
+
         EB --> AL
         EB --> MC
         EB --> NOTIF
@@ -237,68 +235,65 @@ graph LR
 
     EE --> EB
 
-    %% ===== REPORTING LAYER =====
-    subgraph REPORT["Reporting & Output"]
-        RE[ReportEngine]:::report
+    %% ===== REPORTING & COMPLIANCE LAYER =====
+    subgraph REPORT["Reporting, Compliance & Output"]
         CVSS[CVSSScorer / 3.1]:::report
         CompEng[ComplianceEngine]:::report
         TI[ThreatIntel]:::report
         Playbook[PlaybookEngine]:::report
         OE[OutputEngine]:::report
-        
-        RE --> CVSS
-        RE --> CompEng
-        RE --> TI
-        RE --> Playbook
-        
+
+        CVSS --> CompEng
+        TI --> Playbook
+
         subgraph Formats["Output Formats"]
-            MD[MARKDOWN]
-            HTML[HTML / interactive]
+            TBL[TABLE]
             JSON[JSON]
-            SARIF[SARIF]
-            TBL[TABLE / Rich]
+            JSONL[JSONL]
             YML[YAML]
             CSV[CSV]
+            HTML[HTML]
             XML[XML]
+            MD[MARKDOWN]
             RAW[RAW]
             QUIET[QUIET]
         end
-        
-        subgraph Themes["12 Color Themes"]
+
+        subgraph Themes["7 Unique Themes + 4 Aliases"]
             TH1[CYBER_NOIR]
             TH2[MATRIX]
             TH3[BLOODMOON]
             TH4[ARCTIC]
-            TH5[SYNTHWAVE]
+            TH5[GOLDENROD]
+            TH6[ECLIPSE]
+            TH7[SYNTHWAVE]
         end
-        
+
         OE --> Formats
         OE --> Themes
     end
 
-    KG --> RE
     KG --> TI
-    RE --> OE
+    KG --> CVSS
 
     %% ===== MULTI-AGENT SWARM =====
-    subgraph SWARM["Multi-Agent Swarm"]
-        SWR[SwarmRouter]:::swarm
+    subgraph SWARM["Multi-Agent Swarm (Experimental)"]
+        SWR[SwarmRouter / stub]:::swarm
         RCON[ReconAgent]
         XPLT[ExploitAgent]
         RPRT[ReportAgent]
-        
+
         SWR --> RCON
         RCON -->|findings| XPLT
         XPLT -->|evidence| RPRT
-        RPRT -->|report| RE
     end
 
     AgentCore -->|campaign| SWR
 
     %% ===== FEEDBACK LOOPS =====
-    CL -.->|informs decisions| PlannerRouter
+    CLS -.->|learned skills| PlannerRouter
     TCR -.->|repair malformed| AP
-    SR -.->|review commands| BE
+    VAL -.->|recovery| RE
     Comp -.->|optimize tokens| CtxMgr
     PERF -.->|tune resources| EE
 
@@ -326,23 +321,24 @@ graph LR
 |-----------|-------------|
 | **CLI-First** | All functionality is accessible without GUI dependencies |
 | **AI-Native** | AI planning is the default path with heuristic fallback |
-| **Provider-Agnostic** | 24+ provider profiles via a unified OpenAICompat adapter |
+| **Provider-Agnostic** | 26 provider profiles via a unified OpenAICompat adapter |
 | **Offline-Capable** | Full operation in air-gapped environments via local inference + heuristic planning |
 | **Safety-Gated** | Every command passes PermissionGate + DLP Engine |
+| **Continuously Learning** | The Continuous Learning System observes execution patterns and builds a privacy-preserving skill library |
 | **Extensible** | PluginLoader, ToolRegistry, and dynamic discovery |
 
 ---
 
 ## AgentCore: The Orchestrator
 
-The `AgentCore` is the central dispatcher operating in four modes:
+The `AgentCore` (`siyarix/core/__init__.py`) is the central dispatcher operating in four modes:
 
 | Mode | Planner | Permission | Autonomy | Use Case |
 |------|---------|------------|----------|----------|
-| **REGISTRY** | RegistryPlanner (template) | Full gate | None | Deterministic, offline-safe execution |
+| **REGISTRY** | RegistryPlanner (heuristic) | Full gate | None | Deterministic, offline-safe execution |
 | **AUTONOMOUS** | AutonomousPlanner (LLM) | Minimal | Full | Goal-driven autonomous agents |
-| **HYBRID** | Registry + Autonomous | Full gate | Conditional | AI-guided with user confirmation |
-| **INTERACTIVE** | Chat-based planning | Full gate | Per-step | REPL / conversational mode |
+| **HYBRID** | Autonomous + Registry fallback | Full gate | Conditional | AI-guided with automatic fallback |
+| **INTERACTIVE** | RegistryPlanner + user approval | Full gate | Per-step | User-in-the-loop interactive mode |
 
 ---
 
@@ -352,14 +348,15 @@ The `AgentCore` is the central dispatcher operating in four modes:
 User Input → IntentRouter → Context Manager → Planner Router → Permission Gate → DLP → ExecutionEngine → Results Pipeline
 ```
 
-1. **User Input** arrives via CLI, REPL, API, or pipeline
-2. **IntentRouter** classifies input (exact → regex → keyword → LLM)
+1. **User Input** arrives via CLI, REPL, pipeline, or batch
+2. **IntentRouter** classifies input via keyword matching (compat.py)
 3. **Context Manager** builds/compresses the context window
-4. **Planner Router** selects between RegistryPlanner (template-based) and AutonomousPlanner (LLM-based)
+4. **Planner Router** (Planner class) selects between RegistryPlanner (heuristic) and AutonomousPlanner (LLM-based)
 5. **PermissionGate** performs two-stage review (syntax → danger analysis), returns BLOCK / REVIEW / ALLOW
 6. **DLP Engine** inspects for data leak patterns
-7. **ExecutionEngine** builds execution plans from goals, delegates to BaseExecutor / AutonomousExecutor / RegistryExecutor
+7. **Execution Engine** (BaseExecutor / RegistryExecutor / AutonomousExecutor) executes plan steps with budget tracking, guardrails, and DLP
 8. **Results Pipeline** routes through parsers → KnowledgeGraph → ReportEngine → AuditLogger → ChatSession
+9. **Continuous Learning System** observes results and builds anonymized skill library
 
 ---
 
@@ -367,45 +364,56 @@ User Input → IntentRouter → Context Manager → Planner Router → Permissio
 
 | Subsystem | Responsibility |
 |-----------|---------------|
-| **IntentRouter** | 4-stage semantic classification of user input |
-| **NLP Engine** | Zero-dependency semantic parsing |
-| **PlannerRegistry** | Maps intents to plan templates |
+| **AgentCore** | Central orchestrator with 4-mode dispatch |
+| **IntentRouter** | Keyword-based intent classification (compat.py) |
+| **NLP Engine** | Zero-dependency semantic parsing with BM25 scoring |
+| **Planner Router** | Dispatches between heuristic and LLM-based planning |
+| **RegistryPlanner** | Heuristic template-based planning with 500+ intent patterns |
+| **AutonomousPlanner** | LLM-driven plan generation |
 | **Context Manager** | Builds, compresses, and optimizes LLM context windows |
 | **MemoryManager** | Semantic memory with embeddings |
 | **KnowledgeGraph** | In-memory directed graph of infrastructure entities |
-| **ExecutionEngine** | Plan construction, dependency resolution, parallel dispatch |
+| **Continuous Learning System** | Privacy-preserving skill library from observed execution |
+| **DeepScanEngine** | Multi-pass progressive scanning with discovery, fingerprint, vulnerability, enumeration passes |
+| **WorkflowEngine** | DAG-based workflow execution |
 | **PermissionGate** | Two-stage BLOCK/REVIEW/ALLOW security gate |
-| **DLP Engine** | Data leak prevention via pattern detection |
-| **ProviderManager** | 24+ providers with failover, circuit breakers, exponential backoff |
-| **ProviderStateManager** | Cooldown/failure persistence across sessions |
+| **DLP Engine** | Data leak prevention via 24+ pattern signatures |
+| **ProviderManager** | 26 provider profiles with failover and circuit breaking |
+| **ProviderStateManager** | Cooldown/failure persistence across sessions (JSON file) |
 | **UsageTracker** | Token usage and cost tracking per provider |
 | **OpenAICompat Adapter** | Unified API across all providers |
 | **EventBus** | Pub/sub event system for inter-component communication |
 | **CacheManager** | LRU + TTL with disk persistence |
 | **CredentialStore** | AES-256-GCM encrypted credential vault |
 | **AuditLogger** | Tamper-evident chain with SHA-256 linking |
-| **ReportEngine** | MARKDOWN, HTML, JSON, SARIF with CVSS enrichment |
-| **OutputEngine** | 8 output formats, 12 themes, branding support |
+| **OutputEngine** | 10 output formats, 7 unique themes, branding support |
 | **ChatSession** | Branching support (JSONL tree format) |
-| **SessionKernel** | Session persistence and restore |
+| **SessionKernel** | Session persistence and restore (JSON/JSONL) |
 | **HealthChecker** | System health monitoring |
-| **MetricsCollector** | Prometheus-compatible metrics |
+| **MetricsCollector** | Execution metrics and analytics |
 | **StealthEngine** | Covert operations (TOR, DoH, traffic jitter) |
-| **OPSECManager** | Operational security controls |
-| **Swarm** | Multi-agent orchestration (Recon, Exploit, Report agents) |
-| **CommandPipeline** | Chaining commands in DAG pipelines |
+| **OPSECManager** | Operational security controls with policy profiles |
+| **SwarmRouter** | Experimental multi-agent orchestration (Recon, Exploit, Report) |
+| **CommandPipeline** | Parses chained commands via pipe, then operators |
 | **PluginLoader** | Dynamic plugin discovery and loading |
-| **WorkerPool** | Bounded async concurrency |
+| **AsyncWorkerPool** | Bounded async concurrency with semaphore |
 | **OfflineStore / OfflineQueue** | SQLite-backed offline operations |
-| **Compact** | LLM context window optimization |
+| **CompactionEngine** | LLM context window optimization (token analysis + compression) |
 | **ModelAliases** | Resolve model name variants |
-| **ResponseGenerator** | Structured AI response formatting |
 | **Playbook Engine** | Playbook execution |
 | **Compliance Engine** | Framework assessments (NIST, CIS, PCI-DSS) |
-| **CVSSScorer** | CVSS scoring with vector computation |
-| **Threat Intelligence** | AlienVaultOTX, NVDDatabase, MITREAttackDB |
-| **ToolCall Repair** | Fixing malformed tool calls |
-| **Streaming Event System** | Real-time event streaming |
+| **CVSSScorer** | CVSS 3.1 scoring with vector computation |
+| **Threat Intelligence** | AlienVaultOTX, NVDDatabase, MITREAttackDB integrations |
+| **ToolCall Repair** | Parsing plain-text tool calls from LLM output |
+| **Validator** | Plan validation and step-level recovery actions |
+| **ShellReview** | Command safety review with user confirmation |
+| **Branding** | Theme definitions, severity styles, banner printing |
+| **Personas** | Agent persona definitions for role-based behavior |
+| **SecurityHardening** | Input sanitization, shell injection prevention |
+| **SecurityCommands** | Typer security command group |
+| **Onboarding** | 11-step interactive onboarding wizard |
+| **SessionLog** | Session activity logging |
+| **SessionBranching** | Session forking and compaction management |
 
 ---
 
@@ -421,7 +429,7 @@ User Input → IntentRouter → Context Manager → Planner Router → Permissio
           ┌─────────────┼─────────────┐
           ▼             ▼             ▼
    IntentRouter    PlannerRouter   Swarm
-   (classify)      (route plan)    (multi-agent)
+   (keyword)       (route plan)    (experimental)
           │             │             │
           ▼             ▼             ▼
    ┌──────────┐  ┌────────────┐  ┌──────────┐
@@ -441,26 +449,28 @@ User Input → IntentRouter → Context Manager → Planner Router → Permissio
                         │
                         ▼
                  ┌──────────────┐
-                 │ Execution    │
-                 │ Engine       │──→ WorkerPool
+                 │   Base       │
+                 │   Executor   │──→ Validator
+                 │  (budget +   │──→ AsyncWorkerPool
+                 │   guardrails)│
                  └──────┬───────┘
                         │
           ┌─────────────┼─────────────┐
           ▼             ▼             ▼
-   KnowledgeGraph  ReportEngine   AuditLogger
-   (entities)      (MD/HTML/JSON  (tamper-evident
-                    /SARIF+CVSS)   chain)
+   KnowledgeGraph   ReportEngine   AuditLogger
+   (entities)       (MD/HTML/JSON  (tamper-evident
+                     + CVSS)        chain)
 ```
 
 ---
 
 ## Scalability & Performance
 
-- **WorkerPool**: Bounded `asyncio` pool for controlled concurrency
+- **AsyncWorkerPool**: Bounded `asyncio` pool with semaphore for controlled concurrency (backpressure via bounded queue)
 - **CacheManager**: LRU + TTL with disk persistence for repeated operations
 - **KnowledgeGraph**: In-memory entity model for real-time environment awareness
-- **MetricsCollector**: Prometheus-compatible metrics for observability
+- **MetricsCollector**: Execution metrics for observability
 - **HealthChecker**: Periodic system health verification
 - **OfflineQueue**: Request queuing for disconnected environments
-- **Compact**: LLM context window optimization to reduce token consumption
-
+- **CompactionEngine**: LLM context window optimization (token analysis, compression strategies)
+- **ToolCallTracker**: Tool failure tracking with guardrail thresholds (exact fail block, same-tool halt, no-progress block)

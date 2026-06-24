@@ -1,6 +1,6 @@
 # Execution Engine
 
-The Execution Engine is the runtime that transforms `ExecutionPlan` objects into executed commands. It builds execution plans from goals, resolves dependencies, dispatches steps in parallel via the `WorkerPool`, routes output through parsers, and handles errors with exponential backoff.
+The execution subsystem transforms `ExecutionPlan` objects into executed commands. It is built on a layered architecture with a shared **BaseExecutor** providing budget tracking, guardrails, DLP integration, and permission gating for all specialized executors.
 
 ---
 
@@ -10,25 +10,28 @@ The Execution Engine is the runtime that transforms `ExecutionPlan` objects into
 ExecutionPlan (from Planner)
          │
          ▼
-┌──────────────────────────────────────────────────┐
-│                ExecutionEngine                    │
-│                                                   │
-│  1. Validate plan structure & integrity           │
-│  2. Check PermissionGate per step (BLOCK/REVIEW/  │
-│     ALLOW)                                        │
-│  3. Resolve dependency ordering (topological)     │
-│  4. Group steps into parallel layers              │
-│  5. Dispatch via WorkerPool (bounded concurrency) │
-│  6. Route output through tool-specific parsers    │
-│  7. Extract findings → KnowledgeGraph             │
-│  8. Handle errors (retry, backoff, fail)          │
-│  9. Aggregate results → EngineResult              │
-└──────────────────────┬───────────────────────────┘
-                       │
-                       ▼
-                EngineResult
-         (steps_completed, steps_failed,
-          findings, duration, errors)
+┌───────────────────────────────────────────────────────────┐
+│                   BaseExecutor                             │
+│                                                           │
+│  Shared across all executor variants:                     │
+│  • ExecutionBudget (iterations, tool calls, duration)     │
+│  • ToolCallTracker (failure counting, guardrails)         │
+│  • PermissionGate integration (BLOCK/REVIEW/ALLOW)        │
+│  • DLP Engine redaction on tool results                   │
+│  • AsyncWorkerPool for bounded concurrency                │
+│  • EventBus integration for step lifecycle events         │
+└───────────────────────┬───────────────────────────────────┘
+                        │
+          ┌─────────────┼─────────────┐
+          ▼             ▼             ▼
+   ┌────────────┐ ┌────────────┐ ┌────────────┐
+   │ Registry   │ │Autonomous  │ │ Validator  │
+   │ Executor   │ │ Executor   │ │ (recovery) │
+   │ (ToolReg)  │ │(shell cmd) │ │            │
+   └────────────┘ └────────────┘ └────────────┘
+          │             │             │
+          ▼             ▼             ▼
+   AsyncWorkerPool  Tool Parsers  KnowledgeGraph
 ```
 
 ---
@@ -38,120 +41,173 @@ ExecutionPlan (from Planner)
 ```python
 @dataclass
 class ExecutionPlan:
-    target: str                          # Target host/network/URL
-    steps: list[ExecutionStep]           # Ordered/parallel steps
-    errors: list[str]                    # Planning errors (if any)
-    mode: ExecutionMode                  # REGISTRY | AUTONOMOUS | HYBRID | INTERACTIVE
-    metadata: dict                       # Planner metadata, confidence, etc.
+    id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    goal: str = ""
+    plan_type: PlanType               # SEQUENTIAL | PARALLEL | DAG | REACT | ADAPTIVE
+    status: PlanStatus                # DRAFT | ACTIVE | PAUSED | COMPLETED | FAILED | CANCELLED
+    steps: list[PlanStep]
+    context: dict
+    created_at: float
+    metadata: dict
+    raw_instruction: str = ""
+    source: str = ""
+    confidence: float = 1.0
 ```
 
-### ExecutionStep
+### PlanStep
 
 ```python
 @dataclass
-class ExecutionStep:
-    tool: str                            # Tool name from ToolRegistry
-    command: str                         # Full command string to execute
-    args: dict                           # Structured arguments
-    dependencies: list[int]              # Step indices that must complete first
-    output_parser: str                    # Parser class name for results
-    timeout: int                         # Per-step timeout in seconds
-    retry_count: int                     # Maximum retries on transient failure
-    allow_review: bool                   # Whether step requires REVIEW gate
+class PlanStep:
+    id: str
+    description: str
+    tool: str
+    args: dict
+    command: str | None
+    status: StepStatus                # PENDING | READY | RUNNING | COMPLETED | FAILED | SKIPPED | RETRYING | BLOCKED
+    result: dict
+    dependencies: list[str]
+    retry_count: int = 0
+    max_retries: int = 3
+    timeout: float = 300.0
+    duration_ms: float = 0.0
+    metadata: dict
 ```
+
+---
+
+## Shared Infrastructure (BaseExecutor)
+
+The `BaseExecutor` in `siyarix/executor.py` provides common functionality shared by all executor variants:
+
+### ExecutionBudget
+
+Tracks and enforces resource consumption limits:
+
+| Limit | Default | Description |
+|-------|---------|-------------|
+| `max_iterations` | 50 | Maximum planning/execution iterations |
+| `max_tool_calls` | 100 | Maximum tool invocations |
+| `max_duration_s` | 600 | Maximum wall-clock execution time |
+
+The budget is checked before every step, and exhaustion flags prevent further execution.
+
+### ToolCallTracker
+
+Records tool-call outcomes and enforces guardrail policies:
+
+| Guardrail | Threshold | Action |
+|-----------|-----------|--------|
+| Exact failure warn | 2 failures | Warning logged |
+| Exact failure block | 5 failures | Tool blocked |
+| Same-tool failure halt | 8 consecutive | Tool halted |
+| No-progress block | 5 calls with same args | Blocked |
+
+Failure state persists to `tool_failures.json` for continuity across sessions.
+
+### Permission Gate Integration
+
+Every step can be checked against the `PermissionGate` before execution. The flow is:
+
+1. Check if command is blocked → raise `PermissionDeniedError`
+2. If review required → invoke `review_and_confirm()` for user approval
+3. User can approve, modify, or cancel the command
+
+### DLP Redaction
+
+After execution, results are passed through the `DLPEngine` to redact sensitive values before they enter the KnowledgeGraph or session log.
 
 ---
 
 ## Executor Types
 
-Siyarix provides three executor implementations, selected by the `ExecutionMode`:
+Siyarix provides two main executor implementations, with mode dispatching handled by the `AgentCore`:
 
-| Executor | Mode | Behavior |
-|----------|------|----------|
-| **BaseExecutor** | INTERACTIVE | Per-step user confirmation, incremental output, interactive review |
-| **RegistryExecutor** | REGISTRY | Deterministic template execution, no AI dependency, offline-capable |
-| **AutonomousExecutor** | AUTONOMOUS | Full autonomy, Observe-Reason-Act loop, continuous until objective met |
+### RegistryExecutor (`siyarix/executor_registry.py`)
+
+Executes plan steps through the `ToolRegistry` with full guardrails and DAG support.
+
+| Feature | Description |
+|---------|-------------|
+| **Tool dispatch** | Executes via ToolRegistry capability lookup |
+| **Parallel execution** | Steps without dependencies run concurrently via AsyncWorkerPool |
+| **DAG workflows** | Delegates to WorkflowEngine for DAG-based plans |
+| **Auto-install** | Prompts user to install missing tools at runtime |
+| **Alternative fallback** | Falls back through TOOL_ALTERNATIVES on tool failure |
+| **Self-correction** | Strips unrecognized flags and retries |
+| **Custom executors** | Register per-tool handlers via `register_executor()` |
 
 ```python
-if plan.mode == ExecutionMode.REGISTRY:
-    executor = RegistryExecutor(plan, gate, worker_pool)
-elif plan.mode == ExecutionMode.AUTONOMOUS:
-    executor = AutonomousExecutor(plan, gate, worker_pool, provider_manager)
-elif plan.mode == ExecutionMode.HYBRID:
-    executor = HybridExecutor(plan, gate, worker_pool, provider_manager)
-elif plan.mode == ExecutionMode.INTERACTIVE:
-    executor = BaseExecutor(plan, gate, worker_pool, interactive=True)
-
-result = await executor.execute()
+executor = RegistryExecutor(registry=ToolRegistry(), max_workers=5)
+result = await executor.execute_plan(plan)
 ```
+
+### AutonomousExecutor (`siyarix/executor_autonomous.py`)
+
+Executes raw shell commands generated by the LLM with live streaming output.
+
+| Feature | Description |
+|---------|-------------|
+| **Shell command execution** | Executes via platform subprocess with timeout |
+| **Live streaming** | Rich live display showing real-time output per command |
+| **Command review** | Pre-execution user confirmation for all shell commands |
+| **Stealth integration** | Random delay injection when StealthEngine is active |
+| **Sudo password pre-fetch** | Caches sudo passwords before live display starts |
+| **Auto-install prompt** | Detects missing tools (exit code 126/127) and offers install |
+| **Parser integration** | Routes output through tool-specific parsers |
+| **Custom tool handlers** | Register handlers for non-command tool steps |
+
+```python
+executor = AutonomousExecutor(
+    max_workers=10,
+    command_review=True,
+    registry=tool_registry
+)
+result = await executor.execute_plan(plan, live_display=True)
+```
+
+### Mode-to-Executor Mapping
+
+The `AgentCore.execute_goal()` in `siyarix/core/__init__.py` dispatches based on mode:
+
+| Mode | Method | Executor | Description |
+|------|--------|----------|-------------|
+| **REGISTRY** | `_execute_registry()` | RegistryExecutor | Heuristic planning, tool-based execution |
+| **AUTONOMOUS** | `_execute_autonomous()` | AutonomousExecutor | LLM planning, shell command execution |
+| **HYBRID** | `_execute_hybrid()` | Autonomous → Registry fallback | Tries autonomous first, falls back to registry |
+| **INTERACTIVE** | `_execute_interactive()` | RegistryExecutor with user approval | Plan preview + user confirmation |
 
 ---
 
 ## Dependency Resolution
 
-Steps are organized into dependency layers using topological ordering:
+Steps are organized into dependency layers using the `get_ready_steps()` method on `ExecutionPlan`:
 
 ```
 Layer 0: [recon_scan, dns_enum]          # No dependencies
 Layer 1: [nuclei_scan, nikto_scan]        # Depends on recon_scan
 Layer 2: [metasploit_exploit]             # Depends on nuclei + nikto
-Layer 3: [report_generation]              # Depends on exploit results
 ```
 
-Steps within the same layer execute concurrently via `asyncio.gather()`.
+Steps within the same layer execute concurrently via `AsyncWorkerPool.submit()`.
 Cross-layer dependencies enforce sequential execution.
 
 ---
 
-## WorkerPool
+## AsyncWorkerPool
 
-Bounded async concurrency via `WorkerPool`:
+Bounded async concurrency via semaphore:
 
 ```python
-pool = WorkerPool(
-    max_workers=config.get("default_parallel", 3),
-    queue_size=config.get("queue_size", 50)
-)
-results = await pool.map(execute_step, parallel_steps)
+pool = AsyncWorkerPool(max_workers=5, max_queue=100)
+result = await pool.submit(coro_func, *args)
+await pool.close(timeout=30.0)
 ```
 
 - Configurable max concurrent workers
-- Backpressure via bounded queue
+- Backpressure via bounded queue semaphore
 - Graceful task cancellation on shutdown
-
----
-
-## Tool Execution
-
-Each tool step is executed via `safe_run_sync()`:
-
-1. **Tool resolution**: Resolve tool name → binary path via `ToolRegistry` + `dynamic_resolver`
-2. **Command formatting**: Substitute target and arguments into command template
-3. **Subprocess execution**: Run as subprocess with configurable timeout
-4. **I/O capture**: Simultaneous stdout/stderr capture
-5. **Exit code evaluation**: Determine success/failure from return code
-
-```python
-async def safe_run_sync(step: ExecutionStep) -> StepResult:
-    binary = await ToolRegistry.resolve_binary(step.tool)
-    command = format_command(binary, step.args)
-    
-    proc = await asyncio.create_subprocess_shell(
-        command,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        timeout=step.timeout
-    )
-    stdout, stderr = await proc.communicate()
-    
-    return StepResult(
-        tool=step.tool,
-        exit_code=proc.returncode,
-        stdout=stdout.decode(),
-        stderr=stderr.decode(),
-        duration=proc.duration
-    )
-```
+- Task tracking with auto-cleanup via done callbacks
 
 ---
 
@@ -160,8 +216,9 @@ async def safe_run_sync(step: ExecutionStep) -> StepResult:
 Tool output is routed through tool-specific parsers:
 
 ```python
-parser = get_parser(step.output_parser)  # e.g., NmapParser, NucleiParser
-findings = parser.parse(step_result.stdout)
+parser_registry = ParserRegistry()
+parser_registry.discover()
+parser_registry.parse(tool, output)
 ```
 
 Each parser extracts structured findings:
@@ -176,54 +233,49 @@ Findings are immediately inserted into the **KnowledgeGraph** for downstream rea
 
 ## Error Recovery
 
-The `recovery` module implements exponential backoff with jitter:
+The `Validator` class in `siyarix/validators.py` implements plan validation and step-level recovery:
+
+### RecoveryAction Enum
+
+| Action | Description |
+|--------|-------------|
+| `RETRY` | Retry with modified step (e.g., adding `-Pn` flag) |
+| `RETRY_ALTERNATIVE` | Try alternative tool (e.g., nuclei → nikto) |
+| `SKIP` | Skip step entirely |
+| `ABORT` | Abort entire plan |
+| `ESCALATE` | Escalate to user decision |
+| `DEGRADE` | Continue with degraded functionality |
+
+### Specific Recovery Patterns
+
+| Scenario | Detection | Action |
+|----------|-----------|--------|
+| Nmap filtered ports | Error contains "filtered" | Retry with `-Pn` flag |
+| Web scanner refused | Error contains "refused" | Swap tool (nikto ↔ nuclei) |
+| Directory brute 404s | Error contains "404" | Add more file extensions |
+| Generic transient | `step.can_retry` | Simple retry with increment |
+| Exhausted retries | `retry_count >= max_retries` | Skip step |
+
+### Validation Pipeline
 
 ```python
-async def execute_with_retry(step):
-    for attempt in range(step.retry_count + 1):
-        try:
-            return await execute_step(step)
-        except TransientError as e:
-            if attempt == step.retry_count:
-                raise
-            delay = min(2 ** attempt + random.uniform(0, 1), MAX_BACKOFF)
-            await asyncio.sleep(delay)
+validator = Validator()
+results = await validator.validate_plan(plan.steps)
+recovery = await validator.plan_recovery(failed_step, error)
 ```
-
-| Error Type | Behavior |
-|-----------|----------|
-| **Transient** (connection reset, timeout) | Retry with exponential backoff + jitter |
-| **Permanent** (invalid target, bad tool) | Fail immediately, log error |
-| **Permission** (gate BLOCK) | Fail immediately, log to AuditLogger |
-| **Resource** (OOM, disk full) | Pause, retry after cooldown |
 
 ---
 
 ## CommandPipeline
 
-The `CommandPipeline` enables chaining commands in a DAG:
+The `CommandPipeline` in `siyarix/core/pipeline.py` parses chained instructions:
 
-```yaml
-pipeline:
-  - id: recon
-    tool: nmap
-    target: $target
-    flags: -sV -sC
-  - id: vuln_scan
-    tool: nuclei
-    depends_on: [recon]
-    input: "{recon.output}"
-  - id: report
-    tool: report
-    depends_on: [vuln_scan]
-    format: sarif
+```
+scan 10.0.0.1 then nmap -sV 10.0.0.1
+scan 10.0.0.1 and then enumerate services
 ```
 
-Pipelines support:
-- Step chaining via `depends_on` references
-- Variable interpolation (`$target`, `{step.output}`)
-- Conditional execution based on prior step status
-- Pipeline-level timeout and error handling
+Supports pipe (`|`), "then", "and then", "followed by" separators. Each step is executed sequentially with previous output passed as context.
 
 ---
 
@@ -232,15 +284,43 @@ Pipelines support:
 ```python
 @dataclass
 class EngineResult:
-    steps_completed: int                  # Successful steps
-    steps_failed: int                     # Failed steps
-    steps_skipped: int                    # Steps skipped (dependency failure)
-    findings: list[Finding]              # Extracted findings from parsers
-    duration: float                       # Total execution time (seconds)
-    errors: list[StepError]              # Error details for failed steps
-    artifacts: dict[str, str]            # Output artifacts (file paths)
-    session_id: str                       # Associated session ID
+    success: bool = False
+    summary: str = ""
+    all_findings: list[dict] = field(default_factory=list)
+    step_results: list[Any] = field(default_factory=list)
+    raw_output: str = ""
+    duration_ms: float = 0.0
+    retries_performed: int = 0
+    plan_id: str = ""
+    error_message: str = ""
 ```
+
+---
+
+## Multi-Wave Execution
+
+The `AgentCore` supports multi-wave execution for autonomous mode:
+
+```python
+result = await agent.execute_multi_wave(goal, max_waves=5)
+```
+
+Each wave:
+1. Executes the goal with context from previous waves
+2. Collects findings
+3. Feeds findings as context for the next wave
+4. Stops when no new findings are discovered
+
+---
+
+## Budget Checking
+
+The `_check_budget()` method enforces session-level limits:
+
+| Limit | Default | Environment Variable |
+|-------|---------|---------------------|
+| Max tokens per session | 100,000 | `SIYARIX_MAX_TOKENS` |
+| Max cost per session | $2.00 | `SIYARIX_MAX_COST_USD` |
 
 ---
 
@@ -249,10 +329,13 @@ class EngineResult:
 | Component | Integration |
 |-----------|------------|
 | **PermissionGate** | Pre-execution BLOCK/REVIEW/ALLOW per step |
-| **DLP Engine** | Post-gate data leak inspection |
+| **DLP Engine** | Post-execution data leak inspection on results |
 | **KnowledgeGraph** | Findings inserted in real-time |
 | **AuditLogger** | Every execution logged with SHA-256 chain |
 | **EventBus** | Events emitted per step lifecycle |
 | **MetricsCollector** | Execution duration, success rate, error rate |
 | **CacheManager** | Cached tool outputs (LRU + TTL) |
 | **OfflineStore** | Results persisted for offline retrieval |
+| **Validator** | Plan validation and step recovery |
+| **StealthEngine** | Random delay injection for covert ops |
+| **Continuous Learning System** | Observes execution for skill learning |

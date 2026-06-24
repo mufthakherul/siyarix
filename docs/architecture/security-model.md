@@ -1,337 +1,372 @@
 # Security Model
 
-Siyarix v1.0.0 implements a defense-in-depth security model with multiple layers controlling command execution, data handling, credential storage, operational security, and audit integrity. All commands pass through a **PermissionGate** with two-stage review (BLOCK / REVIEW / ALLOW), are inspected by the **DLP Engine**, logged in a tamper-evident **AuditLogger**, and executed under **OPSECManager** controls.
+Siyarix implements a defense-in-depth security model spanning input validation, permission gating, data loss prevention, opsec enforcement, stealth operations, tool call repair, tamper-evident auditing, credential management, and sandboxed execution. Each layer is independently configurable and can be combined for graduated safety policies.
 
 ---
 
-## Security Architecture
+## Security Layers Overview
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                     Input Security                                │
-│  ┌────────────────────┐  ┌──────────────────────────────────┐   │
-│  │ Security Hardening │  │ Input Validation                 │   │
-│  │ • Shell injection  │  │ • Length limits                  │   │
-│  │ • Null bytes       │  │ • Character restrictions         │   │
-│  │ • Control chars    │  │ • Target format validation       │   │
-│  └────────────────────┘  └──────────────────────────────────┘   │
-├──────────────────────────────────────────────────────────────────┤
-│                      Permission Gate                             │
-│  ┌─────────────────────────────┐  ┌─────────────────────────┐   │
-│  │ Stage 1: Syntax Check       │  │ Stage 2: Danger Analysis │   │
-│  │ • Command structure         │  │ • 38+ danger signatures │   │
-│  │ • Argument validation       │  │ • Destructive ops       │   │
-│  │ • Shell pattern detection   │  │ • Exfiltration patterns │   │
-│  └─────────────┬───────────────┘  │ • Escalation patterns   │   │
-│                │                   │ • Fork bomb detection   │   │
-│                ▼                   └─────────────┬───────────┘   │
-│         ┌──────────────┐                        │               │
-│         │  BLOCK /     │◀───────────────────────┘               │
-│         │  REVIEW /    │                                         │
-│         │  ALLOW       │                                         │
-│         └──────┬───────┘                                         │
-├────────────────┼─────────────────────────────────────────────────┤
-│                ▼                                                  │
-│          DLP Engine                                               │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │ • Credential pattern detection (24 regex signatures)     │   │
-│  │ • API key / token / secret leak prevention               │   │
-│  │ • PII / internal hostname exposure detection             │   │
-│  │ • Request/response content scanning                     │   │
-│  └──────────────────────────────────────────────────────────┘   │
-├──────────────────────────────────────────────────────────────────┤
-│                   Data Protection                                │
-│  ┌────────────────┐  ┌────────────────┐  ┌──────────────────┐  │
-│  │ CredentialStore │  │ MaskingEngine  │  │ Secret Redactor  │  │
-│  │ AES-256-GCM    │  │ Bidirectional  │  │ 24 regex         │  │
-│  │ System keyring │  │ token masking  │  │ patterns         │  │
-│  │ Auto-clear     │  │ session-scoped │  │ output filter    │  │
-│  └────────────────┘  └────────────────┘  └──────────────────┘  │
-├──────────────────────────────────────────────────────────────────┤
-│              Audit & Operational Security                        │
-│  ┌────────────────┐  ┌────────────────┐  ┌──────────────────┐  │
-│  │ AuditLogger    │  │ StealthEngine  │  │ OPSECManager     │  │
-│  │ SHA-256 chain  │  │ TOR routing    │  │ Traffic jitter   │  │
-│  │ Tamper-evident │  │ DNS over HTTPS │  │ User-agent rot.  │  │
-│  │ SIEM forward   │  │ Session burn   │  │ Request timing   │  │
-│  └────────────────┘  └────────────────┘  └──────────────────┘  │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                      User Input                             │
+│                            │                                │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ Layer 1: Input Validation (Validators)              │   │
+│  │  • Length limits     • Null bytes                   │   │
+│  │  • Shell injection   • Target format                │   │
+│  │  • Tool presence     • Timeout checks               │   │
+│  └───────────────────────┬─────────────────────────────┘   │
+│                          │                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ Layer 2: Permission Gate                            │   │
+│  │  • Plan validation (allow/review/block)             │   │
+│  │  • 38+ danger signatures                            │   │
+│  │  • Target scope checking                            │   │
+│  └───────────────────────┬─────────────────────────────┘   │
+│                          │                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ Layer 3: DLP Engine                                 │   │
+│  │  • Data leak prevention pattern matching            │   │
+│  │  • 24+ detection signatures                         │   │
+│  │  • Automatic redaction                              │   │
+│  └───────────────────────┬─────────────────────────────┘   │
+│                          │                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ Layer 4: OPSEC Manager                             │   │
+│  │  • Operational security enforcement                 │   │
+│  │  • Source IP rotation                               │   │
+│  │  • DNS over HTTPS                                   │   │
+│  │  • User-Agent rotation                              │   │
+│  │  • Timing jitter                                    │   │
+│  └───────────────────────┬─────────────────────────────┘   │
+│                          │                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ Layer 5: Stealth Engine                             │   │
+│  │  • Stealth level tiers (0-4)                        │   │
+│  │  • Evasion techniques                               │   │
+│  │  • Safe commands                                    │   │
+│  └───────────────────────┬─────────────────────────────┘   │
+│                          │                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ Layer 6: Tool Call Repair                           │   │
+│  │  • Malformed LLM tool call correction               │   │
+│  │  • Parameter normalization                          │   │
+│  │  • Schema reconstruction                            │   │
+│  └───────────────────────┬─────────────────────────────┘   │
+│                          │                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ Layer 7: Execution (Sandboxed)                      │   │
+│  │  • Tool-level sandboxing                            │   │
+│  │  • Command isolation                                │   │
+│  │  • Timeout enforcement                              │   │
+│  │  • Resource limits                                  │   │
+│  └───────────────────────┬─────────────────────────────┘   │
+│                          │                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ Layer 8: Audit & Credential Management              │   │
+│  │  • Tamper-evident SHA-256 audit chain               │   │
+│  │  • CredentialStore with encryption                  │   │
+│  │  • Provider credentials via environment/encrypted   │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                            │                                │
+│                      Execution                              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 1. Input Security & Validation
+## Layer 1: Input Validation (Validators)
 
-### Security Hardening
+The **Validator** class in `siyarix/validators.py` provides plan-level validation before execution:
 
-Pre-processing applied to all user input before command construction:
+### Validation Checks
 
-| Check | Examples | Action |
-|-------|----------|--------|
-| Shell injection | `;`, `\|`, `` ` ``, `$()`, `&&` | Reject input |
-| Null bytes | `\0`, `\x00` | Reject input |
-| Control characters | `\x01`–`\x1f` (except `\t`, `\n`) | Reject input |
-| Path traversal | `../`, `..\\`, `~` | Reject input |
-| Length limits | Command > 4096 chars, arg > 1024 chars | Truncate or reject |
-| Target validation | IP, CIDR, hostname, URL format | Reject malformed |
+| Check | Purpose |
+|-------|---------|
+| **Length limits** | Reject steps with overly long commands (>5000 chars) |
+| **Null bytes** | Reject commands containing `\0` or `%00` |
+| **Shell injection** | Detect `;`, `|`, `$(...)`, backtick, `&&`, `||` patterns |
+| **Target format** | Validate IP ranges, domains, and URLs |
+| **Tool presence** | Ensure referenced tool exists in ToolRegistry |
+| **Timeout limits** | Reject steps with no timeout or excessive timeout |
+| **Argument safety** | Verify all required args present, no unknown args |
 
-### Tool Call Repair
+### Recovery Actions
 
-The `ToolCallRepair` system fixes malformed tool calls from AI providers before execution:
+When validation fails, the system applies a recovery action:
 
-- Fixes missing/extra quotes
-- Corrects argument names
-- Normalizes flag formats (`--flag value` vs `--flag=value`)
-- Validates tool existence in ToolRegistry
-
----
-
-## 2. Permission Gate
-
-Two-stage review producing BLOCK / REVIEW / ALLOW decisions:
-
-### Stage 1: Syntax Check
-
-Validates command structure before any execution:
-
-- Command length limits
-- Argument count limits
-- Flag format validation (known vs unknown flags)
-- Target format enforcement
-- Tool-specific argument rules
-
-### Stage 2: Danger Analysis
-
-Pattern-matches against 38+ dangerous command signatures:
-
-| Category | Patterns | Default Action |
-|----------|----------|----------------|
-| **Destructive disk ops** | `dd`, `format`, `mkfs`, `mkswap`, `parted` | BLOCK |
-| **Recursive deletion** | `rm -rf /`, `rm -rf ~`, `rm -rf .`, `rm -rf /*` | BLOCK |
-| **System modification** | `chmod 0 /`, `mknod`, `chown 0`, `mount --bind` | BLOCK |
-| **Network flooding** | `ping -f`, `hping3 --flood`, `slowloris` | REVIEW |
-| **Privilege escalation** | `sudo !!`, `su -`, `pkexec` | REVIEW |
-| **Data exfiltration** | `nc -e`, `curl --data @/etc`, `scp -r /` | REVIEW |
-| **Fork bomb** | `:(){ :\|:& };:`, `while true fork` | BLOCK |
-| **Data destruction** | `shred -z`, `wipe`, `srm`, `sfill` | REVIEW |
-| **Crypto mining** | `minerd`, `xmrig`, `cpuminer` | BLOCK |
-| **Reverse shell** | `bash -i >& /dev/tcp/`, `nc -e /bin/sh` | BLOCK |
-
-### Gate Results
-
-| Result | Behavior | Audit |
-|--------|----------|-------|
-| `ALLOW` | Command proceeds | Logged with ALLOW status |
-| `REVIEW` | User confirmation required | Logged with REVIEW status |
-| `BLOCK` | Command permanently denied | Logged with BLOCK status + reason |
-
-### Safe Mode
-
-```bash
-export SIYARIX_SAFE_MODE=1
-```
-
-In safe mode:
-- All exploitation commands are BLOCKed
-- Only RECON and SCAN operations allowed
-- Danger analysis applies stricter heuristics
-- Kill switch pre-armed (Ctrl+C x2 exits immediately)
-
----
-
-## 3. DLP Engine
-
-Data Leak Prevention inspects all data flowing to/from AI providers:
-
-| Pattern | Detection | Action |
-|---------|-----------|--------|
-| AWS access keys | `AKIA[0-9A-Z]{16}` | Redact + log |
-| SSH private keys | `-----BEGIN (RSA|EC|OPENSSH) PRIVATE KEY-----` | Redact + log |
-| JWT tokens | `eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+` | Redact + log |
-| API keys | `sk-[a-zA-Z0-9]{20,}` | Redact + log |
-| Database URLs | `(postgres|mysql|mongodb)://[^@]+@` | Redact + log |
-| OAuth tokens | `ya29\.[A-Za-z0-9_-]+`, `ghp_[A-Za-z0-9]{36}` | Redact + log |
-| Internal hostnames | Resolved from `*.internal`, `*.local`, `10.x.x.x` | Mask + log |
-
-The DLP Engine operates at two points:
-1. **Before provider call**: Scans outgoing data, redacts secrets (permanent), masks IPs/hostnames (reversible)
-2. **After provider response**: Scans incoming data for any leaked sensitive content
-
----
-
-## 4. Data Protection
-
-### CredentialStore
-
-Encrypted vault for API keys, tokens, and secrets:
+| Action | Behavior |
+|--------|----------|
+| `RETRY` | Re-execute same step (for transient failures) |
+| `RETRY_ALTERNATIVE` | Execute alternative tool/approach |
+| `RETRY_MODIFIED` | Fix and re-execute with corrected params |
+| `SKIP` | Skip this step, continue with next |
+| `ABORT` | Abort entire plan |
+| `ESCALATE` | Escalate to user/admin |
+| `DEGRADE` | Continue with reduced functionality |
+| `WAIT` | Wait and retry after delay |
 
 ```python
-store = CredentialStore(
-    encryption="aes-256-gcm",   # Primary cipher
-    key_storage="system",       # System keychain via `keyring`
-    auto_clear=True             # Clear on session end
-)
-
-await store.set("openai_api_key", "sk-...")
-key = await store.get("openai_api_key")  # Decrypted at runtime only
+validator = Validator(timeout=TIMEOUT)
+# Validate entire plan
+validations = validator.validate_plan(plan)
+# Generate recovery actions
+recoveries = [validator.plan_recovery(v) for v in validations if not v.is_valid]
 ```
-
-| Feature | Detail |
-|---------|--------|
-| **Encryption** | AES-256-GCM (primary), Fernet (fallback) |
-| **Key storage** | System keychain via `keyring` library |
-| **Key rotation** | Re-encrypt all credentials with new master key |
-| **Auto-clear** | Keys cleared from memory at session end |
-| **Runtime only** | Keys decrypted for single request, never persisted |
-
-### MaskingEngine
-
-Bidirectional token masking for sensitive data sent to providers:
-
-| Data Type | Masked Form | Reversible |
-|-----------|-------------|------------|
-| IP addresses | `10.x.x.x` | Yes (session-scoped) |
-| Internal hostnames | `example.com` | Yes (session-scoped) |
-| Credentials | `[REDACTED]` | No (permanent) |
-| API keys | `[REDACTED]` | No (permanent) |
-| JWTs | `[REDACTED]` | No (permanent) |
-| Database URLs | `[REDACTED]` | No (permanent) |
-
-### SecretRedactor
-
-24 regex patterns for automatic secret detection in tool output:
-
-- AWS keys (`AKIA...`, `ASIA...`)
-- SSH private keys (RSA, EC, Ed25519, DSA)
-- JWT tokens
-- Generic API keys (`sk-...`, `pk-...`)
-- OAuth tokens (Google, GitHub, Azure)
-- Database connection strings
-- Slack webhooks, Stripe keys, Twilio tokens
 
 ---
 
-## 5. AuditLogger
+## Layer 2: Permission Gate
 
-Tamper-evident audit log with SHA-256 hash chain:
+The permission gate in `siyarix/permission_gate.py` evaluates planned steps against safety policies:
 
-```python
-logger = AuditLogger()
+### Gate Levels
 
-await logger.log(
-    event_type="command.execution",
-    data={
-        "command": "nmap -sV 10.0.0.1",
-        "exit_code": 0,
-        "user": "operator-1",
-        "session_id": "sess-123"
-    }
-)
-```
+| Level | Behavior | Use Case |
+|-------|----------|----------|
+| `ALLOW` | Proceeds without user input | Safe, read-only operations |
+| `REVIEW` | Requires explicit user confirmation | Destructive or sensitive actions |
+| `BLOCK` | Permanently denied and logged | Dangerous or out-of-scope actions |
 
-### Chain Structure
+### Danger Signatures
 
-```
-Entry 1: {event, timestamp, hash_prev="0000...", hash_self="a1b2..."}
-Entry 2: {event, timestamp, hash_prev="a1b2...", hash_self="c3d4..."}
-Entry 3: {event, timestamp, hash_prev="c3d4...", hash_self="e5f6..."}
-```
+The gate maintains 38+ signatures for pattern detection:
 
-- Each entry contains SHA-256 of the previous entry
-- Tampering with any entry breaks the chain for all subsequent entries
-- Chain integrity can be verified at any time
-
-### SIEM Forwarding
-
-| Destination | Format | Protocol |
-|-------------|--------|----------|
-| Splunk | JSON | HTTP Event Collector |
-| ELK Stack | JSON | Logstash TCP input |
-| Azure Sentinel | CEF | Syslog TCP |
-| Standard | JSONL | File output |
+| Category | Examples |
+|----------|---------|
+| **Destructive** | `rm -rf`, `dd`, `format`, `mkfs`, disk wipe |
+| **Recon (internal)** | `arp -a`, local credential dumping, network config |
+| **Exfiltration** | External data transfer, DNS tunneling |
+| **Privilege escalation** | `sudo`, `su`, `chmod 777`, `setuid` |
+| **Persistence** | Cron jobs, startup scripts, services |
+| **Obfuscation** | Encoded commands, reverse shells, tunneling |
 
 ---
 
-## 6. StealthEngine
+## Layer 3: DLP Engine
 
-Covert operations capability:
+The DLP (Data Leak Prevention) engine in `siyarix/dlp.py` prevents sensitive data from being sent to AI providers:
 
-```python
-stealth = StealthEngine()
-await stealth.enable_tor()        # Route traffic through TOR
-await stealth.enable_doh()        # DNS over HTTPS (prevent DNS leakage)
-await stealth.set_jitter(500)     # Random delay between requests (ms)
-await stealth.rotate_ua()         # Rotate User-Agent per request
+### Detection Signatures
+
+24+ signatures for common sensitive data patterns:
+
+| Pattern | Example Matches |
+|---------|----------------|
+| **API Keys** | `sk-...`, `pk-...`, `ghp_...`, `AKIA...` |
+| **Passwords** | `password=...`, `passwd: ...`, `P@ssw0rd` |
+| **Tokens** | `Bearer ...`, `JWT ...`, `xoxb-...`, `xoxp-...` |
+| **SSH Keys** | `-----BEGIN RSA PRIVATE KEY-----` |
+| **Certificates** | `-----BEGIN CERTIFICATE-----` |
+| **Connection strings** | `Server=...;Database=...;Uid=...` |
+| **Cloud credentials** | AWS, Azure, GCP key formats |
+| **PII** | Email, SSN, phone, credit card |
+| **Internal IPs** | RFC1918 addresses (10.x, 172.16-31.x, 192.168.x) |
+
+### DLP Actions
+
+| Action | Behavior |
+|--------|----------|
+| `REDACT` | Replace matching pattern with `[REDACTED]` |
+| `WARN` | Log warning but allow through |
+| `BLOCK` | Block content from being sent to provider |
+| `ESCALATE` | Notify security admin |
+
+### Configuration
+
+```toml
+[dlp]
+enabled = true
+mode = "redact"           # redact | warn | block | escalate
+sensitivity = "high"      # low | medium | high
+custom_patterns = [
+    "CUSTOM-TOKEN-\\w{16}",
+]
 ```
+
+---
+
+## Layer 4: OPSEC Manager
+
+The **OPSECManager** in `siyarix/opsec.py` enforces operational security during execution:
+
+### Features
 
 | Feature | Description |
 |---------|-------------|
-| **TOR routing** | Route all HTTP traffic through TOR SOCKS proxy |
-| **DNS over HTTPS** | Prevent DNS leakage via encrypted DNS |
-| **Traffic jitter** | Random delay between outgoing requests |
-| **User-Agent rotation** | Cycle through browser/OS user-agent strings |
-| **Session burning** | Secure cleanup of session artifacts on exit |
-
----
-
-## 7. OPSECManager
-
-Operational security controls:
+| **Source IP rotation** | Cycles through configured source IPs/proxies |
+| **DNS over HTTPS** | Resolves DNS via DoH to avoid DNS monitoring |
+| **User-Agent rotation** | Randomizes User-Agent headers per request |
+| **Timing jitter** | Adds random delays (configurable jitter) between operations |
+| **Proxy rotation** | Cycles through proxy list |
 
 ```python
-opsec = OPSECManager()
-await opsec.apply_policy("stealth")   # Maximum covertness
-await opsec.apply_policy("standard")  # Normal operations
-await opsec.apply_policy("audit")     # Enhanced logging
+opsec = OPSECManager(
+    proxy_list=["socks5://127.0.0.1:9050", "http://proxy2:8080"],
+    user_agents=["Mozilla/5.0 ...", "curl/8.0 ..."],
+    jitter_range=(1.0, 5.0),
+    enable_doh=True,
+    rotate_interval=60,
+)
 ```
 
-| Policy | TOR | DoH | Jitter | Rotation | Logging |
-|--------|-----|-----|--------|----------|---------|
-| `standard` | Off | Off | None | Off | Normal |
-| `stealth` | On | On | 500ms | On | Minimal |
-| `audit` | Off | Off | None | Off | Maximum |
+### OPSEC Levels
+
+| Level | Proxy | DoH | Jitter | UA Rotation |
+|-------|-------|-----|--------|-------------|
+| `OFF` | No | No | 0s | No |
+| `LOW` | No | Yes | 0.5–2s | Per session |
+| `MEDIUM` | Optional | Yes | 1–5s | Per request |
+| `HIGH` | Required | Yes | 2–10s | Per request |
 
 ---
 
-## Component Relationships
+## Layer 5: Stealth Engine
 
-```
-User Input
-    │
-    ▼
-SecurityHardening ──→ Input Validation ──→ ToolCallRepair
-    │
-    ▼
-PermissionGate
-    │
-    ├── Stage 1: Syntax Check
-    │       │
-    │       └── Pass → Stage 2
-    │       └── Fail → BLOCK
-    │
-    ├── Stage 2: Danger Analysis
-    │       │
-    │       └── Safe → ALLOW
-    │       └── Flagged → REVIEW (user confirmation)
-    │       └── Dangerous → BLOCK
-    │
-    ▼
-DLP Engine
-    │
-    ├── Check outgoing data → MaskingEngine
-    │       └── Secrets → [REDACTED] (permanent)
-    │       └── IPs/Hosts → mask (reversible)
-    │
-    └── Check incoming data → SecretRedactor
-            └── Leaked secrets → log + alert
-    │
-    ▼
-CredentialStore ──→ AES-256-GCM decrypt
-    │
-    ▼
-StealthEngine ──→ OPSECManager
-    │
-    ▼
-Execution ──→ AuditLogger (tamper-evident chain)
+The **StealthEngine** in `siyarix/stealth.py` provides evasion controls for operations requiring minimal detection:
+
+### Stealth Tiers
+
+| Tier | Name | Behavior |
+|------|------|----------|
+| `0` | **None** | No evasion; standard execution |
+| `1` | **Light** | Rate limiting, polite scanning |
+| `2` | **Medium** | Decoy traffic, randomized delays, User-Agent rotation |
+| `3` | **High** | Proxy chaining, traffic obfuscation, timing normalization |
+| `4` | **Paranoid** | Full evasion: Tor, MAC rotation, DNS tunneling, C2 mimicry |
+
+### Safe Commands
+
+The Stealth Engine maintains a list of commands that are considered "safe" at each tier level. Commands exceeding the tier's safe threshold trigger warnings or blocks.
+
+---
+
+## Layer 6: Tool Call Repair
+
+The **ToolCallRepair** in `siyarix/tool_call_repair.py` handles malformed LLM-generated tool calls:
+
+### Repair Strategies
+
+| Issue | Strategy |
+|-------|----------|
+| Missing required parameters | Inject defaults from tool schema |
+| Wrong parameter types | Type coercion (str→int, list→str) |
+| Unknown tool names | Levenshtein closest match to known tools |
+| Extra unknown parameters | Strip unrecognized fields |
+| Invalid enum values | Closest valid match |
+| Nested structure errors | Schema-based reconstruction |
+| Naming variations | Normalize to canonical parameter names (e.g., `target`=canonical for host/ip/domain/url) |
+
+### Integration
+
+ToolCallRepair intercepts between the LLM output parser and the execution engine, ensuring that only syntactically valid tool calls reach the executor.
+
+---
+
+## Layer 7: Execution Sandboxing
+
+### Tool-Level Sandboxing
+
+Each tool execution is sandboxed through:
+
+| Mechanism | Implementation |
+|-----------|----------------|
+| **Command isolation** | Tools invoked in subprocess with controlled environment |
+| **Timeout enforcement** | Configurable per tool and per step |
+| **Resource limits** | Memory limits, output size limits |
+| **Working directory** | Sandboxed temp directory per execution |
+| **Network restrictions** | Scope-based network access control |
+
+### Scope Enforcement
+
+The PermissionGate and TargetScope work together to enforce operational boundaries:
+
+- Target must match approved scope patterns
+- Out-of-scope targets are blocked
+- Scope widening requires explicit user approval
+
+---
+
+## Layer 8: Audit & Credential Management
+
+### Tamper-Evident Audit Log
+
+The `AuditLogger` in `siyarix/audit.py` maintains a tamper-evident chain:
+
+```python
+# Chain entry
+entry = {
+    "timestamp": "...",
+    "session_id": "...",
+    "user": "...",
+    "action": "...",
+    "target": "...",
+    "status": "completed",
+    "hash": "sha256_of_previous_entry_hash + content",
+    "previous_hash": "...",
+}
 ```
 
+Each entry's hash includes the previous entry's hash, creating an immutable chain. Tampering with any entry breaks all subsequent hashes.
+
+### CredentialStore
+
+The `CredentialStore` in `siyarix/credential_store.py` manages credentials:
+
+| Feature | Implementation |
+|---------|----------------|
+| **Storage** | Encrypted JSON file with Fernet symmetric encryption |
+| **Key management** | Derived from user-provided master password via PBKDF2 |
+| **Provider credentials** | Stored per provider profile, loaded on demand |
+| **Scope** | Used for target authentication, not for API keys |
+
+### Provider Credentials
+
+Provider API keys are loaded from (in priority order):
+
+1. Environment variables (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.)
+2. Encrypted credential store
+3. Configuration file (not recommended for production)
+
+---
+
+## Security Commands
+
+Siyarix exposes a security command group in `siyarix/security_commands.py`:
+
+```bash
+siyarix security audit-log          # View audit trail
+siyarix security verify-chain       # Verify audit chain integrity
+siyarix security credential-store   # Manage credential store
+siyarix security permissions        # Manage permission policies
+siyarix security scope              # Manage operational scope
+siyarix security session-list       # List active sessions
+```
+
+---
+
+## Threat Model
+
+| Threat | Mitigation Layer | Severity |
+|--------|-----------------|----------|
+| Prompt injection via user input | Validators (shell injection, length) | High |
+| AI suggests destructive command | Permission Gate (38+ danger sigs) | High |
+| Sensitive data sent to AI API | DLP Engine (24+ data patterns) | Critical |
+| Operator OPSEC exposure | OPSEC Manager (proxy, DoH, jitter) | Medium |
+| Detection by defensive systems | Stealth Engine (tiers, evasion) | Medium |
+| Malformed LLM tool calls | ToolCallRepair (schema repair) | Medium |
+| Audit log tampering | SHA-256 chain | Critical |
+| Credential exfiltration | Encrypted store, no plaintext | High |
+| Tool misuse / hallucination | Validator + ToolRegistry validation | Medium |
+| Unauthorized scope access | Permission Gate + TargetScope | High |
+
+---
+
+## Safety Policy References
+
+Safety levels are set via the `SIYARIX_SAFE_MODE` environment variable:
+
+| Value | Permission Gate | DLP | OPSEC | Stealth |
+|-------|----------------|-----|-------|---------|
+| `strict` (default) | ALLOW/REVIEW/BLOCK | REDACT | MEDIUM | 1 |
+| `permissive` | ALLOW/REVIEW | WARN | OFF | 0 |

@@ -1,6 +1,6 @@
 # Intent Routing
 
-The `IntentRouter` is a 4-stage semantic routing pipeline that classifies user input, determines risk level, selects the appropriate execution mode, and extracts structured parameters. It works in conjunction with the **NLP Engine** for zero-dependency semantic parsing and the **PlannerRegistry** for intent-to-template mapping.
+The intent routing subsystem classifies user input, determines risk level, and selects the appropriate execution path. It works in conjunction with the **NLP Engine** for zero-dependency semantic parsing and the **Planner Router** for intent-to-plan mapping.
 
 ---
 
@@ -13,198 +13,188 @@ User Input
 ┌────────────────────────────────────────────┐
 │              IntentRouter                   │
 │                                            │
-│  Stage 1: Exact Pattern Match  ──→ Route   │
-│  Stage 2: Heuristic           ──→ Route   │
-│  Stage 3: Keyword Similarity  ──→ Route   │
-│  Stage 4: LLM Fallback        ──→ Route   │
+│  Keyword-based routing via compat.py:      │
+│  • scan / nmap / port scan → "scan"         │
+│  • recon / enumerate / discover → "recon"   │
+│  • web / http / nikto / nuclei → "web"     │
+│  • brute / crack / password → "brute"      │
+│  • exploit / metasploit / attack → "exploit"│
+│  • default → "general"                     │
 │             │                              │
 │             ▼                              │
 │       IntentRoute                          │
-│  (mode, category, confidence, risk_tier,   │
-│   requires_confirmation, routing_stage,    │
-│   metadata)                                │
+│  (mode, risk_tier,                         │
+│   requires_confirmation)                   │
 └────────────────────────────────────────────┘
     │
-    ├──→ Mode Dispatcher (selects REGISTRY / AUTONOMOUS / HYBRID / INTERACTIVE)
+    ├──→ Planner Router (selects REGISTRY / AUTONOMOUS / HYBRID)
     ├──→ NLP Engine (semantic parsing, entity extraction)
-    └──→ PlannerRegistry (intent → plan template)
+    └──→ RegistryPlanner (intent → plan template)
 ```
 
 ---
 
-## Routing Stages
+## IntentRouter (compat.py)
 
-### Stage 1: Exact Pattern Match (~0ms)
-
-Predefined regex patterns matched against the beginning of user input:
-
-| Pattern | Category | Intent | Example |
-|---------|----------|--------|---------|
-| `^scan\s+(.+)$` | SCAN | `scan_target` | `scan 10.0.0.0/24` |
-| `^recon\s+(.+)$` | RECON | `reconnaissance` | `recon example.com` |
-| `^exploit\s+(.+)$` | EXPLOIT | `exploit_target` | `exploit 10.0.0.1` |
-| `^analyze\s+(.+)$` | ANALYZE | `analyze_findings` | `analyze results` |
-| `^report\s*(.*)$` | REPORT | `generate_report` | `report --format html` |
-| `^dashboard\s*(.*)$` | MONITOR | `dashboard_view` | `dashboard` |
-| `^wizard\s*(.*)$` | CONFIG | `onboarding_wizard` | `wizard` |
-| `^agent\s+(.+)$` | AGENT | `autonomous_agent` | `agent "enumerate network"` |
-| `^workflow\s+(.+)$` | WORKFLOW | `workflow_execute` | `workflow run pipeline.yaml` |
-| `^chat\s*(.*)$` | CHAT | `conversational` | `chat` |
-
-Confidence: `1.0` — immediate route without further stages.
-
-### Stage 2: Heuristic Interpretation (~1ms)
-
-The `RuleInterpreter` applies 60+ intent patterns across 6 shell/command types to match natural language input against known command categories:
-
-- Pattern matching against common security operations phrasing
-- Shell type detection (cmd, powershell, sh, bash, zsh, fish)
-- Extraction of implicit targets, ports, and flags
-- Context-aware disambiguation based on session state
-
-Confidence: `0.7–0.95` depending on pattern specificity.
-
-### Stage 3: Keyword Similarity (~5ms)
-
-Semantic keyword matching with scoring:
-
-1. Tokenize input into significant keywords
-2. Score against known intent category keyword vectors
-3. Apply TF-IDF-like weighting for rare vs common terms
-4. Return highest-scoring intent above `SIMILARITY_THRESHOLD`
+The simplified `IntentRouter` in `siyarix/compat.py` provides keyword-based routing:
 
 ```python
-@dataclass
-class KeywordMatch:
-    intent: str
-    confidence: float          # 0.0–1.0
-    matched_keywords: list[str]
-    extracted_targets: list[str]
+router = IntentRouter()
+route = router.route("scan 10.0.0.1 for open ports")
+# IntentRoute(mode="scan", risk_tier=RiskTier("medium"), requires_confirmation=False)
 ```
 
-Confidence: `0.5–0.85` depending on term overlap.
+### Routing Rules
 
-### Stage 4: LLM Fallback (~500ms)
+| Keywords | Mode | Risk Tier | Requires Confirmation |
+|----------|------|-----------|----------------------|
+| scan, nmap, port scan | scan | medium | No |
+| recon, enumerate, discover | recon | low | No |
+| web, http, nikto, nuclei | web | medium | No |
+| brute, crack, password | brute | high | Yes |
+| exploit, metasploit, attack | exploit | high | Yes |
+| (default) | general | low | No |
 
-When stages 1–3 fail to produce a confident match (below `CONFIDENCE_THRESHOLD=0.5`), the configured AI provider classifies the instruction semantically:
-
-1. Send input + available intent categories to LLM
-2. LLM returns structured classification (intent, parameters, confidence)
-3. Validate response structure via `ToolCallRepair` if malformed
-
-Confidence: `0.3–0.95` depending on LLM performance.
-
----
-
-## IntentRoute Output
+### RouteResult
 
 ```python
 @dataclass
 class IntentRoute:
-    instruction: str                    # Original user input
-    mode: str                           # REGISTRY | AUTONOMOUS | HYBRID | INTERACTIVE
-    category: TaskCategory              # SCAN | RECON | EXPLOIT | REPORT | etc.
-    confidence: float                   # 0.0–1.0
-    risk_tier: RiskTier                 # LOW | MEDIUM | HIGH | CRITICAL
-    requires_confirmation: bool         # Whether user must confirm
-    routing_stage: int                  # 1 | 2 | 3 | 4
-    metadata: dict                      # Extracted targets, tools, flags, params
+    mode: str                         # scan | recon | web | brute | exploit | general
+    risk_tier: RiskTier               # low | medium | high
+    requires_confirmation: bool
 ```
 
 ---
 
 ## NLP Engine
 
-The **NLP Engine** provides zero-dependency semantic parsing for intent extraction:
+The `NaturalLanguageParser` in `siyarix/nlp_engine.py` provides zero-dependency semantic parsing:
 
 ```python
-nlp = NPLEngine()
-parse_result = nlp.parse("scan 10.0.0.1 for open ports and run vulnerability scan")
-# ParseResult(
-#     entities=["10.0.0.1"],
-#     actions=["scan", "vulnerability_scan"],
-#     targets=["10.0.0.1"],
-#     modifiers={"port_scan": True, "vuln_scan": True}
+nlp = NaturalLanguageParser()
+parsed = nlp.parse("scan 10.0.0.1 for open ports and run vulnerability scan")
+# ParsedIntent(
+#     target="10.0.0.1",
+#     target_type="ipv4",
+#     tool_name=None,
+#     template_name=None,
+#     parameters={"ports": "open", "severity": "high,critical"},
+#     confidence=score,
+#     tokens=[...],
+#     raw_text="..."
 # )
 ```
 
-- **Zero-dependency**: No external ML libraries required
-- **Grammar-based**: Pattern grammar for security operations language
-- **Entity extraction**: IP addresses, domains, URLs, CIDR ranges, ports
-- **Intent disambiguation**: Resolves ambiguous phrasing using context
-- **Slash command parsing**: Handles `/` prefixed internal commands
+### Features
 
----
+- **Zero-dependency**: Pure stdlib — no ML libraries required
+- **Entity extraction**: IP addresses, domains, URLs, CIDR ranges, ports, emails, MACs, hashes, ASNs, Windows/Linux paths
+- **Parameter extraction**: Port numbers, speed (fast/stealth/aggressive), severities, timeouts, formats, protocols, wordlists, threads, credentials
+- **BM25 scoring**: Okapi BM25 similarity for intent matching against tool and template corpora
+- **Fuzzy matching**: Jaccard N-gram similarity with phonetic normalization for typos
+- **Synonym mapping**: 380+ cybersecurity-specific synonym/canonical mappings (CVE, subdomain, exploit, AD, cloud, etc.)
+- **Multi-intent parsing**: Splits conjunctions ("then", "and then", "followed by") into multiple intents
 
-## PlannerRegistry
+### Entity Extraction Patterns
 
-Maps classified intents to plan templates:
+| Type | Example | Pattern |
+|------|---------|---------|
+| CVE | `CVE-2024-1234` | Regex |
+| IPv4 | `10.0.0.1` | Full octet validation |
+| IPv6 | `fe80::1` | Full hex validation |
+| CIDR | `10.0.0.0/24` | IPv4/IPv6 with prefix |
+| Domain | `example.com` | Multi-label hostname |
+| URL | `https://example.com` | HTTP/HTTPS |
+| Email | `user@example.com` | RFC 5321 simplified |
+| MAC | `00:1A:2B:3C:4D:5E` | Hex with colon/hyphen |
+| SHA256 | 64 hex chars | Hash pattern |
+| ASN | `AS12345` | ASN notation |
+
+### Corpus Training
+
+The parser can be trained with tool descriptions and template names to improve scoring:
 
 ```python
-@dataclass
-class PlanTemplate:
-    intent: str
-    tool_chain: list[str]               # Ordered tool list
-    default_args: dict                  # Default tool arguments
-    risk_tier: RiskTier                 # Associated risk
-    requires_confirmation: bool
-
-# Registry entries
-registry = PlannerRegistry()
-registry.register(PlanTemplate(
-    intent="scan_target",
-    tool_chain=["nmap", "nuclei", "nikto"],
-    risk_tier=RiskTier.MEDIUM,
-    requires_confirmation=True
-))
+nlp.train_tools(tool_metadata)       # Feed tool names + descriptions
+nlp.train_templates(template_data)   # Feed template names + descriptions
 ```
-
-| Intent | Default Tool Chain | Risk Tier |
-|--------|-------------------|-----------|
-| `scan_target` | nmap → nuclei → nikto | MEDIUM |
-| `reconnaissance` | subfinder → httpx → gowitness | LOW |
-| `exploit_target` | searchsploit → metasploit | HIGH |
-| `generate_report` | Aggregate findings → report engine | LOW |
-| `enumerate_services` | nmap → enum4linux → smbclient | MEDIUM |
-| `analyze_findings` | Aggregate → analyze | LOW |
 
 ---
 
-## Risk Tiers & Confirmation
+## Planner Router
 
-| Tier | Category Examples | Requires Confirmation | Confidence Requirement |
-|------|-------------------|----------------------|----------------------|
-| `LOW` | CONFIG, REPORT, MONITOR, CHAT | No | ≥ 0.3 |
-| `MEDIUM` | SCAN, RECON, ENUMERATE | Yes | ≥ 0.5 |
-| `HIGH` | EXPLOIT, BRUTE-FORCE | Yes (explicit) | ≥ 0.7 |
-| `CRITICAL` | DESTRUCTIVE, DATA_EXFIL | Always blocked | N/A |
+The `Planner` class in `siyarix/planner.py` dispatches to the appropriate planner:
+
+| Mode | Planner | Behavior |
+|------|---------|----------|
+| `registry` / `offline` | RegistryPlanner | Heuristic-only, no AI |
+| `autonomous` | AutonomousPlanner | LLM-only, no fallback |
+| `integrated` (default) | Tries Autonomous → falls back to Registry | AI-first with heuristic fallback |
+
+```python
+planner = Planner()
+plan = await planner.plan(
+    goal="scan 10.0.0.1 for open ports",
+    mode="integrated",           # autonomous | registry | offline | integrated
+    provider="openai",           # Provider name (or "registry" to skip LLM)
+    available_tools=["nmap", "nuclei", ...],
+    llm_call=async_llm_function,
+    tool_schemas=tool_schemas,
+)
+```
 
 ---
 
-## Mode Selection
+## RegistryPlanner
 
-Based on the IntentRoute, the system selects an execution mode:
+The `RegistryPlanner` in `siyarix/planner_registry.py` provides heuristic planning without any AI dependency:
 
+### Tool Alternatives
+
+```python
+TOOL_ALTERNATIVES = {
+    "nmap": ["masscan", "rustscan", "naabu"],
+    "gobuster": ["ffuf", "dirb", "dirsearch"],
+    "nuclei": ["nikto", "wapiti", "skipfish"],
+    "hydra": ["medusa", "ncrack", "patator"],
+    "subfinder": ["amass", "sublist3r", "assetfinder"],
+    # ... 15+ alternative chains
+}
 ```
-┌───────────────────────────────────────────────────────────┐
-│ IntentRoute                                          │
-│   mode = "autonomous" (from LLM suggestion)           │
-│   category = "scan_target"                            │
-│   risk_tier = MEDIUM                                  │
-│   routing_stage = 2                                   │
-└───────────────────────┬───────────────────────────────┘
-                        ▼
-┌───────────────────────────────────────────────────────────┐
-│ ModeDispatcher                                            │
-│                                                           │
-│   route["mode"] == "autonomous"  →  AutonomousAgent       │
-│   route["mode"] == "registry"    →  DirectCommand         │
-│   route["mode"] == "hybrid"      →  HybridAgent           │
-│   route["mode"] == "interactive" →  InteractiveShell      │
-│   route["mode"] == "chat"        →  AIConversational      │
-│   route["category"] == "workflow" → WorkflowAutomation    │
-└───────────────────────────────────────────────────────────┘
-```
+
+### Multi-Word Intent Matching
+
+500+ multi-word patterns map natural language to specific tools and commands, covering:
+
+- **Reconnaissance**: subdomain enumeration, port scanning, technology fingerprinting
+- **Vulnerability scanning**: nuclei, nikto, sqlmap
+- **Web auditing**: CORS check, headers, SSL/TLS
+- **Active Directory**: kerberoasting, AS-REP roasting, LDAP enumeration, SMB analysis
+- **Exploitation**: metasploit, hydra, reverse shells
+- **Blue Team / Defensive**: event log analysis, forensic triage, endpoint detection, SIEM queries
+- **Memory forensics**: volatility-based patterns for process hollowing, Cobalt Strike, ransomware
+- **Network forensics**: PCAP analysis, DNS tunneling, traffic analysis
+- **Compliance scanning**: CIS benchmarks, SOC 2, PCI DSS, HIPAA, NIST 800-53
+- **Cloud security**: AWS/Prowler audits, container security
+- **System utilities**: disk usage, memory, processes, uptime
+
+### Template-Based Workflow Generation
+
+Pre-built templates for common security operations:
+
+| Template | Tool Chain | Steps |
+|----------|-----------|-------|
+| `recon_full` | nmap → whatweb → gobuster → subfinder → amass → nuclei | 6 |
+| `web_audit` | curl → whatweb → nuclei → ffuf → wpscan → nikto | 6 |
+| `network_scan` | nmap → dig → whois → masscan | 4 |
+| `vuln_scan` | nuclei → nikto → wpscan → sqlmap | 4 |
+| `dns_recon` | dig → subfinder → amass → whois | 4 |
+| `cloud_audit` | curl → whatweb → dig → openssl | 4 |
+| `ad_assessment` | nmap × 4 (ports, SMB, LDAP, Kerberos) | 4 |
+| `brute_force` | nmap → hydra → hashcat | 3 |
+| `linux_privesc` | uname → find (SUID) → find (writable) → cat (crontab) | 4 |
+| `ssl_audit` | openssl → nmap (ssl-enum-ciphers) → nmap (ssl-cert) | 3 |
 
 ---
 
@@ -213,9 +203,9 @@ Based on the IntentRoute, the system selects an execution mode:
 | Component | Role |
 |-----------|------|
 | **AgentCore** | Receives IntentRoute, dispatches to correct mode |
-| **NLP Engine** | Provides semantic parsing for stage 3 |
-| **PlannerRegistry** | Maps intent to plan template for REGISTRY mode |
-| **ModeDispatcher** | Selects interaction mode from route |
+| **NLP Engine** | Provides semantic parsing for intent matching |
+| **RegistryPlanner** | Maps intent to plan template for REGISTRY/OFFLINE mode |
+| **Planner Router** | Selects between heuristic and LLM-based planning |
 | **Context Manager** | Receives route metadata for context building |
 | **PermissionGate** | Evaluates route risk tier for gating decisions |
-| **EventBus** | Emits `intent.routed` event with full IntentRoute |
+| **EventBus** | Emits `intent.routed` event with route information |

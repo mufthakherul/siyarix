@@ -1,364 +1,328 @@
 # Interaction Modes
 
-Siyarix v1.0.0 supports multiple interaction modes selected automatically by the **ModeDispatcher** based on the `LaunchContext`. Each mode provides a different level of autonomy, interactivity, and output formatting. The **OutputEngine** supports 8 output formats with 12 built-in themes, the **Branding** system applies consistent visual identity, and **Webhooks** enable external integration.
+Siyarix supports four interaction modes — **REGISTRY**, **AUTONOMOUS**, **HYBRID**, and **INTERACTIVE** — across two primary interfaces: the **CLI** (command-line interface with subcommands) and the **REPL** (interactive conversational shell). Mode selection happens at invocation time and can be overridden via the `REPL` prompt with natural language commands.
 
 ---
 
-## Mode Dispatcher
+## Mode Selection
 
-The `ModeDispatcher` evaluates a `LaunchContext` to select the appropriate mode:
+### CLI Mode
 
-| Context Trigger | Mode | Description |
-|----------------|------|-------------|
-| No arguments, TTY available | `InteractiveShell` | CLI REPL with chat |
-| No arguments, piped stdin | `AIConversational` | Non-interactive chat from pipe |
-| Command + arguments | `DirectCommand` | One-shot NL execution |
-| `--goal` flag | `AutonomousAgent` | Goal-driven autonomous loop |
-| `--workflow` flag | `WorkflowAutomation` | DAG pipeline execution |
-| `--mode autonomous` | `AutonomousAgent` | Force autonomous mode |
-| `--mode registry` | `RegistryMode` | Force deterministic mode |
-| `--mode hybrid` | `HybridMode` | Force AI + confirmation mode |
-| `--mode interactive` | `InteractiveShell` | Force interactive mode |
-| `--wizard` flag | `GuidedWizard` | 12-step onboarding wizard |
-| `--dashboard` flag | `TUIDashboard` | Real-time TUI dashboard |
-| `--team` flag | `TeamCollaboration` | Multi-user shared session |
-| `--batch` flag | `HeadlessAPI` | Batch/non-interactive execution |
+When invoked from the command line, mode is selected by the `main_callback()` in `cli/main.py`:
 
-### Selection Priority
+```bash
+# Registry mode (default): execute a single command from template registry
+siyarix scan 10.0.0.1
+siyarix recon example.com
+
+# Autonomous mode: goal-driven autonomous operation
+siyarix --mode autonomous "Enumerate all services on 10.0.0.0/24"
+
+# Interactive (REPL) mode: conversational shell
+siyarix --interactive
+# or
+siyarix -i
+
+# Batch mode: process commands from stdin or file
+siyarix --batch commands.txt
+
+# Version info
+siyarix --version
+
+# Help
+siyarix --help
+```
+
+### REPL Mode Mode Switching
+
+Within the REPL, users can switch modes via natural language:
 
 ```
-1. No TTY → HeadlessAPI
-2. --wizard → GuidedWizard
-3. --goal → AutonomousAgent
-4. --mode → Force specified mode
-5. --workflow → WorkflowAutomation
-6. --dashboard → TUIDashboard
-7. --team → TeamCollaboration
-8. --batch → HeadlessAPI
-9. Single instruction → DirectCommand
-10. TTY available → InteractiveShell
-11. Fallback → AIConversational
+╭─ Siyarix v2.0.0 ─ INTERACTIVE ───────────────────────────╮
+│                                                           │
+│  ℹ Type 'help' for commands, 'exit' to quit.            │
+│  ℹ Use '/mode <mode>' or say: 'switch to autonomous'     │
+│                                                           │
+╰───────────────────────────────────────────────────────────╯
+
+> switch to autonomous mode
+  ✓ Mode set to AUTONOMOUS — I'll now operate autonomously.
+
+> what mode am i in?
+  You're in AUTONOMOUS mode.
 ```
 
 ---
 
-## Mode Reference
+## Mode Comparison
 
-### 1. InteractiveShell
+| Aspect | REGISTRY | AUTONOMOUS | HYBRID | INTERACTIVE |
+|--------|----------|------------|--------|-------------|
+| **AI Required** | No | Yes | Yes | Yes |
+| **User Approval** | No | No | No | Yes (every step) |
+| **Planning** | Heuristic templates | LLM-driven | LLM + registry | Registry + approval |
+| **Execution** | Deterministic | Full loop | Auto + guided | Step-by-step |
+| **Best for** | Known operations | Reconnaissance | Complex goals | Teaching/audit |
+| **Speed** | Fastest | Fast | Moderate | Slowest |
+| **Risk** | Low | Medium | Medium | Lowest |
+| **Autonomy Level** | None | High | Medium | None |
 
-Full-featured CLI with REPL, command history, tab completion, and themed output.
+---
 
-```bash
-siyarix                          # Launches REPL
-siyarix scan 10.0.0.1          # One-shot command (DirectCommand)
+## 1. REGISTRY Mode
+
+Executes commands using predefined plan templates from the tool registry with no AI involvement.
+
+### Characteristics
+
+- **No AI dependency**: Functions in air-gapped, offline, or degraded environments
+- **Deterministic**: Same input always produces same plan
+- **Fast**: No LLM latency, instant execution
+- **Safe**: No hallucination, no unexpected behavior
+
+### Flow
+
+```
+Input (scan 10.0.0.1)
+  → IntentRouter classifies: scan
+  → RegistryPlanner matches: "scan" → ["nmap -sV 10.0.0.1", "nmap -sC 10.0.0.1"]
+  → PermissionGate validates
+  → RegistryExecutor executes
+  → Output parsed, findings stored in KnowledgeGraph
 ```
 
-- Command history via SessionKernel
-- Tab completion for tools, flags, targets
-- Slash commands (`/help`, `/mode`, `/session`, `/export`)
-- Real-time streaming output
-- Ctrl+C cancellation, Ctrl+C x2 emergency exit
+### Tool Hierarchy (RegistryPlanner)
 
-### 2. AIConversational
+Templates are organized with primary tools and alternatives:
 
-Multi-turn chat assistant with context retention, branching, and AI planning.
-
-```bash
-echo "scan my network" | siyarix   # Piped input
-siyarix                            # Default: chat REPL
+```
+scan:
+  primary: nmap
+  alternatives: [masscan, rustscan]
+  commands:
+    - nmap -sV {target} -oX {output}
+    - nmap -sC {target} -oX {output}
 ```
 
-- Multi-turn context via Conversation History (deque maxlen=100)
-- Slash commands for session management
-- Branching support via ChatSession (JSONL tree)
-- AI-driven planning with user confirmation
-- Context window optimization via Compact system
+---
 
-### 3. DirectCommand
+## 2. AUTONOMOUS Mode
 
-Natural language one-shot execution. Converts input to structured plan and executes immediately.
+Full autonomy mode where the AI plans and executes toward a goal with no per-step user confirmation.
 
-```bash
-siyarix run "scan 10.0.0.1 for open ports"
-siyarix "enumerate services on example.com"
+### Characteristics
+
+- **Goal-driven**: Set a goal, let the agent work toward it
+- **LLM-driven planning**: Dynamic plans adapted to environment feedback
+- **Observe-Reason-Act loop**: Continuous feedback loop with integrated reflection
+- **Budget enforcement**: Token and cost limits applied per session
+- **Multi-wave execution**: Progressive refinement across execution waves
+
+### Flow
+
+```
+Input ("Enumerate 10.0.0.1")
+  → IntentRouter classifies
+  → Context Manager builds context
+  → AutonomousPlanner generates ExecutionPlan
+  → PermissionGate + DLP validates
+  → AutonomousExecutor executes with ORA loop
+  → Loop until: objective met / max_iterations (10) / budget / user interrupt
+  → Final summary and report
 ```
 
-- IntentRouter classifies input
-- Mode determined by risk tier (MEDIUM/HIGH → confirmation)
-- Results displayed via OutputEngine
+### Autonomous Loop
 
-### 4. AutonomousAgent
+```
+Iteration 1: nmap -sV 10.0.0.1 → ports 22,80,443 open
+  → Observe: Apache 2.4.41 on port 80
+  → Reason: Apache version is outdated, known CVEs
+  → Act: nikto -h 10.0.0.1:80
 
-Goal-driven reasoning loop with full autonomy.
+Iteration 2: nikto finds /phpmyadmin, /wp-admin
+  → Observe: phpMyAdmin detected, WordPress found
+  → Reason: phpMyAdmin is high-risk, WordPress version unknown
+  → Act: curl /wp-json to get version
 
-```bash
-siyarix agent "enumerate the network and find vulnerabilities"
-siyarix --goal "compromise the target and extract flags"
+Iteration 3: Determine WordPress 5.6.2
+  → Observe: Version known
+  → Reason: 5.6.2 has known RCE CVEs (CVE-2021-29447, etc.)
+  → Act: Check if target is in-scope for exploitation
+  → Objective achieved: Fully enumerated. Report generated.
 ```
 
-- Observe-Reason-Act loop (max iterations configurable)
-- AutonomousPlanner with LLM-driven decision making
-- Swarm multi-agent orchestration for complex goals
-- PermissionGate in minimal mode (BLOCK only, no REVIEW)
-- Continuous progress reporting via EventBus streaming
+---
 
-### 5. RegistryMode
+## 3. HYBRID Mode
 
-Deterministic, template-driven execution with no AI dependency.
+A balanced approach combining AI planning with registry fallback.
 
-```bash
-siyarix --mode registry scan 10.0.0.1
+### Characteristics
+
+- **Default mode**: Used when no explicit mode is chosen
+- **Integrated planner**: Registry templates enriched by LLM reasoning
+- **Graceful degradation**: AI failure → automatic fallback to registry
+- **Moderate autonomy**: AI suggests steps, user can override via permission gate
+
+### Flow
+
+```
+Input
+  → IntentRouter
+  → Context Manager builds context
+  → Integrated planner (registry + LLM augmentation)
+  → PermissionGate + DLP
+  → AgentCore._execute_hybrid():
+      - RegistryExecutor for known patterns
+      - LLM augmentation for novel situations
+      - AutonomousExecutor when appropriate
+  → Observe-Reason-Act (limited iterations)
+  → Report
 ```
 
-- Uses RegistryPlanner + PlannerRegistry
-- No AI provider required — fully offline capable
-- PermissionGate in full mode (BLOCK + REVIEW + ALLOW)
-- Output via OutputEngine with structured formatting
+---
 
-### 6. HybridMode
+## 4. INTERACTIVE Mode
 
-AI-guided planning with user confirmation at each step.
+Every planned step requires explicit user confirmation before execution.
 
-```bash
-siyarix --mode hybrid "scan and exploit 10.0.0.1"
+### Characteristics
+
+- **Maximum safety**: User sees each command and must approve
+- **Educational**: Best for learning, demonstrations, and CTFs
+- **Audit-friendly**: Every step is reviewed and logged
+- **Slowest**: Deliberate, step-by-step operation
+
+### Flow
+
+```
+Input
+  → IntentRouter
+  → RegistryPlanner (INTERACTIVE mode)
+  → PermissionGate + DLP
+  → User approval prompt for each step
+  → RegistryExecutor executes approved steps
+  → Results shown, user decides next action
 ```
 
-- AutonomousPlanner suggests plan
-- PermissionGate in full mode (every step reviewed)
-- User can modify/approve/reject each step
-- Falls back to RegistryPlanner if AI unavailable
+---
 
-### 7. WorkflowAutomation
+## REPL Architecture
 
-DAG pipeline execution from a YAML/JSON workflow file.
+The REPL is a full conversational shell (`siyarix/chat/`):
 
-```bash
-siyarix workflow run assessment.yaml
-siyarix --workflow pipeline.json
+| Module | Purpose |
+|--------|---------|
+| `repl.py` | Main REPL entrypoint, event loop, Ctrl+C handling |
+| `engine.py` | ReplEngine — message processing, mode routing, agent dispatch |
+| `console.py` | Console output formatting, theme application |
+| `commands.py` | Built-in commands (help, exit, /mode, /theme, /export, /clear) |
+| `handlers.py` | Message handler chain (mode/command/intent/fallback) |
+| `event_stream.py` | Real-time event stream for streaming LLM responses |
+| `ui.py` | Terminal UI elements (progress bars, spinners, status bars) |
+| `prompts.py` | Prompt templates and system prompt management |
+| `platform_utils.py` | Cross-platform clipboard, terminal size, OS detection |
+| `stubs.py` | Stub agents for demo/testing |
+| `openai_compat.py` | OpenAI-compatible streaming adapter |
+| `session.py` | ChatSession with branching and export |
+
+### REPL Event Loop
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    REPL Event Loop                      │
+│                                                         │
+│  Wait for user input (prompt_async)                     │
+│    ↓                                                    │
+│  Check for built-in commands (/, exit)                  │
+│    ↓                                                    │
+│  Check for mode switch keywords                         │
+│    ↓                                                    │
+│  Route to agent dispatch                                │
+│    ↓                                                    │
+│  AgentCore.process_instruction()                        │
+│    ↓                                                    │
+│  Display streaming response (event_stream.py)           │
+│    ↓                                                    │
+│  Back to prompt                                         │
+└─────────────────────────────────────────────────────────┘
 ```
 
-- CommandPipeline executor
-- Step chaining with dependency resolution
-- Variable interpolation (`$target`, `{step.output}`)
-- Conditional execution
-- Parallel step execution within layers
+### Console Output
 
-### 8. TUIDashboard
-
-Rich terminal dashboard showing real-time security status.
-
-```bash
-siyarix dashboard
-siyarix security dashboard
+```
+╭─ Siyarix v2.0.0 ─ AUTONOMOUS ─ 10.0.0.1 ───────────────╮
+│                                                           │
+│  ℹ [14:32:01] Starting autonomous reconnaissance...      │
+│  ℹ [14:32:02] Mode: AUTONOMOUS | Target: 10.0.0.1      │
+│                                                           │
+│  ╭─ Plan ──────────────────────────────────────────────╮ │
+│  │ Step 1: nmap -sV -sC -O 10.0.0.1                    │ │
+│  │ Step 2: nikto -h 10.0.0.1                           │ │
+│  │ Step 3: enum4linux -a 10.0.0.1                      │ │
+│  ╰──────────────────────────────────────────────────────╯ │
+│                                                           │
+│  ⠋ Step 1: nmap scanning...                              │
+│  ✓ Step 1 complete — 6 open ports found                  │
+│                                                           │
+│  ⠋ Step 2: nikto scanning...                             │
+│  ✓ Step 2 complete — 2 findings                          │
+│                                                           │
+│  ╭─ Findings ──────────────────────────────────────────╮ │
+│  │ 10.0.0.1:80 → Apache 2.4.41 (CVE-2024-1234 Medium) │ │
+│  │ 10.0.0.1:443 → OpenSSL 1.1.1 (CVE-2024-5678 High)  │ │
+│  │ 10.0.0.1:22 → OpenSSH 8.9p1                         │ │
+│  ╰──────────────────────────────────────────────────────╯ │
+│                                                           │
+│  > _                                                      │
+╰───────────────────────────────────────────────────────────╯
 ```
 
-### 9. GuidedWizard
+---
 
-12-step interactive onboarding wizard for new users.
+## Onboarding Wizard
 
-```bash
-siyarix --wizard
-```
+When Siyarix is first run (no `settings.toml`), it launches the **Onboarding Wizard** (`siyarix/onboarding.py`) — a 11-step interactive setup:
 
-- Provider configuration
-- Tool discovery and installation
-- Credential setup
-- Theme and branding selection
-- Workflow template creation
+| Step | Description |
+|------|-------------|
+| 0 | Welcome and introduction |
+| 1 | Theme selection (preview each theme) |
+| 2 | Default mode selection |
+| 3 | Provider configuration (API keys) |
+| 4 | Provider testing (test connection) |
+| 5 | Security preferences (auto-confirm, DLP sensitivity) |
+| 6 | Output preferences (format, verbosity) |
+| 7 | Path configuration (workspace, output, offline store) |
+| 8 | Learning System (opt-in/out, auto-suggest) |
+| 9 | Review preferences summary |
+| 10 | Apply configuration and restart |
 
-### 10. TeamCollaboration
+---
 
-Multi-user session with shared context.
+## Batch Mode
 
-```bash
-siyarix --team session-123
-```
-
-- Shared ChatSession with branching
-- Webhook-based event broadcasting
-- Shared KnowledgeGraph
-
-### 11. HeadlessAPI
-
-Non-interactive mode for CI/CD pipelines and programmatic access.
+Batch mode allows non-interactive execution from stdin or file:
 
 ```bash
 siyarix --batch commands.txt
-echo "scan target" | siyarix
-curl -X POST -d '{"command":"scan 10.0.0.1"}' http://localhost:8080/api/execute
 ```
 
-- All output via JSON/JSONL (machine-parseable)
-- JWT authentication for API mode
-- HealthChecker endpoint for monitoring
+Each line is processed as a separate instruction. Results are output in the configured format. Best paired with `--output-format json` for programmatic consumption.
 
 ---
 
-## OutputEngine
+## REPL Built-in Commands
 
-8 output formats with 12 built-in themes:
-
-### Output Formats
-
-| Format | Use Case | Command |
-|--------|----------|---------|
-| `table` | Terminal display (default) | `--output table` |
-| `json` | Machine parsing, API responses | `--output json` |
-| `jsonl` | Streaming, log processing | `--output jsonl` |
-| `yaml` | Configuration, human-readable data | `--output yaml` |
-| `csv` | Spreadsheet import | `--output csv` |
-| `markdown` | Documentation, reports | `--output markdown` |
-| `html` | Web reports, dashboards | `--output html` |
-| `quiet` | Minimal output (exit code only) | `--output quiet` |
-
-### Themes
-
-12 themes controlling color, typography, and layout:
-
-| Theme | Style | Best For |
-|-------|-------|----------|
-| `default` | Siyarix brand colors | General use |
-| `dark` | High-contrast dark | Night ops |
-| `light` | Clean light theme | Documentation |
-| `matrix` | Green-on-black | Aesthetic |
-| `cyber` | Neon cyan/pink | Demos |
-| `minimal` | Monochrome, minimal | Logging |
-| `dracula` | Dracula palette | Dark mode users |
-| `nord` | Nord palette | Arctic theme |
-| `solarized` | Solarized light/dark | Readability |
-| `monokai` | Monokai palette | Code-heavy output |
-| `github` | GitHub-style | Sharing |
-| `none` | No styling | Piped output |
-
-### Branding
-
-The Branding system applies consistent visual identity:
-
-```python
-brand = Branding(theme="cyber")
-brand.apply(output)  # Applies colors, logos, headers, footers
-```
-
-- Session header with logo, version, timestamp
-- Themed progress bars and spinners
-- Consistent color coding (info/success/warning/error/danger)
-- Output footer with summary statistics
-
-### ShellReview
-
-The `ShellReview` system provides command safety review with colored output:
-
-- Syntax highlighting for commands
-- Danger level indicators (🟢 ALLOW / 🟡 REVIEW / 🔴 BLOCK)
-- Suggested alternatives for BLOCKed commands
-- Before-execution summary with estimated impact
-
-### PluginLoader
-
-Dynamic plugin discovery for custom commands and modes:
-
-```python
-plugin = PluginLoader.discover("custom_mode")
-plugin.register(dispatcher)  # Adds new mode to ModeDispatcher
-```
-
-- Scan `~/.siyarix/plugins/` for Python plugins
-- Register new modes, tools, output formats
-- Hook into EventBus for lifecycle events
-
----
-
-## CommandPipeline
-
-Chaining commands in DAG pipelines:
-
-```yaml
-# pipeline.yaml
-name: "Full Assessment"
-steps:
-  - id: recon
-    tool: nmap
-    target: ${TARGET}
-    flags: -sV -sC
-    output: nmap.xml
-
-  - id: vuln_scan
-    tool: nuclei
-    depends_on: [recon]
-    input: ${recon.output}
-    flags: -severity critical,high
-
-  - id: web_scan
-    tool: nikto
-    depends_on: [recon]
-    target: http://${TARGET}
-    flags: -ssl
-
-  - id: report
-    tool: report
-    depends_on: [vuln_scan, web_scan]
-    format: html
-    output: assessment.html
-```
-
----
-
-## Webhooks
-
-Webhook system for external integration:
-
-| Event | Payload | Trigger |
-|-------|---------|---------|
-| `session.started` | Session metadata | Session begins |
-| `step.completed` | Step result | Each execution step |
-| `finding.discovered` | Finding object | New finding added to KG |
-| `objective.complete` | Goal + results | Autonomous agent completes |
-| `gate.blocked` | Blocked command + reason | PermissionGate blocks command |
-| `error` | Error details | Any unhandled error |
-| `pipeline.complete` | Pipeline results | Workflow automation finishes |
-
-```json
-POST /webhook/endpoint
-{
-  "event": "finding.discovered",
-  "data": {
-    "cve": "CVE-2024-1234",
-    "severity": "critical",
-    "host": "10.0.0.1",
-    "service": "Apache 2.4.41"
-  },
-  "session_id": "sess-123",
-  "timestamp": "2026-06-17T12:00:00Z"
-}
-```
-
----
-
-## Component Relationships
-
-```
-LaunchContext
-    │
-    ▼
-ModeDispatcher
-    │
-    ├── InteractiveShell ──→ EventBus ──→ Streaming Event System
-    ├── AIConversational  ──→ ChatSession (branching, JSONL tree)
-    ├── DirectCommand     ──→ IntentRouter → Planner → Gate → Engine
-    ├── AutonomousAgent   ──→ Observe-Reason-Act Loop → Swarm
-    ├── RegistryMode      ──→ RegistryPlanner → RegistryExecutor
-    ├── HybridMode        ──→ AutonomousPlanner + Gate review
-    ├── WorkflowAutomation──→ CommandPipeline → Engine
-    ├── TUIDashboard      ──→ HealthChecker + MetricsCollector
-    ├── GuidedWizard      ──→ 12-step onboarding
-    ├── TeamCollaboration ──→ Webhooks + shared Session
-    └── HeadlessAPI       ──→ REST API + JWT + JSON output
-           │
-           ▼
-    OutputEngine
-       │
-       ├── Formats: table, json, jsonl, yaml, csv, markdown, html, quiet
-       ├── Themes: default, dark, light, matrix, cyber, minimal, ...
-       └── Branding: logo, colors, headers, footers
-```
-
+| Command | Aliases | Description |
+|---------|---------|-------------|
+| `/mode <mode>` | `/m` | Switch agent mode |
+| `/theme <theme>` | `/t` | Change theme |
+| `/model <model>` | — | Switch AI model |
+| `/provider <provider>` | `/p` | Switch provider |
+| `/export <format>` | `/e` | Export session |
+| `/clear` | `/c` | Clear conversation |
+| `/save` | — | Save session |
+| `/load <id>` | — | Load saved session |
+| `/help` | `/h`, `/?` | Show help |
+| `exit` | `quit`, `/q` | Exit REPL |

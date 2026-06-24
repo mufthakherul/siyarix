@@ -1,0 +1,218 @@
+name: Flaky Test Detection
+
+on:
+  schedule:
+    - cron: "0 3 * * 1,3,5"
+  workflow_dispatch:
+    inputs:
+      retry_count:
+        description: Number of retries per test
+        required: true
+        default: "5"
+        type: choice
+        options:
+          - "3"
+          - "5"
+          - "10"
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-flaky:
+    name: Detect Flaky Tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv pip install --system -e ".[dev,all]" pytest-repeat
+
+      - name: Run tests with retries
+        id: flaky
+        continue-on-error: true
+        run: |
+          RETRIES=${{ github.event.inputs.retry_count || '5' }}
+          python -m pytest tests/ \
+            --count $RETRIES \
+            --tb=short \
+            --quiet \
+            -p no:cov \
+            2>&1 | tee flaky-results-${{ matrix.python-version }}.txt || true
+
+      - name: Analyse flaky results
+        id: analyse
+        run: |
+          python -c "
+          import re, os
+
+          results_file = 'flaky-results-${{ matrix.python-version }}.txt'
+          if not os.path.exists(results_file):
+              print('No results file found')
+              exit(0)
+
+          with open(results_file) as f:
+              content = f.read()
+
+          # Count passed vs failed runs
+          passed = len(re.findall(r'^PASSED', content, re.MULTILINE))
+          failed = len(re.findall(r'^FAILED', content, re.MULTILINE))
+          errors = len(re.findall(r'^ERROR', content, re.MULTILINE))
+
+          # Find tests that sometimes pass, sometimes fail
+          test_lines = re.findall(r'(PASSED|FAILED|ERROR)\s+(.+)', content)
+          test_results = {}
+          for status, test in test_lines:
+              test = test.strip()
+              if test not in test_results:
+                  test_results[test] = {'pass': 0, 'fail': 0}
+              if status == 'PASSED':
+                  test_results[test]['pass'] += 1
+              else:
+                  test_results[test]['fail'] += 1
+
+          flaky_tests = []
+          for test, counts in test_results.items():
+              total = counts['pass'] + counts['fail']
+              if total >= 3 and counts['pass'] > 0 and counts['fail'] > 0:
+                  flaky_rate = counts['fail'] / total * 100
+                  flaky_tests.append((test, counts, flaky_rate))
+
+          flaky_tests.sort(key=lambda x: -x[2])
+
+          print(f'Total test invocations: {passed + failed + errors}')
+          print(f'  Passed: {passed}')
+          print(f'  Failed: {failed}')
+          print(f'  Errors: {errors}')
+          print(f'')
+          print(f'Flaky tests (pass+>0 and fail+>0 with >=3 runs):')
+          if flaky_tests:
+              for test, counts, rate in flaky_tests:
+                  print(f'  [{rate:.0f}% flaky] {test} (pass={counts[\"pass\"]}, fail={counts[\"fail\"]})')
+          else:
+              print('  None detected')
+
+          # Output for GitHub Actions
+          with open(os.environ.get('GITHUB_OUTPUT', 'output.txt'), 'a') as out:
+              out.write(f'flaky_count={len(flaky_tests)}\n')
+              if flaky_tests:
+                  out.write(f'has_flaky=true\n')
+                  out.write(f'flaky_list={\"|\".join(f\"{t[0]}:{t[2]:.0f}%\" for t in flaky_tests)}\n')
+              else:
+                  out.write(f'has_flaky=false\n')
+          "
+
+      - name: Upload flaky analysis per version
+        uses: actions/upload-artifact@v4
+        with:
+          name: flaky-analysis-${{ matrix.python-version }}
+          path: flaky-results-${{ matrix.python-version }}.txt
+          retention-days: 14
+
+  aggregate:
+    name: Aggregate Flaky Report
+    runs-on: ubuntu-latest
+    needs: [detect-flaky]
+    if: always()
+    steps:
+      - name: Download all flaky reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: flaky-analysis-*
+          merge-multiple: true
+
+      - name: Compile aggregated flaky report
+        run: |
+          python -c "
+          import glob, re
+          tests = {}
+          for f in sorted(glob.glob('flaky-results-*.txt')):
+              with open(f) as fh:
+                  content = fh.read()
+              for match in re.finditer(r'(PASSED|FAILED)\s+(.+)', content):
+                  status, test = match.group(1), match.group(2).strip()
+                  if test not in tests:
+                      tests[test] = {'pass': 0, 'fail': 0}
+                  tests[test][status.lower()] += 1
+
+          flaky = [(t, c) for t, c in tests.items()
+                   if c['pass'] > 0 and c['fail'] > 0]
+          if flaky:
+              print(f'Found {len(flaky)} flaky tests:')
+              for test, counts in sorted(flaky, key=lambda x: -x[1][\"fail\"]):
+                  total = counts['pass'] + counts['fail']
+                  rate = counts['fail'] / total * 100
+                  print(f'  [{rate:.0f}%] {test} ({counts[\"pass\"]} OK, {counts[\"fail\"]} FAIL)')
+              with open('flaky-report.md', 'w') as out:
+                  out.write('## Flaky Test Report\n\n')
+                  out.write(f'| Test | Pass | Fail | Flakiness |\n')
+                  out.write(f'|------|------|------|-----------|\n')
+                  for test, counts in sorted(flaky, key=lambda x: -x[1][\"fail\"]):
+                      total = counts['pass'] + counts['fail']
+                      rate = counts['fail'] / total * 100
+                      out.write(f'| {test} | {counts[\"pass\"]} | {counts[\"fail\"]} | {rate:.0f}% |\n')
+              print(f'Report written to flaky-report.md')
+          else:
+              print('No flaky tests detected across all Python versions.')
+              open('flaky-report.md', 'w').write('## Flaky Test Report\n\nNo flaky tests detected.\n')
+          "
+
+      - name: Upload aggregated flaky report
+        uses: actions/upload-artifact@v4
+        with:
+          name: flaky-report
+          path: flaky-report.md
+          retention-days: 30
+
+      - name: Create issue if flaky tests detected
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('flaky-report.md', 'utf8');
+            if (report.includes('No flaky tests detected')) {
+              console.log('No flaky tests, skipping issue creation');
+              return;
+            }
+            await github.rest.issues.create({
+              ...context.repo,
+              title: '[Flaky] Tests with non-deterministic behavior detected',
+              body: report + '\n\n_Automated detection — ' + new Date().toISOString().slice(0, 10) + '_',
+              labels: ['bug', 'flaky-test']
+            });
+
+      - name: Post summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'SUMMARY'
+          ## Flaky Test Detection
+
+          Runs the full test suite multiple times across Python versions to
+          identify tests with non-deterministic pass/fail behavior.
+
+          | Python | Status |
+          |--------|--------|
+          | 3.11 | ${{ needs.detect-flaky.result }} |
+          | 3.12 | ${{ needs.detect-flaky.result }} |
+          | 3.13 | ${{ needs.detect-flaky.result }} |
+          SUMMARY

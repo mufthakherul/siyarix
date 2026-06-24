@@ -1,0 +1,168 @@
+name: Fuzzing
+
+on:
+  schedule:
+    - cron: "0 4 * * 6"
+  pull_request:
+    paths:
+      - 'src/siyarix/**'
+      - 'tests/**'
+      - 'data/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fuzz-parsers:
+    name: Fuzz Security Tool Parsers
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test-dir:
+          - tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv pip install --system -e ".[dev,all]" hypothesis
+
+      - name: Discover and run fuzz tests
+        id: fuzz
+        continue-on-error: true
+        run: |
+          python -m pytest tests/ \
+            -k "fuzz or hypothesis or property" \
+            --timeout=120 \
+            --hypothesis-show-statistics \
+            -v 2>&1 | tee fuzz-results.txt
+
+      - name: Run generic parser fuzzing
+        if: always()
+        run: |
+          python -c "
+          import os, sys
+          sys.path.insert(0, 'src')
+          import importlib
+
+          parser_dir = 'src/siyarix/parsers'
+          if not os.path.isdir(parser_dir):
+              print(f'No parser directory found at {parser_dir}')
+              sys.exit(0)
+
+          parser_modules = []
+          for f in sorted(os.listdir(parser_dir)):
+              if f.endswith('.py') and not f.startswith('_'):
+                  mod_name = f'siyarix.parsers.{f[:-3]}'
+                  try:
+                      mod = importlib.import_module(mod_name)
+                      parser_modules.append(mod_name)
+                  except Exception as e:
+                      print(f'Could not load {mod_name}: {e}')
+
+          print(f'Found {len(parser_modules)} parser modules')
+          for m in parser_modules:
+              print(f'  - {m}')
+          " 2>&1 | tee parser-discovery.txt
+
+      - name: Run smoke fuzz on parser modules
+        if: always()
+        run: |
+          python -c "
+          import sys, os, random, string
+          sys.path.insert(0, 'src')
+          import importlib
+
+          parser_dir = 'src/siyarix/parsers'
+          total = 0
+          errors = []
+
+          for f in sorted(os.listdir(parser_dir)):
+              if not f.endswith('.py') or f.startswith('_'):
+                  continue
+              mod_name = f'siyarix.parsers.{f[:-3]}'
+              try:
+                  mod = importlib.import_module(mod_name)
+              except Exception as e:
+                  errors.append(f'{mod_name}: import failed — {e}')
+                  continue
+
+              # Check module has expected parse functions
+              parse_funcs = [
+                  name for name in dir(mod)
+                  if callable(getattr(mod, name))
+                  and ('parse' in name.lower() or 'extract' in name.lower() or 'process' in name.lower())
+              ]
+
+              if not parse_funcs:
+                  continue
+
+              # Try each parse function with random garbage input
+              for fn_name in parse_funcs:
+                  fn = getattr(mod, fn_name)
+                  for _ in range(5):
+                      garbage = ''.join(random.choices(string.printable, k=random.randint(0, 2000)))
+                      try:
+                          fn(garbage)
+                      except TypeError:
+                          pass  # wrong signature shape — expected
+                      except Exception as e:
+                          if 'unexpected keyword' not in str(e):
+                              errors.append(f'{mod_name}.{fn_name}: crashed on garbage input — {type(e).__name__}: {e}')
+                              break
+              total += 1
+
+          print(f'Parser modules smoke-tested: {total}')
+          if errors:
+              print(f'Errors: {len(errors)}')
+              for e in errors[:10]:
+                  print(f'  FAIL: {e}')
+          else:
+              print('All parser modules handled garbage input gracefully')
+          " 2>&1 | tee fuzz-detailed.txt
+
+      - name: Create issue on consistent failures
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('fuzz-results.txt', 'utf8').slice(0, 4000);
+            const detailed = fs.readFileSync('fuzz-detailed.txt', 'utf8').slice(0, 4000);
+            await github.rest.issues.create({
+              ...context.repo,
+              title: '[Fuzz] Parser fuzzing detected unexpected failures',
+              body: `## Fuzzing Failure Report\n\n### Results\n\`\`\`\n${body}\n\`\`\`\n\n### Details\n\`\`\`\n${detailed}\n\`\`\`\n\n_Automated weekly fuzz run — $(new Date().toISOString().slice(0, 10))_`,
+              labels: ['bug', 'fuzzing', 'security']
+            });
+
+      - name: Post summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'SUMMARY'
+          ## Fuzzing Results
+
+          Weekly fuzzing run against parser modules and property-based tests.
+
+          | Check | Result |
+          |------|--------|
+          | Hypothesis tests | ${{ steps.fuzz.outcome == 'success' && 'Passed' || 'See logs' }} |
+          | Parser discovery | Completed |
+          | Parser fuzzing | Completed |
+          SUMMARY

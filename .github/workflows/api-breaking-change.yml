@@ -1,0 +1,216 @@
+name: API Breaking Change Detection
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'src/siyarix/**'
+      - 'pyproject.toml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-api-changes:
+    name: Detect Public API Changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv pip install --system griffe
+
+      - name: Extract API from base branch
+        run: |
+          git stash || true
+          git checkout origin/${{ github.base_ref || 'main' }} -- src/siyarix/
+          python -m griffe dump src/siyarix --output base-api.json --full 2>&1 || echo "griffe dump failed on base" >&2
+          git checkout HEAD -- src/siyarix/ 2>/dev/null || true
+          git stash pop || true
+
+      - name: Extract API from current branch
+        run: |
+          python -m griffe dump src/siyarix --output head-api.json --full 2>&1 || echo "griffe dump failed on head" >&2
+
+      - name: Compare APIs for breaking changes
+        id: diff
+        run: |
+          python -c "
+          import json, os
+
+          try:
+              with open('base-api.json') as f:
+                  base = json.load(f)
+          except (FileNotFoundError, json.JSONDecodeError):
+              print('Could not load base API snapshot. This may be a new module.')
+              base = {}
+
+          try:
+              with open('head-api.json') as f:
+                  head = json.load(f)
+          except (FileNotFoundError, json.JSONDecodeError):
+              print('Could not load head API snapshot')
+              head = {}
+
+          if not base or not head:
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+                  out.write('has_changes=false\n')
+                  out.write('breaking=false\n')
+                  out.write('diff_summary=API snapshot comparison not available\n')
+              exit(0)
+
+          # Compare module-level exports
+          base_modules = set(base.get('modules', {}).keys())
+          head_modules = set(head.get('modules', {}).keys())
+
+          removed_modules = base_modules - head_modules
+          added_modules = head_modules - base_modules
+
+          # Compare function signatures
+          breaking = []
+          additions = []
+          removals = []
+
+          for mod in sorted(base_modules & head_modules):
+              base_obj = base['modules'][mod]
+              head_obj = head['modules'][mod]
+
+              base_funcs = {f['name']: f for f in base_obj.get('functions', [])}
+              head_funcs = {f['name']: f for f in head_obj.get('functions', [])}
+
+              for name in sorted(set(base_funcs.keys()) & set(head_funcs.keys())):
+                  bf = base_funcs[name]
+                  hf = head_funcs[name]
+
+                  # Check parameter changes
+                  b_params = {p['name']: p for p in bf.get('parameters', []) if p['kind'] != 'VAR_POSITIONAL' and p['kind'] != 'VAR_KEYWORD'}
+                  h_params = {p['name']: p for p in hf.get('parameters', []) if p['kind'] != 'VAR_POSITIONAL' and p['kind'] != 'VAR_KEYWORD'}
+
+                  # Removed required parameters
+                  for pname in b_params:
+                      if pname not in h_params and b_params[pname].get('default') is None:
+                          breaking.append(f'{mod}.{name}: required parameter \"{pname}\" removed')
+
+                  # Added required parameters
+                  for pname in h_params:
+                      if pname not in b_params and h_params[pname].get('default') is None:
+                          breaking.append(f'{mod}.{name}: required parameter \"{pname}\" added')
+
+                  # Changed parameter defaults (breaking if required was previously optional)
+                  for pname in b_params:
+                      if pname in h_params:
+                          b_default = b_params[pname].get('default')
+                          h_default = h_params[pname].get('default')
+                          if b_default is not None and h_default is None:
+                              breaking.append(f'{mod}.{name}: parameter \"{pname}\" changed from optional to required')
+
+                  # Return type changes
+                  b_ret = bf.get('returns')
+                  h_ret = hf.get('returns')
+                  if b_ret and h_ret and b_ret != h_ret:
+                      additions.append(f'{mod}.{name}: return type changed ({b_ret} -> {h_ret})')
+
+          for mod in sorted(removed_modules):
+              removals.append(f'{mod}: module removed')
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write(f'has_changes=true\n')
+              out.write(f'breaking={\"true\" if breaking else \"false\"}\n')
+              out.write(f'breaking_count={len(breaking)}\n')
+              out.write(f'addition_count={len(additions)}\n')
+              out.write(f'removal_count={len(removals)}\n')
+
+          # Write detailed report
+          with open('api-diff-report.md', 'w') as report:
+              report.write('## API Diff Report\n\n')
+              if breaking:
+                  report.write(f'### Breaking Changes ({len(breaking)})\n\n')
+                  for item in breaking:
+                      report.write(f'- ⚠️ {item}\n')
+                  report.write('\n')
+              if additions:
+                  report.write(f'### Non-Breaking Additions ({len(additions)})\n\n')
+                  for item in additions:
+                      report.write(f'- ➕ {item}\n')
+                  report.write('\n')
+              if removals:
+                  report.write(f'### Removals ({len(removals)})\n\n')
+                  for item in removals:
+                      report.write(f'- ❌ {item}\n')
+                  report.write('\n')
+              if not breaking and not additions and not removals:
+                  report.write('No API changes detected.\n')
+              if added_modules:
+                  report.write(f'### New Modules ({len(added_modules)})\n\n')
+                  for mod in sorted(added_modules):
+                      report.write(f'- 📦 {mod}\n')
+
+          print(f'API diff complete: {len(breaking)} breaking, {len(additions)} additions, {len(removals)} removals')
+          "
+
+      - name: Upload API diff report
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-diff-report
+          path: api-diff-report.md
+          retention-days: 30
+
+      - name: Post API diff comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('api-diff-report.md', 'utf8');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo,
+              issue_number: context.issue.number
+            });
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('API Diff Report')
+            );
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                ...context.repo,
+                comment_id: botComment.id,
+                body: report
+              });
+            } else {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: context.issue.number,
+                body: report
+              });
+            }
+
+      - name: Post summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'SUMMARY'
+          ## API Breaking Change Detection
+
+          | Metric | Count |
+          |--------|-------|
+          | Breaking changes | ${{ steps.diff.outputs.breaking_count || '0' }} |
+          | Additions | ${{ steps.diff.outputs.addition_count || '0' }} |
+          | Removals | ${{ steps.diff.outputs.removal_count || '0' }} |
+          SUMMARY

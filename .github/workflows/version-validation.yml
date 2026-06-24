@@ -1,0 +1,225 @@
+name: Version Validation
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-semver:
+    name: Check Semantic Versioning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv pip install --system packaging
+
+      - name: Detect version changes
+        id: versions
+        run: |
+          git fetch origin --tags --force
+
+          OLD_VERSION=$(git show origin/${{ github.base_ref || 'main' }}:pyproject.toml | grep "^version = " | cut -d'"' -f2)
+          NEW_VERSION=$(grep "^version = " pyproject.toml | cut -d'"' -f2)
+
+          echo "old_version=$OLD_VERSION" >> $GITHUB_OUTPUT
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+          python -c "
+          import os
+          from packaging.version import Version
+          old = Version('$OLD_VERSION')
+          new = Version('$NEW_VERSION')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              if new > old:
+                  if new.major > old.major:
+                      out.write('bump_type=major\n')
+                  elif new.minor > old.minor:
+                      out.write('bump_type=minor\n')
+                  elif new.micro > old.micro:
+                      out.write('bump_type=patch\n')
+                  else:
+                      out.write('bump_type=pre\n')
+              elif new < old:
+                  out.write('bump_type=downgrade\n')
+              else:
+                  out.write('bump_type=unchanged\n')
+          "
+
+      - name: Check for breaking changes
+        id: breaking
+        run: |
+          python -c "
+          import re, os
+
+          diff_output = os.popen('git diff origin/${{ github.base_ref || 'main' }}...HEAD -- src/').read()
+
+          breaking_patterns = [
+              (r'^--- a/src.*__init__', 'Public API file changed'),
+              (r'def (async )?\w+\(.*\)', 'Function signature changed'),
+              (r'^\+.*deprecated', 'Deprecation introduced'),
+              (r'^\+.*remove.*param', 'Parameter removed'),
+              (r'^\+.*breaking', 'Breaking change mentioned'),
+          ]
+
+          found = []
+          for pattern, desc in breaking_patterns:
+              if re.search(pattern, diff_output, re.MULTILINE | re.IGNORECASE):
+                  found.append(desc)
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              if found:
+                  out.write('has_breaking_changes=true\n')
+                  out.write('breaking_details=' + '; '.join(found) + '\n')
+              else:
+                  out.write('has_breaking_changes=false\n')
+                  out.write('breaking_details=None\n')
+
+          if found:
+              print('Breaking changes detected:')
+              for f in found:
+                  print(f'  - {f}')
+          else:
+              print('No breaking changes detected')
+          "
+
+      - name: Validate version consistency
+        id: consistency
+        run: |
+          python -c "
+          import re
+          versions = {}
+
+          # pyproject.toml
+          with open('pyproject.toml') as f:
+              m = re.search(r'^version = \"(.+)\"', f.read(), re.MULTILINE)
+              versions['pyproject.toml'] = m.group(1) if m else 'NOT FOUND'
+
+          # __init__.py
+          with open('src/siyarix/__init__.py') as f:
+              m = re.search(r'__version__ = \"(.+)\"', f.read())
+              versions['__init__.py'] = m.group(1) if m else 'NOT FOUND'
+
+          # install.ps1
+          with open('install.ps1') as f:
+              m = re.search(r'\$__script_version = \"(.+)\"', f.read())
+              versions['install.ps1'] = m.group(1) if m else 'NOT FOUND'
+
+          all_match = len(set(versions.values())) == 1
+          print(f'Version consistency: {\"PASSED\" if all_match else \"FAILED\"}')
+          for src, ver in versions.items():
+              print(f'  {src}: {ver}')
+
+          if not all_match:
+              exit(1)
+          "
+
+      - name: Validate version bump matches PR labels
+        id: label_check
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python -c "
+          import json, os
+          labels_json = os.popen('''gh pr view ${{ github.event.number }} --json labels --jq '.labels[].name' ''').read()
+          labels = [l.strip() for l in labels_json.strip().split('\n') if l.strip()]
+
+          bump_type = '${{ steps.versions.outputs.bump_type }}'
+          has_major_label = 'semver:major' in labels
+          has_minor_label = 'semver:minor' in labels
+          has_patch_label = 'semver:patch' in labels
+
+          issues = []
+          if has_major_label and bump_type != 'major':
+              issues.append('Labeled semver:major but version bump is ' + bump_type)
+          if has_minor_label and bump_type != 'minor':
+              issues.append('Labeled semver:minor but version bump is ' + bump_type)
+          if has_patch_label and bump_type != 'patch':
+              issues.append('Labeled semver:patch but version bump is ' + bump_type)
+
+          with open(os.environ.get('GITHUB_OUTPUT', 'output.txt'), 'a') as out:
+              if issues:
+                  out.write('label_mismatch=true\n')
+                  for issue in issues:
+                      print(f'  - {issue}')
+              else:
+                  out.write('label_mismatch=false\n')
+                  print('Label-version alignment: PASSED')
+          "
+
+      - name: Post validation comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = [
+              '## Version Validation',
+              '',
+              '| Check | Status |',
+              '|------|--------|',
+              '| Version consistency | ${{ steps.consistency.outcome == 'success' && '✅' || '❌' }} |',
+              '| Bump type | ${{ steps.versions.outputs.bump_type }} |',
+              '| Breaking changes | ${{ steps.breaking.outputs.has_breaking_changes }} |',
+              '| Label alignment | ${{ steps.label_check.outputs.label_mismatch != 'true' && '✅' || '❌' }} |',
+              '',
+              '> Old: `${{ steps.versions.outputs.old_version }}` → New: `${{ steps.versions.outputs.new_version }}`'
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo,
+              issue_number: context.issue.number
+            });
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Version Validation')
+            );
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                ...context.repo,
+                comment_id: botComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }
+
+      - name: Post summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'SUMMARY'
+          ## Version Validation
+
+          | Check | Result |
+          |------|--------|
+          | Consistency | ${{ steps.consistency.outcome == 'success' && 'Passed' || 'Failed' }} |
+          | Bump type | ${{ steps.versions.outputs.bump_type }} |
+          | Breaking | ${{ steps.breaking.outputs.has_breaking_changes }} |
+          | Labels match | ${{ steps.label_check.outputs.label_mismatch != 'true' && 'Yes' || 'No' }} |
+          SUMMARY

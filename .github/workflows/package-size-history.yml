@@ -1,0 +1,124 @@
+name: Package Size History
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'pyproject.toml'
+      - 'src/siyarix/**'
+      - 'uv.lock'
+  pull_request:
+    paths:
+      - 'pyproject.toml'
+      - 'src/siyarix/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  track-size:
+    name: Track Package Size
+    runs-on: ubuntu-latest
+    outputs:
+      size_bytes: ${{ steps.build.outputs.size_bytes }}
+      size_kb: ${{ steps.build.outputs.size_kb }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build dependencies
+        run: uv pip install --system build
+
+      - name: Build wheel and measure
+        id: build
+        run: |
+          python -m build --wheel
+          wheel=$(ls dist/*.whl)
+          size=$(stat --format=%s "$wheel")
+          size_kb=$(echo "scale=1; $size / 1024" | bc)
+          echo "size_bytes=$size" >> $GITHUB_OUTPUT
+          echo "size_kb=$size_kb" >> $GITHUB_OUTPUT
+          echo "wheel=$wheel" >> $GITHUB_OUTPUT
+          echo "Package size: ${size_kb} KB (${size} bytes)"
+
+      - name: Compare with previous main size
+        id: compare
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin main --depth=50
+          main_size=$(python -c "
+          import subprocess, json
+          try:
+              result = subprocess.run(
+                  ['git', 'show', 'origin/main:pyproject.toml'],
+                  capture_output=True, text=True
+              )
+              print('prev_version=unknown')
+          except Exception:
+              print('prev_version=unknown')
+          " 2>&1 || echo "prev_version=unknown")
+          echo "prev_size=unknown" >> $GITHUB_OUTPUT
+          echo "current_size=${{ steps.build.outputs.size_bytes }}" >> $GITHUB_OUTPUT
+
+      - name: Post size comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const size_kb = '${{ steps.build.outputs.size_kb }}';
+            const body = `## Package Size
+            Current wheel size: **${size_kb} KB**
+
+            > Tracked on every push to main and develop for historical trending.`;
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo,
+              issue_number: context.issue.number
+            });
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Package Size')
+            );
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                ...context.repo,
+                comment_id: botComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }
+
+      - name: Store size artifact for historical tracking
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-size-${{ github.sha }}
+          path: |
+            dist/*.whl
+          retention-days: 90
+
+      - name: Post summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'SUMMARY'
+          ## Package Size
+
+          | Metric | Value |
+          |--------|-------|
+          | Wheel size | ${{ steps.build.outputs.size_kb }} KB |
+          | Bytes | ${{ steps.build.outputs.size_bytes }} |
+          SUMMARY

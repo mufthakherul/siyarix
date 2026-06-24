@@ -1,0 +1,152 @@
+name: Sync Release to Stable
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version tag to sync (e.g., v1.0.0)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-stable-${{ github.event.release.tag_name || github.event.inputs.version }}
+  cancel-in-progress: true
+
+jobs:
+  sync-to-stable:
+    name: Create PR from Release to stable
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Resolve release ref
+        id: resolve
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="${{ github.event.inputs.version }}"
+          fi
+          VER="${TAG#v}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VER}" >> "$GITHUB_OUTPUT"
+
+      - name: Check stable branch exists
+        id: check-branch
+        run: |
+          if git ls-remote --heads origin stable | grep -q stable; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create stable branch if it does not exist
+        if: steps.check-branch.outputs.exists == 'false'
+        run: |
+          git checkout "${{ steps.resolve.outputs.tag }}"
+          git branch stable
+          git push origin stable
+          echo "Created stable branch from ${{ steps.resolve.outputs.tag }}"
+
+      - name: Create release sync branch
+        id: branch
+        run: |
+          BRANCH="release-sync/${{ steps.resolve.outputs.version }}"
+          if git ls-remote --heads origin "$BRANCH" | grep -q "$BRANCH"; then
+            git push origin --delete "$BRANCH" 2>/dev/null || true
+          fi
+          git checkout "${{ steps.resolve.outputs.tag }}"
+          git checkout -b "$BRANCH"
+          git push origin "$BRANCH"
+          echo "name=${BRANCH}" >> "$GITHUB_OUTPUT"
+
+      - name: Check for existing PR
+        id: existing-pr
+        run: |
+          PR_EXISTS=$(gh pr list \
+            --head "${{ steps.branch.outputs.name }}" \
+            --base stable \
+            --state open \
+            --json number \
+            --jq 'length' 2>/dev/null || echo "0")
+          echo "count=${PR_EXISTS}" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write PR body
+        id: body
+        run: |
+          TAG="${{ steps.resolve.outputs.tag }}"
+          SHA="${{ github.sha }}"
+
+          cat > pr-body.md << PRBODY
+          ## Release Sync: ${TAG}
+
+          This PR syncs the newly released version **${TAG}** to the \`stable\` branch.
+
+          ### Release Notes
+
+          PRBODY
+
+          if [ "${{ github.event_name }}" = "release" ]; then
+            gh release view "${TAG}" --json body --jq '.body' >> pr-body.md 2>/dev/null || echo "_No release notes provided._" >> pr-body.md
+          else
+            echo "_Manual sync triggered via workflow_dispatch._" >> pr-body.md
+          fi
+
+          cat >> pr-body.md << PRBODY
+
+          ---
+          _Automatically ${{ steps.existing-pr.outputs.count != '0' && 'updated' || 'created' }} by the Sync Release to Stable workflow._
+          _Commit: ${SHA}_
+          PRBODY
+
+      - name: Create PR to stable
+        if: steps.existing-pr.outputs.count == '0'
+        id: create-pr
+        run: |
+          gh pr create \
+            --base stable \
+            --head "${{ steps.branch.outputs.name }}" \
+            --title "chore: sync release ${{ steps.resolve.outputs.tag }} to stable" \
+            --body-file pr-body.md \
+            --label "automated-pr,release"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update existing PR
+        if: steps.existing-pr.outputs.count != '0'
+        run: |
+          PR_NUMBER=$(gh pr list \
+            --head "${{ steps.branch.outputs.name }}" \
+            --base stable \
+            --state open \
+            --json number \
+            --jq '.[0].number')
+          gh pr edit "$PR_NUMBER" \
+            --title "chore: sync release ${{ steps.resolve.outputs.tag }} to stable" \
+            --body-file pr-body.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'SUMMARY'
+          ## Sync Release to Stable
+
+          | Detail | Value |
+          |--------|-------|
+          | Release | ${{ steps.resolve.outputs.tag }} |
+          | PR branch | ${{ steps.branch.outputs.name }} |
+          | Target | stable |
+          | PR status | ${{ steps.create-pr.outputs.url || 'Already exists — updated' }} |
+          SUMMARY

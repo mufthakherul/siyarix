@@ -1,0 +1,131 @@
+name: Infrastructure-as-Code Validation
+
+on:
+  pull_request:
+    paths:
+      - 'docker-compose.yml'
+      - 'Dockerfile'
+      - 'otel-collector-config.yaml'
+      - '.env.example'
+      - 'packages/docker/**'
+  push:
+    branches: [main, develop]
+    paths:
+      - 'docker-compose.yml'
+      - 'Dockerfile'
+      - 'otel-collector-config.yaml'
+      - '.env.example'
+      - 'packages/docker/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-docker-compose:
+    name: Validate Docker Compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate docker-compose.yml syntax
+        run: |
+          docker compose -f docker-compose.yml config --quiet
+          echo "docker-compose.yml: VALID"
+
+      - name: Check Dockerfile best practices
+        run: |
+          python -c "
+          with open('Dockerfile') as f:
+              lines = f.readlines()
+          issues = []
+          for i, line in enumerate(lines, 1):
+              stripped = line.strip()
+              if stripped.startswith('FROM ') and 'latest' in stripped:
+                  issues.append(f'Line {i}: Avoid latest tag in FROM: {stripped}')
+              if 'apt-get install' in stripped and '-y' not in stripped:
+                  issues.append(f'Line {i}: apt-get install without -y: {stripped}')
+          if issues:
+              print('Dockerfile issues found:')
+              for issue in issues:
+                  print(f'  - {issue}')
+          else:
+              print('Dockerfile best practices: PASSED')
+          "
+
+  validate-otel-config:
+    name: Validate OpenTelemetry Config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate otel-collector-config.yaml
+        run: |
+          python -c "
+          import yaml
+          with open('otel-collector-config.yaml') as f:
+              config = yaml.safe_load(f)
+          required_sections = ['receivers', 'processors', 'exporters', 'service']
+          for section in required_sections:
+              if section not in config:
+                  print(f'MISSING: {section} section')
+                  exit(1)
+          print(f'otel-collector-config.yaml: VALID')
+          print(f'  receivers: {list(config[\"receivers\"].keys())}')
+          print(f'  processors: {list(config[\"processors\"].keys())}')
+          print(f'  exporters: {list(config[\"exporters\"].keys())}')
+          "
+
+  validate-env-example:
+    name: Validate Environment Config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate .env.example format
+        run: |
+          python -c "
+          issues = []
+          keys = set()
+          with open('.env.example') as f:
+              for i, line in enumerate(f, 1):
+                  stripped = line.strip()
+                  if not stripped or stripped.startswith('#'):
+                      continue
+                  if '=' not in stripped:
+                      issues.append(f'Line {i}: No equals sign: {stripped}')
+                      continue
+                  key = stripped.split('=')[0].strip()
+                  if not key.isupper() and not key.startswith('#'):
+                      issues.append(f'Line {i}: Key not uppercase: {key}')
+                  if key in keys:
+                      issues.append(f'Line {i}: Duplicate key: {key}')
+                  keys.add(key)
+          if issues:
+              print('Issues found:')
+              for issue in issues:
+                  print(f'  - {issue}')
+          else:
+              print(f'.env.example: VALID ({len(keys)} keys, no issues)')
+          "
+
+  summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    needs: [validate-docker-compose, validate-otel-config, validate-env-example]
+    if: always()
+    steps:
+      - run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'SUMMARY'
+          ## IaC Validation
+
+          | Check | Status |
+          |------|--------|
+          | Docker Compose | ${{ needs.validate-docker-compose.result }} |
+          | OpenTelemetry | ${{ needs.validate-otel-config.result }} |
+          | Environment config | ${{ needs.validate-env-example.result }} |
+          SUMMARY

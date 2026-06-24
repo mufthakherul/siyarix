@@ -73,7 +73,7 @@ docs/
     ├── trademark-policy.md     # Branding guidelines
     ├── responsible-ai-usage.md # AI ethics framework
     ├── disclaimer.md           # Legal disclaimer
-    ├── note-file-explained.md  # NOTICE file explained
+    ├── notice-file-explained.md  # NOTICE file explained
     └── plugin-exception.md     # Plugin license exception
 ```
 

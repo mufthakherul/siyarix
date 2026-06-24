@@ -1,0 +1,31 @@
+name: Trigger Org Site Update
+
+on:
+  push:
+    branches: [main, stable]
+    paths:
+      - "LICENSE"
+      - "CONTRIBUTING.md"
+      - "CODE_OF_CONDUCT.md"
+      - "SECURITY.md"
+      - "ETHICAL_USE.md"
+      - "TRADEMARK_POLICY.md"
+      - "RESPONSIBLE_AI_USE.md"
+      - "GOVERNANCE.md"
+      - "SUPPORT.md"
+      - "AI_PROVIDER_POLICY.md"
+      - "THIRD_PARTY_LICENSES.md"
+      - "docs/**"
+  release:
+    types: [published]
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send repository_dispatch to siyarix.github.io
+        run: |
+          curl -X POST https://api.github.com/repos/siyarix/siyarix.github.io/dispatches \
+            -H "Authorization: Bearer ${{ secrets.ORG_REPO_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -d '{"event_type": "root-files-updated"}'

@@ -63,6 +63,12 @@
 
 ---
 
+> **📢 Repository Migration Notice**  
+> Siyarix will soon be moving from `mufthakherul/siyarix` to **`siyarix/siyarix`** — a dedicated GitHub organization.  
+> See the [Migration Announcement](announcement/repo-migration-announcement.md) for details.
+
+---
+
 ## Overview
 
 Siyarix is a production-grade **AI Cybersecurity Orchestration Platform** that bridges natural language security objectives with deterministic multi-tool execution. Describe your goal in plain English -- "scan this subnet for open ports" or "enumerate services on the web server" -- and Siyarix plans, executes, analyzes, and reports using an extensible multi-provider AI core and a comprehensive security tool registry.

@@ -1,18 +1,20 @@
 # Siyarix v1.0.0 Documentation
 
-**Siyarix** is an AI-native cybersecurity operations agent that translates natural language into deterministic security workflows. It lives in your terminal, routes tasks across 24 AI providers, and orchestrates 80+ security tools with automatic output parsing.
+**Siyarix** is an AI-native cybersecurity operations platform that translates natural language into deterministic security workflows. It lives in your terminal, routes tasks across 24 AI providers, and orchestrates 80+ security tools with automatic output parsing. Built for penetration testers, security engineers, SOC analysts, and cloud architects.
 
-## Quick start
+## Quick Start
 
 ```bash
 pip install siyarix
-siyarix                    # Launch the onboarding wizard
+siyarix                          # Launch the onboarding wizard
 siyarix scan quick example.com   # Run a quick port scan
-siyarix run "enumerate services on 10.0.0.1"   # Natural language
-siyarix                     # Interactive REPL (default)
+siyarix scan deep example.com    # Run a deep reconnaissance scan
+siyarix run "enumerate services on 10.0.0.1"  # Natural language
+siyarix --mode offline run "scan example.com"  # Offline mode (no AI needed)
+siyarix                          # Interactive REPL (default)
 ```
 
-## Documentation sections
+## Documentation Sections
 
 | Section | Description |
 |---------|-------------|
@@ -24,7 +26,7 @@ siyarix                     # Interactive REPL (default)
 | [Security](security/threat-model.md) | Threat model, OPSEC, abuse prevention |
 | [Legal](legal/agpl-license-guide.md) | License, trademark, responsible AI |
 
-## Who is this for?
+## Who Is This For?
 
 | Role | How Siyarix helps |
 |------|-------------------|
@@ -34,8 +36,8 @@ siyarix                     # Interactive REPL (default)
 | **Cloud Architects** | Validate IaC, perform multi-cloud posture scanning |
 | **Researchers** | Leverage AI-assisted analysis, build on the parser framework |
 
-## Project status
+## Project Status
 
-**Stable release** — v1.0.0 is production-ready. Breaking changes follow semantic versioning and are documented in the [Changelog](../CHANGELOG.md).
+**Stable release** — v1.0.0 is production-ready. Breaking changes follow semantic versioning and are documented in the project Changelog.
 
 > **Ethics & safety**: Siyarix is designed for authorized security testing only. Review the [Ethical Hacking Policy](security/ethical-hacking-policy.md) before use.

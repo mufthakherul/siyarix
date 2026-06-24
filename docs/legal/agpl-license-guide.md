@@ -74,10 +74,10 @@ AGPL-3.0 is NOT compatible with:
 
 ## Full license text
 
-The complete license text is in the [LICENSE](../../LICENSE) file.
+The complete license text is in the project LICENSE file.
 
 ## Additional legal documents
 
-- [NOTICE](../../NOTICE) — Copyright notices and third-party attributions
+- NOTICE — Copyright notices and third-party attributions
 - [Disclaimer](disclaimer.md) — Warranty disclaimer and liability limitation
 - [Responsible AI Usage](responsible-ai-usage.md) — AI-specific governance

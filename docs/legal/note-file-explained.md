@@ -1,6 +1,6 @@
 # NOTICE File Explained
 
-The [NOTICE](../../NOTICE) file at the project root serves specific legal functions required by the AGPL-3.0 license.
+The NOTICE file at the project root serves specific legal functions required by the AGPL-3.0 license.
 
 ## Purpose
 

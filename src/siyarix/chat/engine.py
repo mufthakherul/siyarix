@@ -252,8 +252,26 @@ class LLMEngineMixin:
 
         # Execute with live output — pass plan so it's not discarded
         t0 = time.monotonic()
+        total_steps = len(plan.steps) if plan else 0
+        console.print(
+            f"[bold]Executing {total_steps} step{'s' if total_steps != 1 else ''}...[/bold]"
+        )
+
+        def _offline_progress(step: Any, step_progress: dict[str, str]) -> None:
+            _status = step.status.value if hasattr(step.status, "value") else str(step.status)
+            if _status in ("running", "completed", "failed"):
+                done = sum(1 for v in step_progress.values() if v in ("completed", "failed"))
+                icon = "✓" if _status == "completed" else ("✗" if _status == "failed" else "▶")
+                console.print(
+                    f"  {icon} [{_status}] {step.tool or step.description or step.id}"
+                    f"  [dim]({done}/{total_steps})[/dim]"
+                )
+
         try:
-            result = await engine.execute(instruction, plan=plan, interactive=False)
+            result = await engine.execute(
+                instruction, plan=plan, interactive=False,
+                progress_callback=_offline_progress,
+            )
         except Exception as exc:
             elapsed = time.monotonic() - t0
             logger.error("Execution failed: %s", exc, exc_info=True)
@@ -288,43 +306,64 @@ class LLMEngineMixin:
         except Exception as exc:
             logger.debug("Failed to persist to offline store: %s", exc)
 
-        # Print results — use professional ResponseGenerator for offline mode
+        # Print results — match autonomous mode output format
         if self._mode in ("registry", "offline"):
-            from ..response import ResponseGenerator
+            from ..models import StepStatus
+            from rich.panel import Panel as _RichPanel
 
-            ResponseGenerator().render_results(
-                success=result.success,
-                summary=result.summary,
-                findings=result.all_findings,
-                step_results=result.step_results,
-                duration_ms=result.duration_ms,
-                goal=instruction,
-            )
+            # Per-step full output panels (matches autonomous agent loop)
+            for r in result.step_results:
+                output = (r.output or "").strip()
+                error = (r.error or "").strip()
+                success = r.status == StepStatus.COMPLETED
+                display_lines = (
+                    output.split("\n") if output
+                    else (error.split("\n") if error else ["(no output)"])
+                )
+                icon = "✓" if success else "✗"
+                border = "green" if success else "red"
+                truncated = []
+                for line in display_lines[-200:]:
+                    if len(line) > 500:
+                        truncated.append(line[:500] + "...")
+                    else:
+                        truncated.append(line)
+                console.print(
+                    _RichPanel(
+                        "\n".join(truncated),
+                        title=f"{icon} {r.step_id}",
+                        border_style=border,
+                    )
+                )
 
-            # ── CLS: observe and learn from offline execution ──────────────
+            # Bottom stats line (matches autonomous agent loop)
+            persona_name = self._settings.get("persona") or "auto"
+            stats_parts = [
+                f"Time: {elapsed:.1f}s",
+                f"Mode: {self._mode}",
+                f"Persona: {persona_name}",
+            ]
+            console.print("[dim]" + " | ".join(stats_parts) + "[/dim]")
+
+            # ── CLS: read-only skill lookup for learning insights ──────────
             try:
                 from ..learning_system import get_learning_system
                 _cls = get_learning_system()
                 _real_target = self._session.target or target
-                _matched_skill = _cls.observe_offline_plan(
-                    goal=instruction,
-                    plan=plan,
-                    result=result,
-                    target=_real_target,
-                    duration_ms=float(result.duration_ms or 0),
-                )
-                _insight = _cls.generate_offline_summary(instruction, result, _matched_skill)
-                if _insight:
-                    console.print(
-                        Panel(
-                            _insight,
-                            title="[bold cyan]📚 Learning Insights[/bold cyan]",
-                            border_style="cyan",
-                            padding=(0, 1),
+                _matched_skill = _cls.query_skill(instruction, _real_target, min_confidence=0.30)
+                if _matched_skill:
+                    _insight = _cls.generate_offline_summary(instruction, result, _matched_skill)
+                    if _insight:
+                        console.print(
+                            Panel(
+                                _insight,
+                                title="[bold cyan]📚 Learning Insights[/bold cyan]",
+                                border_style="cyan",
+                                padding=(0, 1),
+                            )
                         )
-                    )
             except Exception as _exc:
-                logger.debug("CLS offline observation failed: %s", _exc)
+                logger.debug("CLS offline query failed: %s", _exc)
         else:
             self._print_results(result, elapsed)
 
@@ -593,6 +632,8 @@ class LLMEngineMixin:
             if require_llm:
                 console.print("[red]✗ No LLM provider configured for autonomous mode[/red]")
                 return False
+            if self._mode == "integrated":
+                return False  # fall through to clean offline pipeline
             console.print("[yellow]⚠ No LLM provider configured — using local planner[/yellow]")
             provider_name = "none"
 
@@ -738,16 +779,18 @@ class LLMEngineMixin:
             if require_llm:
                 console.print("[red]✗ No working LLM provider for autonomous mode[/red]")
                 return False
-            if self._mode == "integrated":
+            if self._mode == "integrated" and provider_name not in ("none",):
                 self._mode = "offline"
                 self._session.mode = "offline"
                 self._settings.set("model_provider", "registry")
                 console.print(
                     "[yellow]⚠ All providers unreachable — switched to offline mode[/yellow]"
                 )
+                return False  # fall through to clean offline pipeline
             else:
+                _label = provider_name if provider_name and provider_name != "none" else "provider"
                 console.print(
-                    f"[yellow]⚠ {provider_name} not reachable — using local planner[/yellow]"
+                    f"[yellow]⚠ {_label} not reachable — using local planner[/yellow]"
                 )
 
         # ── Planning ─────────────────────────────────────────────────────
@@ -856,7 +899,7 @@ class LLMEngineMixin:
                     )
                     llm_connected = False
                     llm_call_fn = None
-                    if self._mode == "integrated":
+                    if self._mode == "integrated" and provider_name not in ("none",):
                         self._mode = "offline"
                         self._session.mode = "offline"
                         self._settings.set("model_provider", "registry")
@@ -869,8 +912,9 @@ class LLMEngineMixin:
                     sys.stdout.flush()
 
         if not llm_plan:
-            llm_plan = agent.planner_autonomous.create_plan(
-                goal=instruction_with_target, context={}
+            llm_plan = agent.planner_registry.plan(
+                goal=instruction_with_target,
+                available_tools=tool_names,
             )
 
         # ── No tools needed ──────────────────────────────────────────────

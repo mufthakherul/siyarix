@@ -4,6 +4,13 @@ siyarix = "siyarix"
 mufthakherul = "mufthakherul"
 bug_hunter = "bug_hunter"
 repl = "repl"
+pn = "pn"
+Pn = "Pn"
+SCAP = "SCAP"
+fallsback = "fallsback"
+exampl = "exampl"
+exampl3 = "exampl3"
+criticals = "criticals"
 
 [default.extend-identifiers]
 # Code identifiers to allow

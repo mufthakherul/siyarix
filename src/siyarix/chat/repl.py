@@ -180,7 +180,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
         if profile.sdk_dependency:
             try:
-                # Validate the module name is a known SDK dependency
                 _SAFE_SDKS = {"openai", "anthropic", "google-genai", "mistralai", "cohere", "together"}
                 if profile.sdk_dependency not in _SAFE_SDKS:
                     logger.warning("Unknown SDK dependency '%s' for provider '%s'", profile.sdk_dependency, provider)
@@ -324,7 +323,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 # Record in global command history for autocomplete ranking
                 command_history.record(user_input)
 
-                # Check for piping
                 if "|" in user_input and not user_input.startswith("/"):
                     pipe_parts = self._check_for_piping(user_input)
                     if pipe_parts != user_input:

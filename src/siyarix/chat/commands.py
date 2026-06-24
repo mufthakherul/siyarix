@@ -55,17 +55,17 @@ class ArgInfo:
 class CommandInfo:
     """Metadata for a single slash command."""
 
-    name: str                          # primary name e.g. "/help"
+    name: str
     category: CommandCategory
-    description: str                   # one-line help text
-    usage: str = ""                    # e.g. "/history [n] [filter]"
+    description: str
+    usage: str = ""
     aliases: list[str] = field(default_factory=list)
     args: list[ArgInfo] = field(default_factory=list)
     hidden: bool = False
-    handler: str = ""                  # method name on CommandHandlersMixin
-    mode_filter: list[str] | None = None  # e.g. ["autonomous", "integrated"] means available only in these modes
-    examples: list[str] = field(default_factory=list)  # usage examples
-    notes: str = ""                    # additional help notes
+    handler: str = ""
+    mode_filter: list[str] | None = None
+    examples: list[str] = field(default_factory=list)
+    notes: str = ""
 
     @property
     def all_names(self) -> list[str]:
@@ -990,7 +990,6 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
     ),
 ]
 
-# Initialize the registry
 CommandRegistry.initialize()
 
 # ── Backward compatibility: HELP_CATEGORIES and SLASH_HELP ────────────────

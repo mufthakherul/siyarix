@@ -960,7 +960,6 @@ class LLMEngineMixin:
             if not plan or not plan.steps:
                 break
 
-            # Skip hallucinated or placeholder tool names
             tool_labels = []
             for s in plan.steps:
                 if s.command:
@@ -1352,7 +1351,6 @@ class LLMEngineMixin:
                 ggufs = sorted(
                     models_dir.glob("*.gguf"), key=lambda p: p.stat().st_mtime, reverse=True
                 )
-                # Validate GGUF magic bytes (first 4 bytes must be "GGUF")
                 valid_model = None
                 for g in ggufs:
                     try:

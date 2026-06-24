@@ -883,7 +883,6 @@ def scan(
     if not no_banner and not _CI_MODE:
         print_banner(console, _active_theme)
 
-    # Resolve mode from parent callback if not explicitly provided
     if mode is None:
         mode = str(ctx.parent.params.get("mode", "integrated"))
 
@@ -1173,7 +1172,6 @@ def run(
     if not no_banner and not _CI_MODE:
         print_banner(console, _active_theme)
 
-    # Resolve mode from parent callback if not explicitly provided
     if mode is None:
         mode = str(ctx.parent.params.get("mode", "integrated"))
 

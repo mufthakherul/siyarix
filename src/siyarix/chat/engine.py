@@ -898,7 +898,7 @@ class LLMEngineMixin:
                         f"[yellow]⚠ {provider_name} failed ({exc}) — using local planner[/yellow]"
                     )
                     llm_connected = False
-                    llm_call_fn = None
+                    llm_call_fn = None  # type: ignore[assignment]
                     if self._mode == "integrated" and provider_name not in ("none",):
                         self._mode = "offline"
                         self._session.mode = "offline"
@@ -1212,7 +1212,7 @@ class LLMEngineMixin:
         # -- Anthropic (native SDK) ---------------------------------------------
         if provider_name == "anthropic":
             try:
-                from anthropic import AsyncAnthropic  # type: ignore[import-not-found]
+                from anthropic import AsyncAnthropic
             except ImportError:
                 raise LLMProviderError(
                     "anthropic package not installed. Run: pip install anthropic"
@@ -1241,20 +1241,20 @@ class LLMEngineMixin:
                         async with anthropic_client.messages.stream(
                             model=model,
                             system=system_prompt,
-                            messages=msgs,
+                            messages=msgs,  # type: ignore[arg-type]
                             max_tokens=2000,
                             temperature=0.3,
                         ) as stream_ctx:
                             async for text in stream_ctx.text_stream:
                                 yield text
 
-                    return _gen()
+                    return _gen()  # type: ignore[no-any-return]
                 hist_msgs = [m for m in (history or []) if m.get("role") != "system"]
                 msgs = hist_msgs + [{"role": "user", "content": user_prompt}]
                 msg = await anthropic_client.messages.create(
                     model=model,
                     system=system_prompt,
-                    messages=msgs,
+                    messages=msgs,  # type: ignore[arg-type]
                     max_tokens=2000,
                     temperature=0.3,
                 )
@@ -1394,7 +1394,7 @@ class LLMEngineMixin:
             if os.name == "nt":
                 subprocess.Popen(
                     [binary, *args],
-                    creationflags=subprocess.CREATE_NO_WINDOW,  # type: ignore[attr-defined]
+                    creationflags=subprocess.CREATE_NO_WINDOW,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )

@@ -10,7 +10,6 @@ from typing import Any
 from .events import Event, EventType
 from .exceptions import PermissionDeniedError, ToolExecutionError, ToolNotFoundError
 from .executor import BaseExecutor, StepExecutor
-from .workflow import WorkflowStepFn
 from .models import ExecutionPlan, PlanStep, PlanStatus, StepStatus
 from .planner_registry import TOOL_ALTERNATIVES
 from .registry import ToolRegistry
@@ -110,7 +109,7 @@ class RegistryExecutor(BaseExecutor):
                 for s in ready_steps:
                     await self._execute_step(s, executor_fn)
                     if self._budget.is_exhausted:
-                        break
+                        break  # type: ignore[unreachable]
 
             completed = sum(1 for s in plan.steps if s.is_terminal)
             pct = (completed / total_steps * 100.0) if total_steps else 100.0
@@ -144,7 +143,7 @@ class RegistryExecutor(BaseExecutor):
         if self._on_step_progress:
             res = self._on_step_progress(step)
             if hasattr(res, "__await__"):
-                await res
+                await res  # type: ignore[misc]
         start = __import__("time").monotonic()
         try:
             result = await asyncio.wait_for(
@@ -190,7 +189,7 @@ class RegistryExecutor(BaseExecutor):
         if self._on_step_progress:
             res = self._on_step_progress(step)
             if hasattr(res, "__await__"):
-                await res
+                await res  # type: ignore[misc]
 
     async def _try_execute(
         self, step: PlanStep, executor_fn: StepExecutor | None
@@ -355,7 +354,7 @@ class RegistryExecutor(BaseExecutor):
                     if self._on_step_progress:
                         res = self._on_step_progress(_step)
                         if hasattr(res, "__await__"):
-                            await res
+                            await res  # type: ignore[misc]
                     _result = await self._try_execute(_step, None)
                     _step.result = _result
                     _step.status = (
@@ -367,7 +366,7 @@ class RegistryExecutor(BaseExecutor):
                     if self._on_step_progress:
                         res = self._on_step_progress(_step)
                         if hasattr(res, "__await__"):
-                            await res
+                            await res  # type: ignore[misc]
                     return _result
 
                 engine.register_step(s.id, _run_step)

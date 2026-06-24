@@ -1,92 +1,119 @@
-# First Run
+# 🏃‍♂️ Your First Run
 
-Your first Siyarix session walks through onboarding, health verification, and executing a live command. We will guide you step by step.
+You have installed Siyarix, and you are ready to take it for a spin. Awesome! 
 
-## Step 1: Launch and Onboard
+This guide will walk you through your very first session, from verifying the system health to executing a live command.
+
+---
+
+## 1️⃣ Launch and Onboard
+
+To get started, simply type the following into your terminal:
 
 ```bash
 siyarix
 ```
 
-If Siyarix has not been initialized, the interactive 11-step onboarding wizard launches automatically. The `BootstrapEngine` detects your platform, checks dependencies, and sets up the workspace directory structure. Follow the prompts to configure your AI provider, credentials, and preferences.
+If this is your very first time running the program, the **Onboarding Wizard** will automatically launch. It will warmly guide you through setting up your AI provider and configuring your initial preferences. 
 
-See the [Onboarding Wizard](onboarding.md) for a detailed walkthrough of each step.
+*(If you want to read more about what happens during this step, check out our [Onboarding Wizard](onboarding.md) guide.)*
 
-## Step 2: Verify Health
+---
 
-Ensure everything is operational:
+## 2️⃣ Verify System Health
+
+Before we start scanning networks, let's make sure everything is plugged in correctly. Siyarix has a built-in health checker that acts like a pre-flight checklist.
 
 ```bash
 siyarix health
 ```
 
-The `HealthChecker` performs a comprehensive assessment:
+This command runs a comprehensive diagnostic sweep, checking:
+- **System Requirements:** Ensuring your Python version and OS are compatible.
+- **Installed Tools:** Scanning your `PATH` to make sure you have the necessary security binaries installed.
+- **Credential Store:** Verifying that your encrypted vault is unlocked and ready.
+- **Provider Connectivity:** Reaching out to your configured AI providers (like OpenAI or Ollama) to ensure their APIs are responding.
+- **System Resources:** Checking your memory and CPU to warn you if you might run out of RAM during heavy autonomous operations.
 
-- **Python version** and system requirements
-- **Installed tools** in PATH (critical runtime tools like bash, python, curl, and security tools)
-- **Credential store** status (encrypted vault ready)
-- **Provider connectivity** — checks all configured AI providers (cloud API key presence, local provider responsiveness via health endpoints)
-- **System resources** — memory, disk, CPU usage (via psutil)
-- **Overall state** — reports healthy, degraded, or unhealthy with per-component details
+If it says you are healthy, you are cleared for takeoff! 🛫
 
-## Step 3: Run a Scan
+---
 
-Execute a quick port scan against a domain:
+## 3️⃣ Run a Pre-Configured Scan
+
+Let's start with something simple. Siyarix comes with a few pre-configured workflows. Let's run a quick port scan against a domain.
 
 ```bash
 siyarix scan quick example.com
 ```
 
-Siyarix will plan the operation, route it through the permission gate, execute the tools, parse the output, and display structured results.
+**What happens behind the scenes?**
+1. Siyarix plans the operation.
+2. It routes the plan through the **Permission Gate** (so you can see exactly what it is about to do).
+3. It executes the tools in the background.
+4. It parses the messy terminal output into a clean, structured table.
 
-### Deep Scan
-
-For more comprehensive reconnaissance:
-
+### Want to dig deeper?
+If you want comprehensive reconnaissance (OS fingerprinting, vulnerability detection, etc.), try the deep scan:
 ```bash
 siyarix scan deep example.com
 ```
 
-The `DeepScanEngine` performs multi-layered analysis with OS fingerprinting, vulnerability detection, and comprehensive reporting.
+---
 
-## Step 4: Enter the REPL
+## 4️⃣ Command with Natural Language
 
-Launch the interactive REPL for multi-turn conversations:
-
-```bash
-siyarix
-```
-
-From the REPL you can run slash commands (`/scan`, `/run`, `/persona`), switch providers mid-session, and chain multiple operations. The `SmartAutocomplete` provides context-aware tab completion for commands, tools, models, providers, and file paths.
-
-## Step 5: Natural Language Execution
+This is where the magic happens. Instead of typing out complex `nmap` flags, you can just tell Siyarix what you want to achieve in plain English.
 
 ```bash
-siyarix run "enumerate services on 10.0.0.1"
+siyarix run "enumerate services on 10.0.0.1 and find vulnerable versions"
 ```
 
-Siyarix interprets the request, selects appropriate tools, builds an execution plan, and presents the results.
+The AI engine will interpret your request, select the best tools for the job, build an execution plan, and present you with the results.
 
-### Offline Mode
-
-For environments without AI provider access:
+### 🚫 Running Offline?
+If you are in an air-gapped environment or don't want to use an AI provider, Siyarix has you covered. Just add the `--mode offline` flag:
 
 ```bash
 siyarix --mode offline run "scan example.com"
 ```
 
-In offline mode, the `OfflineRegistry` planner uses heuristic planning without any AI dependency — always available, no API keys required.
+In offline mode, Siyarix relies on a hardcoded heuristics registry to plan tasks—no AI dependency, and no API keys required!
 
-## Getting Help
+---
+
+## 5️⃣ Enter the Interactive REPL
+
+Running single commands from the terminal is great, but Siyarix truly shines when you enter its interactive chat mode (the REPL). 
 
 ```bash
-siyarix --help              # Top-level help
-siyarix scan --help         # Subcommand help
-siyarix                     # /help lists all slash commands in REPL
+siyarix
 ```
 
-## What's Next
+Once inside, you are in a multi-turn conversation with your AI security co-pilot. You can:
+- Type `/run [prompt]` to execute commands.
+- Type `/persona` to change the AI's mindset on the fly.
+- Enjoy context-aware tab completion for file paths, tools, and models!
 
-- [Interactive Chat](../user/interactive-chat.md) — Master the REPL
-- [Security Workflows](../user/security-workflows.md) — Real-world scenarios
-- [CLI Commands](../user/cli-commands.md) — Full command reference
+---
+
+## 🙋 Getting Help
+
+If you ever get stuck, help is just a command away:
+
+```bash
+siyarix --help              # Top-level help menu
+siyarix scan --help         # Help for a specific command
+```
+
+If you are inside the REPL, simply type `/help` to see a list of all available slash commands.
+
+---
+
+## ⏭️ What's Next?
+
+You have successfully run your first scan! Here is where you can go from here:
+
+- **[Interactive Chat (REPL)](../user/interactive-chat.md)** — Master the interactive terminal.
+- **[Security Workflows](../user/security-workflows.md)** — Learn how to handle real-world scenarios.
+- **[CLI Commands](../user/cli-commands.md)** — Browse the full command reference.

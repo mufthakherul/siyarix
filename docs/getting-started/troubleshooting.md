@@ -1,127 +1,157 @@
-# Troubleshooting
+# 🚑 Troubleshooting
 
-## Installation Issues
+Things don't always go according to plan, and that is okay! If you are running into issues with Siyarix, you have come to the right place. 
 
-### pip install fails
+Below are the most common issues users face and the exact steps to fix them.
 
+---
+
+## 🛠️ Installation Issues
+
+### I'm getting a `pip install` failure!
+Siyarix requires some modern Python features. Ensure you are running the correct version:
 ```bash
-python --version                      # Ensure Python 3.11+
+# 1. Verify you are running Python 3.11 or newer
+python --version                      
+
+# 2. Upgrade your pip (outdated pip is the #1 cause of install failures)
 pip install --upgrade pip
-pip install siyarix -v                # Verbose output
+
+# 3. Try installing again with verbose output to see exactly where it fails
+pip install siyarix -v                
 ```
 
-### Import Errors
-
+### I'm seeing weird "Import Errors" when running Siyarix.
+Sometimes, Python misses a dependency during a basic install. You can force it to pull down absolutely everything Siyarix needs by installing the `[all]` extra:
 ```bash
-pip install "siyarix[all]"           # Ensure all deps installed
+pip install "siyarix[all]"
 ```
 
-### siyarix: command not found
-
+### The terminal says `siyarix: command not found`.
+Your operating system might not have Python's scripts folder added to your system `PATH`.
 ```bash
-python -m siyarix --version           # Run via module
-# which siyarix  (Linux/macOS)
-# where siyarix  (Windows)
+# Workaround: You can always run Siyarix directly as a Python module!
+python -m siyarix --version           
 ```
 
-## Runtime Issues
+---
 
-### "No AI provider available"
+## 🏃 Runtime & Execution Issues
 
-**Cause**: No API keys set and no local provider running.
-
-**Fix**:
+### Error: "No AI provider available"
+**The Cause:** Siyarix woke up, but it doesn't have a brain connected! You haven't provided any API keys, and there are no local AI engines running.
+**The Fix:**
 ```bash
-export OPENAI_API_KEY="sk-..."       # Set a cloud key
-ollama pull llama3.1 && ollama serve # Or start a local provider
-```
+# Option A: Give it a cloud key
+export OPENAI_API_KEY="sk-..."       
 
-Alternatively, use offline mode:
-```bash
+# Option B: Spin up a local, free AI engine
+ollama pull llama3.1 && ollama serve 
+
+# Option C: Run in Offline mode (no AI needed!)
 siyarix --mode offline run "scan example.com"
 ```
 
-### Connection Errors
-
-**Cause**: Provider endpoint unreachable.
-
-**Fix**:
+### Error: "Connection Refused" or "Timeout"
+**The Cause:** Siyarix cannot reach the AI provider's API endpoint.
+**The Fix:**
 ```bash
-siyarix health                        # Check provider connectivity
+# 1. Let Siyarix diagnose the connection for you
+siyarix health                        
+
+# 2. Are you stuck behind a corporate proxy? Check your proxy settings
 siyarix config get proxy
+
+# 3. If a proxy is misconfigured, clear it out
 siyarix config set proxy ""
 ```
 
-### Permission Denied
+### Error: "Permission Denied"
+**The Cause:** Security tools often need to craft raw network packets (like `nmap` doing OS fingerprinting). Standard users don't have the OS permissions to do this.
+**The Fix:** Run Siyarix with elevated privileges! Use `sudo` on Linux/macOS, or open your terminal as an Administrator on Windows.
 
-**Cause**: Insufficient permissions for network interfaces or raw sockets.
-
-**Fix**: Run with elevated privileges (`sudo` on Linux/macOS, Administrator on Windows).
-
-### Tool Discovery Fails
-
-**Cause**: Security tools not found on PATH.
-
-**Fix**:
+### "Tool Discovery Fails" / "Tool not found"
+**The Cause:** Siyarix is trying to use a security tool (like `nmap`), but it isn't installed on your actual computer. Siyarix orchestrates tools; it doesn't bundle them all.
+**The Fix:**
 ```bash
-sudo apt install nmap                # Debian/Ubuntu
-brew install nmap                     # macOS
-winget install nmap                   # Windows
-siyarix scan --list-tools             # Verify tool registry
+# Debian/Ubuntu Linux
+sudo apt install nmap                
+
+# macOS
+brew install nmap                     
+
+# Windows
+winget install nmap                   
+
+# Verify what Siyarix can see:
+siyarix scan --list-tools             
 ```
 
-### Health Check Shows Degraded
+---
 
-Run the comprehensive health check to identify specific issues:
+## 🩺 Diagnosing Deeper Issues
 
-```bash
-siyarix health
-```
-
-The `HealthChecker` reports per-component status for model providers, tools, system memory, disk, and CPU. Focus on components marked `DEGRADED` or `UNHEALTHY`.
+### My Health Check shows "Degraded" or "Unhealthy"
+If you run `siyarix health` and see red text, don't panic! The Health Checker breaks down exactly what is wrong. Look specifically at the components marked `DEGRADED` or `UNHEALTHY`—it will tell you if you are out of RAM, missing a tool, or failing to reach an API.
 
 ### Credential Store Errors
-
-**Cause**: Missing `cryptography` package or corrupted key file.
-
-**Fix**:
+**The Cause:** Siyarix's encrypted vault might be corrupted, or your OS is missing the cryptography libraries needed to decrypt it.
+**The Fix:**
 ```bash
-pip install cryptography              # Install encryption dependency
-siyarix init --force                  # Re-initialize credential store
+# 1. Ensure the encryption dependency is fully installed
+pip install cryptography              
+
+# 2. Force Siyarix to re-initialize a fresh, healthy vault
+siyarix init --force                  
 ```
 
-## Debug Mode
+---
+
+## 🐛 Enabling Debug Mode
+
+If the error messages aren't giving you enough context, you can turn on Debug Mode to see exactly what Siyarix is thinking under the hood.
 
 ```bash
+# Enable it temporarily for a single session:
 export SIYARIX_DEBUG=1
-siyarix ...
-```
+siyarix run "scan example.com"
 
-Or set persistent log level:
-
-```bash
+# Or enable it permanently:
 siyarix config set log_level debug
 ```
 
-## Reset
+---
+
+## ☢️ The Nuclear Option: Full Reset
+
+If your configuration is completely tangled and you just want to start fresh:
 
 ```bash
-siyarix config reset                  # Reset settings to defaults
-rm -rf ~/.siyarix                     # Full reset (settings, history, cache, credentials)
+# Option A: Just reset your settings back to factory defaults
+siyarix config reset                  
+
+# Option B: The Nuclear Option (Deletes history, credentials, cache, and settings)
+rm -rf ~/.siyarix                     
 ```
 
-## Known Limitations
+---
 
-- Python 3.11+ required; older versions not supported
-- Windows raw sockets require Administrator privileges
-- Docker environments may lack certain native tools
-- WSL2 network performance may differ from native Linux
-- Some advanced parsers require specific tool output formats
+## ⚠️ Known Limitations
 
-## Reporting Issues
+Before pulling your hair out, ensure you aren't running into one of our known platform limitations:
+- **Python 3.10 and older are NOT supported.** You must be on 3.11+.
+- Windows raw sockets absolutely require Administrator privileges.
+- Docker containers often lack native networking tools; you may need to install them inside the container.
+- WSL2 (Windows Subsystem for Linux) network performance and bridging behaves differently than native Linux, which can affect scan accuracy.
+
+---
+
+## 📢 Still stuck? Reporting Issues
+
+We are here to help! If you have found a bug, please let us know:
 
 1. Enable debug logging: `export SIYARIX_DEBUG=1`
-2. Collect diagnostics: `siyarix health`
-3. Open an issue at https://github.com/mufthakherul/siyarix/issues
+2. Run the diagnostic tool: `siyarix health`
+3. Copy the output and open an issue on our [GitHub Repository](https://github.com/siyarix/siyarix/issues).
 
-Include Python version, OS, and full error output.
+*Please be sure to include your OS, your Python version, and the full text of the error!*

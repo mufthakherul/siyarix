@@ -9,11 +9,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "adb": {
     "name": "adb",
@@ -25,11 +26,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "adidnsdump": {
     "name": "adidnsdump",
@@ -41,11 +43,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "affcat": {
     "name": "affcat",
@@ -57,11 +60,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "affuse": {
     "name": "affuse",
@@ -73,11 +77,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "aircrack-ng": {
     "name": "aircrack-ng",
@@ -93,7 +98,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "aireplay-ng": {
     "name": "aireplay-ng",
@@ -105,11 +111,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "airgeddon": {
     "name": "airgeddon",
@@ -121,11 +128,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "airmon-ng": {
     "name": "airmon-ng",
@@ -137,11 +145,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "airodump-ng": {
     "name": "airodump-ng",
@@ -153,11 +162,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "alterx": {
     "name": "alterx",
@@ -169,11 +179,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "amass": {
     "name": "amass",
@@ -190,7 +201,8 @@
       "pentester",
       "redteam",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "angryip": {
     "name": "angryip",
@@ -202,11 +214,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "apktool": {
     "name": "apktool",
@@ -222,7 +235,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "appcompatprocessor": {
     "name": "appcompatprocessor",
@@ -234,11 +248,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "aquatone": {
     "name": "aquatone",
@@ -250,11 +265,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "arachni": {
     "name": "arachni",
@@ -270,7 +286,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "arjun": {
     "name": "arjun",
@@ -282,11 +299,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "armitage": {
     "name": "armitage",
@@ -302,7 +320,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "arping": {
     "name": "arping",
@@ -314,12 +333,13 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "ARPing\\ (\\d+(?:\\.\\d+)+),\\ by\\ Thomas\\ Habets\\ <thomas@habets\\.se>",
     "personas": [
       "pentester",
       "redteam",
       "blueteam"
-    ]
+    ],
+    "version": "2.28"
   },
   "arpon": {
     "name": "arpon",
@@ -331,11 +351,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "arpspoof": {
     "name": "arpspoof",
@@ -347,11 +368,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "asleap": {
     "name": "asleap",
@@ -363,11 +385,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "asreproast": {
     "name": "asreproast",
@@ -379,11 +402,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "assetfinder": {
     "name": "assetfinder",
@@ -395,11 +419,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "astraceroute": {
     "name": "astraceroute",
@@ -411,11 +436,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "astraceroute\\ (\\d+(?:\\.\\d+)+)\\ \\(Analogue\\ Bubblebath\\),\\ Git\\ id:\\ \\(none\\)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "0.6.9"
   },
   "autopsy": {
     "name": "autopsy",
@@ -427,11 +453,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "autosploit": {
     "name": "autosploit",
@@ -443,11 +470,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "aws": {
     "name": "aws",
@@ -465,7 +493,8 @@
       "devsecops",
       "blueteam",
       "cloud"
-    ]
+    ],
+    "version": ""
   },
   "az": {
     "name": "az",
@@ -477,12 +506,13 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops",
       "blueteam",
       "cloud"
-    ]
+    ],
+    "version": ""
   },
   "az-storage": {
     "name": "az-storage",
@@ -494,11 +524,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "backdoor-factory": {
     "name": "backdoor-factory",
@@ -510,11 +541,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "bandit": {
     "name": "bandit",
@@ -526,11 +558,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "base64": {
     "name": "base64",
@@ -542,11 +575,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "base64\\ \\(GNU\\ coreutils\\)\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "9.10"
   },
   "beef": {
     "name": "beef",
@@ -564,7 +598,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "bettercap": {
     "name": "bettercap",
@@ -580,7 +615,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "bfac": {
     "name": "bfac",
@@ -592,11 +628,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "binwalk": {
     "name": "binwalk",
@@ -612,7 +649,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "bitleaker": {
     "name": "bitleaker",
@@ -624,11 +662,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "bittwist": {
     "name": "bittwist",
@@ -640,11 +679,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "bloodhound": {
     "name": "bloodhound",
@@ -656,11 +696,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "bloodhound-python": {
     "name": "bloodhound-python",
@@ -672,11 +713,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "bmap": {
     "name": "bmap",
@@ -688,11 +730,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "braa": {
     "name": "braa",
@@ -704,11 +747,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "bruteshark": {
     "name": "bruteshark",
@@ -720,11 +764,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "brutespray": {
     "name": "brutespray",
@@ -736,11 +781,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "brutexor": {
     "name": "brutexor",
@@ -752,11 +798,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "bucketeer": {
     "name": "bucketeer",
@@ -768,11 +815,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "buildah": {
     "name": "buildah",
@@ -784,10 +832,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "bulk_extractor": {
     "name": "bulk_extractor",
@@ -799,10 +848,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "bulk_extractor\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "forensics"
-    ]
+    ],
+    "version": "2.1.1"
   },
   "bully": {
     "name": "bully",
@@ -814,11 +864,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "v(\\d+(?:\\.\\d+)+)\\-00",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "1.4"
   },
   "bundle-audit": {
     "name": "bundle-audit",
@@ -836,7 +887,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "burpsuite": {
     "name": "burpsuite",
@@ -855,7 +907,8 @@
       "pentester",
       "redteam",
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "cadaver": {
     "name": "cadaver",
@@ -867,11 +920,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "neon\\ (\\d+(?:\\.\\d+)+):\\ Library\\ build,\\ IPv6,\\ libxml\\ 2\\.15\\.1,\\ zlib\\ 1\\.3\\.1,\\ GNU\\ TLS\\ 3\\.8\\.12,\\ libntlm\\ 1\\.8\\.",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "0.37.1"
   },
   "cartography": {
     "name": "cartography",
@@ -883,11 +937,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "blueteam",
       "cloud"
-    ]
+    ],
+    "version": ""
   },
   "certipy": {
     "name": "certipy",
@@ -899,11 +954,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "certipy-ad": {
     "name": "certipy-ad",
@@ -915,11 +971,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "Certipy\\ v(\\d+(?:\\.\\d+)+)\\ \\-\\ by\\ Oliver\\ Lyak\\ \\(ly4k\\)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "5.0.4"
   },
   "cewl": {
     "name": "cewl",
@@ -935,7 +992,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "6.2"
   },
   "cfssl": {
     "name": "cfssl",
@@ -947,11 +1005,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "chainsaw": {
     "name": "chainsaw",
@@ -963,11 +1022,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "forensics",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "changeme": {
     "name": "changeme",
@@ -979,11 +1039,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "chaos": {
     "name": "chaos",
@@ -995,11 +1056,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "checkov": {
     "name": "checkov",
@@ -1011,11 +1073,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops",
       "cloud"
-    ]
+    ],
+    "version": ""
   },
   "chisel": {
     "name": "chisel",
@@ -1027,11 +1090,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "chkrootkit": {
     "name": "chkrootkit",
@@ -1043,11 +1107,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "chrome-dump": {
     "name": "chrome-dump",
@@ -1059,11 +1124,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "chronicle": {
     "name": "chronicle",
@@ -1075,11 +1141,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "cipher": {
     "name": "cipher",
@@ -1091,11 +1158,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "cisco-auditing-tool": {
     "name": "cisco-auditing-tool",
@@ -1107,11 +1175,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "cisco-scanner": {
     "name": "cisco-scanner",
@@ -1123,11 +1192,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ciscot7": {
     "name": "ciscot7",
@@ -1139,11 +1209,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "cksum": {
     "name": "cksum",
@@ -1155,11 +1226,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "cksum\\ \\(GNU\\ coreutils\\)\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "9.10"
   },
   "clamscan": {
     "name": "clamscan",
@@ -1171,10 +1243,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "cloud-enum": {
     "name": "cloud-enum",
@@ -1186,11 +1259,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "cloudbrute": {
     "name": "cloudbrute",
@@ -1202,11 +1276,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "cloudfox": {
     "name": "cloudfox",
@@ -1218,12 +1293,13 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam",
       "cloud"
-    ]
+    ],
+    "version": ""
   },
   "cloudlist": {
     "name": "cloudlist",
@@ -1235,11 +1311,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "cloud"
-    ]
+    ],
+    "version": ""
   },
   "cloudsplaining": {
     "name": "cloudsplaining",
@@ -1251,12 +1328,13 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "devsecops",
       "cloud"
-    ]
+    ],
+    "version": ""
   },
   "cloudsploit": {
     "name": "cloudsploit",
@@ -1268,11 +1346,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops",
       "cloud"
-    ]
+    ],
+    "version": ""
   },
   "cmseek": {
     "name": "cmseek",
@@ -1284,11 +1363,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "cmsmap": {
     "name": "cmsmap",
@@ -1300,11 +1380,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "cobalt-strike": {
     "name": "cobalt-strike",
@@ -1320,7 +1401,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "coercer": {
     "name": "coercer",
@@ -1332,11 +1414,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "commix": {
     "name": "commix",
@@ -1348,11 +1431,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "conftest": {
     "name": "conftest",
@@ -1364,10 +1448,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "containerd": {
     "name": "containerd",
@@ -1379,11 +1464,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "cors-scanner": {
     "name": "cors-scanner",
@@ -1395,11 +1481,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "corsy": {
     "name": "corsy",
@@ -1411,11 +1498,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "cosign": {
     "name": "cosign",
@@ -1427,10 +1515,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "covenant": {
     "name": "covenant",
@@ -1442,11 +1531,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "cowpatty": {
     "name": "cowpatty",
@@ -1458,11 +1548,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "crackmapexec": {
     "name": "crackmapexec",
@@ -1477,11 +1568,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "crictl": {
     "name": "crictl",
@@ -1493,11 +1585,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "crowbar": {
     "name": "crowbar",
@@ -1509,11 +1602,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "crtsh": {
     "name": "crtsh",
@@ -1527,11 +1621,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "crunch": {
     "name": "crunch",
@@ -1543,11 +1638,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "crunch\\ version\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "3.6"
   },
   "cryptcat": {
     "name": "cryptcat",
@@ -1559,11 +1655,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "csrfp": {
     "name": "csrfp",
@@ -1575,11 +1672,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "curl": {
     "name": "curl",
@@ -1597,7 +1695,8 @@
       "redteam",
       "blueteam",
       "devsecops"
-    ]
+    ],
+    "version": "8.20.0"
   },
   "cutycapt": {
     "name": "cutycapt",
@@ -1609,11 +1708,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dagger": {
     "name": "dagger",
@@ -1625,10 +1725,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "dalfox": {
     "name": "dalfox",
@@ -1644,7 +1745,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "darkd0rk": {
     "name": "darkd0rk",
@@ -1656,11 +1758,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dc3dd": {
     "name": "dc3dd",
@@ -1672,11 +1775,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dcfldd": {
     "name": "dcfldd",
@@ -1688,11 +1792,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dcsync": {
     "name": "dcsync",
@@ -1704,11 +1809,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dd": {
     "name": "dd",
@@ -1720,11 +1826,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "dd\\ \\(coreutils\\)\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "9.10"
   },
   "depshield": {
     "name": "depshield",
@@ -1736,11 +1843,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "detect-it-easy": {
     "name": "detect-it-easy",
@@ -1754,11 +1862,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "diamond-ticket": {
     "name": "diamond-ticket",
@@ -1770,11 +1879,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dig": {
     "name": "dig",
@@ -1786,11 +1896,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dirb": {
     "name": "dirb",
@@ -1802,11 +1913,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "DIRB\\ v(\\d+(?:\\.\\d+)+)\\ \\ \\ \\ ",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dirbuster": {
     "name": "dirbuster",
@@ -1818,11 +1930,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dirscanner": {
     "name": "dirscanner",
@@ -1834,11 +1947,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dirsearch": {
     "name": "dirsearch",
@@ -1854,7 +1968,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dislocker": {
     "name": "dislocker",
@@ -1866,11 +1981,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dmitry": {
     "name": "dmitry",
@@ -1882,11 +1998,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dns2tcp": {
     "name": "dns2tcp",
@@ -1898,11 +2015,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dnschef": {
     "name": "dnschef",
@@ -1914,11 +2032,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "\\ \\ \\ \\ \\ \\ \\ \\ \\ \\|\\ \\|\\ version\\ (\\d+(?:\\.\\d+)+)\\ \\ \\|\\ \\|\\ \\ \\ \\ \\ \\ \\ \\ /\\ _\\|\\ ",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "0.4"
   },
   "dnsenum": {
     "name": "dnsenum",
@@ -1930,11 +2049,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "dnsenum\\ VERSION:(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "1.3.1"
   },
   "dnsgen": {
     "name": "dnsgen",
@@ -1946,11 +2066,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dnsmap": {
     "name": "dnsmap",
@@ -1962,11 +2083,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "dnsmap\\ (\\d+(?:\\.\\d+)+)\\ \\-\\ DNS\\ Network\\ Mapper",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "0.36"
   },
   "dnsrecon": {
     "name": "dnsrecon",
@@ -1978,11 +2100,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "DNSRecon\\ version\\ (\\d+(?:\\.\\d+)+)\\ https://www\\.darkoperator\\.com",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "1.3.1"
   },
   "dnstwist": {
     "name": "dnstwist",
@@ -1994,11 +2117,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dnsvalidator": {
     "name": "dnsvalidator",
@@ -2010,11 +2134,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dnsx": {
     "name": "dnsx",
@@ -2026,11 +2151,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "docker": {
     "name": "docker",
@@ -2047,7 +2173,8 @@
       "devsecops",
       "blueteam",
       "pentester"
-    ]
+    ],
+    "version": ""
   },
   "docker-bench-security": {
     "name": "docker-bench-security",
@@ -2061,11 +2188,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "donut": {
     "name": "donut",
@@ -2077,11 +2205,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "doork": {
     "name": "doork",
@@ -2093,11 +2222,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dotdotpwn": {
     "name": "dotdotpwn",
@@ -2109,11 +2239,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "droopescan": {
     "name": "droopescan",
@@ -2125,11 +2256,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "dsniff": {
     "name": "dsniff",
@@ -2141,11 +2273,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "Version:\\ (\\d+(?:\\.\\d+)+)a2",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "2.5"
   },
   "dtrace": {
     "name": "dtrace",
@@ -2157,11 +2290,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "eaphammer": {
     "name": "eaphammer",
@@ -2173,11 +2307,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "eapmd5pass": {
     "name": "eapmd5pass",
@@ -2189,11 +2324,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "empire": {
     "name": "empire",
@@ -2207,11 +2343,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "enum4linux": {
     "name": "enum4linux",
@@ -2227,7 +2364,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "enum4linux-ng": {
     "name": "enum4linux-ng",
@@ -2239,11 +2377,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "etcd": {
     "name": "etcd",
@@ -2255,11 +2394,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ettercap": {
     "name": "ettercap",
@@ -2275,7 +2415,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "evil-winrm": {
     "name": "evil-winrm",
@@ -2287,11 +2428,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "evtparser": {
     "name": "evtparser",
@@ -2303,11 +2445,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "evtx": {
     "name": "evtx",
@@ -2319,11 +2462,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ewfacquire": {
     "name": "ewfacquire",
@@ -2335,11 +2479,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ewfexport": {
     "name": "ewfexport",
@@ -2351,11 +2496,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "exifprobe": {
     "name": "exifprobe",
@@ -2367,11 +2513,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "exiftool": {
     "name": "exiftool",
@@ -2387,7 +2534,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "exploitdb": {
     "name": "exploitdb",
@@ -2401,11 +2549,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "\\ \\ searchsploit\\ \\-s\\ Apache\\ Struts\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "2.0.0"
   },
   "ext3grep": {
     "name": "ext3grep",
@@ -2417,11 +2566,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ext4magic": {
     "name": "ext4magic",
@@ -2433,11 +2583,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "extundelete": {
     "name": "extundelete",
@@ -2449,11 +2600,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "eyewitness": {
     "name": "eyewitness",
@@ -2465,11 +2617,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "factordb": {
     "name": "factordb",
@@ -2481,11 +2634,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "falco": {
     "name": "falco",
@@ -2497,11 +2651,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "blueteam",
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "fern-wifi-cracker": {
     "name": "fern-wifi-cracker",
@@ -2513,11 +2668,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "feroxbuster": {
     "name": "feroxbuster",
@@ -2533,7 +2689,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "2.13.1"
   },
   "ffuf": {
     "name": "ffuf",
@@ -2549,7 +2706,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "2.1.0"
   },
   "fhttp": {
     "name": "fhttp",
@@ -2561,11 +2719,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "fierce": {
     "name": "fierce",
@@ -2577,11 +2736,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "findomain": {
     "name": "findomain",
@@ -2593,11 +2753,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "firefox-dump": {
     "name": "firefox-dump",
@@ -2609,11 +2770,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "firewalk": {
     "name": "firewalk",
@@ -2625,11 +2787,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "fiwalk": {
     "name": "fiwalk",
@@ -2641,11 +2804,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "SleuthKit\\ Version:\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "4.14.0"
   },
   "flare": {
     "name": "flare",
@@ -2657,11 +2821,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "flareqctl": {
     "name": "flareqctl",
@@ -2675,11 +2840,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "fluxion": {
     "name": "fluxion",
@@ -2691,11 +2857,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "foremost": {
     "name": "foremost",
@@ -2707,10 +2874,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "fping": {
     "name": "fping",
@@ -2726,7 +2894,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "5.1"
   },
   "fragroute": {
     "name": "fragroute",
@@ -2738,11 +2907,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "fragrouter": {
     "name": "fragrouter",
@@ -2754,11 +2924,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "freshclam": {
     "name": "freshclam",
@@ -2770,11 +2941,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "frida": {
     "name": "frida",
@@ -2790,7 +2962,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ftk": {
     "name": "ftk",
@@ -2802,11 +2975,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ftkimager": {
     "name": "ftkimager",
@@ -2818,10 +2992,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "galleta": {
     "name": "galleta",
@@ -2833,11 +3008,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "gau": {
     "name": "gau",
@@ -2849,11 +3025,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "gcloud": {
     "name": "gcloud",
@@ -2865,12 +3042,13 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops",
       "blueteam",
       "cloud"
-    ]
+    ],
+    "version": ""
   },
   "gcp-iam": {
     "name": "gcp-iam",
@@ -2882,11 +3060,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "gcp-scanner": {
     "name": "gcp-scanner",
@@ -2898,11 +3077,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops",
       "cloud"
-    ]
+    ],
+    "version": ""
   },
   "gcp-storage": {
     "name": "gcp-storage",
@@ -2914,11 +3094,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "gcs-bucket-scanner": {
     "name": "gcs-bucket-scanner",
@@ -2930,11 +3111,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "gdb": {
     "name": "gdb",
@@ -2950,7 +3132,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "geoip": {
     "name": "geoip",
@@ -2962,11 +3145,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "giskismet": {
     "name": "giskismet",
@@ -2978,11 +3162,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "github-subdomains": {
     "name": "github-subdomains",
@@ -2994,11 +3179,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "gitleaks": {
     "name": "gitleaks",
@@ -3014,7 +3200,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "gobuster": {
     "name": "gobuster",
@@ -3030,7 +3217,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "3.8.2"
   },
   "golden-ticket": {
     "name": "golden-ticket",
@@ -3042,11 +3230,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "gopher": {
     "name": "gopher",
@@ -3058,11 +3247,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "gospider": {
     "name": "gospider",
@@ -3074,11 +3264,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "gowitness": {
     "name": "gowitness",
@@ -3090,11 +3281,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "gpg": {
     "name": "gpg",
@@ -3110,7 +3302,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "2.4.9"
   },
   "gpsd": {
     "name": "gpsd",
@@ -3122,11 +3315,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "graphqlmap": {
     "name": "graphqlmap",
@@ -3138,11 +3332,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "grype": {
     "name": "grype",
@@ -3154,11 +3349,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "gtfo": {
     "name": "gtfo",
@@ -3170,11 +3366,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "guymager": {
     "name": "guymager",
@@ -3186,11 +3383,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "Tue\\ 23\\.Jun\\.2026\\ 20:15:28\\ 626B08C0\\ main\\.cpp\\ MainGo\\ 420\\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ Info\\ \\ \\-\\ Version\\ timestamp:\\ 2026\\-02\\-28\\-(\\d+(?:\\.\\d+)+)\\ UTC",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "16.44.25"
   },
   "hackrf": {
     "name": "hackrf",
@@ -3202,11 +3400,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "hakrawler": {
     "name": "hakrawler",
@@ -3218,11 +3417,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "hash-identifier": {
     "name": "hash-identifier",
@@ -3236,11 +3436,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "\\ \\ \\ \\#\\ \\ \\ \\ \\ \\ \\ \\ \\\\/_/\\\\/_/\\\\/__/\\\\/_/\\\\/___/\\ \\ \\ \\ \\\\/_/\\\\/_/\\ \\ \\ \\ \\ \\\\/_____/\\ \\ \\\\/___/\\ \\ v(\\d+(?:\\.\\d+)+)\\ \\#",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "1.2"
   },
   "hashcat": {
     "name": "hashcat",
@@ -3257,7 +3458,8 @@
       "pentester",
       "redteam",
       "forensics"
-    ]
+    ],
+    "version": "7.1.2"
   },
   "hashdeep": {
     "name": "hashdeep",
@@ -3277,7 +3479,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "havoc": {
     "name": "havoc",
@@ -3289,11 +3492,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "hayabusa": {
     "name": "hayabusa",
@@ -3305,11 +3509,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "forensics",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "hcxdumptool": {
     "name": "hcxdumptool",
@@ -3321,11 +3526,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "hcxpcapngtool": {
     "name": "hcxpcapngtool",
@@ -3337,11 +3543,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "heartbleed": {
     "name": "heartbleed",
@@ -3353,11 +3560,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "helm": {
     "name": "helm",
@@ -3369,11 +3577,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops",
       "cloud"
-    ]
+    ],
+    "version": ""
   },
   "holehe": {
     "name": "holehe",
@@ -3385,12 +3594,13 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam",
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "horst": {
     "name": "horst",
@@ -3402,11 +3612,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "hostapd-wpe": {
     "name": "hostapd-wpe",
@@ -3418,11 +3629,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "hping3": {
     "name": "hping3",
@@ -3434,11 +3646,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "hping3\\ version\\ (\\d+(?:\\.\\d+)+)\\-alpha\\-2\\ \\(\\$Id:\\ release\\.h,v\\ 1\\.4\\ 2004/04/09\\ 23:38:56\\ antirez\\ Exp\\ \\$\\)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "3.0.0"
   },
   "htcap": {
     "name": "htcap",
@@ -3450,11 +3663,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "httprobe": {
     "name": "httprobe",
@@ -3466,11 +3680,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "httpx": {
     "name": "httpx",
@@ -3486,7 +3701,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "hydra": {
     "name": "hydra",
@@ -3504,7 +3720,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "9.7"
   },
   "ike-scan": {
     "name": "ike-scan",
@@ -3516,11 +3733,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "ike\\-scan\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "1.9.6"
   },
   "imap-bruteforce": {
     "name": "imap-bruteforce",
@@ -3532,11 +3750,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "impacket": {
     "name": "impacket",
@@ -3552,7 +3771,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "inql": {
     "name": "inql",
@@ -3564,11 +3784,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "instaloader": {
     "name": "instaloader",
@@ -3580,11 +3801,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "interactsh": {
     "name": "interactsh",
@@ -3596,11 +3818,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "intrace": {
     "name": "intrace",
@@ -3612,11 +3835,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "iodine": {
     "name": "iodine",
@@ -3628,11 +3852,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "isr-evilgrade": {
     "name": "isr-evilgrade",
@@ -3644,11 +3869,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "jadelogger": {
     "name": "jadelogger",
@@ -3660,11 +3886,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "jlecmd": {
     "name": "jlecmd",
@@ -3676,11 +3903,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "johntheripper": {
     "name": "johntheripper",
@@ -3699,7 +3927,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "jok3r": {
     "name": "jok3r",
@@ -3711,11 +3940,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "joomlavs": {
     "name": "joomlavs",
@@ -3727,11 +3957,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "joomscan": {
     "name": "joomscan",
@@ -3743,11 +3974,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "jq": {
     "name": "jq",
@@ -3763,7 +3995,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "1.8"
   },
   "jsteg": {
     "name": "jsteg",
@@ -3775,11 +4008,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "justdecompile": {
     "name": "justdecompile",
@@ -3791,11 +4025,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "jwt-cracker": {
     "name": "jwt-cracker",
@@ -3807,11 +4042,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "jwt-tool": {
     "name": "jwt-tool",
@@ -3823,11 +4059,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "kaniko": {
     "name": "kaniko",
@@ -3839,10 +4076,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "katana": {
     "name": "katana",
@@ -3854,11 +4092,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "kerberoast": {
     "name": "kerberoast",
@@ -3870,11 +4109,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "kerbrute": {
     "name": "kerbrute",
@@ -3886,11 +4126,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "keycloak-bruteforce": {
     "name": "keycloak-bruteforce",
@@ -3902,11 +4143,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "kismet": {
     "name": "kismet",
@@ -3918,11 +4160,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "Kismet\\ (\\d+(?:\\.\\d+)+)\\-b5d5a2d04",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "2025.09.0"
   },
   "knock": {
     "name": "knock",
@@ -3934,11 +4177,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "koadic": {
     "name": "koadic",
@@ -3950,11 +4194,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "krbrelay": {
     "name": "krbrelay",
@@ -3966,11 +4211,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "kube-bench": {
     "name": "kube-bench",
@@ -3982,11 +4228,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "kube-hunter": {
     "name": "kube-hunter",
@@ -3998,11 +4245,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "kube-score": {
     "name": "kube-score",
@@ -4014,10 +4262,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "kubeaudit": {
     "name": "kubeaudit",
@@ -4029,11 +4278,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "kubectl": {
     "name": "kubectl",
@@ -4052,7 +4302,8 @@
       "devsecops",
       "blueteam",
       "cloud"
-    ]
+    ],
+    "version": ""
   },
   "kubescape": {
     "name": "kubescape",
@@ -4064,10 +4315,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "kubesec": {
     "name": "kubesec",
@@ -4079,11 +4331,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "l337crypt": {
     "name": "l337crypt",
@@ -4095,11 +4348,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "laZagne": {
     "name": "laZagne",
@@ -4111,11 +4365,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "lazys3": {
     "name": "lazys3",
@@ -4127,11 +4382,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "lbd": {
     "name": "lbd",
@@ -4143,11 +4399,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ldapdomaindump": {
     "name": "ldapdomaindump",
@@ -4159,11 +4416,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ldapsearch": {
     "name": "ldapsearch",
@@ -4175,11 +4433,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "\\ \\ \\ \\ \\ \\ (\\d+(?:\\.\\d+)+)\\ \\ \\ no\\ attributes",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "1.1"
   },
   "legion": {
     "name": "legion",
@@ -4191,11 +4450,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "liffy": {
     "name": "liffy",
@@ -4207,11 +4467,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ligolo-ng": {
     "name": "ligolo-ng",
@@ -4223,11 +4484,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "linpeas": {
     "name": "linpeas",
@@ -4243,7 +4505,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "linux-exploit-suggester": {
     "name": "linux-exploit-suggester",
@@ -4255,11 +4518,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "log2timeline": {
     "name": "log2timeline",
@@ -4271,11 +4535,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "lognav": {
     "name": "lognav",
@@ -4287,11 +4552,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "lolbas": {
     "name": "lolbas",
@@ -4303,11 +4569,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "lse": {
     "name": "lse",
@@ -4319,11 +4586,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "lsof": {
     "name": "lsof",
@@ -4335,11 +4603,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "lsof\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "4.99.4"
   },
   "lynis": {
     "name": "lynis",
@@ -4355,7 +4624,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "macchanger": {
     "name": "macchanger",
@@ -4371,7 +4641,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "madcert": {
     "name": "madcert",
@@ -4383,11 +4654,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "magicrescue": {
     "name": "magicrescue",
@@ -4399,11 +4671,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "maigret": {
     "name": "maigret",
@@ -4415,11 +4688,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "malanalysis": {
     "name": "malanalysis",
@@ -4431,11 +4705,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "maltego": {
     "name": "maltego",
@@ -4451,7 +4726,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "mana-toolkit": {
     "name": "mana-toolkit",
@@ -4463,11 +4739,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "masscan": {
     "name": "masscan",
@@ -4483,7 +4760,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "1.3.2"
   },
   "massdns": {
     "name": "massdns",
@@ -4495,11 +4773,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "mausezahn": {
     "name": "mausezahn",
@@ -4511,11 +4790,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "\\ \\ mausezahn\\ \\-t\\ syslog\\ sev=3\\ \\-P\\ \"You\\ have\\ been\\ mausezahned\\.\"\\ \\-A\\ 10\\.1\\.1\\.109\\ \\-B\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "192.168.7.7"
   },
   "mdcrack": {
     "name": "mdcrack",
@@ -4527,11 +4807,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "mdk3": {
     "name": "mdk3",
@@ -4543,11 +4824,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "mdk4": {
     "name": "mdk4",
@@ -4559,11 +4841,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "medusa": {
     "name": "medusa",
@@ -4575,11 +4858,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "Medusa\\ v(\\d+(?:\\.\\d+)+)\\ \\[http://www\\.foofus\\.net\\]\\ \\(C\\)\\ JoMo\\-Kun\\ /\\ Foofus\\ Networks\\ <jmk@foofus\\.net>",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "2.3"
   },
   "meg": {
     "name": "meg",
@@ -4591,11 +4875,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "meltdown": {
     "name": "meltdown",
@@ -4607,11 +4892,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "memdump": {
     "name": "memdump",
@@ -4623,11 +4909,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "merlin": {
     "name": "merlin",
@@ -4639,11 +4926,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "metagoofil": {
     "name": "metagoofil",
@@ -4655,11 +4943,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "metasploit": {
     "name": "metasploit",
@@ -4678,7 +4967,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "mettle": {
     "name": "mettle",
@@ -4690,11 +4980,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "mimikatz": {
     "name": "mimikatz",
@@ -4710,7 +5001,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "mimipenguin": {
     "name": "mimipenguin",
@@ -4722,11 +5014,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "mmd": {
     "name": "mmd",
@@ -4738,11 +5031,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "mount_ewf": {
     "name": "mount_ewf",
@@ -4754,11 +5048,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "msf-rpc": {
     "name": "msf-rpc",
@@ -4770,11 +5065,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "msfdb": {
     "name": "msfdb",
@@ -4786,11 +5082,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "msfvenom": {
     "name": "msfvenom",
@@ -4802,11 +5099,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "mtr": {
     "name": "mtr",
@@ -4818,11 +5116,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "mythic": {
     "name": "mythic",
@@ -4834,11 +5133,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "name-that-hash": {
     "name": "name-that-hash",
@@ -4850,11 +5150,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "nasm": {
     "name": "nasm",
@@ -4870,7 +5171,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "3.01"
   },
   "nbtscan": {
     "name": "nbtscan",
@@ -4882,11 +5184,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "\\\t\\\tScans\\ a\\ range\\ from\\ 192\\.168\\.1\\.25\\ to\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "192.168.1.137"
   },
   "nc": {
     "name": "nc",
@@ -4901,12 +5204,13 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "ncat": {
     "name": "ncat",
@@ -4923,7 +5227,8 @@
       "pentester",
       "redteam",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "ncrack": {
     "name": "ncrack",
@@ -4935,11 +5240,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "Ncrack\\ version\\ (\\d+(?:\\.\\d+)+)\\ \\(\\ http://ncrack\\.org\\ \\)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "0.7"
   },
   "ndk": {
     "name": "ndk",
@@ -4951,11 +5257,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "nerdctl": {
     "name": "nerdctl",
@@ -4967,10 +5274,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "netdiscover": {
     "name": "netdiscover",
@@ -4986,7 +5294,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "0.21"
   },
   "netmask": {
     "name": "netmask",
@@ -4998,11 +5307,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "netmask,\\ version\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "2.5.0"
   },
   "netscan": {
     "name": "netscan",
@@ -5014,11 +5324,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "netsniff-ng": {
     "name": "netsniff-ng",
@@ -5030,11 +5341,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "netsniff\\-ng\\ (\\d+(?:\\.\\d+)+)\\ \\(Analogue\\ Bubblebath\\),\\ Git\\ id:\\ \\(none\\)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "0.6.9"
   },
   "nfs-ls": {
     "name": "nfs-ls",
@@ -5046,11 +5358,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "nfsshell": {
     "name": "nfsshell",
@@ -5062,11 +5375,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ngrep": {
     "name": "ngrep",
@@ -5082,7 +5396,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "nikto": {
     "name": "nikto",
@@ -5098,7 +5413,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "nimbuspwn": {
     "name": "nimbuspwn",
@@ -5110,11 +5426,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "nishang": {
     "name": "nishang",
@@ -5126,11 +5443,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "nmap": {
     "name": "nmap",
@@ -5148,7 +5466,8 @@
       "redteam",
       "blueteam",
       "devsecops"
-    ]
+    ],
+    "version": "7.99"
   },
   "nmblookup": {
     "name": "nmblookup",
@@ -5160,11 +5479,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "Version\\ (\\d+(?:\\.\\d+)+)\\-Debian\\-(\\d+(?:\\.\\d+)+)\\+dfsg\\-1",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "4.24.3"
   },
   "no-sqlmap": {
     "name": "no-sqlmap",
@@ -5176,11 +5496,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "noiseless": {
     "name": "noiseless",
@@ -5192,11 +5513,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "nping": {
     "name": "nping",
@@ -5212,7 +5534,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "0.7"
   },
   "nslookup": {
     "name": "nslookup",
@@ -5224,11 +5547,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ntlmrelay": {
     "name": "ntlmrelay",
@@ -5240,11 +5564,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "nuclei": {
     "name": "nuclei",
@@ -5262,7 +5587,8 @@
       "redteam",
       "blueteam",
       "devsecops"
-    ]
+    ],
+    "version": "3.8.0"
   },
   "objdump": {
     "name": "objdump",
@@ -5274,11 +5600,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "GNU\\ objdump\\ \\(GNU\\ Binutils\\ for\\ Debian\\)\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "2.46.50.20260608"
   },
   "offline-ntpw": {
     "name": "offline-ntpw",
@@ -5292,11 +5619,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "all\\ version\\ from\\ NT3\\.x\\ to\\ Win(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "8.1"
   },
   "onesixtyone": {
     "name": "onesixtyone",
@@ -5308,11 +5636,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "examples:\\ onesixtyone\\ (\\d+(?:\\.\\d+)+)/24\\ public",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "192.168.4.0"
   },
   "open-door": {
     "name": "open-door",
@@ -5324,11 +5653,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "openssl": {
     "name": "openssl",
@@ -5344,7 +5674,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "3.6.2"
   },
   "openvas": {
     "name": "openvas",
@@ -5359,11 +5690,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "OpenVAS\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ophcrack": {
     "name": "ophcrack",
@@ -5375,11 +5707,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "oscanner": {
     "name": "oscanner",
@@ -5391,11 +5724,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "osintgram": {
     "name": "osintgram",
@@ -5407,11 +5741,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ossec": {
     "name": "ossec",
@@ -5425,11 +5760,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "outguess": {
     "name": "outguess",
@@ -5441,11 +5777,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "p0f": {
     "name": "p0f",
@@ -5461,7 +5798,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "packetfu": {
     "name": "packetfu",
@@ -5473,11 +5811,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "packeth": {
     "name": "packeth",
@@ -5489,11 +5828,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "pacu": {
     "name": "pacu",
@@ -5509,7 +5849,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "palantir": {
     "name": "palantir",
@@ -5521,11 +5862,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "paramspider": {
     "name": "paramspider",
@@ -5537,11 +5879,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "pasco": {
     "name": "pasco",
@@ -5553,11 +5896,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "pass-the-hash": {
     "name": "pass-the-hash",
@@ -5571,11 +5915,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "patator": {
     "name": "patator",
@@ -5587,11 +5932,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "Patator\\ 1\\.1\\.0\\ \\(https://github\\.com/lanjelot/patator\\)\\ with\\ Python\\-(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "3.13.12"
   },
   "pdf-parser": {
     "name": "pdf-parser",
@@ -5603,11 +5949,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "This\\ program\\ has\\ not\\ been\\ tested\\ with\\ this\\ version\\ of\\ Python\\ \\((\\d+(?:\\.\\d+)+)\\)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "3.13.12"
   },
   "pdfid": {
     "name": "pdfid",
@@ -5619,11 +5966,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "pdfid\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "0.2.10"
   },
   "pe-sieve": {
     "name": "pe-sieve",
@@ -5635,11 +5983,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "peirates": {
     "name": "peirates",
@@ -5651,12 +6000,13 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam",
       "cloud"
-    ]
+    ],
+    "version": ""
   },
   "petitpotam": {
     "name": "petitpotam",
@@ -5668,11 +6018,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "pev": {
     "name": "pev",
@@ -5684,11 +6035,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "pffexport": {
     "name": "pffexport",
@@ -5700,10 +6052,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "pfftools": {
     "name": "pfftools",
@@ -5715,10 +6068,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "photon": {
     "name": "photon",
@@ -5730,11 +6084,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "photorec": {
     "name": "photorec",
@@ -5746,10 +6101,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "OS:\\ Linux,\\ kernel\\ (\\d+(?:\\.\\d+)+)\\+kali\\-amd64\\ \\(\\#1\\ SMP\\ PREEMPT_DYNAMIC\\ Kali\\ (\\d+(?:\\.\\d+)+)\\-1\\+kali1\\ \\(2026\\-05\\-05\\)\\)\\ x86_64",
     "personas": [
       "forensics"
-    ]
+    ],
+    "version": "6.19.14"
   },
   "ping": {
     "name": "ping",
@@ -5761,11 +6117,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "pixie-dust": {
     "name": "pixie-dust",
@@ -5777,11 +6134,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "pixiewps": {
     "name": "pixiewps",
@@ -5797,7 +6155,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "plaso": {
     "name": "plaso",
@@ -5809,10 +6168,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "plecost": {
     "name": "plecost",
@@ -5824,11 +6184,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "podman": {
     "name": "podman",
@@ -5840,10 +6201,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "polaris": {
     "name": "polaris",
@@ -5855,10 +6217,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "polenum": {
     "name": "polenum",
@@ -5870,11 +6233,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "pop3-bruteforce": {
     "name": "pop3-bruteforce",
@@ -5886,11 +6250,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "popeye": {
     "name": "popeye",
@@ -5902,10 +6267,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "powersploit": {
     "name": "powersploit",
@@ -5921,7 +6287,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "pre2k": {
     "name": "pre2k",
@@ -5933,11 +6300,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "prefetch-parser": {
     "name": "prefetch-parser",
@@ -5949,11 +6317,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "printerbug": {
     "name": "printerbug",
@@ -5965,11 +6334,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "prowler": {
     "name": "prowler",
@@ -5985,7 +6355,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "proxychains": {
     "name": "proxychains",
@@ -5999,11 +6370,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "proxytunnel": {
     "name": "proxytunnel",
@@ -6015,11 +6387,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "proxytunnel\\ (\\d+(?:\\.\\d+)+)\\ Copyright\\ 2001\\-2026\\ Proxytunnel\\ Project",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "1.13.0"
   },
   "psloglist": {
     "name": "psloglist",
@@ -6031,11 +6404,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "pspy": {
     "name": "pspy",
@@ -6047,11 +6421,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "psteal": {
     "name": "psteal",
@@ -6063,11 +6438,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ptunnel": {
     "name": "ptunnel",
@@ -6079,11 +6455,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "ptunnel\\ v\\ (\\d+(?:\\.\\d+)+)\\.",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "0.72"
   },
   "pupy": {
     "name": "pupy",
@@ -6095,11 +6472,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "puredns": {
     "name": "puredns",
@@ -6111,11 +6489,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "pwncat": {
     "name": "pwncat",
@@ -6127,11 +6506,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "pwntools": {
     "name": "pwntools",
@@ -6144,11 +6524,12 @@
       "-c",
       "from pwn import *; print(__version__)"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "pypykatz": {
     "name": "pypykatz",
@@ -6160,12 +6541,13 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam",
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "radare2": {
     "name": "radare2",
@@ -6184,7 +6566,8 @@
       "forensics",
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "razzer": {
     "name": "razzer",
@@ -6196,11 +6579,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "rdp-sec-check": {
     "name": "rdp-sec-check",
@@ -6212,11 +6596,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "readom": {
     "name": "readom",
@@ -6228,11 +6613,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "reaver": {
     "name": "reaver",
@@ -6248,7 +6634,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "1.6"
   },
   "recon-ng": {
     "name": "recon-ng",
@@ -6264,7 +6651,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "5.1"
   },
   "recon2": {
     "name": "recon2",
@@ -6276,10 +6664,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "reconftw": {
     "name": "reconftw",
@@ -6291,11 +6680,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "recoverjpeg": {
     "name": "recoverjpeg",
@@ -6307,11 +6697,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "red-hawk": {
     "name": "red-hawk",
@@ -6323,11 +6714,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "redfang": {
     "name": "redfang",
@@ -6339,11 +6731,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "redsocks": {
     "name": "redsocks",
@@ -6355,11 +6748,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "reglookup": {
     "name": "reglookup",
@@ -6371,11 +6765,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "regripper": {
     "name": "regripper",
@@ -6387,10 +6782,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "responder": {
     "name": "responder",
@@ -6406,7 +6802,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "retirejs": {
     "name": "retirejs",
@@ -6420,11 +6817,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "rfkill": {
     "name": "rfkill",
@@ -6436,11 +6834,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "rfkill\\ from\\ util\\-linux\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "2.42.1"
   },
   "rkhunter": {
     "name": "rkhunter",
@@ -6456,7 +6855,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "routersploit": {
     "name": "routersploit",
@@ -6468,11 +6868,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "rpc-scan": {
     "name": "rpc-scan",
@@ -6484,11 +6885,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "rpcclient": {
     "name": "rpcclient",
@@ -6500,11 +6902,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "Version\\ (\\d+(?:\\.\\d+)+)\\-Debian\\-(\\d+(?:\\.\\d+)+)\\+dfsg\\-1",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "4.24.3"
   },
   "rsactftool": {
     "name": "rsactftool",
@@ -6516,11 +6919,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "rsatool": {
     "name": "rsatool",
@@ -6532,11 +6936,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "rsync": {
     "name": "rsync",
@@ -6552,7 +6957,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "3.4.4"
   },
   "runc": {
     "name": "runc",
@@ -6564,11 +6970,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "rustscan": {
     "name": "rustscan",
@@ -6584,7 +6991,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "s3-inspector": {
     "name": "s3-inspector",
@@ -6596,11 +7004,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "s3cmd": {
     "name": "s3cmd",
@@ -6612,11 +7021,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "cloud",
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "s3parq": {
     "name": "s3parq",
@@ -6628,11 +7038,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "s3scanner": {
     "name": "s3scanner",
@@ -6648,7 +7059,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "s3sf": {
     "name": "s3sf",
@@ -6660,11 +7072,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "samdump2": {
     "name": "samdump2",
@@ -6676,11 +7089,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "samdump2\\ (\\d+(?:\\.\\d+)+)\\ by\\ Objectif\\ Securite\\ \\(http://www\\.objectif\\-securite\\.ch\\)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "3.0.0"
   },
   "scalpel": {
     "name": "scalpel",
@@ -6692,10 +7106,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "Scalpel\\ version\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "forensics"
-    ]
+    ],
+    "version": "1.60"
   },
   "scapy": {
     "name": "scapy",
@@ -6707,11 +7122,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "sclient": {
     "name": "sclient",
@@ -6723,11 +7139,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "scoutsuite": {
     "name": "scoutsuite",
@@ -6739,11 +7156,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops",
       "cloud"
-    ]
+    ],
+    "version": ""
   },
   "scrounger": {
     "name": "scrounger",
@@ -6755,11 +7173,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "seatbelt": {
     "name": "seatbelt",
@@ -6771,11 +7190,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "semgrep": {
     "name": "semgrep",
@@ -6787,11 +7207,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "sessiongopher": {
     "name": "sessiongopher",
@@ -6803,11 +7224,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "shadowcred": {
     "name": "shadowcred",
@@ -6819,11 +7241,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "sharphound": {
     "name": "sharphound",
@@ -6835,11 +7258,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "shellnoob": {
     "name": "shellnoob",
@@ -6851,11 +7275,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "shellshock": {
     "name": "shellshock",
@@ -6867,11 +7292,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "shellter": {
     "name": "shellter",
@@ -6883,11 +7309,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "sherlock": {
     "name": "sherlock",
@@ -6904,7 +7331,8 @@
       "pentester",
       "redteam",
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "shodan": {
     "name": "shodan",
@@ -6916,12 +7344,13 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "showmount": {
     "name": "showmount",
@@ -6933,11 +7362,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "showmount\\ for\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "2.9.1"
   },
   "shuffledns": {
     "name": "shuffledns",
@@ -6949,11 +7379,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "shuttle": {
     "name": "shuttle",
@@ -6965,11 +7396,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "silenttrinity": {
     "name": "silenttrinity",
@@ -6981,11 +7413,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "silver-ticket": {
     "name": "silver-ticket",
@@ -6997,11 +7430,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "sipcrack": {
     "name": "sipcrack",
@@ -7013,11 +7447,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "skipfish": {
     "name": "skipfish",
@@ -7033,7 +7468,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "skopeo": {
     "name": "skopeo",
@@ -7045,10 +7481,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "sleuthkit": {
     "name": "sleuthkit",
@@ -7066,7 +7503,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "sliver": {
     "name": "sliver",
@@ -7078,11 +7516,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "smap": {
     "name": "smap",
@@ -7094,11 +7533,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "smb-security-mode": {
     "name": "smb-security-mode",
@@ -7110,11 +7550,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "smbclient": {
     "name": "smbclient",
@@ -7126,11 +7567,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "Version\\ (\\d+(?:\\.\\d+)+)\\-Debian\\-(\\d+(?:\\.\\d+)+)\\+dfsg\\-1",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "4.24.3"
   },
   "smbmap": {
     "name": "smbmap",
@@ -7146,7 +7588,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "smtp-relay-check": {
     "name": "smtp-relay-check",
@@ -7158,11 +7601,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "smtp-user-enum": {
     "name": "smtp-user-enum",
@@ -7174,11 +7618,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "\\$\\ smtp\\-user\\-enum\\ \\-M\\ VRFY\\ \\-U\\ users\\.txt\\ \\-t\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "10.0.0.1"
   },
   "snmp-check": {
     "name": "snmp-check",
@@ -7190,11 +7635,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "snmpbulkwalk": {
     "name": "snmpbulkwalk",
@@ -7206,11 +7652,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "NET\\-SNMP\\ version:\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "5.9.5.2"
   },
   "snmpcheck": {
     "name": "snmpcheck",
@@ -7222,11 +7669,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "Can't\\ locate\\ Term/ReadKey\\.pm\\ in\\ @INC\\ \\(you\\ may\\ need\\ to\\ install\\ the\\ Term::ReadKey\\ module\\)\\ \\(@INC\\ entries\\ checked:\\ /etc/perl\\ /usr/local/lib/x86_64\\-linux\\-gnu/perl/(\\d+(?:\\.\\d+)+)\\ /usr/local/share/perl/(\\d+(?:\\.\\d+)+)\\ /usr/lib/x86_64\\-linux\\-gnu/perl5/5\\.40\\ /usr/share/perl5\\ /usr/lib/x86_64\\-linux\\-gnu/perl\\-base\\ /usr/lib/x86_64\\-linux\\-gnu/perl/5\\.40\\ /usr/share/perl/5\\.40\\ /usr/local/lib/site_perl\\)\\ at\\ /usr/bin/snmpcheck\\ line\\ 5\\.",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "5.40.1"
   },
   "snmpenum": {
     "name": "snmpenum",
@@ -7238,11 +7686,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "snmpwalk": {
     "name": "snmpwalk",
@@ -7254,11 +7703,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "NET\\-SNMP\\ version:\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "5.9.5.2"
   },
   "snort": {
     "name": "snort",
@@ -7274,7 +7724,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "snow": {
     "name": "snow",
@@ -7286,11 +7737,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "forensics",
       "pentester"
-    ]
+    ],
+    "version": ""
   },
   "snowdrop": {
     "name": "snowdrop",
@@ -7302,11 +7754,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "snyk": {
     "name": "snyk",
@@ -7318,11 +7771,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "socat": {
     "name": "socat",
@@ -7338,7 +7792,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "social-analyzer": {
     "name": "social-analyzer",
@@ -7350,11 +7805,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "socialscan": {
     "name": "socialscan",
@@ -7366,11 +7822,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "socksify": {
     "name": "socksify",
@@ -7382,11 +7839,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "sorter": {
     "name": "sorter",
@@ -7398,11 +7856,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "spacecrab": {
     "name": "spacecrab",
@@ -7414,10 +7873,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "spiderfoot": {
     "name": "spiderfoot",
@@ -7429,12 +7889,13 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "SpiderFoot\\ (\\d+(?:\\.\\d+)+):\\ Open\\ Source\\ Intelligence\\ Automation\\.",
     "personas": [
       "pentester",
       "redteam",
       "forensics"
-    ]
+    ],
+    "version": "4.0.0"
   },
   "sqlmap": {
     "name": "sqlmap",
@@ -7450,7 +7911,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "1.10.6"
   },
   "squidclient": {
     "name": "squidclient",
@@ -7462,11 +7924,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "srum-dump": {
     "name": "srum-dump",
@@ -7478,11 +7941,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ss": {
     "name": "ss",
@@ -7494,11 +7958,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "ss\\ utility,\\ iproute2\\-v(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "blueteam"
-    ]
+    ],
+    "version": "7.0.0"
   },
   "ssh": {
     "name": "ssh",
@@ -7514,7 +7979,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ssh-audit": {
     "name": "ssh-audit",
@@ -7530,7 +7996,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "sshuttle": {
     "name": "sshuttle",
@@ -7542,11 +8009,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ssl-cipher-check": {
     "name": "ssl-cipher-check",
@@ -7558,11 +8026,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ssllabs-scan": {
     "name": "ssllabs-scan",
@@ -7574,11 +8043,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "sslscan": {
     "name": "sslscan",
@@ -7594,7 +8064,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "2.1.5"
   },
   "sslyze": {
     "name": "sslyze",
@@ -7610,7 +8081,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ssrfmap": {
     "name": "ssrfmap",
@@ -7622,11 +8094,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "stegbreak": {
     "name": "stegbreak",
@@ -7638,11 +8111,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "stegdetect": {
     "name": "stegdetect",
@@ -7654,11 +8128,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "steghide": {
     "name": "steghide",
@@ -7670,11 +8145,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "forensics",
       "pentester"
-    ]
+    ],
+    "version": ""
   },
   "stegsolve": {
     "name": "stegsolve",
@@ -7686,11 +8162,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "stig-viewer": {
     "name": "stig-viewer",
@@ -7702,10 +8179,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "strace": {
     "name": "strace",
@@ -7721,7 +8199,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "stratus-red-team": {
     "name": "stratus-red-team",
@@ -7733,12 +8212,13 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam",
       "cloud"
-    ]
+    ],
+    "version": ""
   },
   "strings": {
     "name": "strings",
@@ -7750,11 +8230,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "GNU\\ strings\\ \\(GNU\\ Binutils\\ for\\ Debian\\)\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "forensics",
       "pentester"
-    ]
+    ],
+    "version": "2.46.50.20260608"
   },
   "stunnel": {
     "name": "stunnel",
@@ -7770,7 +8251,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "5.78"
   },
   "subfinder": {
     "name": "subfinder",
@@ -7787,7 +8269,8 @@
       "pentester",
       "redteam",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "sublist3r": {
     "name": "sublist3r",
@@ -7803,7 +8286,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "suicide": {
     "name": "suicide",
@@ -7818,11 +8302,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "shred\\ \\(GNU\\ coreutils\\)\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "9.10"
   },
   "suricata": {
     "name": "suricata",
@@ -7838,7 +8323,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "svn": {
     "name": "svn",
@@ -7854,7 +8340,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "1.14.5"
   },
   "swaks": {
     "name": "swaks",
@@ -7866,11 +8353,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "swaks\\ version\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "20240103.0"
   },
   "syft": {
     "name": "syft",
@@ -7882,10 +8370,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "targeted-kerberoast": {
     "name": "targeted-kerberoast",
@@ -7897,11 +8386,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "tcpdump": {
     "name": "tcpdump",
@@ -7917,7 +8407,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "4.99"
   },
   "tcpflow": {
     "name": "tcpflow",
@@ -7929,11 +8420,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "tcpick": {
     "name": "tcpick",
@@ -7945,11 +8437,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "tcpick\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "0.2.1"
   },
   "tcpliveplay": {
     "name": "tcpliveplay",
@@ -7961,11 +8454,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "Compiled\\ against\\ libdnet:\\ (\\d+(?:\\.\\d+)+)\\ \\(libdumbnet\\)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "1.18.0"
   },
   "tcpreplay": {
     "name": "tcpreplay",
@@ -7977,11 +8471,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "Compiled\\ against\\ libdnet:\\ (\\d+(?:\\.\\d+)+)\\ \\(libdumbnet\\)",
     "personas": [
       "pentester",
       "blueteam"
-    ]
+    ],
+    "version": "1.18.0"
   },
   "tcpxtract": {
     "name": "tcpxtract",
@@ -7993,11 +8488,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "teler": {
     "name": "teler",
@@ -8009,11 +8505,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "terraform": {
     "name": "terraform",
@@ -8029,7 +8526,8 @@
     "personas": [
       "devsecops",
       "cloud"
-    ]
+    ],
+    "version": ""
   },
   "terraformer": {
     "name": "terraformer",
@@ -8041,11 +8539,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "testdisk": {
     "name": "testdisk",
@@ -8057,10 +8556,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "OS:\\ Linux,\\ kernel\\ (\\d+(?:\\.\\d+)+)\\+kali\\-amd64\\ \\(\\#1\\ SMP\\ PREEMPT_DYNAMIC\\ Kali\\ (\\d+(?:\\.\\d+)+)\\-1\\+kali1\\ \\(2026\\-05\\-05\\)\\)\\ x86_64",
     "personas": [
       "forensics"
-    ]
+    ],
+    "version": "6.19.14"
   },
   "testssl": {
     "name": "testssl",
@@ -8076,7 +8576,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "tfsec": {
     "name": "tfsec",
@@ -8092,7 +8593,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "theharvester": {
     "name": "theharvester",
@@ -8108,7 +8610,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "threattracer": {
     "name": "threattracer",
@@ -8120,11 +8623,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "tiger": {
     "name": "tiger",
@@ -8136,11 +8640,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "timelineexplorer": {
     "name": "timelineexplorer",
@@ -8152,11 +8657,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "tls-scanner": {
     "name": "tls-scanner",
@@ -8168,11 +8674,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "tnscmd": {
     "name": "tnscmd",
@@ -8184,11 +8691,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "tor": {
     "name": "tor",
@@ -8204,7 +8712,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "torsocks": {
     "name": "torsocks",
@@ -8216,11 +8725,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "traceroute": {
     "name": "traceroute",
@@ -8234,11 +8744,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "Modern\\ traceroute\\ for\\ Linux,\\ version\\ (\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "2.1.6"
   },
   "trevorc2": {
     "name": "trevorc2",
@@ -8250,11 +8761,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "trivy": {
     "name": "trivy",
@@ -8271,7 +8783,8 @@
       "devsecops",
       "blueteam",
       "cloud"
-    ]
+    ],
+    "version": ""
   },
   "trufflehog": {
     "name": "trufflehog",
@@ -8283,12 +8796,13 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam",
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "tshark": {
     "name": "tshark",
@@ -8304,7 +8818,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "4.6.6"
   },
   "twint": {
     "name": "twint",
@@ -8316,11 +8831,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "unfurl": {
     "name": "unfurl",
@@ -8332,11 +8848,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "uniscan": {
     "name": "uniscan",
@@ -8348,11 +8865,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "uro": {
     "name": "uro",
@@ -8364,11 +8882,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "vega": {
     "name": "vega",
@@ -8380,11 +8899,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "veil": {
     "name": "veil",
@@ -8396,11 +8916,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "velociraptor": {
     "name": "velociraptor",
@@ -8412,11 +8933,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "forensics",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "volatility": {
     "name": "volatility",
@@ -8434,7 +8956,8 @@
     "personas": [
       "forensics",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "vscan": {
     "name": "vscan",
@@ -8446,11 +8969,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "vshadow": {
     "name": "vshadow",
@@ -8462,10 +8986,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "vshadowmount": {
     "name": "vshadowmount",
@@ -8477,11 +9002,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "vuln": {
     "name": "vuln",
@@ -8493,11 +9019,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "vulnx": {
     "name": "vulnx",
@@ -8509,11 +9036,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "vuls": {
     "name": "vuls",
@@ -8525,11 +9053,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "blueteam",
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "vulscan": {
     "name": "vulscan",
@@ -8541,11 +9070,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "w3af": {
     "name": "w3af",
@@ -8557,11 +9087,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "wafw00f": {
     "name": "wafw00f",
@@ -8577,7 +9108,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "2.4.2"
   },
   "wapiti": {
     "name": "wapiti",
@@ -8589,11 +9121,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "wash": {
     "name": "wash",
@@ -8605,11 +9138,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "\\\t\\-2,\\ \\-\\-2ghz\\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ Use\\ 2\\.4GHz\\ (\\d+(?:\\.\\d+)+)\\ channels",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "802.11"
   },
   "watoo": {
     "name": "watoo",
@@ -8621,11 +9155,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "waybackpy": {
     "name": "waybackpy",
@@ -8637,11 +9172,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "wce": {
     "name": "wce",
@@ -8657,7 +9193,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "wevtutil": {
     "name": "wevtutil",
@@ -8669,11 +9206,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "wfuzz": {
     "name": "wfuzz",
@@ -8685,11 +9223,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "3.1.0"
   },
   "wget": {
     "name": "wget",
@@ -8701,11 +9240,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "GNU\\ Wget\\ (\\d+(?:\\.\\d+)+)\\ built\\ on\\ linux\\-gnu\\.",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "1.25.0"
   },
   "whatweb": {
     "name": "whatweb",
@@ -8717,11 +9257,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "WhatWeb\\ version\\ (\\d+(?:\\.\\d+)+)\\ \\(\\ https://morningstarsecurity\\.com/research/whatweb/\\ \\)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "0.6.4"
   },
   "whois": {
     "name": "whois",
@@ -8733,11 +9274,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "Version\\ (\\d+(?:\\.\\d+)+)\\.",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "5.6.6"
   },
   "wifiphisher": {
     "name": "wifiphisher",
@@ -8749,11 +9291,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "wifite": {
     "name": "wifite",
@@ -8765,11 +9308,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "\\ \u001b\\[32m\\.´\\ \\ ·\\ \\ \\.\u001b\\[37m\u001b\\[2m\\ \\ \\ \\ \\ \u001b\\[0m\u001b\\[32m\\.\\ \\ ·\\ \\ `\\.\\ \\ \u001b\\[32mwifite2\\ \u001b\\[2m(\\d+(?:\\.\\d+)+)\u001b\\[0m",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "2.8.1"
   },
   "windows-exploit-suggester": {
     "name": "windows-exploit-suggester",
@@ -8781,11 +9325,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "winpeas": {
     "name": "winpeas",
@@ -8801,7 +9346,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "wireshark": {
     "name": "wireshark",
@@ -8818,7 +9364,8 @@
       "pentester",
       "blueteam",
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "wpbullet": {
     "name": "wpbullet",
@@ -8830,11 +9377,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "wprecon": {
     "name": "wprecon",
@@ -8846,11 +9394,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "wpscan": {
     "name": "wpscan",
@@ -8866,7 +9415,8 @@
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": "3.8.28"
   },
   "xmount": {
     "name": "xmount",
@@ -8878,11 +9428,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "xorsearch": {
     "name": "xorsearch",
@@ -8894,11 +9445,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "xortool": {
     "name": "xortool",
@@ -8910,11 +9462,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "forensics"
-    ]
+    ],
+    "version": ""
   },
   "xsscrapy": {
     "name": "xsscrapy",
@@ -8926,11 +9479,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "xsser": {
     "name": "xsser",
@@ -8942,11 +9496,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "xsstrike": {
     "name": "xsstrike",
@@ -8958,11 +9513,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "yara": {
     "name": "yara",
@@ -8974,11 +9530,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "forensics",
       "blueteam"
-    ]
+    ],
+    "version": ""
   },
   "yersinia": {
     "name": "yersinia",
@@ -8990,11 +9547,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "ysoserial": {
     "name": "ysoserial",
@@ -9006,11 +9564,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "zaproxy": {
     "name": "zaproxy",
@@ -9027,7 +9586,8 @@
       "pentester",
       "redteam",
       "devsecops"
-    ]
+    ],
+    "version": ""
   },
   "zgrab": {
     "name": "zgrab",
@@ -9039,11 +9599,12 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   },
   "zmap": {
     "name": "zmap",
@@ -9055,10 +9616,11 @@
     "version_args": [
       "--version"
     ],
-    "version_pattern": "",
+    "version_pattern": "(\\d+(?:\\.\\d+)+)",
     "personas": [
       "pentester",
       "redteam"
-    ]
+    ],
+    "version": ""
   }
 }

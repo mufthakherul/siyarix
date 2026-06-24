@@ -32,6 +32,7 @@ from rich.table import Table
 from prompt_toolkit import PromptSession
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.history import InMemoryHistory
 
 from .session import ChatSession
 from .ui import SmartAutocomplete, SplitPane, render_welcome_banner
@@ -106,6 +107,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         self._command_history: deque[str] = deque(maxlen=1000)
         self._running = True
         self._engine_kill_switch = None
+        self._pt_session: PromptSession[Any] | None = None
         self._split_pane_enabled = False
         self._split_pane_type = "attack_map"
         self._esc_press_count = 0
@@ -428,6 +430,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         # Gather status information
         theme = self._settings.get("color_theme") or "cyber-noir"
         provider = self._settings.get("model_provider") or "auto"
+        persona = self._settings.get("persona") or ""
         session_id = self._session.session_id[:8] if self._session.session_id else ""
         msg_count = len(self._session.messages)
         uptime_delta = datetime.now(timezone.utc) - self._session.created_at
@@ -435,7 +438,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
         # If terminal doesn't support raw mode, skip prompt_toolkit
         if not self._terminal_supports_raw():
-            top_bar = make_prompt_top(self._mode, provider, session_id, msg_count, uptime_secs, theme)
+            top_bar = make_prompt_top(self._mode, provider, session_id, msg_count, uptime_secs, theme, persona)
             input_hint = make_prompt_bottom(show_hint=True)
             console.print(top_bar)
             try:
@@ -443,31 +446,18 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             except (EOFError, KeyboardInterrupt):
                 return ""
 
-        def get_bottom_toolbar() -> Any:
-            mc = mode_color(self._mode).replace("bold ", "")
-            return HTML(
-                f'<style bg="ansiblack" fg="ansiwhite"> '
-                f'<b>siyarix</b> · '
-                f'<style fg="{mc}">{self._mode}</style> · '
-                f'{provider} · '
-                f'session: {session_id} · '
-                f'msgs: {msg_count} · '
-                f'<style fg="ansigray">Tab: autocomplete | ?: help | Ctrl+L: clear</style>'
-                f'</style>'
-            )
-
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
                 from prompt_toolkit.patch_stdout import patch_stdout
 
-                pt_session: PromptSession[Any] = PromptSession(
-                    bottom_toolbar=get_bottom_toolbar,
-                    multiline=True,
-                    vi_mode=False,
-                )
+                if self._pt_session is None:
+                    self._pt_session = PromptSession(
+                        multiline=True,
+                        vi_mode=False,
+                    )
 
-                top_bar = make_prompt_top(self._mode, provider, session_id, msg_count, uptime_secs, theme)
+                top_bar = make_prompt_top(self._mode, provider, session_id, msg_count, uptime_secs, theme, persona)
                 console.print(top_bar)
 
                 pt_prompt = HTML(
@@ -475,13 +465,14 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 )
 
                 with patch_stdout():
-                    answer = (
-                        await pt_session.prompt_async(
-                            pt_prompt,
-                            key_bindings=esc_bindings,
-                            completer=SmartAutocomplete(self._session),
-                        )
-                    ).strip()
+                    _result = await self._pt_session.prompt_async(
+                        pt_prompt,
+                        key_bindings=esc_bindings,
+                        completer=SmartAutocomplete(self._session),
+                    )
+                    if _result is None:
+                        raise KeyboardInterrupt
+                    answer = _result.strip()
         except KeyboardInterrupt:
             raise
         except Exception as exc:
@@ -490,7 +481,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             console.print(f"[red]prompt_toolkit failed: {exc}[/red]")
             console.print(traceback.format_exc())
             logger.debug("prompt_toolkit failed: %s", exc)
-            top_bar = make_prompt_top(self._mode, provider, session_id, msg_count, uptime_secs, theme)
+            top_bar = make_prompt_top(self._mode, provider, session_id, msg_count, uptime_secs, theme, persona)
             console.print(top_bar)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
@@ -503,6 +494,157 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         from prompt_toolkit.keys import Keys
 
         kb = KeyBindings()
+        self._multiline = self._settings.get("multiline", False)
+
+        # ═══════════ Navigation ═══════════
+
+        # Up / Ctrl+P - previous history entry
+        @kb.add(Keys.Up)
+        @kb.add(Keys.ControlP)
+        def _on_up(event: Any) -> None:
+            buf = event.app.current_buffer
+            buf.history_backward()
+
+        # Down / Ctrl+N - next history entry
+        @kb.add(Keys.Down)
+        @kb.add(Keys.ControlN)
+        def _on_down(event: Any) -> None:
+            buf = event.app.current_buffer
+            buf.history_forward()
+
+        # Ctrl+R - reverse history search
+        @kb.add(Keys.ControlR)
+        def _on_ctrlr(event: Any) -> None:
+            event.app.current_buffer.start_reverse_history_search()
+
+        # Home / Ctrl+A - beginning of line
+        @kb.add(Keys.Home)
+        @kb.add(Keys.ControlA)
+        def _on_home(event: Any) -> None:
+            buf = event.app.current_buffer
+            buf.cursor_position = 0
+
+        # End / Ctrl+E - end of line
+        @kb.add(Keys.End)
+        @kb.add(Keys.ControlE)
+        def _on_end(event: Any) -> None:
+            buf = event.app.current_buffer
+            buf.cursor_position = len(buf.text)
+
+        # Left / Ctrl+B - backward char
+        @kb.add(Keys.Left)
+        @kb.add(Keys.ControlB)
+        def _on_left(event: Any) -> None:
+            buf = event.app.current_buffer
+            buf.cursor_left()
+
+        # Right / Ctrl+F - forward char
+        @kb.add(Keys.Right)
+        @kb.add(Keys.ControlF)
+        def _on_right(event: Any) -> None:
+            buf = event.app.current_buffer
+            buf.cursor_right()
+
+        # Delete / Ctrl+D - delete forward char (or exit if buffer empty)
+        @kb.add(Keys.Delete)
+        @kb.add(Keys.ControlD)
+        def _on_delete(event: Any) -> None:
+            buf = event.app.current_buffer
+            if buf.text:
+                pos = buf.cursor_position
+                buf.text = buf.text[:pos] + buf.text[pos + 1:]
+            else:
+                self._running = False
+                event.app.exit()
+
+        # Backspace - delete backward char
+        @kb.add(Keys.Backspace)
+        def _on_backspace(event: Any) -> None:
+            buf = event.app.current_buffer
+            pos = buf.cursor_position
+            if pos > 0:
+                buf.text = buf.text[:pos - 1] + buf.text[pos:]
+                buf.cursor_position = pos - 1
+
+        # ═══════════ Editing ═══════════
+
+        # Ctrl+U - delete to start
+        @kb.add(Keys.ControlU)
+        def _on_ctrlu(event: Any) -> None:
+            buf = event.app.current_buffer
+            buf.text = buf.text[buf.cursor_position:]
+            buf.cursor_position = 0
+
+        # Ctrl+K - delete to end
+        @kb.add(Keys.ControlK)
+        def _on_ctrlk(event: Any) -> None:
+            buf = event.app.current_buffer
+            pos = buf.cursor_position
+            buf.text = buf.text[:pos]
+
+        # Ctrl+W / Alt+Backspace - delete word backward
+        @kb.add(Keys.ControlW)
+        @kb.add(Keys.Escape, Keys.Backspace)
+        def _on_ctrlw(event: Any) -> None:
+            buf = event.app.current_buffer
+            text = buf.text[:buf.cursor_position]
+            space = text.rstrip().rfind(" ")
+            if space >= 0:
+                new_pos = space + 1
+            else:
+                new_pos = 0
+            buf.text = buf.text[:new_pos] + buf.text[buf.cursor_position:]
+            buf.cursor_position = new_pos
+
+        # Ctrl+Left - jump word left
+        @kb.add(Keys.ControlLeft)
+        def _on_ctrl_left(event: Any) -> None:
+            buf = event.app.current_buffer
+            pos = buf.cursor_position
+            text = buf.text[:pos].rstrip()
+            if not text:
+                return
+            space = text.rfind(" ")
+            if space >= 0:
+                buf.cursor_position = space + 1
+            else:
+                buf.cursor_position = 0
+
+        # Ctrl+Right - jump word right
+        @kb.add(Keys.ControlRight)
+        def _on_ctrl_right(event: Any) -> None:
+            buf = event.app.current_buffer
+            text = buf.text
+            pos = buf.cursor_position
+            rest = text[pos:].lstrip()
+            if not rest:
+                return
+            space = rest.find(" ")
+            if space >= 0:
+                buf.cursor_position = pos + len(text[pos:]) - len(rest) + space + 1
+            else:
+                buf.cursor_position = len(text)
+
+        # ═══════════ Submit / newline ═══════════
+
+        # Alt+Enter / Escape+Enter - submit (multiline) / newline (single-line)
+        @kb.add(Keys.Escape, Keys.Enter)
+        def _on_alt_enter(event: Any) -> None:
+            if self._multiline:
+                event.app.current_buffer.validate_and_handle()
+            else:
+                event.app.current_buffer.insert_text("\n")
+
+        # Ctrl+J / Ctrl+M / Enter - newline (multiline) / submit (single-line)
+        @kb.add(Keys.ControlJ)
+        @kb.add(Keys.ControlM)
+        def _on_enter(event: Any) -> None:
+            if self._multiline:
+                event.app.current_buffer.insert_text("\n")
+            else:
+                event.app.current_buffer.validate_and_handle()
+
+        # ═══════════ Special actions ═══════════
 
         # ESC - cancel/exit detection
         @kb.add(Keys.Escape)
@@ -542,79 +684,101 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             console.clear()
             event.app.current_buffer.text = ""
 
-        # Ctrl+A - beginning of line
-        @kb.add(Keys.ControlA)
-        def _on_ctrla(event: Any) -> None:
-            buf = event.app.current_buffer
-            buf.cursor_position = 0
+        # F1 - show keyboard shortcuts
+        @kb.add(Keys.F1)
+        def _on_f1(event: Any) -> None:
+            self._print_keyboard_shortcuts()
 
-        # Ctrl+E - end of line
-        @kb.add(Keys.ControlE)
-        def _on_ctrle(event: Any) -> None:
-            buf = event.app.current_buffer
-            buf.cursor_position = len(buf.text)
-
-        # Ctrl+U - delete to start
-        @kb.add(Keys.ControlU)
-        def _on_ctrlu(event: Any) -> None:
-            buf = event.app.current_buffer
-            buf.text = buf.text[buf.cursor_position:]
-            buf.cursor_position = 0
-
-        # Ctrl+K - delete to end
-        @kb.add(Keys.ControlK)
-        def _on_ctrlk(event: Any) -> None:
-            buf = event.app.current_buffer
-            pos = buf.cursor_position
-            buf.text = buf.text[:pos]
-
-        # Ctrl+W - delete word backward
-        @kb.add(Keys.ControlW)
-        def _on_ctrlw(event: Any) -> None:
-            buf = event.app.current_buffer
-            text = buf.text[:buf.cursor_position]
-            # Find last space
-            space = text.rstrip().rfind(" ")
-            if space >= 0:
-                new_pos = space + 1
+        # Ctrl+\ - toggle multiline mode
+        @kb.add(Keys.ControlBackslash)
+        def _on_toggle_multiline(event: Any) -> None:
+            self._multiline = not self._multiline
+            self._settings.set("multiline", self._multiline)
+            if self._multiline:
+                console.print("[cyan]Multiline: ON — Enter=newline, Alt+Enter=submit[/cyan]")
             else:
-                new_pos = 0
-            buf.text = buf.text[:new_pos] + buf.text[buf.cursor_position:]
-            buf.cursor_position = new_pos
+                console.print("[cyan]Multiline: OFF — Enter=submit, Alt+Enter=newline[/cyan]")
 
-        # Alt+Enter - accept (multi-line support)
-        @kb.add(Keys.Escape, Keys.Enter)
-        def _on_alt_enter(event: Any) -> None:
-            buf = event.app.current_buffer
-            buf.insert_text("\n")
+        # F2 - New session (like /new)
+        @kb.add(Keys.F2)
+        def _on_f2_new(event: Any) -> None:
+            if hasattr(self, '_cmd_new'):
+                self._cmd_new("")
 
-        # Ctrl+J / Enter - accept input
-        @kb.add(Keys.ControlJ)
-        def _on_enter(event: Any) -> None:
-            event.app.current_buffer.validate_and_handle()
+        # F3 - Clear chat (like /clear)
+        @kb.add(Keys.F3)
+        def _on_f3_clear(event: Any) -> None:
+            if hasattr(self, '_cmd_clear'):
+                self._cmd_clear("")
 
-        # Ctrl+H - show keyboard shortcuts
-        @kb.add(Keys.ControlH)
-        def _on_ctrlh(event: Any) -> None:
-            shortcuts_table = Table(title="Keyboard Shortcuts", header_style="bold cyan", box=None)
-            shortcuts_table.add_column("Key", style="cyan", no_wrap=True)
-            shortcuts_table.add_column("Action", style="white")
-            shortcuts_table.add_row("Tab", "Autocomplete / Suggest")
-            shortcuts_table.add_row("Enter", "Submit input")
-            shortcuts_table.add_row("Alt+Enter", "Insert newline (multi-line)")
-            shortcuts_table.add_row("Esc", "Cancel task / Double Esc to exit")
-            shortcuts_table.add_row("Ctrl+C", "Cancel / Double Ctrl+C to exit")
-            shortcuts_table.add_row("Ctrl+L", "Clear screen")
-            shortcuts_table.add_row("Ctrl+A", "Go to beginning of line")
-            shortcuts_table.add_row("Ctrl+E", "Go to end of line")
-            shortcuts_table.add_row("Ctrl+U", "Delete to start of line")
-            shortcuts_table.add_row("Ctrl+K", "Delete to end of line")
-            shortcuts_table.add_row("Ctrl+W", "Delete word backward")
-            shortcuts_table.add_row("Ctrl+H", "Show this help")
-            shortcuts_table.add_row("↑/↓", "Command history navigation")
-            console.print(shortcuts_table)
+        # F4 - Toggle command review (like /review)
+        @kb.add(Keys.F4)
+        def _on_f4_review(event: Any) -> None:
+            current = self._settings.get("command_review", True)
+            new_val = not current
+            self._settings.set("command_review", new_val)
+            status = "on" if new_val else "off"
+            console.print(f"[cyan]Command review toggled [bold]{status}[/bold][/cyan]")
 
         return kb
+
+    def _print_keyboard_shortcuts(self) -> None:
+        from prompt_toolkit import print_formatted_text as pt_print
+        from prompt_toolkit.formatted_text import HTML as PTHTML
+        ml_status = "ON" if self._multiline else "OFF"
+        lines = [
+            ('', '\n'),
+            ('bold cyan', 'Keyboard Shortcuts'),
+            ('', '\n' + '─' * 56 + '\n'),
+            ('cyan', '↑/↓            '), ('', 'History navigation\n'),
+            ('cyan', 'Ctrl+P / Ctrl+N'), ('', 'History previous / next\n'),
+            ('cyan', 'Ctrl+R         '), ('', 'Reverse history search\n'),
+            ('', '\n'),
+            ('bold cyan', 'Navigation'),
+            ('', '\n'),
+            ('cyan', '←/→            '), ('', 'Move cursor left / right\n'),
+            ('cyan', 'Ctrl+B / Ctrl+F'), ('', 'Move cursor left / right\n'),
+            ('cyan', 'Ctrl+A / Home  '), ('', 'Go to beginning of line\n'),
+            ('cyan', 'Ctrl+E / End   '), ('', 'Go to end of line\n'),
+            ('cyan', 'Ctrl+← / Ctrl+→'), ('', 'Jump word left / right\n'),
+            ('', '\n'),
+            ('bold cyan', 'Editing'),
+            ('', '\n'),
+            ('cyan', 'Backspace      '), ('', 'Delete character before cursor\n'),
+            ('cyan', 'Delete / Ctrl+D'), ('', 'Delete character after cursor\n'),
+            ('cyan', 'Ctrl+U         '), ('', 'Delete to start of line\n'),
+            ('cyan', 'Ctrl+K         '), ('', 'Delete to end of line\n'),
+            ('cyan', 'Ctrl+W / Alt+⌫ '), ('', 'Delete word backward\n'),
+            ('', '\n'),
+            ('bold cyan', 'Input'),
+            ('', '\n'),
+            ('cyan', 'Tab            '), ('', 'Autocomplete / Suggest\n'),
+            ('cyan', 'Enter          '), ('', f'Submit (newline if Multiline={ml_status})\n'),
+            ('cyan', 'Alt+Enter      '), ('', f'Newline (submit if Multiline={ml_status})\n'),
+            ('', '\n'),
+            ('bold cyan', 'Actions'),
+            ('', '\n'),
+            ('cyan', 'F1             '), ('', 'Keyboard shortcuts\n'),
+            ('cyan', 'F2             '), ('', 'New session\n'),
+            ('cyan', 'F3             '), ('', 'Clear chat\n'),
+            ('cyan', 'F4             '), ('', 'Toggle command review\n'),
+            ('cyan', 'Ctrl+\\        '), ('', 'Toggle multiline mode\n'),
+            ('cyan', 'Ctrl+L         '), ('', 'Clear screen\n'),
+            ('', '\n'),
+            ('bold cyan', 'Exit / Cancel'),
+            ('', '\n'),
+            ('cyan', 'Esc            '), ('', 'Cancel input / Double Esc to exit\n'),
+            ('cyan', 'Ctrl+C         '), ('', 'Cancel task / Double Ctrl+C to exit\n'),
+        ]
+        html_parts = []
+        for style, text in lines:
+            if style == 'bold cyan':
+                html_parts.append(f'<b><style fg="ansicyan">{text}</style></b>')
+            elif style == 'cyan':
+                html_parts.append(f'<style fg="ansicyan">{text}</style>')
+            else:
+                html_parts.append(text)
+        pt_print(PTHTML(''.join(html_parts)))
 
     def _render_split_pane_layout(self, left_content: Any = None) -> None:
         """Render the terminal using side-by-side SplitPane layout."""
@@ -758,18 +922,19 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         return f"{mode_display} (local fallback)"
 
     def _print_assistant(self, message: str) -> None:
+        display = self._strip_json_wrapper(message)
         if self._con is not None:
             syntax_theme = self._settings.get("syntax_theme") or "monokai"
             self._con.print(
                 panel_response(
-                    message,
+                    display,
                     mode=self._mode,
                     title="\u25c6 Siyarix",
                     syntax_theme=syntax_theme,
                 )
             )
         else:
-            console.print(f"\u25c6 Siyarix: {message}")
+            console.print(f"\u25c6 Siyarix: {display}")
 
     @staticmethod
     def _strip_json_wrapper(text: str) -> str:
@@ -992,14 +1157,21 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         console.print(Columns(summary_panels, equal=False, padding=(0, 1)))
 
     def _print_goodbye(self) -> None:
-        self._session.save(self._SESSIONS_DIR / f"{self._session.session_id}.json")
         from ..branding import resolve_version
         from rich.panel import Panel
         ver = resolve_version()
+        auto_save = self._settings.get("auto_save_session", False)
+        if auto_save:
+            self._session.save(self._SESSIONS_DIR / f"{self._session.session_id}.json")
+            saved_msg = f"[green]✓[/green] Session saved: [cyan]{self._session.session_id[:8]}[/cyan]\n"
+            resume_msg = f"[green]✓[/green] Resume with: [cyan]siyarix --session {self._session.session_id}[/cyan]\n"
+        else:
+            saved_msg = ""
+            resume_msg = ""
         console.print(Panel(
             f"[bold cyan]Siyarix v{ver}[/bold cyan]\n\n"
-            f"[green]✓[/green] Session saved: [cyan]{self._session.session_id[:8]}[/cyan]\n"
-            f"[green]✓[/green] Resume with: [cyan]siyarix --session {self._session.session_id}[/cyan]\n"
+            f"{saved_msg}"
+            f"{resume_msg}"
             f"[green]✓[/green] Settings persist in config/.env\n\n"
             f"[dim]Stay curious. Stay ethical.[/dim]",
             title="[bold]Session Summary[/bold]",

@@ -71,7 +71,7 @@ _ARG_META: dict[str, str] = {
     "agent_action": "run / status",
     "intel_action": "lookup / status",
     "kb_action": "search / list",
-    "skills_action": "stats / list / add / export",
+    "skills_action": "stats / list / show / edit / remove / add / export",
 }
 
 
@@ -156,7 +156,7 @@ class SmartAutocomplete(Completer):
         "agent_action": ["run", "status"],
         "intel_action": ["lookup", "status"],
         "kb_action": ["search", "list"],
-        "skills_action": ["stats", "list", "add", "export"],
+        "skills_action": ["stats", "list", "show", "edit", "remove", "add", "export"],
         "config_action": ["show", "set", "get", "list", "tools"],
         "log_action": ["list", "show", "export"],
         "alias_action": ["list", "set", "remove"],
@@ -233,7 +233,7 @@ class SmartAutocomplete(Completer):
                         choice,
                         start_position=-len(prefix),
                         display_meta=f"[{meta}]",
-                        style="bright_white",
+                        style="white",
                     )
 
         if arg_type == "tool":
@@ -342,7 +342,7 @@ class SmartAutocomplete(Completer):
                             info.name,
                             start_position=-len(prefix) - 1,
                             display_meta=f"{fuzzy_flag} {meta}",
-                            style="bold bright_cyan" if best_ratio >= 1.0 else "white",
+                            style="bold ansibrightcyan" if best_ratio >= 1.0 else "white",
                         )
                 return
 
@@ -390,9 +390,9 @@ def render_welcome_banner(
 
     layout = Layout()
     layout.split_column(
-        Layout(name="header", size=6),
-        Layout(name="stats_row", size=8),
-        Layout(name="footer", size=6),
+        Layout(name="header", size=12),
+        Layout(name="stats_row"),
+        Layout(name="footer"),
     )
 
     # ── Header: ASCII art + version + tagline ──
@@ -409,7 +409,8 @@ def render_welcome_banner(
     accent = mode_color_map.get(mode, "cyan")
 
     header_content = Text.assemble(
-        (f"{banner_art}\n", f"bold {accent}"),
+        (banner_art, f"bold {accent}"),
+        ("\n", ""),
         (f"  v{ver}", "bold bright_white"),
         (" · ", "dim"),
         ("AI-Native Cyber Operations Platform", "dim italic"),
@@ -422,10 +423,13 @@ def render_welcome_banner(
     )
 
     layout["header"].update(
-        Panel(
-            Align.center(header_content, vertical="middle"),
-            border_style=accent,
-            padding=(1, 2),
+        Align.center(
+            Panel(
+                Align.center(header_content, vertical="middle"),
+                border_style=accent,
+                padding=(1, 2),
+                width=76,
+            )
         )
     )
 
@@ -661,7 +665,7 @@ class ConfigPanel:
                 engine = _output_engine
                 engine.print_info(f"Discovered {count} security tools")
                 for t in sorted(tools, key=lambda x: x.category)[:20]:
-                    engine.print_info(f"  {t.name} ({t.category}) v{t.version[:20]}")
+                    engine.print_info(f"  {t.name} ({t.category})")
                 if len(tools) > 20:
                     engine.print_info(f"  ... and {len(tools) - 20} more")
             else:

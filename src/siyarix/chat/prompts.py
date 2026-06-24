@@ -49,14 +49,22 @@ def make_prompt_top(
     msg_count: int,
     uptime_seconds: float,
     theme: str = "cyber-noir",
+    persona: str = "",
 ) -> RenderableType:
     """Render the top line of the professional prompt:
-    ╭─ siyarix [mode] [provider] ─╮
+    ╭─ siyarix [mode] [provider] [persona] ─╮
     """
     mc = mode_color(mode)
     hours, rem = divmod(int(uptime_seconds), 3600)
     minutes, secs = divmod(rem, 60)
     uptime_str = f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+    persona_part = []
+    if persona:
+        persona_part = [
+            (" ", ""),
+            (f"persona:{persona}", "bright_green"),
+        ]
 
     title_parts = [
         ("▌", "dim"),
@@ -65,6 +73,7 @@ def make_prompt_top(
         (f"[{mode}]", mc),
         (" ", ""),
         (f"{provider}", "bright_blue"),
+        *persona_part,
         (" ", ""),
         (f"msgs:{msg_count}", "dim"),
         (" ", ""),
@@ -119,7 +128,7 @@ def make_prompt_bar(
     show_hint: bool = True,
 ) -> RenderableType:
     """Combined professional prompt with top bar and input line."""
-    top = make_prompt_top(mode, provider, session_id, msg_count, uptime_seconds, theme)
+    top = make_prompt_top(mode, provider, session_id, msg_count, uptime_seconds, theme, persona)
     bottom = make_prompt_bottom(show_hint)
     return Text.assemble(top, "\n", bottom)
 

@@ -2,6 +2,38 @@
 
 This document describes the internal architecture of key Siyarix v1.0.0 modules — how they interact, their data flows, and design patterns.
 
+## Module Organization
+
+Siyarix is organized into the following top-level package directories and standalone modules:
+
+| Module | Responsibility |
+|--------|----------------|
+| `core/` | Agent orchestration kernel: `AgentCore`, `SwarmRouter`, `CommandPipeline` |
+| `chat/` | Interactive REPL: engine, handlers, session management, UI, streaming |
+| `providers/` | 24-provider LLM abstraction: `ProviderManager`, failover, usage tracking |
+| `parsers/` | 80+ tool output parsers with auto-discovery |
+| `plugins/` | Dynamic plugin loader from `~/.siyarix/plugins/` |
+| `output/` | Rendering engine: 8 formats, 12 themes, file export |
+| `report/` | Security report generator: MARKDOWN, HTML, JSON, SARIF |
+| `templates/` | Onboarding wizard text templates, ASCII art |
+| `data/` | Static tool registry (`cyber_tools.json`) |
+| `offline_registry/` | Offline-mode heuristic planning without AI dependency |
+| `deep_scan.py` | `DeepScanEngine` — multi-layered reconnaissance methodology |
+| `learning_system.py` | `LearningSystem` — continuous, privacy-preserving skill learning |
+| `workflow.py` | DAG-based workflow engine with conditional execution |
+| `session_branching.py` | JSONL tree format for forked conversation branches |
+| `stealth.py` | Stealth/evasion engine for covert operations |
+| `opsec.py` | Operational security controls and countermeasures |
+| `dlp.py` | Data Loss Prevention with bidirectional token masking |
+| `permission_gate.py` | Two-stage command permission control |
+| `validators.py` | Input validation and injection prevention |
+| `credential_store.py` | AES-256-GCM encrypted credential vault |
+| `audit_log.py` | SHA-256 tamper-evident audit trail |
+| `config.py` | TOML-backed settings store |
+| `bootstrap.py` | First-run bootstrap and platform detection |
+| `onboarding.py` | Interactive 11-step setup wizard |
+| (and 40+ additional standalone modules) | |
+
 ## Execution Engine (`executor.py`, `executor_registry.py`, `executor_autonomous.py`)
 
 The execution engine operates in three modes, dispatched by the planner:
@@ -28,15 +60,19 @@ The execution engine operates in three modes, dispatched by the planner:
 ## Task Planners (`planner.py`, `planner_registry.py`, `planner_autonomous.py`)
 
 ### Planner Router (`planner.py`)
+
 Routes between two planner implementations based on mode and provider availability. Falls back to registry planning when no AI provider is reachable.
 
 ### Registry Planner (`planner_registry.py`)
+
 Deterministic planning using `PlannerRegistry`, a template store that maps tool capabilities to execution plans. Uses intent classification, keyword matching, and parameter extraction. No AI dependency — always available.
 
 ### Autonomous Planner (`planner_autonomous.py`)
+
 LLM-driven planning that generates structured execution plans from natural language goals. Uses `ProviderManager` for provider resolution with failover. Supports multi-call repair when initial plan is malformed (via `ToolCallRepair`).
 
 ### Pipeline
+
 ```
 User Input → IntentRouter → Intent Extraction → Target/Parameter Parsing →
 Planner Selection (by mode/provider) → Plan Generation →
@@ -61,6 +97,7 @@ Singleton managing 24 provider profiles through a unified interface:
 - **Fallback**: Registry (heuristic planner) — always available, no AI required
 
 ### Failover Chain
+
 ```
 Primary Provider → Secondary → ... → Local Provider → Registry (heuristic)
 ```
@@ -73,9 +110,10 @@ Encrypted vault for API keys and secrets:
 
 - Encryption: AES-256-GCM with 32-byte key and 12-byte nonce
 - Key storage: OS system keyring via `keyring` library
-- File fallback: AES-256-GCM encrypted JSON file in `~/.siyarix/credentials.json` (Fernet-compatible)
+- File fallback: Fernet (AES-128-CBC) encrypted JSON file in `~/.siyarix/credentials.json`
 - Key rotation: `siyarix auth rotate` re-encrypts all credentials with a new key
 - Auto-clear: Credentials cleared from memory on session end
+- KMS support: Optional AWS KMS envelope encryption for enterprise deployments
 - Security: Keys never written to source code, config files, logs, or debug output
 
 ## DLP Engine (`dlp.py`)
@@ -104,7 +142,7 @@ In-memory directed graph of discovered entities:
 
 1. **Start/Shutdown**: Initialize sub-systems, providers, memory, context, stealth
 2. **Goal Execution**: `execute_goal()` routes to mode-specific execution (`_execute_registry`, `_execute_autonomous`, `_execute_hybrid`, `_execute_interactive`)
-3. **Multi-Wave**: `execute_multi_wave()` for complex objectives requiring iterative refinement
+3. **Multi-Wave**: `execute_multi_wave()` for complex objectives requiring iterative refinement — supports up to 25 waves with budget checking
 4. **Sub-Agents**: `create_subagent()` / `execute_subagent()` for hierarchical task decomposition
 5. **Swarm**: Integrates with `SwarmRouter` for multi-agent campaigns (recon → exploit → report)
 6. **Observation**: Tracks results, budget, and goal completion status
@@ -135,11 +173,11 @@ Full-featured REPL with:
 
 ## LLM Engine (`chat/engine.py`)
 
-The `LLMEngineMixin` (1207 lines) implements the core AI interaction loop:
+The `LLMEngineMixin` (1355 lines) implements the core AI interaction loop:
 
 1. **Provider Resolution**: Selects provider via `ProviderManager` with failover
 2. **Context Building**: Builds system prompt with persona, platform context, tool availability
-3. **Agent Execution**: `_execute_agent()` runs observe-reason-act loop with up to 5 waves
+3. **Agent Execution**: `_execute_agent()` runs observe-reason-act loop with up to 25 waves
 4. **Multi-Wave**: Each wave executes LLM calls, parallel tool execution, and LLM synthesis
 5. **Streaming**: `AssistantMessageEventStream` provides granular per-block events (text, thinking, tool calls)
 6. **Retry**: Automatic retry with compaction for long contexts
@@ -172,3 +210,32 @@ Multi-agent orchestration for complex campaigns:
 - **Agent Roles**: `ReconAgent` (discovery), `ExploitAgent` (vulnerability validation), `ReportAgent` (findings synthesis)
 - **SwarmRouter**: Task decomposition, agent dispatch, result aggregation
 - **Campaign Flow**: Recon → Exploit → Report with handoff between phases
+
+## Deep Scan Engine (`deep_scan.py`)
+
+The `DeepScanEngine` provides structured multi-layered reconnaissance:
+
+- Profiles for different scan depths (quick, standard, comprehensive)
+- Multi-pass execution: discovery → fingerprinting → vulnerability detection → deep analysis
+- OS fingerprinting, port/service correlation, and vulnerability mapping
+- Aggregates results across multiple tools into a unified finding set
+
+## Learning System (`learning_system.py`)
+
+The `LearningSystem` implements continuous learning from execution history:
+
+- Observes LLM and offline planner actions, capturing successful patterns
+- Privacy-preserving: real targets are never stored (replaced with `{target}` placeholders)
+- Uses BM25-style Jaccard similarity over NLP token sets — no ML framework dependencies
+- Bayesian confidence scoring that rewards both accuracy and data volume
+- Dual-mode integration: high-confidence skills auto-execute before LLM consultation in integrated mode
+
+## Workflow Engine (`workflow.py`)
+
+DAG-based workflow execution with:
+
+- Directed acyclic graph of workflow steps with conditional branching
+- Step-level status tracking (PENDING, RUNNING, COMPLETED, FAILED, SKIPPED)
+- Pause/resume support for long-running campaigns
+- Retry policies and timeout enforcement per step
+- Parameter passing between steps via shared context dictionary

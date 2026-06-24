@@ -1,14 +1,16 @@
 # Testing
 
-Siyarix maintains a comprehensive test suite with **pytest** (`asyncio_mode=auto`) targeting **75%+ code coverage** across all modules.
+Siyarix maintains a comprehensive test suite with **pytest** (`asyncio_mode=auto`) targeting **75%+ code coverage** across all modules with branch coverage enabled.
 
 ## Framework
 
 - **pytest** with `pytest-asyncio` (auto mode) for async test support
-- **pytest-cov** for coverage reporting
-- Custom markers: `bootstrap`, `cvss`, `report`, `stealth`, `terminal`, `tool_installer`, `e2e`, `integration`
+- **pytest-cov** for coverage reporting with `branch=true`
+- Custom markers: `bootstrap`, `cvss`, `report`, `stealth`, `terminal`, `tool_installer`, `e2e`
+- `conftest.py` provides shared fixtures across test modules
+- Coverage enforced via `pyproject.toml` (`fail_under = 75`, `branch = true`)
 
-## Running tests
+## Running Tests
 
 ```bash
 pytest                              # All tests
@@ -18,12 +20,12 @@ pytest -k "provider"                # Keyword match
 pytest -v                           # Verbose
 pytest -x                           # Stop on first failure
 pytest -n auto                      # Parallel execution
-pytest -m "not integration"         # Unit tests only
+pytest -m "not e2e"                 # Unit tests only
 ```
 
-## Test structure
+## Test Structure
 
-Tests mirror the source structure in `tests/`:
+Tests mirror the source structure in `tests/` with 110+ test files:
 
 ```
 tests/
@@ -124,9 +126,9 @@ tests/
 └── ...
 ```
 
-## Writing tests
+## Writing Tests
 
-### Async tests
+### Async Tests
 
 ```python
 import pytest
@@ -137,7 +139,7 @@ async def test_async_behavior():
     assert result is not None
 ```
 
-### Mocking providers
+### Mocking Providers
 
 ```python
 @pytest.mark.asyncio
@@ -148,7 +150,7 @@ async def test_planner_with_mock_provider():
     assert result is not None
 ```
 
-### Using fixtures
+### Using Fixtures
 
 ```python
 @pytest.fixture
@@ -166,20 +168,20 @@ def temp_config(tmp_path):
 pytest --cov=siyarix --cov-report=term-missing
 ```
 
-Coverage is enforced in CI via `pyproject.toml` (`fail_under = 75`).
+Coverage is enforced in CI via `pyproject.toml` (`fail_under = 75`, `branch = true`).
 
-## Code quality
+## Code Quality
 
 ```bash
 ruff check src/ tests/               # Lint
 ruff check --fix src/ tests/         # Auto-fix
 ruff format src/ tests/              # Format
-mypy src/siyarix/                    # Type check (strict mode)
+mypy src/siyarix/                    # Type check (strict mode, disallow_untyped_defs)
 vulture src/siyarix/                 # Dead code detection
 bandit -r src/siyarix/               # Security scan
 ```
 
-## CI matrix
+## CI Matrix
 
 Tests run on every PR and push to main via GitHub Actions:
 
@@ -192,10 +194,30 @@ Tests run on every PR and push to main via GitHub Actions:
 | Security | Bandit (SARIF), pip-audit (critical/high fail) |
 | Compatibility | Build sdist/wheel, check-wheel-contents, twine check |
 
-## Pre-commit hooks
+## Pre-commit Hooks
 
 ```bash
 pre-commit install
 ```
 
-Runs Ruff, MyPy, and other checks before each commit. Configuration in `.pre-commit-config.yaml`.
+Pre-commit hooks run Ruff (lint + format), mypy, Bandit, typos, detect-secrets, YAML/JSON/TOML validation, trailing whitespace check, end-of-file fixer, large file check, private key detection, and more. Configuration in `.pre-commit-config.yaml`.
+
+### Hook Suite
+
+| Hook | Purpose |
+|------|---------|
+| `ruff` | Lint with auto-fix |
+| `ruff-format` | Format with ruff |
+| `mypy` | Static type checking |
+| `check-yaml` | YAML validation |
+| `check-json` | JSON validation |
+| `check-toml` | TOML validation |
+| `trailing-whitespace` | Remove trailing whitespace |
+| `end-of-file-fixer` | Ensure files end with newline |
+| `check-added-large-files` | Prevent large file commits |
+| `detect-private-key` | Prevent private key commits |
+| `detect-secrets` | Prevent secret commits |
+| `bandit` | Security linting |
+| `typos` | Spelling check |
+| `pyproject-fmt` | Format pyproject.toml |
+| `poetry-check` | Validate pyproject.toml |

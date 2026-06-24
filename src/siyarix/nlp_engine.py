@@ -492,7 +492,6 @@ class NaturalLanguageParser:
         for i in range(len(clean_words) - 1):
             tokens.append(f"{clean_words[i]}_{clean_words[i + 1]}")
 
-        # Generate Trigrams
         for i in range(len(clean_words) - 2):
             tokens.append(f"{clean_words[i]}_{clean_words[i + 1]}_{clean_words[i + 2]}")
 
@@ -500,7 +499,6 @@ class NaturalLanguageParser:
 
     def extract_entities(self, text: str) -> tuple[str, str]:
         """Extract the primary target (URL, IP, Domain, Email, MAC)."""
-        # Iterate over patterns in priority order
         for entity_type, pattern in self.PATTERNS.items():
             matches = re.findall(pattern, text)
             if matches:
@@ -519,17 +517,14 @@ class NaturalLanguageParser:
         params = {}
         text_lower = text.lower()
 
-        # Check for global negations in the context
         is_negated = any(neg in text_lower for neg in ["not ", "no ", "without ", "skip ", "exclude "])
 
-        # Port extraction
         port_match = re.search(r"\bport(?:s)?\s*([0-9,\-]+)\b", text_lower)
         if port_match:
             params["ports"] = port_match.group(1)
         elif "all ports" in text_lower or "full ports" in text_lower:
             params["ports"] = "all"
 
-        # Speed / Stealth extraction (Negation Aware)
         is_fast = any(word in text_lower for word in ["fast", "quick", "speedy", "rapid"])
         is_stealth = any(word in text_lower for word in ["stealth", "slow", "sneaky", "quiet", "evasive"])
         is_aggressive = any(word in text_lower for word in ["aggressive", "intense", "heavy"])

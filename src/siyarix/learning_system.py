@@ -451,10 +451,8 @@ class ContinuousLearningSystem:
         if not text:
             return text
 
-        # 1 — Direct string replacement (most precise)
         if target:
             text = text.replace(target, "{target}")
-            # Also handle stripped URL form  (e.g. "example.com" from "https://example.com/path")
             clean = (
                 target.replace("https://", "")
                       .replace("http://", "")
@@ -600,7 +598,6 @@ class ContinuousLearningSystem:
                 )
             )
 
-        # Search for similar existing skills
         best_skill: LearnedSkill | None = None
         best_sim = 0.0
         for skill in self._skills.values():
@@ -705,7 +702,6 @@ class ContinuousLearningSystem:
                 if old_t.startswith("{param_") and old_t.endswith("}"):
                     p_name = old_t
                 else:
-                    # Find highest existing param index
                     existing_params = [int(re.search(r"\{param_(\d+)\}", t).group(1)) for t in param_pattern if re.search(r"\{param_(\d+)\}", t)]
                     next_idx = max(existing_params) + 1 if existing_params else param_idx
                     p_name = f"{{param_{next_idx}}}"
@@ -722,8 +718,6 @@ class ContinuousLearningSystem:
         if not s or not param_map:
             return s
         for literal, param_name in param_map.items():
-            # Basic replacement. Avoid \b since we want to match exactly.
-            # We can just use str.replace for simple literals.
             s = s.replace(literal, param_name)
         return s
 
@@ -1186,10 +1180,8 @@ class ContinuousLearningSystem:
 
         regex_str = escaped_pattern
         for p in param_names:
-            # Replace with a non-greedy capture group
             regex_str = regex_str.replace(p, r"(.+?)", 1)
 
-        # Ensure it matches the whole string
         regex_str = f"^{regex_str}$"
 
         match = re.match(regex_str, prompt)

@@ -1441,17 +1441,13 @@ class RegistryPlanner:
         best_tool = None
         best_desc = None
         best_flags = None
-        # Check for "with {tool}" / "using {tool}" pattern for preference boost
         with_phrase = re.search(r'\b(?:with|using|via)\s+(\w+)', goal_lower)
         prefer_tool = with_phrase.group(1) if with_phrase else None
         for kw, (tool, desc, flags) in direct_tool_keywords.items():
             if kw in words:
                 pos = words.index(kw)
-                # Boost for "with/using/via" tool (prefer explicitly mentioned tools)
                 if prefer_tool and kw == prefer_tool:
-                    pos = max(0, pos - 10)  # Strong boost
-                # Early position: always match
-                # Late position: only match if no comprehensive keyword also present
+                    pos = max(0, pos - 10)
                 if pos <= 5 or not has_comprehensive:
                     if best_pos is None or pos < best_pos:
                         best_pos = pos
@@ -1460,7 +1456,6 @@ class RegistryPlanner:
                         best_desc = desc
                         best_flags = flags
         if best_kw:
-            # Check for compound tool pattern: "Use/Run {tool1} and {tool2}"
             compound_match = re.search(
                 r'\b(?:use|run)\s+(\w+)\s+and\s+(\w+)\b',
                 goal_lower
@@ -2099,21 +2094,18 @@ class RegistryPlanner:
                 if keyword not in goal_lower:
                     continue
                 pos = goal_lower.index(keyword)
-                # Word starts at boundary (preceded by space or at start)
                 word_starts_at_boundary = (pos == 0 or not goal_lower[pos-1].isalnum())
                 if not word_starts_at_boundary:
-                    continue  # Skip matches that don't start at word boundary
+                    continue
                 # Check if full keyword matches completely or is a prefix
                 is_complete_word = (
                     pos + len(keyword) >= len(goal_lower) or not goal_lower[pos + len(keyword)].isalnum()
                 )
 
                 score = 10000  # Base score for word boundary match
-                score += 5000 if is_complete_word else 0  # Prefer complete word matches over prefixes
-                score += max(0, 500 - pos) * 20  # Position heavily weighted
-                # Specificity bonus: longer keywords are more specific
+                score += 5000 if is_complete_word else 0
+                score += max(0, 500 - pos) * 20
                 score += len(keyword) * 3
-                # Heavily penalize overly generic keywords
                 if keyword in GENERIC_KEYWORDS:
                     score -= 50000
                 # Massive bonus if a tool name is mentioned as a word in the text

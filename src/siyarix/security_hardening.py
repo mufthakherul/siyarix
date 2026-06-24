@@ -160,12 +160,10 @@ class InputValidator:
         if len(value) > 4096:
             return False, "Target exceeds maximum length (4096 characters)"
 
-        # Check for injection first
         has_inj, pattern = self.has_injection(value)
         if has_inj:
             return False, f"Injection detected ({pattern}): {value!r}"
 
-        # Delegate to validators.py for target type detection
         try:
             _validate_target(value)
             return True, ""

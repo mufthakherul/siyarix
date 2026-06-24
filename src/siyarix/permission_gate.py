@@ -105,11 +105,9 @@ class PermissionGate:
         self._calls.append(now)
         self._save_state(force=(len(self._calls) % 50 == 0))
 
-        # Stage 1: Syntax check
         if not command or not command.strip():
             return GateResult(False, GateStage.SYNTAX, "Empty command", command=command)
 
-        # Stage 2: Danger analysis (uses DangerAnalyzer patterns from security_hardening)
         report = self._danger_analyzer.analyze(command)
         if report.severity == "critical":
             return GateResult(

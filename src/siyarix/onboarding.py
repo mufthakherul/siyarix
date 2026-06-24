@@ -1183,12 +1183,10 @@ class OnboardingWizard:
                 )
                 if not result.returncode:
                     self._console.print("[green]\u2713 Downloaded via Ollama[/green]")
-                    # Find the GGUF in Ollama's blob cache
                     self._console.print("  Locating GGUF file in Ollama cache...")
                     gguf_path = self._ollama_gguf_path(model_name)
                     if gguf_path:
                         self._console.print(f"  [dim]Found blob: {gguf_path.name}[/dim]")
-                        # Validate GGUF magic bytes before copying
                         try:
                             header = gguf_path.read_bytes()[:4]
                             if header != b"GGUF":
@@ -1980,7 +1978,6 @@ class OnboardingWizard:
         import uuid
         import re
 
-        # Match numbered entries: "1. ... ." or "1) ... ."
         entries = re.findall(r"(?:^|\n)\s*\d+[.):]\s*(.+?)(?=\n\s*\d+[.):)|$)", raw_text, re.DOTALL)
         if not entries:
             entries = [raw_text]
@@ -2669,7 +2666,6 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
             except (json.JSONDecodeError, KeyError, OSError):
                 logger.warning("Failed to parse Ollama manifest for %s", model_name, exc_info=True)
 
-        # Method 3: find the newest blob file (just downloaded)
         blobs_dir = Path.home() / ".ollama" / "models" / "blobs"
         if blobs_dir.is_dir():
             try:
@@ -2780,7 +2776,6 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
                     shutil.rmtree(extract_root)
                     break
 
-            # Find the llama-server binary and any shared libs
             for entry in bin_dir.rglob("*"):
                 if entry.is_file() and entry.name in ("llama-server", "llama-server.exe"):
                     if entry.parent != bin_dir:
@@ -2826,7 +2821,6 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
     def _start_llamacpp_service(model_path: str | None = None, port: int = 18080) -> None:
         """Start llama.cpp server in background."""
         try:
-            # Validate GGUF model if provided
             if model_path:
                 try:
                     p = Path(model_path)

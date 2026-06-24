@@ -322,14 +322,12 @@ class AutonomousExecutor(BaseExecutor):
         if not parts:
             return None
         idx = 0
-        # Skip shell wrapper (sh -c "tool ...")
         if parts[idx] in ("sh", "bash") and len(parts) > idx + 1 and parts[idx + 1] == "-c":
             inner = _shlex.split(parts[idx + 2]) if len(parts) > idx + 2 else []
             parts = inner
             idx = 0
         if not parts:
             return None
-        # Skip sudo prefix
         if parts[idx] in ("sudo", "doas"):
             idx += 1
             if idx < len(parts) and parts[idx] == "-S":

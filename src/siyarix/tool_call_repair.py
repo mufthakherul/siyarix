@@ -158,12 +158,10 @@ def _find_bracket_spans(text: str) -> list[tuple[int, int]]:
 
 def strip_tool_call_blocks(text: str) -> str:
     """Strip tool call blocks from text, preserving non-tool text."""
-    # Find all spans to remove (bracket + XML tool calls)
     spans = _find_bracket_spans(text)
     for xml_match in XML_TOOL_RE.finditer(text):
         spans.append((xml_match.start(), xml_match.end()))
 
-    # Merge overlapping spans and remove them
     if spans:
         spans.sort()
         chunks: list[str] = []

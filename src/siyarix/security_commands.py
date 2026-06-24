@@ -171,7 +171,6 @@ def _seed_security_data() -> None:
         conn.close()
 
 
-# Initialize data
 _seed_security_data()
 
 

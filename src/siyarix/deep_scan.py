@@ -112,17 +112,7 @@ class DeepScanEngine:
         timeout: int = 600,
         persist: bool = True,
     ) -> dict[str, Any]:
-        """Run a deep scan against the given target.
-
-        Args:
-            target: IP, hostname, or URL to scan.
-            profiles: List of profile names to run (default: all passes).
-            timeout: Per-pass timeout in seconds.
-            persist: Whether to persist results to OfflineStore.
-
-        Returns:
-            Aggregated scan results with per-pass findings.
-        """
+        """Run a deep scan against the given target."""
         passes = [p for p in _DEEP_SCAN_PASSES if profiles is None or p.name in profiles]
         if not passes:
             passes = _DEEP_SCAN_PASSES

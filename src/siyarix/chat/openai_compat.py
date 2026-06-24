@@ -616,24 +616,7 @@ async def openai_complete(
 
 
 def _map_real_model(model: str) -> str:
-    """Map fictional Siyarix models to real API versions for HTTP calls."""
-    m = model.lower()
-    if "gemini-3." in m or "gemini-4." in m:
-        if "flash" in m:
-            return "gemini-2.0-flash" if "lite" not in m else "gemini-2.0-flash-lite-preview-02-05"
-        if "pro" in m:
-            return "gemini-1.5-pro"
-        return "gemini-2.0-flash"
-    if "gpt-5." in m:
-        if "mini" in m or "nano" in m:
-            return "gpt-4o-mini"
-        return "gpt-4o"
-    if "claude-sonnet-4" in m or "claude-opus-4" in m or "claude-haiku-4" in m:
-        return (
-            "claude-3-5-sonnet-latest"
-            if "sonnet" in m
-            else ("claude-3-opus-latest" if "opus" in m else "claude-3-5-haiku-latest")
-        )
+    """Pass model name through — all names are real API identifiers."""
     return model
 
 

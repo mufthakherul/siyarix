@@ -112,6 +112,8 @@ DEFAULTS: dict[str, Any] = {
     "max_waves": 25,
     "notifications_enabled": True,
     "history_retention_days": 90,
+    "multiline": False,
+    "auto_save_session": False,
 }
 
 # Human-readable descriptions
@@ -162,6 +164,8 @@ DESCRIPTIONS: dict[str, str] = {
     "command_review": "Prompt before executing raw shell commands (default: false)",
     "notifications_enabled": "Enable Slack/Discord notifications for key events (default: true)",
     "history_retention_days": "Days to retain command history (0 = forever, default: 90)",
+    "multiline": "Enable multiline input mode (Enter=newline, Alt+Enter=submit)",
+    "auto_save_session": "Auto-save session logs on exit (default: false — no footprint)",
 }
 
 

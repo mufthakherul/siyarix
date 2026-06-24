@@ -857,6 +857,7 @@ def _execute_scan_core(
     profile: str = "",
     parallel: int = 3,
     notify: bool = False,
+    nmap_args: str = "",
 ) -> Any:
     """Core scan execution logic (shared between scan and presets)."""
     expanded_targets: list[str] = []
@@ -891,6 +892,8 @@ def _execute_scan_core(
         console.print(f"[red]Invalid output format '{output}'. Valid: {', '.join(valid_outputs)}[/red]")
         raise typer.Exit(1)
     instruction = f"scan {' '.join(expanded_targets)}"
+    if nmap_args:
+        instruction += f" flags {nmap_args}"
     if tool:
         instruction += f" with {tool}"
     audit.log(
@@ -964,12 +967,11 @@ def scan_quick(
     dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
 ) -> None:
     """Quick scan preset — fast port discovery (top 100 ports, no service detection)."""
-    tool = "nmap"
-    updated_targets = [f"{t} --top-ports 100" for t in targets]
     _execute_scan_core(
-        updated_targets, tool=tool, mode=mode or "registry",
+        targets, tool="nmap", mode=mode or "registry",
         output="table", timeout=120, save=False,
         dry_run=dry_run, no_banner=True, profile="",
+        nmap_args="--top-ports 100",
     )
 
 
@@ -980,12 +982,11 @@ def scan_full(
     dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
 ) -> None:
     """Full scan preset — all ports, service + OS detection, default scripts."""
-    tool = "nmap"
-    updated_targets = [f"{t} -p- -sV -O -sC" for t in targets]
     _execute_scan_core(
-        updated_targets, tool=tool, mode=mode or "registry",
+        targets, tool="nmap", mode=mode or "registry",
         output="table", timeout=600, save=False,
         dry_run=dry_run, no_banner=True, profile="",
+        nmap_args="-p- -sV -O -sC",
     )
 
 

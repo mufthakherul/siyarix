@@ -70,7 +70,6 @@ _MULTI_WORD_CHECKS = [
             ("reverse engineering", "ghidra", "Reverse engineering", ""),
             ("forensic analysis", "autopsy", "Digital forensic analysis", ""),
             ("incident response", "ps", "Incident response evidence collection", "aux"),
-            ("disk analysis", "sleuthkit", "Disk image analysis", ""),
             ("cis benchmark", "lynis", "CIS benchmark audit", "audit system"),
             ("endpoint detection", "osquery", "Endpoint detection query", ""),
             ("threat hunting", "yara", "Threat hunting with YARA", ""),
@@ -272,7 +271,7 @@ _MULTI_WORD_CHECKS = [
             # ── Forensics / Disk patterns ──────────────────────────────
             ("disk forensics", "sleuthkit", "Disk forensic analysis", ""),
             ("forensic analysis", "sleuthkit", "Digital forensic analysis", ""),
-            ("disk analysis", "sleuthkit", "Disk analysis", ""),
+            ("disk analysis", "sleuthkit", "Disk forensic analysis", ""),
             ("deleted file", "sleuthkit", "Deleted file recovery", ""),
             ("file system metadata", "sleuthkit", "File system metadata analysis", ""),
             ("partition table", "sleuthkit", "Partition analysis", ""),

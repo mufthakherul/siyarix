@@ -46,10 +46,10 @@ class TestValidateCmdList:
         with pytest.raises(ValueError, match="must be strings"):
             _validate_cmd_list(["nmap", 123])  # type: ignore[list-item]
 
-    @pytest.mark.parametrize("bad_char", [";", "|", "&", "`", "$", ">", "<"])
-    def test_shell_metacharacters(self, bad_char: str) -> None:
-        with pytest.raises(ValueError, match="suspicious character"):
-            _validate_cmd_list(["nmap", f"target{bad_char}cmd"])
+    def test_shell_metacharacters_allowed(self) -> None:
+        _validate_cmd_list(["nmap", "target;cmd"])
+        _validate_cmd_list(["nmap", "target|cmd"])
+        _validate_cmd_list(["nmap", "target>cmd"])
 
     def test_multiple_args_valid(self) -> None:
         _validate_cmd_list(["tool", "-a", "-b", "--long", "value"])
@@ -95,9 +95,10 @@ class TestSafeRunSync:
             with pytest.raises(FileNotFoundError):
                 safe_run_sync(["nonexistent_tool"])
 
-    def test_validation_error(self) -> None:
-        with pytest.raises(ValueError):
-            safe_run_sync(["bad;command"])
+    @patch("siyarix.subprocess_utils._confirm_destructive", side_effect=ValueError("destructive pattern"))
+    def test_validation_error(self, mock_confirm) -> None:
+        with pytest.raises(ValueError, match="destructive pattern"):
+            safe_run_sync(["rm", "-rf", "/"])
 
 
 class TestSafeRunAsync:
@@ -139,7 +140,7 @@ class TestSafeRunAsync:
 
     @pytest.mark.asyncio
     async def test_validation_error(self) -> None:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="non-empty list"):
             await safe_run_async([])
 
 class TestExecutorCore:

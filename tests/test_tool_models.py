@@ -302,7 +302,7 @@ from siyarix.tool_metadata import (
     tags_for_tool,
 )
 from siyarix.tool_version import _load_db as tv_load_db
-from siyarix.tool_version import bulk_detect, detect_version, get_tool_metadata
+from siyarix.tool_version import get_tool_metadata
 
 
 # ── tool_metadata.py ─────────────────────────────────────────────────
@@ -530,117 +530,6 @@ class TestToolVersionGetMetadata:
         mock_load.return_value = {"nmap": {"aliases": ["map"]}}
         meta = get_tool_metadata("not-an-alias")
         assert meta == {}
-
-
-class TestToolVersionDetect:
-    @patch("siyarix.tool_version.get_tool_metadata")
-    @patch("siyarix.tool_version.subprocess.run")
-    def test_detect_version_success(self, mock_run, mock_meta):
-        mock_meta.return_value = {
-            "version_args": ["--version"],
-            "version_pattern": r"(\d+\.\d+)",
-            "binary": "nmap",
-        }
-        mock_run.return_value = MagicMock(
-            stdout="Nmap version 7.94 ( https://nmap.org )",
-            stderr="",
-        )
-        version = detect_version("nmap")
-        assert version == "7.94"
-
-    @patch("siyarix.tool_version.get_tool_metadata")
-    @patch("siyarix.tool_version.subprocess.run")
-    def test_detect_version_stderr(self, mock_run, mock_meta):
-        """Some tools output version to stderr."""
-        mock_meta.return_value = {
-            "version_args": ["-V"],
-            "version_pattern": r"(\d+\.\d+\.\d+)",
-            "binary": "curl",
-        }
-        mock_run.return_value = MagicMock(
-            stdout="",
-            stderr="curl 8.4.0 (Windows) ...",
-        )
-        version = detect_version("curl")
-        assert version == "8.4.0"
-
-    @patch("siyarix.tool_version.get_tool_metadata")
-    def test_detect_no_metadata(self, mock_meta):
-        mock_meta.return_value = {}
-        assert detect_version("unknown") == ""
-
-    @patch("siyarix.tool_version.get_tool_metadata")
-    def test_detect_no_version_pattern(self, mock_meta):
-        mock_meta.return_value = {
-            "version_args": ["-V"],
-            "version_pattern": "",
-        }
-        assert detect_version("tool") == ""
-
-    @patch("siyarix.tool_version.get_tool_metadata")
-    @patch("siyarix.tool_version.subprocess.run")
-    def test_detect_file_not_found(self, mock_run, mock_meta):
-        mock_meta.return_value = {
-            "version_args": ["-V"],
-            "version_pattern": r"(\d+)",
-            "binary": "missing-tool",
-        }
-        mock_run.side_effect = FileNotFoundError("not found")
-        assert detect_version("missing-tool") == ""
-
-    @patch("siyarix.tool_version.get_tool_metadata")
-    @patch("siyarix.tool_version.subprocess.run")
-    def test_detect_timeout(self, mock_run, mock_meta):
-        mock_meta.return_value = {
-            "version_args": ["--version"],
-            "version_pattern": r"(\d+)",
-            "binary": "slow-tool",
-        }
-        mock_run.side_effect = subprocess.TimeoutExpired(cmd="slow", timeout=15)
-        assert detect_version("slow-tool") == ""
-
-    @patch("siyarix.tool_version.get_tool_metadata")
-    @patch("siyarix.tool_version.subprocess.run")
-    def test_detect_permission_error(self, mock_run, mock_meta):
-        mock_meta.return_value = {
-            "version_args": ["--version"],
-            "version_pattern": r"(\d+)",
-            "binary": "restricted-tool",
-        }
-        mock_run.side_effect = PermissionError("permission denied")
-        assert detect_version("restricted-tool") == ""
-
-    @patch("siyarix.tool_version.get_tool_metadata")
-    @patch("siyarix.tool_version.subprocess.run")
-    def test_detect_generic_exception(self, mock_run, mock_meta):
-        mock_meta.return_value = {
-            "version_args": ["--version"],
-            "version_pattern": r"(\d+)",
-            "binary": "crash-tool",
-        }
-        mock_run.side_effect = OSError("unexpected error")
-        assert detect_version("crash-tool") == ""
-
-    @patch("siyarix.tool_version.get_tool_metadata")
-    @patch("siyarix.tool_version.subprocess.run")
-    def test_detect_with_binary_path(self, mock_run, mock_meta):
-        mock_meta.return_value = {
-            "version_args": ["--version"],
-            "version_pattern": r"(\d+\.\d+)",
-            "binary": "nmap",
-        }
-        mock_run.return_value = MagicMock(stdout="Nmap 8.0", stderr="")
-        version = detect_version("nmap", binary_path="/custom/path/nmap")
-        assert version == "8.0"
-        # Verify the command uses the custom path
-        cmd = mock_run.call_args[0][0]
-        assert cmd[0] == "/custom/path/nmap"
-
-    def test_bulk_detect(self):
-        with patch("siyarix.tool_version.detect_version") as mock_detect:
-            mock_detect.side_effect = ["7.94", "8.4.0"]
-            result = bulk_detect(["nmap", "curl"])
-            assert result == {"nmap": "7.94", "curl": "8.4.0"}
 
 
 # ── tool_installer.py ────────────────────────────────────────────────

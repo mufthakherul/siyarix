@@ -147,26 +147,27 @@ class TestChaosSimulation:
 
     @pytest.mark.asyncio
     async def test_1f_executor_validate_cmd_list_blocking(self):
+        from unittest.mock import patch
         from siyarix.subprocess_utils import _validate_cmd_list
 
-        injection_cmds = [
-            ["echo", "hello; rm -rf /"],
-            ["nmap", "$(whoami)"],
-            ["echo", "hello | whoami"],
-            ["cat", "/etc/passwd`id`"],
-            ["ls", "-la", "arg>&2"],
-        ]
-        for cmd in injection_cmds:
-            with pytest.raises(ValueError, match=r"suspicious"):
-                _validate_cmd_list(cmd)
-
-        clean_cmds = [
+        destructive_cmds = [
             ["rm", "-rf", "/"],
-            ["python", "-c", "import os"],
-            ["echo", "hello world"],
-            ["nmap", "-sV", "192.168.1.1"],
+            ["sh", "-c", "rm -rf --no-preserve-root /"],
+            ["dd", "if=/dev/zero", "of=/dev/sda"],
+            ["mkfs.ext4", "/dev/sda1"],
         ]
-        for cmd in clean_cmds:
+        for cmd in destructive_cmds:
+            with patch("siyarix.subprocess_utils._confirm_destructive", side_effect=ValueError("destructive pattern")):
+                with pytest.raises(ValueError, match=r"destructive"):
+                    _validate_cmd_list(cmd)
+
+        safe_cmds = [
+            ["sh", "-c", "curl -sI example.com; echo done"],
+            ["echo", "hello; rm -rf /"],
+            ["nmap", "-sV", "192.168.1.1"],
+            ["python", "-c", "import os"],
+        ]
+        for cmd in safe_cmds:
             _validate_cmd_list(cmd)
 
 

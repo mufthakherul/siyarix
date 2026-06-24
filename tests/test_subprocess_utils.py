@@ -148,45 +148,44 @@ class TestValidateCmdList:
         with pytest.raises(ValueError, match="command part at index 0 is empty"):
             _validate_cmd_list([""])
 
-    @pytest.mark.parametrize("char", list(";|&`$><\n\r"))
-    def test_shell_metachar_raises(self, char: str) -> None:
-        with pytest.raises(ValueError, match="contains suspicious character"):
-            _validate_cmd_list(["echo", f"hello{char}world"])
+    def test_shell_metachars_allowed(self) -> None:
+        _validate_cmd_list(["echo", "hello; world"])
+        _validate_cmd_list(["echo", "hello | world"])
+        _validate_cmd_list(["echo", "hello & world"])
+        _validate_cmd_list(["echo", "hello > file"])
+        _validate_cmd_list(["echo", "hello < file"])
+        _validate_cmd_list(["echo", "hello `echo hi`"])
+        _validate_cmd_list(["echo", "hello $USER"])
 
-    def test_null_byte_raises(self) -> None:
-        with pytest.raises(ValueError, match="contains suspicious character"):
-            _validate_cmd_list(["echo", "\x00evil"])
+    @patch("siyarix.subprocess_utils._confirm_destructive", side_effect=ValueError("destructive pattern"))
+    def test_destructive_rm_root_blocked(self, mock_confirm) -> None:
+        with pytest.raises(ValueError, match="destructive pattern"):
+            _validate_cmd_list(["rm", "-rf", "/"])
 
-    def test_escape_byte_raises(self) -> None:
-        with pytest.raises(ValueError, match="contains suspicious character"):
-            _validate_cmd_list(["echo", "\x1bevil"])
+    @patch("siyarix.subprocess_utils._confirm_destructive", side_effect=ValueError("destructive pattern"))
+    def test_destructive_rm_root_no_preserve_blocked(self, mock_confirm) -> None:
+        with pytest.raises(ValueError, match="destructive pattern"):
+            _validate_cmd_list(["sh", "-c", "rm -rf --no-preserve-root /"])
 
-    def test_version_cmp_operators_allowed_when_not_shell(self) -> None:
-        # >=, <=, == adjacent to digits should be stripped before metachar scan
-        _validate_cmd_list(["python", ">=3.9"])
-        _validate_cmd_list(["python", "<=2.0"])
-        _validate_cmd_list(["python", "==1.5"])
+    @patch("siyarix.subprocess_utils._confirm_destructive", side_effect=ValueError("destructive pattern"))
+    def test_destructive_dd_blocked(self, mock_confirm) -> None:
+        with pytest.raises(ValueError, match="destructive pattern"):
+            _validate_cmd_list(["sh", "-c", "dd if=/dev/zero of=/dev/sda bs=4M"])
 
-    def test_bare_gt_raises(self) -> None:
-        with pytest.raises(ValueError, match="contains suspicious character"):
-            _validate_cmd_list(["echo", ">"])
+    @patch("siyarix.subprocess_utils._confirm_destructive", side_effect=ValueError("destructive pattern"))
+    def test_destructive_forkbomb_blocked(self, mock_confirm) -> None:
+        with pytest.raises(ValueError, match="destructive pattern"):
+            _validate_cmd_list(["sh", "-c", ":(){ :|:& };:"])
 
-    def test_bare_lt_raises(self) -> None:
-        with pytest.raises(ValueError, match="contains suspicious character"):
-            _validate_cmd_list(["echo", "<"])
+    @patch("siyarix.subprocess_utils._confirm_destructive", side_effect=ValueError("destructive pattern"))
+    def test_destructive_mkfs_blocked(self, mock_confirm) -> None:
+        with pytest.raises(ValueError, match="destructive pattern"):
+            _validate_cmd_list(["mkfs.ext4", "/dev/sda1"])
 
-    def test_valid_command_passes(self) -> None:
+    def test_safe_commands_pass(self) -> None:
         _validate_cmd_list(["python", "-c", "print('ok')"])
-
-    def test_shell_allows_redirect_operators(self) -> None:
-        # when first arg is a shell, metachars are NOT checked with version stripping
-        with pytest.raises(ValueError, match="contains suspicious character"):
-            _validate_cmd_list(["sh", "-c", "echo hi; rm -rf /"])
-
-    def test_url_encoded_bypass_attempt_raises(self) -> None:
-        # %3B is ';' — should be detected after URL decode
-        with pytest.raises(ValueError, match="contains suspicious character"):
-            _validate_cmd_list(["echo", "%3Bls"])
+        _validate_cmd_list(["sh", "-c", "curl -sI example.com 2>/dev/null; echo '---'"])
+        _validate_cmd_list(["echo", "hello"])
 
 
 # ── _prepare_env ─────────────────────────────────────────────────────────

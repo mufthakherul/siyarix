@@ -420,30 +420,17 @@ class TestDiscoverFromPath:
         assert registry._load_count == 1
         nmap = registry._graph.get_tool("nmap")
         assert nmap is not None
-        assert nmap.version == "7.94"
-
-    @patch.dict("siyarix.registry._HANDLER_MAP", {"nmap": MagicMock(return_value=AsyncMock())}, clear=True)
-    @patch("siyarix.registry._cached_which", return_value="/usr/bin/nmap")
-    @patch("siyarix.registry.get_tool_metadata", return_value={})
-    @patch("siyarix.tool_version.detect_version", return_value="7.95")
-    @patch("siyarix.registry.emit_sync")
-    def test_discover_curated_tool_fallback_version(self, mock_emit, mock_detect, mock_meta, mock_which, registry: ToolRegistry):
-        count = registry.discover_from_path()
-        assert count >= 1
-        nmap = registry._graph.get_tool("nmap")
-        assert nmap is not None
-        assert nmap.version == "7.95"
+        assert nmap.version == ""
 
     @patch("siyarix.registry._cached_which", side_effect=lambda n: f"/usr/bin/{n}" if n == "python3" else None)
-    @patch("siyarix.tool_version.detect_version", return_value="3.11")
     @patch("siyarix.registry.emit_sync")
-    def test_discover_interpreter(self, mock_emit, mock_detect, mock_which, registry: ToolRegistry):
+    def test_discover_interpreter(self, mock_emit, mock_which, registry: ToolRegistry):
         count = registry.discover_from_path()
         py = registry._graph.get_tool("python3")
         assert py is not None
         assert py.category == ToolCategory.UTILITY
         assert py.risk_level == RiskLevel.SAFE
-        assert py.version == "3.11"
+        assert py.version == ""
 
     @patch("siyarix.registry._cached_which", return_value=None)
     @patch("siyarix.registry.emit_sync")
@@ -455,9 +442,8 @@ class TestDiscoverFromPath:
     @patch.dict("siyarix.registry._HANDLER_MAP", {"nmap": MagicMock(return_value=AsyncMock())}, clear=True)
     @patch("siyarix.registry._cached_which", return_value="/usr/bin/nmap")
     @patch("siyarix.registry.get_tool_metadata", return_value={})
-    @patch("siyarix.tool_version.detect_version", return_value="1.0")
     @patch("siyarix.registry.emit_sync")
-    def test_discover_uses_handler_map(self, mock_emit, mock_detect, mock_meta, mock_which, registry: ToolRegistry):
+    def test_discover_uses_handler_map(self, mock_emit, mock_meta, mock_which, registry: ToolRegistry):
         count = registry.discover_from_path()
         assert count >= 1
         nmap_handler = registry._handlers.get("nmap")
@@ -504,10 +490,9 @@ class TestScanPath:
     @patch("siyarix.registry.os.path.isfile", return_value=True)
     @patch("siyarix.registry.os.access", return_value=True)
     @patch("siyarix.registry.get_tool_metadata", return_value={"category": "recon"})
-    @patch("siyarix.tool_version.detect_version", return_value="1.0")
     @patch("siyarix.registry.emit_sync")
     def test_scan_path_discovers_new_tools(
-        self, mock_emit, mock_detect, mock_meta, mock_access, mock_isfile, mock_listdir, registry: ToolRegistry
+        self, mock_emit, mock_meta, mock_access, mock_isfile, mock_listdir, registry: ToolRegistry
     ):
         with patch("siyarix.registry.os.name", "posix"):
             mock_listdir.return_value = ["mycustom_tool", "another_tool"]
@@ -521,10 +506,9 @@ class TestScanPath:
     @patch("siyarix.registry.os.path.isfile", return_value=True)
     @patch("siyarix.registry.os.access", return_value=True)
     @patch("siyarix.registry.get_tool_metadata", return_value={"category": "recon"})
-    @patch("siyarix.tool_version.detect_version", return_value="1.0")
     @patch("siyarix.registry.emit_sync")
     def test_scan_path_skips_blacklisted(
-        self, mock_emit, mock_detect, mock_meta, mock_access, mock_isfile, mock_listdir, registry: ToolRegistry
+        self, mock_emit, mock_meta, mock_access, mock_isfile, mock_listdir, registry: ToolRegistry
     ):
         with patch("siyarix.registry.os.name", "posix"):
             mock_listdir.return_value = ["my_tool", "svchost.exe", "my_other_tool"]
@@ -551,10 +535,9 @@ class TestScanPath:
     @patch("siyarix.registry.os.path.isfile", return_value=True)
     @patch("siyarix.registry.os.access", return_value=True)
     @patch("siyarix.registry.get_tool_metadata", return_value={"personas": ["devsecops"]})
-    @patch("siyarix.tool_version.detect_version", return_value="1.0")
     @patch("siyarix.registry.emit_sync")
     def test_scan_path_includes_utility_with_personas(
-        self, mock_emit, mock_detect, mock_meta, mock_access, mock_isfile, mock_listdir, registry: ToolRegistry
+        self, mock_emit, mock_meta, mock_access, mock_isfile, mock_listdir, registry: ToolRegistry
     ):
         with patch("siyarix.registry.os.name", "posix"):
             mock_listdir.return_value = ["custom_util"]
@@ -572,8 +555,7 @@ class TestScanPath:
             mock_listdir.return_value = ["tool_a", "tool_a"]
             with patch("siyarix.registry.os.path.isfile", return_value=True), \
                  patch("siyarix.registry.os.access", return_value=True), \
-                 patch("siyarix.registry.get_tool_metadata", return_value={"category": "recon"}), \
-                 patch("siyarix.tool_version.detect_version", return_value="1.0"):
+                 patch("siyarix.registry.get_tool_metadata", return_value={"category": "recon"}):
                 count = registry.scan_path()
                 assert count == 1
 
@@ -589,10 +571,9 @@ class TestScanPath:
     @patch("siyarix.registry.os.path.isfile", return_value=True)
     @patch("siyarix.registry.os.access", return_value=True)
     @patch("siyarix.registry.get_tool_metadata", return_value={"category": "recon"})
-    @patch("siyarix.tool_version.detect_version", return_value="1.0")
     @patch("siyarix.registry.emit_sync")
     def test_scan_path_windows_filters_extensions(
-        self, mock_emit, mock_detect, mock_meta, mock_access, mock_isfile, mock_listdir, registry: ToolRegistry
+        self, mock_emit, mock_meta, mock_access, mock_isfile, mock_listdir, registry: ToolRegistry
     ):
         with patch("siyarix.registry.os.name", "nt"):
             mock_listdir.return_value = ["tool.exe", "script.ps1", "no_ext", "data.txt"]
@@ -605,10 +586,9 @@ class TestScanPath:
     @patch("siyarix.registry.os.path.isfile", return_value=True)
     @patch("siyarix.registry.os.access", return_value=True)
     @patch("siyarix.registry.get_tool_metadata", return_value={"category": "recon", "risk_level": "high", "version": "2.0"})
-    @patch("siyarix.tool_version.detect_version", return_value="1.0")
     @patch("siyarix.registry.emit_sync")
     def test_scan_path_uses_meta_category_and_risk(
-        self, mock_emit, mock_detect, mock_meta, mock_access, mock_isfile, mock_listdir, registry: ToolRegistry
+        self, mock_emit, mock_meta, mock_access, mock_isfile, mock_listdir, registry: ToolRegistry
     ):
         with patch("siyarix.registry.os.name", "posix"):
             mock_listdir.return_value = ["advanced_tool"]

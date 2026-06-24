@@ -29,6 +29,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any
 
+try:
+    from rich.console import Console
+    _console = Console()
+except ImportError:
+    _console = None
+
 from ._platform import (
     get_platform_id,
     get_platform_shell_cmd as _get_platform_shell_cmd,
@@ -63,9 +69,6 @@ _ORPHAN_LOCK = threading.Lock()
 _SUDO_PASSWORD_CACHE: str | None = None
 _SUDO_PASSWORD_LOCK = threading.Lock()
 
-_SHELL_METACHARS = frozenset({";", "|", "&", "`", "$", ">", "<", "\n", "\r", "\x00", "\x1b"})
-
-_VERSION_CMP_RE = re.compile(r"(?<=\d)(?:>=|<=|==)|(?:>=|<=|==)(?=\d)")
 
 _PATH_TRAVERSAL_RE = re.compile(r"(?:\.\.[\\/]|%2e%2e[\\/%])", re.IGNORECASE)
 
@@ -203,9 +206,37 @@ def get_platform_shell_cmd(command: str) -> list[str]:
     return _get_platform_shell_cmd(command)
 
 
-def _validate_cmd_list(cmd: list[str]) -> None:
-    import urllib.parse
+_DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"\brm\s+(?:-rf\s+)?(?:--no-preserve-root\s+)?/\s*$", re.I),
+    re.compile(r"\bdd\s+if=/dev/zero\s+of=", re.I),
+    re.compile(r":\(\)\{\s*:\|:&\s*\};\s*:"),
+    re.compile(r"\bmkfs\.", re.I),
+    re.compile(r"\bmkswap\b"),
+    re.compile(r"\bchmod\s+-R\s+777\s+/", re.I),
+    re.compile(r"\bchown\s+-R\s+[^:]+:[^:]+?\s+/", re.I),
+]
 
+
+def _confirm_destructive(cmd: list[str]) -> None:
+    full = " ".join(cmd)
+    match_text = ""
+    for pattern in _DESTRUCTIVE_PATTERNS:
+        m = pattern.search(full)
+        if m:
+            match_text = m.group(0)
+            break
+    if _console:
+        _console.print(f"[yellow]⚠ Destructive command detected: {match_text}[/yellow]")
+        _console.print(f"[dim]Full: {full[:200]}[/dim]")
+    else:
+        print(f"WARNING: Destructive command detected: {match_text}")
+        print(f"Full: {full[:200]}")
+    from .tool_installer import tty_confirm
+    if not tty_confirm("Run this command?", default=False):
+        raise ValueError(f"destructive command cancelled by user: {full[:120]}")
+
+
+def _validate_cmd_list(cmd: list[str]) -> None:
     if not isinstance(cmd, list) or not cmd:
         raise ValueError("cmd must be a non-empty list of strings")
 
@@ -214,22 +245,16 @@ def _validate_cmd_list(cmd: list[str]) -> None:
             raise ValueError(
                 f"all command parts must be strings, got {type(part).__name__} at index {i}"
             )
-
-    _check_path_traversal(cmd)
-
-    for i, part in enumerate(cmd):
         if not part:
             raise ValueError(f"command part at index {i} is empty")
 
-        decoded = urllib.parse.unquote(part)
+    _check_path_traversal(cmd)
 
-        cleaned = _VERSION_CMP_RE.sub("", decoded)
-
-        for ch in _SHELL_METACHARS:
-            if ch in cleaned:
-                raise ValueError(
-                    f"command part at index {i} contains suspicious character {ch!r}: {part!r}"
-                )
+    full = " ".join(cmd)
+    for pattern in _DESTRUCTIVE_PATTERNS:
+        if pattern.search(full):
+            _confirm_destructive(cmd)
+            return
 
 
 def _prepare_env(env: dict[str, str] | None = None) -> dict[str, str]:

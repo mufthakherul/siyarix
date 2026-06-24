@@ -25,6 +25,24 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+def tty_confirm(prompt: str, default: bool = True) -> bool:
+    """Ask a yes/no question via /dev/tty, bypassing prompt_toolkit's raw mode."""
+    import sys as _sys
+    suffix = " [Y/n]" if default else " [y/N]"
+    print(prompt + suffix, file=_sys.stderr, end=" ", flush=True)
+    try:
+        with open("/dev/tty") as _tty:
+            answer = _tty.readline().strip().lower()
+    except Exception:
+        try:
+            answer = input().strip().lower()
+        except Exception:
+            answer = ""
+    if not answer:
+        return default
+    return answer[0] == "y"
+
+
 @dataclass
 class ToolInstallResult:
     """Result of a tool installation attempt."""
@@ -192,6 +210,8 @@ class ToolInstaller:
 
     def _install_nix(self, tool: str, pkg: str) -> bool:
         """Install on Linux/macOS. Tries sudo first, falls back to user-only."""
+        import sys
+
         pm = self._detect_pm()
 
         # Map common tool names to correct package names per package manager
@@ -212,13 +232,13 @@ class ToolInstaller:
             self._print("  Updating package index...")
             subprocess.run(
                 ["sudo", "-p", "Password required for update: ", pm, "update"],
-                capture_output=True,
+                stdin=sys.stdin,
                 timeout=120,
                 check=False,
             )
         elif pm == "brew":
             self._print("  Updating brew formulas...")
-            subprocess.run(["brew", "update"], capture_output=True, timeout=120, check=False)
+            subprocess.run(["brew", "update"], timeout=120, check=False)
 
         is_deb = pm in ("apt", "apt-get")
         if is_deb:
@@ -236,7 +256,10 @@ class ToolInstaller:
             try:
                 self._print(f"  Running: {' '.join(cmd)}")
                 result = subprocess.run(
-                    cmd, capture_output=True, text=True, timeout=300, check=False
+                    cmd,
+                    stdin=sys.stdin,
+                    timeout=300,
+                    check=False,
                 )
                 if result.returncode == 0 or shutil.which(tool):
                     if shutil.which(tool):

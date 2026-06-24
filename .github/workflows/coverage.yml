@@ -41,7 +41,7 @@ jobs:
       - name: Install dependencies
         run: |
           uv pip install --system -e ".[dev]"
-          uv pip install --system pytest pytest-asyncio pytest-cov coverage lxml click openai
+          uv pip install --system pytest pytest-asyncio pytest-cov coverage lxml click openai respx
 
       - name: Run pytest with coverage
         run: |

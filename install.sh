@@ -208,10 +208,11 @@ detect_os() {
     fi
   elif [ "$(uname -s)" = "Darwin" ]; then
     echo "macos"
-  elif [ "$(uname -s)" = "MINGW"* ] || [ "$(uname -s)" = "MSYS"* ] || [ "$(uname -s)" = "CYGWIN"* ]; then
-    echo "windows"
   else
-    echo "other"
+    case "$(uname -s)" in
+      MINGW*|MSYS*|CYGWIN*) echo "windows" ;;
+      *) echo "other" ;;
+    esac
   fi
 }
 

@@ -1,11 +1,13 @@
 # 🤝 Contribution Guide
 
-Thank you for your interest in contributing to Siyarix! 🎉 Whether you are a seasoned security professional, a Python developer, a documentation writer, or an enthusiastic student, your contributions are what help build the future of AI-native security orchestration. 
+Thank you for your interest in contributing to Siyarix! 🎉 I started this as a personal passion project, but **it is now officially public** and growing fast. I warmly welcome contributors of all skill levels! Whether it's fixing a typo in the documentation or adding a new AI provider, your contributions are what make this project better for everyone.
 
-Please read and follow these guidelines to ensure a smooth and collaborative experience.
+> 👋 **Heads Up:** To better support our growing community, Siyarix will soon be moving from my personal account to its very own dedicated GitHub organization (`siyarix/siyarix`). Don't worry, all links will seamlessly redirect!
+
+Please read and follow these guidelines to help keep things organized.
 
 > [!NOTE]
-> We welcome all kinds of contributions—from typo fixes to entirely new AI provider integrations! If you're planning a major change, please open an issue first so we can discuss the design.
+> I welcome all kinds of contributions! If you're planning a major change, please open an issue first so we can discuss the design before you spend time coding.
 
 ## 🧰 Prerequisites
 
@@ -17,7 +19,7 @@ Before diving in, make sure you have the following ready:
 
 ## 🛠️ Development Setup
 
-Getting Siyarix running locally is a breeze:
+Getting Siyarix running locally is pretty straightforward:
 
 ```bash
 # 1. Clone your fork
@@ -45,9 +47,9 @@ mypy src/siyarix/   # Verify static type checking
 
 ## 🔄 Contribution Workflow
 
-1. **Find or create an issue:** Discuss significant changes with maintainers before starting work.
+1. **Find or create an issue:** Let's chat about significant changes before you start work.
 2. **Branch out:** Create a fresh branch for your work: `git checkout -b feat/my-awesome-feature`.
-3. **Write code:** Make your changes, ensuring you follow our code conventions.
+3. **Write code:** Make your changes, keeping the existing code conventions in mind.
 4. **Run Quality Checks:** 
    ```bash
    pytest                          # Ensure tests pass
@@ -61,8 +63,8 @@ mypy src/siyarix/   # Verify static type checking
 
 ### 🎨 Style
 
-- We follow **PEP 8**, strictly enforced by **Ruff** (line length: 100).
-- **Type hints** are mandatory on all public functions and methods (`disallow_untyped_defs`).
+- We follow **PEP 8**, enforced by **Ruff** (line length: 100).
+- **Type hints** are highly encouraged, especially on public functions and methods (`disallow_untyped_defs`).
 - Include `from __future__ import annotations` at the top of every module.
 - Use **Dataclasses** for structured data.
 - Prefer `asyncio` for any I/O-bound operations.
@@ -86,13 +88,13 @@ Organize your imports in blocks, separated by blank lines:
 
 ### ⚠️ Error Handling
 
-- Always raise specific `SiyarixException` subclasses for domain errors.
-- **Never** use bare `except:` blocks.
-- Map exceptions correctly to exit codes via `exit_code_for()`.
+- Try to raise specific `SiyarixException` subclasses for domain errors.
+- Avoid bare `except:` blocks when possible.
+- Map exceptions to exit codes via `exit_code_for()` where appropriate.
 
 ## 📝 Commit Conventions
 
-We strictly follow [Conventional Commits](https://www.conventionalcommits.org/):
+I try to follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```text
 <type>(<scope>): <description>
@@ -106,72 +108,70 @@ We strictly follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 > [!IMPORTANT]
 > **DCO Sign-off Required!**
-> Every single commit must include a `Signed-off-by` trailer certifying the [Developer Certificate of Origin](https://developercertificate.org/).
-> You can easily do this by adding the `-s` flag to your commit command:
-> `git commit -s -m "feat(core): add awesome new planner"`
+> Please include a `Signed-off-by` trailer certifying the [Developer Certificate of Origin](https://developercertificate.org/).
+> You can do this by adding the `-s` flag to your commit command:
+> `git commit -s -m "feat(core): add new feature"`
 
 ## 🔍 Pull Request Process
 
 ### Before Opening a PR
-Ensure your branch meets all requirements:
+Check that your branch meets the requirements:
 - All tests pass (`pytest -q`).
 - Linter is happy (`ruff check`).
 - Types are strict (`mypy src/siyarix/`).
-- You've added tests for new functionality.
-- You've updated documentation if behavior changed.
+- Added basic tests for new functionality.
+- Updated documentation if behavior changed.
 
 ### Review Process
-- At least one maintainer review is required.
-- CI pipelines must pass completely.
-- Address review feedback promptly. Do not force-push after a review has started; add new commits instead.
+- I'll try to review PRs as soon as possible, but keep in mind this is a personal project.
+- CI pipelines should pass.
+- Feel free to ask questions if you get stuck!
 
 ## 🤖 Adding a New AI Provider
 
 1. Create a provider profile in `src/siyarix/providers/profiles/`.
 2. Register it inside the `ProviderManager`.
 3. Add the corresponding API key environment variable to the setup documentation.
-4. Write tests in `tests/test_providers.py`.
-5. Update the provider lists in the general documentation.
+4. Write some basic tests in `tests/`.
+5. Update the provider lists in the docs.
 
 ## 🛠️ Adding a New Tool Parser
 
-1. Create your parser in `src/siyarix/parsers/`, ensuring it implements the `BaseParser` protocol.
+1. Create your parser in `src/siyarix/parsers/`, implementing the `BaseParser` protocol.
 2. Register it in `ParserRegistry`.
-3. Provide test fixtures containing sample tool output.
-4. Add comprehensive tests in `tests/test_parsers/`.
+3. Provide a test fixture with sample tool output.
+4. Add a test in `tests/`.
 
 ## 🔌 Plugins & Extensions
 
-Siyarix supports dynamic plugins out of `~/.siyarix/plugins/`. When contributing core plugins:
+Siyarix supports loading plugins from `~/.siyarix/plugins/`. When contributing core plugins:
 1. Follow existing patterns found in `src/siyarix/`.
-2. Register your module through the correct registry.
-3. Update `pyproject.toml` with any external dependencies under the appropriate `extras`.
-4. Include tests!
+2. Update `pyproject.toml` with any external dependencies under the appropriate `extras`.
+3. Include tests.
 
 ## 🔐 Security Contributions
 
 > [!CAUTION]
-> **Never report security vulnerabilities via public GitHub issues!**
-> Please follow our [Security Policy](../security/vulnerability-reporting.md) for responsible disclosure.
+> **Please don't report security vulnerabilities via public GitHub issues!**
+> Follow the [Security Policy](../security/vulnerability-reporting.md) for responsible disclosure.
 
-- Standard Pull Requests are always welcome for non-critical hardening!
-- Security contributors will be credited in our release notes (with permission).
+- Standard PRs are welcome for hardening!
 
 ## 🧠 AI-Generated Code Disclosure
 
-- You are fundamentally responsible for all code you submit, regardless of how it was authored.
-- If the majority of your PR was AI-generated, **disclose this in the PR description**.
-- AI-generated code must meet all human standards (tests, linting, docs). Maintainers reserve the right to request modifications.
+- You are responsible for all code you submit, regardless of how it was written.
+- If your PR was heavily AI-generated, it's helpful to mention it in the description.
+- It still needs to pass tests and linting.
 
 ## ⚖️ Licensing
 
-By contributing, you agree that your contributions will be licensed under the **AGPL-3.0-or-later**.
-- Every source file must include this header:
+By contributing, you agree your contributions will be licensed under the **AGPL-3.0-or-later**.
+- Every source file should include this header:
   ```python
   # SPDX-License-Identifier: AGPL-3.0-or-later
   ```
 
 > [!NOTE]
-> **Corporate Contributors:** Please ensure you have authorization from your employer to contribute under the AGPL-3.0-or-later license before submitting code.
+> If you are contributing on behalf of a company, please ensure you have authorization to contribute under the AGPL-3.0-or-later license.
 
-Third-party plugins placed in `~/.siyarix/plugins/` are an exception and are not required to be AGPL-licensed. See our [Plugin Exception](../legal/plugin-exception.md) for details.
+Third-party plugins placed in `~/.siyarix/plugins/` are exempt from AGPL requirements. See our [Plugin Exception](../legal/plugin-exception.md).

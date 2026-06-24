@@ -1,19 +1,17 @@
 # 🧪 Testing
 
-Reliability is paramount for an automated security orchestration platform. Siyarix maintains a highly comprehensive test suite using **pytest** (with `asyncio_mode=auto`), demanding **75%+ code coverage** across all modules with strict branch coverage enabled.
+Siyarix aims to be a reliable tool, so I've written a solid test suite using **pytest** (with `asyncio_mode=auto`). Testing is crucial as the project grows!
 
 ## 🏗️ Framework & Tooling
 
-Our testing strategy relies on top-tier Python tooling:
-- **pytest** combined with `pytest-asyncio` ensures seamless async test support.
-- **pytest-cov** generates detailed coverage reports (with `branch=true`).
-- **Custom Markers:** We use markers like `bootstrap`, `cvss`, `report`, `stealth`, `e2e`, and more to logically group test runs.
-- **conftest.py** provides a rich ecosystem of shared mock fixtures.
-- **Enforcement:** Code coverage limits are strictly enforced via `pyproject.toml` (`fail_under = 75`).
+- **pytest** and `pytest-asyncio` for async tests.
+- **pytest-cov** for coverage tracking.
+- Custom pytest markers (like `e2e`, `stealth`) to group test runs.
+- `conftest.py` for shared fixtures.
 
 ## 🚀 Running Tests
 
-Running tests locally is highly flexible:
+Running tests locally is easy:
 
 ```bash
 # Run the entire suite
@@ -25,46 +23,32 @@ pytest --cov=siyarix
 # Run a specific test file
 pytest tests/test_planner.py
 
-# Run tests matching a specific keyword
-pytest -k "provider"
-
-# Run tests in parallel to save time!
-pytest -n auto
-
-# Exclude End-to-End (e2e) tests to run only fast unit tests
+# Exclude End-to-End (e2e) tests for a quicker run
 pytest -m "not e2e"
 ```
 
 > [!TIP]
-> If you are actively debugging, use `pytest -x` to force the test runner to stop on the very first failure!
+> Use `pytest -x` to stop the test runner on the first failure.
 
 ## 📁 Test Directory Structure
 
-With over 110+ test files, our `tests/` directory mirrors the structure of `src/siyarix/`:
+The `tests/` directory generally mirrors `src/siyarix/`:
 
 ```text
 tests/
 ├── conftest.py                        # Shared fixtures & mocks
-├── test_core.py                       # Core agent logic tests
-├── test_cli_main.py                   # CLI boundary tests
-├── test_e2e.py                        # Full end-to-end integration tests
-├── test_providers_manager.py          # Provider failover & tracking tests
-├── test_planner_autonomous.py         # LLM prompt and planning tests
-├── test_knowledge_graph.py            # Graph traversal tests
-├── test_dlp.py                        # Secret masking tests
-├── test_parsers/                      # 80+ dedicated tool parser tests!
-│   ├── test_nmap_parser.py
-│   ├── test_nuclei_parser.py
-│   └── ... 
-└── scripts/                           # Useful test helper scripts
+├── test_core.py                       # Core logic tests
+├── test_cli_main.py                   # CLI tests
+├── test_e2e.py                        # Basic end-to-end tests
+├── test_providers_manager.py          # Provider tests
+├── test_parsers/                      # Parser tests
+└── ... 
 ```
 
 ## ✍️ Writing Tests
 
-We encourage developers to write clean, deterministic tests.
-
 ### Async Tests
-Because Siyarix is heavily async, your tests will be too:
+Because Siyarix is mostly async, tests usually are too:
 ```python
 import pytest
 
@@ -75,32 +59,18 @@ async def test_async_behavior():
 ```
 
 ### Mocking Providers
-Never hit real APIs in unit tests. Always use mock providers:
+Please use mock providers instead of hitting real APIs in unit tests:
 ```python
 @pytest.mark.asyncio
 async def test_planner_with_mock_provider():
     planner = TaskPlanner()
-    planner.providers = [MockProvider()] # Use our custom mock!
+    planner.providers = [MockProvider()] 
     
     result = await planner.plan("scan test")
     assert result is not None
 ```
 
-### Using Fixtures
-Fixtures are your best friend for setup/teardown logic:
-```python
-@pytest.fixture
-def temp_config(tmp_path):
-    config_path = tmp_path / "settings.toml"
-    config_path.write_text('[default]\nkey = "value"')
-    os.environ["SIYARIX_CONFIG"] = str(config_path)
-    
-    yield config_path
-    
-    del os.environ["SIYARIX_CONFIG"]
-```
-
-## 📊 Coverage Enforcement
+## 📊 Coverage
 
 To check coverage manually:
 ```bash
@@ -108,32 +78,26 @@ pytest --cov=siyarix --cov-report=term-missing
 ```
 
 > [!WARNING]
-> CI pipelines will automatically fail your Pull Request if code coverage drops below 75% or if branch coverage drops. Always run coverage checks locally before pushing!
+> The CI pipeline will check test coverage. It's best to run it locally before pushing a PR!
 
 ## ✨ Code Quality & Linting
 
-Beyond testing, we enforce strict code quality using a suite of tools:
+I use a few tools to keep the code clean:
 
 ```bash
 ruff check src/ tests/               # Linting checks
 ruff format src/ tests/              # Auto-formatter
-mypy src/siyarix/                    # Strict static type checking
-vulture src/siyarix/                 # Dead code detection
-bandit -r src/siyarix/               # Static security scanning
+mypy src/siyarix/                    # Static type checking
 ```
 
-## 🤖 CI Matrix & Pre-commit Hooks
+## 🤖 CI and Pre-commit
 
-Our GitHub Actions CI runs tests on every PR across a robust matrix:
-- **Python Versions:** 3.11, 3.12, 3.13
-- **Operating Systems:** Ubuntu, Windows, macOS
-- **Security:** Automated SARIF generation via Bandit and `pip-audit`.
+GitHub Actions automatically runs tests on Pull Requests across Python 3.11+.
 
 ### Pre-commit Hooks
-Save yourself time and catch errors locally by installing pre-commit hooks:
+You can install pre-commit hooks to automatically check your code locally before committing:
 
 ```bash
 pre-commit install
 ```
-
-Our hook suite will automatically run Ruff, MyPy, secret detection (preventing you from accidentally committing private keys or API tokens!), JSON/YAML validation, and typo checks every time you type `git commit`.
+This runs Ruff, MyPy, and basic checks every time you type `git commit`.

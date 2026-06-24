@@ -390,45 +390,34 @@ def render_welcome_banner(
 
     layout = Layout()
     layout.split_column(
-        Layout(name="header", size=12),
+        Layout(name="header", size=7),
         Layout(name="stats_row"),
         Layout(name="footer"),
     )
 
-    # ── Header: ASCII art + version + tagline ──
-    banner_art = r"""  ███████   ███   ██   ██  █████  ██████    ███   ██   ██
-  ██         █     ██ ██  ██   ██ ██  ██     █     ██ ██
-  ███████    █      ███   ███████ █████      █      ███
-       ██    █       █    ██   ██ ██ ██      █     ██ ██
-  ███████   ███      █    ██   ██ ██  ██    ███   ██   ██"""
-
+    # ── Header: brand + version + tagline ──
     mode_color_map = {
         "redteam": "red", "blueteam": "blue", "stealth": "red",
         "offline": "yellow", "autonomous": "magenta",
     }
     accent = mode_color_map.get(mode, "cyan")
 
-    header_content = Text.assemble(
-        (banner_art, f"bold {accent}"),
-        ("\n", ""),
-        (f"  v{ver}", "bold bright_white"),
-        (" · ", "dim"),
-        ("AI-Native Cyber Operations Platform", "dim italic"),
-        ("\n", ""),
-        (f"  Mode: {mode}", f"bold {accent}"),
-        (" · ", "dim"),
-        (f"Provider: {provider}", "bright_blue"),
-        (" · ", "dim"),
-        (f"Persona: {persona}", "bright_magenta"),
+    header_text = Text.assemble(
+        (" █▓▒░ ", f"bold {accent}"),
+        ("SIYARIX ORCHESTRATOR ", f"bold white"),
+        (f"v{ver} ", "bold green"),
+        ("░▒▓█ ", f"bold {accent}"),
+        ("\n\n", ""),
+        ("CLI-Based AI-Native Cyber Operations Platform", "dim italic white"),
     )
 
     layout["header"].update(
         Align.center(
             Panel(
-                Align.center(header_content, vertical="middle"),
+                Align.center(header_text, vertical="middle"),
                 border_style=accent,
-                padding=(1, 2),
-                width=76,
+                padding=(1, 3),
+                width=72,
             )
         )
     )

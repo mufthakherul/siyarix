@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import re
@@ -118,7 +117,6 @@ _MULTI_WORD_CHECKS = [
             ("failed password", "wevtutil", "Failed password audit", "qe Security"),
             ("window event", "wevtutil", "Windows Event Log analysis", "qe Security"),
             ("windows event", "wevtutil", "Windows Event Log analysis", "qe Security"),
-            ("event log", "wevtutil", "Windows Event Log analysis", "qe Security"),
             ("event id", "wevtutil", "Windows Event ID search", "qe Security"),
             ("process creation", "wevtutil", "Process creation event monitoring", "qe Security"),
             ("account lockout", "wevtutil", "Account lockout event check", "qe Security"),
@@ -182,7 +180,6 @@ _MULTI_WORD_CHECKS = [
             ("otx threat", "curl", "OTX threat intelligence query", ""),
             ("alienvault", "curl", "AlienVault OTX query", ""),
             # ── Sigma rules patterns ───────────────────────────────────
-            ("sigma rule", "sigmac", "Sigma rule creation", ""),
             ("sigma conversion", "sigmac", "Sigma rule conversion", ""),
             ("sigma query", "sigmac", "Sigma rule creation", ""),
             ("sigma detection", "sigmac", "Sigma detection rule", ""),
@@ -201,7 +198,6 @@ _MULTI_WORD_CHECKS = [
             ("memory analysis", "volatility", "Memory analysis", "-f"),
             ("memory image", "volatility", "Memory image analysis", "-f"),
             ("memory dump", "volatility", "Memory dump analysis", "-f"),
-            ("memory forensics", "volatility", "Memory forensics analysis", "-f"),
             ("process hollow", "volatility", "Process hollowing detection", "-f"),
             ("injected code", "volatility", "Code injection detection", "-f"),
             ("ransomware memory", "volatility", "Ransomware memory analysis", "-f"),
@@ -212,7 +208,6 @@ _MULTI_WORD_CHECKS = [
             ("cobalt strike", "volatility", "Cobalt Strike beacon detection", "-f"),
             ("beacon detection", "volatility", "Beacon detection in memory", "-f"),
             # ── Network / PCAP patterns ────────────────────────────────
-            ("pcap analysis", "tshark", "PCAP analysis", "-r"),
             ("pcap file", "tshark", "PCAP file analysis", "-r"),
             ("full pcap", "tshark", "Full PCAP analysis", "-r"),
             ("network capture", "tcpdump", "Network traffic capture", "-i eth0 -w capture.pcap"),
@@ -233,7 +228,6 @@ _MULTI_WORD_CHECKS = [
             ("netflow", "tshark", "NetFlow analysis", "-r"),
             ("suspicious connection", "tshark", "Suspicious connection analysis", "-r"),
             # ── Malware / Binary Analysis patterns ─────────────────────
-            ("malware analysis", "strings", "Malware static analysis", ""),
             ("malware sample", "strings", "Malware sample analysis", ""),
             ("suspicious binary", "strings", "Suspicious binary analysis", ""),
             ("ransomware note", "strings", "Ransom note analysis", ""),
@@ -255,7 +249,6 @@ _MULTI_WORD_CHECKS = [
             ("binary analysis", "objdump", "Binary code analysis", "-d"),
             ("export function", "objdump", "DLL export analysis", "-x"),
             # ── Reverse Engineering patterns ───────────────────────────
-            ("reverse engineering", "ghidra", "Reverse engineering", ""),
             ("control flow", "ghidra", "Control flow analysis", ""),
             ("c2 protocol", "ghidra", "C2 protocol reverse engineering", ""),
             ("encryption routine", "ghidra", "Encryption routine analysis", ""),
@@ -277,7 +270,6 @@ _MULTI_WORD_CHECKS = [
             ("listening port", "netstat", "Listening port audit", "-ano"),
             ("running process", "ps", "Running process check", "aux"),
             # ── Forensics / Disk patterns ──────────────────────────────
-            ("disk image", "sleuthkit", "Disk image analysis", ""),
             ("disk forensics", "sleuthkit", "Disk forensic analysis", ""),
             ("forensic analysis", "sleuthkit", "Digital forensic analysis", ""),
             ("disk analysis", "sleuthkit", "Disk analysis", ""),
@@ -294,11 +286,8 @@ _MULTI_WORD_CHECKS = [
             ("forensic imaging", "dd", "Forensic disk imaging", "if=/dev/sda"),
             ("forensic disk", "dd", "Forensic disk imaging", "if=/dev/sda"),
             ("capture memory", "dd", "Memory acquisition", "if=/proc/kcore"),
-            ("legal hold", "dd", "Legal hold evidence preservation", ""),
             ("preserve evidence", "wevtutil", "Evidence preservation", "qe Security"),
-            ("forensic evidence", "volatility", "Forensic evidence collection", "-f"),
             # ── System Hardening / CIS patterns ────────────────────────
-            ("cis benchmark", "lynis", "CIS benchmark audit", "audit system"),
             ("hardening audit", "lynis", "System hardening audit", "audit system"),
             ("security baseline", "lynis", "Security baseline check", "audit system"),
             ("lynis audit", "lynis", "System audit via Lynis", "audit system"),
@@ -326,7 +315,6 @@ _MULTI_WORD_CHECKS = [
             ("kernel module check", "lsmod", "Kernel module audit", ""),
             ("loadable kernel", "lsmod", "Loadable kernel module check", ""),
             # ── Endpoint Detection patterns ────────────────────────────
-            ("endpoint detection", "osquery", "Endpoint detection query", ""),
             ("osquery query", "osquery", "Endpoint query via osquery", ""),
             ("osquery scan", "osquery", "Endpoint scan via osquery", ""),
             ("antivirus scan", "clamav", "Antivirus scan", ""),
@@ -354,7 +342,6 @@ _MULTI_WORD_CHECKS = [
             ("windows service", "sc", "Windows service audit", "query"),
             ("suspicious driver", "sc", "Suspicious driver check", "query"),
             ("scheduled task", "schtasks", "Scheduled task audit", ""),
-            ("process creation", "wevtutil", "Process creation event monitoring", "qe Security"),
             # ── Honeypot patterns ──────────────────────────────────────
             ("deploy honeypot", "cat", "Honeypot deployment", ""),
             ("honeypot deployment", "cat", "Honeypot deployment", ""),
@@ -402,7 +389,6 @@ _MULTI_WORD_CHECKS = [
             ("disable compromised", "net", "Disable compromised account", "user"),
             # ── Additional catch-all patterns ──────────────────────────
             ("verify certificate", "openssl", "Certificate verification", "x509"),
-            ("verify logging", "cat", "Logging configuration check", ""),
             ("failover procedure", "cat", "Disaster recovery failover test", ""),
             ("bare metal restore", "cat", "Bare metal restore test", ""),
             ("secure boot", "cat", "Secure boot verification", ""),
@@ -453,8 +439,6 @@ _MULTI_WORD_CHECKS = [
             ("authorized_keys", "ssh", "SSH authorized_keys backdoor", ""),
             ("systemd service", "systemctl", "Manage systemd service", ""),
             ("registry run", "reg", "Add registry Run key", 'add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'),
-            ("windows service", "sc", "Windows service audit", "query"),
-            ("suspicious driver", "sc", "Suspicious driver check", "query"),
             ("privilege escalation", "cat", "Privilege escalation audit", ""),
             ("default password", "crackmapexec", "Default password check", ""),
             ("email security", "dig", "Email security configuration audit", ""),
@@ -1387,7 +1371,6 @@ class RegistryPlanner:
             "nmap": ("nmap", "Nmap network scanner", "-sT -T4 --top-ports 100"),
             "masscan": ("masscan", "Mass port scanner", ""),
             "nuclei": ("nuclei", "Template-based vulnerability scanner", ""),
-            "nikto": ("nikto", "Web server vulnerability scan", ""),
             "wpscan": ("wpscan", "WordPress vulnerability scanner", ""),
             "sqlmap": ("sqlmap", "SQL injection scanner", "--batch --random-agent"),
             "gobuster": ("gobuster", "Directory/file brute force", ""),
@@ -1501,7 +1484,7 @@ class RegistryPlanner:
                     steps.append({"description": desc, "tool": actual_tool, "args": {"target": target, "flags": flags}})
                 return self.create_plan(goal=goal, steps=steps, plan_type=PlanType.DAG)
 
-            actual_tool = best_tool
+            actual_tool = str(best_tool)
             if best_tool not in avail_set and best_tool in TOOL_ALTERNATIVES:
                 for alt in TOOL_ALTERNATIVES[best_tool]:
                     if alt in avail_set:
@@ -1567,7 +1550,7 @@ class RegistryPlanner:
                 best_flags = flags
                 break
         if best_kw:
-            actual_tool = best_tool
+            actual_tool = str(best_tool)
             if best_tool not in avail_set and best_tool in TOOL_ALTERNATIVES:
                 for alt in TOOL_ALTERNATIVES[best_tool]:
                     if alt in avail_set:
@@ -2407,7 +2390,7 @@ class RegistryPlanner:
                     best_desc = desc
                     best_flags = flags
         if best_kw:
-            actual_tool = best_tool
+            actual_tool = str(best_tool)
             if best_tool not in avail_set and best_tool in TOOL_ALTERNATIVES:
                 for alt in TOOL_ALTERNATIVES[best_tool]:
                     if alt in avail_set:

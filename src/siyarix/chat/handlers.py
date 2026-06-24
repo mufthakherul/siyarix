@@ -1785,12 +1785,12 @@ class CommandHandlersMixin:
                     for s in data["skills"]:
                         lines.append(f'  <Skill ID="{_xml(s["skill_id"])}" Confidence="{s["confidence"]:.2f}">')
                         lines.append(f'    <Intent>{_xml(s["intent_pattern"])}</Intent>')
-                        lines.append(f"    <Steps>")
+                        lines.append("    <Steps>")
                         for step in s["steps"]:
                             lines.append(f'      <Step Tool="{_xml(step["tool"])}">'
                                          f'{_xml(step["command_template"])}</Step>')
-                        lines.append(f"    </Steps>")
-                        lines.append(f"  </Skill>")
+                        lines.append("    </Steps>")
+                        lines.append("  </Skill>")
                     lines.append('</Skills>')
                     export_path.write_text("\n".join(lines), encoding="utf-8")
                 else:

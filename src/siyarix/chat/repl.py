@@ -28,11 +28,9 @@ from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.text import Text
 from rich.columns import Columns
-from rich.table import Table
 from prompt_toolkit import PromptSession
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.formatted_text import HTML
-from prompt_toolkit.history import InMemoryHistory
 
 from .session import ChatSession
 from .ui import SmartAutocomplete, SplitPane, render_welcome_banner
@@ -43,7 +41,7 @@ from .handlers import CommandHandlersMixin
 from .engine import LLMEngineMixin
 from .console import console, panel_response, mode_border
 from .prompts import (
-    mode_color, make_prompt_top, make_prompt_bottom,
+    make_prompt_top, make_prompt_bottom,
 )
 
 logger = logging.getLogger(__name__)

@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Mark stale issues
-        uses: actions/stale@v9
+        uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9
         with:
           operations-per-run: 100
           stale-issue-label: stale
@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Mark stale PRs
-        uses: actions/stale@v9
+        uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9
         with:
           operations-per-run: 50
           stale-pr-label: stale
@@ -82,7 +82,7 @@ jobs:
     if: github.event_name == 'schedule'
     steps:
       - name: Remove stale labels from updated issues
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -120,7 +120,7 @@ jobs:
     if: github.event_name == 'schedule'
     steps:
       - name: Generate stale report
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const { owner, repo } = context.repo;

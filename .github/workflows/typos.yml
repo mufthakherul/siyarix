@@ -6,16 +6,18 @@ on:
   pull_request:
     branches: [ "main", "develop" ]
 
+permissions: read-all
+
 jobs:
   typos:
     name: Check for typos
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Run Typos
-        uses: crate-ci/typos@master
+        uses: crate-ci/typos@37bb98842b0d8c4ffebdb75301a13db0267cef89 # master
         with:
           # Optional: Exclude auto-generated files or directories
           config: .typos.toml

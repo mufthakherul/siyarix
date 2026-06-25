@@ -1,5 +1,3 @@
-name: Trigger Org Site Update
-
 on:
   push:
     branches: [main, stable]
@@ -17,6 +15,10 @@ on:
       - "THIRD_PARTY_LICENSES.md"
       - "docs/**"
   release:
+    types: [published]
+
+permissions: read-all
+elease:
     types: [published]
 
 jobs:

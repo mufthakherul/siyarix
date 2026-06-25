@@ -3,15 +3,17 @@ on:
   push:
     branches: [ "main" ]
   pull_request:
+permissions: read-all
+
 jobs:
   trivy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Build Docker image for scanning
         run: docker build -t siyarix:scan .
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@cf5c088a69634cd13ccddc735d7926162c31f9a6 # master
         with:
           image-ref: 'siyarix:scan'
           format: 'table'

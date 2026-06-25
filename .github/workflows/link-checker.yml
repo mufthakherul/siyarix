@@ -7,13 +7,15 @@ on:
       - '**/*.md'
       - '**/*.html'
 
+permissions: read-all
+
 jobs:
   lychee:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Link Checker
-        uses: lycheeverse/lychee-action@v2.8.0
+        uses: lycheeverse/lychee-action@8646ba30535128ac92d33dfc9133794bfdd9b411 # v2.8.0
         with:
           args: --accept=200,204,429 --exclude-mail --no-progress './**/*.md' './**/*.html'
           fail: true

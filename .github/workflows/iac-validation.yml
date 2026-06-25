@@ -30,7 +30,7 @@ jobs:
     name: Validate Docker Compose
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Validate docker-compose.yml syntax
         run: |
@@ -61,7 +61,7 @@ jobs:
     name: Validate OpenTelemetry Config
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Validate otel-collector-config.yaml
         run: |
@@ -84,7 +84,7 @@ jobs:
     name: Validate Environment Config
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Validate .env.example format
         run: |

@@ -14,7 +14,7 @@ jobs:
     name: Bump Copyright Year
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Get current year
         id: year
@@ -37,7 +37,7 @@ jobs:
           find src/ -name '*.py' -exec sed -i "s/Copyright ([0-9]\{4\})/Copyright ${YEAR}/g" {} \;
 
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore: update copyright year to ${{ steps.year.outputs.year }}"

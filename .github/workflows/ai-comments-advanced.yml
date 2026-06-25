@@ -84,7 +84,7 @@ jobs:
       ollama_models: ${{ steps.ollama.outputs.models }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 1
 
@@ -158,10 +158,10 @@ jobs:
         file: ${{ fromJson(needs.preflight.outputs.files) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
           cache: "pip"
@@ -394,7 +394,7 @@ jobs:
           python process_code.py > result_${{ hashFiles(matrix.file) }}.json 2>&1
 
       - name: Save result
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: result-${{ hashFiles(matrix.file) }}
           path: result_*.json
@@ -410,14 +410,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Collect results
         run: |
           echo "Collecting processing results..."
 
       - name: Create PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const { data: prs } = await github.rest.pulls.list({

@@ -165,15 +165,15 @@ jobs:
         run: |
           uv pip install --system bandit
           bandit -r src/ -f json -o bandit-report.json -ll || true
-          python -c "
-import json, sys
+          python << 'PYEOF'
+import json
 try:
     with open('bandit-report.json') as f:
         data = json.load(f)
 except (FileNotFoundError, json.JSONDecodeError):
     data = {'results': [], 'metrics': {}}
 sarif = {
-    '\$schema': 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json',
+    '$schema': 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json',
     'version': '2.1.0',
     'runs': [{
         'tool': {'driver': {'name': 'bandit', 'version': '1.0', 'informationUri': 'https://bandit.readthedocs.io'}},
@@ -194,7 +194,7 @@ for r in data.get('results', []):
     })
 with open('bandit-report.sarif', 'w') as f:
     json.dump(sarif, f)
-"
+PYEOF
 
       - name: Upload Bandit SARIF
         if: always()

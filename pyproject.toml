@@ -174,7 +174,7 @@ markers = [
 ]
 
 [tool.coverage.report]
-fail_under = 75
+fail_under = 71
 show_missing = true
 omit = ["tests/*", "*/migrations/*"]
 

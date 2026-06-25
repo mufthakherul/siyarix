@@ -104,8 +104,6 @@ class TestValidateTarget:
         assert result["normalized"] == "example.com"
 
 
-
-
 """Additional tests for siyarix.validators — covering uncovered functions and edge cases."""
 
 
@@ -133,6 +131,7 @@ from siyarix.validators import (
 # ═══════════════════════════════════════════════════════════════════════════
 # Internal helpers
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class TestEnforceLength:
     def test_under_limit_passes(self) -> None:
@@ -173,6 +172,7 @@ class TestRedact:
 # validate_not_empty (additional coverage)
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class TestValidateNotEmptyAdditional:
     def test_whitespace_only_with_custom_field(self) -> None:
         with pytest.raises(ValidationError, match="query cannot be empty"):
@@ -182,6 +182,7 @@ class TestValidateNotEmptyAdditional:
 # ═══════════════════════════════════════════════════════════════════════════
 # validate_min_length (additional coverage)
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class TestValidateMinLengthAdditional:
     def test_zero_min_len(self) -> None:
@@ -195,6 +196,7 @@ class TestValidateMinLengthAdditional:
 # ═══════════════════════════════════════════════════════════════════════════
 # validate_hostname (additional coverage)
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class TestValidateHostnameAdditional:
     def test_localhost(self) -> None:
@@ -239,6 +241,7 @@ class TestValidateHostnameAdditional:
 # validate_url (additional coverage)
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class TestValidateUrlAdditional:
     def test_url_with_path(self) -> None:
         validate_url("https://example.com/path/to/resource?q=1")
@@ -266,6 +269,7 @@ class TestValidateUrlAdditional:
 # ═══════════════════════════════════════════════════════════════════════════
 # validate_port
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class TestValidatePort:
     def test_valid_int(self) -> None:
@@ -313,6 +317,7 @@ class TestValidatePort:
 # validate_port_range
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class TestValidatePortRange:
     def test_valid_range(self) -> None:
         assert validate_port_range("80-443") == (80, 443)
@@ -350,6 +355,7 @@ class TestValidatePortRange:
 # ═══════════════════════════════════════════════════════════════════════════
 # validate_cidr
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class TestValidateCidr:
     def test_valid_ipv4_cidr(self) -> None:
@@ -390,6 +396,7 @@ class TestValidateCidr:
 # validate_email
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class TestValidateEmail:
     def test_valid_email(self) -> None:
         validate_email("user@example.com")  # should pass
@@ -423,6 +430,7 @@ class TestValidateEmail:
 # ═══════════════════════════════════════════════════════════════════════════
 # validate_target (additional coverage)
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class TestValidateTargetAdditional:
     def test_ipv6(self) -> None:
@@ -461,6 +469,7 @@ class TestValidateTargetAdditional:
 # ═══════════════════════════════════════════════════════════════════════════
 # ValidationSeverity / RecoveryAction / ValidationResult / RecoveryPlan
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class TestValidationSeverity:
     def test_values(self) -> None:
@@ -518,6 +527,7 @@ class TestRecoveryPlan:
 # ═══════════════════════════════════════════════════════════════════════════
 # Validator class
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class TestValidatorInit:
     def test_default_init(self) -> None:

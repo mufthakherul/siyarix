@@ -30,6 +30,7 @@ def _get_store() -> Any:
     """Get the OfflineStore instance for persistence."""
     try:
         from .offline_store import OfflineStore
+
         return OfflineStore()
     except Exception:
         return None
@@ -117,47 +118,140 @@ def _seed_security_data(conn: Any | None = None) -> None:
 
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         seed_data: list[tuple[str, list[tuple[Any, ...]]]] = [
-            ("incidents", [
-                (f"INC-{uuid.uuid4().hex[:8].upper()}", "Ransomware detected on server-01",
-                 "Ransomware encryption activity detected. LSASS dumping and lateral movement via SMB observed.",
-                 "malware", "critical", "investigating", now, now),
-                (f"INC-{uuid.uuid4().hex[:8].upper()}", "Phishing campaign targeting HR dept",
-                 "Mass phishing email campaign targeting HR personnel with malicious attachments.",
-                 "phishing", "high", "open", now, now),
-                (f"INC-{uuid.uuid4().hex[:8].upper()}", "Unauthorized SSH login attempt",
-                 "Multiple failed SSH login attempts from external IP followed by successful breach.",
-                 "intrusion", "medium", "open", now, now),
-            ]),
-            ("vulnerabilities", [
-                ("CVE-2024-0001", "Log4Shell RCE", "Remote code execution in Log4j 2.x",
-                 10.0, "critical", "open", "log4j 2.x", now, now),
-                ("CVE-2024-0002", "ProxyShell Exchange RCE", "RCE in Microsoft Exchange",
-                 9.8, "critical", "open", "Exchange 2016", now, now),
-                ("CVE-2024-0003", "PrintNightmare Priv Esc", "Privilege escalation in Windows Print Spooler",
-                 8.8, "high", "patched", "Windows Print Spooler", now, now),
-            ]),
-            ("hunt_queries", [
-                ("q_ps_exec", "PowerShell Execution Detection",
-                 "Event ID 4104: PowerShell script block logging", "Execution", "T1059",
-                 '["windows","powershell"]', now),
-                ("q_rdp_brute", "RDP Brute Force Detection",
-                 "Event ID 4625: Multiple failed logon attempts on RDP", "Credential Access", "T1110",
-                 '["windows","rdp"]', now),
-                ("q_dns_tunnel", "DNS Tunneling Detection",
-                 "Unusual DNS query patterns and large TXT records", "Exfiltration", "T1572",
-                 '["network","dns"]', now),
-            ]),
-            ("playbooks", [
-                ("pb_ransomware", "Ransomware Response",
-                 "Automated ransomware incident response playbook", "auto",
-                 '["isolate_host","collect_evidence","contain","eradicate"]', now),
-                ("pb_phishing", "Phishing Response",
-                 "Phishing email investigation and remediation", "auto",
-                 '["quarantine_email","scan_links","check_indicators","notify_users"]', now),
-                ("pb_data_breach", "Data Breach Response",
-                 "Data breach containment and notification procedures", "manual",
-                 '["assess_scope","contain_breach","notify_authorities","remediate"]', now),
-            ]),
+            (
+                "incidents",
+                [
+                    (
+                        f"INC-{uuid.uuid4().hex[:8].upper()}",
+                        "Ransomware detected on server-01",
+                        "Ransomware encryption activity detected. LSASS dumping and lateral movement via SMB observed.",
+                        "malware",
+                        "critical",
+                        "investigating",
+                        now,
+                        now,
+                    ),
+                    (
+                        f"INC-{uuid.uuid4().hex[:8].upper()}",
+                        "Phishing campaign targeting HR dept",
+                        "Mass phishing email campaign targeting HR personnel with malicious attachments.",
+                        "phishing",
+                        "high",
+                        "open",
+                        now,
+                        now,
+                    ),
+                    (
+                        f"INC-{uuid.uuid4().hex[:8].upper()}",
+                        "Unauthorized SSH login attempt",
+                        "Multiple failed SSH login attempts from external IP followed by successful breach.",
+                        "intrusion",
+                        "medium",
+                        "open",
+                        now,
+                        now,
+                    ),
+                ],
+            ),
+            (
+                "vulnerabilities",
+                [
+                    (
+                        "CVE-2024-0001",
+                        "Log4Shell RCE",
+                        "Remote code execution in Log4j 2.x",
+                        10.0,
+                        "critical",
+                        "open",
+                        "log4j 2.x",
+                        now,
+                        now,
+                    ),
+                    (
+                        "CVE-2024-0002",
+                        "ProxyShell Exchange RCE",
+                        "RCE in Microsoft Exchange",
+                        9.8,
+                        "critical",
+                        "open",
+                        "Exchange 2016",
+                        now,
+                        now,
+                    ),
+                    (
+                        "CVE-2024-0003",
+                        "PrintNightmare Priv Esc",
+                        "Privilege escalation in Windows Print Spooler",
+                        8.8,
+                        "high",
+                        "patched",
+                        "Windows Print Spooler",
+                        now,
+                        now,
+                    ),
+                ],
+            ),
+            (
+                "hunt_queries",
+                [
+                    (
+                        "q_ps_exec",
+                        "PowerShell Execution Detection",
+                        "Event ID 4104: PowerShell script block logging",
+                        "Execution",
+                        "T1059",
+                        '["windows","powershell"]',
+                        now,
+                    ),
+                    (
+                        "q_rdp_brute",
+                        "RDP Brute Force Detection",
+                        "Event ID 4625: Multiple failed logon attempts on RDP",
+                        "Credential Access",
+                        "T1110",
+                        '["windows","rdp"]',
+                        now,
+                    ),
+                    (
+                        "q_dns_tunnel",
+                        "DNS Tunneling Detection",
+                        "Unusual DNS query patterns and large TXT records",
+                        "Exfiltration",
+                        "T1572",
+                        '["network","dns"]',
+                        now,
+                    ),
+                ],
+            ),
+            (
+                "playbooks",
+                [
+                    (
+                        "pb_ransomware",
+                        "Ransomware Response",
+                        "Automated ransomware incident response playbook",
+                        "auto",
+                        '["isolate_host","collect_evidence","contain","eradicate"]',
+                        now,
+                    ),
+                    (
+                        "pb_phishing",
+                        "Phishing Response",
+                        "Phishing email investigation and remediation",
+                        "auto",
+                        '["quarantine_email","scan_links","check_indicators","notify_users"]',
+                        now,
+                    ),
+                    (
+                        "pb_data_breach",
+                        "Data Breach Response",
+                        "Data breach containment and notification procedures",
+                        "manual",
+                        '["assess_scope","contain_breach","notify_authorities","remediate"]',
+                        now,
+                    ),
+                ],
+            ),
         ]
 
         column_map = {
@@ -223,6 +317,7 @@ def list_incidents(
 
         if output == "json":
             import json
+
             incidents = [dict(r) for r in rows]
             console.print_json(json.dumps(incidents, indent=2))
             return
@@ -267,15 +362,14 @@ def get_incident(
     """Show detailed information about a specific incident."""
     conn = _get_security_db()
     try:
-        row = conn.execute(
-            "SELECT * FROM incidents WHERE id = ?", (incident_id,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM incidents WHERE id = ?", (incident_id,)).fetchone()
 
         if not row:
             console.print(f"[red]Incident {incident_id} not found.[/red]")
             return
 
         import json
+
         metadata = json.loads(row.get("metadata", "{}"))
         details = (
             f"[bold]ID:[/bold]          {row['id']}\n"
@@ -291,7 +385,9 @@ def get_incident(
         if metadata:
             details += f"\n[dim]Metadata: {json.dumps(metadata, indent=2)}[/dim]"
         console.print(
-            Panel.fit(details, title=f"[bold red]Incident {incident_id}[/bold red]", border_style="red")
+            Panel.fit(
+                details, title=f"[bold red]Incident {incident_id}[/bold red]", border_style="red"
+            )
         )
     finally:
         conn.close()
@@ -334,7 +430,9 @@ def create_incident(
             f"[bold]Status:[/bold]   [yellow]open[/yellow]\n"
             f"[bold]Created:[/bold]  {now}"
         )
-        console.print(Panel.fit(summary, title="[green]✓ Incident Created[/green]", border_style="green"))
+        console.print(
+            Panel.fit(summary, title="[green]✓ Incident Created[/green]", border_style="green")
+        )
     finally:
         conn.close()
 
@@ -373,6 +471,7 @@ def list_vulnerabilities(
 
         if output == "json":
             import json
+
             vulns = [dict(r) for r in rows]
             console.print_json(json.dumps(vulns, indent=2))
             return
@@ -391,7 +490,12 @@ def list_vulnerabilities(
         table.add_column("Affected", style="dim")
 
         sev_colors = {"critical": "red", "high": "orange1", "medium": "yellow", "low": "cyan"}
-        status_colors = {"open": "red", "patched": "green", "accepted": "yellow", "mitigated": "cyan"}
+        status_colors = {
+            "open": "red",
+            "patched": "green",
+            "accepted": "yellow",
+            "mitigated": "cyan",
+        }
 
         for row in rows:
             sev = str(row.get("severity", "")).lower()
@@ -463,9 +567,7 @@ def run_hunt(
     """Execute a threat hunt query against the environment."""
     conn = _get_security_db()
     try:
-        row = conn.execute(
-            "SELECT * FROM hunt_queries WHERE id = ?", (query_id,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM hunt_queries WHERE id = ?", (query_id,)).fetchone()
 
         if not row:
             console.print(f"[red]Hunt query '{query_id}' not found.[/red]")
@@ -518,6 +620,7 @@ def list_queries(
         table.add_column("Tags", style="dim")
 
         import json
+
         for row in rows:
             tags = ", ".join(json.loads(row.get("tags", "[]")))
             table.add_row(

@@ -479,7 +479,9 @@ class OnboardingWizard:
                 try:
                     gpu_vram_gb = round(int(parts[1]) / 1024, 1) if len(parts) > 1 else 0
                 except (ValueError, IndexError):
-                    logger.warning("Failed to parse NVIDIA GPU VRAM from nvidia-smi output", exc_info=True)
+                    logger.warning(
+                        "Failed to parse NVIDIA GPU VRAM from nvidia-smi output", exc_info=True
+                    )
         except (FileNotFoundError, subprocess.SubprocessError):
             logger.warning("nvidia-smi not available for GPU detection")
 
@@ -501,7 +503,10 @@ class OnboardingWizard:
                             try:
                                 gpu_vram_gb = round(float(val) / 1024, 1) if val else 0
                             except (ValueError, IndexError):
-                                logger.warning("Failed to parse AMD GPU VRAM from rocm-smi output", exc_info=True)
+                                logger.warning(
+                                    "Failed to parse AMD GPU VRAM from rocm-smi output",
+                                    exc_info=True,
+                                )
                             break
             except (FileNotFoundError, subprocess.SubprocessError):
                 pass
@@ -1854,6 +1859,7 @@ class OnboardingWizard:
         # Initialise the learning store silently
         try:
             from .learning_system import get_learning_system
+
             cls = get_learning_system()
             stats = cls.stats()
             existing = stats.get("total_skills", 0)
@@ -1960,9 +1966,7 @@ class OnboardingWizard:
         Prompt.ask("[dim]Press Enter to continue[/dim]", default="")
 
     @staticmethod
-    def _parse_and_add_manual_skills(
-        cls: Any, raw_text: str
-    ) -> int:
+    def _parse_and_add_manual_skills(cls: Any, raw_text: str) -> int:
         """Parse numbered skill entries from free-form text and add them to the CLS.
 
         Supports the format::
@@ -2324,7 +2328,7 @@ class OnboardingWizard:
                             cleaned,
                         )
                         cleaned = _re.sub(
-                            r'\n# Siyarix completions\n.*?\n',
+                            r"\n# Siyarix completions\n.*?\n",
                             "",
                             cleaned,
                         )
@@ -2677,7 +2681,6 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
 
         return None
 
-
     # ── llama.cpp helpers ───────────────────────────────────────────
     def _install_llamacpp(self) -> bool:
         """Download and install llama.cpp pre-built binary."""
@@ -2828,7 +2831,9 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
                         logger.warning("Invalid GGUF (bad magic), starting without --model")
                         model_path = None
                 except OSError:
-                    logger.warning("Failed to validate GGUF model file %s", model_path, exc_info=True)
+                    logger.warning(
+                        "Failed to validate GGUF model file %s", model_path, exc_info=True
+                    )
 
             bin_dir = Path.home() / ".siyarix" / "bin"
             llama_bin = bin_dir / "llama-server"

@@ -8,15 +8,59 @@ _IS_WIN = os.name == "nt"
 
 p = RegistryPlanner()
 tools = [
-    "nmap","masscan","subfinder","amass","curl","whatweb","dig","whois",
-    "nuclei","ffuf","gobuster","nikto","wpscan","sqlmap","openssl",
-    "shodan","censys","theHarvester","sherlock","holehe","maigret",
-    "dnsx","massdns","puredns","httpx","katana","gospider",
-    "arjun","paramspider","uncover","subjack","trufflehog","gitleaks",
-    "cloud_enum","scoutsuite","prowler","waybackurls","gau","interactsh",
-    "testssl.sh","ssllabs-scan","eyewitness","responder","impacket",
-    "impacket-secretsdump","impacket-GetUserSPNs","impacket-GetNPUsers",
-    "bloodhound-python","searchsploit","tracert","crackmapexec","netexec","enum4linux",
+    "nmap",
+    "masscan",
+    "subfinder",
+    "amass",
+    "curl",
+    "whatweb",
+    "dig",
+    "whois",
+    "nuclei",
+    "ffuf",
+    "gobuster",
+    "nikto",
+    "wpscan",
+    "sqlmap",
+    "openssl",
+    "shodan",
+    "censys",
+    "theHarvester",
+    "sherlock",
+    "holehe",
+    "maigret",
+    "dnsx",
+    "massdns",
+    "puredns",
+    "httpx",
+    "katana",
+    "gospider",
+    "arjun",
+    "paramspider",
+    "uncover",
+    "subjack",
+    "trufflehog",
+    "gitleaks",
+    "cloud_enum",
+    "scoutsuite",
+    "prowler",
+    "waybackurls",
+    "gau",
+    "interactsh",
+    "testssl.sh",
+    "ssllabs-scan",
+    "eyewitness",
+    "responder",
+    "impacket",
+    "impacket-secretsdump",
+    "impacket-GetUserSPNs",
+    "impacket-GetNPUsers",
+    "bloodhound-python",
+    "searchsploit",
+    "tracert",
+    "crackmapexec",
+    "netexec",
+    "enum4linux",
 ]
 p.build_index(tools)
 
@@ -26,7 +70,9 @@ avail_set = set(tools)
 
 # Step 0
 intent = p._nlp.parse(goal)
-print(f"[0] intent.confidence={intent.confidence:.2f}, tool_name={intent.tool_name}, tpl={intent.template_name}")
+print(
+    f"[0] intent.confidence={intent.confidence:.2f}, tool_name={intent.tool_name}, tpl={intent.template_name}"
+)
 
 # Step 0.5
 direct_tool_keywords = {
@@ -80,7 +126,11 @@ direct_tool_keywords = {
     "subfinder": ("subfinder", "Passive subdomain enumeration", ""),
     "sublist3r": ("sublist3r", "Subdomain search via Sublist3r", ""),
     "assetfinder": ("assetfinder", "Asset discovery via public sources", ""),
-    "crtsh": ("curl", "Certificate transparency via crt.sh", "-s https://crt.sh/?q=%25.{target}&output=json"),
+    "crtsh": (
+        "curl",
+        "Certificate transparency via crt.sh",
+        "-s https://crt.sh/?q=%25.{target}&output=json",
+    ),
     "wayback": ("waybackurls", "Wayback Machine URL discovery", ""),
 }
 for kw, (tool, desc, flags) in direct_tool_keywords.items():
@@ -92,37 +142,139 @@ else:
 
 # Step 1 kw_map
 kw_map = [
-    (("ssl","tls","cipher suite"),"ssl_audit"),
-    (("http header","response header","security header"),"headers_check"),
-    (("cors","cross-origin","cross origin","preflight"),"cors_check"),
-    (("dns recon","dns enumeration","dns record","nameserver","mx record","dns resolution"),"dns_recon"),
-    (("subdomain","subdomain enum","subdomain discover","dns enum","dnsrecon","subdomain brute"),"recon_full"),
-    (("network scan","infrastructure scan","port scan","full port scan","open ports","tcp scan"),"network_scan"),
-    (("brute force","crack password","password crack","credential brute"),"brute_force"),
-    (("dcsync","dc sync","domain replication"),"ad_assessment"),
-    (("kerberoast","kerberoasting"),"ad_assessment"),
-    (("asrep","as-rep","asrep roast"),"ad_assessment"),
-    (("bloodhound","bloodhound collector","bloodhound-python"),"ad_assessment"),
-    (("zerologon","zerologon check"),"ad_assessment"),
-    (("petitpotam","petitpotam check"),"ad_assessment"),
-    (("deauth","deauthentication","beacon flood","aireplay"),"wifi_audit"),
-    (("bluetooth","bt scan","hci0","bluez"),"wifi_audit"),
-    (("wifi","wireless","wpa","wpa2","wep","handshake"),"wifi_audit"),
-    (("ad ","active directory","domain controller"),"ad_assessment"),
-    (("external recon","external attack surface","internet scan","external perimeter","full external","edge discovery","attack surface","attack surface mapping","red team","bug bounty"),"external_recon"),
-    (("osint recon","open source","recon-ng","osint gather","osint intelligence","osint assessment","osint investigation","osint collection","osint automation","deep osint","full osint","complete osint","thorough osint","target profile","target profiling","adversary recon","reconnaissance lifecycle","full scope","tier 1 osint","osint profiling","automated recon","recon pipeline","continuous recon","recon automation"),"osint_recon"),
-    (("email recon","email enum","email harvest","smtp enum","mail server"),"email_recon"),
-    (("cloud audit","aws","s3 ","azure","gcp"),"cloud_audit"),
-    (("privesc","privilege escalation","linux audit","suid"),"linux_privesc"),
-    (("web audit","web scan","website","webapp","web app"),"web_audit"),
-    (("vuln scan","cve scan","vulnerability scan"),"vuln_scan"),
-    (("smb enum","windows share","cifs","netbios","crackmapexec","netexec","enum4linux"),"smb_enum"),
-    (("passive recon","passive scan","passive reconnaissance","passive intel","passive intelligence","passive information","stealth recon","stealth osint","non intrusive","initial access","pre engagement","quiet recon"),"passive_recon"),
-    (("full audit","full scan","comprehensive scan","comprehensive recon","thorough check","thorough recon","full recon","security posture","pentest","penetration test","security assessment","security audit"),"full_audit"),
+    (("ssl", "tls", "cipher suite"), "ssl_audit"),
+    (("http header", "response header", "security header"), "headers_check"),
+    (("cors", "cross-origin", "cross origin", "preflight"), "cors_check"),
+    (
+        ("dns recon", "dns enumeration", "dns record", "nameserver", "mx record", "dns resolution"),
+        "dns_recon",
+    ),
+    (
+        (
+            "subdomain",
+            "subdomain enum",
+            "subdomain discover",
+            "dns enum",
+            "dnsrecon",
+            "subdomain brute",
+        ),
+        "recon_full",
+    ),
+    (
+        (
+            "network scan",
+            "infrastructure scan",
+            "port scan",
+            "full port scan",
+            "open ports",
+            "tcp scan",
+        ),
+        "network_scan",
+    ),
+    (("brute force", "crack password", "password crack", "credential brute"), "brute_force"),
+    (("dcsync", "dc sync", "domain replication"), "ad_assessment"),
+    (("kerberoast", "kerberoasting"), "ad_assessment"),
+    (("asrep", "as-rep", "asrep roast"), "ad_assessment"),
+    (("bloodhound", "bloodhound collector", "bloodhound-python"), "ad_assessment"),
+    (("zerologon", "zerologon check"), "ad_assessment"),
+    (("petitpotam", "petitpotam check"), "ad_assessment"),
+    (("deauth", "deauthentication", "beacon flood", "aireplay"), "wifi_audit"),
+    (("bluetooth", "bt scan", "hci0", "bluez"), "wifi_audit"),
+    (("wifi", "wireless", "wpa", "wpa2", "wep", "handshake"), "wifi_audit"),
+    (("ad ", "active directory", "domain controller"), "ad_assessment"),
+    (
+        (
+            "external recon",
+            "external attack surface",
+            "internet scan",
+            "external perimeter",
+            "full external",
+            "edge discovery",
+            "attack surface",
+            "attack surface mapping",
+            "red team",
+            "bug bounty",
+        ),
+        "external_recon",
+    ),
+    (
+        (
+            "osint recon",
+            "open source",
+            "recon-ng",
+            "osint gather",
+            "osint intelligence",
+            "osint assessment",
+            "osint investigation",
+            "osint collection",
+            "osint automation",
+            "deep osint",
+            "full osint",
+            "complete osint",
+            "thorough osint",
+            "target profile",
+            "target profiling",
+            "adversary recon",
+            "reconnaissance lifecycle",
+            "full scope",
+            "tier 1 osint",
+            "osint profiling",
+            "automated recon",
+            "recon pipeline",
+            "continuous recon",
+            "recon automation",
+        ),
+        "osint_recon",
+    ),
+    (("email recon", "email enum", "email harvest", "smtp enum", "mail server"), "email_recon"),
+    (("cloud audit", "aws", "s3 ", "azure", "gcp"), "cloud_audit"),
+    (("privesc", "privilege escalation", "linux audit", "suid"), "linux_privesc"),
+    (("web audit", "web scan", "website", "webapp", "web app"), "web_audit"),
+    (("vuln scan", "cve scan", "vulnerability scan"), "vuln_scan"),
+    (
+        ("smb enum", "windows share", "cifs", "netbios", "crackmapexec", "netexec", "enum4linux"),
+        "smb_enum",
+    ),
+    (
+        (
+            "passive recon",
+            "passive scan",
+            "passive reconnaissance",
+            "passive intel",
+            "passive intelligence",
+            "passive information",
+            "stealth recon",
+            "stealth osint",
+            "non intrusive",
+            "initial access",
+            "pre engagement",
+            "quiet recon",
+        ),
+        "passive_recon",
+    ),
+    (
+        (
+            "full audit",
+            "full scan",
+            "comprehensive scan",
+            "comprehensive recon",
+            "thorough check",
+            "thorough recon",
+            "full recon",
+            "security posture",
+            "pentest",
+            "penetration test",
+            "security assessment",
+            "security audit",
+        ),
+        "full_audit",
+    ),
 ]
 for keywords, template_name in kw_map:
     if any(kw in goal_lower for kw in keywords):
-        print(f"[1] TEMPLATE MATCH: {template_name} via {[kw for kw in keywords if kw in goal_lower]}")
+        print(
+            f"[1] TEMPLATE MATCH: {template_name} via {[kw for kw in keywords if kw in goal_lower]}"
+        )
         break
 else:
     print("[1] no kw_map match")
@@ -156,7 +308,22 @@ for c in candidates:
 if target:
     intent_map = {"port": ("nmap", "Port scan", "-sT -T4 --top-ports 100")}
     # Check just the REAL intent_map scanning
-    GENERIC = frozenset({"scan", "run", "do", "get", "find", "check", "test", "list", "show", "explore", "discover", "probe"})
+    GENERIC = frozenset(
+        {
+            "scan",
+            "run",
+            "do",
+            "get",
+            "find",
+            "check",
+            "test",
+            "list",
+            "show",
+            "explore",
+            "discover",
+            "probe",
+        }
+    )
     print("[4] Searching intent_map...")
     # Only show what matches
     for kw in goal_lower.split():

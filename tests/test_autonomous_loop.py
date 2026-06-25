@@ -17,6 +17,7 @@ from siyarix.validators import RecoveryAction, RecoveryPlan
 def agent():
     import tempfile
     from pathlib import Path
+
     tmp_db = Path(tempfile.mkstemp(suffix=".db", prefix="siyarix_test_")[1])
     core = AgentCore(mode=AgentMode.REGISTRY, db_path=tmp_db)
     yield core
@@ -198,7 +199,9 @@ class TestExecuteGoal:
         agent._validator.validate_plan = AsyncMock(return_value=[])
         agent._executor_registry.execute_plan = AsyncMock(return_value=plan)
 
-        with patch.object(agent._executor_registry, "execute_plan", new_callable=AsyncMock) as mock_exec:
+        with patch.object(
+            agent._executor_registry, "execute_plan", new_callable=AsyncMock
+        ) as mock_exec:
             failed_step = PlanStep(
                 tool="nmap",
                 args={},

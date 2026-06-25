@@ -304,6 +304,7 @@ class OutputEngine:
 
     def _export_xml(self, data: list[dict]) -> None:
         from xml.sax.saxutils import escape as _xml_escape
+
         xml = "<?xml version='1.0' encoding='UTF-8'?>\n<data>\n"
         for i, row in enumerate(data):
             xml += f"  <item id='{i}'>\n"
@@ -328,12 +329,14 @@ class OutputEngine:
         if fmt == OutputFormat.JSON:
             path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         elif fmt == OutputFormat.JSONL and isinstance(data, list):
-            path.write_text("\n".join(json.dumps(row, ensure_ascii=False) for row in data), encoding="utf-8")
+            path.write_text(
+                "\n".join(json.dumps(row, ensure_ascii=False) for row in data), encoding="utf-8"
+            )
         elif fmt == OutputFormat.MARKDOWN:
             md_lines = []
             for i, row in enumerate(data if isinstance(data, list) else [data]):
                 md_lines.append(f"## Finding {i + 1}\n")
-                for key, value in (row.items() if isinstance(row, dict) else {}):
+                for key, value in row.items() if isinstance(row, dict) else {}:
                     label = key.replace("_", " ").title()
                     md_lines.append(f"- **{label}:** {value}")
                 md_lines.append("")
@@ -362,6 +365,7 @@ class OutputEngine:
         output_text = "\n".join(lines)
         if RICH_AVAILABLE:
             from rich.syntax import Syntax
+
             syntax = Syntax(output_text, "json", theme="monokai")
             if self.console is not None:
                 self.console.print(syntax)
@@ -383,6 +387,7 @@ class OutputEngine:
         output_text = "\n".join(lines)
         if RICH_AVAILABLE:
             from rich.syntax import Syntax
+
             syntax = Syntax(output_text, "markdown", theme="monokai")
             if self.console is not None:
                 self.console.print(syntax)

@@ -38,7 +38,11 @@ class TestSummarySection:
 class TestResponseGeneratorConstants:
     def test_severity_order(self):
         assert ResponseGenerator.SEVERITY_ORDER == [
-            "critical", "high", "medium", "low", "info",
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "info",
         ]
 
     def test_severity_colors(self):

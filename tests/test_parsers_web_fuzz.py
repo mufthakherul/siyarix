@@ -1,4 +1,5 @@
 """Tests for Web Discovery & Fuzzing parsers."""
+
 from __future__ import annotations
 
 import json
@@ -22,9 +23,17 @@ from siyarix.parsers.aquatone_parser import AquatoneParser
 from siyarix.parsers.gobuster_parser import GobusterParser
 from siyarix.parsers.paramspider_parser import ParamspiderParser
 from siyarix.parsers.waybackurls_parser import WaybackurlsParser
+
+
 def _check_finding(finding, expected_tool, min_fields=None):
     min_fields = min_fields or {
-        "title", "severity", "description", "evidence", "tool", "target", "timestamp",
+        "title",
+        "severity",
+        "description",
+        "evidence",
+        "tool",
+        "target",
+        "timestamp",
     }
     for field in min_fields:
         assert field in finding, f"Missing field {field} in {expected_tool} finding"
@@ -32,18 +41,19 @@ def _check_finding(finding, expected_tool, min_fields=None):
     assert finding["severity"] in ("critical", "high", "medium", "low", "info")
 
 
-
 class TestHttpxParser:
     def test_json_line_good_status(self):
         p = HttpxParser()
-        output = json.dumps({
-            "url": "https://example.com",
-            "status_code": 200,
-            "content_length": 1234,
-            "title": "Example Domain",
-            "webserver": "nginx/1.18.0",
-            "tech": ["React", "Nginx"],
-        })
+        output = json.dumps(
+            {
+                "url": "https://example.com",
+                "status_code": 200,
+                "content_length": 1234,
+                "title": "Example Domain",
+                "webserver": "nginx/1.18.0",
+                "tech": ["React", "Nginx"],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         _check_finding(findings[0], "httpx")
@@ -75,11 +85,13 @@ class TestHttpxParser:
 
     def test_json_with_redirect(self):
         p = HttpxParser()
-        output = json.dumps({
-            "url": "https://example.com",
-            "final_url": "https://www.example.com",
-            "status_code": 200,
-        })
+        output = json.dumps(
+            {
+                "url": "https://example.com",
+                "final_url": "https://www.example.com",
+                "status_code": 200,
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "->" in findings[0]["evidence"]
@@ -100,14 +112,16 @@ class TestHttpxParser:
 
     def test_json_with_cnames_and_type(self):
         p = HttpxParser()
-        output = json.dumps({
-            "url": "https://app.example.com",
-            "status_code": 200,
-            "cnames": ["app.example.com.cdn.cloudflare.net"],
-            "content_type": "text/html",
-            "cdn_name": "cloudflare",
-            "response_time": "0.123s",
-        })
+        output = json.dumps(
+            {
+                "url": "https://app.example.com",
+                "status_code": 200,
+                "cnames": ["app.example.com.cdn.cloudflare.net"],
+                "content_type": "text/html",
+                "cdn_name": "cloudflare",
+                "response_time": "0.123s",
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         desc = findings[0]["description"]
@@ -118,6 +132,8 @@ class TestHttpxParser:
         p = HttpxParser()
         assert p.parse("") == []
         assert p.parse("   ") == []
+
+
 class TestWgetParser:
     def test_download_started(self):
         p = WgetParser()
@@ -187,7 +203,9 @@ class TestWgetParser:
 
     def test_json_input(self):
         p = WgetParser()
-        output = json.dumps([{"url": "http://example.com", "status_code": 200, "filename": "index.html"}])
+        output = json.dumps(
+            [{"url": "http://example.com", "status_code": 200, "filename": "index.html"}]
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         _check_finding(findings[0], "wget")
@@ -202,6 +220,8 @@ class TestWgetParser:
     def test_empty_output(self):
         p = WgetParser()
         assert p.parse("") == []
+
+
 class TestGospiderParser:
     def test_basic_json_line(self):
         p = GospiderParser()
@@ -226,20 +246,33 @@ class TestGospiderParser:
 
     def test_with_redirect(self):
         p = GospiderParser()
-        output = json.dumps({"url": "http://example.com/old", "status": 301, "redir": "https://example.com/new", "source": "crawl"})
+        output = json.dumps(
+            {
+                "url": "http://example.com/old",
+                "status": 301,
+                "redir": "https://example.com/new",
+                "source": "crawl",
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
     def test_subdomain_extraction(self):
         p = GospiderParser()
-        output = json.dumps({"url": "http://sub.example.com/page", "source": "subdomain: sub.example.com"})
+        output = json.dumps(
+            {"url": "http://sub.example.com/page", "source": "subdomain: sub.example.com"}
+        )
         findings = p.parse(output)
         subdomain_findings = [f for f in findings if "subdomain" in f["title"].lower()]
         assert len(subdomain_findings) >= 1
 
     def test_dedup_by_path(self):
         p = GospiderParser()
-        output = json.dumps({"url": "http://example.com/page?q=1"}) + "\n" + json.dumps({"url": "http://example.com/page?q=2"})
+        output = (
+            json.dumps({"url": "http://example.com/page?q=1"})
+            + "\n"
+            + json.dumps({"url": "http://example.com/page?q=2"})
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -264,6 +297,8 @@ class TestGospiderParser:
         output = json.dumps({"url": "http://example.com", "body_length": 12345, "source": "crawl"})
         findings = p.parse(output)
         assert len(findings) >= 1
+
+
 class TestWfuzzParser:
     def test_simple_row(self):
         p = WfuzzParser()
@@ -326,6 +361,8 @@ class TestWfuzzParser:
         findings = p.parse(output)
         assert len(findings) >= 1
         assert findings[0]["severity"] == "info"
+
+
 class TestFeroxbusterParser:
     def test_text_row(self):
         p = FeroxbusterParser()
@@ -342,7 +379,9 @@ class TestFeroxbusterParser:
 
     def test_json_line(self):
         p = FeroxbusterParser()
-        output = json.dumps({"url": "http://example.com/admin", "status": 200, "content_length": 1234})
+        output = json.dumps(
+            {"url": "http://example.com/admin", "status": 200, "content_length": 1234}
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         _check_finding(findings[0], "feroxbuster")
@@ -356,7 +395,11 @@ class TestFeroxbusterParser:
 
     def test_json_multiple_lines(self):
         p = FeroxbusterParser()
-        output = json.dumps({"url": "http://example.com/a", "status": 200}) + "\n" + json.dumps({"url": "http://example.com/b", "status": 301})
+        output = (
+            json.dumps({"url": "http://example.com/a", "status": 200})
+            + "\n"
+            + json.dumps({"url": "http://example.com/b", "status": 301})
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
@@ -372,7 +415,11 @@ class TestFeroxbusterParser:
 
     def test_dedup_by_url(self):
         p = FeroxbusterParser()
-        output = json.dumps({"url": "http://example.com/test", "status": 200}) + "\n" + json.dumps({"url": "http://example.com/test", "status": 301})
+        output = (
+            json.dumps({"url": "http://example.com/test", "status": 200})
+            + "\n"
+            + json.dumps({"url": "http://example.com/test", "status": 301})
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -382,6 +429,8 @@ class TestFeroxbusterParser:
         findings = p.parse(output)
         assert len(findings) >= 1
         assert findings[0]["severity"] == "high"
+
+
 class TestDirbParser:
     def test_url_code_size_format(self):
         p = DirbParser()
@@ -420,21 +469,14 @@ class TestDirbParser:
 
     def test_redirect_append_to_previous(self):
         p = DirbParser()
-        output = (
-            "http://example.com/admin (CODE:302|SIZE:0)\n"
-            "--> http://example.com/login\n"
-        )
+        output = "http://example.com/admin (CODE:302|SIZE:0)\n" "--> http://example.com/login\n"
         findings = p.parse(output)
         assert len(findings) >= 1
         assert "redirect" in findings[0]["description"].lower()
 
     def test_base_url_extraction(self):
         p = DirbParser()
-        output = (
-            "BASE_URL: http://example.com\n"
-            "200 1234 /admin\n"
-            "403 50 /backup\n"
-        )
+        output = "BASE_URL: http://example.com\n" "200 1234 /admin\n" "403 50 /backup\n"
         findings = p.parse(output)
         assert len(findings) >= 2
         for f in findings:
@@ -442,18 +484,24 @@ class TestDirbParser:
 
     def test_json_format(self):
         p = DirbParser()
-        output = json.dumps([
-            {"url": "http://example.com/admin", "code": 200, "size": 1234},
-            {"url": "http://example.com/backup", "code": 403},
-        ])
+        output = json.dumps(
+            [
+                {"url": "http://example.com/admin", "code": 200, "size": 1234},
+                {"url": "http://example.com/backup", "code": 403},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
     def test_json_object_with_results_key(self):
         p = DirbParser()
-        output = json.dumps({"results": [
-            {"url": "http://example.com/admin", "code": 200},
-        ]})
+        output = json.dumps(
+            {
+                "results": [
+                    {"url": "http://example.com/admin", "code": 200},
+                ]
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
@@ -499,11 +547,13 @@ class TestDirbParser:
 
     def test_json_redirect_field(self):
         p = DirbParser()
-        output = json.dumps({
-            "url": "http://example.com/old",
-            "code": 301,
-            "redirect": "http://example.com/new",
-        })
+        output = json.dumps(
+            {
+                "url": "http://example.com/old",
+                "code": 301,
+                "redirect": "http://example.com/new",
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert "redirect" in findings[0]["description"].lower()
@@ -515,10 +565,12 @@ class TestDirbParser:
 class TestDirbParser_extra_b7:
     def test_json_list_format(self):
         p = DirbParser()
-        output = json.dumps([
-            {"url": "http://example.com/admin", "code": 200, "size": 1234},
-            {"url": "http://example.com/backup", "code": 403, "size": 50},
-        ])
+        output = json.dumps(
+            [
+                {"url": "http://example.com/admin", "code": 200, "size": 1234},
+                {"url": "http://example.com/backup", "code": 403, "size": 50},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 2
         for f in findings:
@@ -533,7 +585,9 @@ class TestDirbParser_extra_b7:
 
     def test_json_with_redirect(self):
         p = DirbParser()
-        output = json.dumps({"url": "http://example.com/old", "code": 301, "redirect": "http://example.com/new"})
+        output = json.dumps(
+            {"url": "http://example.com/old", "code": 301, "redirect": "http://example.com/new"}
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "redirect" in findings[0]["description"]
@@ -555,6 +609,7 @@ class TestDirbParser_extra_b7:
         # _CODE_RE requires trailing whitespace which strip() removes
         # Test the regex directly
         from siyarix.parsers.dirb_parser import _CODE_RE
+
         m = _CODE_RE.match("+200 http://example.com/page ")
         assert m is not None
         assert m.group("code") == "200"
@@ -603,6 +658,8 @@ class TestDirbParser_extra_b7:
         output = "some random text\nthat does not match\n"
         findings = p.parse(output)
         assert len(findings) == 0
+
+
 class TestFfufParser:
     def test_single_row(self):
         p = FfufParser()
@@ -662,6 +719,8 @@ class TestFfufParser:
         output = ":: URL: http://example.com/FUZZ\n"
         findings = p.parse(output)
         assert len(findings) == 0
+
+
 class TestCurlParser:
     def test_http_200_response(self):
         p = CurlParser()
@@ -724,10 +783,14 @@ class TestCurlParser:
         output = "HTTP/1.1 200 OK\n\nbody only\n"
         findings = p.parse(output)
         assert len(findings) >= 1
+
+
 class TestKatanaParser:
     def test_json_url(self):
         p = KatanaParser()
-        output = json.dumps({"url": "http://example.com/page", "source": "href", "status_code": 200})
+        output = json.dumps(
+            {"url": "http://example.com/page", "source": "href", "status_code": 200}
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         _check_finding(findings[0], "katana")
@@ -735,20 +798,26 @@ class TestKatanaParser:
 
     def test_json_unauthorized(self):
         p = KatanaParser()
-        output = json.dumps({"url": "http://example.com/admin", "source": "crawl", "status_code": 401})
+        output = json.dumps(
+            {"url": "http://example.com/admin", "source": "crawl", "status_code": 401}
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert findings[0]["severity"] == "medium"
 
     def test_json_forbidden(self):
         p = KatanaParser()
-        output = json.dumps({"url": "http://example.com/secret", "source": "crawl", "status_code": 403})
+        output = json.dumps(
+            {"url": "http://example.com/secret", "source": "crawl", "status_code": 403}
+        )
         findings = p.parse(output)
         assert findings[0]["severity"] == "medium"
 
     def test_json_server_error(self):
         p = KatanaParser()
-        output = json.dumps({"url": "http://example.com/error", "source": "crawl", "status_code": 500})
+        output = json.dumps(
+            {"url": "http://example.com/error", "source": "crawl", "status_code": 500}
+        )
         findings = p.parse(output)
         assert findings[0]["severity"] == "high"
 
@@ -765,8 +834,9 @@ class TestKatanaParser:
     def test_json_dedup_by_path(self):
         p = KatanaParser()
         output = (
-            json.dumps({"url": "http://example.com/page?a=1", "source": "href"}) + "\n" +
-            json.dumps({"url": "http://example.com/page?b=2", "source": "form"})
+            json.dumps({"url": "http://example.com/page?a=1", "source": "href"})
+            + "\n"
+            + json.dumps({"url": "http://example.com/page?b=2", "source": "form"})
         )
         findings = p.parse(output)
         assert len(findings) == 1
@@ -795,9 +865,18 @@ class TestKatanaParser:
 
     def test_alternate_keys(self):
         p = KatanaParser()
-        output = json.dumps({"URL": "http://example.com/test", "Source": "js", "StatusCode": 200, "ContentType": "text/html"})
+        output = json.dumps(
+            {
+                "URL": "http://example.com/test",
+                "Source": "js",
+                "StatusCode": 200,
+                "ContentType": "text/html",
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
+
+
 class TestDirbParser_extra_b8:
     def test_empty(self):
         assert DirbParser().parse("") == []
@@ -812,26 +891,32 @@ class TestDirbParser_extra_b8:
 
     def test_json_list_with_status(self):
         p = DirbParser()
-        output = json.dumps([
-            {"url": "http://example.com/a", "code": 200, "size": 100},
-            {"url": "http://example.com/b", "status": 500, "content_length": 0},
-        ])
+        output = json.dumps(
+            [
+                {"url": "http://example.com/a", "code": 200, "size": 100},
+                {"url": "http://example.com/b", "status": 500, "content_length": 0},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 2
 
     def test_json_dict_redirect(self):
         p = DirbParser()
-        output = json.dumps({"url": "http://example.com/old", "code": 301, "redirect": "http://example.com/new"})
+        output = json.dumps(
+            {"url": "http://example.com/old", "code": 301, "redirect": "http://example.com/new"}
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "redirect" in findings[0]["description"]
 
     def test_json_dedup(self):
         p = DirbParser()
-        output = json.dumps([
-            {"url": "http://example.com/page", "code": 200},
-            {"url": "http://example.com/page", "code": 200},
-        ])
+        output = json.dumps(
+            [
+                {"url": "http://example.com/page", "code": 200},
+                {"url": "http://example.com/page", "code": 200},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -843,10 +928,12 @@ class TestDirbParser_extra_b8:
 
     def test_json_severity_by_code(self):
         p = DirbParser()
-        output = json.dumps([
-            {"url": "http://example.com/e", "code": 500},
-            {"url": "http://example.com/a", "code": 401},
-        ])
+        output = json.dumps(
+            [
+                {"url": "http://example.com/e", "code": 500},
+                {"url": "http://example.com/a", "code": 401},
+            ]
+        )
         findings = p.parse(output)
         sev = {f["title"]: f["severity"] for f in findings}
         assert sev.get("DIRB discovered: http://example.com/e (HTTP 500)") == "high"
@@ -874,6 +961,7 @@ class TestDirbParser_extra_b8:
 
     def test_text_code_format(self):
         from siyarix.parsers.dirb_parser import _CODE_RE
+
         m = _CODE_RE.match("+200 http://example.com/page ")
         assert m is not None
         assert m.group("code") == "200"
@@ -887,6 +975,7 @@ class TestDirbParser_extra_b8:
 
     def test_text_find_format_no_code(self):
         from siyarix.parsers.dirb_parser import _FIND_RE
+
         # _FIND_RE requires arrow characters after the URL
         m = _FIND_RE.search("==> http://example.com/admin <--")
         assert m is not None
@@ -916,6 +1005,8 @@ class TestDirbParser_extra_b8:
         output = "[bad"
         findings = p.parse(output)
         assert isinstance(findings, list)
+
+
 class TestFeroxbusterParser_extra_b8:
     def test_empty(self):
         assert FeroxbusterParser().parse("") == []
@@ -945,7 +1036,9 @@ class TestFeroxbusterParser_extra_b8:
 
     def test_text_wildcard_skipped(self):
         p = FeroxbusterParser()
-        output = "wildcard filtered 1000\n200      1234      5      100     http://example.com/admin"
+        output = (
+            "wildcard filtered 1000\n200      1234      5      100     http://example.com/admin"
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -965,7 +1058,9 @@ class TestFeroxbusterParser_extra_b8:
 
     def test_json_line(self):
         p = FeroxbusterParser()
-        output = json.dumps({"url": "http://example.com/page", "status": 200, "content_length": 500})
+        output = json.dumps(
+            {"url": "http://example.com/page", "status": 200, "content_length": 500}
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -1002,6 +1097,8 @@ class TestFeroxbusterParser_extra_b8:
         output = "{bad json}\n" + json.dumps({"url": "http://example.com/a", "status": 200})
         findings = p.parse(output)
         assert len(findings) == 1
+
+
 class TestGospiderParser_extra_b8:
     def test_empty(self):
         assert GospiderParser().parse("") == []
@@ -1009,7 +1106,9 @@ class TestGospiderParser_extra_b8:
 
     def test_json_line(self):
         p = GospiderParser()
-        output = json.dumps({"url": "http://example.com/page", "source": "href", "status": 200, "body_length": 5000})
+        output = json.dumps(
+            {"url": "http://example.com/page", "source": "href", "status": 200, "body_length": 5000}
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         _check_finding(findings[0], "gospider")
@@ -1018,7 +1117,13 @@ class TestGospiderParser_extra_b8:
     def test_json_with_subdomain(self):
         p = GospiderParser()
         # Subdomain text must be on a JSON line (gospider only processes JSON lines)
-        output = json.dumps({"url": "http://sub.example.com/page", "source": "crawl", "extra": "subdomain: sub.example.com"})
+        output = json.dumps(
+            {
+                "url": "http://sub.example.com/page",
+                "source": "crawl",
+                "extra": "subdomain: sub.example.com",
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert any("subdomain" in f["title"] for f in findings)
@@ -1032,14 +1137,18 @@ class TestGospiderParser_extra_b8:
 
     def test_json_500_status(self):
         p = GospiderParser()
-        output = json.dumps({"url": "http://example.com/error", "StatusCode": 500, "source": "crawl"})
+        output = json.dumps(
+            {"url": "http://example.com/error", "StatusCode": 500, "source": "crawl"}
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert findings[0]["severity"] == "medium"
 
     def test_json_redirect(self):
         p = GospiderParser()
-        output = json.dumps({"url": "http://example.com/old", "status": 301, "redirect": "http://example.com/new"})
+        output = json.dumps(
+            {"url": "http://example.com/old", "status": 301, "redirect": "http://example.com/new"}
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "Redirect" in findings[0]["evidence"] or "redirect" in findings[0]["evidence"]
@@ -1079,12 +1188,27 @@ class TestGospiderParser_extra_b8:
         p = GospiderParser()
         # Both subdomain hints must appear within JSON lines
         output = (
-            json.dumps({"url": "http://sub.example.com/page", "source": "crawl", "extra": "subdomain: sub.example.com"}) + "\n"
-            + json.dumps({"url": "http://sub.example.com/other", "source": "crawl", "extra": "subdomain: sub.example.com"})
+            json.dumps(
+                {
+                    "url": "http://sub.example.com/page",
+                    "source": "crawl",
+                    "extra": "subdomain: sub.example.com",
+                }
+            )
+            + "\n"
+            + json.dumps(
+                {
+                    "url": "http://sub.example.com/other",
+                    "source": "crawl",
+                    "extra": "subdomain: sub.example.com",
+                }
+            )
         )
         findings = p.parse(output)
         subdomains = [f for f in findings if "subdomain" in f["title"]]
         assert len(subdomains) == 1
+
+
 class TestHakrawlerParser:
     def test_empty(self):
         assert HakrawlerParser().parse("") == []
@@ -1146,12 +1270,16 @@ class TestHakrawlerParser:
         findings = p.parse(output)
         assert len(findings) == 1
         assert findings[0]["severity"] == "medium"
+
+
 class TestArjunParserBranches:
     """Covers: JSON dedup, non-dict params, decode error, text dedup."""
 
     def test_json_dedup_skipped(self):
         p = ArjunParser()
-        output = json.dumps({"http://x.com": {"id": {"reflected": True}, "id": {"reflected": True}}})
+        output = json.dumps(
+            {"http://x.com": {"id": {"reflected": True}, "id": {"reflected": True}}}
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -1190,7 +1318,7 @@ class TestCorsyParserBranches:
 # ---------------------------------------------------------------------------
 class TestDirbParserBranches:
     """Covers: JSON dict results wrap, empty line, redirect backfill,
-       LINE_RE dedup, CODE_RE dedup, FIND_RE dedup."""
+    LINE_RE dedup, CODE_RE dedup, FIND_RE dedup."""
 
     def test_json_dict_results(self):
         p = DirbParser()
@@ -1301,6 +1429,8 @@ class TestHttpxParser:
     def test_json_decode_error_skipped(self):
         r = HttpxParser().parse("{bad}")
         assert len(r) == 0
+
+
 class TestKiterunnerParser:
     def test_empty(self):
         assert KiterunnerParser().parse("") == []
@@ -1320,12 +1450,16 @@ class TestKiterunnerParser:
     def test_blank_line_skipped(self):
         r = KiterunnerParser().parse("\n\n")
         assert len(r) == 0
+
+
 class TestWgetParser:
     def test_empty(self):
         assert WgetParser().parse("") == []
 
     def test_json_list(self):
-        r = WgetParser().parse('[{"url":"https://example.com/file.zip","status_code":200,"size":1024,"filename":"file.zip"}]')
+        r = WgetParser().parse(
+            '[{"url":"https://example.com/file.zip","status_code":200,"size":1024,"filename":"file.zip"}]'
+        )
         assert len(r) == 1
 
     def test_json_non_dict_skipped(self):
@@ -1376,6 +1510,8 @@ class TestWgetParser:
     def test_spider_mode_no_findings(self):
         r = WgetParser().parse("Spider mode enabled\nURL:https://example.com")
         assert any("spider scan completed" in f["title"].lower() for f in r)
+
+
 class TestHttpxParserBranches:
     """Covers: seen=None default, dedup in json, ValueError severity,
     empty text line, 3-digit status, dedup in text, 4xx/5xx text severity."""
@@ -1431,13 +1567,15 @@ class TestHttpxParserBranches:
 # ---------------------------------------------------------------------------
 class TestWgetParserAdditionalBranches:
     """Covers: JSON dedup, text empty line skip, download dedup,
-       status_line dedup, error dedup, recursive dedup,
-       length dedup, saved dedup."""
+    status_line dedup, error dedup, recursive dedup,
+    length dedup, saved dedup."""
 
     def test_json_dedup(self):
         """Line 108: JSON dedup_key already in seen."""
         p = WgetParser()
-        findings = p.parse('[{"url":"https://example.com","status_code":200},{"url":"https://example.com","status_code":200}]')
+        findings = p.parse(
+            '[{"url":"https://example.com","status_code":200},{"url":"https://example.com","status_code":200}]'
+        )
         assert len(findings) == 1
 
     def test_text_empty_line_skipped(self):
@@ -1449,14 +1587,18 @@ class TestWgetParserAdditionalBranches:
     def test_download_started_dedup(self):
         """Line 159->172: download key already in seen."""
         p = WgetParser()
-        findings = p.parse("2024-01-01 12:00:00 https://example.com/f.zip\n2024-01-01 12:00:00 https://example.com/f.zip\n")
+        findings = p.parse(
+            "2024-01-01 12:00:00 https://example.com/f.zip\n2024-01-01 12:00:00 https://example.com/f.zip\n"
+        )
         dl = [f for f in findings if "download started" in f["title"].lower()]
         assert len(dl) == 1
 
     def test_status_line_dedup(self):
         """Line 180: status line key already in seen."""
         p = WgetParser()
-        findings = p.parse("HTTP request sent, awaiting response... 200 OK\nHTTP request sent, awaiting response... 200 OK\n")
+        findings = p.parse(
+            "HTTP request sent, awaiting response... 200 OK\nHTTP request sent, awaiting response... 200 OK\n"
+        )
         status = [f for f in findings if "HTTP" in f["title"]]
         assert len(status) == 1
 
@@ -1527,7 +1669,9 @@ class TestFeroxbusterParserAdditionalBranches:
 
     def test_json_empty_line_skipped(self):
         """91: empty line in JSON parsing skipped."""
-        entry = json.dumps({"url": "http://example.com/admin", "status": 200, "content_length": 123})
+        entry = json.dumps(
+            {"url": "http://example.com/admin", "status": 200, "content_length": 123}
+        )
         p = FeroxbusterParser()
         findings = p.parse(f"{entry}\n\n{entry}\n")
         assert len(findings) == 1
@@ -1536,6 +1680,7 @@ class TestFeroxbusterParserAdditionalBranches:
 # ============================================================================
 # 17. dnsenum_parser.py  — 88-89
 # ============================================================================
+
 
 class TestGobusterParser:
     def test_basic_parse(self):
@@ -1548,6 +1693,8 @@ class TestGobusterParser:
     def test_empty_output(self):
         p = GobusterParser()
         assert p.parse("") == []
+
+
 class TestFfufParser:
     def test_basic_parse(self):
         p = FfufParser()
@@ -1559,6 +1706,8 @@ class TestFfufParser:
     def test_empty_output(self):
         p = FfufParser()
         assert p.parse("") == []
+
+
 class TestWaybackurlsParser:
     def test_basic_parse(self):
         p = WaybackurlsParser()
@@ -1566,6 +1715,8 @@ class TestWaybackurlsParser:
         findings = p.parse(output)
         assert len(findings) == 2
         _check_finding(findings[0], "waybackurls")
+
+
 class TestParamspiderParser:
     def test_basic_parse(self):
         p = ParamspiderParser()
@@ -1573,6 +1724,8 @@ class TestParamspiderParser:
         findings = p.parse(output)
         assert len(findings) == 2
         _check_finding(findings[0], "paramspider")
+
+
 class TestCorsyParser:
     def test_basic_parse(self):
         p = CorsyParser()
@@ -1581,6 +1734,8 @@ class TestCorsyParser:
         assert len(findings) == 1
         _check_finding(findings[0], "corsy")
         assert findings[0]["severity"] == "high"
+
+
 class TestAquatoneParser:
     def test_basic_parse(self):
         p = AquatoneParser()
@@ -1588,6 +1743,8 @@ class TestAquatoneParser:
         findings = p.parse(output)
         assert len(findings) == 1
         _check_finding(findings[0], "aquatone")
+
+
 class TestKiterunnerParser:
     def test_basic_parse(self):
         p = KiterunnerParser()

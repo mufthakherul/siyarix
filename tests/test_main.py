@@ -18,10 +18,7 @@ def test_all_contains_app() -> None:
     assert len(__all__) == 1
 
 
-
 """Final coverage tests for siyarix.main — covers the single re-export."""
-
-
 
 
 def test_app_is_re_exported() -> None:

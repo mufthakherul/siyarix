@@ -80,8 +80,17 @@ def _load_dotenv(path: Path | None = None) -> None:
     """
     _api_key_patterns = ("_API_KEY", "_SECRET", "_PASSWORD", "_TOKEN")
     _blocked_vars = {
-        "PATH", "LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH", "PYTHONSTARTUP",
-        "BASH_ENV", "IFS", "SHELLOPTS", "PERL5LIB", "RUBYLIB", "PYTHONHOME",
+        "PATH",
+        "LD_PRELOAD",
+        "LD_LIBRARY_PATH",
+        "PYTHONPATH",
+        "PYTHONSTARTUP",
+        "BASH_ENV",
+        "IFS",
+        "SHELLOPTS",
+        "PERL5LIB",
+        "RUBYLIB",
+        "PYTHONHOME",
     }
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():
@@ -108,6 +117,7 @@ def _load_dotenv(path: Path | None = None) -> None:
 def _display_findings_table(findings: list[dict]) -> None:
     """Render scan findings as a Rich table using theme-aware styling."""
     from ..branding import severity_label, resolve_theme
+
     settings = SettingsStore()
     theme = resolve_theme(settings.get("color_theme"))
     ftable = Table(title="Findings", header_style="bold", border_style="dim")
@@ -198,6 +208,7 @@ def _get_creds() -> Any:
     if _creds_store is None:
         try:
             from ..credential_store import CredentialStore
+
             _creds_store = CredentialStore()
             for provider, env_var in _PROVIDER_ENV_MAP.items():
                 if not os.environ.get(env_var):
@@ -222,10 +233,17 @@ def _execute_deep_scan(target: str, output: str = "table", save: bool = False) -
 
     if output == "json":
         import json
+
         console.print_json(json.dumps(result, indent=2, default=str))
         return
 
-    severity_colors = {"critical": "red", "high": "orange1", "medium": "yellow", "low": "cyan", "info": "dim"}
+    severity_colors = {
+        "critical": "red",
+        "high": "orange1",
+        "medium": "yellow",
+        "low": "cyan",
+        "info": "dim",
+    }
     summary = result["severity_summary"]
     console.print(f"\n[bold cyan]Deep Scan Complete — {result['target']}[/bold cyan]")
     console.print(f"  Risk Score: [bold]{result['risk_score']}[/bold]")
@@ -260,7 +278,9 @@ def _execute_deep_scan(target: str, output: str = "table", save: bool = False) -
                 str(f.get("detail", f.get("description", "")))[:80],
             )
         if len(result["all_findings"]) > 30:
-            ftable.add_row("", "", f"[dim]... and {len(result['all_findings']) - 30} more[/dim]", "")
+            ftable.add_row(
+                "", "", f"[dim]... and {len(result['all_findings']) - 30} more[/dim]", ""
+            )
         console.print(ftable)
 
 
@@ -530,9 +550,7 @@ def main_callback(
     if _IS_STDIN_PIPE and ctx.invoked_subcommand is None:
         lines = [line for line in sys.stdin if line.strip()]
         if lines:
-            _run_batch_lines(
-                [line.strip() for line in lines], mode=mode, offline_mode=mode
-            )
+            _run_batch_lines([line.strip() for line in lines], mode=mode, offline_mode=mode)
         return
 
     # No subcommand: check onboarding regardless of TTY
@@ -562,7 +580,9 @@ def main_callback(
         # TTY: launch interactive chat
         if _IS_TTY:
             if mode and mode.lower() in ("offline", "registry"):
-                console.print("[yellow]⚡ Starting in offline mode — heuristic planning only[/yellow]")
+                console.print(
+                    "[yellow]⚡ Starting in offline mode — heuristic planning only[/yellow]"
+                )
             start_chat(
                 mode=mode, target=target, session_id=session or None, resume=resume or bool(session)
             )
@@ -862,7 +882,9 @@ def scan(
         "-m",
         help="Execution mode: autonomous|integrated|offline|registry",
     ),
-    output: str = typer.Option("table", "--output", "-o", help="Output: table|json|yaml|csv|html|quiet"),
+    output: str = typer.Option(
+        "table", "--output", "-o", help="Output: table|json|yaml|csv|html|quiet"
+    ),
     _parallel: int = typer.Option(3, "--parallel", "-p", help="Parallel workers"),
     timeout: int = typer.Option(300, "--timeout", help="Timeout per tool (seconds)"),
     save: bool = typer.Option(False, "--save", "-s", help="Save results to database"),
@@ -887,10 +909,17 @@ def scan(
         mode = str(ctx.parent.params.get("mode", "integrated"))
 
     _execute_scan_core(
-        targets, tool=tool, mode=mode, output=output,
-        timeout=timeout, save=save, dry_run=dry_run,
-        no_banner=no_banner, profile=profile,
-        parallel=_parallel, notify=_notify,
+        targets,
+        tool=tool,
+        mode=mode,
+        output=output,
+        timeout=timeout,
+        save=save,
+        dry_run=dry_run,
+        no_banner=no_banner,
+        profile=profile,
+        parallel=_parallel,
+        notify=_notify,
     )
 
 
@@ -938,7 +967,9 @@ def _execute_scan_core(
     valid_outputs = ("table", "json", "yaml", "csv", "html", "quiet")
     output = output.lower()
     if output not in valid_outputs:
-        console.print(f"[red]Invalid output format '{output}'. Valid: {', '.join(valid_outputs)}[/red]")
+        console.print(
+            f"[red]Invalid output format '{output}'. Valid: {', '.join(valid_outputs)}[/red]"
+        )
         raise typer.Exit(1)
     instruction = f"scan {' '.join(expanded_targets)}"
     if nmap_args:
@@ -981,6 +1012,7 @@ def _execute_scan_core(
         if output in ("json", "yaml", "csv"):
             try:
                 from ..output import OutputEngine
+
                 output_engine = OutputEngine(output_format=output)
                 if output == "json":
                     output_engine.print_json(result.all_findings)
@@ -1017,9 +1049,15 @@ def scan_quick(
 ) -> None:
     """Quick scan preset — fast port discovery (top 100 ports, no service detection)."""
     _execute_scan_core(
-        targets, tool="nmap", mode=mode or "registry",
-        output="table", timeout=120, save=False,
-        dry_run=dry_run, no_banner=True, profile="",
+        targets,
+        tool="nmap",
+        mode=mode or "registry",
+        output="table",
+        timeout=120,
+        save=False,
+        dry_run=dry_run,
+        no_banner=True,
+        profile="",
         nmap_args="--top-ports 100",
     )
 
@@ -1032,9 +1070,15 @@ def scan_full(
 ) -> None:
     """Full scan preset — all ports, service + OS detection, default scripts."""
     _execute_scan_core(
-        targets, tool="nmap", mode=mode or "registry",
-        output="table", timeout=600, save=False,
-        dry_run=dry_run, no_banner=True, profile="",
+        targets,
+        tool="nmap",
+        mode=mode or "registry",
+        output="table",
+        timeout=600,
+        save=False,
+        dry_run=dry_run,
+        no_banner=True,
+        profile="",
         nmap_args="-p- -sV -O -sC",
     )
 
@@ -1082,9 +1126,15 @@ def scan_web(
     tool = "whatweb+nikto+nuclei"
     updated_targets = [f"http://{t}" if "://" not in t else t for t in targets]
     _execute_scan_core(
-        updated_targets, tool=tool, mode=mode or "registry",
-        output="table", timeout=300, save=False,
-        dry_run=dry_run, no_banner=True, profile="",
+        updated_targets,
+        tool=tool,
+        mode=mode or "registry",
+        output="table",
+        timeout=300,
+        save=False,
+        dry_run=dry_run,
+        no_banner=True,
+        profile="",
     )
 
 
@@ -1119,9 +1169,8 @@ def discover(
 
         if export:
             import json
-            Path(export).write_text(
-                json.dumps(result, indent=2, default=str), encoding="utf-8"
-            )
+
+            Path(export).write_text(json.dumps(result, indent=2, default=str), encoding="utf-8")
             console.print(f"[dim]Deep scan results exported to {export}[/dim]")
 
         severity_counts = result.get("severity_summary", {})
@@ -1774,7 +1823,8 @@ def completions_install(
         text = rc_file.read_text(encoding="utf-8")
         # Clean up old eval lines
         import re as _re
-        cleaned = _re.sub(r'\n# Siyarix completions\n.*?\n', '', text)
+
+        cleaned = _re.sub(r"\n# Siyarix completions\n.*?\n", "", text)
         if source_line not in cleaned:
             rc_file.write_text(f"{cleaned}\n# Siyarix completions\n{source_line}\n")
             console.print(f"[green]\u2713 Source line added to {rc_file}[/green]")
@@ -1870,6 +1920,7 @@ def generate_report(
 ) -> None:
     """Generate a security assessment report from the knowledge graph."""
     from ..core import AgentCore, AgentMode
+
     try:
         from ..report import ReportEngine, ReportFormat
     except ImportError:

@@ -355,6 +355,7 @@ class SettingsStore:
             editor_cmd = [editor]
         else:
             import shlex
+
             editor_cmd = shlex.split(editor)
         try:
             safe_run_sync(editor_cmd + [str(self._path)], timeout=3600)

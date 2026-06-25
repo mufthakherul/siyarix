@@ -52,7 +52,12 @@ class ScoutsuiteParser:
                     for finding_key, finding_data in findings_data.items():
                         if isinstance(finding_data, dict):
                             self._extract_finding(
-                                finding_key, finding_data, provider, aws_account_id, findings, seen,
+                                finding_key,
+                                finding_data,
+                                provider,
+                                aws_account_id,
+                                findings,
+                                seen,
                             )
 
         rulesets = data.get("rule_results", {})
@@ -81,7 +86,13 @@ class ScoutsuiteParser:
         return findings
 
     def _extract_finding(
-        self, key: str, data: dict, provider: str, account_id: str, findings: list, seen: set,
+        self,
+        key: str,
+        data: dict,
+        provider: str,
+        account_id: str,
+        findings: list,
+        seen: set,
     ) -> None:
         description = data.get("description", data.get("dashboard_name", key))
         severity_str = data.get("severity", data.get("level", "info")).lower()

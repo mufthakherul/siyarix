@@ -68,21 +68,23 @@ class LearnedSkill:
     """A reusable, anonymised workflow pattern extracted from observed LLM/offline actions."""
 
     skill_id: str
-    intent_pattern: str       # anonymised command pattern (contains {target})
+    intent_pattern: str  # anonymised command pattern (contains {target})
     steps: list[LearnedStep]  # ordered action sequence with {target} placeholders
-    confidence: float         # 0.0 – 1.0 (Bayesian-smoothed)
+    confidence: float  # 0.0 – 1.0 (Bayesian-smoothed)
     usage_count: int
     success_count: int
-    tokens: list[str]         # NLP tokens for similarity matching
+    tokens: list[str]  # NLP tokens for similarity matching
     synonyms: dict[str, str]  # learned keyword → canonical tool/concept mappings
     created_at: float
     last_used: float
-    source: str               # 'llm' | 'offline' | 'inferred'
+    source: str  # 'llm' | 'offline' | 'inferred'
     tags: list[str] = field(default_factory=list)
     notes: str = ""
-    backup_json: str = "{}"   # Backup of steps/data when generalized by LLM
-    universal_schema: str = "{}" # LLM explanation of parameterized values
-    param_values: dict[str, list[str]] = field(default_factory=dict) # observed values per {param_N}
+    backup_json: str = "{}"  # Backup of steps/data when generalized by LLM
+    universal_schema: str = "{}"  # LLM explanation of parameterized values
+    param_values: dict[str, list[str]] = field(
+        default_factory=dict
+    )  # observed values per {param_N}
 
     # ── Confidence helpers ──────────────────────────────────────────────
 
@@ -114,7 +116,7 @@ class LearnedSkill:
         # ── Bayesian base with pessimistic prior ────────────────────────
         # Prevents a single success from reaching 100 % confidence
         prior_alpha = 3.0  # fictitious failures
-        prior_beta = 1.0   # fictitious successes
+        prior_beta = 1.0  # fictitious successes
         numerator = self.success_count + prior_beta
         denominator = self.usage_count + prior_alpha + prior_beta
         base = numerator / denominator if denominator else 0.0
@@ -187,7 +189,9 @@ class ContinuousLearningSystem:
         self._init_db()
         self._load_skills()
 
-        logger.debug("CLS: initialised — %d skills loaded from %s", len(self._skills), self._db_path)
+        logger.debug(
+            "CLS: initialised — %d skills loaded from %s", len(self._skills), self._db_path
+        )
 
     # ── DB connection (thread-local) ────────────────────────────────────
 
@@ -259,7 +263,9 @@ class ContinuousLearningSystem:
                     )
                 elif current_version < self._SCHEMA_VERSION:
                     try:
-                        conn.execute("ALTER TABLE learned_skills ADD COLUMN param_values TEXT DEFAULT '{}'")
+                        conn.execute(
+                            "ALTER TABLE learned_skills ADD COLUMN param_values TEXT DEFAULT '{}'"
+                        )
                     except sqlite3.OperationalError as e:
                         if "duplicate column name" not in str(e).lower():
                             raise
@@ -298,9 +304,11 @@ class ContinuousLearningSystem:
 
     def _load_skills(self) -> None:
         try:
-            rows = self._conn().execute(
-                "SELECT * FROM learned_skills ORDER BY confidence DESC, usage_count DESC"
-            ).fetchall()
+            rows = (
+                self._conn()
+                .execute("SELECT * FROM learned_skills ORDER BY confidence DESC, usage_count DESC")
+                .fetchall()
+            )
             for row in rows:
                 skill = self._row_to_skill(row)
                 skill.recalculate_confidence()
@@ -454,10 +462,7 @@ class ContinuousLearningSystem:
         if target:
             text = text.replace(target, "{target}")
             clean = (
-                target.replace("https://", "")
-                      .replace("http://", "")
-                      .split("/")[0]
-                      .split("?")[0]
+                target.replace("https://", "").replace("http://", "").split("/")[0].split("?")[0]
             )
             if clean and clean != target and len(clean) > 3:
                 text = text.replace(clean, "{target}")
@@ -465,6 +470,7 @@ class ContinuousLearningSystem:
         # 2 — Pattern-based sweep to catch anything the direct replacement missed
         try:
             from .nlp_engine import NaturalLanguageParser
+
             for pattern in NaturalLanguageParser.PATTERNS.values():
                 try:
                     text = re.sub(pattern, "{target}", text)
@@ -479,13 +485,53 @@ class ContinuousLearningSystem:
 
     def _tokenize(self, text: str) -> list[str]:
         """Minimal tokenisation: lowercase, strip punctuation, remove stopwords."""
-        _STOPWORDS = frozenset({
-            "the", "a", "an", "and", "or", "but", "in", "on", "at", "to",
-            "for", "of", "with", "by", "from", "up", "about", "into", "please",
-            "can", "you", "do", "i", "want", "need", "run", "execute", "perform",
-            "start", "show", "find", "get", "tell", "is", "are", "was", "were",
-            "all", "any", "some", "just", "now", "on",
-        })
+        _STOPWORDS = frozenset(
+            {
+                "the",
+                "a",
+                "an",
+                "and",
+                "or",
+                "but",
+                "in",
+                "on",
+                "at",
+                "to",
+                "for",
+                "of",
+                "with",
+                "by",
+                "from",
+                "up",
+                "about",
+                "into",
+                "please",
+                "can",
+                "you",
+                "do",
+                "i",
+                "want",
+                "need",
+                "run",
+                "execute",
+                "perform",
+                "start",
+                "show",
+                "find",
+                "get",
+                "tell",
+                "is",
+                "are",
+                "was",
+                "were",
+                "all",
+                "any",
+                "some",
+                "just",
+                "now",
+                "on",
+            }
+        )
         text = text.lower()
         text = re.sub(r"[^\w\s-]", " ", text)
         words = text.split()
@@ -602,9 +648,12 @@ class ContinuousLearningSystem:
         best_sim = 0.0
         for skill in self._skills.values():
             sim = self._compute_similarity(
-                goal_tokens, skill.tokens,
-                steps_a=incoming_learned, steps_b=skill.steps,
-                pattern_a=anon_goal, pattern_b=skill.intent_pattern,
+                goal_tokens,
+                skill.tokens,
+                steps_a=incoming_learned,
+                steps_b=skill.steps,
+                pattern_a=anon_goal,
+                pattern_b=skill.intent_pattern,
             )
             if sim > best_sim:
                 best_sim = sim
@@ -614,7 +663,8 @@ class ContinuousLearningSystem:
         if best_skill and best_sim >= 0.60:
             logger.debug(
                 "CLS: strong match '%s' (sim=%.2f)",
-                best_skill.intent_pattern[:50], best_sim,
+                best_skill.intent_pattern[:50],
+                best_sim,
             )
             return best_skill
 
@@ -622,7 +672,8 @@ class ContinuousLearningSystem:
         if best_skill and best_sim >= 0.35:
             logger.debug(
                 "CLS: partial match '%s' (sim=%.2f) — will merge",
-                best_skill.intent_pattern[:50], best_sim,
+                best_skill.intent_pattern[:50],
+                best_sim,
             )
             return best_skill
 
@@ -669,17 +720,22 @@ class ContinuousLearningSystem:
             key = (tool, cmd)
             if key in existing_cmds:
                 continue
-            merged.append(LearnedStep(
-                tool=tool,
-                command_template=cmd,
-                description=desc,
-                args=args,
-            ))
+            merged.append(
+                LearnedStep(
+                    tool=tool,
+                    command_template=cmd,
+                    description=desc,
+                    args=args,
+                )
+            )
 
         return merged
 
-    def _abstract_parameters(self, old_pattern: str, new_pattern: str) -> tuple[str, dict[str, str], dict[str, str]]:
+    def _abstract_parameters(
+        self, old_pattern: str, new_pattern: str
+    ) -> tuple[str, dict[str, str], dict[str, str]]:
         """Compare two patterns, extract differing tokens as {param_N}, and return maps."""
+
         # Tokenize by keeping curly braces intact
         def _split_tokens(s: str) -> list[str]:
             return re.findall(r"\{[^}]+\}|\S+", s)
@@ -702,7 +758,11 @@ class ContinuousLearningSystem:
                 if old_t.startswith("{param_") and old_t.endswith("}"):
                     p_name = old_t
                 else:
-                    existing_params = [int(re.search(r"\{param_(\d+)\}", t).group(1)) for t in param_pattern if re.search(r"\{param_(\d+)\}", t)]
+                    existing_params = [
+                        int(re.search(r"\{param_(\d+)\}", t).group(1))
+                        for t in param_pattern
+                        if re.search(r"\{param_(\d+)\}", t)
+                    ]
                     next_idx = max(existing_params) + 1 if existing_params else param_idx
                     p_name = f"{{param_{next_idx}}}"
                     param_idx = next_idx + 1
@@ -751,7 +811,9 @@ class ContinuousLearningSystem:
         # ── Parameter abstraction ──────────────────────────────────────
         old_map, new_map = {}, {}
         if skill.intent_pattern != anon_goal:
-            new_pattern, old_map, new_map = self._abstract_parameters(skill.intent_pattern, anon_goal)
+            new_pattern, old_map, new_map = self._abstract_parameters(
+                skill.intent_pattern, anon_goal
+            )
             if new_map:
                 anon_goal = new_pattern
                 # Apply new_map to incoming steps
@@ -759,7 +821,9 @@ class ContinuousLearningSystem:
                     if "command" in s:
                         s["command"] = self._apply_parameters(s["command"], new_map)
                     if "command_template" in s:
-                        s["command_template"] = self._apply_parameters(s["command_template"], new_map)
+                        s["command_template"] = self._apply_parameters(
+                            s["command_template"], new_map
+                        )
                 # Apply old_map to existing steps
                 for ls in skill.steps:
                     ls.command_template = self._apply_parameters(ls.command_template, old_map)
@@ -803,8 +867,14 @@ class ContinuousLearningSystem:
         self._skills[skill.skill_id] = skill
         self._save_skill(skill)
         self._save_observation(
-            skill.skill_id, anon_goal, target_type, success, mode,
-            wave_count=wave_count, step_count=len(steps), duration_ms=duration_ms,
+            skill.skill_id,
+            anon_goal,
+            target_type,
+            success,
+            mode,
+            wave_count=wave_count,
+            step_count=len(steps),
+            duration_ms=duration_ms,
         )
 
         logger.info(
@@ -861,44 +931,65 @@ class ContinuousLearningSystem:
                             sanitized_args[ak] = self._anonymize_target(av, target)
                         else:
                             sanitized_args[ak] = av
-                    steps.append({
-                        "tool": tool,
-                        "command": self._anonymize_target(cmd, target),
-                        "description": self._anonymize_target(desc, target),
-                        "args": sanitized_args,
-                    })
+                    steps.append(
+                        {
+                            "tool": tool,
+                            "command": self._anonymize_target(cmd, target),
+                            "description": self._anonymize_target(desc, target),
+                            "args": sanitized_args,
+                        }
+                    )
 
             if not steps:
                 return None
 
             success: bool = False
             if result is not None:
-                if hasattr(result, "success") and isinstance(getattr(result, "success", None), bool):
+                if hasattr(result, "success") and isinstance(
+                    getattr(result, "success", None), bool
+                ):
                     success = bool(result.success)
                 elif hasattr(result, "status"):
                     from .models import PlanStatus, StepStatus
+
                     success = getattr(result, "status", None) == PlanStatus.COMPLETED
 
                 # Fallback: check individual step results (more reliable
                 # when the plan-level status wasn't updated to COMPLETED)
                 if not success and hasattr(result, "steps"):
                     completed = sum(
-                        1 for s in result.steps
+                        1
+                        for s in result.steps
                         if getattr(s, "status", None) == StepStatus.COMPLETED
-                        or (hasattr(s, "result") and s.result and getattr(s.result, "status", None) == "success")
+                        or (
+                            hasattr(s, "result")
+                            and s.result
+                            and getattr(s.result, "status", None) == "success"
+                        )
                     )
                     failed = sum(
-                        1 for s in result.steps
+                        1
+                        for s in result.steps
                         if getattr(s, "status", None) == StepStatus.FAILED
-                        or (hasattr(s, "result") and s.result and getattr(s.result, "status", None) == "error")
+                        or (
+                            hasattr(s, "result")
+                            and s.result
+                            and getattr(s.result, "status", None) == "error"
+                        )
                     )
                     if completed > 0 and failed == 0:
                         success = True
 
             anon_goal = self._anonymize_target(goal, target)
             return self._learn_from_observation(
-                anon_goal, steps, success, target_type, "llm",
-                wave_count=wave_count, duration_ms=duration_ms, mode="integrated",
+                anon_goal,
+                steps,
+                success,
+                target_type,
+                "llm",
+                wave_count=wave_count,
+                duration_ms=duration_ms,
+                mode="integrated",
             )
         except Exception as exc:
             logger.debug("CLS: observe_llm_action error: %s", exc, exc_info=True)
@@ -936,12 +1027,14 @@ class ContinuousLearningSystem:
                             sanitized_args[ak] = self._anonymize_target(av, target)
                         else:
                             sanitized_args[ak] = av
-                    steps.append({
-                        "tool": tool,
-                        "command": self._anonymize_target(cmd_template, target),
-                        "description": self._anonymize_target(desc, target),
-                        "args": sanitized_args,
-                    })
+                    steps.append(
+                        {
+                            "tool": tool,
+                            "command": self._anonymize_target(cmd_template, target),
+                            "description": self._anonymize_target(desc, target),
+                            "args": sanitized_args,
+                        }
+                    )
 
             if not steps:
                 return None
@@ -952,8 +1045,13 @@ class ContinuousLearningSystem:
 
             anon_goal = self._anonymize_target(goal, target)
             return self._learn_from_observation(
-                anon_goal, steps, success, target_type, "offline",
-                duration_ms=duration_ms, mode="offline",
+                anon_goal,
+                steps,
+                success,
+                target_type,
+                "offline",
+                duration_ms=duration_ms,
+                mode="offline",
             )
         except Exception as exc:
             logger.debug("CLS: observe_offline_plan error: %s", exc, exc_info=True)
@@ -981,7 +1079,11 @@ class ContinuousLearningSystem:
                 continue
 
             # Low confidence and idle too long → remove
-            if skill.usage_count >= min_usage and idle_days > max_age_days and skill.confidence < 0.30:
+            if (
+                skill.usage_count >= min_usage
+                and idle_days > max_age_days
+                and skill.confidence < 0.30
+            ):
                 pruned.append(sid)
                 continue
 
@@ -1026,9 +1128,12 @@ class ContinuousLearningSystem:
                     continue
                 b = self._skills[sids[j]]
                 sim = self._compute_similarity(
-                    a.tokens, b.tokens,
-                    steps_a=a.steps, steps_b=b.steps,
-                    pattern_a=a.intent_pattern, pattern_b=b.intent_pattern,
+                    a.tokens,
+                    b.tokens,
+                    steps_a=a.steps,
+                    steps_b=b.steps,
+                    pattern_a=a.intent_pattern,
+                    pattern_b=b.intent_pattern,
                 )
                 if sim < 0.70:
                     continue
@@ -1039,9 +1144,15 @@ class ContinuousLearningSystem:
                 a.success_count += b.success_count
                 a.steps = self._merge_steps(
                     a.steps,
-                    [{"tool": s.tool, "command": s.command_template,
-                      "description": s.description, "args": s.args}
-                     for s in b.steps],
+                    [
+                        {
+                            "tool": s.tool,
+                            "command": s.command_template,
+                            "description": s.description,
+                            "args": s.args,
+                        }
+                        for s in b.steps
+                    ],
                 )
                 a.synonyms.update(b.synonyms)
                 a.tags = list(dict.fromkeys(a.tags + b.tags))
@@ -1073,7 +1184,9 @@ class ContinuousLearningSystem:
         if any(result.values()):
             logger.info(
                 "CLS: maintenance complete — pruned=%d decayed=%d merged=%d",
-                result["pruned"], result["decayed"], result["merged"],
+                result["pruned"],
+                result["decayed"],
+                result["merged"],
             )
         return result
 
@@ -1107,8 +1220,10 @@ class ContinuousLearningSystem:
             if skill.confidence < threshold:
                 continue
             sim = self._compute_similarity(
-                goal_tokens, skill.tokens,
-                pattern_a=anon_goal, pattern_b=skill.intent_pattern,
+                goal_tokens,
+                skill.tokens,
+                pattern_a=anon_goal,
+                pattern_b=skill.intent_pattern,
             )
             # Combined score: similarity × confidence with no usage penalty
             combined = sim * skill.confidence
@@ -1151,8 +1266,10 @@ class ContinuousLearningSystem:
             if skill.confidence < min_confidence:
                 continue
             sim = self._compute_similarity(
-                goal_tokens, skill.tokens,
-                pattern_a=anon_goal, pattern_b=skill.intent_pattern,
+                goal_tokens,
+                skill.tokens,
+                pattern_a=anon_goal,
+                pattern_b=skill.intent_pattern,
             )
             score = sim * skill.confidence
             if score > best_score:
@@ -1223,15 +1340,17 @@ class ContinuousLearningSystem:
                 cmd = self._inject_parameters(cmd, param_map)
                 desc = self._inject_parameters(desc, param_map)
 
-            steps.append({
-                "tool": instantiated.tool,
-                "command": cmd,
-                "description": desc,
-                "args": {
-                    **instantiated.args,
-                    "target": target,
-                },
-            })
+            steps.append(
+                {
+                    "tool": instantiated.tool,
+                    "command": cmd,
+                    "description": desc,
+                    "args": {
+                        **instantiated.args,
+                        "target": target,
+                    },
+                }
+            )
         return steps
 
     # ── NLP injection ───────────────────────────────────────────────────
@@ -1252,9 +1371,7 @@ class ContinuousLearningSystem:
         if hasattr(parser, "inject_learned_corpus"):
             for skill in self._skills.values():
                 if skill.tokens:
-                    parser.inject_learned_corpus(
-                        skill.skill_id, skill.intent_pattern, skill.tokens
-                    )
+                    parser.inject_learned_corpus(skill.skill_id, skill.intent_pattern, skill.tokens)
 
     # ── Offline summary ─────────────────────────────────────────────────
 
@@ -1304,8 +1421,7 @@ class ContinuousLearningSystem:
             return None
         try:
             step_summary = "; ".join(
-                f"{s.get('tool', '?')}: {s.get('description', '')}"
-                for s in steps[:5]
+                f"{s.get('tool', '?')}: {s.get('description', '')}" for s in steps[:5]
             )
             sys_p = (
                 "You are a skill-labelling assistant for a cybersecurity tool. "
@@ -1363,9 +1479,7 @@ class ContinuousLearningSystem:
         del self._skills[skill_id]
         try:
             with self._lock:
-                self._conn().execute(
-                    "DELETE FROM learned_skills WHERE skill_id=?", (skill_id,)
-                )
+                self._conn().execute("DELETE FROM learned_skills WHERE skill_id=?", (skill_id,))
                 self._conn().commit()
             logger.info("CLS: deleted skill %s", skill_id[:8])
             return True

@@ -208,8 +208,18 @@ class TestProviderProfile:
         p = ProviderProfile(
             name="test",
             models=[
-                ModelInfo(name="vision-model", supports_vision=True, supports_tools=False, supports_structured_output=True),
-                ModelInfo(name="tool-model", supports_vision=False, supports_tools=True, supports_structured_output=False),
+                ModelInfo(
+                    name="vision-model",
+                    supports_vision=True,
+                    supports_tools=False,
+                    supports_structured_output=True,
+                ),
+                ModelInfo(
+                    name="tool-model",
+                    supports_vision=False,
+                    supports_tools=True,
+                    supports_structured_output=False,
+                ),
             ],
         )
         assert p.supports_vision is True
@@ -220,7 +230,12 @@ class TestProviderProfile:
         p = ProviderProfile(
             name="test",
             models=[
-                ModelInfo(name="m1", supports_vision=False, supports_tools=False, supports_structured_output=False),
+                ModelInfo(
+                    name="m1",
+                    supports_vision=False,
+                    supports_tools=False,
+                    supports_structured_output=False,
+                ),
             ],
         )
         assert p.supports_vision is False

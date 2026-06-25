@@ -176,7 +176,9 @@ class XsstrikeParser:
 
         return findings
 
-    def _parse_json_record(self, record: dict, seen: set[str] | None = None) -> list[dict[str, Any]]:
+    def _parse_json_record(
+        self, record: dict, seen: set[str] | None = None
+    ) -> list[dict[str, Any]]:
         if seen is None:
             seen = set()
         findings: list[dict[str, Any]] = []

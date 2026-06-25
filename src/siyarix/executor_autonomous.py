@@ -169,6 +169,7 @@ class AutonomousExecutor(BaseExecutor):
 
         try:
             from siyarix.stealth import stealth_engine
+
             stealth_enabled = bool(stealth_engine.config.enabled)
         except (ImportError, AttributeError):
             stealth_enabled = False
@@ -315,6 +316,7 @@ class AutonomousExecutor(BaseExecutor):
     def _extract_tool_from_command(command: str) -> str | None:
         """Extract the primary tool name from a shell command string."""
         import shlex as _shlex
+
         try:
             parts = _shlex.split(command)
         except Exception:

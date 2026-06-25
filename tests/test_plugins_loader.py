@@ -14,6 +14,7 @@ from siyarix.plugins.loader import PluginLoader
 
 # ── Fixtures ─────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def registry():
     return MagicMock()
@@ -39,6 +40,7 @@ def _write_plugin(dir_path: Path, name: str, content: str) -> Path:
 
 # ── Initialization ───────────────────────────────────────────────────────
 
+
 class TestInit:
     def test_plugins_dir_created(self, tmp_path):
         plugins_dir = tmp_path / "plugins"
@@ -56,6 +58,7 @@ class TestInit:
 
 
 # ── load_all ─────────────────────────────────────────────────────────────
+
 
 class TestLoadAll:
     def test_no_plugins_dir(self, loader):
@@ -100,6 +103,7 @@ class TestLoadAll:
 
 
 # ── _load_plugin ─────────────────────────────────────────────────────────
+
 
 class TestLoadPlugin:
     def test_no_spec_raises_importerror(self, loader):
@@ -186,6 +190,7 @@ class TestLoadPlugin:
 
 
 # ── Integration: load_all with real plugins ──────────────────────────────
+
 
 class TestLoadAllIntegration:
     def test_full_workflow(self, registry, provider_manager, tmp_path):

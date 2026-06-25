@@ -22,6 +22,7 @@ from siyarix.model_aliases import (
 
 # ── Fixture: preserve global state ───────────────────────────────────────
 
+
 @pytest.fixture(autouse=True)
 def _preserve_aliases() -> Any:
     saved = copy.deepcopy(_PROVIDER_ALIASES)
@@ -31,6 +32,7 @@ def _preserve_aliases() -> Any:
 
 
 # ── normalize_model_id ───────────────────────────────────────────────────
+
 
 class TestNormalizeModelId:
     def test_empty_model_id_returns_empty(self) -> None:
@@ -164,6 +166,7 @@ class TestNormalizeModelId:
 
 # ── resolve_alias ────────────────────────────────────────────────────────
 
+
 class TestResolveAlias:
     def test_known_alias(self) -> None:
         result = resolve_alias("anthropic", "opus")
@@ -192,6 +195,7 @@ class TestResolveAlias:
 
 # ── list_aliases ─────────────────────────────────────────────────────────
 
+
 class TestListAliases:
     def test_all_aliases_returns_copy(self) -> None:
         all_aliases = list_aliases()
@@ -218,6 +222,7 @@ class TestListAliases:
 
 
 # ── register_alias ───────────────────────────────────────────────────────
+
 
 class TestRegisterAlias:
     def test_new_provider(self) -> None:
@@ -252,13 +257,10 @@ class TestRegisterAlias:
         assert result["test_prov"]["short"] == "full-version"
 
 
-
 """Final coverage tests for siyarix.model_aliases — targets remaining uncovered lines and edge cases."""
 
 
-
 import pytest
-
 
 
 @pytest.fixture(autouse=True)

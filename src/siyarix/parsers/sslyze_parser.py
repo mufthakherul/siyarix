@@ -59,7 +59,8 @@ class SslyzeParser:
         server_info = data.get("server_info", data.get("server", {}))
         hostname = server_info.get("hostname", server_info.get("host", "unknown"))
         port = server_info.get(
-            "port", server_info.get("network_configuration", {}).get("port", 443),
+            "port",
+            server_info.get("network_configuration", {}).get("port", 443),
         )
 
         results = data.get("results", data.get("scan_results", {}))
@@ -88,13 +89,24 @@ class SslyzeParser:
                     scan_result_data = scan_result.get("result", scan_result)
                     if isinstance(scan_result_data, dict):
                         self._parse_scan_result(
-                            scan_type, scan_result_data, hostname, port, findings, seen,
+                            scan_type,
+                            scan_result_data,
+                            hostname,
+                            port,
+                            findings,
+                            seen,
                         )
 
         return findings
 
     def _parse_scan_result(
-        self, scan_type: str, data: dict, hostname: str, port: int, findings: list, seen: set[str],
+        self,
+        scan_type: str,
+        data: dict,
+        hostname: str,
+        port: int,
+        findings: list,
+        seen: set[str],
     ) -> None:
         if "tls_version" in scan_type or "protocol" in scan_type.lower():
             tls_version = data.get("tls_version", scan_type)

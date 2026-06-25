@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 
-
 from siyarix.models import (
     ExecutionPlan,
     ExecutionStep,
@@ -426,9 +425,7 @@ class TestExecutionPlan:
         step_b = PlanStep(id="b", status=StepStatus.PENDING, dependencies=["a"])
         step_c = PlanStep(id="c", status=StepStatus.PENDING, dependencies=["a"])
         step_completed = PlanStep(id="a_complete", status=StepStatus.COMPLETED)
-        plan = ExecutionPlan(
-            steps=[step_completed, step_a, step_b, step_c]
-        )
+        plan = ExecutionPlan(steps=[step_completed, step_a, step_b, step_c])
         ready = plan.get_ready_steps()
         assert step_a in ready
         assert step_b not in ready
@@ -444,9 +441,7 @@ class TestExecutionPlan:
         assert step_b.status == StepStatus.READY
 
     def test_get_ready_steps_no_pending(self):
-        plan = ExecutionPlan(
-            steps=[PlanStep(status=StepStatus.COMPLETED)]
-        )
+        plan = ExecutionPlan(steps=[PlanStep(status=StepStatus.COMPLETED)])
         assert plan.get_ready_steps() == []
 
     def test_get_ready_steps_already_ready(self):
@@ -470,9 +465,7 @@ class TestExecutionPlan:
         assert step_b not in ready
 
     def test_to_dict(self):
-        step = PlanStep(
-            id="s1", description="Scan", tool="nmap", status=StepStatus.COMPLETED
-        )
+        step = PlanStep(id="s1", description="Scan", tool="nmap", status=StepStatus.COMPLETED)
         plan = ExecutionPlan(
             id="p1",
             goal="test goal",
@@ -504,6 +497,7 @@ class TestExecutionPlan:
 class TestPublicAPI:
     def test_all_exports(self):
         from siyarix import models
+
         expected = [
             "PlanStatus",
             "StepStatus",

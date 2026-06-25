@@ -10,7 +10,16 @@ import asyncio
 import pytest
 
 
-from siyarix.chat.openai_compat import _gemini_build_contents, _gemini_stream, _map_real_model, make_client, openai_complete, openai_stream
+from siyarix.chat.openai_compat import (
+    _gemini_build_contents,
+    _gemini_stream,
+    _map_real_model,
+    make_client,
+    openai_complete,
+    openai_stream,
+)
+
+
 class TestOpenAICompatCore:
     """Cover remaining openai_compat.py lines."""
 
@@ -24,13 +33,17 @@ class TestOpenAICompatCore:
 
     def test_resolve_model_settings_dict(self):
         with patch("siyarix.chat.openai_compat.MODEL_KEYS", {"test": "test_model"}):
-            with patch("siyarix.chat.openai_compat.PROVIDER_CONFIG", {"test": ("", "default-model", "")}):
+            with patch(
+                "siyarix.chat.openai_compat.PROVIDER_CONFIG", {"test": ("", "default-model", "")}
+            ):
                 result = resolve_model("test", {"test_model": "custom"})
                 assert result == "custom"
 
     def test_resolve_model_settings_dict_no_key(self):
         with patch("siyarix.chat.openai_compat.MODEL_KEYS", {"test": "test_model"}):
-            with patch("siyarix.chat.openai_compat.PROVIDER_CONFIG", {"test": ("", "default-model", "")}):
+            with patch(
+                "siyarix.chat.openai_compat.PROVIDER_CONFIG", {"test": ("", "default-model", "")}
+            ):
                 result = resolve_model("test", {})
                 assert result == "default-model"
 
@@ -53,13 +66,19 @@ class TestOpenAICompatCore:
 
     def test_make_client_resolved_base_url_empty(self):
         with patch("openai.AsyncOpenAI") as mock_oai:
-            with patch("siyarix.chat.openai_compat.PROVIDER_CONFIG", {"openai": ("https://openai.com", "gpt-5.5", "OPENAI_API_KEY")}):
+            with patch(
+                "siyarix.chat.openai_compat.PROVIDER_CONFIG",
+                {"openai": ("https://openai.com", "gpt-5.5", "OPENAI_API_KEY")},
+            ):
                 result = make_client("openai", "key", base_url="")
                 mock_oai.assert_called_once_with(api_key="key", base_url="https://openai.com")
 
     def test_make_client_no_base_url(self):
         with patch("openai.AsyncOpenAI") as mock_oai:
-            with patch("siyarix.chat.openai_compat.PROVIDER_CONFIG", {"openai": ("", "gpt-5.5", "OPENAI_API_KEY")}):
+            with patch(
+                "siyarix.chat.openai_compat.PROVIDER_CONFIG",
+                {"openai": ("", "gpt-5.5", "OPENAI_API_KEY")},
+            ):
                 result = make_client("openai", "key", base_url=None)
                 mock_oai.assert_called_once_with(api_key="key")
 
@@ -69,23 +88,31 @@ class TestOpenAICompatCore:
             mock_oai.assert_called_once_with(api_key="local", base_url="http://localhost:11434/v1")
 
     def test_gemini_build_contents(self):
-        contents = _gemini_build_contents("sys", "user query", [{"role": "user", "content": "prev"}, {"role": "assistant", "content": "resp"}])
+        contents = _gemini_build_contents(
+            "sys",
+            "user query",
+            [{"role": "user", "content": "prev"}, {"role": "assistant", "content": "resp"}],
+        )
         assert len(contents) == 3
         assert contents[0]["role"] == "user"
 
     def test_gemini_build_contents_skips_system(self):
-        contents = _gemini_build_contents("sys", "user query", [{"role": "system", "content": "skip"}])
+        contents = _gemini_build_contents(
+            "sys", "user query", [{"role": "system", "content": "skip"}]
+        )
         assert len(contents) == 1
 
     def test_gemini_stream_iterates_chunks(self):
         async def _test():
             lines = [
-                "data: {\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"hello\"}]}}]}",
+                'data: {"candidates": [{"content": {"parts": [{"text": "hello"}]}}]}',
                 "data: [DONE]",
             ]
+
             async def _aiter_lines():
                 for l in lines:
                     yield l
+
             with patch("httpx.AsyncClient") as mock_client_cls:
                 mock_client = MagicMock()
                 mock_client_cls.return_value.__aenter__.return_value = mock_client
@@ -104,9 +131,11 @@ class TestOpenAICompatCore:
     def test_gemini_stream_skips_bad_json(self):
         async def _test():
             lines = ["data: invalid json", "data: [DONE]"]
+
             async def _aiter_lines():
                 for l in lines:
                     yield l
+
             with patch("httpx.AsyncClient") as mock_client_cls:
                 mock_client = MagicMock()
                 mock_client_cls.return_value.__aenter__.return_value = mock_client
@@ -132,7 +161,9 @@ class TestOpenAICompatCore:
             mock_stream.__aiter__.return_value = iter([mock_chunk])
             mock_client.chat.completions.create = AsyncMock(return_value=mock_stream)
             result = []
-            async for token in openai_stream(mock_client, "model", "sys", "user", tools=[{"name": "test"}]):
+            async for token in openai_stream(
+                mock_client, "model", "sys", "user", tools=[{"name": "test"}]
+            ):
                 result.append(token)
             assert result == ["hello"]
 
@@ -149,7 +180,9 @@ class TestOpenAICompatCore:
             mock_response.usage.completion_tokens = 20
             mock_response.model = "gpt-4"
             mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
-            result = await openai_complete(mock_client, "model", "sys", "user", tools=[{"name": "test"}])
+            result = await openai_complete(
+                mock_client, "model", "sys", "user", tools=[{"name": "test"}]
+            )
             assert result["content"] == "response"
 
         asyncio.run(_test())

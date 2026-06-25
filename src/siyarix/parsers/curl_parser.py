@@ -54,9 +54,7 @@ class CurlParser(BaseParser):
             findings.append(
                 build_finding(
                     title=f"HTTP {status_code} {status_text}",
-                    severity="info"
-                    if status_code.startswith(("2", "3"))
-                    else "medium",
+                    severity="info" if status_code.startswith(("2", "3")) else "medium",
                     description=f"HTTP response status {status_code}",
                     evidence=f"HTTP/{status_code} {status_text}",
                     tool="curl",

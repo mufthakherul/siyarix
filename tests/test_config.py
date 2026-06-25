@@ -20,7 +20,6 @@ from siyarix.config import (
 )
 
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -36,6 +35,7 @@ def store(tmp_path):
 # _try_load_toml
 # ---------------------------------------------------------------------------
 
+
 class TestTryLoadToml:
     def test_file_not_found(self, tmp_path):
         assert _try_load_toml(tmp_path / "nope.toml") == {}
@@ -47,7 +47,6 @@ class TestTryLoadToml:
         assert data.get("key") == "value"
 
     def test_tomli_fallback(self, tmp_path):
-
         orig_import = builtins.__import__
         fp = tmp_path / "test.toml"
         fp.write_text('greeting = "hello"\n')
@@ -62,7 +61,6 @@ class TestTryLoadToml:
             assert data.get("greeting") == "hello"
 
     def test_fallback_parser(self, tmp_path):
-
         orig_import = builtins.__import__
         fp = tmp_path / "test.toml"
         fp.write_text('# comment\nkey = "value"\ncount = 42\nflag = true\nrate = 3.14\n')
@@ -80,7 +78,6 @@ class TestTryLoadToml:
             assert data.get("rate") == 3.14
 
     def test_fallback_parser_float(self, tmp_path):
-
         orig_import = builtins.__import__
         fp = tmp_path / "test.toml"
         fp.write_text("pi = 3.14\n")
@@ -213,7 +210,6 @@ class TestSettingsStore:
             store.edit()
             # If it didn't crash, the test passes
 
-
     def test_edit_both_fail(self, store):
         store._path.write_text('key = "value"\n')
         with (
@@ -310,6 +306,7 @@ class TestPersistence:
             store.set("scan_timeout", "1")
             mock_save.assert_called_once()
 
+
 class TestConfigCore:
     """Cover missing config.py lines: fallback TOML parser, backup, restore etc."""
 
@@ -319,6 +316,7 @@ class TestConfigCore:
 
     def test_try_load_toml_fallback_parser_true(self, tmp_path):
         from siyarix.config import _try_load_toml
+
         f = tmp_path / "settings.toml"
         f.write_text("key = true")
         with self._disable_tomllib():
@@ -327,6 +325,7 @@ class TestConfigCore:
 
     def test_try_load_toml_fallback_int(self, tmp_path):
         from siyarix.config import _try_load_toml
+
         f = tmp_path / "settings.toml"
         f.write_text("count = 42")
         with self._disable_tomllib():
@@ -335,6 +334,7 @@ class TestConfigCore:
 
     def test_try_load_toml_fallback_float(self, tmp_path):
         from siyarix.config import _try_load_toml
+
         f = tmp_path / "settings.toml"
         f.write_text("rate = 3.14")
         with self._disable_tomllib():
@@ -343,6 +343,7 @@ class TestConfigCore:
 
     def test_try_load_toml_fallback_bad_value_becomes_string(self, tmp_path):
         from siyarix.config import _try_load_toml
+
         f = tmp_path / "settings.toml"
         f.write_text("key = something")
         with self._disable_tomllib():
@@ -351,6 +352,7 @@ class TestConfigCore:
 
     def test_try_load_toml_fallback_false(self, tmp_path):
         from siyarix.config import _try_load_toml
+
         f = tmp_path / "settings.toml"
         f.write_text("key = false")
         with self._disable_tomllib():
@@ -359,6 +361,7 @@ class TestConfigCore:
 
     def test_try_load_toml_fallback_exception_returns_empty(self, tmp_path):
         from siyarix.config import _try_load_toml
+
         f = tmp_path / "settings.toml"
         f.write_text("key = val")
         with self._disable_tomllib():
@@ -370,6 +373,7 @@ class TestConfigCore:
 
     def test_try_load_toml_raises_exception_returns_empty(self, tmp_path):
         from siyarix.config import _try_load_toml
+
         f = tmp_path / "settings.toml"
         f.write_text("key = val")
         with patch("tomllib.load", side_effect=Exception("parse error")):
@@ -380,6 +384,7 @@ class TestConfigCore:
 
     def test_backup_returns_none_when_no_path(self):
         from siyarix.config import SettingsStore
+
         store = SettingsStore()
         store._path = Path("/nonexistent/settings.toml")
         result = store.backup()
@@ -387,6 +392,7 @@ class TestConfigCore:
 
     def test_backup_oserror_returns_none(self, tmp_path):
         from siyarix.config import SettingsStore
+
         store = SettingsStore()
         store._path = tmp_path / "settings.toml"
         store._path.write_text("key = true")
@@ -398,6 +404,7 @@ class TestConfigCore:
 
     def test_save_backup_called_when_data_differs(self, tmp_path):
         from siyarix.config import SettingsStore
+
         p = tmp_path / "settings.toml"
         p.write_text("key = true")
         store = SettingsStore(path=p)
@@ -408,6 +415,7 @@ class TestConfigCore:
 
     def test_cleanup_old_backups_ignores_oserror(self, tmp_path):
         from siyarix.config import SettingsStore
+
         store = SettingsStore(path=tmp_path / "settings.toml")
         backup_dir = tmp_path / "backups"
         backup_dir.mkdir()
@@ -418,18 +426,21 @@ class TestConfigCore:
 
     def test_restore_latest_no_backup_dir(self):
         from siyarix.config import SettingsStore
+
         with patch("siyarix.config.get_config_dir", return_value=Path("/nonexistent")):
             result = SettingsStore.restore_latest()
         assert result is None
 
     def test_restore_latest_no_backups(self, tmp_path):
         from siyarix.config import SettingsStore
+
         with patch("siyarix.config.get_config_dir", return_value=tmp_path):
             result = SettingsStore.restore_latest()
         assert result is None
 
     def test_restore_latest_oserror(self, tmp_path):
         from siyarix.config import SettingsStore
+
         backup_dir = get_config_dir() / "backups"
         backup_dir.mkdir(parents=True)
         (backup_dir / "settings_20250101_120000.toml").write_text("k=v")
@@ -441,6 +452,7 @@ class TestConfigCore:
 
     def test_edit_reloads_data(self, tmp_path):
         from siyarix.config import SettingsStore
+
         p = tmp_path / "settings.toml"
         p.write_text("key = true")
         store = SettingsStore(path=p)
@@ -451,6 +463,7 @@ class TestConfigCore:
 
     def test_coerce_float(self):
         from siyarix.config import SettingsStore, DEFAULTS
+
         store = SettingsStore()
         orig = DEFAULTS.get("scan_timeout")
         DEFAULTS["scan_timeout"] = 3.0
@@ -465,6 +478,7 @@ class TestConfigCore:
 
     def test_coerce_float_value_error(self):
         from siyarix.config import SettingsStore, DEFAULTS
+
         store = SettingsStore()
         orig = DEFAULTS.get("scan_timeout")
         DEFAULTS["scan_timeout"] = 3.0
@@ -479,6 +493,7 @@ class TestConfigCore:
 
     def test_env_override_home_dir(self):
         from siyarix.config import SettingsStore
+
         with patch.dict(os.environ, {"SIYARIX_HOME": "/tmp/siyarix_home"}, clear=True):
             with patch("siyarix.config.get_settings_file") as mock_get:
                 p = MagicMock(spec=Path)
@@ -497,6 +512,7 @@ class TestConfigEdgeCases:
     @patch.dict(os.environ, {"SIYARIX_PERSONA": "bug_hunter"}, clear=True)
     def test_env_override_persona(self):
         from siyarix.config import SettingsStore
+
         with patch("siyarix.config.get_settings_file") as mock_get:
             p = MagicMock(spec=Path)
             p.exists.return_value = False
@@ -507,6 +523,7 @@ class TestConfigEdgeCases:
     @patch.dict(os.environ, {"SIYARIX_SAFE_MODE": "1"}, clear=True)
     def test_env_override_bool_safe_mode(self):
         from siyarix.config import SettingsStore
+
         with patch("siyarix.config.get_settings_file") as mock_get:
             p = MagicMock(spec=Path)
             p.exists.return_value = False
@@ -517,6 +534,7 @@ class TestConfigEdgeCases:
     @patch.dict(os.environ, {"SIYARIX_TIMEOUT": "invalid"}, clear=True)
     def test_env_override_timeout_invalid_ignored(self):
         from siyarix.config import SettingsStore
+
         with patch("siyarix.config.get_settings_file") as mock_get:
             p = MagicMock(spec=Path)
             p.exists.return_value = False
@@ -528,6 +546,7 @@ class TestConfigEdgeCases:
     @patch.dict(os.environ, {"SIYARIX_CONFIG": "/tmp/custom"}, clear=True)
     def test_env_override_config_path(self):
         from siyarix.config import SettingsStore
+
         with patch("siyarix.config.get_settings_file") as mock_get:
             p = MagicMock(spec=Path)
             p.exists.return_value = False

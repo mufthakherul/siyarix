@@ -51,7 +51,9 @@ def register_profile(manager: ProviderManager) -> None:
                 ModelInfo(
                     "Qwen/Qwen2.5-7B-Instruct-Turbo", context_window=32768, cost_tier=CostTier.FREE
                 ),
-                ModelInfo("Qwen/Qwen3.7-Max-0225", context_window=131072, cost_tier=CostTier.MEDIUM),
+                ModelInfo(
+                    "Qwen/Qwen3.7-Max-0225", context_window=131072, cost_tier=CostTier.MEDIUM
+                ),
                 ModelInfo("zai-org/GLM-5.1", context_window=202800, cost_tier=CostTier.LOW),
                 ModelInfo(
                     "minimax/MiniMax-M3",

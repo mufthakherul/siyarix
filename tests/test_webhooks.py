@@ -18,6 +18,7 @@ from siyarix.webhooks import WebhookDispatcher, webhook_dispatcher
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def _reset_bus() -> None:
     reset_event_bus()
@@ -25,7 +26,9 @@ def _reset_bus() -> None:
 
 @pytest.fixture
 def dispatcher_with_url() -> WebhookDispatcher:
-    with patch.dict(os.environ, {"SIYARIX_WEBHOOK_URL": "https://hooks.example.com/alerts"}, clear=True):
+    with patch.dict(
+        os.environ, {"SIYARIX_WEBHOOK_URL": "https://hooks.example.com/alerts"}, clear=True
+    ):
         reset_event_bus()
         return WebhookDispatcher()
 
@@ -41,9 +44,12 @@ def dispatcher_without_url() -> WebhookDispatcher:
 # __init__
 # ---------------------------------------------------------------------------
 
+
 class TestInit:
     def test_reads_webhook_url_from_env(self) -> None:
-        with patch.dict(os.environ, {"SIYARIX_WEBHOOK_URL": "https://discord.example.com"}, clear=True):
+        with patch.dict(
+            os.environ, {"SIYARIX_WEBHOOK_URL": "https://discord.example.com"}, clear=True
+        ):
             reset_event_bus()
             d = WebhookDispatcher()
             assert d.webhook_url == "https://discord.example.com"
@@ -67,9 +73,12 @@ class TestInit:
 # _on_event
 # ---------------------------------------------------------------------------
 
+
 class TestOnEvent:
     @pytest.mark.asyncio
-    async def test_custom_event_high_severity_dispatches(self, dispatcher_with_url: WebhookDispatcher) -> None:
+    async def test_custom_event_high_severity_dispatches(
+        self, dispatcher_with_url: WebhookDispatcher
+    ) -> None:
         with patch.object(dispatcher_with_url, "dispatch_alert", AsyncMock()) as mock_dispatch:
             event = Event(
                 type=EventType.CUSTOM,
@@ -82,7 +91,9 @@ class TestOnEvent:
             mock_dispatch.assert_awaited_once_with({"severity": "high", "target": "example.com"})
 
     @pytest.mark.asyncio
-    async def test_custom_event_critical_severity_dispatches(self, dispatcher_with_url: WebhookDispatcher) -> None:
+    async def test_custom_event_critical_severity_dispatches(
+        self, dispatcher_with_url: WebhookDispatcher
+    ) -> None:
         with patch.object(dispatcher_with_url, "dispatch_alert", AsyncMock()) as mock_dispatch:
             event = Event(
                 type=EventType.CUSTOM,
@@ -95,7 +106,9 @@ class TestOnEvent:
             mock_dispatch.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_custom_event_low_severity_ignored(self, dispatcher_with_url: WebhookDispatcher) -> None:
+    async def test_custom_event_low_severity_ignored(
+        self, dispatcher_with_url: WebhookDispatcher
+    ) -> None:
         with patch.object(dispatcher_with_url, "dispatch_alert", AsyncMock()) as mock_dispatch:
             event = Event(
                 type=EventType.CUSTOM,
@@ -110,7 +123,10 @@ class TestOnEvent:
     @pytest.mark.asyncio
     async def test_non_custom_event_ignored(self, dispatcher_with_url: WebhookDispatcher) -> None:
         with patch.object(dispatcher_with_url, "dispatch_alert", AsyncMock()) as mock_dispatch:
-            event = Event(type=EventType.HEARTBEAT, data={"sub_type": "finding", "finding": {"severity": "critical"}})
+            event = Event(
+                type=EventType.HEARTBEAT,
+                data={"sub_type": "finding", "finding": {"severity": "critical"}},
+            )
             await dispatcher_with_url._on_event(event)
             mock_dispatch.assert_not_called()
 
@@ -125,7 +141,9 @@ class TestOnEvent:
             mock_dispatch.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_missing_severity_defaults_to_info(self, dispatcher_with_url: WebhookDispatcher) -> None:
+    async def test_missing_severity_defaults_to_info(
+        self, dispatcher_with_url: WebhookDispatcher
+    ) -> None:
         with patch.object(dispatcher_with_url, "dispatch_alert", AsyncMock()) as mock_dispatch:
             event = Event(
                 type=EventType.CUSTOM,
@@ -149,16 +167,21 @@ class TestOnEvent:
 # dispatch_alert
 # ---------------------------------------------------------------------------
 
+
 class TestDispatchAlert:
     @pytest.mark.asyncio
     async def test_dispatches_with_url(self) -> None:
-        with patch.dict(os.environ, {"SIYARIX_WEBHOOK_URL": "https://hooks.example.com"}, clear=True):
+        with patch.dict(
+            os.environ, {"SIYARIX_WEBHOOK_URL": "https://hooks.example.com"}, clear=True
+        ):
             reset_event_bus()
             d = WebhookDispatcher()
             fake_response = MagicMock()
             fake_response.__enter__.return_value = fake_response
 
-            with patch.object(urllib.request, "urlopen", return_value=fake_response) as mock_urlopen:
+            with patch.object(
+                urllib.request, "urlopen", return_value=fake_response
+            ) as mock_urlopen:
                 finding = {"id": "vuln-1", "target": "example.com", "type": "sql injection"}
                 await d.dispatch_alert(finding)
 
@@ -176,7 +199,9 @@ class TestDispatchAlert:
 
     @pytest.mark.asyncio
     async def test_urlerror_on_dispatch(self) -> None:
-        with patch.dict(os.environ, {"SIYARIX_WEBHOOK_URL": "https://hooks.example.com"}, clear=True):
+        with patch.dict(
+            os.environ, {"SIYARIX_WEBHOOK_URL": "https://hooks.example.com"}, clear=True
+        ):
             reset_event_bus()
             d = WebhookDispatcher()
             with patch.object(
@@ -186,18 +211,23 @@ class TestDispatchAlert:
 
     @pytest.mark.asyncio
     async def test_finding_with_title_fallback(self) -> None:
-        with patch.dict(os.environ, {"SIYARIX_WEBHOOK_URL": "https://hooks.example.com"}, clear=True):
+        with patch.dict(
+            os.environ, {"SIYARIX_WEBHOOK_URL": "https://hooks.example.com"}, clear=True
+        ):
             reset_event_bus()
             d = WebhookDispatcher()
             fake_response = MagicMock()
             fake_response.__enter__.return_value = fake_response
             with patch.object(urllib.request, "urlopen", return_value=fake_response):
-                await d.dispatch_alert({"id": "vuln-1", "title": "XSS Vulnerability", "target": "x"})
+                await d.dispatch_alert(
+                    {"id": "vuln-1", "title": "XSS Vulnerability", "target": "x"}
+                )
 
 
 # ---------------------------------------------------------------------------
 # generate_remediation
 # ---------------------------------------------------------------------------
+
 
 class TestGenerateRemediation:
     def test_sql_injection(self, dispatcher_with_url: WebhookDispatcher) -> None:
@@ -240,6 +270,7 @@ class TestGenerateRemediation:
 # ---------------------------------------------------------------------------
 # Global singleton
 # ---------------------------------------------------------------------------
+
 
 class TestGlobalSingleton:
     def test_webhook_dispatcher_is_singleton(self) -> None:

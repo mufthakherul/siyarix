@@ -157,7 +157,10 @@ class TestChaosSimulation:
             ["mkfs.ext4", "/dev/sda1"],
         ]
         for cmd in destructive_cmds:
-            with patch("siyarix.subprocess_utils._confirm_destructive", side_effect=ValueError("destructive pattern")):
+            with patch(
+                "siyarix.subprocess_utils._confirm_destructive",
+                side_effect=ValueError("destructive pattern"),
+            ):
                 with pytest.raises(ValueError, match=r"destructive"):
                     _validate_cmd_list(cmd)
 
@@ -353,7 +356,7 @@ class TestSecurityAudit:
                 stripped = line.strip()
                 if stripped.startswith("#"):
                     continue
-                if '"eval("' in stripped or "'eval('" in stripped or 'eval (' in stripped:
+                if '"eval("' in stripped or "'eval('" in stripped or "eval (" in stripped:
                     continue
                 if re.search(r"\beval\s*\(", stripped) and "logger" not in stripped:
                     pytest.fail(f"eval() in {pyfile.relative_to(src_dir)}:{i}: {stripped}")

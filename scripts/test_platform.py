@@ -138,9 +138,12 @@ def _test_subprocess_utils() -> dict[str, bool | str]:
 
     try:
         from siyarix.subprocess_utils import safe_run_sync
+
         result = safe_run_sync(shell_cmd, timeout=5)
         results["safe_run_sync_works"] = result.success
-        results["safe_run_sync_stdout"] = result.stdout.strip() if result.success else str(result.stderr)
+        results["safe_run_sync_stdout"] = (
+            result.stdout.strip() if result.success else str(result.stderr)
+        )
     except Exception as e:
         results["safe_run_sync_works"] = False
         results["safe_run_sync_error"] = str(e)
@@ -151,6 +154,7 @@ def _test_subprocess_utils() -> dict[str, bool | str]:
 def _test_security_hardening() -> dict[str, bool]:
     try:
         from siyarix.security_hardening import validator, redactor, danger_analyzer
+
         ok = validator.validate_target("127.0.0.1")
         redacted = redactor.redact("sk-test12345678901234567890")
         danger = danger_analyzer.analyze("ls -la")
@@ -167,6 +171,7 @@ def _test_security_hardening() -> dict[str, bool]:
 def _test_credential_store() -> dict[str, bool | str]:
     try:
         from siyarix.credential_store import CRYPTO_AVAILABLE
+
         return {"crypto_available": CRYPTO_AVAILABLE}
     except Exception as e:
         return {"crypto_available": False, "error": str(e)}
@@ -175,6 +180,7 @@ def _test_credential_store() -> dict[str, bool | str]:
 def _test_config() -> dict[str, bool]:
     try:
         from siyarix.config import get_config_dir, get_settings_file, SettingsStore
+
         d = get_config_dir()
         f = get_settings_file()
         s = SettingsStore()
@@ -190,10 +196,22 @@ def _test_config() -> dict[str, bool]:
 
 def _test_tools_availability() -> dict[str, bool]:
     tools = [
-        "python3", "pip3", "pip",
-        "nmap", "curl", "ping", "whois", "openssl",
-        "dig", "nslookup", "netstat", "ss",
-        "iptables", "lsof", "ps", "df",
+        "python3",
+        "pip3",
+        "pip",
+        "nmap",
+        "curl",
+        "ping",
+        "whois",
+        "openssl",
+        "dig",
+        "nslookup",
+        "netstat",
+        "ss",
+        "iptables",
+        "lsof",
+        "ps",
+        "df",
     ]
     results: dict[str, bool] = {}
     for tool in tools:
@@ -207,16 +225,19 @@ def _test_windows_specific() -> dict[str, bool | str]:
     results: dict[str, bool | str] = {}
     try:
         import ctypes
+
         results["ctypes_available"] = True
     except ImportError:
         results["ctypes_available"] = False
     try:
         import winreg
+
         results["winreg_available"] = True
     except ImportError:
         results["winreg_available"] = False
     try:
         import msvcrt
+
         results["msvcrt_available"] = True
     except ImportError:
         results["msvcrt_available"] = False
@@ -226,6 +247,7 @@ def _test_windows_specific() -> dict[str, bool | str]:
 
 def _test_termux_specific() -> dict[str, bool | str]:
     from siyarix._platform import is_termux
+
     if not is_termux():
         return {"skipped": True, "reason": "Not on Termux"}
     results: dict[str, bool | str] = {}
@@ -242,6 +264,7 @@ def _test_termux_specific() -> dict[str, bool | str]:
 
 def _test_ish_specific() -> dict[str, bool | str]:
     from siyarix._platform import is_ish
+
     if not is_ish():
         return {"skipped": True, "reason": "Not on iSH"}
     results: dict[str, bool | str] = {}
@@ -252,9 +275,13 @@ def _test_ish_specific() -> dict[str, bool | str]:
 def _test_chat_platform_utils() -> dict[str, bool | str]:
     try:
         from siyarix.chat.platform_utils import (
-            is_kali_linux, pip_install_args, detect_shell,
-            get_shell_platform, build_platform_context,
+            is_kali_linux,
+            pip_install_args,
+            detect_shell,
+            get_shell_platform,
+            build_platform_context,
         )
+
         shell = detect_shell()
         ctx = build_platform_context()
         return {
@@ -407,13 +434,18 @@ def main() -> int:
         print(json.dumps(results, indent=2, default=str))
     else:
         print_human_report(results)
-    return 0 if all(
-        v.get("import_ok", True) for v in [
-            results["config"],
-            results["security_hardening"],
-            results["chat_platform_utils"],
-        ]
-    ) else 1
+    return (
+        0
+        if all(
+            v.get("import_ok", True)
+            for v in [
+                results["config"],
+                results["security_hardening"],
+                results["chat_platform_utils"],
+            ]
+        )
+        else 1
+    )
 
 
 if __name__ == "__main__":

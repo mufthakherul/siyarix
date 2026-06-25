@@ -101,7 +101,15 @@ class OfflineCommandQueue:
             conn.execute(
                 "INSERT INTO queued_commands (id, instruction, target, mode, status, created_at, max_attempts, dependencies) "
                 "VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)",
-                (cmd_id, instruction, target, mode, now, max_attempts, json.dumps(dependencies or [])),
+                (
+                    cmd_id,
+                    instruction,
+                    target,
+                    mode,
+                    now,
+                    max_attempts,
+                    json.dumps(dependencies or []),
+                ),
             )
         logger.info("Queued command %s: %s", cmd_id, instruction[:60])
         return cmd_id

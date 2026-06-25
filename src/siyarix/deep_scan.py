@@ -165,9 +165,7 @@ class DeepScanEngine:
 
         return self._aggregate(target, all_findings, scan_id)
 
-    async def _execute_tool(
-        self, step: PlanStep, pass_name: str
-    ) -> dict[str, Any]:
+    async def _execute_tool(self, step: PlanStep, pass_name: str) -> dict[str, Any]:
         if self._executor:
             try:
                 result = await self._registry.execute(step.tool, **step.args)
@@ -182,7 +180,11 @@ class DeepScanEngine:
             alt_result = await self._try_alternatives(step)
             if alt_result.get("status") != "error":
                 return alt_result
-            return {"status": "error", "error": f"Tool {step.tool} not available", "tool": step.tool}
+            return {
+                "status": "error",
+                "error": f"Tool {step.tool} not available",
+                "tool": step.tool,
+            }
         except ToolExecutionError as e:
             return {"status": "error", "error": str(e), "tool": step.tool}
 
@@ -215,7 +217,13 @@ class DeepScanEngine:
         self, target: str, all_findings: dict[str, list[dict[str, Any]]], scan_id: str
     ) -> dict[str, Any]:
         combined: list[dict[str, Any]] = []
-        severity_counts: dict[str, int] = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
+        severity_counts: dict[str, int] = {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0,
+            "info": 0,
+        }
         tool_counts: dict[str, int] = {}
 
         for pass_name, findings in all_findings.items():

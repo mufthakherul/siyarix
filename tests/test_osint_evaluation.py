@@ -2,38 +2,92 @@
 """OSINT-focused NLP/planner evaluation — 160 commands, basic to advanced."""
 
 import sys
-sys.stdout.reconfigure(encoding='utf-8')
+
+sys.stdout.reconfigure(encoding="utf-8")
 
 from siyarix import RegistryPlanner
 
 AVAILABLE_TOOLS = [
-    "nmap", "masscan", "rustscan", "naabu",
-    "gobuster", "ffuf", "dirb", "dirsearch",
-    "whatweb", "wappalyzer", "builtwith",
-    "nuclei", "nikto", "wapiti", "skipfish",
-    "hydra", "medusa", "ncrack", "patator",
-    "subfinder", "amass", "sublist3r", "assetfinder",
-    "curl", "wget", "httpie",
-    "dig", "nslookup", "host",
-    "aircrack-ng", "hashcat", "john",
-    "sqlmap", "jSQL", "sqlninja",
-    "whois", "openssl", "eyewitness",
-    "tracert", "traceroute", "responder",
-    "impacket", "impacket-secretsdump", "impacket-GetUserSPNs", "impacket-GetNPUsers",
-    "bloodhound-python", "searchsploit",
-    "shodan", "censys",
-    "theHarvester", "gau", "waybackurls",
-    "httpx", "katana", "gospider",
-    "uncover", "subjack",
-    "trufflehog", "gitleaks",
-    "sherlock", "holehe", "maigret",
-    "dnsx", "massdns", "puredns",
-    "arjun", "paramspider",
-    "cloud_enum", "scoutsuite", "prowler",
-    "interactsh", "testssl.sh", "ssllabs-scan",
-    "bluetoothctl", "crackmapexec", "netexec", "enum4linux",
+    "nmap",
+    "masscan",
+    "rustscan",
+    "naabu",
+    "gobuster",
+    "ffuf",
+    "dirb",
+    "dirsearch",
+    "whatweb",
+    "wappalyzer",
+    "builtwith",
+    "nuclei",
+    "nikto",
+    "wapiti",
+    "skipfish",
+    "hydra",
+    "medusa",
+    "ncrack",
+    "patator",
+    "subfinder",
+    "amass",
+    "sublist3r",
+    "assetfinder",
+    "curl",
+    "wget",
+    "httpie",
+    "dig",
+    "nslookup",
+    "host",
+    "aircrack-ng",
+    "hashcat",
+    "john",
+    "sqlmap",
+    "jSQL",
+    "sqlninja",
+    "whois",
+    "openssl",
+    "eyewitness",
+    "tracert",
+    "traceroute",
+    "responder",
+    "impacket",
+    "impacket-secretsdump",
+    "impacket-GetUserSPNs",
+    "impacket-GetNPUsers",
+    "bloodhound-python",
+    "searchsploit",
+    "shodan",
+    "censys",
+    "theHarvester",
+    "gau",
+    "waybackurls",
+    "httpx",
+    "katana",
+    "gospider",
+    "uncover",
+    "subjack",
+    "trufflehog",
+    "gitleaks",
+    "sherlock",
+    "holehe",
+    "maigret",
+    "dnsx",
+    "massdns",
+    "puredns",
+    "arjun",
+    "paramspider",
+    "cloud_enum",
+    "scoutsuite",
+    "prowler",
+    "interactsh",
+    "testssl.sh",
+    "ssllabs-scan",
+    "bluetoothctl",
+    "crackmapexec",
+    "netexec",
+    "enum4linux",
     "wpscan",
 ]
+
 
 def check_plan(planner, goal, expected_tools, min_steps=1, max_steps=None):
     """Check that the planner returns a valid plan for the given goal."""
@@ -70,7 +124,6 @@ OSINT_COMMANDS = [
     ("rdap lookup for 8.8.8.8", ["whois"], 1, 1),
     ("registrar information for example.com", ["whois"], 1, 1),
     ("domain registration info for example.com", ["whois"], 1, 1),
-
     # ------------------------------------------------------------------
     # 2. DNS Reconnaissance (18)
     # ------------------------------------------------------------------
@@ -92,23 +145,41 @@ OSINT_COMMANDS = [
     ("spf record lookup for example.com", ["dig"], 1, 1),
     ("dmarc record check for example.com", ["dig"], 1, 1),
     ("dns cache snooping on 8.8.8.8", ["dig"], 1, 1),
-
     # ------------------------------------------------------------------
     # 3. Subdomain Enumeration (12)
     # ------------------------------------------------------------------
-    ("subdomain enumeration on example.com", ["nmap", "whatweb", "gobuster", "subfinder", "amass", "nuclei"], 6, 6),
-    ("subdomain discovery for example.com", ["nmap", "whatweb", "gobuster", "subfinder", "amass", "nuclei"], 6, 6),
+    (
+        "subdomain enumeration on example.com",
+        ["nmap", "whatweb", "gobuster", "subfinder", "amass", "nuclei"],
+        6,
+        6,
+    ),
+    (
+        "subdomain discovery for example.com",
+        ["nmap", "whatweb", "gobuster", "subfinder", "amass", "nuclei"],
+        6,
+        6,
+    ),
     ("amass subdomain brute on example.com", ["amass"], 1, 1),
     ("amass intel on example.com", ["amass"], 1, 1),
     ("amass enum for example.com", ["amass"], 1, 1),
     ("subfinder passive enum on example.com", ["subfinder"], 1, 1),
     ("sublist3r subdomain search for example.com", ["sublist3r"], 1, 1),
     ("assetfinder subdomain discovery for example.com", ["assetfinder"], 1, 1),
-    ("passive subdomain enum on example.com", ["nmap", "whatweb", "gobuster", "subfinder", "amass", "nuclei"], 6, 6),
-    ("dns brute force subdomain on example.com", ["nmap", "whatweb", "gobuster", "subfinder", "amass", "nuclei"], 6, 6),
+    (
+        "passive subdomain enum on example.com",
+        ["nmap", "whatweb", "gobuster", "subfinder", "amass", "nuclei"],
+        6,
+        6,
+    ),
+    (
+        "dns brute force subdomain on example.com",
+        ["nmap", "whatweb", "gobuster", "subfinder", "amass", "nuclei"],
+        6,
+        6,
+    ),
     ("subdomain takeover check on example.com", ["subjack"], 1, 1),
     ("check subdomain takeover on example.com", ["subjack"], 1, 1),
-
     # ------------------------------------------------------------------
     # 4. Certificate Transparency (8)
     # ------------------------------------------------------------------
@@ -120,7 +191,6 @@ OSINT_COMMANDS = [
     ("certificate transparency logs for example.com", ["curl"], 1, 1),
     ("crt.sh domain search for example.com", ["curl"], 1, 1),
     ("ssl certificate transparency for example.com", ["openssl", "nmap", "nmap"], 3, 3),
-
     # ------------------------------------------------------------------
     # 5. Email OSINT (10)
     # ------------------------------------------------------------------
@@ -134,7 +204,6 @@ OSINT_COMMANDS = [
     ("holehe email check for user@example.com", ["holehe"], 1, 1),
     ("holehe email check for user@example.com", ["holehe"], 1, 1),
     ("theHarvester email search on example.com", ["theHarvester"], 1, 1),
-
     # ------------------------------------------------------------------
     # 6. Username & Social Media OSINT (10)
     # ------------------------------------------------------------------
@@ -144,10 +213,14 @@ OSINT_COMMANDS = [
     ("social media lookup for johndoe across platforms", ["sherlock"], 1, 1),
     ("social network search for johndoe on social media", ["sherlock"], 1, 1),
     ("find all accounts for johndoe across networks", ["sherlock"], 1, 1),
-    ("digital footprint search for johndoe online", ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"], 7, 7),
+    (
+        "digital footprint search for johndoe online",
+        ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"],
+        7,
+        7,
+    ),
     ("osint username reconnaissance for johndoe on social medias", ["sherlock"], 1, 1),
     ("identity osint on johndoe across all platforms", ["sherlock"], 1, 1),
-
     # ------------------------------------------------------------------
     # 7. URL Discovery & Wayback Machine (10)
     # ------------------------------------------------------------------
@@ -161,7 +234,6 @@ OSINT_COMMANDS = [
     ("url enumeration on example.com from wayback", ["waybackurls"], 1, 1),
     ("fetch all wayback urls for example.com", ["waybackurls"], 1, 1),
     ("waybackurls discovery on example.com", ["waybackurls"], 1, 1),
-
     # ------------------------------------------------------------------
     # 8. Web Probing & Crawling (12)
     # ------------------------------------------------------------------
@@ -177,7 +249,6 @@ OSINT_COMMANDS = [
     ("httpx tech detection on https://example.com", ["httpx"], 1, 1),
     ("katana url discovery on example.com", ["katana"], 1, 1),
     ("gospider content discovery on https://example.com", ["gospider"], 1, 1),
-
     # ------------------------------------------------------------------
     # 9. Parameter Discovery (8)
     # ------------------------------------------------------------------
@@ -189,7 +260,6 @@ OSINT_COMMANDS = [
     ("parameter discovery scan on example.com", ["arjun"], 1, 1),
     ("url parameter enumeration on https://example.com", ["arjun"], 1, 1),
     ("get params from url on https://example.com", ["arjun"], 1, 1),
-
     # ------------------------------------------------------------------
     # 10. Cloud & Infrastructure OSINT (10)
     # ------------------------------------------------------------------
@@ -203,7 +273,6 @@ OSINT_COMMANDS = [
     ("cloud_enum multi cloud scan for example", ["cloud_enum"], 1, 1),
     ("s3 bucket osint for example", ["curl", "whatweb", "dig", "openssl"], 4, 4),
     ("cloud_enum discovery on example", ["cloud_enum"], 1, 1),
-
     # ------------------------------------------------------------------
     # 11. Shodan / Censys / Uncover (10)
     # ------------------------------------------------------------------
@@ -217,7 +286,6 @@ OSINT_COMMANDS = [
     ("shodan and censys search on example.com", ["shodan"], 1, 1),
     ("shodan internet search for example.com", ["shodan"], 1, 1),
     ("attack surface discovery with shodan for example.com", ["shodan"], 1, 1),
-
     # ------------------------------------------------------------------
     # 12. Secret Scanning (8)
     # ------------------------------------------------------------------
@@ -229,7 +297,6 @@ OSINT_COMMANDS = [
     ("gitleaks git secrets detection", ["gitleaks"], 1, 1),
     ("scan for api keys in repository", ["trufflehog"], 1, 1),
     ("credential leak detection in git repo", ["trufflehog"], 1, 1),
-
     # ------------------------------------------------------------------
     # 13. DNS Toolkit (8)
     # ------------------------------------------------------------------
@@ -241,7 +308,6 @@ OSINT_COMMANDS = [
     ("puredns wildcard filter for example.com", ["puredns"], 1, 1),
     ("dnsx a record query for example.com", ["dnsx"], 1, 1),
     ("bulk dns resolution with dnsx for example.com", ["dnsx"], 1, 1),
-
     # ------------------------------------------------------------------
     # 14. SSL/TLS OSINT (8)
     # ------------------------------------------------------------------
@@ -253,41 +319,132 @@ OSINT_COMMANDS = [
     ("ssl tls security assessment on example.com", ["openssl", "nmap", "nmap"], 3, 3),
     ("testssl audit on example.com", ["testssl.sh"], 1, 1),
     ("ssllabs certificate analysis for example.com", ["ssllabs-scan"], 1, 1),
-
     # ------------------------------------------------------------------
     # 15. Passive Recon (8)
     # ------------------------------------------------------------------
     ("passive recon on example.com", ["whatweb", "subfinder", "dig", "whois", "openssl"], 5, 5),
-    ("passive reconnaissance on example.com", ["whatweb", "subfinder", "dig", "whois", "openssl"], 5, 5),
+    (
+        "passive reconnaissance on example.com",
+        ["whatweb", "subfinder", "dig", "whois", "openssl"],
+        5,
+        5,
+    ),
     ("passive scan on example.com", ["whatweb", "subfinder", "dig", "whois", "openssl"], 5, 5),
-    ("passive intel gathering on example.com", ["whatweb", "subfinder", "dig", "whois", "openssl"], 5, 5),
+    (
+        "passive intel gathering on example.com",
+        ["whatweb", "subfinder", "dig", "whois", "openssl"],
+        5,
+        5,
+    ),
     ("stealth osint on example.com", ["whatweb", "subfinder", "dig", "whois", "openssl"], 5, 5),
-    ("quiet passive recon on example.com", ["whatweb", "subfinder", "dig", "whois", "openssl"], 5, 5),
-    ("passive information gathering on example.com", ["whatweb", "subfinder", "dig", "whois", "openssl"], 5, 5),
-    ("non intrusive recon on example.com", ["whatweb", "subfinder", "dig", "whois", "openssl"], 5, 5),
-
+    (
+        "quiet passive recon on example.com",
+        ["whatweb", "subfinder", "dig", "whois", "openssl"],
+        5,
+        5,
+    ),
+    (
+        "passive information gathering on example.com",
+        ["whatweb", "subfinder", "dig", "whois", "openssl"],
+        5,
+        5,
+    ),
+    (
+        "non intrusive recon on example.com",
+        ["whatweb", "subfinder", "dig", "whois", "openssl"],
+        5,
+        5,
+    ),
     # ------------------------------------------------------------------
     # 16. Full OSINT Recon (8)
     # ------------------------------------------------------------------
-    ("osint recon on example.com", ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"], 7, 7),
-    ("full osint recon on example.com", ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"], 7, 7),
-    ("open source intelligence on example.com", ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"], 7, 7),
-    ("osint intelligence gathering on example.com", ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"], 7, 7),
-    ("complete osint assessment on example.com", ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"], 7, 7),
-    ("deep osint reconnaissance on example.com", ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"], 7, 7),
-    ("thorough osint investigation on example.com", ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"], 7, 7),
-    ("recon-ng style osint on example.com", ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"], 7, 7),
-
+    (
+        "osint recon on example.com",
+        ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"],
+        7,
+        7,
+    ),
+    (
+        "full osint recon on example.com",
+        ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"],
+        7,
+        7,
+    ),
+    (
+        "open source intelligence on example.com",
+        ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"],
+        7,
+        7,
+    ),
+    (
+        "osint intelligence gathering on example.com",
+        ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"],
+        7,
+        7,
+    ),
+    (
+        "complete osint assessment on example.com",
+        ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"],
+        7,
+        7,
+    ),
+    (
+        "deep osint reconnaissance on example.com",
+        ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"],
+        7,
+        7,
+    ),
+    (
+        "thorough osint investigation on example.com",
+        ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"],
+        7,
+        7,
+    ),
+    (
+        "recon-ng style osint on example.com",
+        ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"],
+        7,
+        7,
+    ),
     # ------------------------------------------------------------------
     # 17. External Attack Surface (6)
     # ------------------------------------------------------------------
-    ("external recon on example.com", ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"], 6, 6),
-    ("external attack surface on example.com", ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"], 6, 6),
-    ("external attack surface recon on example.com", ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"], 6, 6),
-    ("internet scan for example.com assets", ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"], 6, 6),
-    ("external perimeter recon on example.com", ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"], 6, 6),
-    ("edge discovery for example.com", ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"], 6, 6),
-
+    (
+        "external recon on example.com",
+        ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"],
+        6,
+        6,
+    ),
+    (
+        "external attack surface on example.com",
+        ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"],
+        6,
+        6,
+    ),
+    (
+        "external attack surface recon on example.com",
+        ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"],
+        6,
+        6,
+    ),
+    (
+        "internet scan for example.com assets",
+        ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"],
+        6,
+        6,
+    ),
+    (
+        "external perimeter recon on example.com",
+        ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"],
+        6,
+        6,
+    ),
+    (
+        "edge discovery for example.com",
+        ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"],
+        6,
+        6,
+    ),
     # ------------------------------------------------------------------
     # 18. Multi-Tool / Compound OSINT (14)
     # ------------------------------------------------------------------
@@ -305,7 +462,6 @@ OSINT_COMMANDS = [
     ("theHarvester then sherlock for johndoe", ["theHarvester", "sherlock"], 2, 2),
     ("gau and then waybackurls on example.com", ["gau", "waybackurls"], 2, 2),
     ("crtsh and then httpx on example.com", ["curl", "httpx"], 2, 2),
-
     # ------------------------------------------------------------------
     # 19. Advanced / Specialized OSINT (10)
     # ------------------------------------------------------------------
@@ -319,22 +475,81 @@ OSINT_COMMANDS = [
     ("web technology fingerprint on example.com", ["whatweb"], 1, 1),
     ("tech stack detection on example.com", ["whatweb"], 1, 1),
     ("cdn detection for cdn.example.com", ["curl"], 1, 1),
-
     # ------------------------------------------------------------------
     # 20. Complex / Professional OSINT Workflows (12)
     # ------------------------------------------------------------------
-    ("full external osint assessment on example.com", ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"], 6, 6),
-    ("comprehensive passive recon on example.com", ["whatweb", "subfinder", "dig", "whois", "openssl"], 5, 5),
-    ("multi vector external recon on example.com", ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"], 6, 6),
-    ("initial access osint on example.com", ["whatweb", "subfinder", "dig", "whois", "openssl"], 5, 5),
-    ("pre engagement osint on example.com", ["whatweb", "subfinder", "dig", "whois", "openssl"], 5, 5),
-    ("attack surface mapping for example.com", ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"], 6, 6),
-    ("osint profiling on example.com", ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"], 7, 7),
-    ("adversary recon on example.com", ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"], 7, 7),
-    ("full scope osint engagement on example.com", ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"], 7, 7),
-    ("reconnaissance lifecycle on example.com", ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"], 7, 7),
-    ("tier 1 osint collection on example.com", ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"], 7, 7),
-    ("zero touch osint automation on example.com", ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"], 7, 7),
+    (
+        "full external osint assessment on example.com",
+        ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"],
+        6,
+        6,
+    ),
+    (
+        "comprehensive passive recon on example.com",
+        ["whatweb", "subfinder", "dig", "whois", "openssl"],
+        5,
+        5,
+    ),
+    (
+        "multi vector external recon on example.com",
+        ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"],
+        6,
+        6,
+    ),
+    (
+        "initial access osint on example.com",
+        ["whatweb", "subfinder", "dig", "whois", "openssl"],
+        5,
+        5,
+    ),
+    (
+        "pre engagement osint on example.com",
+        ["whatweb", "subfinder", "dig", "whois", "openssl"],
+        5,
+        5,
+    ),
+    (
+        "attack surface mapping for example.com",
+        ["shodan", "curl", "whatweb", "subfinder", "whois", "dig"],
+        6,
+        6,
+    ),
+    (
+        "osint profiling on example.com",
+        ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"],
+        7,
+        7,
+    ),
+    (
+        "adversary recon on example.com",
+        ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"],
+        7,
+        7,
+    ),
+    (
+        "full scope osint engagement on example.com",
+        ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"],
+        7,
+        7,
+    ),
+    (
+        "reconnaissance lifecycle on example.com",
+        ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"],
+        7,
+        7,
+    ),
+    (
+        "tier 1 osint collection on example.com",
+        ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"],
+        7,
+        7,
+    ),
+    (
+        "zero touch osint automation on example.com",
+        ["whois", "dig", "dig", "curl", "subfinder", "amass", "whatweb"],
+        7,
+        7,
+    ),
 ]
 
 

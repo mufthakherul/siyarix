@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from siyarix.models import ExecutionPlan, PlanStatus
 from siyarix.models import PlanStep, PlanType, StepStatus
@@ -12,10 +11,6 @@ import time
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Exhaustive tests for RegistryPlanner — covering all methods, branches, and error paths."""
-
-
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -56,9 +51,18 @@ class TestInit:
 
     def test_templates_contain_expected_keys(self, planner: RegistryPlanner):
         expected = {
-            "recon_full", "web_audit", "brute_force", "wifi_audit",
-            "network_scan", "cloud_audit", "ad_assessment", "linux_privesc",
-            "vuln_scan", "dns_recon", "full_audit", "smb_enum",
+            "recon_full",
+            "web_audit",
+            "brute_force",
+            "wifi_audit",
+            "network_scan",
+            "cloud_audit",
+            "ad_assessment",
+            "linux_privesc",
+            "vuln_scan",
+            "dns_recon",
+            "full_audit",
+            "smb_enum",
         }
         assert expected.issubset(planner._templates.keys())
 
@@ -216,8 +220,10 @@ class TestBuildIndex:
         mock_tool.category = "RECON"
         mock_registry.get_tool.return_value = mock_tool
 
-        with patch.object(planner._nlp, "train_tools") as mock_train_tools, \
-             patch.object(planner._nlp, "train_templates") as mock_train_templates:
+        with (
+            patch.object(planner._nlp, "train_tools") as mock_train_tools,
+            patch.object(planner._nlp, "train_templates") as mock_train_templates,
+        ):
             planner.build_index(["nmap"], mock_registry)
             mock_train_tools.assert_called_once()
             mock_train_templates.assert_called_once()
@@ -230,18 +236,24 @@ class TestBuildIndex:
 
 class TestResolveAlternatives:
     def test_tool_available(self, planner: RegistryPlanner):
-        steps = planner.resolve_alternatives("recon_full", {"nmap", "whatweb", "gobuster", "subfinder", "amass", "nuclei"})
+        steps = planner.resolve_alternatives(
+            "recon_full", {"nmap", "whatweb", "gobuster", "subfinder", "amass", "nuclei"}
+        )
         for step in steps:
             assert step["tool"] in {"nmap", "whatweb", "gobuster", "subfinder", "amass", "nuclei"}
             assert "(via" not in step["description"]
 
     def test_tool_alternative_found(self, planner: RegistryPlanner):
-        steps = planner.resolve_alternatives("recon_full", {"masscan", "whatweb", "ffuf", "subfinder", "amass", "nuclei"})
+        steps = planner.resolve_alternatives(
+            "recon_full", {"masscan", "whatweb", "ffuf", "subfinder", "amass", "nuclei"}
+        )
         nmap_step = next(s for s in steps if s["tool"] == "masscan")
         assert "(via masscan)" in nmap_step["description"]
 
     def test_tool_no_alternative(self, planner: RegistryPlanner):
-        steps = planner.resolve_alternatives("recon_full", {"whatweb", "gobuster", "subfinder", "amass", "nuclei"})
+        steps = planner.resolve_alternatives(
+            "recon_full", {"whatweb", "gobuster", "subfinder", "amass", "nuclei"}
+        )
         nmap_step = next(s for s in steps if s["tool"] == "nmap")
         assert nmap_step is not None
 
@@ -354,7 +366,9 @@ class TestCreateFromTemplate:
 
     def test_create_from_template_with_available_tools(self, planner: RegistryPlanner):
         plan = planner.create_from_template(
-            "recon_full", "example.com", available_tools={"nmap", "whatweb", "gobuster", "subfinder", "amass", "nuclei"}
+            "recon_full",
+            "example.com",
+            available_tools={"nmap", "whatweb", "gobuster", "subfinder", "amass", "nuclei"},
         )
         assert len(plan.steps) == 6
 
@@ -381,9 +395,12 @@ class TestSmartPlan:
 
     def test_smart_plan_with_template_intent(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="example.com", target_type="domain",
-            template_name="recon_full", confidence=15.0,
-            parameters={}, tokens=[],
+            target="example.com",
+            target_type="domain",
+            template_name="recon_full",
+            confidence=15.0,
+            parameters={},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         plan = planner.smart_plan("recon example.com")
@@ -392,9 +409,12 @@ class TestSmartPlan:
 
     def test_smart_plan_template_intent_value_error(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="", target_type="",
-            template_name="nonexistent", confidence=15.0,
-            parameters={}, tokens=[],
+            target="",
+            target_type="",
+            template_name="nonexistent",
+            confidence=15.0,
+            parameters={},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         with patch.object(planner, "decompose_goal", return_value=MagicMock()) as mock_decompose:
@@ -403,9 +423,12 @@ class TestSmartPlan:
 
     def test_smart_plan_context_populated(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="example.com", target_type="domain",
-            template_name="recon_full", confidence=15.0,
-            parameters={"speed": "fast"}, tokens=[],
+            target="example.com",
+            target_type="domain",
+            template_name="recon_full",
+            confidence=15.0,
+            parameters={"speed": "fast"},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         plan = planner.smart_plan("fast recon example.com")
@@ -415,9 +438,12 @@ class TestSmartPlan:
 
     def test_smart_plan_no_available_tools(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="", target_type="",
-            template_name="recon_full", confidence=15.0,
-            parameters={}, tokens=[],
+            target="",
+            target_type="",
+            template_name="recon_full",
+            confidence=15.0,
+            parameters={},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         with patch.object(planner, "decompose_goal", return_value=MagicMock()) as mock_decompose:
@@ -433,9 +459,12 @@ class TestSmartPlan:
 class TestDecomposeGoal:
     def test_step0_nlp_template_high_confidence(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="example.com", target_type="domain",
-            template_name="web_audit", confidence=2.0,
-            parameters={}, tokens=[],
+            target="example.com",
+            target_type="domain",
+            template_name="web_audit",
+            confidence=2.0,
+            parameters={},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         plan = planner.decompose_goal("web audit example.com")
@@ -443,9 +472,13 @@ class TestDecomposeGoal:
 
     def test_step0_nlp_tool_high_confidence(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="10.0.0.1", target_type="ipv4",
-            template_name=None, tool_name="nmap", confidence=4.0,
-            parameters={"speed": "fast"}, tokens=[],
+            target="10.0.0.1",
+            target_type="ipv4",
+            template_name=None,
+            tool_name="nmap",
+            confidence=4.0,
+            parameters={"speed": "fast"},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
@@ -454,9 +487,13 @@ class TestDecomposeGoal:
 
     def test_step0_nlp_tool_with_alternative(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="10.0.0.1", target_type="ipv4",
-            template_name=None, tool_name="nmap", confidence=4.0,
-            parameters={"speed": "fast"}, tokens=[],
+            target="10.0.0.1",
+            target_type="ipv4",
+            template_name=None,
+            tool_name="nmap",
+            confidence=4.0,
+            parameters={"speed": "fast"},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         plan = planner.decompose_goal("10.0.0.1", available_tools=["masscan"])
@@ -464,9 +501,13 @@ class TestDecomposeGoal:
 
     def test_step0_nmap_all_ports(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="10.0.0.1", target_type="ipv4",
-            template_name=None, tool_name="nmap", confidence=4.0,
-            parameters={"ports": "all", "speed": "fast"}, tokens=[],
+            target="10.0.0.1",
+            target_type="ipv4",
+            template_name=None,
+            tool_name="nmap",
+            confidence=4.0,
+            parameters={"ports": "all", "speed": "fast"},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
@@ -475,9 +516,13 @@ class TestDecomposeGoal:
 
     def test_step0_nmap_specific_ports(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="10.0.0.1", target_type="ipv4",
-            template_name=None, tool_name="nmap", confidence=4.0,
-            parameters={"ports": "22,80,443"}, tokens=[],
+            target="10.0.0.1",
+            target_type="ipv4",
+            template_name=None,
+            tool_name="nmap",
+            confidence=4.0,
+            parameters={"ports": "22,80,443"},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
@@ -486,9 +531,13 @@ class TestDecomposeGoal:
 
     def test_step0_nmap_default_ports(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="10.0.0.1", target_type="ipv4",
-            template_name=None, tool_name="nmap", confidence=4.0,
-            parameters={}, tokens=[],
+            target="10.0.0.1",
+            target_type="ipv4",
+            template_name=None,
+            tool_name="nmap",
+            confidence=4.0,
+            parameters={},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
@@ -497,9 +546,13 @@ class TestDecomposeGoal:
 
     def test_step0_nmap_stealth_speed(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="10.0.0.1", target_type="ipv4",
-            template_name=None, tool_name="nmap", confidence=4.0,
-            parameters={"speed": "stealth"}, tokens=[],
+            target="10.0.0.1",
+            target_type="ipv4",
+            template_name=None,
+            tool_name="nmap",
+            confidence=4.0,
+            parameters={"speed": "stealth"},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
@@ -508,9 +561,13 @@ class TestDecomposeGoal:
 
     def test_step0_nmap_default_speed(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="10.0.0.1", target_type="ipv4",
-            template_name=None, tool_name="nmap", confidence=4.0,
-            parameters={"speed": "default"}, tokens=[],
+            target="10.0.0.1",
+            target_type="ipv4",
+            template_name=None,
+            tool_name="nmap",
+            confidence=4.0,
+            parameters={"speed": "default"},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
@@ -519,9 +576,13 @@ class TestDecomposeGoal:
 
     def test_step0_nmap_verbose(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="10.0.0.1", target_type="ipv4",
-            template_name=None, tool_name="nmap", confidence=4.0,
-            parameters={"verbose": True}, tokens=[],
+            target="10.0.0.1",
+            target_type="ipv4",
+            template_name=None,
+            tool_name="nmap",
+            confidence=4.0,
+            parameters={"verbose": True},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
@@ -530,9 +591,13 @@ class TestDecomposeGoal:
 
     def test_step0_nmap_timeout(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="10.0.0.1", target_type="ipv4",
-            template_name=None, tool_name="nmap", confidence=4.0,
-            parameters={"timeout": "30m"}, tokens=[],
+            target="10.0.0.1",
+            target_type="ipv4",
+            template_name=None,
+            tool_name="nmap",
+            confidence=4.0,
+            parameters={"timeout": "30m"},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
@@ -541,9 +606,13 @@ class TestDecomposeGoal:
 
     def test_step0_nmap_xml_format(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="10.0.0.1", target_type="ipv4",
-            template_name=None, tool_name="nmap", confidence=4.0,
-            parameters={"format": "xml"}, tokens=[],
+            target="10.0.0.1",
+            target_type="ipv4",
+            template_name=None,
+            tool_name="nmap",
+            confidence=4.0,
+            parameters={"format": "xml"},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         plan = planner.decompose_goal("10.0.0.1", available_tools=["nmap"])
@@ -552,9 +621,13 @@ class TestDecomposeGoal:
 
     def test_step0_nuclei_severity(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="example.com", target_type="domain",
-            template_name=None, tool_name="nuclei", confidence=4.0,
-            parameters={"severity": "critical", "format": "json"}, tokens=[],
+            target="example.com",
+            target_type="domain",
+            template_name=None,
+            tool_name="nuclei",
+            confidence=4.0,
+            parameters={"severity": "critical", "format": "json"},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         plan = planner.decompose_goal("example.com", available_tools=["nuclei"])
@@ -563,9 +636,13 @@ class TestDecomposeGoal:
 
     def test_step0_nuclei_json_timeout(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="example.com", target_type="domain",
-            template_name=None, tool_name="nuclei", confidence=4.0,
-            parameters={"timeout": "5s", "format": "json"}, tokens=[],
+            target="example.com",
+            target_type="domain",
+            template_name=None,
+            tool_name="nuclei",
+            confidence=4.0,
+            parameters={"timeout": "5s", "format": "json"},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         plan = planner.decompose_goal("example.com", available_tools=["nuclei"])
@@ -575,9 +652,13 @@ class TestDecomposeGoal:
 
     def test_step0_ffuf_gobuster_params(self, planner: RegistryPlanner):
         intent = ParsedIntent(
-            target="example.com", target_type="domain",
-            template_name=None, tool_name="ffuf", confidence=4.0,
-            parameters={"timeout": "10s", "format": "json"}, tokens=[],
+            target="example.com",
+            target_type="domain",
+            template_name=None,
+            tool_name="ffuf",
+            confidence=4.0,
+            parameters={"timeout": "10s", "format": "json"},
+            tokens=[],
         )
         planner._nlp.parse = MagicMock(return_value=intent)
         plan = planner.decompose_goal("fuzz example.com", available_tools=["ffuf"])
@@ -739,7 +820,9 @@ class TestDecomposeGoal:
         assert plan.plan_type == PlanType.DAG
 
     def test_step5_probe_with_alternatives(self, planner: RegistryPlanner):
-        plan = planner.decompose_goal("check https://example.com", available_tools=["masscan", "ffuf"])
+        plan = planner.decompose_goal(
+            "check https://example.com", available_tools=["masscan", "ffuf"]
+        )
         assert len(plan.steps) > 0
 
     def test_step5_no_probe_steps_if_no_target(self, planner: RegistryPlanner):
@@ -920,6 +1003,7 @@ class TestToolAlternatives:
     def test_symmetry(self):
         assert "nmap" in TOOL_ALTERNATIVES["masscan"] if "masscan" in TOOL_ALTERNATIVES else True
 
+
 class TestPlannerRegistryCore:
     """Cover uncovered lines in planner_registry.py."""
 
@@ -953,6 +1037,7 @@ class TestPlannerRegistryCore:
     def test_adapt_plan_refused_fallback(self):
         from siyarix.planner_registry import RegistryPlanner
         from siyarix.models import StepStatus
+
         planner = RegistryPlanner()
         step = PlanStep(tool="nmap", args={"target": "x"})
         step.status = StepStatus.FAILED
@@ -963,6 +1048,7 @@ class TestPlannerRegistryCore:
     def test_adapt_plan_generic_retry(self):
         from siyarix.planner_registry import RegistryPlanner
         from siyarix.models import StepStatus
+
         planner = RegistryPlanner()
         step = PlanStep(tool="nmap", retry_count=0, max_retries=3)
         plan = ExecutionPlan(goal="test", steps=[step])
@@ -972,6 +1058,7 @@ class TestPlannerRegistryCore:
     def test_adapt_plan_no_retry(self):
         from siyarix.planner_registry import RegistryPlanner
         from siyarix.models import StepStatus
+
         planner = RegistryPlanner()
         step = PlanStep(tool="nmap", retry_count=3, max_retries=3)
         plan = ExecutionPlan(goal="test", steps=[step])
@@ -981,6 +1068,7 @@ class TestPlannerRegistryCore:
     def test_list_plans_with_status_filter(self):
         from siyarix.planner_registry import RegistryPlanner
         from siyarix.models import PlanStatus
+
         planner = RegistryPlanner()
         p1 = planner.create_plan("test1")
         p1.status = PlanStatus.ACTIVE
@@ -1107,6 +1195,7 @@ class TestPlannerRegistryAdaptPlan:
 
     def test_adapt_plan_refused(self):
         from siyarix.models import PlanStatus
+
         planner = RegistryPlanner()
         plan = ExecutionPlan(goal="test", steps=[])
         step = PlanStep(id="s1", tool="curl", args={"target": "http://example.com"})
@@ -1126,12 +1215,15 @@ class TestPlannerRegistryAdaptPlan:
     def test_list_plans_filtered(self):
         planner = RegistryPlanner()
         from siyarix.models import PlanStatus
+
         plan1 = planner.create_plan("test1")
         plan2 = planner.create_plan("test2")
         plans = planner.list_plans(status=PlanStatus.ACTIVE)
         assert len(plans) >= 2
         plans_empty = planner.list_plans(status=PlanStatus.COMPLETED)
         assert len(plans_empty) == 0
+
+
 class TestPlannerRegistryAlternatives:
     """Cover remaining planner_registry.py uncovered lines."""
 
@@ -1240,6 +1332,7 @@ class TestPlannerRegistryAlternatives:
 
     def test_adapt_plan_nmap_filtered_recovery(self):
         from siyarix.models import StepStatus
+
         planner = RegistryPlanner()
         step = PlanStep(tool="nmap", args={"flags": "-sS"}, retry_count=0, max_retries=3)
         plan = ExecutionPlan(goal="test", steps=[step])

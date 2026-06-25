@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from pathlib import Path
 from siyarix.chat.session import ChatSession
@@ -12,11 +11,9 @@ import pytest
 """Tests for BranchEntry, BranchingSession, and branching utilities."""
 
 
-
-
-
-
 from unittest.mock import MagicMock
+
+
 class TestBranchEntry:
     def test_defaults(self):
         e = BranchEntry()
@@ -88,14 +85,28 @@ class TestBranchingSessionInit:
         mock_get_config_dir.return_value = tmp_path / ".siyarix"
         jsonl_path = sess_dir / "existing.jsonl"
         entry = BranchEntry(
-            id="e1", parent_id="root", type="message", role="user",
-            content="hi", timestamp="2024-01-01T00:00:00",
+            id="e1",
+            parent_id="root",
+            type="message",
+            role="user",
+            content="hi",
+            timestamp="2024-01-01T00:00:00",
         )
-        jsonl_path.write_text(json.dumps({
-            "id": "e1", "parent_id": "root", "type": "message",
-            "role": "user", "content": "hi", "metadata": {},
-            "timestamp": "2024-01-01T00:00:00",
-        }) + "\n", encoding="utf-8")
+        jsonl_path.write_text(
+            json.dumps(
+                {
+                    "id": "e1",
+                    "parent_id": "root",
+                    "type": "message",
+                    "role": "user",
+                    "content": "hi",
+                    "metadata": {},
+                    "timestamp": "2024-01-01T00:00:00",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
 
         bs = BranchingSession(session_id="existing", path=jsonl_path)
         assert bs.entry_count == 1
@@ -362,8 +373,12 @@ class TestOpen:
     def test_opens_existing_file(self, tmp_path):
         path = tmp_path / "s1.jsonl"
         entry = {
-            "id": "e1", "parent_id": "root", "type": "message",
-            "role": "user", "content": "hi", "metadata": {},
+            "id": "e1",
+            "parent_id": "root",
+            "type": "message",
+            "role": "user",
+            "content": "hi",
+            "metadata": {},
             "timestamp": "2024-01-01T00:00:00",
         }
         path.write_text(json.dumps(entry) + "\n", encoding="utf-8")
@@ -374,8 +389,12 @@ class TestOpen:
     def test_opens_with_session_id_in_metadata(self, tmp_path):
         path = tmp_path / "custom.jsonl"
         entry = {
-            "id": "e1", "parent_id": "root", "type": "session",
-            "role": "", "content": "", "metadata": {"session_id": "abc123"},
+            "id": "e1",
+            "parent_id": "root",
+            "type": "session",
+            "role": "",
+            "content": "",
+            "metadata": {"session_id": "abc123"},
             "timestamp": "2024-01-01T00:00:00",
         }
         path.write_text(json.dumps(entry) + "\n", encoding="utf-8")
@@ -432,11 +451,21 @@ class TestLoad:
 
     def test_file_with_valid_jsonl(self, tmp_path):
         path = tmp_path / "s.jsonl"
-        path.write_text(json.dumps({
-            "id": "e1", "parent_id": "root", "type": "message",
-            "role": "user", "content": "hi", "metadata": {},
-            "timestamp": "2024-01-01T00:00:00",
-        }) + "\n", encoding="utf-8")
+        path.write_text(
+            json.dumps(
+                {
+                    "id": "e1",
+                    "parent_id": "root",
+                    "type": "message",
+                    "role": "user",
+                    "content": "hi",
+                    "metadata": {},
+                    "timestamp": "2024-01-01T00:00:00",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
         bs = BranchingSession(session_id="s", path=path)
         assert bs.entry_count == 1
         assert bs._entries[0].content == "hi"
@@ -449,12 +478,22 @@ class TestLoad:
 
     def test_extra_fields_in_jsonl_are_filtered(self, tmp_path):
         path = tmp_path / "s.jsonl"
-        path.write_text(json.dumps({
-            "id": "e1", "parent_id": "root", "type": "message",
-            "role": "user", "content": "hi", "metadata": {},
-            "timestamp": "2024-01-01T00:00:00",
-            "unknown_field": "should be ignored",
-        }) + "\n", encoding="utf-8")
+        path.write_text(
+            json.dumps(
+                {
+                    "id": "e1",
+                    "parent_id": "root",
+                    "type": "message",
+                    "role": "user",
+                    "content": "hi",
+                    "metadata": {},
+                    "timestamp": "2024-01-01T00:00:00",
+                    "unknown_field": "should be ignored",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
         bs = BranchingSession(session_id="s", path=path)
         assert bs.entry_count == 1
 
@@ -475,11 +514,13 @@ class TestHasEntry:
         bs = BranchingSession(session_id="x")
         assert not bs._has_entry("nonexistent")
 
+
 class TestSessionBranchingCore:
     """Cover missing session.py lines."""
 
     def test_branching_property_lazy_init(self):
         from siyarix.chat.session import ChatSession
+
         session = ChatSession(session_id="test")
         session._branching = None
         with patch("siyarix.session_branching.BranchingSession") as MockBS:
@@ -488,6 +529,7 @@ class TestSessionBranchingCore:
 
     def test_add_message_truncates_long_content(self):
         from siyarix.chat.session import ChatSession
+
         session = ChatSession(session_id="test")
         long = "x" * 60000
         msg = session.add_message("user", long)
@@ -496,6 +538,7 @@ class TestSessionBranchingCore:
 
     def test_add_message_limits_history(self):
         from siyarix.chat.session import ChatSession
+
         session = ChatSession(session_id="test")
         session._branching = None
         for i in range(350):
@@ -504,6 +547,7 @@ class TestSessionBranchingCore:
 
     def test_add_message_calls_branching_when_initialized(self):
         from siyarix.chat.session import ChatSession
+
         session = ChatSession(session_id="test")
         mock_branch = MagicMock()
         session._branching = mock_branch
@@ -512,6 +556,7 @@ class TestSessionBranchingCore:
 
     def test_branch_with_index_and_branching(self):
         from siyarix.chat.session import ChatSession
+
         session = ChatSession(session_id="test")
         session.add_message("user", "hi")
         mock_branch = MagicMock()
@@ -528,6 +573,7 @@ class TestSessionBranchingCore:
     def test_save_calls_branching_save_when_is_branchingsession(self, tmp_path):
         from siyarix.chat.session import ChatSession
         from siyarix.session_branching import BranchingSession
+
         session = ChatSession(session_id="test")
         mock_bs = MagicMock(spec=BranchingSession)
         session._branching = mock_bs

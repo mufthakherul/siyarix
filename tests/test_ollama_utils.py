@@ -25,6 +25,7 @@ class TestEnsureOllamaRunning:
 
         with patch("siyarix.config.SettingsStore", return_value=mock_settings):
             from siyarix.providers.ollama_utils import ensure_ollama_running
+
             ensure_ollama_running()
 
         mock_settings.get.assert_any_call("model_provider")
@@ -38,6 +39,7 @@ class TestEnsureOllamaRunning:
 
         with patch("siyarix.config.SettingsStore", return_value=mock_settings):
             from siyarix.providers.ollama_utils import ensure_ollama_running
+
             ensure_ollama_running()
 
     def test_ollama_already_running(self) -> None:
@@ -56,6 +58,7 @@ class TestEnsureOllamaRunning:
             patch.object(httpx, "get", return_value=mock_response) as mock_get,
         ):
             from siyarix.providers.ollama_utils import ensure_ollama_running
+
             ensure_ollama_running()
 
         mock_get.assert_called_once_with("http://localhost:11434/api/tags", timeout=3)
@@ -77,6 +80,7 @@ class TestEnsureOllamaRunning:
             patch("siyarix.providers.ollama_utils.shutil.which", return_value=None) as mock_which,
         ):
             from siyarix.providers.ollama_utils import ensure_ollama_running
+
             ensure_ollama_running()
 
         mock_which.assert_called_once_with("ollama")
@@ -93,12 +97,15 @@ class TestEnsureOllamaRunning:
         with (
             patch("siyarix.config.SettingsStore", return_value=mock_settings),
             patch.object(httpx, "get", side_effect=Exception("Connection refused")),
-            patch("siyarix.providers.ollama_utils.shutil.which", return_value="/usr/bin/ollama") as mock_which,
+            patch(
+                "siyarix.providers.ollama_utils.shutil.which", return_value="/usr/bin/ollama"
+            ) as mock_which,
             patch("siyarix.providers.ollama_utils.os.name", "nt"),
             patch("siyarix.providers.ollama_utils.subprocess.CREATE_NO_WINDOW", _CREATE_NO_WINDOW),
             patch("siyarix.providers.ollama_utils.subprocess.Popen") as mock_popen,
         ):
             from siyarix.providers.ollama_utils import ensure_ollama_running
+
             ensure_ollama_running()
 
         mock_which.assert_called_once_with("ollama")
@@ -120,11 +127,14 @@ class TestEnsureOllamaRunning:
         with (
             patch("siyarix.config.SettingsStore", return_value=mock_settings),
             patch.object(httpx, "get", side_effect=Exception("Connection refused")),
-            patch("siyarix.providers.ollama_utils.shutil.which", return_value="/usr/local/bin/ollama") as mock_which,
+            patch(
+                "siyarix.providers.ollama_utils.shutil.which", return_value="/usr/local/bin/ollama"
+            ) as mock_which,
             patch("siyarix.providers.ollama_utils.os.name", "posix"),
             patch("siyarix.providers.ollama_utils.subprocess.Popen") as mock_popen,
         ):
             from siyarix.providers.ollama_utils import ensure_ollama_running
+
             ensure_ollama_running()
 
         mock_popen.assert_called_once_with(
@@ -148,6 +158,7 @@ class TestEnsureOllamaRunning:
             patch("siyarix.providers.ollama_utils.subprocess.Popen") as mock_popen,
         ):
             from siyarix.providers.ollama_utils import ensure_ollama_running
+
             ensure_ollama_running()
 
         mock_which.assert_called_once_with("ollama")
@@ -159,6 +170,7 @@ class TestEnsureOllamaRunning:
             side_effect=Exception("Unexpected failure"),
         ):
             from siyarix.providers.ollama_utils import ensure_ollama_running
+
             ensure_ollama_running()
 
     def test_default_ollama_url_when_not_configured(self) -> None:
@@ -176,6 +188,7 @@ class TestEnsureOllamaRunning:
             patch.object(httpx, "get", return_value=mock_response) as mock_get,
         ):
             from siyarix.providers.ollama_utils import ensure_ollama_running
+
             ensure_ollama_running()
 
         mock_get.assert_called_once_with("http://localhost:11434/api/tags", timeout=3)
@@ -196,6 +209,7 @@ class TestEnsureOllamaRunning:
             patch.object(httpx, "get", return_value=mock_response) as mock_get,
         ):
             from siyarix.providers.ollama_utils import ensure_ollama_running
+
             ensure_ollama_running()
 
         mock_get.assert_called_once()

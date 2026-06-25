@@ -45,8 +45,7 @@ class BaseParser:
     Usage::
 
         class MyParser(BaseParser):
-            def parse(self, output: str) -> list[dict[str, Any]]:
-                ...
+            def parse(self, output: str) -> list[dict[str, Any]]: ...
     """
 
     def _parse_safe(self, output: str) -> list[dict[str, Any]]:
@@ -144,7 +143,10 @@ class ParserRegistry:
         return versions.get(None)
 
     def parse(
-        self, tool_name: str, output: str, version: str | None = None,
+        self,
+        tool_name: str,
+        output: str,
+        version: str | None = None,
     ) -> list[dict[str, Any]]:
         parser = self.get(tool_name, version)
         if not parser:
@@ -277,34 +279,118 @@ def _class_to_tool_names(class_name: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 _PARSER_MODULES: list[str] = [
-    "aircrack_parser", "amass_parser", "aquatone_parser", "arachni_parser",
-    "arjun_parser", "assetfinder_parser", "aws_parser", "bandit_parser",
-    "bettercap_parser", "bloodhound_parser", "bloodhound_python_parser",
-    "burpsuite_parser", "certipy_parser", "checkov_parser", "commix_parser",
-    "corsy_parser", "crackmapexec_parser", "curl_parser", "dalfox_parser",
-    "dig_parser", "dirb_parser", "dirsearch_parser", "dmitry_parser",
-    "dnsenum_parser", "dnsmap_parser", "dnsrecon_parser", "dnstwist_parser",
-    "dnsx_parser", "enum4linux_parser", "ettercap_parser", "evil_winrm_parser",
-    "exiftool_parser", "feroxbuster_parser", "ffuf_parser", "findomain_parser",
-    "finger_parser", "gau_parser", "gitleaks_parser", "gobuster_parser",
-    "gospider_parser", "gowitness_parser", "grype_parser", "hakrawler_parser",
-    "hash_identifier_parser", "hashcat_parser", "httpx_parser", "hydra_parser",
-    "ike_scan_parser", "impacket_parser", "interactsh_parser", "john_parser",
-    "jwt_tool_parser", "katana_parser", "kerbrute_parser", "kiterunner_parser",
-    "kubectl_parser", "kxss_parser", "ldapsearch_parser", "lynis_parser",
-    "masscan_parser", "massdns_parser", "metasploit_parser", "mimikatz_parser",
-    "naabu_parser", "netcat_parser", "nikto_parser", "nmap_parser",
-    "nuclei_parser", "paramspider_parser", "prowler_parser", "pypykatz_parser",
-    "recon_ng_parser", "responder_parser", "rustscan_parser", "s3scanner_parser",
-    "scoutsuite_parser", "searchsploit_parser", "seatbelt_parser", "semgrep_parser",
-    "sharphound_parser", "sherlock_parser", "shodan_parser", "shuffledns_parser",
-    "smbclient_parser", "smbmap_parser", "smtp_user_enum_parser", "sqlmap_parser",
-    "ssh_audit_parser", "sslscan_parser", "sslyze_parser", "subfinder_parser",
-    "sublist3r_parser", "syft_parser", "tcpdump_parser", "testssl_parser",
-    "theharvester_parser", "trivy_parser", "trufflehog_parser", "volatility_parser",
-    "wafw00f_parser", "wapiti_parser", "waybackurls_parser", "wfuzz_parser",
-    "wget_parser", "whatweb_parser", "whois_parser", "wpscan_parser",
-    "xsstrike_parser", "yara_parser", "zaproxy_parser", "zgrab_parser", "zmap_parser",
+    "aircrack_parser",
+    "amass_parser",
+    "aquatone_parser",
+    "arachni_parser",
+    "arjun_parser",
+    "assetfinder_parser",
+    "aws_parser",
+    "bandit_parser",
+    "bettercap_parser",
+    "bloodhound_parser",
+    "bloodhound_python_parser",
+    "burpsuite_parser",
+    "certipy_parser",
+    "checkov_parser",
+    "commix_parser",
+    "corsy_parser",
+    "crackmapexec_parser",
+    "curl_parser",
+    "dalfox_parser",
+    "dig_parser",
+    "dirb_parser",
+    "dirsearch_parser",
+    "dmitry_parser",
+    "dnsenum_parser",
+    "dnsmap_parser",
+    "dnsrecon_parser",
+    "dnstwist_parser",
+    "dnsx_parser",
+    "enum4linux_parser",
+    "ettercap_parser",
+    "evil_winrm_parser",
+    "exiftool_parser",
+    "feroxbuster_parser",
+    "ffuf_parser",
+    "findomain_parser",
+    "finger_parser",
+    "gau_parser",
+    "gitleaks_parser",
+    "gobuster_parser",
+    "gospider_parser",
+    "gowitness_parser",
+    "grype_parser",
+    "hakrawler_parser",
+    "hash_identifier_parser",
+    "hashcat_parser",
+    "httpx_parser",
+    "hydra_parser",
+    "ike_scan_parser",
+    "impacket_parser",
+    "interactsh_parser",
+    "john_parser",
+    "jwt_tool_parser",
+    "katana_parser",
+    "kerbrute_parser",
+    "kiterunner_parser",
+    "kubectl_parser",
+    "kxss_parser",
+    "ldapsearch_parser",
+    "lynis_parser",
+    "masscan_parser",
+    "massdns_parser",
+    "metasploit_parser",
+    "mimikatz_parser",
+    "naabu_parser",
+    "netcat_parser",
+    "nikto_parser",
+    "nmap_parser",
+    "nuclei_parser",
+    "paramspider_parser",
+    "prowler_parser",
+    "pypykatz_parser",
+    "recon_ng_parser",
+    "responder_parser",
+    "rustscan_parser",
+    "s3scanner_parser",
+    "scoutsuite_parser",
+    "searchsploit_parser",
+    "seatbelt_parser",
+    "semgrep_parser",
+    "sharphound_parser",
+    "sherlock_parser",
+    "shodan_parser",
+    "shuffledns_parser",
+    "smbclient_parser",
+    "smbmap_parser",
+    "smtp_user_enum_parser",
+    "sqlmap_parser",
+    "ssh_audit_parser",
+    "sslscan_parser",
+    "sslyze_parser",
+    "subfinder_parser",
+    "sublist3r_parser",
+    "syft_parser",
+    "tcpdump_parser",
+    "testssl_parser",
+    "theharvester_parser",
+    "trivy_parser",
+    "trufflehog_parser",
+    "volatility_parser",
+    "wafw00f_parser",
+    "wapiti_parser",
+    "waybackurls_parser",
+    "wfuzz_parser",
+    "wget_parser",
+    "whatweb_parser",
+    "whois_parser",
+    "wpscan_parser",
+    "xsstrike_parser",
+    "yara_parser",
+    "zaproxy_parser",
+    "zgrab_parser",
+    "zmap_parser",
 ]
 
 _parsers_loaded = False
@@ -319,8 +405,13 @@ def _lazy_import_parsers() -> None:
         mod = importlib.import_module(f".{mod_name}", __package__)
         for attr_name in dir(mod):
             obj = getattr(mod, attr_name)
-            if isinstance(obj, type) and attr_name.endswith("Parser") and attr_name not in ("BaseParser", "Parser"):
+            if (
+                isinstance(obj, type)
+                and attr_name.endswith("Parser")
+                and attr_name not in ("BaseParser", "Parser")
+            ):
                 globals().setdefault(attr_name, obj)
+
 
 __all__ = [
     "AircrackParser",

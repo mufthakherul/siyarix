@@ -59,14 +59,22 @@ class TestBuildFinding:
 
     def test_timestamp_auto(self):
         finding = build_finding(
-            title="X", severity="info", description="", evidence="", tool="x",
+            title="X",
+            severity="info",
+            description="",
+            evidence="",
+            tool="x",
         )
         assert isinstance(finding["timestamp"], str)
         assert len(finding["timestamp"]) > 10
 
     def test_target_default_empty(self):
         finding = build_finding(
-            title="X", severity="info", description="", evidence="", tool="x",
+            title="X",
+            severity="info",
+            description="",
+            evidence="",
+            tool="x",
         )
         assert finding["target"] == ""
 
@@ -75,9 +83,19 @@ class TestBuildFinding:
 # BaseParser
 # ---------------------------------------------------------------------------
 
+
 class _MinimalParser(BaseParser):
     def parse(self, output: str) -> list[dict[str, Any]]:
-        return [{"title": output, "severity": "info", "description": "", "evidence": "", "tool": "simple", "target": ""}]
+        return [
+            {
+                "title": output,
+                "severity": "info",
+                "description": "",
+                "evidence": "",
+                "tool": "simple",
+                "target": "",
+            }
+        ]
 
 
 class _NonListParser(BaseParser):
@@ -128,15 +146,17 @@ class TestBaseParserEnsureFields:
 
     def test_preserves_existing(self):
         p = _MinimalParser()
-        result = p._ensure_fields({
-            "title": "Custom",
-            "severity": "high",
-            "description": "desc",
-            "evidence": "ev",
-            "tool": "mytool",
-            "target": "tgt",
-            "timestamp": "2025-01-01T00:00:00",
-        })
+        result = p._ensure_fields(
+            {
+                "title": "Custom",
+                "severity": "high",
+                "description": "desc",
+                "evidence": "ev",
+                "tool": "mytool",
+                "target": "tgt",
+                "timestamp": "2025-01-01T00:00:00",
+            }
+        )
         assert result["title"] == "Custom"
         assert result["severity"] == "high"
         assert result["tool"] == "mytool"
@@ -217,17 +237,44 @@ class TestClassToToolNames:
 
 class _MockParser:
     def parse(self, output: str) -> list[dict[str, Any]]:
-        return [{"title": output, "severity": "info", "description": "", "evidence": "", "tool": "mock", "target": ""}]
+        return [
+            {
+                "title": output,
+                "severity": "info",
+                "description": "",
+                "evidence": "",
+                "tool": "mock",
+                "target": "",
+            }
+        ]
 
 
 class _MockParserV2:
     def parse(self, output: str) -> list[dict[str, Any]]:
-        return [{"title": f"v2:{output}", "severity": "info", "description": "", "evidence": "", "tool": "mock", "target": ""}]
+        return [
+            {
+                "title": f"v2:{output}",
+                "severity": "info",
+                "description": "",
+                "evidence": "",
+                "tool": "mock",
+                "target": "",
+            }
+        ]
 
 
 class _MockBaseParser(BaseParser):
     def parse(self, output: str) -> list[dict[str, Any]]:
-        return [{"title": output, "severity": "info", "description": "", "evidence": "", "tool": "mock-base", "target": ""}]
+        return [
+            {
+                "title": output,
+                "severity": "info",
+                "description": "",
+                "evidence": "",
+                "tool": "mock-base",
+                "target": "",
+            }
+        ]
 
 
 class _MockFailingParser:
@@ -273,7 +320,6 @@ class TestParserRegistryRegister:
         reg.register("nmap", _MockParser(), "1.0")
         reg.register("nmap", _MockParserV2(), "2.0")
         assert reg.count == 3  # None default (from 1.0), 1.0, 2.0
-
 
 
 class TestParserRegistryGet:
@@ -339,6 +385,7 @@ class TestParserRegistryParse:
         class _MockNonList:
             def parse(self, output: str) -> str:
                 return "not a list"
+
         reg = ParserRegistry()
         reg.register("nonlist", _MockNonList())
         findings = reg.parse("nonlist", "test")
@@ -455,42 +502,53 @@ class TestParserProtocol:
 
     def test_concrete_implements_protocol(self):
         """A class with parse() should satisfy Parser protocol."""
+
         class Impl:
             def parse(self, output: str) -> list[dict[str, Any]]:
                 return []
+
         assert isinstance(Impl(), Parser)
+
 
 class TestParsersInitCore:
     """Cover uncovered lines in parsers/__init__.py."""
 
     def test_parse_safe_non_list_return(self):
         from siyarix.parsers import BaseParser
+
         class BadParser(BaseParser):
             def parse(self, output):
                 return "not a list"
+
         bp = BadParser()
         result = bp._parse_safe("test")
         assert result == []
 
     def test_build_finding_basic(self):
         from siyarix.parsers import build_finding
-        f = build_finding(title="XSS", severity="high", description="XSS vuln", evidence="<script>", tool="nuclei")
+
+        f = build_finding(
+            title="XSS", severity="high", description="XSS vuln", evidence="<script>", tool="nuclei"
+        )
         assert f["title"] == "XSS"
         assert f["severity"] == "high"
 
     def test_discover_skips_non_parser_classes(self):
         from siyarix.parsers import ParserRegistry
+
         reg = ParserRegistry()
         parsed = reg.discover()
         assert isinstance(parsed, dict)
 
     def test_class_to_tool_names_overrides(self):
         from siyarix.parsers import _class_to_tool_names
+
         names = _class_to_tool_names("AircrackParser")
         assert "aircrack-ng" in names
 
     def test_class_to_tool_names_with_hyphen(self):
         from siyarix.parsers import _class_to_tool_names
+
         names = _class_to_tool_names("HashIdentifierParser")
         assert "hash-identifier" in names
 
@@ -514,6 +572,7 @@ class TestParsersInitErrors:
     def test_parser_registry_discover_with_tool_aliases_list(self):
         class FakeParser(BaseParser):
             TOOL_ALIASES = ["tool1", "tool2"]
+
             def parse(self, output):
                 return []
 
@@ -527,6 +586,7 @@ class TestParsersInitErrors:
     def test_parser_registry_discover_with_tool_name(self):
         class FakeParser2(BaseParser):
             TOOL_NAME = "my_tool"
+
             def parse(self, output):
                 return []
 
@@ -580,6 +640,7 @@ class TestParsersInitConcurrency:
     def test_discover_skips_class_without_parse(self):
         class NoParse:
             pass
+
         reg = ParserRegistry()
         with patch("siyarix.parsers.globals") as mock_globals:
             mock_globals.return_value = {"NoParse": NoParse}
@@ -589,8 +650,10 @@ class TestParsersInitConcurrency:
     def test_discover_with_tool_aliases_string(self):
         class FakeParser(BaseParser):
             TOOL_ALIASES = "single_tool"
+
             def parse(self, output):
                 return []
+
         reg = ParserRegistry()
         with patch("siyarix.parsers.globals") as mock_globals:
             mock_globals.return_value = {"FakeParser": FakeParser}

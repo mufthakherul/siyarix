@@ -38,7 +38,10 @@ def initialize_interactive() -> int:
 
     store = CredentialStore(master_password=master_pass)
 
-    provider = input("AI provider to configure (e.g., openai, gemini, anthropic) [openai]: ").strip() or "openai"
+    provider = (
+        input("AI provider to configure (e.g., openai, gemini, anthropic) [openai]: ").strip()
+        or "openai"
+    )
     api_key = getpass.getpass(f"Enter your {provider} API key: ")
     if api_key:
         store.store(provider, api_key, "api_key")

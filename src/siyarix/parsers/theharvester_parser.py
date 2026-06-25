@@ -67,7 +67,7 @@ class TheharvesterParser:
         try:
             data = json.loads(json_str)
         except (json.JSONDecodeError, ValueError, TypeError):
-                return []
+            return []
         findings: list[dict[str, Any]] = []
         seen: set[str] = set()
         domain = data.get("domain", "unknown")
@@ -173,7 +173,9 @@ class TheharvesterParser:
                 hm = _HOST_RE.search(line)
                 if hm:
                     host = hm.group("host")
-                elif _URL_RE.match(line) or line.startswith(("http://", "https://", "www.", "mail.")):
+                elif _URL_RE.match(line) or line.startswith(
+                    ("http://", "https://", "www.", "mail.")
+                ):
                     host = line.strip()
                 else:
                     host = line.strip()

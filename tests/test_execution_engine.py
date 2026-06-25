@@ -447,7 +447,9 @@ class TestExecutionEngine:
 
             await engine.execute("test")
 
-            MockAgent.assert_called_once_with(mode=AgentMode.REGISTRY, registry=None, progress_callback=None)
+            MockAgent.assert_called_once_with(
+                mode=AgentMode.REGISTRY, registry=None, progress_callback=None
+            )
 
 
 # ---------------------------------------------------------------------------

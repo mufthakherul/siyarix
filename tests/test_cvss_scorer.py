@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from siyarix.cvss_scorer import CVSSResult, CVSSScorer, CVSSVector, Severity
 import pytest
@@ -6,8 +5,6 @@ import pytest
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Tests for CVSSScorer."""
-
-
 
 
 pytestmark = pytest.mark.cvss
@@ -98,6 +95,7 @@ class TestCVSSScorer:
         assert scorer._severity_from_score(5.0) == Severity.MEDIUM
         assert scorer._severity_from_score(2.0) == Severity.LOW
         assert scorer._severity_from_score(0.0) == Severity.NONE
+
 
 class TestCVSSCore:
     """Cover missing cvss_scorer.py lines: edge cases in score calculations."""

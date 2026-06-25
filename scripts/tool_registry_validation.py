@@ -4,7 +4,10 @@ import os
 
 json_path = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "src", "siyarix", "data", "cyber_tools.json"
+    "src",
+    "siyarix",
+    "data",
+    "cyber_tools.json",
 )
 t = json.load(open(json_path))
 
@@ -20,7 +23,16 @@ for name in ["bloodhound", "linpeas", "winpeas", "pspy", "smbclient", "crackmape
 
 # Check additions
 print()
-for name in ["trufflehog", "sliver", "velociraptor", "crunch", "arjun", "zmap", "ysoserial", "checkov"]:
+for name in [
+    "trufflehog",
+    "sliver",
+    "velociraptor",
+    "crunch",
+    "arjun",
+    "zmap",
+    "ysoserial",
+    "checkov",
+]:
     print(f"  + {name}: {'present' if name in t else 'MISSING'}")
 
 # Check removals

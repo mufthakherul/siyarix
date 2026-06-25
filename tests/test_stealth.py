@@ -94,13 +94,10 @@ class TestStealthEngine:
         assert config.use_decoy_traffic is True
 
 
-
 """Extra tests for stealth targeting uncovered lines."""
 
 
-
 import pytest
-
 
 
 class TestStealthConfigScore:

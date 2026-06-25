@@ -18,7 +18,12 @@ from siyarix.chat import (
     SiyarixChat,
     start_chat,
 )
-from siyarix.chat.platform_utils import _Shell, build_platform_context, detect_shell, normalize_shell
+from siyarix.chat.platform_utils import (
+    _Shell,
+    build_platform_context,
+    detect_shell,
+    normalize_shell,
+)
 
 
 # ── Data Model Tests ───────────────────────────────────────────────────
@@ -171,9 +176,12 @@ class TestSiyarixChatSlashCommands:
     @pytest.fixture
     def mock_console(self):
         from siyarix.chat.console import console
-        with patch.object(console, "print") as mock_print, \
-             patch.object(console, "clear") as mock_clear, \
-             patch.object(console, "status") as mock_status:
+
+        with (
+            patch.object(console, "print") as mock_print,
+            patch.object(console, "clear") as mock_clear,
+            patch.object(console, "status") as mock_status,
+        ):
             yield MagicMock(print=mock_print, clear=mock_clear, status=mock_status)
 
     @pytest.mark.asyncio

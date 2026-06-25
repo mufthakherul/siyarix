@@ -213,7 +213,9 @@ class CacheManager:
     def stats(self, domain: str = "") -> dict[str, Any]:
         with self._lock:
             if domain:
-                entries: list[CacheEntry] = [e for e in self._entries.values() if e.domain == domain]
+                entries: list[CacheEntry] = [
+                    e for e in self._entries.values() if e.domain == domain
+                ]
             else:
                 entries = list(self._entries.values())
 
@@ -232,7 +234,9 @@ class CacheManager:
                 "hit_count": self._hit_count,
                 "miss_count": self._miss_count,
                 "hit_rate": round(hit_rate, 3),
-                "oldest_entry_age_s": round(min(e.age_seconds for e in entries), 1) if entries else 0,
+                "oldest_entry_age_s": round(min(e.age_seconds for e in entries), 1)
+                if entries
+                else 0,
             }
 
     def clear(self) -> int:

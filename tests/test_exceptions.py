@@ -309,6 +309,7 @@ class TestExitCodeFor:
 class TestPublicAPI:
     def test_all_exports(self):
         from siyarix import exceptions
+
         expected = [
             "SiyarixException",
             "ValidationError",

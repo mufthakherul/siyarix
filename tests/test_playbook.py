@@ -30,12 +30,14 @@ def playbook_engine(mock_workflow_engine: MagicMock) -> PlaybookEngine:
 
 # -- __init__ -----------------------------------------------------------------
 
+
 def test_init_stores_workflow_engine(mock_workflow_engine: MagicMock) -> None:
     engine = PlaybookEngine(mock_workflow_engine)
     assert engine.workflow_engine is mock_workflow_engine
 
 
 # -- load ---------------------------------------------------------------------
+
 
 def test_load_valid_yaml(playbook_engine: PlaybookEngine, tmp_path: Path) -> None:
     playbook = {"steps": [{"tool": "nmap", "args": {"target": "example.com"}}]}
@@ -73,6 +75,7 @@ def test_load_missing_steps(playbook_engine: PlaybookEngine, tmp_path: Path) -> 
 
 # -- _resolve_vars ------------------------------------------------------------
 
+
 def test_resolve_vars_simple(playbook_engine: PlaybookEngine) -> None:
     result = playbook_engine._resolve_vars("hello {{ name }}", {"name": "world"})
     assert result == "hello world"
@@ -95,9 +98,7 @@ def test_resolve_vars_missing_env(playbook_engine: PlaybookEngine) -> None:
 
 
 def test_resolve_vars_nested_placeholders(playbook_engine: PlaybookEngine) -> None:
-    result = playbook_engine._resolve_vars(
-        "{{ outer }}-{{ inner }}", {"outer": "a", "inner": "b"}
-    )
+    result = playbook_engine._resolve_vars("{{ outer }}-{{ inner }}", {"outer": "a", "inner": "b"})
     assert result == "a-b"
 
 
@@ -112,6 +113,7 @@ def test_resolve_vars_with_whitespace(playbook_engine: PlaybookEngine) -> None:
 
 
 # -- _resolve_dict ------------------------------------------------------------
+
 
 def test_resolve_dict_dict(playbook_engine: PlaybookEngine) -> None:
     data = {"name": "{{ var }}", "static": "hello"}
@@ -147,6 +149,7 @@ def test_resolve_dict_none(playbook_engine: PlaybookEngine) -> None:
 
 
 # -- create_plan --------------------------------------------------------------
+
 
 def test_create_plan_basic(playbook_engine: PlaybookEngine) -> None:
     data = {
@@ -312,6 +315,7 @@ def test_create_plan_without_variables(playbook_engine: PlaybookEngine) -> None:
 
 
 # -- execute ------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_execute_happy_path(playbook_engine: PlaybookEngine, tmp_path: Path) -> None:

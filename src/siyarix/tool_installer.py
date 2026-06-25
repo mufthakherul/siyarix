@@ -19,6 +19,7 @@ try:
     import winreg
 except ImportError:
     from unittest.mock import MagicMock as _MagicMock
+
     winreg = _MagicMock()
     _sys.modules["winreg"] = winreg
 
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 def tty_confirm(prompt: str, default: bool = True) -> bool:
     """Ask a yes/no question via /dev/tty, bypassing prompt_toolkit's raw mode."""
     from rich.console import Console
+
     suffix = " [Y/n]" if default else " [y/N]"
     Console(stderr=True).print(prompt + suffix, end=" ")
     try:
@@ -224,7 +226,9 @@ class ToolInstaller:
         if pm in ("apt", "apt-get"):
             mapped = _APT_PKG_MAP.get(tool)
             if mapped == "":
-                self._print(f"  [yellow]{tool} is not available via apt; install manually.[/yellow]")
+                self._print(
+                    f"  [yellow]{tool} is not available via apt; install manually.[/yellow]"
+                )
                 return False
             pkg = mapped or pkg
 

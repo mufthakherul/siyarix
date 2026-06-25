@@ -157,7 +157,9 @@ class KnowledgeGraph:
                 self._nodes.pop(nid, None)
 
             self._edges = [
-                e for e in self._edges if e.source_id not in to_remove and e.target_id not in to_remove
+                e
+                for e in self._edges
+                if e.source_id not in to_remove and e.target_id not in to_remove
             ]
             self._adjacency.clear()
             self._reverse_adj.clear()
@@ -219,7 +221,9 @@ class KnowledgeGraph:
             if node_id not in self._nodes:
                 return False
             del self._nodes[node_id]
-            self._edges = [e for e in self._edges if e.source_id != node_id and e.target_id != node_id]
+            self._edges = [
+                e for e in self._edges if e.source_id != node_id and e.target_id != node_id
+            ]
             self._adjacency.pop(node_id, None)
             self._reverse_adj.pop(node_id, None)
             for adj_list in self._adjacency.values():
@@ -425,7 +429,9 @@ class KnowledgeGraph:
     def find_crown_jewel_paths(self, start_id: str) -> dict[str, list[str]]:
         """Find easiest paths to any nodes tagged as 'crown_jewel'."""
         with self._lock:
-            crown_jewels = [n.node_id for n in self._nodes.values() if n.properties.get("crown_jewel")]
+            crown_jewels = [
+                n.node_id for n in self._nodes.values() if n.properties.get("crown_jewel")
+            ]
         paths = {}
         for cj in crown_jewels:
             if cj != start_id:
@@ -540,9 +546,12 @@ class KnowledgeGraph:
                     for k, v in node.properties.items():
                         if (
                             q in str(v).lower()
-                            and f"[{node.node_type.value}] {node.label} ({node.node_id})" not in results
+                            and f"[{node.node_type.value}] {node.label} ({node.node_id})"
+                            not in results
                         ):
-                            results.append(f"[{node.node_type.value}] {node.label} ({node.node_id})")
+                            results.append(
+                                f"[{node.node_type.value}] {node.label} ({node.node_id})"
+                            )
                             if len(results) >= limit:
                                 break
                     if len(results) >= limit:

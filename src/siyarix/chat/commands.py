@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 # ── Command Categories ────────────────────────────────────────────────────
 
+
 class CommandCategory(str, Enum):
     NAVIGATION = "Navigation"
     SESSION = "Session"
@@ -42,6 +43,7 @@ class CommandCategory(str, Enum):
 
 
 # ── Command Info Dataclass ────────────────────────────────────────────────
+
 
 @dataclass
 class ArgInfo:
@@ -95,6 +97,7 @@ class CommandInfo:
 
 
 # ── Command Registry ──────────────────────────────────────────────────────
+
 
 class CommandRegistry:
     """Central registry of all slash commands with lookup and filtering."""
@@ -207,10 +210,12 @@ class CommandRegistry:
         for info in cls.visible_commands():
             if q in info.name.lstrip("/").lower():
                 matches.append(info)
-        matches.sort(key=lambda c: (
-            0 if c.name.lstrip("/").lower().startswith(q) else 1,
-            c.name,
-        ))
+        matches.sort(
+            key=lambda c: (
+                0 if c.name.lstrip("/").lower().startswith(q) else 1,
+                c.name,
+            )
+        )
         return matches[:8]
 
     @classmethod
@@ -363,7 +368,11 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("session_id", "Session ID (for show/export)", optional=True),
         ],
         handler="_cmd_log",
-        examples=["/log list", "/log show abc123", "/log export abc123 --format json --output log.json"],
+        examples=[
+            "/log list",
+            "/log show abc123",
+            "/log export abc123 --format json --output log.json",
+        ],
         notes="Formats: json, markdown, sarif. Use --output to save to file.",
     ),
     CommandInfo(
@@ -394,7 +403,12 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("action", "show, set <key> <value>, get <key>, list, tools"),
         ],
         handler="_cmd_config",
-        examples=["/config", "/config set color_theme cyber-noir", "/config get model_provider", "/config list"],
+        examples=[
+            "/config",
+            "/config set color_theme cyber-noir",
+            "/config get model_provider",
+            "/config list",
+        ],
         notes="Modified values are highlighted in yellow in the table.",
     ),
     CommandInfo(
@@ -488,12 +502,26 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Switch execution mode",
         usage="/mode <mode>",
         args=[
-            ArgInfo("mode", "Mode name", choices=[
-                "autonomous", "integrated", "offline", "stealth",
-                "verbose", "quiet", "expert", "beginner",
-                "interactive", "batch", "redteam", "blueteam",
-                "compliance", "audit",
-            ]),
+            ArgInfo(
+                "mode",
+                "Mode name",
+                choices=[
+                    "autonomous",
+                    "integrated",
+                    "offline",
+                    "stealth",
+                    "verbose",
+                    "quiet",
+                    "expert",
+                    "beginner",
+                    "interactive",
+                    "batch",
+                    "redteam",
+                    "blueteam",
+                    "compliance",
+                    "audit",
+                ],
+            ),
         ],
         aliases=["/m"],
         handler="_cmd_mode",
@@ -510,7 +538,11 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
             ArgInfo("model_name", "Specific model name (optional)", optional=True),
         ],
         handler="_cmd_model",
-        examples=["/model gemini", "/model openai gpt-4o", "/model anthropic claude-sonnet-4-20250514"],
+        examples=[
+            "/model gemini",
+            "/model openai gpt-4o",
+            "/model anthropic claude-sonnet-4-20250514",
+        ],
         notes="Validates the provider connection after switching.",
     ),
     CommandInfo(
@@ -541,9 +573,20 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         aliases=["/offensive"],
         handler="_cmd_redteam",
         examples=["/redteam", "/offensive"],
-        mode_filter=["blueteam", "integrated", "autonomous", "stealth",
-                      "verbose", "quiet", "expert", "beginner",
-                      "interactive", "batch", "compliance", "audit"],
+        mode_filter=[
+            "blueteam",
+            "integrated",
+            "autonomous",
+            "stealth",
+            "verbose",
+            "quiet",
+            "expert",
+            "beginner",
+            "interactive",
+            "batch",
+            "compliance",
+            "audit",
+        ],
         notes="Sets persona to 'red-team' and activates offensive posture.",
     ),
     CommandInfo(
@@ -553,9 +596,20 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         aliases=["/defensive"],
         handler="_cmd_blueteam",
         examples=["/blueteam", "/defensive"],
-        mode_filter=["redteam", "integrated", "autonomous", "stealth",
-                      "verbose", "quiet", "expert", "beginner",
-                      "interactive", "batch", "compliance", "audit"],
+        mode_filter=[
+            "redteam",
+            "integrated",
+            "autonomous",
+            "stealth",
+            "verbose",
+            "quiet",
+            "expert",
+            "beginner",
+            "interactive",
+            "batch",
+            "compliance",
+            "audit",
+        ],
         notes="Sets persona to 'blue-team' and activates defensive posture.",
     ),
     # ── Tools ──
@@ -722,7 +776,9 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Export conversation in various formats",
         usage="/export <format> [path]",
         args=[
-            ArgInfo("format", "Export format", choices=["json", "md", "markdown", "html", "pdf", "txt"]),
+            ArgInfo(
+                "format", "Export format", choices=["json", "md", "markdown", "html", "pdf", "txt"]
+            ),
             ArgInfo("path", "Output file path", optional=True),
         ],
         handler="_cmd_export",
@@ -852,8 +908,14 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         description="Manage learned skills",
         usage="/skills [stats|list|show|edit|remove|add|export]",
         handler="_cmd_skills",
-        examples=["/skills list", "/skills show 3", "/skills edit 4 notes", "/skills remove 2",
-                  "/skills add 1. ping {target}; ping -c 2 {target}.", "/skills export ~/skills.json"],
+        examples=[
+            "/skills list",
+            "/skills show 3",
+            "/skills edit 4 notes",
+            "/skills remove 2",
+            "/skills add 1. ping {target}; ping -c 2 {target}.",
+            "/skills export ~/skills.json",
+        ],
         notes="Skills are learned patterns. Sl No comes from /skills list.",
     ),
     CommandInfo(
@@ -1035,6 +1097,7 @@ for _label, _entries in HELP_CATEGORIES:
 
 # ── Command Profile (unchanged) ───────────────────────────────────────────
 
+
 @dataclass
 class CommandProfile:
     name: str
@@ -1057,9 +1120,7 @@ class CommandProfileStore:
     def save(self, profile: CommandProfile) -> None:
         if not profile.created_at:
             profile.created_at = datetime.now(tz=UTC).isoformat()
-        self._path(profile.name).write_text(
-            json.dumps(asdict(profile), indent=2), encoding="utf-8"
-        )
+        self._path(profile.name).write_text(json.dumps(asdict(profile), indent=2), encoding="utf-8")
 
     def get(self, name: str) -> CommandProfile | None:
         path = self._path(name)
@@ -1095,6 +1156,7 @@ class CommandProfileStore:
 
 
 # ── Command History (for autocomplete ranking) ────────────────────────────
+
 
 class CommandHistory:
     """Tracks recently used commands for smarter autocomplete ranking."""

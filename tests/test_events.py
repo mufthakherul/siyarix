@@ -280,6 +280,7 @@ class TestGetEventBus:
         bus = get_event_bus()
         assert bus._max_history == 1000
 
+
 class TestEmitSync:
     @pytest.mark.asyncio
     async def test_emit_sync_with_running_loop(self):
@@ -303,6 +304,7 @@ class TestEmitSync:
     def test_emit_sync_fallback_failure(self, caplog):
         caplog.set_level(logging.DEBUG)
         import siyarix.events as evmod
+
         original_get = evmod.get_event_bus
         try:
             mock_bus = MagicMock()
@@ -380,6 +382,7 @@ class TestThreadSafety:
 class TestPublicAPI:
     def test_all_exports(self):
         from siyarix import events
+
         expected = [
             "Event",
             "EventBus",

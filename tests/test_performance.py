@@ -18,6 +18,7 @@ from siyarix.performance import (
 
 # ── SystemResources ──────────────────────────────────────────────────────
 
+
 class TestSystemResources:
     def test_defaults(self) -> None:
         sr = SystemResources()
@@ -93,6 +94,7 @@ class TestSystemResources:
 
 # ── PerformanceConfig ────────────────────────────────────────────────────
 
+
 class TestPerformanceConfig:
     def test_defaults(self) -> None:
         c = PerformanceConfig()
@@ -113,6 +115,7 @@ class TestPerformanceConfig:
 
 
 # ── PerformanceOptimizer ─────────────────────────────────────────────────
+
 
 class TestPerformanceOptimizerDetectResources:
     @patch("psutil.cpu_count")
@@ -142,12 +145,18 @@ class TestPerformanceOptimizerDetectResources:
 
     @patch("siyarix.performance.os.cpu_count", return_value=4)
     def test_without_psutil(self, mock_cpu: MagicMock) -> None:
-        real_import = __builtins__["__import__"] if isinstance(__builtins__, dict) else __builtins__.__import__
+        real_import = (
+            __builtins__["__import__"]
+            if isinstance(__builtins__, dict)
+            else __builtins__.__import__
+        )
         with patch("builtins.__import__") as mock_import:
+
             def _side(name, *args, **kwargs):
                 if name == "psutil":
                     raise ImportError("No psutil")
                 return real_import(name, *args, **kwargs)
+
             mock_import.side_effect = _side
             opt = PerformanceOptimizer()
             r = opt.resources
@@ -297,6 +306,7 @@ class TestPerformanceOptimizerSummary:
 
 # ── Module-level singleton ───────────────────────────────────────────────
 
+
 class TestPerformanceSingleton:
     def test_singleton_exists(self) -> None:
         assert isinstance(performance_optimizer, PerformanceOptimizer)
@@ -306,6 +316,7 @@ class TestPerformanceSingleton:
 
 
 # ── Edge cases ───────────────────────────────────────────────────────────
+
 
 class TestEdgeCases:
     def test_resources_zero_ram(self) -> None:

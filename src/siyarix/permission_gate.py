@@ -48,11 +48,14 @@ class GateResult:
 
 class PermissionGate:
     _RESTRICTED_PATTERNS = [
-        re.compile(r"\brm\b[\s]+(?:-[a-zA-Z]*[rf][a-zA-Z]*[\s]*)*(?:-[a-zA-Z]*[rf])", re.IGNORECASE),
+        re.compile(
+            r"\brm\b[\s]+(?:-[a-zA-Z]*[rf][a-zA-Z]*[\s]*)*(?:-[a-zA-Z]*[rf])", re.IGNORECASE
+        ),
         re.compile(r"\brm\b\s+--(?:recursive|force)", re.IGNORECASE),
         re.compile(r"\bmkfs\b", re.IGNORECASE),
         re.compile(r"\bdd\b\s+if=", re.IGNORECASE),
     ]
+
     def __init__(self, rate_limit_calls: int = 100, rate_limit_period: float = 60.0) -> None:
         self._danger_analyzer = DangerAnalyzer()
         self._calls: list[float] = []
@@ -81,7 +84,10 @@ class PermissionGate:
             pass
 
     def check(
-        self, command: str, tool: str = "", context: dict[str, Any] | None = None,
+        self,
+        command: str,
+        tool: str = "",
+        context: dict[str, Any] | None = None,
     ) -> GateResult:
         now = time.time()
         self._calls = [t for t in self._calls if now - t < self.rate_limit_period]
@@ -99,7 +105,11 @@ class PermissionGate:
         if len(self._calls) >= self.rate_limit_calls:
             self._save_state(force=True)
             return GateResult(
-                False, GateStage.FORBIDDEN, "Rate limit exceeded", tool=tool, command=command,
+                False,
+                GateStage.FORBIDDEN,
+                "Rate limit exceeded",
+                tool=tool,
+                command=command,
             )
 
         self._calls.append(now)

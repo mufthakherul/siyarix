@@ -2,6 +2,7 @@
 
 from siyarix.parsers.nmap_parser import NmapParser
 
+
 def test_nmap_parser_text():
     sample = """
 Nmap scan report for 192.168.1.5
@@ -15,12 +16,13 @@ PORT    STATE SERVICE
     assert isinstance(findings, list)
     assert len(findings) == 3
     assert any(f.get("tool") == "nmap" for f in findings)
-    
+
     ssh_finding = next(f for f in findings if "22" in f["title"])
     assert ssh_finding["severity"] == "low"
-    
+
     smb_finding = next(f for f in findings if "445" in f["title"])
     assert smb_finding["severity"] == "high"
+
 
 def test_nmap_parser_xml():
     xml_sample = """<?xml version="1.0" encoding="UTF-8"?>

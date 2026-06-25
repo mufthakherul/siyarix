@@ -19,9 +19,19 @@ from siyarix.personas import (
 class TestPersonasConstants:
     def test_all_personas_defined(self):
         expected_keys = {
-            "universal", "auto", "none", "red team", "blue team",
-            "purple team", "dfir", "threat intelligence", "cloud security",
-            "appsec", "network security", "governance", "security explorer",
+            "universal",
+            "auto",
+            "none",
+            "red team",
+            "blue team",
+            "purple team",
+            "dfir",
+            "threat intelligence",
+            "cloud security",
+            "appsec",
+            "network security",
+            "governance",
+            "security explorer",
         }
         assert set(PERSONAS.keys()) == expected_keys
 
@@ -42,6 +52,7 @@ class TestPersonasConstants:
 
 
 # ── get_persona ──────────────────────────────────────────────────────────
+
 
 class TestGetPersona:
     def test_exact_match(self):
@@ -80,6 +91,7 @@ class TestGetPersona:
 
 # ── list_personas ────────────────────────────────────────────────────────
 
+
 class TestListPersonas:
     def test_excludes_auto_none_and_universal(self):
         personas = list_personas()
@@ -91,9 +103,16 @@ class TestListPersonas:
     def test_returns_all_other_personas(self):
         personas = list_personas()
         expected = [
-            "red team", "blue team", "purple team", "dfir",
-            "threat intelligence", "cloud security", "appsec",
-            "network security", "governance", "security explorer",
+            "red team",
+            "blue team",
+            "purple team",
+            "dfir",
+            "threat intelligence",
+            "cloud security",
+            "appsec",
+            "network security",
+            "governance",
+            "security explorer",
         ]
         names = [p["name"] for p in personas]
         for name in expected:
@@ -115,6 +134,7 @@ class TestListPersonas:
 
 
 # ── build_persona_prompt ─────────────────────────────────────────────────
+
 
 class TestBuildPersonaPrompt:
     def test_none_returns_empty_string(self):
@@ -201,6 +221,7 @@ class TestBuildPersonaPrompt:
 
 # ── Edge cases ──────────────────────────────────────────────────────────
 
+
 class TestEdgeCases:
     def test_build_prompt_with_case_insensitive_name(self):
         prompt = build_persona_prompt("Red Team")
@@ -211,12 +232,14 @@ class TestEdgeCases:
         assert p is not None
         assert p["name"] == "cloud security"
 
+
 class TestPromptsPlatformContext:
     """Cover prompts.py line 34 (non-Windows path in _platform_context)."""
 
     def test_platform_context_non_windows(self):
         with patch("sys.platform", "linux"):
             from siyarix.chat.prompts import _platform_context
+
             ctx = _platform_context()
             assert "Unix-like system" in ctx
 

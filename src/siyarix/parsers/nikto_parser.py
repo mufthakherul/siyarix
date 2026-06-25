@@ -62,9 +62,7 @@ class NiktoParser:
                 continue
 
             content = line[1:].strip()
-            if (
-                content.startswith(("Target", "Start Time", "End Time", "1 host"))
-            ):
+            if content.startswith(("Target", "Start Time", "End Time", "1 host")):
                 continue
 
             osvdb_match = _OSVDB_RE.search(content)

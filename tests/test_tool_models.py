@@ -22,6 +22,7 @@ from siyarix.tool_models import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def clear_caches() -> None:
     invalidate_which_cache()
@@ -30,6 +31,7 @@ def clear_caches() -> None:
 # ---------------------------------------------------------------------------
 # ToolCategory enum
 # ---------------------------------------------------------------------------
+
 
 class TestToolCategory:
     def test_values(self) -> None:
@@ -55,6 +57,7 @@ class TestToolCategory:
 # RiskLevel enum
 # ---------------------------------------------------------------------------
 
+
 class TestRiskLevel:
     def test_values(self) -> None:
         assert RiskLevel.SAFE == "safe"
@@ -70,6 +73,7 @@ class TestRiskLevel:
 # ---------------------------------------------------------------------------
 # ToolCapability dataclass
 # ---------------------------------------------------------------------------
+
 
 class TestToolCapability:
     def test_defaults(self) -> None:
@@ -166,7 +170,7 @@ class TestToolCapability:
         t = ToolCapability(name="nmap")
         assert (t == "nmap") is False
         assert (t == 123) is False
-        assert (t is not None)
+        assert t is not None
 
     def test_eq_self(self) -> None:
         t = ToolCapability(name="nmap")
@@ -176,6 +180,7 @@ class TestToolCapability:
 # ---------------------------------------------------------------------------
 # ToolCapability.is_available
 # ---------------------------------------------------------------------------
+
 
 class TestIsAvailable:
     def test_installed_true(self) -> None:
@@ -201,6 +206,7 @@ class TestIsAvailable:
 # ToolEdge dataclass
 # ---------------------------------------------------------------------------
 
+
 class TestToolEdge:
     def test_defaults(self) -> None:
         e = ToolEdge(source="a", target="b")
@@ -220,6 +226,7 @@ class TestToolEdge:
 # ---------------------------------------------------------------------------
 # _cached_which
 # ---------------------------------------------------------------------------
+
 
 class TestCachedWhich:
     def test_caches_result(self) -> None:
@@ -252,6 +259,7 @@ class TestCachedWhich:
 # invalidate_which_cache
 # ---------------------------------------------------------------------------
 
+
 class TestInvalidateWhichCache:
     def test_clears_global_dict(self) -> None:
         _TOOL_WHICH_CACHE["test"] = "/some/path"
@@ -271,6 +279,7 @@ class TestInvalidateWhichCache:
 # _TOOL_WHICH_CACHE global
 # ---------------------------------------------------------------------------
 
+
 class TestWhichCacheGlobal:
     def test_is_dict(self) -> None:
         assert isinstance(_TOOL_WHICH_CACHE, dict)
@@ -278,7 +287,6 @@ class TestWhichCacheGlobal:
     def test_starts_empty_after_invalidate(self) -> None:
         invalidate_which_cache()
         assert _TOOL_WHICH_CACHE == {}
-
 
 
 """Extra tests for tool_metadata, tool_version, and tool_installer."""
@@ -307,6 +315,7 @@ from siyarix.tool_version import get_tool_metadata
 
 # ── tool_metadata.py ─────────────────────────────────────────────────
 
+
 class TestToolMetadataLoadDB:
     @patch("siyarix.tool_metadata._DB", None)
     @patch("pathlib.Path.exists")
@@ -316,8 +325,10 @@ class TestToolMetadataLoadDB:
         mock_read.side_effect = PermissionError("denied")
         # Need to reset _load_db's Path import path
         import siyarix.tool_metadata as tm
+
         importlib.reload(tm)
         from siyarix.tool_metadata import _load_db as ld
+
         db = ld()
         assert db == {}
 
@@ -326,8 +337,10 @@ class TestToolMetadataLoadDB:
     def test_load_db_file_not_found(self, mock_exists):
         mock_exists.return_value = False
         import siyarix.tool_metadata as tm
+
         importlib.reload(tm)
         from siyarix.tool_metadata import _load_db as ld
+
         db = ld()
         assert db == {}
 
@@ -478,6 +491,7 @@ class TestToolMetadataPersonas:
 
 # ── tool_version.py ──────────────────────────────────────────────────
 
+
 class TestToolVersionLoadDB:
     @patch("siyarix.tool_version._DB", None)
     @patch("siyarix.tool_version._CYBER_TOOLS_PATH")
@@ -534,6 +548,7 @@ class TestToolVersionGetMetadata:
 
 # ── tool_installer.py ────────────────────────────────────────────────
 
+
 class TestToolInstallerPrint:
     def test_print_with_console(self):
         mock_console = MagicMock()
@@ -543,6 +558,7 @@ class TestToolInstallerPrint:
 
     def test_print_without_console(self, caplog):
         import logging
+
         caplog.set_level(logging.INFO)
         installer = ToolInstaller()
         installer._print("test message")
@@ -555,8 +571,10 @@ class TestToolInstallerWindows:
     @patch("siyarix.tool_installer.subprocess.run")
     def test_install_win_winget_success(self, mock_run, mock_which):
         which_results = {"winget": "C:/Windows/winget.exe", "nmap": None}
+
         def which_side(x):
             return which_results.get(x)
+
         mock_which.side_effect = which_side
         mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
         installer = ToolInstaller()
@@ -694,6 +712,7 @@ class TestToolInstallerRefreshPath:
             ("C:\\Users\\test\\bin", None),
         ]
         import os as os_mod
+
         orig = os_mod.environ.get("PATH", "")
         installer = ToolInstaller()
         installer._refresh_windows_path()
@@ -775,9 +794,11 @@ class TestToolInstallerLinux:
     def test_install_nix_subprocess_error(self, mock_run):
         # which: apt-get found, nmap not found
         which_calls = []
+
         def which_side(x):
             which_calls.append(x)
             return {"apt-get": "/usr/bin/apt-get", "apt": None, "sudo": "/usr/bin/sudo"}.get(x)
+
         ok = MagicMock(returncode=0, stdout="", stderr="")
         # update + 2 sudo attempts (sudo then non-sudo) + possibly more which calls
         # _install_nix: update call, then install tries with sudo, fails, tries without sudo, fails
@@ -797,6 +818,7 @@ class TestToolInstallerLinux:
     def test_install_nix_update_fails_continues(self, mock_run):
         def which_side(x):
             return {"apt-get": "/usr/bin/apt-get", "apt": None, "sudo": "/usr/bin/sudo"}.get(x)
+
         ok = MagicMock(returncode=0, stdout="", stderr="")
         # The update call isn't in try/except, so return ok for update
         # then the install loop handles errors

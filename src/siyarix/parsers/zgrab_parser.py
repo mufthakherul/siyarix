@@ -48,7 +48,8 @@ class ZgrabParser:
                 "bacnet",
             ):
                 proto_data = inner.get(
-                    protocol, data.get(f"{protocol}_response", {}).get("result", {}),
+                    protocol,
+                    data.get(f"{protocol}_response", {}).get("result", {}),
                 )
                 if isinstance(proto_data, dict) and (
                     proto_data.get("status", "") == "success" or bool(proto_data)
@@ -77,7 +78,13 @@ class ZgrabParser:
         return findings
 
     def _parse_protocol(
-        self, protocol: str, data: dict, ip: str, domain: str, timestamp: str, seen: set[str],
+        self,
+        protocol: str,
+        data: dict,
+        ip: str,
+        domain: str,
+        timestamp: str,
+        seen: set[str],
     ) -> list[dict[str, Any]]:
         r: list[dict[str, Any]] = []
         if protocol == "tls":

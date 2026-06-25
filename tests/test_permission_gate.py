@@ -78,7 +78,6 @@ class TestPermissionGate:
         assert result.stage == "approved"
 
 
-
 """Extra tests for permission_gate targeting uncovered lines."""
 
 
@@ -122,9 +121,7 @@ class TestPermissionGateLoadState:
     @patch("siyarix.permission_gate.DangerAnalyzer")
     def test_rate_limit_exceeded(self, MockDA: MagicMock) -> None:
         da_instance = MockDA.return_value
-        da_instance.analyze.return_value = MagicMock(
-            severity="safe", reasons=[]
-        )
+        da_instance.analyze.return_value = MagicMock(severity="safe", reasons=[])
         gate = PermissionGate(rate_limit_calls=2, rate_limit_period=60.0)
         now = time.time()
         gate._calls = [now - 1, now - 2]
@@ -136,9 +133,7 @@ class TestPermissionGateLoadState:
     @patch("siyarix.permission_gate.DangerAnalyzer")
     def test_restricted_payload_blocked(self, MockDA: MagicMock) -> None:
         da_instance = MockDA.return_value
-        da_instance.analyze.return_value = MagicMock(
-            severity="safe", reasons=[]
-        )
+        da_instance.analyze.return_value = MagicMock(severity="safe", reasons=[])
         gate = PermissionGate()
         result = gate.check(
             "rm -rf /important",
@@ -149,13 +144,9 @@ class TestPermissionGateLoadState:
         assert "verification failed" in result.reason
 
     @patch("siyarix.permission_gate.DangerAnalyzer")
-    def test_restricted_payload_not_blocked_safe_command(
-        self, MockDA: MagicMock
-    ) -> None:
+    def test_restricted_payload_not_blocked_safe_command(self, MockDA: MagicMock) -> None:
         da_instance = MockDA.return_value
-        da_instance.analyze.return_value = MagicMock(
-            severity="safe", reasons=[]
-        )
+        da_instance.analyze.return_value = MagicMock(severity="safe", reasons=[])
         gate = PermissionGate()
         result = gate.check("ls", context={"restricted_payload": True})
         assert result.allowed is True
@@ -175,13 +166,9 @@ class TestPermissionGateLoadState:
         state_file.parent.chmod(0o755)
 
     @patch("siyarix.permission_gate.DangerAnalyzer")
-    def test_rate_limit_edge_one_call_remaining(
-        self, MockDA: MagicMock
-    ) -> None:
+    def test_rate_limit_edge_one_call_remaining(self, MockDA: MagicMock) -> None:
         da_instance = MockDA.return_value
-        da_instance.analyze.return_value = MagicMock(
-            severity="safe", reasons=[]
-        )
+        da_instance.analyze.return_value = MagicMock(severity="safe", reasons=[])
         gate = PermissionGate(rate_limit_calls=3, rate_limit_period=60.0)
         now = time.time()
         gate._calls = [now - 1]
@@ -192,9 +179,7 @@ class TestPermissionGateLoadState:
     def test_fifty_calls_triggers_save(self, MockDA: MagicMock) -> None:
         """After 50 calls, _save_state(force=True) is triggered via the modulo check."""
         da_instance = MockDA.return_value
-        da_instance.analyze.return_value = MagicMock(
-            severity="safe", reasons=[]
-        )
+        da_instance.analyze.return_value = MagicMock(severity="safe", reasons=[])
         gate = PermissionGate(rate_limit_calls=100, rate_limit_period=3600.0)
         gate._dirty = False
         for i in range(50):

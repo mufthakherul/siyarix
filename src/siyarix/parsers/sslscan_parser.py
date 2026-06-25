@@ -12,10 +12,12 @@ from . import _now_iso
 _ACCEPTED_RE = re.compile(r"\bAccepted\s+\S+")
 _CIPHER_RE = re.compile(r"(Accepted|Preferred|Rejected)\s+(\S+(?:\s+\S+)*)")
 _CERT_RE = re.compile(
-    r"(?:Certificate|Subject|Issuer|Not valid|SHA-1|SHA-256|MD5)[:\s]+(.+)", re.IGNORECASE,
+    r"(?:Certificate|Subject|Issuer|Not valid|SHA-1|SHA-256|MD5)[:\s]+(.+)",
+    re.IGNORECASE,
 )
 _PROTOCOL_RE = re.compile(
-    r"(TLSv1\.\d|SSLv[23]|SSLv2|SSLv3)\s*:?\s+(supported|disabled|enabled)", re.IGNORECASE,
+    r"(TLSv1\.\d|SSLv[23]|SSLv2|SSLv3)\s*:?\s+(supported|disabled|enabled)",
+    re.IGNORECASE,
 )
 _TARGET_RE = re.compile(r"(?:Host|Target)[:\s]+(\S+)", re.IGNORECASE)
 
@@ -51,7 +53,9 @@ class SslscanParser:
                 severity = "info"
                 if status == "disabled" and protocol in ("SSLv2", "SSLv3"):
                     severity = "info"
-                elif (status == "enabled" and protocol in ("SSLv2", "SSLv3")) or (status == "supported" and protocol in ("SSLv2", "SSLv3")):
+                elif (status == "enabled" and protocol in ("SSLv2", "SSLv3")) or (
+                    status == "supported" and protocol in ("SSLv2", "SSLv3")
+                ):
                     severity = "high"
 
                 findings.append(

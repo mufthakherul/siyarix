@@ -5,7 +5,6 @@ from ..types import CostTier, ModelInfo, ProviderProfile
 
 
 def register_profile(manager: ProviderManager) -> None:
-
     manager.register(
         ProviderProfile(
             name="anthropic",

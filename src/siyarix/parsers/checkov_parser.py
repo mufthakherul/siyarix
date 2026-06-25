@@ -43,7 +43,8 @@ class CheckovParser:
                 resource = check.get("resource", "")
                 check.get("guideline", check.get("guidelines", ""))
                 severity_raw = check.get(
-                    "severity", check.get("check_result", {}).get("result", "INFO"),
+                    "severity",
+                    check.get("check_result", {}).get("result", "INFO"),
                 )
                 file_path = check.get("file_path", check.get("filePath", ""))
                 repo_name = check.get("repo_name", check.get("repo", ""))

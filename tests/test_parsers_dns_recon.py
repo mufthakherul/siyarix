@@ -1,4 +1,5 @@
 """Tests for DNS & Domain Reconnaissance parsers."""
+
 from __future__ import annotations
 
 import json
@@ -18,15 +19,22 @@ from siyarix.parsers.theharvester_parser import TheharvesterParser
 
 
 from siyarix.parsers.subfinder_parser import SubfinderParser
+
+
 def _check_finding(finding, expected_tool, min_fields=None):
     min_fields = min_fields or {
-        "title", "severity", "description", "evidence", "tool", "target", "timestamp",
+        "title",
+        "severity",
+        "description",
+        "evidence",
+        "tool",
+        "target",
+        "timestamp",
     }
     for field in min_fields:
         assert field in finding, f"Missing field {field} in {expected_tool} finding"
     assert finding["tool"] == expected_tool
     assert finding["severity"] in ("critical", "high", "medium", "low", "info")
-
 
 
 class TestDnsenumParser:
@@ -100,7 +108,9 @@ class TestDnsenumParser:
 
     def test_csv_format(self):
         p = DnsenumParser()
-        output = "type,name,address\nA,www.example.com,93.184.216.34\nMX,example.com,mail.example.com\n"
+        output = (
+            "type,name,address\nA,www.example.com,93.184.216.34\nMX,example.com,mail.example.com\n"
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
@@ -113,6 +123,8 @@ class TestDnsenumParser:
     def test_empty_output(self):
         p = DnsenumParser()
         assert p.parse("") == []
+
+
 class TestDnsreconParser:
     def test_json_A_record(self):
         p = DnsreconParser()
@@ -135,12 +147,20 @@ class TestDnsreconParser:
 
     def test_json_SOA_with_details(self):
         p = DnsreconParser()
-        output = json.dumps([{
-            "type": "SOA",
-            "name": "example.com",
-            "value": "ns1.example.com",
-            "soa": {"mname": "ns1.example.com", "rname": "admin.example.com", "serial": 20240101},
-        }])
+        output = json.dumps(
+            [
+                {
+                    "type": "SOA",
+                    "name": "example.com",
+                    "value": "ns1.example.com",
+                    "soa": {
+                        "mname": "ns1.example.com",
+                        "rname": "admin.example.com",
+                        "serial": 20240101,
+                    },
+                }
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         desc = findings[0]["description"]
@@ -154,7 +174,9 @@ class TestDnsreconParser:
 
     def test_csv_format(self):
         p = DnsreconParser()
-        output = "type,name,address\nA,www.example.com,93.184.216.34\nMX,example.com,mail.example.com\n"
+        output = (
+            "type,name,address\nA,www.example.com,93.184.216.34\nMX,example.com,mail.example.com\n"
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
@@ -192,6 +214,8 @@ class TestDnsreconParser:
     def test_empty_output(self):
         p = DnsreconParser()
         assert p.parse("") == []
+
+
 class TestDnsmapParser:
     def test_find_format_with_ip(self):
         p = DnsmapParser()
@@ -246,15 +270,19 @@ class TestDnsmapParser:
     def test_empty_output(self):
         p = DnsmapParser()
         assert p.parse("") == []
+
+
 class TestTheharvesterParser:
     def test_json_email_output(self):
         p = TheharvesterParser()
-        output = json.dumps({
-            "domain": "example.com",
-            "emails": ["admin@example.com", "info@example.com"],
-            "hosts": ["www.example.com", "mail.example.com"],
-            "ips": ["93.184.216.34"],
-        })
+        output = json.dumps(
+            {
+                "domain": "example.com",
+                "emails": ["admin@example.com", "info@example.com"],
+                "hosts": ["www.example.com", "mail.example.com"],
+                "ips": ["93.184.216.34"],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 4
         for f in findings:
@@ -263,22 +291,26 @@ class TestTheharvesterParser:
 
     def test_json_shodan_and_linkedin(self):
         p = TheharvesterParser()
-        output = json.dumps({
-            "domain": "example.com",
-            "shodan": [{"value": "93.184.216.34", "source": "shodan"}],
-            "linkedin": [{"value": "John Doe", "source": "linkedin"}],
-            "twitter": [{"value": "@johndoe"}],
-        })
+        output = json.dumps(
+            {
+                "domain": "example.com",
+                "shodan": [{"value": "93.184.216.34", "source": "shodan"}],
+                "linkedin": [{"value": "John Doe", "source": "linkedin"}],
+                "twitter": [{"value": "@johndoe"}],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 3
 
     def test_json_people_and_vhosts(self):
         p = TheharvesterParser()
-        output = json.dumps({
-            "domain": "corp.com",
-            "people": ["Alice Smith", "Bob Jones"],
-            "vhosts": ["app.corp.com", "api.corp.com"],
-        })
+        output = json.dumps(
+            {
+                "domain": "corp.com",
+                "people": ["Alice Smith", "Bob Jones"],
+                "vhosts": ["app.corp.com", "api.corp.com"],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 4
 
@@ -333,6 +365,8 @@ class TestTheharvesterParser:
     def test_empty_output(self):
         p = TheharvesterParser()
         assert p.parse("") == []
+
+
 class TestGauParser:
     def test_urls_line_per_line(self):
         p = GauParser()
@@ -408,6 +442,8 @@ class TestGauParser:
         findings = p.parse(output)
         summary_findings = [f for f in findings if "URLs" in f["title"]]
         assert len(summary_findings) == 1
+
+
 class TestReconNgParser:
     def test_table_output(self):
         p = ReconNgParser()
@@ -477,6 +513,8 @@ class TestReconNgParser:
         output = "some random text without recognizable patterns\n"
         findings = p.parse(output)
         assert isinstance(findings, list)
+
+
 class TestSublist3rParser:
     def test_basic_subdomains(self):
         p = Sublist3rParser()
@@ -514,6 +552,8 @@ class TestSublist3rParser:
         output = "Sublist3r discovered subdomains for: example.com\n# Total unique subdomains found: 3\nmail.example.com\nwww.example.com\napi.example.com\n"
         findings = p.parse(output)
         assert len(findings) >= 3
+
+
 class TestAssetfinderParser:
     def test_basic_subdomains(self):
         p = AssetfinderParser()
@@ -556,6 +596,8 @@ class TestAssetfinderParser:
         output = "my-sub-domain.example.com\n"
         findings = p.parse(output)
         assert len(findings) == 1
+
+
 class TestDnsenumParser_extra_b5:
     def test_host_record(self):
         p = DnsenumParser()
@@ -645,6 +687,8 @@ class TestDnsenumParser_extra_b5:
         axfr_findings = [f for f in findings if "AXFR" in f["title"]]
         if axfr_findings:
             assert axfr_findings[0]["severity"] == "high"
+
+
 class TestDnsreconParser_extra_b5:
     def test_bracket_record(self):
         p = DnsreconParser()
@@ -720,10 +764,14 @@ class TestDnsreconParser_extra_b5:
         output = "SOA ns1.example.com admin.example.com\n"
         findings = p.parse(output)
         assert len(findings) >= 1
+
+
 class TestGauParser_extra_b6:
     def test_basic_urls(self):
         p = GauParser()
-        output = "http://example.com/path1\nhttp://example.com/path2?id=1\nhttp://example.com/path3\n"
+        output = (
+            "http://example.com/path1\nhttp://example.com/path2?id=1\nhttp://example.com/path3\n"
+        )
         findings = p.parse(output)
         assert len(findings) >= 3
         for f in findings:
@@ -846,7 +894,9 @@ class TestSublist3rParser_extra_b7:
 
     def test_base_domain_extraction(self):
         p = Sublist3rParser()
-        output = "Sublist3r enumeration for domain: example.com\nsub1.example.com\nsub2.example.com\n"
+        output = (
+            "Sublist3r enumeration for domain: example.com\nsub1.example.com\nsub2.example.com\n"
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
         assert any("example.com" in f["description"] for f in findings)
@@ -885,6 +935,8 @@ class TestSublist3rParser_extra_b7:
         findings = p.parse(output)
         assert len(findings) == 1
         assert "my-sub-domain.example.com" in findings[0]["title"]
+
+
 class TestDnsxParser:
     def test_json_host_a_record(self):
         p = DnsxParser()
@@ -945,13 +997,27 @@ class TestDnsxParser:
         findings = p.parse(output)
         assert len(findings) == 1
         assert "test.org" in findings[0]["title"]
+
+
 class TestDnstwistParser:
     def test_json_list_with_ips(self):
         p = DnstwistParser()
-        output = json.dumps([
-            {"domain": "example.com", "fuzzed": "examp1e.com", "dns-a": ["1.2.3.4"], "score": 75},
-            {"domain": "example.com", "fuzzed": "examp1e.net", "dns-a": ["5.6.7.8"], "score": 50},
-        ])
+        output = json.dumps(
+            [
+                {
+                    "domain": "example.com",
+                    "fuzzed": "examp1e.com",
+                    "dns-a": ["1.2.3.4"],
+                    "score": 75,
+                },
+                {
+                    "domain": "example.com",
+                    "fuzzed": "examp1e.net",
+                    "dns-a": ["5.6.7.8"],
+                    "score": 50,
+                },
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 2
         for f in findings:
@@ -960,36 +1026,60 @@ class TestDnstwistParser:
 
     def test_json_no_ips_high_score(self):
         p = DnstwistParser()
-        output = json.dumps([
-            {"domain": "example.com", "fuzzed": "examp1e.org", "dns-a": [], "score": 90},
-        ])
+        output = json.dumps(
+            [
+                {"domain": "example.com", "fuzzed": "examp1e.org", "dns-a": [], "score": 90},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert findings[0]["severity"] == "medium"
 
     def test_json_low_score_no_ips(self):
         p = DnstwistParser()
-        output = json.dumps([
-            {"domain": "example.com", "fuzzed": "examp1e.io", "dns-a": [], "score": 30},
-        ])
+        output = json.dumps(
+            [
+                {"domain": "example.com", "fuzzed": "examp1e.io", "dns-a": [], "score": 30},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert findings[0]["severity"] == "low"
 
     def test_json_with_mx(self):
         p = DnstwistParser()
-        output = json.dumps([
-            {"domain": "example.com", "fuzzed": "examp1e.com", "dns-a": ["1.2.3.4"], "dns-mx": ["mail.examp1e.com"], "score": 75},
-        ])
+        output = json.dumps(
+            [
+                {
+                    "domain": "example.com",
+                    "fuzzed": "examp1e.com",
+                    "dns-a": ["1.2.3.4"],
+                    "dns-mx": ["mail.examp1e.com"],
+                    "score": 75,
+                },
+            ]
+        )
         findings = p.parse(output)
         assert "MX" in findings[0]["evidence"]
 
     def test_json_dedup_by_fuzzed(self):
         p = DnstwistParser()
-        output = json.dumps([
-            {"domain": "example.com", "fuzzed": "examp1e.com", "dns-a": ["1.2.3.4"], "score": 75},
-            {"domain": "example.com", "fuzzed": "examp1e.com", "dns-a": ["5.6.7.8"], "score": 80},
-        ])
+        output = json.dumps(
+            [
+                {
+                    "domain": "example.com",
+                    "fuzzed": "examp1e.com",
+                    "dns-a": ["1.2.3.4"],
+                    "score": 75,
+                },
+                {
+                    "domain": "example.com",
+                    "fuzzed": "examp1e.com",
+                    "dns-a": ["5.6.7.8"],
+                    "score": 80,
+                },
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -1024,9 +1114,16 @@ class TestDnstwistParser:
 
     def test_json_with_dns_aaaa(self):
         p = DnstwistParser()
-        output = json.dumps([
-            {"domain": "example.com", "fuzzed": "examp1e.com", "dns-aaaa": ["::1"], "score": 60},
-        ])
+        output = json.dumps(
+            [
+                {
+                    "domain": "example.com",
+                    "fuzzed": "examp1e.com",
+                    "dns-aaaa": ["::1"],
+                    "score": 60,
+                },
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "::1" in findings[0]["evidence"]
@@ -1035,12 +1132,13 @@ class TestDnstwistParser:
 """Comprehensive coverage tests for: covering 24 low-coverage parsers to reach >95% each."""
 
 
-
 def _check_finding(finding, expected_tool):
     for field in ("title", "severity", "description", "evidence", "tool", "target", "timestamp"):
         assert field in finding, f"Missing field {field} in {expected_tool} finding"
     assert finding["tool"] == expected_tool
     assert finding["severity"] in ("critical", "high", "medium", "low", "info")
+
+
 class TestGauParser_extra_b8:
     def test_empty(self):
         assert GauParser().parse("") == []
@@ -1113,6 +1211,8 @@ class TestGauParser_extra_b8:
         findings = p.parse(output)
         assert len(findings) == 1
         assert "admin" in findings[0]["title"].lower() or findings[0]["severity"] == "low"
+
+
 class TestTheharvesterParser_extra_b8:
     def test_empty(self):
         assert TheharvesterParser().parse("") == []
@@ -1120,21 +1220,36 @@ class TestTheharvesterParser_extra_b8:
 
     def test_json_emails(self):
         p = TheharvesterParser()
-        output = json.dumps({"domain": "example.com", "emails": ["admin@example.com", "user@example.com"]})
+        output = json.dumps(
+            {"domain": "example.com", "emails": ["admin@example.com", "user@example.com"]}
+        )
         findings = p.parse(output)
         assert len(findings) == 2
         _check_finding(findings[0], "theharvester")
 
     def test_json_hosts_with_attribution(self):
         p = TheharvesterParser()
-        output = json.dumps({"domain": "example.com", "hosts": [{"value": "mail.example.com", "source": "baidu"}, {"value": "www.example.com"}]})
+        output = json.dumps(
+            {
+                "domain": "example.com",
+                "hosts": [
+                    {"value": "mail.example.com", "source": "baidu"},
+                    {"value": "www.example.com"},
+                ],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 2
         assert any("baidu" in f["description"] for f in findings)
 
     def test_json_dict_items(self):
         p = TheharvesterParser()
-        output = json.dumps({"domain": "example.com", "hosts": [{"host": "web.example.com", "attribution": "google"}]})
+        output = json.dumps(
+            {
+                "domain": "example.com",
+                "hosts": [{"host": "web.example.com", "attribution": "google"}],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "google" in findings[0]["description"]
@@ -1205,6 +1320,8 @@ class TestTheharvesterParser_extra_b8:
         p = TheharvesterParser()
         findings = p.parse("plain text")
         assert isinstance(findings, list)
+
+
 class TestReconNgParser_extra_b8:
     def test_empty(self):
         assert ReconNgParser().parse("") == []
@@ -1212,17 +1329,21 @@ class TestReconNgParser_extra_b8:
 
     def test_json_single_record(self):
         p = ReconNgParser()
-        output = json.dumps({"host": "example.com", "ip_address": "1.2.3.4", "domain": "example.com"})
+        output = json.dumps(
+            {"host": "example.com", "ip_address": "1.2.3.4", "domain": "example.com"}
+        )
         findings = p.parse(output)
         assert len(findings) == 3
         _check_finding(findings[0], "recon-ng")
 
     def test_json_list(self):
         p = ReconNgParser()
-        output = json.dumps([
-            {"host": "a.com", "ip": "1.1.1.1"},
-            {"host": "b.com", "ip": "2.2.2.2"},
-        ])
+        output = json.dumps(
+            [
+                {"host": "a.com", "ip": "1.1.1.1"},
+                {"host": "b.com", "ip": "2.2.2.2"},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 4
 
@@ -1263,6 +1384,7 @@ class TestReconNgParser_extra_b8:
         # _KEYVAL_RE's code path is unreachable from parse_text() due to
         # line.strip() removing the required leading whitespace; test regex directly.
         from siyarix.parsers.recon_ng_parser import _KEYVAL_RE
+
         m = _KEYVAL_RE.match("  contact_email: test@example.com")
         assert m is not None
         assert m.group("key") == "contact_email"
@@ -1310,12 +1432,16 @@ class TestReconNgParser_extra_b8:
         findings = p.parse(output)
         assert len(findings) == 1
         assert findings[0]["target"] == "unknown"
+
+
 class TestAmassParserBranches:
     """Covers: empty-line skip in JSONL."""
 
     def test_empty_line_skipped(self):
         p = AmassParser()
-        findings = p.parse('{"name":"a.com","domain":"a.com","addresses":[]}\n\n  \n{"name":"b.com","domain":"b.com","addresses":[]}\n')
+        findings = p.parse(
+            '{"name":"a.com","domain":"a.com","addresses":[]}\n\n  \n{"name":"b.com","domain":"b.com","addresses":[]}\n'
+        )
         assert len(findings) == 2
 
 
@@ -1342,8 +1468,8 @@ class TestDigParserBranches:
 # ---------------------------------------------------------------------------
 class TestDnsenumParserBranches:
     """Covers: CSV exception, domain extraction, thread_complete dedup,
-       wildcard dedup, zone_xfer dedup, MX, NS, CNAME, TXT dedup,
-       SOA dedup, bracket dedup, thread dedup, HOST_RE dedup."""
+    wildcard dedup, zone_xfer dedup, MX, NS, CNAME, TXT dedup,
+    SOA dedup, bracket dedup, thread dedup, HOST_RE dedup."""
 
     def test_csv_exception_passes_to_text(self):
         p = DnsenumParser()
@@ -1423,7 +1549,7 @@ class TestDnsenumParserBranches:
 # ---------------------------------------------------------------------------
 class TestDnsmapParserBranches:
     """Covers: CSV exception pass, CSV dedup, PAREN_IP dedup, IP_RE dedup,
-       CSV_DOMAIN_RE, FIND_RE, text empty lines."""
+    CSV_DOMAIN_RE, FIND_RE, text empty lines."""
 
     def test_csv_exception_passes(self):
         p = DnsmapParser()
@@ -1437,7 +1563,9 @@ class TestDnsmapParserBranches:
 
     def test_find_re_dedup(self):
         p = DnsmapParser()
-        findings = p.parse("found domain: sub.example.com (IP: 1.2.3.4)\nfound domain: sub.example.com (IP: 1.2.3.4)\n")
+        findings = p.parse(
+            "found domain: sub.example.com (IP: 1.2.3.4)\nfound domain: sub.example.com (IP: 1.2.3.4)\n"
+        )
         assert len(findings) == 1
 
     def test_paren_ip_dedup(self):
@@ -1462,8 +1590,8 @@ class TestDnsmapParserBranches:
 # ---------------------------------------------------------------------------
 class TestDnsreconParserBranches:
     """Covers: CSV exception, JSON dedup, CSV dedup, text empty, text domain,
-       stats dedup, zone_xfer dedup, SRV dedup, TXT dedup, SOA detailed dedup,
-       SOA basic dedup, record dedup."""
+    stats dedup, zone_xfer dedup, SRV dedup, TXT dedup, SOA detailed dedup,
+    SOA basic dedup, record dedup."""
 
     def test_csv_exception_passes(self):
         p = DnsreconParser()
@@ -1472,7 +1600,12 @@ class TestDnsreconParserBranches:
 
     def test_json_dedup(self):
         p = DnsreconParser()
-        output = json.dumps([{"type": "A", "name": "example.com", "address": "1.2.3.4"}, {"type": "A", "name": "example.com", "address": "1.2.3.4"}])
+        output = json.dumps(
+            [
+                {"type": "A", "name": "example.com", "address": "1.2.3.4"},
+                {"type": "A", "name": "example.com", "address": "1.2.3.4"},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -1583,7 +1716,9 @@ class TestReconNgParser:
         assert len(r) >= 1
 
     def test_text_table_row(self):
-        r = ReconNgParser().parse("+---+------+\n| # | host |\n+---+------+\n| 1 | test |\n+---+------+")
+        r = ReconNgParser().parse(
+            "+---+------+\n| # | host |\n+---+------+\n| 1 | test |\n+---+------+"
+        )
         # headers are set, then row 1
         assert len(r) >= 1
 
@@ -1604,6 +1739,8 @@ class TestReconNgParser:
     def test_dedup(self):
         r = ReconNgParser().parse("host | 10.0.0.1\nhost | 10.0.0.1")
         assert len(r) == 0
+
+
 class TestSublist3rParser:
     def test_empty(self):
         assert Sublist3rParser().parse("") == []
@@ -1626,12 +1763,16 @@ class TestSublist3rParser:
     def test_blank_line_skipped(self):
         r = Sublist3rParser().parse("\n\n")
         assert len(r) == 0
+
+
 class TestTheharvesterParser:
     def test_empty(self):
         assert TheharvesterParser().parse("") == []
 
     def test_json_hosts(self):
-        r = TheharvesterParser().parse('{"domain":"test.com","hosts":[{"value":"mail.test.com","attribution":"search"}]}')
+        r = TheharvesterParser().parse(
+            '{"domain":"test.com","hosts":[{"value":"mail.test.com","attribution":"search"}]}'
+        )
         assert any("host: mail.test.com" in f["title"] for f in r)
 
     def test_json_emails(self):
@@ -1659,15 +1800,21 @@ class TestTheharvesterParser:
         assert any("Linkedin" in f["title"] for f in r)
 
     def test_text_attribution(self):
-        r = TheharvesterParser().parse("domain: test.com\nattribution: google\n\n****** Emails ******\nadmin@test.com")
+        r = TheharvesterParser().parse(
+            "domain: test.com\nattribution: google\n\n****** Emails ******\nadmin@test.com"
+        )
         assert any("source" in f["description"] for f in r)
 
     def test_text_vhosts_section(self):
-        r = TheharvesterParser().parse("domain: test.com\n\n****** Virtual Hosts ******\nadmin.test.com")
+        r = TheharvesterParser().parse(
+            "domain: test.com\n\n****** Virtual Hosts ******\nadmin.test.com"
+        )
         assert len(r) >= 1
 
     def test_blank_line_skipped(self):
         assert TheharvesterParser().parse("\n\n") == []
+
+
 class TestReconNgParserBranches:
     """Covers: JSON dedup, target not found in row, text table dedup."""
 
@@ -1719,11 +1866,7 @@ class TestSublist3rParserBranches:
 
     def test_lines_after_section_header(self):
         p = Sublist3rParser()
-        output = (
-            "# Total unique domains found\n"
-            "sub.example.com\n"
-            "another.example.com\n"
-        )
+        output = "# Total unique domains found\n" "sub.example.com\n" "another.example.com\n"
         findings = p.parse(output)
         assert len(findings) == 2
         assert all("Subdomain" in f["title"] for f in findings)
@@ -1756,9 +1899,7 @@ class TestTheharvesterParserBranches:
 
     def test_host_with_two_hosts(self):
         p = TheharvesterParser()
-        output = ("***** Hosts *****\n"
-                  "host: example.com\n"
-                  "host: example2.com\n")
+        output = "***** Hosts *****\n" "host: example.com\n" "host: example2.com\n"
         findings = p.parse(output)
         assert len(findings) == 2
 
@@ -1776,9 +1917,7 @@ class TestTheharvesterParserBranches:
 
     def test_ip_with_two_ips(self):
         p = TheharvesterParser()
-        output = ("***** IPs *****\n"
-                  "192.168.1.1\n"
-                  "192.168.1.2\n")
+        output = "***** IPs *****\n" "192.168.1.1\n" "192.168.1.2\n"
         findings = p.parse(output)
         assert len(findings) == 2
 
@@ -1790,9 +1929,7 @@ class TestTheharvesterParserBranches:
 
     def test_people_with_two_entries(self):
         p = TheharvesterParser()
-        output = ("***** People *****\n"
-                  "Jane Smith\n"
-                  "Bob Jones\n")
+        output = "***** People *****\n" "Jane Smith\n" "Bob Jones\n"
         findings = p.parse(output)
         assert len(findings) == 2
 
@@ -1803,8 +1940,8 @@ class TestTheharvesterParserBranches:
 # ---------------------------------------------------------------------------
 class TestDnsenumParserAdditionalBranches:
     """Covers: CSV exception, dedup in CSV, no-colon domain skip,
-       empty line skip, wildcard seen-dedup, TXT dedup,
-       thread with no ip, NS severity, MX severity."""
+    empty line skip, wildcard seen-dedup, TXT dedup,
+    thread with no ip, NS severity, MX severity."""
 
     def test_csv_dedup(self):
         """Line 104: dedup skip in CSV."""
@@ -1852,7 +1989,7 @@ class TestDnsenumParserAdditionalBranches:
     def test_txt_dedup(self):
         """Line 263: TXT dedup_key already in seen."""
         p = DnsenumParser()
-        findings = p.parse("host IN TXT \"v=spf1\"\nhost IN TXT \"v=spf1\"\n")
+        findings = p.parse('host IN TXT "v=spf1"\nhost IN TXT "v=spf1"\n')
         txt = [f for f in findings if "TXT" in f["title"]]
         assert len(txt) == 1
 
@@ -1866,7 +2003,7 @@ class TestDnsenumParserAdditionalBranches:
 
     def test_host_re_ns_severity(self):
         """Line 387: _HOST_RE match with NS type -> low severity.
-           Omit 'IN' to bypass _NS_RE which is checked first."""
+        Omit 'IN' to bypass _NS_RE which is checked first."""
         p = DnsenumParser()
         findings = p.parse("example.com NS ns1.example.com\n")
         ns = [f for f in findings if "NS" in f["title"]]
@@ -1875,7 +2012,7 @@ class TestDnsenumParserAdditionalBranches:
 
     def test_host_re_mx_severity(self):
         """Line 389: _HOST_RE match with MX type -> low severity.
-           Omit 'IN' to bypass _MX_RE which is checked first."""
+        Omit 'IN' to bypass _MX_RE which is checked first."""
         p = DnsenumParser()
         findings = p.parse("example.com MX 10 mail.example.com\n")
         mx = [f for f in findings if "MX" in f["title"]]
@@ -1898,15 +2035,12 @@ class TestSublist3rParserAdditionalBranches:
 
     def test_subdomain_match_after_in_results(self):
         """64-68: after _SECTION_RE sets in_results=True, a line matching
-           _SUBDOMAIN_RE enters the second match block.
-           Note: the first _SUBDOMAIN_RE.match at line 44 is identical
-           and always fires first, making this path structurally
-           redundant for the same input.  We verify the second match
-           block by passing a line that hits both paths."""
-        output = (
-            "# Total subdomains found\n"
-            "sub.example.com\n"
-        )
+        _SUBDOMAIN_RE enters the second match block.
+        Note: the first _SUBDOMAIN_RE.match at line 44 is identical
+        and always fires first, making this path structurally
+        redundant for the same input.  We verify the second match
+        block by passing a line that hits both paths."""
+        output = "# Total subdomains found\n" "sub.example.com\n"
         p = Sublist3rParser()
         findings = p.parse(output)
         subs = [f for f in findings if "Subdomain" in f["title"]]
@@ -1921,10 +2055,10 @@ class TestReconNgParserAdditionalBranches:
 
     def test_key_value_line(self):
         """164-171: _KEYVAL_RE matches a key|value line.
-           Note: line.strip() at parse start removes leading whitespace
-           that _KEYVAL_RE requires, making this path structurally
-           unreachable without a pre-stripped input.  We test the
-           fallback by using text that avoids the issue."""
+        Note: line.strip() at parse start removes leading whitespace
+        that _KEYVAL_RE requires, making this path structurally
+        unreachable without a pre-stripped input.  We test the
+        fallback by using text that avoids the issue."""
         p = ReconNgParser()
         findings = p.parse("[+] 'admin@example.com' found\n")
         assert isinstance(findings, list)
@@ -2017,7 +2151,7 @@ class TestDnsenumParserAdditionalBranch:
 # ============================================================================
 class TestDnsreconParserAdditionalBranches:
     """Covers: CSV exception, AXFR severity, NS severity in CSV,
-       domain from text line."""
+    domain from text line."""
 
     def test_csv_exception_passes(self):
         """88-89: CSV exception caught, falls to text."""
@@ -2052,21 +2186,25 @@ class TestDnsreconParserAdditionalBranches:
 
 from siyarix.parsers import ParserRegistry
 
+
 @pytest.fixture(scope="module")
 def registry():
     reg = ParserRegistry()
     reg.discover()
     return reg
 
+
 def test_registry_discovery(registry):
     tools = registry.registered_tools()
     assert len(tools) > 0, "Should have discovered parsers"
+
 
 def test_all_parsers_safe_parse_empty(registry):
     """Test all discovered parsers with empty string to ensure they handle it."""
     for tool in registry.registered_tools():
         res = registry.parse(tool, "")
         assert isinstance(res, list), f"{tool} parser did not return a list for empty input"
+
 
 def test_all_parsers_safe_parse_plaintext(registry):
     """Test all discovered parsers with garbage plaintext."""
@@ -2075,17 +2213,19 @@ def test_all_parsers_safe_parse_plaintext(registry):
         res = registry.parse(tool, plaintext)
         assert isinstance(res, list), f"{tool} parser did not return a list for plaintext"
 
+
 def test_all_parsers_safe_parse_json(registry):
     """Test all discovered parsers with unexpected JSON."""
     bad_json = json.dumps({"unrelated": "data", "status": "failed"})
     bad_json_list = json.dumps([{"fake": "array"}])
-    
+
     for tool in registry.registered_tools():
         res1 = registry.parse(tool, bad_json)
         assert isinstance(res1, list)
-        
+
         res2 = registry.parse(tool, bad_json_list)
         assert isinstance(res2, list)
+
 
 def test_registry_methods(registry):
     assert registry.has_parser("nmap") is True
@@ -2093,6 +2233,7 @@ def test_registry_methods(registry):
     assert registry.count > 0
     assert registry.get("nmap") is not None
     assert registry.get("nonexistent_tool") is None
+
 
 class TestAmassParser:
     def test_basic_parse(self):
@@ -2107,6 +2248,8 @@ class TestAmassParser:
     def test_empty_output(self):
         p = AmassParser()
         assert p.parse("") == []
+
+
 class TestSubfinderParser:
     def test_basic_parse(self):
         p = SubfinderParser()

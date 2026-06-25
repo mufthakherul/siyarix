@@ -324,6 +324,7 @@ class OPSECManager:
         Example::
 
             import json
+
             print(json.dumps(mgr.status_dict(), indent=2))
         """
         data: dict[str, Any] = asdict(self._status)

@@ -30,7 +30,10 @@ class TestReportSection:
     def test_all_fields(self):
         sub = ReportSection(title="Sub")
         s = ReportSection(
-            title="Main", content="content", findings=[{"a": 1}], subsections=[sub],
+            title="Main",
+            content="content",
+            findings=[{"a": 1}],
+            subsections=[sub],
         )
         assert s.title == "Main"
         assert s.content == "content"
@@ -262,15 +265,17 @@ class TestRender:
 
     def test_html_with_cvss_and_evidence(self):
         engine = ReportEngine()
-        findings = [{
-            "severity": "critical",
-            "title": "RCE",
-            "description": "Remote code execution",
-            "tool": "nuclei",
-            "target": "example.com",
-            "evidence": "exploit worked",
-            "cvss": {"score": 9.5, "severity": "critical", "vector": "CVSS:3.1/AV:N/..."},
-        }]
+        findings = [
+            {
+                "severity": "critical",
+                "title": "RCE",
+                "description": "Remote code execution",
+                "tool": "nuclei",
+                "target": "example.com",
+                "evidence": "exploit worked",
+                "cvss": {"score": 9.5, "severity": "critical", "vector": "CVSS:3.1/AV:N/..."},
+            }
+        ]
         report = engine.build_report(findings, target="t", config=ReportConfig(cvss_scoring=False))
         output = engine.render(report, ReportFormat.HTML)
         assert "CVSS Score" in output
@@ -292,7 +297,15 @@ class TestRender:
     def test_sarif(self):
         engine = ReportEngine()
         report = engine.build_report(
-            [{"severity": "critical", "title": "Bug", "tool": "nmap", "target": "h", "evidence": "proof"}],
+            [
+                {
+                    "severity": "critical",
+                    "title": "Bug",
+                    "tool": "nmap",
+                    "target": "h",
+                    "evidence": "proof",
+                }
+            ],
             target="h",
             config=ReportConfig(cvss_scoring=False),
         )
@@ -483,14 +496,16 @@ class TestBuildFindingsSection:
 
     def test_cvss_data_in_output(self):
         engine = ReportEngine()
-        findings = [{
-            "severity": "high",
-            "title": "SQLi",
-            "description": "Injection",
-            "evidence": "log",
-            "tool": "sqlmap",
-            "cvss": {"score": 8.5, "severity": "high", "vector": "V1"},
-        }]
+        findings = [
+            {
+                "severity": "high",
+                "title": "SQLi",
+                "description": "Injection",
+                "evidence": "log",
+                "tool": "sqlmap",
+                "cvss": {"score": 8.5, "severity": "high", "vector": "V1"},
+            }
+        ]
         section = engine._build_findings_section(findings)
         content = section.subsections[0].content
         assert "CVSS Score" in content
@@ -523,7 +538,9 @@ class TestBuildEvidenceSection:
 
     def test_truncated_at_20(self):
         engine = ReportEngine()
-        findings = [{"severity": "low", "evidence": "e", "target": "t", "tool": "a"} for _ in range(25)]
+        findings = [
+            {"severity": "low", "evidence": "e", "target": "t", "tool": "a"} for _ in range(25)
+        ]
         section = engine._build_evidence_section(findings)
         assert "5 additional findings omitted" in section.content
 
@@ -549,10 +566,13 @@ class TestBuildRemediationSection:
 
     def test_cvss_in_remediation(self):
         engine = ReportEngine()
-        findings = [{
-            "severity": "high", "title": "X",
-            "cvss": {"score": 7.5, "severity": "high", "vector": "V"},
-        }]
+        findings = [
+            {
+                "severity": "high",
+                "title": "X",
+                "cvss": {"score": 7.5, "severity": "high", "vector": "V"},
+            }
+        ]
         section = engine._build_remediation_section(findings)
         assert "7.5/10" in section.content
 
@@ -624,15 +644,17 @@ class TestRenderSarif:
     def test_sarif_format_with_cvss_properties(self):
         engine = ReportEngine()
         report = engine.build_report(
-            [{
-                "severity": "critical",
-                "title": "Critical Vuln",
-                "description": "Bad thing",
-                "tool": "nuclei",
-                "target": "example.com",
-                "evidence": "found at port 443",
-                "cvss": {"score": 9.0, "severity": "critical", "vector": "CVSS:3.1/..."},
-            }],
+            [
+                {
+                    "severity": "critical",
+                    "title": "Critical Vuln",
+                    "description": "Bad thing",
+                    "tool": "nuclei",
+                    "target": "example.com",
+                    "evidence": "found at port 443",
+                    "cvss": {"score": 9.0, "severity": "critical", "vector": "CVSS:3.1/..."},
+                }
+            ],
             target="example.com",
             config=ReportConfig(cvss_scoring=False),
         )

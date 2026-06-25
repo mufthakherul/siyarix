@@ -5,30 +5,32 @@ from __future__ import annotations
 from pathlib import Path
 from siyarix.knowledge_graph import KnowledgeGraph, NodeType, EdgeType
 
+
 def test_knowledge_graph_node_operations():
     kg = KnowledgeGraph()
     n1 = kg.add_node(NodeType.HOST, "192.168.1.1", "host1")
     assert n1.label == "192.168.1.1"
     assert kg.node_count == 1
-    
+
     # Update node
     n2 = kg.add_node(NodeType.HOST, "192.168.1.1", os="Linux")
     assert n2.node_id == n1.node_id
     assert n2.properties.get("os") == "Linux"
-    
+
     assert kg.get_node(n1.node_id) == n1
     assert len(kg.find_nodes(NodeType.HOST)) == 1
     assert len(kg.find_nodes(label_contains="192")) == 1
+
 
 def test_knowledge_graph_edge_operations():
     kg = KnowledgeGraph()
     n1 = kg.add_node(NodeType.HOST, "10.0.0.1")
     n2 = kg.add_node(NodeType.PORT, "80")
-    
+
     e1 = kg.add_edge(n1.node_id, n2.node_id, EdgeType.HAS_PORT, protocol="tcp")
     assert e1 is not None
     assert kg.edge_count == 1
-    
+
     # duplicate update properties
     e2 = kg.add_edge(n1.node_id, n2.node_id, EdgeType.HAS_PORT, state="open")
     assert e1.edge_id == e2.edge_id
@@ -37,6 +39,7 @@ def test_knowledge_graph_edge_operations():
     edges = kg.get_edges(source_id=n1.node_id)
     assert len(edges) == 1
 
+
 def test_knowledge_graph_remove_node():
     kg = KnowledgeGraph()
     n1 = kg.add_node(NodeType.HOST, "host")
@@ -44,28 +47,30 @@ def test_knowledge_graph_remove_node():
     kg.add_edge(n1.node_id, n2.node_id, EdgeType.HAS_PORT)
     assert kg.node_count == 2
     assert kg.edge_count == 1
-    
+
     kg.remove_node(n2.node_id)
     assert kg.node_count == 1
     assert kg.edge_count == 0
+
 
 def test_knowledge_graph_traversal():
     kg = KnowledgeGraph()
     n1 = kg.add_node(NodeType.HOST, "A")
     n2 = kg.add_node(NodeType.HOST, "B")
     n3 = kg.add_node(NodeType.HOST, "C")
-    
+
     kg.add_edge(n1.node_id, n2.node_id, EdgeType.CONNECTS_TO)
     kg.add_edge(n2.node_id, n3.node_id, EdgeType.CONNECTS_TO)
-    
+
     assert len(kg.neighbors(n1.node_id, "out")) == 1
     assert len(kg.neighbors(n2.node_id, "in")) == 1
-    
+
     path = kg.shortest_path(n1.node_id, n3.node_id)
     assert path == [n1.node_id, n2.node_id, n3.node_id]
 
     no_path = kg.shortest_path(n3.node_id, n1.node_id)
     assert no_path is None
+
 
 def test_knowledge_graph_ingest_finding():
     kg = KnowledgeGraph()
@@ -74,36 +79,39 @@ def test_knowledge_graph_ingest_finding():
         "port": 80,
         "service": "http",
         "title": "CVE-2021-1234",
-        "technology": "nginx"
+        "technology": "nginx",
     }
     kg.ingest_finding(finding, "test_tool")
-    
+
     assert kg.node_count == 5  # host, port, service, vuln, tech
     assert kg.edge_count == 4
-    
+
+
 def test_knowledge_graph_serialization(tmp_path: Path):
     kg = KnowledgeGraph()
     n1 = kg.add_node(NodeType.TARGET, "test_target")
     json_data = kg.to_json()
     assert "test_target" in json_data
-    
+
     file_path = tmp_path / "kg.json"
     kg.save_json(file_path)
-    
+
     kg2 = KnowledgeGraph.load_json(file_path)
     assert kg2.node_count == 1
     assert kg2.get_node(n1.node_id).label == "test_target"
+
 
 def test_knowledge_graph_search():
     kg = KnowledgeGraph()
     kg.add_node(NodeType.TARGET, "alpha")
     kg.add_node(NodeType.HOST, "beta", data="some specific string")
-    
+
     res1 = kg.search("alpha")
     assert len(res1) == 1
-    
+
     res2 = kg.search("specific")
     assert len(res2) == 1
+
 
 def test_knowledge_graph_stats():
     kg = KnowledgeGraph()
@@ -113,7 +121,6 @@ def test_knowledge_graph_stats():
     stats = kg.stats()
     assert stats["total_nodes"] == 3
     assert stats["nodes_by_type"]["host"] == 2
-
 
 
 """Exhaustive tests for KnowledgeGraph — covering all methods, branches, traversal, and edge cases."""
@@ -162,7 +169,9 @@ def service_http(kg: KnowledgeGraph) -> Node:
 
 @pytest.fixture
 def vuln_cve(kg: KnowledgeGraph) -> Node:
-    return kg.add_node(NodeType.VULNERABILITY, "CVE-2024-1234", "vuln_1", severity="high", description="RCE")
+    return kg.add_node(
+        NodeType.VULNERABILITY, "CVE-2024-1234", "vuln_1", severity="high", description="RCE"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -284,7 +293,9 @@ class TestEdgeOperations:
         assert edge is None
         assert kg.edge_count == 0
 
-    def test_add_edge_dedup_updates_properties(self, kg: KnowledgeGraph, host_a: Node, port_80: Node):
+    def test_add_edge_dedup_updates_properties(
+        self, kg: KnowledgeGraph, host_a: Node, port_80: Node
+    ):
         e1 = kg.add_edge(host_a.node_id, port_80.node_id, EdgeType.HAS_PORT, state="open")
         e2 = kg.add_edge(host_a.node_id, port_80.node_id, EdgeType.HAS_PORT, state="filtered")
         assert e1.edge_id == e2.edge_id
@@ -296,20 +307,26 @@ class TestEdgeOperations:
         assert port_80.node_id in kg._adjacency[host_a.node_id]
         assert host_a.node_id in kg._reverse_adj[port_80.node_id]
 
-    def test_get_edges_by_source(self, kg: KnowledgeGraph, host_a: Node, host_b: Node, port_80: Node):
+    def test_get_edges_by_source(
+        self, kg: KnowledgeGraph, host_a: Node, host_b: Node, port_80: Node
+    ):
         kg.add_edge(host_a.node_id, port_80.node_id, EdgeType.HAS_PORT)
         kg.add_edge(host_b.node_id, port_80.node_id, EdgeType.CONNECTS_TO)
         edges = kg.get_edges(source_id=host_a.node_id)
         assert len(edges) == 1
         assert edges[0].edge_type == EdgeType.HAS_PORT
 
-    def test_get_edges_by_target(self, kg: KnowledgeGraph, host_a: Node, host_b: Node, port_80: Node):
+    def test_get_edges_by_target(
+        self, kg: KnowledgeGraph, host_a: Node, host_b: Node, port_80: Node
+    ):
         kg.add_edge(host_a.node_id, port_80.node_id, EdgeType.HAS_PORT)
         kg.add_edge(host_b.node_id, port_80.node_id, EdgeType.CONNECTS_TO)
         edges = kg.get_edges(target_id=port_80.node_id)
         assert len(edges) == 2
 
-    def test_get_edges_by_type(self, kg: KnowledgeGraph, host_a: Node, port_80: Node, service_http: Node):
+    def test_get_edges_by_type(
+        self, kg: KnowledgeGraph, host_a: Node, port_80: Node, service_http: Node
+    ):
         kg.add_edge(host_a.node_id, port_80.node_id, EdgeType.HAS_PORT)
         kg.add_edge(port_80.node_id, service_http.node_id, EdgeType.RUNS_SERVICE)
         edges = kg.get_edges(edge_type=EdgeType.HAS_PORT)
@@ -342,7 +359,9 @@ class TestNeighbors:
         assert len(neighbors) == 1
         assert neighbors[0].node_id == host_a.node_id
 
-    def test_both_directions(self, kg: KnowledgeGraph, host_a: Node, port_80: Node, service_http: Node):
+    def test_both_directions(
+        self, kg: KnowledgeGraph, host_a: Node, port_80: Node, service_http: Node
+    ):
         kg.add_edge(host_a.node_id, port_80.node_id, EdgeType.HAS_PORT)
         kg.add_edge(port_80.node_id, service_http.node_id, EdgeType.RUNS_SERVICE)
         neighbors = kg.neighbors(port_80.node_id, direction="both")
@@ -739,9 +758,7 @@ class TestIngestFinding:
         assert hosts[0].label == "target.com"
 
     def test_ingest_with_port_and_service(self, kg: KnowledgeGraph):
-        kg.ingest_finding({
-            "target": "server", "port": 443, "service": "https"
-        })
+        kg.ingest_finding({"target": "server", "port": 443, "service": "https"})
         ports = kg.find_nodes(node_type=NodeType.PORT)
         assert len(ports) == 1
         services = kg.find_nodes(node_type=NodeType.SERVICE)
@@ -749,40 +766,43 @@ class TestIngestFinding:
         assert kg.edge_count == 2  # HAS_PORT + RUNS_SERVICE
 
     def test_ingest_with_vuln(self, kg: KnowledgeGraph):
-        kg.ingest_finding({
-            "target": "server", "title": "CVE-2024-5678",
-            "severity": "critical", "description": "RCE vulnerability",
-        })
+        kg.ingest_finding(
+            {
+                "target": "server",
+                "title": "CVE-2024-5678",
+                "severity": "critical",
+                "description": "RCE vulnerability",
+            }
+        )
         vulns = kg.find_nodes(node_type=NodeType.VULNERABILITY)
         assert len(vulns) == 1
         assert vulns[0].label == "CVE-2024-5678"
 
     def test_ingest_with_vulnerability_field(self, kg: KnowledgeGraph):
-        kg.ingest_finding({
-            "target": "server", "vulnerability": "SQL Injection"
-        })
+        kg.ingest_finding({"target": "server", "vulnerability": "SQL Injection"})
         vulns = kg.find_nodes(node_type=NodeType.VULNERABILITY)
         assert len(vulns) == 1
         assert vulns[0].label == "SQL Injection"
 
     def test_ingest_with_technology(self, kg: KnowledgeGraph):
-        kg.ingest_finding({
-            "target": "server", "technology": "nginx"
-        })
+        kg.ingest_finding({"target": "server", "technology": "nginx"})
         techs = kg.find_nodes(node_type=NodeType.TECHNOLOGY)
         assert len(techs) == 1
         assert techs[0].label == "nginx"
 
     def test_ingest_full_finding(self, kg: KnowledgeGraph):
-        kg.ingest_finding({
-            "target": "web.example.com",
-            "port": 80,
-            "service": "http",
-            "title": "CVE-2024-0001",
-            "severity": "high",
-            "description": "Buffer overflow",
-            "technology": "apache",
-        }, tool="nuclei")
+        kg.ingest_finding(
+            {
+                "target": "web.example.com",
+                "port": 80,
+                "service": "http",
+                "title": "CVE-2024-0001",
+                "severity": "high",
+                "description": "Buffer overflow",
+                "technology": "apache",
+            },
+            tool="nuclei",
+        )
         assert kg.node_count == 5
         assert kg.edge_count == 4
 
@@ -874,7 +894,9 @@ class TestPersistence:
         kg = KnowledgeGraph.load_json(Path("/nonexistent/path.json"))
         assert kg.node_count == 0
 
-    def test_load_json_with_edges(self, kg: KnowledgeGraph, host_a: Node, port_80: Node, tmp_path: Path):
+    def test_load_json_with_edges(
+        self, kg: KnowledgeGraph, host_a: Node, port_80: Node, tmp_path: Path
+    ):
         kg.add_edge(host_a.node_id, port_80.node_id, EdgeType.HAS_PORT, protocol="tcp")
         file_path = tmp_path / "graph.json"
         kg.save_json(file_path)

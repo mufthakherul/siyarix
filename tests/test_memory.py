@@ -148,9 +148,7 @@ class TestMemoryStoreSession:
         assert result.access_count == 1
 
     def test_retrieve_session_expired(self, store):
-        entry = MemoryEntry(
-            key="k1", value="v1", layer=MemoryLayer.SESSION, ttl=0.001
-        )
+        entry = MemoryEntry(key="k1", value="v1", layer=MemoryLayer.SESSION, ttl=0.001)
         store.store(entry)
         time.sleep(0.01)
         result = store.retrieve("k1")
@@ -269,9 +267,7 @@ class TestMemoryStorePersistent:
         assert result is not None
 
     def test_retrieve_expired_persistent(self, store):
-        entry = MemoryEntry(
-            key="exp", value="val", layer=MemoryLayer.PERSISTENT, ttl=0.001
-        )
+        entry = MemoryEntry(key="exp", value="val", layer=MemoryLayer.PERSISTENT, ttl=0.001)
         store.store(entry)
         time.sleep(0.01)
         result = store.retrieve("exp", layer=MemoryLayer.PERSISTENT)
@@ -335,9 +331,7 @@ class TestMemoryStorePersistent:
     def test_search_db_error(self, store):
         store._conn = MagicMock()
         store._conn.execute.side_effect = Exception("search fail")
-        store._session_memory["k"] = MemoryEntry(
-            key="k", value="local", layer=MemoryLayer.SESSION
-        )
+        store._session_memory["k"] = MemoryEntry(key="k", value="local", layer=MemoryLayer.SESSION)
         results = store.search("local")
         assert len(results) == 1
 
@@ -477,11 +471,14 @@ class TestMemoryStoreOpsec:
 
     def test_store_opsec_import_error(self):
         import builtins
+
         original_import = builtins.__import__
+
         def selective_import(name, *args, **kwargs):
             if name == "siyarix.opsec":
                 raise ImportError(f"No module named {name}")
             return original_import(name, *args, **kwargs)
+
         with patch.object(builtins, "__import__", selective_import):
             store = MemoryStore()
             entry = MemoryEntry(key="k", value="v", layer=MemoryLayer.PERSISTENT)
@@ -503,7 +500,12 @@ class TestMemoryManager:
     @pytest.fixture
     def manager(self, tmp_path):
         mgr = MemoryManager(base_path=tmp_path)
-        for layer in (MemoryLayer.PROJECT, MemoryLayer.PERSISTENT, MemoryLayer.TOOL, MemoryLayer.WORKFLOW):
+        for layer in (
+            MemoryLayer.PROJECT,
+            MemoryLayer.PERSISTENT,
+            MemoryLayer.TOOL,
+            MemoryLayer.WORKFLOW,
+        ):
             if mgr._stores[layer]._conn:
                 mgr._stores[layer]._conn.row_factory = sqlite3.Row
         yield mgr
@@ -624,6 +626,7 @@ class TestMemoryManager:
     def test_search_result_sorting(self, manager):
         manager.store("a", "shared", layer=MemoryLayer.SESSION)
         import time
+
         time.sleep(0.01)
         manager.store("b", "shared", layer=MemoryLayer.SESSION)
         results = manager.search("shared")
@@ -633,6 +636,7 @@ class TestMemoryManager:
 class TestPublicAPI:
     def test_all_exports(self):
         from siyarix import memory
+
         expected = [
             "MemoryLayer",
             "MemoryEntry",

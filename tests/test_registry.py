@@ -84,7 +84,9 @@ class TestInit:
 
 
 class TestRegister:
-    def test_register_new_tool(self, registry: ToolRegistry, sample_tool: ToolCapability, sample_handler):
+    def test_register_new_tool(
+        self, registry: ToolRegistry, sample_tool: ToolCapability, sample_handler
+    ):
         registry.register(sample_tool, sample_handler)
         assert registry._graph.get_tool("nmap") is sample_tool
         assert registry._handlers["nmap"] is sample_handler
@@ -94,7 +96,9 @@ class TestRegister:
         assert registry._graph.get_tool("nmap") is sample_tool
         assert "nmap" not in registry._handlers
 
-    def test_register_updates_existing_stats(self, registry: ToolRegistry, sample_tool: ToolCapability):
+    def test_register_updates_existing_stats(
+        self, registry: ToolRegistry, sample_tool: ToolCapability
+    ):
         sample_tool.usage_count = 5
         sample_tool.last_used = 100.0
         sample_tool.avg_duration_ms = 200.0
@@ -133,7 +137,9 @@ class TestRegister:
 
 
 class TestUnregister:
-    def test_unregister_existing(self, registry: ToolRegistry, sample_tool: ToolCapability, sample_handler):
+    def test_unregister_existing(
+        self, registry: ToolRegistry, sample_tool: ToolCapability, sample_handler
+    ):
         registry.register(sample_tool, sample_handler)
         with patch("siyarix.registry.emit_sync") as mock_emit:
             result = registry.unregister("nmap")
@@ -172,7 +178,9 @@ class TestUnregister:
 
 
 class TestGetHandler:
-    def test_get_existing_handler(self, registry: ToolRegistry, sample_tool: ToolCapability, sample_handler):
+    def test_get_existing_handler(
+        self, registry: ToolRegistry, sample_tool: ToolCapability, sample_handler
+    ):
         registry.register(sample_tool, sample_handler)
         assert registry.get_handler("nmap") is sample_handler
 
@@ -205,7 +213,9 @@ class TestRegisterHandler:
 
 class TestExecute:
     @patch("siyarix.registry.emit_sync")
-    async def test_execute_success(self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability):
+    async def test_execute_success(
+        self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability
+    ):
         handler = AsyncMock(return_value={"status": "success", "output": "result", "tool": "nmap"})
         registry.register(sample_tool, handler)
         with patch("asyncio.to_thread", new_callable=AsyncMock) as mock_thread:
@@ -226,33 +236,45 @@ class TestExecute:
             await registry.execute("handlerless")
 
     @patch("siyarix.registry.emit_sync")
-    async def test_execute_with_availability_check(self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability):
+    async def test_execute_with_availability_check(
+        self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability
+    ):
         sample_tool.availability = {"os": "linux"}
         handler = AsyncMock(return_value={"status": "success", "output": "ok", "tool": "nmap"})
         registry.register(sample_tool, handler)
-        with patch("siyarix.tool_availability.ToolAvailabilityContext") as MockCtx, \
-             patch("siyarix.tool_availability.evaluate_availability",
-                   return_value=MagicMock(available=True)) as mock_eval, \
-             patch("asyncio.to_thread", new_callable=AsyncMock):
+        with (
+            patch("siyarix.tool_availability.ToolAvailabilityContext") as MockCtx,
+            patch(
+                "siyarix.tool_availability.evaluate_availability",
+                return_value=MagicMock(available=True),
+            ) as mock_eval,
+            patch("asyncio.to_thread", new_callable=AsyncMock),
+        ):
             result = await registry.execute("nmap")
             assert result["status"] == "success"
             mock_eval.assert_called_once()
 
     @patch("siyarix.registry.emit_sync")
-    async def test_execute_availability_fails(self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability):
+    async def test_execute_availability_fails(
+        self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability
+    ):
         sample_tool.availability = {"os": "windows"}
         handler = AsyncMock(return_value={"status": "success", "output": "ok", "tool": "nmap"})
         registry.register(sample_tool, handler)
         mock_result = MagicMock()
         mock_result.available = False
         mock_result.diagnostics = [MagicMock(detail="Not available on this OS")]
-        with patch("siyarix.tool_availability.ToolAvailabilityContext"), \
-             patch("siyarix.tool_availability.evaluate_availability", return_value=mock_result):
+        with (
+            patch("siyarix.tool_availability.ToolAvailabilityContext"),
+            patch("siyarix.tool_availability.evaluate_availability", return_value=mock_result),
+        ):
             with pytest.raises(ToolNotFoundError, match="unavailable"):
                 await registry.execute("nmap")
 
     @patch("siyarix.registry.emit_sync")
-    async def test_execute_permission_gate_allows(self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability):
+    async def test_execute_permission_gate_allows(
+        self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability
+    ):
         gate = MagicMock()
         gate.check.return_value = MagicMock(allowed=True, requires_review=False)
         registry._permission_gate = gate
@@ -264,9 +286,13 @@ class TestExecute:
             gate.check.assert_called_once_with("nmap target", tool="nmap")
 
     @patch("siyarix.registry.emit_sync")
-    async def test_execute_permission_gate_blocks(self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability):
+    async def test_execute_permission_gate_blocks(
+        self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability
+    ):
         gate = MagicMock()
-        gate.check.return_value = MagicMock(allowed=False, reason="Not allowed", requires_review=False)
+        gate.check.return_value = MagicMock(
+            allowed=False, reason="Not allowed", requires_review=False
+        )
         registry._permission_gate = gate
         handler = AsyncMock(return_value={"status": "success", "output": "ok", "tool": "nmap"})
         registry.register(sample_tool, handler)
@@ -274,22 +300,34 @@ class TestExecute:
             await registry.execute("nmap", command="nmap target")
 
     @patch("siyarix.registry.emit_sync")
-    async def test_execute_permission_gate_requires_review_approved(self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability):
+    async def test_execute_permission_gate_requires_review_approved(
+        self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability
+    ):
         gate = MagicMock()
-        gate.check.return_value = MagicMock(allowed=True, requires_review=True, reason="review needed")
+        gate.check.return_value = MagicMock(
+            allowed=True, requires_review=True, reason="review needed"
+        )
         registry._permission_gate = gate
         handler = AsyncMock(return_value={"status": "success", "output": "ok", "tool": "nmap"})
         registry.register(sample_tool, handler)
-        with patch("siyarix.shell_review.review_and_confirm", return_value="nmap target") as mock_review, \
-             patch("asyncio.to_thread", new_callable=AsyncMock):
+        with (
+            patch(
+                "siyarix.shell_review.review_and_confirm", return_value="nmap target"
+            ) as mock_review,
+            patch("asyncio.to_thread", new_callable=AsyncMock),
+        ):
             result = await registry.execute("nmap", command="nmap target")
             assert result["status"] == "success"
             mock_review.assert_called_once()
 
     @patch("siyarix.registry.emit_sync")
-    async def test_execute_permission_gate_review_cancelled(self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability):
+    async def test_execute_permission_gate_review_cancelled(
+        self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability
+    ):
         gate = MagicMock()
-        gate.check.return_value = MagicMock(allowed=True, requires_review=True, reason="user review")
+        gate.check.return_value = MagicMock(
+            allowed=True, requires_review=True, reason="user review"
+        )
         registry._permission_gate = gate
         handler = AsyncMock(return_value={"status": "success", "output": "ok", "tool": "nmap"})
         registry.register(sample_tool, handler)
@@ -298,7 +336,9 @@ class TestExecute:
                 await registry.execute("nmap", command="nmap target")
 
     @patch("siyarix.registry.emit_sync")
-    async def test_execute_permission_gate_no_command(self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability):
+    async def test_execute_permission_gate_no_command(
+        self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability
+    ):
         gate = MagicMock()
         registry._permission_gate = gate
         handler = AsyncMock(return_value={"status": "success", "output": "ok", "tool": "nmap"})
@@ -311,9 +351,9 @@ class TestExecute:
     @patch("siyarix.registry.emit_sync")
     async def test_execute_with_parser(self, mock_emit, registry: ToolRegistry):
         tool = ToolCapability(name="nmap", installed=True, parser="nmap")
-        handler = AsyncMock(return_value={
-            "status": "success", "output": "parsed output", "tool": "nmap"
-        })
+        handler = AsyncMock(
+            return_value={"status": "success", "output": "parsed output", "tool": "nmap"}
+        )
         registry.register(tool, handler)
         registry._parser_registry.has_parser = MagicMock(return_value=True)  # type: ignore
         registry._parser_registry.parse = MagicMock(return_value=[{"title": "open port"}])  # type: ignore
@@ -323,10 +363,10 @@ class TestExecute:
             assert result["findings"] == [{"title": "open port"}]
 
     @patch("siyarix.registry.emit_sync")
-    async def test_execute_no_output_no_parse(self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability):
-        handler = AsyncMock(return_value={
-            "status": "success", "output": "", "tool": "nmap"
-        })
+    async def test_execute_no_output_no_parse(
+        self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability
+    ):
+        handler = AsyncMock(return_value={"status": "success", "output": "", "tool": "nmap"})
         registry.register(sample_tool, handler)
         registry._parser_registry.has_parser = MagicMock(return_value=True)  # type: ignore
         with patch("asyncio.to_thread", new_callable=AsyncMock):
@@ -334,21 +374,27 @@ class TestExecute:
             assert "findings" not in result
 
     @patch("siyarix.registry.emit_sync")
-    async def test_execute_handler_raises_tool_not_found(self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability):
+    async def test_execute_handler_raises_tool_not_found(
+        self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability
+    ):
         handler = AsyncMock(side_effect=ToolNotFoundError("missing binary"))
         registry.register(sample_tool, handler)
         with pytest.raises(ToolNotFoundError):
             await registry.execute("nmap")
 
     @patch("siyarix.registry.emit_sync")
-    async def test_execute_handler_raises_permission_denied(self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability):
+    async def test_execute_handler_raises_permission_denied(
+        self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability
+    ):
         handler = AsyncMock(side_effect=PermissionDeniedError("blocked"))
         registry.register(sample_tool, handler)
         with pytest.raises(PermissionDeniedError):
             await registry.execute("nmap")
 
     @patch("siyarix.registry.emit_sync")
-    async def test_execute_handler_raises_generic(self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability):
+    async def test_execute_handler_raises_generic(
+        self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability
+    ):
         handler = AsyncMock(side_effect=RuntimeError("unexpected crash"))
         registry.register(sample_tool, handler)
         with pytest.raises(ToolExecutionError, match="unexpected crash"):
@@ -372,7 +418,9 @@ class TestBuildToolCapability:
     def test_build_with_handler_factory(self, registry: ToolRegistry):
         handler_factory = MagicMock(return_value=MagicMock())
         with patch("siyarix.registry.get_tool_metadata", return_value={"personas": ["pentester"]}):
-            cap, handler = registry._build_tool_capability("nmap", "/usr/bin/nmap", "7.94", handler_factory)
+            cap, handler = registry._build_tool_capability(
+                "nmap", "/usr/bin/nmap", "7.94", handler_factory
+            )
         assert cap.name == "nmap"
         assert cap.binary == "/usr/bin/nmap"
         assert cap.version == "7.94"
@@ -409,7 +457,9 @@ class TestBuildToolCapability:
 
 
 class TestDiscoverFromPath:
-    @patch.dict("siyarix.registry._HANDLER_MAP", {"nmap": MagicMock(return_value=AsyncMock())}, clear=True)
+    @patch.dict(
+        "siyarix.registry._HANDLER_MAP", {"nmap": MagicMock(return_value=AsyncMock())}, clear=True
+    )
     @patch("siyarix.registry._cached_which", return_value="/usr/bin/nmap")
     @patch("siyarix.registry.get_tool_metadata", return_value={"version": "7.94"})
     @patch("siyarix.registry.emit_sync")
@@ -422,7 +472,10 @@ class TestDiscoverFromPath:
         assert nmap is not None
         assert nmap.version == ""
 
-    @patch("siyarix.registry._cached_which", side_effect=lambda n: f"/usr/bin/{n}" if n == "python3" else None)
+    @patch(
+        "siyarix.registry._cached_which",
+        side_effect=lambda n: f"/usr/bin/{n}" if n == "python3" else None,
+    )
     @patch("siyarix.registry.emit_sync")
     def test_discover_interpreter(self, mock_emit, mock_which, registry: ToolRegistry):
         count = registry.discover_from_path()
@@ -439,11 +492,15 @@ class TestDiscoverFromPath:
         assert count == 0
         assert registry._loaded is True
 
-    @patch.dict("siyarix.registry._HANDLER_MAP", {"nmap": MagicMock(return_value=AsyncMock())}, clear=True)
+    @patch.dict(
+        "siyarix.registry._HANDLER_MAP", {"nmap": MagicMock(return_value=AsyncMock())}, clear=True
+    )
     @patch("siyarix.registry._cached_which", return_value="/usr/bin/nmap")
     @patch("siyarix.registry.get_tool_metadata", return_value={})
     @patch("siyarix.registry.emit_sync")
-    def test_discover_uses_handler_map(self, mock_emit, mock_meta, mock_which, registry: ToolRegistry):
+    def test_discover_uses_handler_map(
+        self, mock_emit, mock_meta, mock_which, registry: ToolRegistry
+    ):
         count = registry.discover_from_path()
         assert count >= 1
         nmap_handler = registry._handlers.get("nmap")
@@ -459,9 +516,14 @@ class TestUpdateMetadata:
     @patch("siyarix.registry.emit_sync")
     def test_update_metadata_writes_json(self, mock_emit, registry: ToolRegistry, tmp_path: Path):
         tool = ToolCapability(
-            name="nmap", description="Scanner", category=ToolCategory.RECON,
-            risk_level=RiskLevel.MEDIUM, binary="nmap", installed=True,
-            tags=["scan"], version="7.94",
+            name="nmap",
+            description="Scanner",
+            category=ToolCategory.RECON,
+            risk_level=RiskLevel.MEDIUM,
+            binary="nmap",
+            installed=True,
+            tags=["scan"],
+            version="7.94",
         )
         registry.register(tool)
         output_path = tmp_path / "tools.json"
@@ -474,7 +536,10 @@ class TestUpdateMetadata:
 
     @patch("siyarix.registry.emit_sync")
     def test_update_metadata_empty(self, mock_emit, registry: ToolRegistry, tmp_path: Path):
-        with patch.object(registry, "discover_from_path"), patch.object(registry, "scan_path", return_value=0):
+        with (
+            patch.object(registry, "discover_from_path"),
+            patch.object(registry, "scan_path", return_value=0),
+        ):
             count = registry.update_metadata(tmp_path / "empty.json")
             assert count == 0
 
@@ -553,9 +618,11 @@ class TestScanPath:
     def test_scan_path_skips_duplicates(self, mock_emit, mock_listdir, registry: ToolRegistry):
         with patch("siyarix.registry.os.name", "posix"):
             mock_listdir.return_value = ["tool_a", "tool_a"]
-            with patch("siyarix.registry.os.path.isfile", return_value=True), \
-                 patch("siyarix.registry.os.access", return_value=True), \
-                 patch("siyarix.registry.get_tool_metadata", return_value={"category": "recon"}):
+            with (
+                patch("siyarix.registry.os.path.isfile", return_value=True),
+                patch("siyarix.registry.os.access", return_value=True),
+                patch("siyarix.registry.get_tool_metadata", return_value={"category": "recon"}),
+            ):
                 count = registry.scan_path()
                 assert count == 1
 
@@ -585,7 +652,10 @@ class TestScanPath:
     @patch.dict("siyarix.registry.os.environ", {"PATH": "/usr/bin"}, clear=True)
     @patch("siyarix.registry.os.path.isfile", return_value=True)
     @patch("siyarix.registry.os.access", return_value=True)
-    @patch("siyarix.registry.get_tool_metadata", return_value={"category": "recon", "risk_level": "high", "version": "2.0"})
+    @patch(
+        "siyarix.registry.get_tool_metadata",
+        return_value={"category": "recon", "risk_level": "high", "version": "2.0"},
+    )
     @patch("siyarix.registry.emit_sync")
     def test_scan_path_uses_meta_category_and_risk(
         self, mock_emit, mock_meta, mock_access, mock_isfile, mock_listdir, registry: ToolRegistry
@@ -668,7 +738,9 @@ class TestLoadFromJson:
         count = registry.load_from_json(path)
         assert count == 0
 
-    def test_load_from_json_invalid_category_logs_and_returns_zero(self, registry: ToolRegistry, tmp_path: Path):
+    def test_load_from_json_invalid_category_logs_and_returns_zero(
+        self, registry: ToolRegistry, tmp_path: Path
+    ):
         data = {"toolx": {"category": "invalid_category", "risk_level": "invalid"}}
         path = tmp_path / "toolx.json"
         path.write_text(json.dumps(data))
@@ -692,7 +764,9 @@ class TestLoadFromJson:
 
 class TestLoadCustomTools:
     @patch("siyarix.config.get_config_dir")
-    def test_load_custom_tools_success(self, mock_config_dir, registry: ToolRegistry, tmp_path: Path):
+    def test_load_custom_tools_success(
+        self, mock_config_dir, registry: ToolRegistry, tmp_path: Path
+    ):
         config_dir = tmp_path / ".config"
         config_dir.mkdir(parents=True)
         custom_file = config_dir / "custom_tools.json"
@@ -726,7 +800,9 @@ class TestLoadCustomTools:
         assert count == 0
 
     @patch("siyarix.config.get_config_dir")
-    def test_load_custom_tools_malformed(self, mock_config_dir, registry: ToolRegistry, tmp_path: Path):
+    def test_load_custom_tools_malformed(
+        self, mock_config_dir, registry: ToolRegistry, tmp_path: Path
+    ):
         config_dir = tmp_path / ".config"
         config_dir.mkdir(parents=True)
         bad_file = config_dir / "custom_tools.json"
@@ -802,7 +878,9 @@ class TestListTools:
         assert len(tools) == 1
 
     def test_list_search_by_alias(self, registry: ToolRegistry):
-        t1 = ToolCapability(name="zap", installed=True, description="", tags=[], aliases=["zaproxy"])
+        t1 = ToolCapability(
+            name="zap", installed=True, description="", tags=[], aliases=["zaproxy"]
+        )
         registry.register(t1)
         tools = registry.list_tools(search="zaproxy")
         assert len(tools) == 1
@@ -814,9 +892,27 @@ class TestListTools:
         assert len(tools) == 0
 
     def test_list_combined_filters(self, registry: ToolRegistry):
-        t1 = ToolCapability(name="nmap", installed=True, category=ToolCategory.RECON, description="port scanner", tags=["scan"])
-        t2 = ToolCapability(name="nuclei", installed=True, category=ToolCategory.SCANNING, description="vuln scanner", tags=["scan"])
-        t3 = ToolCapability(name="gobuster", installed=False, category=ToolCategory.SCANNING, description="dir buster", tags=["web"])
+        t1 = ToolCapability(
+            name="nmap",
+            installed=True,
+            category=ToolCategory.RECON,
+            description="port scanner",
+            tags=["scan"],
+        )
+        t2 = ToolCapability(
+            name="nuclei",
+            installed=True,
+            category=ToolCategory.SCANNING,
+            description="vuln scanner",
+            tags=["scan"],
+        )
+        t3 = ToolCapability(
+            name="gobuster",
+            installed=False,
+            category=ToolCategory.SCANNING,
+            description="dir buster",
+            tags=["web"],
+        )
         registry.register_many([(t1, None), (t2, None), (t3, None)])
         tools = registry.list_tools(
             category=ToolCategory.SCANNING, available_only=True, tags=["scan"], search="vuln"
@@ -840,7 +936,12 @@ class TestSearch:
         assert any(t.name == "nmap" for t in results)
 
     def test_search_returns_top_k(self, registry: ToolRegistry):
-        tools = [ToolCapability(name=f"tool_{i}", installed=True, description=f"scanning tool {i}", tags=["scan"]) for i in range(20)]
+        tools = [
+            ToolCapability(
+                name=f"tool_{i}", installed=True, description=f"scanning tool {i}", tags=["scan"]
+            )
+            for i in range(20)
+        ]
         registry.register_many([(t, None) for t in tools])
         results = registry.search("scanning", top_k=5)
         assert len(results) <= 5
@@ -920,7 +1021,9 @@ class TestGetPopularTools:
         assert popular[1].name == "mid"
 
     def test_get_popular_tools_top_n(self, registry: ToolRegistry):
-        tools = [ToolCapability(name=f"t{i}", installed=True, usage_count=i * 10) for i in range(10)]
+        tools = [
+            ToolCapability(name=f"t{i}", installed=True, usage_count=i * 10) for i in range(10)
+        ]
         registry.register_many([(t, None) for t in tools])
         popular = registry.get_popular_tools(top_n=2)
         assert len(popular) == 2

@@ -20,8 +20,10 @@ def _empty_target_result(tool: str) -> dict:
 def _run(tool_name: str, cmd: list[str], timeout: int = 120) -> Any:
     """Lazy import and run a command asynchronously, with sanitization."""
     from .subprocess_utils import safe_run_async as _run_async
+
     try:
         from .security_hardening import InputValidator
+
         validator = InputValidator()
         is_injected, pattern = validator.check_args_injection(cmd)
         if is_injected:
@@ -30,6 +32,7 @@ def _run(tool_name: str, cmd: list[str], timeout: int = 120) -> Any:
                 exit_code = 1
                 stdout = ""
                 stderr = f"Security error: Command injection detected ({pattern})"
+
             return MockResult()
         cmd = validator.sanitize_args(cmd)
     except Exception:
@@ -76,10 +79,12 @@ def make_web_handler(tool_name: str) -> ToolHandler:
 
         try:
             import os
+
             if target and os.getenv("SIYARIX_STEALTH") == "1":
                 import urllib.request
 
                 from .stealth import StealthEngine
+
                 engine = StealthEngine()
                 # Apply stealth configs from kwargs if available
                 if "stealth" in kwargs:
@@ -87,7 +92,11 @@ def make_web_handler(tool_name: str) -> ToolHandler:
                 reqs = engine.get_decoy_requests(target)
                 for req in reqs:
                     try:
-                        r = urllib.request.Request(req["url"], method=req["method"], headers={"User-Agent": req["user_agent"]})
+                        r = urllib.request.Request(
+                            req["url"],
+                            method=req["method"],
+                            headers={"User-Agent": req["user_agent"]},
+                        )
                         urllib.request.urlopen(r, timeout=1)
                     except Exception:
                         pass

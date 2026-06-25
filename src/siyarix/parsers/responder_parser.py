@@ -15,7 +15,8 @@ _HASH_CAPTURED_RE = re.compile(
 )
 _PROTOCOL_CAPTURE_RE = re.compile(r"\[(\w+)\].*?(?:from|client).*?(?:\d{1,3}\.){3}\d{1,3}")
 _CHALLENGE_RESPONSE_RE = re.compile(
-    r"NTLMv2\s*(?:Client|Server|Challenge|Response|Hash).*?:?\s*(\S+)", re.IGNORECASE,
+    r"NTLMv2\s*(?:Client|Server|Challenge|Response|Hash).*?:?\s*(\S+)",
+    re.IGNORECASE,
 )
 _CLIENT_IP_RE = re.compile(r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})")
 _USERNAME_RE = re.compile(r"(?:USER|Username|User)\s*[:\-]\s*(\S+)", re.IGNORECASE)

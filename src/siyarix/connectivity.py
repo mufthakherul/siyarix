@@ -122,6 +122,7 @@ class ConnectivityMonitor:
         for prov in providers:
             try:
                 from .provider_utils import check_provider_health
+
                 status[prov] = check_provider_health(prov)
             except Exception:
                 status[prov] = False
@@ -145,17 +146,25 @@ class SmartModeController:
     def monitor(self) -> ConnectivityMonitor:
         return self._monitor
 
-    async def _on_connectivity_change(self, old_state: ConnectionState, new_state: ConnectionState) -> None:
+    async def _on_connectivity_change(
+        self, old_state: ConnectionState, new_state: ConnectionState
+    ) -> None:
         if not self._auto_offline_enabled:
             return
 
         current = self._get_current_mode()
         if current == "offline" and new_state == ConnectionState.ONLINE:
             from .chat.console import console
-            console.print("[green]Network connectivity restored. Consider /mode integrated for LLM features.[/green]")
+
+            console.print(
+                "[green]Network connectivity restored. Consider /mode integrated for LLM features.[/green]"
+            )
         elif current != "offline" and new_state == ConnectionState.OFFLINE:
             from .chat.console import console
-            console.print("[yellow]Network connectivity lost. Switching to offline mode automatically.[/yellow]")
+
+            console.print(
+                "[yellow]Network connectivity lost. Switching to offline mode automatically.[/yellow]"
+            )
             self._original_mode = current
             self._set_mode("offline")
 

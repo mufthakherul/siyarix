@@ -1,4 +1,5 @@
 """Tests for Web Vulnerability Scanning parsers."""
+
 from __future__ import annotations
 
 import json
@@ -24,9 +25,17 @@ from siyarix.parsers.zaproxy_parser import ZaproxyParser
 
 
 from siyarix.parsers.kxss_parser import KxssParser
+
+
 def _check_finding(finding, expected_tool, min_fields=None):
     min_fields = min_fields or {
-        "title", "severity", "description", "evidence", "tool", "target", "timestamp",
+        "title",
+        "severity",
+        "description",
+        "evidence",
+        "tool",
+        "target",
+        "timestamp",
     }
     for field in min_fields:
         assert field in finding, f"Missing field {field} in {expected_tool} finding"
@@ -34,17 +43,18 @@ def _check_finding(finding, expected_tool, min_fields=None):
     assert finding["severity"] in ("critical", "high", "medium", "low", "info")
 
 
-
 class TestSslyzeParser:
     def test_json_scan_results(self):
         p = SslyzeParser()
-        output = json.dumps({
-            "server_info": {"hostname": "example.com", "port": 443},
-            "results": [
-                {"result": "SSLV2 is supported", "severity": "high"},
-                {"result": "TLS 1.0 is supported", "severity": "medium"},
-            ],
-        })
+        output = json.dumps(
+            {
+                "server_info": {"hostname": "example.com", "port": 443},
+                "results": [
+                    {"result": "SSLV2 is supported", "severity": "high"},
+                    {"result": "TLS 1.0 is supported", "severity": "medium"},
+                ],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
         for f in findings:
@@ -53,19 +63,21 @@ class TestSslyzeParser:
 
     def test_json_results_dict_tls_version(self):
         p = SslyzeParser()
-        output = json.dumps({
-            "server_info": {"hostname": "test.com", "port": 443},
-            "results": {
-                "tls_version_1_0": {
-                    "tls_version": "TLS 1.0",
-                    "supports": True,
+        output = json.dumps(
+            {
+                "server_info": {"hostname": "test.com", "port": 443},
+                "results": {
+                    "tls_version_1_0": {
+                        "tls_version": "TLS 1.0",
+                        "supports": True,
+                    },
+                    "tls_version_1_2": {
+                        "tls_version": "TLS 1.2",
+                        "supports": True,
+                    },
                 },
-                "tls_version_1_2": {
-                    "tls_version": "TLS 1.2",
-                    "supports": True,
-                },
-            },
-        })
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
         assert any("TLS 1.0" in f["title"] for f in findings)
@@ -73,17 +85,19 @@ class TestSslyzeParser:
 
     def test_json_cipher_results(self):
         p = SslyzeParser()
-        output = json.dumps({
-            "server_info": {"hostname": "weak.com", "port": 443},
-            "results": {
-                "cipher_suites": {
-                    "accepted_ciphers": [
-                        {"name": "TLS_RSA_WITH_RC4_128_MD5", "key_size": 40},
-                        {"name": "TLS_AES_256_GCM_SHA384", "key_size": 256},
-                    ],
+        output = json.dumps(
+            {
+                "server_info": {"hostname": "weak.com", "port": 443},
+                "results": {
+                    "cipher_suites": {
+                        "accepted_ciphers": [
+                            {"name": "TLS_RSA_WITH_RC4_128_MD5", "key_size": 40},
+                            {"name": "TLS_AES_256_GCM_SHA384", "key_size": 256},
+                        ],
+                    },
                 },
-            },
-        })
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
         ciphers = {f["title"] for f in findings}
@@ -92,17 +106,19 @@ class TestSslyzeParser:
 
     def test_json_certificate_result(self):
         p = SslyzeParser()
-        output = json.dumps({
-            "server_info": {"hostname": "example.com", "port": 443},
-            "results": {
-                "certificate_info": {
-                    "certificate": {
-                        "subject": {"CN": "example.com"},
-                        "issuer": {"CN": "CA Corp"},
+        output = json.dumps(
+            {
+                "server_info": {"hostname": "example.com", "port": 443},
+                "results": {
+                    "certificate_info": {
+                        "certificate": {
+                            "subject": {"CN": "example.com"},
+                            "issuer": {"CN": "CA Corp"},
+                        },
                     },
                 },
-            },
-        })
+            }
+        )
         findings = p.parse(output)
         assert any("Certificate: example.com" in f["title"] for f in findings)
 
@@ -128,6 +144,8 @@ class TestSslyzeParser:
         p = SslyzeParser()
         findings = p.parse("{bad")
         assert isinstance(findings, list)
+
+
 class TestSearchsploitParser:
     def test_table_format(self):
         p = SearchsploitParser()
@@ -150,28 +168,34 @@ class TestSearchsploitParser:
 
     def test_json_format(self):
         p = SearchsploitParser()
-        output = json.dumps({
-            "id": 50555,
-            "title": "Linux Kernel 5.x - LPE",
-            "type": "local",
-            "platform": "linux",
-            "url": "https://www.exploit-db.com/exploits/50555",
-            "file": "/usr/share/exploitdb/exploits/linux/local/50555.c",
-        })
+        output = json.dumps(
+            {
+                "id": 50555,
+                "title": "Linux Kernel 5.x - LPE",
+                "type": "local",
+                "platform": "linux",
+                "url": "https://www.exploit-db.com/exploits/50555",
+                "file": "/usr/share/exploitdb/exploits/linux/local/50555.c",
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert findings[0]["severity"] == "high"
 
     def test_json_with_cve(self):
         p = SearchsploitParser()
-        output = json.dumps({
-            "id": 12345,
-            "title": "CVE-2024-12345 exploit",
-            "type": "remote",
-            "platform": "linux",
-        })
+        output = json.dumps(
+            {
+                "id": 12345,
+                "title": "CVE-2024-12345 exploit",
+                "type": "remote",
+                "platform": "linux",
+            }
+        )
         findings = p.parse(output)
-        assert any("CVE" in f.get("evidence", "") or "CVE" in f.get("description", "") for f in findings)
+        assert any(
+            "CVE" in f.get("evidence", "") or "CVE" in f.get("description", "") for f in findings
+        )
 
     def test_url_format(self):
         p = SearchsploitParser()
@@ -204,7 +228,9 @@ class TestSearchsploitParser:
         p = SearchsploitParser()
         output = "searchsploit exploit for apache\nResults: 5\n"
         findings = p.parse(output)
-        assert any("5 exploits" in f["title"].lower() or "results" in f["title"].lower() for f in findings)
+        assert any(
+            "5 exploits" in f["title"].lower() or "results" in f["title"].lower() for f in findings
+        )
 
     def test_empty_output(self):
         p = SearchsploitParser()
@@ -214,15 +240,22 @@ class TestSearchsploitParser:
 """Comprehensive coverage tests for: dmitry, rustscan, dnsmap, enum4linux, yara, theharvester, smbclient, jwt_tool, smbmap, ldapsearch."""
 
 
-
 def _check_finding(finding, expected_tool, min_fields=None):
     min_fields = min_fields or {
-        "title", "severity", "description", "evidence", "tool", "target", "timestamp",
+        "title",
+        "severity",
+        "description",
+        "evidence",
+        "tool",
+        "target",
+        "timestamp",
     }
     for field in min_fields:
         assert field in finding, f"Missing field {field} in {expected_tool} finding"
     assert finding["tool"] == expected_tool
     assert finding["severity"] in ("critical", "high", "medium", "low", "info")
+
+
 class TestJwtToolParser:
     def test_jwt_token_parsing(self):
         p = JwtToolParser()
@@ -268,22 +301,31 @@ class TestJwtToolParser:
 
     def test_json_single_record(self):
         p = JwtToolParser()
-        output = json.dumps({
-            "token": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dyt0CoTl4oV0jI8qGeg82A6m0RqY",
-            "algorithm": "HS256",
-            "payload": {"sub": "1234567890", "role": "admin"},
-            "signature_valid": True,
-        })
+        output = json.dumps(
+            {
+                "token": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dyt0CoTl4oV0jI8qGeg82A6m0RqY",
+                "algorithm": "HS256",
+                "payload": {"sub": "1234567890", "role": "admin"},
+                "signature_valid": True,
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 3
         assert any("HS256" in f["title"] for f in findings)
 
     def test_json_array_records(self):
         p = JwtToolParser()
-        output = json.dumps([
-            {"token": "tok1", "algorithm": "none", "payload": {"sub": "user1"}, "issues": ["alg=none"]},
-            {"token": "tok2", "algorithm": "HS256", "payload": {"sub": "user2"}},
-        ])
+        output = json.dumps(
+            [
+                {
+                    "token": "tok1",
+                    "algorithm": "none",
+                    "payload": {"sub": "user1"},
+                    "issues": ["alg=none"],
+                },
+                {"token": "tok2", "algorithm": "HS256", "payload": {"sub": "user2"}},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 3
 
@@ -291,12 +333,16 @@ class TestJwtToolParser:
         p = JwtToolParser()
         output = "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiYWRtaW4iLCJpc19hZG1pbiI6dHJ1ZX0.dyt0CoTl4oV0jI8qGeg82A6m0RqY\n"
         findings = p.parse(output)
-        admin_claims = [f for f in findings if "claim" in f["title"].lower() and "admin" in f["title"].lower()]
+        admin_claims = [
+            f for f in findings if "claim" in f["title"].lower() and "admin" in f["title"].lower()
+        ]
         assert len(admin_claims) >= 1
 
     def test_empty_output(self):
         p = JwtToolParser()
         assert p.parse("") == []
+
+
 class TestWafw00fParser:
     def test_waf_detected_text(self):
         p = Wafw00fParser()
@@ -329,21 +375,27 @@ class TestWafw00fParser:
 
     def test_json_with_confidence(self):
         p = Wafw00fParser()
-        output = json.dumps({"url": "http://example.com", "detected": True, "waf": ["Cloudflare"], "confidence": 95})
+        output = json.dumps(
+            {"url": "http://example.com", "detected": True, "waf": ["Cloudflare"], "confidence": 95}
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert findings[0]["severity"] == "high"
 
     def test_low_confidence_info(self):
         p = Wafw00fParser()
-        output = json.dumps({"url": "http://example.com", "detected": True, "waf": ["Unknown"], "confidence": 20})
+        output = json.dumps(
+            {"url": "http://example.com", "detected": True, "waf": ["Unknown"], "confidence": 20}
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert findings[0]["severity"] == "low"
 
     def test_multiple_wafs(self):
         p = Wafw00fParser()
-        output = json.dumps({"url": "http://example.com", "detected": True, "waf": ["Cloudflare", "ModSecurity"]})
+        output = json.dumps(
+            {"url": "http://example.com", "detected": True, "waf": ["Cloudflare", "ModSecurity"]}
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
@@ -363,13 +415,20 @@ class TestWafw00fParser:
 
     def test_json_list(self):
         p = Wafw00fParser()
-        output = json.dumps([{"url": "http://a.com", "detected": True, "waf": ["ModSecurity"]}, {"url": "http://b.com", "detected": False}])
+        output = json.dumps(
+            [
+                {"url": "http://a.com", "detected": True, "waf": ["ModSecurity"]},
+                {"url": "http://b.com", "detected": False},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
     def test_empty_output(self):
         p = Wafw00fParser()
         assert p.parse("") == []
+
+
 class TestXsstrikeParser:
     def test_reflected_xss_text(self):
         p = XsstrikeParser()
@@ -402,28 +461,49 @@ class TestXsstrikeParser:
 
     def test_json_vulnerable(self):
         p = XsstrikeParser()
-        output = json.dumps([{"url": "http://example.com", "parameter": "q", "vulnerable": True, "payload": "<script>alert(1)</script>"}])
+        output = json.dumps(
+            [
+                {
+                    "url": "http://example.com",
+                    "parameter": "q",
+                    "vulnerable": True,
+                    "payload": "<script>alert(1)</script>",
+                }
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         _check_finding(findings[0], "xsstrike")
 
     def test_json_stored_xss(self):
         p = XsstrikeParser()
-        output = json.dumps({"url": "http://example.com", "param": "user", "type": "stored", "vulnerable": True, "confidence": 85})
+        output = json.dumps(
+            {
+                "url": "http://example.com",
+                "param": "user",
+                "type": "stored",
+                "vulnerable": True,
+                "confidence": 85,
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert findings[0]["severity"] == "high"
 
     def test_json_dom_xss(self):
         p = XsstrikeParser()
-        output = json.dumps({"url": "http://example.com", "param": "hash", "dom": True, "vulnerable": True})
+        output = json.dumps(
+            {"url": "http://example.com", "param": "hash", "dom": True, "vulnerable": True}
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert findings[0]["severity"] == "high"
 
     def test_json_payload_only(self):
         p = XsstrikeParser()
-        output = json.dumps({"url": "http://example.com", "parameter": "q", "payload": "<svg/onload=alert(1)>"})
+        output = json.dumps(
+            {"url": "http://example.com", "parameter": "q", "payload": "<svg/onload=alert(1)>"}
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert "payload" in findings[0]["title"].lower()
@@ -443,6 +523,8 @@ class TestXsstrikeParser:
         output = "URL: http://example.com\nParameter: q\nPayload: <test>\nVulnerable: detected\n"
         findings = p.parse(output)
         assert len(findings) >= 1
+
+
 class TestSslscanParser:
     def test_protocol_tls12_supported(self):
         p = SslscanParser()
@@ -506,24 +588,65 @@ class TestSslscanParser:
         output = "Preferred  TLS_AES_256_GCM_SHA384\n"
         findings = p.parse(output)
         assert len(findings) >= 1
+
+
 class TestArachniParser:
     def test_json_issues(self):
         p = ArachniParser()
-        output = json.dumps({"issues": [{"name": "XSS Vulnerability", "severity": "high", "description": "Reflected XSS", "vector": {"action": "http://example.com/search", "input": "q"}, "check": {"shortname": "xss"}}]})
+        output = json.dumps(
+            {
+                "issues": [
+                    {
+                        "name": "XSS Vulnerability",
+                        "severity": "high",
+                        "description": "Reflected XSS",
+                        "vector": {"action": "http://example.com/search", "input": "q"},
+                        "check": {"shortname": "xss"},
+                    }
+                ]
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         _check_finding(findings[0], "arachni")
 
     def test_with_cwe(self):
         p = ArachniParser()
-        output = json.dumps({"issues": [{"name": "SQL Injection", "severity": "critical", "description": "SQLi", "vector": {"action": "http://example.com"}, "cwe": [89], "check": {"shortname": "sqli"}}]})
+        output = json.dumps(
+            {
+                "issues": [
+                    {
+                        "name": "SQL Injection",
+                        "severity": "critical",
+                        "description": "SQLi",
+                        "vector": {"action": "http://example.com"},
+                        "cwe": [89],
+                        "check": {"shortname": "sqli"},
+                    }
+                ]
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert "CWE-89" in findings[0]["evidence"]
 
     def test_with_references_remediation(self):
         p = ArachniParser()
-        output = json.dumps({"issues": [{"name": "XSS", "severity": "medium", "description": "desc", "vector": {"action": "http://example.com"}, "check": {"shortname": "xss"}, "references": {"url": "https://example.com"}, "remedy_guidance": "Sanitize input"}]})
+        output = json.dumps(
+            {
+                "issues": [
+                    {
+                        "name": "XSS",
+                        "severity": "medium",
+                        "description": "desc",
+                        "vector": {"action": "http://example.com"},
+                        "check": {"shortname": "xss"},
+                        "references": {"url": "https://example.com"},
+                        "remedy_guidance": "Sanitize input",
+                    }
+                ]
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert "Remediation" in findings[0]["evidence"]
@@ -546,14 +669,35 @@ class TestArachniParser:
 
     def test_informational_severity(self):
         p = ArachniParser()
-        output = json.dumps({"issues": [{"name": "Info", "severity": "informational", "vector": {"action": "http://example.com"}, "check": {"shortname": "info"}}]})
+        output = json.dumps(
+            {
+                "issues": [
+                    {
+                        "name": "Info",
+                        "severity": "informational",
+                        "vector": {"action": "http://example.com"},
+                        "check": {"shortname": "info"},
+                    }
+                ]
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert findings[0]["severity"] == "info"
+
+
 class TestDalfoxParser:
     def test_json_finding(self):
         p = DalfoxParser()
-        output = json.dumps({"url": "http://example.com", "param": "q", "type": "XSS", "evidence": "<script>alert(1)</script>", "severity": "high"})
+        output = json.dumps(
+            {
+                "url": "http://example.com",
+                "param": "q",
+                "type": "XSS",
+                "evidence": "<script>alert(1)</script>",
+                "severity": "high",
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         _check_finding(findings[0], "dalfox")
@@ -566,7 +710,12 @@ class TestDalfoxParser:
 
     def test_json_array(self):
         p = DalfoxParser()
-        output = json.dumps([{"url": "http://a.com", "param": "q", "type": "XSS", "evidence": "xss1"}, {"url": "http://b.com", "param": "id", "type": "XSS", "evidence": "xss2"}])
+        output = json.dumps(
+            [
+                {"url": "http://a.com", "param": "q", "type": "XSS", "evidence": "xss1"},
+                {"url": "http://b.com", "param": "id", "type": "XSS", "evidence": "xss2"},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
@@ -604,6 +753,8 @@ class TestDalfoxParser:
         output = json.dumps({"url": "http://example.com", "type": "XSS"})
         findings = p.parse(output)
         assert len(findings) == 0
+
+
 class TestNiktoParser:
     def test_target_ip_hostname_port(self):
         p = NiktoParser()
@@ -646,9 +797,7 @@ class TestNiktoParser:
 
     def test_header_lines_skipped(self):
         p = NiktoParser()
-        output = ("+ 1 host(s) tested\n"
-                  "+ Target IP: 10.0.0.1\n"
-                  "+ /valid: A real finding\n")
+        output = "+ 1 host(s) tested\n" "+ Target IP: 10.0.0.1\n" "+ /valid: A real finding\n"
         findings = p.parse(output)
         assert len(findings) >= 1
 
@@ -673,10 +822,15 @@ class TestNiktoParser:
 """Comprehensive coverage tests for parser integrations."""
 
 
-
 def _check_finding(finding, expected_tool, min_fields=None):
     min_fields = min_fields or {
-        "title", "severity", "description", "evidence", "tool", "target", "timestamp",
+        "title",
+        "severity",
+        "description",
+        "evidence",
+        "tool",
+        "target",
+        "timestamp",
     }
     for field in min_fields:
         assert field in finding, f"Missing field {field} in {expected_tool} finding"
@@ -751,45 +905,63 @@ class TestCommixParser:
 
     def test_json_single_object(self):
         p = CommixParser()
-        output = json.dumps({
-            "url": "http://example.com/test",
-            "param": "cmd",
-            "technique": "classic",
-            "vulnerable": True,
-        })
+        output = json.dumps(
+            {
+                "url": "http://example.com/test",
+                "param": "cmd",
+                "technique": "classic",
+                "vulnerable": True,
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert "vulnerability" in findings[0]["title"].lower()
 
     def test_json_array(self):
         p = CommixParser()
-        output = json.dumps([
-            {"url": "http://example.com/a", "param": "id", "technique": "blind", "vulnerable": True},
-            {"url": "http://example.com/b", "param": "cmd", "technique": "classic", "vulnerable": True},
-        ])
+        output = json.dumps(
+            [
+                {
+                    "url": "http://example.com/a",
+                    "param": "id",
+                    "technique": "blind",
+                    "vulnerable": True,
+                },
+                {
+                    "url": "http://example.com/b",
+                    "param": "cmd",
+                    "technique": "classic",
+                    "vulnerable": True,
+                },
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
     def test_json_with_shell(self):
         p = CommixParser()
-        output = json.dumps({
-            "url": "http://example.com/test",
-            "param": "cmd",
-            "vulnerable": True,
-            "shell_type": "interactive",
-        })
+        output = json.dumps(
+            {
+                "url": "http://example.com/test",
+                "param": "cmd",
+                "vulnerable": True,
+                "shell_type": "interactive",
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
         assert any("shell" in f["title"].lower() for f in findings)
 
     def test_json_with_output(self):
         p = CommixParser()
-        output = json.dumps({
-            "url": "http://example.com/test",
-            "param": "cmd",
-            "vulnerable": True,
-            "output": "uid=1000\n",
-        })
+        output = json.dumps(
+            {
+                "url": "http://example.com/test",
+                "param": "cmd",
+                "vulnerable": True,
+                "output": "uid=1000\n",
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
         assert any("Command execution" in f["title"] for f in findings)
@@ -817,12 +989,7 @@ class TestCommixParser:
 
     def test_technique_blind(self):
         p = CommixParser()
-        output = (
-            "URL: http://example.com\n"
-            "Parameter: id\n"
-            "Technique: blind\n"
-            "Vulnerable\n"
-        )
+        output = "URL: http://example.com\n" "Parameter: id\n" "Technique: blind\n" "Vulnerable\n"
         findings = p.parse(output)
         vuln = [f for f in findings if "vulnerability" in f["title"].lower()]
         assert len(vuln) >= 1
@@ -853,11 +1020,7 @@ class TestCommixParser:
 
     def test_shell_type_oob(self):
         p = CommixParser()
-        output = (
-            "URL: http://example.com\n"
-            "Parameter: cmd\n"
-            "Shell obtained: out-of-band\n"
-        )
+        output = "URL: http://example.com\n" "Parameter: cmd\n" "Shell obtained: out-of-band\n"
         findings = p.parse(output)
         shell = [f for f in findings if "shell" in f["title"].lower()]
         assert len(shell) >= 1
@@ -948,10 +1111,7 @@ class TestSshAuditParser:
 
     def test_dedup_same_finding(self):
         p = SshAuditParser()
-        output = (
-            "[info]  SSH-2.0-OpenSSH_8.9p1\n"
-            "[info]  SSH-2.0-OpenSSH_8.9p1\n"
-        )
+        output = "[info]  SSH-2.0-OpenSSH_8.9p1\n" "[info]  SSH-2.0-OpenSSH_8.9p1\n"
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -988,12 +1148,28 @@ class TestSshAuditParser:
 class TestWapitiParser:
     def test_json_vulnerabilities_list(self):
         p = WapitiParser()
-        output = json.dumps({
-            "vulnerabilities": [
-                {"method": "GET", "path": "/search", "parameter": "q", "type": "SQL Injection", "severity": "critical", "url": "http://example.com/search"},
-                {"method": "GET", "path": "/login", "parameter": "user", "type": "XSS", "severity": "high", "url": "http://example.com/login"},
-            ],
-        })
+        output = json.dumps(
+            {
+                "vulnerabilities": [
+                    {
+                        "method": "GET",
+                        "path": "/search",
+                        "parameter": "q",
+                        "type": "SQL Injection",
+                        "severity": "critical",
+                        "url": "http://example.com/search",
+                    },
+                    {
+                        "method": "GET",
+                        "path": "/login",
+                        "parameter": "user",
+                        "type": "XSS",
+                        "severity": "high",
+                        "url": "http://example.com/login",
+                    },
+                ],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
         for f in findings:
@@ -1004,45 +1180,60 @@ class TestWapitiParser:
 
     def test_json_info_list(self):
         p = WapitiParser()
-        output = json.dumps({
-            "infos": [
-                {"path": "/robots.txt", "description": "robots.txt found", "url": "http://example.com"},
-            ],
-        })
+        output = json.dumps(
+            {
+                "infos": [
+                    {
+                        "path": "/robots.txt",
+                        "description": "robots.txt found",
+                        "url": "http://example.com",
+                    },
+                ],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
     def test_json_str_vuln_list(self):
         p = WapitiParser()
-        output = json.dumps({
-            "vulnerabilities": ["SQL Injection", "XSS"],
-        })
+        output = json.dumps(
+            {
+                "vulnerabilities": ["SQL Injection", "XSS"],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
     def test_json_dict_vuln(self):
         p = WapitiParser()
-        output = json.dumps({
-            "vulnerabilities": {
-                "SQL Injection": [
-                    {"url": "http://example.com/search?q=test"},
-                    {"url": "http://example.com/login?id=1"},
-                ],
-                "XSS": [
-                    {"url": "http://example.com/search?q=<script>"},
-                ],
-            },
-        })
+        output = json.dumps(
+            {
+                "vulnerabilities": {
+                    "SQL Injection": [
+                        {"url": "http://example.com/search?q=test"},
+                        {"url": "http://example.com/login?id=1"},
+                    ],
+                    "XSS": [
+                        {"url": "http://example.com/search?q=<script>"},
+                    ],
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 3
 
     def test_json_dict_vuln_str_items(self):
         p = WapitiParser()
-        output = json.dumps({
-            "vulnerabilities": {
-                "Interesting": ["http://example.com/robots.txt", "http://example.com/sitemap.xml"],
-            },
-        })
+        output = json.dumps(
+            {
+                "vulnerabilities": {
+                    "Interesting": [
+                        "http://example.com/robots.txt",
+                        "http://example.com/sitemap.xml",
+                    ],
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
@@ -1099,10 +1290,7 @@ class TestWapitiParser:
 
     def test_text_evidence_line(self):
         p = WapitiParser()
-        output = (
-            "SQL Injection (1) http://example.com/search\n"
-            "  Evidence: 1' OR '1'='1\n"
-        )
+        output = "SQL Injection (1) http://example.com/search\n" "  Evidence: 1' OR '1'='1\n"
         findings = p.parse(output)
         assert len(findings) >= 1
         assert any("1' OR" in f.get("evidence", "") for f in findings)
@@ -1135,12 +1323,14 @@ class TestWapitiParser:
 class TestCommixParser_extra_b7:
     def test_json_single_vulnerable(self):
         p = CommixParser()
-        output = json.dumps({
-            "url": "http://example.com/page",
-            "parameter": "cmd",
-            "technique": "classic",
-            "vulnerable": True,
-        })
+        output = json.dumps(
+            {
+                "url": "http://example.com/page",
+                "parameter": "cmd",
+                "technique": "classic",
+                "vulnerable": True,
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         for f in findings:
@@ -1150,32 +1340,48 @@ class TestCommixParser_extra_b7:
 
     def test_json_list_vulnerable(self):
         p = CommixParser()
-        output = json.dumps([
-            {"url": "http://example.com/1", "parameter": "id", "technique": "time-based", "vulnerable": True},
-            {"url": "http://example.com/2", "parameter": "q", "technique": "blind", "vulnerable": True},
-        ])
+        output = json.dumps(
+            [
+                {
+                    "url": "http://example.com/1",
+                    "parameter": "id",
+                    "technique": "time-based",
+                    "vulnerable": True,
+                },
+                {
+                    "url": "http://example.com/2",
+                    "parameter": "q",
+                    "technique": "blind",
+                    "vulnerable": True,
+                },
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
     def test_json_with_shell(self):
         p = CommixParser()
-        output = json.dumps({
-            "url": "http://example.com/shell",
-            "parameter": "cmd",
-            "vulnerable": True,
-            "shell_type": "interactive",
-        })
+        output = json.dumps(
+            {
+                "url": "http://example.com/shell",
+                "parameter": "cmd",
+                "vulnerable": True,
+                "shell_type": "interactive",
+            }
+        )
         findings = p.parse(output)
         assert any("shell" in f["title"].lower() for f in findings)
 
     def test_json_with_cmd_output(self):
         p = CommixParser()
-        output = json.dumps({
-            "url": "http://example.com",
-            "parameter": "cmd",
-            "vulnerable": True,
-            "output": "uid=0(root) gid=0(root)",
-        })
+        output = json.dumps(
+            {
+                "url": "http://example.com",
+                "parameter": "cmd",
+                "vulnerable": True,
+                "output": "uid=0(root) gid=0(root)",
+            }
+        )
         findings = p.parse(output)
         assert any("result" in f["title"].lower() for f in findings)
 
@@ -1201,10 +1407,7 @@ class TestCommixParser_extra_b7:
     def test_text_shell_obtained(self):
         p = CommixParser()
         output = (
-            "URL: http://example.com\n"
-            "Parameter: cmd\n"
-            "shell obtained\n"
-            "output: root user\n"
+            "URL: http://example.com\n" "Parameter: cmd\n" "shell obtained\n" "output: root user\n"
         )
         findings = p.parse(output)
         shells = [f for f in findings if "shell" in f["title"].lower()]
@@ -1213,9 +1416,7 @@ class TestCommixParser_extra_b7:
 
     def test_text_shell_with_shell_type(self):
         p = CommixParser()
-        output = (
-            "interactive pseudo-shell spawned\n"
-        )
+        output = "interactive pseudo-shell spawned\n"
         findings = p.parse(output)
         shells = [f for f in findings if "shell" in f["title"].lower()]
         assert len(shells) >= 1
@@ -1245,7 +1446,9 @@ class TestCommixParser_extra_b7:
             "output: uid=0(root)\n"
         )
         findings = p.parse(output)
-        assert any("result" in f["title"].lower() for f in findings) or any("shell" in f["title"].lower() for f in findings)
+        assert any("result" in f["title"].lower() for f in findings) or any(
+            "shell" in f["title"].lower() for f in findings
+        )
 
     def test_summary_line(self):
         p = CommixParser()
@@ -1262,6 +1465,8 @@ class TestCommixParser_extra_b7:
         p = CommixParser()
         findings = p.parse("{bad")
         assert isinstance(findings, list)
+
+
 class TestZaproxyParser:
     def test_high_severity_alert(self):
         p = ZaproxyParser()
@@ -1337,6 +1542,8 @@ class TestZaproxyParser:
         findings = p.parse(output)
         assert len(findings) >= 1
         assert "http://example.com/test" in findings[0]["evidence"]
+
+
 class TestCommixParser_extra_b8:
     def test_empty(self):
         assert CommixParser().parse("") == []
@@ -1344,7 +1551,9 @@ class TestCommixParser_extra_b8:
 
     def test_json_single_vulnerable_alternate_keys(self):
         p = CommixParser()
-        output = json.dumps({"target": "http://example.com", "param": "id", "type": "error-based", "found": True})
+        output = json.dumps(
+            {"target": "http://example.com", "param": "id", "type": "error-based", "found": True}
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         _check_finding(findings[0], "commix")
@@ -1352,19 +1561,33 @@ class TestCommixParser_extra_b8:
     def test_json_no_findings(self):
         p = CommixParser()
         # Use an alias key like "found" instead of "vulnerable" to avoid text-path keyword match
-        output = json.dumps({"target": "http://example.com", "param": "id", "found": False, "technique": "unknown"})
+        output = json.dumps(
+            {"target": "http://example.com", "param": "id", "found": False, "technique": "unknown"}
+        )
         findings = p.parse(output)
         assert len(findings) == 0
 
     def test_json_shell_and_cmd_output(self):
         p = CommixParser()
-        output = json.dumps({"url": "http://example.com", "vulnerable": True, "shell_type": "interactive", "output": "root"})
+        output = json.dumps(
+            {
+                "url": "http://example.com",
+                "vulnerable": True,
+                "shell_type": "interactive",
+                "output": "root",
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
     def test_json_list_with_empty(self):
         p = CommixParser()
-        output = json.dumps([{"url": "http://a.com", "vulnerable": True, "technique": "classic"}, {"url": "http://b.com", "vulnerable": False}])
+        output = json.dumps(
+            [
+                {"url": "http://a.com", "vulnerable": True, "technique": "classic"},
+                {"url": "http://b.com", "vulnerable": False},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
@@ -1444,6 +1667,8 @@ class TestCommixParser_extra_b8:
         findings = p.parse(output)
         vulns = [f for f in findings if "vulnerability" in f["title"].lower()]
         assert len(vulns) >= 1
+
+
 class TestWapitiParser_extra_b8:
     def test_empty(self):
         assert WapitiParser().parse("") == []
@@ -1451,7 +1676,13 @@ class TestWapitiParser_extra_b8:
 
     def test_json_single_vuln(self):
         p = WapitiParser()
-        output = json.dumps({"vulnerabilities": [{"url": "http://example.com", "type": "SQL Injection", "severity": "critical"}]})
+        output = json.dumps(
+            {
+                "vulnerabilities": [
+                    {"url": "http://example.com", "type": "SQL Injection", "severity": "critical"}
+                ]
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         _check_finding(findings[0], "wapiti")
@@ -1464,7 +1695,9 @@ class TestWapitiParser_extra_b8:
 
     def test_json_infos_dict(self):
         p = WapitiParser()
-        output = json.dumps({"infos": {"xss": ["http://example.com/xss1", "http://example.com/xss2"]}})
+        output = json.dumps(
+            {"infos": {"xss": ["http://example.com/xss1", "http://example.com/xss2"]}}
+        )
         findings = p.parse(output)
         assert len(findings) == 2
 
@@ -1476,7 +1709,9 @@ class TestWapitiParser_extra_b8:
 
     def test_json_vulns_dict_with_objects(self):
         p = WapitiParser()
-        output = json.dumps({"vulnerabilities": {"XSS": [{"url": "http://example.com/xss", "severity": "high"}]}})
+        output = json.dumps(
+            {"vulnerabilities": {"XSS": [{"url": "http://example.com/xss", "severity": "high"}]}}
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -1532,6 +1767,8 @@ class TestWapitiParser_extra_b8:
         output = "XSS (1) http://example.com/xss\nXSS (1) http://example.com/xss"
         findings = p.parse(output)
         assert len(findings) == 1
+
+
 class TestWafw00fParser_extra_b8:
     def test_empty(self):
         assert Wafw00fParser().parse("") == []
@@ -1539,7 +1776,16 @@ class TestWafw00fParser_extra_b8:
 
     def test_json_list_detected(self):
         p = Wafw00fParser()
-        output = json.dumps([{"url": "http://example.com", "detected": True, "waf": ["Cloudflare"], "confidence": 95}])
+        output = json.dumps(
+            [
+                {
+                    "url": "http://example.com",
+                    "detected": True,
+                    "waf": ["Cloudflare"],
+                    "confidence": 95,
+                }
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         _check_finding(findings[0], "wafw00f")
@@ -1566,20 +1812,31 @@ class TestWafw00fParser_extra_b8:
 
     def test_json_waf_as_string(self):
         p = Wafw00fParser()
-        output = json.dumps({"url": "http://example.com", "detected": True, "waf": "Cloudflare", "confidence": 80})
+        output = json.dumps(
+            {"url": "http://example.com", "detected": True, "waf": "Cloudflare", "confidence": 80}
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
     def test_json_confidence_string(self):
         p = Wafw00fParser()
-        output = json.dumps({"url": "http://example.com", "detected": True, "waf": ["ModSecurity"], "confidence": "85%"})
+        output = json.dumps(
+            {
+                "url": "http://example.com",
+                "detected": True,
+                "waf": ["ModSecurity"],
+                "confidence": "85%",
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert findings[0]["severity"] == "high"
 
     def test_json_non_confidence_string_no_digits(self):
         p = Wafw00fParser()
-        output = json.dumps({"url": "http://example.com", "detected": True, "waf": ["Unknown"], "confidence": "n/a"})
+        output = json.dumps(
+            {"url": "http://example.com", "detected": True, "waf": ["Unknown"], "confidence": "n/a"}
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
@@ -1638,6 +1895,8 @@ class TestWafw00fParser_extra_b8:
         output = "some random text\n"
         findings = p.parse(output)
         assert len(findings) == 0
+
+
 class TestDalfoxParser_extra_b8:
     def test_empty(self):
         assert DalfoxParser().parse("") == []
@@ -1645,7 +1904,15 @@ class TestDalfoxParser_extra_b8:
 
     def test_json_single(self):
         p = DalfoxParser()
-        output = json.dumps({"url": "http://example.com/search", "param": "q", "type": "XSS", "severity": "high", "evidence": "<script>alert(1)</script>"})
+        output = json.dumps(
+            {
+                "url": "http://example.com/search",
+                "param": "q",
+                "type": "XSS",
+                "severity": "high",
+                "evidence": "<script>alert(1)</script>",
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         _check_finding(findings[0], "dalfox")
@@ -1653,10 +1920,12 @@ class TestDalfoxParser_extra_b8:
 
     def test_json_list(self):
         p = DalfoxParser()
-        output = json.dumps([
-            {"url": "http://example.com/a", "param": "q", "evidence": "xss1"},
-            {"url": "http://example.com/b", "param": "id", "evidence": "xss2"},
-        ])
+        output = json.dumps(
+            [
+                {"url": "http://example.com/a", "param": "q", "evidence": "xss1"},
+                {"url": "http://example.com/b", "param": "id", "evidence": "xss2"},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 2
 
@@ -1668,10 +1937,12 @@ class TestDalfoxParser_extra_b8:
 
     def test_json_dedup(self):
         p = DalfoxParser()
-        output = json.dumps([
-            {"url": "http://example.com", "param": "q", "evidence": "xss"},
-            {"url": "http://example.com", "param": "q", "evidence": "xss"},
-        ])
+        output = json.dumps(
+            [
+                {"url": "http://example.com", "param": "q", "evidence": "xss"},
+                {"url": "http://example.com", "param": "q", "evidence": "xss"},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -1710,35 +1981,45 @@ class TestDalfoxParser_extra_b8:
         p = DalfoxParser()
         findings = p.parse("plain text")
         assert isinstance(findings, list)
+
+
 class TestArachniParserBranches:
     """Covers: cwe as int, dedup skip, JSON decode error, text dedup."""
 
     def test_cwe_as_int(self):
         p = ArachniParser()
-        output = json.dumps({
-            "issues": [{
-                "name": "SQLi",
-                "severity": "high",
-                "vector": {"action": "http://x.com"},
-                "cwe": 89,
-                "check": {"shortname": "sqli"},
-            }]
-        })
+        output = json.dumps(
+            {
+                "issues": [
+                    {
+                        "name": "SQLi",
+                        "severity": "high",
+                        "vector": {"action": "http://x.com"},
+                        "cwe": 89,
+                        "check": {"shortname": "sqli"},
+                    }
+                ]
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "CWE-89" in findings[0]["evidence"]
 
     def test_cwe_as_str(self):
         p = ArachniParser()
-        output = json.dumps({
-            "issues": [{
-                "name": "XSS",
-                "severity": "medium",
-                "vector": {"action": "http://x.com"},
-                "cwe": "79",
-                "check": {"shortname": "xss"},
-            }]
-        })
+        output = json.dumps(
+            {
+                "issues": [
+                    {
+                        "name": "XSS",
+                        "severity": "medium",
+                        "vector": {"action": "http://x.com"},
+                        "cwe": "79",
+                        "check": {"shortname": "xss"},
+                    }
+                ]
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "CWE-79" in findings[0]["evidence"]
@@ -1789,24 +2070,37 @@ class TestBurpsuiteParserBranches:
 # ---------------------------------------------------------------------------
 class TestCommixParserBranches:
     """Covers: JSON array, JSON shell, JSON cmd_output, text summary, text URL,
-       text param, text technique, text OS, text shell, text cmd_result, text vuln."""
+    text param, text technique, text OS, text shell, text cmd_result, text vuln."""
 
     def test_json_array(self):
         p = CommixParser()
-        output = json.dumps([{"url": "http://x.com", "param": "id", "vulnerable": True, "technique": "classic"}])
+        output = json.dumps(
+            [{"url": "http://x.com", "param": "id", "vulnerable": True, "technique": "classic"}]
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
     def test_json_shell_type(self):
         p = CommixParser()
-        output = json.dumps([{"url": "http://x.com", "param": "id", "vulnerable": True, "shell_type": "interactive"}])
+        output = json.dumps(
+            [
+                {
+                    "url": "http://x.com",
+                    "param": "id",
+                    "vulnerable": True,
+                    "shell_type": "interactive",
+                }
+            ]
+        )
         findings = p.parse(output)
         shell = [f for f in findings if "shell" in f["title"].lower()]
         assert len(shell) >= 1
 
     def test_json_cmd_output(self):
         p = CommixParser()
-        output = json.dumps([{"url": "http://x.com", "param": "id", "vulnerable": True, "output": "root:x:0:0"}])
+        output = json.dumps(
+            [{"url": "http://x.com", "param": "id", "vulnerable": True, "output": "root:x:0:0"}]
+        )
         findings = p.parse(output)
         cmd = [f for f in findings if "execution" in f["title"].lower()]
         assert len(cmd) >= 1
@@ -1893,7 +2187,10 @@ class TestDalfoxParserBranches:
 
     def test_json_decode_error_skipped(self):
         p = DalfoxParser()
-        findings = p.parse(json.dumps([{"url": "http://x.com", "param": "q", "type": "XSS", "evidence": "x"}]) + "\n{bad}\n")
+        findings = p.parse(
+            json.dumps([{"url": "http://x.com", "param": "q", "type": "XSS", "evidence": "x"}])
+            + "\n{bad}\n"
+        )
         assert len(findings) >= 1
 
     def test_text_dedup_skipped(self):
@@ -1911,11 +2208,15 @@ class TestJwtToolParser:
         assert JwtToolParser().parse("   ") == []
 
     def test_json_object(self):
-        r = JwtToolParser().parse('{"token":"eyJ.eyJyb2xlIjoiYWRtaW4ifQ.sign","algorithm":"RS256","payload":{"role":"admin"}}')
+        r = JwtToolParser().parse(
+            '{"token":"eyJ.eyJyb2xlIjoiYWRtaW4ifQ.sign","algorithm":"RS256","payload":{"role":"admin"}}'
+        )
         assert len(r) >= 1
 
     def test_json_array(self):
-        r = JwtToolParser().parse('[{"token":"eyJ.eyJyb2xlIjoiYWRtaW4ifQ.sign","algorithm":"RS256","payload":{}}]')
+        r = JwtToolParser().parse(
+            '[{"token":"eyJ.eyJyb2xlIjoiYWRtaW4ifQ.sign","algorithm":"RS256","payload":{}}]'
+        )
         assert len(r) >= 1
 
     def test_json_decode_error_fallthrough(self):
@@ -1924,7 +2225,14 @@ class TestJwtToolParser:
 
     def test_token_decoded_claims(self):
         import base64
-        payload = base64.urlsafe_b64encode(b'{"role":"admin","sub":"user1","iss":"test","exp":9999999999}').decode().rstrip("=")
+
+        payload = (
+            base64.urlsafe_b64encode(
+                b'{"role":"admin","sub":"user1","iss":"test","exp":9999999999}'
+            )
+            .decode()
+            .rstrip("=")
+        )
         token = f"header.{payload}.sign"
         r = JwtToolParser().parse(token)
         assert any("JWT claim: role" in f["title"] for f in r)
@@ -1960,6 +2268,8 @@ class TestJwtToolParser:
     def test_json_issues(self):
         r = JwtToolParser().parse('{"token":"t","issues":["weak key"]}')
         assert any("JWT issue" in f["title"] for f in r)
+
+
 class TestMetasploitParser:
     def test_empty(self):
         assert MetasploitParser().parse("") == []
@@ -1983,32 +2293,44 @@ class TestMetasploitParser:
     def test_irrelevant_line_skipped(self):
         r = MetasploitParser().parse("some random output")
         assert len(r) == 0
+
+
 class TestNucleiParser:
     def test_empty(self):
         assert NucleiParser().parse("") == []
 
     def test_with_matcher_name(self):
-        r = NucleiParser().parse('{"template-id":"t1","info":{"name":"Test","severity":"high"},"matched-at":"http://example.com","matcher-name":"matcher1"}')
+        r = NucleiParser().parse(
+            '{"template-id":"t1","info":{"name":"Test","severity":"high"},"matched-at":"http://example.com","matcher-name":"matcher1"}'
+        )
         assert len(r) == 1
         assert "matcher" in r[0]["evidence"]
 
     def test_with_extracted_results(self):
-        r = NucleiParser().parse('{"template-id":"t1","info":{"name":"Test","severity":"high"},"matched-at":"http://example.com","extracted-results":["secret1","secret2"]}')
+        r = NucleiParser().parse(
+            '{"template-id":"t1","info":{"name":"Test","severity":"high"},"matched-at":"http://example.com","extracted-results":["secret1","secret2"]}'
+        )
         assert len(r) == 1
         assert "extracted" in r[0]["evidence"]
 
     def test_blank_line_skipped(self):
         assert NucleiParser().parse("\n") == []
+
+
 class TestSearchsploitParser:
     def test_empty(self):
         assert SearchsploitParser().parse("") == []
 
     def test_json_line(self):
-        r = SearchsploitParser().parse('{"id":"12345","title":"test exploit","type":"web","platform":"php"}')
+        r = SearchsploitParser().parse(
+            '{"id":"12345","title":"test exploit","type":"web","platform":"php"}'
+        )
         assert len(r) == 1
 
     def test_json_with_url_and_path_cve(self):
-        r = SearchsploitParser().parse('{"id":"12345","title":"CVE-2024-1234","type":"web","platform":"php","url":"https://exploit-db.com/12345","file":"/usr/share/exploitdb/12345.c"}')
+        r = SearchsploitParser().parse(
+            '{"id":"12345","title":"CVE-2024-1234","type":"web","platform":"php","url":"https://exploit-db.com/12345","file":"/usr/share/exploitdb/12345.c"}'
+        )
         assert len(r) == 1
 
     def test_json_decode_error_skipped(self):
@@ -2051,6 +2373,8 @@ class TestSearchsploitParser:
     def test_query_extraction(self):
         r = SearchsploitParser().parse("searchsploit wordpress exploit")
         assert len(r) == 0
+
+
 class TestSqlmapParser:
     def test_empty(self):
         assert SqlmapParser().parse("") == []
@@ -2074,6 +2398,8 @@ class TestSqlmapParser:
     def test_debug_level(self):
         r = SqlmapParser().parse("[DEBUG] connecting to target")
         assert r[0]["severity"] == "low"
+
+
 class TestSshAuditParser:
     def test_empty(self):
         assert SshAuditParser().parse("") == []
@@ -2110,6 +2436,8 @@ class TestSshAuditParser:
     def test_blank_line_skipped(self):
         r = SshAuditParser().parse("\n\n")
         assert len(r) == 0
+
+
 class TestSslscanParser:
     def test_empty(self):
         assert SslscanParser().parse("") == []
@@ -2154,6 +2482,8 @@ class TestSslscanParser:
     def test_blank_line_skipped(self):
         r = SslscanParser().parse("\n\n")
         assert len(r) == 0
+
+
 class TestSslyzeParser:
     def test_empty(self):
         assert SslyzeParser().parse("") == []
@@ -2171,31 +2501,43 @@ class TestSslyzeParser:
         assert r[0]["severity"] == "medium"
 
     def test_json_results_list(self):
-        r = SslyzeParser().parse('{"server_info":{"hostname":"example.com","port":443},"results":[{"severity":"high","result":"weak cipher"}]}')
+        r = SslyzeParser().parse(
+            '{"server_info":{"hostname":"example.com","port":443},"results":[{"severity":"high","result":"weak cipher"}]}'
+        )
         assert len(r) == 1
         assert r[0]["severity"] == "high"
 
     def test_json_results_dict_protocol(self):
-        r = SslyzeParser().parse('{"server_info":{"hostname":"example.com","port":443},"results":{"tls_version_1_0":{"result":{"tls_version":"TLSv1.0","supports":true}}}}')
+        r = SslyzeParser().parse(
+            '{"server_info":{"hostname":"example.com","port":443},"results":{"tls_version_1_0":{"result":{"tls_version":"TLSv1.0","supports":true}}}}'
+        )
         assert len(r) == 1
         assert r[0]["severity"] == "high"
 
     def test_json_results_dict_protocol_disabled(self):
-        r = SslyzeParser().parse('{"server_info":{"hostname":"example.com","port":443},"results":{"tls_version_1_2":{"result":{"tls_version":"TLSv1.2","supports":false}}}}')
+        r = SslyzeParser().parse(
+            '{"server_info":{"hostname":"example.com","port":443},"results":{"tls_version_1_2":{"result":{"tls_version":"TLSv1.2","supports":false}}}}'
+        )
         assert len(r) == 1
         assert r[0]["severity"] == "info"
 
     def test_json_results_dict_cipher(self):
-        r = SslyzeParser().parse('{"server_info":{"hostname":"example.com","port":443},"results":{"tls_cipher":{"result":{"accepted_ciphers":[{"name":"TLS_RSA_WITH_RC4_128","key_size":128}]}}}}')
+        r = SslyzeParser().parse(
+            '{"server_info":{"hostname":"example.com","port":443},"results":{"tls_cipher":{"result":{"accepted_ciphers":[{"name":"TLS_RSA_WITH_RC4_128","key_size":128}]}}}}'
+        )
         assert len(r) == 1
 
     def test_json_results_dict_certificate(self):
-        r = SslyzeParser().parse('{"server_info":{"hostname":"example.com","port":443},"results":{"certificate_info":{"result":{"certificate":{"subject":{"CN":"example.com"},"issuer":{"CN":"CA"}}}}}}')
+        r = SslyzeParser().parse(
+            '{"server_info":{"hostname":"example.com","port":443},"results":{"certificate_info":{"result":{"certificate":{"subject":{"CN":"example.com"},"issuer":{"CN":"CA"}}}}}}'
+        )
         assert len(r) == 1
 
     def test_json_decode_error_returns_empty(self):
         r = SslyzeParser().parse("{bad}")
         assert len(r) == 0
+
+
 class TestTestsslParser:
     def test_empty(self):
         assert TestsslParser().parse("") == []
@@ -2219,13 +2561,17 @@ class TestTestsslParser:
     def test_blank_line_skipped(self):
         r = TestsslParser().parse("\n\n")
         assert len(r) == 0
+
+
 class TestWafw00fParser:
     def test_empty(self):
         assert Wafw00fParser().parse("") == []
         assert Wafw00fParser().parse("   ") == []
 
     def test_json_list(self):
-        r = Wafw00fParser().parse('[{"url":"https://example.com","detected":true,"waf":["cloudflare"]}]')
+        r = Wafw00fParser().parse(
+            '[{"url":"https://example.com","detected":true,"waf":["cloudflare"]}]'
+        )
         assert len(r) == 1
 
     def test_json_not_detected(self):
@@ -2245,7 +2591,9 @@ class TestWafw00fParser:
         assert any("No WAF detected" in f["title"] for f in r)
 
     def test_waf_high_confidence(self):
-        r = Wafw00fParser().parse("Testing https://example.com\nidentified: Cloudflare (confidence: 90%)")
+        r = Wafw00fParser().parse(
+            "Testing https://example.com\nidentified: Cloudflare (confidence: 90%)"
+        )
         assert any("waf detected: cloudflare" in f["title"].lower() for f in r)
         assert r[0]["severity"] == "high"
 
@@ -2255,7 +2603,9 @@ class TestWafw00fParser:
         assert len(h) >= 1
 
     def test_multi_waf(self):
-        r = Wafw00fParser().parse("Testing https://example.com\nmultiple WAFs detected\nidentified: cloudflare")
+        r = Wafw00fParser().parse(
+            "Testing https://example.com\nmultiple WAFs detected\nidentified: cloudflare"
+        )
         assert any("WAF: cloudflare" in f["evidence"] for f in r)
         assert any("Multiple WAFs" in f["evidence"] for f in r)
 
@@ -2264,14 +2614,20 @@ class TestWafw00fParser:
         assert len(r) == 1
 
     def test_json_waf_with_app_name(self):
-        r = Wafw00fParser().parse('{"url":"https://example.com","detected":true,"waf":[],"app":"cloudflare"}')
+        r = Wafw00fParser().parse(
+            '{"url":"https://example.com","detected":true,"waf":[],"app":"cloudflare"}'
+        )
         assert any("cloudflare" in f["title"] for f in r)
+
+
 class TestWapitiParser:
     def test_empty(self):
         assert WapitiParser().parse("") == []
 
     def test_json_vulnerabilities_list_dict(self):
-        r = WapitiParser().parse('{"vulnerabilities":[{"type":"SQL Injection","severity":"critical","url":"http://example.com","description":"sqli found"}]}')
+        r = WapitiParser().parse(
+            '{"vulnerabilities":[{"type":"SQL Injection","severity":"critical","url":"http://example.com","description":"sqli found"}]}'
+        )
         assert len(r) == 1
         assert r[0]["severity"] == "critical"
 
@@ -2280,7 +2636,9 @@ class TestWapitiParser:
         assert len(r) == 1
 
     def test_json_vulnerabilities_dict(self):
-        r = WapitiParser().parse('{"vulnerabilities":{"SQL Injection":["http://example.com?id=1"]}}')
+        r = WapitiParser().parse(
+            '{"vulnerabilities":{"SQL Injection":["http://example.com?id=1"]}}'
+        )
         assert len(r) == 1
 
     def test_json_decode_error_fallthrough(self):
@@ -2292,7 +2650,9 @@ class TestWapitiParser:
         assert len(r) == 1
 
     def test_text_description_line(self):
-        r = WapitiParser().parse("SQL Injection (1): http://example.com?id=1\n  Evidence: proof here")
+        r = WapitiParser().parse(
+            "SQL Injection (1): http://example.com?id=1\n  Evidence: proof here"
+        )
         assert len(r) == 1
         assert any("proof here" in f["evidence"] for f in r)
 
@@ -2307,6 +2667,8 @@ class TestWapitiParser:
     def test_text_remaining_vuln_at_end(self):
         r = WapitiParser().parse("SQL Injection (1): http://example.com?id=1")
         assert len(r) == 1
+
+
 class TestWpscanParser:
     def test_empty(self):
         assert WpscanParser().parse("") == []
@@ -2335,36 +2697,50 @@ class TestWpscanParser:
     def test_blank_line_skipped(self):
         r = WpscanParser().parse("\n\n")
         assert len(r) == 0
+
+
 class TestXsstrikeParser:
     def test_empty(self):
         assert XsstrikeParser().parse("") == []
         assert XsstrikeParser().parse("   ") == []
 
     def test_json_array(self):
-        r = XsstrikeParser().parse('[{"url":"http://example.com","parameter":"q","vulnerable":true,"type":"reflected","confidence":90}]')
+        r = XsstrikeParser().parse(
+            '[{"url":"http://example.com","parameter":"q","vulnerable":true,"type":"reflected","confidence":90}]'
+        )
         assert len(r) >= 1
         assert r[0]["severity"] == "high"
 
     def test_json_object(self):
-        r = XsstrikeParser().parse('{"url":"http://example.com","parameter":"q","vulnerable":true,"type":"reflected"}')
+        r = XsstrikeParser().parse(
+            '{"url":"http://example.com","parameter":"q","vulnerable":true,"type":"reflected"}'
+        )
         assert len(r) >= 1
 
     def test_json_stored_type(self):
-        r = XsstrikeParser().parse('{"url":"http://example.com","parameter":"q","vulnerable":true,"type":"stored"}')
+        r = XsstrikeParser().parse(
+            '{"url":"http://example.com","parameter":"q","vulnerable":true,"type":"stored"}'
+        )
         assert len(r) >= 1
         assert r[0]["severity"] == "high"
 
     def test_json_dom_type(self):
-        r = XsstrikeParser().parse('{"url":"http://example.com","parameter":"q","vulnerable":true,"dom":true}')
+        r = XsstrikeParser().parse(
+            '{"url":"http://example.com","parameter":"q","vulnerable":true,"dom":true}'
+        )
         assert len(r) >= 1
         assert r[0]["severity"] == "high"
 
     def test_json_payload_only(self):
-        r = XsstrikeParser().parse('{"url":"http://example.com","parameter":"q","payload":"<script>alert(1)</script>"}')
+        r = XsstrikeParser().parse(
+            '{"url":"http://example.com","parameter":"q","payload":"<script>alert(1)</script>"}'
+        )
         assert any("XSS payload generated" in f["title"] for f in r)
 
     def test_text_vulnerability(self):
-        r = XsstrikeParser().parse("URL: http://example.com\nParameter: q\nvulnerable: XSS detected")
+        r = XsstrikeParser().parse(
+            "URL: http://example.com\nParameter: q\nvulnerable: XSS detected"
+        )
         assert any("XSS vulnerability" in f["title"] for f in r)
 
     def test_text_dom_based(self):
@@ -2372,19 +2748,27 @@ class TestXsstrikeParser:
         assert any("XSS vulnerability" in f["title"] for f in r)
 
     def test_text_payload_only(self):
-        r = XsstrikeParser().parse("URL: http://example.com\nParameter: q\npayload: <script>alert(1)</script>")
+        r = XsstrikeParser().parse(
+            "URL: http://example.com\nParameter: q\npayload: <script>alert(1)</script>"
+        )
         assert any("XSS payload generated" in f["title"] for f in r)
 
     def test_text_stored_type(self):
-        r = XsstrikeParser().parse("URL: http://example.com\nParameter: q\ntype: stored\nvulnerable XSS found")
+        r = XsstrikeParser().parse(
+            "URL: http://example.com\nParameter: q\ntype: stored\nvulnerable XSS found"
+        )
         assert any("XSS vulnerability" in f["title"] for f in r)
 
     def test_text_low_confidence(self):
-        r = XsstrikeParser().parse("URL: http://example.com\nParameter: q\nconfidence: 50%\nvulnerable: XSS")
+        r = XsstrikeParser().parse(
+            "URL: http://example.com\nParameter: q\nconfidence: 50%\nvulnerable: XSS"
+        )
         assert any("XSS vulnerability" in f["title"] for f in r)
 
     def test_text_high_confidence_stored(self):
-        r = XsstrikeParser().parse("URL: http://example.com\nParameter: q\ntype: stored\nconfidence: 95%\nvulnerable: XSS")
+        r = XsstrikeParser().parse(
+            "URL: http://example.com\nParameter: q\ntype: stored\nconfidence: 95%\nvulnerable: XSS"
+        )
         h = [f for f in r if f["severity"] == "critical"]
         assert len(h) >= 0
 
@@ -2395,6 +2779,8 @@ class TestXsstrikeParser:
     def test_json_decode_error_fallthrough(self):
         r = XsstrikeParser().parse("{bad}")
         assert isinstance(r, list)
+
+
 class TestJwtToolParserBranches:
     """Covers all uncovered branches across text and JSON paths."""
 
@@ -2461,8 +2847,12 @@ class TestJwtToolParserBranches:
 
     def test_json_duplicate_issues(self):
         p = JwtToolParser()
-        record = {"token": "x.y.z", "algorithm": "RS256", "payload": {},
-                   "issues": ["weak-key", "weak-key"]}
+        record = {
+            "token": "x.y.z",
+            "algorithm": "RS256",
+            "payload": {},
+            "issues": ["weak-key", "weak-key"],
+        }
         findings = p._parse_json_output(record)
         issue_findings = [f for f in findings if "issue" in f["title"].lower()]
         assert len(issue_findings) == 1
@@ -2498,120 +2888,144 @@ class TestSslyzeParserBranches:
 
     def test_results_list_item_not_dict(self):
         p = SslyzeParser()
-        output = json.dumps({
-            "server_info": {"hostname": "example.com", "port": 443},
-            "results": ["not_a_dict",
-                        {"severity": "high", "result": "bad cert"}]
-        })
+        output = json.dumps(
+            {
+                "server_info": {"hostname": "example.com", "port": 443},
+                "results": ["not_a_dict", {"severity": "high", "result": "bad cert"}],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
     def test_results_list_dedup_seen(self):
         p = SslyzeParser()
-        output = json.dumps({
-            "server_info": {"hostname": "example.com", "port": 443},
-            "results": [
-                {"severity": "high", "result": "bad cert"},
-                {"severity": "high", "result": "bad cert"}
-            ]
-        })
+        output = json.dumps(
+            {
+                "server_info": {"hostname": "example.com", "port": 443},
+                "results": [
+                    {"severity": "high", "result": "bad cert"},
+                    {"severity": "high", "result": "bad cert"},
+                ],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
     def test_results_neither_list_nor_dict(self):
         p = SslyzeParser()
-        output = json.dumps({
-            "server_info": {"hostname": "example.com", "port": 443},
-            "results": "not_a_list_or_dict"
-        })
+        output = json.dumps(
+            {
+                "server_info": {"hostname": "example.com", "port": 443},
+                "results": "not_a_list_or_dict",
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 0
 
     def test_scan_result_not_dict(self):
         p = SslyzeParser()
-        output = json.dumps({
-            "server_info": {"hostname": "example.com", "port": 443},
-            "results": {"tls_version_1_2": "not_a_dict"}
-        })
+        output = json.dumps(
+            {
+                "server_info": {"hostname": "example.com", "port": 443},
+                "results": {"tls_version_1_2": "not_a_dict"},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 0
 
     def test_scan_result_data_not_dict(self):
         p = SslyzeParser()
-        output = json.dumps({
-            "server_info": {"hostname": "example.com", "port": 443},
-            "results": {"tls_version_1_2": {"result": "not_a_dict"}}
-        })
+        output = json.dumps(
+            {
+                "server_info": {"hostname": "example.com", "port": 443},
+                "results": {"tls_version_1_2": {"result": "not_a_dict"}},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 0
 
     def test_tls_version_supports_false(self):
         p = SslyzeParser()
-        output = json.dumps({
-            "server_info": {"hostname": "example.com", "port": 443},
-            "results": {"tls_version_1_2": {"tls_version": "TLS 1.2", "supports": False}}
-        })
+        output = json.dumps(
+            {
+                "server_info": {"hostname": "example.com", "port": 443},
+                "results": {"tls_version_1_2": {"tls_version": "TLS 1.2", "supports": False}},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert findings[0]["severity"] == "info"
 
     def test_tls_version_modern_severity_info(self):
         p = SslyzeParser()
-        output = json.dumps({
-            "server_info": {"hostname": "example.com", "port": 443},
-            "results": {"tls_version_1_3": {"tls_version": "TLS 1.3", "supports": True}}
-        })
+        output = json.dumps(
+            {
+                "server_info": {"hostname": "example.com", "port": 443},
+                "results": {"tls_version_1_3": {"tls_version": "TLS 1.3", "supports": True}},
+            }
+        )
         findings = p.parse(output)
         assert findings[0]["severity"] == "info"
 
     def test_cipher_accepted_not_list(self):
         p = SslyzeParser()
-        output = json.dumps({
-            "server_info": {"hostname": "example.com", "port": 443},
-            "results": {"accepted_ciphers": {"cipher_suites": "not_list"}}
-        })
+        output = json.dumps(
+            {
+                "server_info": {"hostname": "example.com", "port": 443},
+                "results": {"accepted_ciphers": {"cipher_suites": "not_list"}},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 0
 
     def test_cipher_item_not_dict(self):
         p = SslyzeParser()
-        output = json.dumps({
-            "server_info": {"hostname": "example.com", "port": 443},
-            "results": {"accepted_ciphers": {
-                "accepted_cipher_list": ["not_a_dict"]}}
-        })
+        output = json.dumps(
+            {
+                "server_info": {"hostname": "example.com", "port": 443},
+                "results": {"accepted_ciphers": {"accepted_cipher_list": ["not_a_dict"]}},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 0
 
     def test_cipher_dedup_seen(self):
         p = SslyzeParser()
-        output = json.dumps({
-            "server_info": {"hostname": "example.com", "port": 443},
-            "results": {"accepted_ciphers": {
-                "accepted_cipher_list": [
-                    {"name": "AES128-SHA", "key_size": 128},
-                    {"name": "AES128-SHA", "key_size": 128}
-                ]
-            }}
-        })
+        output = json.dumps(
+            {
+                "server_info": {"hostname": "example.com", "port": 443},
+                "results": {
+                    "accepted_ciphers": {
+                        "accepted_cipher_list": [
+                            {"name": "AES128-SHA", "key_size": 128},
+                            {"name": "AES128-SHA", "key_size": 128},
+                        ]
+                    }
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
     def test_cert_scan_type_no_cert(self):
         p = SslyzeParser()
-        output = json.dumps({
-            "server_info": {"hostname": "example.com", "port": 443},
-            "results": {"something_else": {"data": "value"}}
-        })
+        output = json.dumps(
+            {
+                "server_info": {"hostname": "example.com", "port": 443},
+                "results": {"something_else": {"data": "value"}},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 0
 
     def test_cert_not_dict(self):
         p = SslyzeParser()
-        output = json.dumps({
-            "server_info": {"hostname": "example.com", "port": 443},
-            "results": {"certificate_info": {"certificate": "not_a_dict"}}
-        })
+        output = json.dumps(
+            {
+                "server_info": {"hostname": "example.com", "port": 443},
+                "results": {"certificate_info": {"certificate": "not_a_dict"}},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 0
 
@@ -2624,12 +3038,24 @@ class TestWapitiParserBranches:
 
     def test_json_vuln_list_dedup(self):
         p = WapitiParser()
-        output = json.dumps({"vulnerabilities": [
-            {"severity": "high", "url": "http://example.com", "type": "XSS",
-             "description": "xss found"},
-            {"severity": "high", "url": "http://example.com", "type": "XSS",
-             "description": "xss found"}
-        ]})
+        output = json.dumps(
+            {
+                "vulnerabilities": [
+                    {
+                        "severity": "high",
+                        "url": "http://example.com",
+                        "type": "XSS",
+                        "description": "xss found",
+                    },
+                    {
+                        "severity": "high",
+                        "url": "http://example.com",
+                        "type": "XSS",
+                        "description": "xss found",
+                    },
+                ]
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -2659,15 +3085,18 @@ class TestWapitiParserBranches:
 
     def test_json_vuln_dict_dedup(self):
         p = WapitiParser()
-        output = json.dumps({"vulnerabilities": {"SQL": ["http://example.com?id=1",
-                                                          "http://example.com?id=1"]}})
+        output = json.dumps(
+            {"vulnerabilities": {"SQL": ["http://example.com?id=1", "http://example.com?id=1"]}}
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
     def test_text_dedup_vuln_type_url(self):
         p = WapitiParser()
-        output = ("SQL Injection (3) http://example.com?id=1\n"
-                  "SQL Injection (3) http://example.com?id=1\n")
+        output = (
+            "SQL Injection (3) http://example.com?id=1\n"
+            "SQL Injection (3) http://example.com?id=1\n"
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -2686,10 +3115,12 @@ class TestWapitiParserBranches:
 
     def test_text_description_match_block(self):
         p = WapitiParser()
-        output = ("SQL Injection (3) http://example.com?id=1\n"
-                  "  Evidence: payload=1' OR '1'='1\n"
-                  "  Parameter: id\n"
-                  "  description: This is a test description line\n")
+        output = (
+            "SQL Injection (3) http://example.com?id=1\n"
+            "  Evidence: payload=1' OR '1'='1\n"
+            "  Parameter: id\n"
+            "  description: This is a test description line\n"
+        )
         findings = p.parse(output)
         assert any("SQL Injection" in f["title"] for f in findings)
 
@@ -2703,16 +3134,13 @@ class TestWapitiParserBranches:
 """Targeted branch-coverage tests — hits remaining uncovered lines in 18 parser modules."""
 
 
-
-
-
 # ============================================================================
 # 1. commix_parser.py  — 97->104, 113, 118->132, 160->162, 183->196,
 #                         228, 241->265, 249, 267->281, 283->297
 # ============================================================================
 class TestCommixParserAdditionalBranches:
     """Covers: empty line skip, summary seen-dedup, shell with no URL,
-       cmd-result dedup, _parse_json_record without seen, JSON dedup branches."""
+    cmd-result dedup, _parse_json_record without seen, JSON dedup branches."""
 
     def test_empty_line_skipped_in_loop(self):
         """Line 113: empty line inside multi-line output skipped."""
@@ -2752,10 +3180,12 @@ class TestCommixParserAdditionalBranches:
     def test_json_vuln_dedup(self):
         """Line 241->265: JSON vulnerable key already seen."""
         p = CommixParser()
-        output = json.dumps([
-            {"url": "http://x.com", "param": "id", "vulnerable": True, "technique": "classic"},
-            {"url": "http://x.com", "param": "id", "vulnerable": True, "technique": "classic"},
-        ])
+        output = json.dumps(
+            [
+                {"url": "http://x.com", "param": "id", "vulnerable": True, "technique": "classic"},
+                {"url": "http://x.com", "param": "id", "vulnerable": True, "technique": "classic"},
+            ]
+        )
         findings = p.parse(output)
         vuln = [f for f in findings if "injection" in f["title"].lower()]
         assert len(vuln) == 1
@@ -2763,9 +3193,9 @@ class TestCommixParserAdditionalBranches:
     def test_json_os_in_evidence(self):
         """Line 249: OS added to evidence in JSON path."""
         p = CommixParser()
-        output = json.dumps([
-            {"url": "http://x.com", "param": "id", "vulnerable": True, "os": "Linux"}
-        ])
+        output = json.dumps(
+            [{"url": "http://x.com", "param": "id", "vulnerable": True, "os": "Linux"}]
+        )
         findings = p.parse(output)
         os_evidence = [f for f in findings if "OS: Linux" in f["evidence"]]
         assert len(os_evidence) >= 1
@@ -2775,7 +3205,13 @@ class TestCommixParserAdditionalBranches:
         p = CommixParser()
         # Both vuln and shell keys must be in seen to skip both
         result = p._parse_json_record(
-            {"url": "http://x.com", "param": "id", "vulnerable": True, "technique": "classic", "shell_type": "interactive"},
+            {
+                "url": "http://x.com",
+                "param": "id",
+                "vulnerable": True,
+                "technique": "classic",
+                "shell_type": "interactive",
+            },
             seen={"vuln:http://x.com:id:classic", "shell:http://x.com:interactive"},
         )
         assert len(result) == 0
@@ -2795,9 +3231,9 @@ class TestCommixParserAdditionalBranches:
 # ============================================================================
 class TestWafw00fParserAdditionalBranches:
     """Covers: JSON dict branch, empty line skip, summary dedup,
-       no-waf dedup, waf dedup for text, JSON no-detected return,
-       JSON waf list confidence int, JSON confidence >= 80,
-       JSON confidence <= 30, JSON waf dedup."""
+    no-waf dedup, waf dedup for text, JSON no-detected return,
+    JSON waf list confidence int, JSON confidence >= 80,
+    JSON confidence <= 30, JSON waf dedup."""
 
     def test_json_dict_input(self):
         """Line 107->113: JSON is a dict (not list)."""
@@ -2828,7 +3264,9 @@ class TestWafw00fParserAdditionalBranches:
     def test_text_waf_dedup(self):
         """Line 180->183: WAF key already in seen."""
         p = Wafw00fParser()
-        findings = p.parse("Testing https://x.com\nidentified: Cloudflare\nidentified: Cloudflare\n")
+        findings = p.parse(
+            "Testing https://x.com\nidentified: Cloudflare\nidentified: Cloudflare\n"
+        )
         wafs = [f for f in findings if "WAF detected" in f["title"]]
         assert len(wafs) == 1
 
@@ -2842,13 +3280,17 @@ class TestWafw00fParserAdditionalBranches:
     def test_json_waf_with_app_name_added(self):
         """Line 216->229: waf list gets app name appended."""
         p = Wafw00fParser()
-        findings = p.parse('{"url":"https://example.com","detected":true,"waf":[],"app":"cloudflare"}')
+        findings = p.parse(
+            '{"url":"https://example.com","detected":true,"waf":[],"app":"cloudflare"}'
+        )
         assert any("cloudflare" in f["title"] for f in findings)
 
     def test_json_waf_high_confidence(self):
         """Line 250->256: confidence >= 80 -> severity high."""
         p = Wafw00fParser()
-        findings = p.parse('{"url":"https://example.com","detected":true,"waf":["cloudflare"],"confidence":90}')
+        findings = p.parse(
+            '{"url":"https://example.com","detected":true,"waf":["cloudflare"],"confidence":90}'
+        )
         wafs = [f for f in findings if "WAF detected" in f["title"]]
         assert len(wafs) == 1
         assert wafs[0]["severity"] == "high"
@@ -2856,7 +3298,9 @@ class TestWafw00fParserAdditionalBranches:
     def test_json_waf_low_confidence(self):
         """Line 253->256: confidence <= 30 -> severity low."""
         p = Wafw00fParser()
-        findings = p.parse('{"url":"https://example.com","detected":true,"waf":["cloudflare"],"confidence":20}')
+        findings = p.parse(
+            '{"url":"https://example.com","detected":true,"waf":["cloudflare"],"confidence":20}'
+        )
         wafs = [f for f in findings if "WAF detected" in f["title"]]
         assert len(wafs) == 1
         assert wafs[0]["severity"] == "low"
@@ -2864,7 +3308,9 @@ class TestWafw00fParserAdditionalBranches:
     def test_json_waf_dedup(self):
         """Line 257->242: JSON waf key already in seen."""
         p = Wafw00fParser()
-        findings = p.parse('{"url":"https://example.com","detected":true,"waf":["cloudflare","cloudflare"]}')
+        findings = p.parse(
+            '{"url":"https://example.com","detected":true,"waf":["cloudflare","cloudflare"]}'
+        )
         wafs = [f for f in findings if "WAF detected" in f["title"]]
         assert len(wafs) == 1
 
@@ -2875,9 +3321,9 @@ class TestWafw00fParserAdditionalBranches:
 # ============================================================================
 class TestXsstrikeParserAdditionalBranches:
     """Covers: JSON array not list skip, text empty line skip,
-       else branch for xss_type (medium severity), vuln key dedup,
-       payload key dedup, _parse_json_record without seen,
-       JSON vuln dedup, JSON payload dedup."""
+    else branch for xss_type (medium severity), vuln key dedup,
+    payload key dedup, _parse_json_record without seen,
+    JSON vuln dedup, JSON payload dedup."""
 
     def test_json_array_not_list(self):
         """Line 68->76: trimmed starts with '[' but records not a list."""
@@ -2904,14 +3350,18 @@ class TestXsstrikeParserAdditionalBranches:
     def test_text_vuln_dedup(self):
         """Line 136->158: vuln key already in seen."""
         p = XsstrikeParser()
-        findings = p.parse("URL: http://x.com\nParameter: q\nvulnerable: XSS\nURL: http://x.com\nParameter: q\nvulnerable: XSS\n")
+        findings = p.parse(
+            "URL: http://x.com\nParameter: q\nvulnerable: XSS\nURL: http://x.com\nParameter: q\nvulnerable: XSS\n"
+        )
         vulns = [f for f in findings if "XSS vulnerability" in f["title"]]
         assert len(vulns) == 1
 
     def test_text_payload_dedup(self):
         """Line 160->91: payload key already in seen."""
         p = XsstrikeParser()
-        findings = p.parse("URL: http://x.com\nParameter: q\npayload: <script>alert(1)</script>\npayload: <script>alert(1)</script>\n")
+        findings = p.parse(
+            "URL: http://x.com\nParameter: q\npayload: <script>alert(1)</script>\npayload: <script>alert(1)</script>\n"
+        )
         payloads = [f for f in findings if "payload generated" in f["title"].lower()]
         assert len(payloads) == 1
 
@@ -2951,8 +3401,8 @@ class TestWapitiParserAdditionalBranches:
 
     def test_pending_vuln_dedup(self):
         """132->151: dedup_key for pending vuln already in seen.
-           Lines 1-2 set current, line 3 flushes+re-seen, line 4 flushes
-           same key which is now in seen."""
+        Lines 1-2 set current, line 3 flushes+re-seen, line 4 flushes
+        same key which is now in seen."""
         output = (
             "SQL Injection {5} http://example.com?id=1\n"
             "XSS {3} http://example.com\n"
@@ -2975,10 +3425,10 @@ class TestWapitiParserAdditionalBranches:
 
     def test_pending_vuln_flushed_at_end(self):
         """168-189: description handler requires leading whitespace on
-           line_stripped, but line_stripped is stripped at line 122,
-           making the _DESCRIPTION_RE check always fail (dead code).
-           The pending vuln is instead flushed by the end-of-loop
-           handler at line 191."""
+        line_stripped, but line_stripped is stripped at line 122,
+        making the _DESCRIPTION_RE check always fail (dead code).
+        The pending vuln is instead flushed by the end-of-loop
+        handler at line 191."""
         output = (
             "SQL Injection {5} http://example.com\n"
             "  This describes the vulnerability in detail\n"
@@ -3075,6 +3525,7 @@ class TestSearchsploitParserAdditionalBranches:
 # 8. smbclient_parser.py  — 101, 126, 176->178, 213->215, 235, 267
 # ============================================================================
 
+
 class TestNucleiParser:
     def test_basic_parse(self):
         p = NucleiParser()
@@ -3086,6 +3537,8 @@ class TestNucleiParser:
     def test_empty_output(self):
         p = NucleiParser()
         assert p.parse("") == []
+
+
 class TestNiktoParser:
     def test_basic_parse(self):
         p = NiktoParser()
@@ -3098,6 +3551,8 @@ class TestNiktoParser:
     def test_empty_output(self):
         p = NiktoParser()
         assert p.parse("") == []
+
+
 class TestSqlmapParser:
     def test_basic_parse(self):
         p = SqlmapParser()
@@ -3109,6 +3564,8 @@ class TestSqlmapParser:
     def test_empty_output(self):
         p = SqlmapParser()
         assert p.parse("") == []
+
+
 class TestMetasploitParser:
     def test_meterpreter_session(self):
         p = MetasploitParser()
@@ -3120,6 +3577,8 @@ class TestMetasploitParser:
     def test_empty_output(self):
         p = MetasploitParser()
         assert p.parse("") == []
+
+
 class TestWpscanParser:
     def test_basic_parse(self):
         p = WpscanParser()
@@ -3131,6 +3590,8 @@ class TestWpscanParser:
     def test_empty_output(self):
         p = WpscanParser()
         assert p.parse("") == []
+
+
 class TestZaproxyParser:
     def test_basic_parse(self):
         p = ZaproxyParser()
@@ -3142,6 +3603,8 @@ class TestZaproxyParser:
     def test_empty_output(self):
         p = ZaproxyParser()
         assert p.parse("") == []
+
+
 class TestBurpsuiteParser:
     def test_basic_parse(self):
         p = BurpsuiteParser()
@@ -3153,10 +3616,12 @@ class TestBurpsuiteParser:
     def test_empty_output(self):
         p = BurpsuiteParser()
         assert p.parse("") == []
+
+
 class TestKxssParser:
     def test_basic_parse(self):
         p = KxssParser()
-        output = "URL: http://example.com/?q=test Param: q Unfiltered: [<>\'\"]\n"
+        output = "URL: http://example.com/?q=test Param: q Unfiltered: [<>'\"]\n"
         findings = p.parse(output)
         assert len(findings) == 1
         _check_finding(findings[0], "kxss")

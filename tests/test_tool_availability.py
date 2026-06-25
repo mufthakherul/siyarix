@@ -401,9 +401,7 @@ class TestCheckToolAvailable:
 
 class TestRegisterSignal:
     def test_register_and_evaluate_custom_signal(self):
-        def custom_handler(
-            expr: dict, ctx: ToolAvailabilityContext
-        ) -> ToolAvailabilityDiagnostic:
+        def custom_handler(expr: dict, ctx: ToolAvailabilityContext) -> ToolAvailabilityDiagnostic:
             check = expr.get("enabled", False)
             return ToolAvailabilityDiagnostic(
                 signal="custom", passed=check, detail=f"custom={check}"

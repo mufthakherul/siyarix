@@ -34,12 +34,14 @@ from siyarix.subprocess_utils import (
 
 # ── helpers ──────────────────────────────────────────────────────────────
 
+
 def _reset_orphan_tracker() -> None:
     with _ORPHAN_LOCK:
         _ORPHAN_TRACKER.clear()
 
 
 # ── ExecutionResult ──────────────────────────────────────────────────────
+
 
 class TestExecutionResult:
     def test_success_true_when_exit_code_zero(self) -> None:
@@ -59,6 +61,7 @@ class TestExecutionResult:
 
 
 # ── detect_package_manager ───────────────────────────────────────────────
+
 
 class TestDetectPackageManager:
     @patch("siyarix._platform.shutil.which")
@@ -115,6 +118,7 @@ class TestDetectPackageManager:
 
 # ── get_platform_shell_cmd ───────────────────────────────────────────────
 
+
 class TestGetPlatformShellCmd:
     @patch("siyarix._platform.get_platform_id", return_value="windows")
     def test_windows(self, *_args: object) -> None:
@@ -130,6 +134,7 @@ class TestGetPlatformShellCmd:
 
 
 # ── _validate_cmd_list ───────────────────────────────────────────────────
+
 
 class TestValidateCmdList:
     def test_non_list_raises(self) -> None:
@@ -157,27 +162,42 @@ class TestValidateCmdList:
         _validate_cmd_list(["echo", "hello `echo hi`"])
         _validate_cmd_list(["echo", "hello $USER"])
 
-    @patch("siyarix.subprocess_utils._confirm_destructive", side_effect=ValueError("destructive pattern"))
+    @patch(
+        "siyarix.subprocess_utils._confirm_destructive",
+        side_effect=ValueError("destructive pattern"),
+    )
     def test_destructive_rm_root_blocked(self, mock_confirm) -> None:
         with pytest.raises(ValueError, match="destructive pattern"):
             _validate_cmd_list(["rm", "-rf", "/"])
 
-    @patch("siyarix.subprocess_utils._confirm_destructive", side_effect=ValueError("destructive pattern"))
+    @patch(
+        "siyarix.subprocess_utils._confirm_destructive",
+        side_effect=ValueError("destructive pattern"),
+    )
     def test_destructive_rm_root_no_preserve_blocked(self, mock_confirm) -> None:
         with pytest.raises(ValueError, match="destructive pattern"):
             _validate_cmd_list(["sh", "-c", "rm -rf --no-preserve-root /"])
 
-    @patch("siyarix.subprocess_utils._confirm_destructive", side_effect=ValueError("destructive pattern"))
+    @patch(
+        "siyarix.subprocess_utils._confirm_destructive",
+        side_effect=ValueError("destructive pattern"),
+    )
     def test_destructive_dd_blocked(self, mock_confirm) -> None:
         with pytest.raises(ValueError, match="destructive pattern"):
             _validate_cmd_list(["sh", "-c", "dd if=/dev/zero of=/dev/sda bs=4M"])
 
-    @patch("siyarix.subprocess_utils._confirm_destructive", side_effect=ValueError("destructive pattern"))
+    @patch(
+        "siyarix.subprocess_utils._confirm_destructive",
+        side_effect=ValueError("destructive pattern"),
+    )
     def test_destructive_forkbomb_blocked(self, mock_confirm) -> None:
         with pytest.raises(ValueError, match="destructive pattern"):
             _validate_cmd_list(["sh", "-c", ":(){ :|:& };:"])
 
-    @patch("siyarix.subprocess_utils._confirm_destructive", side_effect=ValueError("destructive pattern"))
+    @patch(
+        "siyarix.subprocess_utils._confirm_destructive",
+        side_effect=ValueError("destructive pattern"),
+    )
     def test_destructive_mkfs_blocked(self, mock_confirm) -> None:
         with pytest.raises(ValueError, match="destructive pattern"):
             _validate_cmd_list(["mkfs.ext4", "/dev/sda1"])
@@ -189,6 +209,7 @@ class TestValidateCmdList:
 
 
 # ── _prepare_env ─────────────────────────────────────────────────────────
+
 
 class TestPrepareEnv:
     @patch("siyarix.stealth.stealth_engine")
@@ -227,6 +248,7 @@ class TestPrepareEnv:
 
 
 # ── _cleanup_orphans ─────────────────────────────────────────────────────
+
 
 class TestCleanupOrphans:
     def setup_method(self) -> None:
@@ -277,6 +299,7 @@ class TestCleanupOrphans:
 
 # ── _cleanup_orphans_atexit ──────────────────────────────────────────────
 
+
 class TestCleanupOrphansAtexit:
     @patch("siyarix.subprocess_utils._cleanup_orphans")
     def test_basic(self, mock_cleanup: MagicMock) -> None:
@@ -289,6 +312,7 @@ class TestCleanupOrphansAtexit:
 
 
 # ── _kill_process ────────────────────────────────────────────────────────
+
 
 class TestKillProcess:
     async def _make_proc(self, pid: int = 12345) -> MagicMock:
@@ -330,6 +354,7 @@ class TestKillProcess:
 
 # ── safe_run_sync (edge cases not in test_subprocess_safe_run) ────────────
 
+
 class TestSafeRunSync:
     def test_with_cwd_and_env(self, tmp_path) -> None:
         script = tmp_path / "script.py"
@@ -359,23 +384,21 @@ class TestSafeRunSync:
 
 # ── _use_thread_fallback ─────────────────────────────────────────────────
 
+
 class TestUseThreadFallback:
     @patch("siyarix.subprocess_utils.os.name", "nt")
     @patch("siyarix.subprocess_utils.asyncio.get_running_loop")
-    async def test_windows_selector_loop(
-        self, mock_get_loop: MagicMock
-    ) -> None:
+    async def test_windows_selector_loop(self, mock_get_loop: MagicMock) -> None:
         mock_get_loop.return_value = asyncio.SelectorEventLoop()
         mock_get_loop.return_value.close()
         assert _use_thread_fallback() is True
 
     @patch("siyarix.subprocess_utils.os.name", "nt")
     @patch("siyarix.subprocess_utils.asyncio.get_running_loop")
-    async def test_windows_proactor_loop(
-        self, mock_get_loop: MagicMock
-    ) -> None:
+    async def test_windows_proactor_loop(self, mock_get_loop: MagicMock) -> None:
         # On Linux we can't create a ProactorEventLoop; simulate via mock
         import asyncio
+
         mock_loop = MagicMock(spec=asyncio.AbstractEventLoop)
         mock_get_loop.return_value = mock_loop
         # ProactorEventLoop is not a SelectorEventLoop, so fallback should be False
@@ -388,11 +411,10 @@ class TestUseThreadFallback:
 
 # ── safe_run_async ───────────────────────────────────────────────────────
 
+
 class TestSafeRunAsync:
     async def test_basic(self) -> None:
-        result = await safe_run_async(
-            [sys.executable, "-c", "print('async ok')"], timeout=5
-        )
+        result = await safe_run_async([sys.executable, "-c", "print('async ok')"], timeout=5)
         assert result.exit_code == 0
         assert "async ok" in result.stdout
 
@@ -405,9 +427,7 @@ class TestSafeRunAsync:
         assert result.exit_code == 0
 
     async def test_binary_not_found_create_subprocess(self) -> None:
-        result = await safe_run_async(
-            ["/nonexistent/tool"], timeout=1
-        )
+        result = await safe_run_async(["/nonexistent/tool"], timeout=1)
         assert result.exit_code == -1
         assert "Binary not found" in result.stderr
 
@@ -421,9 +441,7 @@ class TestSafeRunAsync:
 
     @patch("siyarix.subprocess_utils._use_thread_fallback", return_value=True)
     async def test_thread_fallback_basic(self, _mock: MagicMock) -> None:
-        result = await safe_run_async(
-            [sys.executable, "-c", "print('thread ok')"], timeout=5
-        )
+        result = await safe_run_async([sys.executable, "-c", "print('thread ok')"], timeout=5)
         assert result.exit_code == 0
         assert "thread ok" in result.stdout
 
@@ -438,8 +456,13 @@ class TestSafeRunAsync:
         assert result.exit_code == -1
 
     @patch("siyarix.subprocess_utils._use_thread_fallback", return_value=True)
-    @patch("siyarix.subprocess_utils.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="test", timeout=0.05))
-    async def test_thread_fallback_subprocess_timeout(self, _mock_run: MagicMock, _mock_fb: MagicMock) -> None:
+    @patch(
+        "siyarix.subprocess_utils.subprocess.run",
+        side_effect=subprocess.TimeoutExpired(cmd="test", timeout=0.05),
+    )
+    async def test_thread_fallback_subprocess_timeout(
+        self, _mock_run: MagicMock, _mock_fb: MagicMock
+    ) -> None:
         result = await safe_run_async(
             [sys.executable, "-c", "import time\ntime.sleep(100)"],
             timeout=0.05,
@@ -449,13 +472,16 @@ class TestSafeRunAsync:
 
     @patch("siyarix.subprocess_utils._use_thread_fallback", return_value=True)
     @patch("siyarix.subprocess_utils.subprocess.run", side_effect=FileNotFoundError)
-    async def test_thread_fallback_file_not_found(self, _mock_run: MagicMock, _mock_fb: MagicMock) -> None:
+    async def test_thread_fallback_file_not_found(
+        self, _mock_run: MagicMock, _mock_fb: MagicMock
+    ) -> None:
         result = await safe_run_async(["/nope"], timeout=1)
         assert result.exit_code == -1
         assert "Binary not found" in result.stderr
 
 
 # ── safe_run_async_stream ────────────────────────────────────────────────
+
 
 class TestSafeRunAsyncStream:
     async def test_basic(self) -> None:
@@ -538,6 +564,7 @@ class TestSafeRunAsyncStream:
 
 # ── safe_run_sandboxed ───────────────────────────────────────────────────
 
+
 class TestSafeRunSandboxed:
     @patch("siyarix.subprocess_utils._is_windows", return_value=False)
     @patch("siyarix.subprocess_utils._is_mobile", return_value=False)
@@ -576,7 +603,10 @@ class TestSafeRunSandboxed:
         assert "/tmp" in called_cmd
 
     @patch("siyarix.subprocess_utils.sys.platform", "linux")
-    @patch("siyarix.subprocess_utils.shutil.which", side_effect=lambda x: "/usr/bin/docker" if x == "docker" else None)
+    @patch(
+        "siyarix.subprocess_utils.shutil.which",
+        side_effect=lambda x: "/usr/bin/docker" if x == "docker" else None,
+    )
     @patch("siyarix.subprocess_utils.safe_run_sync")
     def test_docker_fallback(self, mock_sync: MagicMock, *_args) -> None:
         mock_sync.return_value = ExecutionResult(exit_code=0)
@@ -586,7 +616,10 @@ class TestSafeRunSandboxed:
         assert "alpine:latest" in called_cmd
 
     @patch("siyarix.subprocess_utils.sys.platform", "linux")
-    @patch("siyarix.subprocess_utils.shutil.which", side_effect=lambda x: "/usr/bin/docker" if x == "docker" else None)
+    @patch(
+        "siyarix.subprocess_utils.shutil.which",
+        side_effect=lambda x: "/usr/bin/docker" if x == "docker" else None,
+    )
     @patch("siyarix.subprocess_utils.safe_run_sync")
     def test_docker_with_network(self, mock_sync: MagicMock, *_args) -> None:
         mock_sync.return_value = ExecutionResult(exit_code=0)
@@ -595,7 +628,10 @@ class TestSafeRunSandboxed:
         assert "ubuntu:latest" in called_cmd
 
     @patch("siyarix.subprocess_utils.sys.platform", "linux")
-    @patch("siyarix.subprocess_utils.shutil.which", side_effect=lambda x: "/usr/bin/docker" if x == "docker" else None)
+    @patch(
+        "siyarix.subprocess_utils.shutil.which",
+        side_effect=lambda x: "/usr/bin/docker" if x == "docker" else None,
+    )
     @patch("siyarix.subprocess_utils.safe_run_sync")
     def test_docker_with_cwd(self, mock_sync: MagicMock, *_args) -> None:
         mock_sync.return_value = ExecutionResult(exit_code=0)
@@ -622,7 +658,6 @@ class TestSafeRunSandboxed:
         assert called_env.get("CUSTOM") == "val"
 
 
-
 """Final batch of subprocess_utils tests covering orphan-tracker Unix path,
 safe_run_async thread-fallback asyncio timeout, non-thread binary-not-found,
 orphan-tracking branches, safe_run_async_stream thread-fallback pipe-readers,
@@ -634,9 +669,8 @@ import subprocess
 from unittest.mock import patch
 
 
-
-
 # ── helpers ──────────────────────────────────────────────────────────────
+
 
 def _reset_orphan_tracker() -> None:
     with _ORPHAN_LOCK:
@@ -644,6 +678,7 @@ def _reset_orphan_tracker() -> None:
 
 
 # ── _cleanup_orphans — kill path (exercises os.kill logic via win32 exit) ─
+
 
 class TestCleanupOrphansKill:
     def setup_method(self) -> None:
@@ -707,22 +742,19 @@ class TestCleanupOrphansKill:
 
 # ── safe_run_async — thread-fallback asyncio timeout (lines 300-301) ─────
 
+
 class TestSafeRunAsyncThreadFallbackTimeout:
     @patch("siyarix.subprocess_utils._use_thread_fallback", return_value=True)
     @patch("siyarix.subprocess_utils.asyncio.wait_for", side_effect=asyncio.TimeoutError)
     async def test_asyncio_timeout_returns_command_timed_out(
         self, mock_wait_for: MagicMock, mock_fb: MagicMock
     ) -> None:
-        result = await safe_run_async(
-            [sys.executable, "-c", ""], timeout=5, validate=False
-        )
+        result = await safe_run_async([sys.executable, "-c", ""], timeout=5, validate=False)
         assert result.exit_code == -1
         assert "timed out" in result.stderr
 
     @patch("siyarix.subprocess_utils._use_thread_fallback", return_value=True)
-    async def test_asyncio_timeout_via_short_wait(
-        self, mock_fb: MagicMock
-    ) -> None:
+    async def test_asyncio_timeout_via_short_wait(self, mock_fb: MagicMock) -> None:
         async def _slow_never_completes() -> subprocess.CompletedProcess:
             await asyncio.sleep(3600)
             return subprocess.CompletedProcess(args=[], returncode=0)
@@ -730,14 +762,13 @@ class TestSafeRunAsyncThreadFallbackTimeout:
         mock_loop = MagicMock()
         mock_loop.run_in_executor.return_value = _slow_never_completes()
         with patch("siyarix.subprocess_utils.asyncio.get_running_loop", return_value=mock_loop):
-            result = await safe_run_async(
-                [sys.executable, "-c", ""], timeout=0.01, validate=False
-            )
+            result = await safe_run_async([sys.executable, "-c", ""], timeout=0.01, validate=False)
         assert result.exit_code == -1
         assert "timed out" in result.stderr
 
 
 # ── safe_run_async — non-thread FileNotFoundError (lines 326-328) ────────
+
 
 class TestSafeRunAsyncNonThreadFileNotFound:
     @patch("siyarix.subprocess_utils._use_thread_fallback", return_value=False)
@@ -765,6 +796,7 @@ class TestSafeRunAsyncNonThreadFileNotFound:
 
 
 # ── safe_run_async — orphan tracking in non-thread path (lines 333-347) ──
+
 
 class TestSafeRunAsyncNonThreadOrphanTracking:
     def setup_method(self) -> None:
@@ -870,10 +902,15 @@ class TestSafeRunAsyncNonThreadOrphanTracking:
 # ── safe_run_async_stream — thread-fallback pipe readers (lines 418-435) ─
 # On Windows this is the primary code path.
 
+
 class TestSafeRunAsyncStreamThreadPipeReaders:
     async def test_pipe_readers_created(self) -> None:
         result = await safe_run_async_stream(
-            [sys.executable, "-c", "import sys; sys.stdout.write('out\\n'); sys.stderr.write('err\\n')"],
+            [
+                sys.executable,
+                "-c",
+                "import sys; sys.stdout.write('out\\n'); sys.stderr.write('err\\n')",
+            ],
             timeout=5,
             validate=False,
         )
@@ -916,6 +953,7 @@ class TestSafeRunAsyncStreamThreadPipeReaders:
 
 # ── safe_run_async_stream — thread-fallback kill pass (lines 446-447) ────
 
+
 class TestSafeRunAsyncStreamThreadTimeout:
     async def test_thread_fallback_timeout(self) -> None:
         result = await safe_run_async_stream(
@@ -928,6 +966,7 @@ class TestSafeRunAsyncStreamThreadTimeout:
 
 # ── safe_run_async_stream — full async path (lines 460-538) ──────────────
 # These mock _use_thread_fallback to False to test the async codepath.
+
 
 class TestSafeRunAsyncStreamAsyncPath:
     @patch("siyarix.subprocess_utils._use_thread_fallback", return_value=False)
@@ -988,13 +1027,13 @@ class TestSafeRunAsyncStreamAsyncPath:
 
     @patch("siyarix.subprocess_utils._use_thread_fallback", return_value=False)
     @patch("siyarix.subprocess_utils._prepare_env", return_value={})
-    @patch("siyarix.subprocess_utils.asyncio.create_subprocess_exec",
-           side_effect=FileNotFoundError)
+    @patch("siyarix.subprocess_utils.asyncio.create_subprocess_exec", side_effect=FileNotFoundError)
     async def test_binary_not_found(
         self, mock_create: MagicMock, mock_prep: MagicMock, mock_fb: MagicMock
     ) -> None:
         result = await safe_run_async_stream(
-            ["/nonexistent/binary"], timeout=1,
+            ["/nonexistent/binary"],
+            timeout=1,
         )
         assert result.exit_code == -1
         assert "Binary not found" in result.stderr
@@ -1010,6 +1049,7 @@ class TestSafeRunAsyncStreamAsyncPath:
             yield b"drain1\n"
             while True:
                 yield b""
+
         mock_stdout = AsyncMock()
         mock_stdout.readline = AsyncMock(side_effect=_stdout_readlines())
         mock_stderr = AsyncMock()
@@ -1025,7 +1065,8 @@ class TestSafeRunAsyncStreamAsyncPath:
         with patch("siyarix.subprocess_utils._kill_process", AsyncMock()):
             result = await safe_run_async_stream(
                 [sys.executable, "-c", "import time; time.sleep(100)"],
-                timeout=0.05, validate=False,
+                timeout=0.05,
+                validate=False,
             )
         assert result.exit_code == -1
         assert "before_timeout" in result.stdout
@@ -1051,7 +1092,9 @@ class TestSafeRunAsyncStreamAsyncPath:
 
         result = await safe_run_async_stream(
             [sys.executable, "-c", "print('A' * 100)"],
-            timeout=5, max_output_bytes=5, validate=False,
+            timeout=5,
+            max_output_bytes=5,
+            validate=False,
         )
         assert result.exit_code == 0
 
@@ -1071,9 +1114,7 @@ class TestSafeRunAsyncStreamAsyncPath:
         proc.returncode = 0
         mock_create.return_value = proc
 
-        result = await safe_run_async_stream(
-            ["cmd"], timeout=5, validate=False
-        )
+        result = await safe_run_async_stream(["cmd"], timeout=5, validate=False)
         assert result.exit_code == 0
 
     @patch("siyarix.subprocess_utils._use_thread_fallback", return_value=False)
@@ -1092,9 +1133,7 @@ class TestSafeRunAsyncStreamAsyncPath:
         proc.returncode = 0
         mock_create.return_value = proc
 
-        result = await safe_run_async_stream(
-            ["cmd"], timeout=5, validate=False
-        )
+        result = await safe_run_async_stream(["cmd"], timeout=5, validate=False)
         assert result.exit_code == 0
 
     @patch("siyarix.subprocess_utils._use_thread_fallback", return_value=False)
@@ -1143,9 +1182,7 @@ class TestSafeRunAsyncStreamAsyncPath:
         proc.wait = AsyncMock(return_value=0)
         mock_create.return_value = proc
 
-        result = await safe_run_async_stream(
-            ["cmd"], timeout=5, validate=False
-        )
+        result = await safe_run_async_stream(["cmd"], timeout=5, validate=False)
         assert result.exit_code == 0
         with _ORPHAN_LOCK:
             assert len(_ORPHAN_TRACKER) == 0
@@ -1168,9 +1205,7 @@ class TestSafeRunAsyncStreamAsyncPath:
         proc.wait = AsyncMock(return_value=None)
         mock_create.return_value = proc
 
-        result = await safe_run_async_stream(
-            ["cmd"], timeout=5, validate=False
-        )
+        result = await safe_run_async_stream(["cmd"], timeout=5, validate=False)
         assert result.exit_code == -1
 
     @patch("siyarix.subprocess_utils._use_thread_fallback", return_value=False)
@@ -1188,6 +1223,7 @@ class TestSafeRunAsyncStreamAsyncPath:
             yield b"line2\n"
             while True:
                 yield b""
+
         mock_stdout = AsyncMock()
         mock_stdout.readline = AsyncMock(side_effect=_stdout_readlines())
         mock_stderr = AsyncMock()
@@ -1198,9 +1234,7 @@ class TestSafeRunAsyncStreamAsyncPath:
         mock_create.return_value = proc
 
         with patch("siyarix.subprocess_utils._kill_process", AsyncMock()):
-            result = await safe_run_async_stream(
-                ["cmd"], timeout=5, validate=False
-            )
+            result = await safe_run_async_stream(["cmd"], timeout=5, validate=False)
 
         assert result.exit_code == -1
         assert "line1" in result.stdout
@@ -1222,6 +1256,7 @@ class TestSafeRunAsyncStreamAsyncPath:
             yield b"drain1\n"
             while True:
                 yield b""
+
         mock_stdout = AsyncMock()
         mock_stdout.readline = AsyncMock(side_effect=_stdout_readlines())
         mock_stderr = AsyncMock()
@@ -1232,7 +1267,9 @@ class TestSafeRunAsyncStreamAsyncPath:
 
         with patch("siyarix.subprocess_utils._kill_process", AsyncMock()):
             result = await safe_run_async_stream(
-                ["cmd"], timeout=5, validate=False,
+                ["cmd"],
+                timeout=5,
+                validate=False,
                 on_stdout=drained.append,
             )
 

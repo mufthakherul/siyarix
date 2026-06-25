@@ -137,9 +137,22 @@ class SmartAutocomplete(Completer):
     }
 
     _STATIC_ARG_CHOICES: dict[str, list[str]] = {
-        "mode": ["autonomous", "integrated", "offline", "stealth", "verbose",
-                 "quiet", "interactive", "batch", "expert", "beginner",
-                 "redteam", "blueteam", "compliance", "audit"],
+        "mode": [
+            "autonomous",
+            "integrated",
+            "offline",
+            "stealth",
+            "verbose",
+            "quiet",
+            "interactive",
+            "batch",
+            "expert",
+            "beginner",
+            "redteam",
+            "blueteam",
+            "compliance",
+            "audit",
+        ],
         "format": ["json", "md", "markdown", "html", "pdf", "txt"],
         "toggle": ["on", "off", "status"],
         "rating": ["1", "2", "3", "4", "5", "good", "bad", "excellent", "poor"],
@@ -161,10 +174,26 @@ class SmartAutocomplete(Completer):
         "log_action": ["list", "show", "export"],
         "alias_action": ["list", "set", "remove"],
         "split_type": ["timeline", "metrics", "cheatsheet", "attack_map", "off", "disable"],
-        "section": ["getting-started", "commands", "configuration", "providers",
-                    "plugins", "playbooks", "api", "troubleshooting"],
-        "topic": ["basics", "scanning", "recon", "exploitation", "reporting",
-                  "playbooks", "aliases", "learning"],
+        "section": [
+            "getting-started",
+            "commands",
+            "configuration",
+            "providers",
+            "plugins",
+            "playbooks",
+            "api",
+            "troubleshooting",
+        ],
+        "topic": [
+            "basics",
+            "scanning",
+            "recon",
+            "exploitation",
+            "reporting",
+            "playbooks",
+            "aliases",
+            "learning",
+        ],
         "socket_action": ["connect", "status", "disconnect"],
         "playbook_action": ["list", "show", "run"],
         "plugins_action": ["list", "status"],
@@ -205,6 +234,7 @@ class SmartAutocomplete(Completer):
         self._session_cache.clear()
         try:
             from ..registry import ToolRegistry
+
             reg = ToolRegistry()
             tools = reg.list_tools()
             self._tool_cache = [t.name for t in tools]
@@ -212,6 +242,7 @@ class SmartAutocomplete(Completer):
             self._tool_cache = []
         try:
             from ..providers import ProviderManager
+
             mgr = ProviderManager.get_instance()
             for prov in mgr.list_providers():
                 models = mgr.get_models(prov)
@@ -251,50 +282,69 @@ class SmartAutocomplete(Completer):
         elif arg_type == "persona":
             try:
                 from ..personas import list_personas
+
                 for p in list_personas():
                     name = p.get("name", "")
                     label = p.get("label", "")
                     if name.startswith(prefix):
-                        yield Completion(name, start_position=-len(prefix), display_meta=f"[{meta}] {label}")
+                        yield Completion(
+                            name, start_position=-len(prefix), display_meta=f"[{meta}] {label}"
+                        )
                 for extra in ("auto", "universal", "none"):
                     if extra.startswith(prefix):
-                        yield Completion(extra, start_position=-len(prefix), display_meta=f"[{meta}]")
+                        yield Completion(
+                            extra, start_position=-len(prefix), display_meta=f"[{meta}]"
+                        )
             except Exception:
                 pass
         elif arg_type == "session_id":
             try:
                 from ..config import get_config_dir
+
                 sessions_dir = get_config_dir() / "sessions"
                 if sessions_dir.exists():
-                    for sf in sorted(sessions_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)[:20]:
+                    for sf in sorted(
+                        sessions_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
+                    )[:20]:
                         sid = sf.stem
                         if sid.startswith(prefix):
-                            yield Completion(sid, start_position=-len(prefix), display_meta=f"[{meta}]")
+                            yield Completion(
+                                sid, start_position=-len(prefix), display_meta=f"[{meta}]"
+                            )
             except Exception:
                 pass
         elif arg_type == "category":
             try:
                 from ..tool_models import ToolCategory
+
                 for cat in ToolCategory:
                     if cat.value.startswith(prefix):
-                        yield Completion(cat.value, start_position=-len(prefix), display_meta=f"[{meta}]")
+                        yield Completion(
+                            cat.value, start_position=-len(prefix), display_meta=f"[{meta}]"
+                        )
             except Exception:
                 pass
         elif arg_type == "intent":
             try:
                 from .platform_utils import CROSS_PLATFORM_COMMANDS
+
                 for intent in sorted(CROSS_PLATFORM_COMMANDS.keys()):
                     if intent.startswith(prefix):
-                        yield Completion(intent, start_position=-len(prefix), display_meta=f"[{meta}]")
+                        yield Completion(
+                            intent, start_position=-len(prefix), display_meta=f"[{meta}]"
+                        )
             except Exception:
                 pass
         elif arg_type == "profile_name":
             try:
                 from .commands import CommandProfileStore
+
                 store = CommandProfileStore()
                 for p in store.list_profiles():
                     if p.name.startswith(prefix):
-                        yield Completion(p.name, start_position=-len(prefix), display_meta=f"[{meta}]")
+                        yield Completion(
+                            p.name, start_position=-len(prefix), display_meta=f"[{meta}]"
+                        )
             except Exception:
                 pass
 
@@ -307,7 +357,9 @@ class SmartAutocomplete(Completer):
 
             if len(parts) <= 1:
                 prefix = cmd.lstrip("/")
-                current_mode = getattr(self._session, 'mode', 'integrated') if self._session else 'integrated'
+                current_mode = (
+                    getattr(self._session, "mode", "integrated") if self._session else "integrated"
+                )
                 commands = CommandRegistry.visible_commands_for_mode(current_mode)
                 seen = set()
 
@@ -397,8 +449,11 @@ def render_welcome_banner(
 
     # ── Header: brand + version + tagline ──
     mode_color_map = {
-        "redteam": "red", "blueteam": "blue", "stealth": "red",
-        "offline": "yellow", "autonomous": "magenta",
+        "redteam": "red",
+        "blueteam": "blue",
+        "stealth": "red",
+        "offline": "yellow",
+        "autonomous": "magenta",
     }
     accent = mode_color_map.get(mode, "cyan")
 
@@ -456,7 +511,9 @@ def render_welcome_banner(
     quick_lines_text = ""
     for c in top_cmds[:6]:
         name_display = c.usage if c.usage else c.name
-        quick_lines_text += f"[bold white]{name_display}[/bold white]  [dim]— {c.description[:40]}[/dim]\n"
+        quick_lines_text += (
+            f"[bold white]{name_display}[/bold white]  [dim]— {c.description[:40]}[/dim]\n"
+        )
     if not quick_lines_text:
         quick_lines_text = (
             "[bold white]/help[/bold white]  [dim]— all commands[/dim]\n"
@@ -502,8 +559,7 @@ def render_welcome_banner(
         "offline": "[yellow]Offline mode — no LLM needed. /queue for queued commands | /scan <target> for local scans[/yellow]",
         "autonomous": "[magenta]Autonomous mode — AI-driven operations. /model to configure LLM | /agent run <goal> for sub-agents[/magenta]",
     }
-    tip = mode_tips.get(mode,
-        "[dim]Press Tab for autocomplete | ? or /help for all commands[/dim]")
+    tip = mode_tips.get(mode, "[dim]Press Tab for autocomplete | ? or /help for all commands[/dim]")
 
     footer_content = Text.assemble(
         ("Type natural language ", "bold cyan"),

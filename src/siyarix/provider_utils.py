@@ -218,7 +218,9 @@ def build_model_definition(
     supports_tools = capabilities is None or "tools" in capabilities
     supports_structured_output = capabilities is not None and "structured_output" in capabilities
     supports_function_calling = supports_tools
-    has_reasoning = is_reasoning_model(model_name) or (capabilities is not None and "thinking" in capabilities)
+    has_reasoning = is_reasoning_model(model_name) or (
+        capabilities is not None and "thinking" in capabilities
+    )
     return {
         "name": model_name,
         "supports_vision": has_vision,

@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -20,12 +19,10 @@ def _isolate_config(tmp_path, monkeypatch):
     monkeypatch.setenv("SIYARIX_CONFIG_DIR", str(tmp_path / "siyarix"))
 
 
-
-
-
 @pytest.fixture
 def cli() -> Typer:
     from siyarix.security_commands import security_app
+
     app = Typer()
     app.add_typer(security_app, name="security")
     return app
@@ -96,10 +93,21 @@ class TestIncidentDetail:
 
     def test_get_incident_after_create(self, cli: Typer, runner: CliRunner) -> None:
         import re
+
         create_out = invoke_security(
-            cli, runner,
-            ["incident-create", "--title", "Test Incident", "--description", "desc",
-             "--category", "intrusion", "--severity", "critical"],
+            cli,
+            runner,
+            [
+                "incident-create",
+                "--title",
+                "Test Incident",
+                "--description",
+                "desc",
+                "--category",
+                "intrusion",
+                "--severity",
+                "critical",
+            ],
         )
         match = re.search(r"ID:\s+(INC-\w+)", create_out)
         assert match, f"ID not found in: {create_out}"
@@ -227,11 +235,13 @@ class TestPlaybooks:
         assert "Ransomware Response" in output
         assert "phishing" in output.lower()
 
+
 class TestCommandsCore:
     """Cover missing commands.py lines."""
 
     def test_save_sets_created_at_when_empty(self, tmp_path):
         from siyarix.chat.commands import CommandProfileStore, CommandProfile
+
         store = CommandProfileStore()
         store._profiles_dir = tmp_path
         p = CommandProfile(name="test", command="ls")
@@ -241,6 +251,7 @@ class TestCommandsCore:
 
     def test_list_credentials_skips_bad_json(self, tmp_path):
         from siyarix.chat.commands import CommandProfileStore
+
         store = CommandProfileStore()
         store._profiles_dir = tmp_path
         (tmp_path / "bad.json").write_text("not json")
@@ -249,12 +260,14 @@ class TestCommandsCore:
 
     def test_delete_returns_false_when_missing(self, tmp_path):
         from siyarix.chat.commands import CommandProfileStore
+
         store = CommandProfileStore()
         store._profiles_dir = tmp_path
         assert store.delete("nonexistent") is False
 
     def test_render_replaces_params(self):
         from siyarix.chat.commands import CommandProfileStore
+
         store = CommandProfileStore()
         result = store.render("hello {name}", {"name": "world"})
         assert result == "hello world"

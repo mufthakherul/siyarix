@@ -29,7 +29,6 @@ from siyarix.subprocess_utils import (
 )
 
 
-
 class TestValidateCmdList:
     def test_valid_command(self) -> None:
         _validate_cmd_list(["nmap", "-sV", "127.0.0.1"])
@@ -95,7 +94,10 @@ class TestSafeRunSync:
             with pytest.raises(FileNotFoundError):
                 safe_run_sync(["nonexistent_tool"])
 
-    @patch("siyarix.subprocess_utils._confirm_destructive", side_effect=ValueError("destructive pattern"))
+    @patch(
+        "siyarix.subprocess_utils._confirm_destructive",
+        side_effect=ValueError("destructive pattern"),
+    )
     def test_validation_error(self, mock_confirm) -> None:
         with pytest.raises(ValueError, match="destructive pattern"):
             safe_run_sync(["rm", "-rf", "/"])
@@ -143,22 +145,26 @@ class TestSafeRunAsync:
         with pytest.raises(ValueError, match="non-empty list"):
             await safe_run_async([])
 
+
 class TestExecutorCore:
     """Cover uncovered lines in executor.py."""
 
     def test_redact_value_sensitive_key(self):
         from siyarix.executor import _redact_value
+
         result = _redact_value("password", "my_secret_value")
         assert "***" in result
         assert len(result) < len("my_secret_value")
 
     def test_redact_value_short_sensitive(self):
         from siyarix.executor import _redact_value
+
         result = _redact_value("token", "ab")
         assert result == "***"
 
     def test_dlp_engine_not_available(self):
         import siyarix.executor as exec_mod
+
         exec_mod._DLP_ENGINE = None
         with patch.dict("sys.modules", {"siyarix.dlp": None}):
             engine = exec_mod._get_dlp_engine()
@@ -166,16 +172,19 @@ class TestExecutorCore:
 
     def test_budget_is_exhausted(self):
         from siyarix.executor import ExecutionBudget
+
         b = ExecutionBudget(max_iterations=0, max_tool_calls=0, max_duration_s=0)
         assert b.is_exhausted is True
 
     def test_budget_progress_pct_max_zero(self):
         from siyarix.executor import ExecutionBudget
+
         b = ExecutionBudget(max_iterations=0)
         assert b.progress_pct == 100.0
 
     def test_guardrail_blocked_by_failures(self):
         from siyarix.executor import ToolCallTracker
+
         cfg = GuardrailConfig(exact_failure_block_after=2)
         tracker = ToolCallTracker()
         tracker._config = cfg
@@ -188,16 +197,19 @@ class TestExecutorCore:
 
     def test_log_safety_blocked_no_session_logger(self):
         from siyarix.executor import BaseExecutor
+
         be = BaseExecutor()
         be._log_safety("nmap", "scan", "blocked", "bad")
         assert True
 
     def test_permission_check_skipped_when_no_gate(self):
         from siyarix.executor import BaseExecutor
+
         be = BaseExecutor()
         be._permission_gate = None
         step = PlanStep(tool="nmap", args={"command": "nmap -sV"})
         import asyncio
+
         asyncio.run(be._check_permissions(step))
 
 
@@ -209,12 +221,14 @@ class TestExecutorRegistryCore:
 
     def test_registry_property(self):
         from siyarix.executor_registry import RegistryExecutor
+
         reg = MagicMock()
         re = RegistryExecutor(registry=reg)
         assert re.registry is reg
 
     def test_register_executor(self):
         from siyarix.executor_registry import RegistryExecutor
+
         re = RegistryExecutor()
         fn = AsyncMock()
         re.register_executor("test_tool", fn)
@@ -223,21 +237,27 @@ class TestExecutorRegistryCore:
     @pytest.mark.asyncio
     async def test_execute_step_timeout_error(self):
         from siyarix.executor_registry import RegistryExecutor
+
         re = RegistryExecutor()
         step = PlanStep(tool="nmap", timeout=0.001)
-        with patch.object(re, "_try_execute", AsyncMock(side_effect=__import__("asyncio").TimeoutError)):
+        with patch.object(
+            re, "_try_execute", AsyncMock(side_effect=__import__("asyncio").TimeoutError)
+        ):
             await re._execute_step(step, None)
             assert step.status == StepStatus.FAILED
 
     @pytest.mark.asyncio
     async def test_try_execute_permission_denied_in_execute_step(self):
         from siyarix.executor_registry import RegistryExecutor
+
         re = RegistryExecutor(registry=MagicMock(spec=ToolRegistry))
         re._permission_gate = MagicMock()
         re._budget.consume_tool_call = MagicMock(return_value=True)
         re._tracker.record = MagicMock(return_value=None)
         step = PlanStep(tool="nmap", args={"target": "x"})
-        with patch.object(re, "_check_permissions", AsyncMock(side_effect=PermissionDeniedError("nope"))):
+        with patch.object(
+            re, "_check_permissions", AsyncMock(side_effect=PermissionDeniedError("nope"))
+        ):
             await re._execute_step(step, None)
             assert step.status == StepStatus.FAILED
             assert "nope" in step.result.get("error", "")
@@ -245,6 +265,7 @@ class TestExecutorRegistryCore:
     @pytest.mark.asyncio
     async def test_execute_workflow_non_dag(self):
         from siyarix.executor_registry import RegistryExecutor
+
         plan = ExecutionPlan(goal="test")
         re = RegistryExecutor()
         with patch.object(re, "execute_plan", AsyncMock(return_value=plan)):
@@ -254,6 +275,7 @@ class TestExecutorRegistryCore:
     @pytest.mark.asyncio
     async def test_execute_workflow_fallback(self):
         from siyarix.executor_registry import RegistryExecutor
+
         plan = ExecutionPlan(goal="test", plan_type=PlanType.DAG)
         re = RegistryExecutor()
         with patch("siyarix.workflow.WorkflowEngine") as MockWE:
@@ -287,6 +309,7 @@ class TestExecutorToolErrors:
 
     def test_get_dlp_engine_dlp_false_returns_none(self):
         import siyarix.executor
+
         siyarix.executor._DLP_ENGINE = None
         with patch("siyarix.dlp.DLPEngine") as MockDLP:
             MockDLP.side_effect = ImportError("no dlp")
@@ -355,12 +378,14 @@ class TestExecutorToolErrors:
             mock_dlp.redact_dict.return_value = {"redacted": True}
             mock_get.return_value = mock_dlp
             import asyncio
+
             result = asyncio.run(executor._apply_dlp({"key": "val"}))
             assert result["redacted"] is True
 
     def test_base_executor_apply_dlp_not_dict(self):
         executor = BaseExecutor()
         import asyncio
+
         result = asyncio.run(executor._apply_dlp("string"))
         assert result == "string"
 
@@ -368,6 +393,7 @@ class TestExecutorToolErrors:
         executor = BaseExecutor()
         with patch("siyarix.executor._get_dlp_engine", return_value=None):
             import asyncio
+
             result = asyncio.run(executor._apply_dlp({"key": "val"}))
             assert result == {"key": "val"}
 
@@ -393,12 +419,14 @@ class TestExecutorToolErrors:
     def test_execute_plan_not_implemented(self):
         executor = BaseExecutor()
         import asyncio
+
         with pytest.raises(NotImplementedError):
             asyncio.run(executor.execute_plan(None))
 
     def test_close(self):
         executor = BaseExecutor()
         import asyncio
+
         asyncio.run(executor.close(timeout=1))
 
 
@@ -422,6 +450,7 @@ class TestExecutorRegistryAutonomous:
         mock_fn = AsyncMock(return_value={"status": "success"})
         executor._custom_executors["custom_tool"] = mock_fn
         import asyncio
+
         result = asyncio.run(executor._try_execute(step, None))
         assert result["status"] == "success"
 
@@ -429,6 +458,7 @@ class TestExecutorRegistryAutonomous:
         executor = RegistryExecutor()
         step = PlanStep(id="s1", tool="")
         import asyncio
+
         result = asyncio.run(executor._try_execute(step, None))
         assert result["status"] == "error"
 
@@ -438,6 +468,7 @@ class TestExecutorRegistryAutonomous:
         executor._budget.max_tool_calls = 100
         step = PlanStep(id="s1", tool="nmap", args={"target": "10.0.0.1"})
         import asyncio
+
         result = asyncio.run(executor._try_execute(step, None))
         assert result["status"] == "error"
 
@@ -448,6 +479,7 @@ class TestExecutorRegistryAutonomous:
         executor._tracker._config.exact_failure_block_after = 5
         step = PlanStep(id="s1", tool="nmap", args={"target": "10.0.0.1"})
         import asyncio
+
         result = asyncio.run(executor._try_execute(step, None))
         assert "BLOCKED" in result.get("error", "")
 
@@ -459,6 +491,7 @@ class TestExecutorRegistryAutonomous:
         executor._budget._tool_calls = 0
         step = PlanStep(id="s1", tool="nonexistent", args={"target": "x"})
         import asyncio
+
         result = asyncio.run(executor._try_execute(step, None))
         assert result["status"] == "error"
 
@@ -469,6 +502,7 @@ class TestExecutorRegistryAutonomous:
         executor._registry = mock_registry
         step = PlanStep(id="s1", tool="nmap", args={"target": "10.0.0.1"})
         import asyncio
+
         result = asyncio.run(executor._try_execute(step, None))
         assert result["status"] == "error"
 
@@ -477,6 +511,7 @@ class TestExecutorRegistryAutonomous:
         step = PlanStep(id="s1", tool="nmap")
         result = {"status": "error", "error": "not found: nmap"}
         import asyncio
+
         final = asyncio.run(executor._handle_tool_error(step, result))
         assert final["status"] == "error"
 
@@ -551,7 +586,9 @@ class TestExecutorErrorHandling:
     def test_base_executor_permission_check_requires_review_modified(self):
         executor = BaseExecutor()
         gate = MagicMock()
-        gate.check.return_value = MagicMock(allowed=True, requires_review=True, reason="check flags")
+        gate.check.return_value = MagicMock(
+            allowed=True, requires_review=True, reason="check flags"
+        )
         executor._permission_gate = gate
         step = PlanStep(tool="nmap", args={"command": "nmap -sS target"})
         with patch("siyarix.executor._get_review_and_confirm") as mock_get:
@@ -598,7 +635,9 @@ class TestExecutorRegistryPlanExecution:
     @pytest.mark.skip(reason="Requires complex mock setup")
     async def test_try_execute_permission_denied_raised(self):
         executor = RegistryExecutor()
-        with patch.object(executor, "_check_permissions", AsyncMock(side_effect=PermissionDeniedError("denied"))):
+        with patch.object(
+            executor, "_check_permissions", AsyncMock(side_effect=PermissionDeniedError("denied"))
+        ):
             with pytest.raises(PermissionDeniedError):
                 await executor._try_execute(PlanStep(tool="nmap"), None)
 

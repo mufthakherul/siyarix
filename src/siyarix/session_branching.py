@@ -122,7 +122,9 @@ class BranchingSession:
         return self.append_entry("label", content=label, metadata=metadata)
 
     def add_branch_summary(
-        self, summary: str, metadata: dict[str, Any] | None = None,
+        self,
+        summary: str,
+        metadata: dict[str, Any] | None = None,
     ) -> BranchEntry:
         """Add a branch summary entry (created when branching)."""
         return self.append_entry("branch_summary", content=summary, metadata=metadata)
@@ -207,7 +209,9 @@ class BranchingSession:
         """Persist the session to a JSONL file."""
         self._path.parent.mkdir(parents=True, exist_ok=True)
         with open(self._path, "w", encoding="utf-8") as f:
-            f.writelines(json.dumps(asdict(entry), ensure_ascii=False) + "\n" for entry in self._entries)
+            f.writelines(
+                json.dumps(asdict(entry), ensure_ascii=False) + "\n" for entry in self._entries
+            )
         self._dirty = False
         return self._path
 

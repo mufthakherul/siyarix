@@ -258,7 +258,10 @@ class RegistryExecutor(BaseExecutor):
         if "unrecognized option" in err_msg or "invalid option" in err_msg:
             # Try to extract the bad flag from the error message using regex
             import re
-            match = re.search(r"(?:unrecognized option|invalid option)\s+['\"]?(-{1,2}[\w-]+)['\"]?", err_msg)
+
+            match = re.search(
+                r"(?:unrecognized option|invalid option)\s+['\"]?(-{1,2}[\w-]+)['\"]?", err_msg
+            )
             bad_flag = match.group(1) if match else None
 
             if bad_flag and "flags" in step.args:
@@ -278,10 +281,17 @@ class RegistryExecutor(BaseExecutor):
                     pass
 
         # 2. Missing Tool Installation Heuristic
-        if any(x in err_msg for x in [
-            "not found", "not installed", "unavailable",
-            "not recognized", "executable", "no such",
-        ]):
+        if any(
+            x in err_msg
+            for x in [
+                "not found",
+                "not installed",
+                "unavailable",
+                "not recognized",
+                "executable",
+                "no such",
+            ]
+        ):
             try:
                 import sys as _sys
 
@@ -305,7 +315,11 @@ class RegistryExecutor(BaseExecutor):
 
                             invalidate_which_cache()
                             if self._registry is None:
-                                return {"status": "error", "error": "Registry not initialised", "tool": step.tool}
+                                return {
+                                    "status": "error",
+                                    "error": "Registry not initialised",
+                                    "tool": step.tool,
+                                }
                             try:
                                 result = await self._registry.execute(step.tool, **step.args)
                             except (ToolNotFoundError, ToolExecutionError) as e:
@@ -350,6 +364,7 @@ class RegistryExecutor(BaseExecutor):
 
             # Register a step executor per step so we can report progress
             for s in plan.steps:
+
                 async def _run_step(args: dict[str, Any], _step: PlanStep = s) -> dict[str, Any]:
                     _step.status = StepStatus.RUNNING
                     if self._on_step_progress:

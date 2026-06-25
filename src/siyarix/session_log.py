@@ -127,7 +127,9 @@ class SessionLogger:
             return []
         logs: list[dict[str, Any]] = []
         for path in sorted(
-            self._log_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True,
+            self._log_dir.glob("*.json"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
         ):
             if not path.stat().st_size:
                 logger.debug("Skipping empty session log: %s", path)

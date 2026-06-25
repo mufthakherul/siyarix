@@ -12,10 +12,12 @@ from . import _now_iso
 _SUCCESS_RE = re.compile(r"^\[\*\]\s*(.*)")
 _TEMPLATE_RE = re.compile(r"(?:Template|Certificate\s+Template)[:\s]+(.+)", re.IGNORECASE)
 _CA_INFO_RE = re.compile(
-    r"(?:CA\s+Name|Certificate\s+Authority|CA\s+Server)[:\s]+(.+)", re.IGNORECASE,
+    r"(?:CA\s+Name|Certificate\s+Authority|CA\s+Server)[:\s]+(.+)",
+    re.IGNORECASE,
 )
 _PKCS12_RE = re.compile(
-    r"(?:Saved\s+)?(?:PKCS12|\.p12|certificate|\.pfx)\s*(?:to|file)?[:\s]*(\S+)", re.IGNORECASE,
+    r"(?:Saved\s+)?(?:PKCS12|\.p12|certificate|\.pfx)\s*(?:to|file)?[:\s]*(\S+)",
+    re.IGNORECASE,
 )
 _ESC_RE = re.compile(r"(ESC[0-9]+)", re.IGNORECASE)
 _VULN_RE = re.compile(r"(?:Vulnerable|vuln|VULN|weakness)", re.IGNORECASE)

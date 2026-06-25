@@ -60,10 +60,12 @@ class HttpxParser:
         )
         title = obj.get("title", obj.get("Title", ""))
         webserver = obj.get(
-            "webserver", obj.get("Webserver", obj.get("server", obj.get("Server", ""))),
+            "webserver",
+            obj.get("Webserver", obj.get("server", obj.get("Server", ""))),
         )
         tech = obj.get(
-            "tech", obj.get("Tech", obj.get("technologies", obj.get("Technologies", []))),
+            "tech",
+            obj.get("Tech", obj.get("technologies", obj.get("Technologies", []))),
         )
         if isinstance(tech, str):
             tech = [t.strip() for t in tech.split(",") if t.strip()]

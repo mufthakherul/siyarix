@@ -30,9 +30,19 @@ def reset_singleton():
 @pytest.fixture
 def mock_profiles():
     return [
-        ProviderProfile(name="openai", base_url="", provider_type=ProviderType.CLOUD, priority=0, models=[]),
-        ProviderProfile(name="anthropic", base_url="", provider_type=ProviderType.CLOUD, priority=1, models=[]),
-        ProviderProfile(name="ollama", base_url="http://localhost:11434", provider_type=ProviderType.LOCAL, priority=2, models=[]),
+        ProviderProfile(
+            name="openai", base_url="", provider_type=ProviderType.CLOUD, priority=0, models=[]
+        ),
+        ProviderProfile(
+            name="anthropic", base_url="", provider_type=ProviderType.CLOUD, priority=1, models=[]
+        ),
+        ProviderProfile(
+            name="ollama",
+            base_url="http://localhost:11434",
+            provider_type=ProviderType.LOCAL,
+            priority=2,
+            models=[],
+        ),
     ]
 
 
@@ -54,6 +64,7 @@ def state_manager_mock():
 # ---------------------------------------------------------------------------
 # Singleton pattern
 # ---------------------------------------------------------------------------
+
 
 class TestSingleton:
     def test_get_instance_creates(self):
@@ -94,6 +105,7 @@ class TestSingleton:
                 ProviderManager._instance._credentials = {}
                 ProviderManager._instance._error_counts = {}
                 from unittest.mock import MagicMock
+
                 ProviderManager._instance._state_manager = MagicMock()
                 return self2
 
@@ -109,6 +121,7 @@ class TestSingleton:
 # ---------------------------------------------------------------------------
 # Registration and profile methods
 # ---------------------------------------------------------------------------
+
 
 class TestRegistration:
     def test_register(self, manager):
@@ -163,6 +176,7 @@ class TestRegistration:
 # Credentials
 # ---------------------------------------------------------------------------
 
+
 class TestCredentials:
     def test_add_credential(self, manager):
         cred = ProviderCredential(provider="openai", api_key="sk-123")
@@ -205,7 +219,9 @@ class TestCredentials:
     def test_get_api_key_from_credential(self, manager):
         cred = ProviderCredential(provider="openai", api_key="sk-cred")
         manager.add_credential(cred)
-        with patch("siyarix.providers.manager.resolve_api_key", return_value="sk-env") as mock_resolve:
+        with patch(
+            "siyarix.providers.manager.resolve_api_key", return_value="sk-env"
+        ) as mock_resolve:
             key = manager.get_api_key("openai")
             assert key == "sk-cred"
             mock_resolve.assert_not_called()
@@ -244,6 +260,7 @@ class TestCredentials:
 # Auto-detect
 # ---------------------------------------------------------------------------
 
+
 class TestAutoDetect:
     def test_remote_with_api_key(self, manager):
         profile = ProviderProfile(name="test", provider_type=ProviderType.CLOUD, models=[])
@@ -275,6 +292,7 @@ class TestAutoDetect:
 # ---------------------------------------------------------------------------
 # Error classification
 # ---------------------------------------------------------------------------
+
 
 class TestClassifyByHttpStatus:
     def test_none(self):
@@ -460,7 +478,9 @@ class TestClassifyByMessage:
         assert rotate is False
 
     def test_context_overflow_with_all_keywords(self):
-        reason, rotate = ProviderManager._classify_by_message("context too long overflow max length")
+        reason, rotate = ProviderManager._classify_by_message(
+            "context too long overflow max length"
+        )
         assert reason == FailoverReason.CONTEXT_OVERFLOW
         assert rotate is False
 
@@ -557,6 +577,7 @@ class TestClassifyError:
 # ---------------------------------------------------------------------------
 # Failure and success recording
 # ---------------------------------------------------------------------------
+
 
 class TestRecordFailure:
     def test_increments_error_counts(self, manager):
@@ -699,6 +720,7 @@ class TestRecordSuccess:
 # Provider selection
 # ---------------------------------------------------------------------------
 
+
 class TestSelectProvider:
     def test_preferred_available(self, manager, mock_profiles):
         with patch.object(manager, "get_api_key", return_value="sk-key"):
@@ -706,7 +728,13 @@ class TestSelectProvider:
             assert provider == "openai"
 
     def test_preferred_not_in_profiles(self, manager):
-        ollama = ProviderProfile(name="ollama", base_url="http://localhost:11434", provider_type=ProviderType.LOCAL, priority=2, models=[])
+        ollama = ProviderProfile(
+            name="ollama",
+            base_url="http://localhost:11434",
+            provider_type=ProviderType.LOCAL,
+            priority=2,
+            models=[],
+        )
         with patch.object(manager, "get_api_key", return_value=""):
             with patch.object(manager, "auto_detect_provider", return_value=None):
                 with patch.object(manager, "list_profiles", return_value=[ollama]):
@@ -732,9 +760,13 @@ class TestSelectProvider:
                 assert provider == "anthropic"
 
     def test_fallback_to_first_available(self, manager):
-        with patch.object(manager, "get_api_key", side_effect=lambda p: "sk-key" if p == "openai" else ""):
+        with patch.object(
+            manager, "get_api_key", side_effect=lambda p: "sk-key" if p == "openai" else ""
+        ):
             with patch.object(manager, "auto_detect_provider", return_value=None):
-                with patch.object(manager, "list_profiles", return_value=manager._profiles.values()):
+                with patch.object(
+                    manager, "list_profiles", return_value=manager._profiles.values()
+                ):
                     provider, model = manager.select_provider()
                     assert provider == "openai"
 
@@ -763,6 +795,7 @@ class TestSelectProvider:
 # ---------------------------------------------------------------------------
 # Capability filtering
 # ---------------------------------------------------------------------------
+
 
 class TestGetProvidersByCapability:
     @pytest.fixture
@@ -847,9 +880,12 @@ class TestGetProvidersByCapability:
 # Resolve model ID
 # ---------------------------------------------------------------------------
 
+
 class TestResolveModelId:
     def test_delegates_to_normalize_model_id(self, manager):
-        with patch("siyarix.providers.manager.normalize_model_id", return_value="gpt-4-turbo") as mock_norm:
+        with patch(
+            "siyarix.providers.manager.normalize_model_id", return_value="gpt-4-turbo"
+        ) as mock_norm:
             result = manager.resolve_model_id("openai", "gpt-4")
             assert result == "gpt-4-turbo"
             mock_norm.assert_called_once_with("openai", "gpt-4")
@@ -859,11 +895,14 @@ class TestResolveModelId:
 # Stats
 # ---------------------------------------------------------------------------
 
+
 class TestStats:
     def test_stats_returns_dict(self, manager):
         manager.add_credential(ProviderCredential(provider="openai", api_key="sk-123"))
         manager.add_credential(ProviderCredential(provider="openai", api_key="sk-456"))
-        manager.add_credential(ProviderCredential(provider="ollama", base_url="http://localhost:11434"))
+        manager.add_credential(
+            ProviderCredential(provider="ollama", base_url="http://localhost:11434")
+        )
         manager._error_counts["openai"] = 2
         stats = manager.stats()
         assert stats["total_providers"] == 3
@@ -874,6 +913,7 @@ class TestStats:
 # ---------------------------------------------------------------------------
 # Complete (async)
 # ---------------------------------------------------------------------------
+
 
 class TestComplete:
     @pytest.mark.asyncio
@@ -892,7 +932,12 @@ class TestComplete:
                 )
                 assert result == "response"
                 mock_adapter.assert_awaited_once_with(
-                    "sys", "user", stream=False, history=[{"role": "user", "content": "hi"}], model="gpt-4", extra_param="val"
+                    "sys",
+                    "user",
+                    stream=False,
+                    history=[{"role": "user", "content": "hi"}],
+                    model="gpt-4",
+                    extra_param="val",
                 )
 
     @pytest.mark.asyncio
@@ -926,19 +971,24 @@ class TestComplete:
 # Ensemble decide
 # ---------------------------------------------------------------------------
 
+
 class TestEnsembleDecide:
     @pytest.mark.asyncio
     async def test_majority_vote_dict(self, manager):
-        manager.complete = AsyncMock(side_effect=[
-            {"content": "A"},
-            {"content": "A"},
-            {"content": "B"},
-        ])
-        manager.select_provider = MagicMock(side_effect=[
-            ("openai", "model1"),
-            ("anthropic", "model2"),
-            ("gemini", "model3"),
-        ])
+        manager.complete = AsyncMock(
+            side_effect=[
+                {"content": "A"},
+                {"content": "A"},
+                {"content": "B"},
+            ]
+        )
+        manager.select_provider = MagicMock(
+            side_effect=[
+                ("openai", "model1"),
+                ("anthropic", "model2"),
+                ("gemini", "model3"),
+            ]
+        )
         result = await manager.ensemble_decide("sys", "user", ["p1", "p2", "p3"])
         assert result == "A"
 
@@ -946,22 +996,27 @@ class TestEnsembleDecide:
     async def test_majority_vote_object(self, manager):
         class Resp:
             content = "C"
-        manager.complete = AsyncMock(side_effect=[
-            Resp(),
-            Resp(),
-            {"content": "D"},
-        ])
+
+        manager.complete = AsyncMock(
+            side_effect=[
+                Resp(),
+                Resp(),
+                {"content": "D"},
+            ]
+        )
         manager.select_provider = MagicMock(return_value=("p", "m"))
         result = await manager.ensemble_decide("sys", "user", ["p1", "p2", "p3"])
         assert result == "C"
 
     @pytest.mark.asyncio
     async def test_majority_vote_string(self, manager):
-        manager.complete = AsyncMock(side_effect=[
-            "E",
-            "E",
-            {"content": "F"},
-        ])
+        manager.complete = AsyncMock(
+            side_effect=[
+                "E",
+                "E",
+                {"content": "F"},
+            ]
+        )
         manager.select_provider = MagicMock(return_value=("p", "m"))
         result = await manager.ensemble_decide("sys", "user", ["p1", "p2", "p3"])
         assert result == "E"
@@ -977,11 +1032,14 @@ class TestEnsembleDecide:
     async def test_handles_mixed_content_types(self, manager):
         class Resp:
             content = "X"
-        manager.complete = AsyncMock(side_effect=[
-            {"content": "X"},
-            Resp(),
-            "X",
-        ])
+
+        manager.complete = AsyncMock(
+            side_effect=[
+                {"content": "X"},
+                Resp(),
+                "X",
+            ]
+        )
         manager.select_provider = MagicMock(return_value=("p", "m"))
         result = await manager.ensemble_decide("sys", "user", ["p1", "p2", "p3"])
         assert result == "X"
@@ -998,12 +1056,15 @@ class TestEnsembleDecide:
 # resolve_api_key (module-level function)
 # ---------------------------------------------------------------------------
 
+
 class TestResolveApiKey:
     def test_from_credential_store(self):
         mock_store = MagicMock()
         mock_store.retrieve.return_value = "sk-store"
         with patch("siyarix.credential_store.get_creds", return_value=mock_store):
-            with patch("siyarix.providers.manager.get_provider_env_var", return_value="OPENAI_API_KEY"):
+            with patch(
+                "siyarix.providers.manager.get_provider_env_var", return_value="OPENAI_API_KEY"
+            ):
                 result = resolve_api_key("openai")
                 assert result == "sk-store"
 
@@ -1011,7 +1072,9 @@ class TestResolveApiKey:
         mock_store = MagicMock()
         mock_store.retrieve.return_value = None
         with patch("siyarix.credential_store.get_creds", return_value=mock_store):
-            with patch("siyarix.providers.manager.get_provider_env_var", return_value="OPENAI_API_KEY"):
+            with patch(
+                "siyarix.providers.manager.get_provider_env_var", return_value="OPENAI_API_KEY"
+            ):
                 with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-env"}, clear=True):
                     result = resolve_api_key("openai")
                     assert result == "sk-env"
@@ -1028,14 +1091,18 @@ class TestResolveApiKey:
         mock_store = MagicMock()
         mock_store.retrieve.return_value = None
         with patch("siyarix.credential_store.get_creds", return_value=mock_store):
-            with patch("siyarix.providers.manager.get_provider_env_var", return_value="OPENAI_API_KEY"):
+            with patch(
+                "siyarix.providers.manager.get_provider_env_var", return_value="OPENAI_API_KEY"
+            ):
                 with patch.dict(os.environ, {}, clear=True):
                     result = resolve_api_key("openai")
                     assert result is None
 
     def test_credential_store_exception(self):
         with patch("siyarix.credential_store.CredentialStore", side_effect=Exception("fail")):
-            with patch("siyarix.providers.manager.get_provider_env_var", return_value="OPENAI_API_KEY"):
+            with patch(
+                "siyarix.providers.manager.get_provider_env_var", return_value="OPENAI_API_KEY"
+            ):
                 with patch.dict(os.environ, {}, clear=True):
                     result = resolve_api_key("openai")
                     assert result is None
@@ -1044,7 +1111,9 @@ class TestResolveApiKey:
         mock_store = MagicMock()
         mock_store.retrieve.side_effect = Exception("retrieve fail")
         with patch("siyarix.credential_store.CredentialStore", return_value=mock_store):
-            with patch("siyarix.providers.manager.get_provider_env_var", return_value="OPENAI_API_KEY"):
+            with patch(
+                "siyarix.providers.manager.get_provider_env_var", return_value="OPENAI_API_KEY"
+            ):
                 with patch.dict(os.environ, {}, clear=True):
                     result = resolve_api_key("openai")
                     assert result is None
@@ -1063,6 +1132,7 @@ class TestResolveApiKey:
 # get_provider_env_var (module-level function)
 # ---------------------------------------------------------------------------
 
+
 class TestGetProviderEnvVar:
     def test_from_profile(self):
         profile = ProviderProfile(name="openai", api_key_env="OPENAI_CUSTOM_KEY", models=[])
@@ -1080,6 +1150,7 @@ class TestGetProviderEnvVar:
 # ---------------------------------------------------------------------------
 # Init default profiles
 # ---------------------------------------------------------------------------
+
 
 class TestInitDefaultProfiles:
     def test_init_default_profiles_called(self):

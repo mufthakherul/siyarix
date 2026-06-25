@@ -240,7 +240,9 @@ class TestMakeWebHandler:
     @patch("siyarix.stealth.StealthEngine")
     @patch("urllib.request.urlopen")
     @patch("urllib.request.Request")
-    async def test_stealth_mode(self, mock_urllib_req, mock_urllib_open, MockStealth, mock_safe_run):
+    async def test_stealth_mode(
+        self, mock_urllib_req, mock_urllib_open, MockStealth, mock_safe_run
+    ):
         mock_engine = MagicMock()
         mock_engine.get_decoy_requests.return_value = [
             {"url": "http://example.com/decoy", "method": "GET", "user_agent": "Mozilla"},
@@ -258,7 +260,9 @@ class TestMakeWebHandler:
     @patch("urllib.request.urlopen", side_effect=Exception("Connection refused"))
     @patch("siyarix.stealth.StealthEngine")
     @patch("siyarix.subprocess_utils.safe_run_async", new_callable=AsyncMock)
-    async def test_stealth_mode_decoy_fail(self, mock_safe_run, MockStealth, mock_urllib_open, mock_urllib_req):
+    async def test_stealth_mode_decoy_fail(
+        self, mock_safe_run, MockStealth, mock_urllib_open, mock_urllib_req
+    ):
         mock_engine = MagicMock()
         mock_engine.get_decoy_requests.return_value = [
             {"url": "http://example.com/decoy", "method": "GET", "user_agent": "Mozilla"},
@@ -276,7 +280,9 @@ class TestMakeWebHandler:
     @patch("urllib.request.urlopen")
     @patch("siyarix.stealth.StealthEngine")
     @patch("siyarix.subprocess_utils.safe_run_async", new_callable=AsyncMock)
-    async def test_stealth_mode_no_stealth_kwarg(self, mock_safe_run, MockStealth, mock_urllib_open, mock_urllib_req):
+    async def test_stealth_mode_no_stealth_kwarg(
+        self, mock_safe_run, MockStealth, mock_urllib_open, mock_urllib_req
+    ):
         mock_engine = MagicMock()
         mock_engine.get_decoy_requests.return_value = []
         MockStealth.return_value = mock_engine
@@ -413,7 +419,9 @@ class TestMakeBruteHandler:
     async def test_custom_service_username_wordlist(self, mock_safe_run):
         mock_safe_run.return_value = _mock_result()
         handler = make_brute_handler("hydra")
-        await handler(target="10.0.0.1", service="rdp", username="admin", wordlist="/tmp/custom.txt")
+        await handler(
+            target="10.0.0.1", service="rdp", username="admin", wordlist="/tmp/custom.txt"
+        )
         args, _ = mock_safe_run.call_args
         assert "rdp://10.0.0.1" in args[0]
         assert "-l" in args[0]

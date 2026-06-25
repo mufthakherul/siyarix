@@ -62,7 +62,7 @@ class WebhookDispatcher:
                 headers={"Content-Type": "application/json"},
             )
             urllib.request.urlopen(req, timeout=5)
-            logger.info("Webhook alert dispatched for %s", finding.get('id', 'vuln'))
+            logger.info("Webhook alert dispatched for %s", finding.get("id", "vuln"))
         except urllib.error.URLError as e:
             logger.error("Failed to dispatch webhook: %s", e)
 

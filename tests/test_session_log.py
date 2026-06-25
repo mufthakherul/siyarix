@@ -244,14 +244,12 @@ class TestSessionLogger:
         assert path.name == "abc-123.json"
 
 
-
 """Extra tests for session_log targeting uncovered lines."""
 
 
 from unittest.mock import patch
 
 import pytest
-
 
 
 class TestSessionLoggerListLogs:
@@ -456,6 +454,7 @@ class TestSessionLoggerMisc:
         js = logger.export_json_str("json-export")
         assert js is not None
         import json
+
         data = json.loads(js)
         assert data["session_id"] == "json-export"
 
@@ -473,6 +472,7 @@ class TestSessionLoggerMisc:
         logger.save(log)
         sarif_str = logger.export_sarif("sarif-test")
         import json
+
         sarif = json.loads(sarif_str)
         assert len(sarif["runs"][0]["results"]) == 2
         assert sarif["runs"][0]["results"][0]["ruleId"] == "CMD-0001"

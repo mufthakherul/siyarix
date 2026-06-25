@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from pathlib import Path
 from siyarix.opsec import OPSECManager
@@ -8,10 +7,6 @@ from unittest.mock import MagicMock, patch
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Tests for siyarix.opsec — operational security."""
-
-
-
-
 
 
 class TestRandomString:
@@ -196,6 +191,7 @@ class TestOPSECManager:
     def test_module_singleton(self) -> None:
         assert isinstance(opsec_manager, OPSECManager)
 
+
 class TestOPSECCore:
     """Cover uncovered OPSEC lines."""
 
@@ -240,6 +236,7 @@ class TestOPSECCore:
 
     def test_secure_delete_empty_file(self, tmp_path):
         from siyarix.opsec import OPSECManager
+
         mgr = OPSECManager()
         f = tmp_path / "empty.txt"
         f.write_text("")
@@ -247,6 +244,7 @@ class TestOPSECCore:
 
     def test_secure_delete_error_logged(self, tmp_path):
         from siyarix.opsec import OPSECManager
+
         mgr = OPSECManager()
         f = tmp_path / "nonexistent.txt"
         mgr._secure_delete(f)

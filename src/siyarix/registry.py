@@ -176,13 +176,13 @@ class ToolRegistry:
         self._graph = ToolCapabilityGraph()
         self._handlers: dict[str, ToolHandler] = {}
         from .parsers import ParserRegistry
+
         self._parser_registry = ParserRegistry()
         self._loaded = False
         self._load_count = 0
         self._permission_gate = permission_gate
         self._event_bus = None
         self._lock = threading.Lock()
-
 
     @property
     def graph(self) -> ToolCapabilityGraph:

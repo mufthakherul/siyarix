@@ -3,24 +3,29 @@ from __future__ import annotations
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from siyarix.nlp_engine import NaturalLanguageParser
 
+
 def test_nlp_target_extraction():
     nlp = NaturalLanguageParser()
-    
+
     url, ttype = nlp.extract_entities("scan https://example.com please")
     assert url == "https://example.com"
-    
+
     ip, ttype = nlp.extract_entities("check 192.168.1.5 fast")
     assert ip == "192.168.1.5"
 
+
 def test_nlp_parameter_extraction():
     nlp = NaturalLanguageParser()
-    params = nlp.extract_parameters("scan port 80,443 very fast with timeout 5m and critical vulnerabilities json")
-    
+    params = nlp.extract_parameters(
+        "scan port 80,443 very fast with timeout 5m and critical vulnerabilities json"
+    )
+
     assert params.get("ports") == "80,443"
     assert params.get("speed") == "fast"
     assert params.get("timeout") == "5m"
     assert params.get("severity") == "critical"
     assert params.get("format") == "json"
+
 
 def test_nlp_fuzzy_matching():
     nlp = NaturalLanguageParser()
@@ -28,32 +33,31 @@ def test_nlp_fuzzy_matching():
     assert nlp.fuzzy_match("direcotry", ["directory"]) is True
     assert nlp.fuzzy_match("abc", ["vulnerability"]) is False
 
+
 def test_nlp_stemming_and_synonyms():
     nlp = NaturalLanguageParser()
     # default synonym for 'bug' is 'vuln' -> stem of vuln is 'vuln'
     assert nlp.tokenize("scanning bugs") == ["scan", "vuln", "scan_vuln"]
-    
+
+
 def test_nlp_scoring():
     nlp = NaturalLanguageParser()
-    nlp.train_tools([
-        {"name": "nmap", "description": "network port scanner"},
-        {"name": "sqlmap", "description": "sql injection vulnerabilities"}
-    ])
-    
+    nlp.train_tools(
+        [
+            {"name": "nmap", "description": "network port scanner"},
+            {"name": "sqlmap", "description": "sql injection vulnerabilities"},
+        ]
+    )
+
     intent = nlp.parse("run a network port scan")
     assert intent.tool_name == "nmap"
-    
+
     intent2 = nlp.parse("find sql injection bugs")
     assert intent2.tool_name == "sqlmap"
 
 
-
-
-
-
-
-
 # ── custom_synonyms (line 113) ───────────────────────────────────────────
+
 
 class TestCustomSynonyms:
     def test_custom_synonyms_merged(self):
@@ -68,6 +72,7 @@ class TestCustomSynonyms:
 
 
 # ── Domain entity extraction with filtering (line 194) ───────────────────
+
 
 class TestDomainEntityExtraction:
     def test_domain_with_valid_match(self):
@@ -91,6 +96,7 @@ class TestDomainEntityExtraction:
 
 # ── all ports extraction (line 214) ──────────────────────────────────────
 
+
 class TestAllPorts:
     def test_all_ports(self):
         nlp = NaturalLanguageParser()
@@ -104,6 +110,7 @@ class TestAllPorts:
 
 
 # ── Negation handling (lines 222-232) ────────────────────────────────────
+
 
 class TestNegationSpeed:
     def test_negated_fast_becomes_stealth(self):
@@ -139,6 +146,7 @@ class TestNegationSpeed:
 
 # ── Severity extraction (lines 244-253) ──────────────────────────────────
 
+
 class TestSeverityExtraction:
     def test_severity_all_levels(self):
         nlp = NaturalLanguageParser()
@@ -157,6 +165,7 @@ class TestSeverityExtraction:
 
 
 # ── Output format (lines 259-261) ────────────────────────────────────────
+
 
 class TestOutputFormat:
     def test_xml_format(self):
@@ -182,6 +191,7 @@ class TestOutputFormat:
 
 # ── Protocol extraction with negation (lines 265-267) ────────────────────
 
+
 class TestProtocolExtraction:
     def test_udp_negated_becomes_tcp(self):
         nlp = NaturalLanguageParser()
@@ -206,6 +216,7 @@ class TestProtocolExtraction:
 
 # ── Verbose extraction (line 271-272) ────────────────────────────────────
 
+
 class TestVerboseExtraction:
     def test_verbose_not_negated(self):
         nlp = NaturalLanguageParser()
@@ -225,6 +236,7 @@ class TestVerboseExtraction:
 
 # ── Wordlist extraction (line 277) ───────────────────────────────────────
 
+
 class TestWordlistExtraction:
     def test_wordlist_found(self):
         nlp = NaturalLanguageParser()
@@ -238,6 +250,7 @@ class TestWordlistExtraction:
 
 
 # ── _get_char_bigrams (line 299) ─────────────────────────────────────────
+
 
 class TestGetCharBigrams:
     def test_short_word_returns_set_with_word(self):
@@ -260,6 +273,7 @@ class TestGetCharBigrams:
 
 
 # ── fuzzy_match (lines 305, 315, 329, 333) ───────────────────────────────
+
 
 class TestFuzzyMatchEdgeCases:
     def test_empty_corpus_returns_false(self):
@@ -297,6 +311,7 @@ class TestFuzzyMatchEdgeCases:
 
 # ── score_intent BM25 formula (lines 371-385) ────────────────────────────
 
+
 class TestScoreIntent:
     def test_exact_name_match_boost(self):
         nlp = NaturalLanguageParser()
@@ -321,10 +336,12 @@ class TestScoreIntent:
 
     def test_idf_scoring(self):
         nlp = NaturalLanguageParser()
-        nlp.train_tools([
-            {"name": "nmap", "description": "network port scanner"},
-            {"name": "sqlmap", "description": "sql injection scanner"},
-        ])
+        nlp.train_tools(
+            [
+                {"name": "nmap", "description": "network port scanner"},
+                {"name": "sqlmap", "description": "sql injection scanner"},
+            ]
+        )
         # "scanner" appears in both docs, idf should be lower
         scanner_idf = nlp.get_idf("scanner")
         assert scanner_idf < nlp.get_idf("network")
@@ -338,6 +355,7 @@ class TestScoreIntent:
 
 
 # ── parse method template matching (lines 406-418) ───────────────────────
+
 
 class TestParseEdgeCases:
     def test_template_preferred_over_tool(self):
@@ -376,6 +394,7 @@ class TestParseEdgeCases:
 
 # ── Stemming edge cases ─────────────────────────────────────────────────
 
+
 class TestStemming:
     def test_stem_word_no_suffix(self):
         nlp = NaturalLanguageParser()
@@ -393,6 +412,7 @@ class TestStemming:
 
 
 # ── Tokenize edge cases ─────────────────────────────────────────────────
+
 
 class TestTokenize:
     def test_punctuation_removed_except_hyphen(self):
@@ -418,6 +438,7 @@ class TestTokenize:
 
 # ── _recalculate_idf ─────────────────────────────────────────────────────
 
+
 class TestRecalculateIdf:
     def test_recalculate_clears_and_rebuilds(self):
         nlp = NaturalLanguageParser()
@@ -428,6 +449,7 @@ class TestRecalculateIdf:
 
 
 # ── get_idf edge cases (line 284-285) ────────────────────────────────────
+
 
 class TestGetIdf:
     def test_unknown_token_returns_one(self):
@@ -440,6 +462,7 @@ class TestGetIdf:
 
 
 # ── _phonetic_simplify ──────────────────────────────────────────────────
+
 
 class TestPhoneticSimplify:
     def test_consecutive_duplicates_removed(self):
@@ -460,6 +483,7 @@ class TestPhoneticSimplify:
 
 
 # ── CVE / SHA / IPv6 entity extraction ──────────────────────────────────
+
 
 class TestEntityExtractionTypes:
     def test_cve_extraction(self):
@@ -520,6 +544,7 @@ class TestEntityExtractionTypes:
 
 
 # ── extract_parameters no matches returns empty dict ─────────────────────
+
 
 class TestExtractParametersNoMatch:
     def test_no_parameters_found(self):

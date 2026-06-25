@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from siyarix.tool_installer import ToolInstaller, ToolInstallResult
 from unittest.mock import patch
@@ -7,9 +6,6 @@ import pytest
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Tests for ToolInstaller."""
-
-
-
 
 
 pytestmark = pytest.mark.tool_installer
@@ -79,6 +75,7 @@ class TestToolInstaller:
                 results = installer.auto_install_missing(["nmap"])
                 assert len(results) == 1
 
+
 class TestToolInstallerCore:
     """Cover uncovered lines in tool_installer.py."""
 
@@ -87,6 +84,7 @@ class TestToolInstallerCore:
         with patch("shutil.which", return_value="/usr/bin/winget"):
             with patch("subprocess.run") as mock_run:
                 import subprocess
+
                 mock_run.return_value = subprocess.CompletedProcess([], 0, stdout="", stderr="")
                 with patch.object(installer, "_refresh_windows_path"):
                     result = installer._install_win("nmap", "nmap")
@@ -94,9 +92,17 @@ class TestToolInstallerCore:
 
     def test_install_win_choco_success(self):
         installer = ToolInstaller()
-        with patch("shutil.which", side_effect=lambda x: "/usr/bin/choco" if x == "choco" else "/usr/bin/nmap" if x == "nmap" else None):
+        with patch(
+            "shutil.which",
+            side_effect=lambda x: "/usr/bin/choco"
+            if x == "choco"
+            else "/usr/bin/nmap"
+            if x == "nmap"
+            else None,
+        ):
             with patch("subprocess.run") as mock_run:
                 import subprocess
+
                 mock_run.return_value = subprocess.CompletedProcess([], 0, stdout="", stderr="")
                 with patch.object(installer, "_refresh_windows_path"):
                     result = installer._install_win("nmap", "nmap")
@@ -107,6 +113,7 @@ class TestToolInstallerCore:
         with patch.object(installer, "_detect_pm", return_value="apt-get"):
             with patch("subprocess.run") as mock_run:
                 import subprocess
+
                 mock_run.return_value = subprocess.CompletedProcess([], 0, stdout="", stderr="")
                 with patch("shutil.which", side_effect=lambda x: x == "nmap"):
                     result = installer._install_nix("nmap", "nmap")

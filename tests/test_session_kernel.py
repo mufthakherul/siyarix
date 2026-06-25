@@ -1,4 +1,3 @@
-
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -6,8 +5,6 @@ from siyarix.chat.session import ChatSession
 from siyarix.compat import SessionKernel, SessionPersistenceLevel
 
 # SPDX-License-Identifier: AGPL-3.0-or-later
-
-
 
 
 def test_session_kernel_save_load_roundtrip(tmp_path: Path) -> None:
@@ -34,6 +31,7 @@ def test_session_kernel_save_load_roundtrip(tmp_path: Path) -> None:
     assert len(loaded.operations) == 1
     assert loaded.operations[0].state == "completed"
     assert loaded.operations[0].artifacts == ["plan-123"]
+
 
 class TestSessionEdgeCases:
     """Cover remaining session.py branches: branching property, branch path, save isinstance check."""

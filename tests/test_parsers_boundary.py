@@ -1,4 +1,5 @@
 """Tests for cross-parser edge cases, malformed input, and boundary conditions."""
+
 from __future__ import annotations
 
 from siyarix.parsers.nuclei_parser import NucleiParser

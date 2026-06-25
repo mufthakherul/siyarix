@@ -1,4 +1,5 @@
 """Tests for Network & Port Scanning parsers."""
+
 from __future__ import annotations
 
 import json
@@ -21,13 +22,18 @@ from siyarix.parsers.zmap_parser import ZmapParser
 
 def _check_finding(finding, expected_tool, min_fields=None):
     min_fields = min_fields or {
-        "title", "severity", "description", "evidence", "tool", "target", "timestamp",
+        "title",
+        "severity",
+        "description",
+        "evidence",
+        "tool",
+        "target",
+        "timestamp",
     }
     for field in min_fields:
         assert field in finding, f"Missing field {field} in {expected_tool} finding"
     assert finding["tool"] == expected_tool
     assert finding["severity"] in ("critical", "high", "medium", "low", "info")
-
 
 
 class TestTcpdumpParser:
@@ -45,7 +51,9 @@ class TestTcpdumpParser:
 
     def test_arp_gratuitous(self):
         p = TcpdumpParser()
-        output = "12:34:58.000000 ARP, Gratuitous 192.168.1.200 is-at 01:02:03:04:05:06, length 42\n"
+        output = (
+            "12:34:58.000000 ARP, Gratuitous 192.168.1.200 is-at 01:02:03:04:05:06, length 42\n"
+        )
         findings = p.parse(output)
         gratuitous = [f for f in findings if "Gratuitous" in f["title"]]
         assert len(gratuitous) >= 1
@@ -88,9 +96,7 @@ class TestTcpdumpParser:
 
     def test_dns_queries(self):
         p = TcpdumpParser()
-        output = (
-            "12:00:00.123456 192.168.1.1.53000 > 8.8.8.8.53: 12345 A? example.com. (28)\n"
-        )
+        output = "12:00:00.123456 192.168.1.1.53000 > 8.8.8.8.53: 12345 A? example.com. (28)\n"
         findings = p.parse(output)
         assert any("DNS query" in f["title"] for f in findings)
 
@@ -110,6 +116,8 @@ class TestTcpdumpParser:
     def test_empty_output(self):
         p = TcpdumpParser()
         assert p.parse("") == []
+
+
 class TestIkeScanParser:
     def test_showback_format_sa(self):
         p = IkeScanParser()
@@ -159,7 +167,9 @@ class TestIkeScanParser:
         p = IkeScanParser()
         output = "192.168.1.1: Fingerprint: Cisco VPN Concentrator\n"
         findings = p.parse(output)
-        assert any("vendor" in f["title"].lower() or "fingerprint" in f["title"].lower() for f in findings)
+        assert any(
+            "vendor" in f["title"].lower() or "fingerprint" in f["title"].lower() for f in findings
+        )
 
     def test_banner_message(self):
         p = IkeScanParser()
@@ -198,19 +208,25 @@ class TestIkeScanParser:
         assert p.parse("") == []
 
 
-
 """Comprehensive coverage tests for: bloodhound, netcat, scoutsuite, dnsrecon, bloodhound-python, searchsploit."""
-
 
 
 def _check_finding(finding, expected_tool, min_fields=None):
     min_fields = min_fields or {
-        "title", "severity", "description", "evidence", "tool", "target", "timestamp",
+        "title",
+        "severity",
+        "description",
+        "evidence",
+        "tool",
+        "target",
+        "timestamp",
     }
     for field in min_fields:
         assert field in finding, f"Missing field {field} in {expected_tool} finding"
     assert finding["tool"] == expected_tool
     assert finding["severity"] in ("critical", "high", "medium", "low", "info")
+
+
 class TestNetcatParser:
     def test_connection_refused(self):
         p = NetcatParser()
@@ -219,7 +235,9 @@ class TestNetcatParser:
         assert len(findings) >= 1
         _check_finding(findings[0], "netcat")
         assert findings[0]["severity"] == "info"
-        assert "closed" in findings[0]["title"].lower() or "filtered" in findings[0]["title"].lower()
+        assert (
+            "closed" in findings[0]["title"].lower() or "filtered" in findings[0]["title"].lower()
+        )
 
     def test_connection_timeout(self):
         p = NetcatParser()
@@ -273,6 +291,8 @@ class TestNetcatParser:
     def test_empty_output(self):
         p = NetcatParser()
         assert p.parse("") == []
+
+
 class TestDmitryParser:
     def test_portscan_line(self):
         p = DmitryParser()
@@ -286,7 +306,9 @@ class TestDmitryParser:
 
     def test_name_server(self):
         p = DmitryParser()
-        output = "Domain name: example.com\nName Server: ns1.example.com\nName Server: ns2.example.com\n"
+        output = (
+            "Domain name: example.com\nName Server: ns1.example.com\nName Server: ns2.example.com\n"
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
         for f in findings:
@@ -330,13 +352,20 @@ class TestDmitryParser:
     def test_empty_output(self):
         p = DmitryParser()
         assert p.parse("") == []
+
+
 class TestRustscanParser:
     def test_json_list_format(self):
         p = RustscanParser()
-        output = json.dumps([
-            {"host": "192.168.1.1", "ports": [{"port": 22, "protocol": "tcp"}]},
-            {"host": "192.168.1.1", "ports": [{"port": 80, "protocol": "tcp", "service": "http"}]},
-        ])
+        output = json.dumps(
+            [
+                {"host": "192.168.1.1", "ports": [{"port": 22, "protocol": "tcp"}]},
+                {
+                    "host": "192.168.1.1",
+                    "ports": [{"port": 80, "protocol": "tcp", "service": "http"}],
+                },
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
         for f in findings:
@@ -345,7 +374,9 @@ class TestRustscanParser:
 
     def test_json_single_object(self):
         p = RustscanParser()
-        output = json.dumps({"host": "10.0.0.1", "ports": [{"port": 445, "protocol": "tcp"}, {"port": 3389}]})
+        output = json.dumps(
+            {"host": "10.0.0.1", "ports": [{"port": 445, "protocol": "tcp"}, {"port": 3389}]}
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
         assert all(f["severity"] == "high" for f in findings)
@@ -397,6 +428,8 @@ class TestRustscanParser:
     def test_empty_output(self):
         p = RustscanParser()
         assert p.parse("") == []
+
+
 class TestZgrabParser:
     def test_http_scan(self):
         p = ZgrabParser()
@@ -408,7 +441,23 @@ class TestZgrabParser:
 
     def test_tls_handshake(self):
         p = ZgrabParser()
-        output = json.dumps({"ip": "1.2.3.4", "data": {"tls": {"tls": {"handshake_done": True, "cipher_suite": "TLS_AES_256_GCM_SHA384", "certificate": {"subject": {"common_name": ["example.com"]}, "issuer": {"common_name": ["CA Root"]}}}}}})
+        output = json.dumps(
+            {
+                "ip": "1.2.3.4",
+                "data": {
+                    "tls": {
+                        "tls": {
+                            "handshake_done": True,
+                            "cipher_suite": "TLS_AES_256_GCM_SHA384",
+                            "certificate": {
+                                "subject": {"common_name": ["example.com"]},
+                                "issuer": {"common_name": ["CA Root"]},
+                            },
+                        }
+                    }
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 3
         titles = [f["title"] for f in findings]
@@ -418,7 +467,9 @@ class TestZgrabParser:
 
     def test_ssh_banner(self):
         p = ZgrabParser()
-        output = json.dumps({"ip": "10.0.0.1", "data": {"ssh": {"banner": {"banner": "SSH-2.0-OpenSSH_8.9p1"}}}})
+        output = json.dumps(
+            {"ip": "10.0.0.1", "data": {"ssh": {"banner": {"banner": "SSH-2.0-OpenSSH_8.9p1"}}}}
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert "SSH" in findings[0]["title"]
@@ -433,7 +484,14 @@ class TestZgrabParser:
 
     def test_weak_cipher_detected(self):
         p = ZgrabParser()
-        output = json.dumps({"ip": "1.2.3.4", "data": {"tls": {"tls": {"handshake_done": True, "cipher_suite": "TLS_RSA_WITH_RC4_128"}}}})
+        output = json.dumps(
+            {
+                "ip": "1.2.3.4",
+                "data": {
+                    "tls": {"tls": {"handshake_done": True, "cipher_suite": "TLS_RSA_WITH_RC4_128"}}
+                },
+            }
+        )
         findings = p.parse(output)
         cipher_findings = [f for f in findings if "cipher" in f["title"].lower()]
         if cipher_findings:
@@ -441,7 +499,11 @@ class TestZgrabParser:
 
     def test_multiple_lines(self):
         p = ZgrabParser()
-        output = json.dumps({"ip": "1.2.3.4", "data": {"http": {"status": "success"}}}) + "\n" + json.dumps({"ip": "5.6.7.8", "data": {"http": {"status": "success"}}})
+        output = (
+            json.dumps({"ip": "1.2.3.4", "data": {"http": {"status": "success"}}})
+            + "\n"
+            + json.dumps({"ip": "5.6.7.8", "data": {"http": {"status": "success"}}})
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
@@ -451,16 +513,22 @@ class TestZgrabParser:
 
     def test_malformed_json_skipped(self):
         p = ZgrabParser()
-        output = "not json\n" + json.dumps({"ip": "1.2.3.4", "data": {"http": {"status": "success"}}})
+        output = "not json\n" + json.dumps(
+            {"ip": "1.2.3.4", "data": {"http": {"status": "success"}}}
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
     def test_domain_field_included(self):
         p = ZgrabParser()
-        output = json.dumps({"ip": "1.2.3.4", "domain": "example.com", "data": {"http": {"status": "success"}}})
+        output = json.dumps(
+            {"ip": "1.2.3.4", "domain": "example.com", "data": {"http": {"status": "success"}}}
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert "example.com" in findings[0]["description"] or findings[0]["description"] != ""
+
+
 class TestMassdnsParser:
     def test_json_line_format(self):
         p = MassdnsParser()
@@ -471,7 +539,9 @@ class TestMassdnsParser:
 
     def test_json_without_ips(self):
         p = MassdnsParser()
-        output = json.dumps({"name": "example.com", "type": "TXT", "data": "v=spf1 include:_spf.example.com"})
+        output = json.dumps(
+            {"name": "example.com", "type": "TXT", "data": "v=spf1 include:_spf.example.com"}
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
@@ -490,7 +560,11 @@ class TestMassdnsParser:
 
     def test_json_multiple_lines(self):
         p = MassdnsParser()
-        output = json.dumps({"name": "a.example.com", "type": "A", "data": "1.2.3.4"}) + "\n" + json.dumps({"name": "b.example.com", "type": "AAAA", "data": "::1"})
+        output = (
+            json.dumps({"name": "a.example.com", "type": "A", "data": "1.2.3.4"})
+            + "\n"
+            + json.dumps({"name": "b.example.com", "type": "AAAA", "data": "::1"})
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
@@ -512,9 +586,15 @@ class TestMassdnsParser:
 
     def test_dedup_same_domain(self):
         p = MassdnsParser()
-        output = json.dumps({"name": "example.com", "type": "A", "data": "1.2.3.4"}) + "\n" + json.dumps({"name": "example.com", "type": "AAAA", "data": "::1"})
+        output = (
+            json.dumps({"name": "example.com", "type": "A", "data": "1.2.3.4"})
+            + "\n"
+            + json.dumps({"name": "example.com", "type": "AAAA", "data": "::1"})
+        )
         findings = p.parse(output)
         assert len(findings) == 1
+
+
 class TestShufflednsParser:
     def test_domain_ip_colon(self):
         p = ShufflednsParser()
@@ -576,6 +656,8 @@ class TestShufflednsParser:
         output = "\n  \nexample.com:1.2.3.4\n  \n"
         findings = p.parse(output)
         assert len(findings) == 1
+
+
 class TestNaabuParser:
     def test_json_single(self):
         p = NaabuParser()
@@ -588,22 +670,26 @@ class TestNaabuParser:
 
     def test_json_multiple(self):
         p = NaabuParser()
-        output = json.dumps([
-            {"host": "10.0.0.1", "port": 80},
-            {"host": "10.0.0.1", "port": 443},
-            {"host": "10.0.0.1", "port": 3389},
-        ])
+        output = json.dumps(
+            [
+                {"host": "10.0.0.1", "port": 80},
+                {"host": "10.0.0.1", "port": 443},
+                {"host": "10.0.0.1", "port": 3389},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 3
         assert any(f["severity"] == "high" for f in findings)
 
     def test_json_port_severity(self):
         p = NaabuParser()
-        output = json.dumps([
-            {"host": "10.0.0.1", "port": 23},
-            {"host": "10.0.0.2", "port": 445},
-            {"host": "10.0.0.3", "port": 6379},
-        ])
+        output = json.dumps(
+            [
+                {"host": "10.0.0.1", "port": 23},
+                {"host": "10.0.0.2", "port": 445},
+                {"host": "10.0.0.3", "port": 6379},
+            ]
+        )
         findings = p.parse(output)
         assert findings[0]["severity"] == "high"
         assert findings[1]["severity"] == "high"
@@ -611,10 +697,12 @@ class TestNaabuParser:
 
     def test_json_dedup(self):
         p = NaabuParser()
-        output = json.dumps([
-            {"host": "10.0.0.1", "port": 80, "protocol": "tcp"},
-            {"host": "10.0.0.1", "port": 80, "protocol": "tcp"},
-        ])
+        output = json.dumps(
+            [
+                {"host": "10.0.0.1", "port": 80, "protocol": "tcp"},
+                {"host": "10.0.0.1", "port": 80, "protocol": "tcp"},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -658,6 +746,8 @@ class TestNaabuParser:
         findings = p.parse(output)
         assert len(findings) == 1
         assert "8080" in findings[0]["title"]
+
+
 class TestMassdnsParser_extra_b8:
     def test_empty(self):
         assert MassdnsParser().parse("") == []
@@ -750,9 +840,11 @@ class TestMassdnsParser_extra_b8:
 
     def test_malformed_json_line_skipped(self):
         p = MassdnsParser()
-        output = "{bad json}\n{\"name\": \"example.com\", \"type\": \"A\", \"data\": \"1.2.3.4\"}"
+        output = '{bad json}\n{"name": "example.com", "type": "A", "data": "1.2.3.4"}'
         findings = p.parse(output)
         assert len(findings) == 1
+
+
 class TestTcpdumpParser_extra_b8:
     def test_empty(self):
         assert TcpdumpParser().parse("") == []
@@ -920,11 +1012,15 @@ class TestTcpdumpParser_extra_b8:
 """Targeted branch-coverage tests — hits uncovered lines in parser modules."""
 
 
-
-
 def _check_finding(finding, expected_tool, min_fields=None):
     min_fields = min_fields or {
-        "title", "severity", "description", "evidence", "tool", "target", "timestamp",
+        "title",
+        "severity",
+        "description",
+        "evidence",
+        "tool",
+        "target",
+        "timestamp",
     }
     for field in min_fields:
         assert field in finding, f"Missing field {field} in {expected_tool} finding"
@@ -937,7 +1033,7 @@ def _check_finding(finding, expected_tool, min_fields=None):
 # ---------------------------------------------------------------------------
 class TestDmitryParserBranches:
     """Covers: empty line, WHOIS section skip, dedup for portscan, banner,
-       TCP port banner, name server, email, host, IP."""
+    TCP port banner, name server, email, host, IP."""
 
     def test_empty_line_skipped(self):
         p = DmitryParser()
@@ -1016,6 +1112,8 @@ class TestFindomainParser:
     def test_dedup(self):
         r = FindomainParser().parse('{"domain":"test.com"}\n{"domain":"test.com"}')
         assert len(r) == 1
+
+
 class TestIkeScanParser:
     def test_empty(self):
         assert IkeScanParser().parse("") == []
@@ -1065,28 +1163,40 @@ class TestIkeScanParser:
     def test_banner_re(self):
         r = IkeScanParser().parse("banner: some banner text")
         assert any("IKE banner" in f["title"] for f in r)
+
+
 class TestInteractshParser:
     def test_empty(self):
         assert InteractshParser().parse("") == []
 
     def test_dns_interaction(self):
-        r = InteractshParser().parse('{"protocol":"dns","unique-id":"u1","remote-address":"10.0.0.1"}')
+        r = InteractshParser().parse(
+            '{"protocol":"dns","unique-id":"u1","remote-address":"10.0.0.1"}'
+        )
         assert len(r) == 1
         assert r[0]["severity"] == "medium"
 
     def test_smtp_interaction(self):
-        r = InteractshParser().parse('{"protocol":"smtp","unique-id":"u1","remote-address":"10.0.0.1"}')
+        r = InteractshParser().parse(
+            '{"protocol":"smtp","unique-id":"u1","remote-address":"10.0.0.1"}'
+        )
         assert len(r) == 1
         assert r[0]["severity"] == "critical"
 
     def test_raw_has_cookie(self):
-        r = InteractshParser().parse('{"protocol":"http","unique-id":"u1","raw-request":"cookie=abc"}')
+        r = InteractshParser().parse(
+            '{"protocol":"http","unique-id":"u1","raw-request":"cookie=abc"}'
+        )
         assert len(r) == 1
         assert r[0]["severity"] == "critical"
 
     def test_dedup(self):
-        r = InteractshParser().parse('{"protocol":"dns","unique-id":"u1"}\n{"protocol":"dns","unique-id":"u1"}')
+        r = InteractshParser().parse(
+            '{"protocol":"dns","unique-id":"u1"}\n{"protocol":"dns","unique-id":"u1"}'
+        )
         assert len(r) == 1
+
+
 class TestMasscanParser:
     def test_empty(self):
         assert MasscanParser().parse("") == []
@@ -1099,6 +1209,8 @@ class TestMasscanParser:
     def test_skip_non_match(self):
         r = MasscanParser().parse("some random output")
         assert len(r) == 0
+
+
 class TestNetcatParser:
     def test_empty(self):
         assert NetcatParser().parse("") == []
@@ -1146,17 +1258,23 @@ class TestNetcatParser:
     def test_blank_line_skipped(self):
         r = NetcatParser().parse("\n\n")
         assert len(r) == 0
+
+
 class TestNmapParser:
     def test_empty(self):
         assert NmapParser().parse("") == []
 
     def test_xml_no_address_skips(self):
-        r = NmapParser().parse("<root><host><ports><port portid='80' protocol='tcp'><state state='open'/><service name='http'/></port></ports></host></root>")
+        r = NmapParser().parse(
+            "<root><host><ports><port portid='80' protocol='tcp'><state state='open'/><service name='http'/></port></ports></host></root>"
+        )
         # no address element, host skipped
         assert len(r) == 0
 
     def test_xml_no_ports_skips(self):
-        r = NmapParser().parse("<root><host><address addr='10.0.0.1' addrtype='ipv4'/></host></root>")
+        r = NmapParser().parse(
+            "<root><host><address addr='10.0.0.1' addrtype='ipv4'/></host></root>"
+        )
         assert len(r) == 0
 
     def test_text_port_line(self):
@@ -1166,12 +1284,16 @@ class TestNmapParser:
     def test_text_port_line_with_extra(self):
         r = NmapParser().parse("Nmap scan report for 10.0.0.1\n22/tcp open  ssh OpenSSH 6.0")
         assert len(r) == 1
+
+
 class TestRustscanParser:
     def test_empty(self):
         assert RustscanParser().parse("") == []
 
     def test_json_list(self):
-        r = RustscanParser().parse('[{"host":"10.0.0.1","ports":[{"port":80,"protocol":"tcp","service":"http"}]}]')
+        r = RustscanParser().parse(
+            '[{"host":"10.0.0.1","ports":[{"port":80,"protocol":"tcp","service":"http"}]}]'
+        )
         assert len(r) == 1
 
     def test_json_port_as_int(self):
@@ -1205,16 +1327,22 @@ class TestRustscanParser:
     def test_host_re(self):
         r = RustscanParser().parse("Host: 10.0.0.1\nOpen 80/tcp")
         assert len(r) == 1
+
+
 class TestShodanParser:
     def test_empty(self):
         assert ShodanParser().parse("") == []
 
     def test_basic_host(self):
-        r = ShodanParser().parse('{"ip_str":"1.2.3.4","org":"Test","os":"Linux","ports":[80,443],"vulns":["CVE-2024-1234"]}')
+        r = ShodanParser().parse(
+            '{"ip_str":"1.2.3.4","org":"Test","os":"Linux","ports":[80,443],"vulns":["CVE-2024-1234"]}'
+        )
         assert len(r) == 2  # host + vuln
 
     def test_blank_line_skipped(self):
         assert ShodanParser().parse("\n") == []
+
+
 class TestTcpdumpParser:
     def test_empty(self):
         assert TcpdumpParser().parse("") == []
@@ -1268,34 +1396,48 @@ class TestTcpdumpParser:
     def test_blank_line_skipped(self):
         r = TcpdumpParser().parse("\n\n")
         assert len(r) == 0
+
+
 class TestZgrabParser:
     def test_empty(self):
         assert ZgrabParser().parse("") == []
 
     def test_tls_handshake(self):
-        r = ZgrabParser().parse('{"ip":"10.0.0.1","data":{"tls":{"tls":{"handshake_done":true}}},"timestamp":"2024-01-01"}')
+        r = ZgrabParser().parse(
+            '{"ip":"10.0.0.1","data":{"tls":{"tls":{"handshake_done":true}}},"timestamp":"2024-01-01"}'
+        )
         assert any("TLS handshake" in f["title"] for f in r)
 
     def test_tls_cert(self):
-        r = ZgrabParser().parse('{"ip":"10.0.0.1","data":{"tls":{"tls":{"handshake_done":true,"certificate":{"subject":{"common_name":["example.com"]},"issuer":{"common_name":["CA"]}}}}}}')
+        r = ZgrabParser().parse(
+            '{"ip":"10.0.0.1","data":{"tls":{"tls":{"handshake_done":true,"certificate":{"subject":{"common_name":["example.com"]},"issuer":{"common_name":["CA"]}}}}}}'
+        )
         assert any("TLS cert" in f["title"] for f in r)
 
     def test_tls_cipher(self):
-        r = ZgrabParser().parse('{"ip":"10.0.0.1","data":{"tls":{"tls":{"handshake_done":true,"cipher_suite":"TLS_RSA_WITH_RC4_128"}}}}')
+        r = ZgrabParser().parse(
+            '{"ip":"10.0.0.1","data":{"tls":{"tls":{"handshake_done":true,"cipher_suite":"TLS_RSA_WITH_RC4_128"}}}}'
+        )
         assert any("TLS cipher" in f["title"] for f in r)
 
     def test_tls_cipher_weak(self):
-        r = ZgrabParser().parse('{"ip":"10.0.0.1","data":{"tls":{"tls":{"handshake_done":true,"cipher_suite":"TLS_RSA_WITH_RC4_128"}}}}')
+        r = ZgrabParser().parse(
+            '{"ip":"10.0.0.1","data":{"tls":{"tls":{"handshake_done":true,"cipher_suite":"TLS_RSA_WITH_RC4_128"}}}}'
+        )
         cipher = [f for f in r if "cipher" in f["title"]]
         assert len(cipher) >= 1
         assert cipher[0]["severity"] == "low"
 
     def test_http(self):
-        r = ZgrabParser().parse('{"ip":"10.0.0.1","data":{"http":{"status":"success","result":{}}}}')
+        r = ZgrabParser().parse(
+            '{"ip":"10.0.0.1","data":{"http":{"status":"success","result":{}}}}'
+        )
         assert any("HTTP" in f["title"] for f in r)
 
     def test_ssh_banner(self):
-        r = ZgrabParser().parse('{"ip":"10.0.0.1","data":{"ssh":{"banner":{"banner":"SSH-2.0-OpenSSH"}}},"timestamp":"2024-01-01"}')
+        r = ZgrabParser().parse(
+            '{"ip":"10.0.0.1","data":{"ssh":{"banner":{"banner":"SSH-2.0-OpenSSH"}}},"timestamp":"2024-01-01"}'
+        )
         assert any("SSH:" in f["title"] for f in r)
 
     def test_banner_fallback(self):
@@ -1305,6 +1447,8 @@ class TestZgrabParser:
     def test_empty_line_skipped(self):
         r = ZgrabParser().parse("\n\n")
         assert len(r) == 0
+
+
 class TestZmapParser:
     def test_empty(self):
         assert ZmapParser().parse("") == []
@@ -1325,8 +1469,6 @@ class TestZmapParser:
 """Targeted branch-coverage tests for parsers with <95% coverage — hits every uncovered line."""
 
 
-
-
 def _check(finding, expected_tool):
     for field in ("title", "severity", "description", "evidence", "tool", "target", "timestamp"):
         assert field in finding, f"Missing {field}"
@@ -1338,7 +1480,7 @@ def _check(finding, expected_tool):
 # ---------------------------------------------------------------------------
 class TestRustscanParserAdditionalBranches:
     """Covers: JSON non-list ports, dedup in JSON, empty line skip,
-       greppable dedup, text_port dedup, text_port banner+service."""
+    greppable dedup, text_port dedup, text_port banner+service."""
 
     def test_json_ports_not_list(self):
         """Line 97->93: ports is not a list (skip port loop)."""
@@ -1349,7 +1491,9 @@ class TestRustscanParserAdditionalBranches:
     def test_json_port_dedup(self):
         """Line 109: dedup skip in JSON path."""
         p = RustscanParser()
-        findings = p.parse('[{"host":"10.0.0.1","ports":[{"port":80,"protocol":"tcp"},{"port":80,"protocol":"tcp"}]}]')
+        findings = p.parse(
+            '[{"host":"10.0.0.1","ports":[{"port":80,"protocol":"tcp"},{"port":80,"protocol":"tcp"}]}]'
+        )
         assert len(findings) == 1
 
     def test_text_empty_line(self):
@@ -1385,19 +1529,23 @@ class TestRustscanParserAdditionalBranches:
 # ============================================================================
 class TestTcpdumpParserAdditionalBranches:
     """Covers: ICMP dedup, TCP dedup, tcp PSH flag, DHCP dedup,
-       DNS dedup, generic packet dedup, generic packet with detail."""
+    DNS dedup, generic packet dedup, generic packet with detail."""
 
     def test_icmp_dedup(self):
         """Line 98->121: ICMP key already in seen."""
         p = TcpdumpParser()
-        findings = p.parse("12:34:56 10.0.0.1 > 10.0.0.2: ICMP echo request\n12:34:56 10.0.0.1 > 10.0.0.2: ICMP echo request\n")
+        findings = p.parse(
+            "12:34:56 10.0.0.1 > 10.0.0.2: ICMP echo request\n12:34:56 10.0.0.1 > 10.0.0.2: ICMP echo request\n"
+        )
         icmp = [f for f in findings if "ICMP" in f["title"]]
         assert len(icmp) == 1
 
     def test_tcp_dedup(self):
         """Line 126->156: TCP key already in seen."""
         p = TcpdumpParser()
-        findings = p.parse("12:34:56 10.0.0.1.80 > 10.0.0.2.443: Flags [S]\n12:34:56 10.0.0.1.80 > 10.0.0.2.443: Flags [S]\n")
+        findings = p.parse(
+            "12:34:56 10.0.0.1.80 > 10.0.0.2.443: Flags [S]\n12:34:56 10.0.0.1.80 > 10.0.0.2.443: Flags [S]\n"
+        )
         tcp = [f for f in findings if "TCP packet" in f["title"]]
         assert len(tcp) == 1
 
@@ -1411,21 +1559,27 @@ class TestTcpdumpParserAdditionalBranches:
     def test_dhcp_dedup(self):
         """Line 161->174: DHCP key already in seen."""
         p = TcpdumpParser()
-        findings = p.parse("12:34:56 0.0.0.0.68 > 255.255.255.255.67: DHCP DISCOVER\n12:34:56 0.0.0.0.68 > 255.255.255.255.67: DHCP DISCOVER\n")
+        findings = p.parse(
+            "12:34:56 0.0.0.0.68 > 255.255.255.255.67: DHCP DISCOVER\n12:34:56 0.0.0.0.68 > 255.255.255.255.67: DHCP DISCOVER\n"
+        )
         dhcp = [f for f in findings if "DHCP" in f["title"]]
         assert len(dhcp) == 1
 
     def test_dns_dedup(self):
         """Line 179->192: DNS key already in seen."""
         p = TcpdumpParser()
-        findings = p.parse("12:34:56 10.0.0.1.53 > 10.0.0.2.12345: 12345 A? example.com\n12:34:56 10.0.0.1.53 > 10.0.0.2.12345: 12345 A? example.com\n")
+        findings = p.parse(
+            "12:34:56 10.0.0.1.53 > 10.0.0.2.12345: 12345 A? example.com\n12:34:56 10.0.0.1.53 > 10.0.0.2.12345: 12345 A? example.com\n"
+        )
         dns = [f for f in findings if "DNS query" in f["title"]]
         assert len(dns) == 1
 
     def test_generic_packet_dedup(self):
         """Line 200->66: generic packet key already in seen."""
         p = TcpdumpParser()
-        findings = p.parse("12:34:56 IP 10.0.0.1 > 10.0.0.2: detail here\n12:34:56 IP 10.0.0.1 > 10.0.0.2: detail here\n")
+        findings = p.parse(
+            "12:34:56 IP 10.0.0.1 > 10.0.0.2: detail here\n12:34:56 IP 10.0.0.1 > 10.0.0.2: detail here\n"
+        )
         packets = [f for f in findings if "Packet:" in f["title"]]
         assert len(packets) == 1
 
@@ -1443,8 +1597,8 @@ class TestTcpdumpParserAdditionalBranches:
 # ============================================================================
 class TestZgrabParserAdditionalBranches:
     """Covers: banner_fallback no findings (60->21), TLS handshake not
-       done skip, certificate not dict skip, http dedup (138),
-       ssh with banner dedup (152->169), ssh no banner dedup (155->169)."""
+    done skip, certificate not dict skip, http dedup (138),
+    ssh with banner dedup (152->169), ssh no banner dedup (155->169)."""
 
     def test_banner_fallback_no_findings(self):
         """Line 60->21: banner_fallback with ip but no findings yet."""
@@ -1462,7 +1616,9 @@ class TestZgrabParserAdditionalBranches:
     def test_tls_cert_not_dict(self):
         """Line 84->97: certificate is not a dict."""
         p = ZgrabParser()
-        findings = p.parse('{"ip":"10.0.0.1","data":{"tls":{"tls":{"handshake_done":true,"certificate":"not_a_dict"}}}}')
+        findings = p.parse(
+            '{"ip":"10.0.0.1","data":{"tls":{"tls":{"handshake_done":true,"certificate":"not_a_dict"}}}}'
+        )
         tls = [f for f in findings if "TLS" in f["title"]]
         assert len(tls) >= 1
         # Cipher may or may not be found, but no crash
@@ -1470,7 +1626,9 @@ class TestZgrabParserAdditionalBranches:
     def test_http_dedup(self):
         """Line 138: HTTP dedup_key already in seen."""
         p = ZgrabParser()
-        findings = p.parse('{"ip":"10.0.0.1","data":{"http":{"status":"success","result":{}}}}\n{"ip":"10.0.0.1","data":{"http":{"status":"success","result":{}}}}')
+        findings = p.parse(
+            '{"ip":"10.0.0.1","data":{"http":{"status":"success","result":{}}}}\n{"ip":"10.0.0.1","data":{"http":{"status":"success","result":{}}}}'
+        )
         http = [f for f in findings if "HTTP:" in f["title"]]
         assert len(http) == 1
 
@@ -1478,7 +1636,9 @@ class TestZgrabParserAdditionalBranches:
         """Line 152->169: SSH banner key already in seen."""
         p = ZgrabParser()
         # Normal parse first
-        findings = p.parse('{"ip":"10.0.0.1","data":{"ssh":{"banner":{"banner":"SSH-2.0-OpenSSH"}}}}')
+        findings = p.parse(
+            '{"ip":"10.0.0.1","data":{"ssh":{"banner":{"banner":"SSH-2.0-OpenSSH"}}}}'
+        )
         ssh = [f for f in findings if "SSH:" in f["title"]]
         # Second time with same key -> dedup
         p.parse('{"ip":"10.0.0.1","data":{"ssh":{"banner":{"banner":"SSH-2.0-OpenSSH"}}}}')
@@ -1495,16 +1655,13 @@ class TestZgrabParserAdditionalBranches:
 """Targeted branch-coverage tests — hits remaining uncovered lines in 18 parser modules."""
 
 
-
-
-
 # ============================================================================
 # 1. finger_parser.py  — 121->135, 185, 205-224, 230->117
 # ============================================================================
 class TestIkeScanParserAdditionalBranches:
     """Covers: empty line, summary dedup, IP extraction, showback dedup,
-       transform dedup, handshake dedup, aggressive dedup, returned dedup,
-       vendor dedup, banner dedup."""
+    transform dedup, handshake dedup, aggressive dedup, returned dedup,
+    vendor dedup, banner dedup."""
 
     def test_empty_line_skipped(self):
         """108: empty line in loop."""
@@ -1543,11 +1700,7 @@ class TestIkeScanParserAdditionalBranches:
 
     def test_handshake_dedup(self):
         """210->223: handshake dedup key already in seen."""
-        output = (
-            "ike-scan: target 10.0.0.1\n"
-            "Handshake established\n"
-            "Handshake established\n"
-        )
+        output = "ike-scan: target 10.0.0.1\n" "Handshake established\n" "Handshake established\n"
         p = IkeScanParser()
         findings = p.parse(output)
         hk = [f for f in findings if "handshake" in f["title"].lower()]
@@ -1555,11 +1708,7 @@ class TestIkeScanParserAdditionalBranches:
 
     def test_aggressive_mode_dedup(self):
         """227->240: aggressive mode dedup key already in seen."""
-        output = (
-            "ike-scan: target 10.0.0.1\n"
-            "Aggressive mode\n"
-            "Aggressive mode\n"
-        )
+        output = "ike-scan: target 10.0.0.1\n" "Aggressive mode\n" "Aggressive mode\n"
         p = IkeScanParser()
         findings = p.parse(output)
         agg = [f for f in findings if "handshake" in f["title"].lower()]
@@ -1575,11 +1724,7 @@ class TestIkeScanParserAdditionalBranches:
 
     def test_vendor_id_dedup(self):
         """268->281: vendor ID dedup key already in seen."""
-        output = (
-            "ike-scan: target 10.0.0.1\n"
-            "Vendor ID: CiscoVPN\n"
-            "Vendor ID: CiscoVPN\n"
-        )
+        output = "ike-scan: target 10.0.0.1\n" "Vendor ID: CiscoVPN\n" "Vendor ID: CiscoVPN\n"
         p = IkeScanParser()
         findings = p.parse(output)
         vendors = [f for f in findings if "vendor" in f["title"].lower()]
@@ -1588,9 +1733,7 @@ class TestIkeScanParserAdditionalBranches:
     def test_banner_dedup(self):
         """287->105: banner dedup key already in seen -> continue top."""
         output = (
-            "ike-scan: target 10.0.0.1\n"
-            "Banner: IKE VPN Gateway\n"
-            "Banner: IKE VPN Gateway\n"
+            "ike-scan: target 10.0.0.1\n" "Banner: IKE VPN Gateway\n" "Banner: IKE VPN Gateway\n"
         )
         p = IkeScanParser()
         findings = p.parse(output)
@@ -1601,6 +1744,7 @@ class TestIkeScanParserAdditionalBranches:
 # ============================================================================
 # 11. yara_parser.py  — 65->68, 89->102, 110->128, 115, 133->33
 # ============================================================================
+
 
 class TestNmapParser:
     def test_basic_parse(self):
@@ -1622,6 +1766,8 @@ class TestNmapParser:
     def test_empty_output(self):
         p = NmapParser()
         assert p.parse("") == []
+
+
 class TestMasscanParser:
     def test_basic_parse(self):
         p = MasscanParser()
@@ -1633,6 +1779,8 @@ class TestMasscanParser:
     def test_empty_output(self):
         p = MasscanParser()
         assert p.parse("") == []
+
+
 class TestShodanParser:
     def test_basic_parse(self):
         p = ShodanParser()
@@ -1644,6 +1792,8 @@ class TestShodanParser:
     def test_empty_output(self):
         p = ShodanParser()
         assert p.parse("") == []
+
+
 class TestZmapParser:
     def test_basic_parse(self):
         p = ZmapParser()

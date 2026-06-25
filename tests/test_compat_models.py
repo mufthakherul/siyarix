@@ -334,9 +334,7 @@ class TestExecutionEngine:
             engine = ExecutionEngine(registry=registry)
             planner = MockPlanner.return_value
             result = await engine.plan("scan target")
-            planner.build_index.assert_called_once_with(
-                ["nmap"], tool_registry=registry
-            )
+            planner.build_index.assert_called_once_with(["nmap"], tool_registry=registry)
             planner.smart_plan.assert_called_once_with("scan target", ["nmap"])
 
     async def test_plan_without_registry(self):
@@ -569,9 +567,7 @@ class TestIntentRoute:
         assert route.requires_confirmation is False
 
     def test_custom(self):
-        route = IntentRoute(
-            mode="scan", risk_tier=RiskTier("high"), requires_confirmation=True
-        )
+        route = IntentRoute(mode="scan", risk_tier=RiskTier("high"), requires_confirmation=True)
         assert route.mode == "scan"
         assert route.risk_tier == RiskTier("high")
         assert route.requires_confirmation is True
@@ -693,6 +689,7 @@ class TestRiskTier:
 class TestPublicAPI:
     def test_all_exports(self):
         from siyarix import compat
+
         expected = [
             "ExecutionMode",
             "SessionPersistenceLevel",

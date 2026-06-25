@@ -87,17 +87,13 @@ class TestAddTool:
         graph.add_tool(nuclei)
         assert len(graph.all_tools()) == 2
 
-    def test_tool_with_aliases(
-        self, graph: ToolCapabilityGraph, zap: ToolCapability
-    ):
+    def test_tool_with_aliases(self, graph: ToolCapabilityGraph, zap: ToolCapability):
         graph.add_tool(zap)
         assert graph.get_tool("zap") is zap
         assert graph.get_tool("zaproxy") is zap
         assert graph.get_tool("owasp-zap") is zap
 
-    def test_add_duplicate_name_overwrites(
-        self, graph: ToolCapabilityGraph, nmap: ToolCapability
-    ):
+    def test_add_duplicate_name_overwrites(self, graph: ToolCapabilityGraph, nmap: ToolCapability):
         nmap2 = ToolCapability(name="nmap", description="other")
         graph.add_tool(nmap)
         graph.add_tool(nmap2)
@@ -135,24 +131,18 @@ class TestAddEdge:
 
 
 class TestGetTool:
-    def test_by_name(
-        self, graph: ToolCapabilityGraph, nmap: ToolCapability
-    ):
+    def test_by_name(self, graph: ToolCapabilityGraph, nmap: ToolCapability):
         graph.add_tool(nmap)
         assert graph.get_tool("nmap") is nmap
 
-    def test_by_alias(
-        self, graph: ToolCapabilityGraph, zap: ToolCapability
-    ):
+    def test_by_alias(self, graph: ToolCapabilityGraph, zap: ToolCapability):
         graph.add_tool(zap)
         assert graph.get_tool("zaproxy") is zap
 
     def test_non_existent(self, graph: ToolCapabilityGraph):
         assert graph.get_tool("nonexistent") is None
 
-    def test_alias_points_to_canonical(
-        self, graph: ToolCapabilityGraph, zap: ToolCapability
-    ):
+    def test_alias_points_to_canonical(self, graph: ToolCapabilityGraph, zap: ToolCapability):
         graph.add_tool(zap)
         gotten = graph.get_tool("zaproxy")
         assert gotten is not None
@@ -183,9 +173,7 @@ class TestGetToolsByCategory:
         assert len(recon) == 1
         assert recon[0].name == "nmap"
 
-    def test_empty_result(
-        self, graph: ToolCapabilityGraph, nmap: ToolCapability
-    ):
+    def test_empty_result(self, graph: ToolCapabilityGraph, nmap: ToolCapability):
         graph.add_tool(nmap)
         assert graph.get_tools_by_category(ToolCategory.CLOUD) == []
 
@@ -213,9 +201,7 @@ class TestGetAvailableTools:
         assert len(available) == 1
         assert available[0].name == "nmap"
 
-    def test_none_available(
-        self, graph: ToolCapabilityGraph, gobuster: ToolCapability
-    ):
+    def test_none_available(self, graph: ToolCapabilityGraph, gobuster: ToolCapability):
         gobuster.installed = False
         gobuster.binary = ""
         graph.add_tool(gobuster)
@@ -338,17 +324,13 @@ class TestFindOptimalTools:
         assert len(result) == 1
         assert result[0].name == "nmap"
 
-    def test_by_description_match(
-        self, graph: ToolCapabilityGraph, nmap: ToolCapability
-    ):
+    def test_by_description_match(self, graph: ToolCapabilityGraph, nmap: ToolCapability):
         graph.add_tool(nmap)
         result = graph.find_optimal_tools("port")
         assert len(result) == 1
         assert result[0].name == "nmap"
 
-    def test_with_availability_filter(
-        self, graph: ToolCapabilityGraph, gobuster: ToolCapability
-    ):
+    def test_with_availability_filter(self, graph: ToolCapabilityGraph, gobuster: ToolCapability):
         graph.add_tool(gobuster)
         result = graph.find_optimal_tools("gobuster")
         assert len(result) == 1
@@ -374,9 +356,7 @@ class TestFindOptimalTools:
         result = graph.find_optimal_tools("zzzzz")
         assert result == []
 
-    def test_scoring_prioritization(
-        self, graph: ToolCapabilityGraph
-    ):
+    def test_scoring_prioritization(self, graph: ToolCapabilityGraph):
         low = ToolCapability(
             name="tool_a",
             description="exact alpha description",
@@ -398,15 +378,9 @@ class TestFindOptimalTools:
         assert len(result) == 2
         assert result[0].name == "exact_match"
 
-    def test_score_includes_availability_bonus(
-        self, graph: ToolCapabilityGraph
-    ):
-        available_tool = ToolCapability(
-            name="alpha", description="tool", installed=True
-        )
-        unavailable_tool = ToolCapability(
-            name="beta", description="tool", installed=False
-        )
+    def test_score_includes_availability_bonus(self, graph: ToolCapabilityGraph):
+        available_tool = ToolCapability(name="alpha", description="tool", installed=True)
+        unavailable_tool = ToolCapability(name="beta", description="tool", installed=False)
         graph.add_tool(available_tool)
         graph.add_tool(unavailable_tool)
         result = graph.find_optimal_tools("tool")
@@ -417,16 +391,12 @@ class TestFindOptimalTools:
         assert "alpha" in names
         assert "beta" in names
 
-    def test_available_list_filter_no_match(
-        self, graph: ToolCapabilityGraph, nmap: ToolCapability
-    ):
+    def test_available_list_filter_no_match(self, graph: ToolCapabilityGraph, nmap: ToolCapability):
         graph.add_tool(nmap)
         result = graph.find_optimal_tools("nmap", available=["other"])
         assert result == []
 
-    def test_available_list_empty_is_noop(
-        self, graph: ToolCapabilityGraph, nmap: ToolCapability
-    ):
+    def test_available_list_empty_is_noop(self, graph: ToolCapabilityGraph, nmap: ToolCapability):
         graph.add_tool(nmap)
         # empty list is falsy, so no filtering is applied
         result = graph.find_optimal_tools("nmap", available=[])

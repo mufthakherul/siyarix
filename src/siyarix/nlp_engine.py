@@ -33,13 +33,70 @@ class NaturalLanguageParser:
     # Comprehensive English stopwords to filter out noise
     STOPWORDS: frozenset[str] = frozenset(
         {
-            "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-            "of", "with", "by", "from", "up", "about", "into", "over", "after",
-            "please", "can", "you", "do", "i", "want", "need", "could", "would",
-            "run", "execute", "perform", "start", "initiate", "make", "give", "me",
-            "show", "find", "get", "tell", "is", "are", "was", "were", "be", "been",
-            "have", "has", "had", "what", "which", "who", "where", "why", "how",
-            "all", "any", "some", "every", "just", "now", "then", "like",
+            "the",
+            "a",
+            "an",
+            "and",
+            "or",
+            "but",
+            "in",
+            "on",
+            "at",
+            "to",
+            "for",
+            "of",
+            "with",
+            "by",
+            "from",
+            "up",
+            "about",
+            "into",
+            "over",
+            "after",
+            "please",
+            "can",
+            "you",
+            "do",
+            "i",
+            "want",
+            "need",
+            "could",
+            "would",
+            "run",
+            "execute",
+            "perform",
+            "start",
+            "initiate",
+            "make",
+            "give",
+            "me",
+            "show",
+            "find",
+            "get",
+            "tell",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "have",
+            "has",
+            "had",
+            "what",
+            "which",
+            "who",
+            "where",
+            "why",
+            "how",
+            "all",
+            "any",
+            "some",
+            "every",
+            "just",
+            "now",
+            "then",
+            "like",
         }
     )
 
@@ -446,9 +503,7 @@ class NaturalLanguageParser:
             if keyword and canonical and keyword not in self.DEFAULT_SYNONYMS:
                 self.synonyms[keyword] = canonical
 
-    def inject_learned_corpus(
-        self, skill_id: str, intent_pattern: str, tokens: list[str]
-    ) -> None:
+    def inject_learned_corpus(self, skill_id: str, intent_pattern: str, tokens: list[str]) -> None:
         """Add a CLS-learned skill pattern as a corpus document for intent scoring.
 
         The pattern is stored under a ``__cls_<skill_id>`` key so it does not
@@ -517,7 +572,9 @@ class NaturalLanguageParser:
         params = {}
         text_lower = text.lower()
 
-        is_negated = any(neg in text_lower for neg in ["not ", "no ", "without ", "skip ", "exclude "])
+        is_negated = any(
+            neg in text_lower for neg in ["not ", "no ", "without ", "skip ", "exclude "]
+        )
 
         port_match = re.search(r"\bport(?:s)?\s*([0-9,\-]+)\b", text_lower)
         if port_match:
@@ -526,7 +583,9 @@ class NaturalLanguageParser:
             params["ports"] = "all"
 
         is_fast = any(word in text_lower for word in ["fast", "quick", "speedy", "rapid"])
-        is_stealth = any(word in text_lower for word in ["stealth", "slow", "sneaky", "quiet", "evasive"])
+        is_stealth = any(
+            word in text_lower for word in ["stealth", "slow", "sneaky", "quiet", "evasive"]
+        )
         is_aggressive = any(word in text_lower for word in ["aggressive", "intense", "heavy"])
 
         if is_negated:
@@ -619,15 +678,15 @@ class NaturalLanguageParser:
         """Lightweight phonetic normalizer for cybersecurity typos."""
         w = word.lower()
         # Remove consecutive duplicates (e.g. 'ffuf' -> 'fuf', 'dirbuster' -> 'dirbuster')
-        w = re.sub(r'(.)\1+', r'\1', w)
+        w = re.sub(r"(.)\1+", r"\1", w)
         # Basic phonetic substitutions
-        w = w.replace('ph', 'f').replace('y', 'i').replace('c', 'k')
+        w = w.replace("ph", "f").replace("y", "i").replace("c", "k")
         return w
 
     def _get_char_bigrams(self, word: str) -> set[str]:
         if len(word) < 2:
             return {word}
-        return set(word[i:i+2] for i in range(len(word)-1))
+        return set(word[i : i + 2] for i in range(len(word) - 1))
 
     def fuzzy_match(self, token: str, corpus_tokens: list[str]) -> bool:
         """Check if a token fuzzy-matches any corpus token using Jaccard N-Gram similarity."""
@@ -765,4 +824,3 @@ class NaturalLanguageParser:
             if len(part) >= 2:
                 intents.append(self.parse(part))
         return intents
-

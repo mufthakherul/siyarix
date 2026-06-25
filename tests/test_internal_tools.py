@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import asyncio
@@ -9,6 +8,8 @@ import pytest
 
 
 from siyarix.internal_tools import make_graph_analyzer_handler, make_threat_intel_handler
+
+
 class TestInternalTools:
     """Full coverage for internal_tools.py."""
 
@@ -119,7 +120,9 @@ class TestInternalToolsGraph:
             mock_kg.find_crown_jewel_paths.return_value = {"jewel": ["host1", "host2"]}
             MockKG.return_value = mock_kg
             with patch.object(Path, "exists", return_value=True):
-                result = asyncio.run(handler(action="find_crown_jewel_paths", args={"node_id": "n1"}))
+                result = asyncio.run(
+                    handler(action="find_crown_jewel_paths", args={"node_id": "n1"})
+                )
                 assert "paths" in result["output"]
 
     def test_threat_intel_handler_mitre_lookup_empty(self):
@@ -156,7 +159,9 @@ class TestInternalToolsCore:
             mock_kg.find_crown_jewel_paths.return_value = {"jewel": ["host1", "host2"]}
             MockKG.return_value = mock_kg
             with patch.object(Path, "exists", return_value=True):
-                result = asyncio.run(handler(action="find_crown_jewel_paths", args={"node_id": "n1"}))
+                result = asyncio.run(
+                    handler(action="find_crown_jewel_paths", args={"node_id": "n1"})
+                )
                 assert "paths" in result["output"]
 
     def test_threat_intel_handler_mitre_lookup_empty(self):

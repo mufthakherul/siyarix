@@ -48,7 +48,11 @@ jobs:
       - name: Commit and push changes
         continue-on-error: true
         run: |
-          cd wiki
+          cd wiki || exit 0
+          if [ ! -d ".git" ]; then
+            echo "::warning::Wiki not initialized"
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 

@@ -10,7 +10,8 @@ from typing import Any
 from . import _now_iso
 
 _CONNECT_RE = re.compile(
-    r"(?:Connecting|Established|Connected|Session)\s+.*?(?:to|with|established)", re.IGNORECASE,
+    r"(?:Connecting|Established|Connected|Session)\s+.*?(?:to|with|established)",
+    re.IGNORECASE,
 )
 _BANNER_RE = re.compile(r"(?:Evil.WinRM|WinRM|PS\s+session|PowerShell\s+session)", re.IGNORECASE)
 _IP_PORT_RE = re.compile(r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::(\d+))?")

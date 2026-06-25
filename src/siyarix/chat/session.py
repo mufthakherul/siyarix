@@ -78,6 +78,7 @@ class ChatSession:
         """Export conversation in the requested format."""
         if fmt == "json":
             import json
+
             data = {
                 "session_id": self.session_id,
                 "created_at": self.created_at.isoformat(),
@@ -86,8 +87,7 @@ class ChatSession:
                 "mode": self.mode,
                 "message_count": len(self.messages),
                 "messages": [m.to_dict() for m in self.messages],
-                "context": {k: v for k, v in self.context.items()
-                           if k in ("findings", "feedback")},
+                "context": {k: v for k, v in self.context.items() if k in ("findings", "feedback")},
             }
             return json.dumps(data, indent=2)
         elif fmt in ("md", "markdown"):
@@ -96,13 +96,17 @@ class ChatSession:
                 lines.append(f"**Target:** {self.target}")
             lines.append(f"**Mode:** {self.mode}")
             lines.append(f"**Messages:** {len(self.messages)}")
-            lines.append(f"**Exported:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
+            lines.append(
+                f"**Exported:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            )
             lines.append("")
             lines.append("---")
             lines.append("")
             for msg in self.messages:
                 role_label = "👤 User" if msg.role == "user" else "🤖 Siyarix"
-                ts = msg.timestamp.strftime("%H:%M:%S") if hasattr(msg.timestamp, "strftime") else ""
+                ts = (
+                    msg.timestamp.strftime("%H:%M:%S") if hasattr(msg.timestamp, "strftime") else ""
+                )
                 lines.append(f"### {role_label} ({ts})")
                 lines.append("")
                 lines.append(msg.content)
@@ -129,23 +133,33 @@ class ChatSession:
                 f"<p>Session: {self.session_id[:16]} | Mode: {self.mode} | Messages: {len(self.messages)}</p>",
             ]
             for msg in self.messages:
-                ts = msg.timestamp.strftime("%H:%M:%S") if hasattr(msg.timestamp, "strftime") else ""
+                ts = (
+                    msg.timestamp.strftime("%H:%M:%S") if hasattr(msg.timestamp, "strftime") else ""
+                )
                 role_class = msg.role if msg.role in ("user", "assistant", "system") else "system"
                 html_parts.append(
                     f'<div class="message {role_class}">'
                     f'<div class="role">{msg.role.upper()}</div>'
                     f'<div class="timestamp">{ts}</div>'
-                    f'<div>{msg.content}</div>'
+                    f"<div>{msg.content}</div>"
                     f"</div>"
                 )
             html_parts.append("</body></html>")
             return "\n".join(html_parts)
         elif fmt == "txt":
-            lines = ["Siyarix Conversation Export", "=" * 40,
-                     f"Session: {self.session_id[:16]}", f"Mode: {self.mode}",
-                     f"Target: {self.target or 'N/A'}", f"Messages: {len(self.messages)}", ""]
+            lines = [
+                "Siyarix Conversation Export",
+                "=" * 40,
+                f"Session: {self.session_id[:16]}",
+                f"Mode: {self.mode}",
+                f"Target: {self.target or 'N/A'}",
+                f"Messages: {len(self.messages)}",
+                "",
+            ]
             for msg in self.messages:
-                ts = msg.timestamp.strftime("%H:%M:%S") if hasattr(msg.timestamp, "strftime") else ""
+                ts = (
+                    msg.timestamp.strftime("%H:%M:%S") if hasattr(msg.timestamp, "strftime") else ""
+                )
                 label = f"[{ts}] {msg.role.upper()}"
                 lines.append(label)
                 lines.append("-" * len(label))
@@ -159,11 +173,13 @@ class ChatSession:
                 # Try using weasyprint or pdfkit
                 try:
                     import pdfkit
+
                     pdf_bytes = pdfkit.from_string(html, False)
                     return pdf_bytes
                 except ImportError:
                     try:
                         from weasyprint import HTML as WHTML
+
                         pdf_bytes = WHTML(string=html).write_pdf()
                         return pdf_bytes
                     except ImportError:
@@ -239,7 +255,9 @@ class ChatSession:
                 ChatMessage(
                     role=m.get("role", "user"),
                     content=m.get("content", ""),
-                    timestamp=datetime.fromisoformat(m.get("timestamp", datetime.now(timezone.utc).isoformat())),
+                    timestamp=datetime.fromisoformat(
+                        m.get("timestamp", datetime.now(timezone.utc).isoformat())
+                    ),
                     metadata=m.get("metadata", {}),
                 )
             )

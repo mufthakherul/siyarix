@@ -14,7 +14,10 @@ def register_profile(manager: ProviderManager) -> None:
             display_name="Moonshot (Kimi)",
             models=[
                 ModelInfo(
-                    "kimi-k2.7-code", supports_vision=True, context_window=262144, cost_tier=CostTier.LOW
+                    "kimi-k2.7-code",
+                    supports_vision=True,
+                    context_window=262144,
+                    cost_tier=CostTier.LOW,
                 ),
                 ModelInfo(
                     "kimi-k2.6", supports_vision=True, context_window=262144, cost_tier=CostTier.LOW

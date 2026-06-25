@@ -19,6 +19,7 @@ from siyarix.provider_utils import (
     check_provider_health,
 )
 
+
 def test_is_safe_url():
     assert _is_safe_url("http://localhost:11434") is True
     assert _is_safe_url("http://127.0.0.1:8000") is True
@@ -29,6 +30,7 @@ def test_is_safe_url():
     assert _is_safe_url("https://8.8.8.8") is False
     assert _is_safe_url("ftp://localhost") is False
     assert _is_safe_url("invalid_url") is False
+
 
 @respx.mock
 def test_safe_http_get():
@@ -44,6 +46,7 @@ def test_safe_http_get():
     respx.get("http://localhost:9999").mock(side_effect=httpx.ConnectError("Connection refused"))
     assert safe_http_get("http://localhost:9999") is None
 
+
 @respx.mock
 def test_safe_http_post():
     url = "http://localhost:11434/api/show"
@@ -53,6 +56,7 @@ def test_safe_http_post():
     assert res.json() == {"info": "test"}
 
     assert safe_http_post("http://example.com", {}) is None
+
 
 @respx.mock
 def test_safe_http_get_raw():
@@ -64,17 +68,20 @@ def test_safe_http_get_raw():
 
     assert safe_http_get_raw("http://example.com") is None
 
+
 def test_resolve_provider_url():
     assert resolve_provider_url("ollama") == "http://localhost:11434"
     assert resolve_provider_url("ollama", "http://127.0.0.1:11434/") == "http://127.0.0.1:11434"
     assert resolve_provider_url("unknown", "http://localhost:9999") == "http://localhost:9999"
     assert resolve_provider_url("unknown") == ""
 
+
 def test_is_reasoning_model():
     assert is_reasoning_model("deepseek-r1") is True
     assert is_reasoning_model("qwq-32b") is True
     assert is_reasoning_model("llama3-reasoning") is True
     assert is_reasoning_model("llama-3-8b") is False
+
 
 def test_build_model_definition():
     defn = build_model_definition("llama3", context_window=8192, capabilities=["vision", "tools"])
@@ -88,14 +95,19 @@ def test_build_model_definition():
     assert defn2["supports_tools"] is True
     assert defn2["supports_vision"] is False
 
+
 @respx.mock
 def test_list_provider_models():
-    respx.get("http://localhost:11434/api/tags").mock(return_value=httpx.Response(200, json={"models": [{"name": "llama3:latest"}]}))
+    respx.get("http://localhost:11434/api/tags").mock(
+        return_value=httpx.Response(200, json={"models": [{"name": "llama3:latest"}]})
+    )
     models = list_provider_models("ollama")
     assert len(models) == 1
     assert models[0]["name"] == "llama3:latest"
 
-    respx.get("http://localhost:1234/v1/models").mock(return_value=httpx.Response(200, json={"data": [{"id": "gpt-local"}]}))
+    respx.get("http://localhost:1234/v1/models").mock(
+        return_value=httpx.Response(200, json={"data": [{"id": "gpt-local"}]})
+    )
     lm_models = list_provider_models("lmstudio")
     assert len(lm_models) == 1
     assert lm_models[0]["name"] == "gpt-local"
@@ -103,12 +115,18 @@ def test_list_provider_models():
     # Unknown provider
     assert list_provider_models("unknown") == []
 
+
 @respx.mock
 def test_enrich_model():
-    respx.post("http://localhost:11434/api/show").mock(return_value=httpx.Response(200, json={
-        "model_info": {"llama.context_length": 8192, "llama.max_tokens": 4096},
-        "capabilities": ["tools"]
-    }))
+    respx.post("http://localhost:11434/api/show").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "model_info": {"llama.context_length": 8192, "llama.max_tokens": 4096},
+                "capabilities": ["tools"],
+            },
+        )
+    )
     enriched = enrich_model("ollama", "llama3:latest")
     assert enriched["context_window"] == 8192
     assert enriched["max_tokens"] == 4096
@@ -117,7 +135,7 @@ def test_enrich_model():
     # LMStudio enrichment
     lm_entry = {
         "loaded_instances": [{"context_length": 4096}],
-        "metadata": {"vision": True, "reasoning": False, "tools": True, "max_tokens": 2048}
+        "metadata": {"vision": True, "reasoning": False, "tools": True, "max_tokens": 2048},
     }
     enriched_lm = enrich_model("lmstudio", "gpt-local", model_entry=lm_entry)
     assert enriched_lm["context_window"] == 4096
@@ -129,13 +147,16 @@ def test_enrich_model():
     enriched_vllm = enrich_model("vllm", "vllm-model", model_entry=vllm_entry)
     assert enriched_vllm["context_window"] == 16384
 
+
 @respx.mock
 def test_discover_provider_models():
-    respx.get("http://localhost:11434/api/tags").mock(return_value=httpx.Response(200, json={"models": [{"name": "llama3:latest"}]}))
-    respx.post("http://localhost:11434/api/show").mock(return_value=httpx.Response(200, json={
-        "model_info": {"llama.context_length": 8192}
-    }))
-    
+    respx.get("http://localhost:11434/api/tags").mock(
+        return_value=httpx.Response(200, json={"models": [{"name": "llama3:latest"}]})
+    )
+    respx.post("http://localhost:11434/api/show").mock(
+        return_value=httpx.Response(200, json={"model_info": {"llama.context_length": 8192}})
+    )
+
     models = discover_provider_models("ollama")
     assert len(models) == 1
     assert models[0]["context_window"] == 8192
@@ -144,21 +165,23 @@ def test_discover_provider_models():
     models_no_enrich = discover_provider_models("ollama", enrich=False)
     assert len(models_no_enrich) == 1
 
+
 @respx.mock
 def test_pull_model():
     url = "http://localhost:11434/api/pull"
-    
+
     # Successful stream
     def mock_stream(_request):
         content = b'{"status": "pulling", "total": 100, "completed": 50}\n{"status": "success"}\n'
         return httpx.Response(200, content=content)
-    
+
     respx.post(url).mock(side_effect=mock_stream)
-    
+
     statuses = []
+
     def on_status(status, pct):
         statuses.append((status, pct))
-        
+
     ok, msg = pull_model("ollama", "llama3:latest", on_status=on_status)
     assert ok is True
     assert "Downloaded" in msg
@@ -168,23 +191,25 @@ def test_pull_model():
     ok, msg = pull_model("lmstudio", "model")
     assert ok is False
 
+
 @patch("siyarix.provider_utils.pull_model")
 @patch("siyarix.provider_utils.list_provider_models")
 def test_ensure_model_pulled(mock_list, mock_pull):
     mock_list.return_value = [{"name": "llama3:latest"}]
-    
+
     console = MagicMock()
     # Already installed
     assert ensure_model_pulled("ollama", "llama3", console=console) is True
-    
+
     # Not installed, needs pull
     mock_list.return_value = []
     mock_pull.return_value = (True, "Downloaded")
     assert ensure_model_pulled("ollama", "llama3", console=console) is True
     mock_pull.assert_called_once()
-    
+
     # Not installed, non-ollama
     assert ensure_model_pulled("lmstudio", "gpt-local", console=console) is False
+
 
 @respx.mock
 def test_check_provider_health():
@@ -193,10 +218,8 @@ def test_check_provider_health():
 
     respx.get("http://localhost:1234/v1/models").mock(side_effect=httpx.ConnectError("error"))
     assert check_provider_health("lmstudio") is False
-    
+
     assert check_provider_health("unknown") is False
-
-
 
 
 from unittest.mock import patch
@@ -216,6 +239,7 @@ from siyarix.provider_utils import (
 
 
 # ── _is_safe_url ──────────────────────────────────────────────────────────
+
 
 class TestIsSafeUrl:
     def test_127_prefix(self):
@@ -239,6 +263,7 @@ class TestIsSafeUrl:
 
 # ── safe_http_get ─────────────────────────────────────────────────────────
 
+
 class TestSafeHttpGet:
     @respx.mock
     def test_http_exception(self):
@@ -253,10 +278,13 @@ class TestSafeHttpGet:
 
 # ── safe_http_post ────────────────────────────────────────────────────────
 
+
 class TestSafeHttpPost:
     @respx.mock
     def test_post_exception(self):
-        respx.post("http://localhost:11434/test").mock(side_effect=httpx.TimeoutException("timeout"))
+        respx.post("http://localhost:11434/test").mock(
+            side_effect=httpx.TimeoutException("timeout")
+        )
         result = safe_http_post("http://localhost:11434/test", {"key": "val"})
         assert result is None
 
@@ -266,6 +294,7 @@ class TestSafeHttpPost:
 
 
 # ── safe_http_get_raw ─────────────────────────────────────────────────────
+
 
 class TestSafeHttpGetRaw:
     @respx.mock
@@ -281,6 +310,7 @@ class TestSafeHttpGetRaw:
 
 # ── resolve_provider_url ──────────────────────────────────────────────────
 
+
 class TestResolveProviderUrl:
     def test_provider_with_defaults(self):
         assert resolve_provider_url("ollama") == "http://localhost:11434"
@@ -293,6 +323,7 @@ class TestResolveProviderUrl:
 
 
 # ── is_reasoning_model ────────────────────────────────────────────────────
+
 
 class TestIsReasoningModel:
     def test_reasoning_variants(self):
@@ -307,6 +338,7 @@ class TestIsReasoningModel:
 
 
 # ── build_model_definition ────────────────────────────────────────────────
+
 
 class TestBuildModelDefinition:
     def test_defaults(self):
@@ -337,6 +369,7 @@ class TestBuildModelDefinition:
 
 # ── _list_ollama_models ───────────────────────────────────────────────────
 
+
 class TestListOllamaModels:
     @respx.mock
     def test_not_dict_response(self):
@@ -345,7 +378,9 @@ class TestListOllamaModels:
 
     @respx.mock
     def test_none_response(self):
-        respx.get("http://localhost:11434/api/tags").mock(return_value=httpx.Response(200, json=None))
+        respx.get("http://localhost:11434/api/tags").mock(
+            return_value=httpx.Response(200, json=None)
+        )
         assert _list_ollama_models("http://localhost:11434") == []
 
     @respx.mock
@@ -356,10 +391,13 @@ class TestListOllamaModels:
 
 # ── _list_openai_compat_models ────────────────────────────────────────────
 
+
 class TestListOpenaiCompatModels:
     @respx.mock
     def test_none_or_non_dict(self):
-        respx.get("http://localhost:8000/v1/models").mock(return_value=httpx.Response(200, json=None))
+        respx.get("http://localhost:8000/v1/models").mock(
+            return_value=httpx.Response(200, json=None)
+        )
         assert _list_openai_compat_models("http://localhost:8000") == []
 
     @respx.mock
@@ -369,17 +407,22 @@ class TestListOpenaiCompatModels:
 
     @respx.mock
     def test_data_is_not_list(self):
-        respx.get("http://localhost:8000/v1/models").mock(return_value=httpx.Response(200, json={"data": "notlist"}))
+        respx.get("http://localhost:8000/v1/models").mock(
+            return_value=httpx.Response(200, json={"data": "notlist"})
+        )
         assert _list_openai_compat_models("http://localhost:8000") == []
 
     @respx.mock
     def test_fallback_models_key(self):
-        respx.get("http://localhost:8000/v1/models").mock(return_value=httpx.Response(200, json={"models": [{"id": "m1"}]}))
+        respx.get("http://localhost:8000/v1/models").mock(
+            return_value=httpx.Response(200, json={"models": [{"id": "m1"}]})
+        )
         result = _list_openai_compat_models("http://localhost:8000")
         assert len(result) == 1
 
 
 # ── list_provider_models ─────────────────────────────────────────────────
+
 
 class TestListProviderModels:
     @respx.mock
@@ -423,6 +466,7 @@ class TestListProviderModels:
 
 
 # ── _enrich_ollama_model ─────────────────────────────────────────────────
+
 
 class TestEnrichOllamaModel:
     @respx.mock
@@ -470,6 +514,7 @@ class TestEnrichOllamaModel:
 
 # ── _enrich_lmstudio_model ───────────────────────────────────────────────
 
+
 class TestEnrichLmstudioModel:
     def test_full_enrichment(self):
         entry = {
@@ -514,6 +559,7 @@ class TestEnrichLmstudioModel:
 
 # ── _enrich_vllm_model ──────────────────────────────────────────────────
 
+
 class TestEnrichVllmModel:
     def test_max_model_len_found(self):
         entry = {"max_model_len": 32768}
@@ -540,6 +586,7 @@ class TestEnrichVllmModel:
 
 # ── enrich_model ─────────────────────────────────────────────────────────
 
+
 class TestEnrichModel:
     def test_llamacpp_enrichment(self):
         entry = {"context_length": 8192}
@@ -563,6 +610,7 @@ class TestEnrichModel:
 
 # ── enrich_all_models ────────────────────────────────────────────────────
 
+
 class TestEnrichAllModels:
     def test_non_ollama_enrichment(self):
         models = [
@@ -583,18 +631,26 @@ class TestEnrichAllModels:
 
     def test_ollama_batch_delegation(self):
         models = [{"name": "llama3"}]
-        with patch("siyarix.provider_utils._enrich_ollama_models_batch", return_value=[{"name": "llama3", "context_window": 8192}]):
+        with patch(
+            "siyarix.provider_utils._enrich_ollama_models_batch",
+            return_value=[{"name": "llama3", "context_window": 8192}],
+        ):
             enriched = enrich_all_models("ollama", models)
             assert enriched[0]["context_window"] == 8192
 
 
 # ── _enrich_ollama_models_batch ──────────────────────────────────────────
 
+
 class TestEnrichOllamaModelsBatch:
     def test_basic_batch(self):
         models = [{"name": "llama3"}, {"name": "mistral"}]
-        with patch("siyarix.provider_utils._enrich_ollama_model", return_value=(8192, ["tools"], 4096)):
-            result = _enrich_ollama_models_batch(models, base_url="http://localhost:11434", concurrency=2, limit=5)
+        with patch(
+            "siyarix.provider_utils._enrich_ollama_model", return_value=(8192, ["tools"], 4096)
+        ):
+            result = _enrich_ollama_models_batch(
+                models, base_url="http://localhost:11434", concurrency=2, limit=5
+            )
             assert len(result) == 2
             assert result[0]["context_window"] == 8192
 
@@ -606,10 +662,12 @@ class TestEnrichOllamaModelsBatch:
 
     def test_exception_in_gather(self):
         models = [{"name": "bad"}, {"name": "good"}]
+
         def mock_enrich(name, base):
             if name == "bad":
                 raise RuntimeError("fail")
             return (8192, None, None)
+
         with patch("siyarix.provider_utils._enrich_ollama_model", side_effect=mock_enrich):
             result = _enrich_ollama_models_batch(models)
             assert len(result) == 1
@@ -625,6 +683,7 @@ class TestEnrichOllamaModelsBatch:
 
 
 # ── discover_provider_models ─────────────────────────────────────────────
+
 
 class TestDiscoverProviderModels:
     @respx.mock
@@ -651,6 +710,7 @@ class TestDiscoverProviderModels:
 
 # ── _parse_num_ctx ───────────────────────────────────────────────────────
 
+
 class TestParseNumCtx:
     def test_non_string_returns_none(self):
         assert _parse_num_ctx(123) is None
@@ -670,6 +730,7 @@ class TestParseNumCtx:
 
 
 # ── pull_model ───────────────────────────────────────────────────────────
+
 
 class TestPullModel:
     @respx.mock
@@ -694,16 +755,20 @@ class TestPullModel:
 
     @respx.mock
     def test_json_decode_error_and_error_key(self):
-        content = b"not json\n{\"error\": \"model not found\"}\n"
-        respx.post("http://localhost:11434/api/pull").mock(return_value=httpx.Response(200, content=content))
+        content = b'not json\n{"error": "model not found"}\n'
+        respx.post("http://localhost:11434/api/pull").mock(
+            return_value=httpx.Response(200, content=content)
+        )
         ok, msg = pull_model("ollama", "ghost")
         assert ok is False
         assert "Download failed" in msg
 
     @respx.mock
     def test_empty_line_and_empty_status_skipped(self):
-        content = b"\n\n{\"status\": \"\", \"total\": 0, \"completed\": 0}\n{\"status\": \"success\"}\n"
-        respx.post("http://localhost:11434/api/pull").mock(return_value=httpx.Response(200, content=content))
+        content = b'\n\n{"status": "", "total": 0, "completed": 0}\n{"status": "success"}\n'
+        respx.post("http://localhost:11434/api/pull").mock(
+            return_value=httpx.Response(200, content=content)
+        )
         ok, msg = pull_model("ollama", "test")
         assert ok is True
         assert "Downloaded" in msg
@@ -711,7 +776,9 @@ class TestPullModel:
     @respx.mock
     def test_on_status_with_percentage(self):
         content = b'{"status": "pulling", "total": 100, "completed": 50}\n{"status": "done"}\n'
-        respx.post("http://localhost:11434/api/pull").mock(return_value=httpx.Response(200, content=content))
+        respx.post("http://localhost:11434/api/pull").mock(
+            return_value=httpx.Response(200, content=content)
+        )
         statuses = []
         ok, msg = pull_model("ollama", "test", on_status=lambda s, p: statuses.append((s, p)))
         assert ok is True
@@ -719,14 +786,18 @@ class TestPullModel:
 
     @respx.mock
     def test_timeout_exception(self):
-        respx.post("http://localhost:11434/api/pull").mock(side_effect=httpx.TimeoutException("timeout"))
+        respx.post("http://localhost:11434/api/pull").mock(
+            side_effect=httpx.TimeoutException("timeout")
+        )
         ok, msg = pull_model("ollama", "test")
         assert ok is False
         assert "Timed out" in msg
 
     @respx.mock
     def test_general_exception(self):
-        respx.post("http://localhost:11434/api/pull").mock(side_effect=ConnectionError("conn failed"))
+        respx.post("http://localhost:11434/api/pull").mock(
+            side_effect=ConnectionError("conn failed")
+        )
         ok, msg = pull_model("ollama", "test")
         assert ok is False
         assert "Failed to pull" in msg
@@ -734,7 +805,9 @@ class TestPullModel:
     @respx.mock
     def test_trailing_buffer_with_error(self):
         content = b'{"status": "done"}\n{"error": "corrupted download"}'
-        respx.post("http://localhost:11434/api/pull").mock(return_value=httpx.Response(200, content=content))
+        respx.post("http://localhost:11434/api/pull").mock(
+            return_value=httpx.Response(200, content=content)
+        )
         ok, msg = pull_model("ollama", "test")
         assert ok is False
         assert "Download failed" in msg
@@ -742,14 +815,18 @@ class TestPullModel:
     @respx.mock
     def test_trailing_buffer_json_decode_error(self):
         content = b'{"status": "done"}\nnotjson'
-        respx.post("http://localhost:11434/api/pull").mock(return_value=httpx.Response(200, content=content))
+        respx.post("http://localhost:11434/api/pull").mock(
+            return_value=httpx.Response(200, content=content)
+        )
         ok, msg = pull_model("ollama", "test")
         assert ok is True
 
     @respx.mock
     def test_on_status_without_pct(self):
         content = b'{"status": "processing"}\n{"status": "done"}\n'
-        respx.post("http://localhost:11434/api/pull").mock(return_value=httpx.Response(200, content=content))
+        respx.post("http://localhost:11434/api/pull").mock(
+            return_value=httpx.Response(200, content=content)
+        )
         statuses = []
         ok, msg = pull_model("ollama", "test", on_status=lambda s, p: statuses.append((s, p)))
         assert ok is True
@@ -758,12 +835,15 @@ class TestPullModel:
     @respx.mock
     def test_no_on_status_callback(self):
         content = b'{"status": "done"}\n'
-        respx.post("http://localhost:11434/api/pull").mock(return_value=httpx.Response(200, content=content))
+        respx.post("http://localhost:11434/api/pull").mock(
+            return_value=httpx.Response(200, content=content)
+        )
         ok, msg = pull_model("ollama", "test")
         assert ok is True
 
 
 # ── ensure_model_pulled ──────────────────────────────────────────────────
+
 
 class TestEnsureModelPulled:
     @patch("siyarix.provider_utils.list_provider_models")
@@ -787,9 +867,7 @@ class TestEnsureModelPulled:
             console = MagicMock()
             result = ensure_model_pulled("ollama", "llama3", console=console)
             assert result is True
-            console.print.assert_any_call(
-                "[dim]Model llama3 not found locally — pulling...[/dim]"
-            )
+            console.print.assert_any_call("[dim]Model llama3 not found locally — pulling...[/dim]")
 
     @patch("siyarix.provider_utils.list_provider_models")
     def test_pull_failure_with_console(self, mock_list):
@@ -813,6 +891,7 @@ class TestEnsureModelPulled:
 
 
 # ── check_provider_health ───────────────────────────────────────────────
+
 
 class TestCheckProviderHealth:
     @respx.mock
@@ -840,6 +919,7 @@ class TestCheckProviderHealth:
 
 
 # ── Edge cases: safe_http_post returns response object ───────────────────
+
 
 @respx.mock
 def test_safe_http_post_returns_raw_response():

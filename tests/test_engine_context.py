@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from siyarix.context import ContextChunk
 from siyarix.context import ContextManager
@@ -9,8 +8,6 @@ from unittest.mock import MagicMock
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Tests for siyarix.context — context compression."""
-
-
 
 
 class TestCompressContext:
@@ -118,37 +115,41 @@ class TestCompressContext:
         assert len(result["xi_context"]["recent_executions"]) == 10
         assert len(result["xi_recommendations"]) == 5
 
+
 class TestContextCore:
     """Cover missing context.py lines."""
 
     def test_context_chunk_auto_assigns_ids(self):
         from siyarix.context import ContextChunk
+
         c = ContextChunk(content="hello world test data chunk")
         assert len(c.chunk_id) == 12
         assert c.token_estimate > 0
 
     def test_context_window_needs_compression(self):
         from siyarix.context import ContextWindow
+
         w = ContextWindow(max_tokens=100, system_prompt_tokens=90)
         assert w.needs_compression is True
 
     def test_context_window_usage_pct_max_tokens_zero(self):
         from siyarix.context import ContextWindow
+
         w = ContextWindow(max_tokens=0, system_prompt_tokens=50)
         assert w.usage_pct == 100.0
 
     def test_context_manager_init_from_memory(self):
         from siyarix.context import ContextManager
+
         mock_mem = MagicMock()
-        mock_mem.load_context.return_value = [
-            {"role": "user", "content": "hello"}
-        ]
+        mock_mem.load_context.return_value = [{"role": "user", "content": "hello"}]
         cm = ContextManager(memory=mock_mem)
         assert len(cm._chunks) == 1
         assert cm._window.history_tokens > 0
 
     def test_add_history_saves_to_memory(self):
         from siyarix.context import ContextManager
+
         mock_mem = MagicMock()
         cm = ContextManager(memory=mock_mem)
         cm.add_history("test content", role="user")
@@ -156,6 +157,7 @@ class TestContextCore:
 
     def test_add_tool_output_truncates(self):
         from siyarix.context import ContextManager
+
         cm = ContextManager()
         cm.add_tool_output("nmap", "x" * 5000, max_length=100)
         assert len(cm._chunks) == 1
@@ -163,17 +165,20 @@ class TestContextCore:
 
     def test_add_finding(self):
         from siyarix.context import ContextManager
+
         cm = ContextManager()
         cm.add_finding({"type": "vuln", "message": "critical issue"})
         assert len(cm._chunks) == 1
 
     def test_compress_empty(self):
         from siyarix.context import ContextManager
+
         cm = ContextManager()
         assert cm.compress() == ""
 
     def test_compress_full(self):
         from siyarix.context import ContextManager
+
         cm = ContextManager()
         for i in range(10):
             cm.add_history(f"message {i}", "user")
@@ -183,6 +188,7 @@ class TestContextCore:
 
     def test_build_context_with_compressed(self):
         from siyarix.context import ContextManager
+
         cm = ContextManager()
         cm._compressed_summaries = ["sum1", "sum2"]
         ctx = cm.build_context()
@@ -190,6 +196,7 @@ class TestContextCore:
 
     def test_get_relevant_context(self):
         from siyarix.context import ContextManager
+
         cm = ContextManager()
         cm.add_history("scan target example.com with nmap", "user")
         cm.add_history("check port 80", "user")
@@ -198,6 +205,7 @@ class TestContextCore:
 
     def test_clear_resets_state(self):
         from siyarix.context import ContextManager
+
         cm = ContextManager()
         cm.add_history("test", "user")
         cm.clear()
@@ -205,24 +213,28 @@ class TestContextCore:
 
     def test_compress_context_truncates_tools(self):
         from siyarix.context import compress_context
+
         tools = [{"name": f"tool{i}"} for i in range(30)]
         result = compress_context({"available_tools": tools})
         assert len(result["available_tools"]) == 20
 
     def test_compress_context_truncates_history(self):
         from siyarix.context import compress_context
+
         lines = "\n".join(f"line{i}" for i in range(100))
         result = compress_context({"conversation_history": lines}, max_tokens=10)
         assert "_history_truncated" in result
 
     def test_compress_context_truncates_xi(self):
         from siyarix.context import compress_context
+
         execs = [{"cmd": f"cmd{i}"} for i in range(20)]
         result = compress_context({"xi_context": {"recent_executions": execs}})
         assert len(result["xi_context"]["recent_executions"]) == 10
 
     def test_compress_context_truncates_recommendations(self):
         from siyarix.context import compress_context
+
         recs = [f"rec{i}" for i in range(10)]
         result = compress_context({"xi_recommendations": recs})
         assert len(result["xi_recommendations"]) == 5
@@ -243,9 +255,7 @@ class TestContextEdgeCases:
         assert c.token_estimate >= 1
 
     def test_context_chunk_post_init_skips_if_provided(self):
-        c = ContextChunk(
-            content="hello", chunk_id="custom", token_estimate=50
-        )
+        c = ContextChunk(content="hello", chunk_id="custom", token_estimate=50)
         assert c.chunk_id == "custom"
         assert c.token_estimate == 50
 
@@ -276,6 +286,7 @@ class TestContextEdgeCases:
     def test_get_relevant_context_zero_score_skips(self):
         cm = ContextManager()
         from siyarix.context import ContextChunk
+
         cm._chunks.append(ContextChunk(content="irrelevant", source="history:user", priority=0.0))
         results = cm.get_relevant_context("zzzzz_nonexistent", limit=5)
         assert len(results) == 0

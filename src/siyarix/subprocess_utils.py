@@ -31,6 +31,7 @@ from typing import IO, Any
 
 try:
     from rich.console import Console
+
     _console = Console()
 except ImportError:
     _console = None
@@ -128,8 +129,14 @@ async def _kill_process(proc: asyncio.subprocess.Process) -> None:
 
 
 _SIGNAL_NAMES: dict[int, str] = {
-    1: "SIGHUP", 2: "SIGINT", 3: "SIGQUIT", 6: "SIGABRT",
-    8: "SIGFPE", 9: "SIGKILL", 11: "SIGSEGV", 15: "SIGTERM",
+    1: "SIGHUP",
+    2: "SIGINT",
+    3: "SIGQUIT",
+    6: "SIGABRT",
+    8: "SIGFPE",
+    9: "SIGKILL",
+    11: "SIGSEGV",
+    15: "SIGTERM",
 }
 
 
@@ -141,9 +148,7 @@ def _check_path_traversal(cmd: list[str]) -> None:
     """Check for path traversal patterns in command arguments."""
     for i, part in enumerate(cmd):
         if _PATH_TRAVERSAL_RE.search(part):
-            raise ValueError(
-                f"command part at index {i} contains path traversal pattern: {part!r}"
-            )
+            raise ValueError(f"command part at index {i} contains path traversal pattern: {part!r}")
 
 
 def _format_not_found(cmd: list[str]) -> str:
@@ -232,6 +237,7 @@ def _confirm_destructive(cmd: list[str]) -> None:
         print(f"WARNING: Destructive command detected: {match_text}")
         print(f"Full: {full[:200]}")
     from .tool_installer import tty_confirm
+
     if not tty_confirm("Run this command?", default=False):
         raise ValueError(f"destructive command cancelled by user: {full[:120]}")
 
@@ -353,6 +359,7 @@ def _get_sudo_password() -> str | None:
 
     try:
         from siyarix.config import SettingsStore
+
         store = SettingsStore()
         config_val = store.get("SIYARIX_SUDO_PASSWORD") or store.get("sudo_password")
         if config_val:
@@ -408,8 +415,8 @@ def _get_sudo_password() -> str | None:
                 "Incorrect password. Please try again.\n"
                 if not is_last
                 else "Incorrect password after 3 attempts. "
-                       "The command will fail unless you configure the password "
-                       "via the SIYARIX_SUDO_PASSWORD env var or settings.\n"
+                "The command will fail unless you configure the password "
+                "via the SIYARIX_SUDO_PASSWORD env var or settings.\n"
             )
             sys.stderr.write(msg)
             sys.stderr.flush()
@@ -439,7 +446,13 @@ async def safe_run_async(
                 loop.run_in_executor(
                     None,
                     lambda: subprocess.run(
-                        cmd, capture_output=True, stdin=subprocess.DEVNULL, text=True, timeout=timeout, check=False, env=exec_env
+                        cmd,
+                        capture_output=True,
+                        stdin=subprocess.DEVNULL,
+                        text=True,
+                        timeout=timeout,
+                        check=False,
+                        env=exec_env,
                     ),
                 ),
                 timeout=timeout + 5,
@@ -511,7 +524,12 @@ async def safe_run_async(
             if "-S" not in modified_cmd:
                 modified_cmd.insert(1, "-S")
         else:
-            is_shell = len(modified_cmd) >= 3 and os.path.basename(modified_cmd[0]).lower() in ("sh", "bash", "pwsh", "powershell") and modified_cmd[1] == "-c"
+            is_shell = (
+                len(modified_cmd) >= 3
+                and os.path.basename(modified_cmd[0]).lower()
+                in ("sh", "bash", "pwsh", "powershell")
+                and modified_cmd[1] == "-c"
+            )
             if is_shell:
                 shell_str = modified_cmd[2]
                 new_shell_str = re.sub(r"\bsudo\b(?! -S\b)(?!\s*-S\b)", "sudo -S", shell_str)
@@ -634,9 +652,7 @@ async def safe_run_async_stream(
                 duration_ms=(time.monotonic() - start) * 1000,
             )
         except OSError as exc:
-            logger.debug(
-                "safe_run_async_stream (thread) failed to start command %s: %s", cmd, exc
-            )
+            logger.debug("safe_run_async_stream (thread) failed to start command %s: %s", cmd, exc)
             return ExecutionResult(
                 exit_code=-1,
                 stderr=str(exc),
@@ -741,7 +757,12 @@ async def safe_run_async_stream(
             if "-S" not in modified_cmd:
                 modified_cmd.insert(1, "-S")
         else:
-            is_shell = len(modified_cmd) >= 3 and Path(modified_cmd[0]).name.lower() in ("sh", "bash", "pwsh", "powershell", "dash") and modified_cmd[1] == "-c"
+            is_shell = (
+                len(modified_cmd) >= 3
+                and Path(modified_cmd[0]).name.lower()
+                in ("sh", "bash", "pwsh", "powershell", "dash")
+                and modified_cmd[1] == "-c"
+            )
             if is_shell:
                 shell_str = modified_cmd[2]
                 new_shell_str = re.sub(r"\bsudo\b(?! -S\b)(?!\s*-S\b)", "sudo -S", shell_str)
@@ -815,24 +836,20 @@ async def safe_run_async_stream(
         exit_code = async_proc.returncode if async_proc.returncode is not None else -1
 
         try:
-            await asyncio.wait_for(
-                asyncio.gather(stdout_task, stderr_task),
-                timeout=1.0
-            )
+            await asyncio.wait_for(asyncio.gather(stdout_task, stderr_task), timeout=1.0)
         except asyncio.TimeoutError:
             logger.debug("safe_run_async_stream reader tasks timed out after process exit")
             stdout_task.cancel()
             stderr_task.cancel()
     except asyncio.TimeoutError:
-        logger.warning("safe_run_async_stream timeout (%ds) for cmd=%s -- killing process", timeout, cmd)
+        logger.warning(
+            "safe_run_async_stream timeout (%ds) for cmd=%s -- killing process", timeout, cmd
+        )
         timed_out = True
         await _kill_process(async_proc)
 
         try:
-            await asyncio.wait_for(
-                asyncio.gather(stdout_task, stderr_task),
-                timeout=1.0
-            )
+            await asyncio.wait_for(asyncio.gather(stdout_task, stderr_task), timeout=1.0)
         except asyncio.TimeoutError:
             logger.debug("safe_run_async_stream reader tasks timed out after process kill")
             stdout_task.cancel()
@@ -917,7 +934,10 @@ def safe_run_sandboxed(
         sandbox_cmd = ["docker", "run", "--rm", "--network", "host" if allow_network else "none"]
         if use_seccomp:
             from .security_hardening import SeccompProfile
-            sandbox_cmd.extend(["--security-opt", f"seccomp={SeccompProfile.generate_docker_seccomp()}"])
+
+            sandbox_cmd.extend(
+                ["--security-opt", f"seccomp={SeccompProfile.generate_docker_seccomp()}"]
+            )
         if cwd:
             cwd_str = str(Path(cwd).resolve())
             sandbox_cmd.extend(["-v", f"{cwd_str}:/workspace", "-w", "/workspace"])

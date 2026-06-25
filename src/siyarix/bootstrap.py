@@ -332,8 +332,10 @@ class BootstrapEngine:
                 approved_tools = self.prompt_install_missing(missing_tools, interactive)
                 if approved_tools:
                     from .tool_installer import ToolInstaller
+
                     try:
                         from rich.console import Console
+
                         c = Console()
                     except ImportError:
                         c = None

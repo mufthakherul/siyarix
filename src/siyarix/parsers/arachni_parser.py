@@ -38,7 +38,8 @@ class ArachniParser:
                     severity_raw = issue.get("severity", "info").lower()
                     severity = _SEVERITY_MAP.get(severity_raw, "info")
                     description = issue.get(
-                        "description", issue.get("check", {}).get("description", ""),
+                        "description",
+                        issue.get("check", {}).get("description", ""),
                     )
                     url = issue.get("vector", {}).get("action", "unknown")
                     parameter = issue.get("vector", {}).get("input", "")

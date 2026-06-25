@@ -16,7 +16,13 @@ from rich.table import Table
 
 from ..branding import available_themes, print_theme_preview
 from ..config import get_config_dir
-from .commands import CommandCategory, CommandProfile, CommandProfileStore, CommandRegistry, SLASH_HELP
+from .commands import (
+    CommandCategory,
+    CommandProfile,
+    CommandProfileStore,
+    CommandRegistry,
+    SLASH_HELP,
+)
 from .session import ChatSession
 from .ui import ConfigPanel
 from ..subprocess_utils import safe_run_sync
@@ -76,8 +82,8 @@ class CommandHandlersMixin:
             "/clear": self._cmd_clear,
             "/clean": self._cmd_clear,
             "/cls": self._cmd_clear,
-                "/new": self._cmd_new,
-                "/fresh": self._cmd_new,
+            "/new": self._cmd_new,
+            "/fresh": self._cmd_new,
             "/history": self._cmd_history,
             "/tools": self._cmd_tools,
             "/platform": self._cmd_platform,
@@ -142,10 +148,10 @@ class CommandHandlersMixin:
             "/fork": self._cmd_fork,
             "/learn": self._cmd_learn,
             "/feedback": self._cmd_feedback,
-                "/redteam": self._cmd_redteam,
-                "/offensive": self._cmd_redteam,
-                "/blueteam": self._cmd_blueteam,
-                "/defensive": self._cmd_blueteam,
+            "/redteam": self._cmd_redteam,
+            "/offensive": self._cmd_redteam,
+            "/blueteam": self._cmd_blueteam,
+            "/defensive": self._cmd_blueteam,
             "/benchmark": self._cmd_benchmark,
             "/upgrade": self._cmd_upgrade,
             "/docs": self._cmd_docs,
@@ -181,11 +187,13 @@ class CommandHandlersMixin:
         if query.startswith("/"):
             cmd_info = CommandRegistry.get(query)
             if cmd_info:
-                console.print(RichPanel(
-                    cmd_info.format_detailed(),
-                    title=f"[bold cyan]Command: {cmd_info.name}[/bold cyan]",
-                    border_style="cyan",
-                ))
+                console.print(
+                    RichPanel(
+                        cmd_info.format_detailed(),
+                        title=f"[bold cyan]Command: {cmd_info.name}[/bold cyan]",
+                        border_style="cyan",
+                    )
+                )
                 return
             # Fuzzy search for close matches
             close = CommandRegistry.search(query.lstrip("/"))
@@ -195,7 +203,9 @@ class CommandHandlersMixin:
                 for c in close[:5]:
                     console.print(f"  [cyan]{c.name}[/cyan] — [dim]{c.description[:60]}[/dim]")
             else:
-                console.print(f"[red]Unknown command: {query}[/red] — type [cyan]/help[/cyan] for all commands")
+                console.print(
+                    f"[red]Unknown command: {query}[/red] — type [cyan]/help[/cyan] for all commands"
+                )
             return
 
         # ── Help for a specific category ──
@@ -255,16 +265,18 @@ class CommandHandlersMixin:
                 summary_parts.append(f"[bold]{cat.value}:[/bold] {len(visible)}")
         summary_line = "  │  ".join(summary_parts)
 
-        console.print(RichPanel(
-            f"[bold cyan]Siyarix Command Reference[/bold cyan] [dim]v{ver}[/dim]\n"
-            f"[dim]{total_visible} visible · {total_all} total commands[/dim]\n\n"
-            f"{summary_line}\n\n"
-            f"[dim]Type [/dim][cyan]/help <command>[/cyan][dim] for detailed help\n"
-            f"Type [/dim][cyan]/help <category>[/cyan][dim] to filter by category\n"
-            f"Type [/dim][cyan]/help <keyword>[/cyan][dim] to search[/dim]",
-            border_style="cyan",
-            padding=(1, 2),
-        ))
+        console.print(
+            RichPanel(
+                f"[bold cyan]Siyarix Command Reference[/bold cyan] [dim]v{ver}[/dim]\n"
+                f"[dim]{total_visible} visible · {total_all} total commands[/dim]\n\n"
+                f"{summary_line}\n\n"
+                f"[dim]Type [/dim][cyan]/help <command>[/cyan][dim] for detailed help\n"
+                f"Type [/dim][cyan]/help <category>[/cyan][dim] to filter by category\n"
+                f"Type [/dim][cyan]/help <keyword>[/cyan][dim] to search[/dim]",
+                border_style="cyan",
+                padding=(1, 2),
+            )
+        )
 
         for cat in CommandCategory:
             cmds = CommandRegistry.by_category(cat)
@@ -288,7 +300,9 @@ class CommandHandlersMixin:
             console.print(table)
             console.print()
 
-        console.print("[dim]Tip:[/dim] Use [cyan]/help <command>[/cyan] for examples, arguments, and notes.")
+        console.print(
+            "[dim]Tip:[/dim] Use [cyan]/help <command>[/cyan] for examples, arguments, and notes."
+        )
 
     def _cmd_exit(self, _: str) -> None:
         self._running = False
@@ -483,7 +497,9 @@ class CommandHandlersMixin:
                 store = CredentialStore()
                 store.delete(provider, "api_key")
             except Exception:
-                logger.warning("Failed to delete API key for %s from credential store", provider, exc_info=True)
+                logger.warning(
+                    "Failed to delete API key for %s from credential store", provider, exc_info=True
+                )
             console.print(f"[green]✓ Cleared {provider} API key[/green]")
             return
 
@@ -856,10 +872,20 @@ class CommandHandlersMixin:
 
     def _cmd_mode(self, args: str) -> None:
         valid = (
-            "autonomous", "integrated", "offline", "stealth",
-            "verbose", "quiet", "expert", "beginner",
-            "interactive", "batch", "redteam", "blueteam",
-            "compliance", "audit",
+            "autonomous",
+            "integrated",
+            "offline",
+            "stealth",
+            "verbose",
+            "quiet",
+            "expert",
+            "beginner",
+            "interactive",
+            "batch",
+            "redteam",
+            "blueteam",
+            "compliance",
+            "audit",
         )
         core_modes = ("autonomous", "integrated", "offline")
         if not args:
@@ -895,7 +921,9 @@ class CommandHandlersMixin:
             console.print("[blue]✓ Switched to BLUE TEAM mode with defensive persona[/blue]")
         elif args == "offline":
             self._settings.set("model_provider", "registry")
-            console.print(f"[green]✓ Mode switched to: {args} (provider locked to registry)[/green]")
+            console.print(
+                f"[green]✓ Mode switched to: {args} (provider locked to registry)[/green]"
+            )
         else:
             current_provider = self._settings.get("model_provider") or "auto"
             if current_provider == "registry" and args != "integrated":
@@ -1012,6 +1040,7 @@ class CommandHandlersMixin:
                 if len(tokens) > 1 and selected != "auto":
                     model_name = tokens[1].strip()
                     from ..chat.openai_compat import MODEL_KEYS
+
                     model_key = MODEL_KEYS.get(selected, f"{selected}_model")
                     try:
                         self._settings.set(model_key, model_name)
@@ -1213,6 +1242,7 @@ class CommandHandlersMixin:
                     console.print(f"[green]✓ Set {key} = {result}[/green]")
                     if key == "log_level":
                         from ..logging_config import configure_logging
+
                         configure_logging(str(result))
                 except KeyError as exc:
                     console.print(f"[red]Unknown setting: {exc}[/red]")
@@ -1243,43 +1273,96 @@ class CommandHandlersMixin:
         rows = {r["key"]: r for r in self._settings.list_all()}
 
         categories = [
-            ("General", [
-                "default_output_format", "default_parallel", "scan_timeout",
-                "agent_timeout", "max_waves", "auto_sync", "notifications_enabled",
-                "history_retention_days", "auto_update_check",
-            ]),
-            ("Appearance", [
-                "color_theme", "syntax_theme", "log_level",
-            ]),
-            ("Mode & Persona", [
-                "default_mode", "model_provider", "persona",
-                "additional_system_message",
-            ]),
-            ("Security", [
-                "stealth_mode", "command_review", "tls_verify",
-            ]),
-            ("Cloud Providers", [
-                "openai_model", "anthropic_model", "gemini_model",
-                "groq_model", "together_model", "openrouter_model",
-                "deepseek_model", "xai_model", "mistral_model",
-                "perplexity_model", "azure_model", "cerebras_model",
-                "fireworks_model", "zai_model", "minimax_model",
-                "moonshot_model", "nvidia_model", "opencode_zen_model",
-                "huggingface_model",
-            ]),
-            ("Local Providers", [
-                "ollama_url", "ollama_model",
-                "lmstudio_url", "lmstudio_model",
-                "llamacpp_url", "llamacpp_model",
-                "vllm_url", "vllm_model",
-                "localai_url", "localai_model",
-                "_start_ollama_on_launch", "registry_model",
-            ]),
-            ("Behavior", [
-                "multiline", "auto_save_session",
-                "shell_completion_installed", "path_setup_done",
-                "onboarding_complete",
-            ]),
+            (
+                "General",
+                [
+                    "default_output_format",
+                    "default_parallel",
+                    "scan_timeout",
+                    "agent_timeout",
+                    "max_waves",
+                    "auto_sync",
+                    "notifications_enabled",
+                    "history_retention_days",
+                    "auto_update_check",
+                ],
+            ),
+            (
+                "Appearance",
+                [
+                    "color_theme",
+                    "syntax_theme",
+                    "log_level",
+                ],
+            ),
+            (
+                "Mode & Persona",
+                [
+                    "default_mode",
+                    "model_provider",
+                    "persona",
+                    "additional_system_message",
+                ],
+            ),
+            (
+                "Security",
+                [
+                    "stealth_mode",
+                    "command_review",
+                    "tls_verify",
+                ],
+            ),
+            (
+                "Cloud Providers",
+                [
+                    "openai_model",
+                    "anthropic_model",
+                    "gemini_model",
+                    "groq_model",
+                    "together_model",
+                    "openrouter_model",
+                    "deepseek_model",
+                    "xai_model",
+                    "mistral_model",
+                    "perplexity_model",
+                    "azure_model",
+                    "cerebras_model",
+                    "fireworks_model",
+                    "zai_model",
+                    "minimax_model",
+                    "moonshot_model",
+                    "nvidia_model",
+                    "opencode_zen_model",
+                    "huggingface_model",
+                ],
+            ),
+            (
+                "Local Providers",
+                [
+                    "ollama_url",
+                    "ollama_model",
+                    "lmstudio_url",
+                    "lmstudio_model",
+                    "llamacpp_url",
+                    "llamacpp_model",
+                    "vllm_url",
+                    "vllm_model",
+                    "localai_url",
+                    "localai_model",
+                    "_start_ollama_on_launch",
+                    "registry_model",
+                ],
+            ),
+            (
+                "Behavior",
+                [
+                    "multiline",
+                    "auto_save_session",
+                    "shell_completion_installed",
+                    "path_setup_done",
+                    "onboarding_complete",
+                ],
+            ),
         ]
 
         for title, keys in categories:
@@ -1617,6 +1700,7 @@ class CommandHandlersMixin:
     def _get_sorted_skills(self) -> list[Any]:
         """Return all skills sorted by confidence desc."""
         from ..learning_system import get_learning_system
+
         cls = get_learning_system()
         return sorted(cls._skills.values(), key=lambda s: s.confidence, reverse=True)
 
@@ -1635,14 +1719,19 @@ class CommandHandlersMixin:
         """Print full detail for a single skill."""
         from rich.table import Table
         from rich import box
+
         console.print()
-        console.print(Panel(
-            f"[bold cyan]Skill #{sl_no}[/bold cyan]  [dim]{s.skill_id[:12]}[/dim]",
-            border_style="cyan",
-        ))
+        console.print(
+            Panel(
+                f"[bold cyan]Skill #{sl_no}[/bold cyan]  [dim]{s.skill_id[:12]}[/dim]",
+                border_style="cyan",
+            )
+        )
         console.print(f"[bold]Intent:[/bold] {s.intent_pattern}")
         console.print(f"[bold]Confidence:[/bold] [green]{s.confidence:.0%}[/green]")
-        console.print(f"[bold]Uses:[/bold] {s.usage_count}  |  [bold]Success:[/bold] {s.success_count}")
+        console.print(
+            f"[bold]Uses:[/bold] {s.usage_count}  |  [bold]Success:[/bold] {s.success_count}"
+        )
         console.print(f"[bold]Source:[/bold] {s.source}")
         console.print(f"[bold]Notes:[/bold] {s.notes or '—'}")
         if s.tags:
@@ -1678,10 +1767,10 @@ class CommandHandlersMixin:
                     f"Total Skills: {stats.get('total_skills', 0)}\n"
                     f"High Confidence: {stats.get('high_confidence', 0)}\n"
                     f"Storage: {stats.get('db_path', 'unknown')}",
-                    border_style="cyan"
+                    border_style="cyan",
                 )
             )
-            if stats.get('total_skills', 0) > 0:
+            if stats.get("total_skills", 0) > 0:
                 skills = self._get_sorted_skills()
                 table = Table(title="Top Learned Skills", box=box.SIMPLE)
                 table.add_column("Sl No", justify="right", style="dim", width=4)
@@ -1695,7 +1784,7 @@ class CommandHandlersMixin:
                         s.intent_pattern,
                         str(len(s.steps)),
                         f"{s.confidence:.0%}",
-                        str(s.usage_count)
+                        str(s.usage_count),
                     )
                 console.print(table)
                 if len(skills) > 10:
@@ -1708,7 +1797,9 @@ class CommandHandlersMixin:
                 return
             skill = self._get_skill_by_sl(subargs)
             if skill is None:
-                console.print("[red]✗ Invalid Sl No. Use /skills list to see available skills.[/red]")
+                console.print(
+                    "[red]✗ Invalid Sl No. Use /skills list to see available skills.[/red]"
+                )
                 return
             self._print_skill_detail(skill, int(subargs))
 
@@ -1719,7 +1810,9 @@ class CommandHandlersMixin:
             parts = subargs.split(maxsplit=1)
             skill = self._get_skill_by_sl(parts[0])
             if skill is None:
-                console.print("[red]✗ Invalid Sl No. Use /skills list to see available skills.[/red]")
+                console.print(
+                    "[red]✗ Invalid Sl No. Use /skills list to see available skills.[/red]"
+                )
                 return
             self._print_skill_detail(skill, int(parts[0]))
             edit_field = parts[1] if len(parts) > 1 else ""
@@ -1738,7 +1831,9 @@ class CommandHandlersMixin:
             elif edit_field == "":
                 console.print("[dim]Editable fields: intent, notes[/dim]")
             else:
-                console.print(f"[yellow]Unknown field '{edit_field}'. Editable: intent, notes[/yellow]")
+                console.print(
+                    f"[yellow]Unknown field '{edit_field}'. Editable: intent, notes[/yellow]"
+                )
 
         elif subcmd == "remove":
             if not subargs:
@@ -1747,10 +1842,13 @@ class CommandHandlersMixin:
             parts = subargs.split(maxsplit=1)
             skill = self._get_skill_by_sl(parts[0])
             if skill is None:
-                console.print("[red]✗ Invalid Sl No. Use /skills list to see available skills.[/red]")
+                console.print(
+                    "[red]✗ Invalid Sl No. Use /skills list to see available skills.[/red]"
+                )
                 return
             self._print_skill_detail(skill, int(parts[0]))
             from ..tool_installer import tty_confirm
+
             if tty_confirm("Remove this skill?", default=False):
                 if cls.delete_skill(skill.skill_id):
                     console.print("[green]✓ Skill removed.[/green]")
@@ -1759,15 +1857,20 @@ class CommandHandlersMixin:
 
         elif subcmd == "add":
             if not subargs:
-                console.print("[yellow]Usage: /skills add <Sl No. intent/pattern; step_a; step_b.>[/yellow]")
+                console.print(
+                    "[yellow]Usage: /skills add <Sl No. intent/pattern; step_a; step_b.>[/yellow]"
+                )
                 return
             from ..onboarding import OnboardingWizard
+
             added = OnboardingWizard._parse_and_add_manual_skills(cls, subargs)
             if added:
                 console.print(f"[green]✓ Successfully added {added} new skill(s)![/green]")
             else:
-                console.print("[yellow]⚠ Could not parse any valid skills from input. Use format:\n"
-                              "  /skills add 1. intent/pattern; step_a; step_b.[/yellow]")
+                console.print(
+                    "[yellow]⚠ Could not parse any valid skills from input. Use format:\n"
+                    "  /skills add 1. intent/pattern; step_a; step_b.[/yellow]"
+                )
 
         elif subcmd == "export":
             if not subargs:
@@ -1775,27 +1878,42 @@ class CommandHandlersMixin:
                 return
             export_path = Path(subargs).expanduser().resolve()
             suffix = export_path.suffix.lower()
+
             def _xml(s: str) -> str:
-                return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+                return (
+                    s.replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                    .replace('"', "&quot;")
+                )
+
             try:
                 data = cls.export_skills()
                 if suffix == ".xaml":
-                    lines = ['<?xml version="1.0" encoding="utf-8"?>',
-                             '<Skills xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">']
+                    lines = [
+                        '<?xml version="1.0" encoding="utf-8"?>',
+                        '<Skills xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">',
+                    ]
                     for s in data["skills"]:
-                        lines.append(f'  <Skill ID="{_xml(s["skill_id"])}" Confidence="{s["confidence"]:.2f}">')
+                        lines.append(
+                            f'  <Skill ID="{_xml(s["skill_id"])}" Confidence="{s["confidence"]:.2f}">'
+                        )
                         lines.append(f'    <Intent>{_xml(s["intent_pattern"])}</Intent>')
                         lines.append("    <Steps>")
                         for step in s["steps"]:
-                            lines.append(f'      <Step Tool="{_xml(step["tool"])}">'
-                                         f'{_xml(step["command_template"])}</Step>')
+                            lines.append(
+                                f'      <Step Tool="{_xml(step["tool"])}">'
+                                f'{_xml(step["command_template"])}</Step>'
+                            )
                         lines.append("    </Steps>")
                         lines.append("  </Skill>")
-                    lines.append('</Skills>')
+                    lines.append("</Skills>")
                     export_path.write_text("\n".join(lines), encoding="utf-8")
                 else:
                     export_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-                console.print(f"[green]✓ Exported {len(data['skills'])} skills to {export_path}[/green]")
+                console.print(
+                    f"[green]✓ Exported {len(data['skills'])} skills to {export_path}[/green]"
+                )
             except Exception as exc:
                 console.print(f"[red]✗ Export failed: {exc}[/red]")
 
@@ -1812,7 +1930,9 @@ class CommandHandlersMixin:
 
     async def _cmd_siem(self, args: str) -> None:
         """Handle /siem command for SIEM/SOAR integration."""
-        console.print("[yellow]SIEM integration has been migrated to a separate plugin. Check https://github.com/siyarix/siyarix-plugins.git[/yellow]")
+        console.print(
+            "[yellow]SIEM integration has been migrated to a separate plugin. Check https://github.com/siyarix/siyarix-plugins.git[/yellow]"
+        )
         return
 
     async def _cmd_intel(self, args: str) -> None:
@@ -1826,7 +1946,9 @@ class CommandHandlersMixin:
 
         if tokens[0] == "lookup":
             if len(tokens) < 2:
-                console.print("[red]Missing indicator to lookup. Example: /intel lookup CVE-2023-1234 or /intel lookup 8.8.8.8[/red]")
+                console.print(
+                    "[red]Missing indicator to lookup. Example: /intel lookup CVE-2023-1234 or /intel lookup 8.8.8.8[/red]"
+                )
                 return
             indicator = tokens[1]
             console.print(f"Looking up {indicator}...")
@@ -1839,7 +1961,9 @@ class CommandHandlersMixin:
                     console.print(f"  {k}: {v}")
         elif tokens[0] == "status":
             console.print("[green]Threat Intel module active.[/green]")
-            console.print(f"AlienVault OTX API Key Configured: {'Yes' if intel_manager.alienvault.api_key else 'No'}")
+            console.print(
+                f"AlienVault OTX API Key Configured: {'Yes' if intel_manager.alienvault.api_key else 'No'}"
+            )
 
     async def _cmd_performance(self, args: str) -> None:
         """Handle /performance command for resource optimization."""
@@ -2057,6 +2181,7 @@ class CommandHandlersMixin:
                 console.print("[dim]No queued commands.[/dim]")
                 return
             from rich.table import Table
+
             table = Table(title="Queued Commands", header_style="bold cyan")
             table.add_column("ID (short)", style="dim")
             table.add_column("Instruction", style="white")
@@ -2117,13 +2242,24 @@ class CommandHandlersMixin:
         output_path = tokens[1] if len(tokens) > 1 else ""
         valid_formats = ("json", "md", "markdown", "html", "pdf", "txt")
         if fmt not in valid_formats:
-            console.print(f"[yellow]Invalid format: {fmt}. Valid: {', '.join(valid_formats)}[/yellow]")
+            console.print(
+                f"[yellow]Invalid format: {fmt}. Valid: {', '.join(valid_formats)}[/yellow]"
+            )
             return
 
         if not output_path:
             ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-            ext = {"json": "json", "md": "md", "markdown": "md", "html": "html", "pdf": "pdf", "txt": "txt"}[fmt]
-            output_path = str(self._SESSIONS_DIR / f"export_{self._session.session_id[:8]}_{ts}.{ext}")
+            ext = {
+                "json": "json",
+                "md": "md",
+                "markdown": "md",
+                "html": "html",
+                "pdf": "pdf",
+                "txt": "txt",
+            }[fmt]
+            output_path = str(
+                self._SESSIONS_DIR / f"export_{self._session.session_id[:8]}_{ts}.{ext}"
+            )
 
         export_dir = Path(output_path).parent
         export_dir.mkdir(parents=True, exist_ok=True)
@@ -2155,6 +2291,7 @@ class CommandHandlersMixin:
                     console.print("[dim]No plugins installed.[/dim]")
                     return
                 from rich.table import Table
+
                 table = Table(title=f"Plugins ({len(plugin_files)})", header_style="bold cyan")
                 table.add_column("Name", style="cyan")
                 table.add_column("Type", style="dim")
@@ -2202,6 +2339,7 @@ class CommandHandlersMixin:
                     console.print("[dim]No aliases defined. Use /alias set <name> <command>[/dim]")
                     return
                 from rich.table import Table
+
                 table = Table(title="Command Aliases", header_style="bold cyan")
                 table.add_column("Alias", style="cyan")
                 table.add_column("Command", style="green")
@@ -2240,15 +2378,25 @@ class CommandHandlersMixin:
         try:
             lang = args.strip().lower() if args else ""
             supported = {
-                "en": "English", "fr": "Français", "de": "Deutsch",
-                "es": "Español", "it": "Italiano", "pt": "Português",
-                "ru": "Русский", "zh": "中文", "ja": "日本語",
-                "ko": "한국어", "ar": "العربية",
+                "en": "English",
+                "fr": "Français",
+                "de": "Deutsch",
+                "es": "Español",
+                "it": "Italiano",
+                "pt": "Português",
+                "ru": "Русский",
+                "zh": "中文",
+                "ja": "日本語",
+                "ko": "한국어",
+                "ar": "العربية",
             }
             if not lang or lang == "list":
                 current = self._settings.get("language") or "en"
-                console.print(f"[dim]Current language: [bold]{supported.get(current, current)}[/bold][/dim]")
+                console.print(
+                    f"[dim]Current language: [bold]{supported.get(current, current)}[/bold][/dim]"
+                )
                 from rich.table import Table
+
                 table = Table(title="Supported Languages", header_style="bold cyan")
                 table.add_column("Code", style="cyan")
                 table.add_column("Language", style="white")
@@ -2263,7 +2411,9 @@ class CommandHandlersMixin:
                 console.print(f"[green]✓ Language set to: {supported[lang]}[/green]")
                 console.print("[dim]Note: LLM response language depends on provider support.[/dim]")
             else:
-                console.print(f"[yellow]Unsupported language: {lang}. Use /language list to see options.[/yellow]")
+                console.print(
+                    f"[yellow]Unsupported language: {lang}. Use /language list to see options.[/yellow]"
+                )
         except Exception as exc:
             console.print(f"[red]Language command failed: {exc}[/red]")
 
@@ -2276,11 +2426,14 @@ class CommandHandlersMixin:
             if not sessions_dir.exists():
                 console.print("[dim]No saved sessions found.[/dim]")
                 return
-            session_files = sorted(sessions_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+            session_files = sorted(
+                sessions_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
+            )
             if not session_files:
                 console.print("[dim]No saved sessions found.[/dim]")
                 return
             from rich.table import Table
+
             table = Table(title="Saved Sessions", header_style="bold cyan")
             table.add_column("Session ID (short)", style="cyan")
             table.add_column("Target", style="yellow")
@@ -2314,11 +2467,14 @@ class CommandHandlersMixin:
 
         try:
             from .session import ChatSession
+
             new_session = ChatSession.load(path)
             self._session = new_session
             self._mode = new_session.mode
             console.print(f"[green]✓ Loaded session: {new_session.session_id[:8]}[/green]")
-            console.print(f"[dim]Target: {new_session.target or 'none'} | Mode: {new_session.mode} | Messages: {len(new_session.messages)}[/dim]")
+            console.print(
+                f"[dim]Target: {new_session.target or 'none'} | Mode: {new_session.mode} | Messages: {len(new_session.messages)}[/dim]"
+            )
         except Exception as exc:
             console.print(f"[red]Failed to load session: {exc}[/red]")
 
@@ -2326,6 +2482,7 @@ class CommandHandlersMixin:
         """Fork current session into a new branch."""
         try:
             import uuid
+
             tokens = args.split() if args else []
             at_idx = None
             summary = ""
@@ -2356,6 +2513,7 @@ class CommandHandlersMixin:
 
         try:
             from ..learning_system import get_learning_system
+
             cls = get_learning_system()
         except Exception:
             console.print("[yellow]Continuous Learning System not available.[/yellow]")
@@ -2392,8 +2550,18 @@ class CommandHandlersMixin:
             rating = tokens[0].lower()
             comment = " ".join(tokens[1:]) if len(tokens) > 1 else ""
 
-            rating_map = {"1": 1, "2": 2, "3": 3, "4": 4, "5": 5,
-                          "bad": 1, "poor": 2, "ok": 3, "good": 4, "excellent": 5}
+            rating_map = {
+                "1": 1,
+                "2": 2,
+                "3": 3,
+                "4": 4,
+                "5": 5,
+                "bad": 1,
+                "poor": 2,
+                "ok": 3,
+                "good": 4,
+                "excellent": 5,
+            }
             numeric_rating = rating_map.get(rating, 3)
 
             feedback_entry = {
@@ -2424,15 +2592,18 @@ class CommandHandlersMixin:
             self._session.mode = "redteam"
             self._settings.set("persona", "red-team")
             from rich.panel import Panel
-            console.print(Panel(
-                "[red]🔴 RED TEAM MODE ACTIVE[/red]\n\n"
-                "[bold red]Focus:[/bold red] Offensive security, exploitation, adversarial simulation\n"
-                "[bold red]Persona:[/bold red] Red Team Operator\n"
-                "[bold red]Tip:[/bold red] Use [cyan]/scan <target>[/cyan] to begin reconnaissance, "
-                "[cyan]/intel</cyan> for threat intelligence, [cyan]/stealth</cyan> for evasion controls.",
-                border_style="red",
-                title="[bold red]Mode Switch[/bold red]",
-            ))
+
+            console.print(
+                Panel(
+                    "[red]🔴 RED TEAM MODE ACTIVE[/red]\n\n"
+                    "[bold red]Focus:[/bold red] Offensive security, exploitation, adversarial simulation\n"
+                    "[bold red]Persona:[/bold red] Red Team Operator\n"
+                    "[bold red]Tip:[/bold red] Use [cyan]/scan <target>[/cyan] to begin reconnaissance, "
+                    "[cyan]/intel</cyan> for threat intelligence, [cyan]/stealth</cyan> for evasion controls.",
+                    border_style="red",
+                    title="[bold red]Mode Switch[/bold red]",
+                )
+            )
         except Exception as exc:
             console.print(f"[red]Failed to switch to red team mode: {exc}[/red]")
 
@@ -2443,15 +2614,18 @@ class CommandHandlersMixin:
             self._session.mode = "blueteam"
             self._settings.set("persona", "blue-team")
             from rich.panel import Panel
-            console.print(Panel(
-                "[blue]🔵 BLUE TEAM MODE ACTIVE[/blue]\n\n"
-                "[bold blue]Focus:[/bold blue] Defense, detection, forensics, incident response\n"
-                "[bold blue]Persona:[/bold blue] Blue Team Defender\n"
-                "[bold blue]Tip:[/bold blue] Use [cyan]/audit</cyan> for compliance, "
-                "[cyan]/kb search</cyan> for knowledge base, [cyan]/review on</cyan> for command review.",
-                border_style="blue",
-                title="[bold blue]Mode Switch[/bold blue]",
-            ))
+
+            console.print(
+                Panel(
+                    "[blue]🔵 BLUE TEAM MODE ACTIVE[/blue]\n\n"
+                    "[bold blue]Focus:[/bold blue] Defense, detection, forensics, incident response\n"
+                    "[bold blue]Persona:[/bold blue] Blue Team Defender\n"
+                    "[bold blue]Tip:[/bold blue] Use [cyan]/audit</cyan> for compliance, "
+                    "[cyan]/kb search</cyan> for knowledge base, [cyan]/review on</cyan> for command review.",
+                    border_style="blue",
+                    title="[bold blue]Mode Switch[/bold blue]",
+                )
+            )
         except Exception as exc:
             console.print(f"[red]Failed to switch to blue team mode: {exc}[/red]")
 
@@ -2475,6 +2649,7 @@ class CommandHandlersMixin:
             return
 
         from ..providers import ProviderManager
+
         pm = ProviderManager.get_instance()
         profile = pm.get_profile(provider)
         bench_model = model or (profile.default_model if profile else "")
@@ -2485,8 +2660,14 @@ class CommandHandlersMixin:
         results = []
         for size, prompt in [
             ("short", "Respond with exactly: OK"),
-            ("medium", "Write a 3-paragraph summary of network security best practices for a small business."),
-            ("long", "Write a detailed technical guide on conducting a comprehensive web application security assessment. Include methodology, tools, and reporting structure."),
+            (
+                "medium",
+                "Write a 3-paragraph summary of network security best practices for a small business.",
+            ),
+            (
+                "long",
+                "Write a detailed technical guide on conducting a comprehensive web application security assessment. Include methodology, tools, and reporting structure.",
+            ),
         ]:
             console.print(f"[dim]Testing {size} prompt...[/dim]")
             try:
@@ -2498,16 +2679,21 @@ class CommandHandlersMixin:
                 )
                 elapsed = perf_counter() - t0
                 content = result.get("content", "") if isinstance(result, dict) else str(result)
-                results.append({
-                    "size": size,
-                    "time_s": round(elapsed, 2),
-                    "chars": len(content),
-                    "chars_per_sec": round(len(content) / elapsed, 1) if elapsed > 0 else 0,
-                })
+                results.append(
+                    {
+                        "size": size,
+                        "time_s": round(elapsed, 2),
+                        "chars": len(content),
+                        "chars_per_sec": round(len(content) / elapsed, 1) if elapsed > 0 else 0,
+                    }
+                )
             except Exception as exc:
-                results.append({"size": size, "time_s": 0, "chars": 0, "chars_per_sec": 0, "error": str(exc)})
+                results.append(
+                    {"size": size, "time_s": 0, "chars": 0, "chars_per_sec": 0, "error": str(exc)}
+                )
 
         from rich.table import Table
+
         table = Table(title=f"Benchmark Results: {provider}", header_style="bold cyan")
         table.add_column("Prompt Size", style="cyan")
         table.add_column("Time (s)", justify="right")
@@ -2530,9 +2716,12 @@ class CommandHandlersMixin:
         console.print("[dim]Checking for updates...[/dim]")
         try:
             import subprocess
+
             result = subprocess.run(
                 ["pip", "install", "--dry-run", "--upgrade", "siyarix"],
-                capture_output=True, text=True, timeout=30,
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
             if "Would install" in result.stdout or "Would upgrade" in result.stdout:
                 console.print("[yellow]⚠ A newer version of Siyarix is available![/yellow]")
@@ -2575,10 +2764,22 @@ class CommandHandlersMixin:
 
             tutorials = {
                 "basics": [
-                    ("Welcome to Siyarix!", "Siyarix is a cybersecurity orchestration agent. Let's learn the basics."),
-                    ("Slash Commands", "Type /help to see all available commands. Commands start with /."),
-                    ("Natural Language", "You can also type natural language like 'scan example.com'."),
-                    ("Modes", "Use /mode to switch between integrated, autonomous, offline, and more."),
+                    (
+                        "Welcome to Siyarix!",
+                        "Siyarix is a cybersecurity orchestration agent. Let's learn the basics.",
+                    ),
+                    (
+                        "Slash Commands",
+                        "Type /help to see all available commands. Commands start with /.",
+                    ),
+                    (
+                        "Natural Language",
+                        "You can also type natural language like 'scan example.com'.",
+                    ),
+                    (
+                        "Modes",
+                        "Use /mode to switch between integrated, autonomous, offline, and more.",
+                    ),
                     ("Next Steps", "Try /tutorial scanning for more advanced features."),
                 ],
                 "scanning": [
@@ -2607,7 +2808,9 @@ class CommandHandlersMixin:
         try:
             url = "https://github.com/mufthakherul/siyarix/issues/new"
             console.print(f"[yellow]Report a bug at:[/yellow] {url}")
-            console.print("[dim]Please include details about what went wrong and how to reproduce it.[/dim]")
+            console.print(
+                "[dim]Please include details about what went wrong and how to reproduce it.[/dim]"
+            )
         except Exception as exc:
             console.print(f"[red]Bug report command failed: {exc}[/red]")
 
@@ -2629,18 +2832,22 @@ class CommandHandlersMixin:
         playbooks_dir.mkdir(parents=True, exist_ok=True)
 
         if action == "list":
-            playbook_files = sorted(playbooks_dir.glob("*.yaml")) + sorted(playbooks_dir.glob("*.yml"))
+            playbook_files = sorted(playbooks_dir.glob("*.yaml")) + sorted(
+                playbooks_dir.glob("*.yml")
+            )
             if not playbook_files:
                 console.print("[dim]No playbooks found.[/dim]")
                 console.print(f"[dim]Place .yaml files in: {playbooks_dir}[/dim]")
                 return
             from rich.table import Table
+
             table = Table(title=f"Playbooks ({len(playbook_files)})", header_style="bold cyan")
             table.add_column("Name", style="cyan")
             table.add_column("Size", justify="right")
             table.add_column("Modified", style="dim")
             for pf in playbook_files:
                 from datetime import datetime
+
                 mtime = datetime.fromtimestamp(pf.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
                 table.add_row(pf.stem, f"{pf.stat().st_size} B", mtime)
             console.print(table)
@@ -2658,6 +2865,7 @@ class CommandHandlersMixin:
                 return
             content = pb_path.read_text(encoding="utf-8")
             from rich.syntax import Syntax
+
             console.print(Syntax(content, "yaml", theme="monokai"))
 
         elif action == "run":
@@ -2673,6 +2881,7 @@ class CommandHandlersMixin:
                 return
             try:
                 import yaml
+
                 playbook = yaml.safe_load(pb_path.read_text(encoding="utf-8"))
                 steps = playbook.get("steps", []) if isinstance(playbook, dict) else []
                 if not steps:
@@ -2693,7 +2902,9 @@ class CommandHandlersMixin:
                         await self._execute_instruction(step)
                 console.print(f"[green]✓ Playbook '{name}' completed[/green]")
             except ImportError:
-                console.print("[yellow]yaml package not installed. Install with: pip install pyyaml[/yellow]")
+                console.print(
+                    "[yellow]yaml package not installed. Install with: pip install pyyaml[/yellow]"
+                )
             except Exception as exc:
                 console.print(f"[red]Playbook execution failed: {exc}[/red]")
         else:

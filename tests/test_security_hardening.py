@@ -23,6 +23,7 @@ from siyarix.security_hardening import (
 # InputValidator
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class TestInputValidatorValidateIp:
     def setup_method(self) -> None:
         self.v = InputValidator()
@@ -304,6 +305,7 @@ class TestInputValidatorCheckArgsInjection:
 # SecretRedactor
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class TestSecretRedactorRedact:
     def setup_method(self) -> None:
         self.r = SecretRedactor()
@@ -525,6 +527,7 @@ class TestSecretRedactorRedactEnv:
 # DangerReport
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class TestDangerReport:
     def test_requires_confirmation_critical(self) -> None:
         r = DangerReport(is_dangerous=True, severity="critical")
@@ -560,6 +563,7 @@ class TestDangerReport:
 # ═══════════════════════════════════════════════════════════════════════════
 # DangerAnalyzer
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class TestDangerAnalyzerAnalyze:
     def setup_method(self) -> None:
@@ -648,7 +652,12 @@ class TestDangerAnalyzerAnalyze:
 
     def test_sql_delete_with_where_is_medium(self) -> None:
         r = self.da.analyze("DELETE FROM users WHERE id = 1")
-        assert r.severity in ("safe", "info", "low", "medium")  # DELETE matches but WHERE prevents high
+        assert r.severity in (
+            "safe",
+            "info",
+            "low",
+            "medium",
+        )  # DELETE matches but WHERE prevents high
 
     def test_high_truncate(self) -> None:
         r = self.da.analyze("TRUNCATE TABLE logs")
@@ -731,7 +740,7 @@ class TestDangerAnalyzerAnalyze:
         assert r.severity == "critical"
 
     def test_windows_reg_delete_run(self) -> None:
-        r = self.da.analyze('reg delete HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run')
+        r = self.da.analyze("reg delete HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run")
         assert r.severity == "high"
 
     def test_windows_bcdedit(self) -> None:
@@ -775,11 +784,15 @@ class TestDangerAnalyzerAnalyze:
         assert r.severity == "medium"
 
     def test_windows_reg_add_run_hklm(self) -> None:
-        r = self.da.analyze("reg add HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run /v Evil /t REG_SZ /d cmd.exe")
+        r = self.da.analyze(
+            "reg add HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run /v Evil /t REG_SZ /d cmd.exe"
+        )
         assert r.severity == "medium"
 
     def test_windows_reg_add_run_hkcu(self) -> None:
-        r = self.da.analyze("reg add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v Evil /t REG_SZ /d cmd.exe")
+        r = self.da.analyze(
+            "reg add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v Evil /t REG_SZ /d cmd.exe"
+        )
         assert r.severity == "medium"
 
     def test_windows_schtasks_create(self) -> None:
@@ -938,6 +951,7 @@ class TestDangerAnalyzerGetDangerSummary:
 # ═══════════════════════════════════════════════════════════════════════════
 # Module-level singletons
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class TestSingletons:
     def test_validator(self) -> None:

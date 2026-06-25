@@ -15,7 +15,9 @@ def register_profile(manager: ProviderManager) -> None:
             models=[
                 ModelInfo("deepseek-v4-pro", context_window=1000000, cost_tier=CostTier.MEDIUM),
                 ModelInfo("deepseek-v4-flash", context_window=1000000, cost_tier=CostTier.LOW),
-                ModelInfo("deepseek-v4-flash-free", context_window=1000000, cost_tier=CostTier.FREE),
+                ModelInfo(
+                    "deepseek-v4-flash-free", context_window=1000000, cost_tier=CostTier.FREE
+                ),
             ],
             default_model="deepseek-v4-flash",
             api_key_env="OPENCODE_API_KEY",

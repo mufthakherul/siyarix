@@ -33,7 +33,11 @@ class TestInit:
         assert state_manager._skip_cache == {}
 
     def test_with_path_loads(self, tmp_path):
-        data = {"disabled": {"openai": 0.0}, "failure_counts": {"openai": 2}, "last_fail_time": {"openai": 100.0}}
+        data = {
+            "disabled": {"openai": 0.0},
+            "failure_counts": {"openai": 2},
+            "last_fail_time": {"openai": 100.0},
+        }
         path = str(tmp_path / "state.json")
         Path(path).write_text(json.dumps(data), encoding="utf-8")
         mgr = ProviderStateManager(path=path)

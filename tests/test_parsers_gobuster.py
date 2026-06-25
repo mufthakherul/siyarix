@@ -2,6 +2,7 @@
 
 from siyarix.parsers.gobuster_parser import GobusterParser
 
+
 def test_gobuster_parser_basic():
     output = """
 Url: http://example.com
@@ -17,6 +18,7 @@ Url: http://example.com
     assert "/admin" in findings[0]["title"]
     assert findings[1]["severity"] == "info"
 
+
 def test_gobuster_parser_severities():
     output = """
 Url: http://example.com
@@ -29,6 +31,7 @@ Url: http://example.com
     assert findings[0]["severity"] == "low"
     assert findings[1]["severity"] == "low"
     assert findings[2]["severity"] == "medium"
+
 
 def test_gobuster_parser_malformed():
     output = """

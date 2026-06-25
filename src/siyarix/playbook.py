@@ -18,10 +18,21 @@ from siyarix.workflow import WorkflowEngine
 logger = logging.getLogger(__name__)
 
 
-_ENV_ALLOWLIST: frozenset[str] = frozenset({
-    "SIYARIX_", "HOME", "USER", "SHELL", "LANG", "TZ",
-    "PATH", "TERM", "HOSTNAME", "PWD", "LOGNAME",
-})
+_ENV_ALLOWLIST: frozenset[str] = frozenset(
+    {
+        "SIYARIX_",
+        "HOME",
+        "USER",
+        "SHELL",
+        "LANG",
+        "TZ",
+        "PATH",
+        "TERM",
+        "HOSTNAME",
+        "PWD",
+        "LOGNAME",
+    }
+)
 
 
 class PlaybookEngine:

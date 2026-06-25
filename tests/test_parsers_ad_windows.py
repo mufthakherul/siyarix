@@ -1,4 +1,5 @@
 """Tests for Active Directory & Windows Security parsers."""
+
 from __future__ import annotations
 
 import json
@@ -21,7 +22,13 @@ from siyarix.parsers.smbmap_parser import SmbmapParser
 
 def _check_finding(finding, expected_tool, min_fields=None):
     min_fields = min_fields or {
-        "title", "severity", "description", "evidence", "tool", "target", "timestamp",
+        "title",
+        "severity",
+        "description",
+        "evidence",
+        "tool",
+        "target",
+        "timestamp",
     }
     for field in min_fields:
         assert field in finding, f"Missing field {field} in {expected_tool} finding"
@@ -29,20 +36,21 @@ def _check_finding(finding, expected_tool, min_fields=None):
     assert finding["severity"] in ("critical", "high", "medium", "low", "info")
 
 
-
 class TestPypykatzParser:
     def test_json_output_with_credentials(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "admin", "DomainName": "CORP"},
-            "Credentials": {
-                "MSV": {
-                    "secrets": [
-                        {"Password": "P@ssw0rd!", "NTHash": "31d6cfe0d16ae931b73c59d7e0c089c1"},
-                    ],
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "admin", "DomainName": "CORP"},
+                "Credentials": {
+                    "MSV": {
+                        "secrets": [
+                            {"Password": "P@ssw0rd!", "NTHash": "31d6cfe0d16ae931b73c59d7e0c089c1"},
+                        ],
+                    },
                 },
-            },
-        })
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         for f in findings:
@@ -51,29 +59,33 @@ class TestPypykatzParser:
 
     def test_json_output_with_empty_hash(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "user1", "DomainName": "WORKGROUP"},
-            "Credentials": {
-                "WDIGEST": {
-                    "creds": [
-                        {"Password": "", "NTHash": "aad3b435b51404eeaad3b435b51404ee"},
-                    ],
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "user1", "DomainName": "WORKGROUP"},
+                "Credentials": {
+                    "WDIGEST": {
+                        "creds": [
+                            {"Password": "", "NTHash": "aad3b435b51404eeaad3b435b51404ee"},
+                        ],
+                    },
                 },
-            },
-        })
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 0
 
     def test_json_list_output(self):
         p = PypykatzParser()
-        output = json.dumps([
-            {
-                "LogonSession": {"Username": "alice", "DomainName": "CORP"},
-                "Credentials": {
-                    "MSV": {"secrets": [{"Password": "secret123", "NTHash": ""}]},
+        output = json.dumps(
+            [
+                {
+                    "LogonSession": {"Username": "alice", "DomainName": "CORP"},
+                    "Credentials": {
+                        "MSV": {"secrets": [{"Password": "secret123", "NTHash": ""}]},
+                    },
                 },
-            },
-        ])
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
@@ -86,14 +98,16 @@ class TestPypykatzParser:
 
     def test_line_based_json(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "bob", "DomainName": "LOCAL"},
-            "Credentials": {
-                "LIVESS": {
-                    "c": [{"Password": "bobpass", "NTHash": ""}],
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "bob", "DomainName": "LOCAL"},
+                "Credentials": {
+                    "LIVESS": {
+                        "c": [{"Password": "bobpass", "NTHash": ""}],
+                    },
                 },
-            },
-        })
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
@@ -115,12 +129,16 @@ class TestPypykatzParser:
         p = PypykatzParser()
         findings = p.parse("{bad")
         assert isinstance(findings, list)
+
+
 class TestBloodhoundParser:
     def test_json_user_output(self):
         p = BloodhoundParser()
-        output = json.dumps({
-            "data": [{"Label": "ADMIN", "ObjectId": "S-1-5-21-1001-500", "ObjectType": "User"}],
-        })
+        output = json.dumps(
+            {
+                "data": [{"Label": "ADMIN", "ObjectId": "S-1-5-21-1001-500", "ObjectType": "User"}],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         _check_finding(findings[0], "bloodhound")
@@ -128,54 +146,86 @@ class TestBloodhoundParser:
 
     def test_json_computer_output(self):
         p = BloodhoundParser()
-        output = json.dumps({
-            "data": [{"Label": "DC01.CORP.LOCAL", "ObjectId": "S-1-5-21-1001-1000", "ObjectType": "Computer"}],
-        })
+        output = json.dumps(
+            {
+                "data": [
+                    {
+                        "Label": "DC01.CORP.LOCAL",
+                        "ObjectId": "S-1-5-21-1001-1000",
+                        "ObjectType": "Computer",
+                    }
+                ],
+            }
+        )
         findings = p.parse(output)
         assert "Computer" in findings[0]["title"]
 
     def test_json_group_output(self):
         p = BloodhoundParser()
-        output = json.dumps({
-            "data": [{"Label": "DOMAIN ADMINS", "ObjectId": "S-1-5-21-1001-512", "ObjectType": "Group"}],
-        })
+        output = json.dumps(
+            {
+                "data": [
+                    {
+                        "Label": "DOMAIN ADMINS",
+                        "ObjectId": "S-1-5-21-1001-512",
+                        "ObjectType": "Group",
+                    }
+                ],
+            }
+        )
         findings = p.parse(output)
         assert "Group" in findings[0]["title"]
 
     def test_json_user_props_format(self):
         p = BloodhoundParser()
-        output = json.dumps({
-            "type": "User",
-            "props": {"samaccountname": "jdoe", "userprincipalname": "jdoe@corp.local", "enabled": True},
-        })
+        output = json.dumps(
+            {
+                "type": "User",
+                "props": {
+                    "samaccountname": "jdoe",
+                    "userprincipalname": "jdoe@corp.local",
+                    "enabled": True,
+                },
+            }
+        )
         findings = p.parse(output)
         assert any("jdoe" in f["title"] for f in findings)
 
     def test_json_computer_props_format(self):
         p = BloodhoundParser()
-        output = json.dumps({
-            "type": "Computer",
-            "props": {"name": "WS001", "operatingsystem": "Windows 10 Pro", "samaccountname": "WS001$"},
-        })
+        output = json.dumps(
+            {
+                "type": "Computer",
+                "props": {
+                    "name": "WS001",
+                    "operatingsystem": "Windows 10 Pro",
+                    "samaccountname": "WS001$",
+                },
+            }
+        )
         findings = p.parse(output)
         assert any("WS001" in f["title"] for f in findings)
 
     def test_json_session_props_format(self):
         p = BloodhoundParser()
-        output = json.dumps({
-            "type": "Session",
-            "props": {"user": "JDOE", "computer": "DC01"},
-        })
+        output = json.dumps(
+            {
+                "type": "Session",
+                "props": {"user": "JDOE", "computer": "DC01"},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert findings[0]["severity"] == "medium"
 
     def test_json_acl_props_format(self):
         p = BloodhoundParser()
-        output = json.dumps({
-            "type": "Acl",
-            "props": {"principal": "JDOE", "righttype": "GenericAll"},
-        })
+        output = json.dumps(
+            {
+                "type": "Acl",
+                "props": {"principal": "JDOE", "righttype": "GenericAll"},
+            }
+        )
         findings = p.parse(output)
         assert any("ACL" in f["title"] or "GenericAll" in f["title"] for f in findings)
 
@@ -187,10 +237,14 @@ class TestBloodhoundParser:
         p = BloodhoundParser()
         findings = p.parse("{bad")
         assert isinstance(findings, list)
+
+
 class TestBloodhoundPythonParser:
     def test_json_user_no_spn(self):
         p = BloodhoundPythonParser()
-        output = json.dumps({"type": "user", "props": {"name": "jdoe", "domain": "CORP.LOCAL", "enabled": True}})
+        output = json.dumps(
+            {"type": "user", "props": {"name": "jdoe", "domain": "CORP.LOCAL", "enabled": True}}
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         _check_finding(findings[0], "bloodhound-python")
@@ -199,52 +253,66 @@ class TestBloodhoundPythonParser:
 
     def test_json_user_with_spn(self):
         p = BloodhoundPythonParser()
-        output = json.dumps({
-            "type": "user",
-            "props": {
-                "name": "svc_account",
-                "domain": "CORP.LOCAL",
-                "serviceprincipalnames": ["HTTP/server.corp.local"],
-            },
-        })
+        output = json.dumps(
+            {
+                "type": "user",
+                "props": {
+                    "name": "svc_account",
+                    "domain": "CORP.LOCAL",
+                    "serviceprincipalnames": ["HTTP/server.corp.local"],
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert findings[0]["severity"] == "medium"
 
     def test_json_computer(self):
         p = BloodhoundPythonParser()
-        output = json.dumps({
-            "type": "computer",
-            "props": {"name": "DC01", "domain": "CORP.LOCAL", "operatingsystem": "Windows Server 2022"},
-        })
+        output = json.dumps(
+            {
+                "type": "computer",
+                "props": {
+                    "name": "DC01",
+                    "domain": "CORP.LOCAL",
+                    "operatingsystem": "Windows Server 2022",
+                },
+            }
+        )
         findings = p.parse(output)
         assert any("DC01" in f["title"] for f in findings)
 
     def test_json_group(self):
         p = BloodhoundPythonParser()
-        output = json.dumps({
-            "type": "group",
-            "props": {"name": "Domain Admins", "domain": "CORP.LOCAL"},
-        })
+        output = json.dumps(
+            {
+                "type": "group",
+                "props": {"name": "Domain Admins", "domain": "CORP.LOCAL"},
+            }
+        )
         findings = p.parse(output)
         assert any("Domain Admins" in f["title"] for f in findings)
 
     def test_json_session(self):
         p = BloodhoundPythonParser()
-        output = json.dumps({
-            "type": "session",
-            "props": {"name": "jdoe", "computer": "DC01", "domain": "CORP.LOCAL"},
-        })
+        output = json.dumps(
+            {
+                "type": "session",
+                "props": {"name": "jdoe", "computer": "DC01", "domain": "CORP.LOCAL"},
+            }
+        )
         findings = p.parse(output)
         assert findings[0]["severity"] == "medium"
         assert "jdoe" in findings[0]["title"]
 
     def test_json_acl(self):
         p = BloodhoundPythonParser()
-        output = json.dumps({
-            "type": "acl",
-            "props": {"name": "jdoe", "rightguid": "GenericAll", "domain": "CORP.LOCAL"},
-        })
+        output = json.dumps(
+            {
+                "type": "acl",
+                "props": {"name": "jdoe", "rightguid": "GenericAll", "domain": "CORP.LOCAL"},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert findings[0]["severity"] == "low"
@@ -274,6 +342,8 @@ class TestBloodhoundPythonParser:
         p = BloodhoundPythonParser()
         findings = p.parse("{bad")
         assert isinstance(findings, list)
+
+
 class TestEnum4linuxParser:
     def test_user_discovery(self):
         p = Enum4linuxParser()
@@ -344,11 +414,13 @@ class TestEnum4linuxParser:
 
     def test_json_format(self):
         p = Enum4linuxParser()
-        output = json.dumps([
-            {"user": "admin", "host": "10.0.0.1"},
-            {"share": "ADMIN$", "host": "10.0.0.1"},
-            {"os": "Windows 10", "host": "10.0.0.1"},
-        ])
+        output = json.dumps(
+            [
+                {"user": "admin", "host": "10.0.0.1"},
+                {"share": "ADMIN$", "host": "10.0.0.1"},
+                {"os": "Windows 10", "host": "10.0.0.1"},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 3
 
@@ -361,6 +433,8 @@ class TestEnum4linuxParser:
     def test_empty_output(self):
         p = Enum4linuxParser()
         assert p.parse("") == []
+
+
 class TestSmbclientParser:
     def test_share_discovery_text(self):
         p = SmbclientParser()
@@ -379,11 +453,7 @@ class TestSmbclientParser:
 
     def test_domain_os_server(self):
         p = SmbclientParser()
-        output = (
-            "Domain=[CORP]\n"
-            "OS=[Windows Server 2022]\n"
-            "Server=[SMB Server]\n"
-        )
+        output = "Domain=[CORP]\n" "OS=[Windows Server 2022]\n" "Server=[SMB Server]\n"
         findings = p.parse(output)
         assert any("domain" in f["title"].lower() for f in findings)
         assert any("OS" in f["title"] for f in findings)
@@ -403,10 +473,12 @@ class TestSmbclientParser:
 
     def test_file_listing(self):
         p = SmbclientParser()
-        output = json.dumps([
-            {"filename": "secret.doc", "server": "10.0.0.1", "size": 1024},
-            {"filename": "data.xlsx", "server": "10.0.0.1", "size": 2048},
-        ])
+        output = json.dumps(
+            [
+                {"filename": "secret.doc", "server": "10.0.0.1", "size": 1024},
+                {"filename": "data.xlsx", "server": "10.0.0.1", "size": 2048},
+            ]
+        )
         findings = p.parse(output)
         files = [f for f in findings if "file" in f["title"].lower()]
         assert len(files) >= 2
@@ -421,16 +493,20 @@ class TestSmbclientParser:
 
     def test_json_format(self):
         p = SmbclientParser()
-        output = json.dumps([
-            {"share": "ADMIN$", "server": "10.0.0.1"},
-            {"filename": "passwords.txt", "server": "10.0.0.1", "size": 512},
-        ])
+        output = json.dumps(
+            [
+                {"share": "ADMIN$", "server": "10.0.0.1"},
+                {"filename": "passwords.txt", "server": "10.0.0.1", "size": 512},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
     def test_empty_output(self):
         p = SmbclientParser()
         assert p.parse("") == []
+
+
 class TestSmbmapParser:
     def test_share_with_permissions(self):
         p = SmbmapParser()
@@ -477,20 +553,26 @@ class TestSmbmapParser:
 
     def test_json_format(self):
         p = SmbmapParser()
-        output = json.dumps([
-            {"share": "ADMIN$", "permission": "READ,WRITE", "target": "10.0.0.1"},
-            {"filename": "secret.txt", "size": 512, "target": "10.0.0.1"},
-        ])
+        output = json.dumps(
+            [
+                {"share": "ADMIN$", "permission": "READ,WRITE", "target": "10.0.0.1"},
+                {"filename": "secret.txt", "size": 512, "target": "10.0.0.1"},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
     def test_empty_output(self):
         p = SmbmapParser()
         assert p.parse("") == []
+
+
 class TestMimikatzParser:
     def test_json_credentials_with_ntlm(self):
         p = MimikatzParser()
-        output = json.dumps([{"username": "admin", "domain": "CONTOSO", "NTLM": "aad3b435b51404eeaad3b435b51404ee"}])
+        output = json.dumps(
+            [{"username": "admin", "domain": "CONTOSO", "NTLM": "aad3b435b51404eeaad3b435b51404ee"}]
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         _check_finding(findings[0], "mimikatz")
@@ -505,7 +587,14 @@ class TestMimikatzParser:
 
     def test_json_credentials_with_both(self):
         p = MimikatzParser()
-        output = json.dumps({"username": "admin", "domain": "DOMAIN", "NTLM": "31d6cfe0d16ae931b73c59d7e0c089c1", "password": "Secret123"})
+        output = json.dumps(
+            {
+                "username": "admin",
+                "domain": "DOMAIN",
+                "NTLM": "31d6cfe0d16ae931b73c59d7e0c089c1",
+                "password": "Secret123",
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
         for f in findings:
@@ -561,7 +650,17 @@ class TestMimikatzParser:
 
     def test_json_array_mixed(self):
         p = MimikatzParser()
-        output = json.dumps([{"user": "u1", "domain": "D", "ntlm": "aad3b435b51404eeaad3b435b51404ee"}, {"user": "u2", "domain": "D", "NTLM": "31d6cfe0d16ae931b73c59d7e0c089c1", "password": "pwd"}])
+        output = json.dumps(
+            [
+                {"user": "u1", "domain": "D", "ntlm": "aad3b435b51404eeaad3b435b51404ee"},
+                {
+                    "user": "u2",
+                    "domain": "D",
+                    "NTLM": "31d6cfe0d16ae931b73c59d7e0c089c1",
+                    "password": "pwd",
+                },
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 3
 
@@ -570,6 +669,8 @@ class TestMimikatzParser:
         output = "  msv [\n  * Username : user1\n  * Domain   : D\n  * NTLM     : aad3b435b51404eeaad3b435b51404ee\n"
         findings = p.parse(output)
         assert any("msv" in f["title"].lower() or "MSV" in f["title"] for f in findings)
+
+
 class TestEvilWinrmParser:
     def test_banner_detected(self):
         p = EvilWinrmParser()
@@ -617,7 +718,9 @@ class TestEvilWinrmParser:
 
     def test_json_multiple_sessions(self):
         p = EvilWinrmParser()
-        output = json.dumps([{"host": "10.0.0.1", "username": "admin"}, {"host": "10.0.0.2", "username": "user"}])
+        output = json.dumps(
+            [{"host": "10.0.0.1", "username": "admin"}, {"host": "10.0.0.2", "username": "user"}]
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
@@ -637,6 +740,8 @@ class TestEvilWinrmParser:
         output = "Evil-WinRM shell on 192.168.1.100\nEvil-WinRM PS session on 192.168.1.100\n"
         findings = p.parse(output)
         assert len(findings) == 1
+
+
 class TestKerbruteParser:
     def test_valid_user_text(self):
         p = KerbruteParser()
@@ -674,14 +779,18 @@ class TestKerbruteParser:
 
     def test_json_valid(self):
         p = KerbruteParser()
-        output = json.dumps({"username": "admin@domain.local", "valid": True, "domain": "domain.local"})
+        output = json.dumps(
+            {"username": "admin@domain.local", "valid": True, "domain": "domain.local"}
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         _check_finding(findings[0], "kerbrute")
 
     def test_json_with_hash(self):
         p = KerbruteParser()
-        output = json.dumps({"username": "user@domain", "valid": True, "hash": "$krb5asrep$user@domain:abcd1234"})
+        output = json.dumps(
+            {"username": "user@domain", "valid": True, "hash": "$krb5asrep$user@domain:abcd1234"}
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
@@ -700,6 +809,8 @@ class TestKerbruteParser:
         output = "3 valid users found\n"
         findings = p.parse(output)
         assert len(findings) >= 1
+
+
 class TestImpacketParser:
     def test_smb_share_accessed(self):
         p = ImpacketParser()
@@ -738,6 +849,8 @@ class TestImpacketParser:
         output = "Some generic message\n"
         findings = p.parse(output)
         assert isinstance(findings, list)
+
+
 class TestCertipyParser:
     def test_success_line_with_esc(self):
         p = CertipyParser()
@@ -812,30 +925,63 @@ class TestCertipyParser:
         output = "[*] Template Enabled for enrollment\n"
         findings = p.parse(output)
         assert len(findings) >= 1
+
+
 class TestBloodhoundParser_extra_b5:
     def test_data_list_with_labels(self):
         p = BloodhoundParser()
-        output = json.dumps({"data": [{"Label": "ADMIN", "ObjectId": "S-1-5-21-123", "ObjectType": "User"}, {"Label": "DC01", "ObjectId": "S-1-5-21-456", "ObjectType": "Computer"}]})
+        output = json.dumps(
+            {
+                "data": [
+                    {"Label": "ADMIN", "ObjectId": "S-1-5-21-123", "ObjectType": "User"},
+                    {"Label": "DC01", "ObjectId": "S-1-5-21-456", "ObjectType": "Computer"},
+                ]
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
         _check_finding(findings[0], "bloodhound")
 
     def test_data_list_group(self):
         p = BloodhoundParser()
-        output = json.dumps({"data": [{"Label": "Domain Admins", "ObjectId": "S-1-5-21-789", "ObjectType": "Group"}]})
+        output = json.dumps(
+            {
+                "data": [
+                    {"Label": "Domain Admins", "ObjectId": "S-1-5-21-789", "ObjectType": "Group"}
+                ]
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert "Group" in findings[0]["title"]
 
     def test_user_props(self):
         p = BloodhoundParser()
-        output = json.dumps({"type": "User", "props": {"samaccountname": "admin", "userprincipalname": "admin@contoso.local", "enabled": True}})
+        output = json.dumps(
+            {
+                "type": "User",
+                "props": {
+                    "samaccountname": "admin",
+                    "userprincipalname": "admin@contoso.local",
+                    "enabled": True,
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
     def test_computer_props(self):
         p = BloodhoundParser()
-        output = json.dumps({"type": "Computer", "props": {"name": "DC01.contoso.local", "operatingsystem": "Windows Server 2022", "samaccountname": "DC01$"}})
+        output = json.dumps(
+            {
+                "type": "Computer",
+                "props": {
+                    "name": "DC01.contoso.local",
+                    "operatingsystem": "Windows Server 2022",
+                    "samaccountname": "DC01$",
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
@@ -854,7 +1000,9 @@ class TestBloodhoundParser_extra_b5:
 
     def test_acl(self):
         p = BloodhoundParser()
-        output = json.dumps({"type": "Acl", "props": {"principal": "ADMIN", "righttype": "GenericAll"}})
+        output = json.dumps(
+            {"type": "Acl", "props": {"principal": "ADMIN", "righttype": "GenericAll"}}
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert findings[0]["severity"] == "medium"
@@ -871,9 +1019,19 @@ class TestBloodhoundParser_extra_b5:
 
     def test_dedup(self):
         p = BloodhoundParser()
-        output = json.dumps({"data": [{"Label": "ADMIN", "ObjectId": "S-1-5-21-123", "ObjectType": "User"}]}) + "\n" + json.dumps({"data": [{"Label": "ADMIN", "ObjectId": "S-1-5-21-123", "ObjectType": "User"}]})
+        output = (
+            json.dumps(
+                {"data": [{"Label": "ADMIN", "ObjectId": "S-1-5-21-123", "ObjectType": "User"}]}
+            )
+            + "\n"
+            + json.dumps(
+                {"data": [{"Label": "ADMIN", "ObjectId": "S-1-5-21-123", "ObjectType": "User"}]}
+            )
+        )
         findings = p.parse(output)
         assert len(findings) == 1
+
+
 class TestMimikatzParser_extra_b6:
     def test_json_single_credential(self):
         p = MimikatzParser()
@@ -889,10 +1047,16 @@ class TestMimikatzParser_extra_b6:
 
     def test_json_list_credentials(self):
         p = MimikatzParser()
-        output = json.dumps([
-            {"username": "Admin", "domain": "EXAMPLE", "ntlm": "31d6cfe0d16ae931b73c59d7e0c089c1"},
-            {"username": "User1", "domain": "EXAMPLE", "password": "secret123"},
-        ])
+        output = json.dumps(
+            [
+                {
+                    "username": "Admin",
+                    "domain": "EXAMPLE",
+                    "ntlm": "31d6cfe0d16ae931b73c59d7e0c089c1",
+                },
+                {"username": "User1", "domain": "EXAMPLE", "password": "secret123"},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
         admin_findings = [f for f in findings if "Admin" in f.get("target", "")]
@@ -908,10 +1072,20 @@ class TestMimikatzParser_extra_b6:
 
     def test_json_dedup(self):
         p = MimikatzParser()
-        output = json.dumps([
-            {"username": "Admin", "domain": "EXAMPLE", "ntlm": "31d6cfe0d16ae931b73c59d7e0c089c1"},
-            {"username": "Admin", "domain": "EXAMPLE", "ntlm": "31d6cfe0d16ae931b73c59d7e0c089c1"},
-        ])
+        output = json.dumps(
+            [
+                {
+                    "username": "Admin",
+                    "domain": "EXAMPLE",
+                    "ntlm": "31d6cfe0d16ae931b73c59d7e0c089c1",
+                },
+                {
+                    "username": "Admin",
+                    "domain": "EXAMPLE",
+                    "ntlm": "31d6cfe0d16ae931b73c59d7e0c089c1",
+                },
+            ]
+        )
         findings = p.parse(output)
         credential_findings = [f for f in findings if "credential" in f["title"].lower()]
         assert len(credential_findings) == 1
@@ -1021,21 +1195,13 @@ class TestMimikatzParser_extra_b6:
 
     def test_sha1_field_not_ntlm(self):
         p = MimikatzParser()
-        output = (
-            "* Username : Admin\n"
-            "* Domain   : EXAMPLE\n"
-            "* SHA1     : a" * 40 + "\n"
-        )
+        output = "* Username : Admin\n" "* Domain   : EXAMPLE\n" "* SHA1     : a" * 40 + "\n"
         findings = p.parse(output)
         assert isinstance(findings, list)
 
     def test_password_with_null(self):
         p = MimikatzParser()
-        output = (
-            "* Username : Admin\n"
-            "* Domain   : EXAMPLE\n"
-            "* Password : (null)\n"
-        )
+        output = "* Username : Admin\n" "* Domain   : EXAMPLE\n" "* Password : (null)\n"
         findings = p.parse(output)
         assert len(findings) == 0
 
@@ -1121,10 +1287,12 @@ class TestResponderParser:
 
     def test_json_format(self):
         p = ResponderParser()
-        output = json.dumps([
-            {"hash": "admin::domain:ABCD1234", "protocol": "SMB", "client_ip": "10.0.0.1"},
-            {"ntlmv2": "user::domain:EFGH5678", "protocol": "HTTP", "from": "10.0.0.2"},
-        ])
+        output = json.dumps(
+            [
+                {"hash": "admin::domain:ABCD1234", "protocol": "SMB", "client_ip": "10.0.0.1"},
+                {"ntlmv2": "user::domain:EFGH5678", "protocol": "HTTP", "from": "10.0.0.2"},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
         for f in findings:
@@ -1144,20 +1312,19 @@ class TestResponderParser:
 
     def test_json_dedup(self):
         p = ResponderParser()
-        output = json.dumps([
-            {"hash": "admin::domain:SAMEHASH", "protocol": "SMB", "client_ip": "10.0.0.1"},
-            {"hash": "admin::domain:SAMEHASH", "protocol": "SMB", "client_ip": "10.0.0.1"},
-        ])
+        output = json.dumps(
+            [
+                {"hash": "admin::domain:SAMEHASH", "protocol": "SMB", "client_ip": "10.0.0.1"},
+                {"hash": "admin::domain:SAMEHASH", "protocol": "SMB", "client_ip": "10.0.0.1"},
+            ]
+        )
         findings = p.parse(output)
         hash_findings = [f for f in findings if "hash" in f["title"].lower()]
         assert len(hash_findings) == 1
 
     def test_challenge_response_dedup(self):
         p = ResponderParser()
-        output = (
-            "NTLMv2 Challenge Response: SAMEVALUE\n"
-            "NTLMv2 Challenge Response: SAMEVALUE\n"
-        )
+        output = "NTLMv2 Challenge Response: SAMEVALUE\n" "NTLMv2 Challenge Response: SAMEVALUE\n"
         findings = p.parse(output)
         challenge_findings = [f for f in findings if "Challenge" in f["title"]]
         assert len(challenge_findings) == 1
@@ -1180,10 +1347,12 @@ class TestResponderParser:
 class TestSharphoundParser:
     def test_user_object(self):
         p = SharphoundParser()
-        output = json.dumps({
-            "Type": "User",
-            "Props": {"name": "ADMIN", "domain": "EXAMPLE.LOCAL"},
-        })
+        output = json.dumps(
+            {
+                "Type": "User",
+                "Props": {"name": "ADMIN", "domain": "EXAMPLE.LOCAL"},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "AD User" in findings[0]["title"]
@@ -1191,20 +1360,28 @@ class TestSharphoundParser:
 
     def test_group_object(self):
         p = SharphoundParser()
-        output = json.dumps({
-            "Type": "Group",
-            "Props": {"name": "Domain Admins", "domain": "EXAMPLE.LOCAL"},
-        })
+        output = json.dumps(
+            {
+                "Type": "Group",
+                "Props": {"name": "Domain Admins", "domain": "EXAMPLE.LOCAL"},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "AD Group" in findings[0]["title"]
 
     def test_computer_object(self):
         p = SharphoundParser()
-        output = json.dumps({
-            "type": "computer",
-            "props": {"name": "DC01", "domain": "EXAMPLE.LOCAL", "operatingsystem": "Windows Server 2022"},
-        })
+        output = json.dumps(
+            {
+                "type": "computer",
+                "props": {
+                    "name": "DC01",
+                    "domain": "EXAMPLE.LOCAL",
+                    "operatingsystem": "Windows Server 2022",
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "AD Computer" in findings[0]["title"]
@@ -1212,10 +1389,12 @@ class TestSharphoundParser:
 
     def test_session_object(self):
         p = SharphoundParser()
-        output = json.dumps({
-            "Type": "Session",
-            "Props": {"name": "ADMIN", "computer": "DC01", "domain": "EXAMPLE.LOCAL"},
-        })
+        output = json.dumps(
+            {
+                "Type": "Session",
+                "Props": {"name": "ADMIN", "computer": "DC01", "domain": "EXAMPLE.LOCAL"},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "AD Session" in findings[0]["title"]
@@ -1223,10 +1402,12 @@ class TestSharphoundParser:
 
     def test_acl_object(self):
         p = SharphoundParser()
-        output = json.dumps({
-            "Type": "ACL",
-            "Props": {"name": "S-1-5-21-1234-500", "domain": "EXAMPLE.LOCAL"},
-        })
+        output = json.dumps(
+            {
+                "Type": "ACL",
+                "Props": {"name": "S-1-5-21-1234-500", "domain": "EXAMPLE.LOCAL"},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "AD ACL" in findings[0]["title"]
@@ -1234,11 +1415,20 @@ class TestSharphoundParser:
 
     def test_multiple_objects_in_list(self):
         p = SharphoundParser()
-        output = json.dumps([
-            {"Type": "User", "Props": {"name": "ADMIN", "domain": "EXAMPLE.LOCAL"}},
-            {"Type": "Group", "Props": {"name": "Domain Admins", "domain": "EXAMPLE.LOCAL"}},
-            {"Type": "Computer", "props": {"name": "DC01", "domain": "EXAMPLE.LOCAL", "OperatingSystem": "Windows"}},
-        ])
+        output = json.dumps(
+            [
+                {"Type": "User", "Props": {"name": "ADMIN", "domain": "EXAMPLE.LOCAL"}},
+                {"Type": "Group", "Props": {"name": "Domain Admins", "domain": "EXAMPLE.LOCAL"}},
+                {
+                    "Type": "Computer",
+                    "props": {
+                        "name": "DC01",
+                        "domain": "EXAMPLE.LOCAL",
+                        "OperatingSystem": "Windows",
+                    },
+                },
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 3
         for f in findings:
@@ -1280,10 +1470,12 @@ class TestSharphoundParser:
 
     def test_dedup_identical_users(self):
         p = SharphoundParser()
-        output = json.dumps([
-            {"Type": "User", "Props": {"name": "ADMIN", "domain": "EXAMPLE.LOCAL"}},
-            {"Type": "User", "Props": {"name": "ADMIN", "domain": "EXAMPLE.LOCAL"}},
-        ])
+        output = json.dumps(
+            [
+                {"Type": "User", "Props": {"name": "ADMIN", "domain": "EXAMPLE.LOCAL"}},
+                {"Type": "User", "Props": {"name": "ADMIN", "domain": "EXAMPLE.LOCAL"}},
+            ]
+        )
         findings = p.parse(output)
         user_findings = [f for f in findings if "AD User" in f["title"]]
         assert len(user_findings) == 1
@@ -1382,10 +1574,21 @@ class TestCrackmapexecParser:
 
     def test_json_format(self):
         p = CrackmapexecParser()
-        output = json.dumps([
-            {"host": "10.0.0.1", "username": "admin", "nt_hash": "31d6cfe0d16ae931b73c59d7e0c089c1"},
-            {"host": "10.0.0.2", "username": "user", "hash": "aad3b435b51404eeaad3b435b51404ee", "pwned": True},
-        ])
+        output = json.dumps(
+            [
+                {
+                    "host": "10.0.0.1",
+                    "username": "admin",
+                    "nt_hash": "31d6cfe0d16ae931b73c59d7e0c089c1",
+                },
+                {
+                    "host": "10.0.0.2",
+                    "username": "user",
+                    "hash": "aad3b435b51404eeaad3b435b51404ee",
+                    "pwned": True,
+                },
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
         pwned = [f for f in findings if "Pwn3d" in f["title"]]
@@ -1438,12 +1641,16 @@ class TestCrackmapexecParser:
 class TestPypykatzParser_extra_b6:
     def test_json_block_credentials(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "Admin", "DomainName": "EXAMPLE"},
-            "Credentials": {
-                "MSV": [{"Password": "Passw0rd!", "NTHash": "31d6cfe0d16ae931b73c59d7e0c089c1"}],
-            },
-        })
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "Admin", "DomainName": "EXAMPLE"},
+                "Credentials": {
+                    "MSV": [
+                        {"Password": "Passw0rd!", "NTHash": "31d6cfe0d16ae931b73c59d7e0c089c1"}
+                    ],
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         assert findings[0]["severity"] == "critical"
@@ -1451,47 +1658,65 @@ class TestPypykatzParser_extra_b6:
 
     def test_json_multiple_cred_types(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "Admin", "DomainName": "EXAMPLE"},
-            "Credentials": {
-                "MSV": [{"Password": "Passw0rd!", "NTHash": "31d6cfe0d16ae931b73c59d7e0c089c1"}],
-                "WDIGEST": [{"Password": "wdigest_pass"}],
-                "SSP": [{"Password": "ssp_pass"}],
-            },
-        })
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "Admin", "DomainName": "EXAMPLE"},
+                "Credentials": {
+                    "MSV": [
+                        {"Password": "Passw0rd!", "NTHash": "31d6cfe0d16ae931b73c59d7e0c089c1"}
+                    ],
+                    "WDIGEST": [{"Password": "wdigest_pass"}],
+                    "SSP": [{"Password": "ssp_pass"}],
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 3
 
     def test_json_section_subtype_creds(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "Admin", "DomainName": "EXAMPLE"},
-            "Credentials": {
-                "MSV": {
-                    "Logon": [{"Password": "secret", "NTHash": "31d6cfe0d16ae931b73c59d7e0c089c1"}],
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "Admin", "DomainName": "EXAMPLE"},
+                "Credentials": {
+                    "MSV": {
+                        "Logon": [
+                            {"Password": "secret", "NTHash": "31d6cfe0d16ae931b73c59d7e0c089c1"}
+                        ],
+                    },
                 },
-            },
-        })
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
     def test_json_empty_password_and_null_hash_skipped(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "Admin", "DomainName": "EXAMPLE"},
-            "Credentials": {
-                "MSV": [{"Password": "", "NTHash": "aad3b435b51404eeaad3b435b51404ee"}],
-            },
-        })
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "Admin", "DomainName": "EXAMPLE"},
+                "Credentials": {
+                    "MSV": [{"Password": "", "NTHash": "aad3b435b51404eeaad3b435b51404ee"}],
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 0
 
     def test_json_list_top_level(self):
         p = PypykatzParser()
-        output = json.dumps([
-            {"LogonSession": {"Username": "Admin", "DomainName": "EXAMPLE"}, "Credentials": {"MSV": [{"Password": "p1"}]}},
-            {"LogonSession": {"Username": "User1", "DomainName": "EXAMPLE"}, "Credentials": {"MSV": [{"Password": "p2"}]}},
-        ])
+        output = json.dumps(
+            [
+                {
+                    "LogonSession": {"Username": "Admin", "DomainName": "EXAMPLE"},
+                    "Credentials": {"MSV": [{"Password": "p1"}]},
+                },
+                {
+                    "LogonSession": {"Username": "User1", "DomainName": "EXAMPLE"},
+                    "Credentials": {"MSV": [{"Password": "p2"}]},
+                },
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
@@ -1511,22 +1736,22 @@ class TestPypykatzParser_extra_b6:
 
     def test_json_per_line_format(self):
         p = PypykatzParser()
-        output = (
-            '{"LogonSession":{"Username":"Admin","DomainName":"EXAMPLE"},"Credentials":{"MSV":[{"Password":"Passw0rd!"}]}}\n'
-        )
+        output = '{"LogonSession":{"Username":"Admin","DomainName":"EXAMPLE"},"Credentials":{"MSV":[{"Password":"Passw0rd!"}]}}\n'
         findings = p.parse(output)
         assert len(findings) >= 1
 
     def test_ssp_cred_section(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "Admin", "DomainName": "EXAMPLE"},
-            "Credentials": {
-                "SSP_CRED": {
-                    "LogonSession": [{"Password": "ssp_cred_pass"}],
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "Admin", "DomainName": "EXAMPLE"},
+                "Credentials": {
+                    "SSP_CRED": {
+                        "LogonSession": [{"Password": "ssp_cred_pass"}],
+                    },
                 },
-            },
-        })
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
@@ -1546,23 +1771,29 @@ class TestPypykatzParser_extra_b6:
 
     def test_dedup_credentials(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "Admin", "DomainName": "EXAMPLE"},
-            "Credentials": {
-                "MSV": [{"Password": "Passw0rd!", "NTHash": "31d6cfe0d16ae931b73c59d7e0c089c1"}],
-            },
-        })
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "Admin", "DomainName": "EXAMPLE"},
+                "Credentials": {
+                    "MSV": [
+                        {"Password": "Passw0rd!", "NTHash": "31d6cfe0d16ae931b73c59d7e0c089c1"}
+                    ],
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
     def test_livess_section(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "Admin", "DomainName": "EXAMPLE"},
-            "Credentials": {
-                "LIVESS": [{"Password": "live_password"}],
-            },
-        })
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "Admin", "DomainName": "EXAMPLE"},
+                "Credentials": {
+                    "LIVESS": [{"Password": "live_password"}],
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
@@ -1573,12 +1804,22 @@ class TestPypykatzParser_extra_b6:
 class TestBloodhoundParser_extra_b7:
     def test_data_list_user(self):
         p = BloodhoundParser()
-        output = json.dumps({
-            "data": [
-                {"Label": "ADMIN@CORP.LOCAL", "ObjectId": "S-1-5-21-1234-500", "ObjectType": "User"},
-                {"Label": "jdoe@CORP.LOCAL", "ObjectId": "S-1-5-21-1234-1001", "ObjectType": "User"},
-            ],
-        })
+        output = json.dumps(
+            {
+                "data": [
+                    {
+                        "Label": "ADMIN@CORP.LOCAL",
+                        "ObjectId": "S-1-5-21-1234-500",
+                        "ObjectType": "User",
+                    },
+                    {
+                        "Label": "jdoe@CORP.LOCAL",
+                        "ObjectId": "S-1-5-21-1234-1001",
+                        "ObjectType": "User",
+                    },
+                ],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 2
         for f in findings:
@@ -1588,33 +1829,47 @@ class TestBloodhoundParser_extra_b7:
 
     def test_data_list_computer(self):
         p = BloodhoundParser()
-        output = json.dumps({
-            "data": [
-                {"Label": "DC01.CORP.LOCAL", "ObjectId": "S-1-5-21-1234-1000", "ObjectType": "Computer"},
-            ],
-        })
+        output = json.dumps(
+            {
+                "data": [
+                    {
+                        "Label": "DC01.CORP.LOCAL",
+                        "ObjectId": "S-1-5-21-1234-1000",
+                        "ObjectType": "Computer",
+                    },
+                ],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "Computer DC01.CORP.LOCAL" in findings[0]["title"]
 
     def test_data_list_group(self):
         p = BloodhoundParser()
-        output = json.dumps({
-            "data": [
-                {"Label": "DOMAIN ADMINS", "ObjectId": "S-1-5-21-1234-512", "ObjectType": "Group"},
-            ],
-        })
+        output = json.dumps(
+            {
+                "data": [
+                    {
+                        "Label": "DOMAIN ADMINS",
+                        "ObjectId": "S-1-5-21-1234-512",
+                        "ObjectType": "Group",
+                    },
+                ],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "Group DOMAIN ADMINS" in findings[0]["title"]
 
     def test_data_list_other_type(self):
         p = BloodhoundParser()
-        output = json.dumps({
-            "data": [
-                {"Label": "OU=SERVERS", "ObjectId": "OU-GUID-123", "ObjectType": "OU"},
-            ],
-        })
+        output = json.dumps(
+            {
+                "data": [
+                    {"Label": "OU=SERVERS", "ObjectId": "OU-GUID-123", "ObjectType": "OU"},
+                ],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "OU" in findings[0]["title"]
@@ -1622,12 +1877,14 @@ class TestBloodhoundParser_extra_b7:
 
     def test_data_list_dedup(self):
         p = BloodhoundParser()
-        output = json.dumps({
-            "data": [
-                {"Label": "ADMIN", "ObjectId": "S-1-1", "ObjectType": "User"},
-                {"Label": "ADMIN", "ObjectId": "S-1-2", "ObjectType": "User"},
-            ],
-        })
+        output = json.dumps(
+            {
+                "data": [
+                    {"Label": "ADMIN", "ObjectId": "S-1-1", "ObjectType": "User"},
+                    {"Label": "ADMIN", "ObjectId": "S-1-2", "ObjectType": "User"},
+                ],
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -1639,40 +1896,56 @@ class TestBloodhoundParser_extra_b7:
 
     def test_type_user_props(self):
         p = BloodhoundParser()
-        output = json.dumps({
-            "type": "User",
-            "props": {"samaccountname": "alice", "userprincipalname": "alice@corp.local", "enabled": True},
-        })
+        output = json.dumps(
+            {
+                "type": "User",
+                "props": {
+                    "samaccountname": "alice",
+                    "userprincipalname": "alice@corp.local",
+                    "enabled": True,
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "User alice" in findings[0]["title"]
 
     def test_type_computer_props(self):
         p = BloodhoundParser()
-        output = json.dumps({
-            "type": "Computer",
-            "props": {"name": "DC01", "operatingsystem": "Windows Server 2022", "samaccountname": "DC01$"},
-        })
+        output = json.dumps(
+            {
+                "type": "Computer",
+                "props": {
+                    "name": "DC01",
+                    "operatingsystem": "Windows Server 2022",
+                    "samaccountname": "DC01$",
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "Computer DC01" in findings[0]["title"]
 
     def test_type_group_props(self):
         p = BloodhoundParser()
-        output = json.dumps({
-            "type": "Group",
-            "props": {"name": "Domain Admins"},
-        })
+        output = json.dumps(
+            {
+                "type": "Group",
+                "props": {"name": "Domain Admins"},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "Group Domain Admins" in findings[0]["title"]
 
     def test_type_session(self):
         p = BloodhoundParser()
-        output = json.dumps({
-            "type": "Session",
-            "props": {"user": "alice", "computer": "DC01"},
-        })
+        output = json.dumps(
+            {
+                "type": "Session",
+                "props": {"user": "alice", "computer": "DC01"},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "Session alice" in findings[0]["title"]
@@ -1680,10 +1953,12 @@ class TestBloodhoundParser_extra_b7:
 
     def test_type_acl(self):
         p = BloodhoundParser()
-        output = json.dumps({
-            "type": "Acl",
-            "props": {"principal": "S-1-5-21-1234-500", "righttype": "GenericAll"},
-        })
+        output = json.dumps(
+            {
+                "type": "Acl",
+                "props": {"principal": "S-1-5-21-1234-500", "righttype": "GenericAll"},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert "ACL GenericAll" in findings[0]["title"]
@@ -1705,6 +1980,8 @@ class TestBloodhoundParser_extra_b7:
         p = BloodhoundParser()
         assert p.parse("") == []
         assert p.parse("   ") == []
+
+
 class TestCrackmapexecParser_extra_b8:
     def test_empty(self):
         assert CrackmapexecParser().parse("") == []
@@ -1712,7 +1989,9 @@ class TestCrackmapexecParser_extra_b8:
 
     def test_json_single_credential(self):
         p = CrackmapexecParser()
-        output = json.dumps({"host": "10.0.0.1", "username": "admin", "nt_hash": "aad3b435b51404eeaad3b435b51404ee"})
+        output = json.dumps(
+            {"host": "10.0.0.1", "username": "admin", "nt_hash": "aad3b435b51404eeaad3b435b51404ee"}
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         _check_finding(findings[0], "crackmapexec")
@@ -1720,7 +1999,14 @@ class TestCrackmapexecParser_extra_b8:
 
     def test_json_dual_credential_and_pwned(self):
         p = CrackmapexecParser()
-        output = json.dumps({"host": "10.0.0.1", "username": "admin", "nt_hash": "aad3b435b51404eeaad3b435b51404ee", "pwned": True})
+        output = json.dumps(
+            {
+                "host": "10.0.0.1",
+                "username": "admin",
+                "nt_hash": "aad3b435b51404eeaad3b435b51404ee",
+                "pwned": True,
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 2
         titles = [f["title"] for f in findings]
@@ -1729,10 +2015,17 @@ class TestCrackmapexecParser_extra_b8:
 
     def test_json_list_format(self):
         p = CrackmapexecParser()
-        output = json.dumps([
-            {"host": "10.0.0.1", "user": "admin", "hash": "aad3b435b51404eeaad3b435b51404ee", "admin": True},
-            {"host": "10.0.0.2", "user": "user1", "hash": "aad3b435b51404eeaad3b435b51404ee"},
-        ])
+        output = json.dumps(
+            [
+                {
+                    "host": "10.0.0.1",
+                    "user": "admin",
+                    "hash": "aad3b435b51404eeaad3b435b51404ee",
+                    "admin": True,
+                },
+                {"host": "10.0.0.2", "user": "user1", "hash": "aad3b435b51404eeaad3b435b51404ee"},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 3
 
@@ -1744,19 +2037,23 @@ class TestCrackmapexecParser_extra_b8:
 
     def test_json_dedup_credential(self):
         p = CrackmapexecParser()
-        output = json.dumps([
-            {"host": "10.0.0.1", "user": "admin", "hash": "aad3b435b51404eeaad3b435b51404ee"},
-            {"host": "10.0.0.1", "user": "admin", "hash": "aad3b435b51404eeaad3b435b51404ee"},
-        ])
+        output = json.dumps(
+            [
+                {"host": "10.0.0.1", "user": "admin", "hash": "aad3b435b51404eeaad3b435b51404ee"},
+                {"host": "10.0.0.1", "user": "admin", "hash": "aad3b435b51404eeaad3b435b51404ee"},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
     def test_json_pwned_dedup(self):
         p = CrackmapexecParser()
-        output = json.dumps([
-            {"host": "10.0.0.1", "pwned": True},
-            {"host": "10.0.0.1", "pwned": True},
-        ])
+        output = json.dumps(
+            [
+                {"host": "10.0.0.1", "pwned": True},
+                {"host": "10.0.0.1", "pwned": True},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -1859,6 +2156,8 @@ class TestCrackmapexecParser_extra_b8:
         output = "[+] user:pass\n[+] user:pass"
         findings = p.parse(output)
         assert len(findings) == 1
+
+
 class TestPypykatzParser_extra_b8:
     def test_empty(self):
         assert PypykatzParser().parse("") == []
@@ -1866,35 +2165,43 @@ class TestPypykatzParser_extra_b8:
 
     def test_json_single_record_with_credentials(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "admin", "DomainName": "CORP"},
-            "Credentials": {
-                "MSV": [{"Password": "pass123", "NTHash": "aad3b435b51404eeaad3b435b51404ee"}],
-            },
-        })
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "admin", "DomainName": "CORP"},
+                "Credentials": {
+                    "MSV": [{"Password": "pass123", "NTHash": "aad3b435b51404eeaad3b435b51404ee"}],
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         _check_finding(findings[0], "pypykatz")
 
     def test_json_credentials_section_items(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "admin", "DomainName": "CORP"},
-            "Credentials": {
-                "MSV": {"mstsv1_0": [{"Password": "", "NTHash": "aad3b435b51404eeaad3b435b51404ee"}]},
-            },
-        })
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "admin", "DomainName": "CORP"},
+                "Credentials": {
+                    "MSV": {
+                        "mstsv1_0": [{"Password": "", "NTHash": "aad3b435b51404eeaad3b435b51404ee"}]
+                    },
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 0
 
     def test_json_credential_empty_hash_skipped(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "admin", "DomainName": "CORP"},
-            "Credentials": {
-                "WDIGEST": [{"Password": "", "NTHash": "aad3b435b51404eeaad3b435b51404ee"}],
-            },
-        })
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "admin", "DomainName": "CORP"},
+                "Credentials": {
+                    "WDIGEST": [{"Password": "", "NTHash": "aad3b435b51404eeaad3b435b51404ee"}],
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 0
 
@@ -1906,38 +2213,50 @@ class TestPypykatzParser_extra_b8:
 
     def test_json_sections_with_real_hash(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "user1", "DomainName": "DOMAIN"},
-            "Credentials": {
-                "MSV": [{"Password": "realpass", "NTHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1"}],
-                "LIVESS": [{"Password": "", "NTHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2"}],
-            },
-        })
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "user1", "DomainName": "DOMAIN"},
+                "Credentials": {
+                    "MSV": [{"Password": "realpass", "NTHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1"}],
+                    "LIVESS": [{"Password": "", "NTHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2"}],
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
     def test_json_dedup(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "user", "DomainName": "D"},
-            "Credentials": {
-                "SSP": [{"Password": "pass", "NTHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1"}],
-                "SSP_CRED": [{"Password": "pass", "NTHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1"}],
-            },
-        })
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "user", "DomainName": "D"},
+                "Credentials": {
+                    "SSP": [{"Password": "pass", "NTHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1"}],
+                    "SSP_CRED": [
+                        {"Password": "pass", "NTHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1"}
+                    ],
+                },
+            }
+        )
         findings = p.parse(output)
         # Different dedup keys due to different sections
         assert len(findings) >= 1
 
     def test_json_section_subtype_creds(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "u", "DomainName": "d"},
-            "Credentials": {
-                "WDIGEST": {"subtype1": [{"Password": "pwd", "NTHash": ""}]},
-                "WDIGEST": {"subtype2": [{"Password": "pwd2", "NTHash": "ccccccccccccccccccccccccccccccc3"}]},
-            },
-        })
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "u", "DomainName": "d"},
+                "Credentials": {
+                    "WDIGEST": {"subtype1": [{"Password": "pwd", "NTHash": ""}]},
+                    "WDIGEST": {
+                        "subtype2": [
+                            {"Password": "pwd2", "NTHash": "ccccccccccccccccccccccccccccccc3"}
+                        ]
+                    },
+                },
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
@@ -1949,10 +2268,12 @@ class TestPypykatzParser_extra_b8:
 
     def test_text_line_json_parse(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "admin", "DomainName": "CORP"},
-            "Credentials": {"MSV": [{"Password": "secret"}]},
-        })
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "admin", "DomainName": "CORP"},
+                "Credentials": {"MSV": [{"Password": "secret"}]},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
 
@@ -1977,10 +2298,12 @@ class TestPypykatzParser_extra_b8:
 
     def test_text_line_json_per_line_with_creds(self):
         p = PypykatzParser()
-        line = json.dumps({
-            "LogonSession": {"Username": "admin", "DomainName": "CORP"},
-            "Credentials": {"MSV": [{"Password": "pass", "NTHash": ""}]},
-        })
+        line = json.dumps(
+            {
+                "LogonSession": {"Username": "admin", "DomainName": "CORP"},
+                "Credentials": {"MSV": [{"Password": "pass", "NTHash": ""}]},
+            }
+        )
         findings = p.parse(line)
         assert len(findings) >= 1
 
@@ -1991,14 +2314,22 @@ class TestPypykatzParser_extra_b8:
 
     def test_text_line_json_with_section_subtype(self):
         p = PypykatzParser()
-        line = json.dumps({
-            "LogonSession": {"Username": "admin", "DomainName": "CORP"},
-            "Credentials": {
-                "MSV": {"mstsv1_0": [{"Password": "pass", "NTHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1"}]},
-            },
-        })
+        line = json.dumps(
+            {
+                "LogonSession": {"Username": "admin", "DomainName": "CORP"},
+                "Credentials": {
+                    "MSV": {
+                        "mstsv1_0": [
+                            {"Password": "pass", "NTHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1"}
+                        ]
+                    },
+                },
+            }
+        )
         findings = p.parse(line)
         assert len(findings) >= 1
+
+
 class TestMimikatzParser_extra_b8:
     def test_empty(self):
         assert MimikatzParser().parse("") == []
@@ -2006,7 +2337,9 @@ class TestMimikatzParser_extra_b8:
 
     def test_json_single_cred(self):
         p = MimikatzParser()
-        output = json.dumps({"username": "admin", "domain": "CORP", "ntlm": "aad3b435b51404eeaad3b435b51404ee"})
+        output = json.dumps(
+            {"username": "admin", "domain": "CORP", "ntlm": "aad3b435b51404eeaad3b435b51404ee"}
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         _check_finding(findings[0], "mimikatz")
@@ -2021,7 +2354,14 @@ class TestMimikatzParser_extra_b8:
 
     def test_json_with_ntlm_and_password(self):
         p = MimikatzParser()
-        output = json.dumps({"user": "admin", "domain": "CORP", "NTLM": "aad3b435b51404eeaad3b435b51404ee", "password": "secret"})
+        output = json.dumps(
+            {
+                "user": "admin",
+                "domain": "CORP",
+                "NTLM": "aad3b435b51404eeaad3b435b51404ee",
+                "password": "secret",
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 2
 
@@ -2039,10 +2379,12 @@ class TestMimikatzParser_extra_b8:
 
     def test_json_dedup(self):
         p = MimikatzParser()
-        output = json.dumps([
-            {"username": "admin", "domain": "CORP", "ntlm": "aad3b435b51404eeaad3b435b51404ee"},
-            {"username": "admin", "domain": "CORP", "ntlm": "aad3b435b51404eeaad3b435b51404ee"},
-        ])
+        output = json.dumps(
+            [
+                {"username": "admin", "domain": "CORP", "ntlm": "aad3b435b51404eeaad3b435b51404ee"},
+                {"username": "admin", "domain": "CORP", "ntlm": "aad3b435b51404eeaad3b435b51404ee"},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -2089,7 +2431,9 @@ class TestMimikatzParser_extra_b8:
         p = MimikatzParser()
         output = "* Username : admin\n* Domain : CORP\n* NTLM : aad3b435b51404eeaad3b435b51404ee\nmsv [something]"
         findings = p.parse(output)
-        ntlm_findings = [f for f in findings if "NTLM" in f["evidence"] or "credential" in f["title"].lower()]
+        ntlm_findings = [
+            f for f in findings if "NTLM" in f["evidence"] or "credential" in f["title"].lower()
+        ]
         assert len(findings) >= 1
 
     def test_text_wdigest_detected(self):
@@ -2129,6 +2473,8 @@ class TestMimikatzParser_extra_b8:
         output = "* Username : admin\n* Domain : CORP\n* Password : (null)"
         findings = p.parse(output)
         assert len(findings) == 0
+
+
 class TestSmbclientParser_extra_b8:
     def test_empty(self):
         assert SmbclientParser().parse("") == []
@@ -2150,10 +2496,12 @@ class TestSmbclientParser_extra_b8:
 
     def test_json_dedup(self):
         p = SmbclientParser()
-        output = json.dumps([
-            {"share": "S", "server": "192.168.1.1"},
-            {"share": "S", "server": "192.168.1.1"},
-        ])
+        output = json.dumps(
+            [
+                {"share": "S", "server": "192.168.1.1"},
+                {"share": "S", "server": "192.168.1.1"},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -2237,6 +2585,7 @@ class TestSmbclientParser_extra_b8:
 
     def test_text_file_line(self):
         from siyarix.parsers.smbclient_parser import _FILE_RE
+
         m = _FILE_RE.match("A  some stuff    Mon Jan 01 12:00:00 2025 report.txt")
         assert m is not None
         assert m.group("name") == "report.txt"
@@ -2253,6 +2602,8 @@ class TestSmbclientParser_extra_b8:
         output = "garbage"
         findings = p.parse(output)
         assert len(findings) == 0
+
+
 class TestSmbmapParser_extra_b8:
     def test_empty(self):
         assert SmbmapParser().parse("") == []
@@ -2260,7 +2611,9 @@ class TestSmbmapParser_extra_b8:
 
     def test_json_share_with_write(self):
         p = SmbmapParser()
-        output = json.dumps({"share": "Documents", "permission": "READ,WRITE", "target": "10.0.0.1"})
+        output = json.dumps(
+            {"share": "Documents", "permission": "READ,WRITE", "target": "10.0.0.1"}
+        )
         findings = p.parse(output)
         assert len(findings) >= 1
         _check_finding(findings[0], "smbmap")
@@ -2275,7 +2628,14 @@ class TestSmbmapParser_extra_b8:
 
     def test_json_file_and_disk_usage(self):
         p = SmbmapParser()
-        output = json.dumps({"filename": "file.txt", "file_size": 1024, "target": "10.0.0.1", "disk_usage": "500MB used"})
+        output = json.dumps(
+            {
+                "filename": "file.txt",
+                "file_size": 1024,
+                "target": "10.0.0.1",
+                "disk_usage": "500MB used",
+            }
+        )
         findings = p.parse(output)
         assert len(findings) >= 2
 
@@ -2293,10 +2653,12 @@ class TestSmbmapParser_extra_b8:
 
     def test_json_dedup(self):
         p = SmbmapParser()
-        output = json.dumps([
-            {"share": "S", "permission": "READ", "target": "10.0.0.1"},
-            {"share": "S", "permission": "READ", "target": "10.0.0.1"},
-        ])
+        output = json.dumps(
+            [
+                {"share": "S", "permission": "READ", "target": "10.0.0.1"},
+                {"share": "S", "permission": "READ", "target": "10.0.0.1"},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -2387,6 +2749,8 @@ class TestSmbmapParser_extra_b8:
         output = "Documents    (READ)\nDocuments    (READ)"
         findings = p.parse(output)
         assert len(findings) == 1
+
+
 class TestKerbruteParser_extra_b8:
     def test_empty(self):
         assert KerbruteParser().parse("") == []
@@ -2401,7 +2765,9 @@ class TestKerbruteParser_extra_b8:
 
     def test_json_with_hash(self):
         p = KerbruteParser()
-        output = json.dumps({"username": "admin", "valid": True, "hash": "$krb5asrep$admin@CORP:hashdata"})
+        output = json.dumps(
+            {"username": "admin", "valid": True, "hash": "$krb5asrep$admin@CORP:hashdata"}
+        )
         findings = p.parse(output)
         assert len(findings) == 2
 
@@ -2492,6 +2858,8 @@ class TestKerbruteParser_extra_b8:
         output = "some random text\n"
         findings = p.parse(output)
         assert len(findings) == 0
+
+
 class TestSeatbeltParser:
     def test_empty(self):
         assert SeatbeltParser().parse("") == []
@@ -2499,7 +2867,14 @@ class TestSeatbeltParser:
 
     def test_json_with_output_high(self):
         p = SeatbeltParser()
-        output = json.dumps({"Command": "user-enum", "Host": "DC01", "Output": "Found password in config", "User": "admin"})
+        output = json.dumps(
+            {
+                "Command": "user-enum",
+                "Host": "DC01",
+                "Output": "Found password in config",
+                "User": "admin",
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         _check_finding(findings[0], "seatbelt")
@@ -2507,7 +2882,9 @@ class TestSeatbeltParser:
 
     def test_json_with_output_admin(self):
         p = SeatbeltParser()
-        output = json.dumps({"command": "token-enum", "host": "SRV01", "output": "admin privileges found"})
+        output = json.dumps(
+            {"command": "token-enum", "host": "SRV01", "output": "admin privileges found"}
+        )
         findings = p.parse(output)
         assert len(findings) == 1
         assert findings[0]["severity"] == "medium"
@@ -2521,10 +2898,12 @@ class TestSeatbeltParser:
 
     def test_json_dedup(self):
         p = SeatbeltParser()
-        output = json.dumps([
-            {"Command": "test", "Host": "localhost"},
-            {"Command": "test", "Host": "localhost"},
-        ])
+        output = json.dumps(
+            [
+                {"Command": "test", "Host": "localhost"},
+                {"Command": "test", "Host": "localhost"},
+            ]
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -2571,6 +2950,8 @@ class TestSeatbeltParser:
         output = ""
         findings = p.parse(output)
         assert len(findings) == 0
+
+
 class TestBloodhoundParserBranches:
     """Covers: data list item w/o ObjectType, dedup for user/computer/group/session/acl."""
 
@@ -2606,7 +2987,9 @@ class TestBloodhoundParserBranches:
 
     def test_acl_dedup(self):
         p = BloodhoundParser()
-        line = json.dumps({"type": "Acl", "props": {"principal": "admin", "righttype": "GenericAll"}})
+        line = json.dumps(
+            {"type": "Acl", "props": {"principal": "admin", "righttype": "GenericAll"}}
+        )
         findings = p.parse(f"{line}\n{line}\n")
         assert len(findings) == 1
 
@@ -2641,19 +3024,25 @@ class TestBloodhoundPythonParserBranches:
 
     def test_group_dedup(self):
         p = BloodhoundPythonParser()
-        line = json.dumps({"type": "group", "props": {"name": "Domain Admins", "domain": "contoso"}})
+        line = json.dumps(
+            {"type": "group", "props": {"name": "Domain Admins", "domain": "contoso"}}
+        )
         findings = p.parse(f"{line}\n{line}\n")
         assert len(findings) == 1
 
     def test_session_dedup(self):
         p = BloodhoundPythonParser()
-        line = json.dumps({"type": "session", "props": {"name": "admin", "computer": "PC01", "domain": "contoso"}})
+        line = json.dumps(
+            {"type": "session", "props": {"name": "admin", "computer": "PC01", "domain": "contoso"}}
+        )
         findings = p.parse(f"{line}\n{line}\n")
         assert len(findings) == 1
 
     def test_acl_dedup(self):
         p = BloodhoundPythonParser()
-        line = json.dumps({"type": "acl", "props": {"name": "admin", "rightguid": "GUID123", "domain": "contoso"}})
+        line = json.dumps(
+            {"type": "acl", "props": {"name": "admin", "rightguid": "GUID123", "domain": "contoso"}}
+        )
         findings = p.parse(f"{line}\n{line}\n")
         assert len(findings) == 1
 
@@ -2663,7 +3052,7 @@ class TestBloodhoundPythonParserBranches:
 # ---------------------------------------------------------------------------
 class TestCertipyParserBranches:
     """Covers: non-dict JSON item, JSON template dedup, ESC non-critical,
-       empty-line, ESC dedup, template dedup, CA info, PKCS12 cert obtained."""
+    empty-line, ESC dedup, template dedup, CA info, PKCS12 cert obtained."""
 
     def test_json_non_dict_item_skipped(self):
         p = CertipyParser()
@@ -2722,8 +3111,8 @@ class TestCertipyParserBranches:
 # ---------------------------------------------------------------------------
 class TestEnum4linuxParserBranches:
     """Covers: JSON non-dict, user dedup, share dedup, OS from JSON,
-       text empty, section header, target line, RID dedup, workgroup,
-       user, share, printer, group, session, policy, OS, SID."""
+    text empty, section header, target line, RID dedup, workgroup,
+    user, share, printer, group, session, policy, OS, SID."""
 
     def test_json_non_dict_skipped(self):
         p = Enum4linuxParser()
@@ -2740,7 +3129,9 @@ class TestEnum4linuxParserBranches:
 
     def test_json_share_dedup(self):
         p = Enum4linuxParser()
-        output = json.dumps([{"share": "sharedocs", "host": "PC01"}, {"share": "sharedocs", "host": "PC01"}])
+        output = json.dumps(
+            [{"share": "sharedocs", "host": "PC01"}, {"share": "sharedocs", "host": "PC01"}]
+        )
         findings = p.parse(output)
         shares = [f for f in findings if "share" in f["title"].lower()]
         assert len(shares) == 1
@@ -2853,6 +3244,8 @@ class TestEvilWinrmParser:
     def test_json_non_dict_skipped(self):
         r = EvilWinrmParser().parse('["hello"]')
         assert len(r) == 0
+
+
 class TestImpacketParser:
     def test_empty(self):
         assert ImpacketParser().parse("") == []
@@ -2876,21 +3269,29 @@ class TestImpacketParser:
     def test_skip_blank_line(self):
         r = ImpacketParser().parse("\n\n")
         assert len(r) == 0
+
+
 class TestPypykatzParser:
     def test_empty(self):
         assert PypykatzParser().parse("") == []
         assert PypykatzParser().parse("   ") == []
 
     def test_json_section_creds(self):
-        r = PypykatzParser().parse('{"LogonSession":{"Username":"admin","DomainName":"WORKGROUP"},"Credentials":{"MSV":{"subtype1":[{"Password":"pass123","NTHash":"aad3b435b51404eeaad3b435b51404ee"}]}}}')
+        r = PypykatzParser().parse(
+            '{"LogonSession":{"Username":"admin","DomainName":"WORKGROUP"},"Credentials":{"MSV":{"subtype1":[{"Password":"pass123","NTHash":"aad3b435b51404eeaad3b435b51404ee"}]}}}'
+        )
         assert len(r) >= 1
 
     def test_json_empty_password_skipped(self):
-        r = PypykatzParser().parse('{"LogonSession":{"Username":"admin","DomainName":"WORKGROUP"},"Credentials":{"MSV":{"subtype1":[{"Password":"","NTHash":"aad3b435b51404eeaad3b435b51404ee"}]}}}')
+        r = PypykatzParser().parse(
+            '{"LogonSession":{"Username":"admin","DomainName":"WORKGROUP"},"Credentials":{"MSV":{"subtype1":[{"Password":"","NTHash":"aad3b435b51404eeaad3b435b51404ee"}]}}}'
+        )
         assert len(r) == 0
 
     def test_json_creds_list(self):
-        r = PypykatzParser().parse('[{"LogonSession":{"Username":"admin","DomainName":"WORKGROUP"},"Credentials":{"MSV":{"sub":[{"Password":"pass"}]}}}]')
+        r = PypykatzParser().parse(
+            '[{"LogonSession":{"Username":"admin","DomainName":"WORKGROUP"},"Credentials":{"MSV":{"sub":[{"Password":"pass"}]}}}]'
+        )
         assert len(r) >= 1
 
     def test_text_password_line(self):
@@ -2898,12 +3299,16 @@ class TestPypykatzParser:
         assert len(r) == 1
 
     def test_text_json_per_line(self):
-        r = PypykatzParser().parse('{"LogonSession":{"Username":"admin","DomainName":"WORKGROUP"},"Credentials":{"MSV":{"sub":[{"Password":"pass"}]}}}')
+        r = PypykatzParser().parse(
+            '{"LogonSession":{"Username":"admin","DomainName":"WORKGROUP"},"Credentials":{"MSV":{"sub":[{"Password":"pass"}]}}}'
+        )
         assert len(r) >= 1
 
     def test_dedup(self):
         r = PypykatzParser().parse("password: mypass123\npassword: mypass123")
         assert len(r) == 1
+
+
 class TestResponderParser:
     def test_empty(self):
         assert ResponderParser().parse("") == []
@@ -2940,6 +3345,8 @@ class TestResponderParser:
     def test_nbtns_poison(self):
         r = ResponderParser().parse("NBT-NS poison response sent")
         assert any("poison response" in f["title"].lower() for f in r)
+
+
 class TestSharphoundParser:
     def test_empty(self):
         assert SharphoundParser().parse("") == []
@@ -2949,15 +3356,21 @@ class TestSharphoundParser:
         assert any("AD User: jdoe" in f["title"] for f in r)
 
     def test_json_group(self):
-        r = SharphoundParser().parse('{"Type":"group","Props":{"name":"Domain Admins","domain":"EXAMPLE"}}')
+        r = SharphoundParser().parse(
+            '{"Type":"group","Props":{"name":"Domain Admins","domain":"EXAMPLE"}}'
+        )
         assert any("AD Group" in f["title"] for f in r)
 
     def test_json_computer(self):
-        r = SharphoundParser().parse('{"Type":"computer","Props":{"name":"PC-01","domain":"EXAMPLE","operatingsystem":"Windows 10"}}')
+        r = SharphoundParser().parse(
+            '{"Type":"computer","Props":{"name":"PC-01","domain":"EXAMPLE","operatingsystem":"Windows 10"}}'
+        )
         assert any("AD Computer" in f["title"] for f in r)
 
     def test_json_session(self):
-        r = SharphoundParser().parse('{"Type":"session","Props":{"name":"jdoe","computer":"PC-01","domain":"EXAMPLE"}}')
+        r = SharphoundParser().parse(
+            '{"Type":"session","Props":{"name":"jdoe","computer":"PC-01","domain":"EXAMPLE"}}'
+        )
         assert any("AD Session" in f["title"] for f in r)
 
     def test_json_acl(self):
@@ -2969,15 +3382,21 @@ class TestSharphoundParser:
         assert len(r) == 1
 
     def test_dedup_json(self):
-        r = SharphoundParser().parse('{"Type":"user","Props":{"name":"jdoe","domain":"EXAMPLE"}}\n{"Type":"user","Props":{"name":"jdoe","domain":"EXAMPLE"}}')
+        r = SharphoundParser().parse(
+            '{"Type":"user","Props":{"name":"jdoe","domain":"EXAMPLE"}}\n{"Type":"user","Props":{"name":"jdoe","domain":"EXAMPLE"}}'
+        )
         assert len(r) == 1
+
+
 class TestSmbclientParser:
     def test_empty(self):
         assert SmbclientParser().parse("") == []
         assert SmbclientParser().parse("   ") == []
 
     def test_json_share_and_file(self):
-        r = SmbclientParser().parse('[{"share":"C$","server":"10.0.0.1","filename":"secret.txt","size":1024}]')
+        r = SmbclientParser().parse(
+            '[{"share":"C$","server":"10.0.0.1","filename":"secret.txt","size":1024}]'
+        )
         assert len(r) >= 2
 
     def test_json_non_dict_skipped(self):
@@ -2997,7 +3416,7 @@ class TestSmbclientParser:
         assert any("SMB server OS" in f["title"] for f in r)
 
     def test_server_desc_line(self):
-        r = SmbclientParser().parse('Server = [SERVER01]')
+        r = SmbclientParser().parse("Server = [SERVER01]")
         assert any("SMB server" in f["title"] for f in r)
 
     def test_smb_version_line(self):
@@ -3027,6 +3446,8 @@ class TestSmbclientParser:
     def test_server_desc_updates_target(self):
         r = SmbclientParser().parse("Server = [TARGET]")
         assert any("SMB server: TARGET" in f["title"] for f in r)
+
+
 class TestSmbmapParser:
     def test_empty(self):
         assert SmbmapParser().parse("") == []
@@ -3044,7 +3465,9 @@ class TestSmbmapParser:
         assert len(r) >= 2
 
     def test_json_disk_usage(self):
-        r = SmbmapParser().parse('[{"share":"C$","permission":"READ","target":"10.0.0.1","disk_usage":"10.5G used"}]')
+        r = SmbmapParser().parse(
+            '[{"share":"C$","permission":"READ","target":"10.0.0.1","disk_usage":"10.5G used"}]'
+        )
         assert any("disk usage" in f["title"].lower() for f in r)
 
     def test_json_decode_error_fallthrough(self):
@@ -3090,48 +3513,64 @@ class TestSmbmapParser:
     def test_file_re(self):
         r = SmbmapParser().parse("secret.txt   1024   rw-   something")
         assert any("SMB file" in f["title"] for f in r)
+
+
 class TestPypykatzParserBranches:
     """Covers all uncovered branches."""
 
     def test_cred_type_items_not_list(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "admin", "DomainName": "CORP"},
-            "Credentials": {"MSV": "not_a_list", "WDIGEST": "not_a_list"}
-        })
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "admin", "DomainName": "CORP"},
+                "Credentials": {"MSV": "not_a_list", "WDIGEST": "not_a_list"},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 0
 
     def test_cred_type_dedup_seen(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "admin", "DomainName": "CORP"},
-            "Credentials": {
-                "MSV": [{"Password": "pass123", "NTHash": ""},
-                        {"Password": "pass456", "NTHash": ""}]
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "admin", "DomainName": "CORP"},
+                "Credentials": {
+                    "MSV": [
+                        {"Password": "pass123", "NTHash": ""},
+                        {"Password": "pass456", "NTHash": ""},
+                    ]
+                },
             }
-        })
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
     def test_section_data_not_dict(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "admin", "DomainName": "CORP"},
-            "Credentials": {"MSV": "not_a_dict"}
-        })
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "admin", "DomainName": "CORP"},
+                "Credentials": {"MSV": "not_a_dict"},
+            }
+        )
         findings = p.parse(output)
         assert len(findings) == 0
 
     def test_sub_creds_dedup_seen(self):
         p = PypykatzParser()
-        output = json.dumps({
-            "LogonSession": {"Username": "admin", "DomainName": "CORP"},
-            "Credentials": {
-                "MSV": {"LogonSessions": [{"Password": "pass", "NTHash": ""},
-                                           {"Password": "other", "NTHash": ""}]}
+        output = json.dumps(
+            {
+                "LogonSession": {"Username": "admin", "DomainName": "CORP"},
+                "Credentials": {
+                    "MSV": {
+                        "LogonSessions": [
+                            {"Password": "pass", "NTHash": ""},
+                            {"Password": "other", "NTHash": ""},
+                        ]
+                    }
+                },
             }
-        })
+        )
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -3141,37 +3580,46 @@ class TestPypykatzParserBranches:
         assert len(findings) == 0
 
     def test_json_per_line_full_block(self):
-        record = json.dumps({
-            "LogonSession": {"Username": "admin", "DomainName": "CORP"},
-            "Credentials": {
-                "MSV": [{"Password": "pass123", "NTHash": ""}],
-                "WDIGEST": {"LogonSessions": [{"Password": "pass456", "NTHash": ""}]}
+        record = json.dumps(
+            {
+                "LogonSession": {"Username": "admin", "DomainName": "CORP"},
+                "Credentials": {
+                    "MSV": [{"Password": "pass123", "NTHash": ""}],
+                    "WDIGEST": {"LogonSessions": [{"Password": "pass456", "NTHash": ""}]},
+                },
             }
-        })
+        )
         output = record + "\n" + record
         p = PypykatzParser()
         findings = p.parse(output)
         assert len(findings) == 2
 
     def test_json_per_line_empty_ssp(self):
-        record = json.dumps({
-            "LogonSession": {"Username": "system", "DomainName": "WORKGROUP"},
-            "Credentials": {
-                "SSP_CRED": {"Sessions": [{"Password": "",
-                                            "NTHash": "aad3b435b51404eeaad3b435b51404ee"}]}
+        record = json.dumps(
+            {
+                "LogonSession": {"Username": "system", "DomainName": "WORKGROUP"},
+                "Credentials": {
+                    "SSP_CRED": {
+                        "Sessions": [{"Password": "", "NTHash": "aad3b435b51404eeaad3b435b51404ee"}]
+                    }
+                },
             }
-        })
+        )
         p = PypykatzParser()
         findings = p.parse(record)
         assert len(findings) == 0
 
     def test_json_per_line_ssp_with_hash(self):
-        record = json.dumps({
-            "LogonSession": {"Username": "user", "DomainName": "WORKGROUP"},
-            "Credentials": {
-                "SSP": {"Creds": [{"Password": "", "NTHash": "deadbeef1234567890abcdef12345678"}]}
+        record = json.dumps(
+            {
+                "LogonSession": {"Username": "user", "DomainName": "WORKGROUP"},
+                "Credentials": {
+                    "SSP": {
+                        "Creds": [{"Password": "", "NTHash": "deadbeef1234567890abcdef12345678"}]
+                    }
+                },
             }
-        })
+        )
         p = PypykatzParser()
         findings = p.parse(record)
         assert len(findings) == 1
@@ -3188,12 +3636,14 @@ class TestPypykatzParserBranches:
 # ---------------------------------------------------------------------------
 class TestEvilWinrmParserAdditionalBranches:
     """Covers: JSON dedup, JSON decode error, text empty line skip,
-       JSON ip_m found, connect line with ip search, connect dedup."""
+    JSON ip_m found, connect line with ip search, connect dedup."""
 
     def test_json_dedup(self):
         """Line 50->43: JSON item host already in seen_hosts."""
         p = EvilWinrmParser()
-        findings = p.parse('[{"host":"10.0.0.5","username":"admin"},{"host":"10.0.0.5","username":"admin2"}]')
+        findings = p.parse(
+            '[{"host":"10.0.0.5","username":"admin"},{"host":"10.0.0.5","username":"admin2"}]'
+        )
         sessions = [f for f in findings if "Session established" in f["title"]]
         assert len(sessions) == 1
 
@@ -3237,7 +3687,7 @@ class TestEvilWinrmParserAdditionalBranches:
 # ============================================================================
 class TestSharphoundParserAdditionalBranches:
     """Covers: dict type (line 35), non-dict props skip, dedup for
-       group, computer, session, ACL."""
+    group, computer, session, ACL."""
 
     def test_json_dict_data(self):
         """Line 35->22: data is a dict, not a list."""
@@ -3254,28 +3704,36 @@ class TestSharphoundParserAdditionalBranches:
     def test_group_dedup(self):
         """Line 86: group dedup_key already in seen."""
         p = SharphoundParser()
-        findings = p.parse('{"Type":"group","Props":{"name":"admins","domain":"E"}}\n{"Type":"group","Props":{"name":"admins","domain":"E"}}')
+        findings = p.parse(
+            '{"Type":"group","Props":{"name":"admins","domain":"E"}}\n{"Type":"group","Props":{"name":"admins","domain":"E"}}'
+        )
         groups = [f for f in findings if "AD Group" in f["title"]]
         assert len(groups) == 1
 
     def test_computer_dedup(self):
         """Line 102: computer dedup_key already in seen."""
         p = SharphoundParser()
-        findings = p.parse('{"Type":"computer","Props":{"name":"PC-1","domain":"E"}}\n{"Type":"computer","Props":{"name":"PC-1","domain":"E"}}')
+        findings = p.parse(
+            '{"Type":"computer","Props":{"name":"PC-1","domain":"E"}}\n{"Type":"computer","Props":{"name":"PC-1","domain":"E"}}'
+        )
         comps = [f for f in findings if "AD Computer" in f["title"]]
         assert len(comps) == 1
 
     def test_session_dedup(self):
         """Line 120: session dedup_key already in seen."""
         p = SharphoundParser()
-        findings = p.parse('{"Type":"session","Props":{"name":"jdoe","computer":"PC-1"}}\n{"Type":"session","Props":{"name":"jdoe","computer":"PC-1"}}')
+        findings = p.parse(
+            '{"Type":"session","Props":{"name":"jdoe","computer":"PC-1"}}\n{"Type":"session","Props":{"name":"jdoe","computer":"PC-1"}}'
+        )
         sessions = [f for f in findings if "AD Session" in f["title"]]
         assert len(sessions) == 1
 
     def test_acl_dedup(self):
         """Line 136: ACL dedup_key already in seen."""
         p = SharphoundParser()
-        findings = p.parse('{"Type":"acl","Props":{"name":"ACL-1","domain":"E"}}\n{"Type":"acl","Props":{"name":"ACL-1","domain":"E"}}')
+        findings = p.parse(
+            '{"Type":"acl","Props":{"name":"ACL-1","domain":"E"}}\n{"Type":"acl","Props":{"name":"ACL-1","domain":"E"}}'
+        )
         acls = [f for f in findings if "AD ACL" in f["title"]]
         assert len(acls) == 1
 
@@ -3291,13 +3749,15 @@ class TestSharphoundParserAdditionalBranches:
 # ============================================================================
 class TestSmbmapParserAdditionalBranches:
     """Covers: JSON file dedup, empty line skip, target: line update,
-       shares_line dedup, recursive dir dedup, recursive file dedup,
-       file_re dedup."""
+    shares_line dedup, recursive dir dedup, recursive file dedup,
+    file_re dedup."""
 
     def test_json_file_dedup(self):
         """Line 103: file dedup_key already in seen."""
         p = SmbmapParser()
-        findings = p.parse('[{"share":"C$","permission":"READ","target":"10.0.0.1"},\n{"filename":"secret.txt","size":1024,"target":"10.0.0.1","share":"C$"},\n{"filename":"secret.txt","size":2048,"target":"10.0.0.1","share":"C$"}]')
+        findings = p.parse(
+            '[{"share":"C$","permission":"READ","target":"10.0.0.1"},\n{"filename":"secret.txt","size":1024,"target":"10.0.0.1","share":"C$"},\n{"filename":"secret.txt","size":2048,"target":"10.0.0.1","share":"C$"}]'
+        )
         files = [f for f in findings if "SMB file" in f["title"]]
         assert len(files) == 1
 
@@ -3337,7 +3797,9 @@ class TestSmbmapParserAdditionalBranches:
     def test_file_re_dedup(self):
         """Line 279: FILE_RE dedup_key already in seen."""
         p = SmbmapParser()
-        findings = p.parse("secret.txt   1024   rw-   something\nsecret.txt   1024   rw-   something\n")
+        findings = p.parse(
+            "secret.txt   1024   rw-   something\nsecret.txt   1024   rw-   something\n"
+        )
         files = [f for f in findings if "SMB file" in f["title"]]
         assert len(files) == 1
 
@@ -3348,7 +3810,7 @@ class TestSmbmapParserAdditionalBranches:
 # ============================================================================
 class TestSmbclientParserAdditionalBranches:
     """Covers: JSON file dedup, empty line, server desc unknown, server
-       from path, current share skip, file dedup."""
+    from path, current share skip, file dedup."""
 
     def test_json_file_dedup(self):
         """101: JSON filename dedup_key already in seen."""
@@ -3380,18 +3842,18 @@ class TestSmbclientParserAdditionalBranches:
 
     def test_current_share_line_skipped(self):
         """235: line with backslash matching current_share is skipped.
-           Share name containing backslashes, then same backslash-prefixed
-           line triggers the condition."""
+        Share name containing backslashes, then same backslash-prefixed
+        line triggers the condition."""
         p = SmbclientParser()
         findings = p.parse("\\\\sharename  Disk\n\\\\sharename\n")
         assert isinstance(findings, list)
 
     def test_file_re_match(self):
         r"""258-279: _FILE_RE handler — note that _SHARE_RE is checked
-           first (line 237) and matches any line with two \S+ tokens,
-           which always includes _FILE_RE lines.  The _FILE_RE block
-           (lines 258-279) is structurally dead code because _SHARE_RE's
-           continue at line 256 skips it for the same input."""
+        first (line 237) and matches any line with two \S+ tokens,
+        which always includes _FILE_RE lines.  The _FILE_RE block
+        (lines 258-279) is structurally dead code because _SHARE_RE's
+        continue at line 256 skips it for the same input."""
         p = SmbclientParser()
         findings = p.parse("A   1234  Mon Jan 1 00:00:00 2024  test.txt\n")
         # _SHARE_RE eats this as share="A", type="1234"
@@ -3405,8 +3867,8 @@ class TestSmbclientParserAdditionalBranches:
 # ============================================================================
 class TestEnum4linuxParserAdditionalBranches:
     """Covers: JSON user dedup, empty line, target parse, workgroup,
-       user match, share match, group match, session match, OS match,
-       SID dedup."""
+    user match, share match, group match, session match, OS match,
+    SID dedup."""
 
     def test_json_user_dedup(self):
         """99->114: JSON user already in seen_users."""
@@ -3511,6 +3973,7 @@ class TestEvilWinrmParserEdgeCases:
 # ============================================================================
 # 16. feroxbuster_parser.py  — 51, 91
 # ============================================================================
+
 
 class TestImpacketParser:
     def test_basic_parse(self):

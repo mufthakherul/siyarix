@@ -43,6 +43,7 @@ def cred_store(tmp_path, monkeypatch):
 # Initialization
 # ---------------------------------------------------------------------------
 
+
 class TestInit:
     def test_raises_without_cryptography(self):
         with patch("siyarix.credential_store.CRYPTO_AVAILABLE", False):
@@ -462,9 +463,6 @@ class TestNormalizeKey:
             CredentialStore._normalize_fernet_key(b"short")
 
 
-
-
-
 def test_store_and_retrieve(tmp_path, monkeypatch):
     # Use isolated config dir
     cfg = tmp_path / "siyarix_cfg"
@@ -513,11 +511,13 @@ def test_export_import(tmp_path, monkeypatch):
     count = new_store.import_encrypted(str(out), password="pw")
     assert count == 2
 
+
 class TestCredentialStoreCore:
     """Cover key uncovered lines in credential_store.py."""
 
     def test_import_error_sets_flags(self):
         import siyarix.credential_store as cs
+
         assert hasattr(cs, "HAS_AESGCM")
         # These flags are set at module level, verify they exist
         assert cs.CRYPTO_AVAILABLE is True  # cryptography is available in test env
@@ -526,10 +526,12 @@ class TestCredentialStoreCore:
         with patch("siyarix.credential_store.CRYPTO_AVAILABLE", False):
             with pytest.raises(RuntimeError, match="cryptography package is required"):
                 from siyarix.credential_store import CredentialStore
+
                 CredentialStore(master_password="test")
 
     def test_migrate_legacy_config_missing_file(self):
         from siyarix.credential_store import get_creds
+
         creds = get_creds()
         with patch("siyarix.credential_store.CRYPTO_AVAILABLE", True):
             result = creds.migrate_legacy_config(Path("/nonexistent/file.json"))
@@ -537,6 +539,7 @@ class TestCredentialStoreCore:
 
     def test_migrate_legacy_config_too_large(self, tmp_path):
         from siyarix.credential_store import get_creds
+
         creds = get_creds()
         f = tmp_path / "legacy.json"
         f.write_text("{}")
@@ -549,6 +552,7 @@ class TestCredentialStoreCore:
 
     def test_retrieve_delegates_to_get_by_name(self):
         from siyarix.credential_store import get_creds
+
         creds = get_creds()
         with patch.object(creds, "get_by_name", return_value="val"):
             assert creds.retrieve("name") == "val"
@@ -556,6 +560,7 @@ class TestCredentialStoreCore:
     def test_rate_limit(self):
         from siyarix.credential_store import get_creds
         import time as _time
+
         creds = get_creds()
         creds._tokens = 0.0
         creds._last_token_update = _time.time()
@@ -564,12 +569,18 @@ class TestCredentialStoreCore:
 
     def test_get_expired_credential(self):
         from siyarix.credential_store import get_creds, Credential
+
         creds = get_creds()
         creds._tokens = 100.0
         from datetime import datetime, timezone, timedelta
+
         expired = Credential(
-            cred_id="e1", name="expired", cred_type="api_key", environment="dev",
-            value_encrypted="", created_at=datetime.now(timezone.utc),
+            cred_id="e1",
+            name="expired",
+            cred_type="api_key",
+            environment="dev",
+            value_encrypted="",
+            created_at=datetime.now(timezone.utc),
             expires_at=datetime.now(timezone.utc) - timedelta(days=1),
         )
         creds._credentials["e1"] = expired
@@ -579,11 +590,17 @@ class TestCredentialStoreCore:
 
     def test_get_updates_usage_periodically(self):
         from siyarix.credential_store import get_creds, Credential
+
         creds = get_creds()
         from datetime import datetime, timezone
+
         creds._credentials["c1"] = Credential(
-            cred_id="c1", name="test", cred_type="api_key", environment="dev",
-            value_encrypted="encrypted_val", created_at=datetime.now(timezone.utc),
+            cred_id="c1",
+            name="test",
+            cred_type="api_key",
+            environment="dev",
+            value_encrypted="encrypted_val",
+            created_at=datetime.now(timezone.utc),
         )
         with patch.object(creds, "_decrypt", return_value="decrypted"):
             with patch.object(creds, "_save") as mock_save:
@@ -593,11 +610,17 @@ class TestCredentialStoreCore:
 
     def test_share_adds_user(self):
         from siyarix.credential_store import get_creds, Credential
+
         creds = get_creds()
         from datetime import datetime, timezone
+
         cred = Credential(
-            cred_id="s1", name="shared", cred_type="api_key", environment="dev",
-            value_encrypted="enc", created_at=datetime.now(timezone.utc),
+            cred_id="s1",
+            name="shared",
+            cred_type="api_key",
+            environment="dev",
+            value_encrypted="enc",
+            created_at=datetime.now(timezone.utc),
         )
         creds._credentials["s1"] = cred
         with patch.object(creds, "_save") as mock_save:
@@ -608,16 +631,23 @@ class TestCredentialStoreCore:
 
     def test_share_missing_cred(self):
         from siyarix.credential_store import get_creds
+
         creds = get_creds()
         assert creds.share("nonexistent", "alice") is False
 
     def test_check_expiring(self):
         from siyarix.credential_store import get_creds, Credential
+
         creds = get_creds()
         from datetime import datetime, timezone, timedelta
+
         creds._credentials["e1"] = Credential(
-            cred_id="e1", name="expiring", cred_type="api_key", environment="dev",
-            value_encrypted="enc", created_at=datetime.now(timezone.utc),
+            cred_id="e1",
+            name="expiring",
+            cred_type="api_key",
+            environment="dev",
+            value_encrypted="enc",
+            created_at=datetime.now(timezone.utc),
             expires_at=datetime.now(timezone.utc) + timedelta(days=3),
         )
         expiring = creds.check_expiring(days=7)
@@ -625,23 +655,31 @@ class TestCredentialStoreCore:
 
     def test_get_statistics(self):
         from siyarix.credential_store import get_creds, Credential
+
         creds = get_creds()
         from datetime import datetime, timezone
+
         creds._credentials["s1"] = Credential(
-            cred_id="s1", name="stat", cred_type="api_key", environment="dev",
-            value_encrypted="enc", created_at=datetime.now(timezone.utc),
+            cred_id="s1",
+            name="stat",
+            cred_type="api_key",
+            environment="dev",
+            value_encrypted="enc",
+            created_at=datetime.now(timezone.utc),
         )
         stats = creds.get_statistics()
         assert stats["total_credentials"] >= 1
 
     def test_get_creds_singleton(self):
         from siyarix.credential_store import get_creds
+
         c1 = get_creds()
         c2 = get_creds()
         assert c1 is c2
 
     def test_store_credential_convenience(self):
         from siyarix.credential_store import store_credential
+
         cred = store_credential("test_key", "test_value")
         assert cred.name == "test_key"
 
@@ -649,10 +687,15 @@ class TestCredentialStoreCore:
         from siyarix.credential_store import get_credential, get_creds
         from siyarix.credential_store import Credential
         from datetime import datetime, timezone
+
         creds = get_creds()
         cred = Credential(
-            cred_id="gc1", name="get_test", cred_type="api_key", environment="dev",
-            value_encrypted="enc_val", created_at=datetime.now(timezone.utc),
+            cred_id="gc1",
+            name="get_test",
+            cred_type="api_key",
+            environment="dev",
+            value_encrypted="enc_val",
+            created_at=datetime.now(timezone.utc),
         )
         creds._credentials["gc1"] = cred
         with patch.object(creds, "_decrypt", return_value="decrypted"):
@@ -743,6 +786,7 @@ class TestCredentialStoreEncryption:
 
     def test_normalize_fernet_key_raises_on_bad_length(self):
         import base64 as _b64
+
         encoded = _b64.urlsafe_b64encode(b"k" * 16)
         with pytest.raises(ValueError, match="unsupported key length"):
             CredentialStore._normalize_fernet_key(encoded)
@@ -861,6 +905,7 @@ class TestCredentialStorePersistence:
 
     def test_init_encryption_keyring_success(self, tmp_path, monkeypatch):
         from siyarix.credential_store import CredentialStore
+
         monkeypatch.setenv("SIYARIX_CONFIG_DIR", str(tmp_path / "siyarix"))
         monkeypatch.setenv("SIYARIX_USE_KEYRING", "1")
         with patch("keyring.get_password", return_value="k" * 44):
@@ -870,6 +915,7 @@ class TestCredentialStorePersistence:
 
     def test_init_encryption_keyring_exception_fallsback(self, tmp_path, monkeypatch):
         from siyarix.credential_store import CredentialStore
+
         monkeypatch.setenv("SIYARIX_CONFIG_DIR", str(tmp_path / "siyarix"))
         monkeypatch.setenv("SIYARIX_USE_KEYRING", "1")
         with patch("keyring.get_password", side_effect=Exception("keyring fail")):
@@ -878,6 +924,7 @@ class TestCredentialStorePersistence:
 
     def test_init_encryption_key_file_fallback(self, tmp_path, monkeypatch):
         from siyarix.credential_store import CredentialStore
+
         monkeypatch.setenv("SIYARIX_CONFIG_DIR", str(tmp_path / "siyarix"))
         monkeypatch.setenv("SIYARIX_USE_KEYRING", "0")
         s = CredentialStore(master_password="test")
@@ -889,6 +936,7 @@ class TestCredentialStorePersistence:
 
     def test_init_encryption_key_file_read_error(self, tmp_path, monkeypatch):
         from siyarix.credential_store import CredentialStore
+
         monkeypatch.setenv("SIYARIX_CONFIG_DIR", str(tmp_path / "siyarix"))
         monkeypatch.setenv("SIYARIX_USE_KEYRING", "0")
         s = CredentialStore(master_password="pw")
@@ -900,6 +948,7 @@ class TestCredentialStorePersistence:
 
     def test_init_encryption_normalize_valueerror(self, tmp_path, monkeypatch):
         from siyarix.credential_store import CredentialStore
+
         monkeypatch.setenv("SIYARIX_CONFIG_DIR", str(tmp_path / "siyarix"))
         monkeypatch.setenv("SIYARIX_USE_KEYRING", "0")
         s = CredentialStore(master_password="pw")
@@ -942,6 +991,7 @@ class TestCredentialStorePersistence:
 
     def test_rotate_key_with_new_password(self, cred_store):
         from siyarix.credential_store import HAS_AESGCM
+
         if not HAS_AESGCM:
             pytest.skip("AESGCM not available")
         cred_store.store(name="rk_test", value="val")
@@ -969,11 +1019,18 @@ class TestCredentialStorePersistence:
         kms_dir = cred_store._creds_dir
         kms_dir.mkdir(parents=True, exist_ok=True)
         with patch("siyarix.credential_store.CRYPTO_AVAILABLE", True):
-            encrypted = cred_store._encrypt(json.dumps({
-                "cred_id": "c1", "name": "test", "cred_type": "api_key",
-                "environment": "dev", "value_encrypted": "enc",
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            }))
+            encrypted = cred_store._encrypt(
+                json.dumps(
+                    {
+                        "cred_id": "c1",
+                        "name": "test",
+                        "cred_type": "api_key",
+                        "environment": "dev",
+                        "value_encrypted": "enc",
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
+            )
             (kms_dir / "c1.enc").write_text(encrypted)
             cred_store._load()
             assert "c1" in cred_store._credentials
@@ -991,13 +1048,17 @@ class TestCredentialStorePersistence:
     def test_save_kms_no_existing_key(self, cred_store, tmp_path):
         fake_boto3 = MagicMock()
         with patch.dict("sys.modules", {"boto3": fake_boto3}):
-            with patch.dict(os.environ, {"SIYARIX_KMS_PROVIDER": "aws", "AWS_KMS_KEY_ID": "alias/test"}, clear=True):
+            with patch.dict(
+                os.environ,
+                {"SIYARIX_KMS_PROVIDER": "aws", "AWS_KMS_KEY_ID": "alias/test"},
+                clear=True,
+            ):
                 with patch.object(cred_store, "_kms_available", return_value=True):
                     fake_kms = MagicMock()
                     fake_kms.generate_data_key.return_value = {
                         "Plaintext": b"k" * 32,
                         "CiphertextBlob": b"enc" * 10,
-                }
+                    }
                 with patch("boto3.client", return_value=fake_kms):
                     c = cred_store.store(name="kms_test2", value="val")
                     assert c is not None
@@ -1013,6 +1074,7 @@ class TestCredentialStorePersistence:
 
     def test_load_legacy_kms_path(self, cred_store, tmp_path):
         import base64
+
         fake_boto3 = MagicMock()
         kms_dir = cred_store._creds_dir
         kms_dir.mkdir(parents=True, exist_ok=True)
@@ -1031,9 +1093,14 @@ class TestCredentialStorePersistence:
     def test_update_usage_frequent_calls(self, cred_store):
         from datetime import datetime, timezone, timedelta
         from siyarix.credential_store import Credential
+
         cred = Credential(
-            cred_id="freq", name="freq", cred_type="api_key", environment="dev",
-            value_encrypted="enc", created_at=datetime.now(timezone.utc),
+            cred_id="freq",
+            name="freq",
+            cred_type="api_key",
+            environment="dev",
+            value_encrypted="enc",
+            created_at=datetime.now(timezone.utc),
         )
         cred_store._credentials["freq"] = cred
         now = datetime.now(timezone.utc)
@@ -1046,9 +1113,14 @@ class TestCredentialStorePersistence:
 
     def test_rotate_credential(self, cred_store):
         from siyarix.credential_store import Credential
+
         cred = Credential(
-            cred_id="rot", name="rot", cred_type="api_key", environment="dev",
-            value_encrypted="enc", created_at=datetime.now(timezone.utc),
+            cred_id="rot",
+            name="rot",
+            cred_type="api_key",
+            environment="dev",
+            value_encrypted="enc",
+            created_at=datetime.now(timezone.utc),
         )
         cred_store._credentials["rot"] = cred
         with patch.object(cred_store, "_encrypt", return_value="new_enc"):

@@ -78,7 +78,13 @@ CROSS_PLATFORM_COMMANDS: dict[str, dict[str, str]] = {
         "termux": "whois {target}",
         "ish": "whois {target}",
     },
-    "netstat": {"bash": "netstat -tulpn", "powershell": "netstat -an", "cmd": "netstat -an", "termux": "netstat -tulpn", "ish": "netstat -tulpn"},
+    "netstat": {
+        "bash": "netstat -tulpn",
+        "powershell": "netstat -an",
+        "cmd": "netstat -an",
+        "termux": "netstat -tulpn",
+        "ish": "netstat -tulpn",
+    },
     "list_processes": {
         "bash": "ps aux",
         "powershell": "Get-Process | Format-Table",
@@ -217,8 +223,17 @@ def load_env_file() -> None:
     """
     _api_key_patterns = ("_API_KEY", "_SECRET", "_PASSWORD", "_TOKEN")
     _blocked_vars = {
-        "PATH", "LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH", "PYTHONSTARTUP",
-        "BASH_ENV", "IFS", "SHELLOPTS", "PERL5LIB", "RUBYLIB", "PYTHONHOME",
+        "PATH",
+        "LD_PRELOAD",
+        "LD_LIBRARY_PATH",
+        "PYTHONPATH",
+        "PYTHONSTARTUP",
+        "BASH_ENV",
+        "IFS",
+        "SHELLOPTS",
+        "PERL5LIB",
+        "RUBYLIB",
+        "PYTHONHOME",
     }
     env_path = get_config_dir() / ".env"
     if not env_path.exists():

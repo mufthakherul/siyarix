@@ -136,7 +136,6 @@ class TestPlanner:
         assert "templates" in stats
 
 
-
 """Extra tests for Planner router targeting uncovered lines."""
 
 
@@ -149,6 +148,7 @@ from siyarix.planner_autonomous import AutonomousPlanner
 
 # ── Planner router tests ─────────────────────────────────────────────
 
+
 class TestPlannerPlanMode:
     @pytest.fixture
     def planner(self):
@@ -156,17 +156,13 @@ class TestPlannerPlanMode:
 
     @pytest.mark.asyncio
     async def test_plan_registry_mode(self, planner):
-        plan = await planner.plan(
-            "scan target", mode="registry", available_tools=["nmap"]
-        )
+        plan = await planner.plan("scan target", mode="registry", available_tools=["nmap"])
         assert isinstance(plan, ExecutionPlan)
         assert len(plan.steps) > 0
 
     @pytest.mark.asyncio
     async def test_plan_offline_mode(self, planner):
-        plan = await planner.plan(
-            "scan target", mode="offline", available_tools=["nmap"]
-        )
+        plan = await planner.plan("scan target", mode="offline", available_tools=["nmap"])
         assert isinstance(plan, ExecutionPlan)
         assert len(plan.steps) > 0
 
@@ -269,9 +265,7 @@ class TestPlannerIntegration:
                 "steps": [{"tool": "echo", "command": "echo hi", "description": "say hi"}],
             }
         )
-        plan = await planner.llm_decompose_goal(
-            "test", ["echo"], llm_call=llm_call
-        )
+        plan = await planner.llm_decompose_goal("test", ["echo"], llm_call=llm_call)
         assert isinstance(plan, ExecutionPlan)
 
     @pytest.mark.asyncio
@@ -283,9 +277,7 @@ class TestPlannerIntegration:
                 "steps": [],
             }
         )
-        plan = await planner.llm_decompose_goal(
-            "test", ["echo"], llm_call=llm_call
-        )
+        plan = await planner.llm_decompose_goal("test", ["echo"], llm_call=llm_call)
         assert isinstance(plan, ExecutionPlan)
 
     def test_get_plan_from_plans_dict(self, planner):
@@ -350,6 +342,7 @@ class TestPlannerIntegration:
 
 # ── AutonomousPlanner extra tests ────────────────────────────────────
 
+
 class TestAutonomousPlannerIntegration:
     @pytest.fixture
     def ap(self):
@@ -400,12 +393,14 @@ class TestAutonomousPlannerIntegration:
             system_prompt="Custom",
             user_goal="scan",
             platform_info="Linux",
-            tool_schemas=[{
-                "name": "nmap",
-                "description": "Network mapper",
-                "tags": ["port-scan", "network"],
-                "category": "recon",
-            }],
+            tool_schemas=[
+                {
+                    "name": "nmap",
+                    "description": "Network mapper",
+                    "tags": ["port-scan", "network"],
+                    "category": "recon",
+                }
+            ],
         )
         assert "[port-scan, network]" in prompt
         assert "(recon)" in prompt
@@ -481,9 +476,7 @@ class TestAutonomousPlannerIntegration:
                 "steps": [{"tool": "echo", "command": "echo hi", "description": "say hi"}],
             }
         )
-        plan = await ap.plan(
-            "test", llm_call=llm_call, is_first_call=False
-        )
+        plan = await ap.plan("test", llm_call=llm_call, is_first_call=False)
         assert isinstance(plan, ExecutionPlan)
         # Session should remain uninitialised since we passed is_first_call=False
         assert ap.session_initialised is False
@@ -520,9 +513,7 @@ class TestAutonomousPlannerIntegration:
             "reasoning": "test",
             "steps": [{"tool": "echo", "command": "echo hi", "description": "say hi"}],
         }
-        llm_call = AsyncMock(
-            return_value={"tool_calls": [mock_tc]}
-        )
+        llm_call = AsyncMock(return_value={"tool_calls": [mock_tc]})
         plan = await ap.plan("test", llm_call=llm_call)
         assert len(plan.steps) > 0
 
@@ -541,14 +532,16 @@ class TestAutonomousPlannerIntegration:
     @pytest.mark.asyncio
     async def test_plan_steps_with_non_dict_entries(self, ap):
         """Steps list containing non-dict items."""
-        content = json.dumps({
-            "needs_tools": True,
-            "reasoning": "test",
-            "steps": [
-                "raw_step_string",
-                {"tool": "echo", "command": "echo hi", "description": "say hi"},
-            ],
-        })
+        content = json.dumps(
+            {
+                "needs_tools": True,
+                "reasoning": "test",
+                "steps": [
+                    "raw_step_string",
+                    {"tool": "echo", "command": "echo hi", "description": "say hi"},
+                ],
+            }
+        )
         llm_call = AsyncMock(return_value={"content": content})
         plan = await ap.plan("test", llm_call=llm_call)
         assert len(plan.steps) == 2
@@ -557,41 +550,31 @@ class TestAutonomousPlannerIntegration:
     @pytest.mark.asyncio
     async def test_plan_steps_with_none_entries(self, ap):
         """Steps list containing None."""
-        content = json.dumps({
-            "needs_tools": True,
-            "reasoning": "test",
-            "steps": [None],
-        })
+        content = json.dumps(
+            {
+                "needs_tools": True,
+                "reasoning": "test",
+                "steps": [None],
+            }
+        )
         llm_call = AsyncMock(return_value={"content": content})
         plan = await ap.plan("test", llm_call=llm_call)
         assert len(plan.steps) == 1
         assert "LLM step 1" in plan.steps[0].description
 
     def test_parse_llm_response_tool_calls_invalid_json(self, ap):
-        raw = {
-            "tool_calls": [
-                MagicMock(
-                    function=MagicMock(
-                        arguments="not valid json"
-                    )
-                )
-            ]
-        }
+        raw = {"tool_calls": [MagicMock(function=MagicMock(arguments="not valid json"))]}
         result = ap._parse_llm_response(raw)
         assert result is None
 
     def test_parse_llm_response_json_from_content(self, ap):
-        raw = {
-            "content": '{"needs_tools": true, "reasoning": "test", "steps": []}'
-        }
+        raw = {"content": '{"needs_tools": true, "reasoning": "test", "steps": []}'}
         result = ap._parse_llm_response(raw)
         assert isinstance(result, dict)
         assert result["needs_tools"] is True
 
     def test_parse_llm_response_markdown_json(self, ap):
-        raw = {
-            "content": "```json\n{\"needs_tools\": false, \"reasoning\": \"ok\"}\n```"
-        }
+        raw = {"content": '```json\n{"needs_tools": false, "reasoning": "ok"}\n```'}
         result = ap._parse_llm_response(raw)
         assert isinstance(result, dict)
         assert result["needs_tools"] is False

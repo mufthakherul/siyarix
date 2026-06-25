@@ -70,7 +70,7 @@ class NaabuParser:
         try:
             data = json.loads(output)
         except (json.JSONDecodeError, ValueError, TypeError):
-                return []
+            return []
         records = data if isinstance(data, list) else [data]
 
         for record in records:

@@ -11,7 +11,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from siyarix.audit_log import AuditEvent, AuditEventType, AuditLogger, AuditSession, AuditSeverity, log_event
+from siyarix.audit_log import (
+    AuditEvent,
+    AuditEventType,
+    AuditLogger,
+    AuditSession,
+    AuditSeverity,
+    log_event,
+)
 from siyarix.compliance import ComplianceCheck, ComplianceEngine, ComplianceReport, ComplianceResult
 
 
@@ -56,6 +63,7 @@ def test_audit_chain_tamper_detection(tmp_path, monkeypatch):
     assert res2["valid"] is False
     assert res2["broken_at"] is not None
 
+
 class TestCompliance:
     """Full coverage for compliance.py."""
 
@@ -67,7 +75,9 @@ class TestCompliance:
         assert result.check_id == "cc1.1"
 
     def test_compliance_report_to_json(self, tmp_path):
-        result = ComplianceResult(check_id="c1", status="PASSED", message="ok", evidence_data={"k": "v"})
+        result = ComplianceResult(
+            check_id="c1", status="PASSED", message="ok", evidence_data={"k": "v"}
+        )
         report = ComplianceReport(
             framework="SOC2", target="t", results=[result], evidence_path=tmp_path
         )
@@ -98,9 +108,12 @@ class TestCompliance:
 
     def test_collect_evidence(self, tmp_path):
         from siyarix.compliance import ComplianceEngine
+
         engine = ComplianceEngine(base_dir=tmp_path)
         result = ComplianceResult(check_id="c1", status="PASSED")
-        report = ComplianceReport(framework="SOC2", target="t", results=[result], evidence_path=tmp_path)
+        report = ComplianceReport(
+            framework="SOC2", target="t", results=[result], evidence_path=tmp_path
+        )
         engine._collect_evidence(report)
         assert (tmp_path / "report.json").exists()
 
@@ -113,10 +126,17 @@ class TestAuditLogCore:
 
     def test_audit_event_hash_compute_details_exception(self):
         event = AuditEvent(
-            event_id="e1", timestamp=datetime.now(timezone.utc),
-            event_type="test", severity="info", user="u", session_id="s",
-            source_ip="1.2.3.4", target="t", action="a", result="r",
-            details=Exception("bad")
+            event_id="e1",
+            timestamp=datetime.now(timezone.utc),
+            event_type="test",
+            severity="info",
+            user="u",
+            session_id="s",
+            source_ip="1.2.3.4",
+            target="t",
+            action="a",
+            result="r",
+            details=Exception("bad"),
         )
         h = event.compute_hash()
         assert isinstance(h, str)
@@ -124,10 +144,17 @@ class TestAuditLogCore:
 
     def test_audit_event_to_json(self):
         event = AuditEvent(
-            event_id="e1", timestamp=datetime.now(timezone.utc),
-            event_type="test", severity="info", user="u", session_id="s",
-            source_ip="1.2.3.4", target="t", action="a", result="r",
-            details={}
+            event_id="e1",
+            timestamp=datetime.now(timezone.utc),
+            event_type="test",
+            severity="info",
+            user="u",
+            session_id="s",
+            source_ip="1.2.3.4",
+            target="t",
+            action="a",
+            result="r",
+            details={},
         )
         js = event.to_json()
         assert isinstance(js, str)
@@ -135,10 +162,17 @@ class TestAuditLogCore:
 
     def test_audit_event_repr(self):
         event = AuditEvent(
-            event_id="e1", timestamp=datetime.now(timezone.utc),
-            event_type="test", severity="info", user="u", session_id="s",
-            source_ip="1.2.3.4", target="t", action="a", result="r",
-            details={}
+            event_id="e1",
+            timestamp=datetime.now(timezone.utc),
+            event_type="test",
+            severity="info",
+            user="u",
+            session_id="s",
+            source_ip="1.2.3.4",
+            target="t",
+            action="a",
+            result="r",
+            details={},
         )
         r = repr(event)
         assert "AuditEvent" in r
@@ -153,10 +187,17 @@ class TestAuditLogCore:
         monkeypatch.setattr("siyarix.config.get_config_dir", lambda: tmp_path)
         db = tmp_path / "audit.jsonl"
         event = AuditEvent(
-            event_id="e1", timestamp=datetime.now(timezone.utc),
-            event_type="test", severity="info", user="u", session_id="s",
-            source_ip="1.2.3.4", target="t", action="a", result="r",
-            details={}
+            event_id="e1",
+            timestamp=datetime.now(timezone.utc),
+            event_type="test",
+            severity="info",
+            user="u",
+            session_id="s",
+            source_ip="1.2.3.4",
+            target="t",
+            action="a",
+            result="r",
+            details={},
         )
         db.write_text(json.dumps(event.to_dict()) + "\n")
         logger = AuditLogger(log_startup=False)
@@ -165,7 +206,9 @@ class TestAuditLogCore:
     def test_audit_logger_load_events_jsonl_bad_line(self, tmp_path, monkeypatch):
         monkeypatch.setattr("siyarix.config.get_config_dir", lambda: tmp_path)
         db = tmp_path / "audit.jsonl"
-        db.write_text("not json\n{\"event_id\": \"e1\", \"timestamp\": \"2024-01-01T00:00:00\", \"event_type\": \"t\", \"severity\": \"i\", \"user\": \"u\", \"session_id\": \"s\", \"source_ip\": \"ip\", \"target\": \"t\", \"action\": \"a\", \"result\": \"r\"}\n")
+        db.write_text(
+            'not json\n{"event_id": "e1", "timestamp": "2024-01-01T00:00:00", "event_type": "t", "severity": "i", "user": "u", "session_id": "s", "source_ip": "ip", "target": "t", "action": "a", "result": "r"}\n'
+        )
         with patch("siyarix.audit_log.logger") as mock_log:
             logger = AuditLogger(log_startup=False)
             mock_log.exception.assert_called()
@@ -173,12 +216,25 @@ class TestAuditLogCore:
     def test_audit_logger_load_events_legacy_json(self, tmp_path, monkeypatch):
         monkeypatch.setattr("siyarix.config.get_config_dir", lambda: tmp_path)
         legacy = tmp_path / "audit.json"
-        legacy.write_text(json.dumps([{
-            "event_id": "e1", "timestamp": datetime.now(timezone.utc).isoformat(),
-            "event_type": "test", "severity": "info", "user": "u", "session_id": "s",
-            "source_ip": "ip", "target": "t", "action": "a", "result": "r",
-            "details": {}
-        }]))
+        legacy.write_text(
+            json.dumps(
+                [
+                    {
+                        "event_id": "e1",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "event_type": "test",
+                        "severity": "info",
+                        "user": "u",
+                        "session_id": "s",
+                        "source_ip": "ip",
+                        "target": "t",
+                        "action": "a",
+                        "result": "r",
+                        "details": {},
+                    }
+                ]
+            )
+        )
         logger = AuditLogger(log_startup=False)
         assert len(logger._events) == 1
 
@@ -248,7 +304,9 @@ class TestAuditLogCore:
         logger._sessions[sid] = AuditSession(
             session_id=sid, user="u", start_time=datetime.now(timezone.utc)
         )
-        logger.log(AuditEventType.AUTH_LOGIN, AuditSeverity.INFO, "u", "login", "ok", session_id=sid)
+        logger.log(
+            AuditEventType.AUTH_LOGIN, AuditSeverity.INFO, "u", "login", "ok", session_id=sid
+        )
         assert logger._sessions[sid].events_count == 1
 
     def test_log_rich_verbose(self, tmp_path, monkeypatch):
@@ -312,10 +370,17 @@ class TestAuditLogCore:
         monkeypatch.setattr("siyarix.config.get_config_dir", lambda: tmp_path)
         logger = AuditLogger(log_startup=False)
         old_event = AuditEvent(
-            event_id="old", timestamp=datetime.now(timezone.utc) - timedelta(days=1000),
-            event_type=AuditEventType.AUTH_LOGIN.value, severity=AuditSeverity.INFO.value,
-            user="u", session_id="s", source_ip="ip", target="t",
-            action="a", result="r", details={}
+            event_id="old",
+            timestamp=datetime.now(timezone.utc) - timedelta(days=1000),
+            event_type=AuditEventType.AUTH_LOGIN.value,
+            severity=AuditSeverity.INFO.value,
+            user="u",
+            session_id="s",
+            source_ip="ip",
+            target="t",
+            action="a",
+            result="r",
+            details={},
         )
         logger._events.append(old_event)
         logger._count_by_type[AuditEventType.AUTH_LOGIN.value] = 2
@@ -341,24 +406,31 @@ class TestAuditLogTomlImport:
 
     def test_tomllib_fallback_to_none(self):
         import siyarix.audit_log as al
+
         # The tomllib module variable exists; if both tomllib/tomli are missing
         # at import time, it's set to None. Just verify the variable exists.
         assert hasattr(al, "tomllib") or True
+
+
 class TestAuditLogRichUnavailable:
     """Lines 48-49: RICH_AVAILABLE = False on ImportError."""
 
     def test_rich_unavailable_via_import_error(self):
         import siyarix.audit_log as al
+
         # RICH_AVAILABLE is set at module import time.
         assert hasattr(al, "RICH_AVAILABLE")
+
+
 class TestAuditLoggerCore:
     """Cover remaining audit_log.py uncovered lines."""
 
     def test_load_config_success_sets_retention(self, tmp_path, monkeypatch):
         monkeypatch.setattr("siyarix.config.get_config_dir", lambda: tmp_path)
         cfg = tmp_path / "audit.toml"
-        cfg.write_text('retention_days = 180\n')
+        cfg.write_text("retention_days = 180\n")
         import siyarix.audit_log as al
+
         orig = getattr(al, "tomllib", None)
         mock_tomllib = MagicMock()
         mock_tomllib.loads.return_value = {"retention_days": 180}
@@ -399,10 +471,17 @@ class TestAuditLoggerCore:
         logger = AuditLogger(log_startup=False)
         logger._unflushed_events.append(
             AuditEvent(
-                event_id="e1", timestamp=datetime.now(timezone.utc),
-                event_type="test", severity="info", user="u",
-                session_id="s", source_ip="ip", target="t",
-                action="a", result="r", details={},
+                event_id="e1",
+                timestamp=datetime.now(timezone.utc),
+                event_type="test",
+                severity="info",
+                user="u",
+                session_id="s",
+                source_ip="ip",
+                target="t",
+                action="a",
+                result="r",
+                details={},
             )
         )
         logger._dirty = True
@@ -413,10 +492,17 @@ class TestAuditLoggerCore:
         monkeypatch.setattr("siyarix.config.get_config_dir", lambda: tmp_path)
         logger = AuditLogger(log_startup=False)
         evt = AuditEvent(
-            event_id="e1", timestamp=datetime.now(timezone.utc),
-            event_type="test", severity="info", user="u",
-            session_id="s", source_ip="ip", target="t",
-            action="a", result="r", details={},
+            event_id="e1",
+            timestamp=datetime.now(timezone.utc),
+            event_type="test",
+            severity="info",
+            user="u",
+            session_id="s",
+            source_ip="ip",
+            target="t",
+            action="a",
+            result="r",
+            details={},
         )
         logger._unflushed_events.append(evt)
         logger._dirty = True
@@ -458,11 +544,17 @@ class TestAuditLoggerCore:
         monkeypatch.setattr("siyarix.config.get_config_dir", lambda: tmp_path)
         logger = AuditLogger(log_startup=False)
         recent = AuditEvent(
-            event_id="new", timestamp=datetime.now(timezone.utc),
+            event_id="new",
+            timestamp=datetime.now(timezone.utc),
             event_type=AuditEventType.AUTH_LOGIN.value,
             severity=AuditSeverity.INFO.value,
-            user="u", session_id="s", source_ip="ip", target="t",
-            action="a", result="r", details={},
+            user="u",
+            session_id="s",
+            source_ip="ip",
+            target="t",
+            action="a",
+            result="r",
+            details={},
         )
         logger._events.append(recent)
         logger.cleanup_old_events()

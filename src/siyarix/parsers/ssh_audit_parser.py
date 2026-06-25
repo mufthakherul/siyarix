@@ -10,10 +10,12 @@ from typing import Any
 from . import _now_iso
 
 _FINDING_RE = re.compile(
-    r"^[(\[](?P<severity>info|medium|high|fail|warn)[)\]]\s+(?P<finding>.+)", re.IGNORECASE,
+    r"^[(\[](?P<severity>info|medium|high|fail|warn)[)\]]\s+(?P<finding>.+)",
+    re.IGNORECASE,
 )
 _ALGORITHM_RE = re.compile(
-    r"(?:algorithm|kex|key\s*exchange|host\s*key|cipher|mac|compression)[\s:]+(.+)", re.IGNORECASE,
+    r"(?:algorithm|kex|key\s*exchange|host\s*key|cipher|mac|compression)[\s:]+(.+)",
+    re.IGNORECASE,
 )
 _KEX_RE = re.compile(r"\[kex\]\s+(.+)", re.IGNORECASE)
 _HOST_KEY_RE = re.compile(r"\[host_key\]\s+(.+)", re.IGNORECASE)

@@ -43,7 +43,6 @@ __all__ = [
     "AgentResult",
     "SwarmRouter",
     "SwarmTask",
-
 ]
 
 
@@ -111,9 +110,8 @@ class AgentCore:
 
         # PermissionGate — enforce safe mode boundaries
         _settings = SettingsStore()
-        _safe_mode = (
-            os.getenv("SIYARIX_SAFE_MODE", "0") == "1"
-            or _settings.get("_safe_mode", default=False)
+        _safe_mode = os.getenv("SIYARIX_SAFE_MODE", "0") == "1" or _settings.get(
+            "_safe_mode", default=False
         )
         self._permission_gate = PermissionGate() if _safe_mode else None
 
@@ -309,12 +307,14 @@ class AgentCore:
     async def execute_goal(self, goal: AgentGoal, plan: ExecutionPlan | None = None) -> AgentResult:
         try:
             from ..performance import PerformanceOptimizer
+
             PerformanceOptimizer().refresh_resources()
         except Exception:
             pass
 
         try:
             from ..session_branching import SessionBranchManager  # type: ignore[attr-defined]
+
             SessionBranchManager().add_compaction(f"start_goal_{int(time.time())}")
         except Exception:
             pass
@@ -322,8 +322,10 @@ class AgentCore:
         self._status = AgentStatus.PLANNING
         start = time.time()
         result = AgentResult(goal=goal.description)
+
         async def _goal_start(args: dict[str, Any]) -> dict[str, Any]:
             return {"status": "started", "goal": goal.description}
+
         self._workflow_engine.register_step("execute_goal_start", _goal_start)
 
         if self._mode == AgentMode.REGISTRY:
@@ -391,8 +393,17 @@ class AgentCore:
         self._history.append(result)
 
         # Record metrics and offline store
-        self._metrics.record_scan(duration=result.duration_ms / 1000.0, successful=result.success, findings_count=len(result.findings))
-        await self._store.save_scan_async(target=goal.target or goal.description, findings=result.findings, mode=self._mode.value, plan_id=plan.id if plan else "")
+        self._metrics.record_scan(
+            duration=result.duration_ms / 1000.0,
+            successful=result.success,
+            findings_count=len(result.findings),
+        )
+        await self._store.save_scan_async(
+            target=goal.target or goal.description,
+            findings=result.findings,
+            mode=self._mode.value,
+            plan_id=plan.id if plan else "",
+        )
         return result
 
     async def _execute_autonomous(
@@ -466,8 +477,17 @@ class AgentCore:
         self._history.append(result)
 
         # Record metrics and offline store
-        self._metrics.record_scan(duration=result.duration_ms / 1000.0, successful=result.success, findings_count=len(result.findings))
-        await self._store.save_scan_async(target=goal.target or goal.description, findings=result.findings, mode=self._mode.value, plan_id=plan.id if plan else "")
+        self._metrics.record_scan(
+            duration=result.duration_ms / 1000.0,
+            successful=result.success,
+            findings_count=len(result.findings),
+        )
+        await self._store.save_scan_async(
+            target=goal.target or goal.description,
+            findings=result.findings,
+            mode=self._mode.value,
+            plan_id=plan.id if plan else "",
+        )
         return result
 
     async def _execute_hybrid(
@@ -546,8 +566,17 @@ class AgentCore:
         self._history.append(result)
 
         # Record metrics and offline store
-        self._metrics.record_scan(duration=result.duration_ms / 1000.0, successful=result.success, findings_count=len(result.findings))
-        await self._store.save_scan_async(target=goal.target or goal.description, findings=result.findings, mode=self._mode.value, plan_id=plan.id if plan else "")
+        self._metrics.record_scan(
+            duration=result.duration_ms / 1000.0,
+            successful=result.success,
+            findings_count=len(result.findings),
+        )
+        await self._store.save_scan_async(
+            target=goal.target or goal.description,
+            findings=result.findings,
+            mode=self._mode.value,
+            plan_id=plan.id if plan else "",
+        )
         return result
 
     def _generate_summary(self, plan: ExecutionPlan) -> str:

@@ -23,6 +23,7 @@ from siyarix.threat_intel import (
 
 # -- ThreatIntelProvider -------------------------------------------------------
 
+
 class TestThreatIntelProvider:
     def test_init_with_api_key(self) -> None:
         provider = ThreatIntelProvider(api_key="secret")
@@ -38,6 +39,7 @@ class TestThreatIntelProvider:
 
 
 # -- AlienVaultOTX -------------------------------------------------------------
+
 
 class TestAlienVaultOTXInit:
     def test_init_with_env_key(self) -> None:
@@ -99,9 +101,7 @@ class TestAlienVaultOTXLookupIP:
     async def test_network_error(self) -> None:
         with (
             patch.dict(os.environ, {"ALIENVAULT_API_KEY": "key"}, clear=True),
-            patch.object(
-                urllib.request, "urlopen", side_effect=urllib.error.URLError("timeout")
-            ),
+            patch.object(urllib.request, "urlopen", side_effect=urllib.error.URLError("timeout")),
         ):
             otx = AlienVaultOTX()
             result = await otx.lookup_ip("8.8.8.8")
@@ -130,6 +130,7 @@ class TestAlienVaultOTXLookupIP:
 
 # -- NVDDatabase --------------------------------------------------------------
 
+
 class TestNVDDatabase:
     @pytest.mark.asyncio
     async def test_success_with_cvssv31(self) -> None:
@@ -138,11 +139,7 @@ class TestNVDDatabase:
                 {
                     "cve": {
                         "descriptions": [{"value": "Test vuln description"}],
-                        "metrics": {
-                            "cvssMetricV31": [
-                                {"cvssData": {"baseScore": 9.8}}
-                            ]
-                        },
+                        "metrics": {"cvssMetricV31": [{"cvssData": {"baseScore": 9.8}}]},
                     }
                 }
             ]
@@ -233,11 +230,14 @@ class TestNVDDatabase:
 
 # -- ThreatIntelManager --------------------------------------------------------
 
+
 class TestThreatIntelManager:
     @pytest.mark.asyncio
     async def test_analyze_target_cve(self) -> None:
         manager = ThreatIntelManager()
-        with patch.object(manager.nvd, "lookup_cve", AsyncMock(return_value={"source": "NVD"})) as mock_nvd:
+        with patch.object(
+            manager.nvd, "lookup_cve", AsyncMock(return_value={"source": "NVD"})
+        ) as mock_nvd:
             result = await manager.analyze_target("CVE-2023-1234")
             assert result == {"source": "NVD"}
             mock_nvd.assert_called_once_with("CVE-2023-1234")
@@ -245,7 +245,9 @@ class TestThreatIntelManager:
     @pytest.mark.asyncio
     async def test_analyze_target_ip(self) -> None:
         manager = ThreatIntelManager()
-        with patch.object(manager.alienvault, "lookup_ip", AsyncMock(return_value={"source": "AlienVault OTX"})) as mock_av:
+        with patch.object(
+            manager.alienvault, "lookup_ip", AsyncMock(return_value={"source": "AlienVault OTX"})
+        ) as mock_av:
             result = await manager.analyze_target("8.8.8.8")
             assert result == {"source": "AlienVault OTX"}
             mock_av.assert_called_once_with("8.8.8.8")
@@ -254,7 +256,11 @@ class TestThreatIntelManager:
     async def test_analyze_target_cve_lowercase_not_routed(self) -> None:
         manager = ThreatIntelManager()
         with (
-            patch.object(manager.alienvault, "lookup_ip", AsyncMock(return_value={"source": "AlienVault OTX"})),
+            patch.object(
+                manager.alienvault,
+                "lookup_ip",
+                AsyncMock(return_value={"source": "AlienVault OTX"}),
+            ),
         ):
             result = await manager.analyze_target("cve-2023-1234")
             assert result["source"] == "AlienVault OTX"
@@ -266,6 +272,7 @@ class TestThreatIntelManager:
 
 
 # -- Stub classes --------------------------------------------------------------
+
 
 class TestStubs:
     def test_threat_intel_feed(self) -> None:

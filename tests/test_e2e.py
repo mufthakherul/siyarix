@@ -110,8 +110,6 @@ async def test_live_tool_fallback_recovery() -> None:
     assert has_pn_retry or adapted.steps[0].retry_count > 0
 
 
-
-
 import asyncio
 import sys
 from pathlib import Path
@@ -141,11 +139,13 @@ pytestmark = [pytest.mark.e2e]
 # Full Pipeline Integration Tests
 # ═══════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_full_pipeline_registry_mode(tool_registry):
     """End-to-end: goal -> plan -> execute -> extract findings."""
     from siyarix.core import AgentCore, AgentGoal, AgentMode
     from siyarix.models import ExecutionPlan, PlanStep, StepStatus, PlanStatus
+
     agent = AgentCore(mode=AgentMode.REGISTRY, registry=tool_registry)
     with patch.object(agent._planner_registry, "plan") as mock_plan:
         with patch.object(agent._executor_registry, "execute_plan", AsyncMock()) as mock_exec:
@@ -156,7 +156,14 @@ async def test_full_pipeline_registry_mode(tool_registry):
             )
             mock_exec.return_value = ExecutionPlan(
                 goal="port scan target",
-                steps=[PlanStep(tool="nmap", args={"target": "scanme.nmap.org"}, status=StepStatus.COMPLETED, result={"output": "ok"})],
+                steps=[
+                    PlanStep(
+                        tool="nmap",
+                        args={"target": "scanme.nmap.org"},
+                        status=StepStatus.COMPLETED,
+                        result={"output": "ok"},
+                    )
+                ],
                 status=PlanStatus.COMPLETED,
             )
             goal = AgentGoal(description="port scan target", target="scanme.nmap.org", timeout=30)
@@ -170,6 +177,7 @@ async def test_full_pipeline_registry_mode(tool_registry):
 async def test_full_pipeline_autonomous_mode(tool_registry):
     """Autonomous mode with mocked LLM."""
     from siyarix.core import AgentCore, AgentGoal, AgentMode
+
     agent = AgentCore(mode=AgentMode.AUTONOMOUS, registry=tool_registry)
     mock_llm = AsyncMock(return_value=MagicMock(content="{'needs_tools': False, 'response': 'ok'}"))
     agent._providers.complete = mock_llm
@@ -179,7 +187,10 @@ async def test_full_pipeline_autonomous_mode(tool_registry):
         mock_plan.return_value = ExecutionPlan(goal="check", steps=[PlanStep(command="echo ok")])
         mock_exec = AsyncMock()
         mock_exec.return_value = ExecutionPlan(
-            goal="check", steps=[PlanStep(command="echo ok", status=StepStatus.COMPLETED, result={"output": "ok"})],
+            goal="check",
+            steps=[
+                PlanStep(command="echo ok", status=StepStatus.COMPLETED, result={"output": "ok"})
+            ],
             status=PlanStatus.COMPLETED,
         )
         agent._executor_autonomous.execute_plan = mock_exec
@@ -191,9 +202,11 @@ async def test_full_pipeline_autonomous_mode(tool_registry):
 # CLI Command Testing via Typer CliRunner
 # ═══════════════════════════════════════════════════════════════════
 
+
 def test_cli_help():
     from typer.testing import CliRunner
     from siyarix.cli import app
+
     runner = CliRunner()
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
@@ -203,6 +216,7 @@ def test_cli_help():
 def test_cli_version():
     from typer.testing import CliRunner
     from siyarix.cli import app
+
     runner = CliRunner()
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
@@ -211,6 +225,7 @@ def test_cli_version():
 def test_cli_config_set():
     from typer.testing import CliRunner
     from siyarix.cli import app
+
     runner = CliRunner()
     result = runner.invoke(app, ["config", "set", "log_level", "debug"])
     assert result.exit_code == 0
@@ -219,6 +234,7 @@ def test_cli_config_set():
 def test_cli_config_get():
     from typer.testing import CliRunner
     from siyarix.cli import app
+
     runner = CliRunner()
     result = runner.invoke(app, ["config", "get", "log_level"])
     assert result.exit_code == 0
@@ -227,6 +243,7 @@ def test_cli_config_get():
 def test_cli_config_list():
     from typer.testing import CliRunner
     from siyarix.cli import app
+
     runner = CliRunner()
     result = runner.invoke(app, ["config", "list"])
     assert result.exit_code == 0
@@ -235,6 +252,7 @@ def test_cli_config_list():
 def test_cli_config_reset():
     from typer.testing import CliRunner
     from siyarix.cli import app
+
     runner = CliRunner()
     result = runner.invoke(app, ["config", "reset", "log_level"])
     assert result.exit_code == 0
@@ -244,9 +262,11 @@ def test_cli_config_reset():
 # Chat REPL Simulation
 # ═══════════════════════════════════════════════════════════════════
 
+
 def test_chat_slash_help():
     """Verify /help returns command list."""
     from siyarix.chat.commands import HELP_CATEGORIES, SLASH_HELP
+
     assert len(HELP_CATEGORIES) > 0
     assert "/help" in SLASH_HELP
     assert all(cat[0] for cat in HELP_CATEGORIES)
@@ -256,6 +276,7 @@ def test_chat_slash_help():
 async def test_chat_session_full_lifecycle(tmp_path):
     """Create, add messages, save, load a chat session."""
     from siyarix.chat.session import ChatSession
+
     session = ChatSession(session_id="e2e_test")
     session.add_message("user", "scan target")
     session.add_message("assistant", "OK, scanning...")
@@ -272,6 +293,7 @@ async def test_chat_session_full_lifecycle(tmp_path):
 async def test_chat_session_branching(tmp_path):
     """Test branch creation and saving."""
     from siyarix.chat.session import ChatSession
+
     session = ChatSession(session_id="branch_test")
     session.add_message("user", "initial scan")
     branch = session.branch()
@@ -282,10 +304,12 @@ async def test_chat_session_branching(tmp_path):
 # API Server Startup/Shutdown Tests
 # ═══════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_api_server_lifecycle():
     """Start and shutdown the API server using the core agent's lifecycle."""
     from siyarix.core import AgentCore
+
     agent = AgentCore()
     with patch.object(agent, "_knowledge_graph") as mock_kg:
         with patch("pathlib.Path.exists", return_value=False):
@@ -300,6 +324,7 @@ async def test_api_server_lifecycle():
 async def test_api_server_shutdown_cleanup():
     """Verify shutdown cleans up resources."""
     from siyarix.core import AgentCore
+
     agent = AgentCore()
     agent._kg_path = MagicMock(spec=Path)
     agent._kg_path.parent = MagicMock(spec=Path)
@@ -315,10 +340,12 @@ async def test_api_server_shutdown_cleanup():
 # Onboarding Wizard Simulation
 # ═══════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_onboarding_wizard_flow():
     """Simulate the onboarding experience."""
     from siyarix.onboarding import OnboardingWizard
+
     wizard = OnboardingWizard()
     with patch.object(wizard, "_welcome_screen", return_value=True):
         with patch.object(wizard, "_step_platform_detection"):
@@ -332,8 +359,14 @@ async def test_onboarding_wizard_flow():
                                         with patch.object(wizard, "_step_install_persona_tools"):
                                             with patch.object(wizard, "_step_preferences"):
                                                 with patch.object(wizard, "_step_learning_setup"):
-                                                    with patch.object(wizard, "_step_network_diagnostics", AsyncMock()):
-                                                        with patch.object(wizard, "_finalize", AsyncMock()):
+                                                    with patch.object(
+                                                        wizard,
+                                                        "_step_network_diagnostics",
+                                                        AsyncMock(),
+                                                    ):
+                                                        with patch.object(
+                                                            wizard, "_finalize", AsyncMock()
+                                                        ):
                                                             result = await wizard.run()
                                                         assert result is True
 
@@ -342,6 +375,7 @@ async def test_onboarding_wizard_flow():
 # Multi-step Workflow Execution
 # ═══════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_multi_step_workflow_sequential(tool_registry):
     """Execute a multi-step plan sequentially through RegistryExecutor."""
@@ -349,8 +383,16 @@ async def test_multi_step_workflow_sequential(tool_registry):
         goal="Multi-step test",
         plan_type=PlanType.SEQUENTIAL,
         steps=[
-            PlanStep(id="s1", tool="nmap", args={"target": "scanme.nmap.org"}, description="Nmap scan"),
-            PlanStep(id="s2", tool="nuclei", args={"target": "scanme.nmap.org"}, description="Nuclei scan", dependencies=["s1"]),
+            PlanStep(
+                id="s1", tool="nmap", args={"target": "scanme.nmap.org"}, description="Nmap scan"
+            ),
+            PlanStep(
+                id="s2",
+                tool="nuclei",
+                args={"target": "scanme.nmap.org"},
+                description="Nuclei scan",
+                dependencies=["s1"],
+            ),
         ],
     )
     executor = RegistryExecutor(registry=tool_registry)
@@ -380,25 +422,44 @@ async def test_multi_step_workflow_parallel(tool_registry):
 # Provider Failover Scenarios
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestProviderFailover:
     """Simulate provider failures and fallback."""
 
     @pytest.mark.asyncio
     async def test_provider_fail_and_fallback(self):
         from siyarix.core import AgentCore, AgentGoal, AgentMode
+
         agent = AgentCore()
         goal = AgentGoal(description="test", timeout=5)
         agent._mode = AgentMode.AUTONOMOUS
-        with patch.object(agent._planner_autonomous, "plan", AsyncMock(return_value=ExecutionPlan(goal="test", steps=[PlanStep(command="echo ok")]))):
-            with patch.object(agent._executor_autonomous, "execute_plan", AsyncMock(return_value=ExecutionPlan(goal="test", steps=[PlanStep(command="echo ok", status=StepStatus.COMPLETED)], status=PlanStatus.COMPLETED))):
+        with patch.object(
+            agent._planner_autonomous,
+            "plan",
+            AsyncMock(return_value=ExecutionPlan(goal="test", steps=[PlanStep(command="echo ok")])),
+        ):
+            with patch.object(
+                agent._executor_autonomous,
+                "execute_plan",
+                AsyncMock(
+                    return_value=ExecutionPlan(
+                        goal="test",
+                        steps=[PlanStep(command="echo ok", status=StepStatus.COMPLETED)],
+                        status=PlanStatus.COMPLETED,
+                    )
+                ),
+            ):
                 result = await agent.execute_goal(goal)
                 assert result.success is True
 
     @pytest.mark.asyncio
     async def test_provider_complete_retry_then_fail(self):
         from siyarix.chat.openai_compat import make_openai_adapter
+
         adapter = make_openai_adapter("openai", "sk-test")
-        with patch("siyarix.chat.openai_compat.resolve_model", side_effect=Exception("provider fail")):
+        with patch(
+            "siyarix.chat.openai_compat.resolve_model", side_effect=Exception("provider fail")
+        ):
             with pytest.raises(Exception):
                 await adapter("system", "user")
 
@@ -406,6 +467,7 @@ class TestProviderFailover:
 # ═══════════════════════════════════════════════════════════════════
 # Permission Gate Enforcement
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestPermissionGateE2E:
     """Test permission gate blocks/allows specific commands."""
@@ -433,7 +495,9 @@ class TestPermissionGateE2E:
     @pytest.mark.asyncio
     async def test_executor_enforces_permission_gate(self):
         reg = ToolRegistry()
-        reg.register(ToolCapability(name="nmap", binary="nmap", installed=True, category=ToolCategory.RECON))
+        reg.register(
+            ToolCapability(name="nmap", binary="nmap", installed=True, category=ToolCategory.RECON)
+        )
         gate = PermissionGate()
         executor = RegistryExecutor(registry=reg, permission_gate=gate)
         step = PlanStep(tool="shell", command="rm -rf /", args={"command": "rm -rf /"})
@@ -445,11 +509,13 @@ class TestPermissionGateE2E:
 # Credential Store Workflow
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestCredentialWorkflow:
     """Full credential lifecycle."""
 
     def test_store_retrieve_delete(self):
         from siyarix.credential_store import get_creds
+
         store = get_creds()
         stored = store.store("e2e_key", "supersecret", cred_type="api_key")
         retrieved = store.get(stored.cred_id)
@@ -459,6 +525,7 @@ class TestCredentialWorkflow:
 
     def test_list_filtered(self):
         from siyarix.credential_store import get_creds
+
         store = get_creds()
         store.store("filter_test", "val", cred_type="api_key", environment="production")
         results = store.list_credentials(cred_type="api_key")
@@ -468,6 +535,7 @@ class TestCredentialWorkflow:
 # ═══════════════════════════════════════════════════════════════════
 # CVSS Scoring Workflow
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestCVSSWorkflow:
     """Full CVSS scoring pipeline."""
@@ -491,9 +559,16 @@ class TestCVSSWorkflow:
 
     def test_score_round_trip_vector_string(self):
         scorer = CVSSScorer()
-        v = CVSSVector(attack_vector="network", attack_complexity="low", privileges_required="none",
-                        user_interaction="none", scope="unchanged", confidentiality="high",
-                        integrity="high", availability="high")
+        v = CVSSVector(
+            attack_vector="network",
+            attack_complexity="low",
+            privileges_required="none",
+            user_interaction="none",
+            scope="unchanged",
+            confidentiality="high",
+            integrity="high",
+            availability="high",
+        )
         r1 = scorer.score(vector=v)
         parsed = scorer.parse_vector_string(r1.vector_string)
         r2 = scorer.score(vector=parsed)
@@ -503,6 +578,7 @@ class TestCVSSWorkflow:
 # ═══════════════════════════════════════════════════════════════════
 # DLP Redaction Pipeline
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestDLPWorkflow:
     """DLP engine across various data types."""
@@ -523,6 +599,7 @@ class TestDLPWorkflow:
 # ═══════════════════════════════════════════════════════════════════
 # OPSEC Isolation + Burn Workflow
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestOPSECWorkflow:
     """Full OPSEC lifecycle."""
@@ -548,6 +625,7 @@ class TestOPSECWorkflow:
 # ═══════════════════════════════════════════════════════════════════
 # Planner → Executor Integration
 # ═══════════════════════════════════════════════════════════════════
+
 
 @pytest.mark.asyncio
 async def test_planner_to_executor_flow(tool_registry):
@@ -582,6 +660,7 @@ async def test_planner_smart_plan_to_executor(tool_registry):
 # Context Manager Integration
 # ═══════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_context_build_and_compress():
     """Build context, add items, compress, and retrieve."""
@@ -605,6 +684,7 @@ async def test_context_build_and_compress():
 # Compliance Assessment Pipeline
 # ═══════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_compliance_assessment_pipeline(tmp_path):
     """Full compliance assessment across frameworks."""
@@ -620,6 +700,7 @@ async def test_compliance_assessment_pipeline(tmp_path):
 # ═══════════════════════════════════════════════════════════════════
 # Configuration Management Workflow
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestConfigWorkflow:
     """Full configuration lifecycle."""
@@ -652,11 +733,13 @@ class TestConfigWorkflow:
 # Tool Installer Workflow
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestToolInstallerWorkflow:
     """Tool installation lifecycle."""
 
     def test_install_already_installed(self):
         from siyarix.tool_installer import ToolInstaller
+
         installer = ToolInstaller()
         with patch("shutil.which", return_value="/usr/bin/nmap"):
             result = installer.install("nmap")
@@ -665,6 +748,7 @@ class TestToolInstallerWorkflow:
 
     def test_auto_install_missing(self):
         from siyarix.tool_installer import ToolInstaller
+
         installer = ToolInstaller()
         with patch.object(installer, "is_installed", side_effect=lambda t: t != "missing_tool"):
             with patch.object(installer, "install_tool", return_value=True):
@@ -676,11 +760,13 @@ class TestToolInstallerWorkflow:
 # Multi-Provider Chat Adapter Integration
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestOpenAICompatIntegration:
     """OpenAI compat detect + resolve + build messages."""
 
     def test_detect_compat_flags(self):
         from siyarix.chat.openai_compat import detect_compat
+
         compat = detect_compat("deepseek", "https://api.deepseek.com")
         assert compat.thinking_format == "deepseek"
         assert compat.requires_reasoning_content_on_assistant is True
@@ -691,6 +777,7 @@ class TestOpenAICompatIntegration:
 
     def test_resolve_model_from_settings(self):
         from siyarix.chat.openai_compat import resolve_model
+
         settings = MagicMock()
         settings.get.return_value = "gpt-5-test"
         model = resolve_model("openai", settings)
@@ -698,14 +785,19 @@ class TestOpenAICompatIntegration:
 
     def test_build_messages_with_developer_role(self):
         from siyarix.chat.openai_compat import build_messages, OpenAICompat
+
         compat = OpenAICompat(supports_developer_role=True)
         msgs = build_messages("You are helpful", "Hello", compat=compat)
         assert msgs[0]["role"] == "developer"
 
     def test_build_messages_skips_system_in_history(self):
         from siyarix.chat.openai_compat import build_messages
-        msgs = build_messages("system prompt", "user query",
-                              history=[{"role": "system", "content": "skip"}, {"role": "user", "content": "hi"}])
+
+        msgs = build_messages(
+            "system prompt",
+            "user query",
+            history=[{"role": "system", "content": "skip"}, {"role": "user", "content": "hi"}],
+        )
         roles = [m["role"] for m in msgs]
         assert roles.count("system") == 1
         assert roles.count("user") == 2
@@ -715,8 +807,10 @@ class TestOpenAICompatIntegration:
 # Execution Budget Enforcement
 # ═══════════════════════════════════════════════════════════════════
 
+
 def test_execution_budget_enforcement():
     from siyarix.executor import ExecutionBudget
+
     budget = ExecutionBudget(max_iterations=2, max_tool_calls=5, max_duration_s=3600)
     assert budget.consume_iteration() is True
     assert budget.consume_iteration() is True
@@ -734,11 +828,13 @@ def test_execution_budget_enforcement():
 # Guardrail Enforcement
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestGuardrailEnforcement:
     """Guardrail threshold enforcement."""
 
     def test_tool_failure_guardrail(self):
         from siyarix.executor import GuardrailConfig, ToolCallTracker
+
         cfg = GuardrailConfig(exact_failure_warn_after=1, exact_failure_block_after=3)
         tracker = ToolCallTracker()
         tracker._config = cfg
@@ -756,17 +852,20 @@ class TestGuardrailEnforcement:
 # Autonomous Executor Command Review
 # ═══════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_autonomous_executor_review_accepts_commands():
     """User accepts commands in review."""
     from siyarix.models import ExecutionPlan, PlanStep
+
     ae = AutonomousExecutor(command_review=True)
     plan = ExecutionPlan(goal="test", steps=[PlanStep(command="echo hello")])
     with patch("siyarix.shell_review.review_and_confirm", return_value="echo hello"):
         with patch.object(ae, "_build_cmd_states", return_value=[MagicMock(label="$ echo hello")]):
             with patch.object(ae, "_execute_batch") as mock_batch:
                 mock_batch.return_value = ExecutionPlan(
-                    goal="test", status=PlanStatus.COMPLETED,
+                    goal="test",
+                    status=PlanStatus.COMPLETED,
                     steps=[PlanStep(command="echo hello", result={"output": "hello"})],
                 )
                 result = await ae.execute_plan(plan)
@@ -777,11 +876,15 @@ async def test_autonomous_executor_review_accepts_commands():
 # Exception Handling E2E
 # ═══════════════════════════════════════════════════════════════════
 
+
 def test_custom_exceptions():
     """Test custom exception hierarchy."""
     from siyarix.exceptions import (
-        SiyarixException, ToolExecutionError, ToolNotFoundError,
-        PermissionDeniedError, LLMProviderError,
+        SiyarixException,
+        ToolExecutionError,
+        ToolNotFoundError,
+        PermissionDeniedError,
+        LLMProviderError,
     )
 
     assert issubclass(ToolExecutionError, SiyarixException)
@@ -801,9 +904,11 @@ def test_custom_exceptions():
 # Event Bus E2E
 # ═══════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_event_bus_publish_subscribe():
     from siyarix.events import Event, EventType, get_event_bus
+
     bus = get_event_bus()
     received = []
 
@@ -820,8 +925,10 @@ async def test_event_bus_publish_subscribe():
 # Metrics Recording E2E
 # ═══════════════════════════════════════════════════════════════════
 
+
 def test_metrics_recording():
     from siyarix.metrics import get_metrics
+
     metrics = get_metrics()
     metrics.record_scan(duration=10.5, successful=True, findings_count=5)
     metrics.record_plan_generation(successful=True, used_model=True)
@@ -833,9 +940,11 @@ def test_metrics_recording():
 # Subprocess Utils Integration
 # ═══════════════════════════════════════════════════════════════════
 
+
 def test_safe_run_sync_basic():
     """Run a simple command synchronously."""
     from siyarix.subprocess_utils import safe_run_sync
+
     cmd = ["cmd", "/c", "echo", "hello"] if sys.platform == "win32" else ["echo", "hello"]
     result = safe_run_sync(cmd, timeout=5)
     assert result.exit_code == 0
@@ -845,6 +954,7 @@ def test_safe_run_sync_basic():
 async def test_safe_run_async_stream():
     from siyarix.subprocess_utils import safe_run_async_stream
     from siyarix.subprocess_utils import get_platform_shell_cmd
+
     cmd = get_platform_shell_cmd("echo hello")
     result = await safe_run_async_stream(cmd, timeout=5, validate=False)
     assert "hello" in result.stdout
@@ -854,8 +964,10 @@ async def test_safe_run_async_stream():
 # Memory Manager Integration
 # ═══════════════════════════════════════════════════════════════════
 
+
 def test_memory_manager_store_retrieve():
     from siyarix.memory import MemoryManager, MemoryLayer
+
     mem = MemoryManager()
     mem.store(key="e2e_key", value="e2e_value", layer=MemoryLayer.SESSION, tags=["test"])
     results = mem.search("e2e_key", layer=MemoryLayer.SESSION)
@@ -867,8 +979,10 @@ def test_memory_manager_store_retrieve():
 # Knowledge Graph Integration
 # ═══════════════════════════════════════════════════════════════════
 
+
 def test_knowledge_graph_add_nodes_and_edges():
     from siyarix.knowledge_graph import KnowledgeGraph, NodeType, EdgeType
+
     kg = KnowledgeGraph()
     h1 = kg.add_node(NodeType.HOST, label="10.0.0.1", ip="10.0.0.1")
     h2 = kg.add_node(NodeType.HOST, label="10.0.0.2", ip="10.0.0.2")
@@ -882,9 +996,11 @@ def test_knowledge_graph_add_nodes_and_edges():
 # Worker Pool Integration
 # ═══════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_worker_pool_submit():
     from siyarix.worker_pool import AsyncWorkerPool
+
     pool = AsyncWorkerPool(max_workers=4)
 
     async def work(x):
@@ -899,8 +1015,10 @@ async def test_worker_pool_submit():
 # Stealth Engine Integration
 # ═══════════════════════════════════════════════════════════════════
 
+
 def test_stealth_engine():
     from siyarix.stealth import StealthEngine
+
     stealth = StealthEngine()
     assert stealth.config.enabled is False
     stealth.enable()
@@ -915,10 +1033,12 @@ def test_stealth_engine():
 # Cross-Module: DLP → Executor → Output
 # ═══════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_dlp_redaction_in_executor_pipeline(tool_registry):
     """Verify DLP redaction applied to executor results."""
     from siyarix.dlp import DLPEngine
+
     engine = DLPEngine(redact_secrets=True, redact_pii=True)
     result = {"output": "Email: admin@example.com, Key: AKIAIOSFODNN7EXAMPLE"}
     redacted = engine.redact_dict(result)

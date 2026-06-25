@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from siyarix.worker_pool import AsyncWorkerPool
 from unittest.mock import patch, MagicMock
@@ -9,11 +8,19 @@ import pytest
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
-
-
 import os
 from pathlib import Path
-from siyarix.chat.platform_utils import detect_shell, get_security_commands, get_shell_platform, list_supported_shells, load_env_file, normalize_shell, provider_env_var
+from siyarix.chat.platform_utils import (
+    detect_shell,
+    get_security_commands,
+    get_shell_platform,
+    list_supported_shells,
+    load_env_file,
+    normalize_shell,
+    provider_env_var,
+)
+
+
 def test_worker_pool_concurrency_and_results():
     pool = AsyncWorkerPool(max_workers=2)
 
@@ -73,12 +80,7 @@ def test_worker_pool_basic():
     assert res == (4, 6)
 
 
-
 """Extra tests for worker_pool targeting uncovered lines."""
-
-
-
-
 
 
 class TestAsyncWorkerPoolValidation:
@@ -190,6 +192,7 @@ class TestAsyncWorkerPoolSubmitAfterClose:
         await pool.close()
         assert result == 5
 
+
 class TestPlatformUtils:
     """Cover platform detection, Windows detection, terminal features."""
 
@@ -206,7 +209,9 @@ class TestPlatformUtils:
     def test_detect_shell_posix_no_shell_env_finds_first(self):
         with patch("os.name", "posix"):
             with patch.dict(os.environ, {}, clear=True):
-                with patch("shutil.which", side_effect=lambda x: f"/usr/bin/{x}" if x == "bash" else None):
+                with patch(
+                    "shutil.which", side_effect=lambda x: f"/usr/bin/{x}" if x == "bash" else None
+                ):
                     assert detect_shell() == "/usr/bin/bash"
 
     def test_detect_shell_no_shell_found_fallback_nt(self):
@@ -256,7 +261,9 @@ class TestPlatformUtils:
             load_env_file()
             assert os.environ.get("VALID_KEY") == "ok"
             assert "OPENAI_API_KEY" not in os.environ
-            mock_log.debug.assert_any_call("Skipping %s from .env (use /key command instead)", "OPENAI_API_KEY")
+            mock_log.debug.assert_any_call(
+                "Skipping %s from .env (use /key command instead)", "OPENAI_API_KEY"
+            )
 
     def test_get_security_commands_windows(self):
         with patch("sys.platform", "win32"):

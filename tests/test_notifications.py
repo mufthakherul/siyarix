@@ -42,6 +42,7 @@ class TestNotificationDispatcher:
             nd = NotificationDispatcher()
             nd.dispatch = AsyncMock()
             from siyarix.events import Event, EventType
+
             event = Event(
                 type=EventType.CUSTOM,
                 data={
@@ -67,6 +68,7 @@ class TestNotificationDispatcher:
             nd = NotificationDispatcher()
             nd.dispatch = AsyncMock()
             from siyarix.events import Event, EventType
+
             event = Event(
                 type=EventType.CUSTOM,
                 data={
@@ -87,6 +89,7 @@ class TestNotificationDispatcher:
             nd = NotificationDispatcher()
             nd.dispatch = AsyncMock()
             from siyarix.events import Event, EventType
+
             event = Event(
                 type=EventType.CUSTOM,
                 data={
@@ -107,6 +110,7 @@ class TestNotificationDispatcher:
             nd = NotificationDispatcher()
             nd.dispatch = AsyncMock()
             from siyarix.events import Event, EventType
+
             event = Event(
                 type=EventType.CUSTOM,
                 data={
@@ -127,6 +131,7 @@ class TestNotificationDispatcher:
             nd = NotificationDispatcher()
             nd.dispatch = AsyncMock()
             from siyarix.events import Event, EventType
+
             event = Event(type=EventType.CUSTOM, data={})
             await nd._on_finding(event)
             nd.dispatch.assert_not_called()
@@ -137,6 +142,7 @@ class TestNotificationDispatcher:
             nd = NotificationDispatcher()
             nd.dispatch = AsyncMock()
             from siyarix.events import Event, EventType
+
             event = Event(
                 type=EventType.CUSTOM,
                 data={"finding": {"type": "test", "target": "x", "description": "desc"}},
@@ -162,9 +168,7 @@ class TestNotificationDispatcher:
                 mock_client.post.return_value = MagicMock()
                 mock_client.post.return_value.raise_for_status = MagicMock()
                 await nd.dispatch("test message")
-                mock_client.post.assert_called_once_with(
-                    url, json={"text": "test message"}
-                )
+                mock_client.post.assert_called_once_with(url, json={"text": "test message"})
 
     @pytest.mark.asyncio
     async def test_dispatch_discord_webhook(self):
@@ -177,9 +181,7 @@ class TestNotificationDispatcher:
                 mock_client.post.return_value = MagicMock()
                 mock_client.post.return_value.raise_for_status = MagicMock()
                 await nd.dispatch("test message")
-                mock_client.post.assert_called_once_with(
-                    url, json={"content": "test message"}
-                )
+                mock_client.post.assert_called_once_with(url, json={"content": "test message"})
 
     @pytest.mark.asyncio
     async def test_dispatch_generic_webhook(self):
@@ -192,9 +194,7 @@ class TestNotificationDispatcher:
                 mock_client.post.return_value = MagicMock()
                 mock_client.post.return_value.raise_for_status = MagicMock()
                 await nd.dispatch("test message")
-                mock_client.post.assert_called_once_with(
-                    url, json={"content": "test message"}
-                )
+                mock_client.post.assert_called_once_with(url, json={"content": "test message"})
 
     @pytest.mark.asyncio
     async def test_dispatch_http_error(self, caplog):
@@ -233,6 +233,7 @@ class TestNotificationDispatcher:
                 mock_client.post.return_value = MagicMock()
                 mock_client.post.return_value.raise_for_status = MagicMock()
                 from siyarix.events import Event
+
                 event = Event(
                     type=EventType.CUSTOM,
                     data={

@@ -32,6 +32,7 @@ from siyarix.compaction import (
 
 # ── Constants ─────────────────────────────────────────────────────────────
 
+
 class TestConstants:
     def test_min_prompt_budget_tokens(self) -> None:
         assert MIN_PROMPT_BUDGET_TOKENS == 8000
@@ -57,6 +58,7 @@ class TestConstants:
 
 # ── CompactResult ────────────────────────────────────────────────────────
 
+
 class TestCompactResult:
     def test_defaults(self) -> None:
         r = CompactResult(ok=True, compacted=False)
@@ -70,6 +72,7 @@ class TestCompactResult:
 
 # ── AssembleResult ───────────────────────────────────────────────────────
 
+
 class TestAssembleResult:
     def test_defaults(self) -> None:
         r = AssembleResult()
@@ -80,6 +83,7 @@ class TestAssembleResult:
 
 
 # ── TranscriptRewriteRequest ─────────────────────────────────────────────
+
 
 class TestTranscriptRewriteRequest:
     def test_defaults(self) -> None:
@@ -92,6 +96,7 @@ class TestTranscriptRewriteRequest:
 
 # ── ContextEngineRuntime ─────────────────────────────────────────────────
 
+
 class TestContextEngineRuntime:
     def test_defaults(self) -> None:
         r = ContextEngineRuntime()
@@ -103,6 +108,7 @@ class TestContextEngineRuntime:
 
 
 # ── estimate_tokens ──────────────────────────────────────────────────────
+
 
 class TestEstimateTokens:
     def test_empty_string(self) -> None:
@@ -119,6 +125,7 @@ class TestEstimateTokens:
 
 
 # ── estimate_messages_tokens ─────────────────────────────────────────────
+
 
 class TestEstimateMessagesTokens:
     def test_single_text_message(self) -> None:
@@ -160,6 +167,7 @@ class TestEstimateMessagesTokens:
 
 # ── split_messages_by_token_share ────────────────────────────────────────
 
+
 class TestSplitMessagesByTokenShare:
     def test_empty_messages(self) -> None:
         assert split_messages_by_token_share([], 1000) == [[]]
@@ -194,6 +202,7 @@ class TestSplitMessagesByTokenShare:
 
 
 # ── _format_messages_for_summary ─────────────────────────────────────────
+
 
 class TestFormatMessagesForSummary:
     def test_basic(self) -> None:
@@ -233,6 +242,7 @@ class TestFormatMessagesForSummary:
 
 # ── _filter_oversized_messages ───────────────────────────────────────────
 
+
 class TestFilterOversizedMessages:
     def test_filters_oversized(self) -> None:
         msgs = [
@@ -253,6 +263,7 @@ class TestFilterOversizedMessages:
 
 
 # ── summarize_chunks ─────────────────────────────────────────────────────
+
 
 class TestSummarizeChunks:
     async def test_single_chunk(self) -> None:
@@ -280,11 +291,13 @@ class TestSummarizeChunks:
         assert "[Chunk 1 summarization failed]" in result
 
     async def test_merge_failure_returns_combined(self) -> None:
-        llm_call = AsyncMock(side_effect=[
-            {"content": "summary1"},
-            {"content": "summary2"},
-            Exception("merge fail"),
-        ])
+        llm_call = AsyncMock(
+            side_effect=[
+                {"content": "summary1"},
+                {"content": "summary2"},
+                Exception("merge fail"),
+            ]
+        )
         chunks = [[{"role": "user", "content": "c1"}], [{"role": "user", "content": "c2"}]]
         result = await summarize_chunks(chunks, llm_call, "gpt-4")
         assert "summary1" in result
@@ -302,6 +315,7 @@ class TestSummarizeChunks:
 
 # ── summarize_with_fallback ──────────────────────────────────────────────
 
+
 class TestSummarizeWithFallback:
     async def test_empty_messages(self) -> None:
         summary, success = await summarize_with_fallback([], AsyncMock(), "gpt-4", 10000)
@@ -316,10 +330,12 @@ class TestSummarizeWithFallback:
         assert success is True
 
     async def test_full_summarization_fails_fallback1(self) -> None:
-        llm_call = AsyncMock(side_effect=[
-            Exception("full fail"),
-            {"content": "fallback1 ok"},
-        ])
+        llm_call = AsyncMock(
+            side_effect=[
+                Exception("full fail"),
+                {"content": "fallback1 ok"},
+            ]
+        )
         # overhead = 5000 - 4096 = 904; 5 messages of 500 chars ≈ 670 tokens ≤ 904
         # → enters full summarization, but summarize_chunks catches the
         #   internal exception and returns a placeholder.
@@ -329,9 +345,11 @@ class TestSummarizeWithFallback:
         assert "[Chunk 1 summarization failed]" in summary
 
     async def test_full_and_fallback1_fail_fallback2(self) -> None:
-        llm_call = AsyncMock(side_effect=[
-            {"content": "fb2 ok"},
-        ])
+        llm_call = AsyncMock(
+            side_effect=[
+                {"content": "fb2 ok"},
+            ]
+        )
         # overhead = 5000 - 4096 = 904; total_tokens > overhead → skip full,
         # fallback1 filtered empty (per-msg budget < msg tokens) → fallback2 succeeds
         messages = [{"role": "user", "content": "a" * 500}] * 20
@@ -375,6 +393,7 @@ class TestSummarizeWithFallback:
 
 # ── CompactionEngine ─────────────────────────────────────────────────────
 
+
 class TestCompactionEngineInit:
     def test_default_init(self) -> None:
         engine = CompactionEngine()
@@ -404,9 +423,7 @@ class TestCompactionEngineProperties:
         assert self.engine.compaction_count == 0
 
     def test_compaction_count_after_push(self) -> None:
-        self.engine._compaction_history.append(
-            CompactResult(ok=True, compacted=False)
-        )
+        self.engine._compaction_history.append(CompactResult(ok=True, compacted=False))
         assert self.engine.compaction_count == 1
 
     def test_bootstrapped_false(self) -> None:

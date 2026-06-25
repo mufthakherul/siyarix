@@ -262,7 +262,11 @@ Respond with ONLY valid JSON:
                 goal=goal,
                 context={
                     "reasoning": "",
-                    "response": raw.get("content", "") if isinstance(raw, dict) else str(raw) if raw else "",
+                    "response": raw.get("content", "")
+                    if isinstance(raw, dict)
+                    else str(raw)
+                    if raw
+                    else "",
                     "llm_planned": True,
                 },
             )
@@ -358,6 +362,7 @@ Respond with ONLY valid JSON:
         # 2. Try YAML parsing
         try:
             import yaml
+
             data = yaml.safe_load(cleaned_json)
             if isinstance(data, dict) and ("needs_tools" in data or "steps" in data):
                 return data
@@ -365,46 +370,56 @@ Respond with ONLY valid JSON:
             pass
 
         # 3. Try Markdown code blocks
-        code_blocks = re.findall(r"```(?:bash|sh|zsh|cmd|powershell|)\n(.*?)\n```", cleaned, re.DOTALL | re.IGNORECASE)
+        code_blocks = re.findall(
+            r"```(?:bash|sh|zsh|cmd|powershell|)\n(.*?)\n```", cleaned, re.DOTALL | re.IGNORECASE
+        )
         if code_blocks:
             steps = []
             for block in code_blocks:
                 for line in block.splitlines():
                     cmd = line.strip()
                     if cmd and not cmd.startswith("#"):
-                        steps.append({
-                            "tool": "execute_plan",
-                            "command": cmd,
-                            "description": f"Extracted from markdown: {cmd[:30]}",
-                            "args": {}
-                        })
+                        steps.append(
+                            {
+                                "tool": "execute_plan",
+                                "command": cmd,
+                                "description": f"Extracted from markdown: {cmd[:30]}",
+                                "args": {},
+                            }
+                        )
             if steps:
                 return {
                     "needs_tools": True,
                     "reasoning": "Extracted commands from Markdown code blocks.",
                     "steps": steps,
-                    "response": cleaned
+                    "response": cleaned,
                 }
 
         # 4. Try XML tags
-        xml_commands = re.findall(r"<(?:command|cmd|execute)>(.*?)</(?:command|cmd|execute)>", cleaned, re.DOTALL | re.IGNORECASE)
+        xml_commands = re.findall(
+            r"<(?:command|cmd|execute)>(.*?)</(?:command|cmd|execute)>",
+            cleaned,
+            re.DOTALL | re.IGNORECASE,
+        )
         if xml_commands:
             steps = []
             for cmd in xml_commands:
                 cmd = cmd.strip()
                 if cmd:
-                    steps.append({
-                        "tool": "execute_plan",
-                        "command": cmd,
-                        "description": f"Extracted from XML: {cmd[:30]}",
-                        "args": {}
-                    })
+                    steps.append(
+                        {
+                            "tool": "execute_plan",
+                            "command": cmd,
+                            "description": f"Extracted from XML: {cmd[:30]}",
+                            "args": {},
+                        }
+                    )
             if steps:
                 return {
                     "needs_tools": True,
                     "reasoning": "Extracted commands from XML tags.",
                     "steps": steps,
-                    "response": cleaned
+                    "response": cleaned,
                 }
         # 5. Direct raw execution fallback (Multi-line)
         # If the output has NO conversational text, treat every line as a shell command.
@@ -413,13 +428,20 @@ Respond with ONLY valid JSON:
             valid_cmds = []
             is_conversational = False
             for line in lines:
-                if re.match(r"^[A-Z][a-z]+ .*[.!?]$", line) or re.match(r"^(Sure|Here|I will|Let me|Yes|No|Okay)\b", line, re.IGNORECASE):
+                if re.match(r"^[A-Z][a-z]+ .*[.!?]$", line) or re.match(
+                    r"^(Sure|Here|I will|Let me|Yes|No|Okay)\b", line, re.IGNORECASE
+                ):
                     is_conversational = True
                     break
                 if line.startswith("#"):
                     continue
-                if not line.endswith('.') and not line.startswith('"') and not line.startswith("'") and re.match(r"^[a-zA-Z0-9_\-\./]", line):
-                    if not re.search(r'[\d\-=\/\$\\]', line):
+                if (
+                    not line.endswith(".")
+                    and not line.startswith('"')
+                    and not line.startswith("'")
+                    and re.match(r"^[a-zA-Z0-9_\-\./]", line)
+                ):
+                    if not re.search(r"[\d\-=\/\$\\]", line):
                         is_conversational = True
                         break
                     valid_cmds.append(line)
@@ -430,17 +452,19 @@ Respond with ONLY valid JSON:
             if not is_conversational and valid_cmds:
                 steps = []
                 for cmd in valid_cmds:
-                    steps.append({
-                        "tool": "execute_plan",
-                        "command": cmd,
-                        "description": f"Raw command: {cmd[:30]}",
-                        "args": {}
-                    })
+                    steps.append(
+                        {
+                            "tool": "execute_plan",
+                            "command": cmd,
+                            "description": f"Raw command: {cmd[:30]}",
+                            "args": {},
+                        }
+                    )
                 return {
                     "needs_tools": True,
                     "reasoning": "Direct raw execution fallback.",
                     "steps": steps,
-                    "response": cleaned
+                    "response": cleaned,
                 }
 
         # 6. Conversational response — LLM answered without structured JSON

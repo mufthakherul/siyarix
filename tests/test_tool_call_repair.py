@@ -150,7 +150,7 @@ class TestParseBracketToolCalls:
         assert len(calls) == 0
 
     def test_invalid_json_falls_back_to_raw(self):
-        text = '[mytool]\n{invalid json}'
+        text = "[mytool]\n{invalid json}"
         calls = parse_bracket_tool_calls(text)
         assert len(calls) == 1
         assert calls[0]["args"] == {"raw": "{invalid json}"}
@@ -221,8 +221,7 @@ class TestParseXmlToolCalls:
 
     def test_multiple_functions(self):
         text = (
-            '<function=nmap>{"host": "a"}</function>'
-            '<function=nuclei>{"target": "b"}</function>'
+            '<function=nmap>{"host": "a"}</function>' '<function=nuclei>{"target": "b"}</function>'
         )
         calls = parse_xml_tool_calls(text)
         assert len(calls) == 2
@@ -236,7 +235,7 @@ class TestParseXmlToolCalls:
         assert parse_xml_tool_calls("just plain text") == []
 
     def test_body_starts_with_brace_invalid_json(self):
-        text = '<function=tool>{invalid}</function>'
+        text = "<function=tool>{invalid}</function>"
         calls = parse_xml_tool_calls(text)
         assert len(calls) == 1
         # invalid JSON starting with { falls through to xml params/plain text
@@ -261,9 +260,7 @@ class TestParseXmlToolCalls:
         assert calls[0]["args"] == {"a": 1}
 
     @patch("siyarix.tool_call_repair.json.loads")
-    def test_xml_json_parses_to_non_dict_falls_through(
-        self, mock_loads: MagicMock
-    ):
+    def test_xml_json_parses_to_non_dict_falls_through(self, mock_loads: MagicMock):
         """When json.loads succeeds but returns non-dict, falls through to plain text."""
         mock_loads.return_value = [1, 2, 3]
         text = '<function=tool>{"key": "value"}</function>'
@@ -289,10 +286,7 @@ class TestParsePlainTextToolCalls:
         assert parse_plain_text_tool_calls("hello world") == []
 
     def test_bracket_empty_does_not_fallback_to_xml(self):
-        text = (
-            '[nmap]\n{"host": "x"}'
-            '<function=nuclei>{"target": "y"}</function>'
-        )
+        text = '[nmap]\n{"host": "x"}' '<function=nuclei>{"target": "y"}</function>'
         calls = parse_plain_text_tool_calls(text)
         # bracket found, so only bracket calls returned
         assert len(calls) == 1
@@ -318,7 +312,7 @@ class TestFindBracketSpans:
         assert len(spans) == 1
         start, end = spans[0]
         # json_end == -1, so span uses json_start as end (before the {)
-        assert text[start:end] == '[nmap]\n'
+        assert text[start:end] == "[nmap]\n"
 
     def test_no_matches(self):
         assert _find_bracket_spans("plain text") == []
@@ -326,21 +320,21 @@ class TestFindBracketSpans:
 
 class TestStripToolCallBlocks:
     def test_strip_bracket_calls(self):
-        text = "before [nmap]\n{\"host\": \"x\"} after"
+        text = 'before [nmap]\n{"host": "x"} after'
         cleaned = strip_tool_call_blocks(text)
         assert "before" in cleaned
         assert "after" in cleaned
         assert "[nmap]" not in cleaned
 
     def test_strip_xml_calls(self):
-        text = "before <function=nmap>{\"host\": \"x\"}</function> after"
+        text = 'before <function=nmap>{"host": "x"}</function> after'
         cleaned = strip_tool_call_blocks(text)
         assert "before" in cleaned
         assert "after" in cleaned
         assert "<function=nmap>" not in cleaned
 
     def test_overlapping_spans(self):
-        text = "[tool]\n{\"x\": <function=other>data</function>}"
+        text = '[tool]\n{"x": <function=other>data</function>}'
         cleaned = strip_tool_call_blocks(text)
         # Both the bracket span and XML span should be removed
         # The XML span sits inside the bracket span
@@ -413,9 +407,7 @@ class TestPromoteToNativeToolCalls:
 
     def test_with_allowed_tools_fuzzy_substring(self):
         text = '[scan]\n{"host": "x"}'
-        cleaned, calls = promote_to_native_tool_calls(
-            text, allowed_tools=["portscan"]
-        )
+        cleaned, calls = promote_to_native_tool_calls(text, allowed_tools=["portscan"])
         # "scan" is a substring of "portscan"
         assert len(calls) == 1
         assert calls[0]["name"] == "portscan"
@@ -428,9 +420,7 @@ class TestPromoteToNativeToolCalls:
 
     def test_with_allowed_tools_no_match(self):
         text = '[unknown]\n{"host": "x"}'
-        cleaned, calls = promote_to_native_tool_calls(
-            text, allowed_tools=["nmap", "nuclei"]
-        )
+        cleaned, calls = promote_to_native_tool_calls(text, allowed_tools=["nmap", "nuclei"])
         assert len(calls) == 0
 
     def test_without_allowed_tools(self):
@@ -447,16 +437,12 @@ class TestPromoteToNativeToolCalls:
 
     def test_fuzzy_disabled_exact_only(self):
         text = '[nmap]\n{"host": "x"}'
-        cleaned, calls = promote_to_native_tool_calls(
-            text, allowed_tools=["nmap"], fuzzy=False
-        )
+        cleaned, calls = promote_to_native_tool_calls(text, allowed_tools=["nmap"], fuzzy=False)
         assert len(calls) == 1
 
     def test_fuzzy_disabled_no_match(self):
         text = '[Nmap]\n{"host": "x"}'
-        cleaned, calls = promote_to_native_tool_calls(
-            text, allowed_tools=["nmap"], fuzzy=False
-        )
+        cleaned, calls = promote_to_native_tool_calls(text, allowed_tools=["nmap"], fuzzy=False)
         assert len(calls) == 0
 
 

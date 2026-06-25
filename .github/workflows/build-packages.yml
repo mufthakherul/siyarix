@@ -110,7 +110,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Shellcheck install.sh
-        uses: ludeeus/action-shellcheck@5d4c3cae44b27a2f00e87658e1e43a20afccbb9c # 2.0.0
+        uses: ludeeus/action-shellcheck@master # 2.0.0
         with:
           scandir: "."
           severity: error

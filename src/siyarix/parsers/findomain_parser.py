@@ -35,7 +35,8 @@ class FindomainParser:
             seen.add(domain)
 
             ip_address = obj.get(
-                "ip_address", obj.get("ip", obj.get("IP", obj.get("IpAddress", ""))),
+                "ip_address",
+                obj.get("ip", obj.get("IP", obj.get("IpAddress", ""))),
             )
 
             description = f"Domain resolved: {domain}"

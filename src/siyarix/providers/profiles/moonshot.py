@@ -30,7 +30,7 @@ def register_profile(manager: ProviderManager) -> None:
                 ModelInfo("kimi-k2-turbo", context_window=256000, cost_tier=CostTier.LOW),
             ],
             default_model="kimi-k2.6",
-            api_key_env="MOONSHOT_API_KEY",
+            api_key_env="MOONSHOT_API_KEY",  # pragma: allowlist secret
             base_url="https://api.moonshot.ai/v1",
             max_context_tokens=262144,
             supports_streaming=True,

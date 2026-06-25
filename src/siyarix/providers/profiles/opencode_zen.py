@@ -20,7 +20,7 @@ def register_profile(manager: ProviderManager) -> None:
                 ),
             ],
             default_model="deepseek-v4-flash",
-            api_key_env="OPENCODE_API_KEY",
+            api_key_env="OPENCODE_API_KEY",  # pragma: allowlist secret
             base_url="https://opencode.ai/zen/v1",
             max_context_tokens=1000000,
             supports_streaming=True,

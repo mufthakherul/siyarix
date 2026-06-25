@@ -138,7 +138,7 @@ class NaturalLanguageParser:
         "enum": "enumeration",
         "discover": "recon",
         "subdomain": "recon",
-        "passwords": "brute",
+        "passwords": "brute",  # pragma: allowlist secret
         "creds": "brute",
         "credentials": "brute",
         "sql": "sqli",
@@ -310,7 +310,7 @@ class NaturalLanguageParser:
         "subdomain_takeover": "takeover",
         "trufflehog": "secrets",
         "gitleaks": "secrets",
-        "secret_scan": "secrets",
+        "secret_scan": "secrets",  # pragma: allowlist secret
         "sherlock": "username",
         "holehe": "osint",
         "maigret": "username",
@@ -364,7 +364,7 @@ class NaturalLanguageParser:
         "nxc": "activedirectory",
         "ldapdomaindump": "activedirectory",
         "adidnsdump": "activedirectory",
-        "gpppassword": "activedirectory",
+        "gpppassword": "activedirectory",  # pragma: allowlist secret
         "group3r": "activedirectory",
         "pingcastle": "activedirectory",
         "purpleknight": "activedirectory",

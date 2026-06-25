@@ -81,7 +81,7 @@ def register_profile(manager: ProviderManager) -> None:
                     cost_tier=CostTier.HIGH,
                 ),
             ],
-            api_key_env="ANTHROPIC_API_KEY",
+            api_key_env="ANTHROPIC_API_KEY",  # pragma: allowlist secret
             max_context_tokens=1000000,
             supports_streaming=True,
             supports_vision=True,

@@ -70,8 +70,8 @@ class AuditEventType(StrEnum):
     CONFIG_CHANGE = "config_change"
     PLUGIN_INSTALL = "plugin_install"
     PLUGIN_REMOVE = "plugin_remove"
-    API_KEY_CREATE = "api_key_create"
-    API_KEY_REVOKE = "api_key_revoke"
+    API_KEY_CREATE = "api_key_create"  # pragma: allowlist secret
+    API_KEY_REVOKE = "api_key_revoke"  # pragma: allowlist secret
     COMPLIANCE_CHECK = "compliance_check"
     BULK_OPERATION = "bulk_operation"
     SYSTEM_START = "system_start"

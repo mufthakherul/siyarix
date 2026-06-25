@@ -62,7 +62,7 @@ def register_profile(manager: ProviderManager) -> None:
                     cost_tier=CostTier.MEDIUM,
                 ),
             ],
-            api_key_env="TOGETHER_API_KEY",
+            api_key_env="TOGETHER_API_KEY",  # pragma: allowlist secret
             max_context_tokens=512000,
             supports_streaming=True,
             supports_vision=True,

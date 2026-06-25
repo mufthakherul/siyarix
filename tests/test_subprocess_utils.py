@@ -116,16 +116,16 @@ class TestDetectPackageManager:
 # ── get_platform_shell_cmd ───────────────────────────────────────────────
 
 class TestGetPlatformShellCmd:
-    @patch("siyarix.subprocess_utils.sys.platform", "win32")
-    def test_windows(self) -> None:
+    @patch("siyarix._platform.get_platform_id", return_value="windows")
+    def test_windows(self, *_args: object) -> None:
         assert get_platform_shell_cmd("echo hi") == ["cmd", "/c", "echo hi"]
 
-    @patch("siyarix.subprocess_utils.sys.platform", "linux")
-    def test_unix(self) -> None:
+    @patch("siyarix._platform.get_platform_id", return_value="linux")
+    def test_unix(self, *_args: object) -> None:
         assert get_platform_shell_cmd("echo hi") == ["sh", "-c", "echo hi"]
 
-    @patch("siyarix.subprocess_utils.sys.platform", "darwin")
-    def test_macos(self) -> None:
+    @patch("siyarix._platform.get_platform_id", return_value="macos")
+    def test_macos(self, *_args: object) -> None:
         assert get_platform_shell_cmd("ls -la") == ["sh", "-c", "ls -la"]
 
 
@@ -381,8 +381,8 @@ class TestUseThreadFallback:
         # ProactorEventLoop is not a SelectorEventLoop, so fallback should be False
         assert _use_thread_fallback() is False
 
-    @patch("siyarix.subprocess_utils.os.name", "posix")
-    async def test_unix_always_false(self) -> None:
+    @patch("siyarix.subprocess_utils._is_windows", return_value=False)
+    async def test_unix_always_false(self, *_args: object) -> None:
         assert _use_thread_fallback() is False
 
 
@@ -539,7 +539,9 @@ class TestSafeRunAsyncStream:
 # ── safe_run_sandboxed ───────────────────────────────────────────────────
 
 class TestSafeRunSandboxed:
-    @patch("siyarix.subprocess_utils.sys.platform", "linux")
+    @patch("siyarix.subprocess_utils._is_windows", return_value=False)
+    @patch("siyarix.subprocess_utils._is_mobile", return_value=False)
+    @patch("siyarix.subprocess_utils._is_linux", return_value=True)
     @patch("siyarix.subprocess_utils.shutil.which", return_value="/usr/bin/bwrap")
     @patch("siyarix.subprocess_utils.safe_run_sync")
     def test_bwrap_no_network(self, mock_sync: MagicMock, *_args) -> None:
@@ -549,7 +551,9 @@ class TestSafeRunSandboxed:
         assert "bwrap" in called_cmd
         assert "--unshare-all" in called_cmd
 
-    @patch("siyarix.subprocess_utils.sys.platform", "linux")
+    @patch("siyarix.subprocess_utils._is_windows", return_value=False)
+    @patch("siyarix.subprocess_utils._is_mobile", return_value=False)
+    @patch("siyarix.subprocess_utils._is_linux", return_value=True)
     @patch("siyarix.subprocess_utils.shutil.which", return_value="/usr/bin/bwrap")
     @patch("siyarix.subprocess_utils.safe_run_sync")
     def test_bwrap_with_network(self, mock_sync: MagicMock, *_args) -> None:
@@ -559,7 +563,9 @@ class TestSafeRunSandboxed:
         assert "bwrap" in called_cmd
         assert "--unshare-all" not in called_cmd
 
-    @patch("siyarix.subprocess_utils.sys.platform", "linux")
+    @patch("siyarix.subprocess_utils._is_windows", return_value=False)
+    @patch("siyarix.subprocess_utils._is_mobile", return_value=False)
+    @patch("siyarix.subprocess_utils._is_linux", return_value=True)
     @patch("siyarix.subprocess_utils.shutil.which", return_value="/usr/bin/bwrap")
     @patch("siyarix.subprocess_utils.safe_run_sync")
     def test_bwrap_with_cwd(self, mock_sync: MagicMock, *_args) -> None:

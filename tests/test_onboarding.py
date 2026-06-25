@@ -138,7 +138,7 @@ def test_step_preferences(mock_console):
 async def test_step_network_diagnostics(mock_console):
     wizard = OnboardingWizard(console=mock_console)
     wizard._pause = MagicMock()
-    with patch("siyarix.onboarding.httpx.get", return_value=MagicMock(status_code=200, elapsed=MagicMock(total_seconds=lambda: 0.1))):
+    with patch("httpx.get", return_value=MagicMock(status_code=200, elapsed=MagicMock(total_seconds=lambda: 0.1))):
         with patch("siyarix.onboarding.socket.getaddrinfo", return_value=[(None, None, None, None, ("8.8.8.8", 80))]):
             await wizard._step_network_diagnostics()
     assert wizard._choices["network_ok"] is True

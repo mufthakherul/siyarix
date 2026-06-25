@@ -1,14 +1,34 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+
+[build-system]
+build-backend = "hatchling.build"
+
+requires = [
+  "hatchling>=1.21.1",
+]
+
 [project]
 name = "siyarix"
 version = "1.0.0"
 description = "Siyarix — AI Cybersecurity Orchestration Agent"
 readme = "README.md"
-authors = [ { name = "MD MUFTHAKHERUL ISLAM MIRAZ", email = "130831166+mufthakherul@users.noreply.github.com" } ]
-requires-python = ">=3.11"
-urls = { "Homepage" = "https://github.com/mufthakherul/siyarix", "Repository" = "https://github.com/mufthakherul/siyarix.git", "Documentation" = "https://github.com/mufthakherul/siyarix", "Changelog" = "https://github.com/mufthakherul/siyarix/releases" }
+keywords = [
+  "agent",
+  "ai",
+  "automation",
+  "autonomous",
+  "cybersecurity",
+  "nmap",
+  "orchestration",
+  "pentest",
+  "scanner",
+  "siyarix",
+]
 license = { text = "AGPL-3.0-or-later" }
-keywords = ["cybersecurity", "agent", "siyarix", "ai", "pentest", "automation", "nmap", "scanner", "autonomous", "orchestration"]
+authors = [
+  { name = "MD MUFTHAKHERUL ISLAM MIRAZ", email = "130831166+mufthakherul@users.noreply.github.com" },
+]
+requires-python = ">=3.11"
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Environment :: Console",
@@ -17,148 +37,140 @@ classifiers = [
   "Intended Audience :: System Administrators",
   "License :: OSI Approved :: GNU Affero General Public License v3",
   "Natural Language :: English",
-  "Operating System :: OS Independent",
+  "Operating System :: Android",
+  "Operating System :: iOS",
   "Operating System :: MacOS :: MacOS X",
   "Operating System :: Microsoft :: Windows :: Windows 10",
   "Operating System :: Microsoft :: Windows :: Windows 11",
+  "Operating System :: OS Independent",
   "Operating System :: POSIX :: Linux",
-  "Operating System :: Android",
-  "Operating System :: iOS",
-  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
   "Topic :: Security",
-  "Topic :: System :: Networking",
-  "Topic :: System :: Systems Administration",
-  "Topic :: System :: Operating System",
   "Topic :: Software Development :: Libraries :: Application Frameworks",
+  "Topic :: System :: Networking",
+  "Topic :: System :: Operating System",
+  "Topic :: System :: Systems Administration",
   "Typing :: Typed",
 ]
 dependencies = [
-  "typer>=0.12",
-  "rich>=13",
-  "prompt_toolkit>=3.0",
-
-  "httpx>=0.27",
-  "pydantic>=2.5",
-  "keyring>=25.0",
-  "cryptography>=42.0",
-  "psutil>=5.9.0",
+  "cryptography>=42",
   "defusedxml>=0.7.1",
-  "PyYAML>=6.0",
-  "Jinja2>=3.1.0",
+  "httpx>=0.27",
+  "jinja2>=3.1",
+  "keyring>=25",
+  "prompt-toolkit>=3",
+
+  "psutil>=5.9",
+  "pydantic>=2.5",
+  "pyyaml>=6",
+  "rich>=13",
+  "typer>=0.12",
 ]
 
-[project.optional-dependencies]
-terminal = [
-  "rich>=13",
-  "prompt_toolkit>=3.0",
-  "textual>=0.50.0",
-  "pywin32>=306; sys_platform == 'win32'",
-  "colorama>=0.4.6; sys_platform == 'win32'",
-]
-cli = [
-  "typer>=0.12",
-  "rich>=13",
-  "prompt_toolkit>=3.0",
-  "textual>=0.50.0",
-  "pywin32>=306; sys_platform == 'win32'",
-  "colorama>=0.4.6; sys_platform == 'win32'",
-]
-siem = [
-  "httpx>=0.27",
-]
-autonomous = [
-  "anthropic>=0.40.0",
-  "google-generativeai>=0.8.0",
-  "openai>=2.31.0",
-]
-openai = [
-  "openai>=2.31.0",
-]
-gemini = [
-  "google-generativeai>=0.8.0",
-]
-api = [
-  "fastapi>=0.110.0",
-  "uvicorn[standard]>=0.29.0",
-  "pyjwt>=2.8.0",
-]
-anthropic = [
-  "anthropic>=0.40.0",
-]
-security = [
-  "bandit>=1.7.9",
-  "safety>=3.2.0",
-  "pip-audit>=2.7.0",
-]
-mobile = [
-  "siyarix[terminal]",
-  "httpx>=0.27",
-]
-windows = [
-  "siyarix[terminal]",
-  "pywin32>=306; sys_platform == 'win32'",
-  "colorama>=0.4.6; sys_platform == 'win32'",
-]
-all = [
+optional-dependencies.all = [
   "siyarix[cli,siem,autonomous,api,security,mobile,windows]",
 ]
-dev = [
-  "siyarix[terminal]",
-  "pytest>=8.0",
-  "pytest-asyncio>=0.24",
-  "pytest-cov>=5.0",
-  "openai>=2.31.0",
-  "respx>=0.21.0",
-  "ruff>=0.5",
-  "mypy>=1.10",
-  "pre-commit>=3.7",
-  "build>=1.2",
-  "twine>=5.0",
-  "click>=8.0",
-  "bandit>=1.7.9",
-  "safety>=3.2.0",
-  "pip-audit>=2.7.0",
-  "hypothesis>=6.100",
+optional-dependencies.anthropic = [
+  "anthropic>=0.40",
 ]
-
-[project.scripts]
-siyarix = "siyarix.cli:app"
-
-[build-system]
-requires = ["hatchling>=1.21.1"]
-build-backend = "hatchling.build"
+optional-dependencies.api = [
+  "fastapi>=0.110",
+  "pyjwt>=2.8",
+  "uvicorn[standard]>=0.29",
+]
+optional-dependencies.autonomous = [
+  "anthropic>=0.40",
+  "google-generativeai>=0.8",
+  "openai>=2.31",
+]
+optional-dependencies.cli = [
+  "colorama>=0.4.6; sys_platform=='win32'",
+  "prompt-toolkit>=3",
+  "pywin32>=306; sys_platform=='win32'",
+  "rich>=13",
+  "textual>=0.50",
+  "typer>=0.12",
+]
+optional-dependencies.dev = [
+  "bandit>=1.7.9",
+  "build>=1.2",
+  "click>=8",
+  "hypothesis>=6.100",
+  "mypy>=1.10",
+  "openai>=2.31",
+  "pip-audit>=2.7",
+  "pre-commit>=3.7",
+  "pytest>=8",
+  "pytest-asyncio>=0.24",
+  "pytest-cov>=5",
+  "respx>=0.21",
+  "ruff>=0.5",
+  "safety>=3.2",
+  "siyarix[terminal]",
+  "twine>=5",
+]
+optional-dependencies.gemini = [
+  "google-generativeai>=0.8",
+]
+optional-dependencies.mobile = [
+  "httpx>=0.27",
+  "siyarix[terminal]",
+]
+optional-dependencies.openai = [
+  "openai>=2.31",
+]
+optional-dependencies.security = [
+  "bandit>=1.7.9",
+  "pip-audit>=2.7",
+  "safety>=3.2",
+]
+optional-dependencies.siem = [
+  "httpx>=0.27",
+]
+optional-dependencies.terminal = [
+  "colorama>=0.4.6; sys_platform=='win32'",
+  "prompt-toolkit>=3",
+  "pywin32>=306; sys_platform=='win32'",
+  "rich>=13",
+  "textual>=0.50",
+]
+optional-dependencies.windows = [
+  "colorama>=0.4.6; sys_platform=='win32'",
+  "pywin32>=306; sys_platform=='win32'",
+  "siyarix[terminal]",
+]
+urls = { "Homepage" = "https://github.com/mufthakherul/siyarix", "Repository" = "https://github.com/mufthakherul/siyarix.git", "Documentation" = "https://github.com/mufthakherul/siyarix", "Changelog" = "https://github.com/mufthakherul/siyarix/releases" }
+scripts.siyarix = "siyarix.cli:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/siyarix"]
+packages = [
+  "src/siyarix",
+]
 
 [tool.ruff]
-line-length = 100
 target-version = "py311"
 
-[tool.ruff.lint]
-ignore = ["S603", "S607"]
-per-file-ignores = {"tests/*" = ["E741", "E402", "F841", "F811", "F601", "E731"], "scripts/*" = ["E402", "F401"], ".vulture_whitelist.py" = ["F821"]}
-
-[tool.bandit]
-exclude_dirs = ["tests", ".venv"]
-skips = ["B101", "B303", "B311", "B404", "B603", "B607"]
-
-[tool.mypy]
-python_version = "3.11"
-check_untyped_defs = true
-ignore_missing_imports = false
-warn_unused_ignores = true
-strict_optional = true
-
-[[tool.mypy.overrides]]
-module = ["tests.*", "scripts.*"]
-ignore_errors = true
-
-[tool.ruff.format]
-docstring-code-format = true
+line-length = 100
+format.docstring-code-format = true
+lint.ignore = [
+  "S603",
+  "S607",
+]
+lint.per-file-ignores = { "tests/*" = [
+  "E741",
+  "E402",
+  "F841",
+  "F811",
+  "F601",
+  "E731",
+], "scripts/*" = [
+  "E402",
+  "F401",
+], ".vulture_whitelist.py" = [
+  "F821",
+] }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -176,11 +188,48 @@ markers = [
 [tool.coverage.report]
 fail_under = 71
 show_missing = true
-omit = ["tests/*", "*/migrations/*"]
+omit = [
+  "tests/*",
+  "*/migrations/*",
+]
 
 [tool.coverage.run]
-source = ["src/siyarix"]
+source = [
+  "src/siyarix",
+]
 branch = true
 
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = true
+ignore_missing_imports = false
+warn_unused_ignores = true
+strict_optional = true
+
+[[tool.mypy.overrides]]
+module = [
+  "tests.*",
+  "scripts.*",
+]
+ignore_errors = true
+
+[tool.bandit]
+exclude_dirs = [
+  "tests",
+  ".venv",
+]
+skips = [
+  "B101",
+  "B303",
+  "B311",
+  "B404",
+  "B603",
+  "B607",
+]
+
 [tool.vulture]
-paths = ['src/siyarix', 'tests', '.vulture_whitelist.py']
+paths = [
+  'src/siyarix',
+  'tests',
+  '.vulture_whitelist.py',
+]

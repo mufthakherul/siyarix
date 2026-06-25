@@ -63,12 +63,6 @@ repos:
         args: [--baseline, .secrets.baseline]
         exclude: (poetry\.lock|Pipfile\.lock|\.env\.example|tests/.*)
 
-  - repo: https://github.com/python-poetry/poetry
-    rev: 1.8.0
-    hooks:
-      - id: poetry-check
-        files: ^pyproject\.toml$
-
   - repo: https://github.com/tox-dev/pyproject-fmt
     rev: v2.1.3
     hooks:

@@ -1430,9 +1430,10 @@ class LLMEngineMixin:
             import subprocess
 
             if os.name == "nt":
+                flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
                 subprocess.Popen(
                     [binary, *args],
-                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    creationflags=flags,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )

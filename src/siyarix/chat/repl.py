@@ -461,10 +461,11 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             input_hint = make_prompt_bottom(show_hint=True)
             console.print(top_bar)
             try:
-                return Prompt.ask(input_hint, default="").strip()
+                return str(Prompt.ask(input_hint, default="").strip())
             except (EOFError, KeyboardInterrupt):
                 return ""
 
+        answer: str = ""
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
@@ -491,7 +492,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                     )
                     if _result is None:
                         raise KeyboardInterrupt
-                    answer = _result.strip()
+                    answer = str(_result.strip())
         except KeyboardInterrupt:
             raise
         except Exception as exc:
@@ -506,7 +507,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             console.print(top_bar)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
-                answer = Prompt.ask("╰─➜ ", default="").strip()
+                answer = str(Prompt.ask("╰─➜ ", default="").strip())
         return answer
 
     def _make_full_bindings(self) -> Any:
@@ -1003,9 +1004,10 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             cleaned = cleaned.strip()
 
         try:
-            data = json.loads(cleaned)
+            data: dict[str, object] = json.loads(cleaned)
             if isinstance(data, dict) and "response" in data:
-                return data["response"]
+                result = data["response"]
+                return str(result) if result is not None else text
         except (json.JSONDecodeError, ValueError, TypeError):
             pass
 

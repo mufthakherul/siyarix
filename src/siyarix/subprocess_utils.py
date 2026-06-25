@@ -319,7 +319,8 @@ def _use_thread_fallback() -> bool:
         return False
     try:
         loop = asyncio.get_running_loop()
-        if isinstance(loop, asyncio.ProactorEventLoop):
+        proactor = getattr(asyncio, "ProactorEventLoop", None)
+        if proactor is not None and isinstance(loop, proactor):
             return True
         if isinstance(loop, asyncio.SelectorEventLoop):
             return True

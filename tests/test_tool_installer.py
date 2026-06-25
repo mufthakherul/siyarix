@@ -45,7 +45,9 @@ class TestToolInstaller:
 
     def test_install_unknown_tool(self, installer):
         with patch("shutil.which", return_value=None):
-            result = installer.install("completely-unknown-tool-xyz")
+            with patch("subprocess.run") as mock_run:
+                mock_run.return_value.returncode = 1
+                result = installer.install("completely-unknown-tool-xyz")
             assert result.success is False
             assert "No install method known" in result.error
 

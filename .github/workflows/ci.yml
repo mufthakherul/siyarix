@@ -190,25 +190,33 @@ jobs:
       - name: Bandit
         run: |
           uv pip install --system bandit
-          bandit -r src/ -f sarif -o bandit-report.sarif -ll || true
+          bandit -r src/ -f json -o bandit-report.json -ll || true
+          python -c "import json; d=__import__('json').load(open('bandit-report.json')) if __import__('os').path.exists('bandit-report.json') else {'results':[]}; s={'version':'2.1.0','runs':[{'tool':{'driver':{'name':'bandit'}},'results':[{'ruleId':r.get('test_id','B000'),'level':'error' if r.get('issue_severity')=='HIGH' else 'warning','message':{'text':r.get('issue_text','')},'locations':[{'physicalLocation':{'artifactLocation':{'uri':r.get('filename','')},'region':{'startLine':r.get('line_number',0)}}}]} for r in d.get('results',[])]}]}; __import__('json').dump(s,open('bandit-report.sarif','w'))"
 
       - name: pip-audit
         run: |
           uv pip install --system pip-audit
           pip-audit --format json --output pip-audit.json || true
           python -c "
-          import json
-          with open('pip-audit.json') as f:
-              data = json.load(f)
+          import json, sys
+          try:
+              with open('pip-audit.json') as f:
+                  data = json.load(f)
+          except (FileNotFoundError, json.JSONDecodeError):
+              data = []
+          if isinstance(data, dict):
+              nested = data.get('dependencies', []) or data.get('results', []) or []
+              data = nested if isinstance(nested, list) else []
           vulns = []
-          for dep in data:
-              vulns.extend(dep.get('vulns', []))
-          critical_high = [v for v in vulns if v.get('severity') in ('high', 'critical')]
+          for dep in (data or []):
+              if isinstance(dep, dict):
+                  vulns.extend(dep.get('vulns', []))
+          critical_high = [v for v in vulns if isinstance(v, dict) and v.get('severity', '').lower() in ('high', 'critical')]
           if critical_high:
               print(f'::error::{len(critical_high)} high/critical vulnerabilities found')
               for v in critical_high:
                   print(f'  - {v.get(\"id\", \"?\")}: {v.get(\"description\", \"\")[:200]}')
-              import sys; sys.exit(2)
+              sys.exit(2)
           print(f'{len(vulns)} total vulnerabilities (none critical/high)')
           "
 

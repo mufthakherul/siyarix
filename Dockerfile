@@ -79,35 +79,28 @@ RUN set -eux; \
     mkdir -p /tmp/gobin; \
     cd /tmp/gobin; \
     \
-    curl -sL "https://github.com/OJ/gobuster/releases/latest/download/gobuster_Linux_x86_64.tar.gz" -o gobuster.tar.gz; \
+    curl -sL "https://github.com/OJ/gobuster/releases/download/v3.6.0/gobuster_Linux_x86_64.tar.gz" -o gobuster.tar.gz; \
     tar -xzf gobuster.tar.gz gobuster; \
     \
-    FFUF_VER=$(curl -s https://api.github.com/repos/ffuf/ffuf/releases/latest | jq -r '.tag_name' | sed 's/^v//'); \
-    curl -sL "https://github.com/ffuf/ffuf/releases/download/v${FFUF_VER}/ffuf_${FFUF_VER}_linux_amd64.tar.gz" -o ffuf.tar.gz; \
+    curl -sL "https://github.com/ffuf/ffuf/releases/download/v2.1.0/ffuf_2.1.0_linux_amd64.tar.gz" -o ffuf.tar.gz; \
     tar -xzf ffuf.tar.gz ffuf; \
     \
-    HTTPX_URL=$(curl -s https://api.github.com/repos/projectdiscovery/httpx/releases/latest | jq -r '.assets[] | select(.name | test("linux_amd64.zip")) | .browser_download_url'); \
-    curl -sL "$HTTPX_URL" -o httpx.zip; \
+    curl -sL "https://github.com/projectdiscovery/httpx/releases/download/v1.6.8/httpx_1.6.8_linux_amd64.zip" -o httpx.zip; \
     unzip -o httpx.zip -d httpx_extract; \
     \
-    SUBF_URL=$(curl -s https://api.github.com/repos/projectdiscovery/subfinder/releases/latest | jq -r '.assets[] | select(.name | test("linux_amd64.zip")) | .browser_download_url'); \
-    curl -sL "$SUBF_URL" -o subfinder.zip; \
+    curl -sL "https://github.com/projectdiscovery/subfinder/releases/download/v2.6.6/subfinder_2.6.6_linux_amd64.zip" -o subfinder.zip; \
     unzip -o subfinder.zip -d subfinder_extract; \
     \
-    NUC_URL=$(curl -s https://api.github.com/repos/projectdiscovery/nuclei/releases/latest | jq -r '.assets[] | select(.name | test("linux_amd64.zip")) | .browser_download_url'); \
-    curl -sL "$NUC_URL" -o nuclei.zip; \
+    curl -sL "https://github.com/projectdiscovery/nuclei/releases/download/v3.3.2/nuclei_3.3.2_linux_amd64.zip" -o nuclei.zip; \
     unzip -o nuclei.zip -d nuclei_extract; \
     \
-    AMASS_URL=$(curl -s https://api.github.com/repos/owasp-amass/amass/releases/latest | jq -r '.assets[] | select(.name | test("linux_amd64.zip")) | .browser_download_url'); \
-    curl -sL "$AMASS_URL" -o amass.zip; \
+    curl -sL "https://github.com/owasp-amass/amass/releases/download/v4.2.0/amass_Linux_amd64.zip" -o amass.zip; \
     unzip -o amass.zip -d amass_extract; \
     \
-    TH_URL=$(curl -s https://api.github.com/repos/trufflesecurity/trufflehog/releases/latest | jq -r '.assets[] | select(.name | test("linux_amd64.tar.gz")) | .browser_download_url'); \
-    curl -sL "$TH_URL" -o trufflehog.tar.gz; \
+    curl -sL "https://github.com/trufflesecurity/trufflehog/releases/download/v3.82.11/trufflehog_3.82.11_linux_amd64.tar.gz" -o trufflehog.tar.gz; \
     tar -xzf trufflehog.tar.gz trufflehog; \
     \
-    GL_URL=$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest | jq -r '.assets[] | select(.name | test("linux_amd64.tar.gz")) | .browser_download_url'); \
-    curl -sL "$GL_URL" -o gitleaks.tar.gz; \
+    curl -sL "https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz" -o gitleaks.tar.gz; \
     tar -xzf gitleaks.tar.gz gitleaks; \
     \
     mv gobuster /usr/local/bin/; \

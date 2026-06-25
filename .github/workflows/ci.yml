@@ -102,7 +102,7 @@ jobs:
       - name: Install dependencies
         run: |
           uv pip install --system -e ".[dev]"
-          uv pip install --system pytest pytest-asyncio pytest-cov pytest-timeout pytest-xdist click openai
+          uv pip install --system pytest pytest-asyncio pytest-cov pytest-timeout pytest-xdist click openai respx
 
       - name: Run tests
         run: |

@@ -80,28 +80,28 @@ RUN set -eux; \
     mkdir -p /tmp/gobin; \
     cd /tmp/gobin; \
     \
-    curl -sL "https://github.com/OJ/gobuster/releases/download/v3.6.0/gobuster_Linux_x86_64.tar.gz" -o gobuster.tar.gz; \
+    curl -sL "https://github.com/OJ/gobuster/releases/download/v3.8.2/gobuster_Linux_x86_64.tar.gz" -o gobuster.tar.gz; \
     tar -xzf gobuster.tar.gz gobuster; \
     \
     curl -sL "https://github.com/ffuf/ffuf/releases/download/v2.1.0/ffuf_2.1.0_linux_amd64.tar.gz" -o ffuf.tar.gz; \
     tar -xzf ffuf.tar.gz ffuf; \
     \
-    curl -sL "https://github.com/projectdiscovery/httpx/releases/download/v1.6.8/httpx_1.6.8_linux_amd64.zip" -o httpx.zip; \
+    curl -sL "https://github.com/projectdiscovery/httpx/releases/download/v1.9.0/httpx_1.9.0_linux_amd64.zip" -o httpx.zip; \
     unzip -o httpx.zip -d httpx_extract; \
     \
-    curl -sL "https://github.com/projectdiscovery/subfinder/releases/download/v2.6.6/subfinder_2.6.6_linux_amd64.zip" -o subfinder.zip; \
+    curl -sL "https://github.com/projectdiscovery/subfinder/releases/download/v2.14.0/subfinder_2.14.0_linux_amd64.zip" -o subfinder.zip; \
     unzip -o subfinder.zip -d subfinder_extract; \
     \
-    curl -sL "https://github.com/projectdiscovery/nuclei/releases/download/v3.3.2/nuclei_3.3.2_linux_amd64.zip" -o nuclei.zip; \
+    curl -sL "https://github.com/projectdiscovery/nuclei/releases/download/v3.9.0/nuclei_3.9.0_linux_amd64.zip" -o nuclei.zip; \
     unzip -o nuclei.zip -d nuclei_extract; \
     \
-    curl -sL "https://github.com/owasp-amass/amass/releases/download/v4.2.0/amass_Linux_amd64.zip" -o amass.zip; \
-    unzip -o amass.zip -d amass_extract; \
+    curl -sL "https://github.com/owasp-amass/amass/releases/download/v5.1.1/amass_linux_amd64.tar.gz" -o amass.tar.gz; \
+    mkdir -p amass_extract && tar -xzf amass.tar.gz -C amass_extract; \
     \
-    curl -sL "https://github.com/trufflesecurity/trufflehog/releases/download/v3.82.11/trufflehog_3.82.11_linux_amd64.tar.gz" -o trufflehog.tar.gz; \
+    curl -sL "https://github.com/trufflesecurity/trufflehog/releases/download/v3.95.6/trufflehog_3.95.6_linux_amd64.tar.gz" -o trufflehog.tar.gz; \
     tar -xzf trufflehog.tar.gz trufflehog; \
     \
-    curl -sL "https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz" -o gitleaks.tar.gz; \
+    curl -sL "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz" -o gitleaks.tar.gz; \
     tar -xzf gitleaks.tar.gz gitleaks; \
     \
     mv gobuster /usr/local/bin/; \
@@ -109,7 +109,7 @@ RUN set -eux; \
     mv httpx_extract/httpx /usr/local/bin/ 2>/dev/null || true; \
     mv subfinder_extract/subfinder /usr/local/bin/ 2>/dev/null || true; \
     mv nuclei_extract/nuclei /usr/local/bin/ 2>/dev/null || true; \
-    mv amass_extract/amass_*/amass /usr/local/bin/ 2>/dev/null || true; \
+    find amass_extract -name "amass" -type f -exec mv {} /usr/local/bin/ \; 2>/dev/null || true; \
     mv trufflehog /usr/local/bin/; \
     mv gitleaks /usr/local/bin/; \
     chmod +x /usr/local/bin/*; \

@@ -67,15 +67,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     dnsutils \
     whois \
     masscan \
-    nikto \
     hydra \
     john \
     hashcat \
     sslscan \
-    whatweb \
-    wafw00f \
-    theharvester \
-    sublist3r \
     && rm -rf /var/lib/apt/lists/* \
     && update-ca-certificates
 

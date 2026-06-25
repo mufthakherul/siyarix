@@ -23,6 +23,7 @@ Iz = "Iz"
 Eit = "Eit"
 OLL = "OLL"
 OBSERV = "OBSERV"
+nd = "nd"
 
 [default.extend-identifiers]
 # Code identifiers to allow

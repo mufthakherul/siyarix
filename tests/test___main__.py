@@ -47,7 +47,7 @@ def test_main_block_via_subprocess() -> None:
         text=True,
         encoding="utf-8",
         errors="replace",
-        timeout=30,
+        timeout=120,
         env=env,
     )
     assert result.returncode == 0

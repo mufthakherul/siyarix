@@ -105,6 +105,7 @@ jobs:
           uv pip install --system pytest pytest-asyncio pytest-cov pytest-timeout pytest-xdist click openai respx
 
       - name: Run tests
+        shell: bash
         run: |
           pytest tests/ \
             --cov=src \

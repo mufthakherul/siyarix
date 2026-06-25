@@ -31,8 +31,10 @@ repos:
       - id: check-toml
       - id: check-executables-have-shebangs
       - id: check-shebang-scripts-are-executable
+        exclude: ^tests/
       - id: debug-statements
       - id: detect-private-key
+        exclude: ^tests/
       - id: fix-byte-order-marker
       - id: mixed-line-ending
         args: [--fix=lf]

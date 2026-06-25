@@ -202,6 +202,7 @@ class LLMEngineMixin:
         if self._mode in ("registry", "offline") and plan.steps:
             try:
                 from ..offline_queue import OfflineCommandQueue
+
                 queue = OfflineCommandQueue()
                 queue.enqueue(
                     instruction=instruction,
@@ -218,7 +219,9 @@ class LLMEngineMixin:
 
             tester = AdversarialTester()
             plan_lines = [
-                f"{getattr(s, 'tool', '') or ''} {' '.join(str(a) for a in getattr(s, 'args', []))} {getattr(s, 'target', '') or ''}".strip() or getattr(s, 'command', '') or ""
+                f"{getattr(s, 'tool', '') or ''} {' '.join(str(a) for a in getattr(s, 'args', []))} {getattr(s, 'target', '') or ''}".strip()
+                or getattr(s, "command", "")
+                or ""
                 for s in plan.steps
             ]
             findings = tester.review_plan(plan_lines)
@@ -269,7 +272,9 @@ class LLMEngineMixin:
 
         try:
             result = await engine.execute(
-                instruction, plan=plan, interactive=False,
+                instruction,
+                plan=plan,
+                interactive=False,
                 progress_callback=_offline_progress,
             )
         except Exception as exc:
@@ -317,7 +322,8 @@ class LLMEngineMixin:
                 error = (r.error or "").strip()
                 success = r.status == StepStatus.COMPLETED
                 display_lines = (
-                    output.split("\n") if output
+                    output.split("\n")
+                    if output
                     else (error.split("\n") if error else ["(no output)"])
                 )
                 icon = "✓" if success else "✗"
@@ -348,6 +354,7 @@ class LLMEngineMixin:
             # ── CLS: read-only skill lookup for learning insights ──────────
             try:
                 from ..learning_system import get_learning_system
+
                 _cls = get_learning_system()
                 _real_target = self._session.target or target
                 _matched_skill = _cls.query_skill(instruction, _real_target, min_confidence=0.30)
@@ -400,9 +407,19 @@ class LLMEngineMixin:
         """Return a text response for non-tool queries, or ``None`` to let the pipeline proceed."""
         lowered = user_input.strip().lower()
         greetings = {
-            "hello", "hi", "hey", "sup", "what's up", "help",
-            "good morning", "good evening", "good afternoon",
-            "howdy", "yo", "greetings", "hey there",
+            "hello",
+            "hi",
+            "hey",
+            "sup",
+            "what's up",
+            "help",
+            "good morning",
+            "good evening",
+            "good afternoon",
+            "howdy",
+            "yo",
+            "greetings",
+            "hey there",
         }
         if lowered in greetings or lowered.startswith(("hello ", "hi ", "hey ", "howdy ")):
             return self._build_greeting_response()
@@ -415,7 +432,10 @@ class LLMEngineMixin:
             )
 
         # How are you / status questions
-        if any(q in lowered for q in ("how are you", "how's it going", "what can you do", "what are you")):
+        if any(
+            q in lowered
+            for q in ("how are you", "how's it going", "what can you do", "what are you")
+        ):
             return (
                 "I'm **Siyarix** — your cybersecurity intelligence system, operating in "
                 f"**{self._mode}** mode. "
@@ -439,6 +459,7 @@ class LLMEngineMixin:
         # Source / version queries
         if lowered in ("version", "what version", "source", "github"):
             from .. import __version__
+
             return (
                 f"**Siyarix** version **{__version__}**\n\n"
                 "Source code: https://github.com/mufthakherul/siyarix\n"
@@ -718,9 +739,7 @@ class LLMEngineMixin:
                                 for m in discovered
                             ]
                 except Exception:
-                    logger.warning(
-                        "Failed to discover provider models", exc_info=True
-                    )
+                    logger.warning("Failed to discover provider models", exc_info=True)
 
         # Build call function for the provider.
         # No separate health ping — check reachability via model listing,
@@ -765,6 +784,7 @@ class LLMEngineMixin:
                 try:
                     from .openai_compat import PROVIDER_CONFIG
                     import httpx
+
                     base_url = PROVIDER_CONFIG.get(provider_name, ("", "", ""))[0]
                     if base_url:
                         async with httpx.AsyncClient(timeout=5) as _client:
@@ -789,9 +809,7 @@ class LLMEngineMixin:
                 return False  # fall through to clean offline pipeline
             else:
                 _label = provider_name if provider_name and provider_name != "none" else "provider"
-                console.print(
-                    f"[yellow]⚠ {_label} not reachable — using local planner[/yellow]"
-                )
+                console.print(f"[yellow]⚠ {_label} not reachable — using local planner[/yellow]")
 
         # ── Planning ─────────────────────────────────────────────────────
         all_outputs: list[str] = []
@@ -803,6 +821,7 @@ class LLMEngineMixin:
             try:
                 if self._mode == "integrated":
                     from ..learning_system import get_learning_system
+
                     _cls = get_learning_system()
                     _hi_skill = _cls.find_high_confidence_skill(
                         instruction_with_target, _real_target, threshold=0.80
@@ -814,15 +833,18 @@ class LLMEngineMixin:
                             f"([green]{_hi_skill.confidence:.0%}[/green] confidence)\u2026"
                         )
                         _raw_anon = _cls._anonymize_target(instruction_with_target, _real_target)
-                        _prerun_steps = _cls.instantiate_skill(_hi_skill, _real_target, raw_anon_goal=_raw_anon)
+                        _prerun_steps = _cls.instantiate_skill(
+                            _hi_skill, _real_target, raw_anon_goal=_raw_anon
+                        )
                         if _prerun_steps:
                             from ..models import ExecutionPlan as _EP, PlanType, PlanStep
+
                             _prerun_plan = _EP(
                                 goal=instruction_with_target,
                                 steps=[
                                     PlanStep(
                                         id=f"cls_pre_{_i:03d}",
-                                        description=_s.get("description", f"Step {_i+1}"),
+                                        description=_s.get("description", f"Step {_i + 1}"),
                                         tool=_s.get("tool", ""),
                                         command=_s.get("command", ""),
                                         args=_s.get("args", {}),
@@ -892,6 +914,7 @@ class LLMEngineMixin:
                     self._provider_state.record_success(provider_name or "")
                 except Exception as exc:
                     import sys
+
                     sys.stdout.write("\033[2K\r\n")
                     sys.stdout.flush()
                     console.print(
@@ -903,11 +926,10 @@ class LLMEngineMixin:
                         self._mode = "offline"
                         self._session.mode = "offline"
                         self._settings.set("model_provider", "registry")
-                        console.print(
-                            "[yellow]⚠ Switched to offline mode[/yellow]"
-                        )
+                        console.print("[yellow]⚠ Switched to offline mode[/yellow]")
                 else:
                     import sys
+
                     sys.stdout.write("\033[2K\r\n")
                     sys.stdout.flush()
 
@@ -1054,14 +1076,13 @@ class LLMEngineMixin:
                     except asyncio.TimeoutError:
                         plan = None
                 import sys
+
                 sys.stdout.write("\033[2K\r\n")
                 sys.stdout.flush()
                 if plan is None:
                     console.print("[yellow]⚠ LLM analysis timed out — moving on[/yellow]")
                 elif plan.steps:
-                    console.print(
-                        f"[cyan]→ LLM decided more work needed — wave {wave + 2}[/cyan]"
-                    )
+                    console.print(f"[cyan]→ LLM decided more work needed — wave {wave + 2}[/cyan]")
                 else:
                     # Done — show final response
                     ctx = plan.context or {}
@@ -1078,6 +1099,7 @@ class LLMEngineMixin:
         if llm_connected:
             try:
                 from ..learning_system import get_learning_system
+
                 _cls_real_target = target or self._session.target or ""
                 _cls_result = last_executed_plan or plan  # use the plan that was actually executed
                 _learned_skill = get_learning_system().observe_llm_action(
@@ -1094,13 +1116,17 @@ class LLMEngineMixin:
                         _learned_skill.intent_pattern[:50],
                         _learned_skill.confidence,
                     )
-                    _has_param_accum = (
-                        getattr(_learned_skill, 'param_values', None) and
-                        any(len(v) >= 3 for v in _learned_skill.param_values.values())
+                    _has_param_accum = getattr(_learned_skill, "param_values", None) and any(
+                        len(v) >= 3 for v in _learned_skill.param_values.values()
                     )
-                    if _learned_skill.universal_schema == "{}" and "{param_" in _learned_skill.intent_pattern:
+                    if (
+                        _learned_skill.universal_schema == "{}"
+                        and "{param_" in _learned_skill.intent_pattern
+                    ):
                         if _learned_skill.confidence >= 0.80 or _has_param_accum:
-                            asyncio.create_task(self._compile_universal_skill(_learned_skill, llm_call_fn))
+                            asyncio.create_task(
+                                self._compile_universal_skill(_learned_skill, llm_call_fn)
+                            )
             except Exception as _exc:
                 logger.debug("CLS LLM observation failed: %s", _exc)
 
@@ -1120,15 +1146,24 @@ class LLMEngineMixin:
     async def _compile_universal_skill(self, skill: Any, llm_call_fn: Any) -> None:
         """Background task to compile a high-confidence parameterized skill into a Universal Skill using the LLM."""
         from rich.console import Console
+
         _console = Console()
-        _console.print(f"[bold magenta]\u26a1 Background Task:[/bold magenta] Compiling universal skill for '{skill.intent_pattern[:40]}...'")
+        _console.print(
+            f"[bold magenta]\u26a1 Background Task:[/bold magenta] Compiling universal skill for '{skill.intent_pattern[:40]}...'"
+        )
         try:
             steps_text = []
             for i, s in enumerate(skill.steps):
-                steps_text.append(f"Step {i+1}: Tool={s.tool}, Command={s.command_template}, Desc={s.description}")
+                steps_text.append(
+                    f"Step {i + 1}: Tool={s.tool}, Command={s.command_template}, Desc={s.description}"
+                )
             steps_str = "\n".join(steps_text)
 
-            param_values_str = json.dumps(skill.param_values, indent=2) if getattr(skill, 'param_values', None) else "{}"
+            param_values_str = (
+                json.dumps(skill.param_values, indent=2)
+                if getattr(skill, "param_values", None)
+                else "{}"
+            )
 
             prompt = (
                 "You are an AI compiler for a Continuous Learning System.\n"
@@ -1154,7 +1189,7 @@ class LLMEngineMixin:
             response = await llm_call_fn(
                 system="You are an expert systems engineer and schema designer.",
                 user=prompt,
-                stream=False
+                stream=False,
             )
 
             if isinstance(response, dict) and "content" in response:
@@ -1169,6 +1204,7 @@ class LLMEngineMixin:
                 schema_json = json.loads(match.group(0))
                 # Store original steps as backup
                 from dataclasses import asdict
+
                 skill.backup_json = json.dumps([asdict(s) for s in skill.steps])
                 skill.universal_schema = json.dumps(schema_json.get("parameters", {}))
 
@@ -1178,16 +1214,20 @@ class LLMEngineMixin:
 
                 if schema_json.get("refined_steps"):
                     from ..learning_system import LearnedStep
+
                     new_steps = []
                     for s in schema_json["refined_steps"]:
-                        new_steps.append(LearnedStep(
-                            tool=s.get("tool", ""),
-                            command_template=s.get("command_template", ""),
-                            description=s.get("description", "")
-                        ))
+                        new_steps.append(
+                            LearnedStep(
+                                tool=s.get("tool", ""),
+                                command_template=s.get("command_template", ""),
+                                description=s.get("description", ""),
+                            )
+                        )
                     skill.steps = new_steps
 
                 from ..learning_system import get_learning_system
+
                 get_learning_system()._save_skill(skill)
                 _console.print("[bold green]✓ Universal skill compiled successfully![/bold green]")
 
@@ -1444,6 +1484,7 @@ class LLMEngineMixin:
 
         if configured != "auto":
             from ..providers import ProviderManager
+
             pm = ProviderManager.get_instance()
             profile = pm.get_profile(configured)
             env_var = profile.api_key_env if profile else ""
@@ -1453,6 +1494,7 @@ class LLMEngineMixin:
             if configured == "ollama":
                 try:
                     from ..providers.ollama_utils import ensure_ollama_running
+
                     ensure_ollama_running()
                 except Exception:
                     pass
@@ -1473,6 +1515,7 @@ class LLMEngineMixin:
         included when no cloud provider has a valid API key.
         """
         from ..providers import ProviderManager
+
         pm = ProviderManager.get_instance()
 
         cloud: list[tuple[int, str, str]] = []

@@ -41,7 +41,8 @@ from .handlers import CommandHandlersMixin
 from .engine import LLMEngineMixin
 from .console import console, panel_response, mode_border
 from .prompts import (
-    make_prompt_top, make_prompt_bottom,
+    make_prompt_top,
+    make_prompt_bottom,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,7 @@ def _restore_tty() -> None:
         return
     try:
         import termios as _termios_mod
+
         fd = sys.stdin.fileno()
         attrs = _termios_mod.tcgetattr(fd)
         if attrs[3] & (_termios_mod.ECHO | _termios_mod.ICANON) == 0:
@@ -64,9 +66,11 @@ def _restore_tty() -> None:
 
 atexit.register(_restore_tty)
 
+
 # Restore TTY on SIGTERM/SIGHUP too (not on Windows)
 def _signal_restore_tty(*_: Any) -> None:
     _restore_tty()
+
 
 if _signal is not None:
     for _sig_name in ("SIGTERM", "SIGHUP", "SIGQUIT"):
@@ -120,9 +124,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         from ..providers import UsageTracker, ProviderStateManager
 
         state_dir = get_config_dir()
-        self._provider_state = ProviderStateManager(
-            path=str(state_dir / "provider_state.json")
-        )
+        self._provider_state = ProviderStateManager(path=str(state_dir / "provider_state.json"))
         self._usage_tracker = UsageTracker(path=str(state_dir / "usage.json"))
         from ..output import OutputEngine
 
@@ -141,6 +143,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
     def connectivity_monitor(self) -> Any:
         if self._connectivity_monitor is None:
             from ..connectivity import SmartModeController
+
             self._connectivity_monitor = SmartModeController(
                 get_current_mode=lambda: self._mode,
                 set_mode=self._set_mode_internal,
@@ -175,13 +178,26 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         key = resolve_api_key(provider, profile.api_key_env or "")
         if not key:
             logger.warning("Provider '%s' configured but API key env var is not set", provider)
-            console.print(f"[yellow]⚠ Provider '{provider}' configured but API key is not set.[/yellow]")
+            console.print(
+                f"[yellow]⚠ Provider '{provider}' configured but API key is not set.[/yellow]"
+            )
 
         if profile.sdk_dependency:
             try:
-                _SAFE_SDKS = {"openai", "anthropic", "google-genai", "mistralai", "cohere", "together"}
+                _SAFE_SDKS = {
+                    "openai",
+                    "anthropic",
+                    "google-genai",
+                    "mistralai",
+                    "cohere",
+                    "together",
+                }
                 if profile.sdk_dependency not in _SAFE_SDKS:
-                    logger.warning("Unknown SDK dependency '%s' for provider '%s'", profile.sdk_dependency, provider)
+                    logger.warning(
+                        "Unknown SDK dependency '%s' for provider '%s'",
+                        profile.sdk_dependency,
+                        provider,
+                    )
                 __import__(profile.sdk_dependency)
             except ImportError:
                 msg = f"Provider '{provider}' requires SDK: pip install {profile.sdk_dependency}"
@@ -249,7 +265,8 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                         import termios as _termios
 
                         _termios.tcsetattr(
-                            sys.stdin.fileno(), _termios.TCSANOW,
+                            sys.stdin.fileno(),
+                            _termios.TCSANOW,
                             _termios.tcgetattr(sys.stdin.fileno()),
                         )
                     except Exception:
@@ -330,9 +347,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                         )
                         parts = [p.strip() for p in user_input.split("|") if p.strip()]
                         for i, part in enumerate(parts):
-                            console.print(
-                                f"[cyan]Step {i + 1}/{len(parts)}:[/cyan] {part[:80]}"
-                            )
+                            console.print(f"[cyan]Step {i + 1}/{len(parts)}:[/cyan] {part[:80]}")
                             if part.startswith("/"):
                                 await self._handle_slash(part)
                             else:
@@ -349,10 +364,12 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                     aliases = self._load_aliases() if hasattr(self, "_load_aliases") else {}
                     if cmd_name.lstrip("/") in aliases:
                         resolved = aliases[cmd_name.lstrip("/")]
-                        remaining = user_input[len(cmd_name):].strip()
+                        remaining = user_input[len(cmd_name) :].strip()
                         full_cmd = f"{resolved} {remaining}" if remaining else resolved
                         console.print(f"[dim]Alias: /{cmd_name.lstrip('/')} -> {full_cmd}[/dim]")
-                        await self._handle_slash(f"/{full_cmd}" if not full_cmd.startswith("/") else full_cmd)
+                        await self._handle_slash(
+                            f"/{full_cmd}" if not full_cmd.startswith("/") else full_cmd
+                        )
                     else:
                         await self._handle_slash(user_input)
                 else:
@@ -438,7 +455,9 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
         # If terminal doesn't support raw mode, skip prompt_toolkit
         if not self._terminal_supports_raw():
-            top_bar = make_prompt_top(self._mode, provider, session_id, msg_count, uptime_secs, theme, persona)
+            top_bar = make_prompt_top(
+                self._mode, provider, session_id, msg_count, uptime_secs, theme, persona
+            )
             input_hint = make_prompt_bottom(show_hint=True)
             console.print(top_bar)
             try:
@@ -457,12 +476,12 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                         vi_mode=False,
                     )
 
-                top_bar = make_prompt_top(self._mode, provider, session_id, msg_count, uptime_secs, theme, persona)
+                top_bar = make_prompt_top(
+                    self._mode, provider, session_id, msg_count, uptime_secs, theme, persona
+                )
                 console.print(top_bar)
 
-                pt_prompt = HTML(
-                    '<style fg="ansicyan"><b>╰─➜ </b></style>'
-                )
+                pt_prompt = HTML('<style fg="ansicyan"><b>╰─➜ </b></style>')
 
                 with patch_stdout():
                     _result = await self._pt_session.prompt_async(
@@ -481,7 +500,9 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             console.print(f"[red]prompt_toolkit failed: {exc}[/red]")
             console.print(traceback.format_exc())
             logger.debug("prompt_toolkit failed: %s", exc)
-            top_bar = make_prompt_top(self._mode, provider, session_id, msg_count, uptime_secs, theme, persona)
+            top_bar = make_prompt_top(
+                self._mode, provider, session_id, msg_count, uptime_secs, theme, persona
+            )
             console.print(top_bar)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
@@ -552,7 +573,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             buf = event.app.current_buffer
             if buf.text:
                 pos = buf.cursor_position
-                buf.text = buf.text[:pos] + buf.text[pos + 1:]
+                buf.text = buf.text[:pos] + buf.text[pos + 1 :]
             else:
                 self._running = False
                 event.app.exit()
@@ -563,7 +584,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             buf = event.app.current_buffer
             pos = buf.cursor_position
             if pos > 0:
-                buf.text = buf.text[:pos - 1] + buf.text[pos:]
+                buf.text = buf.text[: pos - 1] + buf.text[pos:]
                 buf.cursor_position = pos - 1
 
         # ═══════════ Editing ═══════════
@@ -572,7 +593,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         @kb.add(Keys.ControlU)
         def _on_ctrlu(event: Any) -> None:
             buf = event.app.current_buffer
-            buf.text = buf.text[buf.cursor_position:]
+            buf.text = buf.text[buf.cursor_position :]
             buf.cursor_position = 0
 
         # Ctrl+K - delete to end
@@ -587,13 +608,13 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         @kb.add(Keys.Escape, Keys.Backspace)
         def _on_ctrlw(event: Any) -> None:
             buf = event.app.current_buffer
-            text = buf.text[:buf.cursor_position]
+            text = buf.text[: buf.cursor_position]
             space = text.rstrip().rfind(" ")
             if space >= 0:
                 new_pos = space + 1
             else:
                 new_pos = 0
-            buf.text = buf.text[:new_pos] + buf.text[buf.cursor_position:]
+            buf.text = buf.text[:new_pos] + buf.text[buf.cursor_position :]
             buf.cursor_position = new_pos
 
         # Ctrl+Left - jump word left
@@ -702,13 +723,13 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         # F2 - New session (like /new)
         @kb.add(Keys.F2)
         def _on_f2_new(event: Any) -> None:
-            if hasattr(self, '_cmd_new'):
+            if hasattr(self, "_cmd_new"):
                 self._cmd_new("")
 
         # F3 - Clear chat (like /clear)
         @kb.add(Keys.F3)
         def _on_f3_clear(event: Any) -> None:
-            if hasattr(self, '_cmd_clear'):
+            if hasattr(self, "_cmd_clear"):
                 self._cmd_clear("")
 
         # F4 - Toggle command review (like /review)
@@ -725,60 +746,85 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
     def _print_keyboard_shortcuts(self) -> None:
         from prompt_toolkit import print_formatted_text as pt_print
         from prompt_toolkit.formatted_text import HTML as PTHTML
+
         ml_status = "ON" if self._multiline else "OFF"
         lines = [
-            ('', '\n'),
-            ('bold cyan', 'Keyboard Shortcuts'),
-            ('', '\n' + '─' * 56 + '\n'),
-            ('cyan', '↑/↓            '), ('', 'History navigation\n'),
-            ('cyan', 'Ctrl+P / Ctrl+N'), ('', 'History previous / next\n'),
-            ('cyan', 'Ctrl+R         '), ('', 'Reverse history search\n'),
-            ('', '\n'),
-            ('bold cyan', 'Navigation'),
-            ('', '\n'),
-            ('cyan', '←/→            '), ('', 'Move cursor left / right\n'),
-            ('cyan', 'Ctrl+B / Ctrl+F'), ('', 'Move cursor left / right\n'),
-            ('cyan', 'Ctrl+A / Home  '), ('', 'Go to beginning of line\n'),
-            ('cyan', 'Ctrl+E / End   '), ('', 'Go to end of line\n'),
-            ('cyan', 'Ctrl+← / Ctrl+→'), ('', 'Jump word left / right\n'),
-            ('', '\n'),
-            ('bold cyan', 'Editing'),
-            ('', '\n'),
-            ('cyan', 'Backspace      '), ('', 'Delete character before cursor\n'),
-            ('cyan', 'Delete / Ctrl+D'), ('', 'Delete character after cursor\n'),
-            ('cyan', 'Ctrl+U         '), ('', 'Delete to start of line\n'),
-            ('cyan', 'Ctrl+K         '), ('', 'Delete to end of line\n'),
-            ('cyan', 'Ctrl+W / Alt+⌫ '), ('', 'Delete word backward\n'),
-            ('', '\n'),
-            ('bold cyan', 'Input'),
-            ('', '\n'),
-            ('cyan', 'Tab            '), ('', 'Autocomplete / Suggest\n'),
-            ('cyan', 'Enter          '), ('', f'Submit (newline if Multiline={ml_status})\n'),
-            ('cyan', 'Alt+Enter      '), ('', f'Newline (submit if Multiline={ml_status})\n'),
-            ('', '\n'),
-            ('bold cyan', 'Actions'),
-            ('', '\n'),
-            ('cyan', 'F1             '), ('', 'Keyboard shortcuts\n'),
-            ('cyan', 'F2             '), ('', 'New session\n'),
-            ('cyan', 'F3             '), ('', 'Clear chat\n'),
-            ('cyan', 'F4             '), ('', 'Toggle command review\n'),
-            ('cyan', 'Ctrl+\\        '), ('', 'Toggle multiline mode\n'),
-            ('cyan', 'Ctrl+L         '), ('', 'Clear screen\n'),
-            ('', '\n'),
-            ('bold cyan', 'Exit / Cancel'),
-            ('', '\n'),
-            ('cyan', 'Esc            '), ('', 'Cancel input / Double Esc to exit\n'),
-            ('cyan', 'Ctrl+C         '), ('', 'Cancel task / Double Ctrl+C to exit\n'),
+            ("", "\n"),
+            ("bold cyan", "Keyboard Shortcuts"),
+            ("", "\n" + "─" * 56 + "\n"),
+            ("cyan", "↑/↓            "),
+            ("", "History navigation\n"),
+            ("cyan", "Ctrl+P / Ctrl+N"),
+            ("", "History previous / next\n"),
+            ("cyan", "Ctrl+R         "),
+            ("", "Reverse history search\n"),
+            ("", "\n"),
+            ("bold cyan", "Navigation"),
+            ("", "\n"),
+            ("cyan", "←/→            "),
+            ("", "Move cursor left / right\n"),
+            ("cyan", "Ctrl+B / Ctrl+F"),
+            ("", "Move cursor left / right\n"),
+            ("cyan", "Ctrl+A / Home  "),
+            ("", "Go to beginning of line\n"),
+            ("cyan", "Ctrl+E / End   "),
+            ("", "Go to end of line\n"),
+            ("cyan", "Ctrl+← / Ctrl+→"),
+            ("", "Jump word left / right\n"),
+            ("", "\n"),
+            ("bold cyan", "Editing"),
+            ("", "\n"),
+            ("cyan", "Backspace      "),
+            ("", "Delete character before cursor\n"),
+            ("cyan", "Delete / Ctrl+D"),
+            ("", "Delete character after cursor\n"),
+            ("cyan", "Ctrl+U         "),
+            ("", "Delete to start of line\n"),
+            ("cyan", "Ctrl+K         "),
+            ("", "Delete to end of line\n"),
+            ("cyan", "Ctrl+W / Alt+⌫ "),
+            ("", "Delete word backward\n"),
+            ("", "\n"),
+            ("bold cyan", "Input"),
+            ("", "\n"),
+            ("cyan", "Tab            "),
+            ("", "Autocomplete / Suggest\n"),
+            ("cyan", "Enter          "),
+            ("", f"Submit (newline if Multiline={ml_status})\n"),
+            ("cyan", "Alt+Enter      "),
+            ("", f"Newline (submit if Multiline={ml_status})\n"),
+            ("", "\n"),
+            ("bold cyan", "Actions"),
+            ("", "\n"),
+            ("cyan", "F1             "),
+            ("", "Keyboard shortcuts\n"),
+            ("cyan", "F2             "),
+            ("", "New session\n"),
+            ("cyan", "F3             "),
+            ("", "Clear chat\n"),
+            ("cyan", "F4             "),
+            ("", "Toggle command review\n"),
+            ("cyan", "Ctrl+\\        "),
+            ("", "Toggle multiline mode\n"),
+            ("cyan", "Ctrl+L         "),
+            ("", "Clear screen\n"),
+            ("", "\n"),
+            ("bold cyan", "Exit / Cancel"),
+            ("", "\n"),
+            ("cyan", "Esc            "),
+            ("", "Cancel input / Double Esc to exit\n"),
+            ("cyan", "Ctrl+C         "),
+            ("", "Cancel task / Double Ctrl+C to exit\n"),
         ]
         html_parts = []
         for style, text in lines:
-            if style == 'bold cyan':
+            if style == "bold cyan":
                 html_parts.append(f'<b><style fg="ansicyan">{text}</style></b>')
-            elif style == 'cyan':
+            elif style == "cyan":
                 html_parts.append(f'<style fg="ansicyan">{text}</style>')
             else:
                 html_parts.append(text)
-        pt_print(PTHTML(''.join(html_parts)))
+        pt_print(PTHTML("".join(html_parts)))
 
     def _render_split_pane_layout(self, left_content: Any = None) -> None:
         """Render the terminal using side-by-side SplitPane layout."""
@@ -831,6 +877,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         findings_count = 0
         try:
             from ..offline_store import OfflineStore
+
             store = OfflineStore()
             stats = store.stats()
             scans_count = stats.get("total_scans", 0)
@@ -841,6 +888,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         tool_count = 0
         try:
             from ..registry import ToolRegistry
+
             reg = ToolRegistry()
             reg.scan_path()
             tool_count = len(reg.list_tools())
@@ -886,7 +934,14 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             pkg_ok = True
             if profile.sdk_dependency:
                 try:
-                    _SAFE_SDKS = {"openai", "anthropic", "google-genai", "mistralai", "cohere", "together"}
+                    _SAFE_SDKS = {
+                        "openai",
+                        "anthropic",
+                        "google-genai",
+                        "mistralai",
+                        "cohere",
+                        "together",
+                    }
                     if profile.sdk_dependency in _SAFE_SDKS or "." not in profile.sdk_dependency:
                         __import__(profile.sdk_dependency)
                 except Exception:
@@ -1015,8 +1070,10 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         border = mode_border(self._mode)
         md = Markdown("", code_theme=syntax_theme)
         panel = Panel(
-            md, title=f"[bold {border}]◆ Siyarix[/bold {border}]",
-            border_style=border, padding=(0, 2)
+            md,
+            title=f"[bold {border}]◆ Siyarix[/bold {border}]",
+            border_style=border,
+            padding=(0, 2),
         )
 
         with Live(panel, console=console, refresh_per_second=15, transient=False) as live:
@@ -1159,24 +1216,29 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
     def _print_goodbye(self) -> None:
         from ..branding import resolve_version
         from rich.panel import Panel
+
         ver = resolve_version()
         auto_save = self._settings.get("auto_save_session", False)
         if auto_save:
             self._session.save(self._SESSIONS_DIR / f"{self._session.session_id}.json")
-            saved_msg = f"[green]✓[/green] Session saved: [cyan]{self._session.session_id[:8]}[/cyan]\n"
+            saved_msg = (
+                f"[green]✓[/green] Session saved: [cyan]{self._session.session_id[:8]}[/cyan]\n"
+            )
             resume_msg = f"[green]✓[/green] Resume with: [cyan]siyarix --session {self._session.session_id}[/cyan]\n"
         else:
             saved_msg = ""
             resume_msg = ""
-        console.print(Panel(
-            f"[bold cyan]Siyarix v{ver}[/bold cyan]\n\n"
-            f"{saved_msg}"
-            f"{resume_msg}"
-            f"[green]✓[/green] Settings persist in config/.env\n\n"
-            f"[dim]Stay curious. Stay ethical.[/dim]",
-            title="[bold]Session Summary[/bold]",
-            border_style="cyan",
-        ))
+        console.print(
+            Panel(
+                f"[bold cyan]Siyarix v{ver}[/bold cyan]\n\n"
+                f"{saved_msg}"
+                f"{resume_msg}"
+                f"[green]✓[/green] Settings persist in config/.env\n\n"
+                f"[dim]Stay curious. Stay ethical.[/dim]",
+                title="[bold]Session Summary[/bold]",
+                border_style="cyan",
+            )
+        )
 
 
 def start_chat(

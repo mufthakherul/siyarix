@@ -71,6 +71,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     john \
     hashcat \
     sslscan \
+    nbtscan \
     && rm -rf /var/lib/apt/lists/* \
     && update-ca-certificates
 
@@ -118,7 +119,6 @@ RUN set -eux; \
 # Install Python-based security tools
 RUN pip install --no-cache-dir \
     sqlmap \
-    nbtscan \
     wfuzz \
     semgrep \
     bandit

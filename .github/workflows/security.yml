@@ -110,7 +110,12 @@ jobs:
                   data = json.load(f)
           except (FileNotFoundError, json.JSONDecodeError):
               data = []
-          vulns = sum(len(dep.get('vulns', [])) for dep in data)
+          if isinstance(data, dict):
+              data = data.get('dependencies', []) or data.get('results', []) or []
+          vulns = 0
+          for dep in (data or []):
+              if isinstance(dep, dict):
+                  vulns += len(dep.get('vulns', []))
           if vulns > 0:
               print(f'::error::{vulns} vulnerabilities found')
               sys.exit(1)

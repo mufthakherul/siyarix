@@ -17,6 +17,12 @@ AKS = "AKS"
 ment = "ment"
 direcotry = "direcotry"
 fo = "fo"
+SIE = "SIE"
+EDE = "EDE"
+Iz = "Iz"
+Eit = "Eit"
+OLL = "OLL"
+OBSERV = "OBSERV"
 
 [default.extend-identifiers]
 # Code identifiers to allow
@@ -35,4 +41,5 @@ extend-exclude = [
     ".ruff_cache/**",
     ".venv/**",
     "node_modules/**",
+    "wiki-staging/**",
 ]

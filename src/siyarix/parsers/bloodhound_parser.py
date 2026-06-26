@@ -25,8 +25,6 @@ class BloodhoundParser:
             if not line_stripped:
                 continue
 
-                continue
-
             try:
                 obj = json.loads(line_stripped)
             except json.JSONDecodeError:

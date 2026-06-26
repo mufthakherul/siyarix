@@ -1,0 +1,37 @@
+name: "Basic Reconnaissance Playbook"
+description: "A standard workflow combining network and web enumeration"
+vars:
+  target: "{{ target }}"
+  ports: "top-100"
+
+steps:
+  - id: nmap_scan
+    description: "Scan target ports using nmap"
+    type: tool
+    tool: "nmap"
+    args:
+      target: "{{ target }}"
+      flags: "-sV --top-ports {{ ports }}"
+    timeout: 300
+
+  - id: dirsearch_scan
+    description: "Discover web directories"
+    type: tool
+    tool: "dirsearch"
+    args:
+      target: "http://{{ target }}"
+    depends_on:
+      - nmap_scan
+    timeout: 300
+    if: "true"
+
+  - id: nuclei_scan
+    description: "Vulnerability scan with nuclei"
+    type: tool
+    tool: "nuclei"
+    args:
+      target: "http://{{ target }}"
+      tags: "cve,exposures"
+    depends_on:
+      - dirsearch_scan
+    timeout: 600

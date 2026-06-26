@@ -444,7 +444,7 @@ def render_welcome_banner(
     layout.split_column(
         Layout(name="header", size=7),
         Layout(name="stats_row"),
-        Layout(name="footer"),
+        Layout(name="footer", size=6),
     )
 
     # ── Header: brand + version + tagline ──

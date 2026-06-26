@@ -17,10 +17,14 @@ def _empty_target_result(tool: str) -> dict:
     }
 
 
-def _run(tool_name: str, cmd: list[str], timeout: int = 120) -> Any:
+async def _run(
+    tool_name: str, 
+    cmd: list[str], 
+    timeout: int = 120,
+    on_stdout: Any = None,
+    on_stderr: Any = None
+) -> Any:
     """Lazy import and run a command asynchronously, with sanitization."""
-    from .subprocess_utils import safe_run_async as _run_async
-
     try:
         from .security_hardening import InputValidator
 
@@ -38,7 +42,12 @@ def _run(tool_name: str, cmd: list[str], timeout: int = 120) -> Any:
     except Exception:
         pass
 
-    return _run_async(cmd, timeout=timeout)
+    if on_stdout or on_stderr:
+        from .subprocess_utils import safe_run_async_stream as _run_async_stream
+        return await _run_async_stream(cmd, timeout=timeout, on_stdout=on_stdout, on_stderr=on_stderr)
+    else:
+        from .subprocess_utils import safe_run_async as _run_async
+        return await _run_async(cmd, timeout=timeout)
 
 
 def _make_result(tool_name: str, result: Any) -> dict[str, Any]:
@@ -58,7 +67,7 @@ def make_nmap_handler(tool_name: str) -> ToolHandler:
             return _empty_target_result(tool_name)
         flags = kwargs.get("flags", "-sT -T4 --top-ports 100")
         cmd = [tool_name] + flags.split() + [target]
-        result = await _run(tool_name, cmd, kwargs.get("timeout", 120))
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 120), on_stdout=kwargs.get("on_stdout"), on_stderr=kwargs.get("on_stderr"))
         return _make_result(tool_name, result)
 
     return handler
@@ -113,7 +122,7 @@ def make_web_handler(tool_name: str) -> ToolHandler:
                 cmd.extend(flag.split() + [target])
             else:
                 cmd.append(target)
-        result = await _run(tool_name, cmd, kwargs.get("timeout", 300))
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 300), on_stdout=kwargs.get("on_stdout"), on_stderr=kwargs.get("on_stderr"))
         return _make_result(tool_name, result)
 
     return handler
@@ -126,7 +135,7 @@ def make_portscan_handler(tool_name: str) -> ToolHandler:
             return _empty_target_result(tool_name)
         flags = kwargs.get("flags", "-T4 --top-ports 100")
         cmd = [tool_name] + flags.split() + [target]
-        result = await _run(tool_name, cmd, kwargs.get("timeout", 120))
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 120), on_stdout=kwargs.get("on_stdout"), on_stderr=kwargs.get("on_stderr"))
         return _make_result(tool_name, result)
 
     return handler
@@ -147,7 +156,7 @@ def make_recon_handler(tool_name: str) -> ToolHandler:
             )
         else:
             cmd = [tool_name, "--help"]
-        result = await _run(tool_name, cmd, kwargs.get("timeout", 30))
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 30), on_stdout=kwargs.get("on_stdout"), on_stderr=kwargs.get("on_stderr"))
         return _make_result(tool_name, result)
 
     return handler
@@ -162,7 +171,7 @@ def make_brute_handler(tool_name: str) -> ToolHandler:
         username = kwargs.get("username", "root")
         wordlist = kwargs.get("wordlist", "/usr/share/wordlists/rockyou.txt")
         cmd = [tool_name, "-l", username, "-P", wordlist, service + "://" + target]
-        result = await _run(tool_name, cmd, kwargs.get("timeout", 120))
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 120), on_stdout=kwargs.get("on_stdout"), on_stderr=kwargs.get("on_stderr"))
         return _make_result(tool_name, result)
 
     return handler
@@ -187,7 +196,7 @@ def make_network_handler(tool_name: str) -> ToolHandler:
                 cmd = [tool_name, "--help"]
         else:
             cmd = [tool_name, "--help"]
-        result = await _run(tool_name, cmd, kwargs.get("timeout", 60))
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 60), on_stdout=kwargs.get("on_stdout"), on_stderr=kwargs.get("on_stderr"))
         return _make_result(tool_name, result)
 
     return handler
@@ -205,7 +214,7 @@ def make_crypto_handler(tool_name: str) -> ToolHandler:
             cmd = [tool_name, target]
         else:
             cmd = [tool_name, "--help"]
-        result = await _run(tool_name, cmd, kwargs.get("timeout", 120))
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 120), on_stdout=kwargs.get("on_stdout"), on_stderr=kwargs.get("on_stderr"))
         return _make_result(tool_name, result)
 
     return handler
@@ -218,7 +227,7 @@ def make_curl_handler(tool_name: str) -> ToolHandler:
             return _empty_target_result(tool_name)
         flags = kwargs.get("flags", "-sI")
         cmd = [tool_name] + flags.split() + [target]
-        result = await _run(tool_name, cmd, kwargs.get("timeout", 30))
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 30), on_stdout=kwargs.get("on_stdout"), on_stderr=kwargs.get("on_stderr"))
         return _make_result(tool_name, result)
 
     return handler
@@ -235,7 +244,7 @@ def make_dns_handler(tool_name: str) -> ToolHandler:
             cmd.append(target)
         if not flags and not target:
             return _empty_target_result(tool_name)
-        result = await _run(tool_name, cmd, kwargs.get("timeout", 30))
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 30), on_stdout=kwargs.get("on_stdout"), on_stderr=kwargs.get("on_stderr"))
         return _make_result(tool_name, result)
 
     return handler
@@ -247,7 +256,7 @@ def make_whois_handler(tool_name: str) -> ToolHandler:
         if not target:
             return _empty_target_result(tool_name)
         cmd = [tool_name, target]
-        result = await _run(tool_name, cmd, kwargs.get("timeout", 30))
+        result = await _run(tool_name, cmd, kwargs.get("timeout", 30), on_stdout=kwargs.get("on_stdout"), on_stderr=kwargs.get("on_stderr"))
         return _make_result(tool_name, result)
 
     return handler
@@ -270,8 +279,14 @@ def make_generic_handler(tool_name: str) -> ToolHandler:
         if target:
             cmd.append(target)
         timeout = kwargs.get("timeout", 120)
+        on_stdout = kwargs.get("on_stdout")
+        on_stderr = kwargs.get("on_stderr")
         try:
-            result = await safe_run_async(cmd, timeout=timeout)
+            if on_stdout or on_stderr:
+                from .subprocess_utils import safe_run_async_stream
+                result = await safe_run_async_stream(cmd, timeout=timeout, on_stdout=on_stdout, on_stderr=on_stderr)
+            else:
+                result = await safe_run_async(cmd, timeout=timeout)
             return _make_result(tool_name, result)
         except Exception as exc:
             return {"status": "error", "error": str(exc), "tool": tool_name}

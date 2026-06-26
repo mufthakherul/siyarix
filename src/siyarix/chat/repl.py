@@ -915,7 +915,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             provider_status=provider_status,
         )
         console.print(layout)
-
+        console.print("\n")
     def _gather_provider_status(self) -> dict[str, tuple[str, str]]:
         """Return a concise status map for supported providers.
 

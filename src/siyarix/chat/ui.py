@@ -19,7 +19,7 @@ from rich.text import Text
 from rich.layout import Layout
 from rich.align import Align
 from rich.columns import Columns
-from rich.console import Console as RichConsole
+from rich.console import Console as RichConsole, Group
 
 from ..output import output as _output_engine
 from ..branding import resolve_version
@@ -435,17 +435,10 @@ def render_welcome_banner(
     command_count: int = 0,
     msg_count: int = 0,
     provider_status: dict[str, tuple[str, str]] | None = None,
-) -> Layout:
+) -> Group:
     """Render a professional welcome banner using Rich Layout."""
 
     ver = resolve_version()
-
-    layout = Layout()
-    layout.split_column(
-        Layout(name="header", size=7),
-        Layout(name="stats_row"),
-        Layout(name="footer", size=6),
-    )
 
     # ── Header: brand + version + tagline ──
     mode_color_map = {
@@ -462,28 +455,20 @@ def render_welcome_banner(
         ("SIYARIX ORCHESTRATOR ", "bold white"),
         (f"v{ver} ", "bold green"),
         ("░▒▓█ ", f"bold {accent}"),
-        ("\n\n", ""),
+        ("\n", ""),
         ("CLI-Based AI-Native Cyber Operations Platform", "dim italic white"),
     )
 
-    layout["header"].update(
-        Align.center(
-            Panel(
-                Align.center(header_text, vertical="middle"),
-                border_style=accent,
-                padding=(1, 3),
-                width=72,
-            )
+    header_panel = Align.center(
+        Panel(
+            Align.center(header_text, vertical="middle"),
+            border_style=accent,
+            padding=(0, 2),
+            width=68,
         )
     )
 
     # ── Middle: stats panels ──
-    layout["stats_row"].split_row(
-        Layout(name="session_info", ratio=1),
-        Layout(name="telemetry", ratio=1),
-        Layout(name="quick_actions", ratio=1),
-        Layout(name="llm_status", ratio=1),
-    )
 
     session_panel = Panel(
         f"[bold #00ffcc]Platform:[/bold #00ffcc] [white]{shell_info}[/white]\n"
@@ -546,10 +531,10 @@ def render_welcome_banner(
 
     llm_panel = Panel(runtime_txt, title="[bold]LLM Status[/bold]", border_style="yellow")
 
-    layout["session_info"].update(session_panel)
-    layout["telemetry"].update(telemetry_panel)
-    layout["quick_actions"].update(quick_panel)
-    layout["llm_status"].update(llm_panel)
+    stats_row = Columns(
+        [session_panel, telemetry_panel, quick_panel, llm_panel],
+        expand=True
+    )
 
     # ── Footer: tips ──
     mode_tips = {
@@ -574,15 +559,13 @@ def render_welcome_banner(
         (tip, "white"),
     )
 
-    layout["footer"].update(
-        Panel(
-            footer_content,
-            title="[bold bright_black]Tip[/bold bright_black]",
-            border_style="bright_black",
-        )
+    footer_panel = Panel(
+        footer_content,
+        title="[bold bright_black]Tip[/bold bright_black]",
+        border_style="bright_black",
     )
 
-    return layout
+    return Group(header_panel, stats_row, footer_panel)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

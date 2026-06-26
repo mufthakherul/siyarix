@@ -7,6 +7,7 @@ import asyncio
 import logging
 import time
 from typing import Any
+from dataclasses import dataclass, field
 
 from .events import Event, EventType
 from .exceptions import PermissionDeniedError, ToolExecutionError, ToolNotFoundError
@@ -16,6 +17,12 @@ from .planner_registry import TOOL_ALTERNATIVES
 from .registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
+
+@dataclass
+class CommandState:
+    label: str
+    lines: list[str] = field(default_factory=list)
+
 
 
 class RegistryExecutor(BaseExecutor):
@@ -50,7 +57,47 @@ class RegistryExecutor(BaseExecutor):
         self._custom_executors[tool] = executor
 
     async def execute_plan(
-        self, plan: ExecutionPlan, executor_fn: StepExecutor | None = None
+        self, plan: ExecutionPlan, executor_fn: StepExecutor | None = None, live_display: bool = False
+    ) -> ExecutionPlan:
+        if not live_display:
+            return await self._execute_plan_impl(plan, executor_fn, None)
+
+        cmd_states = {}
+        for s in plan.steps:
+            cmd_states[s.id] = CommandState(label=s.tool or s.description or "unknown")
+
+        def generate_renderable():
+            try:
+                from rich.panel import Panel as RichPanel
+                from rich.console import Group
+                panels = []
+                for s in plan.steps:
+                    if s.status == StepStatus.RUNNING:
+                        st = cmd_states[s.id]
+                        panel_content = "\n".join(st.lines[-200:]) if st.lines else "Running..."
+                        panels.append(RichPanel(panel_content, title=f"· {st.label}", border_style="cyan"))
+                if not panels:
+                    return "Initializing..."
+                return Group(*panels)
+            except ImportError:
+                return "Running..."
+
+        live_ctx = None
+        try:
+            from rich.live import Live
+            live_ctx = Live(get_renderable=generate_renderable, refresh_per_second=10, screen=False)
+            live_ctx.start()
+        except ImportError:
+            pass
+
+        try:
+            return await self._execute_plan_impl(plan, executor_fn, cmd_states)
+        finally:
+            if live_ctx:
+                live_ctx.stop()
+
+    async def _execute_plan_impl(
+        self, plan: ExecutionPlan, executor_fn: StepExecutor | None = None, cmd_states: dict[str, Any] | None = None
     ) -> ExecutionPlan:
         self._budget.reset_timer()
         plan.status = PlanStatus.ACTIVE
@@ -99,7 +146,7 @@ class RegistryExecutor(BaseExecutor):
                 and all(not s.dependencies for s in ready_steps)
             )
             if can_parallel:
-                tasks = [self._pool.submit(self._execute_step, s, executor_fn) for s in ready_steps]
+                tasks = [self._pool.submit(self._execute_step, s, executor_fn, cmd_states.get(s.id) if cmd_states else None) for s in ready_steps]
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 for i, res in enumerate(results):
                     if isinstance(res, BaseException):
@@ -108,7 +155,7 @@ class RegistryExecutor(BaseExecutor):
                         )
             else:
                 for s in ready_steps:
-                    await self._execute_step(s, executor_fn)
+                    await self._execute_step(s, executor_fn, cmd_states.get(s.id) if cmd_states else None)
                     if self._budget.is_exhausted:
                         break  # type: ignore[unreachable]
 
@@ -130,7 +177,7 @@ class RegistryExecutor(BaseExecutor):
         )
         return plan
 
-    async def _execute_step(self, step: PlanStep, executor_fn: StepExecutor | None) -> None:
+    async def _execute_step(self, step: PlanStep, executor_fn: StepExecutor | None, cmd_state: Any = None) -> None:
         if not self._budget.consume_iteration():
             return
         step.status = StepStatus.RUNNING
@@ -147,8 +194,12 @@ class RegistryExecutor(BaseExecutor):
                 await res  # type: ignore[misc]
         start = time.monotonic()
         try:
+            callbacks = {}
+            if cmd_state:
+                callbacks["on_stdout"] = lambda line, st=cmd_state: st.lines.append(line)
+                callbacks["on_stderr"] = lambda line, st=cmd_state: st.lines.append(line)
             result = await asyncio.wait_for(
-                self._try_execute(step, executor_fn),
+                self._try_execute(step, executor_fn, callbacks),
                 timeout=step.timeout,
             )
             step.duration_ms = (time.monotonic() - start) * 1000
@@ -193,7 +244,7 @@ class RegistryExecutor(BaseExecutor):
                 await res  # type: ignore[misc]
 
     async def _try_execute(
-        self, step: PlanStep, executor_fn: StepExecutor | None
+        self, step: PlanStep, executor_fn: StepExecutor | None, callbacks: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         if executor_fn:
             return await executor_fn(step)
@@ -232,8 +283,12 @@ class RegistryExecutor(BaseExecutor):
 
         args_key = str(sorted(step.args.items()))
 
+        execution_args = dict(step.args)
+        if callbacks:
+            execution_args.update(callbacks)
+
         try:
-            result = await self._registry.execute(step.tool, **step.args)
+            result = await self._registry.execute(step.tool, **execution_args)
         except ToolNotFoundError as e:
             self._tracker.record(step.tool, args_key, False)
             result = {"status": "error", "error": str(e), "tool": step.tool}
@@ -353,10 +408,49 @@ class RegistryExecutor(BaseExecutor):
             self._tracker.record(alt, alt_args_key, False)
         return result
 
-    async def execute_workflow(self, plan: ExecutionPlan) -> ExecutionPlan:
+    async def execute_workflow(self, plan: ExecutionPlan, live_display: bool = False) -> ExecutionPlan:
         """Execute a DAG workflow using the WorkflowEngine."""
         if not hasattr(plan, "plan_type") or getattr(plan.plan_type, "value", None) != "dag":
-            return await self.execute_plan(plan)
+            return await self.execute_plan(plan, live_display=live_display)
+
+        if not live_display:
+            return await self._execute_workflow_impl(plan, None)
+
+        cmd_states = {}
+        for s in plan.steps:
+            cmd_states[s.id] = CommandState(label=s.tool or s.description or "unknown")
+
+        def generate_renderable():
+            try:
+                from rich.panel import Panel as RichPanel
+                from rich.console import Group
+                panels = []
+                for s in plan.steps:
+                    if s.status == StepStatus.RUNNING:
+                        st = cmd_states[s.id]
+                        panel_content = "\n".join(st.lines[-200:]) if st.lines else "Running..."
+                        panels.append(RichPanel(panel_content, title=f"· {st.label}", border_style="cyan"))
+                if not panels:
+                    return "Initializing..."
+                return Group(*panels)
+            except ImportError:
+                return "Running..."
+
+        live_ctx = None
+        try:
+            from rich.live import Live
+            live_ctx = Live(get_renderable=generate_renderable, refresh_per_second=10, screen=False)
+            live_ctx.start()
+        except ImportError:
+            pass
+
+        try:
+            return await self._execute_workflow_impl(plan, cmd_states)
+        finally:
+            if live_ctx:
+                live_ctx.stop()
+
+    async def _execute_workflow_impl(self, plan: ExecutionPlan, cmd_states: dict[str, Any] | None) -> ExecutionPlan:
         try:
             from .workflow import WorkflowEngine, WorkflowStatus
 
@@ -371,7 +465,13 @@ class RegistryExecutor(BaseExecutor):
                         res = self._on_step_progress(_step)
                         if hasattr(res, "__await__"):
                             await res  # type: ignore[misc]
-                    _result = await self._try_execute(_step, None)
+                    callbacks = {}
+                    if cmd_states:
+                        st = cmd_states.get(_step.id)
+                        if st:
+                            callbacks["on_stdout"] = lambda line, s=st: s.lines.append(line)
+                            callbacks["on_stderr"] = lambda line, s=st: s.lines.append(line)
+                    _result = await self._try_execute(_step, None, callbacks)
                     _step.result = _result
                     _step.status = (
                         StepStatus.COMPLETED
@@ -416,7 +516,7 @@ class RegistryExecutor(BaseExecutor):
             )
         except Exception as exc:
             logger.warning("Workflow engine failed, falling back to sequential: %s", exc)
-            plan = await self.execute_plan(plan)
+            plan = await self.execute_plan(plan, live_display=False)
         return plan
 
 

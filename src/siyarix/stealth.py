@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import random
 import time
+import threading
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -73,7 +74,7 @@ PROXY_CHAINS = [
 ]
 
 DECOY_PAYLOADS = [
-    {"path": "/wp-login.php", "method": "POST", "data": "log=admin&pwd=admin123"},
+    {"path": "/wp-login.php", "method": "POST", "data": "log=admin&pwd=password"},
     {"path": "/.env", "method": "GET"},
     {"path": "/admin/", "method": "GET"},
     {"path": "/api/v1/users", "method": "GET"},
@@ -131,6 +132,7 @@ class StealthEngine:
         self._config = config or StealthConfig()
         self._proxy_index = 0
         self._last_proxy_rotation: float = 0.0
+        self._lock = threading.Lock()
 
     @property
     def config(self) -> StealthConfig:
@@ -158,18 +160,22 @@ class StealthEngine:
     def get_current_proxy(self) -> str | None:
         if not self._config.use_proxy_chain:
             return None
-        self._rotate_proxy_if_needed()
-        if not self._config.proxy_list:
-            return None
-        self._proxy_index = (self._proxy_index + 1) % len(self._config.proxy_list)
-        return self._config.proxy_list[self._proxy_index]
+        with self._lock:
+            rotated = self._rotate_proxy_if_needed()
+            if not self._config.proxy_list:
+                return None
+            if not rotated:
+                self._proxy_index = (self._proxy_index + 1) % len(self._config.proxy_list)
+            return self._config.proxy_list[self._proxy_index]
 
-    def _rotate_proxy_if_needed(self) -> None:
+    def _rotate_proxy_if_needed(self) -> bool:
         now = time.monotonic()
         if now - self._last_proxy_rotation > self._config.proxy_rotation_interval:
             random.shuffle(self._config.proxy_list)
             self._last_proxy_rotation = now
             self._proxy_index = 0
+            return True
+        return False
 
     def get_decoy_requests(self, target: str) -> list[dict[str, Any]]:
         if not self._config.use_decoy_traffic:

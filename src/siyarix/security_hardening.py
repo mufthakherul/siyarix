@@ -182,7 +182,10 @@ class InputValidator:
         """
         import urllib.parse
 
-        value = urllib.parse.unquote(value)
+        original = ""
+        while value != original:
+            original = value
+            value = urllib.parse.unquote(value)
         # Remove null bytes, carriage-returns, newlines, ANSI escapes (H-26)
         sanitized = value.replace("\x00", "")
         sanitized = sanitized.replace("\r", "")
@@ -441,12 +444,12 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     # (pattern, severity, description)
     # ── CRITICAL ──
     (
-        re.compile(r"\bsudo\s+rm\s+-[a-zA-Z]*r", re.I),
+        re.compile(r"\bsudo\s+rm\s+(?:-[a-zA-Z]*r\b)", re.I),
         "critical",
         "sudo rm -r",
     ),
     (
-        re.compile(r"\brm\s+-[a-zA-Z]*[rf][a-zA-Z]*[rf]", re.I),
+        re.compile(r"\brm\s+(?:-[a-zA-Z]*r[a-zA-Z]*\s+-[a-zA-Z]*f\b|-[a-zA-Z]*f[a-zA-Z]*\s+-[a-zA-Z]*r\b|-[a-zA-Z]*[rf][a-zA-Z]*[rf]\b|\s+--(?:recursive|force)\s+--(?:recursive|force)\b)", re.I),
         "critical",
         "Recursive force delete (rm -rf)",
     ),
@@ -461,7 +464,7 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "Raw disk overwrite (dd)",
     ),
     (
-        re.compile(r">\s*/dev/sd[a-z]", re.I),
+        re.compile(r">\s*/dev/(?:sd[a-z]|nvme\d+n\d+|vda\d*)", re.I),
         "critical",
         "Write to block device",
     ),

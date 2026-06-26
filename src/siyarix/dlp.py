@@ -17,7 +17,7 @@ SECRET_PATTERNS = {
     "GITHUB_TOKEN": re.compile(r"gh[pousr]_[A-Za-z0-9_]{36}"),
     "GENERIC_BEARER": re.compile(r"Bearer\s+[a-zA-Z0-9_\-\.]+"),
     "PRIVATE_KEY": re.compile(
-        r"-----BEGIN (?:RSA )?PRIVATE KEY-----.*?-----END (?:RSA )?PRIVATE KEY-----", re.DOTALL
+        r"-----BEGIN [A-Z ]*PRIVATE KEY-----[a-zA-Z0-9+/=\s]*?(?:-----END [A-Z ]*PRIVATE KEY-----)?", re.DOTALL
     ),
 }
 
@@ -36,7 +36,7 @@ class DLPEngine:
 
     def redact(self, text: str) -> str:
         """Redact sensitive information from a string."""
-        if not isinstance(text, str):
+        if not text:
             return text
 
         redacted = text

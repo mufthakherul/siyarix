@@ -92,15 +92,15 @@ class PermissionGate:
         now = time.time()
         self._calls = [t for t in self._calls if now - t < self.rate_limit_period]
 
-        if context and isinstance(context, dict) and context.get("restricted_payload"):
-            if any(p.search(command) for p in self._RESTRICTED_PATTERNS):
-                return GateResult(
-                    False,
-                    GateStage.FORBIDDEN,
-                    "Payload verification failed",
-                    tool=tool,
-                    command=command,
-                )
+        # Always check restricted patterns for destructive payloads
+        if any(p.search(command) for p in self._RESTRICTED_PATTERNS):
+            return GateResult(
+                False,
+                GateStage.FORBIDDEN,
+                "Payload verification failed",
+                tool=tool,
+                command=command,
+            )
 
         if len(self._calls) >= self.rate_limit_calls:
             self._save_state(force=True)

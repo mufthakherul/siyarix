@@ -1,3 +1,12 @@
+---
+title: System Architecture Overview - Siyarix
+description: Deep dive into the Siyarix layered orchestration model, including the AgentCore, execution engine, intent routing, and security gate systems.
+tags:
+  - Architecture
+  - Design
+  - AgentCore
+---
+
 # 🏗️ System Architecture Overview
 
 > [!NOTE]

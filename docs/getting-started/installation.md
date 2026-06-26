@@ -1,3 +1,12 @@
+---
+title: Installation Guide - Siyarix
+description: Step-by-step installation instructions for Siyarix across Linux, macOS, Windows, Android (Termux), iOS (iSH), and HarmonyOS.
+tags:
+  - Installation
+  - Setup
+  - Requirements
+---
+
 # 📦 Installation Guide
 
 Welcome! We are thrilled you're ready to install Siyarix. 

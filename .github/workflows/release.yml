@@ -280,8 +280,8 @@ jobs:
         run: |
           mkdir -p dist-installers
           cp install.sh dist-installers/
+          cp install-termux.sh dist-installers/
           cp install.ps1 dist-installers/siyarix-install.ps1
-          cp packages/harmonyos/install-harmonyos.sh dist-installers/
           cp packages/homebrew/siyarix.rb dist-installers/ 2>/dev/null || true
           cp packages/chocolatey/tools/chocolateyinstall.ps1 dist-installers/
           cp packages/winget/Mufthakherul.Siyarix.yaml dist-installers/
@@ -449,5 +449,5 @@ jobs:
           echo '| Docker | `docker run ghcr.io/mufthakherul/siyarix:latest` |' >> $GITHUB_STEP_SUMMARY
           echo '| Windows (winget) | `winget install Mufthakherul.Siyarix` |' >> $GITHUB_STEP_SUMMARY
           echo '| Windows (choco) | `choco install siyarix` |' >> $GITHUB_STEP_SUMMARY
-          echo '| Universal (curl) | `curl -fsSL https://siyarix.dev/install.sh | bash` |' >> $GITHUB_STEP_SUMMARY
-          echo '| Universal (pwsh) | `irm https://siyarix.dev/install.ps1 | iex` |' >> $GITHUB_STEP_SUMMARY
+          echo '| Universal (curl) | `curl -fsSL https://siyarix.github.io/install.sh | bash` |' >> $GITHUB_STEP_SUMMARY
+          echo '| Universal (pwsh) | `irm https://siyarix.github.io/install.ps1 | iex` |' >> $GITHUB_STEP_SUMMARY

@@ -96,7 +96,7 @@ jobs:
       - name: Synchronize all versioned files
         run: |
           python - <<'PY'
-          import json, re
+          import json, re, hashlib
           from pathlib import Path
 
           version = "${{ needs.validate.outputs.version }}"
@@ -124,9 +124,21 @@ jobs:
                   t,
                   count=1,
               ),
-              "packages/harmonyos/install-harmonyos.sh": lambda t: re.sub(
-                  r'(?m)^SIYARIX_VERSION="[^"]+"$',
-                  f'SIYARIX_VERSION="{version}"',
+              "install-termux.sh": lambda t: re.sub(
+                  r'(?m)^SIYARIX_VERSION="\$\{SIYARIX_VERSION:-[^"]+\}"$',
+                  'SIYARIX_VERSION="${SIYARIX_VERSION:-' + version + '}"',
+                  t,
+                  count=1,
+              ),
+              "packages/harmonyos/module.json5": lambda t: re.sub(
+                  r'"name":\s*"[^"]+"',
+                  f'"name": "{version}"',
+                  t,
+                  count=1,
+              ),
+              "packages/chocolatey/siyarix.nuspec": lambda t: re.sub(
+                  r'<version>[^<]+</version>',
+                  f'<version>{version}</version>',
                   t,
                   count=1,
               ),
@@ -154,6 +166,10 @@ jobs:
               text = p.read_text(encoding="utf-8")
               p.write_text(fn(text), encoding="utf-8")
 
+          # Calculate SHA-256 hash of updated install.ps1 for WinGet
+          install_ps1 = Path("install.ps1")
+          install_sha = hashlib.sha256(install_ps1.read_bytes()).hexdigest()
+
           for wf in [
               "packages/winget/Mufthakherul.Siyarix.yaml",
               "packages/winget/Mufthakherul.Siyarix.installer.yaml",
@@ -168,6 +184,8 @@ jobs:
                       installer["InstallerUrl"] = re.sub(
                           r"/download/v[^/]+/", f"/download/{tag}/", url
                       )
+                  if "InstallerSha256" in installer:
+                      installer["InstallerSha256"] = install_sha
               if "InstallerUrl" in manifest:
                   manifest["InstallerUrl"] = re.sub(
                       r"/download/v[^/]+/", f"/download/{tag}/", manifest["InstallerUrl"]
@@ -176,7 +194,7 @@ jobs:
                   manifest["ReleaseNotesUrl"] = re.sub(
                       r"/tag/v[^/]+$", f"/tag/{tag}", manifest["ReleaseNotesUrl"]
                   )
-              p.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+              p.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
           PY
 
       - name: Commit synced versions
@@ -189,7 +207,9 @@ jobs:
             exit 0
           fi
           git add pyproject.toml src/siyarix/__init__.py install.ps1 install.sh \
-            packages/harmonyos/install-harmonyos.sh \
+            install-termux.sh \
+            packages/harmonyos/module.json5 \
+            packages/chocolatey/siyarix.nuspec \
             packages/chocolatey/tools/chocolateyinstall.ps1 \
             packages/winget/Mufthakherul.Siyarix.yaml \
             packages/winget/Mufthakherul.Siyarix.installer.yaml \

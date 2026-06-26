@@ -113,10 +113,6 @@ jobs:
         run: |
           sudo apt-get install -y -qq shellcheck
           find . -maxdepth 1 -name '*.sh' -not -path './.venv/*' -exec shellcheck --severity=error {} + || true
-
-      - name: Shellcheck harmonyos installer
-        run: bash -n packages/harmonyos/install-harmonyos.sh
-
       - name: Validate install.ps1
         run: |
           if command -v pwsh &>/dev/null; then

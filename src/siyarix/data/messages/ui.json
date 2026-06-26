@@ -1,0 +1,34 @@
+{
+  "mode_hints": {
+    "redteam": "Red Team — offensive operations active",
+    "blueteam": "Blue Team — defensive posture active",
+    "stealth": "Stealth — evasion measures active",
+    "offline": "Offline — local-only execution",
+    "autonomous": "Autonomous — AI-driven operations",
+    "verbose": "Verbose — full output enabled",
+    "quiet": "Quiet — minimal output",
+    "compliance": "Compliance — audit mode active",
+    "audit": "Audit — logging & verification active",
+    "expert": "Expert — advanced controls unlocked",
+    "beginner": "Beginner — guided assistance active",
+    "batch": "Batch — non-interactive execution",
+    "interactive": "Interactive — full control"
+  },
+  "mode_colors": {
+    "offline": "bright_yellow",
+    "registry": "bright_yellow",
+    "autonomous": "bright_magenta",
+    "integrated": "bright_cyan",
+    "stealth": "bright_red",
+    "verbose": "bright_green",
+    "quiet": "bright_black",
+    "redteam": "bold red",
+    "blueteam": "bold blue",
+    "compliance": "bright_yellow",
+    "audit": "bright_magenta",
+    "expert": "bright_cyan",
+    "beginner": "bright_green",
+    "interactive": "bright_cyan",
+    "batch": "bright_magenta"
+  }
+}

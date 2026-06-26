@@ -1,19 +1,20 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
-
-"""Exhaustive tests for personas.py."""
+"""Exhaustive tests for personas.py (external file loading)."""
 
 from __future__ import annotations
 
 from unittest.mock import patch
 
 
-from siyarix.chat.prompts import _platform_context
+from siyarix.chat.prompts import platform_context
 from siyarix.personas import (
-    PERSONAS,
     build_persona_prompt,
+    get_all_personas,
     get_persona,
     list_personas,
 )
+
+
+PERSONAS = get_all_personas()
 
 
 class TestPersonasConstants:
@@ -149,7 +150,6 @@ class TestBuildPersonaPrompt:
         prompt = build_persona_prompt("auto")
         assert "## Active Persona: Auto (Smart Select)" in prompt
         assert "Available personas:" in prompt
-        # Should include descriptions of all non-auto, non-none personas
         for name, pp in PERSONAS.items():
             if name not in ("auto", "none"):
                 assert pp["label"] in prompt
@@ -159,57 +159,46 @@ class TestBuildPersonaPrompt:
     def test_universal_returns_prompt(self):
         prompt = build_persona_prompt("universal")
         assert "## Active Persona: Universal / All-in-One" in prompt
-        assert "elite cybersecurity generalist" in prompt
 
     def test_named_persona_returns_prompt(self):
         prompt = build_persona_prompt("red team")
         assert "## Active Persona: Red Team / Offensive Security" in prompt
-        assert "adversary emulation" in prompt
 
     def test_blue_team_prompt_returned(self):
         prompt = build_persona_prompt("blue team")
         assert "## Active Persona: Blue Team / Defensive Security" in prompt
-        assert "detection logic" in prompt
 
     def test_purple_team_prompt_returned(self):
         prompt = build_persona_prompt("purple team")
         assert "## Active Persona: Purple Team / Collaborative Security" in prompt
-        assert "adversary emulation exercises" in prompt
 
     def test_dfir_prompt_returned(self):
         prompt = build_persona_prompt("dfir")
         assert "## Active Persona: DFIR / Digital Forensics & Incident Response" in prompt
-        assert "master DFIR investigator" in prompt
 
     def test_threat_intelligence_prompt_returned(self):
         prompt = build_persona_prompt("threat intelligence")
         assert "## Active Persona: Threat Intelligence / CTI" in prompt
-        assert "senior CTI analyst" in prompt
 
     def test_cloud_security_prompt_returned(self):
         prompt = build_persona_prompt("cloud security")
         assert "## Active Persona: Cloud Security / CloudSec" in prompt
-        assert "cloud security authority" in prompt
 
     def test_appsec_prompt_returned(self):
         prompt = build_persona_prompt("appsec")
         assert "## Active Persona: Application Security / AppSec" in prompt
-        assert "elite application security engineer" in prompt
 
     def test_network_security_prompt_returned(self):
         prompt = build_persona_prompt("network security")
         assert "## Active Persona: Network Security / NetSec" in prompt
-        assert "network security expert" in prompt
 
     def test_governance_prompt_returned(self):
         prompt = build_persona_prompt("governance")
         assert "## Active Persona: Governance / GRC" in prompt
-        assert "senior GRC professional" in prompt
 
     def test_security_explorer_prompt_returned(self):
         prompt = build_persona_prompt("security explorer")
         assert "## Active Persona: Security Explorer / Research" in prompt
-        assert "security researcher driven" in prompt
 
     def test_prompt_starts_with_persona_header(self):
         for name in PERSONAS:
@@ -233,66 +222,20 @@ class TestEdgeCases:
         assert p["name"] == "cloud security"
 
 
-class TestPromptsPlatformContext:
-    """Cover prompts.py line 34 (non-Windows path in _platform_context)."""
-
+class TestPlatformContext:
     def test_platform_context_non_windows(self):
         with patch("sys.platform", "linux"):
-            from siyarix.chat.prompts import _platform_context
-
-            ctx = _platform_context()
+            ctx = platform_context()
             assert "Unix-like system" in ctx
-
-
-# ═══════════════════════════════════════════════════════════════════
-# chat/session.py (65% - missing 48-52, 56, 61, 63, 79-93, 108-111)
-# ═══════════════════════════════════════════════════════════════════
-class TestPromptsWindows:
-    """Cover prompts.py line 24 (Windows path in _platform_context)."""
 
     def test_platform_context_windows(self):
         with patch("sys.platform", "win32"):
-            ctx = _platform_context()
-            assert "WARNING: Windows system detected" in ctx
-
-    def test_platform_context_non_windows_already_covered(self):
-        with patch("sys.platform", "linux"):
-            ctx = _platform_context()
-            assert "Unix-like system" in ctx
-
-
-# ═══════════════════════════════════════════════════════════════════
-# 4. chat/openai_compat.py (87% - many uncovered lines)
-# ═══════════════════════════════════════════════════════════════════
-class TestPromptsOpenAICompat:
-    """Cover prompts.py line 24 (Windows path in _platform_context)."""
-
-    def test_platform_context_windows(self):
-        with patch("sys.platform", "win32"):
-            ctx = _platform_context()
-            assert "WARNING: Windows system detected" in ctx
-
-    def test_platform_context_non_windows_already_covered(self):
-        with patch("sys.platform", "linux"):
-            ctx = _platform_context()
-            assert "Unix-like system" in ctx
-
-
-# ═══════════════════════════════════════════════════════════════════
-# 4. chat/openai_compat.py (87% - many uncovered lines)
-# ═══════════════════════════════════════════════════════════════════
-class TestPromptsWindowsPath:
-    """Line 24: lines.extend() inside if is_win."""
-
-    def test_platform_context_windows(self):
-        with patch("sys.platform", "win32"):
-            ctx = _platform_context()
+            ctx = platform_context()
             assert "WARNING: Windows system detected" in ctx
             assert "nmap: use -sT" in ctx
+
+    def test_platform_context_windows_nslookup(self):
+        with patch("sys.platform", "win32"):
+            ctx = platform_context()
             assert "nslookup" in ctx
             assert "where" in ctx
-
-
-# ═══════════════════════════════════════════════════════════════════
-# 3. chat/session.py (99% - missing 82->84) — branch() condition
-# ═══════════════════════════════════════════════════════════════════

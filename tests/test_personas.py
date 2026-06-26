@@ -158,54 +158,54 @@ class TestBuildPersonaPrompt:
 
     def test_universal_returns_prompt(self):
         prompt = build_persona_prompt("universal")
-        assert "## Active Persona: Universal / All-in-One" in prompt
+        assert "<PERSONA>\nName: Universal / All-in-One" in prompt
 
     def test_named_persona_returns_prompt(self):
         prompt = build_persona_prompt("red team")
-        assert "## Active Persona: Red Team / Offensive Security" in prompt
+        assert "<PERSONA>\nName: Red Team / Offensive Security" in prompt
 
     def test_blue_team_prompt_returned(self):
         prompt = build_persona_prompt("blue team")
-        assert "## Active Persona: Blue Team / Defensive Security" in prompt
+        assert "<PERSONA>\nName: Blue Team / Defensive Security" in prompt
 
     def test_purple_team_prompt_returned(self):
         prompt = build_persona_prompt("purple team")
-        assert "## Active Persona: Purple Team / Collaborative Security" in prompt
+        assert "<PERSONA>\nName: Purple Team / Collaborative Security" in prompt
 
     def test_dfir_prompt_returned(self):
         prompt = build_persona_prompt("dfir")
-        assert "## Active Persona: DFIR / Digital Forensics & Incident Response" in prompt
+        assert "<PERSONA>\nName: DFIR / Digital Forensics & Incident Response" in prompt
 
     def test_threat_intelligence_prompt_returned(self):
         prompt = build_persona_prompt("threat intelligence")
-        assert "## Active Persona: Threat Intelligence / CTI" in prompt
+        assert "<PERSONA>\nName: Threat Intelligence / CTI" in prompt
 
     def test_cloud_security_prompt_returned(self):
         prompt = build_persona_prompt("cloud security")
-        assert "## Active Persona: Cloud Security / CloudSec" in prompt
+        assert "<PERSONA>\nName: Cloud Security / CloudSec" in prompt
 
     def test_appsec_prompt_returned(self):
         prompt = build_persona_prompt("appsec")
-        assert "## Active Persona: Application Security / AppSec" in prompt
+        assert "<PERSONA>\nName: Application Security / AppSec" in prompt
 
     def test_network_security_prompt_returned(self):
         prompt = build_persona_prompt("network security")
-        assert "## Active Persona: Network Security / NetSec" in prompt
+        assert "<PERSONA>\nName: Network Security / NetSec" in prompt
 
     def test_governance_prompt_returned(self):
         prompt = build_persona_prompt("governance")
-        assert "## Active Persona: Governance / GRC" in prompt
+        assert "<PERSONA>\nName: Governance / GRC" in prompt
 
     def test_security_explorer_prompt_returned(self):
         prompt = build_persona_prompt("security explorer")
-        assert "## Active Persona: Security Explorer / Research" in prompt
+        assert "<PERSONA>\nName: Security Explorer / Research" in prompt
 
     def test_prompt_starts_with_persona_header(self):
         for name in PERSONAS:
             if name in ("auto", "none"):
                 continue
             prompt = build_persona_prompt(name)
-            assert prompt.startswith("## Active Persona:")
+            assert prompt.startswith("<PERSONA>\nName:")
 
 
 # ── Edge cases ──────────────────────────────────────────────────────────

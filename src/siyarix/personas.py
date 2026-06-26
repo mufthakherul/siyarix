@@ -131,7 +131,8 @@ def build_persona_prompt(persona_name: str) -> str:
         return ""
 
     if persona_name == "auto":
-        lines = ["## Active Persona: Auto (Smart Select)"]
+        lines = ["<PERSONA>"]
+        lines.append("## Active Persona: Auto (Smart Select)")
         lines.append(
             "Analyse the user's request below and automatically adopt the persona "
             "that best fits the task. Available personas:"
@@ -143,9 +144,10 @@ def build_persona_prompt(persona_name: str) -> str:
             "\nAfter selecting the persona, respond with the appropriate expertise, "
             "methodology, tooling mindset, and operational cadence for that role."
         )
+        lines.append("</PERSONA>")
         return "\n".join(lines)
 
-    return f"## Active Persona: {p['label']}\n{p['prompt']}"
+    return f"<PERSONA>\nName: {p['label']}\n\n{p['prompt']}\n</PERSONA>"
 
 
 __all__ = [

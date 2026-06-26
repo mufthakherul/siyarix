@@ -90,7 +90,7 @@ def platform_context() -> str:
     is_win = sys.platform == "win32"
     shell = "cmd /c" if is_win else "sh -c"
     lines = [
-        "## Platform Context",
+        "<PLATFORM_CONTEXT>",
         f"- OS: {_platform.system()} {_platform.release()} ({_platform.machine()})",
         f"- Shell: {shell}",
     ]
@@ -111,6 +111,7 @@ def platform_context() -> str:
                 "  * nmap -sS (SYN scan) requires root/admin privileges",
             ]
         )
+    lines.append("</PLATFORM_CONTEXT>")
     return "\n".join(lines)
 
 

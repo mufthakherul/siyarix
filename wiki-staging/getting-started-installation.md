@@ -129,19 +129,19 @@ If you want an absolutely hands-off setup, we provide one-liner install scripts 
 
 ```bash
 # 🐧 Linux & 🍏 macOS
-curl -fsSL https://siyarix.dev/install.sh | bash
+curl -fsSL https://siyarix.github.io/install.sh | bash
 
 # 🪟 Windows (Run this in PowerShell)
-irm https://siyarix.dev/install.ps1 | iex
+irm https://siyarix.github.io/install.ps1 | iex
 
 # 📱 Android (Run inside the Termux app)
-bash install_android.sh
+curl -fsSL https://siyarix.github.io/install_android.sh | bash
 
 # 🍎 iOS (Run inside the iSH app)
-bash install_ios.sh
+curl -fsSL https://siyarix.github.io/install_ios.sh | bash
 
 # 🌐 HarmonyOS
-bash install_harmonyos.sh
+curl -fsSL https://siyarix.github.io/install_harmonyos.sh | bash
 ```
 
 ---

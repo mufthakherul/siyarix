@@ -1545,11 +1545,11 @@ class OnboardingWizard:
             "prompt in every session. The default system message is:\n"
             "[/dim]"
         )
-        from siyarix.chat.prompts import SIYARIX_SYSTEM_PROMPT
+        from siyarix.chat.prompts import load_system_prompt
 
         self._console.print(
             Panel(
-                SIYARIX_SYSTEM_PROMPT,
+                load_system_prompt(),
                 border_style="dim",
                 title="Default System Message",
                 title_align="left",

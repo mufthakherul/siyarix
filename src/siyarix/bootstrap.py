@@ -246,6 +246,11 @@ class BootstrapEngine:
     def ensure_directory_structure(self) -> None:
         dirs = [
             self._home,
+            self._home / "data" / "prompts",
+            self._home / "data" / "personas",
+            self._home / "data" / "personas" / "custom",
+            self._home / "data" / "rules",
+            self._home / "data" / "messages",
             self._home / "personas",
             self._home / "personas" / "custom",
             self._home / "profiles",
@@ -278,6 +283,32 @@ class BootstrapEngine:
                 )
             except OSError:
                 logger.warning("Failed to write config alias at %s", config_alias, exc_info=True)
+
+    def _copy_builtin_data(self) -> None:
+        """Copy built-in data files to the user's data directory.
+
+        Only copies files that don't already exist in the user directory,
+        preserving any user customisations.
+        """
+        builtin_data = Path(__file__).parent / "data"
+        user_data = self._home / "data"
+
+        if not builtin_data.is_dir():
+            logger.warning("Built-in data directory not found at %s", builtin_data)
+            return
+
+        for src in builtin_data.rglob("*"):
+            if src.is_dir():
+                continue  # directories already created by ensure_directory_structure
+            rel = src.relative_to(builtin_data)
+            dest = user_data / rel
+            if not dest.exists():
+                try:
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(src, dest)
+                    logger.debug("Copied built-in data: %s", rel)
+                except OSError as exc:
+                    logger.warning("Failed to copy %s: %s", rel, exc)
 
     def write_marker(self) -> None:
         marker = self._home / ".initialized"
@@ -360,6 +391,9 @@ class BootstrapEngine:
 
         # Directory setup (T4)
         self.ensure_directory_structure()
+
+        # Copy built-in data files to user directory (user can customise later)
+        self._copy_builtin_data()
 
         # T11: Write initialization marker
         self.write_marker()

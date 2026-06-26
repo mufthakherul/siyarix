@@ -1,330 +1,191 @@
-# 🧠 Prompt Architecture
+# Prompt Architecture
 
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+Welcome to the **Prompt Architecture** of Siyarix! This document outlines how Siyarix dynamically constructs the prompts that power its intelligence.
 
-
-Welcome to the **Prompt Architecture** of Siyarix! This document outlines how Siyarix dynamically constructs the prompts that power its intelligence. 
-
-By pulling together system context, your input, session state, persona configurations, and safety constraints, Siyarix builds the perfect prompt for every situation. All prompt definitions live in `src/siyarix/chat/prompts.py` and are pieced together right when they're needed by `LLMEngineMixin._build_system_prompt()` in `chat/engine.py`.
+By pulling together system context, your input, session state, persona configurations, rules, and safety constraints, Siyarix builds the perfect prompt for every situation. All prompt templates live in external `.md` files under `src/siyarix/data/prompts/` and are loaded by `data_loader.py` which supports user overrides from `~/.siyarix/data/prompts/`. The final prompt is assembled by `LLMEngineMixin._build_system_prompt()` in `chat/engine.py`.
 
 ---
 
-## 🏗️ Prompt Structure
+## Prompt Structure
 
-Every request sent to the Large Language Model (LLM) follows a carefully layered structure. Think of it as a recipe where each ingredient serves a specific purpose:
+Every request sent to the Large Language Model (LLM) follows a carefully layered structure:
 
-```text
-[Persona Preamble]        (Optional — Defined by the active persona)
-[System Prompt]           (The core instructions: SIYARIX_SYSTEM_PROMPT or NEUTRAL_SYSTEM_PROMPT)
-[Custom Instructions]     (Optional — Sourced from your `additional_system_message` settings)
-[Workspace Context]       (Optional — Pulled from AGENTS.md or SOUL.md in your workspace)
-[Execution Environment]   (Dynamically injected — Details like your OS and Shell)
-[Conversation History]    (Your chat history, truncated oldest-first to fit context limits)
-[User Input]              (What you actually typed: natural language or a structured command)
+```
+[Persona Preamble]         (Optional — loaded from data/personas/ or ~/.siyarix/data/personas/)
+[System Prompt]            (Loaded from data/prompts/system.md or system-neutral.md)
+[Rules]                    (Loaded from data/rules/RULES.md — all operational rules)
+[Platform Context]         (Dynamically generated at runtime by platform_context())
+[Custom Instructions]      (Optional — from `additional_system_message` setting)
+[Workspace Context]        (Optional — from AGENTS.md or SOUL.md in your workspace)
+[Execution Environment]    (Dynamically injected — OS, Shell details)
+[Conversation History]     (Chat history, truncated oldest-first)
+[User Input]               (What you typed)
 ```
 
-> [!NOTE]
-> This layered approach ensures the LLM has all the context it needs without being overwhelmed by irrelevant details.
+> This layered approach ensures the LLM has all the context it needs without being overwhelmed by irrelevant details. Platform context and execution environment are generated at runtime so they always reflect the current session.
 
 ---
 
-## ⚙️ Core System Prompts
+## Data File Layout
 
-At the heart of Siyarix are the core system prompts. These set the baseline behavior and rules for the AI.
+All prompt templates, persona definitions, rules, and UI messages are stored as external files:
 
-### 🛡️ `SIYARIX_SYSTEM_PROMPT`
-
-This is the full-spectrum system prompt (~60 lines) used whenever a specific persona is active, or when running in the default universal mode. It covers everything Siyarix needs to know to operate effectively:
-
-- **Platform Context**: Your Operating System, shell environment, and specific warnings (e.g., Windows quirks).
-- **Operational Framework**: How to analyze intent, scope, depth, and risk.
-- **Decision Logic**: When to use tools (`needs_tools=true`) vs. when to just talk (`needs_tools=false`).
-- **Output Format**: Enforcing strict JSON responses.
-- **Tool Execution Steps**: How to safely construct shell commands.
-- **Shell Quoting Rules**: Best practices for bash compatibility.
-- **Available Tool Categories**: Recon, exploitation, web, etc.
-- **Output Analysis**: How to synthesize findings post-execution.
-- **Communication Standards**: Guidelines on tone, MITRE ATT&CK references, and CVEs.
-
-```python
-SIYARIX_SYSTEM_PROMPT = f"""You are Siyarix, an dedicated cybersecurity professional operating in a terminal-driven environment.
-
-{_platform_context()}
-
-## Operational Framework
-Analyse every request across four dimensions:
-1. **Intent** — Chat/explanation, security operation, or tool analysis?
-2. **Scope** — Network, web, cloud, endpoint, identity, mobile, etc.
-3. **Depth** — Quick question, multi-step assessment, or deep research?
-4. **Risk** — Could any proposed command cause harm?
-
-## Decision Logic
-- **needs_tools=true**: Security operation → construct shell commands
-- **needs_tools=false**: General chat → respond directly
-
-## Output Format — Always Return Valid JSON
-{{ "needs_tools": true/false, "reasoning": "...", "response": "...", "steps": [] }}
-
-## Tool Execution Steps (needs_tools=true)
-Each step is a raw shell command. Use the `command` field.
-
-## Shell Quoting Rules
-Avoid patterns that break bash quoting. Prefer grep -E over grep -P.
-
-## Output Analysis (post-execution)
-Analyse findings like a pentest report. Identify exposures, correlate tools, assign severity.
-
-## Communication Standards
-Be technical and precise. Reference CVEs, ATT&CK techniques. Use Markdown."""
+```
+src/siyarix/data/
+├── prompts/
+│   ├── system.md              # Full system prompt (~65 lines)
+│   ├── system-neutral.md      # Neutral system prompt (~30 lines, no persona)
+│   ├── compact.md             # Token-saving variant for active personas
+│   └── compact-neutral.md     # Token-saving variant for neutral mode
+├── personas/
+│   ├── index.json             # Persona metadata index (name, label, description, file)
+│   ├── red-team.md            # Individual persona prompt files
+│   ├── blue-team.md
+│   ├── purple-team.md
+│   ├── dfir.md
+│   ├── threat-intelligence.md
+│   ├── cloud-security.md
+│   ├── appsec.md
+│   ├── network-security.md
+│   ├── governance.md
+│   ├── security-explorer.md
+│   └── universal.md
+├── rules/
+│   └── RULES.md               # All LLM operational rules in one categorized file
+└── messages/
+    └── ui.json                 # UI strings: mode hints, mode colors
 ```
 
-### ⚖️ `NEUTRAL_SYSTEM_PROMPT`
+During onboarding, the entire `data/` directory is copied to `~/.siyarix/data/`. At runtime, files are loaded from the user directory first, falling back to the built-in package directory. This lets users customise any prompt, persona, or rule without editing package files (which would be overwritten on upgrade).
 
-When Siyarix is running without a specific persona (`persona = none`), it uses this minimal, bare-bones system prompt (~30 lines).
+---
+
+## Data Loading
+
+All data is loaded through `src/siyarix/data_loader.py`:
 
 ```python
-NEUTRAL_SYSTEM_PROMPT = f"""You are Siyarix, a cybersecurity professional in a terminal-driven environment.
-
-{_platform_context()}
-
-## Approach
-Analyse every request within cybersecurity. Determine needs_tools vs direct response.
-
-## Output Format — Always Return Valid JSON
-{{ "needs_tools": true/false, "reasoning": "...", "response": "...", "steps": [] }}
-
-## Tool Execution Steps (needs_tools=true)
-Each step is a raw shell command.
-
-## Communication Standards
-Be technical and precise. Explain reasoning. Use Markdown."""
+def load_text(category: str, filename: str) -> str:
+    """Load text content. Tries ~/.siyarix/data/ first, falls back to built-in."""
+    
+def load_json(category: str, filename: str) -> Any:
+    """Load and parse JSON. Same fallback strategy."""
 ```
 
-### 🗜️ Compact Variants
+---
 
-To save on token usage (and costs!) during a long conversation, Siyarix switches to "compact" prompts for follow-up questions. 
+## Core System Prompts
+
+### `system.md`
+
+This is the full-spectrum system prompt used whenever a specific persona is active, or when running in default universal mode. It covers:
+
+- **Operational Framework**: How to analyse intent, scope, depth, and risk.
+- **Decision Logic**: When to use tools (`needs_tools=true`) vs. talk (`needs_tools=false`).
+- **Output Format**: Strict JSON response format with field descriptions and examples.
+- **Tool Execution**: Reference to the full rules document for construction, safety, and analysis.
+- **Communication Standards**: Tone, MITRE ATT&CK references, CVEs, and Markdown formatting.
+- **Model Compatibility**: Designed for both safety-aligned and uncensored models.
+
+### `system-neutral.md`
+
+When running without a specific persona (`persona = none`), this minimal prompt is used.
+
+### Compact Variants
+
+To save token usage during long conversations:
 
 | Variant | Purpose |
 |---------|---------|
-| `COMPACT_PROMPT` | Keeps the current persona active, reminding the LLM to follow the instructions it already received. |
-| `COMPACT_NEUTRAL` | A quick reminder for the neutral Siyarix to maintain its JSON output format. |
+| `compact.md` | Keeps the current persona active, reminding the LLM to follow instructions already received. |
+| `compact-neutral.md` | Quick reminder for neutral mode to maintain JSON output format. |
 
-> [!TIP]
-> Compact variants drastically reduce the number of tokens sent in each request, making multi-turn conversations much faster and cheaper!
+> Compact variants drastically reduce token usage, making multi-turn conversations much faster and cheaper!
 
 ---
 
-## 💻 Platform Context
+## Rules Document
 
-Siyarix is smart enough to adapt to your operating system. The `_platform_context()` function (found in `prompts.py:139`) dynamically injects environmental details right at the top of the system prompt.
+All operational rules are stored in a single file `data/rules/RULES.md`, categorically organized:
 
-For example, on Windows, Siyarix might inject:
+1. **Command Construction Rules** — Shell quoting, platform awareness, tool selection, command safety
+2. **Output Analysis Rules** — Finding identification, cross-tool correlation, severity classification, remediation guidance
+3. **Communication Rules** — Tone, structured output, references, uncertainty handling
+4. **Risk and Safety Rules** — Pre-execution validation, destructive action protocol, rate limiting
+5. **Multi-Wave Execution Rules** — Wave strategy, stop conditions, reporting
+6. **Model Constraints and Fallbacks** — Censored model handling, provider fallbacks, token management
 
-```text
+The rules document is appended to the full system prompt (not to compact prompts) to provide detailed guidance without bloating every request.
+
+---
+
+## Persona System
+
+Personas are defined in `data/personas/index.json` (metadata) and individual `.md` files (prompt text). Custom personas can be added to `~/.siyarix/data/personas/custom/` as JSON files with `name`, `label`, `description`, and `prompt` fields.
+
+See [Persona System](persona-system.md) for full details.
+
+---
+
 ## Platform Context
-- OS: Windows 10 (AMD64)
-- Shell: cmd /c
-- WARNING: Windows system detected — commands must use Windows-compatible flags:
-  * nmap: use -sT (TCP connect) instead of -sS (SYN scan); omit -O
-  * Use forward slashes or escaped backslashes in paths
-  * For DNS: use nslookup if dig is unavailable
-  * Find binaries with `where` instead of `which`
-```
 
-> [!IMPORTANT]
-> This prevents Siyarix from suggesting Linux-only commands when you're running on Windows, reducing errors and frustration.
-
----
-
-## 🎭 Persona Preamble
-
-When you activate a specific persona (like a Red Teamer), Siyarix adds a special preamble to the very beginning of the prompt to set the mood and expertise:
-
-```text
-## Active Persona: Red Team / Offensive Security
-[Persona-specific expertise paragraph with methodology, tools, and mindset]
-```
-
-If you're using `auto` mode, Siyarix gets a list of all available personas and decides for itself which hat to wear based on your request:
-
-```text
-## Active Persona: Auto (Smart Select)
-Analyse the user's request below and automatically adopt the persona
-that best fits the task. Available personas:
-  - **Red Team / Offensive Security**: Adversary emulation, penetration testing...
-  - **Blue Team / Defensive Security**: Detection engineering, SOC operations...
-  ...
-```
-
----
-
-## 🛠️ Custom Instructions & Workspace Context
-
-You can tailor Siyarix to your specific needs! The `_build_system_prompt()` method checks for custom instructions or workspace files and injects them seamlessly.
+Platform context is **dynamically generated at runtime** by `platform_context()` in `chat/prompts.py`, not stored in external files. This is because the OS and shell can change between sessions:
 
 ```python
-# 1. Custom instructions from your settings
-extra = self._settings.get("additional_system_message", "").strip()
-if extra:
-    prompt += "\n\n## Custom Instructions\n" + extra
-
-# 2. Workspace context files (like AGENTS.md or SOUL.md)
-for filename in ("AGENTS.md", "SOUL.md"):
-    ctx_file = Path.cwd() / filename
-    if ctx_file.exists():
-        content = ctx_file.read_text(encoding="utf-8").strip()
-        if content:
-            label = filename.replace(".md", "")
-            prompt += f"\n\n## {label}\n{content}"
-
-# 3. Finally, add the execution environment
-prompt += f"\n\n## Execution Environment\n- OS: {os_name}\n- Shell: {shell}\n- ..."
+def platform_context() -> str:
+    # Detects sys.platform, OS version, shell — generated fresh each call
 ```
 
 ---
 
-## 📜 Conversation History
+## Message Construction
 
-To hold a cohesive conversation, Siyarix needs to remember what was said. The `ChatSession` handles this, appending recent history to the prompt.
-
-```python
-session = ChatSession()
-session.add_message("user", "scan 10.0.0.1")
-session.add_message("assistant", json_response)
-```
-
-### 🗃️ Context Window Management
-
-LLMs have memory limits (the context window). When a conversation gets too long, Siyarix uses several techniques to keep things running smoothly:
-
-1. **Oldest-First Truncation**: Drops the oldest messages when approaching token limits.
-2. **Tool Output Summarization**: Condenses verbose tool output (e.g., `nmap output: 5 ports found`).
-3. **Knowledge Graph Summarization**: Distills complex data (e.g., `3 hosts, 12 ports, 2 vulns`).
-4. **Compaction Engine**: When `CONTEXT_OVERFLOW` hits, the `CompactionEngine` actively uses the LLM to summarize long histories into bite-sized summaries.
-
-> [!WARNING]
-> If you notice Siyarix "forgetting" very early details in a large session, it's because the Compaction Engine or truncation has kicked in to keep the context window manageable!
-
----
-
-## 📤 Output Format
-
-Siyarix is instructed to **always** respond in a strict JSON format. This allows the underlying engine to parse the response and execute tools programmatically.
-
-```json
-{
-  "needs_tools": true,
-  "reasoning": "Step-by-step analysis of the request",
-  "response": "Direct answer when needs_tools=false, or analysis post-execution",
-  "steps": [
-    {
-      "tool": "",
-      "command": "nmap -sV -p 1-1000 10.0.0.1",
-      "description": "Port scan target with service detection"
-    }
-  ]
-}
-```
-
-### 📋 Field Reference
-
-| Field | Type | When Present? | Description |
-|-------|------|---------------|-------------|
-| `needs_tools` | `bool` | Always | Does Siyarix need to run shell commands? |
-| `reasoning` | `string` | Always | Siyarix's internal thought process and methodology. |
-| `response` | `string` | Always | The final answer, or a summary of what happened after tools ran. |
-| `steps` | `array` | `needs_tools=true` | The actual list of commands Siyarix wants to run. |
-
-**Deep dive into `steps`:**
-
-| Sub-field | Type | Description |
-|-----------|------|-------------|
-| `tool` | `string` | The tool name (can be empty for generic shell commands). |
-| `command` | `string` | The exact, raw shell command to execute. |
-| `description` | `string` | Why this command is being run and what to look for. |
-
----
-
-## 🏗️ Message Construction
-
-Before hitting the API, the `build_messages()` function in `openai_compat.py` pieces everything together into the final array format expected by the LLM provider.
+Before hitting the API, the `build_messages()` function in `openai_compat.py` assembles the final array:
 
 ```python
 def build_messages(system_prompt, user_prompt, history, *, compat=None):
     messages = []
-    
-    # Add the system prompt (using 'developer' role if supported)
     if system_prompt:
         role = "developer" if compat and compat.supports_developer_role else "system"
         messages.append({"role": role, "content": system_prompt})
-        
-    # Append conversation history, filtering out old system messages
     if history:
         for msg in history:
             if msg.get("role") == "system":
-                continue  
+                continue
             messages.append({"role": msg["role"], "content": msg["content"]})
-            
-    # Finally, slap the user's latest input at the very end
     messages.append({"role": "user", "content": user_prompt})
-    
     return messages
 ```
 
 ---
 
-## 🔄 System Prompt Refresh
+## System Prompt Refresh
 
-To prevent the LLM from forgetting its core instructions (instruction drift) while still saving tokens with "compact" prompts, Siyarix periodically "refreshes" the system prompt.
+To prevent instruction drift while saving tokens, Siyarix periodically refreshes the system prompt:
 
 ```python
 def _should_use_compact(self) -> bool:
     return self._llm_calls > 0 and bool(self._llm_calls % self.SYSTEM_REFRESH_INTERVAL)
 ```
 
-- **First call**: Sends the full persona and system prompt.
+- **First call**: Sends full persona, system prompt, rules, and platform context.
 - **Subsequent calls**: Uses compact variants to save tokens.
-- **Every N calls** (configurable): Blasts the full system prompt again to keep the AI sharply focused.
+- **Every N calls**: Re-sends the full prompt to keep the AI sharply focused.
 
 ---
 
-## 🎨 Prompt Bar Rendering
-
-It's not just about what goes *to* the LLM; it's also about what *you* see! `chat/prompts.py` generates the sleek, professional prompt bar in your terminal.
-
-```python
-from siyarix.chat.prompts import make_prompt_bar
-
-# Renders something beautiful like this:
-# ▌ siyarix  [integrated]  openai  persona:redteam  msgs:42  up:01:23:45  sid:a1b2c3  ▐
-# ╰─ ➜ (Tab: autocomplete, ?: help)
-```
-
-The prompt bar is packed with info:
-- **Mode Indicator**: Color-coded for quick visual cues (cyan for integrated, magenta for autonomous, yellow for offline, red for stealth).
-- **Provider Name**: e.g., OpenAI, Anthropic (in blue).
-- **Active Persona**: So you never forget who you're talking to (in green).
-- **Stats**: Message count and session uptime.
-- **Session ID**: A truncated identifier for your current run.
-- **Hints**: Context-aware help text tailored to your active mode.
-
----
-
-## 🗺️ Related Modules
-
-Want to explore the code yourself? Here's your treasure map:
+## Related Modules
 
 | Module / Function | File Path | Purpose |
 |-------------------|-----------|---------|
-| `SIYARIX_SYSTEM_PROMPT` | `src/siyarix/chat/prompts.py:171` | The full, heavyweight system prompt. |
-| `NEUTRAL_SYSTEM_PROMPT` | `src/siyarix/chat/prompts.py:233` | The minimal, bare-bones prompt. |
-| `COMPACT_PROMPT` | `src/siyarix/chat/prompts.py:263` | Token-saving prompt for active personas. |
-| `COMPACT_NEUTRAL` | `src/siyarix/chat/prompts.py:268` | Token-saving prompt for neutral mode. |
-| `_platform_context()` | `src/siyarix/chat/prompts.py:139` | Injects your OS and shell info. |
-| `_build_system_prompt()` | `src/siyarix/chat/engine.py:550` | The master builder! Assembles the final prompt. |
-| `build_persona_prompt()` | `src/siyarix/personas.py:218` | Generates the persona expertise preamble. |
-| `build_messages()` | `src/siyarix/chat/openai_compat.py` | Assembles the final message array for the API. |
-| `make_prompt_bar()` | `src/siyarix/chat/prompts.py:121` | Draws the beautiful terminal UI bar. |
-| `mode_prompt_hint()` | `src/siyarix/chat/prompts.py:101` | Generates the helpful hints below the prompt bar. |
-| `CompactionEngine` | `src/siyarix/compaction.py` | The hero that compresses huge conversation histories. |
+| `load_system_prompt()` | `src/siyarix/chat/prompts.py` | Loads system.md from data files |
+| `load_neutral_prompt()` | `src/siyarix/chat/prompts.py` | Loads system-neutral.md |
+| `load_compact_prompt()` | `src/siyarix/chat/prompts.py` | Loads compact.md |
+| `load_compact_neutral_prompt()` | `src/siyarix/chat/prompts.py` | Loads compact-neutral.md |
+| `load_rules()` | `src/siyarix/chat/prompts.py` | Loads RULES.md |
+| `platform_context()` | `src/siyarix/chat/prompts.py` | Generates dynamic platform context |
+| `_build_system_prompt()` | `src/siyarix/chat/engine.py` | Master builder — assembles final prompt |
+| `build_persona_prompt()` | `src/siyarix/personas.py` | Generates persona preamble from external files |
+| `load_text()` / `load_json()` | `src/siyarix/data_loader.py` | Generic data loaders with user-override fallback |
+| `build_messages()` | `src/siyarix/chat/openai_compat.py` | Assembles final API message array |
+| `BootstrapEngine._copy_builtin_data()` | `src/siyarix/bootstrap.py` | Copies built-in data to ~/.siyarix/ on first run |

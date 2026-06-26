@@ -1,108 +1,159 @@
-# 🎭 Persona System
+# Persona System
 
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+Siyarix leverages a **Persona System** to dynamically adapt the LLM's response style, focus areas, and depth of expertise. Personas act as dynamic prompt preambles injected into the system prompt before each AI interaction.
 
+Personas are defined in external files:
+- **Built-in personas**: `src/siyarix/data/personas/` (shipped with package, read-only)
+- **Custom personas**: `~/.siyarix/data/personas/custom/` (user-created, writable)
+- **Load order**: User directory checked first, falls back to built-in
 
-Siyarix leverages a **Persona System** to dynamically adapt the LLM's response style, focus areas, and depth of expertise. Think of personas as specialized hats that the AI wears to better suit your specific security needs. These personas act as dynamic prompt preambles that are injected into the system prompt right before each AI interaction. 
-
-Currently, the system supports **10 specialized security-domain personas** along with **3 special modes** designed for auto-selection, comprehensive coverage, and neutral operations.
+The system supports **10 specialised security-domain personas** plus **3 special modes**.
 
 ---
 
-## 🚀 Quick Reference
-
-Want to switch things up quickly? Here are the slash commands to control your active persona:
+## Quick Reference
 
 | Command | Effect |
 |---------|--------|
-| `/persona` | 🔍 View your currently active persona. |
-| `/persona list` | 📋 List all available personas you can choose from. |
-| `/persona <name>` | 🎭 Switch to a specific named persona. |
-| `/persona auto` | 🤖 Let Siyarix analyze your request and automatically select the best-fit persona. |
-| `/persona universal` | 🌐 Activate the full-spectrum cybersecurity professional (covers all domains). |
-| `/persona none` | ⚪ Use no specific persona, making the assistant act completely neutral. |
+| `/persona` | View currently active persona |
+| `/persona list` | List all available personas |
+| `/persona <name>` | Switch to a named persona |
+| `/persona auto` | Smart auto-selection based on request |
+| `/persona universal` | Full-spectrum cybersecurity professional |
+| `/persona none` | Neutral mode (no persona framing) |
 
-> [!TIP]
-> You can always check which persona is currently active by glancing at the bottom status line in your terminal:
+> You can always check which persona is currently active in the status line:
 > ```text
 > Time: 12.3s | Mode: integrated | Persona: redteam | LLM: connected
 > ```
 
 ---
 
-## 🛡️ Available Personas
+## Available Personas
 
-### 🏷️ Named Personas
+### Named Personas
 
 Each named persona specializes in a specific domain of cybersecurity, equipped with relevant knowledge and frameworks.
 
 | Name | Label | Focus Area | Key Tooling & Frameworks |
-|------|-------|------------|-------------|
-| `redteam` | 🔴 Red Team / Offensive Security | Adversary emulation, penetration testing, exploitation, evasion | PTES, Cobalt Strike, BloodHound, Chisel |
-| `blueteam` | 🔵 Blue Team / Defensive Security | Detection engineering, threat hunting, incident response, SOC ops | Sigma, YARA, Velociraptor, osquery, Zeek |
-| `purpleteam` | 🟣 Purple Team / Collaborative Security | Attack validation, detection coverage, adversary emulation | Atomic Red Team, Caldera, ATT&CK mapping |
-| `dfir` | 🔎 DFIR / Digital Forensics | Forensic analysis, malware triage, timeline reconstruction | Volatility, Plaso, Autopsy, chain of custody |
-| `threatintel` | 🧠 Threat Intelligence (CTI) | Threat research, IoC extraction, threat actor profiling | Diamond Model, STIX, MISP, OpenCTI |
-| `cloudsec` | ☁️ Cloud Security (CloudSec) | AWS/Azure/GCP hardening, container security, Kubernetes | Prowler, ScoutSuite, trivy, zero trust |
-| `appsec` | 💻 Application Security (AppSec) | Secure code review, SAST/DAST, threat modeling, supply chain | OWASP Top 10, Semgrep, CodeQL, SBOM |
-| `networksec` | 🌐 Network Security (NetSec) | Network architecture, firewalls, protocol analysis, segmentation | Zeek, Suricata, Wireshark, microsegmentation |
-| `governance` | 🏛️ Governance / GRC | Compliance, risk management, policy frameworks, audits | ISO 27001, SOC 2, NIST CSF 2.0, FedRAMP |
-| `securityexplorer`| 🔬 Security Explorer / Research | Vulnerability research, reverse engineering, CTFs, fuzzing | Ghidra, AFL++, CVE research, adversarial ML |
+|------|-------|------------|--------------------------|
+| `redteam` | Red Team / Offensive Security | Adversary emulation, exploitation, evasion | PTES, Cobalt Strike, BloodHound, Chisel |
+| `blueteam` | Blue Team / Defensive Security | Detection engineering, threat hunting, IR | Sigma, YARA, Velociraptor, osquery, Zeek |
+| `purpleteam` | Purple Team / Collaborative Security | Attack validation, detection coverage | Atomic Red Team, Caldera, ATT&CK |
+| `dfir` | DFIR / Digital Forensics | Forensic analysis, malware triage | Volatility, Plaso, Autopsy |
+| `threatintel` | Threat Intelligence (CTI) | Threat research, IoC extraction | Diamond Model, STIX, MISP, OpenCTI |
+| `cloudsec` | Cloud Security (CloudSec) | AWS/Azure/GCP hardening, containers | Prowler, ScoutSuite, trivy |
+| `appsec` | Application Security (AppSec) | Secure code review, SAST/DAST | OWASP Top 10, Semgrep, CodeQL |
+| `networksec` | Network Security (NetSec) | Network architecture, firewalls | Zeek, Suricata, Wireshark |
+| `governance` | Governance / GRC | Compliance, risk management, audits | ISO 27001, SOC 2, NIST CSF |
+| `securityexplorer` | Security Explorer / Research | Vuln research, reverse engineering, CTFs | Ghidra, AFL++, CVE research |
 
-### ✨ Special Modes
+### Special Modes
 
-Sometimes you need flexibility over specialization. These special modes adjust how the persona system operates on a broader scale:
-
-| Name | Behavior |
-|------|----------|
-| `auto` | **Smart Select:** Analyzes your prompt and uses LLM reasoning to automatically pick the best-fit persona. It feeds all available persona descriptions to the AI so it can make an informed choice! |
-| `universal` | **The Swiss Army Knife:** Combines all domain expertise into a single, balanced cybersecurity professional. Covers Red, Blue, Purple, Cloud, AppSec, and more in one prompt. |
-| `none` | **Neutral Mode:** Strips away all persona framing. The LLM decides its own voice based purely on the `NEUTRAL_SYSTEM_PROMPT` and basic platform context. |
+| Name | Behaviour |
+|------|-----------|
+| `auto` | **Smart Select**: Analyses your prompt and uses LLM reasoning to pick the best-fit persona |
+| `universal` | **The Swiss Army Knife**: Combines all domain expertise into one balanced professional |
+| `none` | **Neutral Mode**: Strips all persona framing, uses bare system prompt |
 
 ---
 
-## ⚙️ How It Works Under the Hood
+## Data File Layout
 
-### 🛠️ Prompt Construction
+Personas are defined across two file types stored under `data/personas/`:
 
-When the AI is invoked, the system dynamically builds its prompt using the `_build_system_prompt()` method inside `chat/engine.py`.
+### Persona Index (`index.json`)
+
+```json
+{
+  "red team": {
+    "name": "red team",
+    "label": "Red Team / Offensive Security",
+    "description": "Adversary emulation, penetration testing, exploitation, C2 operations, evasion",
+    "file": "red-team.md"
+  }
+}
+```
+
+### Persona Prompt Files (`red-team.md`, `blue-team.md`, etc.)
+
+Each file contains the persona's expertise paragraph, loaded at runtime:
+
+```markdown
+You are an elite red-team operator who conducts realistic adversary emulation...
+```
+
+### Custom Personas (`~/.siyarix/data/personas/custom/*.json`)
+
+Users can add custom personas as JSON files with `name`, `label`, `description`, and `prompt` fields:
+
+```json
+{
+  "name": "my-specialist",
+  "label": "My Specialist Persona",
+  "description": "Custom persona for specialised tasks",
+  "prompt": "You are a specialist in..."
+}
+```
+
+---
+
+## How It Works Under the Hood
+
+### Prompt Construction
+
+When the AI is invoked, the system dynamically builds its prompt using the `_build_system_prompt()` method inside `chat/engine.py`. Prompt templates are loaded from external data files rather than being hardcoded in Python:
 
 ```python
 def _build_system_prompt(self, compact: bool = False) -> str:
+    from ..personas import build_persona_prompt, get_persona
+    from .prompts import (
+        load_compact_neutral_prompt,
+        load_compact_prompt,
+        load_neutral_prompt,
+        load_system_prompt,
+        load_rules,
+        platform_context,
+    )
+
     persona_name = self._settings.get("persona") or "auto"
 
     if compact:
         if persona_name == "none":
-            prompt = COMPACT_NEUTRAL
+            prompt = load_compact_neutral_prompt()
         else:
             p = get_persona(persona_name)
             label = p["label"] if p else "default"
-            prompt = f"## Active Persona: {label}\n{COMPACT_PROMPT}"
+            prompt = f"## Active Persona: {label}\n{load_compact_prompt()}"
     elif persona_name == "none":
-        prompt = NEUTRAL_SYSTEM_PROMPT
+        prompt = load_neutral_prompt()
     else:
         preamble = build_persona_prompt(persona_name)
+        system_prompt = load_system_prompt()
         if preamble:
-            prompt = preamble + "\n\n" + SIYARIX_SYSTEM_PROMPT
+            prompt = preamble + "\n\n" + system_prompt
         else:
-            prompt = SIYARIX_SYSTEM_PROMPT
+            prompt = system_prompt
+
+    # Rules and platform context appended for full prompts
+    if not compact:
+        prompt += "\n\n" + load_rules()
+        prompt += "\n\n" + platform_context()
     return prompt
 ```
 
-> [!NOTE]
-> **Logic Summary at a Glance:**
-> 
-> | Active Setting | Initial Request | Follow-up Requests (Compact) |
-> |----------------|-----------|---------------------------|
-> | `none` | `NEUTRAL_SYSTEM_PROMPT` only | `COMPACT_NEUTRAL` |
-> | Named (e.g., `redteam`) | Persona preamble + `SIYARIX_SYSTEM_PROMPT` | Persona label + `COMPACT_PROMPT` |
-> | `universal` | Universal preamble + `SIYARIX_SYSTEM_PROMPT` | Persona label + `COMPACT_PROMPT` |
-> | `auto` | Auto preamble (lists options) + `SIYARIX_SYSTEM_PROMPT` | Persona label + `COMPACT_PROMPT` |
+### Logic Summary
 
-### 📝 Persona Preamble Generation
+| Active Setting | Initial Request | Follow-up (Compact) |
+|----------------|-----------------|---------------------|
+| `none` | `system-neutral.md` only | `compact-neutral.md` |
+| Named (e.g., `redteam`) | Persona preamble + `system.md` + `RULES.md` | Persona label + `compact.md` |
+| `universal` | Universal preamble + `system.md` + `RULES.md` | Persona label + `compact.md` |
+| `auto` | Auto preamble (lists options) + `system.md` + `RULES.md` | Persona label + `compact.md` |
 
-The `build_persona_prompt()` function located in `personas.py` is responsible for generating the specific text prepended to the system prompt:
+### Persona Preamble Generation
+
+The `build_persona_prompt()` function in `personas.py` loads persona data from external files and generates the preamble:
 
 ```python
 def build_persona_prompt(persona_name: str) -> str:
@@ -116,7 +167,7 @@ def build_persona_prompt(persona_name: str) -> str:
             "Analyse the user's request below and automatically adopt the persona "
             "that best fits the task. Available personas:"
         )
-        for name, pp in PERSONAS.items():
+        for name, pp in _get_personas().items():
             if name not in ("auto", "none"):
                 lines.append(f"  - **{pp['label']}**: {pp['description']}")
         return "\n".join(lines)
@@ -124,128 +175,119 @@ def build_persona_prompt(persona_name: str) -> str:
     return f"## Active Persona: {p['label']}\n{p['prompt']}"
 ```
 
-### 🧠 Core System Prompts
+### Data Loading Flow
 
-Siyarix relies on two primary system prompts, defined in `src/siyarix/chat/prompts.py`:
+Personas are loaded by `personas.py` through `data_loader.py`:
 
-| Constant | Purpose | Size |
-|----------|---------|------|
-| `SIYARIX_SYSTEM_PROMPT` | The ultimate cybersecurity professional guide. Details operational frameworks, output formatting (JSON), tool usage steps, and communication styles. | ~60 lines |
-| `NEUTRAL_SYSTEM_PROMPT` | A stripped-down assistant prompt. It omits the persona flavor but retains rules for output formats and tool execution. | ~30 lines |
+1. Load `index.json` from `data/personas/` (user dir first, built-in fallback)
+2. Load each `.md` prompt file referenced in the index
+3. Load custom personas from `~/.siyarix/data/personas/custom/*.json`
+4. Merge all into a single cache
 
-> [!TIP]
-> To save on token costs during longer conversations, Siyarix uses **Compact Variants** (`COMPACT_PROMPT` and `COMPACT_NEUTRAL`). These abbreviated prompts maintain the persona's context without re-sending the entire ~60-line instruction block every single time.
-
-### 💻 Platform Context Injection
-
-To ensure commands run smoothly on your specific machine, the prompt builder automatically injects details about your operating system via `_platform_context()`.
-
-```text
-## Platform Context
-- OS: Windows 10 (AMD64)
-- Shell: cmd /c
-- WARNING: Windows system detected — commands must use Windows-compatible flags:
-  * nmap: use -sT (TCP connect) instead of -sS (SYN scan); omit -O
-  * Use forward slashes or escaped backslashes in paths
-  * For DNS: use nslookup if dig is unavailable
-  * Find binaries with `where` instead of `which`
-```
-
-> [!IMPORTANT]
-> The builder also checks your workspace for custom instruction files like `AGENTS.md` or `SOUL.md` and injects them automatically, allowing project-specific context to influence the persona!
+The `auto` and `none` special modes are always defined in code (not external files) since they have special logic.
 
 ---
 
-## 🗄️ Persona Data Model
-
-Personas are structured within `src/siyarix/personas.py` as a master dictionary containing all 13 modes:
+## Persona Data Model
 
 ```python
-PERSONAS: dict[str, dict[str, Any]] = {
+PERSONAS = {
     "red team": {
         "name": "red team",
         "label": "Red Team / Offensive Security",
-        "description": "Adversary emulation, penetration testing, exploitation, C2 operations, evasion",
-        "prompt": "You are an dedicated red-team operator...",
+        "description": "Adversary emulation...",
+        "prompt": "You are an elite red-team operator...",
     },
-    # ... other personas like "blue team", "dfir", etc.
-    "universal": { ... },    # Special: All-in-one expert
-    "auto": { ... },         # Special: Smart auto-selection
-    "none": { ... },         # Special: Vanilla neutral mode
+    # ... built-in personas loaded from data files
+    "my-custom": {
+        "name": "my-custom",
+        "label": "My Custom Persona",
+        "description": "...",
+        "prompt": "...",
+    },  # Loaded from ~/.siyarix/data/personas/custom/
+    "auto": { ... },    # Special mode (always in code)
+    "none": { ... },    # Special mode (always in code)
 }
 ```
 
-### 🔍 Lookup Functions
-
-Managing and fetching personas is handled by three straightforward functions:
+### Key Functions
 
 ```python
-get_persona(name: str) -> dict | None             # Fetches a persona (case-insensitive & fuzzy)
-list_personas() -> list[dict]                     # Lists all standard named personas
-build_persona_prompt(name: str) -> str            # Generates the prompt text
+get_persona(name: str) -> dict | None             # Case-insensitive lookup
+get_all_personas() -> dict                        # Full dict (including special modes)
+list_personas() -> list[dict]                     # Standard named personas only
+list_all_personas() -> list[dict]                 # All personas (including special + custom)
+build_persona_prompt(name: str) -> str            # Generate the prompt preamble text
+reload_personas() -> None                         # Force reload from external files
 ```
 
-> [!NOTE]  
-> Persona lookups are fuzzy! `_normalize_persona_key()` strips out spaces, hyphens, and underscores. For example, typing `/persona red-team` works exactly the same as `/persona redteam`.
+> Persona lookups are fuzzy! `_normalize_persona_key()` strips spaces, hyphens, and underscores. `/persona red-team` works the same as `/persona redteam`.
 
 ---
 
-## 🎯 Example Persona: Red Team
+## Example Persona: Red Team
 
-Curious how a persona actually looks? Here is the underlying prompt for the `redteam` profile:
+Curious how a persona actually looks? The red team persona is defined across two files:
 
-```python
+### `index.json` entry:
+
+```json
 "red team": {
     "name": "red team",
     "label": "Red Team / Offensive Security",
     "description": "Adversary emulation, penetration testing, exploitation, C2 operations, evasion",
-    "prompt": (
-        "You are an dedicated red-team operator who conducts realistic adversary emulation. You follow "
-        "established methodologies — PTES, OSTMM, TIBER-EU — and operate across the full attack "
-        "lifecycle: reconnaissance, weaponisation, delivery, exploitation, installation, C2, and "
-        "exfiltration. You chain low-severity weaknesses into high-impact compromise paths, "
-        "bypass modern defences (EDR, ASLR, CFG, AMSI), and maintain covert C2 with operational "
-        "security. Your toolkit includes Cobalt Strike, Mythic, Sliver, BloodHound, Mimikatz, "
-        "Rubeus, Certipy, Impacket, Chisel, and custom tooling. You think in assumptions of "
-        "breach and test every control as if a nation-state adversary is the benchmark."
-    ),
+    "file": "red-team.md"
 }
+```
+
+### `red-team.md` prompt content:
+
+```markdown
+You are an elite red-team operator who conducts realistic adversary emulation. You follow
+established methodologies — PTES, OSTMM, TIBER-EU — and operate across the full attack
+lifecycle: reconnaissance, weaponisation, delivery, exploitation, installation, C2, and
+exfiltration. You chain low-severity weaknesses into high-impact compromise paths,
+bypass modern defences (EDR, ASLR, CFG, AMSI), and maintain covert C2 with operational
+security. Your toolkit includes Cobalt Strike, Mythic, Sliver, BloodHound, Mimikatz,
+Rubeus, Certipy, Impacket, Chisel, and custom tooling. You think in assumptions of
+breach and test every control as if a nation-state adversary is the benchmark.
 ```
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 You don't need to restart Siyarix to change your persona. You can switch dynamically using the `/persona` command, or set a persistent default in your `settings.toml` file:
 
 ```toml
 persona = "redteam"
+additional_system_message = "Always output findings as a Markdown table"
 ```
 
-> [!TIP]
+Custom instructions are appended after the system prompt and rules document.
+
 > The configuration is evaluated at the start of every LLM interaction, meaning any changes you make will take effect immediately.
 
 ---
 
-## 🔄 Integration with Interaction Modes
+## Integration with Interaction Modes
 
-Personas apply to all LLM-dependent modes, such as `integrated` and `autonomous`, as well as `hybrid` mode within the `AgentCore`.
-
-> [!WARNING]
-> If you are using `registry` or `offline` modes, the persona system is bypassed entirely. In these modes, the heuristic planner operates independently, as no LLM calls are being made.
+Personas apply to all LLM-dependent modes (`integrated`, `autonomous`, `hybrid`). In `registry` or `offline` modes, the persona system is bypassed entirely (no LLM calls).
 
 ---
 
-## 📁 Related Modules
-
-For developers looking to tinker with or expand the system, here's where the magic happens:
+## Related Modules
 
 | Module / Function | Path | Purpose |
-|--------|------|---------|
-| `PERSONAS` | `src/siyarix/personas.py` | Holds the definitions for all 10 security personas + 3 special modes. |
-| `build_persona_prompt` | `src/siyarix/personas.py:218` | Assembles the text that gets injected into the prompt. |
-| `SIYARIX_SYSTEM_PROMPT` | `src/siyarix/chat/prompts.py:171` | The full-spectrum base system prompt. |
-| `NEUTRAL_SYSTEM_PROMPT` | `src/siyarix/chat/prompts.py:233` | The minimal base system prompt. |
-| `COMPACT_PROMPT` | `src/siyarix/chat/prompts.py:263` | Token-saving variant for follow-up questions. |
-| `COMPACT_NEUTRAL` | `src/siyarix/chat/prompts.py:268` | Token-saving variant for neutral mode. |
-| `_build_system_prompt` | `src/siyarix/chat/engine.py:550` | The core function that stitches everything together. |
+|--------|--------|---------|
+| Persona data files | `src/siyarix/data/personas/index.json` + `.md` files | Persona definitions (index + prompt text) |
+| `_load_personas()` | `src/siyarix/personas.py` | Loads all personas from external files + custom dir |
+| `build_persona_prompt()` | `src/siyarix/personas.py` | Assembles the persona preamble text |
+| `list_custom_personas()` | `src/siyarix/data_loader.py` | Lists custom personas from user directory |
+| `load_text()` / `load_json()` | `src/siyarix/data_loader.py` | Generic data loaders with built-in/user fallback |
+| `system.md` | `src/siyarix/data/prompts/system.md` | Full system prompt template |
+| `system-neutral.md` | `src/siyarix/data/prompts/system-neutral.md` | Neutral system prompt template |
+| `compact.md` | `src/siyarix/data/prompts/compact.md` | Token-saving prompt variant |
+| `compact-neutral.md` | `src/siyarix/data/prompts/compact-neutral.md` | Token-saving neutral variant |
+| `RULES.md` | `src/siyarix/data/rules/RULES.md` | All operational rules |
+| `_build_system_prompt` | `src/siyarix/chat/engine.py` | The core function that stitches everything together |

@@ -1029,11 +1029,21 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         return text
 
     def _get_conversation_history(self, max_messages: int = 50) -> list[dict]:
-        """Extract recent conversation history from the session for LLM context."""
+        """Extract recent conversation history from the session for LLM context.
+        
+        Excludes the current user message at the end of the history to prevent
+        duplicate adjacent user roles in the API payload.
+        """
         msgs = self._session.messages
         if not msgs:
             return []
-        recent = msgs[-max_messages:] if len(msgs) > max_messages else msgs
+
+        # Exclude the active user message which is about to be sent
+        msgs_to_process = msgs[:-1] if msgs[-1].role == "user" else msgs
+        if not msgs_to_process:
+            return []
+
+        recent = msgs_to_process[-max_messages:] if len(msgs_to_process) > max_messages else msgs_to_process
         return [
             {
                 "role": m.role,

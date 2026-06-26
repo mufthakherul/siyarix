@@ -236,6 +236,44 @@ class TestOpenAICompatCore:
             result = make_openai_adapter("openai", "key", base_url="https://api.openai.com/v1")
             assert callable(result)
 
+    def test_build_messages_merges_consecutive(self):
+        from siyarix.chat.openai_compat import build_messages
+        history = [
+            {"role": "user", "content": "Hello"},
+            {"role": "user", "content": "World"},
+            {"role": "assistant", "content": "Response 1"},
+            {"role": "assistant", "content": "Response 2"},
+        ]
+        messages = build_messages("system prompt", "current user query", history)
+        # Should be: system, user (merged Hello + World), assistant (merged Response 1 + Response 2), user (current user query)
+        assert len(messages) == 4
+        assert messages[0]["role"] == "system"
+        assert messages[1]["role"] == "user"
+        assert messages[1]["content"] == "Hello\n\nWorld"
+        assert messages[2]["role"] == "assistant"
+        assert messages[2]["content"] == "Response 1\n\nResponse 2"
+        assert messages[3]["role"] == "user"
+        assert messages[3]["content"] == "current user query"
+
+    def test_gemini_build_contents_merges_consecutive(self):
+        from siyarix.chat.openai_compat import _gemini_build_contents
+        history = [
+            {"role": "user", "content": "Hello"},
+            {"role": "user", "content": "World"},
+            {"role": "assistant", "content": "Response 1"},
+            {"role": "assistant", "content": "Response 2"},
+        ]
+        contents = _gemini_build_contents("system prompt", "current user query", history)
+        # Should be: user (Hello + World), model (Response 1 + Response 2), user (current user query)
+        assert len(contents) == 3
+        assert contents[0]["role"] == "user"
+        assert contents[0]["parts"][0]["text"] == "Hello\n\nWorld"
+        assert contents[1]["role"] == "model"
+        assert contents[1]["parts"][0]["text"] == "Response 1\n\nResponse 2"
+        assert contents[2]["role"] == "user"
+        assert contents[2]["parts"][0]["text"] == "current user query"
+
+
 
 # ═══════════════════════════════════════════════════════════════════
 # 5. chat/session.py (97% - missing 48->52, 82->84, 110->exit)

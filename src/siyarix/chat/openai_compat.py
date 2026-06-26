@@ -303,20 +303,34 @@ def build_messages(
     Supports system, developer (for reasoning models), user, and assistant roles.
     When *compat* is provided and its *supports_developer_role* flag is True,
     uses ``"developer"`` role instead of ``"system"`` for reasoning-optimised models.
+    Merges consecutive messages of the same role to satisfy API alternation constraints.
     """
     messages: list[dict[str, Any]] = []
     if system_prompt:
         use_dev = compat is not None and compat.supports_developer_role
         role = "developer" if use_dev else "system"
         messages.append({"role": role, "content": system_prompt})
+
+    raw_msgs = []
     if history:
         for msg in history:
             role = msg.get("role", "user")
             content = msg.get("content", "")
             if role == "system":
                 continue
-            messages.append({"role": role, "content": content})
-    messages.append({"role": "user", "content": user_prompt})
+            api_role = "assistant" if role in ("assistant", "model") else "user"
+            raw_msgs.append({"role": api_role, "content": content})
+
+    raw_msgs.append({"role": "user", "content": user_prompt})
+
+    for msg in raw_msgs:
+        if messages and messages[-1]["role"] == msg["role"]:
+            # Merge adjacent messages of the same role
+            merged_content = (messages[-1]["content"] + "\n\n" + msg["content"]).strip()
+            messages[-1]["content"] = merged_content
+        else:
+            messages.append(msg)
+
     return messages
 
 
@@ -407,8 +421,11 @@ def _gemini_build_contents(
     user_prompt: str,
     history: list[dict] | None = None,
 ) -> list[dict]:
-    """Build the 'contents' array for Gemini's generateContent API."""
-    contents: list[dict] = []
+    """Build the 'contents' array for Gemini's generateContent API.
+    
+    Merges consecutive messages of the same role to satisfy API alternation constraints.
+    """
+    raw_msgs = []
     if history:
         for msg in history:
             role = msg.get("role", "user")
@@ -416,8 +433,20 @@ def _gemini_build_contents(
                 continue
             gemini_role = "model" if role in ("assistant", "model") else "user"
             content = msg.get("content", "")
-            contents.append({"role": gemini_role, "parts": [{"text": content}]})
-    contents.append({"role": "user", "parts": [{"text": user_prompt}]})
+            raw_msgs.append({"role": gemini_role, "content": content})
+
+    raw_msgs.append({"role": "user", "content": user_prompt})
+
+    contents: list[dict] = []
+    for msg in raw_msgs:
+        if contents and contents[-1]["role"] == msg["role"]:
+            # Merge adjacent messages of the same role
+            old_text = contents[-1]["parts"][0].get("text", "")
+            new_text = (old_text + "\n\n" + msg["content"]).strip()
+            contents[-1]["parts"] = [{"text": new_text}]
+        else:
+            contents.append({"role": msg["role"], "parts": [{"text": msg["content"]}]})
+
     return contents
 
 

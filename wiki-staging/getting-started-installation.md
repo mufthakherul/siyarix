@@ -128,20 +128,14 @@ pip install -e ".[all,cli,siem]"
 If you want an absolutely hands-off setup, we provide one-liner install scripts that automatically detect your OS, set up a virtual environment, and install Siyarix for you.
 
 ```bash
-# 🐧 Linux & 🍏 macOS
+# 🐧 Linux, 🍏 macOS, 🌐 ChromeOS, 🍎 iOS/iSH, 🌐 HarmonyOS, BSD
 curl -fsSL https://siyarix.github.io/install.sh | bash
 
 # 🪟 Windows (Run this in PowerShell)
 irm https://siyarix.github.io/install.ps1 | iex
 
 # 📱 Android (Run inside the Termux app)
-curl -fsSL https://siyarix.github.io/install_android.sh | bash
-
-# 🍎 iOS (Run inside the iSH app)
-curl -fsSL https://siyarix.github.io/install_ios.sh | bash
-
-# 🌐 HarmonyOS
-curl -fsSL https://siyarix.github.io/install_harmonyos.sh | bash
+curl -fsSL https://siyarix.github.io/install-termux.sh | bash
 ```
 
 ---

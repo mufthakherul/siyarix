@@ -260,7 +260,7 @@ Check out our [Contribution Guide](docs/developer/contribution-guide.md) to get 
 **MD MUFTHAKHERUL ISLAM MIRAZ**
 
 I absolutely love connecting with the community, hearing your feedback, and seeing how you use Siyarix! You can find me and the project here:  
-[GitHub](https://github.com/mufthakherul/siyarix) | [siyarix.dev](https://siyarix.github.io)
+[GitHub](https://github.com/mufthakherul/siyarix) | [siyarix.github.io](https://siyarix.github.io)
 
 ---
 

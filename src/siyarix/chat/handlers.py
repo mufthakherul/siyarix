@@ -148,6 +148,10 @@ class CommandHandlersMixin:
             "/fork": self._cmd_fork,
             "/learn": self._cmd_learn,
             "/feedback": self._cmd_feedback,
+            "/undo": self._cmd_undo,
+            "/rollback": self._cmd_undo,
+            "/retry": self._cmd_retry,
+            "/edit": self._cmd_edit,
             "/redteam": self._cmd_redteam,
             "/offensive": self._cmd_redteam,
             "/blueteam": self._cmd_blueteam,
@@ -2505,6 +2509,106 @@ class CommandHandlersMixin:
             console.print(f"[dim]Messages in fork: {len(forked.messages)}[/dim]")
         except Exception as exc:
             console.print(f"[red]Fork failed: {exc}[/red]")
+
+    def _cmd_undo(self, args: str) -> None:
+        """Rollback the last N turns of the conversation."""
+        try:
+            steps = int(args.strip()) if args.strip() else 1
+        except ValueError:
+            console.print("[red]Invalid number of steps. Usage: /undo [number][/red]")
+            return
+
+        if steps <= 0:
+            console.print("[red]Steps must be a positive integer.[/red]")
+            return
+
+        msgs = self._session.messages
+        if not msgs:
+            console.print("[yellow]No messages to undo.[/yellow]")
+            return
+
+        total_popped = 0
+        removed_summary = []
+        for _ in range(steps):
+            if not msgs:
+                break
+            
+            popped_this_turn = []
+            if msgs and msgs[-1].role == "assistant":
+                popped_this_turn.append(msgs.pop())
+            if msgs and msgs[-1].role == "user":
+                popped_this_turn.append(msgs.pop())
+            if not popped_this_turn and msgs:
+                popped_this_turn.append(msgs.pop())
+                
+            if popped_this_turn:
+                total_popped += 1
+                removed_summary.extend(popped_this_turn)
+
+        if total_popped > 0:
+            console.print(f"[green]✓ Undid the last {total_popped} turn{'s' if total_popped > 1 else ''} of conversation.[/green]")
+            for msg in reversed(removed_summary):
+                role_label = "User" if msg.role == "user" else "Siyarix"
+                content_preview = msg.content[:60] + "..." if len(msg.content) > 60 else msg.content
+                console.print(f"  [dim]Removed {role_label}: {content_preview}[/dim]")
+            
+            try:
+                self._session.save(self._SESSIONS_DIR / f"{self._session.session_id}.json")
+            except Exception:
+                pass
+        else:
+            console.print("[yellow]No messages to undo.[/yellow]")
+
+    async def _cmd_retry(self, _: str) -> None:
+        """Retry the last user prompt, regenerating the assistant response."""
+        msgs = self._session.messages
+        if not msgs:
+            console.print("[yellow]No messages in conversation to retry.[/yellow]")
+            return
+
+        last_assistant_msg = None
+        if msgs[-1].role == "assistant":
+            last_assistant_msg = msgs.pop()
+
+        if not msgs or msgs[-1].role != "user":
+            if last_assistant_msg:
+                msgs.append(last_assistant_msg)
+            console.print("[yellow]No user message found to retry.[/yellow]")
+            return
+
+        user_prompt = msgs[-1].content
+        console.print(f"[cyan]→ Retrying last prompt: [italic]\"{user_prompt}\"[/italic][/cyan]")
+        
+        msgs.pop()
+        await self._handle_natural_language(user_prompt)
+
+    async def _cmd_edit(self, args: str) -> None:
+        """Edit the last user message and re-run with the new prompt."""
+        new_prompt = args.strip()
+        if not new_prompt:
+            console.print("[yellow]Usage: /edit <new prompt>[/yellow]")
+            return
+
+        msgs = self._session.messages
+        if not msgs:
+            console.print("[yellow]No messages in conversation to edit.[/yellow]")
+            return
+
+        last_assistant_msg = None
+        if msgs[-1].role == "assistant":
+            last_assistant_msg = msgs.pop()
+
+        if not msgs or msgs[-1].role != "user":
+            if last_assistant_msg:
+                msgs.append(last_assistant_msg)
+            console.print("[yellow]No user message found to edit.[/yellow]")
+            return
+
+        old_msg = msgs.pop()
+        console.print(f"[cyan]Replacing: [dim]\"{old_msg.content}\"[/dim][/cyan]")
+        console.print(f"[cyan]With:      [bold]\"{new_prompt}\"[/bold][/cyan]")
+        
+        await self._handle_natural_language(new_prompt)
 
     def _cmd_learn(self, args: str) -> None:
         """Toggle Continuous Learning System."""

@@ -285,3 +285,67 @@ def test_cmd_key_rotate(mock_ask, chat, mock_console):
         mock_console.print.assert_any_call(
             "[green]✓ Master encryption key rotated successfully[/green]"
         )
+
+
+def test_cmd_undo(chat, mock_console):
+    # Setup session directory mock
+    chat._SESSIONS_DIR = MagicMock()
+    
+    # Test empty undo
+    chat._cmd_undo("")
+    mock_console.print.assert_any_call("[yellow]No messages to undo.[/yellow]")
+
+    # Setup messages
+    chat._session.add_message("user", "Hello")
+    chat._session.add_message("assistant", "Hi there")
+    chat._session.add_message("user", "How are you?")
+    chat._session.add_message("assistant", "I am good")
+
+    # Undo 1 turn
+    chat._cmd_undo("")
+    assert len(chat._session.messages) == 2
+    assert chat._session.messages[0].content == "Hello"
+    assert chat._session.messages[1].content == "Hi there"
+
+    # Undo another turn
+    chat._cmd_undo("1")
+    assert len(chat._session.messages) == 0
+
+
+@pytest.mark.asyncio
+async def test_cmd_retry(chat, mock_console):
+    chat._handle_natural_language = AsyncMock()
+
+    # Empty retry
+    await chat._cmd_retry("")
+    mock_console.print.assert_any_call("[yellow]No messages in conversation to retry.[/yellow]")
+
+    # Setup messages
+    chat._session.add_message("user", "Test prompt")
+    chat._session.add_message("assistant", "Test response")
+
+    # Retry
+    await chat._cmd_retry("")
+    chat._handle_natural_language.assert_called_once_with("Test prompt")
+    # Assistant message should have been popped
+    assert len(chat._session.messages) == 0
+
+
+@pytest.mark.asyncio
+async def test_cmd_edit(chat, mock_console):
+    chat._handle_natural_language = AsyncMock()
+
+    # Empty edit arguments
+    await chat._cmd_edit("")
+    mock_console.print.assert_any_call("[yellow]Usage: /edit <new prompt>[/yellow]")
+
+    # Setup messages
+    chat._session.add_message("user", "Old prompt")
+    chat._session.add_message("assistant", "Old response")
+
+    # Edit
+    await chat._cmd_edit("New prompt")
+    chat._handle_natural_language.assert_called_once_with("New prompt")
+    # Both messages should be popped
+    assert len(chat._session.messages) == 0
+

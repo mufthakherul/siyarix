@@ -31,7 +31,7 @@ def tty_confirm(prompt: str, default: bool = True) -> bool:
     from rich.console import Console
 
     suffix = " [Y/n]" if default else " [y/N]"
-    Console(stderr=True).print(prompt + suffix, end=" ")
+    Console(stderr=True).print(prompt + suffix, end=" ", flush=True)
     try:
         with open("/dev/tty") as _tty:
             answer = _tty.readline().strip().lower()

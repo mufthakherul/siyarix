@@ -2321,7 +2321,7 @@ class CommandHandlersMixin:
         path = self._alias_store_path()
         if path.exists():
             try:
-                return json.loads(path.read_text(encoding="utf-8"))
+                return json.loads(path.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
             except Exception:
                 pass
         return {}
@@ -2582,7 +2582,7 @@ class CommandHandlersMixin:
         console.print(f'[cyan]→ Retrying last prompt: [italic]"{user_prompt}"[/italic][/cyan]')
 
         msgs.pop()
-        await self._handle_natural_language(user_prompt)
+        await self._handle_natural_language(user_prompt)  # type: ignore[attr-defined]
 
     async def _cmd_edit(self, args: str) -> None:
         """Edit the last user message and re-run with the new prompt."""
@@ -2610,7 +2610,7 @@ class CommandHandlersMixin:
         console.print(f'[cyan]Replacing: [dim]"{old_msg.content}"[/dim][/cyan]')
         console.print(f'[cyan]With:      [bold]"{new_prompt}"[/bold][/cyan]')
 
-        await self._handle_natural_language(new_prompt)
+        await self._handle_natural_language(new_prompt)  # type: ignore[attr-defined]
 
     def _cmd_learn(self, args: str) -> None:
         """Toggle Continuous Learning System."""
@@ -2749,7 +2749,7 @@ class CommandHandlersMixin:
         console.print(f"[bold cyan]Running benchmark against {provider}...[/bold cyan]")
         console.print("[dim]This will test response time and throughput.[/dim]")
 
-        prov_name, api_key = self._resolve_provider()
+        prov_name, api_key = self._resolve_provider()  # type: ignore[attr-defined]
         if not prov_name or not api_key:
             console.print("[red]No LLM provider available for benchmarking[/red]")
             return
@@ -2763,9 +2763,8 @@ class CommandHandlersMixin:
         from time import perf_counter
         import asyncio
 
-        results = []
+        results: list[dict[str, Any]] = []
         for size, prompt in [
-            ("short", "Respond with exactly: OK"),
             (
                 "medium",
                 "Write a 3-paragraph summary of network security best practices for a small business.",
@@ -3042,7 +3041,7 @@ class CommandHandlersMixin:
             table.add_row("User Messages", str(user_msgs))
             table.add_row("Assistant Messages", str(assistant_msgs))
             table.add_row("System Messages", str(system_msgs))
-            table.add_row("LLM Calls", str(self._llm_calls))
+            table.add_row("LLM Calls", str(self._llm_calls))  # type: ignore[attr-defined]
             table.add_row("Context Keys", str(len(self._session.context)))
             findings_count = len(self._session.context.get("findings", []))
             table.add_row("Findings", str(findings_count))

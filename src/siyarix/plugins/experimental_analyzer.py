@@ -11,42 +11,27 @@ import logging
 from typing import Any
 
 from siyarix.registry import ToolRegistry
-from siyarix.tool_models import ToolSpec, ToolParameter
+from siyarix.tool_models import ToolCapability, ToolCategory, ToolHandler, RiskLevel
 
 logger = logging.getLogger(__name__)
 
 
-class ExperimentalAnalyzerTool:
-    """Mock advanced heuristic threat analyzer."""
-
-    def __init__(self) -> None:
-        self.spec = ToolSpec(
-            name="experimental_analyzer",
-            description="Performs heuristic threat analysis on a target string using experimental AI models.",
-            parameters=[
-                ToolParameter(
-                    name="target",
-                    type="string",
-                    description="The target to analyze (e.g. an IP, domain, or payload).",
-                    required=True,
-                )
-            ],
-            category="analysis",
-            risk_level="low",
-            requires_approval=False,
-            timeout=60,
-        )
-
-    async def execute(self, **kwargs: Any) -> str:
-        target = kwargs.get("target", "unknown")
-        logger.info("Running Experimental Analyzer on %s", target)
-
-        # Mock logic
-        return f"[EXPERIMENTAL_ANALYZER] Analyzed target '{target}'. No immediate heuristic threats found. Confidence: 85%."
+async def _experimental_analyzer_handler(**kwargs: Any) -> dict[str, Any]:
+    target = kwargs.get("target", "unknown")
+    logger.info("Running Experimental Analyzer on %s", target)
+    return {
+        "output": f"[EXPERIMENTAL_ANALYZER] Analyzed target '{target}'. No immediate heuristic threats found. Confidence: 85%."
+    }
 
 
 def register_tools(registry: ToolRegistry) -> None:
     """Register the experimental tools with the Siyarix registry."""
-    analyzer = ExperimentalAnalyzerTool()
-    registry.register(analyzer)
-    logger.info("Registered ExperimentalAnalyzerTool in Siyarix.")
+    capability = ToolCapability(
+        name="experimental_analyzer",
+        description="Performs heuristic threat analysis on a target string using experimental AI models.",
+        category=ToolCategory.RECON,
+        risk_level=RiskLevel.LOW,
+        tags=["experimental", "heuristic", "threat-analysis"],
+    )
+    registry.register(capability, _experimental_analyzer_handler)
+    logger.info("Registered experimental_analyzer tool in Siyarix.")

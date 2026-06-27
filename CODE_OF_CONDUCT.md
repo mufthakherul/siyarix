@@ -19,7 +19,6 @@ We pledge to act and interact in ways that contribute to an open, welcoming, div
 
 ### Unacceptable Behavior
 
-- The use of sexualized language or imagery, and sexual attention or advances of any kind
 - Trolling, insulting or derogatory comments, and personal or political attacks
 - Public or private harassment
 - Publishing others' private information without explicit permission

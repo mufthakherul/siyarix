@@ -140,7 +140,6 @@ Security patches are expedited through the release process. Depending on severit
 - Siyarix is licensed under **GNU Affero General Public License v3.0 or later** (SPDX: `AGPL-3.0-or-later`)
 - License changes require community discussion, maintainer consensus, and a supermajority vote
 - All contributions are made under the same license (inbound = outbound policy)
-- Commercial licensing options are available separately for organizations that cannot comply with AGPL terms (see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md))
 - Third-party dependencies must have licenses compatible with AGPL-3.0-or-later
 
 ---
@@ -157,11 +156,6 @@ This governance document may be amended by maintainer consensus. Significant cha
 
 ---
 
-## 10. Acknowledgments
-
-This governance model draws inspiration from established open-source governance frameworks including the [GitHub Minimum Viable Governance](https://github.com/github/MVG) model, the [Python Enhancement Proposal (PEP) process](https://peps.python.org/), and best practices from the [Apache Software Foundation](https://www.apache.org/foundation/governance/).
-
----
 
 *SPDX-License-Identifier: AGPL-3.0-or-later*
 

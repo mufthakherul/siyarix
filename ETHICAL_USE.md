@@ -77,7 +77,7 @@ The following activities are **strictly prohibited** when using Siyarix or any o
 
 ### 2.7 Nation-State Abuse
 
-- Use in offensive cyber operations conducted by or on behalf of any nation-state, government, or state-sponsored entity without lawful international mandate or U.N. Security Council authorization
+- Use in offensive cyber operations conducted by or on behalf of any nation-state, government, or state-sponsored entity without lawful international mandate authorization
 - Development of cyber weapons, offensive capabilities, or attack tools targeting civilian infrastructure
 - Use in military cyber operations without appropriate legal oversight and rules of engagement
 

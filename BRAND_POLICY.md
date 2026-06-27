@@ -1,4 +1,4 @@
-# Siyarix Trademark & Brand Policy
+# Siyarix Brand Policy
 
 **Effective Date:** June 2026  
 **Version:** 1.0.0
@@ -78,19 +78,9 @@ The following uses are **not permitted** under any circumstances:
 We support the open-source ecosystem and encourage innovation through forking. If you fork Siyarix:
 
 - **Do** rename your fork to a distinct name that does not include "Siyarix" as the primary identifier
-- **Do** clearly state in your project's README that it is a fork of the original Siyarix project
-- **Do** include the required AGPL-3.0-or-later license notices
 - **Do not** use the official Siyarix logo without clear modification or differentiation
 - **Do not** imply your fork is endorsed, maintained, or supported by the original Siyarix project
 
-### Recommended Fork Attribution
-
-```markdown
-This project is a fork of [Siyarix](https://github.com/mufthakherul/siyarix).
-It is not affiliated with or endorsed by the Siyarix project.
-```
-
----
 
 ## 6. Official Distribution Channels
 
@@ -102,7 +92,6 @@ The only official Siyarix distribution channels are:
 | **Python Package (PyPI)** | `https://pypi.org/project/siyarix/` |
 | **Docker Images** | Official images published by the Siyarix project on Docker Hub / GitHub Container Registry |
 | **Homebrew Tap** | Official Homebrew formula maintained by the project |
-
 | **Chocolatey Package** | Official Chocolatey package maintained by the project |
 | **Winget Package** | Official Winget manifest maintained by the project |
 | **Debian Repository** | Official `.deb` packages maintained by the project |
@@ -122,9 +111,9 @@ Any other distribution channel claiming to distribute "official Siyarix" should 
 
 ## 8. Reporting Violations
 
-If you suspect trademark or brand misuse:
+If you suspect brand misuse:
 
-1. **Open a GitHub issue** in the main repository tagged with `trademark` label
+1. **Open a GitHub issue** in the main repository tagged with `trademark` or `brand` label
 2. **For urgent cases** (active impersonation, phishing, malware distribution), contact the maintainers via private channels
 
 The maintainer team will review reports and take appropriate action, which may include:

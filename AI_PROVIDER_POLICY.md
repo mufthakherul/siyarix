@@ -84,7 +84,7 @@ The registry maintains an ordered preference list. The active provider is select
 
 ---
 
-## 3. Dynamic Provider Selection
+## 3. Provider Selection
 
 ### 3.1 Selection Criteria
 
@@ -113,21 +113,6 @@ provider_failover:
   - anthropic
   - ollama
 ```
-
-### 3.3 Task-Based Routing
-
-The system can route different task types to different providers:
-
-| Task Type | Preferred Providers | Rationale |
-|-----------|-------------------|-----------|
-| General planning | Gemini, OpenAI, Together | Strong structured JSON output, fast responses |
-| Security analysis | Anthropic Claude | Superior reasoning, nuanced security judgment |
-| Code generation | DeepSeek-Coder, Codestral, GPT-4 | Strong programming capability |
-| Local/offline operations | Ollama, LM Studio | Data never leaves the host; no network required |
-| High-throughput, low-cost | Groq, Cerebras | Ultra-fast inference, competitive pricing |
-| Bulk processing | Together AI, OpenRouter | High throughput, broad model selection |
-| Enterprise compliance | Azure OpenAI, Anthropic | Enterprise-grade data handling, contractual protections |
-| Fallback / offline | Registry (heuristic) | No AI provider required; rule-based planning |
 
 ---
 
@@ -190,24 +175,7 @@ If no AI provider is available (all configured providers fail):
 
 ## 5. Security Boundaries
 
-### 5.1 Data Masking
-
-Before any data is sent to a cloud AI provider, the **bidirectional masking engine** is applied:
-
-| Data Type | Default Masking Action | Configurable |
-|-----------|----------------------|--------------|
-| IPv4 addresses | Replaced with 10.x.x.x | Yes -- custom replacement patterns |
-| IPv6 addresses | Replaced with fd00::/8 | Yes |
-| Domain names | Replaced with example.com | Yes |
-| API keys / tokens | Replaced with [REDACTED] | No |
-| Credentials | Replaced with [REDACTED] | No |
-| Email addresses | Replaced with user@example.com | Yes |
-| MAC addresses | Replaced with 00:00:00:00:00:00 | Yes |
-| Custom patterns | User-defined regex replacement | Yes -- via config file |
-
-The masking engine is **always active** for cloud providers. It can be optionally enabled for local providers.
-
-### 5.2 Local Model Recommendation
+### 5.1 Local Model Recommendation
 
 Local models are strongly recommended for:
 
@@ -217,7 +185,7 @@ Local models are strongly recommended for:
 - Internal corporate networks where data export is prohibited
 - High-frequency or bulk operations where API costs are a concern
 
-### 5.3 Provider-Specific Security Notes
+### 5.2 Provider-Specific Security Notes
 
 | Provider | Data Processing Location | Key Consideration |
 |----------|-------------------------|-------------------|

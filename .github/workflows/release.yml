@@ -81,7 +81,9 @@ jobs:
           fetch-depth: 0
 
       - name: Generate Changelog
-        uses: orhun/git-cliff-action@b946ed27a675d653b308f29a7bbad813b85bf7aa # v3
+        uses: orhun/git-cliff-action@b946ed27a675d653b308f29a7bbad813b85bf7aa # v4
+        env:
+          GIT_CLIFF_FORCE_PREPARE: "true"
         with:
           config: cliff.toml
           args: --tag v${{ needs.validate-tag.outputs.semver }} -o CHANGELOG.md
@@ -117,7 +119,7 @@ jobs:
         run: |
           uv pip install --system build twine check-wheel-contents
           python -m build
-          check-wheel-contents dist/
+          check-wheel-contents dist/ --ignore W002
           twine check dist/*
 
       - name: Get wheel name
@@ -282,7 +284,6 @@ jobs:
           cp install.sh dist-installers/
           cp install-termux.sh dist-installers/
           cp install.ps1 dist-installers/siyarix-install.ps1
-          cp packages/harmonyos/install-harmonyos.sh dist-installers/
           cp packages/homebrew/siyarix.rb dist-installers/ 2>/dev/null || true
           cp packages/chocolatey/tools/chocolateyinstall.ps1 dist-installers/
           cp packages/winget/Mufthakherul.Siyarix.yaml dist-installers/

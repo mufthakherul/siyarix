@@ -513,22 +513,16 @@ def render_welcome_banner(
     )
 
     if provider_status:
-        configured = [k for k, (icon, _) in provider_status.items() if icon == "✓"]
-        runtime_txt = ""
-        if configured:
-            runtime_txt = f"[bold green]✓[/bold green] [dim]{', '.join(configured[:3])}[/dim]\n"
-            if len(configured) > 3:
-                runtime_txt += f"[dim]+ {len(configured) - 3} more[/dim]"
-        else:
-            available = [k for k, (icon, label) in provider_status.items() if icon == "⚠"]
-            local = [k for k in available if "available (local)" in provider_status.get(k, ("", ""))[1]]
-            missing = [k for k in available if "key missing" in provider_status.get(k, ("", ""))[1]]
-            parts = []
-            if local:
-                parts.append(f"[bold yellow]⚠[/bold yellow] [dim]Available (local): {', '.join(local)}[/dim]")
-            if missing:
-                parts.append(f"[dim]key missing: {', '.join(missing[:2])}[/dim]")
-            runtime_txt = "\n".join(parts) if parts else "[dim]No providers configured[/dim]"
+        parts = []
+        for name in sorted(provider_status, key=lambda n: (provider_status[n][0] != "✓", n)):
+            icon, reason = provider_status[name]
+            if icon == "✓":
+                parts.append(f"[bold green]✓[/bold green] {name} [dim]({reason})[/dim]")
+            elif icon == "⚠":
+                parts.append(f"[bold yellow]⚠[/bold yellow] {name} [dim]({reason})[/dim]")
+            elif icon == "✗":
+                parts.append(f"[dim bright_black]✗[/dim bright_black] {name} [dim]({reason})[/dim]")
+        runtime_txt = "\n".join(parts) if parts else "[dim]No providers configured[/dim]"
     else:
         runtime_txt = "[dim]No providers configured[/dim]"
 

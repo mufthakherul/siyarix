@@ -490,9 +490,11 @@ def make_sast_handler(tool_name: str) -> ToolHandler:
 
         # ── Bandit ────────────────────────────────────────────────
         elif tool_name == "bandit":
-            severity = kwargs.get("severity", "high")
-            confidence = kwargs.get("confidence", "high")
-            cmd += ["-r", "-lll"]  # triple -l for highest severity
+            cmd += ["-r"]
+            # Map severity to -l count: high=-lll, medium=-ll, low=-l
+            sev_levels = {"low": "-l", "medium": "-ll", "high": "-lll"}
+            sev = kwargs.get("severity", "high")
+            cmd.append(sev_levels.get(sev, "-lll"))
             if path:
                 cmd += extra_args + [path]
             else:

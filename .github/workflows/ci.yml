@@ -120,6 +120,7 @@ jobs:
             -m "not integration"
 
       - name: Upload coverage artifact
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: coverage-${{ matrix.python-version }}-${{ matrix.os }}
@@ -127,6 +128,7 @@ jobs:
           retention-days: 14
 
       - name: Upload coverage to Codecov
+        if: always()
         uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
         with:
           file: ./coverage.xml

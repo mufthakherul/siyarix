@@ -480,7 +480,7 @@ class OnboardingWizard:
                         "Failed to parse NVIDIA GPU VRAM from nvidia-smi output", exc_info=True
                     )
         except (FileNotFoundError, subprocess.SubprocessError):
-            logger.warning("nvidia-smi not available for GPU detection")
+            logger.debug("nvidia-smi not available for GPU detection — skipping NVIDIA GPU check")
 
         # AMD ROCm
         if gpu_type == "none":
@@ -498,7 +498,11 @@ class OnboardingWizard:
                         if "VRAM Total" in line:
                             val = line.split(":")[-1].strip().split()[0] if ":" in line else ""
                             try:
-                                gpu_vram_gb = round(float(val) / 1024, 1) if val else 0
+                                raw_val = float(val) if val else 0.0
+                                if raw_val > 1000000:
+                                    gpu_vram_gb = round(raw_val / (1024 * 1024 * 1024), 1)
+                                else:
+                                    gpu_vram_gb = round(raw_val / 1024, 1)
                             except (ValueError, IndexError):
                                 logger.warning(
                                     "Failed to parse AMD GPU VRAM from rocm-smi output",
@@ -2248,6 +2252,22 @@ class OnboardingWizard:
         if not shell:
             shell = "bash"
 
+        rc_files = {
+            "bash": Path.home() / ".bashrc",
+            "zsh": Path.home() / ".zshrc",
+            "fish": Path.home() / ".config" / "fish" / "config.fish",
+            "pwsh": Path.home() / ".config" / "powershell" / "profile.ps1",
+            "powershell": Path.home() / ".config" / "powershell" / "profile.ps1",
+        }
+        rc_file = rc_files.get(shell)
+        if os.name == "nt" and shell in ("pwsh", "powershell"):
+            rc_file = (
+                Path.home()
+                / "Documents"
+                / "PowerShell"
+                / "Microsoft.PowerShell_profile.ps1"
+            )
+
         # Shell completions
         self._console.print(f"  Detected shell: [cyan]{shell}[/cyan]")
 
@@ -2258,21 +2278,6 @@ class OnboardingWizard:
             self._choices["shell_completion_done"] = False
         elif Confirm.ask("  Install shell completions?", default=True):
             try:
-                rc_files = {
-                    "bash": Path.home() / ".bashrc",
-                    "zsh": Path.home() / ".zshrc",
-                    "fish": Path.home() / ".config" / "fish" / "config.fish",
-                    "pwsh": Path.home() / ".config" / "powershell" / "profile.ps1",
-                    "powershell": Path.home() / ".config" / "powershell" / "profile.ps1",
-                }
-                rc_file = rc_files.get(shell)
-                if os.name == "nt" and shell in ("pwsh", "powershell"):
-                    rc_file = (
-                        Path.home()
-                        / "Documents"
-                        / "PowerShell"
-                        / "Microsoft.PowerShell_profile.ps1"
-                    )
 
                 if rc_file and rc_file.parent.exists():
                     typer_shell = shell
@@ -2739,10 +2744,10 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
         try:
             self._console.print(f"  Downloading [cyan]{asset_name}[/cyan]...")
             archive_path = bin_dir / asset_name
-            with httpx.stream("GET", download_url, timeout=120) as r:
+            with httpx.stream("GET", download_url, timeout=300, follow_redirects=True) as r:
                 r.raise_for_status()
                 with open(archive_path, "wb") as fh:
-                    for chunk in r.iter_bytes():
+                    for chunk in r.iter_bytes(chunk_size=65536):
                         fh.write(chunk)
             self._console.print("  [green]\u2713 Downloaded[/green]")
 
@@ -2759,7 +2764,10 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
                     for tinfo in tf.getmembers():
                         if tinfo.name.startswith("/") or ".." in tinfo.name:
                             continue
-                        tf.extract(tinfo, bin_dir)
+                        if sys.version_info >= (3, 12):
+                            tf.extract(tinfo, bin_dir, filter="data")
+                        else:
+                            tf.extract(tinfo, bin_dir)
 
             # Remove the versioned extract directory prefix if present
             for entry in list(bin_dir.iterdir()):

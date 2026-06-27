@@ -16,7 +16,6 @@ from prompt_toolkit.completion import Completer, Completion, PathCompleter
 from prompt_toolkit.document import Document
 from rich.panel import Panel
 from rich.text import Text
-from rich.layout import Layout
 from rich.align import Align
 from rich.columns import Columns
 from rich.console import Console as RichConsole, Group

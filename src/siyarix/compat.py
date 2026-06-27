@@ -18,7 +18,6 @@ from uuid import uuid4
 
 from .config import get_config_dir
 from .core.router import IntentRoute, IntentRouter
-from .registry import RiskLevel
 
 logger = logging.getLogger(__name__)
 

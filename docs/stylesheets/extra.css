@@ -1,0 +1,152 @@
+/* Siyarix Custom Premium Stylesheet */
+
+/* Rounded and shadowed cards / admonitions */
+.md-typeset .admonition, 
+.md-typeset details {
+  border-radius: 8px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06) !important;
+  border-left-width: 4px !important;
+}
+
+/* Premium code block styling */
+.md-typeset pre {
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Smooth color/background transitions */
+body, 
+.md-header, 
+.md-footer,
+.md-sidebar, 
+.md-nav__link, 
+.md-tabs__link,
+.md-social__link,
+.md-search__form {
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              color 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+              padding 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Glassmorphism Header / Navbar */
+[data-md-color-scheme="slate"] .md-header {
+  background-color: rgba(26, 27, 38, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-md-color-scheme="default"] .md-header {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Glassmorphism Header Tabs */
+[data-md-color-scheme="slate"] .md-tabs {
+  background-color: rgba(26, 27, 38, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-md-color-scheme="default"] .md-tabs {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Premium Footer Background Gradient */
+[data-md-color-scheme="slate"] .md-footer {
+  background-color: #12131a !important;
+  background-image: linear-gradient(180deg, rgba(22, 23, 34, 0.8), rgba(14, 15, 21, 0.95)) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-md-color-scheme="default"] .md-footer {
+  background-color: #f5f6fa !important;
+  background-image: linear-gradient(180deg, rgba(248, 249, 252, 0.8), rgba(241, 243, 247, 0.95)) !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Navigation Tabs Hover Underline Glow */
+.md-tabs__link {
+  position: relative;
+}
+
+.md-tabs__link::after {
+  content: '';
+  position: absolute;
+  width: 0%;
+  height: 2px;
+  bottom: 0;
+  left: 0;
+  background-color: var(--md-accent-fg-color);
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.md-tabs__link:hover::after {
+  width: 100%;
+}
+
+/* Sidebar Links Slide Hover effect */
+.md-nav__link:not(.md-nav__link--active):hover {
+  color: var(--md-accent-fg-color) !important;
+  padding-left: 18px !important;
+}
+
+/* Search Bar Transition & Glow */
+.md-search__form {
+  border-radius: 20px !important;
+}
+
+.md-search__form:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 0 14px rgba(121, 134, 203, 0.25) !important;
+}
+
+[data-md-color-scheme="default"] .md-search__form:hover {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 0 0 14px rgba(63, 81, 181, 0.2) !important;
+}
+
+/* Social Icon hover scale & glow */
+.md-social__link:hover {
+  transform: scale(1.22);
+  color: var(--md-accent-fg-color) !important;
+  filter: drop-shadow(0 0 6px var(--md-accent-fg-color));
+}
+
+/* Custom modern scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(121, 134, 203, 0.35);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(121, 134, 203, 0.65);
+}
+
+/* Premium active sidebar item indicators */
+.md-nav__link--active {
+  font-weight: 700 !important;
+  color: var(--md-accent-fg-color) !important;
+  border-left: 2px solid var(--md-accent-fg-color);
+  padding-left: 14px !important;
+  margin-left: -12px;
+}

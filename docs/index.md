@@ -1,14 +1,8 @@
 ---
 title: Siyarix Documentation - AI-Native Cybersecurity Orchestration Platform
-description: Welcome to the official Siyarix documentation. Siyarix is an AI-native cybersecurity operations platform that acts as an intelligent co-pilot to orchestrate security tools, parse outputs, and automate workflows in plain English.
-tags:
-  - Welcome
-  - Getting Started
-  - Introduction
----
 
 > [!NOTE]
-> 👋 **Welcome to Siyarix!** This is a personal passion project built by a single developer. It's currently under active development and growing fast. Expect rough edges, but lots of love! ❤️
+> 👋 **Welcome to Siyarix!** It's currently under active development and growing fast. Expect rough edges, but lots of love! ❤️
 
 # 📚 Siyarix Documentation (v1.0.0)
 

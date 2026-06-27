@@ -13,19 +13,41 @@ theme:
   logo: assets/logo.png
   favicon: assets/favicon.png
   palette:
-    - scheme: slate
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
       primary: indigo
       accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Outfit
+    code: JetBrains Mono
   features:
+    - navigation.instant
+    - navigation.tracking
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
     - navigation.top
     - navigation.indexes
     - navigation.tags
+    - navigation.expand
+    - toc.follow
     - search.suggest
     - search.highlight
     - search.share
     - content.code.copy
+    - content.code.annotate
     - content.action.edit
     - content.tooltips
   icon:
@@ -63,6 +85,9 @@ plugins:
   - search:
       separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)'
   - tags
+
+extra_css:
+  - stylesheets/extra.css
 
 extra:
   social:

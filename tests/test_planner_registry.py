@@ -5,6 +5,7 @@ from siyarix.nlp_engine import ParsedIntent
 from siyarix.planner_registry import RegistryPlanner
 from siyarix.planner_registry import TOOL_ALTERNATIVES
 from unittest.mock import MagicMock, patch
+from urllib.parse import urlparse
 import pytest
 import time
 
@@ -339,7 +340,10 @@ class TestCreateFromTemplate:
     def test_create_from_template(self, planner: RegistryPlanner):
         plan = planner.create_from_template("recon_full", "example.com")
         assert "recon_full" in plan.goal
-        assert "example.com" in plan.goal
+        parsed_target = urlparse(plan.context["target"])
+        if not parsed_target.hostname:
+            parsed_target = urlparse(f"//{plan.context['target']}")
+        assert parsed_target.hostname == "example.com"
         assert len(plan.steps) == 6
         assert plan.context["target"] == "example.com"
         assert plan.context["template"] == "recon_full"

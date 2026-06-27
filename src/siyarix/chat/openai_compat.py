@@ -178,18 +178,21 @@ def detect_compat(provider: str, base_url: str) -> OpenAICompat:
     parsed_host = urlparse(effective_base).hostname or ""
 
     # ── provider identification (name + URL patterns) ──
-    is_zai = provider == "zai" or "api.z.ai" in parsed_host
+    def _host_match(host: str, domain: str) -> bool:
+        return host == domain or host.endswith("." + domain)
+
+    is_zai = provider == "zai" or _host_match(parsed_host, "api.z.ai")
     is_together = (
         provider == "together"
-        or "api.together.xyz" in parsed_host
-        or "api.together.ai" in parsed_host
+        or _host_match(parsed_host, "api.together.xyz")
+        or _host_match(parsed_host, "api.together.ai")
     )
-    is_moonshot = provider == "moonshot" or "api.moonshot." in parsed_host
-    is_grok = provider == "xai" or "api.x.ai" in parsed_host
-    is_deepseek = provider == "deepseek" or "deepseek.com" in parsed_host
-    is_cerebras = provider == "cerebras" or "cerebras.ai" in parsed_host
-    is_openrouter = provider == "openrouter" or "openrouter.ai" in parsed_host
-    is_cloudflare = "gateway.ai.cloudflare.com" in parsed_host
+    is_moonshot = provider == "moonshot" or _host_match(parsed_host, "api.moonshot.ai")
+    is_grok = provider == "xai" or _host_match(parsed_host, "api.x.ai")
+    is_deepseek = provider == "deepseek" or _host_match(parsed_host, "api.deepseek.com")
+    is_cerebras = provider == "cerebras" or _host_match(parsed_host, "cerebras.ai")
+    is_openrouter = provider == "openrouter" or _host_match(parsed_host, "openrouter.ai")
+    is_cloudflare = _host_match(parsed_host, "gateway.ai.cloudflare.com")
 
     is_non_standard = any(
         [
@@ -200,9 +203,9 @@ def detect_compat(provider: str, base_url: str) -> OpenAICompat:
             is_moonshot,
             is_deepseek,
             provider == "opencode-zen",
-            "opencode.ai" in parsed_host,
+            _host_match(parsed_host, "opencode.ai"),
             is_cloudflare,
-            "chutes.ai" in parsed_host,
+            _host_match(parsed_host, "chutes.ai"),
         ]
     )
 
@@ -457,7 +460,7 @@ async def _gemini_generate(
     user_prompt: str,
     history: list[dict] | None = None,
     *,
-    max_tokens: int = 2000,
+    max_tokens: int = 9999,
     temperature: float = 0.3,
     tools: list[dict] | None = None,
     **kwargs: Any,
@@ -506,7 +509,7 @@ async def _gemini_stream(
     user_prompt: str,
     history: list[dict] | None = None,
     *,
-    max_tokens: int = 2000,
+    max_tokens: int = 9999,
     temperature: float = 0.3,
     tools: list[dict] | None = None,
     **kwargs: Any,
@@ -560,7 +563,7 @@ async def openai_stream(
     user_prompt: str,
     history: list[dict] | None = None,
     *,
-    max_tokens: int = 2000,
+    max_tokens: int = 9999,
     temperature: float = 0.3,
     compat: OpenAICompat | None = None,
     tools: list[dict] | None = None,
@@ -603,7 +606,7 @@ async def openai_complete(
     user_prompt: str,
     history: list[dict] | None = None,
     *,
-    max_tokens: int = 2000,
+    max_tokens: int = 9999,
     temperature: float = 0.3,
     compat: OpenAICompat | None = None,
     tools: list[dict] | None = None,

@@ -861,10 +861,11 @@ class CommandHandlersMixin:
         console.print(table)
 
     def _cmd_reset(self, _: str) -> None:
-        self._mode = "integrated"
-        self._session.mode = "integrated"
+        default_mode = self._settings.get("default_mode") or "integrated"
+        self._mode = default_mode
+        self._session.mode = default_mode
         self._session.target = ""
-        console.print("[green]✓ Reset mode to integrated and cleared target.[/green]")
+        console.print(f"[green]✓ Reset mode to {default_mode} and cleared target.[/green]")
 
     def _cmd_target(self, args: str) -> None:
         if not args:
@@ -912,7 +913,6 @@ class CommandHandlersMixin:
             console.print(f"[red]Invalid mode: {args}. Valid modes: {', '.join(core_modes)}[/red]")
             return
 
-        self._mode = args
         self._mode = args
         self._session.mode = args
 

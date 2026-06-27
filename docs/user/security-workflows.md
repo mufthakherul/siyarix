@@ -135,8 +135,8 @@ siyarix compliance run SOC2 10.0.0.1
 siyarix report generate --format html --output compliance-report.html
 ```
 
-> [!NOTE]
-> Siyarix is building support for major frameworks including: **SOC 2, ISO 27001, NIST 800-53, GDPR, HIPAA, and PCI-DSS**.
+!!! note
+    Siyarix is building support for major frameworks including: **SOC 2, ISO 27001, NIST 800-53, GDPR, HIPAA, and PCI-DSS**.
 
 ---
 

@@ -6,8 +6,8 @@ Thank you for your interest in contributing to Siyarix! 🎉 I started this as a
 
 Please read and follow these guidelines to help keep things organized.
 
-> [!NOTE]
-> I welcome all kinds of contributions! If you're planning a major change, please open an issue first so we can discuss the design before you spend time coding.
+!!! note
+    I welcome all kinds of contributions! If you're planning a major change, please open an issue first so we can discuss the design before you spend time coding.
 
 ## 🧰 Prerequisites
 
@@ -106,11 +106,10 @@ I try to follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 **Common Types:** `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `style`, `ci`, `chore`, `security`.
 
-> [!IMPORTANT]
-> **DCO Sign-off Required!**
-> Please include a `Signed-off-by` trailer certifying the [Developer Certificate of Origin](https://developercertificate.org/).
-> You can do this by adding the `-s` flag to your commit command:
-> `git commit -s -m "feat(core): add new feature"`
+!!! info "DCO Sign-off Required!"
+    Please include a `Signed-off-by` trailer certifying the [Developer Certificate of Origin](https://developercertificate.org/).
+    You can do this by adding the `-s` flag to your commit command:
+    `git commit -s -m "feat(core): add new feature"`
 
 ## 🔍 Pull Request Process
 
@@ -151,9 +150,8 @@ Siyarix supports loading plugins from `~/.siyarix/plugins/`. When contributing c
 
 ## 🔐 Security Contributions
 
-> [!CAUTION]
-> **Please don't report security vulnerabilities via public GitHub issues!**
-> Follow the [Security Policy](../security/vulnerability-reporting.md) for responsible disclosure.
+!!! danger "Please don't report security vulnerabilities via public GitHub issues!"
+    Follow the [Security Policy](../security/vulnerability-reporting.md) for responsible disclosure.
 
 - Standard PRs are welcome for hardening!
 
@@ -171,7 +169,7 @@ By contributing, you agree your contributions will be licensed under the **AGPL-
   # SPDX-License-Identifier: AGPL-3.0-or-later
   ```
 
-> [!NOTE]
-> If you are contributing on behalf of a company, please ensure you have authorization to contribute under the AGPL-3.0-or-later license.
+!!! note
+    If you are contributing on behalf of a company, please ensure you have authorization to contribute under the AGPL-3.0-or-later license.
 
 Third-party plugins placed in `~/.siyarix/plugins/` are exempt from AGPL requirements. See our [Plugin Exception](../legal/plugin-exception.md).

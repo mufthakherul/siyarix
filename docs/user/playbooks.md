@@ -1,5 +1,5 @@
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
 
 # 📓 Playbook Engine
 
@@ -18,8 +18,8 @@ A playbook is made up of individual steps. Currently, Siyarix supports two main 
 | `tool` | Executes a specific security tool from the Siyarix tool registry. (This is the default type). |
 | `agent` | Delegates a complex, sub-goal directly to the autonomous AI agent. |
 
-> [!NOTE]
-> We are actively working on expanding the step types! Look out for conditional branching, loops, and delays in future releases.
+!!! note
+    We are actively working on expanding the step types! Look out for conditional branching, loops, and delays in future releases.
 
 ---
 
@@ -91,8 +91,8 @@ You can easily override these variables at runtime using the `--var` flag:
 siyarix playbook run my-playbook.yml --var target=10.0.0.1 --var port_range=1-5000
 ```
 
-> [!TIP]
-> You can also access safe environment variables directly in your playbook using `{{env.HOME}}`, `{{env.PATH}}`, etc.
+!!! tip
+    You can also access safe environment variables directly in your playbook using `{{env.HOME}}`, `{{env.PATH}}`, etc.
 
 ---
 

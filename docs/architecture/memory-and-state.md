@@ -1,7 +1,7 @@
 # 🧠 Memory & State Management
 
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
 
 
 Welcome to the heart of Siyarix! This document outlines our multi-layered memory and state management system. We designed this architecture to flawlessly handle everything from lightning-fast in-memory processing to reliable SQLite persistence and portable file-based exports.
@@ -21,8 +21,8 @@ At a high level, the system comprises several specialized components:
 
 Siyarix categorizes memory into three distinct, robust layers.
 
-> [!NOTE]
-> This layered approach ensures that fast, ephemeral data lives in RAM, critical operations persist safely to disk, and shareable insights can be effortlessly exported.
+!!! note
+    This layered approach ensures that fast, ephemeral data lives in RAM, critical operations persist safely to disk, and shareable insights can be effortlessly exported.
 
 ```text
 ┌────────────────────────────────────────────────────────────┐
@@ -76,8 +76,8 @@ Siyarix categorizes memory into three distinct, robust layers.
 
 Located at `siyarix/knowledge_graph.py`, the **KnowledgeGraph** is a dynamic, in-memory directed graph. It maps out all discovered infrastructure entities and their intricate relationships.
 
-> [!TIP]
-> Think of this as the "brain's map" of the target environment. It allows Siyarix to understand that a specific vulnerability lives on a service, which in turn runs on a particular host.
+!!! tip
+    Think of this as the "brain's map" of the target environment. It allows Siyarix to understand that a specific vulnerability lives on a service, which in turn runs on a particular host.
 
 ### 🟢 Node Types
 
@@ -115,8 +115,8 @@ Located at `siyarix/knowledge_graph.py`, the **KnowledgeGraph** is a dynamic, in
 
 Located at `siyarix/memory.py`, the **MemoryManager** handles our semantic, long-term memory utilizing vector embeddings.
 
-> [!IMPORTANT]
-> Semantic memory empowers Siyarix to recall past learnings contextually, rather than relying on exact keyword matches.
+!!! info
+    Semantic memory empowers Siyarix to recall past learnings contextually, rather than relying on exact keyword matches.
 
 ### 💡 Core Methods
 
@@ -171,8 +171,8 @@ context = context.build_context(
 
 When context gets too large, the `CompactionEngine` (`siyarix/compaction.py`) steps in to aggressively yet safely compress the payload.
 
-> [!WARNING]
-> Failing to compress context effectively can lead to LLM truncation errors and hallucinations. The CompactionEngine prevents this.
+!!! warning
+    Failing to compress context effectively can lead to LLM truncation errors and hallucinations. The CompactionEngine prevents this.
 
 ```python
 compactor = CompactionEngine()
@@ -252,8 +252,8 @@ path = kernel.save(session)
 restored = kernel.load(session_id)
 ```
 
-> [!NOTE]
-> Unlike other modules that use SQLite, the SessionKernel utilizes JSON-based persistence to easily track operation cards, state, mode, risk tier, and related artifacts.
+!!! note
+    Unlike other modules that use SQLite, the SessionKernel utilizes JSON-based persistence to easily track operation cards, state, mode, risk tier, and related artifacts.
 
 - Supports distinct persistence tiers: `EPHEMERAL`, `WORKSPACE`, and `ORG_SHARED`.
 
@@ -284,8 +284,8 @@ stats = cache.get_stats()
 
 Located at `siyarix/learning_system.py`, the **Continuous Learning System** is how Siyarix gets smarter over time. It organically acquires new skills by observing operator behavior.
 
-> [!CAUTION]
-> **Privacy First Guarantee**: Real targets are NEVER stored. Every hostname, IP, URL, email, or hash is strictly replaced with a `{target}` placeholder *before* any data is saved.
+!!! danger
+    **Privacy First Guarantee**: Real targets are NEVER stored. Every hostname, IP, URL, email, or hash is strictly replaced with a `{target}` placeholder *before* any data is saved.
 
 ### 🏗️ Key Design Principles
 

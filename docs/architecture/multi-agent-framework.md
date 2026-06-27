@@ -1,15 +1,14 @@
 # 🤖 Multi-Agent Framework (Experimental / Stub)
 
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
 
 
 Welcome to the **Multi-Agent Framework** in Siyarix! 👋 This section provides a foundational stub implementation for our upcoming multi-agent collaboration features.
 
-> [!WARNING]
-> **Status: EXPERIMENTAL — STUB IMPLEMENTATION**
->
-> This framework is currently a placeholder infrastructure intended for future development. It is **not yet production-ready** and should not be relied upon for operational use. All agents currently return mock data and are not connected to real tool execution.
+!!! warning "Status: EXPERIMENTAL — STUB IMPLEMENTATION"
+    
+    This framework is currently a placeholder infrastructure intended for future development. It is **not yet production-ready** and should not be relied upon for operational use. All agents currently return mock data and are not connected to real tool execution.
 
 ---
 
@@ -28,8 +27,8 @@ graph TD
     D -.->|mock: findings, summary, report| D
 ```
 
-> [!NOTE]
-> Currently, all agents simulate execution by sleeping for 2 seconds and returning hardcoded mock data.
+!!! note
+    Currently, all agents simulate execution by sleeping for 2 seconds and returning hardcoded mock data.
 
 ---
 
@@ -44,8 +43,8 @@ router = SwarmRouter(provider="openai")
 results = await router.run(goal="Scan 10.0.0.1 for vulnerabilities")
 ```
 
-> [!TIP]
-> The `run` method returns a list of `SwarmTask` results from each agent involved in achieving the goal.
+!!! tip
+    The `run` method returns a list of `SwarmTask` results from each agent involved in achieving the goal.
 
 ### 🕵️ `SpecializedAgent` (Base Class)
 
@@ -127,8 +126,8 @@ The `chat/stubs.py` module houses extra stubs used specifically for CLI chat dem
 - 🤝 **SimulatedCollaboration**: Provides stubs to demonstrate multi-agent collaboration scenarios.
 - 🎯 **SimulatedFindings**: Contains pre-defined mock findings used for predictable testing.
 
-> [!CAUTION]
-> These stubs are meant **exclusively** for development and demonstration purposes. They should never be used in production execution.
+!!! danger
+    These stubs are meant **exclusively** for development and demonstration purposes. They should never be used in production execution.
 
 ---
 
@@ -180,8 +179,8 @@ class AgentCore:
         return await self.swarm.run(goal)
 ```
 
-> [!IMPORTANT]
-> The Swarm router is injected from the outside. `AgentCore` does **not** create a `SwarmRouter` by default, ensuring the system remains lightweight when multi-agent features are not required.
+!!! info
+    The Swarm router is injected from the outside. `AgentCore` does **not** create a `SwarmRouter` by default, ensuring the system remains lightweight when multi-agent features are not required.
 
 ---
 

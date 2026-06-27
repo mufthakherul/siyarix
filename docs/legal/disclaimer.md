@@ -1,7 +1,7 @@
 # ⚠️ Legal Disclaimer
 
-> [!CAUTION]
-> Siyarix is provided without warranty, exactly as specified by the AGPL-3.0 license. Please read this disclaimer carefully before use.
+!!! danger
+    Siyarix is provided without warranty, exactly as specified by the AGPL-3.0 license. Please read this disclaimer carefully before use.
 
 ## 🛑 No Warranty
 

@@ -2,8 +2,8 @@
 
 Welcome to the build guide! Siyarix uses **hatchling** as its build system. This document covers building from source, packaging, and deploying. Since this is a growing personal project, the build scripts are designed to be as simple and useful as possible.
 
-> [!NOTE]
-> If you just want to install and use Siyarix, head over to the main installation guide. This page is primarily for developers helping out with the code!
+!!! note
+    If you just want to install and use Siyarix, head over to the main installation guide. This page is primarily for developers helping out with the code!
 
 ## 🛠️ Build System
 
@@ -31,12 +31,11 @@ python -m build
 # dist/siyarix-1.0.0.tar.gz
 ```
 
-> [!TIP]
-> **Development Installation**
-> If you are actively developing Siyarix, install it in editable mode:
-> ```bash
-> pip install -e ".[all,cli,siem,dev]"
-> ```
+!!! tip "Development Installation"
+    If you are actively developing Siyarix, install it in editable mode:
+    ```bash
+    pip install -e ".[all,cli,siem,dev]"
+    ```
 
 ## 🚀 Publishing to PyPI
 
@@ -134,8 +133,8 @@ I've wrapped common operations in a Makefile:
 | `make build` | Build the sdist and wheel |
 | `make docs` | Build the documentation |
 
-> [!CAUTION]
-> Always try to run `make test`, `make lint`, and `make typecheck` before pushing code.
+!!! danger
+    Always try to run `make test`, `make lint`, and `make typecheck` before pushing code.
 
 ## ✅ Publishing Checklist
 

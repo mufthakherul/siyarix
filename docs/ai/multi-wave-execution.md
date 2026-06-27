@@ -1,15 +1,15 @@
 # 🌊 Multi-Wave Execution & Live Streaming
 
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
 
 
 Siyarix leverages a sophisticated, **multi-wave execution loop** to power its iterative, LLM-driven workflows. Instead of merely firing off a single batch of commands and hoping for the best, Siyarix operates in sequential "waves."
 
 After each wave, the LLM analyzes the results to intelligently determine the next steps. This progressive approach unlocks truly autonomous, multi-step security operations! Plus, context is seamlessly carried over between waves, empowering the LLM to learn and build upon its previous findings as it works through complex tasks.
 
-> [!NOTE]
-> Think of a wave as a single, complete thought process: *Plan ➡️ Execute ➡️ Analyze ➡️ Repeat.*
+!!! note
+    Think of a wave as a single, complete thought process: *Plan ➡️ Execute ➡️ Analyze ➡️ Repeat.*
 
 ---
 
@@ -27,8 +27,8 @@ User Request
                       ↳ Final Response Delivered (capped at a configurable max waves)
 ```
 
-> [!TIP]
-> This continuous feedback loop ensures that every subsequent action is deeply informed by real-time execution results.
+!!! tip
+    This continuous feedback loop ensures that every subsequent action is deeply informed by real-time execution results.
 
 ---
 
@@ -80,8 +80,8 @@ for wave in range(max_waves):
         plan = None
 ```
 
-> [!IMPORTANT]
-> The orchestrator ensures that Siyarix does not get stuck in an endless loop. It sets a hard limit on waves (`max_waves`, defaulting to 12) and explicitly instructs the LLM to prefer early summarization over unnecessary probing.
+!!! info
+    The orchestrator ensures that Siyarix does not get stuck in an endless loop. It sets a hard limit on waves (`max_waves`, defaulting to 12) and explicitly instructs the LLM to prefer early summarization over unnecessary probing.
 
 ### 🧠 Memory & Context Carry-Over
 
@@ -214,8 +214,8 @@ You can easily manage the review state via built-in slash commands:
 /command         # Check the current state of the review gate
 ```
 
-> [!WARNING]
-> Using `/command off` gives the LLM full autonomy over shell execution. Ensure you are operating in a safe environment before disabling reviews!
+!!! warning
+    Using `/command off` gives the LLM full autonomy over shell execution. Ensure you are operating in a safe environment before disabling reviews!
 
 ---
 
@@ -247,8 +247,8 @@ In Integrated Mode, Siyarix features an intelligent optimization: **Continuous L
 
 Before the LLM even begins its initial planning phase, the CLS may automatically execute cached, high-confidence skills (those with ≥ 80% confidence). By gathering this rich base context *before* Wave 1, Siyarix feeds a much more detailed picture to the LLM's first prompt.
 
-> [!TIP]
-> CLS Pre-Execution dramatically reduces the total number of waves needed to complete a task, significantly speeding up complex operations!
+!!! tip
+    CLS Pre-Execution dramatically reduces the total number of waves needed to complete a task, significantly speeding up complex operations!
 
 ---
 
@@ -267,8 +267,8 @@ Before any execution occurs, Siyarix passes the LLM's plan through the `Adversar
 └──────────────────────────────────────────────────────┘
 ```
 
-> [!CAUTION]
-> If an adversarial review flags a critical issue, Siyarix will aggressively halt or demand explicit user intervention.
+!!! danger
+    If an adversarial review flags a critical issue, Siyarix will aggressively halt or demand explicit user intervention.
 
 ---
 

@@ -1,7 +1,7 @@
 # 🤖 AI Agent Pipeline Architecture
 
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
 
 
 Welcome to the heart of Siyarix! The AI agent pipeline is the central nervous system that takes user inputs and transforms them into intelligent, goal-driven actions.
@@ -32,8 +32,8 @@ flowchart TD
     ORA -->|Autonomous| ORA
 ```
 
-> [!NOTE]
-> The diagram above simplifies the flow, but in reality, the `PermissionGate` and `DLP Engine` act as a unified security checkpoint, not sequential steps.
+!!! note
+    The diagram above simplifies the flow, but in reality, the `PermissionGate` and `DLP Engine` act as a unified security checkpoint, not sequential steps.
 
 ---
 
@@ -64,8 +64,8 @@ Here's what goes into the context:
 - **Tool Availability:** What tools can be used right now.
 - **Session Metadata:** Information about the target, mode, and previous findings.
 
-> [!TIP]
-> To keep things fast and within token limits, the **CompactionEngine** actively compresses and optimizes this context before it reaches the planner.
+!!! tip
+    To keep things fast and within token limits, the **CompactionEngine** actively compresses and optimizes this context before it reaches the planner.
 
 ---
 
@@ -98,8 +98,8 @@ Security is our top priority. Before any plan is executed, every single step mus
 - 🟡 **REVIEW:** The action is risky and requires manual user confirmation.
 - 🔴 **BLOCK:** The action violates core safety rules and is permanently denied and logged.
 
-> [!IMPORTANT]
-> If you are running in `strict` safety mode, many actions will default to `REVIEW` or `BLOCK` to ensure maximum safety.
+!!! info
+    If you are running in `strict` safety mode, many actions will default to `REVIEW` or `BLOCK` to ensure maximum safety.
 
 ---
 
@@ -124,8 +124,8 @@ We use two main executors:
 
 When running in `AUTONOMOUS` mode, the agent doesn't just run a script and stop. It thinks, adapts, and reacts using the **Observe-Reason-Act** loop.
 
-> [!NOTE]
-> Unlike traditional architectures, reflection and learning are built natively into this loop rather than existing as a separate stage.
+!!! note
+    Unlike traditional architectures, reflection and learning are built natively into this loop rather than existing as a separate stage.
 
 1. 👁️ **Observe:** Collects environment state, tool outputs, scan results, and any errors.
 2. 🧠 **Reason:** Analyzes these findings, updates the Knowledge Graph, and uses the LLM to decide the absolute best next move.
@@ -158,8 +158,8 @@ To prevent runaway costs or endless loops, the pipeline enforces strict session-
 | Max tokens per session | 100,000 | `SIYARIX_MAX_TOKENS` |
 | Max cost per session | $2.00 | `SIYARIX_MAX_COST_USD` |
 
-> [!WARNING]
-> If the limit is reached, the agent will throw a `BudgetExceededError` and immediately pause operations. You can adjust these limits via your environment variables.
+!!! warning
+    If the limit is reached, the agent will throw a `BudgetExceededError` and immediately pause operations. You can adjust these limits via your environment variables.
 
 ---
 

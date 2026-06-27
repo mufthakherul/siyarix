@@ -72,8 +72,8 @@ pip install "siyarix[all]"
 
 If you prefer using your operating system's native package manager, we support those too!
 
-> [!NOTE]
-> *Note for new GitHub Organization: Remember to use the updated `siyarix/siyarix` repository URLs if you are pulling directly from source!*
+!!! note
+    *Note for new GitHub Organization: Remember to use the updated `siyarix/siyarix` repository URLs if you are pulling directly from source!*
 
 ### macOS (Homebrew)
 ```bash

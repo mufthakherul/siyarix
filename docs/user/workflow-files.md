@@ -2,8 +2,8 @@
 
 At the heart of Siyarix is the `WorkflowEngine`, a powerful system that uses Directed Acyclic Graphs (DAGs) to execute complex, multi-step processes. Workflows allow you to define dependencies between tasks, ensuring that steps run in the correct order—and in parallel when they don't depend on each other!
 
-> [!NOTE]
-> Workflow files are executed programmatically via the `WorkflowEngine` API or through the primary CLI command: `siyarix playbook run`. (There is no dedicated `siyarix workflow run` command).
+!!! note
+    Workflow files are executed programmatically via the `WorkflowEngine` API or through the primary CLI command: `siyarix playbook run`. (There is no dedicated `siyarix workflow run` command).
 
 ---
 

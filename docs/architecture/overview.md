@@ -9,14 +9,14 @@ tags:
 
 # 🏗️ System Architecture Overview
 
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
 
 
 Siyarix v1.0.0 is an AI-native cybersecurity operations platform that acts as the intelligent bridge between natural language intent and deterministic tool execution. Its architecture is built around a robust layered orchestration model, where the central **AgentCore** intelligently dispatches tasks across four distinct operational modes. It routes user intent through a series of planners, security gates, executors, and persistence layers, ensuring safe, efficient, and precise execution.
 
-> [!NOTE]
-> This architecture is designed from the ground up to be resilient, modular, and highly adaptable to both cloud and offline (air-gapped) environments.
+!!! note
+    This architecture is designed from the ground up to be resilient, modular, and highly adaptable to both cloud and offline (air-gapped) environments.
 
 ---
 
@@ -24,8 +24,8 @@ Siyarix v1.0.0 is an AI-native cybersecurity operations platform that acts as th
 
 *The following diagram illustrates the flow of data and control across Siyarix's primary architectural layers.*
 
-> [!TIP]
-> **Reading the Graph:** The flow generally moves from the top (Entry Layer) down through orchestration, planning, provider integration, security validation, and finally execution. Follow the arrows to trace how an initial command translates into action!
+!!! tip
+    **Reading the Graph:** The flow generally moves from the top (Entry Layer) down through orchestration, planning, provider integration, security validation, and finally execution. Follow the arrows to trace how an initial command translates into action!
 
 ```mermaid
 graph LR
@@ -356,8 +356,8 @@ Our foundation is built upon these fundamental pillars to ensure maximum reliabi
 
 The `AgentCore` module (`siyarix/core/__init__.py`) acts as the "brain" and central dispatcher of the platform. It operates dynamically in one of four distinct modes depending on the task's requirements:
 
-> [!IMPORTANT]
-> The orchestrator automatically balances autonomy with safety. The mode selected defines how much control the AI has versus the heuristic engine, and how many permission gates are enforced.
+!!! info
+    The orchestrator automatically balances autonomy with safety. The mode selected defines how much control the AI has versus the heuristic engine, and how many permission gates are enforced.
 
 | Mode | Planner Used | Permission Gate | Autonomy Level | Primary Use Case |
 |------|--------------|-----------------|----------------|------------------|
@@ -372,8 +372,8 @@ The `AgentCore` module (`siyarix/core/__init__.py`) acts as the "brain" and cent
 
 Wondering how a simple command turns into a complex security operation? Here is the lifecycle of a request:
 
-> [!NOTE]
-> `User Input` ➡️ `IntentRouter` ➡️ `Context Manager` ➡️ `Planner Router` ➡️ `Permission Gate` ➡️ `DLP` ➡️ `ExecutionEngine` ➡️ `Results Pipeline`
+!!! note
+    `User Input` ➡️ `IntentRouter` ➡️ `Context Manager` ➡️ `Planner Router` ➡️ `Permission Gate` ➡️ `DLP` ➡️ `ExecutionEngine` ➡️ `Results Pipeline`
 
 1. **User Input** arrives via your choice of interface: CLI, interactive REPL, pipeline, or batch script.
 2. **Intent Classification:** The `IntentRouter` classifies the input using swift keyword matching (via `compat.py`).
@@ -391,8 +391,8 @@ Wondering how a simple command turns into a complex security operation? Here is 
 
 Siyarix is composed of numerous modular, specialized subsystems. Here’s a breakdown of the critical components doing the heavy lifting:
 
-> [!TIP]
-> You can find most of these subsystems isolated into their own dedicated modules within the codebase, ensuring clean separation of concerns.
+!!! tip
+    You can find most of these subsystems isolated into their own dedicated modules within the codebase, ensuring clean separation of concerns.
 
 | Subsystem | Core Responsibility |
 |-----------|---------------------|
@@ -453,8 +453,8 @@ Siyarix is composed of numerous modular, specialized subsystems. Here’s a brea
 
 Understanding how the primary components interact is crucial. Here is a simplified relationship graph:
 
-> [!WARNING]
-> While modular, modifying interactions between the Core Orchestrator and the Execution Gateways should be done with extreme care to maintain security boundaries.
+!!! warning
+    While modular, modifying interactions between the Core Orchestrator and the Execution Gateways should be done with extreme care to maintain security boundaries.
 
 ```text
                  ┌─────────────────────────────┐

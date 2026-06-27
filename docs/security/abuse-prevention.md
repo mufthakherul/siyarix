@@ -29,8 +29,8 @@ Think of it like a multi-layered cake:
 └─────────────────────────────────────────┘
 ```
 
-> [!TIP]
-> These layers mostly operate automatically, so you don't need to configure much out of the box.
+!!! tip
+    These layers mostly operate automatically, so you don't need to configure much out of the box.
 
 ## 1. 🛑 Danger Analysis
 
@@ -60,8 +60,8 @@ The gate returns `ALLOW`, `FLAG` (asking you), or `DENY`.
 
 To help avoid accidentally sending your local secrets to cloud AI providers, the `dlp.py` engine tries to mask basic patterns (like SSH keys or AWS keys) locally before the prompt is sent.
 
-> [!IMPORTANT]
-> The DLP is a helpful safety net, but always be careful what you type into chat prompts!
+!!! info
+    The DLP is a helpful safety net, but always be careful what you type into chat prompts!
 
 ## 4. 🚨 Emergency Stop (Kill Switch)
 

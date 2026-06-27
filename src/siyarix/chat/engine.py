@@ -585,7 +585,7 @@ class LLMEngineMixin:
             f"Hello, {username}. Good {time_of_day}.\n\n"
             "I'm Siyarix — an open-source, AI-powered CLI assistant focused on cybersecurity. "
             "I am currently under active development.\n\n"
-            "My principal Path creator is Mufthakherul, but as an open-source project, "
+            "My principal PathMaker is Mufthakherul, but as an open-source project, "
             "maybe many developers from around the world contribute to building and improving me. "
             "I am genuinely grateful to every contributor who helps shape me "
             "and keeps me relevant in the modern era.\n\n"

@@ -43,17 +43,25 @@ You can run the setup again at any time with:
 [italic]Stay curious. Stay ethical.[/italic]"""
 
 ONLINE_PROVIDERS = [
-    ("openai", "OpenAI", "GPT-5 series, o-series"),
+    ("openai", "OpenAI", "GPT-5 series, o-series reasoning models"),
     ("anthropic", "Anthropic", "Claude Opus/Sonnet/Haiku"),
     ("gemini", "Google Gemini", "Gemini 2.0/2.5/2.5-Lite/3.0/3.1/3.1-Lite/3.5 series"),
-    ("groq", "Groq", "Llama, Mixtral — fast inference"),
+    ("groq", "Groq", "Llama, Mixtral — ultra-fast inference"),
     ("together", "Together AI", "Llama, DeepSeek, open models"),
-    ("openrouter", "OpenRouter", "Unified API for 200+ models"),
-    ("deepseek", "DeepSeek", "DeepSeek V4/V3 series"),
+    ("openrouter", "OpenRouter", "Unified API for 300+ models"),
+    ("deepseek", "DeepSeek", "DeepSeek V4/V3/Coder series"),
     ("xai", "xAI (Grok)", "Grok 4 series"),
-    ("mistral", "Mistral AI", "Mistral Large/Pixal"),
-    ("perplexity", "Perplexity", "Sonar models"),
-    ("azure", "Azure OpenAI", "GPT via Azure"),
+    ("mistral", "Mistral AI", "Mistral Large, Codestral, Pixtral"),
+    ("perplexity", "Perplexity", "Sonar online models with web search"),
+    ("cerebras", "Cerebras", "Ultra-fast inference on Cerebras hardware"),
+    ("fireworks", "Fireworks AI", "Llama, Kimi, Mixtral — fast open models"),
+    ("zai", "Z.AI (GLM)", "GLM-5, GLM-4 series"),
+    ("minimax", "MiniMax", "MiniMax M3 / MiniMax-Text series"),
+    ("moonshot", "Moonshot (Kimi)", "Kimi K2 series — long context"),
+    ("nvidia", "NVIDIA NIM", "Nemotron, Llama via NVIDIA cloud"),
+    ("opencode_zen", "OpenCode Zen", "DeepSeek-powered code generation"),
+    ("huggingface", "HuggingFace", "Custom HF Inference Endpoint"),
+    ("azure", "Azure OpenAI", "GPT via Microsoft Azure"),
 ]
 
 OFFLINE_PROVIDERS = [

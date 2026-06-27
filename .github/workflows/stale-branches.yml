@@ -13,7 +13,7 @@ jobs:
       contents: write
     steps:
       - name: Delete stale branches
-        uses: phntxx/delete-stale-branches@v7
+        uses: phntxx/delete-stale-branches@v7 # TODO: pin to SHA
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
           daysBeforeStale: 30

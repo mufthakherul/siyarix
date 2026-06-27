@@ -1,5 +1,7 @@
 name: "CodeQL Security Analysis"
 
+permissions: read-all
+
 on:
   push:
     branches: [ "main", "develop" ]

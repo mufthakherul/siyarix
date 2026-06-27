@@ -50,30 +50,92 @@ def categorize_tool(name: str) -> ToolCategory:
         except ValueError:
             pass
     mapping = {
+        # Port scanning / recon
         "nmap": ToolCategory.RECON,
         "masscan": ToolCategory.RECON,
+        "rustscan": ToolCategory.RECON,
+        "naabu": ToolCategory.RECON,
         "amass": ToolCategory.RECON,
         "subfinder": ToolCategory.RECON,
         "shodan": ToolCategory.RECON,
+        # Network tools
         "bettercap": ToolCategory.NETWORK,
         "ettercap": ToolCategory.NETWORK,
+        "aircrack-ng": ToolCategory.NETWORK,
+        "responder": ToolCategory.NETWORK,
+        "crackmapexec": ToolCategory.NETWORK,
+        "impacket": ToolCategory.NETWORK,
+        "smbmap": ToolCategory.NETWORK,
+        "enum4linux": ToolCategory.NETWORK,
+        # Vulnerability scanning
         "nikto": ToolCategory.SCANNING,
         "nuclei": ToolCategory.SCANNING,
         "wpscan": ToolCategory.SCANNING,
-        "sqlmap": ToolCategory.SCANNING,
+        "wapiti": ToolCategory.SCANNING,
+        "arachni": ToolCategory.SCANNING,
+        # Web fuzzing / enumeration
         "gobuster": ToolCategory.SCANNING,
         "ffuf": ToolCategory.SCANNING,
+        "dirb": ToolCategory.SCANNING,
+        "dirsearch": ToolCategory.SCANNING,
+        "feroxbuster": ToolCategory.SCANNING,
+        # Exploitation
+        "sqlmap": ToolCategory.SCANNING,
         "hydra": ToolCategory.EXPLOITATION,
+        "metasploit": ToolCategory.EXPLOITATION,
+        "commix": ToolCategory.EXPLOITATION,
+        "xsstrike": ToolCategory.EXPLOITATION,
+        "dalfox": ToolCategory.EXPLOITATION,
+        # Password cracking
         "hashcat": ToolCategory.CRYPTO,
         "john": ToolCategory.CRYPTO,
-        "aircrack-ng": ToolCategory.NETWORK,
+        # Web application testing
         "burpsuite": ToolCategory.WEB,
         "zaproxy": ToolCategory.WEB,
+        "whatweb": ToolCategory.WEB,
+        "wafw00f": ToolCategory.WEB,
+        # DNS utilities
         "dig": ToolCategory.RECON,
         "whois": ToolCategory.RECON,
+        "dnsrecon": ToolCategory.RECON,
+        "dnsenum": ToolCategory.RECON,
+        # General utilities
         "curl": ToolCategory.UTILITY,
-        "whatweb": ToolCategory.WEB,
         "wget": ToolCategory.UTILITY,
+        # Forensics tools
+        "volatility": ToolCategory.FORENSICS,
+        "yara": ToolCategory.FORENSICS,
+        "exiftool": ToolCategory.FORENSICS,
+        "pypykatz": ToolCategory.FORENSICS,
+        "mimikatz": ToolCategory.FORENSICS,
+        "sleuthkit": ToolCategory.FORENSICS,
+        "autopsy": ToolCategory.FORENSICS,
+        "foremost": ToolCategory.FORENSICS,
+        "binwalk": ToolCategory.FORENSICS,
+        "strings": ToolCategory.FORENSICS,
+        "bulk_extractor": ToolCategory.FORENSICS,
+        # SAST / code analysis
+        "semgrep": ToolCategory.DEVSECOPS,
+        "bandit": ToolCategory.DEVSECOPS,
+        "gitleaks": ToolCategory.DEVSECOPS,
+        "trufflehog": ToolCategory.DEVSECOPS,
+        "checkov": ToolCategory.DEVSECOPS,
+        # Container / vulnerability scanning
+        "trivy": ToolCategory.CONTAINER,
+        "grype": ToolCategory.CONTAINER,
+        "syft": ToolCategory.CONTAINER,
+        "dockle": ToolCategory.CONTAINER,
+        # Cloud security
+        "prowler": ToolCategory.CLOUD,
+        "scoutsuite": ToolCategory.CLOUD,
+        "aws": ToolCategory.CLOUD,
+        "kubectl": ToolCategory.CLOUD,
+        "kube-hunter": ToolCategory.CLOUD,
+        # Reverse engineering
+        "radare2": ToolCategory.FORENSICS,
+        "apktool": ToolCategory.FORENSICS,
+        "ghidra": ToolCategory.FORENSICS,
+        # Reporting / analysis
         "graph_analyzer": ToolCategory.REPORTING,
         "threat_intel": ToolCategory.REPORTING,
     }
@@ -87,13 +149,16 @@ def risk_for_tool(name: str) -> RiskLevel:
             return RiskLevel(entry["risk_level"])
         except ValueError:
             pass
-    high_risk = {"metasploit", "sqlmap", "hashcat", "hydra", "ettercap", "bettercap"}
-    medium_risk = {"nmap", "nuclei", "nikto", "gobuster", "ffuf", "wpscan", "masscan"}
+    high_risk = {"metasploit", "sqlmap", "hashcat", "hydra", "ettercap", "bettercap", "mimikatz", "crackmapexec", "impacket"}
+    medium_risk = {"nmap", "nuclei", "nikto", "gobuster", "ffuf", "wpscan", "masscan", "responder", "smbmap", "enum4linux"}
+    low_risk = {"semgrep", "bandit", "gitleaks", "trufflehog", "checkov", "trivy", "grype", "syft", "volatility", "yara", "exiftool", "prowler", "scoutsuite"}
     if name in high_risk:
         return RiskLevel.HIGH
     if name in medium_risk:
         return RiskLevel.MEDIUM
-    return RiskLevel.LOW
+    if name in low_risk:
+        return RiskLevel.LOW
+    return RiskLevel.SAFE
 
 
 def describe_tool(name: str) -> str:
@@ -125,6 +190,35 @@ def describe_tool(name: str) -> str:
         "curl": "HTTP client for headers and response analysis",
         "whatweb": "Web technology stack fingerprinting",
         "wget": "HTTP/HTTPS file download and mirroring",
+        "volatility": "Memory forensics framework for RAM dump analysis",
+        "yara": "Pattern matching tool for malware identification and classification",
+        "exiftool": "Read and write metadata information from files",
+        "pypykatz": "Python implementation of Mimikatz for credential extraction from memory",
+        "mimikatz": "Windows credential extraction and pass-the-hash toolkit",
+        "sleuthkit": "Disk forensics toolkit for file system analysis",
+        "foremost": "File carving tool to recover deleted files",
+        "binwalk": "Firmware analysis tool for extracting embedded files",
+        "strings": "Extract printable strings from binary files",
+        "bulk_extractor": "High-performance data extraction for digital forensics",
+        "semgrep": "Static analysis engine for code patterns and security rules",
+        "bandit": "Python-specific security linter for finding common vulnerabilities",
+        "gitleaks": "Secrets detection tool for git repositories",
+        "trufflehog": "Credential and secrets scanner for git repos and files",
+        "checkov": "Infrastructure as Code (IaC) static analysis for cloud misconfigurations",
+        "trivy": "Comprehensive vulnerability scanner for containers, filesystems, and repos",
+        "grype": "Vulnerability scanner for container images and filesystems",
+        "syft": "Software bill of materials (SBOM) generator for containers",
+        "prowler": "AWS security auditing and CIS benchmark compliance tool",
+        "scoutsuite": "Multi-cloud security audit framework (AWS, Azure, GCP)",
+        "kubectl": "Kubernetes cluster management and security command-line tool",
+        "kube-hunter": "Kubernetes penetration testing tool for security weaknesses",
+        "radare2": "Reverse engineering framework for binary analysis and disassembly",
+        "apktool": "Android APK reverse engineering and decompilation tool",
+        "responder": "LLMNR/NBT-NS/mDNS poisoner for network credential harvesting",
+        "crackmapexec": "Post-exploitation toolkit for Windows/Active Directory reconnaissance",
+        "impacket": "Python toolkit for building and manipulating network protocols",
+        "smbmap": "SMB share enumeration and file access across Windows networks",
+        "enum4linux": "Windows/Samba enumeration tool for user, share, and policy discovery",
         "graph_analyzer": "Analyze attack paths and blast radius from the knowledge graph",
         "threat_intel": "Query CVE and MITRE ATT&CK intelligence databases locally",
     }
@@ -162,6 +256,41 @@ def tags_for_tool(name: str) -> list[str]:
         "wget": ["http", "download", "client"],
         "graph_analyzer": ["graph", "analysis", "pathfinding", "offline"],
         "threat_intel": ["cve", "mitre", "intelligence", "offline"],
+        # Forensics
+        "volatility": ["forensics", "memory", "ram", "analysis"],
+        "yara": ["forensics", "malware", "pattern", "detection"],
+        "exiftool": ["forensics", "metadata", "analysis"],
+        "pypykatz": ["forensics", "credentials", "memory", "windows"],
+        "mimikatz": ["forensics", "credentials", "windows", "ad"],
+        "sleuthkit": ["forensics", "disk", "filesystem", "analysis"],
+        "foremost": ["forensics", "carving", "recovery"],
+        "binwalk": ["forensics", "firmware", "extraction"],
+        "strings": ["forensics", "binary", "analysis"],
+        "bulk_extractor": ["forensics", "extraction", "analysis"],
+        # SAST / code
+        "semgrep": ["sast", "code-review", "static-analysis", "security"],
+        "bandit": ["sast", "python", "security", "linter"],
+        "gitleaks": ["secrets", "git", "scanning", "detection"],
+        "trufflehog": ["secrets", "scanning", "detection", "credentials"],
+        "checkov": ["iac", "terraform", "cloudformation", "compliance"],
+        # Container
+        "trivy": ["container", "vulnerability", "scanning", "cve"],
+        "grype": ["container", "vulnerability", "scanning", "cve"],
+        "syft": ["container", "sbom", "inventory", "dependencies"],
+        # Cloud
+        "prowler": ["cloud", "aws", "compliance", "cis"],
+        "scoutsuite": ["cloud", "security", "audit", "multi-cloud"],
+        "kubectl": ["kubernetes", "k8s", "cloud", "orchestration"],
+        "kube-hunter": ["kubernetes", "k8s", "security", "pentest"],
+        # Reverse engineering
+        "radare2": ["reverse-engineering", "binary", "disassembly", "analysis"],
+        "apktool": ["android", "apk", "reverse-engineering", "decompile"],
+        # AD / Network post-exploitation
+        "responder": ["network", "llmnr", "poisoning", "capture"],
+        "crackmapexec": ["windows", "ad", "lateral-movement", "post-exploit"],
+        "impacket": ["network", "protocol", "windows", "ad"],
+        "smbmap": ["smb", "windows", "share", "enumeration"],
+        "enum4linux": ["smb", "windows", "enumeration", "network"],
     }
 
     return tag_map.get(name, [name])
@@ -172,8 +301,45 @@ def personas_for_tool(name: str) -> list[str]:
     if entry and entry.get("personas"):
         return entry["personas"]
     default_map = {
+        # Scanning / recon
         "nmap": ["pentester", "redteam", "blueteam", "devsecops"],
         "nuclei": ["pentester", "redteam", "blueteam", "devsecops"],
+        "masscan": ["pentester", "redteam"],
+        "amass": ["pentester", "redteam", "blueteam", "osint"],
+        "subfinder": ["pentester", "redteam", "osint"],
+        # Forensics
+        "volatility": ["dfir", "blueteam", "forensics"],
+        "yara": ["dfir", "blueteam", "malware", "forensics"],
+        "exiftool": ["dfir", "forensics", "osint"],
+        "pypykatz": ["dfir", "forensics", "redteam"],
+        "mimikatz": ["redteam", "pentester", "forensics"],
+        "sleuthkit": ["dfir", "forensics", "blueteam"],
+        "foremost": ["dfir", "forensics"],
+        "binwalk": ["forensics", "iot"],
+        # SAST / code review
+        "semgrep": ["devsecops", "appsec", "auditor"],
+        "bandit": ["devsecops", "appsec", "python"],
+        "gitleaks": ["devsecops", "auditor", "blueteam"],
+        "trufflehog": ["devsecops", "auditor", "blueteam"],
+        "checkov": ["devsecops", "cloud", "auditor"],
+        # Container
+        "trivy": ["devsecops", "container", "blueteam"],
+        "grype": ["devsecops", "container"],
+        "syft": ["devsecops", "container"],
+        # Cloud
+        "prowler": ["cloud", "auditor", "blueteam"],
+        "scoutsuite": ["cloud", "auditor", "blueteam"],
+        "kubectl": ["cloud", "devsecops", "blueteam"],
+        "kube-hunter": ["pentester", "redteam", "cloud"],
+        # Reverse engineering
+        "radare2": ["malware", "forensics", "reversing"],
+        "apktool": ["mobile", "pentester", "reversing"],
+        # Network / AD
+        "responder": ["pentester", "redteam"],
+        "crackmapexec": ["pentester", "redteam", "ad"],
+        "impacket": ["pentester", "redteam", "ad"],
+        "smbmap": ["pentester", "redteam", "blueteam"],
+        "enum4linux": ["pentester", "redteam", "blueteam"],
     }
     return default_map.get(name, [])
 

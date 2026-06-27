@@ -520,11 +520,15 @@ def render_welcome_banner(
             if len(configured) > 3:
                 runtime_txt += f"[dim]+ {len(configured) - 3} more[/dim]"
         else:
-            available = [k for k, (icon, _) in provider_status.items() if icon == "⚠"]
-            if available:
-                runtime_txt = f"[bold yellow]⚠[/bold yellow] [dim]Available (local): {', '.join(available[:2])}[/dim]"
-            else:
-                runtime_txt = "[dim]No providers configured[/dim]"
+            available = [k for k, (icon, label) in provider_status.items() if icon == "⚠"]
+            local = [k for k in available if "available (local)" in provider_status.get(k, ("", ""))[1]]
+            missing = [k for k in available if "key missing" in provider_status.get(k, ("", ""))[1]]
+            parts = []
+            if local:
+                parts.append(f"[bold yellow]⚠[/bold yellow] [dim]Available (local): {', '.join(local)}[/dim]")
+            if missing:
+                parts.append(f"[dim]key missing: {', '.join(missing[:2])}[/dim]")
+            runtime_txt = "\n".join(parts) if parts else "[dim]No providers configured[/dim]"
     else:
         runtime_txt = "[dim]No providers configured[/dim]"
 

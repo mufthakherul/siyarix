@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Mark stale issues
-        uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9
+        uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899 # v10.3.0
         with:
           operations-per-run: 100
           stale-issue-label: stale
@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Mark stale PRs
-        uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9
+        uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899 # v10.3.0
         with:
           operations-per-run: 50
           stale-pr-label: stale

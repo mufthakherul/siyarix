@@ -8,7 +8,7 @@ Siyarix is built by the community, for the community. Every contribution -- code
 
 | Name | Role | Focus Areas |
 |------|------|-------------|
-| **MD Mufthakherul Islam Miraz** ([@mufthakherul](https://github.com/mufthakherul)) | Creator & Lead Maintainer | Architecture design, core development, project vision, security model |
+| **MD Mufthakherul Islam Miraz** ([@mufthakherul](https://github.com/mufthakherul)) | Lead Maintainer | Architecture design, core development, project vision, security model |
 
 ---
 

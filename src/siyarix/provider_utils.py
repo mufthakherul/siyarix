@@ -583,7 +583,7 @@ def ensure_model_pulled(
     return ok
 
 
-def check_provider_health(provider: str, base_url: str | None = None) -> bool:
+def check_provider_health(provider: str, base_url: str | None = None, timeout: float = 5.0) -> bool:
     provider = provider.lower()
     resolved = resolve_provider_url(provider, base_url)
     cfg = PROVIDER_DEFAULTS.get(provider)
@@ -592,7 +592,7 @@ def check_provider_health(provider: str, base_url: str | None = None) -> bool:
 
     endpoint = cfg["health_endpoint"]
     url = f"{resolved}{endpoint}"
-    resp = safe_http_get_raw(url, timeout=5.0)
+    resp = safe_http_get_raw(url, timeout=timeout)
     return resp is not None
 
 

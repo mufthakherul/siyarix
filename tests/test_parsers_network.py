@@ -1700,7 +1700,7 @@ class TestIkeScanParserAdditionalBranches:
 
     def test_handshake_dedup(self):
         """210->223: handshake dedup key already in seen."""
-        output = "ike-scan: target 10.0.0.1\n" "Handshake established\n" "Handshake established\n"
+        output = "ike-scan: target 10.0.0.1\nHandshake established\nHandshake established\n"
         p = IkeScanParser()
         findings = p.parse(output)
         hk = [f for f in findings if "handshake" in f["title"].lower()]
@@ -1708,7 +1708,7 @@ class TestIkeScanParserAdditionalBranches:
 
     def test_aggressive_mode_dedup(self):
         """227->240: aggressive mode dedup key already in seen."""
-        output = "ike-scan: target 10.0.0.1\n" "Aggressive mode\n" "Aggressive mode\n"
+        output = "ike-scan: target 10.0.0.1\nAggressive mode\nAggressive mode\n"
         p = IkeScanParser()
         findings = p.parse(output)
         agg = [f for f in findings if "handshake" in f["title"].lower()]
@@ -1724,7 +1724,7 @@ class TestIkeScanParserAdditionalBranches:
 
     def test_vendor_id_dedup(self):
         """268->281: vendor ID dedup key already in seen."""
-        output = "ike-scan: target 10.0.0.1\n" "Vendor ID: CiscoVPN\n" "Vendor ID: CiscoVPN\n"
+        output = "ike-scan: target 10.0.0.1\nVendor ID: CiscoVPN\nVendor ID: CiscoVPN\n"
         p = IkeScanParser()
         findings = p.parse(output)
         vendors = [f for f in findings if "vendor" in f["title"].lower()]
@@ -1732,9 +1732,7 @@ class TestIkeScanParserAdditionalBranches:
 
     def test_banner_dedup(self):
         """287->105: banner dedup key already in seen -> continue top."""
-        output = (
-            "ike-scan: target 10.0.0.1\n" "Banner: IKE VPN Gateway\n" "Banner: IKE VPN Gateway\n"
-        )
+        output = "ike-scan: target 10.0.0.1\nBanner: IKE VPN Gateway\nBanner: IKE VPN Gateway\n"
         p = IkeScanParser()
         findings = p.parse(output)
         banners = [f for f in findings if "banner" in f["title"].lower()]

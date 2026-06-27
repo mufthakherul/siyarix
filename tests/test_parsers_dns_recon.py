@@ -1866,7 +1866,7 @@ class TestSublist3rParserBranches:
 
     def test_lines_after_section_header(self):
         p = Sublist3rParser()
-        output = "# Total unique domains found\n" "sub.example.com\n" "another.example.com\n"
+        output = "# Total unique domains found\nsub.example.com\nanother.example.com\n"
         findings = p.parse(output)
         assert len(findings) == 2
         assert all("Subdomain" in f["title"] for f in findings)
@@ -1899,7 +1899,7 @@ class TestTheharvesterParserBranches:
 
     def test_host_with_two_hosts(self):
         p = TheharvesterParser()
-        output = "***** Hosts *****\n" "host: example.com\n" "host: example2.com\n"
+        output = "***** Hosts *****\nhost: example.com\nhost: example2.com\n"
         findings = p.parse(output)
         assert len(findings) == 2
 
@@ -1917,7 +1917,7 @@ class TestTheharvesterParserBranches:
 
     def test_ip_with_two_ips(self):
         p = TheharvesterParser()
-        output = "***** IPs *****\n" "192.168.1.1\n" "192.168.1.2\n"
+        output = "***** IPs *****\n192.168.1.1\n192.168.1.2\n"
         findings = p.parse(output)
         assert len(findings) == 2
 
@@ -1929,7 +1929,7 @@ class TestTheharvesterParserBranches:
 
     def test_people_with_two_entries(self):
         p = TheharvesterParser()
-        output = "***** People *****\n" "Jane Smith\n" "Bob Jones\n"
+        output = "***** People *****\nJane Smith\nBob Jones\n"
         findings = p.parse(output)
         assert len(findings) == 2
 
@@ -2040,7 +2040,7 @@ class TestSublist3rParserAdditionalBranches:
         and always fires first, making this path structurally
         redundant for the same input.  We verify the second match
         block by passing a line that hits both paths."""
-        output = "# Total subdomains found\n" "sub.example.com\n"
+        output = "# Total subdomains found\nsub.example.com\n"
         p = Sublist3rParser()
         findings = p.parse(output)
         subs = [f for f in findings if "Subdomain" in f["title"]]

@@ -469,14 +469,14 @@ class TestDirbParser:
 
     def test_redirect_append_to_previous(self):
         p = DirbParser()
-        output = "http://example.com/admin (CODE:302|SIZE:0)\n" "--> http://example.com/login\n"
+        output = "http://example.com/admin (CODE:302|SIZE:0)\n--> http://example.com/login\n"
         findings = p.parse(output)
         assert len(findings) >= 1
         assert "redirect" in findings[0]["description"].lower()
 
     def test_base_url_extraction(self):
         p = DirbParser()
-        output = "BASE_URL: http://example.com\n" "200 1234 /admin\n" "403 50 /backup\n"
+        output = "BASE_URL: http://example.com\n200 1234 /admin\n403 50 /backup\n"
         findings = p.parse(output)
         assert len(findings) >= 2
         for f in findings:

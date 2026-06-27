@@ -2508,7 +2508,7 @@ requires-dist = [
     { name = "colorama", marker = "sys_platform == 'win32' and extra == 'cli'", specifier = ">=0.4.6" },
     { name = "colorama", marker = "sys_platform == 'win32' and extra == 'terminal'", specifier = ">=0.4.6" },
     { name = "colorama", marker = "sys_platform == 'win32' and extra == 'windows'", specifier = ">=0.4.6" },
-    { name = "cryptography", specifier = ">=42" },
+    { name = "cryptography", specifier = ">=46.0.6" },
     { name = "defusedxml", specifier = ">=0.7.1" },
     { name = "fastapi", marker = "extra == 'api'", specifier = ">=0.110" },
     { name = "google-generativeai", marker = "extra == 'autonomous'", specifier = ">=0.8" },

@@ -1497,7 +1497,7 @@ class OnboardingWizard:
         self._console.print("Siyarix personas tailor the AI's behavior.\n")
 
         try:
-            from siyarix.personas import list_personas, get_persona
+            from siyarix.personas import list_personas
 
             personas = list_personas()
         except ImportError:
@@ -1509,9 +1509,8 @@ class OnboardingWizard:
             ptable.add_column("Persona", style="cyan")
             ptable.add_column("Focus")
             for i, p in enumerate(personas, 1):
-                info = get_persona(p) if isinstance(p, str) else p
-                label = (info.get("label") or info.get("name", p)) if isinstance(info, dict) else p
-                desc = info.get("description", "") if isinstance(info, dict) else ""
+                label = p.get("label") or p.get("name", "")
+                desc = p.get("description", "")
                 short = textwrap.shorten(desc, width=50, placeholder="...") if desc else ""
                 ptable.add_row(str(i), str(label), short)
             ptable.add_row("a", "Auto", "Adaptive persona selection based on context")
@@ -2262,12 +2261,7 @@ class OnboardingWizard:
         }
         rc_file = rc_files.get(shell)
         if os.name == "nt" and shell in ("pwsh", "powershell"):
-            rc_file = (
-                Path.home()
-                / "Documents"
-                / "PowerShell"
-                / "Microsoft.PowerShell_profile.ps1"
-            )
+            rc_file = Path.home() / "Documents" / "PowerShell" / "Microsoft.PowerShell_profile.ps1"
 
         # Shell completions
         self._console.print(f"  Detected shell: [cyan]{shell}[/cyan]")
@@ -2279,7 +2273,6 @@ class OnboardingWizard:
             self._choices["shell_completion_done"] = False
         elif Confirm.ask("  Install shell completions?", default=True):
             try:
-
                 if rc_file and rc_file.parent.exists():
                     typer_shell = shell
                     if shell == "pwsh":
@@ -2882,16 +2875,16 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
     def _restore_tty() -> None:
         """Restore TTY to cooked mode if it was put in raw mode (e.g. by prompt_toolkit)."""
         try:
-            import termios
-            import tty
+            import termios  # type: ignore[import-not-found]
+            import tty  # type: ignore[import-not-found]
 
             fd = sys.stdin.fileno()
-            attrs = termios.tcgetattr(fd)
+            attrs = termios.tcgetattr(fd)  # type: ignore[attr-defined]
             # Only restore if currently in raw mode
-            if attrs[3] & (termios.ECHO | termios.ICANON) == 0:
-                tty.setcbreak(fd)  # alternative approach
-                attrs[3] |= termios.ECHO | termios.ICANON
-                termios.tcsetattr(fd, termios.TCSANOW, attrs)
+            if attrs[3] & (termios.ECHO | termios.ICANON) == 0:  # type: ignore[attr-defined]
+                tty.setcbreak(fd)  # type: ignore[attr-defined]
+                attrs[3] |= termios.ECHO | termios.ICANON  # type: ignore[attr-defined]
+                termios.tcsetattr(fd, termios.TCSANOW, attrs)  # type: ignore[attr-defined]
         except Exception:
             pass
 

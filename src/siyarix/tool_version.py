@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ def get_tool_metadata(name: str) -> dict[str, Any]:
     entry = db.get(name, {})
     if not entry:
         entry = db.get(_resolve_alias(name), {})
-    return entry
+    return cast("dict[str, Any]", entry)
 
 
 def _resolve_alias(name: str) -> str:

@@ -8,7 +8,7 @@ import re
 from typing import Any
 from xml.etree.ElementTree import ParseError as _ParseError
 
-import defusedxml.ElementTree as _ET
+import defusedxml.ElementTree as _ET  # type: ignore[import-untyped]
 
 from . import _now_iso
 

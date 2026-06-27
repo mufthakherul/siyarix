@@ -73,7 +73,7 @@ class PerformanceOptimizer:
 
     def _detect_resources(self) -> SystemResources:
         try:
-            import psutil
+            import psutil  # type: ignore[import-untyped]
 
             cpu_logical = psutil.cpu_count(logical=True) or 1
             cpu_cores = psutil.cpu_count(logical=False) or 1

@@ -7,7 +7,7 @@ to the built-in static mappings for tools not yet in the database.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from .tool_models import RiskLevel, ToolCategory
 
@@ -38,8 +38,8 @@ def _db_lookup(name: str) -> dict[str, Any]:
     if not entry:
         for tool_name, data in db.items():
             if name in data.get("aliases", []):
-                return data
-    return entry
+                return cast("dict[str, Any]", data)
+    return cast("dict[str, Any]", entry)
 
 
 def categorize_tool(name: str) -> ToolCategory:
@@ -149,9 +149,46 @@ def risk_for_tool(name: str) -> RiskLevel:
             return RiskLevel(entry["risk_level"])
         except ValueError:
             pass
-    high_risk = {"metasploit", "sqlmap", "hashcat", "hydra", "ettercap", "bettercap", "mimikatz", "crackmapexec", "impacket"}
-    medium_risk = {"nmap", "nuclei", "nikto", "gobuster", "ffuf", "wpscan", "masscan", "responder", "smbmap", "enum4linux"}
-    low_risk = {"curl", "wget", "semgrep", "bandit", "gitleaks", "trufflehog", "checkov", "trivy", "grype", "syft", "volatility", "yara", "exiftool", "prowler", "scoutsuite"}
+    high_risk = {
+        "metasploit",
+        "sqlmap",
+        "hashcat",
+        "hydra",
+        "ettercap",
+        "bettercap",
+        "mimikatz",
+        "crackmapexec",
+        "impacket",
+    }
+    medium_risk = {
+        "nmap",
+        "nuclei",
+        "nikto",
+        "gobuster",
+        "ffuf",
+        "wpscan",
+        "masscan",
+        "responder",
+        "smbmap",
+        "enum4linux",
+    }
+    low_risk = {
+        "curl",
+        "wget",
+        "semgrep",
+        "bandit",
+        "gitleaks",
+        "trufflehog",
+        "checkov",
+        "trivy",
+        "grype",
+        "syft",
+        "volatility",
+        "yara",
+        "exiftool",
+        "prowler",
+        "scoutsuite",
+    }
     if name in high_risk:
         return RiskLevel.HIGH
     if name in medium_risk:
@@ -164,7 +201,7 @@ def risk_for_tool(name: str) -> RiskLevel:
 def describe_tool(name: str) -> str:
     entry = _db_lookup(name)
     if entry and entry.get("description"):
-        return entry["description"]
+        return cast("str", entry["description"])
     descriptions = {
         "nmap": "Network port scanner and service detector",
         "nikto": "Web server vulnerability scanner",
@@ -228,7 +265,7 @@ def describe_tool(name: str) -> str:
 def tags_for_tool(name: str) -> list[str]:
     entry = _db_lookup(name)
     if entry and entry.get("tags"):
-        return entry["tags"]
+        return cast("list[str]", entry["tags"])
     tag_map = {
         "nmap": ["port-scan", "network", "service-detection"],
         "nikto": ["web", "vulnerability", "server"],
@@ -299,7 +336,7 @@ def tags_for_tool(name: str) -> list[str]:
 def personas_for_tool(name: str) -> list[str]:
     entry = _db_lookup(name)
     if entry and entry.get("personas"):
-        return entry["personas"]
+        return cast("list[str]", entry["personas"])
     default_map = {
         # Scanning / recon
         "nmap": ["pentester", "redteam", "blueteam", "devsecops"],

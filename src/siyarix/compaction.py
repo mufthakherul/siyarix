@@ -146,7 +146,7 @@ async def summarize_chunks(
             system_prompt,
             f"Merge these chunk summaries into one coherent summary:\n\n{combined}",
         )
-        return result.get("content", combined)
+        return str(result.get("content", combined))
     except Exception as exc:
         logger.warning("Compaction merge failed: %s", exc)
         return combined

@@ -339,10 +339,10 @@ class SmartAutocomplete(Completer):
                 from .commands import CommandProfileStore
 
                 store = CommandProfileStore()
-                for p in store.list_profiles():
-                    if p.name.startswith(prefix):
+                for profile in store.list_profiles():
+                    if profile.name.startswith(prefix):
                         yield Completion(
-                            p.name, start_position=-len(prefix), display_meta=f"[{meta}]"
+                            profile.name, start_position=-len(prefix), display_meta=f"[{meta}]"
                         )
             except Exception:
                 pass
@@ -363,7 +363,7 @@ class SmartAutocomplete(Completer):
                 seen = set()
 
                 # Track category groups for ordering
-                cat_order = {}
+                cat_order: dict[str, int] = {}
                 for i, info in enumerate(commands):
                     cat = info.category.value
                     if cat not in cat_order:
@@ -530,10 +530,7 @@ def render_welcome_banner(
 
     llm_panel = Panel(runtime_txt, title="[bold]LLM Status[/bold]", border_style="yellow")
 
-    stats_row = Columns(
-        [session_panel, telemetry_panel, quick_panel, llm_panel],
-        expand=True
-    )
+    stats_row = Columns([session_panel, telemetry_panel, quick_panel, llm_panel], expand=True)
 
     # ── Footer: tips ──
     mode_tips = {
@@ -646,7 +643,7 @@ class SplitPane:
         buf = __import__("io").StringIO()
         tmp = RichConsole(file=buf, width=120, force_terminal=True)
         tmp.print(layout)
-        return buf.getvalue()
+        return str(buf.getvalue())
 
 
 # ═══════════════════════════════════════════════════════════════════════════

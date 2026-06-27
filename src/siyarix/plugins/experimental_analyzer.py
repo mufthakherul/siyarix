@@ -39,7 +39,7 @@ class ExperimentalAnalyzerTool:
     async def execute(self, **kwargs: Any) -> str:
         target = kwargs.get("target", "unknown")
         logger.info("Running Experimental Analyzer on %s", target)
-        
+
         # Mock logic
         return f"[EXPERIMENTAL_ANALYZER] Analyzed target '{target}'. No immediate heuristic threats found. Confidence: 85%."
 

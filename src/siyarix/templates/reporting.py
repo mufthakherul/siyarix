@@ -44,5 +44,5 @@ def generate_technical_report(target: str, findings: list[dict[str, Any]], durat
         report += f"### [{severity}] {title}\n"
         if desc:
             report += f"{desc}\n\n"
-        
+
     return report

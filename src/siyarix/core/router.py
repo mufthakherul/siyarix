@@ -22,7 +22,7 @@ class IntentRoute:
 
 class IntentRouter:
     """Routes natural language queries to specialized contexts."""
-    
+
     INTENTS = {
         "scan": re.compile(r"\bscan\b", re.I),
         "brute": re.compile(r"\b(brute|password|crack)\b", re.I),
@@ -36,7 +36,7 @@ class IntentRouter:
     def route(cls, command: str, **kwargs: Any) -> IntentRoute:
         """Return the identified intent or 'general'."""
         text_lower = command.lower()
-        
+
         if cls.INTENTS["scan"].search(text_lower):
             return IntentRoute(mode="scan", risk_tier=RiskTier("medium"))
         if cls.INTENTS["brute"].search(text_lower):
@@ -49,5 +49,5 @@ class IntentRouter:
             return IntentRoute(mode="recon", risk_tier=RiskTier("low"))
         if cls.INTENTS["report"].search(text_lower):
             return IntentRoute(mode="report", risk_tier=RiskTier("low"))
-            
+
         return IntentRoute(mode="general", risk_tier=RiskTier("low"))

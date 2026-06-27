@@ -1030,7 +1030,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
     def _get_conversation_history(self, max_messages: int = 50) -> list[dict]:
         """Extract recent conversation history from the session for LLM context.
-        
+
         Excludes the current user message at the end of the history to prevent
         duplicate adjacent user roles in the API payload.
         """

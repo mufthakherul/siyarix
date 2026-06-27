@@ -15,13 +15,13 @@ class LinpeasParser:
     def parse(self, text_output: str, target: str = "localhost") -> list[dict[str, Any]]:
         if not text_output or not text_output.strip():
             return []
-            
+
         findings: list[dict[str, Any]] = []
-        
+
         # In LinPEAS, typically lines with [+] indicate sections or interesting findings
         # Some findings have "RED/YELLOW" ANSI escapes, but assuming we get clean text,
         # we can look for "Vulnerable", "CVE-", or just lines that indicate a vector.
-        
+
         cve_re = re.compile(r"(CVE-\d{4}-\d{4,})")
         interesting_re = re.compile(r"\[\+\](.*(?:Vulnerable|Exploit|Root|Admin|Password|Secret).*?)$", re.IGNORECASE)
 
@@ -29,7 +29,7 @@ class LinpeasParser:
             line = line.strip()
             if not line:
                 continue
-                
+
             cve_match = cve_re.search(line)
             if cve_match:
                 findings.append({

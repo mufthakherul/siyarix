@@ -1758,11 +1758,11 @@ class RegistryPlanner:
         }
         has_comprehensive = any(kw in goal_lower for kw in comprehensive_keywords)
         words = goal_lower.split()
-        best_kw = None
-        best_pos = None
-        best_tool = None
-        best_desc = None
-        best_flags = None
+        best_kw: str | None = None
+        best_pos = -1
+        best_tool: str | None = None
+        best_desc: str | None = None
+        best_flags: str | None = None
         with_phrase = re.search(r"\b(?:with|using|via)\s+(\w+)", goal_lower)
         prefer_tool = with_phrase.group(1) if with_phrase else None
         for kw, (tool, desc, flags) in direct_tool_keywords.items():
@@ -1771,8 +1771,12 @@ class RegistryPlanner:
                 if prefer_tool and kw == prefer_tool:
                     pos = max(0, pos - 10)
                 if pos <= 5 or not has_comprehensive:
-                    if best_pos is None:
+                    if best_pos < 0:
                         best_pos = pos
+                        best_kw = kw
+                        best_tool = tool
+                        best_desc = desc
+                        best_flags = flags
                     elif pos < best_pos:
                         best_pos = pos
                         best_kw = kw
@@ -3234,17 +3238,17 @@ class RegistryPlanner:
         # Check for "with {tool}" / "using {tool}" pattern for preference boost
         with_phrase = re.search(r"\b(?:with|using|via)\s+(\w+)", goal_lower)
         prefer_tool = with_phrase.group(1) if with_phrase else None
-        best_kw = None
-        best_pos = None
-        best_tool = None
-        best_desc = None
-        best_flags = None
+        best_kw: str | None = None
+        best_pos = -1
+        best_tool: str | None = None
+        best_desc: str | None = None
+        best_flags: str | None = None
         for kw, (tool, desc, flags) in direct_tool_keywords.items():
             if kw in words:
                 pos = words.index(kw)
                 if prefer_tool and kw == prefer_tool:
                     pos = max(0, pos - 10)
-                if best_pos is None:
+                if best_pos < 0:
                     best_pos = pos
                     best_kw = kw
                     best_tool = tool

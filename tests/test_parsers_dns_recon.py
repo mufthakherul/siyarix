@@ -223,7 +223,7 @@ class TestDnsmapParser:
         findings = p.parse(output)
         assert len(findings) >= 1
         _check_finding(findings[0], "dnsmap")
-        assert "www.example.com" in findings[0]["title"]
+        assert findings[0]["title"].endswith("www.example.com")
 
     def test_find_format_without_ip(self):
         p = DnsmapParser()
@@ -899,7 +899,7 @@ class TestSublist3rParser_extra_b7:
         )
         findings = p.parse(output)
         assert len(findings) >= 2
-        assert any("example.com" in f["description"] for f in findings)
+        assert any(f["description"].endswith("example.com") for f in findings)
 
     def test_section_header_before_results(self):
         p = Sublist3rParser()
@@ -944,7 +944,7 @@ class TestDnsxParser:
         findings = p.parse(output)
         assert len(findings) == 1
         _check_finding(findings[0], "dnsx")
-        assert "example.com" in findings[0]["title"]
+        assert findings[0]["title"].endswith("example.com")
 
     def test_json_host_list_ips(self):
         p = DnsxParser()
@@ -1371,7 +1371,7 @@ class TestReconNgParser_extra_b8:
         output = "[+] 'admin@example.com' found"
         findings = p.parse(output)
         assert len(findings) == 1
-        assert "example.com" in findings[0]["target"]
+        assert findings[0]["target"].endswith("example.com")
 
     def test_text_found_no_at(self):
         p = ReconNgParser()
@@ -1757,8 +1757,8 @@ class TestSublist3rParser:
     def test_base_domain_extracted(self):
         r = Sublist3rParser().parse("Sublist3r domain: example.com\nsub.example.com")
         assert len(r) >= 2
-        assert any("sub.example.com" in f["title"] for f in r)
-        assert any("example.com" in f.get("description", "") for f in r)
+        assert any(f["title"].endswith("sub.example.com") for f in r)
+        assert any(f.get("description", "").endswith("example.com") for f in r)
 
     def test_blank_line_skipped(self):
         r = Sublist3rParser().parse("\n\n")

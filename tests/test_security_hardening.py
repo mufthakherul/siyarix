@@ -403,7 +403,7 @@ class TestSecretRedactorRedact:
         assert "[REDACTED]" in result
 
     def test_google_api_key(self) -> None:
-        text = "AIzaSyD7Kj8Mk9L0PaQbRcVfWgXnYz1Q2R3S4T5U6"
+        text = "AIzaSyAAAAAAAABBBBBBBBBBCCCCCCCCCDDDDDDDDDD"
         result = self.r.redact(text)
         assert "[REDACTED]" in result
 

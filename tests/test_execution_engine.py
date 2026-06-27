@@ -64,7 +64,7 @@ class TestPlanner:
     def test_create_from_template_recon(self) -> None:
         plan = self.planner.create_from_template("recon_full", "https://example.com")
         assert "recon_full" in plan.goal
-        assert "example.com" in plan.goal
+        assert plan.goal.endswith("example.com")
         assert len(plan.steps) == 6
         assert plan.steps[0].tool == "nmap"
         assert plan.steps[1].tool == "whatweb"

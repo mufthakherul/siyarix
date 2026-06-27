@@ -160,7 +160,7 @@ class TestMakeWebHandler:
         await handler(target="example.com")
         args, _ = mock_safe_run.call_args
         assert "-h" in args[0]
-        assert "example.com" in args[0]
+        assert any(arg == "example.com" for arg in args[0])
 
     @patch("siyarix.subprocess_utils.safe_run_async", new_callable=AsyncMock)
     async def test_nuclei_flag(self, mock_safe_run):
@@ -572,7 +572,7 @@ class TestMakeCurlHandler:
         result = await handler(target="https://example.com")
         assert result["status"] == "success"
         args, _ = mock_safe_run.call_args
-        assert "https://example.com" in args[0]
+        assert any(a == "https://example.com" for a in args[0])
 
     async def test_without_target(self):
         handler = make_curl_handler("curl")
@@ -600,7 +600,7 @@ class TestMakeDnsHandler:
         result = await handler(target="example.com")
         assert result["status"] == "success"
         args, _ = mock_safe_run.call_args
-        assert "example.com" in args[0]
+        assert any(a == "example.com" for a in args[0])
 
     async def test_without_target(self):
         handler = make_dns_handler("dnsrecon")
@@ -697,7 +697,7 @@ class TestMakeGenericHandler:
         result = await handler(target="example.com")
         assert result["status"] == "success"
         args, _ = mock_safe_run.call_args
-        assert "example.com" in args[0]
+        assert any(a == "example.com" for a in args[0])
 
     @patch("siyarix.subprocess_utils.safe_run_async", new_callable=AsyncMock)
     async def test_invalid_target(self, mock_safe_run):

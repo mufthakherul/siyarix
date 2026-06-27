@@ -480,7 +480,7 @@ class TestDirbParser:
         findings = p.parse(output)
         assert len(findings) >= 2
         for f in findings:
-            assert "example.com" in f.get("target", "")
+            assert f.get("target", "") == "http://example.com"
 
     def test_json_format(self):
         p = DirbParser()
@@ -1416,7 +1416,7 @@ class TestHttpxParser:
     def test_json_with_final_url(self):
         r = HttpxParser().parse('{"url":"https://example.com","final_url":"https://example.org"}')
         assert len(r) == 1
-        assert "example.org" in r[0]["evidence"]
+        assert r[0]["evidence"].endswith("https://example.org")
 
     def test_text_format(self):
         r = HttpxParser().parse("https://example.com [200]")

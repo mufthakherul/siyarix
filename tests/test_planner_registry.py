@@ -339,7 +339,7 @@ class TestCreateFromTemplate:
     def test_create_from_template(self, planner: RegistryPlanner):
         plan = planner.create_from_template("recon_full", "example.com")
         assert "recon_full" in plan.goal
-        assert "example.com" in plan.goal
+        assert plan.goal.endswith("example.com")
         assert len(plan.steps) == 6
         assert plan.context["target"] == "example.com"
         assert plan.context["template"] == "recon_full"

@@ -916,6 +916,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         )
         console.print(layout)
         console.print("\n")
+
     def _gather_provider_status(self) -> dict[str, tuple[str, str]]:
         """Return a concise status map for supported providers.
 
@@ -1043,7 +1044,11 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         if not msgs_to_process:
             return []
 
-        recent = msgs_to_process[-max_messages:] if len(msgs_to_process) > max_messages else msgs_to_process
+        recent = (
+            msgs_to_process[-max_messages:]
+            if len(msgs_to_process) > max_messages
+            else msgs_to_process
+        )
         return [
             {
                 "role": m.role,

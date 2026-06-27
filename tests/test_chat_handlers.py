@@ -348,4 +348,3 @@ async def test_cmd_edit(chat, mock_console):
     chat._handle_natural_language.assert_called_once_with("New prompt")
     # Both messages should be popped
     assert len(chat._session.messages) == 0
-

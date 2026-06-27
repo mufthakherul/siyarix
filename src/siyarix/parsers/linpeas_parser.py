@@ -23,7 +23,9 @@ class LinpeasParser:
         # we can look for "Vulnerable", "CVE-", or just lines that indicate a vector.
 
         cve_re = re.compile(r"(CVE-\d{4}-\d{4,})")
-        interesting_re = re.compile(r"\[\+\](.*(?:Vulnerable|Exploit|Root|Admin|Password|Secret).*?)$", re.IGNORECASE)
+        interesting_re = re.compile(
+            r"\[\+\](.*(?:Vulnerable|Exploit|Root|Admin|Password|Secret).*?)$", re.IGNORECASE
+        )
 
         for line in text_output.splitlines():
             line = line.strip()
@@ -32,27 +34,31 @@ class LinpeasParser:
 
             cve_match = cve_re.search(line)
             if cve_match:
-                findings.append({
-                    "title": f"LinPEAS: Found {cve_match.group(1)}",
-                    "severity": "high",
-                    "description": line,
-                    "evidence": line,
-                    "tool": "linpeas",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": f"LinPEAS: Found {cve_match.group(1)}",
+                        "severity": "high",
+                        "description": line,
+                        "evidence": line,
+                        "tool": "linpeas",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
                 continue
 
             interesting_match = interesting_re.search(line)
             if interesting_match:
-                findings.append({
-                    "title": "LinPEAS: Potential Privilege Escalation Vector",
-                    "severity": "medium",
-                    "description": interesting_match.group(1).strip(),
-                    "evidence": line,
-                    "tool": "linpeas",
-                    "target": target,
-                    "timestamp": _now_iso(),
-                })
+                findings.append(
+                    {
+                        "title": "LinPEAS: Potential Privilege Escalation Vector",
+                        "severity": "medium",
+                        "description": interesting_match.group(1).strip(),
+                        "evidence": line,
+                        "tool": "linpeas",
+                        "target": target,
+                        "timestamp": _now_iso(),
+                    }
+                )
 
         return findings

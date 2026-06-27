@@ -15,6 +15,7 @@ from siyarix.tool_models import ToolSpec, ToolParameter
 
 logger = logging.getLogger(__name__)
 
+
 class ExperimentalAnalyzerTool:
     """Mock advanced heuristic threat analyzer."""
 
@@ -42,6 +43,7 @@ class ExperimentalAnalyzerTool:
 
         # Mock logic
         return f"[EXPERIMENTAL_ANALYZER] Analyzed target '{target}'. No immediate heuristic threats found. Confidence: 85%."
+
 
 def register_tools(registry: ToolRegistry) -> None:
     """Register the experimental tools with the Siyarix registry."""

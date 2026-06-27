@@ -33,6 +33,7 @@ class FakeChatSession:
             def __init__(self, r, c):
                 self.role = r
                 self.content = c
+
         msg = Msg(role, content)
         self.messages.append(msg)
         return msg
@@ -218,7 +219,7 @@ async def test_wave_command_logging_in_session(chat_mock):
                 command="nmap -sT localhost",
             )
         ],
-        plan_type=PlanType.SEQUENTIAL
+        plan_type=PlanType.SEQUENTIAL,
     )
 
     # Mock executor and provider state
@@ -242,12 +243,17 @@ async def test_wave_command_logging_in_session(chat_mock):
         }
 
         # Mock LLM engine and planner logic inside _execute_agent
-        with patch.object(chat_mock, "_resolve_provider", return_value=("openai", "key")), \
-             patch.object(chat_mock, "_make_llm_call", return_value=AsyncMock(return_value={"content": "Done."})), \
-             patch.object(chat_mock, "_llm_available", return_value=True), \
-             patch.object(chat_mock, "_check_local_provider_running", return_value=False), \
-             patch("siyarix.chat.engine.console") as mock_console:
-
+        with (
+            patch.object(chat_mock, "_resolve_provider", return_value=("openai", "key")),
+            patch.object(
+                chat_mock,
+                "_make_llm_call",
+                return_value=AsyncMock(return_value={"content": "Done."}),
+            ),
+            patch.object(chat_mock, "_llm_available", return_value=True),
+            patch.object(chat_mock, "_check_local_provider_running", return_value=False),
+            patch("siyarix.chat.engine.console") as mock_console,
+        ):
             # Setup agent.planner_autonomous.plan to return a plan on first call, and empty steps on second call (done)
             second_plan = ExecutionPlan(goal="test", steps=[], plan_type=PlanType.SEQUENTIAL)
             second_plan.context = {"response": "Final synthesis"}
@@ -266,14 +272,17 @@ async def test_wave_command_logging_in_session(chat_mock):
             messages = chat_mock._session.messages
 
             # Find the Executed command message
-            cmd_msg = next((m for m in messages if m.role == "assistant" and "Executed command:" in m.content), None)
+            cmd_msg = next(
+                (m for m in messages if m.role == "assistant" and "Executed command:" in m.content),
+                None,
+            )
             assert cmd_msg is not None
             assert "nmap -sT localhost" in cmd_msg.content
 
             # Find the Command output message
-            output_msg = next((m for m in messages if m.role == "user" and "Command output:" in m.content), None)
+            output_msg = next(
+                (m for m in messages if m.role == "user" and "Command output:" in m.content), None
+            )
             assert output_msg is not None
             assert "PORT   STATE SERVICE" in output_msg.content
             assert "80/tcp open  http" in output_msg.content
-
-

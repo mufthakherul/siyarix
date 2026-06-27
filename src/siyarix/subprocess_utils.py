@@ -283,7 +283,7 @@ def _prepare_env(env: dict[str, str] | None = None) -> dict[str, str]:
 
 def safe_run_sync(
     cmd: list[str],
-    timeout: float = 10,
+    timeout: float = 60,
     capture_output: bool = True,
     text: bool = True,
     cwd: str | Path | None = None,
@@ -434,7 +434,7 @@ def _get_sudo_password() -> str | None:
 
 
 async def safe_run_async(
-    cmd: list[str], timeout: int = 10, validate: bool = True, env: dict[str, str] | None = None
+    cmd: list[str], timeout: int = 60, validate: bool = True, env: dict[str, str] | None = None
 ) -> ExecutionResult:
     if validate:
         _validate_cmd_list(cmd)
@@ -611,7 +611,7 @@ async def safe_run_async(
 
 async def safe_run_async_stream(
     cmd: list[str],
-    timeout: int = 10,
+    timeout: int = 60,
     validate: bool = True,
     on_stdout: Callable[[str], Any] | None = None,
     on_stderr: Callable[[str], Any] | None = None,

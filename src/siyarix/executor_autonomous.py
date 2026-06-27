@@ -251,9 +251,21 @@ class AutonomousExecutor(BaseExecutor):
                 return self._try_parse_output(step, result)
             except (ToolNotFoundError, ToolExecutionError) as e:
                 return {"status": "error", "error": str(e), "tool": step.tool}
+        # Fallback: try generic command execution as last resort
+        if step.tool:
+            try:
+                from .subprocess_utils import safe_run_async
+                fallback_cmd = [step.tool]
+                if step.args.get("target"):
+                    fallback_cmd.append(step.args["target"])
+                result = await safe_run_async(fallback_cmd, timeout=30)
+                if result.exit_code != 127 and result.exit_code != 126:
+                    return {"status": "success", "output": result.stdout, "error": result.stderr, "tool": step.tool}
+            except Exception:
+                pass
         return {
             "status": "error",
-            "error": f"LLM generated step for tool '{step.tool}' without a raw shell command. Autonomous mode requires a 'command' field for execution.",
+            "error": f"Tool '{step.tool}' not available. Try using a raw shell command via the 'command' field instead, or install the tool. Available alternatives depend on what's on your system PATH.",
         }
 
     async def _execute_shell_command(self, step: PlanStep, state: CommandResult) -> dict[str, Any]:

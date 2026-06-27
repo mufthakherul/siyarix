@@ -25,6 +25,7 @@ _ENV_TO_CONFIG: dict[str, str] = {
     "SIYARIX_PERSONA": "persona",
     "SIYARIX_PROVIDER": "model_provider",
     "SIYARIX_TIMEOUT": "scan_timeout",
+    "SIYARIX_EXECUTION_TIMEOUT": "scan_timeout",
     "SIYARIX_LOG_LEVEL": "log_level",
     "SIYARIX_NO_TELEMETRY": "_no_telemetry",
     "SIYARIX_SAFE_MODE": "_safe_mode",

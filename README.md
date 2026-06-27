@@ -10,48 +10,81 @@
 </p>
 
 <p align="center">
-  <!-- Core Info -->
+  <!-- Core Releases & CI/CD -->
   <a href="https://github.com/mufthakherul/siyarix/releases">
-    <img src="https://img.shields.io/badge/Release-v1.0.0-blue?style=for-the-badge&logo=github" alt="Release"/>
+    <img src="https://img.shields.io/github/v/release/mufthakherul/siyarix?style=for-the-badge&logo=github&color=3388ff" alt="Latest GitHub Release"/>
   </a>
-  <a href="https://github.com/mufthakherul/siyarix/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-blue?style=for-the-badge&logo=gnu" alt="License"/>
-  </a>
-
-  <!-- Build & Quality -->
   <a href="https://github.com/mufthakherul/siyarix/actions/workflows/ci.yml">
-    <img src="https://img.shields.io/badge/Build-Passing-brightgreen?style=for-the-badge&logo=githubactions" alt="Build Status"/>
+    <img src="https://img.shields.io/github/actions/workflow/status/mufthakherul/siyarix/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=build" alt="Build Status"/>
+  </a>
+  <a href="https://codecov.io/gh/mufthakherul/siyarix">
+    <img src="https://img.shields.io/codecov/c/github/mufthakherul/siyarix?style=for-the-badge&logo=codecov&logoColor=white" alt="Code Coverage"/>
   </a>
   <a href="https://www.codefactor.io/repository/github/mufthakherul/siyarix">
-    <img src="https://img.shields.io/badge/Quality-A%2B-brightgreen?style=for-the-badge" alt="Quality"/>
+    <img src="https://img.shields.io/codefactor/grade/github/mufthakherul/siyarix?style=for-the-badge&logo=codefactor&logoColor=white&label=quality" alt="Code Quality"/>
   </a>
+  <a href="https://securityscorecards.dev/viewer/?uri=github.com/mufthakherul/siyarix">
+    <img src="https://img.shields.io/ossf-scorecard/github.com/mufthakherul/siyarix?label=openssf%20scorecard&style=for-the-badge&logo=openssf&logoColor=white" alt="OpenSSF Scorecard"/>
+  </a>
+</p>
 
+<p align="center">
   <!-- Package & Ecosystem -->
   <a href="https://pypi.org/project/siyarix/">
-    <img src="https://img.shields.io/badge/PyPI-v1.0.0-blue?style=for-the-badge&logo=pypi" alt="PyPI"/>
+    <img src="https://img.shields.io/pypi/v/siyarix?style=for-the-badge&logo=pypi&logoColor=white&color=blue" alt="PyPI Package Version"/>
   </a>
   <a href="https://pypi.org/project/siyarix/">
-    <img src="https://img.shields.io/badge/Python-3.11%2B-blue?style=for-the-badge&logo=python" alt="Python Version"/>
+    <img src="https://img.shields.io/pypi/dm/siyarix?style=for-the-badge&logo=pypi&logoColor=white&color=blue" alt="PyPI Downloads"/>
+  </a>
+  <a href="https://pypi.org/project/siyarix/">
+    <img src="https://img.shields.io/pypi/pyversions/siyarix?style=for-the-badge&logo=python&logoColor=white&color=blue" alt="Supported Python Versions"/>
   </a>
   <a href="https://github.com/mufthakherul/siyarix">
-    <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blue?style=for-the-badge&logo=linux" alt="Platforms"/>
+    <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Android-blue?style=for-the-badge&logo=linux&logoColor=white" alt="Supported Platforms"/>
   </a>
-  <a href="https://github.com/mufthakherul/siyarix">
-    <img src="https://img.shields.io/badge/Docker-Ready-blue?style=for-the-badge&logo=docker" alt="Docker"/>
+  <a href="https://github.com/mufthakherul/siyarix/pkgs/container/siyarix">
+    <img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Ready"/>
   </a>
+</p>
 
-  <!-- Community  -->
-  <a href="https://github.com/mufthakherul/siyarix">
-    <img src="https://img.shields.io/badge/Stars-See%20GitHub-blue?style=for-the-badge&logo=github" alt="Stars"/>
+<p align="center">
+  <!-- Code Standards & Compliance -->
+  <a href="https://github.com/mufthakherul/siyarix/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/mufthakherul/siyarix?style=for-the-badge&logo=gnu&logoColor=white&color=blue" alt="License"/>
+  </a>
+  <a href="https://github.com/astral-sh/ruff">
+    <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json&style=for-the-badge" alt="Ruff Formatter"/>
+  </a>
+  <a href="https://github.com/pre-commit/pre-commit">
+    <img src="https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white&style=for-the-badge" alt="Pre-commit Enabled"/>
+  </a>
+  <a href="https://github.com/mufthakherul/siyarix/blob/main/CODE_OF_CONDUCT.md">
+    <img src="https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg?style=for-the-badge&logo=contributorcovenant&logoColor=white" alt="Code of Conduct"/>
+  </a>
+  <a href="https://github.com/mufthakherul/siyarix/blob/main/SECURITY.md">
+    <img src="https://img.shields.io/badge/Security-Policy%20Enabled-success?style=for-the-badge&logo=githubsecurity" alt="Security Policy"/>
+  </a>
+</p>
+
+<p align="center">
+  <!-- Repository Stats & Engagement -->
+  <a href="https://github.com/mufthakherul/siyarix/stargazers">
+    <img src="https://img.shields.io/github/stars/mufthakherul/siyarix?style=for-the-badge&logo=github&color=yellow" alt="GitHub Stars"/>
+  </a>
+  <a href="https://github.com/mufthakherul/siyarix/network/members">
+    <img src="https://img.shields.io/github/forks/mufthakherul/siyarix?style=for-the-badge&logo=github&color=999" alt="GitHub Forks"/>
   </a>
   <a href="https://github.com/mufthakherul/siyarix/graphs/contributors">
-    <img src="https://img.shields.io/badge/Contributors-Welcome-blue?style=for-the-badge&logo=github" alt="Contributors"/>
+    <img src="https://img.shields.io/github/contributors/mufthakherul/siyarix?style=for-the-badge&logo=github&color=orange" alt="Contributors"/>
   </a>
   <a href="https://github.com/mufthakherul/siyarix/issues">
-    <img src="https://img.shields.io/badge/Issues-Tracked-blue?style=for-the-badge&logo=github" alt="Open Issues"/>
+    <img src="https://img.shields.io/github/issues/mufthakherul/siyarix?style=for-the-badge&logo=github&color=red" alt="Open Issues"/>
+  </a>
+  <a href="https://github.com/mufthakherul/siyarix/pulls">
+    <img src="https://img.shields.io/github/issues-pr/mufthakherul/siyarix?style=for-the-badge&logo=github&color=brightgreen" alt="Open Pull Requests"/>
   </a>
   <a href="https://github.com/mufthakherul/siyarix/commits/main">
-    <img src="https://img.shields.io/badge/Last%20Commit-Recent-blue?style=for-the-badge&logo=github" alt="Last Commit"/>
+    <img src="https://img.shields.io/github/last-commit/mufthakherul/siyarix?style=for-the-badge&logo=github&color=lightgrey" alt="Last Commit"/>
   </a>
 </p>
 
@@ -66,7 +99,7 @@
 
 ---
 
-> ✋ **A Quick Heads-Up: We are moving!**  
+> ✋ **We are moving!**  
 > To better support our growing community, Siyarix will soon be migrating from my personal repository (`mufthakherul/siyarix`) to its very own dedicated GitHub organization: **`siyarix/siyarix`**.  
 > Please read our [Migration Announcement](announcement/repo-migration-announcement.md) for all the details.
 
@@ -74,7 +107,7 @@
 
 ## 👋 Welcome to Siyarix!
 
-Hello there! Welcome to **Siyarix**. What started as a personal passion project has steadily grown into a capable AI-driven Cybersecurity Orchestration Platform, built to help streamline security operations.
+Hello there! Welcome to **Siyarix**. What started as a personal project has steadily grown into a capable AI-driven Cybersecurity Orchestration Platform, built to help streamline security operations.
 
 Have you ever wished you could just tell your security tools what to do in plain English? With Siyarix, you can! Whether you say *"scan this subnet for open ports"*, *"enumerate services on our main web server,"* or even *"perform a full external reconnaissance on example.com,"* Siyarix takes your natural language objective, plans the necessary steps, executes the right tools safely, analyzes the outputs, and generates a clear report for you. 
 
@@ -100,7 +133,6 @@ Siyarix adapts to your comfort level and operational needs through four distinct
 | **REGISTRY** | Precise, manual control | Tool-driven mode. You run direct commands (e.g., `siyarix run nmap -sV example.com`), but our AI acts as your assistant, offering syntax help and planning advice on demand. |
 | **AUTONOMOUS** | Broad objectives | Goal-driven mode. You set a high-level objective (*"Find vulnerabilities on this server"*), and the agent takes over. It uses an Observe-Reason-Act loop to independently plan, execute, and adapt until the goal is met. |
 | **HYBRID** | Safe, supervised operations | The perfect middle ground! The AI proposes a detailed step-by-step plan, but it pauses and waits for your explicit human approval before running any potentially sensitive commands. |
-| **INTERACTIVE** | Deep dive investigations | A full REPL (Read-Eval-Print Loop) session. Think of it as a dedicated chat interface in your terminal, featuring handy slash commands, a split-pane view, and real-time feedback. |
 
 ---
 
@@ -110,7 +142,6 @@ Siyarix adapts to your comfort level and operational needs through four distinct
 
 - **Multiple AI Providers Supported:** We integrate with the best in the business. Whether you prefer **OpenAI**, **Anthropic (Claude)**, **Groq**, or running **Local models** (like Ollama or LM Studio) completely offline, Siyarix supports it out of the box.
 - **Resilient Failover:** API down? No problem. Siyarix features an automatic "circuit breaker." If your primary AI provider fails, the system automatically falls back to your secondary providers, ensuring your scan continues.
-- **Swarm Agents:** For complex tasks, Siyarix decomposes objectives and spins up specialized sub-agents (e.g., a "Recon Agent", an "Exploit Agent", and a "Reporting Agent") that work together.
 - **Semantic Memory:** Siyarix learns as it goes, building an in-memory "Knowledge Graph" of your infrastructure across sessions. If it finds an open port early on, it remembers to target it later.
 
 ### 🛠️ Security Tool Integration
@@ -122,12 +153,12 @@ Siyarix adapts to your comfort level and operational needs through four distinct
 ### 🛡️ Safety & Ethical Operations
 
 We know that combining AI with security tools can be daunting. We take safety seriously:
-- **The Permission Gate:** We never run commands blindly. Siyarix features a two-stage danger analysis that checks every proposed command against high-risk patterns before execution. If it looks dangerous, it halts and asks for your permission.
-- **Encrypted Credential Vault:** Never hardcode API keys or passwords. Store your sensitive credentials securely using our AES-256-GCM encrypted vault, which integrates directly with your operating system's native keyring.
-- **Stealth Manager:** Our OPSEC manager handles request jitter, pacing, and User-Agent rotation to keep your operations quiet.
-- **Tamper-Evident Logs:** Every single action, AI prompt, and tool execution is recorded in a cryptographically chained (SHA-256) audit log for total accountability.
+- **The Permission Gate:** Siyarix never run commands blindly. Siyarix features a two-stage danger analysis before execution. If it looks dangerous, it halts and asks for your permission.
+- **Encrypted Credential Vault:** Never hardcode API keys or passwords. Store your sensitive credentials securely using our AES-256-GCM encrypted vault.
+- **Stealth Manager:** OPSEC manager handles request jitter, pacing, and User-Agent rotation to keep your operations quiet.
+- **Tamper-Evident Logs:** Every single action, AI prompt, and tool execution is recorded in a cryptographically chained (SHA-256) audit log for total accountability. But for security and privacy bydefault, saving session logs is deactivated. You can enable it in the config if you want to keep a record of your operations.
 
-### 💻 A Clean CLI Experience
+### 💻 A Clean CLI Overview
 
 - **Versatile Exports:** Generate structured outputs in 8 different formats including **Markdown, HTML, JSON, SARIF, XML, and CSV**.
 - **Express Yourself:** Choose from **12 stunning color themes** (like SYNTHWAVE, CYBER_NOIR, ARCTIC, or MINIMAL) to match your terminal vibe.
@@ -171,6 +202,19 @@ Wondering what exactly happens when you hit enter? Here is a simplified look at 
     v
 9. Self-Correction Loop (If a tool fails, the AI reasons why and tries a new approach!)
 ```
+---
+
+## 📦 Installation
+
+The easiest way to install Siyarix is via Python's package manager:
+
+```bash
+pip install siyarix
+```
+
+*Prefer a different method?* We also support **Docker, Homebrew (macOS), Winget (Windows), Termux, and Linux** packages! 
+
+Check out our incredibly detailed [Installation Guide](docs/getting-started/installation.md) for step-by-step instructions for all platforms and optional extras.
 
 ---
 
@@ -203,21 +247,7 @@ siyarix health
 
 ---
 
-## 📦 Installation
-
-The easiest way to install Siyarix is via Python's package manager:
-
-```bash
-pip install siyarix
-```
-
-*Prefer a different method?* We also support **Docker, Homebrew (macOS), Winget (Windows), Chocolatey, and `.deb` (Debian/Ubuntu)** packages! 
-
-Check out our incredibly detailed [Installation Guide](docs/getting-started/installation.md) for step-by-step instructions for all platforms and optional extras.
-
----
-
-## 📚 Comprehensive Documentation
+## 📚 Documentation
 
 Want to dive much deeper into what makes Siyarix tick? We have written extensive, easy-to-read guides ready for you:
 
@@ -233,11 +263,11 @@ Want to dive much deeper into what makes Siyarix tick? We have written extensive
 
 ## ⚖️ A Note on Safety & Ethical Use
 
-Siyarix is an incredibly powerful tool built **strictly for authorized security testing, legitimate research, and defensive operations**. 
+Siyarix is an tool built **strictly for authorized security testing, legitimate research, and defensive operations**. 
 
 > **🛑 CRITICAL REMINDER:** You must NEVER use Siyarix to scan, test, or interact with systems, applications, or networks without explicit, documented permission from their respective owners. 
 
-We strongly believe in building tools that protect, not harm. To ensure accountability, every single action, command, and AI prompt processed by the platform is permanently recorded in a tamper-evident audit trail. 
+***We strongly believe in building tools that protect, not harm.*** 
 
 Before running your first scan, please read our full [ETHICAL_USE.md](ETHICAL_USE.md) and [RESPONSIBLE_AI_USE.md](RESPONSIBLE_AI_USE.md) policies.
 
@@ -245,22 +275,13 @@ Before running your first scan, please read our full [ETHICAL_USE.md](ETHICAL_US
 
 ## 🤝 Contributing
 
-Siyarix started as a personal passion project, but it is **now officially public** and growing fast! 
+Siyarix started as a personal project, but it is **now officially public** and open for contributions! 
 
 We **warmly welcome** contributors of all skill levels. Whether you want to fix a typo in the documentation, add a new AI provider, or write a parser for a security tool you love, your help is deeply appreciated. 
 
-> 👋 **Heads Up:** To better support our growing community of contributors, Siyarix will soon be moving to its very own dedicated GitHub organization (`siyarix/siyarix`). Don't worry, all links will seamlessly redirect!
+> 👋 **Heads Up:** To better support our growing community of contributors, Siyarix will soon be moving to its own dedicated GitHub organization (`siyarix/siyarix`). Don't worry, all links will seamlessly redirect!
 
 Check out our [Contribution Guide](docs/developer/contribution-guide.md) to get started. Let's build the future of AI-assisted security together!
-
----
-
-## ❤️ Meet the Author
-
-**MD MUFTHAKHERUL ISLAM MIRAZ**
-
-I absolutely love connecting with the community, hearing your feedback, and seeing how you use Siyarix! You can find me and the project here:  
-[GitHub](https://github.com/mufthakherul/siyarix) | [siyarix.github.io](https://siyarix.github.io)
 
 ---
 

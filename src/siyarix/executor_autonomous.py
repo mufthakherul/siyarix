@@ -255,12 +255,18 @@ class AutonomousExecutor(BaseExecutor):
         if step.tool:
             try:
                 from .subprocess_utils import safe_run_async
+
                 fallback_cmd = [step.tool]
                 if step.args.get("target"):
                     fallback_cmd.append(step.args["target"])
                 result = await safe_run_async(fallback_cmd, timeout=30)
                 if result.exit_code != 127 and result.exit_code != 126:
-                    return {"status": "success", "output": result.stdout, "error": result.stderr, "tool": step.tool}
+                    return {
+                        "status": "success",
+                        "output": result.stdout,
+                        "error": result.stderr,
+                        "tool": step.tool,
+                    }
             except Exception:
                 pass
         return {

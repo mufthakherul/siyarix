@@ -503,14 +503,18 @@ class LLMEngineMixin:
             suggestions.append("  • **`cloud audit on example.com`** — cloud assessment")
         # Forensics
         if any(kw in lowered for kw in ("forensic", "memory", "dump", "volatility")):
-            suggestions.append("  • **`analyze memory dump memory.raw`** — memory forensics analysis")
+            suggestions.append(
+                "  • **`analyze memory dump memory.raw`** — memory forensics analysis"
+            )
         if any(kw in lowered for kw in ("disk", "filesystem", "carving", "recover")):
             suggestions.append("  • **`forensic analysis on disk_image.dd`** — disk forensics")
         if any(kw in lowered for kw in ("malware", "yara", "scan file")):
             suggestions.append("  • **`scan file suspicious.exe with yara`** — YARA rule matching")
         # Code / SAST
         if any(kw in lowered for kw in ("code", "source", "review", "semgrep", "static analysis")):
-            suggestions.append("  • **`sast scan on /path/to/code`** — static code security analysis")
+            suggestions.append(
+                "  • **`sast scan on /path/to/code`** — static code security analysis"
+            )
         if any(kw in lowered for kw in ("secrets", "credentials", "gitleaks", "leaked")):
             suggestions.append("  • **`scan for secrets in /path/to/repo`** — secrets detection")
         # IaC / compliance
@@ -520,7 +524,9 @@ class LLMEngineMixin:
             suggestions.append("  • **`compliance audit on target`** — compliance check")
         # Container
         if any(kw in lowered for kw in ("container", "docker", "image", "trivy")):
-            suggestions.append("  • **`scan container ubuntu:latest`** — container vulnerability scan")
+            suggestions.append(
+                "  • **`scan container ubuntu:latest`** — container vulnerability scan"
+            )
         # OSINT
         if any(kw in lowered for kw in ("osint", "recon", "email", "social")):
             suggestions.append("  • **`osint on example.com`** — OSINT gathering")
@@ -1175,17 +1181,17 @@ class LLMEngineMixin:
                     "MUST continue with deeper phases: directory brute-force, nuclei template "
                     "scanning, subdomain enumeration, parameter discovery, and exploitation "
                     "validation.\n"
-                        "- If YES (all plausible investigation paths are exhausted, target is "
-                        "unreachable, or user confirms satisfaction) → set needs_tools=false and "
-                        "provide a comprehensive final report with findings, exploitation paths, "
-                        "and remediation.\n"
-                        "- If NO → set needs_tools=true. Plan the next wave (2-4 targeted commands) "
-                        "to go deeper. Prioritise commands that discover vulnerabilities, not just "
-                        "passive information.\n"
-                        "Do NOT stop early when the user asked for a full report, exploitation "
-                        "analysis, or deep assessment. Only set needs_tools=false if the target is "
-                        "completely unreachable, all plausible investigation paths have been "
-                        "exhausted, or the user explicitly confirms they are satisfied."
+                    "- If YES (all plausible investigation paths are exhausted, target is "
+                    "unreachable, or user confirms satisfaction) → set needs_tools=false and "
+                    "provide a comprehensive final report with findings, exploitation paths, "
+                    "and remediation.\n"
+                    "- If NO → set needs_tools=true. Plan the next wave (2-4 targeted commands) "
+                    "to go deeper. Prioritise commands that discover vulnerabilities, not just "
+                    "passive information.\n"
+                    "Do NOT stop early when the user asked for a full report, exploitation "
+                    "analysis, or deep assessment. Only set needs_tools=false if the target is "
+                    "completely unreachable, all plausible investigation paths have been "
+                    "exhausted, or the user explicitly confirms they are satisfied."
                     "-If"
                 )
                 with console.status(
@@ -1417,7 +1423,7 @@ class LLMEngineMixin:
                         {
                             "type": "text",
                             "text": system_prompt,
-                            "cache_control": {"type": "ephemeral"}
+                            "cache_control": {"type": "ephemeral"},
                         }
                     ]
 

@@ -33,6 +33,7 @@ class FakeChatSession:
             def __init__(self, r, c):
                 self.role = r
                 self.content = c
+
         msg = Msg(role, content)
         self.messages.append(msg)
         return msg
@@ -165,10 +166,8 @@ async def test_chat_loop_basic(chat_mock):
 
         # We need to mock _handle_slash and _execute_instruction
         with patch.object(chat_mock, "_handle_slash") as mock_slash:
-            mock_slash.side_effect = (
-                lambda cmd: setattr(chat_mock, "_running", False)
-                if cmd.startswith("/exit")
-                else None
+            mock_slash.side_effect = lambda cmd: (
+                setattr(chat_mock, "_running", False) if cmd.startswith("/exit") else None
             )
             await chat_mock.start_chat()
             # Loop should terminate because /exit sets _running = False
@@ -185,11 +184,11 @@ def test_should_use_compact_with_token_saver(chat_mock):
 
     # 2. When token_saver is True -> should_use_compact should be True for calls 1-14, and False for multiples of 15
     chat_mock._settings.set("token_saver", True)
-    
+
     # 0 calls -> False
     chat_mock._llm_calls = 0
     assert chat_mock._should_use_compact() is False
-    
+
     # 5 calls -> True
     chat_mock._llm_calls = 5
     assert chat_mock._should_use_compact() is True
@@ -207,7 +206,7 @@ def test_should_use_compact_with_token_saver(chat_mock):
 async def test_wave_command_logging_in_session(chat_mock):
     # We want to test that the command execution is recorded in chat_mock._session.messages
     from siyarix.models import ExecutionPlan, PlanStep, PlanType
-    
+
     plan = ExecutionPlan(
         goal="test command output preservation",
         steps=[
@@ -218,62 +217,70 @@ async def test_wave_command_logging_in_session(chat_mock):
                 command="nmap -sT localhost",
             )
         ],
-        plan_type=PlanType.SEQUENTIAL
+        plan_type=PlanType.SEQUENTIAL,
     )
-    
+
     # Mock executor and provider state
     with patch("siyarix.core.AgentCore") as mock_agent_class:
         agent = MagicMock()
         mock_agent_class.return_value = agent
-        
+
         agent.initialize = AsyncMock()
         agent._registry = MagicMock()
         agent._registry.list_tools.return_value = []
-        
+
         agent.executor_autonomous = MagicMock()
         agent.executor_autonomous.execute_plan = AsyncMock(return_value=plan)
         agent.executor_autonomous.command_review = True
-        
+
         # Setup executed steps results
         plan.steps[0].result = {
             "status": "success",
             "output": "Nmap scan report for localhost\nHost is up (0.001s).\nPORT   STATE SERVICE\n80/tcp open  http",
             "error": "",
         }
-        
+
         # Mock LLM engine and planner logic inside _execute_agent
-        with patch.object(chat_mock, "_resolve_provider", return_value=("openai", "key")), \
-             patch.object(chat_mock, "_make_llm_call", return_value=AsyncMock(return_value={"content": "Done."})), \
-             patch.object(chat_mock, "_llm_available", return_value=True), \
-             patch.object(chat_mock, "_check_local_provider_running", return_value=False), \
-             patch("siyarix.chat.engine.console") as mock_console:
-            
+        with (
+            patch.object(chat_mock, "_resolve_provider", return_value=("openai", "key")),
+            patch.object(
+                chat_mock,
+                "_make_llm_call",
+                return_value=AsyncMock(return_value={"content": "Done."}),
+            ),
+            patch.object(chat_mock, "_llm_available", return_value=True),
+            patch.object(chat_mock, "_check_local_provider_running", return_value=False),
+            patch("siyarix.chat.engine.console") as mock_console,
+        ):
             # Setup agent.planner_autonomous.plan to return a plan on first call, and empty steps on second call (done)
             second_plan = ExecutionPlan(goal="test", steps=[], plan_type=PlanType.SEQUENTIAL)
             second_plan.context = {"response": "Final synthesis"}
-            
+
             agent.planner_autonomous = MagicMock()
             agent.planner_autonomous.plan = AsyncMock(side_effect=[plan, second_plan])
-            
+
             chat_mock._mode = "autonomous"
             chat_mock._session.target = "127.0.0.1"
             # Run _execute_agent
             res = await chat_mock._execute_agent("test", require_llm=True)
             assert res is True
-            
+
             # Now let's verify that command log messages were added to the session!
             # The session should have the executed command (assistant) and the command output (user).
             messages = chat_mock._session.messages
-            
+
             # Find the Executed command message
-            cmd_msg = next((m for m in messages if m.role == "assistant" and "Executed command:" in m.content), None)
+            cmd_msg = next(
+                (m for m in messages if m.role == "assistant" and "Executed command:" in m.content),
+                None,
+            )
             assert cmd_msg is not None
             assert "nmap -sT localhost" in cmd_msg.content
-            
+
             # Find the Command output message
-            output_msg = next((m for m in messages if m.role == "user" and "Command output:" in m.content), None)
+            output_msg = next(
+                (m for m in messages if m.role == "user" and "Command output:" in m.content), None
+            )
             assert output_msg is not None
             assert "PORT   STATE SERVICE" in output_msg.content
             assert "80/tcp open  http" in output_msg.content
-
-

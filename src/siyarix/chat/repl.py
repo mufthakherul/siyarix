@@ -916,6 +916,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         )
         console.print(layout)
         console.print("\n")
+
     def _gather_provider_status(self) -> dict[str, tuple[str, str]]:
         """Return a concise status map for supported providers.
 
@@ -1030,7 +1031,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
     def _get_conversation_history(self, max_messages: int = 50) -> list[dict]:
         """Extract recent conversation history from the session for LLM context.
-        
+
         Excludes the current user message at the end of the history to prevent
         duplicate adjacent user roles in the API payload.
         """
@@ -1043,7 +1044,11 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         if not msgs_to_process:
             return []
 
-        recent = msgs_to_process[-max_messages:] if len(msgs_to_process) > max_messages else msgs_to_process
+        recent = (
+            msgs_to_process[-max_messages:]
+            if len(msgs_to_process) > max_messages
+            else msgs_to_process
+        )
         return [
             {
                 "role": m.role,

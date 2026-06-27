@@ -425,7 +425,7 @@ def _gemini_build_contents(
     history: list[dict] | None = None,
 ) -> list[dict]:
     """Build the 'contents' array for Gemini's generateContent API.
-    
+
     Merges consecutive messages of the same role to satisfy API alternation constraints.
     """
     raw_msgs = []

@@ -261,8 +261,8 @@ def test_show_key_status(chat, mock_console):
         mock_registry.list_providers.return_value = ["openai", "anthropic"]
         profile_openai = MagicMock(api_key_env="OPENAI_API_KEY")
         profile_anthropic = MagicMock(api_key_env="ANTHROPIC_API_KEY")
-        mock_registry.get_profile.side_effect = (
-            lambda p: profile_openai if p == "openai" else profile_anthropic
+        mock_registry.get_profile.side_effect = lambda p: (
+            profile_openai if p == "openai" else profile_anthropic
         )
 
         mock_store = MagicMock()
@@ -290,7 +290,7 @@ def test_cmd_key_rotate(mock_ask, chat, mock_console):
 def test_cmd_undo(chat, mock_console):
     # Setup session directory mock
     chat._SESSIONS_DIR = MagicMock()
-    
+
     # Test empty undo
     chat._cmd_undo("")
     mock_console.print.assert_any_call("[yellow]No messages to undo.[/yellow]")
@@ -348,4 +348,3 @@ async def test_cmd_edit(chat, mock_console):
     chat._handle_natural_language.assert_called_once_with("New prompt")
     # Both messages should be popped
     assert len(chat._session.messages) == 0
-

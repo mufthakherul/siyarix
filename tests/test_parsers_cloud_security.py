@@ -1045,9 +1045,7 @@ class TestEttercapParser:
 class TestFingerParser_extra_b6:
     def test_detail_format(self):
         p = FingerParser()
-        output = (
-            "Login: admin\n" "Name: Admin User\n" "Directory: /home/admin\n" "Shell: /bin/bash\n"
-        )
+        output = "Login: admin\nName: Admin User\nDirectory: /home/admin\nShell: /bin/bash\n"
         findings = p.parse(output)
         assert len(findings) >= 4
         for f in findings:
@@ -1085,7 +1083,7 @@ class TestFingerParser_extra_b6:
 
     def test_login_short_format(self):
         p = FingerParser()
-        output = "Login       Name        Tty      Idle\n" "admin       Admin User  pts/0    3:45\n"
+        output = "Login       Name        Tty      Idle\nadmin       Admin User  pts/0    3:45\n"
         findings = p.parse(output)
         assert len(findings) >= 1
         assert "Logged-in user" in findings[0]["title"]
@@ -1113,7 +1111,7 @@ class TestFingerParser_extra_b6:
 
     def test_plan_file(self):
         p = FingerParser()
-        output = "Login: admin\n" "Plan:\n" "I am on vacation\n" "Back next week\n" "\n"
+        output = "Login: admin\nPlan:\nI am on vacation\nBack next week\n\n"
         findings = p.parse(output)
         assert len(findings) >= 2
         plan_findings = [f for f in findings if "Plan file" in f["title"]]
@@ -1121,7 +1119,7 @@ class TestFingerParser_extra_b6:
 
     def test_project_skipped(self):
         p = FingerParser()
-        output = "Login: admin\n" "Project:\n" "Important project\n"
+        output = "Login: admin\nProject:\nImportant project\n"
         findings = p.parse(output)
         project_findings = [f for f in findings if "Project" in f["title"]]
         assert len(project_findings) == 0
@@ -2949,9 +2947,7 @@ class TestGitleaksParserBranches:
     def test_summary_key_already_seen(self):
         p = GitleaksParser()
         output = (
-            '{"ruleID": "r1", "file": "x.py", "startLine": 1, "secret": "x"}\n'
-            "leaks: 5\n"
-            "leaks: 5\n"
+            '{"ruleID": "r1", "file": "x.py", "startLine": 1, "secret": "x"}\nleaks: 5\nleaks: 5\n'
         )
         findings = p.parse(output)
         info = [f for f in findings if f["severity"] == "info"]
@@ -3094,8 +3090,7 @@ class TestLdapsearchParserBranches:
     def test_dn_already_seen_ldif(self):
         p = LdapsearchParser()
         output = (
-            "dn: cn=alice,dc=example,dc=com\ncn: alice\n"
-            "dn: cn=alice,dc=example,dc=com\nsn: Alice"
+            "dn: cn=alice,dc=example,dc=com\ncn: alice\ndn: cn=alice,dc=example,dc=com\nsn: Alice"
         )
         findings = p.parse(output)
         dn = [f for f in findings if "LDAP entry" in f["title"]]
@@ -3686,7 +3681,7 @@ class TestYaraParserAdditionalBranches:
     def test_meta_with_current_rule(self):
         """133->33: _META_RE matches and current_meta truthy ->
         creates meta finding then continue top of loop."""
-        output = "rule SuspectRule\n" "description: Detects suspicious behavior\n"
+        output = "rule SuspectRule\ndescription: Detects suspicious behavior\n"
         p = YaraParser()
         findings = p.parse(output)
         meta = [f for f in findings if "Metadata" in f["title"]]

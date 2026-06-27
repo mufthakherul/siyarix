@@ -449,7 +449,10 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "sudo rm -r",
     ),
     (
-        re.compile(r"\brm\s+(?:-[a-zA-Z]*r[a-zA-Z]*\s+-[a-zA-Z]*f\b|-[a-zA-Z]*f[a-zA-Z]*\s+-[a-zA-Z]*r\b|-[a-zA-Z]*[rf][a-zA-Z]*[rf]\b|\s+--(?:recursive|force)\s+--(?:recursive|force)\b)", re.I),
+        re.compile(
+            r"\brm\s+(?:-[a-zA-Z]*r[a-zA-Z]*\s+-[a-zA-Z]*f\b|-[a-zA-Z]*f[a-zA-Z]*\s+-[a-zA-Z]*r\b|-[a-zA-Z]*[rf][a-zA-Z]*[rf]\b|\s+--(?:recursive|force)\s+--(?:recursive|force)\b)",
+            re.I,
+        ),
         "critical",
         "Recursive force delete (rm -rf)",
     ),

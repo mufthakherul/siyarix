@@ -1902,12 +1902,12 @@ class CommandHandlersMixin:
                         lines.append(
                             f'  <Skill ID="{_xml(s["skill_id"])}" Confidence="{s["confidence"]:.2f}">'
                         )
-                        lines.append(f'    <Intent>{_xml(s["intent_pattern"])}</Intent>')
+                        lines.append(f"    <Intent>{_xml(s['intent_pattern'])}</Intent>")
                         lines.append("    <Steps>")
                         for step in s["steps"]:
                             lines.append(
                                 f'      <Step Tool="{_xml(step["tool"])}">'
-                                f'{_xml(step["command_template"])}</Step>'
+                                f"{_xml(step['command_template'])}</Step>"
                             )
                         lines.append("    </Steps>")
                         lines.append("  </Skill>")
@@ -2532,7 +2532,7 @@ class CommandHandlersMixin:
         for _ in range(steps):
             if not msgs:
                 break
-            
+
             popped_this_turn = []
             if msgs and msgs[-1].role == "assistant":
                 popped_this_turn.append(msgs.pop())
@@ -2540,18 +2540,20 @@ class CommandHandlersMixin:
                 popped_this_turn.append(msgs.pop())
             if not popped_this_turn and msgs:
                 popped_this_turn.append(msgs.pop())
-                
+
             if popped_this_turn:
                 total_popped += 1
                 removed_summary.extend(popped_this_turn)
 
         if total_popped > 0:
-            console.print(f"[green]✓ Undid the last {total_popped} turn{'s' if total_popped > 1 else ''} of conversation.[/green]")
+            console.print(
+                f"[green]✓ Undid the last {total_popped} turn{'s' if total_popped > 1 else ''} of conversation.[/green]"
+            )
             for msg in reversed(removed_summary):
                 role_label = "User" if msg.role == "user" else "Siyarix"
                 content_preview = msg.content[:60] + "..." if len(msg.content) > 60 else msg.content
                 console.print(f"  [dim]Removed {role_label}: {content_preview}[/dim]")
-            
+
             try:
                 self._session.save(self._SESSIONS_DIR / f"{self._session.session_id}.json")
             except Exception:
@@ -2577,8 +2579,8 @@ class CommandHandlersMixin:
             return
 
         user_prompt = msgs[-1].content
-        console.print(f"[cyan]→ Retrying last prompt: [italic]\"{user_prompt}\"[/italic][/cyan]")
-        
+        console.print(f'[cyan]→ Retrying last prompt: [italic]"{user_prompt}"[/italic][/cyan]')
+
         msgs.pop()
         await self._handle_natural_language(user_prompt)
 
@@ -2605,9 +2607,9 @@ class CommandHandlersMixin:
             return
 
         old_msg = msgs.pop()
-        console.print(f"[cyan]Replacing: [dim]\"{old_msg.content}\"[/dim][/cyan]")
-        console.print(f"[cyan]With:      [bold]\"{new_prompt}\"[/bold][/cyan]")
-        
+        console.print(f'[cyan]Replacing: [dim]"{old_msg.content}"[/dim][/cyan]')
+        console.print(f'[cyan]With:      [bold]"{new_prompt}"[/bold][/cyan]')
+
         await self._handle_natural_language(new_prompt)
 
     def _cmd_learn(self, args: str) -> None:

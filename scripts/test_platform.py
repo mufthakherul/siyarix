@@ -348,7 +348,7 @@ def print_human_report(results: dict[str, Any]) -> None:
 
     # Module imports
     print(f"\n  {'Module Imports':25} {'Status':10}")
-    print(f"  {'-'*25} {'-'*10}")
+    print(f"  {'-' * 25} {'-' * 10}")
     for mod, ok in results["modules_import"].items():
         status = "✓" if ok else "✗"
         print(f"  {mod:25} {status:>10}")

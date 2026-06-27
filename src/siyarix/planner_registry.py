@@ -95,8 +95,37 @@ _MULTI_WORD_CHECKS = [
     ("ransomware detection", "yara", "Ransomware detection", ""),
     ("forensic evidence", "volatility", "Forensic evidence collection", "-f"),
     ("legal hold", "dd", "Legal hold evidence preservation", ""),
-    ("misp threat", "curl", "MISP threat intel query", ""),
-    ("ioc in siem", "yara", "IOC-to-SIEM correlation", ""),
+        ("misp threat", "curl", "MISP threat intel query", ""),
+        ("ioc in siem", "yara", "IOC-to-SIEM correlation", ""),
+        # ── SAST / Code Review patterns ─────────────────────────
+        ("code review", "semgrep", "Static code security review", "--config=auto"),
+        ("static analysis", "semgrep", "Static code security analysis", "--config=auto"),
+        ("source code scan", "semgrep", "Source code security scan", "--config=auto"),
+        ("sast scan", "semgrep", "SAST security scan", "--config=auto"),
+        ("python security", "bandit", "Python security linting", "-r"),
+        ("secrets scan", "gitleaks", "Git secrets scanning", "detect --no-git"),
+        ("credential leak", "trufflehog", "Credential leak detection", ""),
+        ("hardcoded secrets", "gitleaks", "Hardcoded secrets detection", "detect --no-git"),
+        # ── IaC / Cloud patterns ─────────────────────────────────
+        ("terraform scan", "checkov", "Terraform security scan", "-d ."),
+        ("cloudformation scan", "checkov", "CloudFormation security scan", "-d ."),
+        ("iac security", "checkov", "IaC security analysis", "-d ."),
+        ("aws audit", "prowler", "AWS security audit", ""),
+        ("aws security", "prowler", "AWS security assessment", ""),
+        ("cloud compliance", "scoutsuite", "Cloud compliance audit", ""),
+        ("k8s audit", "kubectl", "Kubernetes security audit", ""),
+        ("kubernetes audit", "kubectl", "Kubernetes security audit", ""),
+        # ── Container patterns ───────────────────────────────────
+        ("container scan", "trivy", "Container vulnerability scan", "image"),
+        ("docker scan", "trivy", "Docker image vulnerability scan", "image"),
+        ("image vuln", "trivy", "Container image vulnerability scan", "image"),
+        ("sbom generate", "syft", "SBOM generation", ""),
+        ("dependency check", "grype", "Dependency vulnerability check", ""),
+        # ── Reverse Engineering patterns ─────────────────────────
+        ("reverse engineering", "radare2", "Reverse engineering binary analysis", ""),
+        ("binary analysis", "radare2", "Binary reverse engineering", ""),
+        ("decompile apk", "apktool", "APK decompilation", ""),
+        ("android analysis", "apktool", "Android APK analysis", ""),
     # ── OS/System / Syslog patterns ───────────────────────────
     ("check system log", "journalctl", "System log check", ""),
     ("check system logs", "journalctl", "System log check", ""),
@@ -565,6 +594,16 @@ class RegistryPlanner:
             "subdomain_enum",
             "dir_brute",
             "ct_log",
+            # Non-scanning templates
+            "memory_forensics",
+            "disk_forensics",
+            "code_review_sast",
+            "secrets_scan",
+            "container_scan",
+            "iac_scan",
+            "cloud_audit_aws",
+            "malware_analysis",
+            "reverse_engineering",
         }
         self._cron_path = "/etc/crontab" if os.name != "nt" else "C:\\Windows\\System32\\Tasks"
         self._templates: dict[str, list[dict[str, Any]]] = self._build_templates()
@@ -1002,6 +1041,135 @@ class RegistryPlanner:
                     "description": "Directory and file brute-force enumeration",
                     "tool": "gobuster",
                     "args": {"mode": "dir"},
+                },
+            ],
+            # ── Non-scanning templates ──
+            "memory_forensics": [
+                {
+                    "description": "Memory dump analysis with Volatility framework",
+                    "tool": "volatility",
+                    "args": {"flags": "-f"},
+                },
+                {
+                    "description": "Extract printable strings from memory dump",
+                    "tool": "strings",
+                    "args": {},
+                },
+                {
+                    "description": "YARA rule scan against memory dump",
+                    "tool": "yara",
+                    "args": {},
+                },
+            ],
+            "disk_forensics": [
+                {
+                    "description": "File system metadata analysis with Sleuthkit",
+                    "tool": "sleuthkit",
+                    "args": {"flags": "fls"},
+                },
+                {
+                    "description": "File carving to recover deleted files",
+                    "tool": "foremost",
+                    "args": {},
+                },
+                {
+                    "description": "Firmware analysis and embedded file extraction",
+                    "tool": "binwalk",
+                    "args": {},
+                },
+                {
+                    "description": "Metadata extraction from files",
+                    "tool": "exiftool",
+                    "args": {},
+                },
+            ],
+            "code_review_sast": [
+                {
+                    "description": "Multi-language static code security analysis with Semgrep",
+                    "tool": "semgrep",
+                    "args": {"flags": "--config=auto"},
+                },
+                {
+                    "description": "Python-focused security linter",
+                    "tool": "bandit",
+                    "args": {"flags": "-r"},
+                },
+            ],
+            "secrets_scan": [
+                {
+                    "description": "Git repository secrets scanning",
+                    "tool": "gitleaks",
+                    "args": {"flags": "detect --no-git"},
+                },
+                {
+                    "description": "Credential and secrets scanner",
+                    "tool": "trufflehog",
+                    "args": {},
+                },
+            ],
+            "container_scan": [
+                {
+                    "description": "Container image vulnerability scanning",
+                    "tool": "trivy",
+                    "args": {"flags": "image"},
+                },
+                {
+                    "description": "Container vulnerability scanner",
+                    "tool": "grype",
+                    "args": {},
+                },
+                {
+                    "description": "Software bill of materials (SBOM) generation",
+                    "tool": "syft",
+                    "args": {},
+                },
+            ],
+            "iac_scan": [
+                {
+                    "description": "Infrastructure as Code static analysis for misconfigurations",
+                    "tool": "checkov",
+                    "args": {"flags": "-d ."},
+                },
+            ],
+            "cloud_audit_aws": [
+                {
+                    "description": "AWS security auditing against CIS benchmarks",
+                    "tool": "prowler",
+                    "args": {},
+                },
+                {
+                    "description": "Multi-cloud security audit framework",
+                    "tool": "scoutsuite",
+                    "args": {},
+                },
+            ],
+            "malware_analysis": [
+                {
+                    "description": "Extract readable strings from binary",
+                    "tool": "strings",
+                    "args": {},
+                },
+                {
+                    "description": "Pattern-based malware detection with YARA",
+                    "tool": "yara",
+                    "args": {},
+                },
+                {
+                    "description": "Metadata extraction from suspicious files",
+                    "tool": "exiftool",
+                    "args": {},
+                },
+            ],
+            "reverse_engineering": [
+                {
+                    "description": "Binary analysis with radare2 reverse engineering framework",
+                    "tool": "radare2",
+                    "args": {},
+                },
+                {
+                    "description": "Android APK decompilation and analysis",
+                    "tool": "apktool",
+                    "args": {},
                 },
             ],
         }
@@ -1835,6 +2003,130 @@ class RegistryPlanner:
                     "quiet recon",
                 ),
                 "passive_recon",
+            ),
+            # ── Non-scanning: Forensics ──────────────────────────────────
+            (
+                (
+                    "memory forensics",
+                    "memory analysis",
+                    "memory dump",
+                    "volatility",
+                    "process memory",
+                    "injected code",
+                    "mimikatz detection",
+                    "cobalt strike",
+                    "beacon detection",
+                ),
+                "memory_forensics",
+            ),
+            (
+                (
+                    "disk forensics",
+                    "disk analysis",
+                    "deleted file",
+                    "file carving",
+                    "file system analysis",
+                    "sleuthkit",
+                    "foremost",
+                    "binwalk",
+                    "partition table",
+                    "slack space",
+                ),
+                "disk_forensics",
+            ),
+            # ── Non-scanning: SAST / Code Review ──────────────────────────
+            (
+                (
+                    "code review",
+                    "static analysis",
+                    "sast scan",
+                    "source code scan",
+                    "code security",
+                    "semgrep",
+                    "python security",
+                    "bandit",
+                ),
+                "code_review_sast",
+            ),
+            (
+                (
+                    "secrets scan",
+                    "secret scanning",
+                    "credential leak",
+                    "hardcoded secrets",
+                    "gitleaks",
+                    "trufflehog",
+                    "find secrets",
+                    "detect secrets",
+                ),
+                "secrets_scan",
+            ),
+            (
+                (
+                    "iac scan",
+                    "terraform scan",
+                    "cloudformation scan",
+                    "infrastructure as code",
+                    "checkov",
+                    "tfsec",
+                ),
+                "iac_scan",
+            ),
+            # ── Non-scanning: Container Security ─────────────────────────
+            (
+                (
+                    "container scan",
+                    "container security",
+                    "docker scan",
+                    "docker image",
+                    "image vuln",
+                    "trivy",
+                    "grype",
+                    "syft",
+                    "sbom",
+                    "bill of materials",
+                ),
+                "container_scan",
+            ),
+            # ── Non-scanning: Cloud Audit (AWS-specific) ────────────────
+            (
+                (
+                    "aws audit",
+                    "aws security",
+                    "cloud audit",
+                    "cloud security audit",
+                    "prowler",
+                    "scoutsuite",
+                ),
+                "cloud_audit_aws",
+            ),
+            # ── Non-scanning: Malware Analysis ──────────────────────────
+            (
+                (
+                    "malware analysis",
+                    "malware sample",
+                    "ransomware analysis",
+                    "suspicious binary",
+                    "malicious file",
+                    "yara scan",
+                    "malware scan",
+                ),
+                "malware_analysis",
+            ),
+            # ── Non-scanning: Reverse Engineering ────────────────────────
+            (
+                (
+                    "reverse engineering",
+                    "binary analysis",
+                    "decompile",
+                    "apk analysis",
+                    "android analysis",
+                    "radare2",
+                    "apktool",
+                    "disassembly",
+                    "obfuscated",
+                ),
+                "reverse_engineering",
             ),
             (
                 (
@@ -2908,6 +3200,33 @@ class RegistryPlanner:
             "sc": ("sc", "Windows service control manager", "query"),
             "reg": ("reg", "Windows registry management", "query"),
             "misp": ("curl", "MISP threat intelligence platform", ""),
+            # ── Forensics (additional entries for lightweight matching) ─
+            "exiftool": ("exiftool", "Metadata extraction from files", ""),
+            "pypykatz": ("pypykatz", "Credential extraction from memory dumps", ""),
+            "mimikatz": ("mimikatz", "Windows credential extraction tool", ""),
+            "foremost": ("foremost", "File carving and data recovery", ""),
+            "binwalk": ("binwalk", "Firmware analysis and extraction", ""),
+            "bulk_extractor": ("bulk_extractor", "Digital forensics evidence extraction", ""),
+            # ── SAST / Code Analysis ────────────────────────────────────
+            "semgrep": ("semgrep", "Static code security analysis", "--config=auto"),
+            "bandit": ("bandit", "Python security linter", "-r"),
+            # ── Container Security ──────────────────────────────────────
+            "trivy": ("trivy", "Container image vulnerability scanner", "image --no-progress"),
+            "grype": ("grype", "Vulnerability scanner for containers", ""),
+            "syft": ("syft", "SBOM generation tool", ""),
+            # ── Cloud Security (additional) ─────────────────────────────
+            "checkov": ("checkov", "IaC security scanner", "-d ."),
+            "kubectl": ("kubectl", "Kubernetes CLI", "get pods"),
+            "kube-hunter": ("kube-hunter", "Kubernetes security scanner", "--quick"),
+            # ── Reverse Engineering (additional) ────────────────────────
+            "apktool": ("apktool", "Android APK decompilation tool", "d"),
+            # ── Network / AD (additional) ───────────────────────────────
+            "crackmapexec": ("crackmapexec", "AD/Windows post-exploitation toolkit", ""),
+            "smbmap": ("smbmap", "SMB share enumeration", ""),
+            "enum4linux": ("enum4linux", "Windows/Samba enumeration tool", ""),
+            "kerberoast": ("impacket-GetUserSPNs", "Kerberoasting attack", ""),
+            "asrep": ("impacket-GetNPUsers", "AS-REP roasting attack", ""),
+            "dcsync": ("impacket-secretsdump", "DCSync attack", ""),
         }
         words = goal_lower.split()
         # Check for "with {tool}" / "using {tool}" pattern for preference boost

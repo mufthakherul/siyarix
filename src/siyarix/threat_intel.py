@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import urllib.parse
 import urllib.request
 import urllib.error
 from typing import Any
@@ -40,6 +41,9 @@ class AlienVaultOTX(ThreatIntelProvider):
             headers["X-OTX-API-KEY"] = self.api_key
 
         try:
+            _parsed = urllib.parse.urlparse(url)
+            if _parsed.scheme not in ("http", "https"):
+                raise ValueError(f"Disallowed URL scheme: {_parsed.scheme!r}")
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=10) as response:
                 data = json.loads(response.read().decode())
@@ -62,6 +66,9 @@ class NVDDatabase(ThreatIntelProvider):
         """Fetch CVE details from NVD."""
         url = f"{self.BASE_URL}?cveId={cve_id}"
         try:
+            _parsed = urllib.parse.urlparse(url)
+            if _parsed.scheme not in ("http", "https"):
+                raise ValueError(f"Disallowed URL scheme: {_parsed.scheme!r}")
             req = urllib.request.Request(url)
             with urllib.request.urlopen(req, timeout=10) as response:
                 data = json.loads(response.read().decode())

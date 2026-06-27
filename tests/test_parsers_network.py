@@ -526,7 +526,7 @@ class TestZgrabParser:
         )
         findings = p.parse(output)
         assert len(findings) >= 1
-        assert "example.com" in findings[0]["description"] or findings[0]["description"] != ""
+        assert "example.com" in findings[0]["description"] or findings[0]["description"] != ""  # nosec
 
 
 class TestMassdnsParser:

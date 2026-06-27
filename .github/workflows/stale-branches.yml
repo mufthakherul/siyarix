@@ -13,9 +13,9 @@ jobs:
       contents: write
     steps:
       - name: Delete stale branches
-        uses: phntxx/delete-stale-branches@v7 # TODO: pin to SHA
+        uses: crs-k/stale-branches@e876b957ab08f0bad43c8cc271a22cdd7604bd09 # v9.0.1
         with:
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
-          daysBeforeStale: 30
-          daysBeforeDelete: 45
-          ignoreBranches: "main,develop,production"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          days-before-stale: 30
+          days-before-delete: 45
+          exempt-branches-regex: ^(main|develop|production)$

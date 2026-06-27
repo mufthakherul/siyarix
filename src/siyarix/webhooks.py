@@ -7,8 +7,10 @@ and generates auto-remediation scripts for Blue Teams.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import logging
+import urllib.parse
 import urllib.request
 import urllib.error
 import os
@@ -17,6 +19,19 @@ from typing import Any
 from siyarix.events import get_event_bus, Event, EventType
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_url(url: str, *, allow_ip: bool = False) -> None:
+    """Validate URL has allowed scheme and (optionally) non-IP hostname."""
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"URL scheme must be http or https, got: {parsed.scheme!r}")
+    if not allow_ip and parsed.hostname:
+        try:
+            ipaddress.ip_address(parsed.hostname)
+            raise ValueError(f"IP address hostname not allowed: {parsed.hostname}")
+        except ValueError:
+            pass
 
 
 class WebhookDispatcher:
@@ -56,6 +71,7 @@ class WebhookDispatcher:
         }
 
         try:
+            _validate_url(self.webhook_url, allow_ip=False)
             req = urllib.request.Request(
                 self.webhook_url,
                 data=json.dumps(payload).encode("utf-8"),

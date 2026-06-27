@@ -223,7 +223,7 @@ class TestDnsmapParser:
         findings = p.parse(output)
         assert len(findings) >= 1
         _check_finding(findings[0], "dnsmap")
-        assert findings[0]["title"].endswith("www.example.com")
+        assert findings[0]["title"].endswith("www.example.com")  # nosec
 
     def test_find_format_without_ip(self):
         p = DnsmapParser()
@@ -899,7 +899,7 @@ class TestSublist3rParser_extra_b7:
         )
         findings = p.parse(output)
         assert len(findings) >= 2
-        assert any(f["description"].endswith("example.com") for f in findings)
+        assert any(f["description"].endswith("example.com") for f in findings)  # nosec
 
     def test_section_header_before_results(self):
         p = Sublist3rParser()
@@ -934,7 +934,7 @@ class TestSublist3rParser_extra_b7:
         output = "my-sub-domain.example.com\n"
         findings = p.parse(output)
         assert len(findings) == 1
-        assert "my-sub-domain.example.com" in findings[0]["title"]
+        assert "my-sub-domain.example.com" in findings[0]["title"]  # nosec
 
 
 class TestDnsxParser:
@@ -944,7 +944,7 @@ class TestDnsxParser:
         findings = p.parse(output)
         assert len(findings) == 1
         _check_finding(findings[0], "dnsx")
-        assert findings[0]["title"].endswith("example.com")
+        assert findings[0]["title"].endswith("example.com")  # nosec
 
     def test_json_host_list_ips(self):
         p = DnsxParser()
@@ -996,7 +996,7 @@ class TestDnsxParser:
         output = json.dumps({"Host": "test.org", "Type": "MX", "IP": "10.0.0.1"})
         findings = p.parse(output)
         assert len(findings) == 1
-        assert "test.org" in findings[0]["title"]
+        assert "test.org" in findings[0]["title"]  # nosec
 
 
 class TestDnstwistParser:
@@ -1371,7 +1371,7 @@ class TestReconNgParser_extra_b8:
         output = "[+] 'admin@example.com' found"
         findings = p.parse(output)
         assert len(findings) == 1
-        assert findings[0]["target"].endswith("example.com")
+        assert findings[0]["target"].endswith("example.com")  # nosec
 
     def test_text_found_no_at(self):
         p = ReconNgParser()
@@ -1757,8 +1757,8 @@ class TestSublist3rParser:
     def test_base_domain_extracted(self):
         r = Sublist3rParser().parse("Sublist3r domain: example.com\nsub.example.com")
         assert len(r) >= 2
-        assert any(f["title"].endswith("sub.example.com") for f in r)
-        assert any(f.get("description", "").endswith("example.com") for f in r)
+        assert any(f["title"].endswith("sub.example.com") for f in r)  # nosec
+        assert any(f.get("description", "").endswith("example.com") for f in r)  # nosec
 
     def test_blank_line_skipped(self):
         r = Sublist3rParser().parse("\n\n")

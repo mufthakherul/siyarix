@@ -96,6 +96,7 @@ def make_web_handler(tool_name: str) -> ToolHandler:
             import os
 
             if target and os.getenv("SIYARIX_STEALTH") == "1":
+                import urllib.parse
                 import urllib.request
 
                 from .stealth import StealthEngine
@@ -107,6 +108,9 @@ def make_web_handler(tool_name: str) -> ToolHandler:
                 reqs = engine.get_decoy_requests(target)
                 for req in reqs:
                     try:
+                        _parsed = urllib.parse.urlparse(req["url"])
+                        if _parsed.scheme not in ("http", "https"):
+                            continue
                         r = urllib.request.Request(
                             req["url"],
                             method=req["method"],

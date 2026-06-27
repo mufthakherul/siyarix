@@ -1416,7 +1416,7 @@ class TestHttpxParser:
     def test_json_with_final_url(self):
         r = HttpxParser().parse('{"url":"https://example.com","final_url":"https://example.org"}')
         assert len(r) == 1
-        assert r[0]["evidence"].endswith("https://example.org")
+        assert r[0]["evidence"].endswith("https://example.org")  # nosec
 
     def test_text_format(self):
         r = HttpxParser().parse("https://example.com [200]")

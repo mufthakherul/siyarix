@@ -503,7 +503,7 @@ def main_callback(
     ),
     batch: str = typer.Option(None, "--batch", "-b", help="Path to batch script file to execute"),
     mode: str = typer.Option(
-        "integrated",
+        None,
         "--mode",
         "-m",
         help="Execution mode: autonomous|integrated|offline|registry",
@@ -516,6 +516,14 @@ def main_callback(
     if version:
         _show_version()
         raise typer.Exit()
+
+    # Resolve default mode from settings if not explicitly specified by user
+    if mode is None:
+        try:
+            from siyarix.config import SettingsStore
+            mode = SettingsStore().get("default_mode") or "integrated"
+        except Exception:
+            mode = "integrated"
     """Siyarix CLI — unified entry point.
 
     Usage:

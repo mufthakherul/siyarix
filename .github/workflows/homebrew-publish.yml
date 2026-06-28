@@ -30,7 +30,7 @@ jobs:
         run: |
           TAG="${{ steps.version.outputs.tag }}"
           URL="https://github.com/${{ github.repository }}/archive/refs/tags/${TAG}.tar.gz"
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+          HTTP_CODE=$(curl -sL -o /dev/null -w "%{http_code}" "$URL")
           if [ "$HTTP_CODE" != "200" ]; then
             echo "::error::Source archive not found at ${URL} (HTTP ${HTTP_CODE})"
             exit 1

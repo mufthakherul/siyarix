@@ -14,7 +14,7 @@ $ErrorActionPreference = 'Stop'
 $__script_version = "1.0.0"
 
 function Write-Banner {
-  @"
+  Write-Host @"
    ███████╗██╗██╗   ██╗ █████╗ ██████╗ ██╗██╗  ██╗
    ██╔════╝██╚██╗ ██╔╝██╔══██╗██╔══██╗██║╚██╗██╔╝
    ███████╗██║╚████╔╝ ███████║██████╔╝██║ ╚███╔╝
@@ -22,7 +22,7 @@ function Write-Banner {
    ███████║██║  ██║   ██║  ██║██║  ██║██║██╔╝ ██╗
    ╚══════╝╚═╝  ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝
    AI Cybersecurity Orchestration Agent v$__script_version
-"@
+"@ -ForegroundColor Cyan
   Write-Host "`nSiyarix -- AI Cybersecurity Orchestration Agent`n" -ForegroundColor Cyan
 }
 
@@ -257,5 +257,21 @@ function Main {
     return 1
   }
 }
+try {
+  $exitCode = Main
+} catch {
+  Write-Host "`n[!] An unexpected error occurred:" -ForegroundColor Red
+  Write-Host $_ -ForegroundColor Red
+  $exitCode = 1
+}
 
-exit (Main)
+if ([Environment]::UserInteractive -and -not $env:CI) {
+  try {
+    Write-Host "`nPress any key to continue..." -ForegroundColor Cyan
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+  } catch {}
+}
+
+if ($exitCode -ne 0) {
+  throw "Installation failed with exit code $exitCode"
+}

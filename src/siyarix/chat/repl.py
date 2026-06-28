@@ -474,8 +474,9 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             )
             input_hint = make_prompt_bottom(show_hint=True)
             console.print(top_bar)
+            console.print(input_hint)
             try:
-                return str(Prompt.ask(input_hint, default="").strip())
+                return str(Prompt.ask("╰─➜ ", default="").strip())
             except (EOFError, KeyboardInterrupt):
                 return ""
 

@@ -356,7 +356,7 @@ class AutonomousExecutor(BaseExecutor):
         wants exclusive control of the terminal.
         """
         import re as _re
-        from siyarix.subprocess_utils import _get_sudo_password as _gsp  # type: ignore[attr-defined]
+        from siyarix.subprocess_utils import _get_sudo_password as _gsp
 
         needs_sudo = False
         for step in plan.steps:

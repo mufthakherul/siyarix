@@ -250,9 +250,10 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
     def run(self) -> None:
         """Start the interactive REPL loop."""
         self._print_welcome()
-        
+
         try:
             from ..session_log import session_logger
+
             if not session_logger.load(self._session.session_id):
                 session_logger.create_log(
                     session_id=self._session.session_id,
@@ -1261,9 +1262,10 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
     def _print_goodbye(self) -> None:
         from ..branding import resolve_version
         from rich.panel import Panel
-        
+
         try:
             from ..session_log import session_logger
+
             session_logger.update_end_time(self._session.session_id)
         except Exception:
             pass

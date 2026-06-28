@@ -47,13 +47,13 @@ jobs:
               data = json.load(f)
           print(f'cyber_tools.json: {len(data)} tools loaded successfully')
 
-          required_fields = {'name', 'command', 'category', 'description'}
-          for tool in data:
+          required_fields = {'name', 'binary', 'category', 'description'}
+          for tool in data.values():
               missing = required_fields - set(tool.keys())
               if missing:
                   print(f'  WARNING: tool {tool.get(\"name\", \"unknown\")} missing fields: {missing}')
 
-          categories = set(t.get('category', 'uncategorized') for t in data)
+          categories = set(t.get('category', 'uncategorized') for t in data.values())
           print(f'Categories: {sorted(categories)}')
           print('Validation: PASSED')
           "
@@ -125,19 +125,21 @@ jobs:
           import sys
           modules = [
               'siyarix.cli',
-              'siyarix.execution_engine',
-              'siyarix.provider_manager',
+              'siyarix.executor',
+              'siyarix.executor_registry',
+              'siyarix.executor_autonomous',
+              'siyarix.providers',
               'siyarix.nlp_engine',
               'siyarix.config',
               'siyarix.bootstrap',
               'siyarix.branding',
               'siyarix.onboarding',
-              'siyarix.planner.router',
-              'siyarix.planner.planner_integrated',
-              'siyarix.memory.knowledge_graph',
-              'siyarix.opsec.engine',
-              'siyarix.audit.chain',
-              'siyarix.output_engine',
+              'siyarix.planner',
+              'siyarix.planner_registry',
+              'siyarix.planner_autonomous',
+              'siyarix.knowledge_graph',
+              'siyarix.opsec',
+              'siyarix.audit_log',
           ]
           for mod_name in modules:
               try:

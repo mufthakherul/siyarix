@@ -67,7 +67,10 @@ __all__ = [
 _ORPHAN_TRACKER: set[int] = set()
 _ORPHAN_LOCK = threading.Lock()
 
-_SUDO_PASSWORD_CACHE: str | None = None
+class _SudoCache:
+    password: str | None = None
+
+
 _SUDO_PASSWORD_LOCK = threading.Lock()
 
 
@@ -347,15 +350,13 @@ def _verify_sudo_password(password: str) -> bool:
 
 
 def _get_sudo_password() -> str | None:
-    global _SUDO_PASSWORD_CACHE
-
-    if _SUDO_PASSWORD_CACHE is not None:
-        return _SUDO_PASSWORD_CACHE
+    if _SudoCache.password is not None:
+        return _SudoCache.password
 
     val = os.environ.get("SIYARIX_SUDO_PASSWORD")
     if val:
         with _SUDO_PASSWORD_LOCK:
-            _SUDO_PASSWORD_CACHE = val
+            _SudoCache.password = val
         return val
 
     try:
@@ -366,7 +367,7 @@ def _get_sudo_password() -> str | None:
         if config_val:
             val = str(config_val)
             with _SUDO_PASSWORD_LOCK:
-                _SUDO_PASSWORD_CACHE = val
+                _SudoCache.password = val
             return val
     except Exception:
         pass
@@ -409,7 +410,7 @@ def _get_sudo_password() -> str | None:
 
             if _verify_sudo_password(password):
                 with _SUDO_PASSWORD_LOCK:
-                    _SUDO_PASSWORD_CACHE = password
+                    _SudoCache.password = password
                 return password
 
             msg = (

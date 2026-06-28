@@ -104,4 +104,5 @@ __all__ = [
     "RiskLevel",
     "ToolCapability",
     "ToolEdge",
+    "ToolHandler",
 ]

@@ -176,6 +176,7 @@ class ChatSession:
 
                     pdf_bytes = pdfkit.from_string(html, False)
                     import typing
+
                     return typing.cast(bytes, pdf_bytes)
                 except ImportError:
                     try:
@@ -183,6 +184,7 @@ class ChatSession:
 
                         pdf_bytes = WHTML(string=html).write_pdf()
                         import typing
+
                         return typing.cast(bytes, pdf_bytes)
                     except ImportError:
                         pass

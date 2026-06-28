@@ -231,7 +231,7 @@ class ChatSession:
             "mode": self.mode,
             "messages": [m.to_dict() for m in self.messages],
         }
-        path.write_text(json.dumps(data, indent=2))
+        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         if self._branching is not None:
             from ..session_branching import BranchingSession
 
@@ -242,7 +242,7 @@ class ChatSession:
     def load(cls, path: Path) -> "ChatSession":
         import json
 
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
         session = cls(
             session_id=data["session_id"],
             target=data.get("target", ""),

@@ -405,6 +405,19 @@ class LLMEngineMixin:
         summary += f"Found {len(result.all_findings)} findings. "
         summary += "Success." if result.success else "Some steps failed."
         self._session.add_message("assistant", summary, findings=len(result.all_findings))
+        
+        try:
+            from ..session_log import session_logger
+            session_logger.add_command(
+                session_id=self._session.session_id,
+                input_text=instruction,
+                ai_plan=[str(getattr(s, "tool", getattr(s, "command", ""))) for s in getattr(plan, "steps", [])] if plan else [],
+                approved=True,
+                execution_time_ms=elapsed * 1000,
+                output_summary=summary,
+            )
+        except Exception as exc:
+            logger.debug("Failed to write to session logger: %s", exc)
 
     def _generate_text_response(self, user_input: str) -> str | None:
         """Return a text response for non-tool queries, or ``None`` to let the pipeline proceed."""

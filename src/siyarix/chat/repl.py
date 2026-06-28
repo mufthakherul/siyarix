@@ -250,6 +250,19 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
     def run(self) -> None:
         """Start the interactive REPL loop."""
         self._print_welcome()
+        
+        try:
+            from ..session_log import session_logger
+            if not session_logger.load(self._session.session_id):
+                session_logger.create_log(
+                    session_id=self._session.session_id,
+                    persona=self._settings.get("persona", "auto"),
+                    llm_provider=self._settings.get("model_provider", "auto"),
+                    llm_model=self._settings.get("default_model", ""),
+                    user=self._platform_ctx.get("username", "user"),
+                )
+        except Exception:
+            pass
 
         # Install SIGTSTP handler to restore terminal before Ctrl+Z suspend
         _orig_tstp: Any = None
@@ -1248,6 +1261,12 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
     def _print_goodbye(self) -> None:
         from ..branding import resolve_version
         from rich.panel import Panel
+        
+        try:
+            from ..session_log import session_logger
+            session_logger.update_end_time(self._session.session_id)
+        except Exception:
+            pass
 
         ver = resolve_version()
         auto_save = self._settings.get("auto_save_session", False)

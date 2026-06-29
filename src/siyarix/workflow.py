@@ -9,6 +9,7 @@ import uuid
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Callable, Coroutine
+
 WorkflowStepFn = Callable[[dict[str, Any]], Coroutine[Any, Any, dict[str, Any]]]
 
 

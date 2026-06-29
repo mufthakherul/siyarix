@@ -453,7 +453,7 @@ class TestSmbclientParser:
 
     def test_domain_os_server(self):
         p = SmbclientParser()
-        output = "Domain=[CORP]\n" "OS=[Windows Server 2022]\n" "Server=[SMB Server]\n"
+        output = "Domain=[CORP]\nOS=[Windows Server 2022]\nServer=[SMB Server]\n"
         findings = p.parse(output)
         assert any("domain" in f["title"].lower() for f in findings)
         assert any("OS" in f["title"] for f in findings)
@@ -1145,12 +1145,7 @@ class TestMimikatzParser_extra_b6:
 
     def test_wdigest_section(self):
         p = MimikatzParser()
-        output = (
-            "wdigest\n"
-            "* Username : Admin\n"
-            "* Domain   : EXAMPLE\n"
-            "* Password : plaintext123\n"
-        )
+        output = "wdigest\n* Username : Admin\n* Domain   : EXAMPLE\n* Password : plaintext123\n"
         findings = p.parse(output)
         assert len(findings) >= 1
         assert any("WDIGEST" in f["title"] for f in findings)
@@ -1195,13 +1190,13 @@ class TestMimikatzParser_extra_b6:
 
     def test_sha1_field_not_ntlm(self):
         p = MimikatzParser()
-        output = "* Username : Admin\n" "* Domain   : EXAMPLE\n" "* SHA1     : a" * 40 + "\n"
+        output = "* Username : Admin\n* Domain   : EXAMPLE\n* SHA1     : a" * 40 + "\n"
         findings = p.parse(output)
         assert isinstance(findings, list)
 
     def test_password_with_null(self):
         p = MimikatzParser()
-        output = "* Username : Admin\n" "* Domain   : EXAMPLE\n" "* Password : (null)\n"
+        output = "* Username : Admin\n* Domain   : EXAMPLE\n* Password : (null)\n"
         findings = p.parse(output)
         assert len(findings) == 0
 
@@ -1324,7 +1319,7 @@ class TestResponderParser:
 
     def test_challenge_response_dedup(self):
         p = ResponderParser()
-        output = "NTLMv2 Challenge Response: SAMEVALUE\n" "NTLMv2 Challenge Response: SAMEVALUE\n"
+        output = "NTLMv2 Challenge Response: SAMEVALUE\nNTLMv2 Challenge Response: SAMEVALUE\n"
         findings = p.parse(output)
         challenge_findings = [f for f in findings if "Challenge" in f["title"]]
         assert len(challenge_findings) == 1

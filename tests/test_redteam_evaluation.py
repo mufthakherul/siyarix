@@ -1421,9 +1421,9 @@ def main():
     failed = 0
     failures = []
 
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"  RED TEAM NLP EVALUATION — {len(TEST_CASES)} test cases")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     start = time.time()
     for idx, (goal, expected_tools, min_steps, max_steps) in enumerate(TEST_CASES, 1):
@@ -1441,11 +1441,11 @@ def main():
     total = passed + failed
     score = (passed / total * 100) if total else 0
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  RESULTS: {passed} passed, {failed} failed out of {total}")
     print(f"  SCORE: {score:.1f}%")
     print(f"  TIME: {elapsed:.1f}s")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     if failures:
         print("FAILED COMMANDS:")

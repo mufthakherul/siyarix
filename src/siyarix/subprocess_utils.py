@@ -68,6 +68,7 @@ __all__ = [
 _ORPHAN_TRACKER: set[int] = set()
 _ORPHAN_LOCK = threading.Lock()
 
+
 class _SudoCache:
     password: str | None = None
 

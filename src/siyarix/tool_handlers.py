@@ -331,7 +331,6 @@ def make_whois_handler(tool_name: str) -> ToolHandler:
 # ── Domain-specific target flags ────────────────────────────────────────────────
 
 
-
 def make_forensics_handler(tool_name: str) -> ToolHandler:
     """Specialised handler for forensic analysis tools (Volatility, YARA, SleuthKit, etc.)."""
 

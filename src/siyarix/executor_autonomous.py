@@ -163,7 +163,7 @@ class AutonomousExecutor(BaseExecutor):
         if self._on_step_progress:
             res = self._on_step_progress(step)
             if hasattr(res, "__await__"):
-                await res
+                await res  # type: ignore[misc]
 
         self.normalise_step(step)
 
@@ -236,7 +236,7 @@ class AutonomousExecutor(BaseExecutor):
         if self._on_step_progress:
             res = self._on_step_progress(step)
             if hasattr(res, "__await__"):
-                await res
+                await res  # type: ignore[misc]
 
         return step, step.result
 
@@ -244,7 +244,7 @@ class AutonomousExecutor(BaseExecutor):
         """Execute a step that has a tool name but no shell command."""
         handler = self._custom_handlers.get(step.tool)
         if handler:
-            return await handler(step)
+            return await handler(step)  # type: ignore[no-any-return]
         if self._registry:
             try:
                 result = await self._registry.execute(step.tool, **step.args)

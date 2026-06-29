@@ -29,13 +29,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any
 
-try:
-    from rich.console import Console
-
-    _console = Console()
-except ImportError:
-    _console = None
-
 from ._platform import (
     get_platform_id,
     get_platform_shell_cmd as _get_platform_shell_cmd,
@@ -46,6 +39,14 @@ from ._platform import (
     is_windows as _is_windows,
     set_event_loop_policy,
 )
+
+_console: Console | None = None
+try:
+    from rich.console import Console
+
+    _console = Console()
+except ImportError:
+    pass
 
 if _has_signal():
     import signal as _signal

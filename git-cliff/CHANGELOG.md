@@ -20,6 +20,7 @@
 - *(typecheck)* Resolve dict item types in scripts/test_platform.py to satisfy pre-commit mypy
 - *(security)* Resolve final Python CodeQL alert, suppress urlopen warnings, and disable Scorecard SARIF uploads
 - *(ci)* Update labeler.yml format, fix auto-merge enableAutoMerge function, and prevent version-validation bash dollar expansion
+- *(ci)* Align all CodeQL actions to v3 commit hash to prevent version mismatch failure
 
 ### Documentation
 
@@ -27,12 +28,17 @@
 - Fix home and map page front matter and header welcome note positioning
 - Update changelog (#70)
 - Update changelog (#89)
+- Update changelog (#90)
 
 ### Features
 
 - *(provider_utils)* Make health check timeout configurable
 - *(repl)* Perform live health checks for local providers in status gathering
 - *(ui)* Render each provider's real-time status on its own line in the LLM Status panel
+
+### Security
+
+- *(deps)* Bump trufflesecurity/trufflehog (#81)
 
 ### Styling
 
@@ -53,6 +59,11 @@
 - *(deps)* Bump softprops/action-gh-release from 2.6.2 to 3.0.1 (#86)
 - *(deps)* Bump actions/upload-pages-artifact from 3.0.1 to 5.0.0 (#85)
 - *(deps)* Bump actions/deploy-pages from 4.0.5 to 5.0.0 (#84)
+- *(deps)* Bump github/codeql-action/upload-sarif (#83)
+- *(deps)* Bump amannn/action-semantic-pull-request from 5 to 6 (#82)
+- *(deps)* Bump github/codeql-action/autobuild from 3.36.2 to 4.36.2 (#80)
+- *(deps)* Bump docker/metadata-action from 5.10.0 to 6.1.0 (#79)
+- *(deps)* Bump docker/setup-buildx-action from 3.12.0 to 4.1.0 (#78)
 
 ### Ci
 

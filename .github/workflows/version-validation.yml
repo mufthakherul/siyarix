@@ -109,33 +109,33 @@ jobs:
       - name: Validate version consistency
         id: consistency
         run: |
-          python -c "
-          import re
+          python -c '
+          import re, sys
           versions = {}
 
           # pyproject.toml
-          with open('pyproject.toml') as f:
-              m = re.search(r'^version = \"(.+)\"', f.read(), re.MULTILINE)
-              versions['pyproject.toml'] = m.group(1) if m else 'NOT FOUND'
+          with open("pyproject.toml") as f:
+              m = re.search(r"^version = \"(.+)\"", f.read(), re.MULTILINE)
+              versions["pyproject.toml"] = m.group(1) if m else "NOT FOUND"
 
           # __init__.py
-          with open('src/siyarix/__init__.py') as f:
-              m = re.search(r'__version__ = \"(.+)\"', f.read())
-              versions['__init__.py'] = m.group(1) if m else 'NOT FOUND'
+          with open("src/siyarix/__init__.py") as f:
+              m = re.search(r"__version__ = \"(.+)\"", f.read())
+              versions["__init__.py"] = m.group(1) if m else "NOT FOUND"
 
           # install.ps1
-          with open('install.ps1') as f:
-              m = re.search(r'\$__script_version = \"(.+)\"', f.read())
-              versions['install.ps1'] = m.group(1) if m else 'NOT FOUND'
+          with open("install.ps1") as f:
+              m = re.search(r"\$__script_version = \"(.+)\"", f.read())
+              versions["install.ps1"] = m.group(1) if m else "NOT FOUND"
 
           all_match = len(set(versions.values())) == 1
-          print(f'Version consistency: {\"PASSED\" if all_match else \"FAILED\"}')
+          print(f"Version consistency: {\"PASSED\" if all_match else \"FAILED\"}")
           for src, ver in versions.items():
-              print(f'  {src}: {ver}')
+              print(f"  {src}: {ver}")
 
           if not all_match:
-              exit(1)
-          "
+              sys.exit(1)
+          '
 
       - name: Validate version bump matches PR labels
         id: label_check

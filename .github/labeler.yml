@@ -1,41 +1,51 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Auto-label PRs based on changed file paths
 
-src/siyarix/**/*.py:
-  - core
+core:
+  - changed-files:
+      - any-glob-to-match: 'src/siyarix/**/*.py'
 
-src/siyarix/providers/**/*.py:
-  - providers
+providers:
+  - changed-files:
+      - any-glob-to-match: 'src/siyarix/providers/**/*.py'
 
-src/siyarix/chat/**/*.py:
-  - chat
+chat:
+  - changed-files:
+      - any-glob-to-match: 'src/siyarix/chat/**/*.py'
 
-src/siyarix/cli/**/*.py:
-  - cli
+cli:
+  - changed-files:
+      - any-glob-to-match: 'src/siyarix/cli/**/*.py'
 
-src/siyarix/report/**/*.py:
-  - reporting
+reporting:
+  - changed-files:
+      - any-glob-to-match: 'src/siyarix/report/**/*.py'
 
-src/siyarix/api/**/*.py:
-  - api
+api:
+  - changed-files:
+      - any-glob-to-match: 'src/siyarix/api/**/*.py'
 
-tests/**/*.py:
-  - testing
+testing:
+  - changed-files:
+      - any-glob-to-match: 'tests/**/*.py'
 
-docs/**/*.md:
-  - documentation
+documentation:
+  - changed-files:
+      - any-glob-to-match: 'docs/**/*.md'
 
-.github/**/*.yml:
-  - ci/cd
+ci/cd:
+  - changed-files:
+      - any-glob-to-match: '.github/**/*.yml'
 
-Dockerfile:
-  - docker
+docker:
+  - changed-files:
+      - any-glob-to-match: 'Dockerfile'
 
-install.sh:
-  - installer
+installer:
+  - changed-files:
+      - any-glob-to-match: 'install.sh'
+      - any-glob-to-match: 'install.ps1'
 
-install.ps1:
-  - installer
-
-pyproject.toml:
-  - dependencies
+dependencies:
+  - changed-files:
+      - any-glob-to-match: 'pyproject.toml'

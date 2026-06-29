@@ -140,7 +140,7 @@ jobs:
           fetch-depth: 0
 
       - name: TruffleHog
-        uses: trufflesecurity/trufflehog@39a1435e800f8a78b61188844272a22b3ec1722d # main
+        uses: trufflesecurity/trufflehog@f446421baf832d6356c42c1743d99abff52ff334 # main
         continue-on-error: true
         with:
           path: './'

@@ -26,6 +26,7 @@
 - Convert github-style alert callouts to native mkdocs-material admonitions
 - Fix home and map page front matter and header welcome note positioning
 - Update changelog (#70)
+- Update changelog (#89)
 
 ### Features
 
@@ -48,6 +49,10 @@
 ### Build
 
 - Update dependency lock files (#88)
+- *(deps)* Bump actions/upload-artifact from 4.6.2 to 7.0.1 (#87)
+- *(deps)* Bump softprops/action-gh-release from 2.6.2 to 3.0.1 (#86)
+- *(deps)* Bump actions/upload-pages-artifact from 3.0.1 to 5.0.0 (#85)
+- *(deps)* Bump actions/deploy-pages from 4.0.5 to 5.0.0 (#84)
 
 ### Ci
 

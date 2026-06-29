@@ -310,4 +310,3 @@ Organizations deploying Siyarix should review:
 ---
 
 *SPDX-License-Identifier: AGPL-3.0-or-later*
-

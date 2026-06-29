@@ -214,9 +214,9 @@ class TestAdversarialInput:
                 if pattern.search(payload):
                     detected = True
                     break
-            assert detected, (
-                f"Injection not detected: {payload!r} (expected pattern '{expected_name}')"
-            )
+            assert (
+                detected
+            ), f"Injection not detected: {payload!r} (expected pattern '{expected_name}')"
 
     @pytest.mark.asyncio
     async def test_2c_danger_patterns_catch_destructive(self):
@@ -239,9 +239,9 @@ class TestAdversarialInput:
             report = danger_analyzer.analyze(cmd)
             min_rank = sev_rank.get(expected_min, 0)
             actual_rank = sev_rank.get(report.severity, 0)
-            assert actual_rank >= min_rank, (
-                f"{cmd!r} -> severity {report.severity} (expected >= {expected_min})"
-            )
+            assert (
+                actual_rank >= min_rank
+            ), f"{cmd!r} -> severity {report.severity} (expected >= {expected_min})"
 
     @pytest.mark.asyncio
     async def test_2d_conflicting_tasks_safe(self):
@@ -286,9 +286,9 @@ class TestSelfHealing:
 
         for attempt in range(0, 20):
             delay = await calculate_backoff_delay(attempt)
-            assert 0.01 <= delay <= 60.0, (
-                f"Backoff delay {delay}s out of bounds for attempt {attempt}"
-            )
+            assert (
+                0.01 <= delay <= 60.0
+            ), f"Backoff delay {delay}s out of bounds for attempt {attempt}"
 
     @pytest.mark.asyncio
     async def test_4b_is_transient_error(self):

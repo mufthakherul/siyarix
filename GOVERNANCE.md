@@ -158,4 +158,3 @@ This governance document may be amended by maintainer consensus. Significant cha
 
 
 *SPDX-License-Identifier: AGPL-3.0-or-later*
-

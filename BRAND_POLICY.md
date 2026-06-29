@@ -142,4 +142,3 @@ Violation of this policy may result in:
 ---
 
 *SPDX-License-Identifier: AGPL-3.0-or-later*
-

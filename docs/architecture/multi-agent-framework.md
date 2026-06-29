@@ -7,7 +7,7 @@
 Welcome to the **Multi-Agent Framework** in Siyarix! 👋 This section provides a foundational stub implementation for our upcoming multi-agent collaboration features.
 
 !!! warning "Status: EXPERIMENTAL — STUB IMPLEMENTATION"
-    
+
     This framework is currently a placeholder infrastructure intended for future development. It is **not yet production-ready** and should not be relied upon for operational use. All agents currently return mock data and are not connected to real tool execution.
 
 ---

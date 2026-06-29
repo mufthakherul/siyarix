@@ -151,7 +151,7 @@ def _test_subprocess_utils() -> dict[str, bool | str]:
     return results
 
 
-def _test_security_hardening() -> dict[str, bool]:
+def _test_security_hardening() -> dict[str, Any]:
     try:
         from siyarix.security_hardening import validator, redactor, danger_analyzer
 
@@ -272,7 +272,7 @@ def _test_ish_specific() -> dict[str, bool | str]:
     return results
 
 
-def _test_chat_platform_utils() -> dict[str, bool | str]:
+def _test_chat_platform_utils() -> dict[str, Any]:
     try:
         from siyarix.chat.platform_utils import (
             is_kali_linux,

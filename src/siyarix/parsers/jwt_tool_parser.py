@@ -15,10 +15,6 @@ _VULN_RE = re.compile(
     re.IGNORECASE,
 )
 
-_CLAIM_RE = re.compile(
-    r"\s*(?P<key>[\w_]+)\s*[=:]\s*(?P<value>\S+)",
-)
-
 _ALGO_RE = re.compile(
     r"(?:algorithm|alg)[\s:=]+(\S+)",
     re.IGNORECASE,
@@ -31,16 +27,6 @@ _SIGNED_RE = re.compile(
 
 _NONE_RE = re.compile(
     r"(?:none|no\s+(?:signature|algorithm)|alg\s*:\s*none)",
-    re.IGNORECASE,
-)
-
-_EXPIRED_RE = re.compile(
-    r"(?:expired|token\s+expired|expiration)",
-    re.IGNORECASE,
-)
-
-_KID_RE = re.compile(
-    r"(?:kid|key\s+id)[:\s]+(\S+)",
     re.IGNORECASE,
 )
 

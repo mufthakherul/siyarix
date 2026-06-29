@@ -263,6 +263,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                     user=self._platform_ctx.get("username", "user"),
                 )
         except Exception:
+            # Session logging is optional; ignore failures during startup
             pass
 
         # Install SIGTSTP handler to restore terminal before Ctrl+Z suspend
@@ -1269,6 +1270,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
             session_logger.update_end_time(self._session.session_id)
         except Exception:
+            # Session logging is optional; ignore failures during exit
             pass
 
         ver = resolve_version()

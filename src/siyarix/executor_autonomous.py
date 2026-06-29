@@ -163,7 +163,7 @@ class AutonomousExecutor(BaseExecutor):
         if self._on_step_progress:
             res = self._on_step_progress(step)
             if hasattr(res, "__await__"):
-                await res  # type: ignore[misc]
+                _ = await res  # type: ignore[misc]
 
         self.normalise_step(step)
 
@@ -236,7 +236,7 @@ class AutonomousExecutor(BaseExecutor):
         if self._on_step_progress:
             res = self._on_step_progress(step)
             if hasattr(res, "__await__"):
-                await res  # type: ignore[misc]
+                _ = await res  # type: ignore[misc]
 
         return step, step.result
 

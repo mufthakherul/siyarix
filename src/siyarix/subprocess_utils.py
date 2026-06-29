@@ -46,6 +46,7 @@ try:
 
     _console = Console()
 except ImportError:
+    # rich console is optional; fallback to None
     pass
 
 if _has_signal():

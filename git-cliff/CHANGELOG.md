@@ -21,6 +21,7 @@
 - *(security)* Resolve final Python CodeQL alert, suppress urlopen warnings, and disable Scorecard SARIF uploads
 - *(ci)* Update labeler.yml format, fix auto-merge enableAutoMerge function, and prevent version-validation bash dollar expansion
 - *(ci)* Align all CodeQL actions to v3 commit hash to prevent version mismatch failure
+- *(ci)* Exclude CHANGELOG.md files from end-of-file-fixer to prevent automated PR check failures
 
 ### Documentation
 
@@ -32,6 +33,7 @@
 - Update changelog (#91)
 - Update changelog (#92)
 - Update changelog (#93)
+- Update changelog (#94)
 
 ### Features
 

@@ -31,6 +31,7 @@
 - Update changelog (#90)
 - Update changelog (#91)
 - Update changelog (#92)
+- Update changelog (#93)
 
 ### Features
 

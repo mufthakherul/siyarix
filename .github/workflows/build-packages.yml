@@ -64,7 +64,7 @@ jobs:
           check-wheel-contents --ignore W002 dist/ || true
 
       - name: Upload wheel
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: python-package
           path: dist/
@@ -96,7 +96,7 @@ jobs:
         run: bash packages/deb/build-deb.sh "${{ needs.resolve-version.outputs.version }}"
 
       - name: Upload .deb
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: deb-package
           path: "*.deb"

@@ -70,5 +70,3 @@
 
 - Pin lock-threads action to secure commit hash
 - Add workflow_dispatch to CodeQL Weekly Deep Scan
-
-

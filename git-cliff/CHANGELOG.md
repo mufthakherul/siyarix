@@ -30,6 +30,7 @@
 - Update changelog (#89)
 - Update changelog (#90)
 - Update changelog (#91)
+- Update changelog (#92)
 
 ### Features
 
@@ -48,6 +49,7 @@
 - Fix ruff formatting from previous typing commit
 - Format modified files with ruff
 - Apply pre-commit line endings, json formatting, and ruff assertion fixes
+- Apply pre-commit formatting to git-cliff/CHANGELOG.md
 
 ### Testing
 
@@ -70,3 +72,5 @@
 
 - Pin lock-threads action to secure commit hash
 - Add workflow_dispatch to CodeQL Weekly Deep Scan
+
+

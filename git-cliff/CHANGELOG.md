@@ -25,6 +25,7 @@
 
 - Convert github-style alert callouts to native mkdocs-material admonitions
 - Fix home and map page front matter and header welcome note positioning
+- Update changelog (#70)
 
 ### Features
 
@@ -43,6 +44,10 @@
 ### Testing
 
 - Fix duplicate dictionary keys and identical expression comparison warnings
+
+### Build
+
+- Update dependency lock files (#88)
 
 ### Ci
 

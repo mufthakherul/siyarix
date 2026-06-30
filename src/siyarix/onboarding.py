@@ -2129,7 +2129,7 @@ class OnboardingWizard:
         # ── Write marker + settings ─────────────────────────────────────
         plat = self._choices.get("platform", {})
         marker_data = {
-            "version": "1.0.0",
+            "version": "1.0.1",
             "completed_at": datetime.now(timezone.utc).isoformat(),
             "python_version": sys.version,
             "platform": {

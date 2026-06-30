@@ -8,7 +8,7 @@
 #   docker build --build-arg BASE=parrot -t siyarix:parrot .
 # =============================================================================
 ARG PYTHON_VERSION=3.11
-ARG SIYARIX_VERSION=1.0.0
+ARG SIYARIX_VERSION=1.0.1
 ARG BASE=python
 
 # =============================================================================

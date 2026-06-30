@@ -60,7 +60,7 @@ function Update-Path {
       $newUserPath = ($paths + $PathToAdd) -join ';'
       [Environment]::SetEnvironmentVariable("PATH", $newUserPath, "User")
       Write-Ok "Added $PathToAdd to PATH"
-      
+
       $sessionPaths = $env:PATH -split ';' | Where-Object { $_ -ne "" }
       if ($sessionPaths -notcontains $PathToAdd) {
         $env:PATH = ($sessionPaths + $PathToAdd) -join ';'
@@ -260,7 +260,7 @@ function Main {
         $installerPath = "$env:TEMP\python-installer.exe"
         $wc = New-Object System.Net.WebClient
         $wc.DownloadFile($pythonUrl, $installerPath)
-        
+
         Write-Info "Running silent Python installation..."
         $proc = Start-Process -FilePath $installerPath -ArgumentList "/quiet InstallAllUsers=0 PrependPath=1 Include_test=0 Include_doc=0" -Wait -PassThru
         if ($proc.ExitCode -eq 0) {

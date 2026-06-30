@@ -77,7 +77,7 @@ bootstrap_python() {
   fi
 
   info "Python ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR}+ not found. Attempting to install Python..."
-  
+
   if [ -f /etc/os-release ]; then
     . /etc/os-release
     OS_ID="${ID}"

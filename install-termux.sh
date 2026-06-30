@@ -13,7 +13,7 @@
 # =============================================================================
 set -euo pipefail
 
-SIYARIX_VERSION="${SIYARIX_VERSION:-1.0.0}"
+SIYARIX_VERSION="${SIYARIX_VERSION:-1.0.1}"
 TERMUX_HOME="${HOME:-/data/data/com.termux/files/home}"
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 DRY_RUN="${SIYARIX_DRY_RUN:-0}"

@@ -11,7 +11,7 @@
 # =============================================================================
 
 $ErrorActionPreference = 'Stop'
-$__script_version = "1.0.0"
+$__script_version = "1.0.1"
 
 function Write-Banner {
   Write-Host @"

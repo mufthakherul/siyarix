@@ -279,6 +279,9 @@ jobs:
     runs-on: windows-latest
     needs: validate-tag
     if: ${{ github.event.inputs.publish_pypi != 'false' }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 

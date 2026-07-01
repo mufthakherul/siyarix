@@ -285,17 +285,14 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: Setup NuGet
-        uses: NuGet/setup-nuget@d105a947828025cd7a980103c35ba2bfae586d0f # v2.0.2
-
       - name: Build Chocolatey Package
         run: |
           mkdir -p dist-choco
-          nuget pack packages/chocolatey/siyarix.nuspec -Version ${{ needs.validate-tag.outputs.version }} -OutputDirectory dist-choco
+          choco pack packages/chocolatey/siyarix.nuspec --version ${{ needs.validate-tag.outputs.version }} --out dist-choco
 
       - name: Push to Chocolatey
         run: |
-          nuget push dist-choco/*.nupkg -Source https://push.chocolatey.org/ -ApiKey ${{ secrets.CHOCOLATEY_API_KEY }}
+          choco push dist-choco/*.nupkg --source https://push.chocolatey.org/ --key ${{ secrets.CHOCOLATEY_API_KEY }}
         continue-on-error: true
 
   build-installers:

@@ -1,0 +1,28 @@
+Package: siyarix
+Version: 1.0.1
+Architecture: all
+Maintainer: MD MUFTHAKHERUL ISLAM MIRAZ <130831166+mufthakherul@users.noreply.github.com>
+Depends: python3 (>= 3.11), python3-pip, python3-venv, nmap
+Filename: packages/deb/apt-repo/pool/kali/siyarix_1.0.1_all.deb
+Size: 418366
+MD5sum: d7f1792d091c471dc49bbf4ea8effa69
+SHA1: 645e688744772b6bc647b55b2378bf4bbd41522c
+SHA256: cd7a3d2d825057787ca8140bf0033b6da1dd139ca491aea16fda5c1ea4915817
+Section: utils
+Priority: optional
+Homepage: https://github.com/mufthakherul/siyarix
+Description: Siyarix — AI Cybersecurity Orchestration Agent
+ Siyarix is an AI-native cybersecurity operations platform with
+ autonomous execution, multi-agent framework, intelligent workflow
+ orchestration, and advanced security tooling for offensive and
+ defensive cybersecurity operations.
+ .
+ Features:
+  * Autonomous AI-driven penetration testing
+  * Multi-agent coordination for complex security workflows
+  * 80+ security tool parsers (nmap, nuclei, metasploit, etc.)
+  * Built-in OPSEC, stealth, and kill-switch mechanisms
+  * Advanced reporting and compliance frameworks
+  * Distributed orchestration with worker pools
+  * Real-time dashboards and telemetry
+

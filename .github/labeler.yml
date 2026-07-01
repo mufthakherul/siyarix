@@ -3,50 +3,51 @@
 
 core:
   - changed-files:
-      - any-glob-to-match: 'src/siyarix/**/*.py'
+      - any-glob-to-any-file: ['src/siyarix/**/*.py']
 
 providers:
   - changed-files:
-      - any-glob-to-match: 'src/siyarix/providers/**/*.py'
+      - any-glob-to-any-file: ['src/siyarix/providers/**/*.py']
 
 chat:
   - changed-files:
-      - any-glob-to-match: 'src/siyarix/chat/**/*.py'
+      - any-glob-to-any-file: ['src/siyarix/chat/**/*.py']
 
 cli:
   - changed-files:
-      - any-glob-to-match: 'src/siyarix/cli/**/*.py'
+      - any-glob-to-any-file: ['src/siyarix/cli/**/*.py']
 
 reporting:
   - changed-files:
-      - any-glob-to-match: 'src/siyarix/report/**/*.py'
+      - any-glob-to-any-file: ['src/siyarix/report/**/*.py']
 
 api:
   - changed-files:
-      - any-glob-to-match: 'src/siyarix/api/**/*.py'
+      - any-glob-to-any-file: ['src/siyarix/api/**/*.py']
 
 testing:
   - changed-files:
-      - any-glob-to-match: 'tests/**/*.py'
+      - any-glob-to-any-file: ['tests/**/*.py']
 
 documentation:
   - changed-files:
-      - any-glob-to-match: 'docs/**/*.md'
+      - any-glob-to-any-file: ['docs/**/*.md']
 
 ci/cd:
   - changed-files:
-      - any-glob-to-match: '.github/**/*.yml'
+      - any-glob-to-any-file: ['.github/**/*.yml']
 
 docker:
   - changed-files:
-      - any-glob-to-match: 'Dockerfile'
+      - any-glob-to-any-file: ['Dockerfile']
 
 installer:
   - changed-files:
-      - any-glob-to-match: 'installer/install.sh'
-      - any-glob-to-match: 'installer/install.ps1'
-      - any-glob-to-match: 'installer/install-termux.sh'
+      - any-glob-to-any-file:
+          - 'installer/install.sh'
+          - 'installer/install.ps1'
+          - 'installer/install-termux.sh'
 
 dependencies:
   - changed-files:
-      - any-glob-to-match: 'pyproject.toml'
+      - any-glob-to-any-file: ['pyproject.toml']

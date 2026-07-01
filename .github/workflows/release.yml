@@ -83,7 +83,8 @@ jobs:
       - name: Install git-cliff
         run: |
           curl -fsSL https://github.com/orhun/git-cliff/releases/latest/download/git-cliff-2.13.1-x86_64-unknown-linux-gnu.tar.gz -o /tmp/git-cliff.tar.gz
-          tar xzf /tmp/git-cliff.tar.gz -C /usr/local/bin
+          tar xzf /tmp/git-cliff.tar.gz -C /tmp
+          sudo mv /tmp/git-cliff-2.13.1/git-cliff /usr/local/bin/
 
       - name: Generate Changelog
         run: |
@@ -282,7 +283,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup NuGet
-        uses: NuGet/setup-nuget@04b827616f0e2f81b18e77a1122a275727038167 # v2
+        uses: NuGet/setup-nuget@d105a947828025cd7a980103c35ba2bfae586d0f # v2.0.2
 
       - name: Build Chocolatey Package
         run: |
@@ -375,6 +376,7 @@ jobs:
 
       - name: Submit winget PR
         uses: vedantmgoyal2009/winget-releaser@4ffc7888bffd451b357355dc214d43bb9f23917e # v2
+        continue-on-error: true
         with:
           identifier: Mufthakherul.Siyarix
           version: ${{ needs.validate-tag.outputs.version }}

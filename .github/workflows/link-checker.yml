@@ -17,5 +17,5 @@ jobs:
       - name: Link Checker
         uses: lycheeverse/lychee-action@8646ba30535128ac92d33dfc9133794bfdd9b411 # v2.8.0
         with:
-          args: --accept=200,204,429 --exclude-mail --no-progress './**/*.md' './**/*.html'
+          args: --accept=200,204,429 --no-progress './**/*.md' './**/*.html'
           fail: true

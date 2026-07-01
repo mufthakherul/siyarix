@@ -4,10 +4,10 @@ Architecture: all
 Maintainer: MD MUFTHAKHERUL ISLAM MIRAZ <130831166+mufthakherul@users.noreply.github.com>
 Depends: python3 (>= 3.11), python3-pip, python3-venv, nmap
 Filename: packages/deb/apt-repo/pool/kali/siyarix_1.0.1_all.deb
-Size: 418376
-MD5sum: 48088fd00c5cf23f4236dcd3ed6e44bc
-SHA1: f1354075a24b1dc3f0127dbcc05ee6d8a38d2dd8
-SHA256: 0ddf59154a7c5ee7cc702050c8378c4edf3e9f35bf729ebe7b2018f0836d3525
+Size: 418362
+MD5sum: 7bd332900109701e44f7307519178768
+SHA1: 9156aa062b69f77f98cf75aef5e3e8168ad20d59
+SHA256: 97dfa2f237d5aa3c6e4d1c2ac96fc10a236bd4f648b7d3a17467f48f86197e35
 Section: utils
 Priority: optional
 Homepage: https://github.com/mufthakherul/siyarix

@@ -72,8 +72,8 @@ pip install "siyarix[all]"
 
 If you prefer using your operating system's native package manager, we support those too!
 
-> [!NOTE]
-> *Note for new GitHub Organization: Remember to use the updated `siyarix/siyarix` repository URLs if you are pulling directly from source!*
+!!! note
+    *Note for new GitHub Organization: Remember to use the updated `siyarix/siyarix` repository URLs if you are pulling directly from source!*
 
 ### macOS (Homebrew)
 ```bash
@@ -92,7 +92,7 @@ choco install siyarix
 
 ### Debian / Ubuntu / Kali Linux
 ```bash
-sudo dpkg -i packages/deb/siyarix_1.0.0-1_all.deb
+sudo dpkg -i packages/deb/siyarix_1.0.1-1_all.deb
 ```
 
 ### Docker
@@ -138,13 +138,13 @@ If you want an absolutely hands-off setup, we provide one-liner install scripts 
 
 ```bash
 # 🐧 Linux, 🍏 macOS, 🌐 ChromeOS, 🍎 iOS/iSH, 🌐 HarmonyOS, BSD
-curl -fsSL https://siyarix.github.io/install.sh | bash
+curl -fsSL https://siyarix.github.io/installer/install.sh | bash
 
 # 🪟 Windows (Run this in PowerShell)
-irm https://siyarix.github.io/install.ps1 | iex
+irm https://siyarix.github.io/installer/install.ps1 | iex
 
 # 📱 Android (Run inside the Termux app)
-curl -fsSL https://siyarix.github.io/install-termux.sh | bash
+curl -fsSL https://siyarix.github.io/installer/install-termux.sh | bash
 ```
 
 ---

@@ -7,17 +7,12 @@ supporting Linux, macOS, Windows, Android/Termux, iOS/iSH, and HarmonyOS.
 
 from __future__ import annotations
 
-import logging
 import os
 import platform as _platform
 import shutil
 import sys
 from pathlib import Path
 from typing import Any
-
-logger = logging.getLogger(__name__)
-
-_PLATFORM_CACHE: dict[str, Any] = {}
 
 
 def get_system() -> str:
@@ -293,7 +288,7 @@ def set_event_loop_policy() -> None:
         try:
             import asyncio
 
-            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())  # type: ignore[attr-defined]
         except (ImportError, AttributeError, RuntimeError):
             pass
 

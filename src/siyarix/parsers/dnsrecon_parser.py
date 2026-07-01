@@ -50,12 +50,6 @@ _SOA_DETAIL_RE = re.compile(
     re.IGNORECASE,
 )
 
-_IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
-
-_HEADER_RE = re.compile(
-    r"^(?:\[.*?\]|-{3,}|={3,}|__+|\w+\s+\w+\s+.*)",
-)
-
 
 def _looks_like_json(text: str) -> bool:
     stripped = text.strip()

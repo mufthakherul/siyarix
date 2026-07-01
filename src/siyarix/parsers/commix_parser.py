@@ -15,10 +15,6 @@ _VULN_RE = re.compile(
     re.IGNORECASE,
 )
 
-_PAYLOAD_RE = re.compile(
-    r"(?:payload|command|injected|executed)[:\s]+(.+)",
-    re.IGNORECASE,
-)
 
 _TECH_RE = re.compile(
     r"(?:technique|method|type)[:\s]+(\S+)",

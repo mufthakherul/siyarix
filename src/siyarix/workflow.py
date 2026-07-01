@@ -4,14 +4,12 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import time
 import uuid
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Callable, Coroutine
 
-logger = logging.getLogger(__name__)
 WorkflowStepFn = Callable[[dict[str, Any]], Coroutine[Any, Any, dict[str, Any]]]
 
 

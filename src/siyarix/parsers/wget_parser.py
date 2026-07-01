@@ -27,10 +27,6 @@ _DOWNLOAD_RE = re.compile(
     r"(?:\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\S*\s+(?P<url>\S+)",
 )
 
-_SIZE_RE = re.compile(
-    r"(?P<size>[\d.]+[KMG]?)\s+[\d.]+\s[KMGb]+\/s\s+\[{1,2}\s*\]",
-)
-
 _LENGTH_RE = re.compile(
     r"Length:\s*(?P<bytes>\d+)\s*\[(?P<type>\w+)\]",
 )

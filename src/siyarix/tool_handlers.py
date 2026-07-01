@@ -116,7 +116,7 @@ def make_web_handler(tool_name: str) -> ToolHandler:
                             method=req["method"],
                             headers={"User-Agent": req["user_agent"]},
                         )
-                        urllib.request.urlopen(r, timeout=1)
+                        urllib.request.urlopen(r, timeout=1)  # nosec B310
                     except Exception:
                         pass
         except Exception:
@@ -329,39 +329,6 @@ def make_whois_handler(tool_name: str) -> ToolHandler:
 
 
 # ── Domain-specific target flags ────────────────────────────────────────────────
-
-_FORENSICS_FLAGS: dict[str, str] = {
-    "volatility": "-f",
-    "sleuthkit": "-f",
-    "exiftool": "",
-    "bulk_extractor": "-o",
-}
-
-_SAST_FLAGS: dict[str, str] = {
-    "semgrep": "--config=auto",
-    "bandit": "-r",
-    "gitleaks": "detect --no-git",
-    "trufflehog": "",
-}
-
-_CLOUD_FLAGS: dict[str, str] = {
-    "kubectl": "",
-    "kube-hunter": "",
-    "checkov": "-d",
-    "prowler": "",
-    "scoutsuite": "",
-}
-
-_CONTAINER_FLAGS: dict[str, str] = {
-    "trivy": "",
-    "grype": "",
-    "syft": "",
-}
-
-_RE_FLAGS: dict[str, str] = {
-    "radare2": "-A",
-    "apktool": "d",
-}
 
 
 def make_forensics_handler(tool_name: str) -> ToolHandler:

@@ -12,8 +12,6 @@ from . import _now_iso
 
 _LOOKS_LIKE_JSON_RE = re.compile(r"^\s*[{\[]")
 
-_IP_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
-
 
 class DnsxParser:
     """Parse dnsx JSON output into normalized finding dicts."""

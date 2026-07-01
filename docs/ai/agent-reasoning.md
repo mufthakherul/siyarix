@@ -1,15 +1,15 @@
 # 🧠 Agent Reasoning Pipeline
 
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
 
 
 Welcome to the **Agent Reasoning Pipeline**! This is the "brain" of Siyarix, responsible for taking a user's objective and turning it into real, executed actions.
 
 Think of it as a smart traffic cop: the **Planner Router** directs requests to either an AI-driven planner (using a Large Language Model or LLM) or a rule-based heuristic planner. This depends on the mode you are running. In autonomous mode, the system follows a dynamic **Observe–Reason–Act–Reflect** loop. In registry or offline mode, it relies on reliable, deterministic templates.
 
-> [!NOTE]
-> The dual-planner architecture ensures that Siyarix remains fully functional whether you have an active LLM connection or are operating completely offline.
+!!! note
+    The dual-planner architecture ensures that Siyarix remains fully functional whether you have an active LLM connection or are operating completely offline.
 
 ---
 
@@ -44,8 +44,8 @@ This is our pure, AI-driven planner. It relies entirely on the LLM to figure thi
 - **🛠️ Native Tool Calling**: When available, we prefer structured tool calls directly from the LLM for better accuracy.
 - **🛡️ Structured Execution (`execute_plan`)**: We provide the LLM with a strict function definition to ensure the plan it generates is properly formatted and safe.
 
-> [!TIP]
-> The `AutonomousPlanner` works best when the LLM provider supports native structured tool calling (like OpenAI's `tool_calls`).
+!!! tip
+    The `AutonomousPlanner` works best when the LLM provider supports native structured tool calling (like OpenAI's `tool_calls`).
 
 ### ⚙️ RegistryPlanner
 *(Found in `src/siyarix/planner_registry.py`)*
@@ -110,16 +110,16 @@ Now it's time to execute the plan! The commands are run in "waves." Before anyth
 4. **Execution**: Runs the command safely with a timeout and tracks any stray processes.
 5. **DLP & Secret Redaction**: Automatically scrubs API keys, passwords, and sensitive tokens from the output before the LLM sees it.
 
-> [!WARNING]
-> Security is our top priority. The agent will never run highly destructive commands without explicit review, and sensitive data is aggressively redacted!
+!!! warning
+    Security is our top priority. The agent will never run highly destructive commands without explicit review, and sensitive data is aggressively redacted!
 
 ### 4️⃣ Reflect
 Finally, the LLM reviews the output of the commands. Did we get what we needed?
 - If yes, it sets `needs_tools=false` and provides a final answer.
 - If no, it sets `needs_tools=true` and creates a new plan for the next wave.
 
-> [!IMPORTANT]
-> The agent can loop up to **12 waves** per instruction by default. If it hits that limit, it will stop and ask you for further guidance.
+!!! info
+    The agent can loop up to **12 waves** per instruction by default. If it hits that limit, it will stop and ask you for further guidance.
 
 ---
 
@@ -159,8 +159,8 @@ Review command [edit/run/step/cancel] (run):
 - **`step`**: Run commands one by one.
 - **`cancel`**: Skip it entirely.
 
-> [!NOTE]
-> In automated environments (like CI/CD pipelines), Shell Review automatically approves commands so it doesn't get stuck waiting for human input.
+!!! note
+    In automated environments (like CI/CD pipelines), Shell Review automatically approves commands so it doesn't get stuck waiting for human input.
 
 ---
 

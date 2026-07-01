@@ -220,9 +220,7 @@ class TestParseXmlToolCalls:
         assert calls[0]["args"] == {"input": "hello world"}
 
     def test_multiple_functions(self):
-        text = (
-            '<function=nmap>{"host": "a"}</function>' '<function=nuclei>{"target": "b"}</function>'
-        )
+        text = '<function=nmap>{"host": "a"}</function><function=nuclei>{"target": "b"}</function>'
         calls = parse_xml_tool_calls(text)
         assert len(calls) == 2
 
@@ -286,7 +284,7 @@ class TestParsePlainTextToolCalls:
         assert parse_plain_text_tool_calls("hello world") == []
 
     def test_bracket_empty_does_not_fallback_to_xml(self):
-        text = '[nmap]\n{"host": "x"}' '<function=nuclei>{"target": "y"}</function>'
+        text = '[nmap]\n{"host": "x"}<function=nuclei>{"target": "y"}</function>'
         calls = parse_plain_text_tool_calls(text)
         # bracket found, so only bracket calls returned
         assert len(calls) == 1
@@ -360,11 +358,7 @@ class TestStripToolCallBlocks:
 
     def test_bracket_and_xml_both_removed(self):
         text = (
-            "prefix "
-            '[nmap]\n{"host": "x"} '
-            "middle "
-            '<function=nuclei>{"target": "y"}</function> '
-            "suffix"
+            'prefix [nmap]\n{"host": "x"} middle <function=nuclei>{"target": "y"}</function> suffix'
         )
         cleaned = strip_tool_call_blocks(text)
         assert cleaned == "prefix  middle  suffix"

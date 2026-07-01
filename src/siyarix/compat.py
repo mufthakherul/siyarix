@@ -197,7 +197,7 @@ class ExecutionEngine:
         return planner.smart_plan(instruction, tools)
 
     async def execute(self, goal: str, plan: Any = None, **kwargs: Any) -> EngineResult:
-        from .core import AgentCore, AgentMode, AgentGoal, AgentResult
+        from .core import AgentCore, AgentMode, AgentGoal
         from .models import StepResult
 
         progress_callback = kwargs.get("progress_callback")
@@ -214,7 +214,6 @@ class ExecutionEngine:
                     for s in (planner.steps if planner else [])
                 ],
             }
-            result = AgentResult(goal=goal, success=True, findings=[plan_preview])
             return EngineResult(
                 success=True,
                 summary=f"Dry-run: {len(plan_preview['steps'])} steps planned",

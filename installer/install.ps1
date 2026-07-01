@@ -11,10 +11,10 @@
 # =============================================================================
 
 $ErrorActionPreference = 'Stop'
-$__script_version = "1.0.0"
+$__script_version = "1.0.1"
 
 function Write-Banner {
-  @"
+  Write-Host @"
    ███████╗██╗██╗   ██╗ █████╗ ██████╗ ██╗██╗  ██╗
    ██╔════╝██╚██╗ ██╔╝██╔══██╗██╔══██╗██║╚██╗██╔╝
    ███████╗██║╚████╔╝ ███████║██████╔╝██║ ╚███╔╝
@@ -22,7 +22,7 @@ function Write-Banner {
    ███████║██║  ██║   ██║  ██║██║  ██║██║██╔╝ ██╗
    ╚══════╝╚═╝  ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝
    AI Cybersecurity Orchestration Agent v$__script_version
-"@
+"@ -ForegroundColor Cyan
   Write-Host "`nSiyarix -- AI Cybersecurity Orchestration Agent`n" -ForegroundColor Cyan
 }
 
@@ -54,11 +54,17 @@ function Enable-LongPathSupport {
 function Update-Path {
   param([string]$PathToAdd)
   try {
-    $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-    if ($currentPath -notlike "*$PathToAdd*") {
-      [Environment]::SetEnvironmentVariable("PATH", "$currentPath;$PathToAdd", "User")
+    $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+    $paths = $userPath -split ';' | Where-Object { $_ -ne "" }
+    if ($paths -notcontains $PathToAdd) {
+      $newUserPath = ($paths + $PathToAdd) -join ';'
+      [Environment]::SetEnvironmentVariable("PATH", $newUserPath, "User")
       Write-Ok "Added $PathToAdd to PATH"
-      $env:PATH = "$env:PATH;$PathToAdd"
+
+      $sessionPaths = $env:PATH -split ';' | Where-Object { $_ -ne "" }
+      if ($sessionPaths -notcontains $PathToAdd) {
+        $env:PATH = ($sessionPaths + $PathToAdd) -join ';'
+      }
     }
   } catch { Write-Warn "Failed to update PATH: $_" }
 }
@@ -109,15 +115,24 @@ function Install-ViaPip {
   Write-Info "Installing via pip..."
   if (-not (Ensure-Pip)) { return $false }
 
-  # Upgrade pip first
+  if ($env:VIRTUAL_ENV) {
+    Write-Info "Active virtual environment detected at $env:VIRTUAL_ENV. Installing Siyarix inside virtual environment..."
+    try {
+      python -m pip install --upgrade pip --no-input 2>&1 | Out-Null
+      python -m pip install --upgrade siyarix --no-input 2>&1 | Out-Null
+      Write-Ok "Siyarix installed inside virtual environment."
+      return $true
+    } catch {
+      return $false
+    }
+  }
+
   python -m pip install --upgrade pip --no-input 2>&1 | Out-Null
 
-  # Try regular install first
   try {
     python -m pip install siyarix --no-input 2>&1 | Out-Null
     return $true
   } catch {}
-  # Fall back to --user
   try {
     python -m pip install --user siyarix --no-input 2>&1 | Out-Null
     return $true
@@ -219,10 +234,56 @@ function Main {
   } catch {}
 
   if (-not (Test-Python)) {
-    Write-Err "Python 3.11+ is required."
-    Write-Err "Download from: https://www.python.org/downloads/"
-    Write-Info "After installing Python, re-run this installer."
-    return 1
+    Write-Info "Python 3.11+ not found. Attempting to install Python..."
+    $installedPython = $false
+
+    try {
+      $null = Get-Command winget -ErrorAction SilentlyContinue
+      Write-Info "Installing Python via winget..."
+      winget install Python.Python.3.12 --accept-source-agreements --accept-package-agreements --silent 2>&1 | Out-Null
+      $installedPython = $true
+    } catch {}
+
+    if (-not $installedPython) {
+      try {
+        $null = Get-Command choco -ErrorAction SilentlyContinue
+        Write-Info "Installing Python via Chocolatey..."
+        choco install python3 -y --no-progress 2>&1 | Out-Null
+        $installedPython = $true
+      } catch {}
+    }
+
+    if (-not $installedPython) {
+      try {
+        Write-Info "Downloading official Python installer..."
+        $pythonUrl = "https://www.python.org/ftp/python/3.12.4/python-3.12.4-amd64.exe"
+        $installerPath = "$env:TEMP\python-installer.exe"
+        $wc = New-Object System.Net.WebClient
+        $wc.DownloadFile($pythonUrl, $installerPath)
+
+        Write-Info "Running silent Python installation..."
+        $proc = Start-Process -FilePath $installerPath -ArgumentList "/quiet InstallAllUsers=0 PrependPath=1 Include_test=0 Include_doc=0" -Wait -PassThru
+        if ($proc.ExitCode -eq 0) {
+          $installedPython = $true
+        }
+        Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
+      } catch {
+        Write-Warn "Silent installation failed: $_"
+      }
+    }
+
+    if ($installedPython) {
+      $env:PATH = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+      if (Test-Python) {
+        Write-Ok "Python installed successfully: $(python --version 2>&1)"
+      } else {
+        Write-Err "Python installation succeeded but command not found. Please restart your shell and re-run this script."
+        return 1
+      }
+    } else {
+      Write-Err "Failed to auto-install Python. Please install Python 3.11+ manually: https://www.python.org/downloads/"
+      return 1
+    }
   }
   Write-Ok "Python found: $(python --version 2>&1)"
 
@@ -247,6 +308,7 @@ function Main {
     Update-Path -PathToAdd "$pythonUserBase\Scripts"
   }
 
+
   if ($installed) {
     Write-Ok "Siyarix v$__script_version installed successfully!"
     Write-Info "Run 'siyarix --help' to get started"
@@ -257,5 +319,21 @@ function Main {
     return 1
   }
 }
+try {
+  $exitCode = Main
+} catch {
+  Write-Host "`n[!] An unexpected error occurred:" -ForegroundColor Red
+  Write-Host $_ -ForegroundColor Red
+  $exitCode = 1
+}
 
-exit (Main)
+if ([Environment]::UserInteractive -and -not $env:CI) {
+  try {
+    Write-Host "`nPress any key to continue..." -ForegroundColor Cyan
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+  } catch {}
+}
+
+if ($exitCode -ne 0) {
+  throw "Installation failed with exit code $exitCode"
+}

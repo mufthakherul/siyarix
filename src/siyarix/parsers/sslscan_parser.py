@@ -9,7 +9,6 @@ from typing import Any
 
 from . import _now_iso
 
-_ACCEPTED_RE = re.compile(r"\bAccepted\s+\S+")
 _CIPHER_RE = re.compile(r"(Accepted|Preferred|Rejected)\s+(\S+(?:\s+\S+)*)")
 _CERT_RE = re.compile(
     r"(?:Certificate|Subject|Issuer|Not valid|SHA-1|SHA-256|MD5)[:\s]+(.+)",

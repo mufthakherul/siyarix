@@ -45,7 +45,9 @@ class NotificationDispatcher:
         payload: dict[str, Any] = {"content": message}
 
         parsed = urlparse(self.webhook_url)
-        if parsed.hostname and (parsed.hostname == "slack.com" or parsed.hostname.endswith(".slack.com")):
+        if parsed.hostname and (
+            parsed.hostname == "slack.com" or parsed.hostname.endswith(".slack.com")
+        ):
             payload = {"text": message}
 
         try:

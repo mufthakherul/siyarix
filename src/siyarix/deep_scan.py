@@ -61,7 +61,11 @@ _DEEP_SCAN_PASSES: list[DeepScanProfile] = [
         name="vulnerability",
         description="Template-based vulnerability scanning",
         tools=[
-            {"tool": "nuclei", "args": {"severity": "low,medium,high,critical", "flags": "-duc -nt"}, "timeout": 600},
+            {
+                "tool": "nuclei",
+                "args": {"severity": "low,medium,high,critical", "flags": "-duc -nt"},
+                "timeout": 600,
+            },
             {"tool": "nikto", "args": {"flags": "-C all"}, "timeout": 300},
         ],
         timeout=600,
@@ -118,7 +122,11 @@ _DEEP_SCAN_PASSES: list[DeepScanProfile] = [
         description="Cloud infrastructure security auditing and compliance checking",
         tools=[
             {"tool": "checkov", "args": {"flags": "-d ."}, "timeout": 300},
-            {"tool": "trivy", "args": {"flags": "filesystem --severity HIGH,CRITICAL"}, "timeout": 300},
+            {
+                "tool": "trivy",
+                "args": {"flags": "filesystem --severity HIGH,CRITICAL"},
+                "timeout": 300,
+            },
             {"tool": "prowler", "args": {}, "timeout": 600},
         ],
         timeout=600,

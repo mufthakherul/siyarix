@@ -1142,7 +1142,7 @@ class TestGetProviderEnvVar:
         assert env_var == "OPENAI_CUSTOM_KEY"
 
     def test_fallback(self):
-        pm = ProviderManager.get_instance()
+        unused_pm = ProviderManager.get_instance()
         env_var = get_provider_env_var("custom_provider")
         assert env_var == "CUSTOM_PROVIDER_API_KEY"
 

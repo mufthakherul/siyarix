@@ -1,13 +1,13 @@
 # ⚙️ Execution Engine
 
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
 
 
 The execution subsystem is the beating heart of Siyarix. It takes abstract `ExecutionPlan` objects and transforms them into real-world, executed commands. Built on a robust, layered architecture, it features a shared **BaseExecutor** that provides critical services like budget tracking, safety guardrails, Data Loss Prevention (DLP) integration, and strict permission gating for all specialized executors.
 
-> [!NOTE]
-> The Execution Engine ensures that every action Siyarix takes is safe, tracked, and within defined operational boundaries.
+!!! note
+    The Execution Engine ensures that every action Siyarix takes is safe, tracked, and within defined operational boundaries.
 
 ---
 
@@ -49,8 +49,8 @@ ExecutionPlan (from Planner)
 
 At the core of the engine is the `ExecutionPlan`, a data structure that dictates what needs to be done, how, and in what order.
 
-> [!IMPORTANT]
-> A well-formed `ExecutionPlan` is crucial for successful execution. The `plan_type` determines how the engine approaches the tasks (e.g., sequentially or via a complex DAG).
+!!! info
+    A well-formed `ExecutionPlan` is crucial for successful execution. The `plan_type` determines how the engine approaches the tasks (e.g., sequentially or via a complex DAG).
 
 ### 📝 ExecutionPlan
 
@@ -107,8 +107,8 @@ Tracks and enforces resource consumption to prevent runaway processes.
 | `max_tool_calls` | 100 | Maximum number of tool invocations. |
 | `max_duration_s` | 600 | Maximum wall-clock execution time (in seconds). |
 
-> [!WARNING]
-> The budget is checked before *every* step. If any limit is exhausted, execution is halted immediately.
+!!! warning
+    The budget is checked before *every* step. If any limit is exhausted, execution is halted immediately.
 
 ### 🚦 ToolCallTracker
 Monitors how tools are performing and enforces guardrail policies to prevent spam or infinite loops.
@@ -120,8 +120,8 @@ Monitors how tools are performing and enforces guardrail policies to prevent spa
 | **Same-tool failure halt** | 8 consecutive | Halts the tool entirely. |
 | **No-progress block** | 5 calls with identical args | Blocks the call to prevent looping. |
 
-> [!TIP]
-> Failure states are persisted to `tool_failures.json` to maintain context and safety across different sessions!
+!!! tip
+    Failure states are persisted to `tool_failures.json` to maintain context and safety across different sessions!
 
 ### 🔐 Permission Gate Integration
 Every single step is scrutinized by the `PermissionGate` before it runs:
@@ -190,8 +190,8 @@ Layer 1: [nuclei_scan, nikto_scan]        # Depends on Layer 0
 Layer 2: [metasploit_exploit]             # Depends on Layer 1
 ```
 
-> [!NOTE]
-> Steps within the same layer execute concurrently via the `AsyncWorkerPool`. However, cross-layer dependencies strictly enforce sequential execution to ensure prerequisites are met.
+!!! note
+    Steps within the same layer execute concurrently via the `AsyncWorkerPool`. However, cross-layer dependencies strictly enforce sequential execution to ensure prerequisites are met.
 
 ---
 
@@ -225,8 +225,8 @@ parser_registry.parse(tool, output)
 - 🐛 **Vuln Scanners:** CVE IDs, severity levels, CVSS vectors.
 - 🌐 **Web Scanners:** URLs, tech stacks, exposed directories.
 
-> [!IMPORTANT]
-> Once parsed, findings are immediately inserted into the **KnowledgeGraph**, empowering the LLM to make better downstream decisions.
+!!! info
+    Once parsed, findings are immediately inserted into the **KnowledgeGraph**, empowering the LLM to make better downstream decisions.
 
 ---
 

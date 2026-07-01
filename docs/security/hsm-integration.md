@@ -2,8 +2,8 @@
 
 As Siyarix grows, I'm working on adding support for hardware-backed security. While HSM integration is currently **under active development**, this document outlines the plan for secure key storage.
 
-> [!NOTE]
-> **Developer Status:** Basic HSM detection currently exists as a stub in `chat/stubs.py` (look for `HSMService`), but the full integration is a work in progress.
+!!! note
+    **Developer Status:** Basic HSM detection currently exists as a stub in `chat/stubs.py` (look for `HSMService`), but the full integration is a work in progress.
 
 ## 📊 Current Integration Status
 
@@ -33,8 +33,8 @@ export SIYARIX_KMS_PROVIDER=aws
 export AWS_KMS_KEY_ID=your-aws-kms-key-id
 ```
 
-> [!TIP]
-> This keeps your local credentials encrypted with a data key from AWS KMS!
+!!! tip
+    This keeps your local credentials encrypted with a data key from AWS KMS!
 
 ## 📂 Cross-Platform PKCS#11 Paths (Reference)
 

@@ -45,7 +45,7 @@ class AlienVaultOTX(ThreatIntelProvider):
             if _parsed.scheme not in ("http", "https"):
                 raise ValueError(f"Disallowed URL scheme: {_parsed.scheme!r}")
             req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=10) as response:
+            with urllib.request.urlopen(req, timeout=10) as response:  # nosec B310
                 data = json.loads(response.read().decode())
                 return {
                     "source": "AlienVault OTX",
@@ -70,7 +70,7 @@ class NVDDatabase(ThreatIntelProvider):
             if _parsed.scheme not in ("http", "https"):
                 raise ValueError(f"Disallowed URL scheme: {_parsed.scheme!r}")
             req = urllib.request.Request(url)
-            with urllib.request.urlopen(req, timeout=10) as response:
+            with urllib.request.urlopen(req, timeout=10) as response:  # nosec B310
                 data = json.loads(response.read().decode())
                 vulnerabilities = data.get("vulnerabilities", [])
                 if vulnerabilities:

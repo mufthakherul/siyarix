@@ -1,7 +1,7 @@
 # 🚦 Intent Routing
 
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
 
 
 Welcome to the **Intent Routing** subsystem! Think of this as the intelligent traffic cop of the application. It listens to what the user wants to do (their input), figures out how risky that action is, and directs it down the safest and most efficient execution path.
@@ -42,8 +42,8 @@ User Input
     └──→ RegistryPlanner (intent → plan template)
 ```
 
-> [!NOTE]
-> The diagram above illustrates how raw input is categorized into a standard `IntentRoute` before being passed along to the planners and parsers.
+!!! note
+    The diagram above illustrates how raw input is categorized into a standard `IntentRoute` before being passed along to the planners and parsers.
 
 ---
 
@@ -72,8 +72,8 @@ The router relies on a straightforward set of rules to determine the mode, the r
 | `exploit`, `metasploit`, `attack`| `exploit` | High | Yes 🛑 |
 | *(Any other input)* | `general` | Low | No |
 
-> [!WARNING]
-> Notice that `brute` and `exploit` modes are classified as **High Risk** and explicitly require user confirmation. This safety mechanism prevents accidental execution of intrusive operations.
+!!! warning
+    Notice that `brute` and `exploit` modes are classified as **High Risk** and explicitly require user confirmation. This safety mechanism prevents accidental execution of intrusive operations.
 
 ### 📦 The `IntentRoute` Object
 
@@ -120,8 +120,8 @@ parsed = nlp.parse("scan 10.0.0.1 for open ports and run vulnerability scan")
 - **Synonym Mapping**: Comes packed with over 380 cybersecurity-specific synonyms (e.g., mapping "AD" to "Active Directory", understanding "CVE", "subdomain", etc.).
 - **Multi-intent Parsing**: Can split complex sentences using conjunctions (like "then", "and then") into multiple distinct intents.
 
-> [!TIP]
-> Because it's purely stdlib, the NLP Engine is incredibly lightweight and blazing fast.
+!!! tip
+    Because it's purely stdlib, the NLP Engine is incredibly lightweight and blazing fast.
 
 ### 🔍 Entity Extraction Patterns
 
@@ -175,8 +175,8 @@ plan = await planner.plan(
 )
 ```
 
-> [!IMPORTANT]
-> The `integrated` mode is highly recommended. It attempts to generate a creative, optimized plan using AI but gracefully falls back to reliable, pre-defined templates if the AI is unavailable or produces an invalid result.
+!!! info
+    The `integrated` mode is highly recommended. It attempts to generate a creative, optimized plan using AI but gracefully falls back to reliable, pre-defined templates if the AI is unavailable or produces an invalid result.
 
 ---
 
@@ -232,8 +232,8 @@ For common scenarios, the `RegistryPlanner` uses battle-tested templates. These 
 | `linux_privesc`| uname → find (SUID) → find (writable) → cat (crontab) | 4 |
 | `ssl_audit` | openssl → nmap (`ssl-enum-ciphers`) → nmap (`ssl-cert`) | 3 |
 
-> [!TIP]
-> These templates ensure that even when running completely offline, the system still executes complex, multi-stage workflows logically and securely.
+!!! tip
+    These templates ensure that even when running completely offline, the system still executes complex, multi-stage workflows logically and securely.
 
 ---
 

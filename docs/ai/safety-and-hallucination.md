@@ -1,13 +1,13 @@
 # 🛡️ Safety, Security & Hallucination Resistance
 
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
 
 
 Welcome to the core of Siyarix's defense mechanism! When operating an autonomous or semi-autonomous AI system, safety and security are paramount.
 
-> [!IMPORTANT]
-> Siyarix implements a robust, multi-layered safety architecture designed to protect your host system, secure operator data, and maintain the absolute integrity of your audit trails. Every single command passes through stages of validation, danger classification, secret redaction, and interactive review before it ever executes.
+!!! info
+    Siyarix implements a robust, multi-layered safety architecture designed to protect your host system, secure operator data, and maintain the absolute integrity of your audit trails. Every single command passes through stages of validation, danger classification, secret redaction, and interactive review before it ever executes.
 
 ---
 
@@ -15,8 +15,8 @@ Welcome to the core of Siyarix's defense mechanism! When operating an autonomous
 
 Think of the safety pipeline as a series of rigorous checkpoints. Every tool and command must successfully pass through these stages before execution:
 
-> [!NOTE]
-> **Workflow:** `User input` ➔ `InputValidator` ➔ `PermissionGate` ➔ `DangerAnalyzer` ➔ `DLPEngine` ➔ `ShellReview` ➔ `AuditLogger`
+!!! note
+    **Workflow:** `User input` ➔ `InputValidator` ➔ `PermissionGate` ➔ `DangerAnalyzer` ➔ `DLPEngine` ➔ `ShellReview` ➔ `AuditLogger`
 
 ---
 
@@ -42,8 +42,8 @@ valid, msg = validator.validate_url("https://example.com")
 
 To prevent malicious activity, the validator actively looks for and blocks shell injection patterns:
 
-> [!WARNING]
-> Any command containing the following patterns will be immediately blocked to prevent shell injection attacks.
+!!! warning
+    Any command containing the following patterns will be immediately blocked to prevent shell injection attacks.
 
 | Pattern | Example | Severity |
 |---------|---------|----------|
@@ -65,8 +65,8 @@ safe = validator.sanitize_arg("target; rm -rf /")
 # Returns: "target rm -rf " (shell metacharacters stripped)
 ```
 
-> [!TIP]
-> This sanitisation removes null bytes, carriage returns, newlines, ANSI escape sequences, backticks, `$()`, `${}`, `|`, `;`, `&`, `<`, `>`, and collapses dangerous `../` path traversals.
+!!! tip
+    This sanitisation removes null bytes, carriage returns, newlines, ANSI escape sequences, backticks, `$()`, `${}`, `|`, `;`, `&`, `<`, `>`, and collapses dangerous `../` path traversals.
 
 ---
 
@@ -100,8 +100,8 @@ print(report.is_dangerous)    # True
 print(report.recommendation)  # "⚡ CAUTION — Review this command before execution."
 ```
 
-> [!NOTE]
-> The analyzer protects both Linux and Windows environments, covering destructive patterns like registry manipulation, shadow copy deletion, event log clearing, and scheduled task abuse.
+!!! note
+    The analyzer protects both Linux and Windows environments, covering destructive patterns like registry manipulation, shadow copy deletion, event log clearing, and scheduled task abuse.
 
 ### 🎨 Formatted Warning
 
@@ -137,8 +137,8 @@ To prevent abuse or runaway scripts, the gate limits how often commands can be c
 gate = PermissionGate(rate_limit_calls=100, rate_limit_period=60.0)
 ```
 
-> [!TIP]
-> By default, the limit is 100 calls per 60 seconds. The state is saved in `rate_limit.json` in your config directory. Exceeding this limit results in a `FORBIDDEN` action.
+!!! tip
+    By default, the limit is 100 calls per 60 seconds. The state is saved in `rate_limit.json` in your config directory. Exceeding this limit results in a `FORBIDDEN` action.
 
 ### 🧨 Restricted Payload Detection
 
@@ -182,8 +182,8 @@ safe_output = dlp.redact("API key: AKIAIOSFODNN7EXAMPLE")
 safe_dict = dlp.redact_dict({"token": "ghp_xxxxxxxxxxxxxxxxxxxx"})
 ```
 
-> [!NOTE]
-> Secrets aren't just hidden; they are clearly labeled with their category name (e.g., `[REDACTED AWS_KEY]`) so you know exactly what was removed.
+!!! note
+    Secrets aren't just hidden; they are clearly labeled with their category name (e.g., `[REDACTED AWS_KEY]`) so you know exactly what was removed.
 
 ### 🛡️ SecretRedactor (Comprehensive)
 
@@ -227,8 +227,8 @@ The operator has four choices:
 | `step` | Execute, but step through subsequent commands one by one. |
 | `cancel` | Skip or cancel this command entirely. |
 
-> [!TIP]
-> **CI / Non-TTY Mode:** If the system detects it's running in a non-interactive environment (like a CI pipeline), it will automatically approve commands to prevent the process from hanging indefinitely.
+!!! tip
+    **CI / Non-TTY Mode:** If the system detects it's running in a non-interactive environment (like a CI pipeline), it will automatically approve commands to prevent the process from hanging indefinitely.
 
 ---
 
@@ -262,8 +262,8 @@ class AuditEvent:
 
 To guarantee that logs haven't been altered, each event's hash incorporates the hash of the *previous* event, creating an unbreakable chain.
 
-> [!IMPORTANT]
-> You can verify the integrity of your entire audit chain at any time. If someone tries to modify a past log entry, the chain will break, and the system will alert you.
+!!! info
+    You can verify the integrity of your entire audit chain at any time. If someone tries to modify a past log entry, the chain will break, and the system will alert you.
 
 ```python
 audit = AuditLogger()
@@ -287,8 +287,8 @@ You can easily export your logs or check status via code or CLI commands:
 | `/audit export` | Export logs to JSON or CSV formats. |
 | `/audit verify` | Manually verify the tamper-evident chain. |
 
-> [!NOTE]
-> By default, logs are retained for 365 days. In highly sensitive "OpSec Memory-Only" mode, events are tracked in memory and *never* written to disk.
+!!! note
+    By default, logs are retained for 365 days. In highly sensitive "OpSec Memory-Only" mode, events are tracked in memory and *never* written to disk.
 
 ---
 
@@ -324,8 +324,8 @@ It handles strict formatting checks for elements like:
 
 Before the AI executes a plan, the validator checks every `PlanStep` (e.g., verifying it has a tool, arguments, and a valid timeout).
 
-> [!TIP]
-> If a command fails, `plan_recovery()` steps in to suggest smart, automated fixes. For example, if `nmap` reports all filtered ports, the recovery planner might automatically suggest adding the `-Pn` flag to try again.
+!!! tip
+    If a command fails, `plan_recovery()` steps in to suggest smart, automated fixes. For example, if `nmap` reports all filtered ports, the recovery planner might automatically suggest adding the `-Pn` flag to try again.
 
 ---
 

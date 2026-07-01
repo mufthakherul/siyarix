@@ -2,9 +2,6 @@
 
 from siyarix import RegistryPlanner
 import re
-import os
-
-_IS_WIN = os.name == "nt"
 
 p = RegistryPlanner()
 tools = [
@@ -109,13 +106,10 @@ direct_tool_keywords = {
     "the harvester": ("theHarvester", "Email/subdomain OSINT harvesting", ""),
     "httpx": ("httpx", "HTTP endpoint probing", ""),
     "gau": ("gau", "GetAllUrls from Wayback Machine", ""),
-    "testssl": ("testssl.sh", "SSL/TLS comprehensive testing", "--full"),
     "testssl.sh": ("testssl.sh", "SSL/TLS comprehensive testing", "--full"),
-    "ssllabs": ("ssllabs-scan", "SSL Labs API scanner", ""),
     "responder": ("responder", "LLMNR/NBT-NS responder", "-I eth0"),
     "impacket": ("impacket", "Impacket toolkit", ""),
     "searchsploit": ("searchsploit", "Exploit search", ""),
-    "waybackurls": ("waybackurls", "Wayback Machine URL discovery", ""),
     "takeover": ("subjack", "Subdomain takeover detection", ""),
     "nikto": ("nikto", "Web server vulnerability scan", ""),
     "exposed panel": ("nuclei", "Exposed panel scan", "-t http/exposed-panels"),
@@ -306,24 +300,6 @@ for c in candidates:
 
 # Step 4 intent_map with target
 if target:
-    intent_map = {"port": ("nmap", "Port scan", "-sT -T4 --top-ports 100")}
-    # Check just the REAL intent_map scanning
-    GENERIC = frozenset(
-        {
-            "scan",
-            "run",
-            "do",
-            "get",
-            "find",
-            "check",
-            "test",
-            "list",
-            "show",
-            "explore",
-            "discover",
-            "probe",
-        }
-    )
     print("[4] Searching intent_map...")
     # Only show what matches
     for kw in goal_lower.split():

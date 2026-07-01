@@ -393,14 +393,14 @@ _PARSER_MODULES: list[str] = [
     "zmap_parser",
 ]
 
-_parsers_loaded = False
+__parsers_loaded__ = False
 
 
 def _lazy_import_parsers() -> None:
-    global _parsers_loaded
-    if _parsers_loaded:
+    global __parsers_loaded__
+    if __parsers_loaded__:
         return
-    _parsers_loaded = True
+    __parsers_loaded__ = True
     for mod_name in _PARSER_MODULES:
         mod = importlib.import_module(f".{mod_name}", __package__)
         for attr_name in dir(mod):

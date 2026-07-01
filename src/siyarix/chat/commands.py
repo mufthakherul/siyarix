@@ -9,15 +9,12 @@ argument metadata, and help system — powers autocomplete, help, and dispatch.
 from __future__ import annotations
 
 import json
-import logging
 from dataclasses import dataclass, asdict, field
 from datetime import datetime, UTC
 from enum import Enum
 from pathlib import Path
 
 from siyarix.config import get_config_dir
-
-logger = logging.getLogger(__name__)
 
 
 # ── Command Categories ────────────────────────────────────────────────────
@@ -1103,7 +1100,7 @@ _cat_map: dict[CommandCategory, str] = {
     CommandCategory.ADVANCED: "Advanced Operations",
 }
 
-for cat in CommandCategory:
+for cat in list(CommandCategory):
     cmds_in_cat = CommandRegistry.by_category(cat)
     if cmds_in_cat:
         entries: dict[str, str] = {}

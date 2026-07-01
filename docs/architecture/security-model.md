@@ -1,13 +1,13 @@
 # 🛡️ Siyarix Security Model
 
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
 
 
 Siyarix implements a robust, defense-in-depth security model designed to protect your data, enforce operational security (OPSEC), and ensure safe execution at all times. Our architecture spans multiple critical layers—from input validation and permission gating to stealth operations and tamper-evident auditing. Each layer is independently configurable, allowing you to combine them for graduated, context-aware safety policies.
 
-> [!NOTE]
-> The security model is built on the principle of least privilege and zero-trust execution. Every action is verified, sanitized, and audited before it touches your system or the outside world.
+!!! note
+    The security model is built on the principle of least privilege and zero-trust execution. Every action is verified, sanitized, and audited before it touches your system or the outside world.
 
 ---
 
@@ -94,9 +94,8 @@ Before any plan is even considered for execution, the **Validator** class (`siya
 | **Timeout limits** | Prevents endless loops by rejecting steps with no timeout or excessively long ones. |
 | **Argument safety** | Verifies all required arguments are present and blocks unrecognized parameters. |
 
-> [!TIP]
-> **Automatic Recovery**
-> If validation fails, Siyarix doesn't just give up. It attempts to apply a recovery action—like retrying (`RETRY`), fixing parameters (`RETRY_MODIFIED`), switching tools (`RETRY_ALTERNATIVE`), or escalating to the user (`ESCALATE`).
+!!! tip "Automatic Recovery"
+    If validation fails, Siyarix doesn't just give up. It attempts to apply a recovery action—like retrying (`RETRY`), fixing parameters (`RETRY_MODIFIED`), switching tools (`RETRY_ALTERNATIVE`), or escalating to the user (`ESCALATE`).
 
 ---
 
@@ -136,8 +135,8 @@ With **24+ built-in signatures**, the DLP engine catches things like:
 - **PII:** Emails, SSNs, credit cards
 - **Internal Infrastructure:** RFC1918 internal IP addresses
 
-> [!WARNING]
-> By default, the DLP engine is set to `REDACT`, meaning it will automatically mask sensitive strings (e.g., swapping an API key with `[REDACTED]`).
+!!! warning
+    By default, the DLP engine is set to `REDACT`, meaning it will automatically mask sensitive strings (e.g., swapping an API key with `[REDACTED]`).
 
 **Configuration Example:**
 ```toml
@@ -185,9 +184,8 @@ For scenarios requiring absolute minimal detection, the **StealthEngine** (`siya
 | `3` | **High** | Proxy chaining, traffic obfuscation. |
 | `4` | **Paranoid** | Tor routing, MAC rotation, DNS tunneling, C2 mimicry. |
 
-> [!IMPORTANT]
-> **Safe Commands Limit**
-> The Stealth Engine restricts which commands can be run at higher tiers. If an operation is deemed too "noisy" for your active tier, Siyarix will block it or warn you.
+!!! info "Safe Commands Limit"
+    The Stealth Engine restricts which commands can be run at higher tiers. If an operation is deemed too "noisy" for your active tier, Siyarix will block it or warn you.
 
 ---
 
@@ -233,8 +231,8 @@ entry = {
 }
 ```
 
-> [!NOTE]
-> Because each entry hashes the previous one, the audit log is **tamper-evident**. Modifying a past entry will break the entire cryptographic chain, instantly alerting you to foul play.
+!!! note
+    Because each entry hashes the previous one, the audit log is **tamper-evident**. Modifying a past entry will break the entire cryptographic chain, instantly alerting you to foul play.
 
 ### 🔑 CredentialStore
 

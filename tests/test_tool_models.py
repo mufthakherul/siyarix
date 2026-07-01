@@ -174,7 +174,8 @@ class TestToolCapability:
 
     def test_eq_self(self) -> None:
         t = ToolCapability(name="nmap")
-        assert t == t
+        t2 = t
+        assert t == t2
 
 
 # ---------------------------------------------------------------------------
@@ -653,7 +654,7 @@ class TestToolInstallerWindows:
             "custom-tool": None,
         }.get(x)
         installer = ToolInstaller()
-        result = installer.install("custom-tool", pkg="custom-pkg")
+        unused_result = installer.install("custom-tool", pkg="custom-pkg")
         # Should try winget with the pkg name
         call_args = mock_run.call_args_list
         if call_args:

@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import contextlib
 import json
-import re
 from typing import Any
 
 from . import _now_iso
@@ -28,11 +27,6 @@ _EXIF_FIELDS = (
     "YResolution",
     "ExifImageWidth",
     "ExifImageHeight",
-)
-
-_SUMMARY_RE = re.compile(
-    r"(?:files?\s+(?:read|processed)|image\s+files)",
-    re.IGNORECASE,
 )
 
 

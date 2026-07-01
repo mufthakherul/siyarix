@@ -10,8 +10,6 @@ from typing import Any
 
 from . import _now_iso
 
-_JSON_RE = re.compile(r"^\s*[{\[]")
-
 
 class BloodhoundPythonParser:
     """Parse BloodHound Python (bloodhound-python) JSONL output into findings."""

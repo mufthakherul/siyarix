@@ -6,7 +6,7 @@ intelligent tool selection, autonomous workflows, and advanced security tooling.
 """
 
 __app_name__ = "siyarix"
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __author__ = "MD MUFTHAKHERUL ISLAM MIRAZ"
 __license__ = "AGPL-3.0-or-later"
 

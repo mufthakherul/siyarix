@@ -7,11 +7,6 @@ without an AI provider connection.
 
 from __future__ import annotations
 
-import logging
-
-
-logger = logging.getLogger(__name__)
-
 
 def offline_instruction_hint(instruction: str) -> str:
     """Return a brief hint about what will happen with this instruction in offline mode."""

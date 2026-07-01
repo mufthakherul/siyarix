@@ -16,7 +16,6 @@ _CONNECT_RE = re.compile(
 _BANNER_RE = re.compile(r"(?:Evil.WinRM|WinRM|PS\s+session|PowerShell\s+session)", re.IGNORECASE)
 _IP_PORT_RE = re.compile(r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::(\d+))?")
 _USER_RE = re.compile(r"(?:user|username)[:\s]+(\S+)", re.IGNORECASE)
-_HOST_RE = re.compile(r"(?:host|hostname|remote)[:\s]+(\S+)", re.IGNORECASE)
 _ERROR_RE = re.compile(r"(?:error|failed|denied|refused)", re.IGNORECASE)
 _SUCCESS_RE = re.compile(r"(?:success|authenticated|logged)", re.IGNORECASE)
 

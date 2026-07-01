@@ -5,7 +5,7 @@
 # =============================================================================
 set -euo pipefail
 
-SIYARIX_VERSION="${SIYARIX_VERSION:-1.0.0}"
+SIYARIX_VERSION="${SIYARIX_VERSION:-1.0.1}"
 PYTHON_MIN_MAJOR=3
 PYTHON_MIN_MINOR=11
 INSTALL_METHOD=""
@@ -70,6 +70,150 @@ check_python() {
   done
   return 1
 }
+
+bootstrap_python() {
+  if check_python; then
+    return 0
+  fi
+
+  info "Python ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR}+ not found. Attempting to install Python..."
+
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    OS_ID="${ID}"
+  fi
+
+  case "$OS" in
+    macos)
+      if command -v brew &>/dev/null; then
+        run brew install python@3.12 2>/dev/null
+      else
+        warn "Homebrew not found. Please install Python manually: https://www.python.org/downloads/"
+        return 1
+      fi
+      ;;
+    linux|wsl)
+      local is_root=0
+      if [ "$(id -u)" -eq 0 ]; then
+        is_root=1
+      fi
+
+      local install_cmd=""
+      case "${OS_ID:-}" in
+        kali|debian|ubuntu|pop|linuxmint|elementary|zorin)
+          install_cmd="apt-get update && apt-get install -y python3 python3-pip python3-venv"
+          ;;
+        fedora|rhel|centos|almalinux|rocky|ol)
+          install_cmd="dnf install -y python3 python3-pip"
+          ;;
+        arch|manjaro|endeavouros|artix|archlabs|garuda)
+          install_cmd="pacman -Sy --noconfirm python python-pip"
+          ;;
+        alpine)
+          install_cmd="apk update && apk add python3 py3-pip"
+          ;;
+      esac
+
+      if [ -n "$install_cmd" ]; then
+        if [ "$is_root" -eq 1 ]; then
+          eval "run $install_cmd"
+        elif command -v sudo &>/dev/null; then
+          info "Requesting sudo permissions to install Python..."
+          eval "run sudo $install_cmd"
+        else
+          warn "Please run this installer as root or install Python manually."
+          return 1
+        fi
+      else
+        warn "Unsupported package manager. Please install Python manually."
+        return 1
+      fi
+      ;;
+    freebsd)
+      if [ "$(id -u)" -eq 0 ]; then
+        run pkg install -y python311 py311-pip
+      elif command -v sudo &>/dev/null; then
+        run sudo pkg install -y python311 py311-pip
+      fi
+      ;;
+    openbsd)
+      if [ "$(id -u)" -eq 0 ]; then
+        run pkg_add python py3-pip
+      elif command -v sudo &>/dev/null; then
+        run sudo pkg_add python py3-pip
+      fi
+      ;;
+    netbsd)
+      if [ "$(id -u)" -eq 0 ]; then
+        run pkgin install python311 py311-pip
+      elif command -v sudo &>/dev/null; then
+        run sudo pkgin install python311 py311-pip
+      fi
+      ;;
+  esac
+
+  if check_python; then
+    ok "Python installed successfully: $($PYTHON --version 2>&1)"
+    return 0
+  fi
+
+  return 1
+}
+
+check_and_configure_path() {
+  local bin_dir=""
+  if [ "$INSTALL_METHOD" = "pipx" ]; then
+    bin_dir="$HOME/.local/bin"
+  elif [ "$INSTALL_METHOD" = "pip" ]; then
+    if [ "$OS" = "macos" ]; then
+      local user_base
+      user_base=$($PYTHON -c "import site; print(site.USER_BASE)" 2>/dev/null)
+      if [ -n "$user_base" ]; then
+        bin_dir="${user_base}/bin"
+      fi
+    else
+      bin_dir="$HOME/.local/bin"
+    fi
+  fi
+
+  if [ -n "$bin_dir" ] && [ -d "$bin_dir" ]; then
+    if [[ ":$PATH:" != *":$bin_dir:"* ]]; then
+      info "Adding ${bin_dir} to PATH..."
+      local shell_profile=""
+      local shell_name
+      shell_name=$(basename "$SHELL")
+      case "$shell_name" in
+        bash)
+          if [ -f "$HOME/.bashrc" ]; then
+            shell_profile="$HOME/.bashrc"
+          elif [ -f "$HOME/.bash_profile" ]; then
+            shell_profile="$HOME/.bash_profile"
+          else
+            shell_profile="$HOME/.profile"
+          fi
+          ;;
+        zsh)
+          shell_profile="$HOME/.zshrc"
+          ;;
+        ksh)
+          shell_profile="$HOME/.kshrc"
+          ;;
+        *)
+          shell_profile="$HOME/.profile"
+          ;;
+      esac
+
+      if [ -n "$shell_profile" ]; then
+        if ! grep -q "$bin_dir" "$shell_profile" 2>/dev/null; then
+          echo -e "\n# Siyarix PATH\nexport PATH=\"\$PATH:$bin_dir\"" >> "$shell_profile"
+          ok "Added PATH export to ${shell_profile}"
+          export PATH="$PATH:$bin_dir"
+        fi
+      fi
+    fi
+  fi
+}
+
 
 # --- Ensure pip is installed (uses ensurepip, falls back to get-pip.py) ---
 ensure_pip() {
@@ -158,6 +302,15 @@ install_via_pip() {
   ensure_build_deps
 
   local pip_cmd="$PYTHON -m pip --no-input"
+
+  # Detect active virtual environment
+  if [ -n "${VIRTUAL_ENV:-}" ]; then
+    info "Active virtual environment detected at ${VIRTUAL_ENV}. Installing Siyarix inside virtual environment..."
+    if run $pip_cmd install --upgrade siyarix 2>/dev/null; then
+      ok "Siyarix installed inside virtual environment."
+      return 0
+    fi
+  fi
 
   # Try pipx first (isolated, avoids PEP 668 entirely)
   if command -v pipx &>/dev/null; then
@@ -388,7 +541,7 @@ main() {
         echo "  --help, -h           Show this help message"
         echo ""
         echo "Environment variables:"
-        echo "  SIYARIX_VERSION    Version to install (default: 1.0.0)"
+        echo "  SIYARIX_VERSION    Version to install (default: 1.0.1)"
         echo "  SIYARIX_DRY_RUN    Set to 1 for dry-run (default: 0)"
         echo "  SIYARIX_APT_REPO   Custom APT repository URL"
         echo "  SIYARIX_APT_KEY    Custom APT repository GPG key URL"
@@ -460,7 +613,7 @@ main() {
       exit 1
       ;;
     linux|wsl)
-      check_python || { err "Python ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR}+ required. Install from: https://www.python.org/downloads/"; exit 1; }
+      bootstrap_python || { err "Python ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR}+ is required. Please install it manually."; exit 1; }
       ok "Python found: $($PYTHON --version 2>&1)"
       case "${OS_ID:-}" in
         kali|debian|ubuntu|pop|linuxmint|elementary|zorin) install_via_apt ;;
@@ -488,7 +641,7 @@ main() {
       [ "$OS" = "wsl" ] && [ -z "${DISPLAY:-}" ] && warn "WSL: No DISPLAY set. GUI features may not work."
       ;;
     macos)
-      check_python || { err "Python ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR}+ required. Install from: https://www.python.org/downloads/"; exit 1; }
+      bootstrap_python || { err "Python ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR}+ is required. Please install it manually."; exit 1; }
       ok "Python found: $($PYTHON --version 2>&1)"
       if command -v brew &>/dev/null; then
         install_via_brew
@@ -505,6 +658,8 @@ main() {
     netbsd)   install_via_pkgin_netbsd ;;
     *)        install_via_pip ;;
   esac
+
+  check_and_configure_path
 
   if command -v siyarix &>/dev/null; then
     ok "Siyarix v${SIYARIX_VERSION} installed successfully!"

@@ -238,6 +238,7 @@ class TestOpenAICompatCore:
 
     def test_build_messages_merges_consecutive(self):
         from siyarix.chat.openai_compat import build_messages
+
         history = [
             {"role": "user", "content": "Hello"},
             {"role": "user", "content": "World"},
@@ -257,6 +258,7 @@ class TestOpenAICompatCore:
 
     def test_gemini_build_contents_merges_consecutive(self):
         from siyarix.chat.openai_compat import _gemini_build_contents
+
         history = [
             {"role": "user", "content": "Hello"},
             {"role": "user", "content": "World"},
@@ -272,7 +274,6 @@ class TestOpenAICompatCore:
         assert contents[1]["parts"][0]["text"] == "Response 1\n\nResponse 2"
         assert contents[2]["role"] == "user"
         assert contents[2]["parts"][0]["text"] == "current user query"
-
 
 
 # ═══════════════════════════════════════════════════════════════════

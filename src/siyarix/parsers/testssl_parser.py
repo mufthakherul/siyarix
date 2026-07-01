@@ -14,7 +14,6 @@ _FINDING_RE = re.compile(
     re.IGNORECASE,
 )
 _CVE_RE = re.compile(r"CVE-\d{4}-\d{4,7}", re.IGNORECASE)
-_IP_RE = re.compile(r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})")
 _HOSTNAME_RE = re.compile(
     r"(?:Testing|Scanning|scanning)\s+(?:now\s+)?(?:at\s+)?(\S+)",
     re.IGNORECASE,

@@ -34,11 +34,6 @@ _POLICY_RE = re.compile(
     re.IGNORECASE,
 )
 
-_DOMAIN_RE = re.compile(
-    r"Domain\s*[:\-]\s*(.+)",
-    re.IGNORECASE,
-)
-
 _WORKGROUP_RE = re.compile(
     r"(?:Workgroup|Group|Domain)\s*[:\-]\s*(.+)",
     re.IGNORECASE,

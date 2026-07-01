@@ -1,7 +1,7 @@
 # 🎮 Interaction Modes
 
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
 
 
 Siyarix is designed to adapt to your workflow. We support four distinct interaction modes: **REGISTRY**, **AUTONOMOUS**, **HYBRID**, and **INTERACTIVE**.
@@ -10,8 +10,8 @@ These modes are available across our two primary interfaces:
 - 💻 **CLI**: A powerful command-line interface with intuitive subcommands.
 - 💬 **REPL**: An interactive, conversational shell for dynamic engagement.
 
-> [!NOTE]
-> Mode selection typically happens at invocation time, but if you're using the REPL, you can easily switch modes on the fly using natural language commands!
+!!! note
+    Mode selection typically happens at invocation time, but if you're using the REPL, you can easily switch modes on the fly using natural language commands!
 
 ---
 
@@ -63,8 +63,8 @@ Once inside the REPL, you don't need to memorize complex flags. You can seamless
   You're in AUTONOMOUS mode.
 ```
 
-> [!TIP]
-> Natural language parsing makes mode switching incredibly fast and intuitive. Just talk to Siyarix like a human teammate!
+!!! tip
+    Natural language parsing makes mode switching incredibly fast and intuitive. Just talk to Siyarix like a human teammate!
 
 ---
 
@@ -120,8 +120,8 @@ scan:
     - nmap -sC {target} -oX {output}
 ```
 
-> [!NOTE]
-> If the primary tool isn't installed or fails, Siyarix automatically attempts to use the listed alternatives.
+!!! note
+    If the primary tool isn't installed or fails, Siyarix automatically attempts to use the listed alternatives.
 
 ---
 
@@ -137,8 +137,8 @@ scan:
 - **Budget Enforcement**: Strict token and cost limits are applied per session to prevent runaway tasks.
 - **Multi-Wave Execution**: The agent progressively refines its understanding across multiple execution waves.
 
-> [!WARNING]
-> Because AUTONOMOUS mode operates independently, it carries a medium risk profile. Always ensure your target scopes and budgets are clearly defined!
+!!! warning
+    Because AUTONOMOUS mode operates independently, it carries a medium risk profile. Always ensure your target scopes and budgets are clearly defined!
 
 ### 🔄 Execution Flow
 
@@ -217,8 +217,8 @@ Input
 - **Audit-Friendly**: Every step is transparent, reviewed, and logged.
 - **Slow & Steady**: Operations are deliberate and step-by-step.
 
-> [!TIP]
-> If you are learning a new tool or auditing a highly sensitive environment, INTERACTIVE mode is your best friend.
+!!! tip
+    If you are learning a new tool or auditing a highly sensitive environment, INTERACTIVE mode is your best friend.
 
 ### 🔄 Execution Flow
 
@@ -327,8 +327,8 @@ First time using Siyarix? If no `settings.toml` is found, Siyarix automatically 
 | **9** | 📋 Review Preferences Summary |
 | **10**| ✅ Apply Configuration & Restart |
 
-> [!IMPORTANT]
-> The onboarding wizard is critical for securely handling your API keys and setting up your Data Loss Prevention (DLP) baseline. Don't skip the security preferences!
+!!! info
+    The onboarding wizard is critical for securely handling your API keys and setting up your Data Loss Prevention (DLP) baseline. Don't skip the security preferences!
 
 ---
 
@@ -342,8 +342,8 @@ siyarix --batch commands.txt
 
 Each line in your file is processed as a completely separate instruction.
 
-> [!TIP]
-> For seamless programmatic consumption in CI/CD or automation scripts, pair batch mode with the JSON output flag: `--output-format json`.
+!!! tip
+    For seamless programmatic consumption in CI/CD or automation scripts, pair batch mode with the JSON output flag: `--output-format json`.
 
 ---
 

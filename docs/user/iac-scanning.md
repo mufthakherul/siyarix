@@ -1,12 +1,12 @@
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
 
 # 🏗️ Infrastructure as Code (IaC) Scanning
 
 Catch security flaws before they ever reach production! Infrastructure as Code (IaC) scanning allows you to analyze your configuration files for vulnerabilities, misconfigurations, and exposed secrets early in the development lifecycle.
 
-> [!WARNING]
-> **Active Development Notice**: Siyarix's IaC scanning capability is currently under active development. An `IaCScanner` stub is in place, and we are actively building out the engines for Terraform, CloudFormation, Helm, and Dockerfiles.
+!!! warning
+    **Active Development Notice**: Siyarix's IaC scanning capability is currently under active development. An `IaCScanner` stub is in place, and we are actively building out the engines for Terraform, CloudFormation, Helm, and Dockerfiles.
 
 ---
 
@@ -60,8 +60,8 @@ siyarix run "scan IaC templates for security issues"
 siyarix ci-gate
 ```
 
-> [!TIP]
-> The `siyarix ci-gate` command will allow you to automatically fail your build pipeline if critical security issues are found in your infrastructure code!
+!!! tip
+    The `siyarix ci-gate` command will allow you to automatically fail your build pipeline if critical security issues are found in your infrastructure code!
 
 ---
 

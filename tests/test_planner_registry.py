@@ -1336,35 +1336,35 @@ class TestPlannerRegistryAlternatives:
         planner = RegistryPlanner()
         step = PlanStep(tool="nmap", args={"flags": "-sS"}, retry_count=0, max_retries=3)
         plan = ExecutionPlan(goal="test", steps=[step])
-        result = planner.adapt_plan(plan, step, "filtered ports detected")
+        unused_result = planner.adapt_plan(plan, step, "filtered ports detected")
         assert step.status == StepStatus.PENDING
 
     def test_adapt_plan_nmap_permission_recovery(self):
         planner = RegistryPlanner()
         step = PlanStep(tool="nmap", args={"flags": "-sS"}, retry_count=0, max_retries=3)
         plan = ExecutionPlan(goal="test", steps=[step])
-        result = planner.adapt_plan(plan, step, "permission denied")
+        unused_result = planner.adapt_plan(plan, step, "permission denied")
         assert "sT" in step.args.get("flags", "")
 
     def test_adapt_plan_gobuster_404(self):
         planner = RegistryPlanner()
         step = PlanStep(tool="gobuster", args={}, retry_count=0, max_retries=3)
         plan = ExecutionPlan(goal="test", steps=[step])
-        result = planner.adapt_plan(plan, step, "404 errors")
+        unused_result = planner.adapt_plan(plan, step, "404 errors")
         assert "extensions" in step.args
 
     def test_adapt_plan_hydra_invalid_user(self):
         planner = RegistryPlanner()
         step = PlanStep(tool="hydra", args={}, retry_count=0, max_retries=3)
         plan = ExecutionPlan(goal="test", steps=[step])
-        result = planner.adapt_plan(plan, step, "invalid user")
+        unused_result = planner.adapt_plan(plan, step, "invalid user")
         assert "nsr" in step.args.get("flags", "")
 
     def test_adapt_plan_sqlmap_not_injectable(self):
         planner = RegistryPlanner()
         step = PlanStep(tool="sqlmap", args={}, retry_count=0, max_retries=3)
         plan = ExecutionPlan(goal="test", steps=[step])
-        result = planner.adapt_plan(plan, step, "not injectable")
+        unused_result = planner.adapt_plan(plan, step, "not injectable")
         assert "level" in step.args.get("flags", "")
 
     def test_stats_returns_counts(self):

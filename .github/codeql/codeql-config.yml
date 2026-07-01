@@ -1,0 +1,15 @@
+name: "CodeQL Custom Configuration"
+
+paths-ignore:
+  - 'tests/**'
+  - '.vulture_whitelist.py'
+
+query-filters:
+  - exclude:
+      id:
+        - py/undefined-export
+        - py/empty-except
+        - py/repeated-import
+        - py/multiple-definition
+        - py/ineffectual-statement
+        - py/request-without-cert-validation

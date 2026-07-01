@@ -59,8 +59,6 @@ _PORT_SEVERITY: dict[int, str] = {
     27017: "high",
 }
 
-_GREPPABLE_SEVERITY_OVERRIDE: dict[str, str] = {}
-
 
 def _severity_for_port(port: int) -> str:
     return _PORT_SEVERITY.get(port, "info")

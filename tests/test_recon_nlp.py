@@ -1166,9 +1166,9 @@ def main():
     failures = []
 
     total = len(RECON_COMMANDS)
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  RECON NLP EVALUATION: {total} Commands")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     for idx, (cmd, expected_tools, min_steps, max_steps) in enumerate(RECON_COMMANDS):
         ok, msg = check_plan(planner, cmd, expected_tools, min_steps, max_steps)
@@ -1178,12 +1178,12 @@ def main():
             failed += 1
             failures.append((cmd, msg))
         status = "PASS" if ok else "FAIL"
-        print(f"  [{status:4s}] ({idx+1:3d}) {cmd:75s} \u2192 {msg}")
+        print(f"  [{status:4s}] ({idx + 1:3d}) {cmd:75s} \u2192 {msg}")
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  RESULTS: {passed} passed, {failed} failed out of {total}")
-    print(f"  SCORE: {passed/total*100:.1f}%")
-    print(f"{'='*60}\n")
+    print(f"  SCORE: {passed / total * 100:.1f}%")
+    print(f"{'=' * 60}\n")
 
     if failures:
         print("FAILED COMMANDS:")

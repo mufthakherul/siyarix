@@ -310,7 +310,7 @@ class BaseExecutor:
     async def _apply_dlp(self, result: dict[str, Any]) -> dict[str, Any]:
         dlp = _get_dlp_engine()
         if dlp is not None and isinstance(result, dict):
-            return dlp.redact_dict(result)
+            return dlp.redact_dict(result)  # type: ignore[no-any-return]
         return result
 
     async def _check_permissions(self, step: PlanStep) -> None:
@@ -389,6 +389,9 @@ class BaseExecutor:
     # ── To be implemented by subclasses ───────────────────────────────────
 
     async def execute_plan(
-        self, plan: ExecutionPlan, executor_fn: StepExecutor | None = None
+        self,
+        plan: ExecutionPlan,
+        executor_fn: StepExecutor | None = None,
+        live_display: bool = True,
     ) -> ExecutionPlan:
         raise NotImplementedError("Subclasses must implement execute_plan")

@@ -1,12 +1,6 @@
 name: Sync Docs to Wiki
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'docs/**'
-      - 'mkdocs.yml'
-      - '.github/workflows/wiki-sync.yml'
   release:
     types: [published]
   workflow_dispatch:
@@ -37,6 +31,7 @@ jobs:
       - name: Sync documentation files
         run: |
           rsync -av --delete \
+            --exclude='.git' \
             --exclude='node_modules' \
             --exclude='.venv' \
             repo/docs/ \

@@ -1,7 +1,7 @@
 > [!NOTE]
 > 👋 **Welcome to Siyarix!** This is a personal passion project built by a single developer. It's currently under active development and growing fast. Expect rough edges, but lots of love! ❤️
 
-# 📚 Siyarix Documentation (v1.0.0)
+# 📚 Siyarix Documentation (v1.0.1)
 
 Welcome to the official documentation for **Siyarix**! 👋
 
@@ -84,7 +84,7 @@ Check out our [Contribution Guide](developer-contribution-guide) to get started.
 
 ## 📢 Project Status
 
-**Stable Release** — Version `1.0.0` is currently production-ready! We strictly follow semantic versioning, and any breaking changes are always thoroughly documented in our project Changelog.
+**Stable Release** — Version `1.0.1` is currently production-ready! We strictly follow semantic versioning, and any breaking changes are always thoroughly documented in our project Changelog.
 
 > [!WARNING]
 > ## Ethics & Safety Reminder

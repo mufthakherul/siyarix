@@ -1,7 +1,7 @@
 # 🧠 Multi-Model Ensemble
 
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
 
 
 Ever wish you could ask a panel of experts a question and go with the majority opinion? That's exactly what the `ProviderManager.ensemble_decide()` method does!
@@ -11,8 +11,8 @@ By running a single query across multiple AI providers simultaneously, this meth
 - **Consensus Validation:** Builds confidence when multiple top-tier models agree.
 - **Graceful Degradation:** Keeps your app running smoothly even if an individual provider fails or times out.
 
-> [!NOTE]
-> Currently, this is a lightweight, functional implementation embedded directly in `ProviderManager` rather than a standalone class. We have an exciting roadmap for a more feature-rich ensemble, including weighted voting strategies and advanced hallucination scoring!
+!!! note
+    Currently, this is a lightweight, functional implementation embedded directly in `ProviderManager` rather than a standalone class. We have an exciting roadmap for a more feature-rich ensemble, including weighted voting strategies and advanced hallucination scoring!
 
 ---
 
@@ -61,8 +61,8 @@ async def ensemble_decide(
 4. **Tallying the Votes:** A classic Python `collections.Counter` finds the most common response.
 5. **Declaring a Winner:** The majority response is returned.
 
-> [!WARNING]
-> If *all* providers fail to return a valid response, the method will raise a `RuntimeError`. Always ensure you have reliable fallback providers in your list!
+!!! warning
+    If *all* providers fail to return a valid response, the method will raise a `RuntimeError`. Always ensure you have reliable fallback providers in your list!
 
 Here is the core logic in action:
 
@@ -136,8 +136,8 @@ free_providers = pm.get_providers_by_capability(free=True)
 | `local` | Privacy-first models running locally on your machine. |
 | `function_calling` | Providers capable of executing tools and structured functions. |
 
-> [!TIP]
-> Mixing local and cloud providers is a great way to maintain high availability while managing costs!
+!!! tip
+    Mixing local and cloud providers is a great way to maintain high availability while managing costs!
 
 ---
 
@@ -206,8 +206,8 @@ class EnsembleResult:
 
 Running queries across multiple providers means costs can add up quickly. Thankfully, the `UsageTracker` monitors everything per-call based on our defined tiers:
 
-> [!CAUTION]
-> Remember that an ensemble multiplies your API costs by the number of paid providers you include. Use `FREE` and `LOW` tier providers strategically!
+!!! danger
+    Remember that an ensemble multiplies your API costs by the number of paid providers you include. Use `FREE` and `LOW` tier providers strategically!
 
 | Cost Tier | Rate (per output token) | Example Providers |
 |-----------|------------------------|-------------------|

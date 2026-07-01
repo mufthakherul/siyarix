@@ -46,14 +46,14 @@ class TestInit:
         plugins_dir = tmp_path / "plugins"
         assert not plugins_dir.exists()
         with patch("siyarix.plugins.loader.get_config_dir", return_value=tmp_path):
-            loader = PluginLoader(MagicMock(), MagicMock())
+            unused_loader = PluginLoader(MagicMock(), MagicMock())
         assert plugins_dir.exists()
 
     def test_plugins_dir_already_exists(self, tmp_path):
         plugins_dir = tmp_path / "plugins"
         plugins_dir.mkdir(parents=True)
         with patch("siyarix.plugins.loader.get_config_dir", return_value=tmp_path):
-            loader = PluginLoader(MagicMock(), MagicMock())
+            unused_loader = PluginLoader(MagicMock(), MagicMock())
         assert plugins_dir.exists()
 
 

@@ -1,7 +1,7 @@
 # Security Policy
 
 **Effective Date:** June 2026
-**Version:** 1.0.0
+**Version:** 1.0.1
 **Applies to:** Siyarix v1.0.x and all earlier supported versions
 
 Siyarix is built by security professionals for security professionals. The platform handles sensitive operations, API credentials, target data, and privileged command execution. The security of the platform itself is our highest priority. We deeply value the role of the security community in keeping Siyarix robust and trustworthy.

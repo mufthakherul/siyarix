@@ -251,6 +251,21 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         """Start the interactive REPL loop."""
         self._print_welcome()
 
+        try:
+            from ..session_log import session_logger
+
+            if not session_logger.load(self._session.session_id):
+                session_logger.create_log(
+                    session_id=self._session.session_id,
+                    persona=self._settings.get("persona", "auto"),
+                    llm_provider=self._settings.get("model_provider", "auto"),
+                    llm_model=self._settings.get("default_model", ""),
+                    user=self._platform_ctx.get("username", "user"),
+                )
+        except Exception:
+            # Session logging is optional; ignore failures during startup
+            pass
+
         # Install SIGTSTP handler to restore terminal before Ctrl+Z suspend
         _orig_tstp: Any = None
         if _signal is not None and hasattr(_signal, "SIGTSTP"):
@@ -460,8 +475,9 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             )
             input_hint = make_prompt_bottom(show_hint=True)
             console.print(top_bar)
+            console.print(input_hint)
             try:
-                return str(Prompt.ask(input_hint, default="").strip())
+                return str(Prompt.ask("╰─➜ ", default="").strip())
             except (EOFError, KeyboardInterrupt):
                 return ""
 
@@ -920,9 +936,11 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
     def _gather_provider_status(self) -> dict[str, tuple[str, str]]:
         """Return a concise status map for supported providers.
 
-        Map keys -> (icon, reason)
+        Performs live health checks for local providers instead of
+        showing static availability. Map keys -> (icon, reason).
         """
         from ..providers import ProviderManager
+        from ..provider_utils import check_provider_health, list_provider_models
 
         pm = ProviderManager.get_instance()
         status: dict[str, tuple[str, str]] = {}
@@ -959,8 +977,21 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             elif profile.api_key_env and key:
                 status[prov_name] = ("✓", "configured")
             else:
-                # local providers (no api_key_env)
-                status[prov_name] = ("⚠", "available (local)")
+                # Local provider — perform live health check
+                base_url = self._settings.get(f"{prov_name}_url", default="") or ""
+                try:
+                    if check_provider_health(prov_name, base_url, timeout=1.0):
+                        try:
+                            models = list_provider_models(prov_name, base_url)
+                            count = len(models)
+                            label = f"running ({count} models)" if count else "running"
+                        except Exception:
+                            label = "running"
+                        status[prov_name] = ("✓", label)
+                    else:
+                        status[prov_name] = ("✗", "stopped")
+                except Exception:
+                    status[prov_name] = ("✗", "stopped")
 
         return status
 
@@ -1233,6 +1264,14 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
     def _print_goodbye(self) -> None:
         from ..branding import resolve_version
         from rich.panel import Panel
+
+        try:
+            from ..session_log import session_logger
+
+            session_logger.update_end_time(self._session.session_id)
+        except Exception:
+            # Session logging is optional; ignore failures during exit
+            pass
 
         ver = resolve_version()
         auto_save = self._settings.get("auto_save_session", False)

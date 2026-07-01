@@ -1277,9 +1277,7 @@ class TestArjunParserBranches:
 
     def test_json_dedup_skipped(self):
         p = ArjunParser()
-        output = json.dumps(
-            {"http://x.com": {"id": {"reflected": True}, "id": {"reflected": True}}}
-        )
+        output = '{"http://x.com": {"id": {"reflected": true}, "id": {"reflected": true}}}'
         findings = p.parse(output)
         assert len(findings) == 1
 

@@ -30,6 +30,7 @@ vulnarability = "vulnarability"
 thm = "thm"
 gost = "gost"
 Accessable = "Accessable"
+cros = "cros"
 
 [default.extend-identifiers]
 # Code identifiers to allow

@@ -112,7 +112,6 @@ Under the hood, Siyarix is beautifully crafted in **Python 3.11+**. It features 
 Security operations can be complex. Security professionals often juggle dozens of disparate CLI tools, each with its own obscure syntax, parsing messy text outputs, and manually stringing together workflows.
 
 Siyarix acts as your intelligent, tireless co-pilot. It bridges the gap between **human intent** and **machine execution**.
-- **No more memorizing flags:** Let the AI remember that `-p- -sV -T4` is the right `nmap` flag combination for your current goal.
 - **Automated parsing:** Siyarix automatically reads the raw output of dozens of common security tools and turns it into structured, actionable intelligence.
 - **Scale your efforts:** What normally takes manual typing and correlation can now be orchestrated with a simple plain-English sentence.
 

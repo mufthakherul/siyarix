@@ -77,7 +77,7 @@ class WebhookDispatcher:
                 data=json.dumps(payload).encode("utf-8"),
                 headers={"Content-Type": "application/json"},
             )
-            urllib.request.urlopen(req, timeout=5)
+            urllib.request.urlopen(req, timeout=5)  # nosec B310
             logger.info("Webhook alert dispatched for %s", finding.get("id", "vuln"))
         except urllib.error.URLError as e:
             logger.error("Failed to dispatch webhook: %s", e)

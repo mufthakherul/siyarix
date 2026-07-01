@@ -7,8 +7,9 @@ on:
       - 'src/**'
       - 'pyproject.toml'
       - 'packages/**'
-      - 'install.sh'
-      - 'install.ps1'
+      - 'installer/install.sh'
+      - 'installer/install.ps1'
+      - 'installer/install-termux.sh'
   pull_request:
     branches: [main]
     paths:
@@ -64,7 +65,7 @@ jobs:
           check-wheel-contents --ignore W002 dist/ || true
 
       - name: Upload wheel
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: python-package
           path: dist/
@@ -96,7 +97,7 @@ jobs:
         run: bash packages/deb/build-deb.sh "${{ needs.resolve-version.outputs.version }}"
 
       - name: Upload .deb
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: deb-package
           path: "*.deb"
@@ -112,11 +113,11 @@ jobs:
       - name: Shellcheck install.sh
         run: |
           sudo apt-get install -y -qq shellcheck
-          find . -maxdepth 1 -name '*.sh' -not -path './.venv/*' -exec shellcheck --severity=error {} + || true
+          find installer -name '*.sh' -exec shellcheck --severity=error {} + || true
       - name: Validate install.ps1
         run: |
           if command -v pwsh &>/dev/null; then
-            pwsh -NoProfile -Command "Get-Content install.ps1 | Invoke-Expression 2>&1" || true
+            pwsh -NoProfile -Command "Get-Content installer/install.ps1 | Invoke-Expression 2>&1" || true
           else
             echo "PowerShell not available, skipping"
           fi

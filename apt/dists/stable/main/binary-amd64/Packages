@@ -4,10 +4,10 @@ Architecture: all
 Maintainer: MD MUFTHAKHERUL ISLAM MIRAZ <130831166+mufthakherul@users.noreply.github.com>
 Depends: python3 (>= 3.11), python3-pip, python3-venv, nmap
 Filename: packages/deb/apt-repo/pool/stable/siyarix_1.0.1_all.deb
-Size: 418366
-MD5sum: d7f1792d091c471dc49bbf4ea8effa69
-SHA1: 645e688744772b6bc647b55b2378bf4bbd41522c
-SHA256: cd7a3d2d825057787ca8140bf0033b6da1dd139ca491aea16fda5c1ea4915817
+Size: 418504
+MD5sum: e5c7b1afe7fe5a6f1940e3e9ad606724
+SHA1: 2263304d9b56682e4dcc67a5edd3664f1b13d4cd
+SHA256: 611f6a748aeacf16a0f0ed0e6a5f6c7e4a940f91a4f0dfd69612edfad47b7024
 Section: utils
 Priority: optional
 Homepage: https://github.com/mufthakherul/siyarix

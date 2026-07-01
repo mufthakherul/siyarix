@@ -3,13 +3,13 @@ Label: Siyarix APT Repository
 Suite: stable
 Codename: stable
 Version: 1.0.1
-Date: Wed, 01 Jul 2026 00:44:13 +0000
+Date: Wed, 01 Jul 2026 00:46:27 +0000
 Architectures: amd64 arm64
 Components: main
 Description: Siyarix AI Cybersecurity Orchestration Agent APT Repository
 MD5Sum:
- 70843bf373e5d157e3e91aa0de8c84ce 1193 main/binary-amd64/Packages
- 696d647e0810f073b23bb17bf93eb14b 752 main/binary-amd64/Packages.gz
+ 2e0ad0375dda2e61017dacd55be2d795 1193 main/binary-amd64/Packages
+ a9ce9eca49b8d70996554001be376e6b 755 main/binary-amd64/Packages.gz
 SHA256:
- 70b98042a3d8b7bbc097e04bf59a08b5056658f41695bab05cd78740786aba3c 1193 main/binary-amd64/Packages
- 3a0855fa36a5439a138f334b3fe1a3d68f8fd1cfad0fa8c85805754d7bf1b490 752 main/binary-amd64/Packages.gz
+ 1464cc746bc352991c59ae175093961b57859758cfb8e4198ac5199554a37e28 1193 main/binary-amd64/Packages
+ e7183a65011ce037176fbf02a622c82bb8b96483803578133d40286f1a82b633 755 main/binary-amd64/Packages.gz

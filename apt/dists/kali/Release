@@ -3,13 +3,13 @@ Label: Siyarix APT Repository
 Suite: kali
 Codename: kali
 Version: 1.0.1
-Date: Wed, 01 Jul 2026 00:44:13 +0000
+Date: Wed, 01 Jul 2026 00:46:27 +0000
 Architectures: amd64 arm64
 Components: main
 Description: Siyarix AI Cybersecurity Orchestration Agent APT Repository
 MD5Sum:
- bb8a9c16deb31c413e09f18944af3ca5 1191 main/binary-amd64/Packages
- 3ef049275f6f48679b2dc54b0a589a08 752 main/binary-amd64/Packages.gz
+ 03b2094576c945d55717f8b5bee390a7 1191 main/binary-amd64/Packages
+ 36d6dd877bee0c4434053541886616f6 754 main/binary-amd64/Packages.gz
 SHA256:
- ac5a1b7ed32384751fb94904612c50850b7be6986514ab4be06fc03388042b1b 1191 main/binary-amd64/Packages
- b065633b2d85fb6d6514262977e04fcb21ecef0f9a4a63c447e5ea1160d3e612 752 main/binary-amd64/Packages.gz
+ 4fc14bf76120e9617cb9f4dffceec4940058e709d05099b2d534997340658f15 1191 main/binary-amd64/Packages
+ 4b486899df9d1f6c6819152dd19cedcc0d5eab0f5eda16eccee03ee3f1b248e5 754 main/binary-amd64/Packages.gz

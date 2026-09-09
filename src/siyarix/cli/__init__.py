@@ -628,14 +628,14 @@ def palette() -> None:
             console.print(f"  {o}")
         return
 
-    _ptk_prompt: Any = None
-    _WordCompleter: Any = None
     try:
         from prompt_toolkit import prompt as _ptk_prompt
         from prompt_toolkit.completion import WordCompleter as _WordCompleter
 
         PTK = True
     except Exception as exc:
+        _ptk_prompt = None  # type: ignore[assignment]
+        _WordCompleter = None  # type: ignore[assignment]
         import logging
 
         logging.getLogger(__name__).debug("prompt_toolkit not available: %s", exc)
@@ -1049,6 +1049,22 @@ def _execute_scan_core(
         target=",".join(expanded_targets),
         details={"summary": result.summary, "findings": len(result.all_findings)},
     )
+    if notify:
+        try:
+            from ..notifications import NotificationDispatcher
+
+            dispatcher = NotificationDispatcher()
+            status_text = "completed successfully" if result.success else "failed"
+            findings_count = len(result.all_findings) if hasattr(result, "all_findings") else 0
+            msg = (
+                f"🛡️ **Siyarix Scan {status_text}**\n\n"
+                f"**Targets:** {', '.join(expanded_targets)}\n"
+                f"**Mode:** {mode}\n"
+                f"**Findings:** {findings_count}\n"
+            )
+            run_async(dispatcher.dispatch(msg))
+        except Exception as notify_exc:
+            logger.debug("Failed to dispatch scan notification: %s", notify_exc)
     return result
 
 
@@ -2043,7 +2059,11 @@ def playbook_list(
     if not p.exists() or not p.is_dir():
         console.print(f"[yellow]Directory '{dir_path}' not found.[/yellow]")
         return
-    for f in p.glob("*.yml"):
+    files = sorted(set(list(p.glob("*.yaml")) + list(p.glob("*.yml"))))
+    if not files:
+        console.print(f"[yellow]No playbooks found in '{dir_path}'.[/yellow]")
+        return
+    for f in files:
         console.print(f"- {f.name}")
 
 

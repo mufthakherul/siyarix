@@ -154,22 +154,22 @@ install_siyarix() {
   # Detect active virtual environment
   if [ -n "${VIRTUAL_ENV:-}" ]; then
     info "Active virtual environment detected at ${VIRTUAL_ENV}. Installing Siyarix inside virtual environment..."
-    if run $pip_cmd install --upgrade pip setuptools wheel --no-input && run $pip_cmd install --upgrade siyarix 2>/dev/null; then
+    if run $pip_cmd install --upgrade pip setuptools wheel --no-input && run $pip_cmd install --upgrade --no-build-isolation siyarix 2>/dev/null; then
       return 0
     fi
   fi
 
   run $PYTHON -m pip install --upgrade pip setuptools wheel --no-input
 
-  if run $PYTHON -m pip install --upgrade --break-system-packages siyarix 2>/dev/null; then
+  if run $PYTHON -m pip install --upgrade --no-build-isolation --break-system-packages siyarix 2>/dev/null; then
     return 0
   fi
 
-  if run $PYTHON -m pip install --upgrade --user siyarix 2>/dev/null; then
+  if run $PYTHON -m pip install --upgrade --no-build-isolation --user siyarix 2>/dev/null; then
     return 0
   fi
 
-  if run $PYTHON -m pip install siyarix 2>/dev/null; then
+  if run $PYTHON -m pip install --no-build-isolation siyarix 2>/dev/null; then
     return 0
   fi
 

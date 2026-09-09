@@ -380,3 +380,74 @@ async def test_execute_with_edges(playbook_engine: PlaybookEngine, tmp_path: Pat
 async def test_execute_propagates_load_errors(playbook_engine: PlaybookEngine) -> None:
     with pytest.raises(FileNotFoundError):
         await playbook_engine.execute("/nonexistent/path.yaml")
+
+
+# -- CLI commands & Seeded Playbooks ------------------------------------------
+
+
+def test_repo_seeded_playbooks_are_valid(playbook_engine: PlaybookEngine) -> None:
+    playbooks_dir = Path(__file__).resolve().parent.parent / "playbooks"
+    assert playbooks_dir.is_dir()
+    yaml_files = list(playbooks_dir.glob("*.yaml"))
+    assert len(yaml_files) >= 3
+    for yml in yaml_files:
+        data = playbook_engine.load(yml)
+        assert "steps" in data
+        plan = playbook_engine.create_plan(data)
+        assert len(plan.steps) > 0
+
+
+def test_cli_playbook_list() -> None:
+    from typer.testing import CliRunner
+    from siyarix.cli import app
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["playbook", "list", "--dir", "playbooks"])
+    assert result.exit_code == 0
+    assert "network-recon.yaml" in result.output
+    assert "web-vulnerability-scan.yaml" in result.output
+    assert "compliance-audit.yaml" in result.output
+
+
+def test_cli_playbook_list_nonexistent(tmp_path: Path) -> None:
+    from typer.testing import CliRunner
+    from siyarix.cli import app
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["playbook", "list", "--dir", str(tmp_path / "missing")])
+    assert result.exit_code == 0
+    assert "not found" in result.output
+
+
+def test_cli_playbook_list_empty(tmp_path: Path) -> None:
+    from typer.testing import CliRunner
+    from siyarix.cli import app
+
+    runner = CliRunner()
+    empty_dir = tmp_path / "empty_dir"
+    empty_dir.mkdir()
+    result = runner.invoke(app, ["playbook", "list", "--dir", str(empty_dir)])
+    assert result.exit_code == 0
+    assert "No playbooks found" in result.output
+
+
+def test_cli_playbook_validate_success() -> None:
+    from typer.testing import CliRunner
+    from siyarix.cli import app
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["playbook", "validate", "playbooks/network-recon.yaml"])
+    assert result.exit_code == 0
+    assert "is valid" in result.output
+
+
+def test_cli_playbook_validate_failure(tmp_path: Path) -> None:
+    from typer.testing import CliRunner
+    from siyarix.cli import app
+
+    runner = CliRunner()
+    bad_file = tmp_path / "invalid.yaml"
+    bad_file.write_text("foo: bar\n")
+    result = runner.invoke(app, ["playbook", "validate", str(bad_file)])
+    assert result.exit_code == 1
+    assert "Playbook validation failed" in result.output

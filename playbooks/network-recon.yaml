@@ -1,0 +1,35 @@
+name: network-recon
+description: Comprehensive network reconnaissance and host discovery workflow
+vars:
+  target: "127.0.0.1"
+  ports: "1-1024"
+steps:
+  - id: ping-sweep
+    description: Host discovery using ping sweep
+    type: tool
+    tool: nmap
+    args:
+      target: "{{target}}"
+      flags: "-sn"
+    depends_on: []
+    timeout: 120.0
+
+  - id: port-scan
+    description: Port scan for common security ports and service version detection
+    type: tool
+    tool: nmap
+    args:
+      target: "{{target}}"
+      flags: "-p {{ports}} -sV"
+    depends_on:
+      - ping-sweep
+    timeout: 300.0
+
+  - id: vuln-assessment
+    description: AI subagent evaluation of network attack surface
+    type: agent
+    role: security_analyst
+    goal: "Analyze discovered services and open ports on {{target}} for potential vulnerabilities"
+    depends_on:
+      - port-scan
+    timeout: 180.0

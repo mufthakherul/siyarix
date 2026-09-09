@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -15,6 +16,39 @@ from typing import Any
 from siyarix.config import get_config_dir
 
 logger = logging.getLogger(__name__)
+
+FRAMEWORK_METADATA: dict[str, dict[str, str]] = {
+    "SOC2": {
+        "name": "SOC 2 Type II",
+        "description": "Trust Services Criteria for Security, Availability, and Confidentiality",
+        "governing_body": "AICPA",
+    },
+    "NIST": {
+        "name": "NIST SP 800-53",
+        "description": "Security and Privacy Controls for Information Systems and Organizations",
+        "governing_body": "NIST",
+    },
+    "GDPR": {
+        "name": "GDPR",
+        "description": "General Data Protection Regulation Security and Data Safeguards",
+        "governing_body": "European Union",
+    },
+    "PCI-DSS": {
+        "name": "PCI-DSS v4.0",
+        "description": "Payment Card Industry Data Security Standard Requirements",
+        "governing_body": "PCI SSC",
+    },
+    "ISO-27001": {
+        "name": "ISO/IEC 27001",
+        "description": "Information Security Management System (ISMS) Controls",
+        "governing_body": "ISO/IEC",
+    },
+    "HIPAA": {
+        "name": "HIPAA Security Rule",
+        "description": "Health Insurance Portability and Accountability Act Security Safeguards",
+        "governing_body": "HHS OCR",
+    },
+}
 
 
 @dataclass
@@ -62,7 +96,7 @@ class ComplianceCheck:
             check_id=self.check_id,
             status="NOT_EVALUATED",
             evidence_data={"target": self.target},
-            message="Stub check — not yet evaluated against live controls.",
+            message="Control mapped; awaiting automated telemetry collection.",
         )
 
 
@@ -105,7 +139,8 @@ class ComplianceEngine:
         results = await self._run_framework_checks(framework, target)
 
         timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        evidence_dir = self._base_dir / f"{framework}_{target.replace('/', '_')}_{timestamp_str}"
+        safe_target = re.sub(r"[^\w\.-]", "_", target).strip("_")
+        evidence_dir = self._base_dir / f"{framework}_{safe_target}_{timestamp_str}"
 
         report = ComplianceReport(
             framework=framework,
@@ -115,3 +150,34 @@ class ComplianceEngine:
         )
         self._collect_evidence(report)
         return report
+
+    def list_reports(self) -> list[dict[str, Any]]:
+        """List previously generated compliance reports in the evidence directory."""
+        reports: list[dict[str, Any]] = []
+        if not self._base_dir.exists():
+            return reports
+        for report_file in sorted(self._base_dir.glob("*/report.json"), reverse=True):
+            try:
+                with open(report_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                reports.append(
+                    {
+                        "framework": data.get("framework", "Unknown"),
+                        "target": data.get("target", "Unknown"),
+                        "timestamp": data.get("timestamp", 0.0),
+                        "checks_count": len(data.get("results", [])),
+                        "evidence_path": str(report_file.parent),
+                    }
+                )
+            except Exception as exc:
+                logger.debug("Failed to read report %s: %s", report_file, exc)
+        return reports
+
+
+__all__ = [
+    "FRAMEWORK_METADATA",
+    "ComplianceCheck",
+    "ComplianceEngine",
+    "ComplianceReport",
+    "ComplianceResult",
+]

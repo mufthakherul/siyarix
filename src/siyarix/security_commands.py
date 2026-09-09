@@ -518,6 +518,17 @@ def list_vulnerabilities(
         conn.close()
 
 
+@security_app.command(name="findings")
+def list_findings(
+    status: str | None = typer.Option(None, "--status", help="Filter by status"),
+    severity: str | None = typer.Option(None, "--severity", help="Filter by severity"),
+    limit: int = typer.Option(15, "--limit", help="Number to show"),
+    output: str = typer.Option("table", "--output", "-o", help="Output: table|json"),
+) -> None:
+    """List security findings (alias for vulnerabilities)."""
+    list_vulnerabilities(status=status, severity=severity, limit=limit, output=output)
+
+
 @security_app.command(name="remediation-plan")
 def get_remediation_plan() -> None:
     """Generate a prioritized vulnerability remediation plan."""
@@ -720,7 +731,7 @@ def show_dashboard() -> None:
             border_style="cyan",
         )
 
-        console.print(Columns([score_panel, inc_panel, vuln_panel, comp_panel]))
+        console.print(Columns([score_panel, inc_panel, vuln_panel, comp_panel], equal=True))
 
         table = Table(title="Security KPIs", show_header=True, header_style="bold cyan")
         table.add_column("Metric", style="cyan")

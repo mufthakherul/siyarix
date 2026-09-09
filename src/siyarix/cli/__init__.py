@@ -49,7 +49,7 @@ from rich.table import Table
 from .. import __version__
 from ..async_utils import run_async
 from ..audit_log import AuditEventType, AuditSeverity, audit
-from ..branding import available_themes, print_banner
+from ..branding import available_themes, print_banner, resolve_theme
 from ..chat import CROSS_PLATFORM_COMMANDS, CommandProfile, CommandProfileStore, start_chat
 from ..compat import ExecutionEngine, ExecutionMode, SessionKernel
 from ..config import SettingsStore, get_config_dir
@@ -113,22 +113,28 @@ def _load_dotenv(path: Path | None = None) -> None:
             os.environ[key] = val
 
 
-def _display_findings_table(findings: list[dict]) -> None:
+def _display_findings_table(findings: list[Any]) -> None:
     """Render scan findings as a Rich table using theme-aware styling."""
     from ..branding import resolve_theme, severity_label
 
     settings = SettingsStore()
     theme = resolve_theme(settings.get("color_theme"))
     ftable = Table(title="Findings", header_style="bold", border_style="dim")
-    ftable.add_column("Severity", width=10)
+    ftable.add_column("Severity", width=12)
     ftable.add_column("Type", style="cyan")
     ftable.add_column("Detail", style="white")
     for f in findings[:20]:
-        sev = f.get("severity", "info")
+        sev = f.get("severity", "info") if isinstance(f, dict) else getattr(f, "severity", "info")
+        f_type = f.get("type", "—") if isinstance(f, dict) else getattr(f, "type", "—")
+        detail = (
+            f.get("detail", f.get("description", str(f)))
+            if isinstance(f, dict)
+            else getattr(f, "detail", getattr(f, "description", str(f)))
+        )
         ftable.add_row(
-            severity_label(theme, sev),
-            f.get("type", "—"),
-            str(f.get("detail", f.get("description", "")))[:80],
+            severity_label(theme, str(sev)),
+            str(f_type),
+            str(detail)[:80],
         )
     if len(findings) > 20:
         ftable.add_row("", f"[dim]... and {len(findings) - 20} more[/dim]", "")
@@ -783,11 +789,16 @@ app.add_typer(theme_app, name="theme")
 def theme_list() -> None:
     """List available color themes."""
     themes = available_themes()
-    table = Table(title="Available Themes", header_style="bold cyan")
+    active = resolve_theme(config.get("color_theme") or _active_theme)
+    table = Table(title="Available Color Themes", header_style="bold cyan")
     table.add_column("Theme", style="cyan")
-    table.add_column("Use", style="dim")
+    table.add_column("Status", justify="center")
+    table.add_column("CLI Command", style="white")
+    table.add_column("REPL Command", style="dim")
     for t in themes:
-        table.add_row(t, "/theme set " + t)
+        is_active = t == active
+        status = "[bold green]✓ (active)[/bold green]" if is_active else ""
+        table.add_row(t, status, f"siyarix theme set {t}", f"/theme set {t}")
     console.print(table)
 
 
@@ -829,10 +840,19 @@ def cache_status() -> None:
 
     stats = cache_manager.stats()
     size_mb = stats.get("total_size_bytes", 0) / (1024 * 1024)
-    console.print(
-        f"Entries: {stats['total_entries']} | Size: {size_mb:.2f}MB | Hit rate: {stats['hit_rate']:.0%}"
-    )
-    console.print(f"Domains: {', '.join(stats.get('domains', []))}")
+    total_entries = stats.get("total_entries", 0)
+    hit_rate = stats.get("hit_rate", 0.0)
+    domains = stats.get("domains", [])
+    domain_str = ", ".join(domains) if domains else "None"
+
+    table = Table(title="Cache Storage & Performance", header_style="bold cyan")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("Total Cached Entries", str(total_entries))
+    table.add_row("Cache Storage Size", f"{size_mb:.2f} MB")
+    table.add_row("Cache Hit Rate", f"{hit_rate:.1%}")
+    table.add_row("Cached Domains", domain_str)
+    console.print(table)
 
 
 @cache_app.command("clear")
@@ -1347,13 +1367,7 @@ def run(
     # Display results
     if result.success:
         if result.all_findings:
-            console.print(f"\n[green]Found {len(result.all_findings)} finding(s):[/green]")
-            for f in result.all_findings[:20]:
-                severity = getattr(f, "severity", "info") if hasattr(f, "severity") else "info"
-                title = getattr(f, "title", str(f)) if hasattr(f, "title") else str(f)
-                console.print(f"  [{severity}] {title}")
-            if len(result.all_findings) > 20:
-                console.print(f"  ... and {len(result.all_findings) - 20} more")
+            _display_findings_table(result.all_findings)
         else:
             console.print("\n[green]Execution completed successfully.[/green]")
     else:
@@ -1603,7 +1617,6 @@ def logs(
     days: int = typer.Option(30, "--days", help="Number of days to include"),
 ) -> None:
     """View audit logs."""
-    print_banner(console, _active_theme)
     if output:
         ext = Path(output).suffix.lower()
         if ext not in {".json", ".csv"}:
@@ -1640,6 +1653,27 @@ def logs(
         )
 
     console.print(table)
+
+
+@audit_app.command("show")
+@audit_app.command("list")
+def audit_show(
+    event_type: str = typer.Option("", "--type", "-t", help="Filter by event type"),
+    user: str = typer.Option("", "--user", "-u", help="Filter by user"),
+    limit: int = typer.Option(50, "--limit", "-n", help="Max records"),
+    output: str = typer.Option("", "--output", "-o", help="Export to file"),
+    severity: str = typer.Option("", "--severity", help="Filter by severity"),
+    days: int = typer.Option(30, "--days", help="Number of days to include"),
+) -> None:
+    """Show audit logs (alias for logs)."""
+    logs(
+        event_type=event_type,
+        user=user,
+        limit=limit,
+        output=output,
+        severity=severity,
+        days=days,
+    )
 
 
 @audit_app.command("verify")
@@ -1888,6 +1922,12 @@ def config_list() -> None:
     console.print(table)
 
 
+@config_app.command("show")
+def config_show() -> None:
+    """Show all configuration settings (alias for list)."""
+    config_list()
+
+
 @config_app.command("set")
 def config_set(
     key: str = typer.Argument(help="Setting key"),
@@ -2001,6 +2041,23 @@ def compliance_run(
         console.print(f"[green]Starting {framework} compliance assessment for {target}...[/green]")
         try:
             report = await engine.run_assessment(framework, target)
+            table = Table(
+                title=f"Compliance Assessment: {framework.upper()} ({target})",
+                header_style="bold cyan",
+            )
+            table.add_column("Control ID", style="cyan", no_wrap=True)
+            table.add_column("Status", justify="center")
+            table.add_column("Details", style="white")
+            for res in report.results:
+                status_color = (
+                    "green" if res.status == "PASS" else "red" if res.status == "FAIL" else "yellow"
+                )
+                table.add_row(
+                    res.check_id,
+                    f"[{status_color}]{res.status}[/{status_color}]",
+                    res.message,
+                )
+            console.print(table)
             console.print(
                 f"[green]Assessment complete! Evidence saved to {report.evidence_path}[/green]"
             )
@@ -2009,6 +2066,54 @@ def compliance_run(
             raise typer.Exit(1)
 
     asyncio.run(_run())
+
+
+@compliance_app.command("list")
+@compliance_app.command("frameworks")
+def compliance_list() -> None:
+    """List supported compliance frameworks and their controls."""
+    from siyarix.compliance import ComplianceEngine, FRAMEWORK_METADATA
+
+    table = Table(title="Supported Compliance Frameworks", header_style="bold cyan")
+    table.add_column("Framework", style="cyan", no_wrap=True)
+    table.add_column("Name", style="white")
+    table.add_column("Governing Body", style="dim")
+    table.add_column("Controls / Check IDs", style="green")
+    for fw, checks in ComplianceEngine.FRAMEWORKS.items():
+        meta = FRAMEWORK_METADATA.get(fw, {})
+        table.add_row(
+            fw,
+            meta.get("name", fw),
+            meta.get("governing_body", "—"),
+            ", ".join(checks),
+        )
+    console.print(table)
+
+
+@compliance_app.command("reports")
+def compliance_reports() -> None:
+    """List previously generated compliance assessment reports."""
+    from siyarix.compliance import ComplianceEngine
+
+    engine = ComplianceEngine()
+    reports = engine.list_reports()
+    if not reports:
+        console.print("[dim]No compliance reports found.[/dim]")
+        return
+
+    table = Table(title="Compliance Evidence Reports", header_style="bold cyan")
+    table.add_column("Framework", style="cyan")
+    table.add_column("Target", style="white")
+    table.add_column("Checks", justify="right")
+    table.add_column("Evidence Path", style="dim")
+    for r in reports:
+        table.add_row(
+            r["framework"],
+            r["target"],
+            str(r["checks_count"]),
+            r["evidence_path"],
+        )
+    console.print(table)
 
 
 # ---------------------------------------------------------------------------
@@ -2036,13 +2141,24 @@ def playbook_run(
             k, val = v.split("=", 1)
             variables[k] = val
 
+    p = Path(path)
+    if not p.exists():
+        for candidate in (
+            Path("playbooks") / path,
+            Path("playbooks") / f"{path}.yaml",
+            Path("playbooks") / f"{path}.yml",
+        ):
+            if candidate.exists():
+                p = candidate
+                break
+
     engine = PlaybookEngine(WorkflowEngine())
     core = AgentCore()
 
     async def _run() -> None:
         await core.start()
         try:
-            await engine.execute(path, variables)
+            await engine.execute(p, variables)
         finally:
             await core.shutdown()
 
@@ -2062,8 +2178,101 @@ def playbook_list(
     if not files:
         console.print(f"[yellow]No playbooks found in '{dir_path}'.[/yellow]")
         return
+
+    import yaml
+
+    table = Table(title=f"Available Playbooks ({dir_path})", header_style="bold cyan")
+    table.add_column("File", style="cyan", no_wrap=True)
+    table.add_column("Name", style="white")
+    table.add_column("Description", style="dim")
+    table.add_column("Steps", justify="right", style="green")
+
     for f in files:
-        console.print(f"- {f.name}")
+        name = f.stem
+        desc = "—"
+        steps_count = "—"
+        try:
+            data = yaml.safe_load(f.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                name = data.get("name", f.stem)
+                desc = data.get("description", "—")
+                steps_count = str(len(data.get("steps", [])))
+        except Exception:
+            pass
+        table.add_row(f.name, name, desc[:60], steps_count)
+
+    console.print(table)
+
+
+@playbook_app.command("show")
+@playbook_app.command("info")
+def playbook_show(
+    name: str = typer.Argument(..., help="Playbook name or path to YAML file"),
+    dir_path: str = typer.Option("playbooks", "--dir", "-d", help="Directory containing playbooks"),
+) -> None:
+    """Show detailed structure and execution DAG of a playbook."""
+    import yaml
+
+    p = Path(name)
+    if not p.exists():
+        candidate = Path(dir_path) / name
+        if candidate.exists():
+            p = candidate
+        elif (Path(dir_path) / f"{name}.yaml").exists():
+            p = Path(dir_path) / f"{name}.yaml"
+        elif (Path(dir_path) / f"{name}.yml").exists():
+            p = Path(dir_path) / f"{name}.yml"
+
+    if not p.exists() or not p.is_file():
+        console.print(f"[red]Playbook '{name}' not found.[/red]")
+        raise typer.Exit(1)
+
+    try:
+        data = yaml.safe_load(p.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError("Playbook must be a YAML dictionary")
+    except Exception as exc:
+        console.print(f"[red]Failed to load playbook: {exc}[/red]")
+        raise typer.Exit(1)
+
+    title = data.get("name", p.stem)
+    desc = data.get("description", "No description provided.")
+    vars_dict = data.get("vars", {})
+    vars_summary = ", ".join(f"{k}={v}" for k, v in vars_dict.items()) if vars_dict else "None"
+
+    panel_text = (
+        f"[bold cyan]Name:[/bold cyan]        {title}\n"
+        f"[bold]File:[/bold]        {p}\n"
+        f"[bold]Description:[/bold] {desc}\n"
+        f"[bold]Variables:[/bold]   {vars_summary}"
+    )
+    console.print(
+        Panel.fit(panel_text, title="[bold cyan]Playbook Info[/bold cyan]", border_style="cyan")
+    )
+
+    steps = data.get("steps", [])
+    if steps:
+        step_table = Table(title="Execution Steps (DAG)", header_style="bold cyan")
+        step_table.add_column("Step ID", style="cyan", no_wrap=True)
+        step_table.add_column("Type", style="yellow")
+        step_table.add_column("Tool / Role", style="white")
+        step_table.add_column("Depends On", style="dim")
+        step_table.add_column("Description", style="white")
+        step_table.add_column("Timeout (s)", justify="right", style="green")
+
+        for s in steps:
+            s_type = s.get("type", "tool")
+            tool_role = s.get("role") if s_type == "agent" else s.get("tool", "—")
+            deps = ", ".join(s.get("depends_on", [])) or "—"
+            step_table.add_row(
+                str(s.get("id", "—")),
+                str(s_type),
+                str(tool_role),
+                deps,
+                str(s.get("description", "—"))[:50],
+                str(s.get("timeout", 60.0)),
+            )
+        console.print(step_table)
 
 
 @playbook_app.command("validate")
@@ -2074,10 +2283,21 @@ def playbook_validate(
     from siyarix.playbook import PlaybookEngine
     from siyarix.workflow import WorkflowEngine
 
+    p = Path(path)
+    if not p.exists():
+        for candidate in (
+            Path("playbooks") / path,
+            Path("playbooks") / f"{path}.yaml",
+            Path("playbooks") / f"{path}.yml",
+        ):
+            if candidate.exists():
+                p = candidate
+                break
+
     engine = PlaybookEngine(WorkflowEngine())
     try:
-        engine.load(path)
-        console.print(f"[green]Playbook '{path}' is valid.[/green]")
+        engine.load(p)
+        console.print(f"[green]Playbook '{p}' is valid.[/green]")
     except Exception as e:
         console.print(f"[red]Playbook validation failed: {e}[/red]")
         raise typer.Exit(1)

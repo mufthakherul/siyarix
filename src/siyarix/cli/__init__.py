@@ -634,8 +634,6 @@ def palette() -> None:
 
         PTK = True
     except Exception as exc:
-        _ptk_prompt = None  # type: ignore[assignment]
-        _WordCompleter = None  # type: ignore[assignment]
         import logging
 
         logging.getLogger(__name__).debug("prompt_toolkit not available: %s", exc)

@@ -6,6 +6,10 @@ severity-styled reporting, table/panel helpers, and a live status indicator.
 
 from __future__ import annotations
 
+import shutil
+import sys
+from typing import Any
+
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
@@ -20,7 +24,6 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 from rich.box import ROUNDED, HEAVY, MINIMAL, SIMPLE
-from typing import Any
 
 console = Console(highlight=True)
 
@@ -147,6 +150,76 @@ def progress_bar(description: str = "Processing") -> Progress:
     )
 
 
+def set_terminal_title(title: str) -> None:
+    """Set the terminal emulator window title.
+
+    Uses Windows Win32 API if running on Windows Console Host, and ANSI OSC 0
+    escape sequence for Windows Terminal, VS Code, Linux, and macOS.
+    """
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            ctypes.windll.kernel32.SetConsoleTitleW(str(title))
+        except Exception:
+            pass
+    try:
+        sys.stdout.write(f"\033]0;{title}\007")
+        sys.stdout.flush()
+    except Exception:
+        pass
+
+
+def get_terminal_size(fallback: tuple[int, int] = (80, 24)) -> tuple[int, int]:
+    """Return current terminal dimensions (columns, rows/lines)."""
+    try:
+        if console and console.size:
+            return (console.size.width, console.size.height)
+    except Exception:
+        pass
+    try:
+        sz = shutil.get_terminal_size(fallback=fallback)
+        return (sz.columns, sz.lines)
+    except Exception:
+        return fallback
+
+
+def print_paged(
+    renderable: Any,
+    console_instance: Console | None = None,
+    force: bool = False,
+) -> None:
+    """Print renderable with pagination when output exceeds terminal height.
+
+    If not attached to a terminal or redirected to pipe/file, prints directly.
+    Otherwise, if line count exceeds terminal height or force=True, invokes the
+    Rich styled pager preserving all ANSI colors and formatting.
+    """
+    c = console_instance or console
+    if not getattr(c, "is_terminal", False) and not force:
+        c.print(renderable)
+        return
+
+    if not force:
+        try:
+            with c.capture() as capture:
+                c.print(renderable)
+            rendered_lines = capture.get().count("\n")
+            term_height = (c.size.height if c.size else 24) or 24
+            if rendered_lines <= term_height:
+                c.print(renderable)
+                return
+        except Exception:
+            c.print(renderable)
+            return
+
+    try:
+        with c.pager(styles=True):
+            c.print(renderable)
+    except Exception:
+        c.print(renderable)
+
+
 __all__ = [
     "console",
     "mode_border",
@@ -161,6 +234,9 @@ __all__ = [
     "tree_from_dict",
     "status_spinner",
     "progress_bar",
+    "set_terminal_title",
+    "get_terminal_size",
+    "print_paged",
     "ROUNDED",
     "HEAVY",
     "MINIMAL",

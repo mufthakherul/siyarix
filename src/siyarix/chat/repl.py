@@ -32,6 +32,8 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.filters import Condition
+from prompt_toolkit.history import FileHistory
 
 from .session import ChatSession
 from .ui import SmartAutocomplete, SplitPane, render_welcome_banner
@@ -40,10 +42,16 @@ from .platform_utils import detect_shell, get_shell_platform, build_platform_con
 from .commands import command_history
 from .handlers import CommandHandlersMixin
 from .engine import LLMEngineMixin
-from .console import console, panel_response, mode_border
+from .console import (
+    console,
+    panel_response,
+    mode_border,
+    set_terminal_title,
+)
 from .prompts import (
     make_prompt_top,
     make_prompt_bottom,
+    make_bottom_toolbar,
 )
 
 logger = logging.getLogger(__name__)
@@ -56,11 +64,12 @@ def _restore_tty() -> None:
     try:
         import termios as _termios_mod
 
+        term: Any = _termios_mod
         fd = sys.stdin.fileno()
-        attrs = _termios_mod.tcgetattr(fd)
-        if attrs[3] & (_termios_mod.ECHO | _termios_mod.ICANON) == 0:
-            attrs[3] |= _termios_mod.ECHO | _termios_mod.ICANON
-            _termios_mod.tcsetattr(fd, _termios_mod.TCSANOW, attrs)
+        attrs = term.tcgetattr(fd)
+        if attrs[3] & (term.ECHO | term.ICANON) == 0:
+            attrs[3] |= term.ECHO | term.ICANON
+            term.tcsetattr(fd, term.TCSANOW, attrs)
     except Exception:
         pass
 
@@ -109,6 +118,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         self._session = self._init_session(session_id, target, resume)
         self._command_history: deque[str] = deque(maxlen=1000)
         self._running = True
+        self._multiline: bool = self._settings.get("multiline", False)
         self._engine_kill_switch = None
         self._pt_session: PromptSession[Any] | None = None
         self._split_pane_enabled = False
@@ -269,7 +279,8 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
         # Install SIGTSTP handler to restore terminal before Ctrl+Z suspend
         _orig_tstp: Any = None
-        if _signal is not None and hasattr(_signal, "SIGTSTP"):
+        _sig_tstp: Any = getattr(_signal, "SIGTSTP", None) if _signal is not None else None
+        if _sig_tstp is not None:
 
             def _tstp_handler(signum: int, frame: Any) -> None:
                 try:
@@ -280,18 +291,19 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                     try:
                         import termios as _termios
 
-                        _termios.tcsetattr(
+                        term: Any = _termios
+                        term.tcsetattr(
                             sys.stdin.fileno(),
-                            _termios.TCSANOW,
-                            _termios.tcgetattr(sys.stdin.fileno()),
+                            term.TCSANOW,
+                            term.tcgetattr(sys.stdin.fileno()),
                         )
                     except Exception:
                         pass
                 if _orig_tstp:
                     _orig_tstp(signum, frame)
 
-            _orig_tstp = _signal.getsignal(_signal.SIGTSTP)
-            _signal.signal(_signal.SIGTSTP, _tstp_handler)
+            _orig_tstp = _signal.getsignal(_sig_tstp)  # type: ignore[union-attr]
+            _signal.signal(_sig_tstp, _tstp_handler)  # type: ignore[union-attr]
 
         # Start connectivity monitor background check
         async def _run_all() -> None:
@@ -302,8 +314,8 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             try:
                 await self._repl_loop()
             finally:
-                if _orig_tstp:
-                    _signal.signal(_signal.SIGTSTP, _orig_tstp)
+                if _orig_tstp and _sig_tstp is not None and _signal is not None:
+                    _signal.signal(_sig_tstp, _orig_tstp)
                 try:
                     await self.connectivity_monitor.stop()
                 except Exception:
@@ -355,41 +367,54 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 # Record in global command history for autocomplete ranking
                 command_history.record(user_input)
 
-                if "|" in user_input and not user_input.startswith("/"):
-                    pipe_parts = self._check_for_piping(user_input)
-                    if pipe_parts != user_input:
-                        console.print(
-                            "[dim]Piping detected. Processing as sequential commands...[/dim]"
-                        )
-                        parts = [p.strip() for p in user_input.split("|") if p.strip()]
-                        for i, part in enumerate(parts):
-                            console.print(f"[cyan]Step {i + 1}/{len(parts)}:[/cyan] {part[:80]}")
-                            if part.startswith("/"):
-                                await self._handle_slash(part)
-                            else:
-                                await self._handle_natural_language(part)
+                # Update terminal title to indicate command execution
+                set_terminal_title(f"Siyarix [BUSY] - {user_input[:40]}")
+
+                try:
+                    if "|" in user_input and not user_input.startswith("/"):
+                        pipe_parts = self._check_for_piping(user_input)
+                        if pipe_parts != user_input:
+                            console.print(
+                                "[dim]Piping detected. Processing as sequential commands...[/dim]"
+                            )
+                            parts = [p.strip() for p in user_input.split("|") if p.strip()]
+                            for i, part in enumerate(parts):
+                                console.print(
+                                    f"[cyan]Step {i + 1}/{len(parts)}:[/cyan] {part[:80]}"
+                                )
+                                if part.startswith("/"):
+                                    await self._handle_slash(part)
+                                else:
+                                    await self._handle_natural_language(part)
+                            continue
+
+                    if user_input == "?" or user_input.lower() == "help":
+                        self._cmd_help("")
                         continue
 
-                if user_input == "?" or user_input.lower() == "help":
-                    self._cmd_help("")
-                    continue
-
-                if user_input.startswith("/"):
-                    # Check aliases
-                    cmd_name = user_input.split()[0].lower()
-                    aliases = self._load_aliases() if hasattr(self, "_load_aliases") else {}
-                    if cmd_name.lstrip("/") in aliases:
-                        resolved = aliases[cmd_name.lstrip("/")]
-                        remaining = user_input[len(cmd_name) :].strip()
-                        full_cmd = f"{resolved} {remaining}" if remaining else resolved
-                        console.print(f"[dim]Alias: /{cmd_name.lstrip('/')} -> {full_cmd}[/dim]")
-                        await self._handle_slash(
-                            f"/{full_cmd}" if not full_cmd.startswith("/") else full_cmd
-                        )
+                    if user_input.startswith("/"):
+                        # Check aliases
+                        cmd_name = user_input.split()[0].lower()
+                        aliases = self._load_aliases() if hasattr(self, "_load_aliases") else {}
+                        if cmd_name.lstrip("/") in aliases:
+                            resolved = aliases[cmd_name.lstrip("/")]
+                            remaining = user_input[len(cmd_name) :].strip()
+                            full_cmd = f"{resolved} {remaining}" if remaining else resolved
+                            console.print(
+                                f"[dim]Alias: /{cmd_name.lstrip('/')} -> {full_cmd}[/dim]"
+                            )
+                            await self._handle_slash(
+                                f"/{full_cmd}" if not full_cmd.startswith("/") else full_cmd
+                            )
+                        else:
+                            await self._handle_slash(user_input)
                     else:
-                        await self._handle_slash(user_input)
-                else:
-                    await self._handle_natural_language(user_input)
+                        await self._handle_natural_language(user_input)
+                finally:
+                    # Restore terminal title to idle state
+                    target_str = getattr(self._session, "target", "") or ""
+                    title_suffix = f" (target: {target_str})" if target_str else ""
+                    set_terminal_title(f"Siyarix REPL - [{self._mode}]{title_suffix}")
 
             except KeyboardInterrupt:
                 self._esc_press_count += 1
@@ -405,18 +430,31 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             except Exception as exc:
                 console.print(f"[red]Error: {exc}[/red]")
 
+        set_terminal_title("Siyarix")
         self._print_goodbye()
 
     def _terminal_supports_raw(self) -> bool:
         """Check if the terminal supports raw mode (required by prompt_toolkit)."""
-        if not _plat_has_termios() or _plat_is_windows():
+        if not sys.stdin.isatty():
+            return False
+        if _plat_is_windows():
+            try:
+                from prompt_toolkit.output.win32 import Win32Output
+
+                out = Win32Output(sys.stdout)
+                out.get_win32_screen_buffer_info()
+                return True
+            except Exception:
+                return False
+        if not _plat_has_termios():
             return False
         try:
             import termios as _termios_mod
 
+            term: Any = _termios_mod
             fd = sys.stdin.fileno()
-            attrs = _termios_mod.tcgetattr(fd)
-            _termios_mod.tcsetattr(fd, _termios_mod.TCSANOW, attrs)
+            attrs = term.tcgetattr(fd)
+            term.tcsetattr(fd, term.TCSANOW, attrs)
             return True
         except Exception:
             return False
@@ -469,6 +507,10 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         uptime_delta = datetime.now(timezone.utc) - self._session.created_at
         uptime_secs = uptime_delta.total_seconds()
 
+        target_str = getattr(self._session, "target", "") or ""
+        title_suffix = f" (target: {target_str})" if target_str else ""
+        set_terminal_title(f"Siyarix REPL - [{self._mode}]{title_suffix}")
+
         # If terminal doesn't support raw mode, skip prompt_toolkit
         if not self._terminal_supports_raw():
             top_bar = make_prompt_top(
@@ -489,17 +531,21 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 from prompt_toolkit.patch_stdout import patch_stdout
 
                 if self._pt_session is None:
+                    history_file = get_config_dir() / "history"
                     self._pt_session = PromptSession(
-                        multiline=True,
+                        multiline=Condition(lambda: getattr(self, "_multiline", False)),
                         vi_mode=False,
                         complete_while_typing=True,
                         auto_suggest=AutoSuggestFromHistory(),
+                        mouse_support=True,
+                        history=FileHistory(str(history_file)),
                     )
 
-                top_bar = make_prompt_top(
-                    self._mode, provider, session_id, msg_count, uptime_secs, theme, persona
-                )
-                console.print(top_bar)
+                if self._settings.get("show_top_bar", False):
+                    top_bar = make_prompt_top(
+                        self._mode, provider, session_id, msg_count, uptime_secs, theme, persona
+                    )
+                    console.print(top_bar)
 
                 pt_prompt = HTML('<style fg="ansicyan"><b>╰─➜ </b></style>')
 
@@ -510,6 +556,14 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                         completer=SmartAutocomplete(self._session),
                         complete_while_typing=True,
                         auto_suggest=AutoSuggestFromHistory(),
+                        bottom_toolbar=lambda: make_bottom_toolbar(
+                            mode=self._mode,
+                            provider=provider,
+                            session_id=session_id,
+                            msg_count=msg_count,
+                            target=target_str,
+                            multiline=getattr(self, "_multiline", False),
+                        ),
                     )
                     if _result is None:
                         raise KeyboardInterrupt

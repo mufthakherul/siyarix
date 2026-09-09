@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sys
 import platform as _platform
+from typing import Any
 
 from rich.text import Text
 from rich.console import RenderableType
@@ -186,9 +187,96 @@ def make_prompt_bar(
     show_hint: bool = True,
 ) -> RenderableType:
     """Combined professional prompt with top bar and input line."""
-    top = make_prompt_top(mode, provider, session_id, msg_count, uptime_seconds, theme, persona)
+    top = make_prompt_top(
+        mode, provider, session_id, msg_count, uptime_seconds, theme, persona or ""
+    )
     bottom = make_prompt_bottom(show_hint)
     return Text.assemble(top, "\n", bottom)
+
+
+def _pt_mode_color(mode: str) -> str:
+    mc = mode_color(mode).lower()
+    if "magenta" in mc:
+        return "ansimagenta"
+    if "red" in mc:
+        return "ansired"
+    if "green" in mc:
+        return "ansigreen"
+    if "yellow" in mc:
+        return "ansiyellow"
+    if "blue" in mc:
+        return "ansiblue"
+    return "ansicyan"
+
+
+def make_bottom_toolbar(
+    mode: str = "integrated",
+    provider: str = "auto",
+    session_id: str = "",
+    msg_count: int = 0,
+    target: str = "",
+    multiline: bool = False,
+) -> Any:
+    """Generate prompt_toolkit FormattedText for pinned bottom status line.
+
+    Keeps session status permanently visible at the bottom of the prompt area
+    without spamming or duplicating into terminal scrollback.
+    """
+    try:
+        from prompt_toolkit.formatted_text import FormattedText
+
+        color = _pt_mode_color(mode)
+        tokens: list[tuple[str, str]] = [
+            ("bg:ansiblue fg:ansiwhite bold", " siyarix "),
+            ("", " "),
+            (f"fg:{color} bold", f"[{mode}]"),
+            ("fg:ansibrightblack", " │ "),
+            ("fg:ansiblue", str(provider)),
+        ]
+        if target:
+            tokens.extend(
+                [
+                    ("fg:ansibrightblack", " │ "),
+                    ("fg:ansibrightblack", "target:"),
+                    ("fg:ansiyellow bold", str(target)),
+                ]
+            )
+        if session_id:
+            tokens.extend(
+                [
+                    ("fg:ansibrightblack", " │ "),
+                    ("fg:ansibrightblack", f"sid:{session_id[:6]}"),
+                ]
+            )
+        tokens.extend(
+            [
+                ("fg:ansibrightblack", " │ "),
+                ("fg:ansibrightblack", f"msgs:{msg_count}"),
+            ]
+        )
+        if multiline:
+            tokens.extend(
+                [
+                    ("fg:ansibrightblack", " │ "),
+                    ("fg:ansiyellow bold", "[ML: ON]"),
+                ]
+            )
+        else:
+            tokens.extend(
+                [
+                    ("fg:ansibrightblack", " │ "),
+                    ("fg:ansigreen", "[ML: OFF]"),
+                ]
+            )
+        tokens.extend(
+            [
+                ("fg:ansibrightblack", " │ "),
+                ("fg:ansibrightblack", "F1:help | Ctrl+\\:ML | ?:help"),
+            ]
+        )
+        return FormattedText(tokens)
+    except Exception:
+        return ""
 
 
 __all__ = [
@@ -202,5 +290,6 @@ __all__ = [
     "make_prompt_top",
     "make_prompt_bottom",
     "make_prompt_bar",
+    "make_bottom_toolbar",
     "mode_prompt_hint",
 ]

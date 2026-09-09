@@ -38,19 +38,6 @@ except ImportError:
 
 yaml = _yaml
 
-Console: Any = None
-BarColumn: Any = None
-Progress: Any = None
-SpinnerColumn: Any = None
-TaskProgressColumn: Any = None
-TextColumn: Any = None
-TimeRemainingColumn: Any = None
-TransferSpeedColumn: Any = None
-Confirm: Any = None
-Prompt: Any = None
-Syntax: Any = None
-Table: Any = None
-
 try:
     from rich.console import Console
     from rich.progress import (
@@ -68,6 +55,18 @@ try:
 
     RICH_AVAILABLE = True
 except ImportError:
+    Console = None  # type: ignore[assignment,misc]
+    BarColumn = None  # type: ignore[assignment,misc]
+    Progress = None  # type: ignore[assignment,misc]
+    SpinnerColumn = None  # type: ignore[assignment,misc]
+    TaskProgressColumn = None  # type: ignore[assignment,misc]
+    TextColumn = None  # type: ignore[assignment,misc]
+    TimeRemainingColumn = None  # type: ignore[assignment,misc]
+    TransferSpeedColumn = None  # type: ignore[assignment,misc]
+    Confirm = None  # type: ignore[assignment,misc]
+    Prompt = None  # type: ignore[assignment,misc]
+    Syntax = None  # type: ignore[assignment,misc]
+    Table = None  # type: ignore[assignment,misc]
     RICH_AVAILABLE = False
 
 
@@ -139,8 +138,41 @@ class OutputEngine:
                 self._raw_print(f"  {subtitle}")
             self._raw_print(f"{'=' * 30}\n")
 
+    def print_paged(self, renderable: Any, force: bool = False) -> None:
+        """Print renderable with pagination support if it exceeds terminal height or forced."""
+        if not RICH_AVAILABLE or self.console is None:
+            self._raw_print(str(renderable))
+            return
+
+        if not getattr(self.console, "is_terminal", False) and not force:
+            self.console.print(renderable)
+            return
+
+        if not force:
+            try:
+                with self.console.capture() as capture:
+                    self.console.print(renderable)
+                rendered_lines = capture.get().count("\n")
+                term_height = (self.console.size.height if self.console.size else 24) or 24
+                if rendered_lines <= term_height:
+                    self.console.print(renderable)
+                    return
+            except Exception:
+                self.console.print(renderable)
+                return
+
+        try:
+            with self.console.pager(styles=True):
+                self.console.print(renderable)
+        except Exception:
+            self.console.print(renderable)
+
     def print_table(
-        self, data: list[dict], title: str = "", columns: list[str] | None = None
+        self,
+        data: list[dict],
+        title: str = "",
+        columns: list[str] | None = None,
+        page: bool = False,
     ) -> None:
         if not data:
             self.print_warning("No data to display")
@@ -154,11 +186,18 @@ class OutputEngine:
                 header_style=f"bold {self.theme['primary']}",
             )
             for col in columns:
-                table.add_column(col.replace("_", " ").title(), style=self.theme["info"])
+                table.add_column(
+                    col.replace("_", " ").title(),
+                    style=self.theme["info"],
+                    overflow="fold",
+                )
             for row in data:
                 table.add_row(*[str(row.get(col, "")) for col in columns])
             if self.console is not None:
-                self.console.print(table)
+                if page:
+                    self.print_paged(table, force=True)
+                else:
+                    self.console.print(table)
         else:
             for row in data:
                 self._raw_print("\t".join(str(row.get(col, "")) for col in columns))
@@ -383,16 +422,16 @@ class OutputEngine:
                 process_fn(item)
 
     def prompt_confirm(self, message: str, default: bool = False) -> bool:
-        if RICH_AVAILABLE:
-            return Confirm.ask(message, default=default)
+        if RICH_AVAILABLE and Confirm is not None:
+            return bool(Confirm.ask(message, default=default))
         response = input(f"{message} (y/n) [{'Y' if default else 'n'}]: ").strip().lower()
         if not response:
             return default
         return response in ("y", "yes")
 
     def prompt_input(self, message: str, default: str = "", password: bool = False) -> str:
-        if RICH_AVAILABLE and self.console is not None:
-            return Prompt.ask(message, default=default, password=password)
+        if RICH_AVAILABLE and self.console is not None and Prompt is not None:
+            return str(Prompt.ask(message, default=default, password=password))
         if password:
             return _getpass.getpass(f"{message}: ")
         return input(f"{message} [{default}]: ").strip() or default

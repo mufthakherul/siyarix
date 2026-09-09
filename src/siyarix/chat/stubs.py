@@ -8,8 +8,8 @@ have not yet been implemented in the open-source release.
 from __future__ import annotations
 
 import builtins
-from enum import Enum
 import logging
+from enum import Enum
 from typing import Any
 
 from ..threat_intel import MITREAttackDB, ThreatIntelFeed

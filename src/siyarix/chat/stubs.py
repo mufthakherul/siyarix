@@ -12,6 +12,8 @@ from enum import Enum
 from typing import Any
 import typing
 
+from ..threat_intel import MITREAttackDB, ThreatIntelFeed
+
 logger = logging.getLogger(__name__)
 
 
@@ -207,23 +209,24 @@ class AdversarialTester:
         return []
 
 
-class ThreatIntelFeed:
-    def __init__(self) -> None:
-        pass
-
-    def search(self, target: str) -> list[dict[str, Any]]:
-        return []
-
-    def list_feeds(self) -> list[dict[str, Any]]:
-        return []
-
-
-class MITREAttackDB:
-    def __init__(self) -> None:
-        pass
-
-    def search(self, tactic: str) -> list[dict[str, str]]:
-        return []
-
-    def list_techniques(self) -> list[dict[str, str]]:
-        return []
+__all__ = [
+    "CanaryTokenManager",
+    "CanaryTokenType",
+    "CoderBridge",
+    "CloudProvider",
+    "CloudScanner",
+    "IaCScanner",
+    "MobileScanner",
+    "IoTScanner",
+    "HSMService",
+    "ComplianceRunner",
+    "SecurityImporter",
+    "security_importer",
+    "PlaybookEngine",
+    "VotingStrategy",
+    "MultiModelEnsemble",
+    "AdversarialSeverity",
+    "AdversarialTester",
+    "ThreatIntelFeed",
+    "MITREAttackDB",
+]

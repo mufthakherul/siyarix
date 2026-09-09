@@ -271,14 +271,138 @@ class TestThreatIntelManager:
         assert isinstance(intel_manager.nvd, NVDDatabase)
 
 
-# -- Stub classes --------------------------------------------------------------
+# -- ThreatIntelFeed & MITREAttackDB -------------------------------------------
 
 
-class TestStubs:
-    def test_threat_intel_feed(self) -> None:
+class TestThreatIntelFeed:
+    def test_init_and_list_feeds(self) -> None:
         feed = ThreatIntelFeed()
         assert isinstance(feed, ThreatIntelFeed)
+        feeds = feed.list_feeds()
+        assert len(feeds) >= 4
+        names = [f["name"] for f in feeds]
+        assert "AlienVault OTX" in names
+        assert "National Vulnerability Database (NVD)" in names
+        assert "MITRE ATT&CK Enterprise" in names
 
-    def test_mitre_attack_db(self) -> None:
+    def test_query_cve_found(self) -> None:
+        feed = ThreatIntelFeed()
+        data = feed.query_cve("CVE-2021-44228")
+        assert data["id"] == "CVE-2021-44228"
+        assert data["name"] == "Log4Shell"
+        assert data["base_score"] == 10.0
+        assert data["severity"] == "CRITICAL"
+        assert data["mitre_technique"] == "T1190"
+
+    def test_query_cve_lowercase(self) -> None:
+        feed = ThreatIntelFeed()
+        data = feed.query_cve("cve-2023-34362")
+        assert data["id"] == "CVE-2023-34362"
+        assert "MOVEit" in data["name"]
+
+    def test_query_cve_not_found(self) -> None:
+        feed = ThreatIntelFeed()
+        data = feed.query_cve("CVE-1990-0001")
+        assert data == {}
+
+    def test_search_cve(self) -> None:
+        feed = ThreatIntelFeed()
+        results = feed.search("Outlook")
+        assert len(results) >= 1
+        assert any(r["id"] == "CVE-2024-21413" for r in results)
+
+    def test_search_empty_and_not_found(self) -> None:
+        feed = ThreatIntelFeed()
+        assert feed.search("") == []
+        assert feed.search("completely_unknown_token_xyz") == []
+
+    def test_add_and_search_custom_indicator(self) -> None:
+        feed = ThreatIntelFeed()
+        feed.add_indicator("ip", "198.51.100.23", severity="high", description="C2 beacon IP")
+        matches = feed.search("198.51.100.23")
+        assert len(matches) == 1
+        assert matches[0]["type"] == "ip"
+        assert matches[0]["value"] == "198.51.100.23"
+
+
+class TestMITREAttackDB:
+    def test_init_and_list_tactics(self) -> None:
         db = MITREAttackDB()
         assert isinstance(db, MITREAttackDB)
+        tactics = db.list_tactics()
+        assert len(tactics) == 14
+        tactic_ids = [t["id"] for t in tactics]
+        assert "TA0001" in tactic_ids
+        assert "TA0002" in tactic_ids
+
+    def test_list_techniques(self) -> None:
+        db = MITREAttackDB()
+        techniques = db.list_techniques()
+        assert len(techniques) >= 15
+        for t in techniques:
+            assert "id" in t
+            assert "name" in t
+            assert "tactic" in t
+
+    def test_query_technique_direct_and_case_insensitive(self) -> None:
+        db = MITREAttackDB()
+        t1059 = db.query_technique("T1059")
+        assert t1059["id"] == "T1059"
+        assert t1059["name"] == "Command and Scripting Interpreter"
+        assert t1059["tactic"] == "Execution"
+
+        t1059_lower = db.query_technique("t1059")
+        assert t1059_lower["name"] == "Command and Scripting Interpreter"
+
+    def test_query_technique_subtechnique(self) -> None:
+        db = MITREAttackDB()
+        sub = db.query_technique("T1059.001")
+        assert sub["id"] == "T1059.001"
+        assert sub["name"] == "Command and Scripting Interpreter"
+
+    def test_query_technique_not_found(self) -> None:
+        db = MITREAttackDB()
+        assert db.query_technique("T9999") == {}
+
+    def test_search_techniques(self) -> None:
+        db = MITREAttackDB()
+        results = db.search("Phishing")
+        assert any(r["id"] == "T1566" for r in results)
+
+        tactic_results = db.search("Persistence")
+        assert len(tactic_results) >= 2
+
+        assert db.search("") == []
+        assert db.search("nonexistent_technique_xyz") == []
+
+    def test_map_finding(self) -> None:
+        db = MITREAttackDB()
+        mapped = db.map_finding("Detected SQL injection vulnerability via sqlmap")
+        technique_ids = [m["id"] for m in mapped]
+        assert "T1190" in technique_ids
+
+        mapped_recon = db.map_finding("Active port scan discovered open ports")
+        technique_ids_recon = [m["id"] for m in mapped_recon]
+        assert "T1046" in technique_ids_recon
+
+        mapped_empty = db.map_finding("Normal user logged in cleanly")
+        assert mapped_empty == []
+
+
+@pytest.mark.asyncio
+async def test_threat_intel_handler_integration() -> None:
+    from siyarix.internal_tools import make_threat_intel_handler
+
+    handler = make_threat_intel_handler()
+
+    # CVE lookup integration
+    cve_res = await handler(action="cve_lookup", query="CVE-2021-44228")
+    assert cve_res["status"] == "success"
+    cve_data = json.loads(cve_res["output"])
+    assert cve_data["cve_data"]["name"] == "Log4Shell"
+
+    # MITRE lookup integration
+    mitre_res = await handler(action="mitre_lookup", query="T1059")
+    assert mitre_res["status"] == "success"
+    mitre_data = json.loads(mitre_res["output"])
+    assert mitre_data["mitre_data"]["name"] == "Command and Scripting Interpreter"

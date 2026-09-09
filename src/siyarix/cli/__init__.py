@@ -27,9 +27,9 @@ from typing import Any
 # Windows event loop policy for subprocess compatibility
 if os.name == "nt" and hasattr(asyncio, "WindowsSelectorEventLoopPolicy"):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+import io
 import platform
 import sys
-import io
 
 if sys.stdout and getattr(sys.stdout, "encoding", "").lower() != "utf-8":
     try:
@@ -47,22 +47,20 @@ from rich.prompt import Prompt
 from rich.table import Table
 
 from .. import __version__
-
+from ..async_utils import run_async
 from ..audit_log import AuditEventType, AuditSeverity, audit
 from ..branding import available_themes, print_banner
-from ..chat import start_chat, CommandProfile, CommandProfileStore, CROSS_PLATFORM_COMMANDS
+from ..chat import CROSS_PLATFORM_COMMANDS, CommandProfile, CommandProfileStore, start_chat
+from ..compat import ExecutionEngine, ExecutionMode, SessionKernel
 from ..config import SettingsStore, get_config_dir
-from ..compat import SessionKernel, ExecutionEngine, ExecutionMode
 from ..core.router import IntentRouter
-from ..registry import ToolRegistry
 from ..exceptions import ValidationError
 from ..health import get_health
 from ..logging_config import configure_logging
 from ..metrics import get_metrics
+from ..registry import ToolRegistry
 from ..security_commands import security_app
-
 from ..validators import validate_target
-from ..async_utils import run_async
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +115,7 @@ def _load_dotenv(path: Path | None = None) -> None:
 
 def _display_findings_table(findings: list[dict]) -> None:
     """Render scan findings as a Rich table using theme-aware styling."""
-    from ..branding import severity_label, resolve_theme
+    from ..branding import resolve_theme, severity_label
 
     settings = SettingsStore()
     theme = resolve_theme(settings.get("color_theme"))
@@ -259,9 +257,10 @@ def _execute_deep_scan(target: str, output: str = "table", save: bool = False) -
     console.print()
 
     if output == "table":
-        from ..branding import severity_label, resolve_theme
-        from ..config import SettingsStore
         from rich.table import Table
+
+        from ..branding import resolve_theme, severity_label
+        from ..config import SettingsStore
 
         settings = SettingsStore()
         theme = resolve_theme(settings.get("color_theme"))
@@ -425,8 +424,8 @@ def init_wizard(
         console.print("  Run [cyan]siyarix init --force[/cyan] to re-run the wizard.")
         return
 
-    from siyarix.onboarding import OnboardingWizard
     from siyarix.config import SettingsStore
+    from siyarix.onboarding import OnboardingWizard
 
     settings = SettingsStore()
     wizard = OnboardingWizard(settings=settings)
@@ -483,8 +482,8 @@ def _show_version() -> None:
 
 async def _run_onboarding() -> None:
     """Run the first-run onboarding wizard."""
-    from siyarix.onboarding import OnboardingWizard
     from siyarix.config import SettingsStore
+    from siyarix.onboarding import OnboardingWizard
 
     settings = SettingsStore()
     wizard = OnboardingWizard(settings=settings)
@@ -1405,7 +1404,7 @@ def agent(
             console.print(f"[red]Invalid target '{target}': {exc}[/red]")
             raise typer.Exit(1)
 
-    from ..core import AgentCore, AgentMode, AgentGoal
+    from ..core import AgentCore, AgentGoal, AgentMode
 
     mode_map = {
         "offline": AgentMode.REGISTRY,
@@ -1992,8 +1991,9 @@ def compliance_run(
     target: str = typer.Argument(..., help="Target to assess"),
 ) -> None:
     """Run a compliance assessment."""
-    from siyarix.compliance import ComplianceEngine
     import asyncio
+
+    from siyarix.compliance import ComplianceEngine
 
     engine = ComplianceEngine()
 
@@ -2024,10 +2024,11 @@ def playbook_run(
     var: list[str] = typer.Option([], "--var", help="Variables in key=value format"),
 ) -> None:
     """Run a YAML playbook."""
+    import asyncio
+
+    from siyarix.core import AgentCore
     from siyarix.playbook import PlaybookEngine
     from siyarix.workflow import WorkflowEngine
-    from siyarix.core import AgentCore
-    import asyncio
 
     variables = {}
     for v in var:

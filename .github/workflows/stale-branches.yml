@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      issues: write
     steps:
       - name: Delete stale branches
         uses: crs-k/stale-branches@e876b957ab08f0bad43c8cc271a22cdd7604bd09 # v9.0.1
@@ -18,4 +19,4 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           days-before-stale: 30
           days-before-delete: 45
-          exempt-branches-regex: ^(main|develop|production)$
+          branches-filter-regex: '^((?!(main|master|stable|develop|production)$).)*$'

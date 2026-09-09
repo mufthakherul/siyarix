@@ -412,7 +412,7 @@ def test_cli_playbook_list_nonexistent(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(app, ["playbook", "list", "--dir", str(tmp_path / "missing")])
     assert result.exit_code == 0
-    assert "not found" in result.output
+    assert "not found" in " ".join(result.output.split())
 
 
 def test_cli_playbook_list_empty(tmp_path: Path) -> None:

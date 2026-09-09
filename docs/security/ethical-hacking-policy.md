@@ -2,8 +2,8 @@
 
 Siyarix is a cybersecurity orchestration tool. While it's a personal project, it's powerful, and I want to be clear about the boundaries for its ethical and legal use.
 
-> [!CAUTION]
-> **Please read this carefully.** By using Siyarix, you agree to adhere to these guidelines.
+!!! danger
+    **Please read this carefully.** By using Siyarix, you agree to adhere to these guidelines.
 
 ## ✅ Authorized Use
 
@@ -26,8 +26,8 @@ Siyarix is **not** a tool for malicious actors. The following are strictly prohi
 - ❌ Modifying or destroying data without permission.
 - ❌ Any activity violating local computer misuse laws.
 
-> [!IMPORTANT]
-> Siyarix must **never** be integrated with kinetic platforms or used maliciously.
+!!! info
+    Siyarix must **never** be integrated with kinetic platforms or used maliciously.
 
 ## 📜 Rules of Engagement
 

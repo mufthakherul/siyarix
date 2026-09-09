@@ -2,8 +2,8 @@
 
 Welcome to the Siyarix codebase! This document serves as a quick tour of the project structure and core modules. Siyarix started as a personal passion project to explore AI-native orchestration, and it's continuously growing thanks to active development.
 
-> [!TIP]
-> If you are new to the codebase, I recommend starting with the **Agent Orchestrator (`core/`)** and **Interactive Chat (`chat/`)** modules, as they form the core experience!
+!!! tip
+    If you are new to the codebase, I recommend starting with the **Agent Orchestrator (`core/`)** and **Interactive Chat (`chat/`)** modules, as they form the core experience!
 
 ## 📂 Directory Structure
 
@@ -90,9 +90,8 @@ Siyarix includes some neat security features:
 ### 🎨 Output & Reporting (`output/`, `report/`)
 The `OutputEngine` supports multiple formats and themes, and the `ReportEngine` compiles assessments into Markdown or HTML.
 
-> [!IMPORTANT]
-> **Implemented Features vs. Stubs**
-> Siyarix is a growing project. While features like **MultiWaveExecution** and **BudgetChecking** are active, some features listed in `chat/stubs.py` are placeholders designed for future expansion as I continue building out the tool.
+!!! info "Implemented Features vs. Stubs"
+    Siyarix is a growing project. While features like **MultiWaveExecution** and **BudgetChecking** are active, some features listed in `chat/stubs.py` are placeholders designed for future expansion as I continue building out the tool.
 
 ## 📏 Development Conventions
 

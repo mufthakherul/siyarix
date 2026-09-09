@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass

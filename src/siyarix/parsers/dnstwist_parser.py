@@ -12,8 +12,6 @@ from . import _now_iso
 
 _JSON_RE = re.compile(r"^\s*[{\[]")
 
-_IP_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
-
 
 class DnstwistParser:
     """Parse dnstwist JSON output into normalized finding dicts."""

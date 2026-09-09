@@ -1,12 +1,12 @@
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
 
 # ☁️ Cloud Security Scanning
 
 Securing your cloud environments doesn't have to be a headache. Siyarix comes packed with multi-cloud security scanning capabilities right out of the box, covering AWS, Azure, GCP, Kubernetes, and Docker.
 
-> [!NOTE]
-> Siyarix is smart! It only queries a provider's SDK if it detects that the respective cloud credentials are available on your system.
+!!! note
+    Siyarix is smart! It only queries a provider's SDK if it detects that the respective cloud credentials are available on your system.
 
 ---
 
@@ -102,11 +102,11 @@ You don't need to jump through hoops to configure credentials. Siyarix automatic
 
 When a scan finishes, you'll get detailed results including the Check ID, Severity, Description, and most importantly: **Remediation Guidance** (how to fix it!).
 
-> [!TIP]
-> Need to pipe the output to another tool? Use the `--output` flag for clean JSON!
-> ```bash
-> siyarix scan --cloud aws --output json
-> ```
+!!! tip
+    Need to pipe the output to another tool? Use the `--output` flag for clean JSON!
+    ```bash
+    siyarix scan --cloud aws --output json
+    ```
 
 ---
 

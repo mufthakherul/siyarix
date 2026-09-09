@@ -9,7 +9,7 @@ requires = [
 
 [project]
 name = "siyarix"
-version = "1.0.0"
+version = "1.0.1"
 description = "Siyarix — AI Cybersecurity Orchestration Agent"
 readme = "README.md"
 keywords = [

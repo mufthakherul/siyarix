@@ -1,7 +1,7 @@
 # 🚀 Tool Execution Architecture
 
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
 
 
 Welcome to the **Tool Execution Pipeline** documentation! This guide explains how AI-planned tools are seamlessly discovered, registered, evaluated, and executed within Siyarix.
@@ -28,8 +28,8 @@ Discovery 🔍 (ToolRegistry)
   → Installation 📦 (ToolInstaller)
 ```
 
-> [!NOTE]
-> This pipeline ensures that no tool is executed blindly. Every step adds a layer of security, context, or functionality!
+!!! note
+    This pipeline ensures that no tool is executed blindly. Every step adds a layer of security, context, or functionality!
 
 ---
 
@@ -77,8 +77,8 @@ tool = ToolCapability(
 registry.register(tool, handler_factory=make_nmap_handler)
 ```
 
-> [!TIP]
-> Always provide clear and descriptive tags when registering custom tools. Tags are heavily used by the AI to find the right tool for the job!
+!!! tip
+    Always provide clear and descriptive tags when registering custom tools. Tags are heavily used by the AI to find the right tool for the job!
 
 ### 🛠️ Supported Tools (Curated)
 
@@ -199,8 +199,8 @@ When the AI knows the goal but not the specific tool, it asks the graph to score
 results = graph.find_optimal_tools("fast port scan", available=["nmap", "masscan", "curl"])
 ```
 
-> [!IMPORTANT]
-> The capability graph is what gives the AI its "intuition" to choose `masscan` over `nmap` when speed is the primary objective!
+!!! info
+    The capability graph is what gives the AI its "intuition" to choose `masscan` over `nmap` when speed is the primary objective!
 
 ---
 
@@ -333,8 +333,8 @@ installer = ToolInstaller()
 result = installer.install("nmap")
 ```
 
-> [!TIP]
-> **Windows Users**: The installer uses Winget (falling back to Choco). It includes predefined mappings so asking for `nmap` automatically translates to `winget install Insecure.Nmap`.
+!!! tip
+    **Windows Users**: The installer uses Winget (falling back to Choco). It includes predefined mappings so asking for `nmap` automatically translates to `winget install Insecure.Nmap`.
 
 ---
 

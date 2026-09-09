@@ -52,12 +52,26 @@ jobs:
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
-            await github.rest.pulls.enableAutoMerge({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.payload.pull_request.number,
-              merge_method: 'SQUASH'
-            });
+            const prId = context.payload.pull_request.node_id;
+            const query = `
+              mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+                enablePullRequestAutoMerge(input: {
+                  pullRequestId: $pullRequestId,
+                  mergeMethod: $mergeMethod
+                }) {
+                  pullRequest {
+                    autoMergeRequest {
+                      enabledAt
+                    }
+                  }
+                }
+              }
+            `;
+            const variables = {
+              pullRequestId: prId,
+              mergeMethod: 'SQUASH'
+            };
+            await github.graphql(query, variables);
 
       - name: Comment notice
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7

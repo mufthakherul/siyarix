@@ -126,7 +126,7 @@ jobs:
 
       - name: Upload dependency scan results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dependency-scan-report
           path: audit.json
@@ -140,7 +140,7 @@ jobs:
           fetch-depth: 0
 
       - name: TruffleHog
-        uses: trufflesecurity/trufflehog@39a1435e800f8a78b61188844272a22b3ec1722d # main
+        uses: trufflesecurity/trufflehog@f446421baf832d6356c42c1743d99abff52ff334 # main
         continue-on-error: true
         with:
           path: './'
@@ -179,7 +179,7 @@ jobs:
 
       - name: Upload Bandit SARIF
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: bandit-report
           path: bandit-report.sarif
@@ -218,7 +218,7 @@ jobs:
 
       - name: Upload pip-audit results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pip-audit-report
           path: pip-audit.json
@@ -245,14 +245,8 @@ jobs:
           results_format: sarif
           publish_results: true
 
-      - name: Upload Scorecard SARIF to GitHub
-        uses: github/codeql-action/upload-sarif@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3
-        with:
-          sarif_file: scorecard-results.sarif
-          category: scorecard
-
       - name: Upload artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: scorecard-results
           path: scorecard-results.sarif

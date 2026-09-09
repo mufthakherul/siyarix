@@ -18,11 +18,11 @@ from .registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class CommandState:
     label: str
     lines: list[str] = field(default_factory=list)
-
 
 
 class RegistryExecutor(BaseExecutor):
@@ -57,7 +57,10 @@ class RegistryExecutor(BaseExecutor):
         self._custom_executors[tool] = executor
 
     async def execute_plan(
-        self, plan: ExecutionPlan, executor_fn: StepExecutor | None = None, live_display: bool = False
+        self,
+        plan: ExecutionPlan,
+        executor_fn: StepExecutor | None = None,
+        live_display: bool = False,
     ) -> ExecutionPlan:
         if not live_display:
             return await self._execute_plan_impl(plan, executor_fn, None)
@@ -70,12 +73,15 @@ class RegistryExecutor(BaseExecutor):
             try:
                 from rich.panel import Panel as RichPanel
                 from rich.console import Group
+
                 panels = []
                 for s in plan.steps:
                     if s.status == StepStatus.RUNNING:
                         st = cmd_states[s.id]
                         panel_content = "\n".join(st.lines[-200:]) if st.lines else "Running..."
-                        panels.append(RichPanel(panel_content, title=f"· {st.label}", border_style="cyan"))
+                        panels.append(
+                            RichPanel(panel_content, title=f"· {st.label}", border_style="cyan")
+                        )
                 if not panels:
                     return "Initializing..."
                 return Group(*panels)
@@ -85,6 +91,7 @@ class RegistryExecutor(BaseExecutor):
         live_ctx = None
         try:
             from rich.live import Live
+
             live_ctx = Live(get_renderable=generate_renderable, refresh_per_second=10, screen=False)
             live_ctx.start()
         except ImportError:
@@ -97,7 +104,10 @@ class RegistryExecutor(BaseExecutor):
                 live_ctx.stop()
 
     async def _execute_plan_impl(
-        self, plan: ExecutionPlan, executor_fn: StepExecutor | None = None, cmd_states: dict[str, Any] | None = None
+        self,
+        plan: ExecutionPlan,
+        executor_fn: StepExecutor | None = None,
+        cmd_states: dict[str, Any] | None = None,
     ) -> ExecutionPlan:
         self._budget.reset_timer()
         plan.status = PlanStatus.ACTIVE
@@ -146,7 +156,15 @@ class RegistryExecutor(BaseExecutor):
                 and all(not s.dependencies for s in ready_steps)
             )
             if can_parallel:
-                tasks = [self._pool.submit(self._execute_step, s, executor_fn, cmd_states.get(s.id) if cmd_states else None) for s in ready_steps]
+                tasks = [
+                    self._pool.submit(
+                        self._execute_step,
+                        s,
+                        executor_fn,
+                        cmd_states.get(s.id) if cmd_states else None,
+                    )
+                    for s in ready_steps
+                ]
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 for i, res in enumerate(results):
                     if isinstance(res, BaseException):
@@ -155,7 +173,9 @@ class RegistryExecutor(BaseExecutor):
                         )
             else:
                 for s in ready_steps:
-                    await self._execute_step(s, executor_fn, cmd_states.get(s.id) if cmd_states else None)
+                    await self._execute_step(
+                        s, executor_fn, cmd_states.get(s.id) if cmd_states else None
+                    )
                     if self._budget.is_exhausted:
                         break  # type: ignore[unreachable]
 
@@ -177,7 +197,9 @@ class RegistryExecutor(BaseExecutor):
         )
         return plan
 
-    async def _execute_step(self, step: PlanStep, executor_fn: StepExecutor | None, cmd_state: Any = None) -> None:
+    async def _execute_step(
+        self, step: PlanStep, executor_fn: StepExecutor | None, cmd_state: Any = None
+    ) -> None:
         if not self._budget.consume_iteration():
             return
         step.status = StepStatus.RUNNING
@@ -244,7 +266,10 @@ class RegistryExecutor(BaseExecutor):
                 await res  # type: ignore[misc]
 
     async def _try_execute(
-        self, step: PlanStep, executor_fn: StepExecutor | None, callbacks: dict[str, Any] | None = None
+        self,
+        step: PlanStep,
+        executor_fn: StepExecutor | None,
+        callbacks: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if executor_fn:
             return await executor_fn(step)
@@ -408,7 +433,9 @@ class RegistryExecutor(BaseExecutor):
             self._tracker.record(alt, alt_args_key, False)
         return result
 
-    async def execute_workflow(self, plan: ExecutionPlan, live_display: bool = False) -> ExecutionPlan:
+    async def execute_workflow(
+        self, plan: ExecutionPlan, live_display: bool = False
+    ) -> ExecutionPlan:
         """Execute a DAG workflow using the WorkflowEngine."""
         if not hasattr(plan, "plan_type") or getattr(plan.plan_type, "value", None) != "dag":
             return await self.execute_plan(plan, live_display=live_display)
@@ -424,12 +451,15 @@ class RegistryExecutor(BaseExecutor):
             try:
                 from rich.panel import Panel as RichPanel
                 from rich.console import Group
+
                 panels = []
                 for s in plan.steps:
                     if s.status == StepStatus.RUNNING:
                         st = cmd_states[s.id]
                         panel_content = "\n".join(st.lines[-200:]) if st.lines else "Running..."
-                        panels.append(RichPanel(panel_content, title=f"· {st.label}", border_style="cyan"))
+                        panels.append(
+                            RichPanel(panel_content, title=f"· {st.label}", border_style="cyan")
+                        )
                 if not panels:
                     return "Initializing..."
                 return Group(*panels)
@@ -439,6 +469,7 @@ class RegistryExecutor(BaseExecutor):
         live_ctx = None
         try:
             from rich.live import Live
+
             live_ctx = Live(get_renderable=generate_renderable, refresh_per_second=10, screen=False)
             live_ctx.start()
         except ImportError:
@@ -450,7 +481,9 @@ class RegistryExecutor(BaseExecutor):
             if live_ctx:
                 live_ctx.stop()
 
-    async def _execute_workflow_impl(self, plan: ExecutionPlan, cmd_states: dict[str, Any] | None) -> ExecutionPlan:
+    async def _execute_workflow_impl(
+        self, plan: ExecutionPlan, cmd_states: dict[str, Any] | None
+    ) -> ExecutionPlan:
         try:
             from .workflow import WorkflowEngine, WorkflowStatus
 

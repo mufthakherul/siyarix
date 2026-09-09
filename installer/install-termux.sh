@@ -13,7 +13,7 @@
 # =============================================================================
 set -euo pipefail
 
-SIYARIX_VERSION="${SIYARIX_VERSION:-1.0.0}"
+SIYARIX_VERSION="${SIYARIX_VERSION:-1.0.1}"
 TERMUX_HOME="${HOME:-/data/data/com.termux/files/home}"
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 DRY_RUN="${SIYARIX_DRY_RUN:-0}"
@@ -21,6 +21,8 @@ PYTHON=""
 
 PACKAGES=(
   python
+  python-psutil
+  python-cryptography
   rust
   clang
   make
@@ -147,6 +149,16 @@ install_siyarix() {
   info "Installing Siyarix via pip..."
   ensure_pip || return 1
 
+  local pip_cmd="$PYTHON -m pip --no-input"
+
+  # Detect active virtual environment
+  if [ -n "${VIRTUAL_ENV:-}" ]; then
+    info "Active virtual environment detected at ${VIRTUAL_ENV}. Installing Siyarix inside virtual environment..."
+    if run $pip_cmd install --upgrade pip setuptools wheel --no-input && run $pip_cmd install --upgrade siyarix 2>/dev/null; then
+      return 0
+    fi
+  fi
+
   run $PYTHON -m pip install --upgrade pip setuptools wheel --no-input
 
   if run $PYTHON -m pip install --upgrade --break-system-packages siyarix 2>/dev/null; then
@@ -207,6 +219,7 @@ main() {
 
   install_siyarix
   setup_alias
+
 
   if $PYTHON -c "import siyarix; print(siyarix.__version__)" &>/dev/null; then
     local ver

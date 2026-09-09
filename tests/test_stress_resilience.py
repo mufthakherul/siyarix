@@ -214,9 +214,9 @@ class TestAdversarialInput:
                 if pattern.search(payload):
                     detected = True
                     break
-            assert detected, (
-                f"Injection not detected: {payload!r} " f"(expected pattern '{expected_name}')"
-            )
+            assert (
+                detected
+            ), f"Injection not detected: {payload!r} (expected pattern '{expected_name}')"
 
     @pytest.mark.asyncio
     async def test_2c_danger_patterns_catch_destructive(self):

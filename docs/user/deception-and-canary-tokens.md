@@ -1,12 +1,12 @@
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
 
 # 🪤 Deception Technology & Canary Tokens
 
 Catch attackers in the act! Deception technology flips the script, allowing you to lay traps for malicious actors inside your network.
 
-> [!WARNING]
-> **Active Development Notice**: Siyarix's deception capabilities are currently under heavy construction! A `CanaryTokenManager` stub exists, and we are working hard on the full implementation, which will include honeypots, canary tokens, and trapdoor credentials.
+!!! warning
+    **Active Development Notice**: Siyarix's deception capabilities are currently under heavy construction! A `CanaryTokenManager` stub exists, and we are working hard on the full implementation, which will include honeypots, canary tokens, and trapdoor credentials.
 
 ---
 

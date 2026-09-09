@@ -173,6 +173,7 @@ def detect_compat(provider: str, base_url: str) -> OpenAICompat:
 
     Provider name takes precedence over URL-based detection.
     """
+    supports_reasoning = True
     merged_url = (PROVIDER_CONFIG.get(provider, ("", "", ""))[0]) or base_url
     effective_base = base_url or merged_url
     parsed_host = urlparse(effective_base).hostname or ""
@@ -287,7 +288,7 @@ def resolve_model(
     else:
         raw_model = default_model
     if provider_manager and hasattr(provider_manager, "resolve_model_id"):
-        return provider_manager.resolve_model_id(provider, raw_model)
+        return provider_manager.resolve_model_id(provider, raw_model)  # type: ignore[no-any-return]
     return raw_model or default_model or provider
 
 
@@ -393,7 +394,7 @@ def make_client(
     # Local providers may not have an API key; supply a fallback value for the SDK.
     resolved_key = api_key or "local"
 
-    extra_kwargs = {}
+    extra_kwargs: dict[str, Any] = {}
     if provider == "openrouter":
         extra_kwargs["default_headers"] = {
             "HTTP-Referer": "https://github.com/mufthakherul/siyarix",
@@ -783,5 +784,6 @@ def make_openai_adapter(
 
                 provider_manager.record_failure(provider, classified.reason)
                 raise
+        raise RuntimeError("Max retries exceeded")
 
     return adapter

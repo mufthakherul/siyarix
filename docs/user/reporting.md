@@ -27,8 +27,8 @@ Siyarix supports a wide variety of formats for different use cases:
 | **RAW** | The unadulterated tool output |
 | **QUIET** | Silence! Only show critical errors |
 
-> [!TIP]
-> You can always override the default format on the fly using the `--output` flag (e.g., `siyarix scan --output html`).
+!!! tip
+    You can always override the default format on the fly using the `--output` flag (e.g., `siyarix scan --output html`).
 
 ---
 

@@ -14,11 +14,6 @@ _VENDOR_RE = re.compile(
     re.IGNORECASE,
 )
 
-_TRANSFORM_RE = re.compile(
-    r"(?:Transform|Enc|Auth|Hash|DH|Group|Life|SA)[:\s]+(\S+)",
-    re.IGNORECASE,
-)
-
 _HANDSHAKE_RE = re.compile(
     r"(?:Handshake|Aggressive|Main\s+Mode|responding|established)",
     re.IGNORECASE,

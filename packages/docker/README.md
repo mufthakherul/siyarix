@@ -29,7 +29,7 @@ docker build --target kali -t siyarix:kali .
 | Build arg           | Default    | Description                            |
 |---------------------|------------|----------------------------------------|
 | `PYTHON_VERSION`    | `3.11`     | Python version for the builder & python base |
-| `SIYARIX_VERSION`   | `1.0.0`    | Version label in the image metadata    |
+| `SIYARIX_VERSION`   | `1.0.1`    | Version label in the image metadata    |
 | `BASE`              | `python`   | Base image variant (python / kali / parrot) |
 
 ## Running

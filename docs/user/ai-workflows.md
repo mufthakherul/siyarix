@@ -12,8 +12,8 @@ Have you ever wanted to just *tell* your tools what to do? Now you can!
 siyarix run "scan the network 10.0.0.0/24 for open ports and service versions"
 ```
 
-> [!NOTE]
-> Siyarix translates human language into security actions. You don't need to memorize complex flags or syntax anymore!
+!!! note
+    Siyarix translates human language into security actions. You don't need to memorize complex flags or syntax anymore!
 
 Behind the scenes, the execution engine processes your input through these steps:
 
@@ -55,11 +55,11 @@ If your primary AI provider goes down:
 3. **Registry Fallback**: If *all* AI providers are down, Siyarix falls back to its offline registry planner.
 4. **Graceful Degradation**: You keep working! Commands still execute, just without the AI magic.
 
-> [!TIP]
-> You can easily configure your preferred backup order!
-> ```bash
-> siyarix config set provider_preference '["openai", "anthropic", "gemini"]'
-> ```
+!!! tip
+    You can easily configure your preferred backup order!
+    ```bash
+    siyarix config set provider_preference '["openai", "anthropic", "gemini"]'
+    ```
 
 ---
 
@@ -84,8 +84,8 @@ The AI doesn't just guess; it selects tools based on strict criteria:
 3. **Platform**: Does it work on your OS (Windows, Mac, Linux)?
 4. **Safety**: Is it appropriate for the current safety mode?
 
-> [!IMPORTANT]
-> The `ToolRegistry` keeps track of all discovered security tools on your system. It automatically scans your system path on startup, so you're always ready to go.
+!!! info
+    The `ToolRegistry` keeps track of all discovered security tools on your system. It automatically scans your system path on startup, so you're always ready to go.
 
 ---
 

@@ -69,9 +69,6 @@ class HttpxParser:
         )
         if isinstance(tech, str):
             tech = [t.strip() for t in tech.split(",") if t.strip()]
-        cnames = obj.get("cnames", obj.get("Cnames", obj.get("cname", [])))
-        if isinstance(cnames, str):
-            cnames = [cnames]
         content_type = obj.get("content_type", obj.get("contentType", obj.get("Content-Type", "")))
         cdn_name = obj.get("cdn_name", obj.get("cdn", ""))
         response_time = obj.get("response_time", obj.get("time", obj.get("duration", "")))

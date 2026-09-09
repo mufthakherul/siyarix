@@ -10,9 +10,6 @@ from typing import Any
 
 from . import _now_iso
 
-_TABLE_RE = re.compile(
-    r"\|\s*(?P<row>\d+)\s*\|.*\|",
-)
 
 _KEYVAL_RE = re.compile(
     r"\s+(?P<key>\w[\w\s]*?)\s*(?:\||:)\s*(?P<value>\S.*)",

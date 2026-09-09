@@ -16,9 +16,7 @@ _FAILURE_RE = re.compile(r"\[-\]\s*(.*)")
 _SAM_RE = re.compile(r"(?:SAM|Local).*?(?:admin|hash|cred)", re.IGNORECASE)
 _DCSYNC_RE = re.compile(r"DCSync|dc-sync", re.IGNORECASE)
 _CREDS_RE = re.compile(r"(\S+):(\d+):([a-fA-F0-9]{32}):([a-fA-F0-9]{32})")
-_SIGNING_RE = re.compile(r"signing[:\s]*(true|false)", re.IGNORECASE)
-_SMBV1_RE = re.compile(r"SMBv1[:\s]*(true|false)", re.IGNORECASE)
-_OS_RE = re.compile(r"(?:OS|os)[:\s]*(.+)", re.IGNORECASE)
+
 _HOST_RE = re.compile(r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})")
 
 _JSON_RE = re.compile(r"^\s*[{\[]")

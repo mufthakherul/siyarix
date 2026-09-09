@@ -1,5 +1,5 @@
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
 
 # 📴 Offline / Registry Mode
 
@@ -28,8 +28,8 @@ One of the most powerful offline features is the `scan-deep` command. It runs a 
 3. **Vulnerability**: Runs template-based vulnerability scanners (like Nuclei or Nikto).
 4. **Enumeration**: Performs deep directory, subdomain, and DNS enumeration.
 
-> [!TIP]
-> Siyarix runs these tools in parallel and will automatically swap to alternative tools if your preferred scanner isn't installed!
+!!! tip
+    Siyarix runs these tools in parallel and will automatically swap to alternative tools if your preferred scanner isn't installed!
 
 ---
 

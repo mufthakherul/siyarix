@@ -38,8 +38,8 @@ To ensure you are downloading safe code, please use the official channels:
 - **GitHub:** `https://github.com/mufthakherul/siyarix`
 - **PyPI:** `https://pypi.org/project/siyarix/`
 
-> [!WARNING]
-> Any other website claiming to offer "Official Siyarix" should be treated with caution.
+!!! warning
+    Any other website claiming to offer "Official Siyarix" should be treated with caution.
 
 ## 🚨 Reporting Misuse
 

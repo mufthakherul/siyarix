@@ -1,18 +1,18 @@
 {
   "mode_hints": {
-    "redteam": "Red Team — offensive operations active",
-    "blueteam": "Blue Team — defensive posture active",
-    "stealth": "Stealth — evasion measures active",
-    "offline": "Offline — local-only execution",
-    "autonomous": "Autonomous — AI-driven operations",
-    "verbose": "Verbose — full output enabled",
-    "quiet": "Quiet — minimal output",
-    "compliance": "Compliance — audit mode active",
-    "audit": "Audit — logging & verification active",
-    "expert": "Expert — advanced controls unlocked",
-    "beginner": "Beginner — guided assistance active",
-    "batch": "Batch — non-interactive execution",
-    "interactive": "Interactive — full control"
+    "redteam": "Red Team \u2014 offensive operations active",
+    "blueteam": "Blue Team \u2014 defensive posture active",
+    "stealth": "Stealth \u2014 evasion measures active",
+    "offline": "Offline \u2014 local-only execution",
+    "autonomous": "Autonomous \u2014 AI-driven operations",
+    "verbose": "Verbose \u2014 full output enabled",
+    "quiet": "Quiet \u2014 minimal output",
+    "compliance": "Compliance \u2014 audit mode active",
+    "audit": "Audit \u2014 logging & verification active",
+    "expert": "Expert \u2014 advanced controls unlocked",
+    "beginner": "Beginner \u2014 guided assistance active",
+    "batch": "Batch \u2014 non-interactive execution",
+    "interactive": "Interactive \u2014 full control"
   },
   "mode_colors": {
     "offline": "bright_yellow",

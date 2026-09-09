@@ -84,7 +84,7 @@ class TestBranchingSessionInit:
         sess_dir.mkdir(parents=True)
         mock_get_config_dir.return_value = tmp_path / ".siyarix"
         jsonl_path = sess_dir / "existing.jsonl"
-        entry = BranchEntry(
+        unused_entry = BranchEntry(
             id="e1",
             parent_id="root",
             type="message",
@@ -146,7 +146,7 @@ class TestAppendEntry:
 
     def test_with_parent_id(self):
         bs = BranchingSession(session_id="x")
-        e1 = bs.append_entry("message", role="user", content="a")
+        unused_e1 = bs.append_entry("message", role="user", content="a")
         e2 = bs.append_entry("message", role="assistant", content="b", parent_id="root")
         assert e2.parent_id == "root"
         assert bs.leaf_id == e2.id
@@ -200,7 +200,7 @@ class TestBranch:
     def test_at_specific_entry(self):
         bs = BranchingSession(session_id="x")
         e1 = bs.append_entry("message", content="a")
-        e2 = bs.append_entry("message", content="b")
+        unused_e2 = bs.append_entry("message", content="b")
         child = bs.branch(at_entry_id=e1.id)
         assert child.session_id == bs.session_id
         assert child.leaf_id == e1.id

@@ -27,8 +27,8 @@ pytest tests/test_planner.py
 pytest -m "not e2e"
 ```
 
-> [!TIP]
-> Use `pytest -x` to stop the test runner on the first failure.
+!!! tip
+    Use `pytest -x` to stop the test runner on the first failure.
 
 ## 📁 Test Directory Structure
 
@@ -77,8 +77,8 @@ To check coverage manually:
 pytest --cov=siyarix --cov-report=term-missing
 ```
 
-> [!WARNING]
-> The CI pipeline will check test coverage. It's best to run it locally before pushing a PR!
+!!! warning
+    The CI pipeline will check test coverage. It's best to run it locally before pushing a PR!
 
 ## ✨ Code Quality & Linting
 

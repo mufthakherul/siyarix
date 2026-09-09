@@ -175,19 +175,27 @@ class ChatSession:
                     import pdfkit
 
                     pdf_bytes = pdfkit.from_string(html, False)
-                    return pdf_bytes
+                    import typing
+
+                    return typing.cast(bytes, pdf_bytes)
                 except ImportError:
                     try:
                         from weasyprint import HTML as WHTML
 
                         pdf_bytes = WHTML(string=html).write_pdf()
-                        return pdf_bytes
+                        import typing
+
+                        return typing.cast(bytes, pdf_bytes)
                     except ImportError:
                         pass
                 # Fallback: return HTML with note
-                return html.encode("utf-8")
+                if isinstance(html, str):
+                    return html.encode("utf-8")
+                return html
             except Exception:
-                return html.encode("utf-8")
+                if isinstance(html, str):
+                    return html.encode("utf-8")
+                return html
         return ""
 
     def to_dict(self) -> dict:
@@ -231,7 +239,7 @@ class ChatSession:
             "mode": self.mode,
             "messages": [m.to_dict() for m in self.messages],
         }
-        path.write_text(json.dumps(data, indent=2))
+        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         if self._branching is not None:
             from ..session_branching import BranchingSession
 
@@ -242,7 +250,7 @@ class ChatSession:
     def load(cls, path: Path) -> "ChatSession":
         import json
 
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
         session = cls(
             session_id=data["session_id"],
             target=data.get("target", ""),

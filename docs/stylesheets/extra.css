@@ -15,21 +15,17 @@
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Smooth color/background transitions */
-body,
-.md-header,
-.md-footer,
-.md-sidebar,
+/* Transitions for interactive elements (no global layout shifting transitions) */
 .md-nav__link,
 .md-tabs__link,
 .md-social__link,
-.md-search__form {
-  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              color 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275),
-              padding 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+.md-search__form,
+.md-button {
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* Glassmorphism Header / Navbar */
@@ -62,6 +58,38 @@ body,
   border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
 }
 
+/* Light mode header text & icon contrast */
+[data-md-color-scheme="default"] .md-header,
+[data-md-color-scheme="default"] .md-header__title,
+[data-md-color-scheme="default"] .md-header .md-icon,
+[data-md-color-scheme="default"] .md-header .md-button,
+[data-md-color-scheme="default"] .md-header .md-search__btn,
+[data-md-color-scheme="default"] .md-header .md-social__link,
+[data-md-color-scheme="default"] .md-header .md-nav__link,
+[data-md-color-scheme="default"] .md-header__button.md-logo,
+[data-md-color-scheme="default"] .md-search__input,
+[data-md-color-scheme="default"] .md-search__icon,
+[data-md-color-scheme="default"] .md-source,
+[data-md-color-scheme="default"] .md-source * {
+  color: var(--md-default-fg-color) !important;
+}
+
+[data-md-color-scheme="default"] .md-search__input::placeholder {
+  color: var(--md-default-fg-color--light) !important;
+}
+[data-md-color-scheme="default"] .md-source__fact {
+  color: var(--md-default-fg-color--light) !important;
+}
+
+/* Light mode navigation tabs contrast */
+[data-md-color-scheme="default"] .md-tabs__link {
+  color: var(--md-default-fg-color--light) !important;
+}
+[data-md-color-scheme="default"] .md-tabs__link--active,
+[data-md-color-scheme="default"] .md-tabs__link:hover {
+  color: var(--md-accent-fg-color) !important;
+}
+
 /* Premium Footer Background Gradient */
 [data-md-color-scheme="slate"] .md-footer {
   background-color: #12131a !important;
@@ -72,6 +100,29 @@ body,
 [data-md-color-scheme="default"] .md-footer {
   background-color: #f5f6fa !important;
   background-image: linear-gradient(180deg, rgba(248, 249, 252, 0.8), rgba(241, 243, 247, 0.95)) !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Light mode footer text, link, and social contrast */
+[data-md-color-scheme="default"] .md-footer,
+[data-md-color-scheme="default"] .md-footer__inner,
+[data-md-color-scheme="default"] .md-footer__link,
+[data-md-color-scheme="default"] .md-footer-meta,
+[data-md-color-scheme="default"] .md-footer__title,
+[data-md-color-scheme="default"] .md-footer__direction,
+[data-md-color-scheme="default"] .md-footer-meta__inner,
+[data-md-color-scheme="default"] .md-footer-meta__inner a,
+[data-md-color-scheme="default"] .md-footer-meta__inner .md-social__link {
+  color: var(--md-default-fg-color) !important;
+}
+[data-md-color-scheme="default"] .md-footer__link:hover,
+[data-md-color-scheme="default"] .md-footer__link:hover .md-footer__title,
+[data-md-color-scheme="default"] .md-footer-meta__inner a:hover,
+[data-md-color-scheme="default"] .md-footer-meta__inner .md-social__link:hover {
+  color: var(--md-accent-fg-color) !important;
+}
+[data-md-color-scheme="default"] .md-footer-meta {
+  background-color: rgba(0, 0, 0, 0.02) !important;
   border-top: 1px solid rgba(0, 0, 0, 0.05) !important;
 }
 
@@ -95,10 +146,24 @@ body,
   width: 100%;
 }
 
-/* Sidebar Links Slide Hover effect */
+/* Premium Sidebar Navigation (No layout shifts, modern dashboard feel) */
+.md-nav__link {
+  border-left: 3px solid transparent;
+  border-radius: 4px;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease !important;
+}
+
 .md-nav__link:not(.md-nav__link--active):hover {
   color: var(--md-accent-fg-color) !important;
-  padding-left: 18px !important;
+  background-color: rgba(121, 134, 203, 0.08) !important;
+}
+
+.md-nav__link--active {
+  font-weight: 700 !important;
+  color: var(--md-accent-fg-color) !important;
+  background-color: rgba(121, 134, 203, 0.12) !important;
+  border-left-color: var(--md-accent-fg-color) !important;
+  border-radius: 0 4px 4px 0;
 }
 
 /* Search Bar Transition & Glow */
@@ -111,8 +176,12 @@ body,
   box-shadow: 0 0 14px rgba(121, 134, 203, 0.25) !important;
 }
 
+[data-md-color-scheme="default"] .md-search__form {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
 [data-md-color-scheme="default"] .md-search__form:hover {
-  background-color: rgba(0, 0, 0, 0.04) !important;
+  background-color: rgba(0, 0, 0, 0.08) !important;
   box-shadow: 0 0 14px rgba(63, 81, 181, 0.2) !important;
 }
 
@@ -123,10 +192,15 @@ body,
   filter: drop-shadow(0 0 6px var(--md-accent-fg-color));
 }
 
-/* Custom modern scrollbar */
+/* Custom modern scrollbar for main page containers */
+.md-sidebar__inner,
+.md-content__inner {
+  scrollbar-width: thin;
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -142,11 +216,46 @@ body,
   background: rgba(121, 134, 203, 0.65);
 }
 
-/* Premium active sidebar item indicators */
-.md-nav__link--active {
-  font-weight: 700 !important;
-  color: var(--md-accent-fg-color) !important;
-  border-left: 2px solid var(--md-accent-fg-color);
-  padding-left: 14px !important;
-  margin-left: -12px;
+/* Premium Table Styling */
+.md-typeset table:not([class]) {
+  border-collapse: collapse;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  width: 100%;
+  margin-bottom: 24px;
+  border: 1px solid rgba(121, 134, 203, 0.15);
+}
+
+.md-typeset th {
+  background-color: rgba(121, 134, 203, 0.12) !important;
+  font-weight: 600;
+  padding: 12px 16px;
+  border-bottom: 2px solid rgba(121, 134, 203, 0.2);
+}
+
+.md-typeset td {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(121, 134, 203, 0.1);
+}
+
+.md-typeset tr:last-child td {
+  border-bottom: none;
+}
+
+.md-typeset tr:nth-child(even) {
+  background-color: rgba(121, 134, 203, 0.03);
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-md-color-scheme="slate"] .md-typeset th {
+  background-color: rgba(121, 134, 203, 0.18) !important;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+[data-md-color-scheme="slate"] .md-typeset td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }

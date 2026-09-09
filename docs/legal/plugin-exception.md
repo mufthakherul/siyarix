@@ -4,8 +4,8 @@ Siyarix is licensed under the **AGPL-3.0-or-later** license to ensure the core p
 
 To make this possible, I've added a special **Plugin Exception** to the AGPL-3.0 terms.
 
-> [!NOTE]
-> **TL;DR:** Siyarix core must remain open-source (AGPL), but you can write plugins for Siyarix using *any* license you want—including closed-source ones!
+!!! note
+    **TL;DR:** Siyarix core must remain open-source (AGPL), but you can write plugins for Siyarix using *any* license you want—including closed-source ones!
 
 ## 📜 The Official Exception Text
 

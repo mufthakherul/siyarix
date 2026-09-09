@@ -13,7 +13,6 @@ from . import _now_iso
 _ROW_RE = re.compile(
     r"(?P<status>\d{3})\s+(?:\S+\s+)?(?P<size>\d+)(?:\s+(?P<lines>\d+)\s+(?P<words>\d+))?\s+(?P<url>\S+)",
 )
-_URL_RE = re.compile(r"https?://\S+", re.IGNORECASE)
 _SEVERITY_BY_STATUS = {
     200: "info",
     201: "info",

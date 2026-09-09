@@ -797,7 +797,7 @@ class TestNiktoParser:
 
     def test_header_lines_skipped(self):
         p = NiktoParser()
-        output = "+ 1 host(s) tested\n" "+ Target IP: 10.0.0.1\n" "+ /valid: A real finding\n"
+        output = "+ 1 host(s) tested\n+ Target IP: 10.0.0.1\n+ /valid: A real finding\n"
         findings = p.parse(output)
         assert len(findings) >= 1
 
@@ -867,9 +867,7 @@ class TestCommixParser:
     def test_shell_obtained(self):
         p = CommixParser()
         output = (
-            "URL: http://example.com/index.php\n"
-            "Parameter: cmd\n"
-            "[+] Shell obtained: interactive\n"
+            "URL: http://example.com/index.php\nParameter: cmd\n[+] Shell obtained: interactive\n"
         )
         findings = p.parse(output)
         assert len(findings) >= 1
@@ -880,10 +878,7 @@ class TestCommixParser:
     def test_shell_with_os(self):
         p = CommixParser()
         output = (
-            "URL: http://example.com/index.php\n"
-            "Parameter: cmd\n"
-            "OS: linux\n"
-            "Shell obtained: blind\n"
+            "URL: http://example.com/index.php\nParameter: cmd\nOS: linux\nShell obtained: blind\n"
         )
         findings = p.parse(output)
         assert len(findings) >= 1
@@ -989,7 +984,7 @@ class TestCommixParser:
 
     def test_technique_blind(self):
         p = CommixParser()
-        output = "URL: http://example.com\n" "Parameter: id\n" "Technique: blind\n" "Vulnerable\n"
+        output = "URL: http://example.com\nParameter: id\nTechnique: blind\nVulnerable\n"
         findings = p.parse(output)
         vuln = [f for f in findings if "vulnerability" in f["title"].lower()]
         assert len(vuln) >= 1
@@ -1020,7 +1015,7 @@ class TestCommixParser:
 
     def test_shell_type_oob(self):
         p = CommixParser()
-        output = "URL: http://example.com\n" "Parameter: cmd\n" "Shell obtained: out-of-band\n"
+        output = "URL: http://example.com\nParameter: cmd\nShell obtained: out-of-band\n"
         findings = p.parse(output)
         shell = [f for f in findings if "shell" in f["title"].lower()]
         assert len(shell) >= 1
@@ -1111,7 +1106,7 @@ class TestSshAuditParser:
 
     def test_dedup_same_finding(self):
         p = SshAuditParser()
-        output = "[info]  SSH-2.0-OpenSSH_8.9p1\n" "[info]  SSH-2.0-OpenSSH_8.9p1\n"
+        output = "[info]  SSH-2.0-OpenSSH_8.9p1\n[info]  SSH-2.0-OpenSSH_8.9p1\n"
         findings = p.parse(output)
         assert len(findings) == 1
 
@@ -1290,7 +1285,7 @@ class TestWapitiParser:
 
     def test_text_evidence_line(self):
         p = WapitiParser()
-        output = "SQL Injection (1) http://example.com/search\n" "  Evidence: 1' OR '1'='1\n"
+        output = "SQL Injection (1) http://example.com/search\n  Evidence: 1' OR '1'='1\n"
         findings = p.parse(output)
         assert len(findings) >= 1
         assert any("1' OR" in f.get("evidence", "") for f in findings)
@@ -1406,9 +1401,7 @@ class TestCommixParser_extra_b7:
 
     def test_text_shell_obtained(self):
         p = CommixParser()
-        output = (
-            "URL: http://example.com\n" "Parameter: cmd\n" "shell obtained\n" "output: root user\n"
-        )
+        output = "URL: http://example.com\nParameter: cmd\nshell obtained\noutput: root user\n"
         findings = p.parse(output)
         shells = [f for f in findings if "shell" in f["title"].lower()]
         assert len(shells) >= 1
@@ -1424,13 +1417,7 @@ class TestCommixParser_extra_b7:
 
     def test_text_url_param_tech_tracking(self):
         p = CommixParser()
-        output = (
-            "URL: http://example.com\n"
-            "Parameter: id\n"
-            "Technique: blind\n"
-            "OS: Linux\n"
-            "vulnerable\n"
-        )
+        output = "URL: http://example.com\nParameter: id\nTechnique: blind\nOS: Linux\nvulnerable\n"
         findings = p.parse(output)
         vulns = [f for f in findings if "vulnerability" in f["title"].lower()]
         assert len(vulns) >= 1
@@ -1439,12 +1426,7 @@ class TestCommixParser_extra_b7:
 
     def test_text_cmd_result_after_shell(self):
         p = CommixParser()
-        output = (
-            "URL: http://example.com\n"
-            "Parameter: cmd\n"
-            "shell obtained\n"
-            "output: uid=0(root)\n"
-        )
+        output = "URL: http://example.com\nParameter: cmd\nshell obtained\noutput: uid=0(root)\n"
         findings = p.parse(output)
         assert any("result" in f["title"].lower() for f in findings) or any(
             "shell" in f["title"].lower() for f in findings
@@ -3094,8 +3076,7 @@ class TestWapitiParserBranches:
     def test_text_dedup_vuln_type_url(self):
         p = WapitiParser()
         output = (
-            "SQL Injection (3) http://example.com?id=1\n"
-            "SQL Injection (3) http://example.com?id=1\n"
+            "SQL Injection (3) http://example.com?id=1\nSQL Injection (3) http://example.com?id=1\n"
         )
         findings = p.parse(output)
         assert len(findings) == 1
@@ -3416,8 +3397,7 @@ class TestWapitiParserAdditionalBranches:
     def test_severity_not_in_map(self):
         """135->139: vuln type not found in _SEVERITY_MAP -> stays 'info'."""
         output = (
-            "CustomUnknownType {5} http://example.com\n"
-            "SQL Injection {3} http://example.com?id=1\n"
+            "CustomUnknownType {5} http://example.com\nSQL Injection {3} http://example.com?id=1\n"
         )
         p = WapitiParser()
         findings = p.parse(output)
@@ -3430,8 +3410,7 @@ class TestWapitiParserAdditionalBranches:
         The pending vuln is instead flushed by the end-of-loop
         handler at line 191."""
         output = (
-            "SQL Injection {5} http://example.com\n"
-            "  This describes the vulnerability in detail\n"
+            "SQL Injection {5} http://example.com\n  This describes the vulnerability in detail\n"
         )
         p = WapitiParser()
         findings = p.parse(output)

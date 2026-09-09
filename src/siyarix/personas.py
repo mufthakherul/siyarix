@@ -100,10 +100,7 @@ def get_persona(name: str) -> dict[str, Any] | None:
 
 def list_personas() -> list[dict[str, Any]]:
     """Return all standard named personas (excluding special modes auto/none)."""
-    return [
-        p for name, p in _get_personas().items()
-        if name not in ("auto", "none", "universal")
-    ]
+    return [p for name, p in _get_personas().items() if name not in ("auto", "none", "universal")]
 
 
 def list_all_personas() -> list[dict[str, Any]]:

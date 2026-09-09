@@ -185,7 +185,7 @@ class LLMEngineMixin:
                     instruction,
                     _voting_strategy=VotingStrategy.WEIGHTED,
                 )
-                if ensemble_result.selection_reason and registered_count > 1:
+                if ensemble_result.selection_reason:
                     console.print(
                         Panel(
                             f"[bold]Ensemble:[/bold] {ensemble_result.selection_reason}\n"
@@ -281,7 +281,6 @@ class LLMEngineMixin:
                 progress_callback=_offline_progress,
             )
         except Exception as exc:
-            elapsed = time.monotonic() - t0
             logger.error("Execution failed: %s", exc, exc_info=True)
             error_msg = str(exc)
             if self._mode in ("registry", "offline"):
@@ -406,6 +405,25 @@ class LLMEngineMixin:
         summary += "Success." if result.success else "Some steps failed."
         self._session.add_message("assistant", summary, findings=len(result.all_findings))
 
+        try:
+            from ..session_log import session_logger
+
+            session_logger.add_command(
+                session_id=self._session.session_id,
+                input_text=instruction,
+                ai_plan=[
+                    str(getattr(s, "tool", getattr(s, "command", "")))
+                    for s in getattr(plan, "steps", [])
+                ]
+                if plan
+                else [],
+                approved=True,
+                execution_time_ms=elapsed * 1000,
+                output_summary=summary,
+            )
+        except Exception as exc:
+            logger.debug("Failed to write to session logger: %s", exc)
+
     def _generate_text_response(self, user_input: str) -> str | None:
         """Return a text response for non-tool queries, or ``None`` to let the pipeline proceed."""
         lowered = user_input.strip().lower()
@@ -503,14 +521,18 @@ class LLMEngineMixin:
             suggestions.append("  • **`cloud audit on example.com`** — cloud assessment")
         # Forensics
         if any(kw in lowered for kw in ("forensic", "memory", "dump", "volatility")):
-            suggestions.append("  • **`analyze memory dump memory.raw`** — memory forensics analysis")
+            suggestions.append(
+                "  • **`analyze memory dump memory.raw`** — memory forensics analysis"
+            )
         if any(kw in lowered for kw in ("disk", "filesystem", "carving", "recover")):
             suggestions.append("  • **`forensic analysis on disk_image.dd`** — disk forensics")
         if any(kw in lowered for kw in ("malware", "yara", "scan file")):
             suggestions.append("  • **`scan file suspicious.exe with yara`** — YARA rule matching")
         # Code / SAST
         if any(kw in lowered for kw in ("code", "source", "review", "semgrep", "static analysis")):
-            suggestions.append("  • **`sast scan on /path/to/code`** — static code security analysis")
+            suggestions.append(
+                "  • **`sast scan on /path/to/code`** — static code security analysis"
+            )
         if any(kw in lowered for kw in ("secrets", "credentials", "gitleaks", "leaked")):
             suggestions.append("  • **`scan for secrets in /path/to/repo`** — secrets detection")
         # IaC / compliance
@@ -520,7 +542,9 @@ class LLMEngineMixin:
             suggestions.append("  • **`compliance audit on target`** — compliance check")
         # Container
         if any(kw in lowered for kw in ("container", "docker", "image", "trivy")):
-            suggestions.append("  • **`scan container ubuntu:latest`** — container vulnerability scan")
+            suggestions.append(
+                "  • **`scan container ubuntu:latest`** — container vulnerability scan"
+            )
         # OSINT
         if any(kw in lowered for kw in ("osint", "recon", "email", "social")):
             suggestions.append("  • **`osint on example.com`** — OSINT gathering")
@@ -1175,17 +1199,17 @@ class LLMEngineMixin:
                     "MUST continue with deeper phases: directory brute-force, nuclei template "
                     "scanning, subdomain enumeration, parameter discovery, and exploitation "
                     "validation.\n"
-                        "- If YES (all plausible investigation paths are exhausted, target is "
-                        "unreachable, or user confirms satisfaction) → set needs_tools=false and "
-                        "provide a comprehensive final report with findings, exploitation paths, "
-                        "and remediation.\n"
-                        "- If NO → set needs_tools=true. Plan the next wave (2-4 targeted commands) "
-                        "to go deeper. Prioritise commands that discover vulnerabilities, not just "
-                        "passive information.\n"
-                        "Do NOT stop early when the user asked for a full report, exploitation "
-                        "analysis, or deep assessment. Only set needs_tools=false if the target is "
-                        "completely unreachable, all plausible investigation paths have been "
-                        "exhausted, or the user explicitly confirms they are satisfied."
+                    "- If YES (all plausible investigation paths are exhausted, target is "
+                    "unreachable, or user confirms satisfaction) → set needs_tools=false and "
+                    "provide a comprehensive final report with findings, exploitation paths, "
+                    "and remediation.\n"
+                    "- If NO → set needs_tools=true. Plan the next wave (2-4 targeted commands) "
+                    "to go deeper. Prioritise commands that discover vulnerabilities, not just "
+                    "passive information.\n"
+                    "Do NOT stop early when the user asked for a full report, exploitation "
+                    "analysis, or deep assessment. Only set needs_tools=false if the target is "
+                    "completely unreachable, all plausible investigation paths have been "
+                    "exhausted, or the user explicitly confirms they are satisfied."
                     "-If"
                 )
                 with console.status(
@@ -1417,7 +1441,7 @@ class LLMEngineMixin:
                         {
                             "type": "text",
                             "text": system_prompt,
-                            "cache_control": {"type": "ephemeral"}
+                            "cache_control": {"type": "ephemeral"},
                         }
                     ]
 
@@ -1559,15 +1583,15 @@ class LLMEngineMixin:
                 else:
                     logger.warning("No valid GGUF model found in %s", models_dir)
 
-        binary_path = shutil.which(binary)
-        if not binary_path:
+        _unused_binary_path = shutil.which(binary)
+        if not _unused_binary_path:
             # Check ~/.siyarix/bin as fallback (onboarding installs there)
             siyarix_bin = Path.home() / ".siyarix" / "bin"
             siyarix_binary = siyarix_bin / binary
             if os.name == "nt":
                 siyarix_binary = siyarix_bin / f"{binary}.exe"
             if siyarix_binary.exists():
-                binary_path = str(siyarix_binary)
+                _unused_binary_path = str(siyarix_binary)
                 # One-time promotion of shared libs from stale subdirectories
                 for d in siyarix_bin.iterdir():
                     if d.is_dir() and d.name.startswith("llama-"):

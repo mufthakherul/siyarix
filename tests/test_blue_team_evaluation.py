@@ -1302,7 +1302,7 @@ if __name__ == "__main__":
             failures.append((goal, msg))
 
     total = passed + failed
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"RESULTS: {passed} passed, {failed} failed out of {total}")
     print(f"SCORE: {100.0 * passed / total:.1f}%")
     if failures:

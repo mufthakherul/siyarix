@@ -89,16 +89,16 @@ build-apt-repo: ## Build APT repository structure
 
 build-installers: ## Validate install.sh and install.ps1
 	@echo "Validating installers..."
-	bash -n install.sh
-	@if command -v pwsh &>/dev/null; then pwsh -NoProfile -Command "Get-Content install.ps1" > /dev/null; fi
+	bash -n installer/install.sh
+	@if command -v pwsh &>/dev/null; then pwsh -NoProfile -Command "Get-Content installer/install.ps1" > /dev/null; fi
 
 install-sh: ## Test install.sh locally (dry-run)
 	@echo "Running install.sh (pass any flag to actually install)..."
-	bash install.sh
+	bash installer/install.sh
 
 install-ps1: ## Test install.ps1 locally (dry-run)
-	@echo "To run on Windows: irm https://siyarix.github.io/install.ps1 | iex"
-	pwsh -NoProfile -File install.ps1 2>/dev/null || echo "PowerShell not available on this platform"
+	@echo "To run on Windows: irm https://siyarix.github.io/installer/install.ps1 | iex"
+	pwsh -NoProfile -File installer/install.ps1 2>/dev/null || echo "PowerShell not available on this platform"
 
 # === All Builds ===
 

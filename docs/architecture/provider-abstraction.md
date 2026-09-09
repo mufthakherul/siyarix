@@ -1,15 +1,15 @@
 # 🧩 Provider Abstraction Layer
 
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
 
 
 Welcome to the **Provider Abstraction Layer**! This component is the beating heart of our AI infrastructure. It smoothly decouples all AI-dependent components from specific model backends, making our system resilient, flexible, and fully provider-agnostic.
 
 Think of it as an intelligent traffic controller for your AI models. It effortlessly manages **26 different provider profiles** with features like automatic failover, circuit breaking, exponential backoff, and token usage tracking. Plus, it brings everything together under a single, unified `OpenAICompat` adapter.
 
-> [!NOTE]
-> Provider states are intelligently persisted as JSON files. This ensures your AI configuration and cooldown statuses carry over seamlessly across different sessions!
+!!! note
+    Provider states are intelligently persisted as JSON files. This ensures your AI configuration and cooldown statuses carry over seamlessly across different sessions!
 
 ---
 
@@ -46,8 +46,8 @@ Here is a bird's-eye view of how the abstraction layer sits within the overall s
   26 Provider Profiles (cloud, local, heuristic fallback)
 ```
 
-> [!TIP]
-> `*` **The `OpenAICompat` adapter** (`siyarix/chat/openai_compat.py`) acts as a universal translator. It provides a standardized OpenAI-compatible API across *all* providers that support the OpenAI chat completions protocol!
+!!! tip
+    `*` **The `OpenAICompat` adapter** (`siyarix/chat/openai_compat.py`) acts as a universal translator. It provides a standardized OpenAI-compatible API across *all* providers that support the OpenAI chat completions protocol!
 
 ---
 
@@ -189,8 +189,8 @@ When set to `model_provider = "auto"`, the system acts autonomously, marching do
 
 ### 🔄 Failover Behavior
 
-> [!IMPORTANT]
-> Our architecture guarantees robust failovers. If an AI provider goes down, your app doesn't crash—it seamlessly routes to the next best option!
+!!! info
+    Our architecture guarantees robust failovers. If an AI provider goes down, your app doesn't crash—it seamlessly routes to the next best option!
 
 ```text
 Request → Provider A (Preferred)
@@ -259,8 +259,8 @@ class ProviderState:
     total_cost: float
 ```
 
-> [!TIP]
-> Because this is saved to disk, if a provider hits a rate limit right before you close your app, it will *still* correctly skip that provider when you reboot!
+!!! tip
+    Because this is saved to disk, if a provider hits a rate limit right before you close your app, it will *still* correctly skip that provider when you reboot!
 
 ---
 
@@ -321,8 +321,8 @@ Running models locally? `siyarix/providers/ollama_utils.py` makes it a breeze wi
 
 We take your data seriously. Before *any* information leaves your machine and hits a cloud provider, our `DLPEngine` (`siyarix/dlp.py`) scrubs it clean.
 
-> [!WARNING]
-> Never disable the DLPEngine in a production cloud environment!
+!!! warning
+    Never disable the DLPEngine in a production cloud environment!
 
 | Data Type | Sent to Cloud Provider | Behavior for Local Models |
 |-----------|------------------------|---------------------------|

@@ -18,8 +18,8 @@ The `NOTICE` file serves several functions:
 | `LICENSE` | The unedited legal text of the AGPL-3.0. |
 | `NOTICE` | Project-specific legal notices required by AGPL-3.0 Section 5(a). |
 
-> [!IMPORTANT]
-> **AGPL-3.0 Section 5(a) requires that the `NOTICE` file be preserved.** If you fork Siyarix, please do not delete the `NOTICE` file!
+!!! info
+    **AGPL-3.0 Section 5(a) requires that the `NOTICE` file be preserved.** If you fork Siyarix, please do not delete the `NOTICE` file!
 
 ## 🔍 Breaking Down the NOTICE Sections
 

@@ -1,7 +1,7 @@
-> [!NOTE]
-> 👋 **Welcome to Siyarix!** This is a personal passion project built by a single developer. It's currently under active development and growing fast. Expect rough edges, but lots of love! ❤️
-
 # 🗺️ Siyarix Documentation Map
+
+!!! note "Welcome to Siyarix"
+    👋 **Welcome to Siyarix!** This is a personal passion project built by a single developer. It's currently under active development and growing fast. Expect rough edges, but lots of love! ❤️
 
 Welcome to the **Siyarix Documentation Map**! This page serves as your master compass for navigating the extensive documentation we have built for the platform.
 
@@ -94,7 +94,8 @@ docs/
 │   ├── threat-model.md       # System threat model and our mitigations
 │   ├── operational-security.md# TOR routing, stealth modes, and OPSEC controls
 │   ├── ethical-policy.md     # Mandatory rules of engagement for all users
-│   └── abuse-prevention.md   # How we prevent misuse of the AI engine
+│   ├── abuse-prevention.md   # How we prevent misuse of the AI engine
+│   └── scorecard.md          # OpenSSF Scorecard integration details
 │
 └── ⚖️ legal/                 # Licensing and governance
     ├── agpl-guide.md         # A plain-English overview of the AGPL-3.0-or-later license

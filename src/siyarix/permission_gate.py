@@ -8,7 +8,6 @@ Syntax Check -> Danger Analysis
 from __future__ import annotations
 
 import json
-import logging
 import re
 import time
 from dataclasses import dataclass
@@ -17,8 +16,6 @@ from typing import Any
 
 from .config import get_config_dir
 from .security_hardening import DangerAnalyzer
-
-logger = logging.getLogger(__name__)
 
 
 class GateStage(StrEnum):
@@ -39,9 +36,10 @@ class GateResult:
     requires_review: bool = False
 
     def __post_init__(self) -> None:
-        if not isinstance(self.stage, GateStage):
+        stage_val: Any = self.stage
+        if not isinstance(stage_val, GateStage):
             try:
-                self.stage = GateStage(self.stage)
+                self.stage = GateStage(stage_val)
             except ValueError:
                 raise ValueError(f"Invalid stage: {self.stage}")
 

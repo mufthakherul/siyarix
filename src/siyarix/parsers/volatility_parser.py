@@ -40,11 +40,6 @@ _VOLATILITY_PLUGINS = {
     "mac.pslist": "process",
 }
 
-_SUMMARY_RE = re.compile(
-    r"(?:finished|completed|scanned|total)[:\s]+(\d+)",
-    re.IGNORECASE,
-)
-
 
 class VolatilityParser:
     """Parse Volatility 3 JSON output into normalized finding dicts."""

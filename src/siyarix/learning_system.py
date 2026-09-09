@@ -543,7 +543,7 @@ class ContinuousLearningSystem:
                 tokens.append(w)
         # bigrams
         for i in range(len(clean_words) - 1):
-            tokens.append(f"{clean_words[i]}_{clean_words[i+1]}")
+            tokens.append(f"{clean_words[i]}_{clean_words[i + 1]}")
         return tokens
 
     # ── Similarity ──────────────────────────────────────────────────────

@@ -383,9 +383,9 @@ def main():
         else:
             failed += 1
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"{BOLD}RESULTS: {passed} passed, {failed} failed out of {len(tests)}{RESET}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     if failed > 0:
         print(f"\n{YELLOW}FAILED COMMANDS:{RESET}")

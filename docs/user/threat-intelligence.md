@@ -1,12 +1,12 @@
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
 
 # 🌐 Threat Intelligence
 
 A security tool is only as good as the data it uses. Siyarix integrates directly with real-world threat intelligence feeds, allowing you to instantly perform IP reputation lookups and enrich your CVE data.
 
-> [!NOTE]
-> Currently, Siyarix supports AlienVault OTX and the National Vulnerability Database (NVD). We are actively building out our MITRE ATT&CK integration!
+!!! note
+    Currently, Siyarix supports AlienVault OTX and the National Vulnerability Database (NVD). We are actively building out our MITRE ATT&CK integration!
 
 ---
 
@@ -25,8 +25,8 @@ result = await otx.lookup_ip("8.8.8.8")
 # Returns: pulse_count, reputation, source
 ```
 
-> [!IMPORTANT]
-> To use this integration, you must set your `ALIENVAULT_API_KEY` environment variable!
+!!! info
+    To use this integration, you must set your `ALIENVAULT_API_KEY` environment variable!
 
 ### 🏛️ National Vulnerability Database (NVD)
 Get the latest, most accurate details on any vulnerability directly from the NVD API 2.0.

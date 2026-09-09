@@ -1,8 +1,8 @@
 # Siyarix Project Governance
 
 **Effective Date:** June 2026
-**Version:** 1.0.0
-**Applies to:** Siyarix v1.0.0 and all future versions
+**Version:** 1.0.1
+**Applies to:** Siyarix v1.0.1 and all future versions
 
 ---
 
@@ -158,4 +158,3 @@ This governance document may be amended by maintainer consensus. Significant cha
 
 
 *SPDX-License-Identifier: AGPL-3.0-or-later*
-

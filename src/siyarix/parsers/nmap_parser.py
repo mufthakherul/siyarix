@@ -12,8 +12,6 @@ import defusedxml.ElementTree as _ET  # type: ignore[import-untyped]
 
 from . import _now_iso
 
-_DEFUSEDXML = True
-
 
 # Severity mapping based on port number / service risk
 _PORT_SEVERITY: dict[int, str] = {

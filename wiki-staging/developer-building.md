@@ -27,8 +27,8 @@ pip install build
 python -m build
 
 # 🎯 Your artifacts will be ready in the dist/ folder:
-# dist/siyarix-1.0.0-py3-none-any.whl
-# dist/siyarix-1.0.0.tar.gz
+# dist/siyarix-1.0.1-py3-none-any.whl
+# dist/siyarix-1.0.1.tar.gz
 ```
 
 > [!TIP]

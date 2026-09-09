@@ -54,11 +54,6 @@ _TCP_PORT_RE = re.compile(
     re.IGNORECASE,
 )
 
-_SUMMARY_RE = re.compile(
-    r"(?:Found|Scanned|Total|Hosts?|Ports?)[:\s]+(\d+)",
-    re.IGNORECASE,
-)
-
 
 class DmitryParser:
     """Parse DMitry output into normalized finding dictionaries."""

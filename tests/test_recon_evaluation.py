@@ -477,9 +477,9 @@ def run_tests():
             failed += 1
             failures.append(f"{cmd} (ERROR: {e})")
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"RECON EVALUATION RESULTS: {passed} passed, {failed} failed out of {total}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     if failures:
         print(f"\nFAILED COMMANDS ({len(failures)}):")

@@ -2,8 +2,8 @@
 
 Siyarix includes some basic `OPSECManager` and `StealthEngine` features to help configure your tools for quieter scans when doing authorized testing.
 
-> [!IMPORTANT]
-> These OPSEC features are meant for authorized engagements to avoid setting off noisy alerts while you work.
+!!! info
+    These OPSEC features are meant for authorized engagements to avoid setting off noisy alerts while you work.
 
 ## 🛡️ Core OPSEC Controls
 
@@ -79,8 +79,8 @@ siyarix session-log --clear
 
 ## 📜 Audit Logging Note
 
-> [!WARNING]
-> While Siyarix attempts to be quiet on the network, **it logs your actions locally** in the audit log for your own accountability.
+!!! warning
+    While Siyarix attempts to be quiet on the network, **it logs your actions locally** in the audit log for your own accountability.
 
 ```bash
 siyarix audit-log         # View your local audit trail

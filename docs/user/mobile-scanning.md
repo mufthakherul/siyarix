@@ -1,12 +1,12 @@
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
 
 # 📱 Mobile Application Scanning
 
 Mobile apps often carry the keys to your kingdom. Siyarix is building a dedicated mobile scanning engine to help you tear down APKs and IPAs, hunting for dangerous permissions, insecure flags, and hardcoded secrets.
 
-> [!WARNING]
-> **Active Development Notice**: The mobile application security scanner is currently under active development. A `MobileScanner` stub exists, and the full analysis pipeline is being built.
+!!! warning
+    **Active Development Notice**: The mobile application security scanner is currently under active development. A `MobileScanner` stub exists, and the full analysis pipeline is being built.
 
 ---
 

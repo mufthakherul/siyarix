@@ -5,6 +5,25 @@ All notable changes to Siyarix are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-06-30
+
+### Added
+- Configurable health check timeouts
+- Real-time provider statuses rendering in interactive REPL
+- Automated release pipelines for Chocolatey (NuGet pack/push) and Homebrew custom tap syncing
+
+### Changed
+- Relocated installer scripts (`install.sh`, `install.ps1`, `install-termux.sh`) into a dedicated `installer/` directory and updated referencing configurations
+- Removed post-installation checks and diagnostics from all installer scripts
+
+### Fixed
+- OpenSSF Scorecard token permissions and action dependency pinning
+- PowerShell session automatically closing on install completion
+- Android Termux installer missing package wheels for cryptography
+- Non-UTF-8 local encoding issues in Windows audit logging
+- CodeQL alert fixes for resource leak warnings
+- Fixed various workflow and validation failures in CI pipelines
+
 ## [1.0.0] - 2026-06-17
 
 ### Added

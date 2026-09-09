@@ -1,7 +1,7 @@
 # 🔀 Multi-Provider Routing
 
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. Some of the architectural components and features described on this page might currently be **Planned, Work in Progress, or basic implementations**. Stay tuned as it evolves! 🚀
 
 
 Siyarix boasts robust support for **25 AI providers** (24 cloud/local + 1 offline registry), all accessible through a unified, OpenAI-compatible adapter located in `openai_compat.py`.
@@ -42,8 +42,8 @@ Siyarix integrates with a wide array of top-tier AI providers. Here's a quick lo
 | LocalAI | Local | — | (varies) | `localhost:8080/v1` |
 | Registry | Heuristic | — | — | — |
 
-> [!TIP]
-> Local providers like Ollama, LM Studio, and others typically don't require an API key environment variable. Siyarix is smart enough to handle them seamlessly!
+!!! tip
+    Local providers like Ollama, LM Studio, and others typically don't require an API key environment variable. Siyarix is smart enough to handle them seamlessly!
 
 ---
 
@@ -78,8 +78,8 @@ User Input → _execute_instruction()
                            (persistent cooldown across restarts via JSON)
 ```
 
-> [!NOTE]
-> The `ProviderStateManager` ensures that failure cooldowns persist even if you restart Siyarix, preventing endless retry loops on failing APIs.
+!!! note
+    The `ProviderStateManager` ensures that failure cooldowns persist even if you restart Siyarix, preventing endless retry loops on failing APIs.
 
 ---
 
@@ -263,8 +263,8 @@ When an API call fails, `ProviderManager.classify_error()` kicks into action usi
 | `MODEL_NOT_FOUND` | 404 | No | Fall back to alternative model |
 | `UNKNOWN` | — | No | Propagate error |
 
-> [!WARNING]
-> If a credential fails due to `AUTH` or `BILLING` issues, Siyarix marks it as "dead" to prevent burning through retries and instantly pivots to a fallback provider.
+!!! warning
+    If a credential fails due to `AUTH` or `BILLING` issues, Siyarix marks it as "dead" to prevent burning through retries and instantly pivots to a fallback provider.
 
 ### Failure Recording (Circuit Breaking)
 
@@ -362,8 +362,8 @@ from siyarix.providers.ollama_utils import ensure_ollama_running
 ensure_ollama_running()
 ```
 
-> [!TIP]
-> Siyarix can automatically launch Ollama if `model_provider` is set to `"ollama"` or if `_start_ollama_on_launch` is enabled in your settings!
+!!! tip
+    Siyarix can automatically launch Ollama if `model_provider` is set to `"ollama"` or if `_start_ollama_on_launch` is enabled in your settings!
 
 ---
 
@@ -409,8 +409,8 @@ print(tracker.summary())
 # LLM calls: 1 | Tokens: 500↑ 150↓ | Est. cost: $0.0086
 ```
 
-> [!IMPORTANT]
-> Usage statistics are persisted to JSON, allowing you to track costs and token limits across multiple sessions.
+!!! info
+    Usage statistics are persisted to JSON, allowing you to track costs and token limits across multiple sessions.
 
 ---
 

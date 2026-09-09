@@ -28,9 +28,6 @@ def _get_async_executor() -> Any:
     return _ASYNC_EXECUTOR
 
 
-_SCHEMA_VERSION = 4
-
-
 class OfflineStore:
     _DB_PATH = get_config_dir() / "offline_store.db"
 

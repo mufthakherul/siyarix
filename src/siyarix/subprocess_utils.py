@@ -29,13 +29,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any
 
-try:
-    from rich.console import Console
-
-    _console = Console()
-except ImportError:
-    _console = None
-
 from ._platform import (
     get_platform_id,
     get_platform_shell_cmd as _get_platform_shell_cmd,
@@ -46,6 +39,15 @@ from ._platform import (
     is_windows as _is_windows,
     set_event_loop_policy,
 )
+
+_console: Console | None = None
+try:
+    from rich.console import Console
+
+    _console = Console()
+except ImportError:
+    # rich console is optional; fallback to None
+    pass
 
 if _has_signal():
     import signal as _signal
@@ -67,7 +69,11 @@ __all__ = [
 _ORPHAN_TRACKER: set[int] = set()
 _ORPHAN_LOCK = threading.Lock()
 
-_SUDO_PASSWORD_CACHE: str | None = None
+
+class _SudoCache:
+    password: str | None = None
+
+
 _SUDO_PASSWORD_LOCK = threading.Lock()
 
 
@@ -347,15 +353,13 @@ def _verify_sudo_password(password: str) -> bool:
 
 
 def _get_sudo_password() -> str | None:
-    global _SUDO_PASSWORD_CACHE
-
-    if _SUDO_PASSWORD_CACHE is not None:
-        return _SUDO_PASSWORD_CACHE
+    if _SudoCache.password is not None:
+        return _SudoCache.password
 
     val = os.environ.get("SIYARIX_SUDO_PASSWORD")
     if val:
         with _SUDO_PASSWORD_LOCK:
-            _SUDO_PASSWORD_CACHE = val
+            _SudoCache.password = val
         return val
 
     try:
@@ -366,7 +370,7 @@ def _get_sudo_password() -> str | None:
         if config_val:
             val = str(config_val)
             with _SUDO_PASSWORD_LOCK:
-                _SUDO_PASSWORD_CACHE = val
+                _SudoCache.password = val
             return val
     except Exception:
         pass
@@ -409,7 +413,7 @@ def _get_sudo_password() -> str | None:
 
             if _verify_sudo_password(password):
                 with _SUDO_PASSWORD_LOCK:
-                    _SUDO_PASSWORD_CACHE = password
+                    _SudoCache.password = password
                 return password
 
             msg = (

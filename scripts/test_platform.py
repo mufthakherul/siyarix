@@ -151,7 +151,7 @@ def _test_subprocess_utils() -> dict[str, bool | str]:
     return results
 
 
-def _test_security_hardening() -> dict[str, bool]:
+def _test_security_hardening() -> dict[str, Any]:
     try:
         from siyarix.security_hardening import validator, redactor, danger_analyzer
 
@@ -272,7 +272,7 @@ def _test_ish_specific() -> dict[str, bool | str]:
     return results
 
 
-def _test_chat_platform_utils() -> dict[str, bool | str]:
+def _test_chat_platform_utils() -> dict[str, Any]:
     try:
         from siyarix.chat.platform_utils import (
             is_kali_linux,
@@ -348,7 +348,7 @@ def print_human_report(results: dict[str, Any]) -> None:
 
     # Module imports
     print(f"\n  {'Module Imports':25} {'Status':10}")
-    print(f"  {'-'*25} {'-'*10}")
+    print(f"  {'-' * 25} {'-' * 10}")
     for mod, ok in results["modules_import"].items():
         status = "✓" if ok else "✗"
         print(f"  {mod:25} {status:>10}")

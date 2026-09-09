@@ -1,12 +1,12 @@
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
 
 # 📋 Compliance Frameworks
 
 Navigating compliance audits can be overwhelming, but Siyarix is here to help simplify the process. We are actively building out automated probes and evidence collection to assess your systems against six major industry compliance frameworks!
 
-> [!WARNING]
-> **Active Development Notice**: The compliance assessment engine is currently a work in progress! At the moment, running compliance checks will return a `NOT_EVALUATED` status because we are carefully building out the underlying evaluation logic.
+!!! warning
+    **Active Development Notice**: The compliance assessment engine is currently a work in progress! At the moment, running compliance checks will return a `NOT_EVALUATED` status because we are carefully building out the underlying evaluation logic.
 
 ---
 
@@ -36,8 +36,8 @@ siyarix compliance run PCI-DSS webapp.example.com
 siyarix compliance run GDPR customer-db.internal
 ```
 
-> [!NOTE]
-> The `compliance run` command requires two things: the **Framework Name** and the **Target**.
+!!! note
+    The `compliance run` command requires two things: the **Framework Name** and the **Target**.
 
 ### Current Engine Status
 Right now, calling `ComplianceCheck.run()` acts as a placeholder and returns `NOT_EVALUATED`. Behind the scenes, we are actively writing the assessment probes and evidence collection modules. Currently, evidence data and target metadata *are* being captured and stored for future evaluation.

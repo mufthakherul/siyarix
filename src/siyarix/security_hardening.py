@@ -78,12 +78,6 @@ _INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("backtick_exec", re.compile(r"`[^`]+`")),
 ]
 
-_HOSTNAME_RE = re.compile(r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z0-9-]{1,63})*$")
-_URL_RE = re.compile(
-    r"^https?://[^\s/\$\.\?#]+\.[^\s]+$",
-    re.IGNORECASE,
-)
-
 
 class InputValidator:
     """Validate and sanitise user-supplied targets before they reach the executor.
@@ -449,7 +443,10 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "sudo rm -r",
     ),
     (
-        re.compile(r"\brm\s+(?:-[a-zA-Z]*r[a-zA-Z]*\s+-[a-zA-Z]*f\b|-[a-zA-Z]*f[a-zA-Z]*\s+-[a-zA-Z]*r\b|-[a-zA-Z]*[rf][a-zA-Z]*[rf]\b|\s+--(?:recursive|force)\s+--(?:recursive|force)\b)", re.I),
+        re.compile(
+            r"\brm\s+(?:-[a-zA-Z]*r[a-zA-Z]*\s+-[a-zA-Z]*f\b|-[a-zA-Z]*f[a-zA-Z]*\s+-[a-zA-Z]*r\b|-[a-zA-Z]*[rf][a-zA-Z]*[rf]\b|\s+--(?:recursive|force)\s+--(?:recursive|force)\b)",
+            re.I,
+        ),
         "critical",
         "Recursive force delete (rm -rf)",
     ),

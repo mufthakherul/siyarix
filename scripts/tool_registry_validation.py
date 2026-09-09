@@ -9,7 +9,8 @@ json_path = os.path.join(
     "data",
     "cyber_tools.json",
 )
-t = json.load(open(json_path))
+with open(json_path, encoding="utf-8") as f:
+    t = json.load(f)
 
 print(f"Total tools: {len(t)}")
 print()

@@ -38,8 +38,8 @@ The Execution Engine operates in three modes, dispatched by the Task Planner:
 4. Output is parsed via the **ParserRegistry**.
 5. Transient errors are handled by the **ProviderStateManager**.
 
-> [!TIP]
-> **Worker Pool Throttling:** Siyarix uses `asyncio.Semaphore` to limit concurrency and prevent resource exhaustion.
+!!! tip
+    **Worker Pool Throttling:** Siyarix uses `asyncio.Semaphore` to limit concurrency and prevent resource exhaustion.
 
 ## 🗺️ Task Planners
 

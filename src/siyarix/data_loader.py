@@ -41,8 +41,7 @@ def load_text(category: str, filename: str) -> str:
         return path.read_text(encoding="utf-8")
     except OSError as exc:
         raise FileNotFoundError(
-            f"Data file not found: {category}/{filename} "
-            f"(tried user and built-in paths)"
+            f"Data file not found: {category}/{filename} (tried user and built-in paths)"
         ) from exc
 
 
@@ -106,8 +105,7 @@ def list_custom_personas() -> list[dict[str, Any]]:
                 personas.append(data)
             else:
                 logger.warning(
-                    "Custom persona file %s missing required fields "
-                    "(name, label, prompt)", f.name
+                    "Custom persona file %s missing required fields (name, label, prompt)", f.name
                 )
         except (json.JSONDecodeError, OSError) as exc:
             logger.warning("Failed to load custom persona %s: %s", f.name, exc)
@@ -129,8 +127,7 @@ def _resolve_path(category: str, filename: str) -> Path:
         return builtin_path
 
     raise FileNotFoundError(
-        f"Data file not found: {category}/{filename} "
-        f"(checked {user_path} and {builtin_path})"
+        f"Data file not found: {category}/{filename} (checked {user_path} and {builtin_path})"
     )
 
 

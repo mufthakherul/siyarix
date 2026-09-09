@@ -9,19 +9,12 @@ from typing import Any
 
 from . import _now_iso
 
-_SECTION_RE = re.compile(r"^\s*([\w\s#*]+)\s*$")
-_MSV_RE = re.compile(r"msv|msv1_0", re.IGNORECASE)
 _WDIGEST_RE = re.compile(r"wdigest", re.IGNORECASE)
 _KERBEROS_RE = re.compile(r"kerberos", re.IGNORECASE)
-_CRED_RE = re.compile(
-    r"(?:Username|Domain|Password|NTLM|SHA1|DPAPI|credential)\s*[:\-]\s*(.*)",
-    re.IGNORECASE,
-)
 _USERNAME_FIELD_RE = re.compile(r"\*\s*Username\s*:\s*(.+)", re.IGNORECASE)
 _DOMAIN_FIELD_RE = re.compile(r"\*\s*Domain\s*:\s*(.+)", re.IGNORECASE)
 _PASSWORD_FIELD_RE = re.compile(r"\*\s*Password\s*:\s*(.+)", re.IGNORECASE)
 _NTLM_FIELD_RE = re.compile(r"\*\s*NTLM\s*:\s*([a-fA-F0-9]{32})")
-_SHA1_FIELD_RE = re.compile(r"\*\s*SHA1\s*:\s*([a-fA-F0-9]{40})")
 _LOGPON_RE = re.compile(r"sekurlsa::logonpasswords", re.IGNORECASE)
 _DCSYNC_RE = re.compile(r"lsadump::dcsync", re.IGNORECASE)
 _GOLDEN_RE = re.compile(r"kerberos::golden", re.IGNORECASE)

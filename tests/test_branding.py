@@ -123,7 +123,7 @@ class TestBranding:
         console = Console()
         print_banner(console, "matrix", subtitle="Custom Subtitle")
 
-    @patch("importlib.metadata.version", return_value="1.0.0")
+    @patch("importlib.metadata.version", return_value="1.0.1")
     def test_print_banner_with_version(self, mock_version):
         console = Console()
         print_banner(console, "cyber-noir")

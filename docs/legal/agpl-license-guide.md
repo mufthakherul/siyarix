@@ -25,8 +25,8 @@ If you distribute Siyarix (or a modified version), you must:
 
 ### 🌐 The "Network Use" Clause (Section 13)
 
-> [!IMPORTANT]
-> **The Golden Rule of AGPL:** If you run a modified version of Siyarix over a network and users interact with it remotely, you *must* make your modified source code available to those users.
+!!! info
+    **The Golden Rule of AGPL:** If you run a modified version of Siyarix over a network and users interact with it remotely, you *must* make your modified source code available to those users.
 
 ## 🤔 "AGPL-3.0-only" vs "AGPL-3.0-or-later"
 

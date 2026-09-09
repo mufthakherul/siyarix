@@ -3,6 +3,7 @@ permissions: read-all
 on:
   schedule:
     - cron: '0 2 * * 0' # Every Sunday at 2 AM
+  workflow_dispatch:
 jobs:
   analyze:
     name: Analyze
@@ -15,5 +16,6 @@ jobs:
         with:
           languages: python
           queries: security-extended,security-and-quality
+          config-file: .github/codeql/codeql-config.yml
       - uses: github/codeql-action/autobuild@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3
       - uses: github/codeql-action/analyze@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3

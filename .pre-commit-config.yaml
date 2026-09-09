@@ -25,6 +25,7 @@ repos:
       - id: check-merge-conflict
       - id: trailing-whitespace
       - id: end-of-file-fixer
+        exclude: CHANGELOG.md$
       - id: check-added-large-files
         args: ['--maxkb=1000']
       - id: check-json

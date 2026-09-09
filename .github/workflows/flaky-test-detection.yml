@@ -123,7 +123,7 @@ jobs:
           "
 
       - name: Upload flaky analysis per version
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: flaky-analysis-${{ matrix.python-version }}
           path: flaky-results-${{ matrix.python-version }}.txt
@@ -178,7 +178,7 @@ jobs:
           "
 
       - name: Upload aggregated flaky report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: flaky-report
           path: flaky-report.md

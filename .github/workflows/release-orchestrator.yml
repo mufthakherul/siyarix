@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version number (e.g., 1.0.0 or v1.0.0)
+        description: Version number (e.g., 1.0.1 or v1.0.1)
         required: true
         type: string
 
@@ -112,19 +112,19 @@ jobs:
                   t,
                   count=1,
               ),
-              "install.ps1": lambda t: re.sub(
+              "installer/install.ps1": lambda t: re.sub(
                   r'(?m)^\$__script_version = "[^"]+"$',
                   f'$__script_version = "{version}"',
                   t,
                   count=1,
               ),
-              "install.sh": lambda t: re.sub(
+              "installer/install.sh": lambda t: re.sub(
                   r'(?m)^SIYARIX_VERSION="\$\{SIYARIX_VERSION:-[^"]+\}"$',
                   'SIYARIX_VERSION="${SIYARIX_VERSION:-' + version + '}"',
                   t,
                   count=1,
               ),
-              "install-termux.sh": lambda t: re.sub(
+              "installer/install-termux.sh": lambda t: re.sub(
                   r'(?m)^SIYARIX_VERSION="\$\{SIYARIX_VERSION:-[^"]+\}"$',
                   'SIYARIX_VERSION="${SIYARIX_VERSION:-' + version + '}"',
                   t,
@@ -167,7 +167,7 @@ jobs:
               p.write_text(fn(text), encoding="utf-8")
 
           # Calculate SHA-256 hash of updated install.ps1 for WinGet
-          install_ps1 = Path("install.ps1")
+          install_ps1 = Path("installer/install.ps1")
           install_sha = hashlib.sha256(install_ps1.read_bytes()).hexdigest()
 
           for wf in [
@@ -206,8 +206,8 @@ jobs:
             echo "No version updates needed."
             exit 0
           fi
-          git add pyproject.toml src/siyarix/__init__.py install.ps1 install.sh \
-            install-termux.sh \
+          git add pyproject.toml src/siyarix/__init__.py installer/install.ps1 installer/install.sh \
+            installer/install-termux.sh \
             packages/harmonyos/module.json5 \
             packages/chocolatey/siyarix.nuspec \
             packages/chocolatey/tools/chocolateyinstall.ps1 \

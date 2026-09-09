@@ -86,7 +86,7 @@ class TestSessionLog:
 class TestSessionLogger:
     def test_init_creates_dir(self, tmp_path):
         sub = tmp_path / "logs"
-        _logger = SessionLogger(log_dir=sub)
+        unused_logger = SessionLogger(log_dir=sub)
         assert sub.exists()
 
     def test_save(self, logger, sample_log):

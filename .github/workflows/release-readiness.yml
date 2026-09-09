@@ -7,7 +7,7 @@ on:
       - '.github/workflows/release.yml'
       - 'pyproject.toml'
       - 'src/siyarix/__init__.py'
-      - 'install.ps1'
+      - 'installer/install.ps1'
       - 'packages/deb/**'
   workflow_dispatch:
 
@@ -45,16 +45,16 @@ jobs:
             raise SystemExit("Unable to find __version__ in src/siyarix/__init__.py")
           init_version = init_match.group(1)
 
-          install_ps1 = Path("install.ps1").read_text(encoding="utf-8")
+          install_ps1 = Path("installer/install.ps1").read_text(encoding="utf-8")
           ps1_match = re.search(r'\$__script_version\s*=\s*"([^"]+)"', install_ps1)
           if not ps1_match:
-            raise SystemExit("Unable to find $__script_version in install.ps1")
+            raise SystemExit("Unable to find $__script_version in installer/install.ps1")
           ps1_version = ps1_match.group(1)
 
           versions = {
               "pyproject.toml": pyproject_version,
               "src/siyarix/__init__.py": init_version,
-              "install.ps1": ps1_version,
+              "installer/install.ps1": ps1_version,
           }
           unique_versions = set(versions.values())
           if len(unique_versions) != 1:

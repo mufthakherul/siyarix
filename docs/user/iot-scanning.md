@@ -1,12 +1,12 @@
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+!!! note
+    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
 
 # 🔌 IoT Security Scanning
 
 The Internet of Things (IoT) is notoriously difficult to secure. Siyarix aims to change that by providing a comprehensive toolkit for analyzing firmware, enumerating serial ports, and detecting embedded devices.
 
-> [!WARNING]
-> **Active Development Notice**: Siyarix's IoT scanning module is currently under active development. An `IoTScanner` stub is present in the code, and we are working on the underlying analysis engines.
+!!! warning
+    **Active Development Notice**: Siyarix's IoT scanning module is currently under active development. An `IoTScanner` stub is present in the code, and we are working on the underlying analysis engines.
 
 ---
 

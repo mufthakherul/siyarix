@@ -14,8 +14,8 @@ The AGPL ensures that:
 
 AGPL helps enforce accountability. If a modified version of Siyarix is utilized as a backend service, the code must be available for review. This prevents opaque security services from profiting off community work while hiding their methods.
 
-> [!NOTE]
-> The one exception to this is the [Plugin Exception](plugin-exception.md). Third-party plugins can use any license, allowing developers to build specific workflows while the core engine remains open.
+!!! note
+    The one exception to this is the [Plugin Exception](plugin-exception.md). Third-party plugins can use any license, allowing developers to build specific workflows while the core engine remains open.
 
 ## 🤝 Community Trust
 

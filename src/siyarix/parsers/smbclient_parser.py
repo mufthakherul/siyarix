@@ -26,10 +26,6 @@ _CONNECTED_RE = re.compile(
     re.IGNORECASE,
 )
 
-_SERVER_LINE_RE = re.compile(
-    r"^\s*(?P<server>\S+)\s{2,}(?P<comment>.+)$",
-)
-
 _DOMAIN_RE = re.compile(
     r"Domain\s*=\s*\[?([^\]]+)\]?",
     re.IGNORECASE,

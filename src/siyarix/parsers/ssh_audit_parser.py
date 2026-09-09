@@ -19,7 +19,6 @@ _ALGORITHM_RE = re.compile(
 )
 _KEX_RE = re.compile(r"\[kex\]\s+(.+)", re.IGNORECASE)
 _HOST_KEY_RE = re.compile(r"\[host_key\]\s+(.+)", re.IGNORECASE)
-_SSH_VERSION_RE = re.compile(r"SSH-\d+\.\d+", re.IGNORECASE)
 _TARGET_RE = re.compile(r"(?:Scanning|host)[:\s]+(\S+)", re.IGNORECASE)
 _RECOMMEND_RE = re.compile(r"(?i)(recommend|should|avoid|deprecated|weak|strong)")
 _SEVERITY_MAP = {

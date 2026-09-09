@@ -14,7 +14,6 @@ backtracking (ReDoS).
 from __future__ import annotations
 
 import ipaddress
-import logging
 import re
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -23,8 +22,6 @@ from typing import Any, Callable
 from .exceptions import ErrorContext, ErrorSeverity, ValidationError
 from .planner import PlanStep
 from .events import Event, EventType, get_event_bus
-
-logger = logging.getLogger(__name__)
 
 __all__ = [
     "validate_cidr",
@@ -52,9 +49,6 @@ _MAX_INPUT_LENGTH = 2048
 
 _MAX_HOSTNAME_LENGTH = 253
 """RFC 1123 maximum hostname length."""
-
-_MAX_LABEL_LENGTH = 63
-"""RFC 1123 maximum label length within a hostname."""
 
 _PORT_MIN = 1
 _PORT_MAX = 65535

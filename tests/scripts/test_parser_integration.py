@@ -48,4 +48,4 @@ for tool, sample in sorted(test_cases.items()):
     findings = reg.parse(tool, sample)
     print(f"{tool}: {len(findings)} findings")
     for f in findings[:2]:
-        print(f'  title={f.get("title","")[:60]} sev={f.get("severity","")}')
+        print(f"  title={f.get('title', '')[:60]} sev={f.get('severity', '')}")

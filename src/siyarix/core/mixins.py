@@ -20,6 +20,7 @@ class ExecutionMixin:
         self, goal: Any, plan: ExecutionPlan | None, start: float, result: Any
     ) -> Any:
         from ..core import AgentStatus
+
         try:
             tool_names = [t.name for t in self._registry.list_tools()]
             if plan is None:
@@ -34,6 +35,7 @@ class ExecutionMixin:
                 if old_status != s.status.value:
                     step_progress[step_id] = s.status.value
                     from ..events import emit_sync
+
                     emit_sync(
                         Event(
                             type=EventType.PLAN_STEP_START
@@ -83,10 +85,12 @@ class ExecutionMixin:
         self, goal: Any, plan: ExecutionPlan | None, start: float, result: Any
     ) -> Any:
         from ..core import AgentStatus
+
         try:
             await self._check_budget()
             if plan is None:
                 from ..config import SettingsStore
+
                 _settings = SettingsStore()
                 _preferred = _settings.get("model_provider") or None
                 provider, model = self._providers.select_provider(preferred=_preferred)
@@ -130,6 +134,7 @@ class ExecutionMixin:
                         step, step.result.get("error", "")
                     )
                     from ..validators import RecoveryAction
+
                     if recovery.action == RecoveryAction.RETRY and recovery.modified_step:
                         idx = plan.steps.index(step)
                         plan.steps[idx] = recovery.modified_step
@@ -205,6 +210,7 @@ class ExecutionMixin:
         self, goal: Any, plan: ExecutionPlan | None, start: float, result: Any
     ) -> Any:
         from ..core import AgentStatus
+
         try:
             if plan is None:
                 plan = self._planner_registry.plan(
@@ -247,6 +253,7 @@ class ExecutionMixin:
             plan_id=plan.id if plan else "",
         )
         return result
+
 
 class GraphMixin:
     """Knowledge graph operations for AgentCore."""

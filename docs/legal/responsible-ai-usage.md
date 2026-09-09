@@ -13,8 +13,8 @@ AI is an assistant, not an autopilot.
 - **The Permission Gate:** Every command is checked before execution.
 - **User Confirmation:** If the AI suggests a dangerous command, execution halts, and you must explicitly approve it.
 
-> [!CAUTION]
-> **You are legally responsible for the commands you authorize.** Never blindly approve a command you do not fully understand.
+!!! danger
+    **You are legally responsible for the commands you authorize.** Never blindly approve a command you do not fully understand.
 
 ## ⚠️ Known Limitations of AI
 

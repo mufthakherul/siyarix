@@ -163,7 +163,7 @@ class AutonomousExecutor(BaseExecutor):
         if self._on_step_progress:
             res = self._on_step_progress(step)
             if hasattr(res, "__await__"):
-                await res
+                _ = await res  # type: ignore[misc]
 
         self.normalise_step(step)
 
@@ -236,7 +236,7 @@ class AutonomousExecutor(BaseExecutor):
         if self._on_step_progress:
             res = self._on_step_progress(step)
             if hasattr(res, "__await__"):
-                await res
+                _ = await res  # type: ignore[misc]
 
         return step, step.result
 
@@ -244,7 +244,7 @@ class AutonomousExecutor(BaseExecutor):
         """Execute a step that has a tool name but no shell command."""
         handler = self._custom_handlers.get(step.tool)
         if handler:
-            return await handler(step)
+            return await handler(step)  # type: ignore[no-any-return]
         if self._registry:
             try:
                 result = await self._registry.execute(step.tool, **step.args)
@@ -255,12 +255,18 @@ class AutonomousExecutor(BaseExecutor):
         if step.tool:
             try:
                 from .subprocess_utils import safe_run_async
+
                 fallback_cmd = [step.tool]
                 if step.args.get("target"):
                     fallback_cmd.append(step.args["target"])
                 result = await safe_run_async(fallback_cmd, timeout=30)
                 if result.exit_code != 127 and result.exit_code != 126:
-                    return {"status": "success", "output": result.stdout, "error": result.stderr, "tool": step.tool}
+                    return {
+                        "status": "success",
+                        "output": result.stdout,
+                        "error": result.stderr,
+                        "tool": step.tool,
+                    }
             except Exception:
                 pass
         return {
@@ -356,7 +362,7 @@ class AutonomousExecutor(BaseExecutor):
         wants exclusive control of the terminal.
         """
         import re as _re
-        from siyarix.subprocess_utils import _get_sudo_password as _gsp  # type: ignore[attr-defined]
+        from siyarix.subprocess_utils import _get_sudo_password as _gsp
 
         needs_sudo = False
         for step in plan.steps:
@@ -384,21 +390,19 @@ class AutonomousExecutor(BaseExecutor):
 
         if cmd_states:
             focus_idx = 0
-            done_set = False
             wave_start = _time.time()
 
             with Live(refresh_per_second=10, screen=False) as live:
-                while not done_set:
+                while True:
                     await asyncio.sleep(0.1)
                     if exec_task.done():
-                        done_set = True
                         break
                     if cmd_states[focus_idx].done:
                         unfinished = [i for i, st in enumerate(cmd_states) if not st.done]
                         if unfinished:
                             focus_idx = unfinished[0]
                         else:
-                            done_set = True
+                            break
 
                     st = cmd_states[focus_idx]
                     elapsed = _time.time() - wave_start

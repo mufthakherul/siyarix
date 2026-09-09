@@ -478,7 +478,7 @@ class TestDiscoverFromPath:
     )
     @patch("siyarix.registry.emit_sync")
     def test_discover_interpreter(self, mock_emit, mock_which, registry: ToolRegistry):
-        count = registry.discover_from_path()
+        unused_count = registry.discover_from_path()
         py = registry._graph.get_tool("python3")
         assert py is not None
         assert py.category == ToolCategory.UTILITY

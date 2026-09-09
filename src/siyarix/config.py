@@ -97,6 +97,7 @@ DEFAULTS: dict[str, Any] = {
     "localai_url": "http://localhost:8080",
     "localai_model": "",
     "registry_model": "",
+    "registry_url": "",
     "_start_ollama_on_launch": False,
     # Shell & PATH
     "shell_completion_installed": False,

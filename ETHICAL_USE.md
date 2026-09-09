@@ -1,8 +1,8 @@
 # Siyarix Ethical Use Policy
 
 **Effective Date:** June 2026
-**Version:** 1.0.0
-**Applies to:** Siyarix v1.0.0 and all derivative works
+**Version:** 1.0.1
+**Applies to:** Siyarix v1.0.1 and all derivative works
 
 Siyarix is an AI-powered cybersecurity orchestration platform designed to enhance defensive security operations and authorized security testing capabilities. This policy defines acceptable and prohibited uses of the Siyarix platform, its components, and any modified or derivative versions.
 
@@ -152,4 +152,3 @@ If you are unsure whether a particular use case is permitted, or to report a sus
 ---
 
 *SPDX-License-Identifier: AGPL-3.0-or-later*
-

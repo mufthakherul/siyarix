@@ -152,7 +152,7 @@ test_install_scripts_syntax() {
     info "Testing installer script syntax..."
 
     if command -v bash &>/dev/null; then
-        run_test "install.sh syntax" "bash -n install.sh"
+        run_test "install.sh syntax" "bash -n installer/install.sh"
         run_test "install_android.sh syntax" "bash -n install_android.sh"
         run_test "install_harmonyos.sh syntax" "bash -n install_harmonyos.sh"
     fi

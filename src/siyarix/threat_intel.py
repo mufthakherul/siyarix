@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import urllib.error
 import urllib.parse
 import urllib.request
-import urllib.error
-from typing import Any
-import os
+from typing import Any, ClassVar
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class AlienVaultOTX(ThreatIntelProvider):
             if _parsed.scheme not in ("http", "https"):
                 raise ValueError(f"Disallowed URL scheme: {_parsed.scheme!r}")
             req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=10) as response:  # nosec B310
+            with urllib.request.urlopen(req, timeout=10) as response:  # nosec B310 # noqa: ASYNC210
                 data = json.loads(response.read().decode())
                 return {
                     "source": "AlienVault OTX",
@@ -70,7 +70,7 @@ class NVDDatabase(ThreatIntelProvider):
             if _parsed.scheme not in ("http", "https"):
                 raise ValueError(f"Disallowed URL scheme: {_parsed.scheme!r}")
             req = urllib.request.Request(url)
-            with urllib.request.urlopen(req, timeout=10) as response:  # nosec B310
+            with urllib.request.urlopen(req, timeout=10) as response:  # nosec B310 # noqa: ASYNC210
                 data = json.loads(response.read().decode())
                 vulnerabilities = data.get("vulnerabilities", [])
                 if vulnerabilities:
@@ -111,7 +111,7 @@ class ThreatIntelManager:
 class MITREAttackDB:
     """Offline database for MITRE ATT&CK Enterprise tactics and techniques."""
 
-    TACTICS: dict[str, str] = {
+    TACTICS: ClassVar[dict[str, str]] = {
         "TA0043": "Reconnaissance",
         "TA0042": "Resource Development",
         "TA0001": "Initial Access",
@@ -128,7 +128,7 @@ class MITREAttackDB:
         "TA0040": "Impact",
     }
 
-    TECHNIQUES: dict[str, dict[str, Any]] = {
+    TECHNIQUES: ClassVar[dict[str, dict[str, Any]]] = {
         "T1059": {
             "name": "Command and Scripting Interpreter",
             "tactic": "Execution",
@@ -391,7 +391,7 @@ class MITREAttackDB:
 class ThreatIntelFeed:
     """Offline and multi-feed threat intelligence aggregator."""
 
-    DEFAULT_FEEDS: list[dict[str, Any]] = [
+    DEFAULT_FEEDS: ClassVar[list[dict[str, Any]]] = [
         {
             "name": "AlienVault OTX",
             "type": "reputation",
@@ -418,7 +418,7 @@ class ThreatIntelFeed:
         },
     ]
 
-    KNOWN_CVES: dict[str, dict[str, Any]] = {
+    KNOWN_CVES: ClassVar[dict[str, dict[str, Any]]] = {
         "CVE-2021-44228": {
             "id": "CVE-2021-44228",
             "name": "Log4Shell",

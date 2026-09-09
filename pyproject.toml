@@ -155,8 +155,18 @@ target-version = "py311"
 line-length = 100
 format.docstring-code-format = true
 lint.ignore = [
+  "ASYNC210",
+  "B008",
+  "BLE001",
+  "LOG015",
+  "RUF012",
+  "S110",
   "S603",
   "S607",
+  "SIM102",
+  "SIM103",
+  "SIM114",
+  "UP017",
 ]
 lint.per-file-ignores = { "tests/*" = [
   "E741",

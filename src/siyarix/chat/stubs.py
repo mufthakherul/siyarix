@@ -7,10 +7,10 @@ have not yet been implemented in the open-source release.
 
 from __future__ import annotations
 
-import logging
+import builtins
 from enum import Enum
+import logging
 from typing import Any
-import typing
 
 from ..threat_intel import MITREAttackDB, ThreatIntelFeed
 
@@ -21,16 +21,16 @@ class CanaryTokenManager:
     def __init__(self) -> None:
         pass
 
-    def deploy_to_target(self, target: str, _token_types: typing.List[Any]) -> Any:
+    def deploy_to_target(self, target: str, _token_types: list[Any]) -> Any:
         return None
 
-    def list(self) -> typing.List[str]:
+    def list(self) -> list[str]:
         return []
 
     def status(self) -> str:
         return "stubbed"
 
-    def list_tokens(self) -> typing.List[Any]:
+    def list_tokens(self) -> builtins.list[Any]:
         return []
 
     def summary(self) -> dict[str, Any]:
@@ -141,9 +141,10 @@ class SecurityImporter:
 
     def auto_import(self, path: str) -> Any:
         class Res:
-            total_imported: int = 0
-            errors: list[Any] = []
-            findings: list[Any] = []
+            def __init__(self) -> None:
+                self.total_imported: int = 0
+                self.errors: list[Any] = []
+                self.findings: list[Any] = []
 
         return Res()
 
@@ -210,23 +211,23 @@ class AdversarialTester:
 
 
 __all__ = [
-    "CanaryTokenManager",
-    "CanaryTokenType",
-    "CoderBridge",
-    "CloudProvider",
-    "CloudScanner",
-    "IaCScanner",
-    "MobileScanner",
-    "IoTScanner",
-    "HSMService",
-    "ComplianceRunner",
-    "SecurityImporter",
-    "security_importer",
-    "PlaybookEngine",
-    "VotingStrategy",
-    "MultiModelEnsemble",
     "AdversarialSeverity",
     "AdversarialTester",
-    "ThreatIntelFeed",
+    "CanaryTokenManager",
+    "CanaryTokenType",
+    "CloudProvider",
+    "CloudScanner",
+    "CoderBridge",
+    "ComplianceRunner",
+    "HSMService",
+    "IaCScanner",
+    "IoTScanner",
     "MITREAttackDB",
+    "MobileScanner",
+    "MultiModelEnsemble",
+    "PlaybookEngine",
+    "SecurityImporter",
+    "ThreatIntelFeed",
+    "VotingStrategy",
+    "security_importer",
 ]

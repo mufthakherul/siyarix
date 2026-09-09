@@ -9,7 +9,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import yaml
+from typer.testing import CliRunner
 
+from siyarix.cli import app
 from siyarix.models import ExecutionPlan, PlanType
 from siyarix.playbook import PlaybookEngine
 from siyarix.workflow import WorkflowEngine
@@ -398,9 +400,6 @@ def test_repo_seeded_playbooks_are_valid(playbook_engine: PlaybookEngine) -> Non
 
 
 def test_cli_playbook_list() -> None:
-    from typer.testing import CliRunner
-    from siyarix.cli import app
-
     runner = CliRunner()
     result = runner.invoke(app, ["playbook", "list", "--dir", "playbooks"])
     assert result.exit_code == 0
@@ -410,9 +409,6 @@ def test_cli_playbook_list() -> None:
 
 
 def test_cli_playbook_list_nonexistent(tmp_path: Path) -> None:
-    from typer.testing import CliRunner
-    from siyarix.cli import app
-
     runner = CliRunner()
     result = runner.invoke(app, ["playbook", "list", "--dir", str(tmp_path / "missing")])
     assert result.exit_code == 0
@@ -420,9 +416,6 @@ def test_cli_playbook_list_nonexistent(tmp_path: Path) -> None:
 
 
 def test_cli_playbook_list_empty(tmp_path: Path) -> None:
-    from typer.testing import CliRunner
-    from siyarix.cli import app
-
     runner = CliRunner()
     empty_dir = tmp_path / "empty_dir"
     empty_dir.mkdir()
@@ -432,9 +425,6 @@ def test_cli_playbook_list_empty(tmp_path: Path) -> None:
 
 
 def test_cli_playbook_validate_success() -> None:
-    from typer.testing import CliRunner
-    from siyarix.cli import app
-
     runner = CliRunner()
     result = runner.invoke(app, ["playbook", "validate", "playbooks/network-recon.yaml"])
     assert result.exit_code == 0
@@ -442,9 +432,6 @@ def test_cli_playbook_validate_success() -> None:
 
 
 def test_cli_playbook_validate_failure(tmp_path: Path) -> None:
-    from typer.testing import CliRunner
-    from siyarix.cli import app
-
     runner = CliRunner()
     bad_file = tmp_path / "invalid.yaml"
     bad_file.write_text("foo: bar\n")

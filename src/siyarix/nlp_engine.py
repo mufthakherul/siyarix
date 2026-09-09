@@ -493,7 +493,7 @@ class NaturalLanguageParser:
         "smbexec": "activedirectory",
         "atexec": "activedirectory",
         "dcomexec": "activedirectory",
-        "secretsdump": "activedirectory",
+        "secretsdump": "activedirectory",  # pragma: allowlist secret
         "ticketer": "activedirectory",
         "goldenticket": "activedirectory",
         "silver_ticket": "activedirectory",
@@ -502,8 +502,8 @@ class NaturalLanguageParser:
         "skeleton_key": "activedirectory",
         "dsync": "activedirectory",
         "gmsa": "activedirectory",
-        "gmsapassword": "activedirectory",
-        "lapspassword": "activedirectory",
+        "gmsapassword": "activedirectory",  # pragma: allowlist secret
+        "lapspassword": "activedirectory",  # pragma: allowlist secret
         "laps": "activedirectory",
         "krbtgt": "activedirectory",
         "ntds_dit": "activedirectory",
@@ -559,7 +559,6 @@ class NaturalLanguageParser:
         "handler": "c2",
         "meterpreter": "exploit",
         # Privilege Escalation
-        "privesc": "escalation",
         "winpeas": "winpeas",
         "linpeas": "linpeas",
         "powerup": "winpeas",
@@ -738,8 +737,6 @@ class NaturalLanguageParser:
         "john": "hashcrack",
         "cewl": "wordlist",
         "crunch": "wordlist",
-        "dalfox": "xss",
-        "kxss": "xss",
         "swaks": "phishing",
         "dnscat": "exfiltration",
         "dnscat2": "exfiltration",
@@ -752,7 +749,6 @@ class NaturalLanguageParser:
         "lsassy": "activedirectory",
         "msfvenom": "exploit",
         "msfconsole": "exploit",
-        "havoc": "exploit",
         "villain": "exploit",
         "scythe": "exploit",
         "nighthawk": "exploit",

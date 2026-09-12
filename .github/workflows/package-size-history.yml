@@ -25,7 +25,7 @@ jobs:
       size_bytes: ${{ steps.build.outputs.size_bytes }}
       size_kb: ${{ steps.build.outputs.size_kb }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
 
       - name: Install uv
         uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3

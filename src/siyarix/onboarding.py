@@ -36,6 +36,10 @@ from typing import Any
 
 from siyarix.bootstrap import INITIALIZED_MARKER, BootstrapEngine
 from siyarix.config import SettingsStore, get_config_dir
+from siyarix._platform import (
+    is_termux,
+    detect_security_distro,
+)
 from siyarix.providers.manager import ProviderManager
 from siyarix.templates.wizard_text import (
     SIYARIX_LOGO as _SIYARIX_LOGO,
@@ -206,12 +210,16 @@ class OnboardingWizard:
         settings: SettingsStore | None = None,
         cred_store: Any | None = None,
         console: Any | None = None,
+        express: bool = False,
+        non_interactive: bool = False,
     ) -> None:
         self._settings = settings or SettingsStore()
         self._cred_store = cred_store
         self._console = console or Console()
         self._bootstrap = BootstrapEngine()
         self._provider_mgr = ProviderManager.get_instance()
+        self.express = express
+        self.non_interactive = non_interactive
 
         self._choices: dict[str, Any] = {
             "ethics_accepted": False,
@@ -257,6 +265,10 @@ class OnboardingWizard:
     # ── Step 0: Welcome + Ethics ────────────────────────────────────────
 
     def _welcome_screen(self) -> bool:
+        if self.non_interactive:
+            self._choices["ethics_accepted"] = True
+            return True
+
         self._clear_screen()
         self._console.print(
             Panel.fit(
@@ -285,13 +297,23 @@ class OnboardingWizard:
         choice = Prompt.ask(
             "[bold]Do you accept the ethical use pledge?[/bold]\n"
             "  Type [green]c[/green] to continue or [yellow]e[/yellow] to exit",
-            choices=["c", "e"],
+            choices=["c", "e", "x", "1"],
             default="c",
             show_choices=True,
         )
-        if choice.lower() != "c":
+        if choice.lower() == "e":
             return False
+        if choice.lower() in ("x", "1"):
+            self.express = True
         self._choices["ethics_accepted"] = True
+
+        if not self.express and not self.non_interactive:
+            use_express = Confirm.ask(
+                "⚡ Would you like to use [bold cyan]Express Setup[/bold cyan]? (sensible defaults in ~10s)",
+                default=True,
+            )
+            if use_express:
+                self.express = True
         return True
 
     def _exit_greeting(self) -> None:
@@ -371,9 +393,22 @@ class OnboardingWizard:
         term = os.environ.get("TERM", "unknown")
         term_program = os.environ.get("TERM_PROGRAM", "")
 
-        # Package managers
+        # Package managers & Specialized platform detection
         seen = set()
         available_pms = []
+        termux_env = is_termux()
+        sec_distro = detect_security_distro()
+
+        if termux_env or shutil.which("pkg"):
+            seen.add("pkg")
+            available_pms.append("pkg")
+
+        if sec_distro.get("is_security") and sec_distro.get("pm"):
+            pm_name = sec_distro["pm"]
+            if shutil.which(pm_name) and pm_name not in seen:
+                seen.add(pm_name)
+                available_pms.append(pm_name)
+
         for binary, name in _PM_CHECKS:
             if shutil.which(binary) and name not in seen:
                 seen.add(name)
@@ -592,6 +627,16 @@ class OnboardingWizard:
         else:
             info_table.add_row("Terminal", term)
         info_table.add_row("Package Managers", ", ".join(available_pms) or "None detected")
+        if termux_env:
+            info_table.add_row("Environment", "[bold cyan]📱 Android / Termux[/bold cyan]")
+            info_table.add_row(
+                "Termux Prefix", os.environ.get("PREFIX", "/data/data/com.termux/files/usr")
+            )
+        if sec_distro.get("is_security"):
+            info_table.add_row(
+                "Security Distro",
+                f"[bold green]🛡️ {sec_distro['name']}[/bold green] ({sec_distro['family'].title()} family)",
+            )
         if is_wsl:
             info_table.add_row("WSL", "[green]Yes[/green]")
         if is_container:
@@ -604,17 +649,20 @@ class OnboardingWizard:
         self._console.print(info_table)
         self._console.print()
 
-        # Confirm or override
-        if not Confirm.ask("Is this correct?", default=True):
-            self._console.print("\n[bold]Override Detection[/bold]")
-            system = Prompt.ask("Operating System", default=system)
-            machine = Prompt.ask("Architecture", default=machine)
-            arch_label = _ARCH_MAP.get(machine, machine)
-            shell_name = Prompt.ask("Shell", default=shell_name)
+        # Confirm or override (auto-confirm in express or non-interactive mode)
+        if not self.express and not self.non_interactive:
+            if not Confirm.ask("Is this correct?", default=True):
+                self._console.print("\n[bold]Override Detection[/bold]")
+                system = Prompt.ask("Operating System", default=system)
+                machine = Prompt.ask("Architecture", default=machine)
+                arch_label = _ARCH_MAP.get(machine, machine)
+                shell_name = Prompt.ask("Shell", default=shell_name)
 
         self._choices["platform"] = {
             "system": system,
             "linux_distro": linux_distro,
+            "is_termux": termux_env,
+            "security_distro": sec_distro,
             "os_name": os_name,
             "release": release,
             "version": version,
@@ -652,15 +700,14 @@ class OnboardingWizard:
 
         checks: list[tuple[str, bool, str]] = []
 
-        py_ok = (sys.version_info.major, sys.version_info.minor) >= (3, 12)
-        checks.append(("Python >= 3.12", py_ok, "All features require Python 3.12+"))
+        major, minor = sys.version_info[0], sys.version_info[1]
+        py_ok = (major, minor) >= (3, 11)
+        checks.append(("Python >= 3.11", py_ok, "All features require Python 3.11+"))
         if not py_ok:
-            self._console.print(
-                f"[red]Python {sys.version_info.major}.{sys.version_info.minor} found \u2014 "
-                f"3.12+ required[/red]"
-            )
+            self._console.print(f"[red]Python {major}.{minor} found \u2014 3.11+ required[/red]")
             self._console.print("[yellow]Please upgrade Python and try again.[/yellow]")
-            Confirm.ask("[dim]Press Enter to exit[/dim]")
+            if not self.non_interactive:
+                Confirm.ask("[dim]Press Enter to exit[/dim]")
             sys.exit(1)
 
         pip_ok = shutil.which("pip") is not None or shutil.which("pip3") is not None
@@ -710,7 +757,10 @@ class OnboardingWizard:
         missing = [cmd for cmd, label, _desc in _REQUIRED_TOOLS if not shutil.which(cmd)]
         if missing:
             self._console.print("[yellow]Some basic requirements are missing.[/yellow]")
-            if Confirm.ask("Install missing requirements?", default=True):
+            want_install = True
+            if not self.express and not self.non_interactive:
+                want_install = Confirm.ask("Install missing requirements?", default=True)
+            if want_install:
                 installer = ToolInstaller(console=self._console)
                 for cmd in missing:
                     installer.install_tool(cmd)
@@ -774,7 +824,10 @@ class OnboardingWizard:
 
         if missing:
             self._console.print(f"[yellow]{len(missing)} package(s) need installation.[/yellow]")
-            if Confirm.ask("Install missing packages automatically?", default=True):
+            want_deps = True
+            if not self.express and not self.non_interactive:
+                want_deps = Confirm.ask("Install missing packages automatically?", default=True)
+            if want_deps:
                 for pkg in missing:
                     self._pip_install(pkg)
                 self._console.print("[green]\u2713 Packages installed[/green]")
@@ -789,6 +842,18 @@ class OnboardingWizard:
     async def _step_tool_discovery(self) -> None:
         self._step_header("Cybersecurity Tool Discovery")
         self._console.print("Scanning for security tools...\n")
+
+        termux_env = is_termux()
+        sec_distro = detect_security_distro()
+
+        if termux_env:
+            self._console.print(
+                "[bold cyan]📱 Termux Native Tool Detection active: tools resolved via pkg / $PREFIX/bin[/bold cyan]\n"
+            )
+        elif sec_distro.get("is_security"):
+            self._console.print(
+                f"[bold green]🛡️ {sec_distro['name']} Native Tool Detection active ({sec_distro['description']})[/bold green]\n"
+            )
 
         found = []
         missing = []
@@ -820,17 +885,29 @@ class OnboardingWizard:
         self._console.print("[dim]These tools extend Siyarix's capabilities.[/dim]\n")
 
         install_choices = {}
-        for exe, pkg, desc in missing:
-            want = Confirm.ask(f"  Install [cyan]{exe}[/cyan]? ({desc})", default=True)
-            if want:
-                install_choices[exe] = pkg
+        if self.non_interactive:
+            self._console.print(
+                "[dim]Non-interactive mode: skipping optional tool installation.[/dim]"
+            )
+        elif self.express:
+            if Confirm.ask(
+                f"Install all {len(missing)} missing security tools now?", default=False
+            ):
+                install_choices = {exe: pkg for exe, pkg, _desc in missing}
+            else:
+                self._console.print("[yellow]Skipping tool installation in Express mode.[/yellow]")
+        else:
+            for exe, pkg, desc in missing:
+                want = Confirm.ask(f"  Install [cyan]{exe}[/cyan]? ({desc})", default=True)
+                if want:
+                    install_choices[exe] = pkg
 
         if install_choices:
             self._console.print(f"\nInstalling {len(install_choices)} tool(s)...")
             installer = ToolInstaller(console=self._console)
             for exe, pkg in install_choices.items():
                 installer.install_tool(exe, pkg)
-        else:
+        elif not self.non_interactive and not self.express:
             self._console.print("[yellow]Skipping tool installation.[/yellow]")
 
         self._console.print("[green]\u2713 Tool discovery complete[/green]")
@@ -862,6 +939,73 @@ class OnboardingWizard:
 
         self._pause()
 
+    @staticmethod
+    def _is_placeholder_key(val: str) -> bool:
+        v = val.strip().lower()
+        if not v:
+            return True
+        placeholders = (
+            "placeholder",
+            "replace-me",
+            "replace_me",
+            "your-",
+            "your_",
+            "example",
+            "dummy",
+            "changeme",
+            "...",
+        )
+        return any(p in v for p in placeholders)
+
+    def _detect_existing_api_keys(self) -> dict[str, str]:
+        """Detect existing provider API keys from os.environ, .env files, or CredentialStore."""
+        keys: dict[str, str] = {}
+        known_providers = [
+            ("openai", "OPENAI_API_KEY"),
+            ("gemini", "GEMINI_API_KEY"),
+            ("anthropic", "ANTHROPIC_API_KEY"),
+            ("groq", "GROQ_API_KEY"),
+            ("openrouter", "OPENROUTER_API_KEY"),
+            ("deepseek", "DEEPSEEK_API_KEY"),
+            ("mistral", "MISTRAL_API_KEY"),
+        ]
+        for prov, env_var in known_providers:
+            val = os.environ.get(env_var, "").strip()
+            if val and not self._is_placeholder_key(val):
+                keys[prov] = val
+
+        for p in (get_config_dir() / ".env", Path.cwd() / ".env"):
+            if p.exists():
+                try:
+                    for line in p.read_text(encoding="utf-8").splitlines():
+                        line = line.strip()
+                        if not line or line.startswith("#") or "=" not in line:
+                            continue
+                        k, _, v = line.partition("=")
+                        k = k.strip().upper()
+                        v = v.strip().strip("'").strip('"')
+                        for prov, env_var in known_providers:
+                            if (
+                                k == env_var
+                                and v
+                                and not self._is_placeholder_key(v)
+                                and prov not in keys
+                            ):
+                                keys[prov] = v
+                except Exception:
+                    pass
+
+        if self._cred_store:
+            try:
+                for prov, _ in known_providers:
+                    if prov not in keys:
+                        val = self._cred_store.retrieve(prov, "api_key")
+                        if val and not self._is_placeholder_key(val):
+                            keys[prov] = val
+            except Exception:
+                pass
+        return keys
+
     # ── Step 6: Provider Selection ──────────────────────────────────────
 
     async def _step_provider(self) -> None:
@@ -869,6 +1013,60 @@ class OnboardingWizard:
         self._console.print(
             "Siyarix needs an AI provider to power its autonomous\nand integrated modes.\n"
         )
+
+        detected_keys = self._detect_existing_api_keys()
+        for prov, key_val in detected_keys.items():
+            self._choices["api_keys"][prov] = key_val
+            self._store_api_key(prov, key_val)
+            self._console.print(
+                f"[bold green]✓ Pre-filled {prov.upper()} API key from environment[/bold green]"
+            )
+        if detected_keys:
+            self._console.print()
+
+        if self.express or self.non_interactive:
+            default_models = {
+                "openai": "gpt-4o",
+                "gemini": "gemini-2.0-flash",
+                "anthropic": "claude-3-7-sonnet",
+                "groq": "llama-3.3-70b-versatile",
+                "openrouter": "anthropic/claude-3.7-sonnet",
+                "deepseek": "deepseek-chat",
+                "mistral": "mistral-large-latest",
+            }
+            if detected_keys:
+                prov = next(iter(detected_keys))
+                model = default_models.get(prov, "default")
+                self._choices["provider_type"] = "online"
+                self._choices["provider_name"] = prov
+                self._choices["provider_model"] = model
+                self._settings.set("model_provider", prov)
+                self._settings.set(f"{prov}_model", model)
+                self._console.print(
+                    f"[green]✓ Express setup: auto-selected provider {prov} ({model})[/green]"
+                )
+                self._pause()
+                return
+
+            if shutil.which("ollama"):
+                self._choices["provider_type"] = "offline"
+                self._choices["provider_name"] = "ollama"
+                self._choices["provider_model"] = "IHA089/drana-infinity-3b"
+                self._settings.set("model_provider", "ollama")
+                self._settings.set("ollama_model", "IHA089/drana-infinity-3b")
+                self._settings.set("_start_ollama_on_launch", True)
+                self._console.print(
+                    "[green]✓ Express setup: auto-selected Ollama local provider[/green]"
+                )
+                self._pause()
+                return
+
+            self._choices["provider_type"] = "skip"
+            self._console.print(
+                "[yellow]Express setup: no API key detected; configuring offline registry mode.[/yellow]"
+            )
+            self._pause()
+            return
 
         options = Table(box=box.ROUNDED, show_header=False)
         options.add_column("Option", style="yellow", width=8)
@@ -890,7 +1088,7 @@ class OnboardingWizard:
         self._console.print(options)
         self._console.print()
 
-        choice = Prompt.ask("Select an option", choices=["0", "1", "2", "3", "4"], default="0")
+        choice = Prompt.ask("Select an option", choices=["0", "1", "2", "3", "4", "5"], default="0")
 
         if choice == "0":
             await self._setup_recommended()
@@ -1460,6 +1658,13 @@ class OnboardingWizard:
 
     def _step_mode(self) -> None:
         self._step_header("Mode Configuration")
+        if self.express or self.non_interactive:
+            self._choices["mode"] = "integrated"
+            self._settings.set("default_mode", "integrated")
+            self._console.print("[green]✓ Express setup: mode set to integrated (Hybrid)[/green]")
+            self._pause()
+            return
+
         self._console.print("Siyarix has three operating modes:\n")
 
         mode_table = Table(box=box.SIMPLE, show_header=True)
@@ -1490,6 +1695,14 @@ class OnboardingWizard:
 
     def _step_persona_sysmsg(self) -> None:
         self._step_header("Persona & System Message")
+        if self.express or self.non_interactive:
+            self._choices["persona"] = "auto"
+            self._settings.set("persona", "auto")
+            self._settings.set("additional_system_message", "")
+            self._console.print("[green]✓ Express setup: persona set to auto (Adaptive)[/green]")
+            self._pause()
+            return
+
         self._console.print("Siyarix personas tailor the AI's behavior.\n")
 
         try:
@@ -1576,6 +1789,9 @@ class OnboardingWizard:
         if persona not in _PERSONA_TOOLS:
             return
 
+        if self.express or self.non_interactive:
+            return
+
         self._step_header(f"Specialized Tools for: {persona}")
         self._console.print(
             f"Scanning for specialized tools required by [bold]{persona}[/bold]...\n"
@@ -1617,6 +1833,26 @@ class OnboardingWizard:
     def _step_preferences(self) -> None:
         """Configure theme, security defaults, output, notifications, history, log level."""
         self._step_header("Preferences & Security Defaults")
+
+        prefs = self._choices["preferences"]
+
+        if self.express or self.non_interactive:
+            for k, v in _DEFAULT_PREFERENCES.items():
+                prefs[k] = v
+            self._settings.set("color_theme", prefs.get("theme", "default"))
+            self._settings.set("default_output_format", prefs.get("output_format", "table"))
+            self._settings.set("notifications_enabled", prefs.get("notifications", True))
+            self._settings.set("log_level", prefs.get("log_level", "info"))
+            self._settings.set("history_retention_days", prefs.get("history_days", 30))
+            self._settings.set("command_review", prefs.get("command_review", True))
+            self._settings.set("stealth_mode", prefs.get("stealth_mode", False))
+            self._settings.set("auto_update_check", prefs.get("auto_update", True))
+            self._console.print(
+                "[green]✓ Express setup: default preferences applied (Standard theme, info logging, command review)[/green]"
+            )
+            self._pause()
+            return
+
         self._console.print("Configure Siyarix behavior, appearance, and security.\n")
 
         prefs = self._choices["preferences"]
@@ -1876,6 +2112,10 @@ class OnboardingWizard:
             self._choices["learning_store_ok"] = False
             return
 
+        if self.express or self.non_interactive:
+            self._pause()
+            return
+
         self._console.print()
 
         # ── Option A: import from file ──────────────────────────────────
@@ -2107,23 +2347,36 @@ class OnboardingWizard:
             dotenv_path if dotenv_path.exists() else (alt_path if alt_path.exists() else None)
         )
         if found_env and self._choices.get("credential_store_initialized"):
-            self._console.print("[bold].env Migration[/bold]")
-            self._console.print(
-                "[dim]Found an existing .env file with environment variables.[/dim]"
-            )
-            if Confirm.ask("Migrate API keys from .env to credential store?", default=True):
+            if self.express or self.non_interactive:
                 migrated = self._migrate_from_dotenv(found_env)
                 if migrated:
                     self._choices["env_migrated"] = True
                     self._console.print(
                         f"[green]\u2713 Migrated {migrated} key(s) from .env[/green]"
                     )
-                else:
-                    self._console.print("[dim]No API keys found in .env to migrate.[/dim]")
+            else:
+                self._console.print("[bold].env Migration[/bold]")
+                self._console.print(
+                    "[dim]Found an existing .env file with environment variables.[/dim]"
+                )
+                if Confirm.ask("Migrate API keys from .env to credential store?", default=True):
+                    migrated = self._migrate_from_dotenv(found_env)
+                    if migrated:
+                        self._choices["env_migrated"] = True
+                        self._console.print(
+                            f"[green]\u2713 Migrated {migrated} key(s) from .env[/green]"
+                        )
+                    else:
+                        self._console.print("[dim]No API keys found in .env to migrate.[/dim]")
             self._console.print()
 
         # ── Shell completion + PATH setup ──────────────────────────────
-        if Confirm.ask("Set up shell completions and add Siyarix to PATH?", default=True):
+        do_shell = True
+        if not self.express and not self.non_interactive:
+            do_shell = Confirm.ask(
+                "Set up shell completions and add Siyarix to PATH?", default=True
+            )
+        if do_shell:
             await self._step_shell_setup()
 
         # ── Write marker + settings ─────────────────────────────────────
@@ -2167,15 +2420,16 @@ class OnboardingWizard:
         self._console.print("[dim]Marker written to ~/.siyarix/.initialized[/dim]\n")
 
         # ── Restart ────────────────────────────────────────────────────
-        self._console.print(
-            Panel(
-                "[bold white]Press ENTER to restart Siyarix[/bold white]",
-                border_style="green",
-                box=box.ROUNDED,
+        if not self.non_interactive:
+            self._console.print(
+                Panel(
+                    "[bold white]Press ENTER to restart Siyarix[/bold white]",
+                    border_style="green",
+                    box=box.ROUNDED,
+                )
             )
-        )
-        input()
-        self._restart_siyarix()
+            input()
+            self._restart_siyarix()
 
     # ── Utilities ────────────────────────────────────────────────────────
 
@@ -2186,17 +2440,23 @@ class OnboardingWizard:
             "Requirements Check": 2,
             "Dependencies & Python Packages": 3,
             "Cybersecurity Tool Discovery": 4,
+            "Credential Storage Setup": 5,
             "Credential Vault Setup": 5,
             "Provider Configuration": 6,
             "Mode Configuration": 7,
             "Persona & System Message": 8,
             "Preferences & Security Defaults": 9,
             "Network Diagnostics": 10,
+            "Continuous Learning System": 11,
+            "Finalize Setup": 12,
         }.get(title, "")
-        prefix = f"[{step_num}/10] " if step_num else ""
-        self._console.print(f"\n[bold cyan]== {prefix}{title} ==[/bold cyan]\n")
+        prefix = f"[{step_num}/12] " if step_num else ""
+        mode_badge = " [bold magenta][⚡ Express][/bold magenta]" if self.express else ""
+        self._console.print(f"\n[bold cyan]== {prefix}{title}{mode_badge} ==[/bold cyan]\n")
 
     def _pause(self) -> None:
+        if self.express or self.non_interactive:
+            return
         self._console.print()
         self._console.input("[dim]Press Enter to continue [/dim]")
 
@@ -2267,94 +2527,111 @@ class OnboardingWizard:
                 "  [dim]Command Prompt (cmd) does not support shell completions. Siyarix recommends PowerShell (pwsh).[/dim]"
             )
             self._choices["shell_completion_done"] = False
-        elif Confirm.ask("  Install shell completions?", default=True):
-            try:
-                if rc_file and rc_file.parent.exists():
-                    typer_shell = shell
-                    if shell == "pwsh":
-                        typer_shell = "powershell"
+        else:
+            want_completions = (
+                True
+                if (self.express or self.non_interactive)
+                else Confirm.ask("  Install shell completions?", default=True)
+            )
+            if want_completions:
+                try:
+                    if rc_file and rc_file.parent.exists():
+                        typer_shell = shell
+                        if shell == "pwsh":
+                            typer_shell = "powershell"
 
-                    # Generate static completion file once (no Python on terminal open)
-                    comp_dir = get_config_dir() / "completions"
-                    comp_dir.mkdir(parents=True, exist_ok=True)
-                    comp_file = comp_dir / f"siyarix.{shell}"
+                        # Generate static completion file once (no Python on terminal open)
+                        comp_dir = get_config_dir() / "completions"
+                        comp_dir.mkdir(parents=True, exist_ok=True)
+                        comp_file = comp_dir / f"siyarix.{shell}"
 
-                    if shell in ("powershell", "pwsh"):
-                        completion_cmd = "$env:_SIYARIX_COMPLETE='source_powershell'; siyarix | Out-String | Invoke-Expression"
-                        source_line = completion_cmd
-                    elif shell == "fish":
-                        source_line = f"source {comp_file}"
-                    else:
-                        source_line = f"source {comp_file}"
-
-                    # Generate the completion file (runs Python once now)
-                    from siyarix.cli import _generate_completion
-
-                    try:
-                        _generate_completion(typer_shell, comp_file)
-                        self._console.print(
-                            f"  [green]\u2713 Completion script generated: {comp_file}[/green]"
-                        )
-                    except Exception as exc:
-                        self._console.print(
-                            f"  [yellow]Could not generate completions: {exc}[/yellow]"
-                        )
-                        self._console.print(
-                            "  [dim]Fallback: using eval (runs on every terminal open)[/dim]"
-                        )
-                        source_line = f'eval "$(_SIYARIX_COMPLETE=source_{typer_shell} siyarix)"'
-
-                    if rc_file.exists():
-                        existing = rc_file.read_text(encoding="utf-8")
-                        import re as _re
-
-                        # Clean up old eval lines
-                        cleaned = _re.sub(
-                            r'\neval "\$\(siyarix? completion \w+\)"\n?',
-                            "",
-                            existing,
-                        )
-                        cleaned = _re.sub(
-                            r'\neval "\$\(_SIYARIX_COMPLETE=\w+_source siyarix\)"\n?',
-                            "",
-                            cleaned,
-                        )
-                        cleaned = _re.sub(
-                            r"\n# Siyarix completions\n.*?\n",
-                            "",
-                            cleaned,
-                        )
-                        if cleaned != existing:
-                            rc_file.write_text(cleaned, encoding="utf-8")
-                            existing = cleaned
-                            self._console.print("  [dim]Cleaned up old completion lines.[/dim]")
-                        if source_line not in existing:
-                            with rc_file.open("a", encoding="utf-8") as f:
-                                f.write(f"\n# Siyarix completions\n{source_line}\n")
-                            self._console.print(
-                                f"  [green]\u2713 Completions added to {rc_file}[/green]"
-                            )
+                        if shell in ("powershell", "pwsh"):
+                            completion_cmd = "$env:_SIYARIX_COMPLETE='source_powershell'; siyarix | Out-String | Invoke-Expression"
+                            source_line = completion_cmd
+                        elif shell == "fish":
+                            source_line = f"source {comp_file}"
                         else:
-                            self._console.print(f"  [dim]Completions already in {rc_file}[/dim]")
-                    else:
-                        rc_file.parent.mkdir(parents=True, exist_ok=True)
-                        rc_file.write_text(
-                            f"# Siyarix completions\n{source_line}\n", encoding="utf-8"
-                        )
-                        self._console.print(
-                            f"  [green]\u2713 Completions file created: {rc_file}[/green]"
-                        )
+                            source_line = f"source {comp_file}"
 
-                    self._choices["shell_completion_done"] = True
-                    self._settings.set("shell_completion_installed", True)
-                else:
-                    self._console.print("  [yellow]Could not determine shell config file.[/yellow]")
-            except Exception as exc:
-                self._console.print(f"  [red]Failed to install completions: {exc}[/red]")
+                        # Generate the completion file (runs Python once now)
+                        from siyarix.cli import _generate_completion
+
+                        try:
+                            _generate_completion(typer_shell, comp_file)
+                            self._console.print(
+                                f"  [green]\u2713 Completion script generated: {comp_file}[/green]"
+                            )
+                        except Exception as exc:
+                            self._console.print(
+                                f"  [yellow]Could not generate completions: {exc}[/yellow]"
+                            )
+                            self._console.print(
+                                "  [dim]Fallback: using eval (runs on every terminal open)[/dim]"
+                            )
+                            source_line = (
+                                f'eval "$(_SIYARIX_COMPLETE=source_{typer_shell} siyarix)"'
+                            )
+
+                        if rc_file.exists():
+                            existing = rc_file.read_text(encoding="utf-8")
+                            import re as _re
+
+                            # Clean up old eval lines
+                            cleaned = _re.sub(
+                                r'\neval "\$\(siyarix? completion \w+\)"\n?',
+                                "",
+                                existing,
+                            )
+                            cleaned = _re.sub(
+                                r'\neval "\$\(_SIYARIX_COMPLETE=\w+_source siyarix\)"\n?',
+                                "",
+                                cleaned,
+                            )
+                            cleaned = _re.sub(
+                                r"\n# Siyarix completions\n.*?\n",
+                                "",
+                                cleaned,
+                            )
+                            if cleaned != existing:
+                                rc_file.write_text(cleaned, encoding="utf-8")
+                                existing = cleaned
+                                self._console.print("  [dim]Cleaned up old completion lines.[/dim]")
+                            if source_line not in existing:
+                                with rc_file.open("a", encoding="utf-8") as f:
+                                    f.write(f"\n# Siyarix completions\n{source_line}\n")
+                                self._console.print(
+                                    f"  [green]\u2713 Completions added to {rc_file}[/green]"
+                                )
+                            else:
+                                self._console.print(
+                                    f"  [dim]Completions already in {rc_file}[/dim]"
+                                )
+                        else:
+                            rc_file.parent.mkdir(parents=True, exist_ok=True)
+                            rc_file.write_text(
+                                f"# Siyarix completions\n{source_line}\n", encoding="utf-8"
+                            )
+                            self._console.print(
+                                f"  [green]\u2713 Completions file created: {rc_file}[/green]"
+                            )
+
+                        self._choices["shell_completion_done"] = True
+                        self._settings.set("shell_completion_installed", True)
+                    else:
+                        self._console.print(
+                            "  [yellow]Could not determine shell config file.[/yellow]"
+                        )
+                except Exception as exc:
+                    self._console.print(f"  [red]Failed to install completions: {exc}[/red]")
 
         # PATH setup
         self._console.print()
-        if Confirm.ask("  Add Siyarix to system PATH?", default=True):
+        want_path = (
+            True
+            if (self.express or self.non_interactive)
+            else Confirm.ask("  Add Siyarix to system PATH?", default=True)
+        )
+        if want_path:
             try:
                 siyarix_bin = str(Path(sys.executable).parent)
                 if os.name == "nt":

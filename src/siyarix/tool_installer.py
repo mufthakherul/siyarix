@@ -216,6 +216,48 @@ class ToolInstaller:
 
         pm = self._detect_pm()
 
+        # Termux native package manager handling (never uses sudo)
+        _TERMUX_PKG_MAP = {
+            "dig": "dnsutils",
+            "nslookup": "dnsutils",
+            "nmap": "nmap",
+            "git": "git",
+            "curl": "curl",
+            "openssl": "openssl-tool",
+            "whois": "whois",
+            "jq": "jq",
+            "tcpdump": "tcpdump",
+            "tshark": "tshark",
+            "netstat": "net-tools",
+            "exiftool": "exiftool",
+            "ffuf": "ffuf",
+            "hydra": "hydra",
+            "sqlmap": "sqlmap",
+            "nikto": "nikto",
+            "radare2": "radare2",
+            "gobuster": "gobuster",
+            "yara": "yara",
+        }
+        if pm == "pkg":
+            mapped = _TERMUX_PKG_MAP.get(tool)
+            pkg = mapped or pkg
+            cmd = ["pkg", "install", "-y", pkg]
+            try:
+                self._print(f"  Running: {' '.join(cmd)}")
+                result = subprocess.run(
+                    cmd,
+                    stdin=sys.stdin,
+                    timeout=300,
+                    check=False,
+                )
+                if result.returncode == 0 or shutil.which(tool):
+                    self._print(f"  [green]\u2713 {tool} installed via pkg[/green]")
+                    return True
+            except (subprocess.SubprocessError, PermissionError) as e:
+                logger.debug(f"pkg install failed: {e}")
+            self._print(f"  [yellow]Could not auto-install {tool}.[/yellow]")
+            return False
+
         # Map common tool names to correct package names per package manager
         _APT_PKG_MAP = {
             "metasploit": "metasploit-framework",
@@ -277,7 +319,11 @@ class ToolInstaller:
         return False
 
     def _detect_pm(self) -> str:
-        for pm in ["apt-get", "brew", "pacman", "dnf", "apk"]:
+        from siyarix._platform import is_termux
+
+        if is_termux() or shutil.which("pkg"):
+            return "pkg"
+        for pm in ["apt-get", "apt", "brew", "pacman", "dnf", "apk"]:
             if shutil.which(pm):
                 return pm
         return "apt-get"

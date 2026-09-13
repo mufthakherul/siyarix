@@ -4,7 +4,6 @@ import platform as _platform
 import os
 import shutil
 import sys
-from pathlib import Path
 from typing import Any
 
 from siyarix.config import get_config_dir
@@ -12,6 +11,9 @@ from siyarix._platform import (
     is_windows as _is_windows,
     is_termux as _is_termux,
     is_ish as _is_ish,
+    is_kali_linux,
+    is_parrot_os,
+    detect_security_distro,
     get_platform_id,
     get_termux_prefix,
 )
@@ -19,25 +21,22 @@ from siyarix._platform import (
 logger = logging.getLogger(__name__)
 
 
-def is_kali_linux() -> bool:
-    """Detect if running on Kali Linux (needs --break-system-packages for pip)."""
-    if _platform.system() != "Linux":
-        return False
-    try:
-        os_release = Path("/etc/os-release")
-        if os_release.exists():
-            for line in os_release.read_text().splitlines():
-                if line.strip() == "ID=kali":
-                    return True
-    except (FileNotFoundError, OSError):
-        pass
-    return Path("/etc/kali-motd").exists()
+def is_security_linux() -> bool:
+    """Detect if running on a specialized cybersecurity / pentest distribution."""
+    return bool(detect_security_distro().get("is_security", False))
 
 
 def pip_install_args(package: str, *extra: str) -> list[str]:
-    """Build pip install command args, adding --break-system-packages on Kali."""
+    """Build pip install command args, adding --break-system-packages on Kali/Parrot/PEP 668."""
     args = [sys.executable, "-m", "pip", "install", package, *extra]
-    if is_kali_linux():
+    if (
+        is_kali_linux()
+        or is_parrot_os()
+        or (
+            detect_security_distro().get("is_security")
+            and detect_security_distro().get("family") == "debian"
+        )
+    ):
         args.append("--break-system-packages")
     return args
 

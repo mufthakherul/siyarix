@@ -73,6 +73,125 @@ def is_wsl() -> bool:
         return False
 
 
+def is_kali_linux() -> bool:
+    """Detect if running on Kali Linux."""
+    if not is_linux():
+        return False
+    try:
+        os_release = Path("/etc/os-release")
+        if os_release.exists():
+            for line in os_release.read_text(encoding="utf-8", errors="ignore").splitlines():
+                if line.strip() in ("ID=kali", 'ID="kali"'):
+                    return True
+            return False
+    except (FileNotFoundError, OSError):
+        pass
+    try:
+        return Path("/etc/kali-motd").exists()
+    except Exception:
+        return False
+
+
+def is_parrot_os() -> bool:
+    """Detect if running on Parrot Security OS."""
+    if not is_linux():
+        return False
+    try:
+        os_release = Path("/etc/os-release")
+        if os_release.exists():
+            for line in os_release.read_text(encoding="utf-8", errors="ignore").splitlines():
+                if line.strip() in ("ID=parrot", 'ID="parrot"'):
+                    return True
+            return False
+    except (FileNotFoundError, OSError):
+        pass
+    try:
+        return Path("/etc/parrot.version").exists()
+    except Exception:
+        return False
+
+
+def is_blackarch() -> bool:
+    """Detect if running on BlackArch Linux."""
+    if not is_linux():
+        return False
+    try:
+        os_release = Path("/etc/os-release")
+        if os_release.exists():
+            for line in os_release.read_text(encoding="utf-8", errors="ignore").splitlines():
+                if line.strip() in ("ID=blackarch", 'ID="blackarch"'):
+                    return True
+            return False
+    except (FileNotFoundError, OSError):
+        pass
+    try:
+        return Path("/etc/blackarch-release").exists()
+    except Exception:
+        return False
+
+
+def is_athena_os() -> bool:
+    """Detect if running on Athena OS."""
+    if not is_linux():
+        return False
+    try:
+        os_release = Path("/etc/os-release")
+        if os_release.exists():
+            for line in os_release.read_text(encoding="utf-8", errors="ignore").splitlines():
+                if line.strip() in ("ID=athena", 'ID="athena"'):
+                    return True
+            return False
+    except (FileNotFoundError, OSError):
+        pass
+    return False
+
+
+def detect_security_distro() -> dict[str, Any]:
+    """Detect if running on a specialized cybersecurity / pentest distribution.
+
+    Supports Kali Linux, Parrot Security OS, BlackArch Linux, Athena OS.
+    """
+    if is_kali_linux():
+        return {
+            "is_security": True,
+            "name": "Kali Linux",
+            "family": "debian",
+            "pm": "apt",
+            "description": "Debian-based advanced penetration testing distribution",
+        }
+    if is_parrot_os():
+        return {
+            "is_security": True,
+            "name": "Parrot Security OS",
+            "family": "debian",
+            "pm": "apt",
+            "description": "Debian-based security, forensics, and privacy workstation",
+        }
+    if is_blackarch():
+        return {
+            "is_security": True,
+            "name": "BlackArch Linux",
+            "family": "arch",
+            "pm": "pacman",
+            "description": "Arch Linux-based penetration testing distribution",
+        }
+    if is_athena_os():
+        return {
+            "is_security": True,
+            "name": "Athena OS",
+            "family": "arch",
+            "pm": "pacman",
+            "description": "Arch Linux-based cyber security operating system",
+        }
+    return {
+        "is_security": False,
+        "name": "",
+        "family": "",
+        "pm": "",
+        "description": "",
+    }
+
+
 def is_mobile() -> bool:
     return is_termux() or is_ish() or is_harmonyos()
 
@@ -135,7 +254,7 @@ def get_termux_prefix() -> str:
 
 def detect_package_manager_platform() -> str:
     pid = get_platform_id()
-    if pid == "android":
+    if pid == "android" or is_termux() or shutil.which("pkg"):
         return "pkg"
     if pid == "ios":
         return "apk" if shutil.which("apk") else "pip"
@@ -155,6 +274,9 @@ def detect_package_manager_platform() -> str:
         if shutil.which("port"):
             return "port"
         return "pip"
+    sec = detect_security_distro()
+    if sec.get("is_security") and sec.get("pm") and shutil.which(sec["pm"]):
+        return str(sec["pm"])
     for pm in ("apt-get", "apt", "dnf", "yum", "pacman", "zypper", "emerge", "apk", "xbps-install"):
         if shutil.which(pm):
             return pm
@@ -275,12 +397,14 @@ def safe_chmod(path: Path, mode: int) -> None:
 def safe_geteuid() -> int | None:
     if is_windows():
         return None
-    try:
-        return os.geteuid()
-    except AttributeError:
-        return None
-    except OSError:
-        return None
+    geteuid = getattr(os, "geteuid", None)
+    if callable(geteuid):
+        try:
+            val = geteuid()
+            return int(val) if val is not None else None
+        except (OSError, ValueError):
+            return None
+    return None
 
 
 def set_event_loop_policy() -> None:
@@ -288,7 +412,9 @@ def set_event_loop_policy() -> None:
         try:
             import asyncio
 
-            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())  # type: ignore[attr-defined]
+            policy_cls = getattr(asyncio, "WindowsProactorEventLoopPolicy", None)
+            if policy_cls is not None:
+                asyncio.set_event_loop_policy(policy_cls())
         except (ImportError, AttributeError, RuntimeError):
             pass
 
@@ -328,6 +454,11 @@ __all__ = [
     "is_ish",
     "is_harmonyos",
     "is_wsl",
+    "is_kali_linux",
+    "is_parrot_os",
+    "is_blackarch",
+    "is_athena_os",
+    "detect_security_distro",
     "is_mobile",
     "get_platform_id",
     "get_platform_pretty",

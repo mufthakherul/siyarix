@@ -417,6 +417,12 @@ def init_wizard(
     _skip_requirements: bool = typer.Option(
         False, "--skip-requirements", help="Skip requirements check"
     ),
+    express: bool = typer.Option(
+        False, "--express", "-q", help="Express setup — sensible defaults in seconds"
+    ),
+    non_interactive: bool = typer.Option(
+        False, "--non-interactive", "-y", help="Non-interactive setup with auto-detected defaults"
+    ),
 ) -> None:
     """Initialize Siyarix — interactive setup wizard.
 
@@ -434,7 +440,11 @@ def init_wizard(
     from siyarix.onboarding import OnboardingWizard
 
     settings = SettingsStore()
-    wizard = OnboardingWizard(settings=settings)
+    wizard = OnboardingWizard(
+        settings=settings,
+        express=express,
+        non_interactive=non_interactive,
+    )
     run_async(wizard.run())
 
 

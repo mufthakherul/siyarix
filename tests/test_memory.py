@@ -645,3 +645,32 @@ class TestPublicAPI:
         ]
         for name in expected:
             assert hasattr(memory, name)
+
+
+class TestTargetIntelligence:
+    def test_remember_and_recall_target(self, tmp_path):
+        mgr = MemoryManager(base_path=tmp_path)
+        mgr.remember_target(
+            "192.168.1.1", {"target": "192.168.1.1", "os": "linux", "ports": [22, 80]}
+        )
+        recalled = mgr.recall_target("192.168.1.1")
+        assert recalled is not None
+        assert recalled["os"] == "linux"
+        assert recalled["ports"] == [22, 80]
+
+    def test_associate_finding(self, tmp_path):
+        mgr = MemoryManager(base_path=tmp_path)
+        mgr.associate_finding(
+            "10.0.0.5", {"title": "SQL Injection", "port": 443, "severity": "critical"}
+        )
+        findings = mgr.get_target_findings("10.0.0.5")
+        assert len(findings) == 1
+        assert findings[0]["title"] == "SQL Injection"
+
+        # Associate second finding on same target
+        mgr.associate_finding("10.0.0.5", {"title": "Open Port 80", "port": 80, "severity": "info"})
+        findings_updated = mgr.get_target_findings("10.0.0.5")
+        assert len(findings_updated) == 2
+        recalled = mgr.recall_target("10.0.0.5")
+        assert 80 in recalled["ports"]
+        assert 443 in recalled["ports"]

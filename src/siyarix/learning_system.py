@@ -202,7 +202,8 @@ class ContinuousLearningSystem:
             self._local.conn.execute("PRAGMA journal_mode=WAL")
             self._local.conn.execute("PRAGMA busy_timeout=5000")
             self._local.conn.execute("PRAGMA foreign_keys=ON")
-        return self._local.conn
+        conn: sqlite3.Connection = self._local.conn
+        return conn
 
     # ── DB schema ──────────────────────────────────────────────────────
 
@@ -561,14 +562,64 @@ class ContinuousLearningSystem:
 
         Returns a float in [0.0, 1.0].
         """
-        # 1 — Token Jaccard (primary signal)
+        # 1 — Token similarity with ontology synonyms and TF-IDF domain weighting
         token_sim = 0.0
         if tokens_a and tokens_b:
-            set_a = set(tokens_a)
-            set_b = set(tokens_b)
-            inter = len(set_a & set_b)
-            union = len(set_a | set_b)
-            token_sim = inter / union if union else 0.0
+            synonyms: dict[str, str] = {}
+            try:
+                from .nlp_engine import NaturalLanguageParser
+
+                synonyms = NaturalLanguageParser.DEFAULT_SYNONYMS
+            except Exception:
+                pass
+
+            domain_weights: dict[str, float] = {
+                "nmap": 3.5,
+                "gobuster": 3.5,
+                "ffuf": 3.5,
+                "nuclei": 3.5,
+                "sqlmap": 3.5,
+                "nikto": 3.5,
+                "subfinder": 3.5,
+                "hydra": 3.5,
+                "john": 3.5,
+                "hashcat": 3.5,
+                "wireshark": 3.0,
+                "tshark": 3.0,
+                "burp": 3.0,
+                "metasploit": 3.5,
+                "msf": 3.5,
+                "cve": 3.0,
+                "vuln": 2.5,
+                "vulnerability": 2.5,
+                "exploit": 2.5,
+                "sqli": 3.0,
+                "xss": 3.0,
+                "rce": 3.0,
+                "ssrf": 3.0,
+                "lfi": 3.0,
+                "privesc": 3.0,
+                "subdomain": 2.5,
+                "recon": 2.0,
+                "dirbust": 2.5,
+                "brute": 2.5,
+                "smb": 2.5,
+                "rdp": 2.5,
+                "ssh": 2.5,
+                "dns": 2.5,
+                "http": 2.0,
+                "tls": 2.0,
+            }
+
+            mapped_a = {synonyms.get(t, t) for t in tokens_a}
+            mapped_b = {synonyms.get(t, t) for t in tokens_b}
+
+            inter = mapped_a & mapped_b
+            union = mapped_a | mapped_b
+            if union:
+                w_inter = sum(domain_weights.get(t, 1.0) for t in inter)
+                w_union = sum(domain_weights.get(t, 1.0) for t in union)
+                token_sim = w_inter / w_union if w_union else 0.0
 
         # 2 — Tool overlap bonus (up to +0.30)
         tool_bonus = 0.0
@@ -712,11 +763,11 @@ class ContinuousLearningSystem:
 
         merged: list[LearnedStep] = list(existing_steps)
 
-        for s in incoming_steps:
-            tool = s.get("tool", "")
-            cmd = s.get("command") or s.get("command_template") or ""
-            desc = s.get("description", "")
-            args = s.get("args", {})
+        for inc in incoming_steps:
+            tool = inc.get("tool", "")
+            cmd = inc.get("command") or inc.get("command_template") or ""
+            desc = inc.get("description", "")
+            args = inc.get("args", {})
             key = (tool, cmd)
             if key in existing_cmds:
                 continue
@@ -758,11 +809,11 @@ class ContinuousLearningSystem:
                 if old_t.startswith("{param_") and old_t.endswith("}"):
                     p_name = old_t
                 else:
-                    existing_params = [
-                        int(re.search(r"\{param_(\d+)\}", t).group(1))
-                        for t in param_pattern
-                        if re.search(r"\{param_(\d+)\}", t)
-                    ]
+                    existing_params = []
+                    for pat_token in param_pattern:
+                        m = re.search(r"\{param_(\d+)\}", pat_token)
+                        if m:
+                            existing_params.append(int(m.group(1)))
                     next_idx = max(existing_params) + 1 if existing_params else param_idx
                     p_name = f"{{param_{next_idx}}}"
                     param_idx = next_idx + 1
@@ -809,7 +860,8 @@ class ContinuousLearningSystem:
         skill = self._find_or_create_skill(anon_goal, steps, source)
 
         # ── Parameter abstraction ──────────────────────────────────────
-        old_map, new_map = {}, {}
+        old_map: dict[str, str] = {}
+        new_map: dict[str, str] = {}
         if skill.intent_pattern != anon_goal:
             new_pattern, old_map, new_map = self._abstract_parameters(
                 skill.intent_pattern, anon_goal

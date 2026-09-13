@@ -127,6 +127,7 @@ def make_prompt_top(
     uptime_seconds: float,
     theme: str = "cyber-noir",
     persona: str = "",
+    subagent_id: str = "",
 ) -> RenderableType:
     """Render the top line of the professional prompt."""
     mc = mode_color(mode)
@@ -141,6 +142,13 @@ def make_prompt_top(
             (f"persona:{persona}", "bright_green"),
         ]
 
+    agent_part = []
+    if subagent_id:
+        agent_part = [
+            (" ", ""),
+            (f"[agent:{subagent_id}]", "bold magenta"),
+        ]
+
     title_parts = [
         ("▌", "dim"),
         ("siyarix", "bold bright_white"),
@@ -149,6 +157,7 @@ def make_prompt_top(
         (" ", ""),
         (f"{provider}", "bright_blue"),
         *persona_part,
+        *agent_part,
         (" ", ""),
         (f"msgs:{msg_count}", "dim"),
         (" ", ""),
@@ -216,6 +225,10 @@ def make_bottom_toolbar(
     msg_count: int = 0,
     target: str = "",
     multiline: bool = False,
+    subagent_id: str = "",
+    subagent_role: str = "",
+    subagent_status: str = "",
+    split_view: str = "",
 ) -> Any:
     """Generate prompt_toolkit FormattedText for pinned bottom status line.
 
@@ -254,6 +267,31 @@ def make_bottom_toolbar(
                 ("fg:ansibrightblack", f"msgs:{msg_count}"),
             ]
         )
+        if subagent_id:
+            st_col = (
+                "ansigreen"
+                if subagent_status.lower() == "running"
+                else ("ansicyan" if subagent_status.lower() == "completed" else "ansimagenta")
+            )
+            role_hint = f"({subagent_role}) " if subagent_role else ""
+            tokens.extend(
+                [
+                    ("fg:ansibrightblack", " │ "),
+                    (f"fg:{st_col} bold", f"agent:{subagent_id} "),
+                    ("fg:ansimagenta", role_hint),
+                    (
+                        "fg:ansibrightblack",
+                        f"[{subagent_status.upper()}]" if subagent_status else "",
+                    ),
+                ]
+            )
+        if split_view and split_view not in ("off", "disable", ""):
+            tokens.extend(
+                [
+                    ("fg:ansibrightblack", " │ "),
+                    ("fg:ansicyan bold", f"split:{split_view}"),
+                ]
+            )
         if multiline:
             tokens.extend(
                 [
@@ -271,7 +309,7 @@ def make_bottom_toolbar(
         tokens.extend(
             [
                 ("fg:ansibrightblack", " │ "),
-                ("fg:ansibrightblack", "F1:help | Ctrl+\\:ML | ?:help"),
+                ("fg:ansibrightblack", "Alt+W:split | Alt+A:agent | Ctrl+\\:ML"),
             ]
         )
         return FormattedText(tokens)

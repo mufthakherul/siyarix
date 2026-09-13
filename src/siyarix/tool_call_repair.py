@@ -274,6 +274,191 @@ def _levenshtein_distance(a: str, b: str) -> int:
     return prev[-1]
 
 
+def repair_json(text: str) -> dict[str, Any] | None:
+    """Robustly parse and repair malformed JSON emitted by LLMs."""
+    if not text:
+        return None
+    cleaned = text.strip()
+    # Strip markdown code fence
+    cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s*```$", "", cleaned)
+    cleaned = cleaned.strip()
+
+    # Fast path
+    try:
+        data = json.loads(cleaned)
+        if isinstance(data, dict):
+            return data
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    # Extract JSON object substring between first { and matching last }
+    first_brace = cleaned.find("{")
+    last_brace = cleaned.rfind("}")
+    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+        candidate = cleaned[first_brace : last_brace + 1]
+        try:
+            data = json.loads(candidate)
+            if isinstance(data, dict):
+                return data
+        except (json.JSONDecodeError, ValueError):
+            # Attempt surgical regex repairs:
+            # 1. Remove trailing commas before } or ]
+            repaired = re.sub(r",\s*([}\]])", r"\1", candidate)
+            # 2. Convert single-quoted string keys to double-quoted keys: {'foo': -> {"foo":
+            repaired = re.sub(r"([{,]\s*)'([^']+)'\s*:", r'\1"\2":', repaired)
+            # 3. Convert single-quoted values to double quotes where safe
+            repaired = re.sub(r":\s*'([^']*)'(\s*[,}])", r': "\1"\2', repaired)
+            try:
+                data = json.loads(repaired)
+                if isinstance(data, dict):
+                    return data
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+    return None
+
+
+def parse_markdown_code_blocks(text: str) -> list[dict[str, Any]]:
+    """Extract shell commands from markdown code fences."""
+    blocks = re.findall(
+        r"```(?:bash|sh|zsh|cmd|powershell|)\s*\n(.*?)\n```",
+        text,
+        re.DOTALL | re.IGNORECASE,
+    )
+    steps: list[dict[str, Any]] = []
+    for block in blocks:
+        for line in block.splitlines():
+            cmd = line.strip()
+            # Ignore comments and empty lines
+            if cmd and not cmd.startswith("#") and not cmd.startswith("rem "):
+                steps.append(
+                    {
+                        "tool": "sh",
+                        "command": cmd,
+                        "description": f"Execute: {cmd[:40]}",
+                        "args": {},
+                    }
+                )
+    return steps
+
+
+def repair_plan_payload(raw: Any) -> dict[str, Any] | None:
+    """Extract and repair structured plan payload from any raw model output."""
+    # 1. Direct dict from function calling or pre-parsed
+    if isinstance(raw, dict):
+        tool_calls = raw.get("tool_calls")
+        if tool_calls and len(tool_calls) > 0:
+            tc0 = tool_calls[0]
+            func = getattr(tc0, "function", None)
+            func_args = getattr(func, "arguments", None) if func else None
+            if func_args is None and isinstance(tc0, dict):
+                func_args = tc0.get("function", {}).get("arguments")
+            if isinstance(func_args, str):
+                parsed = repair_json(func_args)
+                if parsed:
+                    return parsed
+            elif isinstance(func_args, dict):
+                return func_args
+
+        if "needs_tools" in raw or "steps" in raw:
+            return raw
+
+        if "tasks" in raw and isinstance(raw["tasks"], list):
+            return {
+                "needs_tools": True,
+                "reasoning": raw.get("reasoning", "Tasks from model"),
+                "steps": raw["tasks"],
+                "response": str(raw),
+            }
+
+    text = raw.get("content", "") if isinstance(raw, dict) else str(raw or "")
+    if not text:
+        return None
+
+    # 2. Try JSON extraction & repair
+    json_data = repair_json(text)
+    if json_data and ("needs_tools" in json_data or "steps" in json_data):
+        return json_data
+
+    # 3. Try YAML parsing if available
+    try:
+        import yaml  # type: ignore[import-untyped]
+
+        cleaned_fence = re.sub(r"^```(?:yaml)?\s*", "", text.strip(), flags=re.IGNORECASE)
+        cleaned_fence = re.sub(r"\s*```$", "", cleaned_fence).strip()
+        y_data = yaml.safe_load(cleaned_fence)
+        if isinstance(y_data, dict) and ("needs_tools" in y_data or "steps" in y_data):
+            return y_data
+    except Exception:
+        pass
+
+    # 4. Try bracket and XML tool parsing
+    native_text, plain_calls = promote_to_native_tool_calls(text)
+    if plain_calls:
+        steps = []
+        for call in plain_calls:
+            tool_name = call.get("name", "")
+            args = call.get("args", {})
+            cmd = args.get("command") or args.get("cmd") or ""
+            steps.append(
+                {
+                    "tool": tool_name,
+                    "command": cmd or None,
+                    "description": f"Call {tool_name}",
+                    "args": args,
+                }
+            )
+        return {
+            "needs_tools": True,
+            "reasoning": "Extracted plain-text tool calls",
+            "steps": steps,
+            "response": native_text,
+        }
+
+    # 5. Try markdown code blocks
+    code_steps = parse_markdown_code_blocks(text)
+    if code_steps:
+        return {
+            "needs_tools": True,
+            "reasoning": "Extracted commands from code fences",
+            "steps": code_steps,
+            "response": text,
+        }
+
+    # 6. Try bracket shorthand commands: [nmap -sS target]
+    bracket_cmds = re.findall(r"\[([a-zA-Z0-9_\-\./]+(?:\s+[^\]\n]+)?)\]", text)
+    if bracket_cmds:
+        b_steps = []
+        for b_cmd in bracket_cmds:
+            b_cmd = b_cmd.strip()
+            if (
+                not b_cmd
+                or b_cmd.lower().startswith("tool")
+                or b_cmd.lower().startswith("end_tool")
+            ):
+                continue
+            parts = b_cmd.split(None, 1)
+            tool_name = parts[0]
+            b_steps.append(
+                {
+                    "tool": tool_name,
+                    "command": b_cmd,
+                    "description": f"Execute: {b_cmd[:40]}",
+                    "args": {"command": b_cmd},
+                }
+            )
+        if b_steps:
+            return {
+                "needs_tools": True,
+                "reasoning": "Extracted bracket commands",
+                "steps": b_steps,
+                "response": text,
+            }
+
+    return None
+
+
 __all__ = [
     "MAX_PAYLOAD_LENGTH",
     "BRACKET_TOOL_RE",
@@ -287,4 +472,7 @@ __all__ = [
     "strip_tool_call_blocks",
     "has_plain_text_tool_calls",
     "promote_to_native_tool_calls",
+    "repair_json",
+    "parse_markdown_code_blocks",
+    "repair_plan_payload",
 ]

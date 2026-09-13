@@ -322,13 +322,28 @@ def build_messages(
             content = msg.get("content", "")
             if role == "system":
                 continue
+            if role == "tool":
+                tool_msg: dict[str, Any] = {"role": "tool", "content": content}
+                if "tool_call_id" in msg:
+                    tool_msg["tool_call_id"] = msg["tool_call_id"]
+                raw_msgs.append(tool_msg)
+                continue
             api_role = "assistant" if role in ("assistant", "model") else "user"
-            raw_msgs.append({"role": api_role, "content": content})
+            msg_dict: dict[str, Any] = {"role": api_role, "content": content}
+            if role in ("assistant", "model") and msg.get("tool_calls"):
+                msg_dict["tool_calls"] = msg["tool_calls"]
+            raw_msgs.append(msg_dict)
 
     raw_msgs.append({"role": "user", "content": user_prompt})
 
     for msg in raw_msgs:
-        if messages and messages[-1]["role"] == msg["role"]:
+        if (
+            messages
+            and messages[-1]["role"] == msg["role"]
+            and msg["role"] in ("user", "assistant")
+            and not msg.get("tool_calls")
+            and not messages[-1].get("tool_calls")
+        ):
             # Merge adjacent messages of the same role
             merged_content = (messages[-1]["content"] + "\n\n" + msg["content"]).strip()
             messages[-1]["content"] = merged_content
@@ -564,7 +579,7 @@ async def openai_stream(
     user_prompt: str,
     history: list[dict] | None = None,
     *,
-    max_tokens: int = 9999,
+    max_tokens: int = 4096,
     temperature: float = 0.3,
     compat: OpenAICompat | None = None,
     tools: list[dict] | None = None,
@@ -572,13 +587,17 @@ async def openai_stream(
 ) -> AsyncGenerator[str, None]:
     """Stream a response from any OpenAI-compatible provider.
 
-    Yields content tokens as they arrive.
+    Yields content and reasoning tokens as they arrive.
     """
     messages = build_messages(system_prompt, user_prompt, history, compat=compat)
+    effective_max = max_tokens
+    if compat and compat.provider in ("ollama", "lmstudio", "llamacpp", "vllm", "localai"):
+        effective_max = min(max_tokens, 4096)
+
     call_kwargs: dict[str, Any] = {
         "model": model,
         "messages": messages,
-        "max_tokens": max_tokens,
+        "max_tokens": effective_max,
         "temperature": temperature,
         "stream": True,
     }
@@ -586,15 +605,43 @@ async def openai_stream(
         call_kwargs["stream_options"] = {"include_usage": True}
     if tools:
         call_kwargs["tools"] = tools
+
+    # Ollama / local model options
+    if compat and compat.provider == "ollama":
+        call_kwargs.setdefault("extra_body", {})
+        call_kwargs["extra_body"].update(
+            {
+                "options": {"num_ctx": kwargs.get("num_ctx", 8192)},
+                "keep_alive": kwargs.get("keep_alive", "15m"),
+            }
+        )
+
     try:
         response = await client.chat.completions.create(**call_kwargs)
     except Exception as exc:
         raise LLMProviderError(f"Stream creation failed (model={model}): {exc}") from exc
+
+    in_reasoning = False
     async for chunk in response:
         if chunk.choices and len(chunk.choices) > 0:
             delta = chunk.choices[0].delta
-            if delta and delta.content:
-                yield delta.content
+            if delta:
+                reasoning = getattr(delta, "reasoning_content", None) or getattr(
+                    delta, "reasoning", None
+                )
+                if isinstance(reasoning, str) and reasoning:
+                    if not in_reasoning:
+                        yield "<think>\n"
+                        in_reasoning = True
+                    yield reasoning
+                elif in_reasoning and delta.content:
+                    yield "\n</think>\n\n"
+                    in_reasoning = False
+
+                if delta.content:
+                    yield delta.content
+    if in_reasoning:
+        yield "\n</think>\n\n"
 
 
 # ── Unified completion function ────────────────────────────────────────
@@ -607,7 +654,7 @@ async def openai_complete(
     user_prompt: str,
     history: list[dict] | None = None,
     *,
-    max_tokens: int = 9999,
+    max_tokens: int = 4096,
     temperature: float = 0.3,
     compat: OpenAICompat | None = None,
     tools: list[dict] | None = None,
@@ -615,17 +662,32 @@ async def openai_complete(
 ) -> dict[str, Any]:
     """Complete a chat request from any OpenAI-compatible provider.
 
-    Returns dict with content, model, input_tokens, output_tokens.
+    Returns dict with content, reasoning, model, input_tokens, output_tokens.
     """
     messages = build_messages(system_prompt, user_prompt, history, compat=compat)
+    effective_max = max_tokens
+    if compat and compat.provider in ("ollama", "lmstudio", "llamacpp", "vllm", "localai"):
+        effective_max = min(max_tokens, 4096)
+
     call_kwargs: dict[str, Any] = {
         "model": model,
         "messages": messages,
-        "max_tokens": max_tokens,
+        "max_tokens": effective_max,
         "temperature": temperature,
     }
     if tools:
         call_kwargs["tools"] = tools
+
+    # Ollama / local model options
+    if compat and compat.provider == "ollama":
+        call_kwargs.setdefault("extra_body", {})
+        call_kwargs["extra_body"].update(
+            {
+                "options": {"num_ctx": kwargs.get("num_ctx", 8192)},
+                "keep_alive": kwargs.get("keep_alive", "15m"),
+            }
+        )
+
     try:
         response = await client.chat.completions.create(**call_kwargs)
     except Exception as exc:
@@ -636,8 +698,19 @@ async def openai_complete(
         raise LLMProviderError(f"API returned no choices (model={model})")
     choice = response.choices[0]
     usage = response.usage
+    raw_content = choice.message.content or ""
+    raw_reasoning = getattr(choice.message, "reasoning_content", None) or getattr(
+        choice.message, "reasoning", None
+    )
+    reasoning_str = raw_reasoning if isinstance(raw_reasoning, str) else ""
+
+    content = raw_content
+    if reasoning_str and "<think>" not in raw_content:
+        content = f"<think>\n{reasoning_str}\n</think>\n\n{raw_content}".strip()
+
     return {
-        "content": choice.message.content or "",
+        "content": content,
+        "reasoning": reasoning_str,
         "model": response.model or model,
         "input_tokens": usage.prompt_tokens if usage else 0,
         "output_tokens": usage.completion_tokens if usage else 0,

@@ -29,6 +29,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 CACHE_DOMAINS = {
     "tool_output": {"ttl": 3600, "max_entries": 500},
     "ai_plan": {"ttl": 7200, "max_entries": 200},
+    "ai_response": {"ttl": 3600, "max_entries": 300},
     "whois": {"ttl": 86400, "max_entries": 1000},
     "dns": {"ttl": 300, "max_entries": 2000},
     "nmap": {"ttl": 3600, "max_entries": 500},
@@ -238,6 +239,45 @@ class CacheManager:
                 if entries
                 else 0,
             }
+
+    @staticmethod
+    def _hash_key(prefix: str, *parts: str) -> str:
+        import hashlib
+
+        raw = ":".join(p.strip().lower() for p in parts if p)
+        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
+        return f"{prefix}:{digest}"
+
+    def get_ai_plan(self, goal: str, target: str = "") -> dict[str, Any] | None:
+        """Retrieve a cached AI plan structure by goal and target."""
+        key = self._hash_key("ai_plan", goal, target)
+        raw = self.get(key, domain="ai_plan")
+        if not raw:
+            return None
+        try:
+            val = json.loads(raw)
+            return val if isinstance(val, dict) else None
+        except Exception:
+            return None
+
+    def set_ai_plan(self, goal: str, plan_data: dict[str, Any], target: str = "") -> None:
+        """Cache an AI plan structure by goal and target."""
+        key = self._hash_key("ai_plan", goal, target)
+        try:
+            serialized = json.dumps(plan_data)
+            self.set(key, serialized, domain="ai_plan")
+        except Exception as exc:
+            logger.debug("Failed to cache AI plan: %s", exc)
+
+    def get_ai_response(self, instruction: str, target: str = "") -> str | None:
+        """Retrieve a cached AI response text by instruction and target."""
+        key = self._hash_key("ai_resp", instruction, target)
+        return self.get(key, domain="ai_response")
+
+    def set_ai_response(self, instruction: str, response: str, target: str = "") -> None:
+        """Cache an AI response text by instruction and target."""
+        key = self._hash_key("ai_resp", instruction, target)
+        self.set(key, response, domain="ai_response")
 
     def clear(self) -> int:
         return self.invalidate()

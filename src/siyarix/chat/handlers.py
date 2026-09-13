@@ -142,6 +142,7 @@ class CommandHandlersMixin:
             "/audit": self._cmd_audit,
             "/queue": self._cmd_queue,
             "/skills": self._cmd_skills,
+            "/memory": self._cmd_memory,
             # ── New commands ──
             "/export": self._cmd_export,
             "/plugins": self._cmd_plugins,
@@ -361,19 +362,58 @@ class CommandHandlersMixin:
             console.print("[yellow]Split Pane view disabled.[/yellow]")
             return
 
-        if args_clean in ("timeline", "metrics", "cheatsheet", "attack_map"):
+        valid_views = (
+            "subagents",
+            "tasks",
+            "findings",
+            "logs",
+            "timeline",
+            "metrics",
+            "cheatsheet",
+            "attack_map",
+        )
+        if args_clean in valid_views:
             self._split_pane_type = args_clean
             self._split_pane_enabled = True
             console.print(f"[green]Split Pane enabled. System view: {args_clean.upper()}[/green]")
+        elif not args_clean:
+            # Cycle through views or toggle
+            cycle_order = [
+                "subagents",
+                "tasks",
+                "findings",
+                "attack_map",
+                "timeline",
+                "metrics",
+                "cheatsheet",
+            ]
+            if not self._split_pane_enabled:
+                self._split_pane_enabled = True
+                self._split_pane_type = cycle_order[0]
+            else:
+                try:
+                    idx = cycle_order.index(self._split_pane_type)
+                    if idx + 1 < len(cycle_order):
+                        self._split_pane_type = cycle_order[idx + 1]
+                    else:
+                        self._split_pane_enabled = False
+                except ValueError:
+                    self._split_pane_type = cycle_order[0]
+
+            status_str = (
+                f"ENABLED ({self._split_pane_type.upper()})"
+                if self._split_pane_enabled
+                else "DISABLED"
+            )
+            console.print(f"[green]Split Pane: [bold]{status_str}[/bold][/green]")
+            console.print(
+                f"[dim]Use '/split <{'|'.join(valid_views)}|off>' or Alt+W to switch views.[/dim]"
+            )
         else:
-            self._split_pane_enabled = not self._split_pane_enabled
-            status_str = "ENABLED" if self._split_pane_enabled else "DISABLED"
             console.print(
-                f"[green]Split Pane view {status_str}.[/green] (System view: {self._split_pane_type.upper()})"
+                f"[yellow]Unknown split view '{args_clean}'. Available: {', '.join(valid_views)} or off[/yellow]"
             )
-            console.print(
-                "[dim]Use '/split <timeline|metrics|cheatsheet|attack_map>' to change views.[/dim]"
-            )
+            return
 
         if self._split_pane_enabled:
             self._render_split_pane_layout()
@@ -532,7 +572,7 @@ class CommandHandlersMixin:
         if provider == "gemini":
             pkg_name = "google-genai"
             try:
-                import google.genai as _test_genai  # noqa: F401
+                import google.genai as _test_genai  # type: ignore[import-untyped]  # noqa: F401
 
                 gemini_pkg_installed = True
             except Exception:
@@ -1701,38 +1741,251 @@ class CommandHandlersMixin:
             "[dim]Use /config set <key> <value> to change, /config add <key> <value> for custom, /config get <key> to view[/dim]"
         )
 
+    @property
+    def subagent_mgr(self) -> Any:
+        """Access or lazily initialize the SubagentManager."""
+        mgr = getattr(self, "_subagent_mgr", None)
+        if mgr is None:
+            from .subagents import SubagentManager
+
+            mgr = SubagentManager()
+            setattr(self, "_subagent_mgr", mgr)
+        return mgr
+
     async def _cmd_agent(self, args: str) -> None:
-        """Handle /agent command for sub-agent lifecycle management."""
-        from ..core import AgentCore, AgentMode, AgentGoal
+        """Handle /agent command for subagent fleet orchestration, preview, and switching."""
+        from .subagents import SubagentStatus
 
+        mgr = self.subagent_mgr
         tokens = args.split() if args else []
-        action = tokens[0].lower() if tokens else ""
+        action = tokens[0].lower() if tokens else "list"
 
-        if action == "run":
-            goal = " ".join(tokens[1:]) if len(tokens) > 1 else ""
-            if not goal:
-                console.print("[yellow]Usage: /agent run <goal>[/yellow]")
+        if action in ("list", "ls"):
+            subagents = mgr.list_subagents()
+            if not subagents:
+                console.print(
+                    "[dim]No subagents spawned yet. Use [bold]/agent run <goal>[/bold] or "
+                    "[bold]/agent spawn <role> <goal>[/bold] to deploy one.[/dim]"
+                )
                 return
-            chat_mode = self._mode
-            if chat_mode == "integrated":
-                agent_mode = AgentMode.HYBRID
-            elif chat_mode == "autonomous":
-                agent_mode = AgentMode.AUTONOMOUS
-            elif chat_mode in ("registry", "offline"):
-                agent_mode = AgentMode.REGISTRY
+            console.print(mgr.render_table())
+            active = mgr.active_record
+            if active:
+                role_val = active.role.value if hasattr(active.role, "value") else str(active.role)
+                console.print(
+                    f"[dim]Active focus: [bold #00ffcc]{active.id}[/bold #00ffcc] ({role_val}) — "
+                    f"use /agent preview [id] or Alt+A to switch[/dim]"
+                )
+
+        elif action == "run":
+            run_args = tokens[1:]
+            if not run_args:
+                console.print("[yellow]Usage: /agent run <goal> [--role <role>] [--bg][/yellow]")
+                return
+
+            role = "general"
+            background = False
+            goal_parts = []
+            i = 0
+            while i < len(run_args):
+                tok = run_args[i]
+                if tok == "--role" and i + 1 < len(run_args):
+                    role = run_args[i + 1]
+                    i += 2
+                elif tok in ("--bg", "--background"):
+                    background = True
+                    i += 1
+                else:
+                    goal_parts.append(tok)
+                    i += 1
+
+            goal = " ".join(goal_parts).strip()
+            if not goal:
+                console.print("[yellow]Please provide a goal for the subagent.[/yellow]")
+                return
+
+            rec = mgr.spawn(
+                goal=goal,
+                role=role,
+                mode=self._mode,
+                background=background,
+                chat_session=getattr(self, "_session", None),
+            )
+
+            if background:
+                console.print(
+                    f"[green]✓ Spawned background subagent [bold]{rec.id}[/bold] ({rec.role})[/green]\n"
+                    f"[dim]Goal: {rec.goal}[/dim]\n"
+                    f"[dim]Use '/agent preview {rec.id}' or '/split subagents' to monitor progress.[/dim]"
+                )
             else:
-                agent_mode = AgentMode.AUTONOMOUS
-            agent = AgentCore(mode=agent_mode)
-            await agent.initialize()
-            result = await agent.execute_goal(AgentGoal(description=goal))
-            if result.success:
-                console.print(f"[green]✓ Agent completed: {result.summary}[/green]")
+                console.print(
+                    f"[bold cyan]▶ Launching subagent [bold #00ffcc]{rec.id}[/bold #00ffcc] ({rec.role})[/bold cyan]\n"
+                    f"[dim]Goal: {rec.goal}[/dim]"
+                )
+                with console.status(
+                    f"[bold magenta]Subagent {rec.id} running...[/bold magenta]", spinner="dots"
+                ):
+                    await mgr.run_foreground(rec, chat_session=getattr(self, "_session", None))
+
+                if rec.status == SubagentStatus.COMPLETED:
+                    console.print(
+                        f"[bold green]✓ Subagent {rec.id} completed successfully in {rec.elapsed:.1f}s[/bold green]"
+                    )
+                    if rec.findings:
+                        console.print(
+                            f"  [yellow]★ Discovered {len(rec.findings)} findings[/yellow]"
+                        )
+                    if rec.summary:
+                        console.print(f"[dim]{rec.summary}[/dim]")
+                else:
+                    console.print(
+                        f"[bold red]✗ Subagent {rec.id} failed: {rec.error or rec.summary}[/bold red]"
+                    )
+
+        elif action == "spawn":
+            spawn_args = tokens[1:]
+            if len(spawn_args) < 2:
+                console.print("[yellow]Usage: /agent spawn <role> <goal> [--bg][/yellow]")
+                console.print(
+                    "[dim]Roles: recon, scanner, exploit, auditor, intel, reporter, code_review, general[/dim]"
+                )
+                return
+
+            role = spawn_args[0]
+            rest = spawn_args[1:]
+            background = False
+            goal_parts = []
+            for tok in rest:
+                if tok in ("--bg", "--background"):
+                    background = True
+                else:
+                    goal_parts.append(tok)
+            goal = " ".join(goal_parts).strip()
+            if not goal:
+                console.print("[yellow]Please provide a goal for the subagent.[/yellow]")
+                return
+
+            rec = mgr.spawn(
+                goal=goal,
+                role=role,
+                mode=self._mode,
+                background=background,
+                chat_session=getattr(self, "_session", None),
+            )
+
+            if background:
+                console.print(
+                    f"[green]✓ Spawned specialized subagent [bold]{rec.id}[/bold] ({rec.role}) in background[/green]\n"
+                    f"[dim]Goal: {rec.goal}[/dim]\n"
+                    f"[dim]Use '/agent preview {rec.id}' or '/split subagents' to monitor progress.[/dim]"
+                )
             else:
-                console.print(f"[red]Agent failed: {result.summary}[/red]")
+                console.print(
+                    f"[bold cyan]▶ Launching specialized subagent [bold #00ffcc]{rec.id}[/bold #00ffcc] ({rec.role})[/bold cyan]\n"
+                    f"[dim]Goal: {rec.goal}[/dim]"
+                )
+                with console.status(
+                    f"[bold magenta]Subagent {rec.id} executing...[/bold magenta]", spinner="dots"
+                ):
+                    await mgr.run_foreground(rec, chat_session=getattr(self, "_session", None))
+
+                if rec.status == SubagentStatus.COMPLETED:
+                    console.print(
+                        f"[bold green]✓ Subagent {rec.id} completed successfully in {rec.elapsed:.1f}s[/bold green]"
+                    )
+                    if rec.findings:
+                        console.print(
+                            f"  [yellow]★ Discovered {len(rec.findings)} findings[/yellow]"
+                        )
+                    if rec.summary:
+                        console.print(f"[dim]{rec.summary}[/dim]")
+                else:
+                    console.print(
+                        f"[bold red]✗ Subagent {rec.id} failed: {rec.error or rec.summary}[/bold red]"
+                    )
+
+        elif action in ("switch", "focus"):
+            if len(tokens) < 2:
+                console.print("[yellow]Usage: /agent switch <agent_id>[/yellow]")
+                return
+            target_id = tokens[1]
+            if mgr.switch(target_id):
+                active = mgr.active_record
+                role_val = active.role.value if hasattr(active.role, "value") else str(active.role)
+                console.print(
+                    f"[bold green]✓ Switched active focus to subagent [bold #00ffcc]{active.id}[/bold #00ffcc] ({role_val})[/bold green]"
+                )
+            else:
+                console.print(
+                    f"[red]Subagent '{target_id}' not found. Use '/agent list' to view available agents.[/red]"
+                )
+
+        elif action == "preview":
+            preview_target_id = tokens[1] if len(tokens) > 1 else None
+            panel = mgr.render_preview(preview_target_id)
+            console.print(panel)
+
+        elif action == "logs":
+            rec = mgr.get(tokens[1]) if len(tokens) > 1 else mgr.active_record
+            if not rec:
+                console.print("[yellow]Subagent not found. Usage: /agent logs <agent_id>[/yellow]")
+                return
+            if not rec.logs:
+                console.print(f"[dim]No log entries recorded for {rec.id}.[/dim]")
+                return
+            console.print(
+                f"[bold cyan]Log trace for {rec.id} ({len(rec.logs)} entries):[/bold cyan]"
+            )
+            for line in rec.logs:
+                console.print(f"  {line}")
+
+        elif action in ("kill", "cancel"):
+            target_id = tokens[1] if len(tokens) > 1 else (mgr.active_id or "")
+            if not target_id:
+                console.print("[yellow]Usage: /agent kill <agent_id>[/yellow]")
+                return
+            if mgr.cancel(target_id):
+                console.print(f"[bold yellow]✓ Cancelled subagent {target_id}[/bold yellow]")
+            else:
+                console.print(
+                    f"[red]Could not cancel subagent '{target_id}'. Agent may not exist or is not running.[/red]"
+                )
+
+        elif action == "clear":
+            clear_target_id = tokens[1] if len(tokens) > 1 else None
+            cleared = mgr.clear(clear_target_id)
+            console.print(f"[green]✓ Cleared {cleared} subagent(s) from registry.[/green]")
+
         elif action == "status":
-            console.print("[dim]Agent status: idle[/dim]")
+            subagents = mgr.list_subagents()
+            running = sum(1 for a in subagents if a.status == SubagentStatus.RUNNING)
+            completed = sum(1 for a in subagents if a.status == SubagentStatus.COMPLETED)
+            failed = sum(1 for a in subagents if a.status == SubagentStatus.FAILED)
+            total_find = sum(len(a.findings) for a in subagents)
+            active_str = f"{mgr.active_id}" if mgr.active_id else "none"
+
+            from rich.panel import Panel
+
+            body = (
+                f"[bold cyan]Active Focus:[/bold cyan] {active_str}\n"
+                f"[bold]Total Subagents:[/bold] {len(subagents)} "
+                f"([green]Running: {running}[/green] | [cyan]Completed: {completed}[/cyan] | [red]Failed: {failed}[/red])\n"
+                f"[bold yellow]Total Discovered Findings:[/bold yellow] {total_find}\n\n"
+                f"[dim]Commands: /agent list | /agent switch <id> | /agent preview [id] | /agent run <goal>[/dim]"
+            )
+            console.print(
+                Panel(
+                    body,
+                    title="[bold magenta]Subagent Fleet Status[/bold magenta]",
+                    border_style="magenta",
+                )
+            )
+
         else:
-            console.print("[yellow]Usage: /agent run <goal> | /agent status[/yellow]")
+            console.print(
+                "[yellow]Usage: /agent [list|run <goal>|spawn <role> <goal>|switch <id>|preview [id]|logs <id>|kill <id>|clear|status][/yellow]"
+            )
 
     def _cmd_review(self, args: str) -> None:
         """Toggle command review prompt before execution."""
@@ -2052,7 +2305,7 @@ class CommandHandlersMixin:
             console.print(step_table)
         console.print()
 
-    def _cmd_skills(self, args: str) -> None:
+    async def _cmd_skills(self, args: str) -> None:
         """Handle /skills command to manage the Continuous Learning System."""
         from ..learning_system import get_learning_system
         import json
@@ -2223,15 +2476,309 @@ class CommandHandlersMixin:
             except Exception as exc:
                 console.print(f"[red]✗ Export failed: {exc}[/red]")
 
+        elif subcmd == "run":
+            if not subargs:
+                console.print("[yellow]Usage: /skills run <Sl No | ID> [target][/yellow]")
+                return
+            parts = subargs.split(maxsplit=1)
+            skill = self._get_skill_by_sl(parts[0])
+            if skill is None and parts[0] in cls._skills:
+                skill = cls._skills[parts[0]]
+            if skill is None:
+                console.print("[red]✗ Invalid Sl No or Skill ID.[/red]")
+                return
+            skill_target = (
+                parts[1].strip() if len(parts) > 1 else (self._session.target or "127.0.0.1")
+            )
+            steps = cls.instantiate_skill(skill, skill_target)
+            if not steps:
+                console.print(
+                    f"[yellow]Skill '{skill.intent_pattern}' has no executable steps.[/yellow]"
+                )
+                return
+            console.print(
+                f"[bold cyan]⚡ Executing skill:[/bold cyan] {skill.intent_pattern} on [green]{skill_target}[/green]"
+            )
+            from ..models import ExecutionPlan, PlanType, PlanStep, PlanStatus
+            from ..planner_autonomous import PlanValidator
+
+            plan_steps = [
+                PlanStep(
+                    id=f"skill_step_{i:03d}",
+                    description=s.get("description", f"Step {i + 1}"),
+                    tool=s.get("tool", ""),
+                    command=s.get("command", ""),
+                    args=s.get("args", {}),
+                )
+                for i, s in enumerate(steps)
+            ]
+            plan_steps = PlanValidator.deduplicate_steps(plan_steps)
+            plan = ExecutionPlan(
+                goal=f"Execute learned skill: {skill.intent_pattern}",
+                steps=plan_steps,
+                plan_type=PlanType.SEQUENTIAL,
+                context={"source": "skills_run", "skill_id": skill.skill_id},
+                status=PlanStatus.ACTIVE,
+            )
+            from ..core import AgentCore, AgentMode
+
+            agent = AgentCore(mode=AgentMode.REGISTRY)
+            await agent.initialize()
+            agent.executor_autonomous.command_review = self._settings.get("command_review", False)
+            res = await agent.executor_autonomous.execute_plan(plan, live_display=True)
+            skill.usage_count += 1
+            if res.status.name == "COMPLETED":
+                skill.success_count += 1
+            cls._save_skill(skill)
+            console.print(f"[green]✓ Skill execution finished ({res.status.name}).[/green]")
+
+        elif subcmd == "search":
+            if not subargs:
+                console.print("[yellow]Usage: /skills search <keyword>[/yellow]")
+                return
+            q = subargs.lower().strip()
+            skills = self._get_sorted_skills()
+            matches = [
+                (i, s)
+                for i, s in enumerate(skills, 1)
+                if q in s.intent_pattern.lower()
+                or q in (s.notes or "").lower()
+                or any(q in t.lower() for t in s.tags)
+                or any(q in st.tool.lower() or q in st.command_template.lower() for st in s.steps)
+            ]
+            if not matches:
+                console.print(f"[yellow]No skills matching '{subargs}'.[/yellow]")
+                return
+            table = Table(title=f"Skills matching '{subargs}' ({len(matches)})", box=box.SIMPLE)
+            table.add_column("Sl No", justify="right", style="dim", width=4)
+            table.add_column("Intent / Pattern", style="cyan", max_width=36)
+            table.add_column("Steps", justify="right")
+            table.add_column("Conf.", justify="right", style="green")
+            table.add_column("Uses", justify="right")
+            for i, s in matches[:15]:
+                table.add_row(
+                    str(i),
+                    s.intent_pattern,
+                    str(len(s.steps)),
+                    f"{s.confidence:.0%}",
+                    str(s.usage_count),
+                )
+            console.print(table)
+
+        elif subcmd == "import":
+            if not subargs:
+                console.print("[yellow]Usage: /skills import <path>.json[/yellow]")
+                return
+            import_path = Path(subargs).expanduser().resolve()
+            if not import_path.exists():
+                console.print(f"[red]✗ File not found: {import_path}[/red]")
+                return
+            try:
+                raw_text = import_path.read_text(encoding="utf-8")
+                data = json.loads(raw_text)
+                count = cls.import_skills(data)
+                console.print(
+                    f"[green]✓ Successfully imported {count} new skill(s) from {import_path.name}[/green]"
+                )
+            except Exception as exc:
+                console.print(f"[red]✗ Import failed: {exc}[/red]")
+
         else:
             console.print(
                 "[yellow]Unknown /skills sub-command.[/yellow]\n"
                 "[dim]Usage: /skills [stats|list]\n"
                 "       /skills show <Sl No>\n"
+                "       /skills run <Sl No | ID> [target]\n"
+                "       /skills search <keyword>\n"
                 "       /skills edit <Sl No> [field]\n"
                 "       /skills remove <Sl No>\n"
                 "       /skills add <Sl No. intent/pattern; step_a; step_b.>\n"
-                "       /skills export <path>.json (or .xaml)[/dim]"
+                "       /skills export <path>.json (or .xaml)\n"
+                "       /skills import <path>.json[/dim]"
+            )
+
+    async def _cmd_memory(self, args: str) -> None:
+        """Handle /memory command to inspect, search, and manage long-term memory."""
+        tokens = args.split(maxsplit=1)
+        subcmd = tokens[0].lower() if tokens else "stats"
+        subargs = tokens[1] if len(tokens) > 1 else ""
+
+        from rich.table import Table
+        from rich import box
+        from rich.panel import Panel
+
+        if subcmd in ("stats", "status"):
+            stats = self._session.memory.stats()
+            tbl = Table(
+                title="🧠 Persistent Memory Statistics", box=box.ROUNDED, header_style="bold cyan"
+            )
+            tbl.add_column("Layer", style="cyan")
+            tbl.add_column("In-Memory Cache", justify="right")
+            tbl.add_column("Persistent (SQLite)", justify="right", style="green")
+
+            for layer_name, layer_stats in stats.items():
+                if isinstance(layer_stats, dict):
+                    cache_count = layer_stats.get("session", 0)
+                    pers_count = sum(layer_stats.get("persistent", {}).values())
+                    tbl.add_row(layer_name.capitalize(), str(cache_count), str(pers_count))
+                else:
+                    tbl.add_row(layer_name.capitalize(), "-", str(layer_stats))
+            console.print(tbl)
+            target = self._session.target
+            if target:
+                target_intel = self._session.recall_target(target)
+                if target_intel:
+                    findings_cnt = len(target_intel.get("findings", []))
+                    ports_cnt = len(target_intel.get("ports", []))
+                    console.print(
+                        f"[dim]Active Target Memory for [bold]{target}[/bold]: {findings_cnt} findings, {ports_cnt} open ports[/dim]"
+                    )
+
+        elif subcmd in ("list", "ls"):
+            from ..memory import MemoryLayer
+
+            layer_filter = None
+            limit = 25
+            if subargs:
+                parts = subargs.split()
+                try:
+                    layer_filter = MemoryLayer(parts[0].lower())
+                except ValueError:
+                    pass
+                if len(parts) > 1 and parts[1].isdigit():
+                    limit = int(parts[1])
+                elif parts[0].isdigit():
+                    limit = int(parts[0])
+
+            entries = self._session.list_memories(layer=layer_filter, limit=limit)
+            if not entries:
+                console.print("[yellow]No memory entries found.[/yellow]")
+                return
+
+            tbl = Table(
+                title=f"Stored Memories ({len(entries)})", box=box.SIMPLE, header_style="bold cyan"
+            )
+            tbl.add_column("Layer", style="magenta", width=12)
+            tbl.add_column("Key", style="cyan", max_width=30)
+            tbl.add_column("Value Preview", style="white", max_width=45)
+            tbl.add_column("Tags", style="green", max_width=20)
+            tbl.add_column("Accessed", justify="right", style="dim", width=10)
+
+            now = time.time()
+            for e in entries:
+                ago_secs = max(0, int(now - e.accessed_at))
+                if ago_secs < 60:
+                    ago_str = f"{ago_secs}s ago"
+                elif ago_secs < 3600:
+                    ago_str = f"{ago_secs // 60}m ago"
+                elif ago_secs < 86400:
+                    ago_str = f"{ago_secs // 3600}h ago"
+                else:
+                    ago_str = f"{ago_secs // 86400}d ago"
+
+                val_prev = (e.value or "").replace("\n", " ")
+                if len(val_prev) > 42:
+                    val_prev = val_prev[:42] + "..."
+                tbl.add_row(
+                    e.layer.value if hasattr(e.layer, "value") else str(e.layer),
+                    e.key,
+                    val_prev,
+                    ", ".join(e.tags[:3]) if e.tags else "-",
+                    ago_str,
+                )
+            console.print(tbl)
+
+        elif subcmd == "search":
+            if not subargs:
+                console.print("[yellow]Usage: /memory search <query>[/yellow]")
+                return
+            entries = self._session.search_memories(subargs, limit=15)
+            if not entries:
+                console.print(f"[yellow]No memories matching '{subargs}'.[/yellow]")
+                return
+            tbl = Table(
+                title=f"Memory Search: '{subargs}' ({len(entries)} matches)",
+                box=box.SIMPLE,
+                header_style="bold cyan",
+            )
+            tbl.add_column("Layer", style="magenta", width=12)
+            tbl.add_column("Key", style="cyan", max_width=30)
+            tbl.add_column("Value Snippet", style="white", max_width=45)
+            tbl.add_column("Tags", style="green", max_width=20)
+
+            for e in entries:
+                val_prev = (e.value or "").replace("\n", " ")
+                if len(val_prev) > 42:
+                    val_prev = val_prev[:42] + "..."
+                tbl.add_row(
+                    e.layer.value if hasattr(e.layer, "value") else str(e.layer),
+                    e.key,
+                    val_prev,
+                    ", ".join(e.tags[:3]) if e.tags else "-",
+                )
+            console.print(tbl)
+
+        elif subcmd == "target":
+            target_name = subargs.strip() or self._session.target or ""
+            if not target_name:
+                console.print(
+                    "[yellow]Usage: /memory target <target_host_or_ip> (or set a session target with /target)[/yellow]"
+                )
+                return
+            intel = self._session.recall_target(target_name)
+            if not intel:
+                console.print(
+                    f"[yellow]No stored intelligence found for target '{target_name}'.[/yellow]"
+                )
+                return
+
+            ports = intel.get("ports", [])
+            findings = intel.get("findings", [])
+            lines = [
+                f"[bold cyan]🎯 Target Intelligence:[/bold cyan] [bold white]{target_name}[/bold white]",
+                f"[bold]Known Open Ports:[/bold] {', '.join(str(p) for p in sorted(ports)) if ports else '[dim]none recorded[/dim]'}",
+                f"[bold]Recorded Vulnerabilities / Findings:[/bold] {len(findings)}",
+            ]
+            if intel.get("os"):
+                lines.append(f"[bold]Detected OS:[/bold] {intel['os']}")
+            if intel.get("technologies"):
+                lines.append(f"[bold]Technologies:[/bold] {', '.join(intel['technologies'])}")
+
+            if findings:
+                lines.append("\n[bold]Recent Findings:[/bold]")
+                for f in findings[-5:]:
+                    sev = f.get("severity", "info").upper()
+                    title = f.get("title", f.get("description", "Vulnerability"))
+                    lines.append(f"  • [{sev}] {title}")
+            console.print(
+                Panel("\n".join(lines), title=f"Target Memory: {target_name}", border_style="cyan")
+            )
+
+        elif subcmd == "clear":
+            from ..tool_installer import tty_confirm
+            from ..memory import MemoryLayer
+
+            layer_filter = None
+            if subargs:
+                try:
+                    layer_filter = MemoryLayer(subargs.strip().lower())
+                except ValueError:
+                    pass
+            prompt_str = f"Clear {layer_filter.value if layer_filter else 'ALL'} memories?"
+            if tty_confirm(prompt_str, default=False):
+                self._session.clear_memories(layer=layer_filter)
+                console.print("[green]✓ Memory store cleared.[/green]")
+            else:
+                console.print("[dim]Clear cancelled.[/dim]")
+
+        else:
+            console.print(
+                "[yellow]Unknown /memory sub-command.[/yellow]\n"
+                "[dim]Usage: /memory [stats]\n"
+                "       /memory list [layer] [limit]\n"
+                "       /memory search <query>\n"
+                "       /memory target [target]\n"
+                "       /memory clear [layer][/dim]"
             )
 
     async def _cmd_siem(self, args: str) -> None:

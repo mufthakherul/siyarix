@@ -8,6 +8,13 @@ without an AI provider connection.
 from __future__ import annotations
 
 
+from ..offline_engine import (
+    OfflineReasoningEngine,
+    RemediationAdvisory,
+    OFFLINE_SECURITY_KNOWLEDGE,
+)
+
+
 def offline_instruction_hint(instruction: str) -> str:
     """Return a brief hint about what will happen with this instruction in offline mode."""
     return (
@@ -27,4 +34,7 @@ def no_provider_message() -> str:
 __all__ = [
     "offline_instruction_hint",
     "no_provider_message",
+    "OfflineReasoningEngine",
+    "RemediationAdvisory",
+    "OFFLINE_SECURITY_KNOWLEDGE",
 ]

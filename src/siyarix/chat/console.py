@@ -101,6 +101,64 @@ def panel_response(
     )
 
 
+def panel_subagent(
+    text: str | Any,
+    agent_id: str = "agent-1",
+    role: str = "general",
+    status: str = "running",
+    border_style: str = "magenta",
+) -> Panel:
+    """Render a styled subagent container panel."""
+    status_icons = {
+        "running": "[bold green]▶ RUNNING[/bold green]",
+        "completed": "[bold cyan]✓ COMPLETED[/bold cyan]",
+        "failed": "[bold red]✗ FAILED[/bold red]",
+        "cancelled": "[bold bright_black]◼ CANCELLED[/bold bright_black]",
+        "idle": "[dim]● IDLE[/dim]",
+        "planning": "[bold yellow]⚡ PLANNING[/bold yellow]",
+    }
+    st_badge = status_icons.get(status.lower(), f"[bold]{status.upper()}[/bold]")
+    title = f"[bold magenta]🤖 Subagent: {agent_id}[/bold magenta] [dim]({role})[/dim]  {st_badge}"
+    body = Markdown(text) if isinstance(text, str) else text
+    return Panel(
+        body,
+        title=title,
+        border_style=border_style,
+        padding=(0, 2),
+        box=ROUNDED,
+    )
+
+
+def panel_callout(
+    text: str,
+    kind: str = "info",
+    title: str | None = None,
+) -> Panel:
+    """Render a structured alert/callout box."""
+    kind_styles = {
+        "info": ("cyan", "ℹ INFO", "cyan"),
+        "warning": ("yellow", "⚠ WARNING", "yellow"),
+        "critical": ("red", "🔴 CRITICAL", "bright_red"),
+        "success": ("green", "✓ SUCCESS", "bright_green"),
+        "subagent": ("magenta", "🤖 AGENT", "bright_magenta"),
+        "note": ("blue", "📝 NOTE", "bright_blue"),
+    }
+    border, default_title, text_style = kind_styles.get(kind.lower(), ("cyan", "INFO", "white"))
+    t = title or default_title
+    body = (
+        Markdown(text)
+        if isinstance(text, str) and ("\n" in text or "*" in text or "`" in text)
+        else f"[{text_style}]{text}[/{text_style}]"
+    )
+    return Panel(
+        body,
+        title=f"[bold {border}]{t}[/bold {border}]",
+        border_style=border,
+        padding=(0, 2),
+        box=ROUNDED,
+    )
+
+
 def table_from_dicts(
     rows: list[dict[str, Any]],
     title: str = "",
@@ -230,6 +288,8 @@ __all__ = [
     "print_info",
     "print_success",
     "panel_response",
+    "panel_subagent",
+    "panel_callout",
     "table_from_dicts",
     "tree_from_dict",
     "status_spinner",

@@ -37,23 +37,62 @@ class LLMEngineMixin:
         _llm_calls: int
         SYSTEM_REFRESH_INTERVAL: int
         _stream_assistant_response: Any
-        _get_conversation_history: Any
         _print_plan: Any
         _print_results: Any
         _tool_cache: list[Any] | None
+
+    def _get_conversation_history(self, max_messages: int = 50) -> list[dict[str, Any]]:
+        """Extract recent conversation history from the session for LLM context.
+
+        Excludes the current user message at the end of the history to prevent
+        duplicate adjacent user roles in the API payload.
+        """
+        msgs = getattr(self._session, "messages", [])
+        if not msgs:
+            return []
+
+        msgs_to_process = msgs[:-1] if msgs[-1].role == "user" else msgs
+        if not msgs_to_process:
+            return []
+
+        recent = (
+            msgs_to_process[-max_messages:]
+            if len(msgs_to_process) > max_messages
+            else msgs_to_process
+        )
+        return [
+            {
+                "role": m.role,
+                "content": m.content[-4000:] if len(m.content) > 4000 else m.content,
+            }
+            for m in recent
+        ]
 
     async def _handle_natural_language(self, user_input: str) -> None:
         """Process a natural language instruction."""
         self._session.add_message("user", user_input)
 
-        # Inject target context if set and not already in input
-        instruction = user_input
-        if self._session.target and self._session.target not in instruction:
-            instruction = f"{instruction} on {self._session.target}"
+        # Enterprise pre-execution command analysis
+        from ..command_analyzer import CommandAnalyzer
 
-        await self._execute_instruction(
-            instruction, target=self._session.target or "", show_plan=True
-        )
+        analyzer = CommandAnalyzer()
+        analysis = analyzer.analyze(user_input, default_target=self._session.target or "")
+        effective_target = analysis.primary_target or self._session.target or ""
+
+        # Auto-update session target if discovered
+        if analysis.primary_target and not self._session.target:
+            self._session.target = analysis.primary_target
+
+        instruction = user_input
+        if effective_target and effective_target not in instruction:
+            instruction = f"{instruction} on {effective_target}"
+
+        # Display OPSEC warnings if intrusive or high risk
+        if analysis.opsec_warnings and self._settings.get("opsec_warnings", True):
+            for w in analysis.opsec_warnings:
+                console.print(f"[yellow]⚠ OPSEC Advisory: {w}[/yellow]")
+
+        await self._execute_instruction(instruction, target=effective_target, show_plan=True)
 
     async def _execute_instruction(
         self,
@@ -127,6 +166,20 @@ class LLMEngineMixin:
         plan = None
         with console.status("[bold green]Planning...[/bold green]", spinner="dots"):
             plan = await engine.plan(instruction)
+
+        if plan is None or not plan.steps:
+            if self._mode in ("registry", "offline"):
+                try:
+                    from ..offline_engine import OfflineReasoningEngine
+
+                    _off_eng = OfflineReasoningEngine()
+                    _off_plan = _off_eng.plan_offline_instruction(
+                        instruction, target=target or self._session.target or ""
+                    )
+                    if _off_plan and _off_plan.steps:
+                        plan = _off_plan
+                except Exception as _exc:
+                    logger.debug("OfflineReasoningEngine plan error: %s", _exc)
 
         if plan is None or not plan.steps:
             # Registry/offline mode: local response only (no LLM)
@@ -378,6 +431,11 @@ class LLMEngineMixin:
 
         # Store findings in session context so split pane can render them!
         self._session.context["findings"] = result.all_findings
+        _target_for_mem = self._session.target or target or ""
+        if _target_for_mem and result.all_findings and hasattr(self._session, "associate_finding"):
+            for f in result.all_findings:
+                if isinstance(f, dict):
+                    self._session.associate_finding(_target_for_mem, f)
 
         timeline = []
         for step_res in result.step_results:
@@ -490,6 +548,18 @@ class LLMEngineMixin:
         return None
 
     def _build_offline_fallback_response(self, instruction: str) -> str:
+        # 1. Try local query resolution via OfflineReasoningEngine
+        try:
+            from ..offline_engine import OfflineReasoningEngine
+
+            offline_eng = OfflineReasoningEngine()
+            target = getattr(self._session, "target", "") or ""
+            resolved = offline_eng.resolve_query(instruction, target=target)
+            if resolved:
+                return resolved
+        except Exception as exc:
+            logger.debug("OfflineReasoningEngine resolution error: %s", exc)
+
         lowered = instruction.lower()
 
         suggestions = []
@@ -962,7 +1032,7 @@ class LLMEngineMixin:
 
             with console.status("[bold cyan]LLM analysing request...[/bold cyan]", spinner="dots"):
                 try:
-                    self._llm_calls += 1
+                    self._llm_calls = getattr(self, "_llm_calls", 0) + 1
                     compact = self._should_use_compact()
                     plan_sys_prompt = self._build_system_prompt(compact=compact)
                     if all_outputs:
@@ -977,9 +1047,34 @@ class LLMEngineMixin:
                     else:
                         session_findings = self._session.context.get("findings", [])
                         session_outputs = self._session.context.get("previous_outputs", [])
-                        if session_findings or session_outputs:
+                        recalled_intel = (
+                            self._session.recall_target(_real_target)
+                            if (_real_target and hasattr(self._session, "recall_target"))
+                            else None
+                        )
+                        if session_findings or session_outputs or recalled_intel:
                             parts = [f"Original request: {instruction_with_target}\n\n"]
-                            parts.append("[Existing session data from prior investigation]\n")
+                            if recalled_intel:
+                                parts.append(f"[Long-Term Target Intelligence: {_real_target}]\n")
+                                if recalled_intel.get("ports"):
+                                    parts.append(
+                                        f"Known Open Ports: {', '.join(str(p) for p in sorted(recalled_intel['ports']))}\n"
+                                    )
+                                if recalled_intel.get("os"):
+                                    parts.append(
+                                        f"Known Operating System: {recalled_intel['os']}\n"
+                                    )
+                                if recalled_intel.get("technologies"):
+                                    parts.append(
+                                        f"Known Technologies: {', '.join(recalled_intel['technologies'])}\n"
+                                    )
+                                hist_findings = recalled_intel.get("findings", [])
+                                if hist_findings:
+                                    parts.append(
+                                        f"Historical Findings: {len(hist_findings)} recorded from previous sessions\n"
+                                    )
+                            if session_outputs or session_findings:
+                                parts.append("[Existing session data from prior investigation]\n")
                             if session_outputs:
                                 parts.append("Previous tool outputs (last 10):\n")
                                 for line in session_outputs[-10:]:
@@ -1018,24 +1113,98 @@ class LLMEngineMixin:
                             _goal_with_context = "".join(parts)
                         else:
                             _goal_with_context = instruction_with_target
-                    token_saver_enabled = self._settings.get("token_saver", False)
-                    is_first = True if not token_saver_enabled else (self._llm_calls <= 1)
-                    plan_result = await agent.planner_autonomous.plan(
-                        _goal_with_context,
-                        system_prompt=plan_sys_prompt,
-                        llm_call=llm_call_fn,
-                        tool_schemas=tool_dicts,
-                        available_tools=tool_names,
-                        history=self._get_conversation_history(),
-                        is_first_call=is_first,
+
+                    # Check plan cache
+                    from ..cache_manager import cache_manager
+
+                    cached_plan_dict = (
+                        cache_manager.get_ai_plan(_goal_with_context, _real_target)
+                        if self._settings.get("cache_plans", False)
+                        else None
                     )
+                    if cached_plan_dict:
+                        from ..models import ExecutionPlan, PlanStep, PlanType
+
+                        try:
+                            plan_result = ExecutionPlan(
+                                goal=cached_plan_dict.get("goal", _goal_with_context),
+                                steps=[
+                                    PlanStep(
+                                        id=s.get("id", f"step_{_i}"),
+                                        description=s.get("description", ""),
+                                        tool=s.get("tool", ""),
+                                        command=s.get("command", ""),
+                                        args=s.get("args", {}),
+                                    )
+                                    for _i, s in enumerate(cached_plan_dict.get("steps", []))
+                                ],
+                                plan_type=PlanType.SEQUENTIAL,
+                                context={
+                                    "cached": True,
+                                    "reasoning": cached_plan_dict.get("reasoning", ""),
+                                },
+                            )
+                            console.print(
+                                "[dim]⚡ Replaying verified execution plan from cache[/dim]"
+                            )
+                        except Exception:
+                            plan_result = None
+                    else:
+                        plan_result = None
+
+                    if not plan_result:
+                        token_saver_enabled = self._settings.get("token_saver", False)
+                        is_first = (
+                            True
+                            if not token_saver_enabled
+                            else (getattr(self, "_llm_calls", 0) <= 1)
+                        )
+                        plan_result = await agent.planner_autonomous.plan(
+                            _goal_with_context,
+                            system_prompt=plan_sys_prompt,
+                            llm_call=llm_call_fn,
+                            tool_schemas=tool_dicts,
+                            available_tools=tool_names,
+                            history=self._get_conversation_history(),
+                            is_first_call=is_first,
+                        )
+                        if (
+                            plan_result
+                            and plan_result.steps
+                            and self._settings.get("cache_plans", False)
+                        ):
+                            cache_manager.set_ai_plan(
+                                _goal_with_context,
+                                {
+                                    "goal": plan_result.goal,
+                                    "steps": [
+                                        {
+                                            "id": s.id,
+                                            "description": s.description,
+                                            "tool": s.tool,
+                                            "command": s.command,
+                                            "args": s.args,
+                                        }
+                                        for s in plan_result.steps
+                                    ],
+                                    "reasoning": (
+                                        plan_result.context.get("reasoning", "")
+                                        if isinstance(plan_result.context, dict)
+                                        else ""
+                                    ),
+                                },
+                                target=_real_target,
+                            )
                     llm_plan = plan_result
                     llm_reasoning = (
                         plan_result.context.get("reasoning", "")
                         if isinstance(plan_result.context, dict)
                         else ""
                     )
-                    self._provider_state.record_success(provider_name or "")
+                    if hasattr(self, "_provider_state") and hasattr(
+                        self._provider_state, "record_success"
+                    ):
+                        self._provider_state.record_success(provider_name or "")
                 except Exception as exc:
                     import sys
 
@@ -1066,9 +1235,7 @@ class LLMEngineMixin:
         # ── No tools needed ──────────────────────────────────────────────
         if not llm_plan.steps:
             response = llm_plan.context.get("response", "") if llm_plan else ""
-            if response:
-                self._print_assistant(response)
-            elif llm_connected and llm_call_fn is not None:
+            if not response and llm_connected and llm_call_fn is not None:
                 compact = self._should_use_compact()
                 sys_prompt = self._build_system_prompt(compact=compact)
                 response = await self._stream_assistant_response(
@@ -1079,14 +1246,33 @@ class LLMEngineMixin:
                     history=self._get_conversation_history(),
                 )
                 self._llm_calls += 1
-            else:
+            elif not response:
                 greeting = self._generate_text_response(instruction)
                 response = (
                     greeting
                     or llm_reasoning
                     or "I understood your request but no tools were needed."
                 )
+
+            # Separate thinking reasoning if present
+            thought_text = ""
+            think_match = re.search(r"(?s)<think>(.*?)</think>", response)
+            if think_match:
+                thought_text = think_match.group(1).strip()
+                response = re.sub(r"(?s)<think>.*?</think>", "", response).strip()
+            elif llm_reasoning:
+                thought_text = llm_reasoning.strip()
+
+            from ..response import ResponseGenerator
+
+            resp_gen = ResponseGenerator(console)
+            if thought_text:
+                resp_gen.render_thought(thought_text)
+
+            if hasattr(self, "_print_assistant") and callable(self._print_assistant):
                 self._print_assistant(response)
+            else:
+                console.print(response)
             self._session.add_message("assistant", response)
             duration = time.time() - total_start
             persona_name = self._settings.get("persona") or "auto"
@@ -1101,10 +1287,39 @@ class LLMEngineMixin:
         max_waves = self._settings.get("max_waves") or 12
         plan: Any = llm_plan
         last_executed_plan: Any = None
+        executed_cmd_signatures: set[str] = set()
+        consecutive_stagnant_waves = 0
+        prev_findings_count = 0
+        prev_discovered_ports: set[int] = set()
+        loop_ended_by_guard = False
 
         for wave in range(max_waves):
             if not plan or not plan.steps:
                 break
+
+            # ── Anti-looping: filter previously executed identical commands ──
+            active_steps = []
+            for s in plan.steps:
+                cmd_norm = " ".join((s.command or s.tool or "").strip().lower().split())
+                if cmd_norm and cmd_norm in executed_cmd_signatures:
+                    console.print(
+                        f"[dim]⚡ Skipping redundant command from prior wave: {s.command or s.tool}[/dim]"
+                    )
+                    continue
+                active_steps.append(s)
+
+            if not active_steps:
+                console.print(
+                    "[yellow]⚡ Anti-Looping Guard: All proposed actions were already executed in prior waves. Synthesizing final results...[/yellow]"
+                )
+                loop_ended_by_guard = True
+                break
+
+            plan.steps = active_steps
+
+            # ── Pre-execution: check missing tools, auto-install or rewrite fallbacks ──
+            for s in plan.steps:
+                self._resolve_tool_fallback_and_install(s)
 
             tool_labels = []
             for s in plan.steps:
@@ -1130,6 +1345,12 @@ class LLMEngineMixin:
 
             # Separate Live display output from summary panels
             console.print()
+
+            # Record executed signatures to prevent cycling
+            for s in plan.steps:
+                cmd_norm = " ".join((s.command or s.tool or "").strip().lower().split())
+                if cmd_norm:
+                    executed_cmd_signatures.add(cmd_norm)
 
             # Show summary for this wave
             for s in plan.steps:
@@ -1160,12 +1381,44 @@ class LLMEngineMixin:
                 )
 
             # Store outputs for next wave context and record in persistent chat session history
+            session_tasks = self._session.context.setdefault("tasks", [])
             for s in plan.steps:
                 result = s.result or {}
                 output = (result.get("output") or "").strip()
                 error = (result.get("error") or "").strip()
                 success = result.get("status") == "success"
                 cmd_label = f"$ {s.command}" if s.command else s.tool
+
+                # Record findings in session context and long-term target memory
+                step_findings = result.get("findings")
+                if step_findings and isinstance(step_findings, list):
+                    self._session.context.setdefault("findings", []).extend(step_findings)
+                    _target_for_mem = target or self._session.target or ""
+                    if _target_for_mem and hasattr(self._session, "associate_finding"):
+                        for f in step_findings:
+                            if isinstance(f, dict):
+                                self._session.associate_finding(_target_for_mem, f)
+
+                # Record task in session context for SplitPane tasks view
+                st_name = getattr(getattr(s, "status", None), "name", "")
+                task_status = (
+                    "completed"
+                    if (success or st_name == "COMPLETED")
+                    else ("failed" if (error or st_name == "FAILED") else "running")
+                )
+                session_tasks.append(
+                    {
+                        "id": getattr(s, "id", f"step_{len(session_tasks) + 1}"),
+                        "description": getattr(s, "description", cmd_label),
+                        "tool": getattr(s, "tool", ""),
+                        "command": getattr(s, "command", ""),
+                        "status": task_status,
+                        "output": output[:300],
+                    }
+                )
+                if len(session_tasks) > 50:
+                    session_tasks = session_tasks[-50:]
+                    self._session.context["tasks"] = session_tasks
 
                 # Truncate output for wave context to not overload tokens
                 wave_output = output[:2000]
@@ -1186,12 +1439,47 @@ class LLMEngineMixin:
                 self._session.add_message("assistant", f"Executed command: {cmd_label}")
                 self._session.add_message("user", f"Command output:\n{log_content}")
 
+            # ── Plateau / Stagnation Detection ──
+            current_findings = self._session.context.get("findings", [])
+            current_findings_count = len(current_findings)
+
+            from .grounding import GroundingVerifier
+
+            new_ports: set[int] = set()
+            for s in plan.steps:
+                res = s.result or {}
+                raw_out = res.get("output") or ""
+                for p1, p2 in GroundingVerifier._PORT_PATTERN.findall(raw_out):
+                    try:
+                        p_val = int(p1 or p2)
+                        if 1 <= p_val <= 65535:
+                            new_ports.add(p_val)
+                    except ValueError:
+                        pass
+
+            has_new_ports = bool(new_ports - prev_discovered_ports)
+            has_new_findings = current_findings_count > prev_findings_count
+            prev_discovered_ports.update(new_ports)
+            prev_findings_count = current_findings_count
+
+            if not has_new_ports and not has_new_findings and wave > 0:
+                consecutive_stagnant_waves += 1
+            else:
+                consecutive_stagnant_waves = 0
+
+            if consecutive_stagnant_waves >= 2:
+                console.print(
+                    "[yellow]⚡ Anti-Looping Guard: Investigation plateau reached (no new surface discovered across 2 consecutive waves). Synthesizing final assessment...[/yellow]"
+                )
+                loop_ended_by_guard = True
+                break
+
             # Ask LLM whether processing is complete or another iteration is needed
             if llm_connected and llm_call_fn is not None:
                 wave_goal = (
                     f"Original request: {instruction_with_target}\n\n"
-                    f"Completed execution wave {wave + 1}. Results so far:\n\n"
-                    f"{''.join(all_outputs)}\n\n"
+                    f"Completed execution wave {wave + 1}. Total findings: {len(self._session.context.get('findings', []))}. Recent results:\n\n"
+                    f"{''.join(all_outputs[-6:])}\n\n"
                     "Analyse these results.\n"
                     "Assess whether the original request is fully satisfied:\n"
                     "- If this is a full scan / bug hunt / vulnerability assessment and you "
@@ -1209,15 +1497,17 @@ class LLMEngineMixin:
                     "Do NOT stop early when the user asked for a full report, exploitation "
                     "analysis, or deep assessment. Only set needs_tools=false if the target is "
                     "completely unreachable, all plausible investigation paths have been "
-                    "exhausted, or the user explicitly confirms they are satisfied."
-                    "-If"
+                    "exhausted, or the user explicitly confirms they are satisfied.\n"
+                    "- If a command in previous waves failed, timed out, or returned empty results, "
+                    "do NOT repeat the exact same command. Adapt your methodology, use alternative flags, "
+                    "or try alternative tools."
                 )
                 with console.status(
                     "[bold cyan]LLM analysing wave results...[/bold cyan]",
                     spinner="dots",
                 ):
                     try:
-                        self._llm_calls += 1
+                        self._llm_calls = getattr(self, "_llm_calls", 0) + 1
                         compact = self._should_use_compact()
                         wave_sys_prompt = self._build_system_prompt(compact=compact)
                         token_saver_enabled = self._settings.get("token_saver", False)
@@ -1246,10 +1536,51 @@ class LLMEngineMixin:
                     # Done — show final response
                     ctx = plan.context or {}
                     summary = (ctx.get("response") or ctx.get("reasoning", "")) or "Done."
-                    self._session.add_message("assistant", summary)
-                    self._print_assistant(summary)
+                    self._render_and_record_final_synthesis(
+                        summary=summary,
+                        target=target or self._session.target or "",
+                        all_outputs=all_outputs,
+                        total_start=total_start,
+                    )
             else:
                 plan = None
+
+        if loop_ended_by_guard and llm_connected and llm_call_fn is not None:
+            # Generate final synthesis from collected evidence
+            with console.status(
+                "[bold cyan]Synthesizing final assessment report...[/bold cyan]",
+                spinner="dots",
+            ):
+                synthesis_prompt = (
+                    f"Original request: {instruction_with_target}\n\n"
+                    f"All execution waves completed. Total findings: {len(self._session.context.get('findings', []))}.\n"
+                    f"Evidence summary:\n{''.join(all_outputs[-6:])}\n\n"
+                    "Provide a comprehensive, professional executive cybersecurity assessment report:\n"
+                    "1. Executive Summary & Security Posture Grade\n"
+                    "2. Verified Technical Findings (strictly grounded in outputs)\n"
+                    "3. Attack Surface & Discovered Endpoints/Ports\n"
+                    "4. Strategic Prioritised Remediation Plan"
+                )
+                try:
+                    synth_resp = await llm_call_fn(
+                        self._build_system_prompt(compact=True),
+                        synthesis_prompt,
+                        stream=False,
+                    )
+                    synth_text = (
+                        synth_resp.get("content", "")
+                        if isinstance(synth_resp, dict)
+                        else str(synth_resp)
+                    )
+                    if synth_text:
+                        self._render_and_record_final_synthesis(
+                            summary=synth_text,
+                            target=target or self._session.target or "",
+                            all_outputs=all_outputs,
+                            total_start=total_start,
+                        )
+                except Exception as exc:
+                    logger.debug("Final synthesis generation failed: %s", exc)
 
         # ── Save outputs to session context for follow-up requests ────────
         if all_outputs:
@@ -1305,6 +1636,114 @@ class LLMEngineMixin:
         console.print("[dim]" + " | ".join(stats_parts) + "[/dim]")
 
         return True
+
+    def _resolve_tool_fallback_and_install(self, step: Any) -> None:
+        """Inspect step command/tool, attempt auto-install or rewrite to available system fallback."""
+        cmd = (getattr(step, "command", "") or "").strip()
+        tool = getattr(step, "tool", "") or ""
+
+        parts = cmd.split()
+        binary = ""
+        for p in parts:
+            if "=" in p and not p.startswith("-"):
+                continue
+            if p.lower() in ("sudo", "nohup", "time"):
+                continue
+            binary = Path(p).stem.lower()
+            break
+        if not binary:
+            binary = tool.lower()
+
+        if not binary:
+            return
+
+        # Check if binary is installed
+        if shutil.which(binary) is not None:
+            return
+
+        # 1. Fallback command rewrites if binary is missing
+        is_win = sys.platform == "win32"
+        if binary == "traceroute" and is_win and shutil.which("tracert"):
+            step.command = cmd.replace("traceroute", "tracert", 1)
+            return
+        elif binary == "dig" and shutil.which("nslookup"):
+            step.command = re.sub(r"\bdig\s+(\+[a-z\-]+\s+)*", "nslookup ", cmd)
+            return
+        elif binary == "httpx" and shutil.which("curl"):
+            target_match = re.search(r"(?:-u\s+)?(https?://[^\s]+|[a-zA-Z0-9\.\-]+(?::\d+)?)", cmd)
+            if target_match:
+                t = target_match.group(1)
+                step.command = f"curl -s -I {t}"
+                return
+
+        # 2. Attempt auto-installation if enabled
+        if self._settings.get("auto_install_tools", False):
+            try:
+                from ..tool_installer import ToolInstaller
+
+                installer = ToolInstaller(console)
+                if not installer.is_installed(binary):
+                    console.print(
+                        f"[dim]Auto-installing missing dependency: [cyan]{binary}[/cyan]...[/dim]"
+                    )
+                    res = installer.install(binary)
+                    if res.success:
+                        console.print(f"[green]✓ Successfully installed {binary}[/green]")
+            except Exception as exc:
+                logger.debug("Auto-install failed for %s: %s", binary, exc)
+
+    def _render_and_record_final_synthesis(
+        self,
+        summary: str,
+        target: str,
+        all_outputs: list[str],
+        total_start: float,
+    ) -> None:
+        """Render strategic thought, enterprise summary, anti-hallucination audit, and log response."""
+        from ..response import ResponseGenerator
+        from .grounding import GroundingVerifier
+
+        resp_gen = ResponseGenerator(console)
+
+        # 1. Extract thought reasoning if present
+        thought_content = ""
+        think_match = re.search(r"(?s)<think>(.*?)</think>", summary)
+        if think_match:
+            thought_content = think_match.group(1).strip()
+            clean_summary = re.sub(r"(?s)<think>.*?</think>", "", summary).strip()
+        else:
+            clean_summary = summary.strip()
+
+        if thought_content:
+            resp_gen.render_thought(thought_content)
+
+        # 2. Anti-hallucination verification against all collected outputs and findings
+        findings = self._session.context.get("findings", [])
+        grounding_res = GroundingVerifier.verify(
+            response_text=clean_summary,
+            execution_outputs=all_outputs,
+            findings=findings,
+        )
+
+        # 3. Render Executive summary if findings were collected or target is present
+        if findings or target:
+            duration_ms = (time.time() - total_start) * 1000
+            resp_gen.render_executive_summary(
+                target=target or self._session.target or "",
+                findings=findings,
+                duration_ms=duration_ms,
+            )
+
+        # 4. Render Grounding audit if verifiable claims were extracted
+        if grounding_res.total_claims > 0:
+            resp_gen.render_grounding_audit(grounding_res)
+
+        # 5. Output assistant response and add to session
+        self._session.add_message("assistant", clean_summary)
+        if hasattr(self, "_print_assistant") and callable(self._print_assistant):
+            self._print_assistant(clean_summary)
+        else:
+            console.print(clean_summary)
 
     async def _compile_universal_skill(self, skill: Any, llm_call_fn: Any) -> None:
         """Background task to compile a high-confidence parameterized skill into a Universal Skill using the LLM."""

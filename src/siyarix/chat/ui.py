@@ -49,7 +49,7 @@ _ARG_META: dict[str, str] = {
     "config_action": "show / set / get / list / tools",
     "log_action": "list / show / export",
     "alias_action": "list / set / remove",
-    "split_type": "timeline / metrics / cheatsheet / attack_map / off",
+    "split_type": "subagents / tasks / findings / logs / timeline / metrics / cheatsheet / attack_map / off",
     "section": "docs section name",
     "topic": "tutorial topic",
     "socket_action": "connect / status / disconnect",
@@ -71,7 +71,9 @@ _ARG_META: dict[str, str] = {
     "ticket_action": "create / list",
     "retest_action": "schedule / status",
     "opsec_action": "isolate / burn / status / disable",
-    "agent_action": "run / status",
+    "agent_action": "run / spawn / list / switch / preview / logs / status / kill / clear",
+    "agent_role": "recon / scanner / exploit / auditor / intel / reporter / code_review / general",
+    "agent_id": "subagent identifier",
     "intel_action": "lookup / status",
     "kb_action": "search / list",
     "skills_action": "stats / list / show / edit / remove / add / export",
@@ -120,6 +122,7 @@ class SmartAutocomplete(Completer):
         "/intel": "intel_action",
         "/kb": "kb_action",
         "/skills": "skills_action",
+        "/memory": "memory_action",
         "/docs": "section",
         "/tutorial": "topic",
         "/benchmark": "provider",
@@ -172,14 +175,61 @@ class SmartAutocomplete(Completer):
         "ticket_action": ["create", "list"],
         "retest_action": ["schedule", "status"],
         "opsec_action": ["isolate", "burn", "status", "disable"],
-        "agent_action": ["run", "status"],
+        "agent_action": [
+            "run",
+            "spawn",
+            "list",
+            "ls",
+            "switch",
+            "focus",
+            "preview",
+            "logs",
+            "status",
+            "kill",
+            "cancel",
+            "clear",
+        ],
+        "agent_role": [
+            "recon",
+            "scanner",
+            "exploit",
+            "auditor",
+            "intel",
+            "reporter",
+            "code_review",
+            "general",
+        ],
+        "agent_id": [],
         "intel_action": ["lookup", "status"],
         "kb_action": ["search", "list"],
-        "skills_action": ["stats", "list", "show", "edit", "remove", "add", "export"],
+        "skills_action": [
+            "stats",
+            "list",
+            "show",
+            "edit",
+            "remove",
+            "add",
+            "export",
+            "run",
+            "search",
+            "import",
+        ],
+        "memory_action": ["list", "search", "target", "stats", "clear"],
         "config_action": ["show", "set", "get", "list", "tools"],
         "log_action": ["list", "show", "export"],
         "alias_action": ["list", "set", "remove"],
-        "split_type": ["timeline", "metrics", "cheatsheet", "attack_map", "off", "disable"],
+        "split_type": [
+            "subagents",
+            "tasks",
+            "findings",
+            "logs",
+            "timeline",
+            "metrics",
+            "cheatsheet",
+            "attack_map",
+            "off",
+            "disable",
+        ],
         "section": [
             "getting-started",
             "commands",
@@ -411,6 +461,53 @@ class SmartAutocomplete(Completer):
                         )
             except Exception:
                 pass
+        elif arg_type == "agent_id":
+            try:
+                subagents = []
+                if (
+                    self._session
+                    and hasattr(self._session, "subagent_manager")
+                    and self._session.subagent_manager
+                ):
+                    subagents = self._session.subagent_manager.list_subagents()
+                elif (
+                    self._session
+                    and hasattr(self._session, "_subagent_mgr")
+                    and self._session._subagent_mgr
+                ):
+                    subagents = self._session._subagent_mgr.list_subagents()
+                elif self._session and hasattr(self._session, "context"):
+                    subagents = self._session.context.get("subagents", [])
+
+                for a in subagents:
+                    raw_id = (
+                        getattr(a, "id", None)
+                        if hasattr(a, "id")
+                        else (a.get("id") if isinstance(a, dict) else str(a))
+                    )
+                    aid = str(raw_id) if raw_id is not None else ""
+                    if not aid:
+                        continue
+                    role = (
+                        getattr(a, "role", "")
+                        if hasattr(a, "role")
+                        else (a.get("role", "") if isinstance(a, dict) else "")
+                    )
+                    st = (
+                        getattr(a, "status", "")
+                        if hasattr(a, "status")
+                        else (a.get("status", "") if isinstance(a, dict) else "")
+                    )
+                    st_val = getattr(st, "value", str(st or ""))
+                    role_val = getattr(role, "value", str(role or ""))
+                    if aid.startswith(prefix):
+                        yield Completion(
+                            aid,
+                            start_position=-len(prefix),
+                            display_meta=f"[{role_val}] {st_val}",
+                        )
+            except Exception:
+                pass
 
     def get_completions(self, document: Any, complete_event: Any) -> Any:
         text = document.text_before_cursor
@@ -526,6 +623,16 @@ class SmartAutocomplete(Completer):
             elif cmd == "/agent":
                 if arg_idx == 0:
                     arg_type = "agent_action"
+                elif arg_idx == 1:
+                    action = args_typed[0].lower() if len(args_typed) > 1 else ""
+                    if action in ("switch", "focus", "preview", "logs", "kill", "cancel"):
+                        arg_type = "agent_id"
+                    elif action in ("spawn", "run"):
+                        arg_type = "agent_role"
+                elif arg_idx == 2:
+                    action = args_typed[0].lower() if len(args_typed) > 2 else ""
+                    if action in ("spawn",):
+                        arg_type = "text"
             elif cmd == "/intel":
                 if arg_idx == 0:
                     arg_type = "intel_action"
@@ -773,12 +880,170 @@ class SplitPane:
         session_meta: Any = None,
         findings: list[Any] | None = None,
         timeline_events: list[Any] | None = None,
+        subagents: list[Any] | None = None,
+        tasks: list[Any] | None = None,
+        logs: list[Any] | None = None,
     ) -> str:
         from rich.panel import Panel as RichPanel
         from rich.text import Text as RichText
+        from .console import get_terminal_size
+
+        term_cols, _ = get_terminal_size(fallback=(120, 30))
+        available_w = max(78, term_cols)
+        left_w = max(42, int(available_w * 0.58))
+        right_w = max(32, available_w - left_w - 4)
 
         right_content = RichText()
-        if right_type == "timeline":
+
+        if right_type == "subagents":
+            right_content.append("─ Subagent Fleet ─\n", style="bold magenta")
+            sub_list: list[Any] = []
+            if subagents:
+                sub_list = list(subagents)
+            elif (
+                session_meta
+                and hasattr(session_meta, "subagent_manager")
+                and session_meta.subagent_manager
+            ):
+                sub_list = session_meta.subagent_manager.list_subagents()
+            elif (
+                session_meta
+                and hasattr(session_meta, "_subagent_mgr")
+                and session_meta._subagent_mgr
+            ):
+                sub_list = session_meta._subagent_mgr.list_subagents()
+            elif session_meta and hasattr(session_meta, "context"):
+                sub_list = session_meta.context.get("subagents", [])
+
+            active_id = None
+            if (
+                session_meta
+                and hasattr(session_meta, "subagent_manager")
+                and session_meta.subagent_manager
+            ):
+                active_id = session_meta.subagent_manager.active_id
+            elif (
+                session_meta
+                and hasattr(session_meta, "_subagent_mgr")
+                and session_meta._subagent_mgr
+            ):
+                active_id = session_meta._subagent_mgr.active_id
+
+            if not sub_list:
+                right_content.append("  No active subagents\n", style="dim")
+                right_content.append("  • /agent run <goal>\n", style="dim cyan")
+                right_content.append("  • /agent spawn <role> <goal>\n", style="dim cyan")
+                right_content.append("  • Alt+A to cycle focus\n", style="dim yellow")
+            else:
+                for a in sub_list[:8]:
+                    aid = a.id if hasattr(a, "id") else a.get("id", "?")
+                    role = a.role if hasattr(a, "role") else a.get("role", "general")
+                    role_str = role.value if hasattr(role, "value") else str(role)
+                    st = a.status if hasattr(a, "status") else a.get("status", "idle")
+                    st_val = st.value if hasattr(st, "value") else str(st)
+                    step = (
+                        a.current_step if hasattr(a, "current_step") else a.get("current_step", "")
+                    )
+                    n_find = (
+                        len(a.findings) if hasattr(a, "findings") else len(a.get("findings", []))
+                    )
+
+                    is_act = aid == active_id
+                    st_color = {
+                        "running": "green",
+                        "completed": "cyan",
+                        "failed": "red",
+                        "planning": "yellow",
+                        "cancelled": "bright_black",
+                    }.get(st_val.lower(), "white")
+
+                    right_content.append(f"• {aid}", style="bold white")
+                    if is_act:
+                        right_content.append(" ★", style="bold #00ffcc")
+                    right_content.append(f" [{role_str}]\n", style="magenta")
+                    right_content.append("  Status: ")
+                    right_content.append(st_val.upper(), style=st_color)
+                    right_content.append(f" | Vulns: {n_find}\n", style="white")
+                    if step:
+                        right_content.append(f"  Step: {step[:24]}\n", style="dim")
+
+        elif right_type == "tasks":
+            right_content.append("─ Execution Tasks ─\n", style="bold cyan")
+            t_list = tasks or (
+                session_meta.context.get("tasks", [])
+                if session_meta and hasattr(session_meta, "context")
+                else []
+            )
+            if not t_list:
+                right_content.append("  No tasks recorded\n", style="dim")
+                right_content.append(
+                    "  Execute instructions to see\n  live plan steps here.\n", style="dim italic"
+                )
+            else:
+                for t in t_list[-8:]:
+                    st_t = (
+                        t.get("status", "completed")
+                        if isinstance(t, dict)
+                        else getattr(t, "status", "completed")
+                    )
+                    st_str = st_t.value if hasattr(st_t, "value") else str(st_t)
+                    icon = (
+                        "✓"
+                        if st_str in ("completed", "success")
+                        else ("✗" if st_str in ("failed", "error") else "▶")
+                    )
+                    c = "green" if icon == "✓" else ("red" if icon == "✗" else "yellow")
+                    desc = str(
+                        t.get("description", t.get("command", t.get("tool", "Task")))
+                        if isinstance(t, dict)
+                        else getattr(t, "description", getattr(t, "command", "Task"))
+                    )[:26]
+                    right_content.append(f"  {icon} ", style=c)
+                    right_content.append(f"{desc}\n", style="white")
+
+        elif right_type == "findings":
+            right_content.append("─ Discovered Findings ─\n", style="bold yellow")
+            f_list = findings or (
+                session_meta.context.get("findings", [])
+                if session_meta and hasattr(session_meta, "context")
+                else []
+            )
+            if not f_list:
+                right_content.append("  No findings recorded yet\n", style="dim")
+            else:
+                for f in f_list[-8:]:
+                    sev = (f.get("severity") or "info").upper() if isinstance(f, dict) else "INFO"
+                    c = {
+                        "CRITICAL": "bold red",
+                        "HIGH": "red",
+                        "MEDIUM": "yellow",
+                        "LOW": "green",
+                    }.get(sev, "blue")
+                    title = str(
+                        f.get(
+                            "title", f.get("type", f.get("detail", f.get("description", "Finding")))
+                        )
+                        if isinstance(f, dict)
+                        else str(f)
+                    )[:22]
+                    right_content.append(f"  [{sev[:4]}] ", style=c)
+                    right_content.append(f"{title}\n", style="white")
+
+        elif right_type == "logs":
+            right_content.append("─ Console Log Tail ─\n", style="bold bright_black")
+            l_list = logs or (
+                session_meta.context.get("previous_outputs", [])
+                if session_meta and hasattr(session_meta, "context")
+                else []
+            )
+            if not l_list:
+                right_content.append("  No recent log entries\n", style="dim")
+            else:
+                for entry in l_list[-8:]:
+                    cleaned = str(entry).strip().replace("\n", " ")[:36]
+                    right_content.append(f"  > {cleaned}\n", style="dim")
+
+        elif right_type == "timeline":
             right_content.append("─ Timeline ─\n", style="bold cyan")
             events = timeline_events or []
             for evt in events[-10:]:
@@ -793,12 +1058,23 @@ class SplitPane:
             if session_meta and hasattr(session_meta, "messages"):
                 right_content.append(f"  Messages: {len(session_meta.messages)}\n")
             right_content.append(f"  Findings: {len(findings or [])}\n")
+            if (
+                session_meta
+                and hasattr(session_meta, "subagent_manager")
+                and session_meta.subagent_manager
+            ):
+                sub_count = len(session_meta.subagent_manager.list_subagents())
+                right_content.append(f"  Subagents: {sub_count}\n")
         elif right_type == "cheatsheet":
             right_content.append("─ Quick Reference ─\n", style="bold cyan")
             right_content.append("  /help    — Show commands\n")
+            right_content.append("  /agent   — Subagents fleet\n")
+            right_content.append("  /split   — Working view\n")
             right_content.append("  /run     — Execute command\n")
             right_content.append("  /status  — Session status\n")
             right_content.append("  /tools   — List tools\n")
+            right_content.append("  Alt+W    — Cycle window\n", style="yellow")
+            right_content.append("  Alt+A    — Cycle agent\n", style="yellow")
             right_content.append("  /exit    — Exit chat\n")
         elif right_type == "attack_map":
             right_content.append("─ Attack Surface ─\n", style="bold cyan")
@@ -817,22 +1093,34 @@ class SplitPane:
                 right_content.append(f"  Target: {session_meta.target or 'none'}\n")
                 right_content.append(f"  Mode: {session_meta.mode}\n")
 
+        border_map = {
+            "subagents": "magenta",
+            "tasks": "cyan",
+            "findings": "yellow",
+            "logs": "bright_black",
+            "attack_map": "red",
+            "timeline": "cyan",
+            "metrics": "blue",
+            "cheatsheet": "green",
+        }
+        r_border = border_map.get(right_type, "dim")
+
         left_panel = RichPanel(
             left_renderable or RichText("No content"),
-            title="Chat",
+            title="Chat & Working Window",
             border_style="cyan",
-            width=60,
+            width=left_w,
         )
         right_panel = RichPanel(
             right_content,
-            title=right_type or "Info",
-            border_style="dim",
-            width=40,
+            title=right_type.capitalize() if right_type else "Info",
+            border_style=r_border,
+            width=right_w,
         )
 
         layout = Columns([left_panel, right_panel], expand=True)
         buf = __import__("io").StringIO()
-        tmp = RichConsole(file=buf, width=120, force_terminal=True)
+        tmp = RichConsole(file=buf, width=available_w, force_terminal=True)
         tmp.print(layout)
         return str(buf.getvalue())
 

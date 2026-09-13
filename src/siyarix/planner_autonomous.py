@@ -13,7 +13,7 @@ import logging
 import platform as _platform
 import re
 import sys
-from typing import Any
+from typing import Any, overload
 
 from .events import Event, EventType, emit_sync
 from .models import (
@@ -21,9 +21,330 @@ from .models import (
     PlanStatus,
     PlanStep,
     PlanType,
+    StepStatus,
 )
 
 logger = logging.getLogger(__name__)
+
+
+class PlanValidator:
+    """Enterprise-grade plan and command validator for cyber security operations.
+
+    Validates execution steps against platform boundaries, safety policies,
+    OPSEC rules, and removes duplicate redundant steps.
+    """
+
+    DANGEROUS_PATTERNS: list[str] = [
+        r"\brm\s+-(?:rf?|fr?)\s+/(?:\s|$)",  # rm -rf /
+        r"\bdel\s+/[sfq]\s+[Cc]:\\(?:\s|$)",  # del /s C:\
+        r":\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;",  # fork bomb
+        r"\bdd\s+if=.*?of=/dev/[sh]d[a-z]\b",
+        r"\bmkfs\b",
+        r"\bformat\s+[Cc]:\b",
+    ]
+
+    @overload
+    @classmethod
+    def validate_and_sanitize_step(
+        cls,
+        step: PlanStep,
+        platform_system: str | None = None,
+    ) -> PlanStep: ...
+
+    @overload
+    @classmethod
+    def validate_and_sanitize_step(
+        cls,
+        step: dict[str, Any],
+        platform_system: str | None = None,
+    ) -> dict[str, Any]: ...
+
+    @classmethod
+    def validate_and_sanitize_step(
+        cls,
+        step: PlanStep | dict[str, Any],
+        platform_system: str | None = None,
+    ) -> PlanStep | dict[str, Any]:
+        """Validate and sanitize a plan step for safety and platform compatibility."""
+        if isinstance(step, PlanStep):
+            cmd = step.command
+        else:
+            cmd = step.get("command")
+
+        if not cmd:
+            return step
+
+        platform_sys = (platform_system or _platform.system()).lower()
+        is_windows = "win" in platform_sys
+
+        # 1. Dangerous command guard
+        for pat in cls.DANGEROUS_PATTERNS:
+            if re.search(pat, cmd, re.IGNORECASE):
+                logger.warning("PlanValidator: dangerous command blocked: %s", cmd)
+                blocked_msg = (
+                    f"echo '[SECURITY POLICY] Command blocked by safety guard: {cmd[:40]}'"
+                )
+                if isinstance(step, PlanStep):
+                    step.command = blocked_msg
+                    step.metadata["blocked_dangerous"] = True
+                else:
+                    step["command"] = blocked_msg
+                    step.setdefault("metadata", {})["blocked_dangerous"] = True
+                return step
+
+        # 2. Platform sanitization
+        if is_windows:
+            # Strip unix-only sudo
+            if cmd.startswith("sudo "):
+                cmd = cmd[5:]
+            # Rewrite nmap -sS to -sT -Pn on Windows
+            if "nmap" in cmd and "-sS" in cmd:
+                cmd = cmd.replace("-sS", "-sT -Pn")
+            # Rewrite which to where
+            if cmd.startswith("which "):
+                cmd = "where " + cmd[6:]
+        else:
+            # On POSIX, strip Windows type/where if accidentally emitted
+            if cmd.startswith("where "):
+                cmd = "which " + cmd[6:]
+
+        # 3. OPSEC tuning: clamp overly aggressive thread limits to prevent unintended DoS
+        if re.search(r"\b(gobuster|ffuf|hydra|dirsearch)\b", cmd):
+
+            def _clamp_threads(m: re.Match[str]) -> str:
+                t_val = int(m.group(2))
+                if t_val > 64:
+                    return "-t 64"
+                return str(m.group(0))
+
+            cmd = re.sub(r"(-t\s+)(\d+)", _clamp_threads, cmd)
+
+        if isinstance(step, PlanStep):
+            step.command = cmd
+        else:
+            step["command"] = cmd
+
+        return step
+
+    @classmethod
+    def deduplicate_steps(cls, steps: list[PlanStep]) -> list[PlanStep]:
+        """Remove duplicate redundant steps while preserving order."""
+        seen: set[str] = set()
+        deduped: list[PlanStep] = []
+        for s in steps:
+            cmd = (s.command or "").strip()
+            key = cmd if cmd else f"{s.tool}:{json.dumps(s.args, sort_keys=True)}"
+            if key and key in seen:
+                continue
+            if key:
+                seen.add(key)
+            deduped.append(s)
+        return deduped
+
+    @classmethod
+    def compute_execution_waves(cls, steps: list[PlanStep]) -> list[list[PlanStep]]:
+        """Compute execution waves for parallel vs sequential execution using topological grouping."""
+        if not steps:
+            return []
+
+        step_map = {s.id: s for s in steps}
+        resolved: set[str] = set()
+        waves: list[list[PlanStep]] = []
+        remaining = list(steps)
+
+        while remaining:
+            current_wave: list[PlanStep] = []
+            for s in list(remaining):
+                deps = [d for d in s.dependencies if d in step_map]
+                if not deps or all(d in resolved for d in deps):
+                    current_wave.append(s)
+                    remaining.remove(s)
+            if not current_wave:
+                # Cycle detected or unreachable dependencies — execute remaining sequentially
+                for s in remaining:
+                    waves.append([s])
+                break
+            waves.append(current_wave)
+            for s in current_wave:
+                resolved.add(s.id)
+
+        return waves
+
+
+class SemanticToolSelector:
+    """Intelligently filters and prioritizes the most relevant tools for a given goal.
+
+    Prevents token bloat, reduces local model latency, and ensures high precision.
+    """
+
+    KEYWORD_MAPPINGS: dict[str, list[str]] = {
+        "web": [
+            "nmap",
+            "httpx",
+            "nuclei",
+            "whatweb",
+            "ffuf",
+            "gobuster",
+            "curl",
+            "subfinder",
+            "whois",
+            "dig",
+            "sqlmap",
+            "nikto",
+        ],
+        "dns": ["dig", "whois", "subfinder", "dnsrecon", "nmap", "curl"],
+        "network": [
+            "nmap",
+            "masscan",
+            "tshark",
+            "netcat",
+            "ping",
+            "arp-scan",
+            "traceroute",
+            "tcpdump",
+        ],
+        "exploit": ["searchsploit", "metasploit", "sqlmap", "hydra", "nuclei"],
+        "bruteforce": ["hydra", "john", "hashcat", "medusa", "ffuf", "gobuster"],
+        "forensic": ["volatility", "strings", "binwalk", "exiftool", "gdb", "lsof", "file"],
+        "cloud": ["aws", "azure", "gcloud", "scoutsuite", "prowler"],
+    }
+
+    CORE_TOOLS: list[str] = ["nmap", "curl", "whois", "dig"]
+
+    @classmethod
+    def select_tools(
+        cls,
+        goal: str,
+        tool_schemas: list[dict[str, Any]] | None = None,
+        available_tools: list[str] | None = None,
+        max_tools: int = 14,
+    ) -> tuple[list[dict[str, Any]] | None, list[str] | None]:
+        goal_lower = goal.lower()
+        matched_categories: set[str] = set()
+
+        if any(
+            w in goal_lower
+            for w in ("http", "https", "url", "domain", "web", "site", "api", "endpoint", "path")
+        ):
+            matched_categories.add("web")
+        if any(w in goal_lower for w in ("dns", "record", "mx", "ns", "subdomain")):
+            matched_categories.add("dns")
+        if any(
+            w in goal_lower
+            for w in ("ip", "cidr", "subnet", "port", "network", "host", "ping", "sniff")
+        ):
+            matched_categories.add("network")
+        if any(w in goal_lower for w in ("exploit", "vuln", "cve", "poc", "rce", "sqli")):
+            matched_categories.add("exploit")
+        if any(
+            w in goal_lower for w in ("pass", "wordlist", "brute", "crack", "login", "auth", "hash")
+        ):
+            matched_categories.add("bruteforce")
+        if any(
+            w in goal_lower
+            for w in ("memory", "dump", "process", "forensic", "pcap", "artifact", "binary")
+        ):
+            matched_categories.add("forensic")
+
+        priority_tool_names: list[str] = list(cls.CORE_TOOLS)
+        for cat in matched_categories:
+            priority_tool_names.extend(cls.KEYWORD_MAPPINGS.get(cat, []))
+
+        if tool_schemas:
+            schema_map = {t.get("name", "").lower(): t for t in tool_schemas}
+            selected: list[dict[str, Any]] = []
+            seen: set[str] = set()
+
+            for p in priority_tool_names:
+                p_low = p.lower()
+                if p_low in schema_map and p_low not in seen:
+                    selected.append(schema_map[p_low])
+                    seen.add(p_low)
+                if len(selected) >= max_tools:
+                    break
+
+            # Also check direct tool name matches in goal
+            for t in tool_schemas:
+                t_name = t.get("name", "").lower()
+                if t_name and t_name in goal_lower and t_name not in seen:
+                    selected.append(t)
+                    seen.add(t_name)
+                if len(selected) >= max_tools:
+                    break
+
+            # Also check tool category and tags matching detected categories
+            if matched_categories:
+                for t in tool_schemas:
+                    t_name = t.get("name", "").lower()
+                    if t_name in seen:
+                        continue
+                    t_cat = (t.get("category") or "").lower()
+                    t_tags = [str(tg).lower() for tg in t.get("tags") or []]
+                    if t_cat in matched_categories or any(
+                        mc in t_tags for mc in matched_categories
+                    ):
+                        selected.append(t)
+                        seen.add(t_name)
+                    if len(selected) >= max_tools:
+                        break
+
+            # Fallback ONLY if no relevant tools were found at all
+            if not selected:
+                for t in tool_schemas:
+                    t_name = t.get("name", "").lower()
+                    if t_name not in seen:
+                        selected.append(t)
+                        seen.add(t_name)
+                    if len(selected) >= max_tools:
+                        break
+
+            return selected, [t.get("name", "") for t in selected]
+
+        if available_tools:
+            avail_set = {t.lower(): t for t in available_tools}
+            selected_names: list[str] = []
+            seen_names: set[str] = set()
+
+            for p in priority_tool_names:
+                p_low = p.lower()
+                if p_low in avail_set and p_low not in seen_names:
+                    selected_names.append(avail_set[p_low])
+                    seen_names.add(p_low)
+                if len(selected_names) >= max_tools:
+                    break
+
+            for at in available_tools:
+                at_low = at.lower()
+                if at_low and at_low in goal_lower and at_low not in seen_names:
+                    selected_names.append(avail_set[at_low])
+                    seen_names.add(at_low)
+                if len(selected_names) >= max_tools:
+                    break
+
+            # Fallback ONLY if no relevant tools were found at all
+            if not selected_names:
+                for at in available_tools:
+                    at_low = at.lower()
+                    if at_low not in seen_names:
+                        selected_names.append(at)
+                        seen_names.add(at_low)
+                    if len(selected_names) >= max_tools:
+                        break
+
+            return None, selected_names
+
+        return None, None
+
+    @classmethod
+    def prune_schemas(
+        cls,
+        tool_schemas: list[dict[str, Any]],
+        goal: str,
+        max_tools: int = 14,
+    ) -> list[dict[str, Any]]:
+        """Convenience method to prune tool schemas directly for a goal."""
+        selected, _ = cls.select_tools(goal=goal, tool_schemas=tool_schemas, max_tools=max_tools)
+        return selected or []
 
 
 class AutonomousPlanner:
@@ -142,12 +463,15 @@ Respond with ONLY valid JSON:
         user_goal: str,
         platform_info: str,
         history: list[dict] | None = None,
+        available_tools: list[str] | None = None,
     ) -> str:
         if system_prompt:
             base = system_prompt
         else:
             base = "Continue the previous session. Respond with ONLY valid JSON following the same structure as before."
         base += f"\n\n{platform_info}\n"
+        if available_tools:
+            base += "\nActive relevant tools: " + ", ".join(available_tools[:12]) + "\n"
         if history:
             recent = history[-6:] if len(history) > 6 else history
             base += "\nRecent context:\n" + "\n".join(
@@ -167,29 +491,7 @@ Respond with ONLY valid JSON:
         history: list[dict] | None = None,
         is_first_call: bool | None = None,
     ) -> ExecutionPlan:
-        """Generate a plan using the LLM.
-
-        Parameters
-        ----------
-        goal:
-            The user's request to plan for.
-        system_prompt:
-            Optional external system prompt. When provided the tools list
-            and platform info are appended.
-        platform:
-            Optional pre-built platform context string.
-        llm_call:
-            Async callable ``(system_prompt, user_prompt, *, history, tools) → dict``
-            returning the LLM response.
-        tool_schemas:
-            Full tool metadata objects for the first call.
-        available_tools:
-            Simple tool name list fallback if schemas not available.
-        history:
-            Conversation history for context.
-        is_first_call:
-            Override the session-based first-call detection.
-        """
+        """Generate a plan using the LLM with semantic tool selection."""
         if llm_call is None:
             msg = "AutonomousPlanner requires an llm_call function"
             raise RuntimeError(msg)
@@ -199,21 +501,30 @@ Respond with ONLY valid JSON:
         )
         platform_info = platform or self._build_platform_context()
 
+        # Semantic tool pruning to prevent token bloat
+        pruned_schemas, pruned_tools = SemanticToolSelector.select_tools(
+            goal,
+            tool_schemas=tool_schemas,
+            available_tools=available_tools,
+            max_tools=14,
+        )
+
         if effective_first:
             full_prompt = self._build_first_prompt(
                 system_prompt,
                 goal,
                 platform_info,
-                tool_schemas=tool_schemas,
-                available_tools=available_tools,
+                tool_schemas=pruned_schemas if pruned_schemas is not None else tool_schemas,
+                available_tools=pruned_tools if pruned_tools is not None else available_tools,
             )
-            logger.debug("AutonomousPlanner: first-call prompt (full context + tools)")
+            logger.debug("AutonomousPlanner: first-call prompt (pruned tools)")
         else:
             full_prompt = self._build_subsequent_prompt(
                 system_prompt,
                 goal,
                 platform_info,
                 history=history,
+                available_tools=pruned_tools if pruned_tools is not None else available_tools,
             )
             logger.debug("AutonomousPlanner: subsequent-call prompt (compact)")
 
@@ -256,20 +567,6 @@ Respond with ONLY valid JSON:
             self.mark_session_initialised()
 
         data = self._parse_llm_response(raw)
-
-        if not isinstance(data, dict):
-            return self.create_plan(
-                goal=goal,
-                context={
-                    "reasoning": "",
-                    "response": raw.get("content", "")
-                    if isinstance(raw, dict)
-                    else str(raw)
-                    if raw
-                    else "",
-                    "llm_planned": True,
-                },
-            )
 
         if not data.get("needs_tools"):
             return self.create_plan(
@@ -323,159 +620,20 @@ Respond with ONLY valid JSON:
             },
         )
 
-    def _parse_llm_response(self, raw: Any) -> dict[str, Any] | None:
-        if isinstance(raw, dict):
-            tool_calls = raw.get("tool_calls")
-            if tool_calls and len(tool_calls) > 0:
-                func_args = tool_calls[0].function.arguments
-                if isinstance(func_args, str):
-                    try:
-                        return json.loads(func_args)
-                    except json.JSONDecodeError:
-                        return None
-                return func_args
+    def _parse_llm_response(self, raw: Any) -> dict[str, Any]:
+        from .tool_call_repair import repair_plan_payload
 
-            if "needs_tools" in raw or "steps" in raw:
-                return raw
+        parsed = repair_plan_payload(raw)
+        if isinstance(parsed, dict):
+            return parsed
 
-            if "tasks" in raw and isinstance(raw["tasks"], list):
-                return {
-                    "needs_tools": True,
-                    "reasoning": "Tasks from LLM response",
-                    "steps": raw["tasks"],
-                    "response": str(raw),
-                }
-
-        response = raw.get("content", "") if isinstance(raw, dict) else str(raw)
-        cleaned = response.strip()
-        # 1. Try to parse as JSON first
-        cleaned_json = re.sub(r"^[\s]*```(?:json)?\s*\n?", "", cleaned)
-        cleaned_json = re.sub(r"\n?\s*```\s*$", "", cleaned_json)
-        cleaned_json = cleaned_json.strip()
-        try:
-            data = json.loads(cleaned_json)
-            if isinstance(data, dict) and ("needs_tools" in data or "steps" in data):
-                return data
-        except json.JSONDecodeError:
-            pass
-
-        # 2. Try YAML parsing
-        try:
-            import yaml
-
-            data = yaml.safe_load(cleaned_json)
-            if isinstance(data, dict) and ("needs_tools" in data or "steps" in data):
-                return data
-        except Exception:
-            pass
-
-        # 3. Try Markdown code blocks
-        code_blocks = re.findall(
-            r"```(?:bash|sh|zsh|cmd|powershell|)\n(.*?)\n```", cleaned, re.DOTALL | re.IGNORECASE
-        )
-        if code_blocks:
-            steps = []
-            for block in code_blocks:
-                for line in block.splitlines():
-                    cmd = line.strip()
-                    if cmd and not cmd.startswith("#"):
-                        steps.append(
-                            {
-                                "tool": "execute_plan",
-                                "command": cmd,
-                                "description": f"Extracted from markdown: {cmd[:30]}",
-                                "args": {},
-                            }
-                        )
-            if steps:
-                return {
-                    "needs_tools": True,
-                    "reasoning": "Extracted commands from Markdown code blocks.",
-                    "steps": steps,
-                    "response": cleaned,
-                }
-
-        # 4. Try XML tags
-        xml_commands = re.findall(
-            r"<(?:command|cmd|execute)>(.*?)</(?:command|cmd|execute)>",
-            cleaned,
-            re.DOTALL | re.IGNORECASE,
-        )
-        if xml_commands:
-            steps = []
-            for cmd in xml_commands:
-                cmd = cmd.strip()
-                if cmd:
-                    steps.append(
-                        {
-                            "tool": "execute_plan",
-                            "command": cmd,
-                            "description": f"Extracted from XML: {cmd[:30]}",
-                            "args": {},
-                        }
-                    )
-            if steps:
-                return {
-                    "needs_tools": True,
-                    "reasoning": "Extracted commands from XML tags.",
-                    "steps": steps,
-                    "response": cleaned,
-                }
-        # 5. Direct raw execution fallback (Multi-line)
-        # If the output has NO conversational text, treat every line as a shell command.
-        lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
-        if lines:
-            valid_cmds = []
-            is_conversational = False
-            for line in lines:
-                if re.match(r"^[A-Z][a-z]+ .*[.!?]$", line) or re.match(
-                    r"^(Sure|Here|I will|Let me|Yes|No|Okay)\b", line, re.IGNORECASE
-                ):
-                    is_conversational = True
-                    break
-                if line.startswith("#"):
-                    continue
-                if (
-                    not line.endswith(".")
-                    and not line.startswith('"')
-                    and not line.startswith("'")
-                    and re.match(r"^[a-zA-Z0-9_\-\./]", line)
-                ):
-                    if not re.search(r"[\d\-=\/\$\\]", line):
-                        is_conversational = True
-                        break
-                    valid_cmds.append(line)
-                else:
-                    is_conversational = True
-                    break
-
-            if not is_conversational and valid_cmds:
-                steps = []
-                for cmd in valid_cmds:
-                    steps.append(
-                        {
-                            "tool": "execute_plan",
-                            "command": cmd,
-                            "description": f"Raw command: {cmd[:30]}",
-                            "args": {},
-                        }
-                    )
-                return {
-                    "needs_tools": True,
-                    "reasoning": "Direct raw execution fallback.",
-                    "steps": steps,
-                    "response": cleaned,
-                }
-
-        # 6. Conversational response — LLM answered without structured JSON
-        if cleaned:
-            return {
-                "needs_tools": False,
-                "reasoning": "",
-                "response": cleaned,
-            }
-
-        return None
+        text = raw.get("content", "") if isinstance(raw, dict) else str(raw or "")
+        return {
+            "needs_tools": False,
+            "reasoning": "",
+            "steps": [],
+            "response": text,
+        }
 
     def create_plan(
         self,
@@ -487,20 +645,30 @@ Respond with ONLY valid JSON:
         plan_steps = []
         if steps:
             for i, step_def in enumerate(steps):
+                sanitized_def = PlanValidator.validate_and_sanitize_step(dict(step_def))
+                deps = sanitized_def.get("dependencies") or sanitized_def.get("depends_on") or []
                 plan_steps.append(
                     PlanStep(
-                        id=step_def.get("id", f"step_{i:03d}"),
-                        description=step_def.get("description", f"Step {i + 1}"),
-                        tool=step_def.get("tool", ""),
-                        args=step_def.get("args", {}),
-                        command=step_def.get("command"),
-                        dependencies=step_def.get("dependencies", []),
-                        timeout=step_def.get("timeout", 300.0),
+                        id=sanitized_def.get("id", f"step_{i:03d}"),
+                        description=sanitized_def.get("description", f"Step {i + 1}"),
+                        tool=sanitized_def.get("tool", ""),
+                        args=sanitized_def.get("args", {}),
+                        command=sanitized_def.get("command"),
+                        dependencies=list(deps),
+                        timeout=sanitized_def.get("timeout", 300.0),
+                        metadata=sanitized_def.get("metadata", {}),
                     )
                 )
+
+        # Enterprise deduplication: remove identical commands
+        plan_steps = PlanValidator.deduplicate_steps(plan_steps)
+
+        # Automatically promote to DAG if any step declares explicit dependencies
+        effective_type = PlanType.DAG if any(s.dependencies for s in plan_steps) else plan_type
+
         plan = ExecutionPlan(
             goal=goal,
-            plan_type=plan_type,
+            plan_type=effective_type,
             steps=plan_steps,
             context=context or {},
             status=PlanStatus.ACTIVE,
@@ -514,6 +682,148 @@ Respond with ONLY valid JSON:
             )
         )
         return plan
+
+    def adapt_plan_sync(
+        self, plan: ExecutionPlan, failed_step: PlanStep, error: str
+    ) -> ExecutionPlan:
+        """Heuristic adaptation of an autonomous plan upon step failure."""
+        error_lower = error.lower()
+
+        # 1. Nmap raw socket / privilege failure
+        if any(kw in error_lower for kw in ("permission", "root", "raw socket", "pcap")):
+            if failed_step.command and "nmap" in failed_step.command:
+                new_cmd = failed_step.command.replace("-sS", "-sT")
+                if "-Pn" not in new_cmd:
+                    new_cmd += " -Pn"
+                failed_step.command = new_cmd
+                failed_step.status = StepStatus.PENDING
+                failed_step.retry_count += 1
+                return plan
+
+        # 2. Host appears down / filtered
+        if any(
+            kw in error_lower for kw in ("host seems down", "filtered", "no response", "0 hosts up")
+        ):
+            if (
+                failed_step.command
+                and "nmap" in failed_step.command
+                and "-Pn" not in failed_step.command
+            ):
+                failed_step.command += " -Pn"
+                failed_step.status = StepStatus.PENDING
+                failed_step.retry_count += 1
+                return plan
+
+        # 3. Rate-limiting / 429 Too Many Requests
+        if any(kw in error_lower for kw in ("429", "rate limit", "too many requests")):
+            if failed_step.command:
+                if "-t " in failed_step.command:
+                    failed_step.command = re.sub(r"-t\s+\d+", "-t 5", failed_step.command)
+                else:
+                    failed_step.command += " --rate-limit 10"
+            failed_step.status = StepStatus.PENDING
+            failed_step.retry_count += 1
+            return plan
+
+        # 4. Command not found / Missing binary
+        if any(
+            kw in error_lower
+            for kw in ("not found", "not recognized", "cannot find", "no such file")
+        ):
+            failed_step.status = StepStatus.SKIPPED
+            fallback = self._resolve_fallback_step(failed_step)
+            if fallback:
+                idx = (
+                    plan.steps.index(failed_step) if failed_step in plan.steps else len(plan.steps)
+                )
+                plan.steps.insert(idx + 1, fallback)
+            return plan
+
+        # 5. Generic retry with exponential backoff if retryable
+        if failed_step.can_retry:
+            failed_step.status = StepStatus.PENDING
+            failed_step.retry_count += 1
+            failed_step.timeout *= 1.5
+        else:
+            failed_step.status = StepStatus.FAILED
+
+        return plan
+
+    def _resolve_fallback_step(self, failed_step: PlanStep) -> PlanStep | None:
+        """Resolve a fallback step when a security tool is missing."""
+        cmd = failed_step.command or failed_step.tool or ""
+        cmd_lower = cmd.lower()
+        if "dig" in cmd_lower:
+            return PlanStep(
+                id=f"{failed_step.id}_fb",
+                description="DNS fallback via nslookup",
+                tool="nslookup",
+                command=re.sub(r"\bdig\b.*", "nslookup {target}", cmd),
+            )
+        if "nikto" in cmd_lower:
+            return PlanStep(
+                id=f"{failed_step.id}_fb",
+                description="Web inspection fallback via curl",
+                tool="curl",
+                command="curl -s -I {target}",
+            )
+        if "gobuster" in cmd_lower or "ffuf" in cmd_lower:
+            return PlanStep(
+                id=f"{failed_step.id}_fb",
+                description="Directory check fallback via curl common paths",
+                tool="curl",
+                command="curl -s -o /dev/null -w '%{http_code}' {target}/admin",
+            )
+        return None
+
+    async def adapt_plan(
+        self,
+        plan: ExecutionPlan,
+        failed_step: PlanStep,
+        error: str,
+        llm_call: Any = None,
+    ) -> ExecutionPlan:
+        """Dynamically adapt an autonomous plan, using LLM if available or rules fallback."""
+        if llm_call is not None:
+            try:
+                prompt = (
+                    f"A step in the security plan failed:\n"
+                    f"Failed step: {failed_step.command or failed_step.tool}\n"
+                    f"Description: {failed_step.description}\n"
+                    f"Error: {error}\n\n"
+                    f"Provide an alternative shell command or workaround to achieve the goal despite this error.\n"
+                    f'Respond with JSON: {{"needs_tools": true, "reasoning": "...", "steps": [{{"tool": "...", "command": "...", "description": "..."}}]}}'
+                )
+                raw = await llm_call(
+                    system="You are an expert offensive and defensive security operator solving execution failures.",
+                    user=prompt,
+                    stream=False,
+                )
+                data = self._parse_llm_response(raw)
+                if data and data.get("steps"):
+                    failed_step.status = StepStatus.SKIPPED
+                    idx = (
+                        plan.steps.index(failed_step)
+                        if failed_step in plan.steps
+                        else len(plan.steps)
+                    )
+                    for offset, s in enumerate(data["steps"], 1):
+                        new_step = PlanStep(
+                            id=f"{failed_step.id}_alt_{offset}",
+                            description=s.get("description", f"Alternative step {offset}"),
+                            tool=s.get("tool", ""),
+                            command=s.get("command"),
+                            args=s.get("args", {}),
+                        )
+                        PlanValidator.validate_and_sanitize_step(new_step)
+                        plan.steps.insert(idx + offset - 1, new_step)
+                    return plan
+            except Exception as exc:
+                logger.debug(
+                    "LLM plan adaptation failed: %s; falling back to rule-based adaptation", exc
+                )
+
+        return self.adapt_plan_sync(plan, failed_step, error)
 
     def get_plan(self, plan_id: str) -> ExecutionPlan | None:
         return self._plans.get(plan_id)
@@ -536,4 +846,5 @@ Respond with ONLY valid JSON:
 
 __all__ = [
     "AutonomousPlanner",
+    "PlanValidator",
 ]

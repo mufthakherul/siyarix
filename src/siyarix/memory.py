@@ -7,6 +7,8 @@ import functools
 import hashlib
 import json
 import logging
+import math
+import re
 import sqlite3
 import threading
 import time
@@ -66,6 +68,7 @@ class MemoryStore:
             self._db_path.parent.mkdir(parents=True, exist_ok=True)
             with self._lock:
                 self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
+                self._conn.row_factory = sqlite3.Row
                 self._conn.execute("PRAGMA journal_mode=WAL")
                 self._conn.execute("""
                     CREATE TABLE IF NOT EXISTS memories (
@@ -178,34 +181,107 @@ class MemoryStore:
     def search(
         self, query: str, layer: MemoryLayer | None = None, limit: int = 10
     ) -> list[MemoryEntry]:
-        results: list[MemoryEntry] = []
-        query_lower = query.lower()
+        candidates: list[MemoryEntry] = []
+        query_lower = query.lower().strip()
+        tokens = [t for t in re.split(r"\W+", query_lower) if t]
+
+        # 1. Session memory candidates
         for entry in self._session_memory.values():
             if entry.expired or (layer and entry.layer != layer):
                 continue
-            if query_lower in entry.key.lower() or query_lower in entry.value.lower():
-                results.append(entry)
+            candidates.append(entry)
+
+        # 2. SQLite candidates
         if self._conn:
             try:
                 with self._lock:
                     if layer:
                         cursor = self._conn.execute(
-                            "SELECT * FROM memories WHERE layer = ? AND (key LIKE ? OR value LIKE ?) ORDER BY accessed_at DESC LIMIT ?",
-                            (layer.value, f"%{query}%", f"%{query}%", limit),
+                            "SELECT * FROM memories WHERE layer = ? AND (key LIKE ? OR value LIKE ? OR tags LIKE ?) ORDER BY accessed_at DESC LIMIT ?",
+                            (layer.value, f"%{query}%", f"%{query}%", f"%{query}%", limit * 4),
                         )
                     else:
                         cursor = self._conn.execute(
-                            "SELECT * FROM memories WHERE key LIKE ? OR value LIKE ? ORDER BY accessed_at DESC LIMIT ?",
-                            (f"%{query}%", f"%{query}%", limit),
+                            "SELECT * FROM memories WHERE key LIKE ? OR value LIKE ? OR tags LIKE ? ORDER BY accessed_at DESC LIMIT ?",
+                            (f"%{query}%", f"%{query}%", f"%{query}%", limit * 4),
                         )
                     rows = cursor.fetchall()
                 for row in rows:
                     entry = self._row_to_entry(row)
-                    if not entry.expired and entry.key not in {e.key for e in results}:
-                        results.append(entry)
+                    if not entry.expired and entry.key not in {e.key for e in candidates}:
+                        candidates.append(entry)
             except Exception:
                 logger.exception("Failed to search memories")
-        return results[:limit]
+
+        # 3. BM25 / TF-IDF relevance scoring
+        scored: list[tuple[float, MemoryEntry]] = []
+        now = time.time()
+        for entry in candidates:
+            k_lower = entry.key.lower()
+            v_lower = entry.value.lower()
+            tags_lower = [t.lower() for t in entry.tags]
+            k_tokens = set(re.split(r"\W+", k_lower))
+            v_tokens = set(re.split(r"\W+", v_lower))
+
+            score = 0.0
+            # Substring match (exact phrase match)
+            if query_lower in k_lower:
+                score += 10.0
+            if query_lower in v_lower:
+                score += 5.0
+            if any(query_lower in t for t in tags_lower):
+                score += 6.0
+
+            # Token-based match against token sets
+            for token in tokens:
+                if token in k_tokens:
+                    score += 3.0
+                if token in v_tokens:
+                    score += 1.5
+                if token in tags_lower:
+                    score += 2.0
+
+            if score > 0.0:
+                # Recency factor
+                age_hours = max(0.0, (now - entry.accessed_at) / 3600.0)
+                recency_boost = max(0.5, 1.0 - (age_hours / 168.0))
+                # Frequency factor
+                freq_boost = 1.0 + 0.1 * math.log1p(entry.access_count)
+                final_score = score * recency_boost * freq_boost
+                scored.append((final_score, entry))
+
+        # Sort by relevance score descending
+        scored.sort(key=lambda item: item[0], reverse=True)
+        return [entry for _, entry in scored[:limit]]
+
+    def list_entries(self, layer: MemoryLayer | None = None, limit: int = 50) -> list[MemoryEntry]:
+        """List stored memories ordered by accessed_at descending."""
+        entries: list[MemoryEntry] = []
+        for entry in self._session_memory.values():
+            if not entry.expired and (layer is None or entry.layer == layer):
+                entries.append(entry)
+        if self._conn:
+            try:
+                with self._lock:
+                    if layer:
+                        cursor = self._conn.execute(
+                            "SELECT * FROM memories WHERE layer = ? ORDER BY accessed_at DESC LIMIT ?",
+                            (layer.value, limit),
+                        )
+                    else:
+                        cursor = self._conn.execute(
+                            "SELECT * FROM memories ORDER BY accessed_at DESC LIMIT ?",
+                            (limit,),
+                        )
+                    rows = cursor.fetchall()
+                for row in rows:
+                    entry = self._row_to_entry(row)
+                    if not entry.expired and entry.key not in {e.key for e in entries}:
+                        entries.append(entry)
+            except Exception:
+                logger.exception("Failed to list memories")
+        entries.sort(key=lambda e: e.accessed_at, reverse=True)
+        return entries[:limit]
 
     def clear_layer(self, layer: MemoryLayer) -> None:
         if layer == MemoryLayer.SESSION:
@@ -306,6 +382,22 @@ class MemoryManager:
     def stats(self) -> dict[str, Any]:
         return {layer.value: store.stats() for layer, store in self._stores.items()}
 
+    def list_entries(self, layer: MemoryLayer | None = None, limit: int = 50) -> list[MemoryEntry]:
+        if layer:
+            return self._stores[layer].list_entries(layer=layer, limit=limit)
+        all_entries: list[MemoryEntry] = []
+        for store in self._stores.values():
+            all_entries.extend(store.list_entries(limit=limit))
+        all_entries.sort(key=lambda e: e.accessed_at, reverse=True)
+        return all_entries[:limit]
+
+    def clear(self, layer: MemoryLayer | None = None) -> None:
+        if layer:
+            self._stores[layer].clear_layer(layer)
+        else:
+            for lyr, store in self._stores.items():
+                store.clear_layer(lyr)
+
     def save_context(self, entry: dict[str, Any]) -> None:
         import json
 
@@ -341,6 +433,53 @@ class MemoryManager:
             return history
         except Exception:
             return []
+
+    def remember_target(
+        self, target: str, data: dict[str, Any], tags: list[str] | None = None
+    ) -> None:
+        """Persist target intelligence across sessions."""
+        key = f"target:{target.lower().strip()}"
+        self.store(
+            key=key,
+            value=json.dumps(data),
+            layer=MemoryLayer.PERSISTENT,
+            tags=["target", target.lower().strip()] + (tags or []),
+        )
+
+    def recall_target(self, target: str) -> dict[str, Any] | None:
+        """Recall stored intelligence for a target."""
+        key = f"target:{target.lower().strip()}"
+        entry = self.retrieve(key, layer=MemoryLayer.PERSISTENT)
+        if entry and entry.value:
+            try:
+                res = json.loads(entry.value)
+                return res if isinstance(res, dict) else None
+            except json.JSONDecodeError:
+                return None
+        return None
+
+    def associate_finding(self, target: str, finding: dict[str, Any]) -> None:
+        """Associate a vulnerability finding with target in persistent memory."""
+        target_clean = target.lower().strip()
+        target_data = self.recall_target(target_clean) or {
+            "target": target_clean,
+            "findings": [],
+            "ports": [],
+        }
+        findings_list = target_data.setdefault("findings", [])
+        f_title = finding.get("title", "")
+        if not any(f.get("title") == f_title for f in findings_list):
+            findings_list.append(finding)
+        if finding.get("port"):
+            ports_list = target_data.setdefault("ports", [])
+            if finding["port"] not in ports_list:
+                ports_list.append(finding["port"])
+        self.remember_target(target_clean, target_data)
+
+    def get_target_findings(self, target: str) -> list[dict[str, Any]]:
+        """Retrieve all persistent findings associated with target."""
+        data = self.recall_target(target)
+        return data.get("findings", []) if data else []
 
     def close(self) -> None:
         for store in self._stores.values():

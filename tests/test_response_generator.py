@@ -348,3 +348,72 @@ class TestRenderPlan:
 
         rg.render_plan([])
         mock_con.print.assert_not_called()
+
+
+class TestEnterpriseResponseFeatures:
+    def test_deduplicate_findings(self):
+        findings = [
+            {
+                "tool": "nmap",
+                "title": "Open Port 80",
+                "port": 80,
+                "target": "10.0.0.1",
+                "cvss_score": 5.0,
+            },
+            {
+                "tool": "nmap",
+                "title": "Open Port 80",
+                "port": 80,
+                "target": "10.0.0.1",
+                "cvss_score": 5.5,
+            },
+            {
+                "tool": "nikto",
+                "title": "X-Frame-Options Missing",
+                "port": 80,
+                "target": "10.0.0.1",
+                "cvss_score": 3.0,
+            },
+        ]
+        deduped = ResponseGenerator.deduplicate_findings(findings)
+        assert len(deduped) == 2
+        assert deduped[0]["cvss_score"] == 5.5
+
+    def test_render_advisory_card(self):
+        mock_con = MagicMock()
+        rg = ResponseGenerator(console=mock_con)
+        finding = {
+            "title": "SQL Injection in Login",
+            "severity": "critical",
+            "target": "10.0.0.1",
+            "port": 443,
+            "cvss_score": 9.8,
+            "description": "Exploitable via user param",
+            "evidence": "' OR 1=1 --",
+        }
+        rg.render_advisory_card(finding)
+        assert mock_con.print.called
+
+    def test_render_attack_chain(self):
+        mock_con = MagicMock()
+        rg = ResponseGenerator(console=mock_con)
+        steps = [
+            {"phase": "Recon", "action": "nmap -sT 10.0.0.1", "findings": ["Port 80 open"]},
+            {
+                "phase": "Exploit",
+                "action": "sqlmap -u http://10.0.0.1/login",
+                "findings": ["SQLi Confirmed"],
+            },
+        ]
+        rg.render_attack_chain(steps)
+        assert mock_con.print.called
+
+    def test_render_executive_summary(self):
+        mock_con = MagicMock()
+        rg = ResponseGenerator(console=mock_con)
+        findings = [
+            {"title": "RCE in API", "severity": "critical", "cvss_score": 9.8},
+            {"title": "XSS in profile", "severity": "high", "cvss_score": 7.5},
+        ]
+        rg.render_executive_summary("10.0.0.1", findings, duration_ms=1500.0)
+        assert mock_con.print.called

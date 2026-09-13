@@ -7,7 +7,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from ..memory import MemoryManager
+    from ..session_branching import BranchingSession
 
 
 @dataclass
@@ -39,17 +43,48 @@ class ChatSession:
     last_active: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     target: str = ""
     mode: str = "integrated"
-
-    def __post_init__(self) -> None:
-        self._branching: Any = None
+    _branching: BranchingSession | None = field(default=None, repr=False, init=False)
+    _memory: MemoryManager | None = field(default=None, repr=False, init=False)
 
     @property
-    def branching(self) -> Any:
+    def branching(self) -> BranchingSession:
         if self._branching is None:
             from ..session_branching import BranchingSession
 
             self._branching = BranchingSession(session_id=self.session_id)
         return self._branching
+
+    @property
+    def memory(self) -> MemoryManager:
+        if self._memory is None:
+            from ..memory import MemoryManager
+
+            self._memory = MemoryManager()
+        return self._memory
+
+    def remember_target(self, target: str, data: dict[str, Any]) -> None:
+        """Persist target intelligence in long-term memory."""
+        self.memory.remember_target(target, data)
+
+    def recall_target(self, target: str) -> dict[str, Any] | None:
+        """Recall intelligence for target from long-term memory."""
+        return self.memory.recall_target(target)
+
+    def associate_finding(self, target: str, finding: dict[str, Any]) -> None:
+        """Associate discovered finding with target in long-term memory."""
+        self.memory.associate_finding(target, finding)
+
+    def list_memories(self, layer: Any = None, limit: int = 50) -> list[Any]:
+        """List stored memories."""
+        return self.memory.list_entries(layer=layer, limit=limit)
+
+    def search_memories(self, query: str, layer: Any = None, limit: int = 10) -> list[Any]:
+        """Search memories with relevance scoring."""
+        return self.memory.search(query, layer=layer, limit=limit)
+
+    def clear_memories(self, layer: Any = None) -> None:
+        """Clear memories in memory store."""
+        self.memory.clear(layer=layer)
 
     def add_message(self, role: str, content: str, **metadata: Any) -> ChatMessage:
         if len(content) > 50000:
@@ -172,7 +207,7 @@ class ChatSession:
             try:
                 # Try using weasyprint or pdfkit
                 try:
-                    import pdfkit
+                    import pdfkit  # type: ignore[import-not-found]
 
                     pdf_bytes = pdfkit.from_string(html, False)
                     import typing
@@ -180,7 +215,7 @@ class ChatSession:
                     return typing.cast(bytes, pdf_bytes)
                 except ImportError:
                     try:
-                        from weasyprint import HTML as WHTML
+                        from weasyprint import HTML as WHTML  # type: ignore[import-not-found]
 
                         pdf_bytes = WHTML(string=html).write_pdf()
                         import typing

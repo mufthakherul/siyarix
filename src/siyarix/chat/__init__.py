@@ -28,6 +28,13 @@ from .platform_utils import (
 )
 from .ui import SmartAutocomplete, render_welcome_banner, SplitPane, ConfigPanel
 from .session import ChatSession, ChatMessage
+from .subagents import (
+    SubagentRole,
+    SubagentStatus,
+    SubagentTask,
+    SubagentRecord,
+    SubagentManager,
+)
 from .prompts import (
     mode_color,
     make_prompt_top,
@@ -91,4 +98,9 @@ __all__ = [
     "tree_from_dict",
     "status_spinner",
     "progress_bar",
+    "SubagentRole",
+    "SubagentStatus",
+    "SubagentTask",
+    "SubagentRecord",
+    "SubagentManager",
 ]

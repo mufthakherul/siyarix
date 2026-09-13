@@ -216,6 +216,8 @@ class Planner:
         return plan
 
     def adapt_plan(self, plan: ExecutionPlan, failed_step: PlanStep, error: str) -> ExecutionPlan:
+        if plan.context.get("llm_planned") or plan.id in self._autonomous._plans:
+            return self._autonomous.adapt_plan_sync(plan, failed_step, error)
         return self._registry.adapt_plan(plan, failed_step, error)
 
     def get_plan(self, plan_id: str) -> ExecutionPlan | None:

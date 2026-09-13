@@ -123,6 +123,12 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         self._pt_session: PromptSession[Any] | None = None
         self._split_pane_enabled = False
         self._split_pane_type = "attack_map"
+        from .subagents import SubagentManager
+
+        self._subagent_mgr = SubagentManager()
+        if hasattr(self._session, "__dict__"):
+            setattr(self._session, "subagent_manager", self._subagent_mgr)
+            setattr(self._session, "_subagent_mgr", self._subagent_mgr)
         self._esc_press_count = 0
         self._esc_press_time = 0.0
         self._esc_window = 2.0
@@ -507,6 +513,22 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         uptime_delta = datetime.now(timezone.utc) - self._session.created_at
         uptime_secs = uptime_delta.total_seconds()
 
+        active_sub = (
+            self._subagent_mgr.active_record
+            if hasattr(self, "_subagent_mgr") and self._subagent_mgr
+            else None
+        )
+        sub_id = active_sub.id if active_sub else ""
+        sub_role = (
+            active_sub.role.value
+            if active_sub and hasattr(active_sub.role, "value")
+            else (str(active_sub.role) if active_sub else "")
+        )
+        sub_status = (
+            active_sub.status.value if active_sub and hasattr(active_sub.status, "value") else ""
+        )
+        split_v = self._split_pane_type if self._split_pane_enabled else ""
+
         target_str = getattr(self._session, "target", "") or ""
         title_suffix = f" (target: {target_str})" if target_str else ""
         set_terminal_title(f"Siyarix REPL - [{self._mode}]{title_suffix}")
@@ -514,7 +536,14 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         # If terminal doesn't support raw mode, skip prompt_toolkit
         if not self._terminal_supports_raw():
             top_bar = make_prompt_top(
-                self._mode, provider, session_id, msg_count, uptime_secs, theme, persona
+                self._mode,
+                provider,
+                session_id,
+                msg_count,
+                uptime_secs,
+                theme,
+                persona,
+                subagent_id=sub_id,
             )
             input_hint = make_prompt_bottom(show_hint=True)
             console.print(top_bar)
@@ -543,7 +572,14 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
                 if self._settings.get("show_top_bar", False):
                     top_bar = make_prompt_top(
-                        self._mode, provider, session_id, msg_count, uptime_secs, theme, persona
+                        self._mode,
+                        provider,
+                        session_id,
+                        msg_count,
+                        uptime_secs,
+                        theme,
+                        persona,
+                        subagent_id=sub_id,
                     )
                     console.print(top_bar)
 
@@ -563,6 +599,10 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                             msg_count=msg_count,
                             target=target_str,
                             multiline=getattr(self, "_multiline", False),
+                            subagent_id=sub_id,
+                            subagent_role=sub_role,
+                            subagent_status=sub_status,
+                            split_view=split_v,
                         ),
                     )
                     if _result is None:
@@ -817,6 +857,18 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             status = "on" if new_val else "off"
             console.print(f"[cyan]Command review toggled [bold]{status}[/bold][/cyan]")
 
+        # Alt+W / Alt+S / Escape+W / Escape+S - Toggle / cycle split working window
+        @kb.add(Keys.Escape, "w")
+        @kb.add(Keys.Escape, "s")
+        def _on_toggle_split_window(event: Any) -> None:
+            self._cycle_split_pane()
+
+        # Alt+A / Shift+Tab (BackTab) - Cycle active subagent focus
+        @kb.add(Keys.Escape, "a")
+        @kb.add(Keys.BackTab)
+        def _on_cycle_subagent(event: Any) -> None:
+            self._cycle_subagent_focus()
+
         return kb
 
     def _print_keyboard_shortcuts(self) -> None:
@@ -880,6 +932,10 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             ("", "Clear chat\n"),
             ("cyan", "F4             "),
             ("", "Toggle command review\n"),
+            ("cyan", "Alt+W / Alt+S  "),
+            ("", "Cycle working window view (SplitPane)\n"),
+            ("cyan", "Alt+A / ⇧Tab   "),
+            ("", "Cycle active subagent focus\n"),
             ("cyan", "Ctrl+\\        "),
             ("", "Toggle multiline mode\n"),
             ("cyan", "Ctrl+L         "),
@@ -927,6 +983,14 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         findings = self._session.context.get("findings", [])
         # Get timeline events if available
         timeline_events = self._session.context.get("timeline_events", [])
+        # Get tasks and logs from session context
+        tasks = self._session.context.get("tasks", [])
+        logs = self._session.context.get("previous_outputs", [])
+        subagents = (
+            self._subagent_mgr.list_subagents()
+            if hasattr(self, "_subagent_mgr") and self._subagent_mgr
+            else []
+        )
 
         # Instantiate SplitPane and display
         pane = SplitPane(theme=self._settings.get("color_theme") or "dark-neon")
@@ -936,8 +1000,59 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             session_meta=self._session,
             findings=findings,
             timeline_events=timeline_events,
+            subagents=subagents,
+            tasks=tasks,
+            logs=logs,
         )
         console.print(layout)
+
+    def _cycle_split_pane(self) -> None:
+        """Cycle through working window split views or toggle on/off."""
+        cycle_order = [
+            "subagents",
+            "tasks",
+            "findings",
+            "attack_map",
+            "timeline",
+            "metrics",
+            "cheatsheet",
+        ]
+        if not self._split_pane_enabled:
+            self._split_pane_enabled = True
+            self._split_pane_type = cycle_order[0]
+        else:
+            try:
+                idx = cycle_order.index(self._split_pane_type)
+                if idx + 1 < len(cycle_order):
+                    self._split_pane_type = cycle_order[idx + 1]
+                else:
+                    self._split_pane_enabled = False
+            except ValueError:
+                self._split_pane_type = cycle_order[0]
+
+        status_str = (
+            f"ENABLED ({self._split_pane_type.upper()})" if self._split_pane_enabled else "DISABLED"
+        )
+        console.print(f"\n[green]Working Window Split: [bold]{status_str}[/bold][/green]")
+        if self._split_pane_enabled:
+            self._render_split_pane_layout()
+
+    def _cycle_subagent_focus(self) -> None:
+        """Cycle focus to the next available subagent."""
+        if not hasattr(self, "_subagent_mgr") or not self._subagent_mgr:
+            console.print("\n[dim]No subagents available.[/dim]")
+            return
+        active = self._subagent_mgr.cycle_active()
+        if active:
+            role_val = active.role.value if hasattr(active.role, "value") else str(active.role)
+            console.print(
+                f"\n[cyan]Subagent focus: [bold #00ffcc]{active.id}[/bold #00ffcc] ({role_val}) "
+                f"[{active.status.value.upper()}][/cyan]"
+            )
+        else:
+            console.print(
+                "\n[dim]No subagents spawned yet. Use '/agent run <goal>' to start one.[/dim]"
+            )
 
     def _print_welcome(self) -> None:
         """Print the welcome banner with system status overview using a premium layout."""
@@ -1070,18 +1185,29 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
     def _print_assistant(self, message: str) -> None:
         display = self._strip_json_wrapper(message)
+        import re
+
+        think_match = re.search(r"(?s)<think>(.*?)</think>", display)
+        if think_match:
+            thought = think_match.group(1).strip()
+            display = re.sub(r"(?s)<think>.*?</think>", "", display).strip()
+            if thought:
+                from ..response import ResponseGenerator
+
+                ResponseGenerator(console).render_thought(thought)
+
         if self._con is not None:
             syntax_theme = self._settings.get("syntax_theme") or "monokai"
             self._con.print(
                 panel_response(
                     display,
                     mode=self._mode,
-                    title="\u25c6 Siyarix",
+                    title="◆ Siyarix",
                     syntax_theme=syntax_theme,
                 )
             )
         else:
-            console.print(f"\u25c6 Siyarix: {display}")
+            console.print(f"◆ Siyarix: {display}")
 
     @staticmethod
     def _strip_json_wrapper(text: str) -> str:
@@ -1178,7 +1304,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         md = Markdown("", code_theme=syntax_theme)
         panel = Panel(
             md,
-            title=f"[bold {border}]◆ Siyarix[/bold {border}]",
+            title=f"[bold {border}]◆ Siyarix[/bold {border}] [dim]({provider_name})[/dim] [bold green]● LIVE[/bold green]",
             border_style=border,
             padding=(0, 2),
         )
@@ -1191,13 +1317,36 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 live.update(
                     Panel(
                         md,
-                        title=f"[bold {border}]◆ Siyarix[/bold {border}]",
+                        title=f"[bold {border}]◆ Siyarix[/bold {border}] [dim]({provider_name})[/dim] [bold green]● LIVE[/bold green]",
                         border_style=border,
                         padding=(0, 2),
                     )
                 )
 
-        return self._strip_json_wrapper(full_text)
+            # Final static render without the LIVE indicator
+            final_text = self._strip_json_wrapper(full_text)
+            import re
+
+            think_match = re.search(r"(?s)<think>(.*?)</think>", final_text)
+            if think_match:
+                thought = think_match.group(1).strip()
+                final_text = re.sub(r"(?s)<think>.*?</think>", "", final_text).strip()
+                if thought:
+                    from ..response import ResponseGenerator
+
+                    ResponseGenerator(console).render_thought(thought)
+
+            final_md = Markdown(final_text, code_theme=syntax_theme)
+            live.update(
+                Panel(
+                    final_md,
+                    title=f"[bold {border}]◆ Siyarix[/bold {border}] [dim]({provider_name})[/dim]",
+                    border_style=border,
+                    padding=(0, 2),
+                )
+            )
+
+        return final_text
 
     def _print_plan(self, plan: "Any") -> None:  # ExecutionPlan
         rows = []

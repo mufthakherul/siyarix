@@ -20,7 +20,7 @@ from typing import Any, AsyncIterator, Callable
 # ── Event types ────────────────────────────────────────────────────────
 
 
-class EventType(str, Enum):
+class StreamEventType(str, Enum):
     START = "start"
     ERROR = "error"
     DONE = "done"
@@ -33,6 +33,10 @@ class EventType(str, Enum):
     TOOLCALL_START = "toolcall_start"
     TOOLCALL_DELTA = "toolcall_delta"
     TOOLCALL_END = "toolcall_end"
+
+
+# Backward compatibility alias
+EventType = StreamEventType
 
 
 # ── Data types ─────────────────────────────────────────────────────────

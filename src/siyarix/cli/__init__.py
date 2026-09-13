@@ -2944,13 +2944,6 @@ def profile_delete(name: str = typer.Argument(help="Profile name to delete")) ->
 
 
 # ---------------------------------------------------------------------------
-# Theme management (premium)
-# ---------------------------------------------------------------------------
-# Note: theme commands are defined earlier; duplicate premium-themed handlers removed to
-# avoid redefinition and typing conflicts.
-
-
-# ---------------------------------------------------------------------------
 # Report command
 # ---------------------------------------------------------------------------
 @app.command("report")

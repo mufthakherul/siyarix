@@ -297,19 +297,23 @@ class MITREAttackDB:
     }
 
     def __init__(self) -> None:
-        pass
+        self._cache: dict[str, dict[str, Any]] = {}
 
     def query_technique(self, technique_id: str) -> dict[str, Any]:
         """Look up a technique by ID (e.g. T1059 or T1059.001)."""
         tid = technique_id.strip().upper()
+        if tid in self._cache:
+            return self._cache[tid]
         if tid in self.TECHNIQUES:
             data = dict(self.TECHNIQUES[tid])
             data["id"] = tid
+            self._cache[tid] = data
             return data
         base_id = tid.split(".")[0]
         if base_id in self.TECHNIQUES:
             data = dict(self.TECHNIQUES[base_id])
             data["id"] = tid
+            self._cache[tid] = data
             return data
         return {}
 

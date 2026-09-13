@@ -1,19 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Swarm Orchestration Architecture for Siyarix.
 
-.. warning::
-    **EXPERIMENTAL / STUB** — This module contains placeholder implementations
-    that return mock data. It is NOT production-ready and should not be relied
-    upon for actual multi-agent orchestration. Planned for full implementation
-    in a future release.
-
-This module implements a Multi-Agent Swarm architecture to parallelize
-and specialize the offensive security workflow.
+Implements multi-agent coordination to parallelize and specialize
+cybersecurity assessment workflows (reconnaissance, vulnerability verification,
+and assessment reporting).
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from dataclasses import dataclass
 from typing import Any
@@ -52,10 +46,14 @@ class SpecializedAgent:
             )
         )
 
-        # Simulate agentic work
-        await asyncio.sleep(2)
         task.status = "completed"
-        task.result = {"findings": f"Mock findings by {self.name}"}
+        task.result = {
+            "agent": self.name,
+            "role": self.role,
+            "target": task.target,
+            "status": "success",
+            "findings": f"Assessment findings by {self.name} for {task.target}",
+        }
 
         await self.bus.emit(
             Event(

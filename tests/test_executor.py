@@ -656,7 +656,7 @@ class TestExecutorRegistryPlanExecution:
         result = {"status": "error", "error": "not found: nmap"}
         with patch("sys.stdout") as mock_stdout:
             mock_stdout.isatty.return_value = True
-            with patch("rich.prompt.Confirm.ask", return_value=False):
+            with patch("siyarix.tool_installer.tty_confirm", return_value=False):
                 final = await executor._handle_tool_error(step, result)
                 assert final["status"] == "error"
 

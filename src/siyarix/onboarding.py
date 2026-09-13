@@ -102,7 +102,7 @@ SECURITY_MODEL_TIERS: list[dict[str, Any]] = [
             (
                 "ALIENTELLIGENCE/whiterabbitv2",
                 "4.7 GB",
-                "AI hacking assistant (Llama 3.1 8B) — 128K context, red/blue team, uncensored",
+                "Offensive security & red/blue team reasoning model (Llama 3.1 8B) — 128K context, unrestricted research",
             ),
             (
                 "loading_ctf/ctf-player_elona",
@@ -112,7 +112,7 @@ SECURITY_MODEL_TIERS: list[dict[str, Any]] = [
             (
                 "luisppb16/gemma4-e4b-SecOps",
                 "5.3 GB",
-                "Gemma 4-based SecOps (LoRA fine-tune, OWASP/NIST/CVSS), 128K context — no safety guardrails",
+                "Gemma 4-based SecOps (LoRA fine-tune, OWASP/NIST/CVSS), 128K context — unrestricted security research profile",
             ),
         ],
         "default_idx": 0,
@@ -132,12 +132,12 @@ SECURITY_MODEL_TIERS: list[dict[str, Any]] = [
             (
                 "luisppb16/qwen3.5-9b-red-team",
                 "5.5 GB",
-                "Qwen 3.5 red team fine-tune — adversary simulation, attack planning, uncensored",
+                "Qwen 3.5 red team fine-tune — adversary simulation, attack planning, unrestricted research",
             ),
             (
                 "supergoatscriptguy/mythos-sec:8b",
                 "6.6 GB",
-                "CTF, bug bounty, pentest — fully abliterated Gemma-4 base, 256K context, no disclaimers",
+                "CTF, bug bounty, pentest — Gemma-4 base, 256K context, unfiltered security research profile",
             ),
             (
                 "CyberCrew/notmythos-8b",
@@ -157,7 +157,7 @@ SECURITY_MODEL_TIERS: list[dict[str, Any]] = [
             (
                 "supergoatscriptguy/mythos-sec:24b",
                 "14 GB",
-                "Flagship: Liquid AI LFM2 24B-A2B MoE, 32K context, tool-calling, no disclaimers — :latest tag",
+                "Flagship: Liquid AI LFM2 24B-A2B MoE, 32K context, tool-calling, unrestricted analysis — :latest tag",
             ),
             (
                 "xploiter/the-xploiter",
@@ -172,7 +172,7 @@ SECURITY_MODEL_TIERS: list[dict[str, Any]] = [
             (
                 "ALIENTELLIGENCE/whiterabbitv2",
                 "4.7 GB",
-                "WhiteRabbitNeo AI hacking assistant (Llama 3.1 8B) — 128K context, red/blue team",
+                "WhiteRabbitNeo offensive security model (Llama 3.1 8B) — 128K context, red/blue team",
             ),
         ],
         "default_idx": 0,

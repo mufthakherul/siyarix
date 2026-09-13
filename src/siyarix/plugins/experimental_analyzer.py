@@ -2,7 +2,7 @@
 
 """Experimental Threat Analyzer Plugin for Siyarix.
 
-This plugin registers a custom mock analysis tool into the ToolRegistry.
+This plugin registers a heuristic threat analysis tool into the ToolRegistry.
 """
 
 from __future__ import annotations

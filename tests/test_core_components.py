@@ -68,7 +68,7 @@ async def test_swarm_router():
         assert res["recon_result"] is not None
         assert res["exploit_result"] is not None
         assert res["report_result"] is not None
-        assert "Mock findings by ReconAgent" in res["recon_result"]["findings"]
+        assert "ReconAgent" in res["recon_result"]["findings"]
 
 
 # ═══════════════════════════════════════════════════════════════════

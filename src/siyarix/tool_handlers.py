@@ -27,13 +27,14 @@ async def _run(
         validator = InputValidator()
         is_injected, pattern = validator.check_args_injection(cmd)
         if is_injected:
-            # Re-create a mock result class to return an error instead of executing
-            class MockResult:
-                exit_code = 1
-                stdout = ""
-                stderr = f"Security error: Command injection detected ({pattern})"
+            from .subprocess_utils import ExecutionResult
 
-            return MockResult()
+            return ExecutionResult(
+                exit_code=1,
+                stdout="",
+                stderr=f"Security error: Command injection detected ({pattern})",
+                duration_ms=0.0,
+            )
         cmd = validator.sanitize_args(cmd)
     except Exception:
         pass

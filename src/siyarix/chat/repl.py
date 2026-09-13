@@ -175,7 +175,12 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             self._settings.set("model_provider", "registry")
 
     def _ui_flush(self) -> None:
-        pass
+        """Flush terminal output buffer to ensure responsive UI rendering."""
+        try:
+            if hasattr(console, "file") and hasattr(console.file, "flush"):
+                console.file.flush()
+        except Exception:
+            pass
 
     def _validate_provider_config_on_startup(self) -> None:
         """Check configured provider has valid API key / SDK / endpoint at startup."""

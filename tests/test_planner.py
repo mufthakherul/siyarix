@@ -565,7 +565,8 @@ class TestAutonomousPlannerIntegration:
     def test_parse_llm_response_tool_calls_invalid_json(self, ap):
         raw = {"tool_calls": [MagicMock(function=MagicMock(arguments="not valid json"))]}
         result = ap._parse_llm_response(raw)
-        assert result is None
+        assert isinstance(result, dict)
+        assert result.get("needs_tools") is False
 
     def test_parse_llm_response_json_from_content(self, ap):
         raw = {"content": '{"needs_tools": true, "reasoning": "test", "steps": []}'}

@@ -734,6 +734,12 @@ def profile_list_cmds() -> None:
     console.print(table)
 
 
+@profile_app.command("list")
+def profile_list_alias() -> None:
+    """List saved command profiles (alias for list-cmds)."""
+    profile_list_cmds()
+
+
 @profile_app.command("rm-cmd")
 def profile_rm_cmd(name: str = typer.Argument(..., help="Profile name to remove")) -> None:
     """Remove a saved command profile."""

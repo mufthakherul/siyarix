@@ -120,7 +120,7 @@ OFFLINE_SECURITY_KNOWLEDGE: dict[str, RemediationAdvisory] = {
         cvss_base=9.8,
         description="Arbitrary commands are executed directly on the underlying server host OS, leading to total server compromise.",
         remediation_steps=[
-            "Avoid shell execution wrappers (system(), exec(), popen(), shell=True).",
+            "Avoid shell execution wrappers (system(), exec(), popen(), shell=True).",  # nosec
             "Use native programming language APIs instead of launching subprocess commands.",
             "If system commands are unavoidable, pass arguments as discrete array elements without shell interpolation.",
             "Apply container sandboxing (read-only rootfs, drop capabilities: cap-drop=ALL).",
@@ -128,7 +128,7 @@ OFFLINE_SECURITY_KNOWLEDGE: dict[str, RemediationAdvisory] = {
         code_example=(
             "# Secure Subprocess Execution:\n"
             "import subprocess\n"
-            "# Pass argv list, never shell=True:\n"
+            "# Pass argv list, never shell=True:\n"  # nosec
             "subprocess.run(['ping', '-c', '1', validated_host], check=True)"
         ),
         detection_signature="regex: (?i)(;\\s*cat\\s+/etc/passwd|;\\s*whoami|\\|\\s*powershell)",

@@ -424,19 +424,25 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
     CommandInfo(
         name="/config",
         category=CommandCategory.CONFIGURATION,
-        description="View/edit configuration settings",
-        usage="/config [show|set|get|list|tools]",
+        description="View/edit configuration settings, profiles, and diffs",
+        usage="/config [show|get|set|add|unset|reset|diff|validate|profile|export|tools]",
         args=[
-            ArgInfo("action", "show, set <key> <value>, get <key>, list, tools"),
+            ArgInfo(
+                "action",
+                "show, get, set, add, unset, reset, diff, validate, profile, export, tools",
+            ),
         ],
         handler="_cmd_config",
         examples=[
             "/config",
-            "/config set color_theme cyber-noir",
             "/config get model_provider",
-            "/config list",
+            "/config set log_level debug",
+            "/config add custom.proxy http://127.0.0.1:8080",
+            "/config diff",
+            "/config validate",
+            "/config profile switch ctf",
         ],
-        notes="Modified values are highlighted in yellow in the table.",
+        notes="Modified values are highlighted in yellow; sensitive keys are masked by default.",
     ),
     CommandInfo(
         name="/key",

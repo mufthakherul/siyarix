@@ -1398,7 +1398,7 @@ class CommandHandlersMixin:
 
     async def _cmd_config(self, args: str) -> None:
         """View or modify configuration settings."""
-        from ..config import DESCRIPTIONS
+        from ..config import DESCRIPTIONS, mask_value
 
         sub = args.strip() if args else ""
         if sub and sub != "show":
@@ -1411,28 +1411,137 @@ class CommandHandlersMixin:
                     return
                 key, value = parts[1], parts[2]
                 try:
-                    result = self._settings.set(key, value)
+                    result = self._settings.set(key, value, allow_custom=True)
                     console.print(f"[green]✓ Set {key} = {result}[/green]")
-                    if key == "log_level":
+                    if key in ("log_level", "appearance.log_level"):
                         from ..logging_config import configure_logging
 
                         configure_logging(str(result))
-                except KeyError as exc:
-                    console.print(f"[red]Unknown setting: {exc}[/red]")
-                    console.print("[yellow]Use /config to see available settings.[/yellow]")
-            elif sub.startswith("get "):
+                except (KeyError, ValueError) as exc:
+                    console.print(f"[red]Error: {exc}[/red]")
+            elif sub.startswith("add "):
+                parts = sub.split(maxsplit=2)
+                if len(parts) < 3:
+                    console.print("[yellow]Usage: /config add <key> <value>[/yellow]")
+                    return
+                key, value = parts[1], parts[2]
+                try:
+                    result = self._settings.add(key, value)
+                    console.print(f"[green]✓ Added custom setting {key} = {result}[/green]")
+                except Exception as exc:
+                    console.print(f"[red]Error: {exc}[/red]")
+            elif sub.startswith("unset "):
                 parts = sub.split(maxsplit=1)
                 key = parts[1] if len(parts) > 1 else ""
                 if not key:
-                    console.print("[yellow]Usage: /config get <key>[/yellow]")
+                    console.print("[yellow]Usage: /config unset <key>[/yellow]")
                     return
-                val = self._settings.get(key)
-                desc = DESCRIPTIONS.get(key, "")
-                if val is not None:
-                    console.print(f"[cyan]{key}[/cyan] = {val}")
+                try:
+                    existed = self._settings.unset(key)
+                    if existed:
+                        console.print(
+                            f"[green]✓ Unset '{key}' (reverted to default / removed).[/green]"
+                        )
+                    else:
+                        console.print(f"[yellow]Setting '{key}' was not set.[/yellow]")
+                except Exception as exc:
+                    console.print(f"[red]Error: {exc}[/red]")
+            elif sub.startswith("reset"):
+                parts = sub.split(maxsplit=1)
+                target_key: str | None = parts[1] if len(parts) > 1 else None
+                try:
+                    self._settings.reset(target_key)
+                    target = target_key if target_key else "all settings"
+                    console.print(f"[green]✓ Reset {target} to defaults.[/green]")
+                except Exception as exc:
+                    console.print(f"[red]Error: {exc}[/red]")
+            elif sub.startswith("diff"):
+                entries = self._settings.diff()
+                if not entries:
+                    console.print("[green]✓ No differences from factory defaults.[/green]")
+                    return
+                table = Table(
+                    title="Configuration Diff (vs Defaults)",
+                    box=None,
+                    header_style="bold cyan",
+                )
+                table.add_column("Status", style="bold")
+                table.add_column("Key", style="cyan")
+                table.add_column("Current", style="green")
+                table.add_column("Default", style="dim")
+                for e in entries:
+                    st = (
+                        "[yellow]MOD[/yellow]"
+                        if e.status == "modified"
+                        else f"[green]{e.status.upper()}[/green]"
+                    )
+                    table.add_row(st, e.key, str(e.current_value), str(e.target_value))
+                console.print(table)
+            elif sub.startswith("validate") or sub.startswith("check"):
+                issues = self._settings.validate()
+                if not issues:
+                    console.print("[bold green]✓ Configuration is healthy and valid![/bold green]")
+                    return
+                table = Table(
+                    title="Configuration Health Issues",
+                    box=None,
+                    header_style="bold cyan",
+                )
+                table.add_column("Severity", style="bold")
+                table.add_column("Key", style="cyan")
+                table.add_column("Message", style="white")
+                for issue in issues:
+                    sev = (
+                        "[bold red]ERROR[/bold red]"
+                        if issue.severity == "error"
+                        else "[bold yellow]WARN[/bold yellow]"
+                    )
+                    table.add_row(sev, issue.key, issue.message)
+                console.print(table)
+            elif sub.startswith("profile"):
+                parts = sub.split(maxsplit=2)
+                sub_action = parts[1] if len(parts) > 1 else "list"
+                if sub_action == "list":
+                    profs = self._settings.list_profiles()
+                    table = Table(
+                        title="Configuration Profiles",
+                        box=None,
+                        header_style="bold cyan",
+                    )
+                    table.add_column("Active", justify="center")
+                    table.add_column("Name", style="cyan")
+                    table.add_column("Description", style="white")
+                    for p in profs:
+                        table.add_row("✓" if p.is_active else "", p.name, p.description)
+                    console.print(table)
+                elif sub_action in ("switch", "use") and len(parts) > 2:
+                    pname = parts[2].strip()
+                    try:
+                        self._settings.switch_profile(pname)
+                        console.print(
+                            f"[green]✓ Switched active profile to '[bold cyan]{pname}[/bold cyan]'.[/green]"
+                        )
+                    except Exception as exc:
+                        console.print(f"[red]Error: {exc}[/red]")
+                else:
+                    console.print("[yellow]Usage: /config profile [list | switch <name>][/yellow]")
+            elif sub.startswith("export"):
+                console.print(self._settings.export_config(format="json", reveal_secrets=False))
+            elif sub.startswith("get "):
+                parts = sub.split(maxsplit=2)
+                key = parts[1] if len(parts) > 1 else ""
+                reveal = len(parts) > 2 and parts[2].lower() in ("--reveal", "-r", "reveal")
+                if not key:
+                    console.print("[yellow]Usage: /config get <key> [--reveal][/yellow]")
+                    return
+                try:
+                    val = self._settings.get(key)
+                    display_val = val if reveal else mask_value(key, val)
+                    desc = DESCRIPTIONS.get(key, "")
+                    console.print(f"[cyan]{key}[/cyan] = {display_val}")
                     if desc:
                         console.print(f"[dim]{desc}[/dim]")
-                else:
+                except KeyError:
                     console.print(f"[yellow]{key} is not set[/yellow]")
             elif sub.startswith("list"):
                 valid_keys = sorted(DESCRIPTIONS.keys())
@@ -1440,10 +1549,14 @@ class CommandHandlersMixin:
                 for k in valid_keys:
                     console.print(f"  [cyan]{k}[/cyan]: [dim]{DESCRIPTIONS[k]}[/dim]")
             else:
-                console.print("[yellow]Usage: /config [show|set|get|list|tools][/yellow]")
+                console.print(
+                    "[yellow]Usage: /config [show | get | set | add | unset | reset | diff | validate | profile | export | tools][/yellow]"
+                )
             return
 
-        rows = {r["key"]: r for r in self._settings.list_all()}
+        rows = {r["key"]: r for r in self._settings.list_all(reveal_secrets=False)}
+        active_prof = self._settings.get_active_profile()
+        console.print(f"[bold cyan]⚙️ Configuration (Active Profile: {active_prof})[/bold cyan]")
 
         categories = [
             (
@@ -1458,6 +1571,7 @@ class CommandHandlersMixin:
                     "notifications_enabled",
                     "history_retention_days",
                     "auto_update_check",
+                    "token_saver",
                 ],
             ),
             (
@@ -1524,6 +1638,7 @@ class CommandHandlersMixin:
                     "localai_model",
                     "_start_ollama_on_launch",
                     "registry_model",
+                    "registry_url",
                 ],
             ),
             (
@@ -1564,8 +1679,26 @@ class CommandHandlersMixin:
                 )
             console.print(table)
 
+        # Show any custom keys defined by user
+        custom_rows = [r for r in rows.values() if r.get("is_custom")]
+        if custom_rows:
+            cust_table = Table(
+                title="Custom Settings",
+                title_style="bold",
+                header_style="bold cyan",
+                box=None,
+                show_edge=False,
+                padding=(0, 2),
+            )
+            cust_table.add_column("Key", style="cyan", no_wrap=True, ratio=2)
+            cust_table.add_column("Value", style="yellow", ratio=3)
+            cust_table.add_column("Description", style="white", ratio=4)
+            for cr in custom_rows:
+                cust_table.add_row(cr["key"], cr["value"], cr["description"])
+            console.print(cust_table)
+
         console.print(
-            "[dim]Use /config set <key> <value> to change, /config get <key> to view[/dim]"
+            "[dim]Use /config set <key> <value> to change, /config add <key> <value> for custom, /config get <key> to view[/dim]"
         )
 
     async def _cmd_agent(self, args: str) -> None:
@@ -3154,7 +3287,7 @@ class CommandHandlersMixin:
                 console.print(f"[red]Playbook not found: {name}[/red]")
                 return
             try:
-                import yaml
+                import yaml  # type: ignore[import-untyped]
 
                 playbook = yaml.safe_load(pb_path.read_text(encoding="utf-8"))
                 steps = playbook.get("steps", []) if isinstance(playbook, dict) else []

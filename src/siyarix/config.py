@@ -171,6 +171,7 @@ DEFAULTS: dict[str, Any] = {
     "notifications_enabled": True,
     "history_retention_days": 90,
     "multiline": False,
+    "mouse_support": False,
     "auto_save_session": False,
     "token_saver": False,
 }
@@ -224,6 +225,7 @@ DESCRIPTIONS: dict[str, str] = {
     "notifications_enabled": "Enable Slack/Discord notifications for key events (default: true)",
     "history_retention_days": "Days to retain command history (0 = forever, default: 90)",
     "multiline": "Enable multiline input mode (Enter=newline, Alt+Enter=submit)",
+    "mouse_support": "Enable mouse event interception in REPL (default: false, allows terminal mouse selection & copy)",
     "auto_save_session": "Auto-save session logs on exit (default: false — no footprint)",
     "token_saver": "Optimize token usage by sending compact system prompts after the first call (default: false)",
 }
@@ -295,6 +297,7 @@ CATEGORIES: dict[str, list[str]] = {
     ],
     "Terminal & System": [
         "multiline",
+        "mouse_support",
         "auto_save_session",
         "shell_completion_installed",
         "path_setup_done",

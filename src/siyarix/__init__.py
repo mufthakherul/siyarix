@@ -65,9 +65,13 @@ __all__ = [
     "AgentStatus",
     "AgentGoal",
     "AgentResult",
+    "copy_to_clipboard",
+    "get_from_clipboard",
 ]
 
 _SYMBOL_MODULE: dict[str, str] = {
+    "copy_to_clipboard": ".clipboard",
+    "get_from_clipboard": ".clipboard",
     "Event": ".events",
     "EventType": ".events",
     "EventBus": ".events",

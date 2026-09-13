@@ -66,6 +66,7 @@ class CommandHandlersMixin:
         _usage_tracker: UsageTracker
         _engine_kill_switch: Any
         _tool_cache: list[Any] | None
+        _command_history: Any
 
     async def _handle_slash(self, cmd: str) -> None:
         """Dispatch slash commands."""
@@ -169,6 +170,9 @@ class CommandHandlersMixin:
             "/suggest": self._cmd_suggest,
             "/playbook": self._cmd_playbook,
             "/stats": self._cmd_stats,
+            "/copy": self._cmd_copy,
+            "/cp": self._cmd_copy,
+            "/clipboard": self._cmd_copy,
         }
 
         handler = handlers.get(command)
@@ -4036,3 +4040,71 @@ class CommandHandlersMixin:
                     console.print(ct)
         except Exception as exc:
             console.print(f"[red]Stats command failed: {exc}[/red]")
+
+    def _cmd_copy(self, args: str) -> None:
+        """Copy the last assistant response, code block, plan, or conversation to the clipboard."""
+        from ..clipboard import copy_to_clipboard
+
+        sub = args.strip().lower() if args else "last"
+        target_text = ""
+        label = "Last response"
+
+        if sub in ("code", "snippet"):
+            for msg in reversed(self._session.messages):
+                if msg.role == "assistant" and "```" in msg.content:
+                    import re
+
+                    blocks = re.findall(r"```(?:\w+)?\n(.*?)```", msg.content, re.DOTALL)
+                    if blocks:
+                        target_text = "\n\n".join(b.strip() for b in blocks)
+                        count = len(blocks)
+                        label = f"Latest code block ({count} snippet{'s' if count > 1 else ''})"
+                        break
+            if not target_text:
+                console.print("[yellow]No code blocks found in recent assistant messages.[/yellow]")
+                return
+
+        elif sub in ("plan", "commands"):
+            if hasattr(self, "_active_plan") and getattr(self, "_active_plan", None):
+                plan = getattr(self, "_active_plan")
+                lines = [f"# Plan: {plan.goal}"]
+                for s in plan.steps:
+                    cmd_str = f": {s.command}" if s.command else ""
+                    lines.append(f"- [{s.status.value}] {s.description}{cmd_str}")
+                target_text = "\n".join(lines)
+                label = "Active execution plan"
+            elif self._command_history:
+                target_text = "\n".join(list(self._command_history)[-10:])
+                label = "Recent command history"
+            else:
+                console.print("[yellow]No active plan or command history to copy.[/yellow]")
+                return
+
+        elif sub in ("all", "chat", "transcript"):
+            lines = [f"# Siyarix Session Transcript ({self._session.session_id})"]
+            for m in self._session.messages:
+                ts = m.timestamp.isoformat() if getattr(m, "timestamp", None) else ""
+                lines.append(f"\n### {m.role.upper()} ({ts})")
+                lines.append(m.content)
+            target_text = "\n".join(lines)
+            label = f"Full session transcript ({len(self._session.messages)} messages)"
+
+        else:
+            for msg in reversed(self._session.messages):
+                if msg.role == "assistant" and msg.content.strip():
+                    target_text = msg.content
+                    label = "Last assistant response"
+                    break
+            if not target_text:
+                console.print("[yellow]No assistant response found to copy.[/yellow]")
+                return
+
+        ok = copy_to_clipboard(target_text)
+        if ok:
+            console.print(
+                f"[bold green]✓ Copied {label} ({len(target_text)} characters) to system clipboard![/bold green]"
+            )
+        else:
+            console.print(
+                "[red]Failed to copy to clipboard. Ensure system clipboard tools are available.[/red]"
+            )

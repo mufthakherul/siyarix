@@ -571,7 +571,9 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                         vi_mode=False,
                         complete_while_typing=True,
                         auto_suggest=AutoSuggestFromHistory(),
-                        mouse_support=True,
+                        mouse_support=Condition(
+                            lambda: bool(self._settings.get("mouse_support", False))
+                        ),
                         history=FileHistory(str(history_file)),
                     )
 
@@ -874,6 +876,13 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         def _on_cycle_subagent(event: Any) -> None:
             self._cycle_subagent_focus()
 
+        # F5 / Alt+C - Copy last assistant response to clipboard
+        @kb.add(Keys.F5)
+        @kb.add(Keys.Escape, "c")
+        def _on_copy_last(event: Any) -> None:
+            if hasattr(self, "_cmd_copy"):
+                self._cmd_copy("last")
+
         return kb
 
     def _print_keyboard_shortcuts(self) -> None:
@@ -937,6 +946,8 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             ("", "Clear chat\n"),
             ("cyan", "F4             "),
             ("", "Toggle command review\n"),
+            ("cyan", "F5 / Alt+C     "),
+            ("", "Copy last response to clipboard\n"),
             ("cyan", "Alt+W / Alt+S  "),
             ("", "Cycle working window view (SplitPane)\n"),
             ("cyan", "Alt+A / ⇧Tab   "),

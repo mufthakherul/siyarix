@@ -420,6 +420,24 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         examples=["/stats", "/stats detail"],
         notes="With 'detail' shows command usage frequency breakdown.",
     ),
+    CommandInfo(
+        name="/copy",
+        category=CommandCategory.SESSION,
+        description="Copy last response, code blocks, plan, or conversation to clipboard",
+        usage="/copy [last|code|plan|all]",
+        aliases=["/cp", "/clipboard"],
+        args=[
+            ArgInfo(
+                "target",
+                "What to copy: last, code, plan, all",
+                optional=True,
+                choices=["last", "code", "plan", "all"],
+            ),
+        ],
+        handler="_cmd_copy",
+        examples=["/copy", "/copy code", "/copy plan", "/copy all"],
+        notes="Also available via F5 or Alt+C keyboard shortcut.",
+    ),
     # ── Configuration ──
     CommandInfo(
         name="/config",

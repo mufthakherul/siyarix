@@ -1,339 +1,564 @@
-#!/usr/bin/env pwsh
-# =============================================================================
-# Siyarix Universal Installer for Windows
-#   One-liner: irm https://siyarix.github.io/installer/install.ps1 | iex
-#
-# Supports: Windows 10/11, Windows Server 2019/2022/2025
-# Package managers: pipx, pip, winget, chocolatey, scoop
-#
-# Note: cryptography ships pre-built wheels for Windows x64, so Rust is NOT
-# required. If pip is missing, it will be bootstrapped via ensurepip.
-# =============================================================================
+<#
+.SYNOPSIS
+    Siyarix Universal Enterprise Installer for Windows.
+
+.DESCRIPTION
+    Automated, enterprise-grade installer for Siyarix (AI Cybersecurity Orchestration Agent).
+    Supports Windows 10/11, Windows Server 2019/2022/2025, and Windows on ARM64.
+    Cascade package managers: uv -> pipx -> pip -> winget -> chocolatey -> scoop.
+
+.PARAMETER Version
+    Specific Siyarix version to install (defaults to 1.1.0 or $env:SIYARIX_VERSION).
+
+.PARAMETER Method
+    Forced installation method: auto, uv, pipx, pip, winget, choco, scoop.
+
+.PARAMETER Silent
+    Unattended / silent execution mode with minimal output.
+
+.PARAMETER DryRun
+    Simulate the installation without writing changes or downloading packages.
+
+.PARAMETER WithTools
+    Install standard security tool integrations.
+
+.PARAMETER NoModifyPath
+    Skip updating User or Session PATH environment variables.
+
+.PARAMETER Help
+    Show help and parameter reference.
+
+.EXAMPLE
+    irm https://siyarix.github.io/install.ps1 | iex
+    irm https://siyarix.github.io/install.ps1 | iex -ArgumentList "-Method uv"
+#>
+
+[CmdletBinding()]
+param (
+    [Alias("v")]
+    [string]$Version = $(if ($env:SIYARIX_VERSION) { $env:SIYARIX_VERSION } else { "1.1.0" }),
+
+    [Alias("m")]
+    [ValidateSet("auto", "uv", "pipx", "pip", "winget", "choco", "scoop")]
+    [string]$Method = $(if ($env:SIYARIX_METHOD) { $env:SIYARIX_METHOD } else { "auto" }),
+
+    [Alias("s", "Quiet", "NonInteractive")]
+    [switch]$Silent = $(if ($env:SIYARIX_SILENT -eq "1") { $true } else { $false }),
+
+    [Alias("d")]
+    [switch]$DryRun = $(if ($env:SIYARIX_DRY_RUN -eq "1") { $true } else { $false }),
+
+    [switch]$WithTools = $(if ($env:SIYARIX_WITH_TOOLS -eq "1") { $true } else { $false }),
+
+    [switch]$NoModifyPath = $(if ($env:SIYARIX_NO_MODIFY_PATH -eq "1") { $true } else { $false }),
+
+    [Alias("h")]
+    [switch]$Help
+)
 
 $ErrorActionPreference = 'Stop'
-$__script_version = "1.1.0"
+$Script:InstalledMethod = ""
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
 function Write-Banner {
-  Write-Host @"
+    if ($Silent) { return }
+    Write-Host @"
    ███████╗██╗██╗   ██╗ █████╗ ██████╗ ██╗██╗  ██╗
    ██╔════╝██╚██╗ ██╔╝██╔══██╗██╔══██╗██║╚██╗██╔╝
    ███████╗██║╚████╔╝ ███████║██████╔╝██║ ╚███╔╝
    ╚════██║██║ ╚██╔╝  ██╔══██║██╔══██╗██║ ██╔██╗
    ███████║██║  ██║   ██║  ██║██║  ██║██║██╔╝ ██╗
    ╚══════╝╚═╝  ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝
-   AI Cybersecurity Orchestration Agent v$__script_version
+   AI Cybersecurity Orchestration Agent v$Version
 "@ -ForegroundColor Cyan
-  Write-Host "`nSiyarix -- AI Cybersecurity Orchestration Agent`n" -ForegroundColor Cyan
+    Write-Host "   Windows Enterprise Installer -- " -NoNewline
+    Write-Host "https://siyarix.github.io`n" -ForegroundColor DarkCyan
 }
 
-function Write-Info  { Write-Host "==>" -ForegroundColor Blue -NoNewline; Write-Host " $args" }
-function Write-Ok    { Write-Host "  $([char]0x2713)" -ForegroundColor Green -NoNewline; Write-Host " $args" }
+function Write-Info  { if (-not $Silent) { Write-Host "==>" -ForegroundColor Blue -NoNewline; Write-Host " $args" } }
+function Write-Ok    { if (-not $Silent) { Write-Host "  $([char]0x2713)" -ForegroundColor Green -NoNewline; Write-Host " $args" } }
 function Write-Warn  { Write-Host "  !" -ForegroundColor Yellow -NoNewline; Write-Host " $args" }
 function Write-Err   { Write-Host "  $([char]0x2717)" -ForegroundColor Red -NoNewline; Write-Host " $args" }
 
-function Get-PowerShellVersion {
-  $psVer = $PSVersionTable.PSVersion
-  return "$($psVer.Major).$($psVer.Minor)"
+function Show-HelpGuide {
+    Write-Host @"
+Siyarix Windows Enterprise Installer
+
+USAGE:
+  irm https://siyarix.github.io/install.ps1 | iex
+  powershell -ExecutionPolicy Bypass -File install.ps1 [OPTIONS]
+
+OPTIONS:
+  -Version <string>     Specify version to install (default: 1.1.0)
+  -Method <string>      Force installer method: auto, uv, pipx, pip, winget, choco, scoop
+  -Silent               Silent mode, suppress non-error outputs
+  -DryRun               Simulate installation actions without modifying system
+  -WithTools            Install optional cybersecurity auxiliary tools
+  -NoModifyPath         Do not append binary directories to User PATH
+  -Help                 Display this help screen
+
+ENVIRONMENT VARIABLES:
+  SIYARIX_VERSION, SIYARIX_METHOD, SIYARIX_SILENT, SIYARIX_DRY_RUN,
+  SIYARIX_WITH_TOOLS, SIYARIX_NO_MODIFY_PATH
+"@
+}
+
+function Get-Arch {
+    $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLower()
+    switch ($arch) {
+        "x64" { return "x64" }
+        "arm64" { return "arm64" }
+        "x86" { return "x86" }
+        default { return $arch }
+    }
+}
+
+function Test-AdminRole {
+    try {
+        $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+        return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    } catch { return $false }
 }
 
 function Test-LongPathSupport {
-  try {
-    $val = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -ErrorAction SilentlyContinue
-    return ($val.LongPathsEnabled -eq 1)
-  } catch { return $false }
+    try {
+        $val = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -ErrorAction SilentlyContinue
+        return ($val.LongPathsEnabled -eq 1)
+    } catch { return $false }
 }
 
 function Enable-LongPathSupport {
-  if (-not (Test-LongPathSupport)) {
-    Write-Warn "Windows long path support is not enabled."
-    Write-Warn "To enable, run as Administrator:"
-    Write-Warn '  reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f'
-  }
+    if (-not (Test-LongPathSupport)) {
+        if (Test-AdminRole) {
+            try {
+                Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -Value 1 -ErrorAction SilentlyContinue
+                Write-Ok "Enabled Windows LongPathsEnabled in registry"
+            } catch {
+                Write-Warn "Could not automatically set LongPathsEnabled: $_"
+            }
+        } else {
+            Write-Warn "Windows Long Path support is disabled. If you hit path-length errors, run as Administrator:"
+            Write-Warn '  reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f'
+        }
+    }
 }
 
-function Update-Path {
-  param([string]$PathToAdd)
-  try {
-    $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-    $paths = $userPath -split ';' | Where-Object { $_ -ne "" }
-    if ($paths -notcontains $PathToAdd) {
-      $newUserPath = ($paths + $PathToAdd) -join ';'
-      [Environment]::SetEnvironmentVariable("PATH", $newUserPath, "User")
-      Write-Ok "Added $PathToAdd to PATH"
+function Update-PathEnvironment {
+    param([string]$PathToAdd)
+    if ($NoModifyPath) { return }
+    if (-not (Test-Path $PathToAdd)) { return }
 
-      $sessionPaths = $env:PATH -split ';' | Where-Object { $_ -ne "" }
-      if ($sessionPaths -notcontains $PathToAdd) {
-        $env:PATH = ($sessionPaths + $PathToAdd) -join ';'
-      }
-    }
-  } catch { Write-Warn "Failed to update PATH: $_" }
-}
-
-function Test-Python {
-  try {
-    $ver = python --version 2>&1
-    if ($ver -match "(\d+)\.(\d+)") {
-      return ([int]$Matches[1] -ge 3 -and [int]$Matches[2] -ge 11)
-    }
-  } catch {}
-  try {
-    $ver = python3 --version 2>&1
-    if ($ver -match "(\d+)\.(\d+)") {
-      return ([int]$Matches[1] -ge 3 -and [int]$Matches[2] -ge 11)
-    }
-  } catch {}
-  return $false
-}
-
-function Ensure-Pip {
-  try {
-    $null = pip --version 2>&1
-    return $true
-  } catch {}
-  Write-Info "pip not found. Bootstrapping pip..."
-  try {
-    $null = python -m ensurepip --upgrade 2>&1
-    Write-Ok "pip installed via ensurepip"
-    return $true
-  } catch {
-    Write-Warn "ensurepip failed. Attempting get-pip.py..."
     try {
-      $wc = New-Object System.Net.WebClient
-      $wc.DownloadFile("https://bootstrap.pypa.io/get-pip.py", "$env:TEMP\get-pip.py")
-      python "$env:TEMP\get-pip.py" 2>&1 | Out-Null
-      Remove-Item "$env:TEMP\get-pip.py" -Force -ErrorAction SilentlyContinue
-      Write-Ok "pip installed via get-pip.py"
-      return $true
+        $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+        $paths = $userPath -split ';' | Where-Object { $_.Trim() -ne "" }
+        if ($paths -notcontains $PathToAdd) {
+            if ($DryRun) {
+                Write-Info "[DRY-RUN] Would add $PathToAdd to User PATH"
+                return
+            }
+            $newUserPath = ($paths + $PathToAdd) -join ';'
+            [Environment]::SetEnvironmentVariable("Path", $newUserPath, "User")
+            Write-Ok "Added $PathToAdd to User PATH"
+        }
+
+        # Update current process session
+        $sessionPaths = $env:PATH -split ';' | Where-Object { $_.Trim() -ne "" }
+        if ($sessionPaths -notcontains $PathToAdd) {
+            $env:PATH = ($sessionPaths + $PathToAdd) -join ';'
+        }
     } catch {
-      Write-Err "Failed to install pip. Install manually: https://pip.pypa.io/en/stable/installation/"
-      return $false
+        Write-Warn "Failed to update PATH environment: $_"
     }
-  }
 }
 
-function Install-ViaPip {
-  Write-Info "Installing via pip..."
-  if (-not (Ensure-Pip)) { return $false }
-
-  if ($env:VIRTUAL_ENV) {
-    Write-Info "Active virtual environment detected at $env:VIRTUAL_ENV. Installing Siyarix inside virtual environment..."
-    try {
-      python -m pip install --upgrade pip --no-input 2>&1 | Out-Null
-      python -m pip install --upgrade siyarix --no-input 2>&1 | Out-Null
-      Write-Ok "Siyarix installed inside virtual environment."
-      return $true
-    } catch {
-      return $false
+function Find-PythonCommand {
+    # Check py launcher
+    foreach ($v in @("3.13", "3.12", "3.11")) {
+        try {
+            $testOut = & py -$v --version 2>&1
+            if ($testOut -match "Python\s+3\.(11|12|13)") {
+                return @("py", "-$v")
+            }
+        } catch {}
     }
-  }
 
-  python -m pip install --upgrade pip --no-input 2>&1 | Out-Null
+    # Check python / python3
+    foreach ($cmd in @("python", "python3")) {
+        try {
+            $testOut = & $cmd --version 2>&1
+            if ($testOut -match "Python\s+3\.(\d+)") {
+                $minor = [int]$Matches[1]
+                if ($minor -ge 11) {
+                    return @($cmd)
+                }
+            }
+        } catch {}
+    }
+    return $null
+}
 
-  try {
-    python -m pip install siyarix --no-input 2>&1 | Out-Null
-    return $true
-  } catch {}
-  try {
-    python -m pip install --user siyarix --no-input 2>&1 | Out-Null
-    return $true
-  } catch {}
-  return $false
+function Install-PythonBootstrap {
+    Write-Info "Python 3.11+ not found on system. Bootstrapping Python runtime..."
+    if ($DryRun) {
+        Write-Info "[DRY-RUN] Would bootstrap Python 3.12 runtime"
+        return $true
+    }
+
+    # 1. Try winget
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        Write-Info "Attempting Python installation via winget..."
+        try {
+            & winget install Python.Python.3.12 --accept-source-agreements --accept-package-agreements --silent --no-upgrade
+            if ($LASTEXITCODE -eq 0) {
+                Write-Ok "Python 3.12 installed via winget"
+                return $true
+            }
+        } catch {}
+    }
+
+    # 2. Try chocolatey
+    if (Get-Command choco -ErrorAction SilentlyContinue) {
+        Write-Info "Attempting Python installation via Chocolatey..."
+        try {
+            & choco install python3 --version=3.12.4 -y --no-progress
+            if ($LASTEXITCODE -eq 0) {
+                Write-Ok "Python 3 installed via Chocolatey"
+                return $true
+            }
+        } catch {}
+    }
+
+    # 3. Try scoop
+    if (Get-Command scoop -ErrorAction SilentlyContinue) {
+        Write-Info "Attempting Python installation via Scoop..."
+        try {
+            & scoop install python
+            if ($LASTEXITCODE -eq 0) {
+                Write-Ok "Python installed via Scoop"
+                return $true
+            }
+        } catch {}
+    }
+
+    # 4. Direct official Python binary installer
+    Write-Info "Downloading official Python 3.12 installer..."
+    $arch = Get-Arch
+    $installerName = if ($arch -eq "arm64") { "python-3.12.9-arm64.exe" } else { "python-3.12.9-amd64.exe" }
+    $pythonUrl = "https://www.python.org/ftp/python/3.12.9/$installerName"
+    $dest = Join-Path $env:TEMP $installerName
+
+    try {
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls13
+        $webClient = New-Object System.Net.WebClient
+        $webClient.DownloadFile($pythonUrl, $dest)
+
+        Write-Info "Running silent Python installation..."
+        $installArgs = "/quiet InstallAllUsers=0 PrependPath=1 Include_test=0 Include_doc=0 Include_launcher=1"
+        $proc = Start-Process -FilePath $dest -ArgumentList $installArgs -Wait -PassThru
+        Remove-Item $dest -Force -ErrorAction SilentlyContinue
+
+        if ($proc.ExitCode -eq 0) {
+            Write-Ok "Official Python 3.12 installed successfully"
+            # Refresh PATH
+            $env:PATH = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
+            return $true
+        }
+    } catch {
+        Write-Warn "Direct Python installer failed: $_"
+    }
+
+    return $false
+}
+
+function Install-ViaUv {
+    if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
+        return $false
+    }
+    Write-Info "Installing Siyarix using uv (enterprise high-performance)..."
+    $pkg = if ($WithTools) { "siyarix[all]" } else { "siyarix" }
+    if ($Version -and $Version -ne "latest") {
+        $pkg = "$pkg==$Version"
+    }
+
+    if ($DryRun) {
+        Write-Info "[DRY-RUN] Would run: uv tool install --force $pkg"
+        $Script:InstalledMethod = "uv"
+        return $true
+    }
+
+    try {
+        & uv tool install --force $pkg 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            $Script:InstalledMethod = "uv"
+            $uvBin = Join-Path $env:USERPROFILE ".cargo\bin"
+            Update-PathEnvironment -PathToAdd $uvBin
+            return $true
+        }
+    } catch {}
+    return $false
 }
 
 function Install-ViaPipx {
-  Write-Info "Installing via pipx..."
-  try {
-    pipx install siyarix 2>&1 | Out-Null
-    return $true
-  } catch { return $false }
+    if (-not (Get-Command pipx -ErrorAction SilentlyContinue)) {
+        return $false
+    }
+    Write-Info "Installing Siyarix using pipx (isolated environment)..."
+    $pkg = if ($WithTools) { "siyarix[all]" } else { "siyarix" }
+    if ($Version -and $Version -ne "latest") {
+        $pkg = "$pkg==$Version"
+    }
+
+    if ($DryRun) {
+        Write-Info "[DRY-RUN] Would run: pipx install --force $pkg"
+        $Script:InstalledMethod = "pipx"
+        return $true
+    }
+
+    try {
+        & pipx install --force $pkg 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            $Script:InstalledMethod = "pipx"
+            $pipxBin = Join-Path $env:USERPROFILE ".local\bin"
+            Update-PathEnvironment -PathToAdd $pipxBin
+            return $true
+        }
+    } catch {}
+    return $false
+}
+
+function Install-ViaPip {
+    param([string[]]$PyCmd)
+    if (-not $PyCmd) { return $false }
+
+    Write-Info "Installing Siyarix using pip..."
+    $pkg = if ($WithTools) { "siyarix[all]" } else { "siyarix" }
+    if ($Version -and $Version -ne "latest") {
+        $pkg = "$pkg==$Version"
+    }
+
+    if ($DryRun) {
+        Write-Info "[DRY-RUN] Would run: $($PyCmd -join ' ') -m pip install --upgrade $pkg"
+        $Script:InstalledMethod = "pip"
+        return $true
+    }
+
+    try {
+        # Upgrade pip quietly
+        & $PyCmd -m pip install --upgrade pip --no-input --quiet 2>&1 | Out-Null
+
+        if ($env:VIRTUAL_ENV) {
+            & $PyCmd -m pip install --upgrade $pkg --no-input 2>&1 | Out-Null
+        } else {
+            & $PyCmd -m pip install --upgrade --user $pkg --no-input 2>&1 | Out-Null
+        }
+
+        if ($LASTEXITCODE -eq 0) {
+            $Script:InstalledMethod = "pip"
+            # Locate user base scripts
+            try {
+                $userBase = & $PyCmd -c "import site; print(site.USER_BASE)" 2>$null
+                if ($userBase -and (Test-Path "$userBase\Scripts")) {
+                    Update-PathEnvironment -PathToAdd "$userBase\Scripts"
+                }
+            } catch {}
+            return $true
+        }
+    } catch {}
+    return $false
 }
 
 function Install-ViaWinget {
-  Write-Info "Installing via winget..."
-  try {
-    winget install Mufthakherul.Siyarix --accept-package-agreements --silent 2>&1 | Out-Null
-    return $true
-  } catch { return $false }
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        return $false
+    }
+    Write-Info "Installing Siyarix using winget..."
+    if ($DryRun) {
+        Write-Info "[DRY-RUN] Would run: winget install Mufthakherul.Siyarix --accept-package-agreements --silent"
+        $Script:InstalledMethod = "winget"
+        return $true
+    }
+
+    try {
+        & winget install Mufthakherul.Siyarix --accept-package-agreements --accept-source-agreements --silent 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            $Script:InstalledMethod = "winget"
+            return $true
+        }
+    } catch {}
+    return $false
 }
 
 function Install-ViaChoco {
-  Write-Info "Installing via Chocolatey..."
-  try {
-    choco install siyarix -y 2>&1 | Out-Null
-    return $true
-  } catch { return $false }
+    if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+        return $false
+    }
+    Write-Info "Installing Siyarix using Chocolatey..."
+    if ($DryRun) {
+        Write-Info "[DRY-RUN] Would run: choco install siyarix -y --no-progress"
+        $Script:InstalledMethod = "choco"
+        return $true
+    }
+
+    try {
+        & choco install siyarix -y --no-progress 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            $Script:InstalledMethod = "choco"
+            return $true
+        }
+    } catch {}
+    return $false
 }
 
 function Install-ViaScoop {
-  Write-Info "Installing via Scoop..."
-  try {
-    scoop bucket add extras 2>$null
-    scoop install siyarix 2>&1 | Out-Null
-    return $true
-  } catch { return $false }
-}
-
-function Test-Admin {
-  try {
-    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
-    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-  } catch { return $false }
-}
-
-function Test-ExecutionPolicy {
-  $policy = Get-ExecutionPolicy -Scope CurrentUser
-  if ($policy -eq "Restricted" -or $policy -eq "AllSigned") {
-    Write-Warn "Current execution policy: $policy"
-    Write-Warn "To run scripts, set: Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned"
-    return $false
-  }
-  return $true
-}
-
-function Main {
-  Write-Banner
-
-  $psVer = Get-PowerShellVersion
-  Write-Info "PowerShell version: $psVer"
-  Test-ExecutionPolicy | Out-Null
-  Enable-LongPathSupport
-
-  $isAdmin = Test-Admin
-  if (-not $isAdmin) {
-    Write-Warn "Not running as Administrator. Winget/Chocolatey/Scoop may require elevation."
-  }
-
-  $version = $__script_version
-  $dryRun = $false
-  for ($i = 0; $i -lt $args.Count; $i++) {
-    switch ($args[$i]) {
-      '--version' { $version = $args[++$i] }
-      '--dry-run' { $dryRun = $true }
-      '--help' {
-        Write-Host "Usage: irm https://siyarix.github.io/installer/install.ps1 | iex"
-        Write-Host ""
-        Write-Host "Options:"
-        Write-Host "  --version VERSION    Version to install"
-        Write-Host "  --dry-run            Simulate installation"
-        Write-Host "  --help               Show this help"
-        return 0
-      }
+    if (-not (Get-Command scoop -ErrorAction SilentlyContinue)) {
+        return $false
     }
-  }
-
-  if ($dryRun) {
-    Write-Info "Dry-run mode enabled. Would install Siyarix v$version"
-    return 0
-  }
-
-  try {
-    $ver = & siyarix --version 2>&1
-    Write-Ok "Siyarix already installed: $ver"
-    return 0
-  } catch {}
-
-  if (-not (Test-Python)) {
-    Write-Info "Python 3.11+ not found. Attempting to install Python..."
-    $installedPython = $false
+    Write-Info "Installing Siyarix using Scoop..."
+    if ($DryRun) {
+        Write-Info "[DRY-RUN] Would run: scoop install extras; scoop install siyarix"
+        $Script:InstalledMethod = "scoop"
+        return $true
+    }
 
     try {
-      $null = Get-Command winget -ErrorAction SilentlyContinue
-      Write-Info "Installing Python via winget..."
-      winget install Python.Python.3.12 --accept-source-agreements --accept-package-agreements --silent 2>&1 | Out-Null
-      $installedPython = $true
-    } catch {}
-
-    if (-not $installedPython) {
-      try {
-        $null = Get-Command choco -ErrorAction SilentlyContinue
-        Write-Info "Installing Python via Chocolatey..."
-        choco install python3 -y --no-progress 2>&1 | Out-Null
-        $installedPython = $true
-      } catch {}
-    }
-
-    if (-not $installedPython) {
-      try {
-        Write-Info "Downloading official Python installer..."
-        $pythonUrl = "https://www.python.org/ftp/python/3.12.4/python-3.12.4-amd64.exe"
-        $installerPath = "$env:TEMP\python-installer.exe"
-        $wc = New-Object System.Net.WebClient
-        $wc.DownloadFile($pythonUrl, $installerPath)
-
-        Write-Info "Running silent Python installation..."
-        $proc = Start-Process -FilePath $installerPath -ArgumentList "/quiet InstallAllUsers=0 PrependPath=1 Include_test=0 Include_doc=0" -Wait -PassThru
-        if ($proc.ExitCode -eq 0) {
-          $installedPython = $true
+        & scoop bucket add extras 2>$null | Out-Null
+        & scoop install siyarix 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            $Script:InstalledMethod = "scoop"
+            return $true
         }
-        Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
-      } catch {
-        Write-Warn "Silent installation failed: $_"
-      }
+    } catch {}
+    return $false
+}
+
+function Rollback-Installation {
+    if ($DryRun) { return }
+    Write-Warn "Installation failed. Cleaning up partial changes..."
+    switch ($Script:InstalledMethod) {
+        "uv" { & uv tool uninstall siyarix 2>$null | Out-Null }
+        "pipx" { & pipx uninstall siyarix 2>$null | Out-Null }
+        "pip" {
+            $py = Find-PythonCommand
+            if ($py) { & $py -m pip uninstall -y siyarix 2>$null | Out-Null }
+        }
+        "choco" { & choco uninstall siyarix -y 2>$null | Out-Null }
+        "scoop" { & scoop uninstall siyarix 2>$null | Out-Null }
     }
+}
 
-    if ($installedPython) {
-      $env:PATH = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-      if (Test-Python) {
-        Write-Ok "Python installed successfully: $(python --version 2>&1)"
-      } else {
-        Write-Err "Python installation succeeded but command not found. Please restart your shell and re-run this script."
-        return 1
-      }
-    } else {
-      Write-Err "Failed to auto-install Python. Please install Python 3.11+ manually: https://www.python.org/downloads/"
-      return 1
-    }
-  }
-  Write-Ok "Python found: $(python --version 2>&1)"
+# --- Main Entry Point ---
+if ($Help) {
+    Show-HelpGuide
+    exit 0
+}
 
-  $installers = @(
-    { Install-ViaPipx }.GetNewClosure(),
-    { Install-ViaPip }.GetNewClosure(),
-    { Install-ViaWinget }.GetNewClosure(),
-    { Install-ViaChoco }.GetNewClosure(),
-    { Install-ViaScoop }.GetNewClosure()
-  )
+Write-Banner
 
-  $installed = $false
-  $lastError = ""
-  foreach ($installer in $installers) {
+$arch = Get-Arch
+Write-Info "Detected Windows Architecture: $arch"
+Write-Info "PowerShell Version: $($PSVersionTable.PSVersion.ToString())"
+
+Enable-LongPathSupport
+
+# Check if already installed
+if (-not $DryRun -and $Method -eq "auto") {
     try {
-      if (& $installer) { $installed = $true; break }
-    } catch { $lastError = $_.Exception.Message }
-  }
-
-  $pythonUserBase = python -c "import site; print(site.USER_BASE)" 2>$null
-  if ($pythonUserBase) {
-    Update-Path -PathToAdd "$pythonUserBase\Scripts"
-  }
-
-
-  if ($installed) {
-    Write-Ok "Siyarix v$__script_version installed successfully!"
-    Write-Info "Run 'siyarix --help' to get started"
-    return 0
-  } else {
-    Write-Err "Installation failed: $lastError"
-    Write-Err "Try manually: python -m pip install siyarix"
-    return 1
-  }
-}
-try {
-  $exitCode = Main
-} catch {
-  Write-Host "`n[!] An unexpected error occurred:" -ForegroundColor Red
-  Write-Host $_ -ForegroundColor Red
-  $exitCode = 1
+        $existing = & siyarix --version 2>&1
+        if ($LASTEXITCODE -eq 0 -and $existing -match "siyarix") {
+            Write-Ok "Siyarix is already installed: $existing"
+            Write-Info "To reinstall or upgrade, run with -Method uv (or pipx, pip) or pass an updated -Version."
+            exit 0
+        }
+    } catch {}
 }
 
-if ([Environment]::UserInteractive -and -not $env:CI) {
-  try {
-    Write-Host "`nPress any key to continue..." -ForegroundColor Cyan
-    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-  } catch {}
+# Ensure Python / uv is available
+$pyCmd = Find-PythonCommand
+$hasUv = [bool](Get-Command uv -ErrorAction SilentlyContinue)
+
+if (-not $pyCmd -and -not $hasUv) {
+    $bootstrapOk = Install-PythonBootstrap
+    if ($bootstrapOk) {
+        $pyCmd = Find-PythonCommand
+    }
 }
 
-if ($exitCode -ne 0) {
-  throw "Installation failed with exit code $exitCode"
+if (-not $pyCmd -and -not $hasUv -and $Method -ne "winget" -and $Method -ne "choco" -and $Method -ne "scoop") {
+    Write-Err "Python 3.11+ is required but could not be installed automatically."
+    Write-Err "Please install Python 3.11+ manually from https://www.python.org/downloads/ and re-run this script."
+    exit 1
 }
+
+$success = $false
+
+if ($Method -ne "auto") {
+    Write-Info "Targeting user-specified install method: $Method"
+    switch ($Method) {
+        "uv"     { $success = Install-ViaUv }
+        "pipx"   { $success = Install-ViaPipx }
+        "pip"    { $success = Install-ViaPip -PyCmd $pyCmd }
+        "winget" { $success = Install-ViaWinget }
+        "choco"  { $success = Install-ViaChoco }
+        "scoop"  { $success = Install-ViaScoop }
+    }
+} else {
+    # Automatic cascading sequence: uv -> pipx -> pip -> winget -> choco -> scoop
+    $methods = @(
+        { Install-ViaUv },
+        { Install-ViaPipx },
+        { Install-ViaPip -PyCmd $pyCmd },
+        { Install-ViaWinget },
+        { Install-ViaChoco },
+        { Install-ViaScoop }
+    )
+
+    foreach ($step in $methods) {
+        try {
+            if (& $step) {
+                $success = $true
+                break
+            }
+        } catch {
+            Write-Warn "Method attempt failed: $_"
+        }
+    }
+}
+
+if (-not $success) {
+    Rollback-Installation
+    Write-Err "Failed to install Siyarix v$Version using available package managers."
+    Write-Err "Manual fallback: python -m pip install --upgrade siyarix"
+    Write-Err "Issue tracker: https://github.com/mufthakherul/siyarix/issues"
+    exit 1
+}
+
+# Verification check
+if (-not $DryRun) {
+    $verifySiyarix = Get-Command siyarix -ErrorAction SilentlyContinue
+    if (-not $verifySiyarix) {
+        Write-Warn "'siyarix' command is not immediately found in current session PATH."
+        Write-Warn "Please restart your PowerShell terminal or execute:"
+        Write-Warn '  $env:PATH = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User")'
+    } else {
+        Write-Ok "Verified executable: $($verifySiyarix.Source)"
+    }
+}
+
+if (-not $Silent) {
+    Write-Host ""
+    Write-Ok "Siyarix v$Version installed successfully via $Script:InstalledMethod!"
+    Write-Host @"
+
+Quick Start:
+  siyarix --help                  # View command-line interface options
+  siyarix init                    # Setup workspace and interactive configuration
+  siyarix audit                   # Run comprehensive system security audit
+  siyarix chat                    # Launch interactive AI orchestration terminal
+
+Documentation: https://siyarix.github.io/docs
+Uninstaller:   irm https://siyarix.github.io/uninstall.ps1 | iex
+"@ -ForegroundColor Cyan
+}
+
+exit 0

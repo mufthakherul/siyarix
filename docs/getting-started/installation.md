@@ -132,19 +132,69 @@ pip install -e ".[all,cli,siem]"
 
 ---
 
-## ⚡ Automated Platform Install Scripts
+## ⚡ Enterprise Automated One-Line Installers
 
-If you want an absolutely hands-off setup, we provide one-liner install scripts that automatically detect your OS, set up a virtual environment, and install Siyarix for you.
+For a zero-configuration, production-ready setup, Siyarix provides automated one-liner scripts that auto-detect your CPU architecture, configure Python 3.11+, cascade package managers (`uv` -> `pipx` -> `brew` -> `pip`), and establish shell profiles.
+
+### 🐧 Linux, 🍏 macOS, BSD, ChromeOS, iOS (iSH), HarmonyOS
+```bash
+# Standard automated installation
+curl -fsSL https://siyarix.github.io/install.sh | bash
+
+# Enterprise unattended mode with auxiliary tools
+curl -fsSL https://siyarix.github.io/install.sh | bash -s -- --silent --with-tools
+
+# Dry-run inspection
+curl -fsSL https://siyarix.github.io/install.sh | bash -s -- --dry-run
+```
+
+### 🪟 Windows (PowerShell 5.1+ / PowerShell 7+)
+```powershell
+# Standard automated installation
+irm https://siyarix.github.io/install.ps1 | iex
+
+# Specify high-performance uv method and dry run
+irm https://siyarix.github.io/install.ps1 | iex -ArgumentList "-Method uv -DryRun"
+```
+
+### 📱 Android (Termux)
+```bash
+# Automated compilation and PEP 668 setup
+curl -fsSL https://siyarix.github.io/install-termux.sh | bash
+```
+
+### 🛠️ Enterprise Installer Flags & Options
+
+| Flag | Parameter | Description |
+|------|-----------|-------------|
+| `--version <ver>` | `-Version <ver>` | Install a specific version of Siyarix (e.g. `1.1.0`) |
+| `--method <name>` | `-Method <name>` | Force specific manager: `uv`, `pipx`, `pip`, `winget`, `choco`, `brew` |
+| `--silent` / `-s` | `-Silent` | Unattended mode, suppresses interactive banners and prompts |
+| `--dry-run` / `-d` | `-DryRun` | Simulates actions without downloading or modifying the system |
+| `--with-tools` | `-WithTools` | Installs auxiliary security tool integrations (`nmap`, `hydra`, `sqlmap`, etc.) |
+| `--no-modify-path` | `-NoModifyPath` | Skips updating `.bashrc`, `.zshrc`, or User PATH registry |
+
+---
+
+## 🧹 Forensic Deep Dive Uninstallation
+
+Need to completely remove Siyarix or perform a forensic cleanup across systems? Siyarix provides comprehensive uninstallers that support standard removal or zero-trace forensic purges.
 
 ```bash
-# 🐧 Linux, 🍏 macOS, 🌐 ChromeOS, 🍎 iOS/iSH, 🌐 HarmonyOS, BSD
-curl -fsSL https://siyarix.github.io/installer/install.sh | bash
+# Linux / macOS / BSD - Standard
+curl -fsSL https://siyarix.github.io/uninstall.sh | bash
 
-# 🪟 Windows (Run this in PowerShell)
-irm https://siyarix.github.io/installer/install.ps1 | iex
+# Linux / macOS / BSD - Forensic Deep Purge (Purges configs, memory DB, keyring, logs, history)
+curl -fsSL https://siyarix.github.io/uninstall.sh | bash -s -- --deep --yes
 
-# 📱 Android (Run inside the Termux app)
-curl -fsSL https://siyarix.github.io/installer/install-termux.sh | bash
+# Windows PowerShell - Standard
+irm https://siyarix.github.io/uninstall.ps1 | iex
+
+# Windows PowerShell - Forensic Deep Purge
+irm https://siyarix.github.io/uninstall.ps1 | iex -ArgumentList "-Deep -Yes"
+
+# Android / Termux
+curl -fsSL https://siyarix.github.io/uninstall-termux.sh | bash -s -- --deep --yes
 ```
 
 ---

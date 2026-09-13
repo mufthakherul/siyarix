@@ -729,11 +729,38 @@ def make_re_handler(tool_name: str) -> ToolHandler:
     return handler
 
 
-def make_generic_handler(tool_name: str) -> ToolHandler:
+def make_generic_handler(
+    tool_name: str,
+    binary: str | None = None,
+    default_args: list[str] | None = None,
+    timeout: int | None = None,
+) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
         from .subprocess_utils import safe_run_async
 
-        cmd = [tool_name]
+        exec_bin = binary or tool_name
+        extra_defaults = list(default_args or [])
+        tool_timeout = timeout
+
+        try:
+            from .tool_config import ToolConfigManager
+
+            cfg_mgr = ToolConfigManager.get_instance()
+            override = cfg_mgr.get_override(tool_name)
+            if override:
+                if not binary and override.binary_path:
+                    exec_bin = override.binary_path
+                if not default_args and override.default_args:
+                    extra_defaults = list(override.default_args)
+                if tool_timeout is None and override.timeout:
+                    tool_timeout = override.timeout
+        except Exception:
+            pass
+
+        cmd = [exec_bin]
+        if extra_defaults:
+            cmd.extend(extra_defaults)
+
         target = kwargs.get("target", "")
         args_raw = kwargs.get("args", [])
         flags = kwargs.get("flags", "")
@@ -745,7 +772,7 @@ def make_generic_handler(tool_name: str) -> ToolHandler:
             cmd.extend(flags.split())
         if target:
             cmd.append(target)
-        timeout = kwargs.get("timeout", 120)
+        cmd_timeout = kwargs.get("timeout") or tool_timeout or 120
         on_stdout = kwargs.get("on_stdout")
         on_stderr = kwargs.get("on_stderr")
         try:
@@ -753,10 +780,10 @@ def make_generic_handler(tool_name: str) -> ToolHandler:
                 from .subprocess_utils import safe_run_async_stream
 
                 result = await safe_run_async_stream(
-                    cmd, timeout=timeout, on_stdout=on_stdout, on_stderr=on_stderr
+                    cmd, timeout=cmd_timeout, on_stdout=on_stdout, on_stderr=on_stderr
                 )
             else:
-                result = await safe_run_async(cmd, timeout=timeout)
+                result = await safe_run_async(cmd, timeout=cmd_timeout)
             return _make_result(tool_name, result)
         except Exception as exc:
             return {"status": "error", "error": str(exc), "tool": tool_name}

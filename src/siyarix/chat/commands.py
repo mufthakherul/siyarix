@@ -639,16 +639,41 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         ],
         notes="Sets persona to 'blue-team' and activates defensive posture.",
     ),
-    # ── Tools ──
     CommandInfo(
         name="/tools",
         category=CommandCategory.TOOLS,
-        description="List discovered security tools with search/filter",
-        usage="/tools [category]",
-        args=[ArgInfo("category", "Tool category filter", optional=True)],
+        description="Manage and inspect security tools (list, info, install, uninstall, modify)",
+        usage="/tools [action|category] [args]",
+        args=[
+            ArgInfo(
+                "action",
+                "Action or category (list, info, install, uninstall, enable, disable)",
+                optional=True,
+            )
+        ],
         handler="_cmd_tools",
-        examples=["/tools", "/tools recon", "/tools exploitation"],
-        notes="Tools are discovered from PATH at startup. Categories: recon, exploitation, web, etc.",
+        examples=["/tools", "/tools recon", "/tools info nmap", "/tools install sqlmap"],
+        notes="Manage built-in and custom tools.",
+    ),
+    CommandInfo(
+        name="/install",
+        category=CommandCategory.TOOLS,
+        description="Install one or more cybersecurity tools",
+        usage="/install <tool1> [tool2 ...]",
+        args=[ArgInfo("tools", "Name of tool(s) to install")],
+        handler="_cmd_install",
+        examples=["/install nmap", "/install sqlmap ffuf"],
+        notes="Installs via native package manager (winget, apt, pacman, brew, pkg, or pip).",
+    ),
+    CommandInfo(
+        name="/uninstall",
+        category=CommandCategory.TOOLS,
+        description="Uninstall one or more cybersecurity tools",
+        usage="/uninstall <tool1> [tool2 ...]",
+        args=[ArgInfo("tools", "Name of tool(s) to uninstall")],
+        handler="_cmd_uninstall",
+        examples=["/uninstall nmap", "/uninstall sqlmap"],
+        notes="Removes tool using system package manager or user tool registry.",
     ),
     CommandInfo(
         name="/run",

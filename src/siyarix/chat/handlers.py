@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import os
+import shutil
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -86,6 +87,8 @@ class CommandHandlersMixin:
             "/fresh": self._cmd_new,
             "/history": self._cmd_history,
             "/tools": self._cmd_tools,
+            "/install": self._cmd_install,
+            "/uninstall": self._cmd_uninstall,
             "/platform": self._cmd_platform,
             "/status": self._cmd_status,
             "/session": self._cmd_session,
@@ -626,16 +629,158 @@ class CommandHandlersMixin:
                 f"[dim]{ts}[/dim] [{role_color}]{label}:[/{role_color}] {msg.content[:200]}"
             )
 
+    def _cmd_install(self, arg: str) -> None:
+        tools = arg.strip().split()
+        if not tools:
+            console.print("[yellow]Usage: /install <tool1> [tool2 ...][/yellow]")
+            return
+        from ..tool_installer import ToolInstaller, tty_confirm
+
+        installer = ToolInstaller(console=console)
+        for t in tools:
+            rec = installer.get_install_recipe(t)
+            want = tty_confirm(f"Install [cyan]{t}[/cyan] via {rec['method']}?", default=True)
+            if want:
+                installer.install(t)
+                self._tool_cache = None
+
+    def _cmd_uninstall(self, arg: str) -> None:
+        tools = arg.strip().split()
+        if not tools:
+            console.print("[yellow]Usage: /uninstall <tool1> [tool2 ...][/yellow]")
+            return
+        from ..tool_installer import ToolInstaller, tty_confirm
+
+        installer = ToolInstaller(console=console)
+        for t in tools:
+            want = tty_confirm(f"Uninstall [cyan]{t}[/cyan]?", default=False)
+            if want:
+                installer.uninstall(t)
+                self._tool_cache = None
+
     def _cmd_tools(self, arg: str) -> None:
         try:
+            parts = arg.strip().split(maxsplit=1)
+            sub = parts[0].lower() if parts else ""
+            sub_arg = parts[1].strip() if len(parts) > 1 else ""
+
+            if sub == "install":
+                self._cmd_install(sub_arg)
+                return
+            if sub == "uninstall":
+                self._cmd_uninstall(sub_arg)
+                return
+            if sub == "update":
+                from ..tool_installer import ToolInstaller
+
+                installer = ToolInstaller(console=console)
+                targets = sub_arg.split() if sub_arg else []
+                if not targets:
+                    console.print("[yellow]Usage: /tools update <tool1> [tool2 ...][/yellow]")
+                    return
+                for t in targets:
+                    installer.update(t)
+                return
+            if sub == "info":
+                if not sub_arg:
+                    console.print("[yellow]Usage: /tools info <tool>[/yellow]")
+                    return
+                from ..tool_config import ToolConfigManager
+                from ..tool_installer import ToolInstaller
+                from ..tool_version import get_tool_metadata
+
+                installer = ToolInstaller()
+                cfg_mgr = ToolConfigManager.get_instance()
+                meta = get_tool_metadata(sub_arg)
+                custom = cfg_mgr.get_custom_tool(sub_arg)
+                override = cfg_mgr.get_override(sub_arg)
+                is_installed = installer.is_installed(sub_arg)
+                rec = installer.get_install_recipe(sub_arg)
+
+                table = Table(
+                    title=f"Tool Specification: [bold cyan]{sub_arg}[/bold cyan]", show_header=False
+                )
+                table.add_column("Property", style="cyan", width=22)
+                table.add_column("Value", style="white")
+                table.add_row(
+                    "Installed Status",
+                    "[green]✓ Installed[/green]" if is_installed else "[red]✗ Not Installed[/red]",
+                )
+                which_bin = shutil.which(sub_arg)
+                table.add_row("System PATH Binary", which_bin or "[dim]None[/dim]")
+                if custom:
+                    table.add_row("Tool Type", "[magenta]Custom User Tool[/magenta]")
+                    table.add_row("Custom Binary", custom.binary)
+                    table.add_row("Description", custom.description)
+                    table.add_row("Category", custom.category)
+                    table.add_row("Risk Level", custom.risk_level)
+                    table.add_row(
+                        "Enabled", "[green]Yes[/green]" if custom.enabled else "[yellow]No[/yellow]"
+                    )
+                elif meta:
+                    table.add_row("Description", meta.get("description", "N/A"))
+                    table.add_row("Category", meta.get("category", "utility"))
+                    table.add_row("Risk Level", meta.get("risk_level", "safe"))
+
+                if override:
+                    table.add_row("Custom Override", "[cyan]Active[/cyan]")
+                    if override.binary_path:
+                        table.add_row("Override Binary", override.binary_path)
+                    if override.default_args:
+                        table.add_row("Default Flags", " ".join(override.default_args))
+                    table.add_row(
+                        "Enabled",
+                        "[green]Yes[/green]" if override.enabled else "[yellow]Disabled[/yellow]",
+                    )
+
+                table.add_row("Package Manager", rec.get("pm", "unknown"))
+                table.add_row("Install Command", " ".join(rec.get("install_cmd", [])))
+                table.add_row("Uninstall Command", " ".join(rec.get("uninstall_cmd", [])))
+                console.print(table)
+                return
+
+            if sub in ("enable", "disable"):
+                if not sub_arg:
+                    console.print(f"[yellow]Usage: /tools {sub} <tool>[/yellow]")
+                    return
+                from ..tool_config import ToolConfigManager
+
+                cfg_mgr = ToolConfigManager.get_instance()
+                if sub == "enable":
+                    cfg_mgr.enable_tool(sub_arg)
+                    console.print(f"[green]✓ Tool {sub_arg} enabled.[/green]")
+                else:
+                    cfg_mgr.disable_tool(sub_arg)
+                    console.print(f"[yellow]✓ Tool {sub_arg} disabled.[/yellow]")
+                self._tool_cache = None
+                return
+
+            if sub == "reset":
+                from ..tool_config import ToolConfigManager
+
+                cfg_mgr = ToolConfigManager.get_instance()
+                cfg_mgr.reset(sub_arg or None)
+                console.print(
+                    f"[green]✓ Reset tool modifications for '{sub_arg or 'all'}'.[/green]"
+                )
+                self._tool_cache = None
+                return
+
+            # Default: list tools
             from ..registry import ToolRegistry
-            from ..tool_models import ToolCategory
+            from ..tool_config import ToolConfigManager
+            from ..tool_installer import ToolInstaller
+            from ..tool_models import ToolCategory, ToolCapability
 
             reg = ToolRegistry()
+            cfg_mgr = ToolConfigManager.get_instance()
+            installer = ToolInstaller()
+
             if not hasattr(self, "_tool_cache") or self._tool_cache is None:
                 reg.scan_path()
                 self._tool_cache = reg.list_tools()
-            tools = self._tool_cache
+            cached = self._tool_cache or []
+            tools: list[ToolCapability] = [t for t in cached if isinstance(t, ToolCapability)]
 
             category_filter = None
             if arg.strip():
@@ -643,7 +788,9 @@ class CommandHandlersMixin:
                     category_filter = ToolCategory(arg.strip().lower())
                 except ValueError:
                     valid = ", ".join(c.value for c in ToolCategory)
-                    console.print(f"[yellow]Invalid category. Valid: {valid}[/yellow]")
+                    console.print(
+                        f"[yellow]Invalid category or action. Valid categories: {valid}[/yellow]"
+                    )
                     return
                 tools = [t for t in tools if t.category == category_filter]
 
@@ -658,11 +805,33 @@ class CommandHandlersMixin:
             table = Table(title=title, header_style="bold cyan")
             table.add_column("#", style="dim", width=4)
             table.add_column("Name", style="cyan", no_wrap=True)
+            table.add_column("Status", justify="center")
             table.add_column("Category", style="magenta")
+            table.add_column("Risk", justify="center")
             table.add_column("Persona", style="yellow")
-            for i, t in enumerate(sorted(tools, key=lambda x: x.category), 1):
-                personas = ", ".join(t.metadata.get("personas", [])) if t.metadata else ""
-                table.add_row(str(i), t.name, t.category.value, personas)
+
+            for i, tool_cap in enumerate(sorted(tools, key=lambda x: x.name), 1):
+                personas = (
+                    ", ".join(tool_cap.metadata.get("personas", [])) if tool_cap.metadata else ""
+                )
+                is_inst = installer.is_installed(tool_cap.name)
+                inst_badge = "[green]✓[/green]" if is_inst else "[dim]✗[/dim]"
+                risk_color = {
+                    "safe": "green",
+                    "low": "blue",
+                    "medium": "yellow",
+                    "high": "red",
+                    "critical": "bold red",
+                }.get(tool_cap.risk_level.value, "white")
+                risk_badge = f"[{risk_color}]{tool_cap.risk_level.value.upper()}[/{risk_color}]"
+                table.add_row(
+                    str(i),
+                    tool_cap.name,
+                    inst_badge,
+                    tool_cap.category.value,
+                    risk_badge,
+                    personas,
+                )
             console.print(table)
         except Exception as exc:
             logger.exception("Tool discovery error")

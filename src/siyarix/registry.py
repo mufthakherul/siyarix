@@ -344,6 +344,17 @@ class ToolRegistry:
         if not handler:
             raise ToolNotFoundError(f"No handler registered for: {name}")
 
+        try:
+            from .tool_config import ToolConfigManager
+
+            cfg_mgr = ToolConfigManager.get_instance()
+            if not cfg_mgr.is_tool_enabled(name):
+                raise PermissionDeniedError(f"Tool '{name}' is disabled in configuration.")
+        except PermissionDeniedError:
+            raise
+        except Exception:
+            pass
+
         if tool.availability:
             from .tool_availability import ToolAvailabilityContext, evaluate_availability
 
@@ -401,20 +412,73 @@ class ToolRegistry:
         has_parser = self._parser_registry.has_parser(name)
         meta = get_tool_metadata(name)
         personas = meta.get("personas", []) if meta else []
+        cat = categorize_tool(name)
+        risk = risk_for_tool(name)
+        desc = describe_tool(name)
+        tags = tags_for_tool(name)
+        default_args: list[str] = []
+        timeout: int | None = None
+        enabled: bool = True
+
+        try:
+            from .tool_config import ToolConfigManager
+
+            cfg_mgr = ToolConfigManager.get_instance()
+            override = cfg_mgr.get_override(name)
+            if override:
+                if override.binary_path:
+                    binary = override.binary_path
+                if override.category:
+                    try:
+                        cat = ToolCategory(override.category)
+                    except ValueError:
+                        pass
+                if override.risk_level:
+                    try:
+                        risk = RiskLevel(override.risk_level)
+                    except ValueError:
+                        pass
+                if override.description:
+                    desc = override.description
+                default_args = list(override.default_args)
+                timeout = override.timeout
+                enabled = override.enabled
+        except Exception:
+            pass
+
+        handler: ToolHandler | None = None
+        if handler_factory:
+            try:
+                handler = handler_factory(name)
+            except TypeError:
+                try:
+                    handler = handler_factory()
+                except Exception:
+                    handler = make_generic_handler(
+                        name, binary=binary, default_args=default_args, timeout=timeout
+                    )
+        else:
+            handler = make_generic_handler(
+                name, binary=binary, default_args=default_args, timeout=timeout
+            )
+
         return (
             ToolCapability(
                 name=name,
                 binary=binary,
                 installed=True,
                 version=version,
-                category=categorize_tool(name),
-                risk_level=risk_for_tool(name),
-                description=describe_tool(name),
-                tags=tags_for_tool(name),
+                category=cat,
+                risk_level=risk,
+                description=desc,
+                tags=tags,
                 parser=name if has_parser else "",
                 metadata={"personas": personas} if personas else {},
+                default_args=default_args,
+                timeout=timeout,
+                enabled=enabled,
             ),
-            handler_factory(name) if handler_factory else make_generic_handler(name),
+            handler,
         )
 
     def discover_from_path(self) -> int:
@@ -449,6 +513,50 @@ class ToolRegistry:
                     )
                 )
                 count += 1
+
+        # Register custom tools from ToolConfigManager
+        try:
+            from .tool_config import ToolConfigManager
+
+            cfg_mgr = ToolConfigManager.get_instance()
+            for custom_name, ctool in cfg_mgr.list_custom_tools().items():
+                if not self._graph.get_tool(custom_name):
+                    try:
+                        cat = ToolCategory(ctool.category)
+                    except ValueError:
+                        cat = ToolCategory.UTILITY
+                    try:
+                        risk = RiskLevel(ctool.risk_level)
+                    except ValueError:
+                        risk = RiskLevel.SAFE
+                    cap = ToolCapability(
+                        name=custom_name,
+                        binary=ctool.binary,
+                        installed=True,
+                        version="",
+                        category=cat,
+                        risk_level=risk,
+                        description=ctool.description or f"Custom tool {custom_name}",
+                        tags=["custom", custom_name],
+                        default_args=list(ctool.default_args),
+                        timeout=ctool.timeout,
+                        custom=True,
+                        enabled=ctool.enabled,
+                    )
+                    tools_to_register.append(
+                        (
+                            cap,
+                            make_generic_handler(
+                                custom_name,
+                                binary=ctool.binary,
+                                default_args=ctool.default_args,
+                                timeout=ctool.timeout,
+                            ),
+                        )
+                    )
+                    count += 1
+        except Exception as exc:
+            logger.debug("Failed to register custom tools: %s", exc)
 
         if tools_to_register:
             self.register_many(tools_to_register)

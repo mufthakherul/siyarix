@@ -75,6 +75,10 @@ class ToolCapability:
     usage_count: int = 0
     last_used: float = 0.0
     avg_duration_ms: float = 0.0
+    default_args: list[str] = field(default_factory=list)
+    timeout: int | None = None
+    custom: bool = False
+    enabled: bool = True
 
     def __hash__(self) -> int:
         return hash(self.name)

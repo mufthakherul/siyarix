@@ -5,7 +5,23 @@
 from __future__ import annotations
 
 from .loader import PluginLoader
+from .manager import PluginManager
+from .models import (
+    PluginCapabilityInfo,
+    PluginDependency,
+    PluginManifest,
+    PluginMetadata,
+    PluginStatus,
+    PluginType,
+)
 
 __all__ = [
+    "PluginCapabilityInfo",
+    "PluginDependency",
     "PluginLoader",
+    "PluginManager",
+    "PluginManifest",
+    "PluginMetadata",
+    "PluginStatus",
+    "PluginType",
 ]

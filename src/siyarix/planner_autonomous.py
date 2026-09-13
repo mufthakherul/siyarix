@@ -203,10 +203,18 @@ class SemanticToolSelector:
             "traceroute",
             "tcpdump",
         ],
-        "exploit": ["searchsploit", "metasploit", "sqlmap", "hydra", "nuclei"],
+        "exploit": ["searchsploit", "metasploit", "sqlmap", "hydra", "nuclei", "cve_correlator"],
         "bruteforce": ["hydra", "john", "hashcat", "medusa", "ffuf", "gobuster"],
         "forensic": ["volatility", "strings", "binwalk", "exiftool", "gdb", "lsof", "file"],
-        "cloud": ["aws", "azure", "gcloud", "scoutsuite", "prowler"],
+        "cloud": ["aws", "azure", "gcloud", "scoutsuite", "prowler", "cloud_audit"],
+        "ad": [
+            "responder",
+            "crackmapexec",
+            "impacket",
+            "smbmap",
+            "enum4linux",
+            "active_directory_inspector",
+        ],
     }
 
     CORE_TOOLS: list[str] = ["nmap", "curl", "whois", "dig"]
@@ -224,17 +232,31 @@ class SemanticToolSelector:
 
         if any(
             w in goal_lower
-            for w in ("http", "https", "url", "domain", "web", "site", "api", "endpoint", "path")
+            for w in (
+                "http",
+                "https",
+                "url",
+                "domain",
+                "web",
+                "site",
+                "api",
+                "endpoint",
+                "path",
+                "graphql",
+                "rest",
+            )
         ):
             matched_categories.add("web")
-        if any(w in goal_lower for w in ("dns", "record", "mx", "ns", "subdomain")):
+        if any(
+            w in goal_lower for w in ("dns", "record", "mx", "ns", "subdomain", "cname", "takeover")
+        ):
             matched_categories.add("dns")
         if any(
             w in goal_lower
             for w in ("ip", "cidr", "subnet", "port", "network", "host", "ping", "sniff")
         ):
             matched_categories.add("network")
-        if any(w in goal_lower for w in ("exploit", "vuln", "cve", "poc", "rce", "sqli")):
+        if any(w in goal_lower for w in ("exploit", "vuln", "cve", "poc", "rce", "sqli", "epss")):
             matched_categories.add("exploit")
         if any(
             w in goal_lower for w in ("pass", "wordlist", "brute", "crack", "login", "auth", "hash")
@@ -245,6 +267,25 @@ class SemanticToolSelector:
             for w in ("memory", "dump", "process", "forensic", "pcap", "artifact", "binary")
         ):
             matched_categories.add("forensic")
+        if any(
+            w in goal_lower
+            for w in ("cloud", "aws", "azure", "gcp", "s3", "iam", "bucket", "storage")
+        ):
+            matched_categories.add("cloud")
+        if any(
+            w in goal_lower
+            for w in (
+                "ad",
+                "active directory",
+                "kerberos",
+                "ldap",
+                "spn",
+                "dcsync",
+                "domain controller",
+            )
+        ):
+            matched_categories.add("ad")
+            matched_categories.add("network")
 
         priority_tool_names: list[str] = list(cls.CORE_TOOLS)
         for cat in matched_categories:

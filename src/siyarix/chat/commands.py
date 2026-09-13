@@ -742,12 +742,37 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
     CommandInfo(
         name="/plugins",
         category=CommandCategory.TOOLS,
-        description="List and manage Siyarix plugins",
-        usage="/plugins [list|status]",
-        args=[ArgInfo("action", "list or status", optional=True)],
+        description="Enterprise plugin management (list, search, install, uninstall, info)",
+        usage="/plugins [list|search|install|uninstall|info|enable|disable|reload]",
+        args=[
+            ArgInfo(
+                "action",
+                "list, search, install, uninstall, info, enable, disable, reload",
+                optional=True,
+            ),
+            ArgInfo("target", "plugin name or query", optional=True),
+        ],
         handler="_cmd_plugins",
-        examples=["/plugins", "/plugins list", "/plugins status"],
-        notes="Plugins directory: ~/.config/siyarix/plugins/. Supports .py and .yaml.",
+        examples=[
+            "/plugins",
+            "/plugins search cve",
+            "/plugins install cve_correlator",
+            "/plugins info cve_correlator",
+            "/plugins list",
+        ],
+        notes="Official plugins registry: https://github.com/siyarix/siyarix-plugins",
+    ),
+    CommandInfo(
+        name="/plugin",
+        category=CommandCategory.TOOLS,
+        description="Enterprise plugin management alias",
+        usage="/plugin [action] [target]",
+        args=[
+            ArgInfo("action", "list, search, install, uninstall, info", optional=True),
+            ArgInfo("target", "plugin name or query", optional=True),
+        ],
+        handler="_cmd_plugins",
+        examples=["/plugin list", "/plugin search web", "/plugin install cloud_audit"],
     ),
     CommandInfo(
         name="/playbook",

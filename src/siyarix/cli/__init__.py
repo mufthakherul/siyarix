@@ -61,6 +61,7 @@ from ..metrics import get_metrics
 from ..registry import ToolRegistry
 from ..security_commands import security_app
 from ..validators import validate_target
+from .plugins import plugins_app
 
 logger = logging.getLogger(__name__)
 
@@ -877,6 +878,9 @@ def cache_clear() -> None:
 tools_app = typer.Typer(help="🛠️ Security tool management: install, uninstall, modify, list, search")
 app.add_typer(tools_app, name="tools")
 app.add_typer(tools_app, name="tool")
+
+app.add_typer(plugins_app, name="plugins")
+app.add_typer(plugins_app, name="plugin")
 
 _TOOL_PRESETS: dict[str, list[str]] = {
     "recon": ["nmap", "masscan", "subfinder", "httpx", "dig", "whois"],

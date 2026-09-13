@@ -134,12 +134,12 @@ class AgentCore(ExecutionMixin, GraphMixin):
         self._metrics = get_metrics()
 
         try:
-            from siyarix.plugins.loader import PluginLoader
+            from siyarix.plugins.manager import PluginManager
 
-            plugin_loader = PluginLoader(self._registry, self._providers)
-            plugin_loader.load_all()
+            self._plugin_manager = PluginManager.get_instance(self._registry, self._providers)
+            self._plugin_manager.load_all()
         except Exception as e:
-            logger.warning("Failed to initialize plugin loader: %s", e)
+            logger.warning("Failed to initialize plugin manager: %s", e)
 
         try:
             from siyarix.notifications import NotificationDispatcher

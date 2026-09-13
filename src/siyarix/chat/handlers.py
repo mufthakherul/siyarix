@@ -146,6 +146,7 @@ class CommandHandlersMixin:
             # ── New commands ──
             "/export": self._cmd_export,
             "/plugins": self._cmd_plugins,
+            "/plugin": self._cmd_plugins,
             "/alias": self._cmd_alias,
             "/language": self._cmd_language,
             "/load": self._cmd_load,
@@ -3130,33 +3131,155 @@ class CommandHandlersMixin:
 
     def _cmd_plugins(self, args: str) -> None:
         """List and manage Siyarix plugins."""
+        from siyarix.plugins.manager import PluginManager
+        from siyarix.plugins.models import PluginStatus
+        from rich.table import Table
+        from rich.panel import Panel
+
         try:
             tokens = args.split() if args else []
             action = tokens[0].lower() if tokens else "list"
+            mgr = PluginManager.get_instance(registry=getattr(self, "_registry", None))
 
             if action == "list":
-                plugins_dir = get_config_dir() / "plugins"
-                if not plugins_dir.exists():
-                    console.print("[dim]No plugins directory found.[/dim]")
-                    return
-                plugin_files = list(plugins_dir.glob("*.py")) + list(plugins_dir.glob("*.yaml"))
-                if not plugin_files:
+                plugins = mgr.list_plugins()
+                if not plugins:
                     console.print("[dim]No plugins installed.[/dim]")
+                    console.print(f"[dim]Plugins directory: {mgr.plugins_dir}[/dim]")
+                    console.print(
+                        "[cyan]Discover plugins using: [bold]/plugins search[/bold][/cyan]"
+                    )
                     return
-                from rich.table import Table
 
-                table = Table(title=f"Plugins ({len(plugin_files)})", header_style="bold cyan")
-                table.add_column("Name", style="cyan")
-                table.add_column("Type", style="dim")
-                table.add_column("Size", justify="right")
-                for pf in sorted(plugin_files):
-                    table.add_row(pf.stem, pf.suffix, f"{pf.stat().st_size} B")
+                table = Table(
+                    title=f"Installed Plugins ({len(plugins)})",
+                    header_style="bold cyan",
+                    border_style="bright_blue",
+                )
+                table.add_column("Name", style="bold white")
+                table.add_column("Version", style="dim")
+                table.add_column("Category", style="cyan")
+                table.add_column("Status", justify="center")
+                table.add_column("Registered Tools", style="green")
+                table.add_column("Description", style="dim")
+
+                for p in plugins:
+                    m = p.manifest
+                    status_str = (
+                        "[bold green]ACTIVE[/bold green]"
+                        if p.status == PluginStatus.ACTIVE
+                        else "[yellow]DISABLED[/yellow]"
+                        if p.status == PluginStatus.DISABLED
+                        else "[bold red]ERROR[/bold red]"
+                    )
+                    cat_val = m.category.value if hasattr(m.category, "value") else str(m.category)
+                    tools_str = (
+                        ", ".join(p.registered_tools) if p.registered_tools else "[dim]none[/dim]"
+                    )
+                    desc = (
+                        (m.description[:40] + "...") if len(m.description) > 42 else m.description
+                    )
+                    table.add_row(m.name, m.version, cat_val, status_str, tools_str, desc)
                 console.print(table)
+
+            elif action == "search":
+                q = " ".join(tokens[1:]) if len(tokens) > 1 else ""
+                with console.status("[cyan]Searching plugin registry...[/cyan]", spinner="dots"):
+                    results = mgr.search(query=q)
+                if not results:
+                    console.print(f"[yellow]No plugins found matching '{q}'.[/yellow]")
+                    return
+                table = Table(
+                    title=f"Plugin Registry Results ({len(results)})",
+                    header_style="bold cyan",
+                    border_style="bright_blue",
+                )
+                table.add_column("Name", style="bold white")
+                table.add_column("Version", style="dim")
+                table.add_column("Category", style="cyan")
+                table.add_column("Status", justify="center")
+                table.add_column("Description")
+                for r in results:
+                    is_inst = r.get("installed", False)
+                    status_str = (
+                        "[bold green]INSTALLED[/bold green]" if is_inst else "[dim]AVAILABLE[/dim]"
+                    )
+                    table.add_row(
+                        r.get("name", ""),
+                        r.get("version", "1.0.0"),
+                        str(r.get("category", "utility")),
+                        status_str,
+                        r.get("description", ""),
+                    )
+                console.print(table)
+                console.print("[dim]Install with: /plugins install <name>[/dim]")
+
+            elif action == "install":
+                if len(tokens) < 2:
+                    console.print("[yellow]Usage: /plugins install <name|git-url>[/yellow]")
+                    return
+                target = tokens[1]
+                console.print(f"[cyan]Installing plugin: [bold]{target}[/bold]...[/cyan]")
+                meta = mgr.install(target)
+                tools = ", ".join(meta.registered_tools) if meta.registered_tools else "none"
+                console.print(
+                    f"[bold green]✓ Plugin '{meta.manifest.name}' installed successfully![/bold green]"
+                )
+                if meta.registered_tools:
+                    console.print(f"[green]Registered tools: [bold]{tools}[/bold][/green]")
+
+            elif action == "uninstall":
+                if len(tokens) < 2:
+                    console.print("[yellow]Usage: /plugins uninstall <name>[/yellow]")
+                    return
+                name = tokens[1]
+                if mgr.uninstall(name):
+                    console.print(f"[bold green]✓ Plugin '{name}' uninstalled.[/bold green]")
+                else:
+                    console.print(f"[yellow]Plugin '{name}' not found.[/yellow]")
+
+            elif action == "info":
+                if len(tokens) < 2:
+                    console.print("[yellow]Usage: /plugins info <name>[/yellow]")
+                    return
+                name = tokens[1]
+                info = mgr.info(name)
+                tools = ", ".join(info["registered_tools"]) if info["registered_tools"] else "None"
+                body = f"""[bold white]Name:[/bold white] {info['name']} (v{info['version']})
+[bold white]Status:[/bold white] {info['status'].upper()}
+[bold white]Category:[/bold white] {info['category']}
+[bold white]Registered Tools:[/bold white] [green]{tools}[/green]
+[bold white]Description:[/bold white] {info['description']}
+[bold white]Path:[/bold white] [dim]{info['path']}[/dim]"""
+                console.print(Panel(body, title=f"Plugin: {info['name']}", border_style="cyan"))
+
+            elif action == "enable":
+                if len(tokens) < 2:
+                    console.print("[yellow]Usage: /plugins enable <name>[/yellow]")
+                    return
+                mgr.enable(tokens[1])
+                console.print(f"[bold green]✓ Plugin '{tokens[1]}' enabled.[/bold green]")
+
+            elif action == "disable":
+                if len(tokens) < 2:
+                    console.print("[yellow]Usage: /plugins disable <name>[/yellow]")
+                    return
+                mgr.disable(tokens[1])
+                console.print(f"[yellow]✓ Plugin '{tokens[1]}' disabled.[/yellow]")
+
+            elif action == "reload":
+                count = mgr.load_all()
+                console.print(f"[bold green]✓ Reloaded {count} plugin(s).[/bold green]")
+
             elif action == "status":
                 console.print("[green]Plugin system active.[/green]")
-                console.print(f"[dim]Plugin directory: {get_config_dir() / 'plugins'}[/dim]")
+                console.print(f"[dim]Plugin directory: {mgr.plugins_dir}[/dim]")
+                console.print(f"[dim]Installed plugins: {len(mgr.list_plugins())}[/dim]")
+
             else:
-                console.print("[yellow]Usage: /plugins list|status[/yellow]")
+                console.print(
+                    "[yellow]Usage: /plugins [list|search|install|uninstall|info|enable|disable|reload|status][/yellow]"
+                )
         except Exception as exc:
             console.print(f"[red]Plugin command failed: {exc}[/red]")
 

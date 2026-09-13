@@ -139,3 +139,7 @@ siyarix_scan_*.json
 tests/_*.py
 
 test_output.txt
+
+# Sub-repositories
+siyarix-plugins/
+siyarix.github.io/

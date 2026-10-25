@@ -122,15 +122,19 @@ _OPENSSL_OUT_AUTH_RE = re.compile(
     r"\bopenssl\b[\s\S]{0,160}(?:-out|--out)\s*" + r"/etc/(?:passwd|shadow|sudoers|group)\b",
     re.IGNORECASE,
 )
-_EXTRACT_TO_ROOT_RE = re.compile(
+# Capture extract destinations; normalize before comparing to ``/``.
+# Long options first; ``\b`` after short flags so ``-C`` does not match inside ``--chdir``.
+_EXTRACT_DEST_RE = re.compile(
     r"(?:"
-    # Optional space/``=`` so ``tar -C/``, ``tar --directory=/``, ``unzip -d/`` match.
-    r"\b(?:tar|bsdtar)\b[\s\S]{0,120}(?:-C|--directory)(?:=|\s*)/(?:\s|$)"
-    r"|\bunzip\b[\s\S]{0,80}(?:-d|--directory)(?:=|\s*)/(?:\s|$)"
-    r"|\b7z(?:a|r)?\b[\s\S]{0,80}-o/(?:\s|$|[a-z])"
+    r"\b(?:tar|bsdtar|star)\b[\s\S]{0,160}"
+    r"(?:--directory|--chdir|--cd|-C)\b(?:=|\s*)(\S+)"
+    r"|\bunzip\b[\s\S]{0,100}(?:--directory|-d)\b(?:=|\s*)(\S+)"
+    r"|\b(?:7z|7za|7zr|7zz)\b[\s\S]{0,100}-o(\S*)"
+    r"|\bcpio\b[\s\S]{0,100}(?:--directory|-D)\b(?:=|\s*)(\S+)"
     r")",
     re.IGNORECASE,
 )
+_UNRAR_CMD_RE = re.compile(r"\b(?:unrar|unar|rar)\b", re.IGNORECASE)
 _RSYNC_DELETE_RE = re.compile(
     r"\brsync\b[\s\S]{0,200}(?:--delete(?:-\w+)?|--remove-source-files)\b",
     re.IGNORECASE,
@@ -162,6 +166,13 @@ _DOWNLOAD_TO_BLOCK_RE = re.compile(
     + _BLOCK_DEV_RE.pattern
     + r"|\b(?:scp|sftp)\b[\s\S]{0,200}"
     + _BLOCK_DEV_RE.pattern
+    + r"|\b(?:zstd|pzstd|lz4|xz)\b[\s\S]{0,100}(?:-o|--output)(?:=|\s*)"
+    + _BLOCK_DEV_RE.pattern
+    + r"|\b(?:split|csplit)\b[\s\S]{0,100}(?:-f|--prefix)(?:=|\s*)"
+    + _BLOCK_DEV_RE.pattern
+    + r"|\bsplit\b[\s\S]{0,160}\s"
+    + _BLOCK_DEV_RE.pattern
+    + r"(?:\s|$)"
     + r")",
     re.IGNORECASE,
 )
@@ -322,6 +333,37 @@ def _targets_block_device(cmd_clean: str) -> bool:
     return bool(_BLOCK_DEV_RE.search(cmd_clean))
 
 
+def _is_dangerous_extract_dest(tok: str, *, absolute_any: bool = False) -> bool:
+    """True for ``/``, root aliases, system roots, or (7z) any absolute path."""
+    norm = _normalize_path_token(tok)
+    if norm in {"/", "/*"} or norm in _ROOT_EQUIV:
+        return True
+    if absolute_any and norm.startswith("/"):
+        return True
+    if norm in _SYSTEM_RM_ROOTS:
+        return True
+    return any(norm.startswith(root + "/") for root in _SYSTEM_RM_ROOTS)
+
+
+def _is_extract_to_root(cmd_clean: str) -> bool:
+    """True when an archiver targets ``/`` (incl. ``/tmp/../``, ``/.``, ``//``)."""
+    for match in _EXTRACT_DEST_RE.finditer(cmd_clean):
+        groups = match.groups()
+        dest = next((g for g in groups if g is not None), None)
+        if dest is None:
+            continue
+        # groups[2] is the 7-Zip ``-o`` destination — block any absolute path.
+        seven_zip = groups[2] is not None
+        if _is_dangerous_extract_dest(dest, absolute_any=seven_zip):
+            return True
+    if _UNRAR_CMD_RE.search(cmd_clean):
+        for raw in reversed(cmd_clean.split()[1:]):
+            if raw.startswith("-"):
+                continue
+            return _is_dangerous_extract_dest(raw)
+    return False
+
+
 def assert_command_not_destructive(command: str) -> None:
     """Raise :class:`PermissionDeniedError` for fork bombs, disk wipes, and mkfs/fdisk."""
     raw = (command or "").strip().lower()
@@ -405,7 +447,7 @@ def assert_command_not_destructive(command: str) -> None:
             "Destructive command detected: Overwriting block devices is blocked."
         )
 
-    if _EXTRACT_TO_ROOT_RE.search(cmd_clean):
+    if _is_extract_to_root(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: Extracting archives onto / is blocked."
         )

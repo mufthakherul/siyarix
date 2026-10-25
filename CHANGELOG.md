@@ -64,6 +64,10 @@ All notable changes to this project will be documented in this file.
 - `SIYARIX_ALLOWED_SCOPE` fails closed on `file:`/`ftp:`/`data:`/`gopher:`/`unix:` URLs.
 - `siyarix doctor` / `production-check` probes mmcblk/`7z`/`bsdtar` hard-blocks and `file://` scope deny.
 - Hard-block glued `tar -C/` / `tar --directory=/` / `unzip -d/`; Windows `Clear-Partition`/`Reset-PhysicalDisk`; `lftp`/`scp`/`cmake -E copy` onto disks.
+- Normalize extract destinations (`/tmp/../`, `/.`, `//`); `bsdtar --chdir`; `7zz`/`cpio`/`star`/`unrar`; `zstd`/`split`/`csplit` onto disks.
+- Scope fail-closed on smb/nfs/ldap/dict/… schemes and single-label hosts (`ssh bastion`).
+- SecretRedactor/DLP redact ENCRYPTED/DSA/ED25519 PEM bodies.
+- `.env` skips `OPENSSL_CONF`/`LD_AUDIT`/`DOCKER_HOST`/`KUBECONFIG`/`GIT_SSH_COMMAND`/`PGPASSFILE`/`SIYARIX_CONFIG_DIR`.
 - CLI alias `siyarix doctor` → `production-check`.
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).

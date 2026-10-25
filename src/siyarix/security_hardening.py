@@ -298,9 +298,9 @@ _REDACT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     (
         "private_key",
         re.compile(
-            r"-----BEGIN\s+(?:RSA\s+|EC\s+|OPENSSH\s+)?PRIVATE\s+KEY-----"
+            r"-----BEGIN\s+(?:(?:RSA|DSA|EC|OPENSSH|ED25519|ENCRYPTED)\s+)?PRIVATE\s+KEY-----"
             r"[\s\S]+?"
-            r"-----END\s+(?:RSA\s+|EC\s+|OPENSSH\s+)?PRIVATE\s+KEY-----",
+            r"-----END\s+(?:(?:RSA|DSA|EC|OPENSSH|ED25519|ENCRYPTED)\s+)?PRIVATE\s+KEY-----",
             re.IGNORECASE,
         ),
     ),

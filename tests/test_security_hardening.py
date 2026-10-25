@@ -426,6 +426,13 @@ class TestSecretRedactorRedact:
             "-----END OPENSSH PRIVATE KEY-----"
         )
         assert "b3BlbnNzaC1rZXktdjEAAAAABG5vbmU=" not in self.r.redact(openssh)
+        for kind, body in (
+            ("ENCRYPTED", "encbodyLEAK"),
+            ("DSA", "dsabodyLEAK"),
+            ("ED25519", "edbodyLEAK"),
+        ):
+            pem = f"-----BEGIN {kind} PRIVATE KEY-----\n{body}\n-----END {kind} PRIVATE KEY-----"
+            assert body not in self.r.redact(pem)
 
     def test_secret_kv_redacted(self) -> None:
         text = "password = super_secret_123"

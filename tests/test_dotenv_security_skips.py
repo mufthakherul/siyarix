@@ -34,6 +34,13 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "SIYARIX_DATABASE_URL=postgres://u:p@h/db",
                 "SIYARIX_REDIS_URL=redis://u:p@h/0",
                 "DATABASE_URL=postgres://u:p@h/db",
+                "OPENSSL_CONF=/tmp/evil.cnf",
+                "LD_AUDIT=/tmp/evil.so",
+                "DOCKER_HOST=tcp://evil:2375",
+                "KUBECONFIG=/tmp/evil.kube",
+                "SIYARIX_CONFIG_DIR=/tmp/evil-cfg",
+                "GIT_SSH_COMMAND=ssh -o ProxyCommand=evil",
+                "PGPASSFILE=/tmp/pgpass",
                 "SIYARIX_HARMLESS=ok",
             ]
         ),
@@ -56,6 +63,13 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "SIYARIX_DATABASE_URL",
         "SIYARIX_REDIS_URL",
         "DATABASE_URL",
+        "OPENSSL_CONF",
+        "LD_AUDIT",
+        "DOCKER_HOST",
+        "KUBECONFIG",
+        "SIYARIX_CONFIG_DIR",
+        "GIT_SSH_COMMAND",
+        "PGPASSFILE",
         "SIYARIX_HARMLESS",
     ):
         monkeypatch.delenv(key, raising=False)
@@ -79,4 +93,11 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "SIYARIX_DATABASE_URL" not in os.environ
     assert "SIYARIX_REDIS_URL" not in os.environ
     assert "DATABASE_URL" not in os.environ
+    assert "OPENSSL_CONF" not in os.environ
+    assert "LD_AUDIT" not in os.environ
+    assert "DOCKER_HOST" not in os.environ
+    assert "KUBECONFIG" not in os.environ
+    assert "SIYARIX_CONFIG_DIR" not in os.environ
+    assert "GIT_SSH_COMMAND" not in os.environ
+    assert "PGPASSFILE" not in os.environ
     assert os.environ.get("SIYARIX_HARMLESS") == "ok"

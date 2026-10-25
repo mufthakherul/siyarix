@@ -194,5 +194,22 @@ class TestAssertCommandInScope:
             assert_command_in_scope("curl ftp://evil.example/x", scope_env="example.com")
         with pytest.raises(PermissionDeniedError, match="URL scheme not allowed"):
             assert_command_in_scope("curl data:text/plain,hi", scope_env="10.0.0.0/8")
+        with pytest.raises(PermissionDeniedError, match="URL scheme not allowed"):
+            assert_command_in_scope("curl smb://fileserver/share", scope_env="10.0.0.0/8")
+        with pytest.raises(PermissionDeniedError, match="URL scheme not allowed"):
+            assert_command_in_scope("curl nfs://nas01/export", scope_env="*.lab.example")
+        with pytest.raises(PermissionDeniedError, match="URL scheme not allowed"):
+            assert_command_in_scope("ldapsearch -H ldap://dc01", scope_env="10.0.0.0/8")
         # No authorized scope → non-HTTP schemes remain unrestricted (opt-in gate).
         assert_command_in_scope("curl file:///etc/passwd")
+
+    def test_single_label_hosts_fail_closed_under_scope(self) -> None:
+        scope = "10.0.0.0/8,*.lab.example"
+        with pytest.raises(PermissionDeniedError, match="bastion"):
+            assert_command_in_scope("ssh bastion", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="dc01"):
+            assert_command_in_scope("nmap dc01", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="dc01"):
+            assert_command_in_scope("nmap -p 80 dc01", scope_env=scope)
+        assert_command_in_scope("nmap 10.1.2.3", scope_env=scope)
+        assert_command_in_scope("ssh jump.lab.example", scope_env=scope)

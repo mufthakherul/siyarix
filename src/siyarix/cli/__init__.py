@@ -133,13 +133,23 @@ def _load_dotenv(path: Path | None = None) -> None:
             "SIYARIX_COMMAND_REVIEW",
             "SIYARIX_ALLOWED_SCOPE",
             "SIYARIX_CONFIG",
+            "SIYARIX_CONFIG_DIR",
             "PRIVATE_KEY",
+            "OPENSSL_CONF",
+            "DOCKER_HOST",
+            "KUBECONFIG",
+            "GIT_SSH_COMMAND",
+            "PGPASSFILE",
+            "MYSQL_HISTFILE",
+            "AWS_CONFIG_FILE",
+            "AWS_SHARED_CREDENTIALS_FILE",
         }
     )
     _blocked_vars = {
         "PATH",
         "LD_PRELOAD",
         "LD_LIBRARY_PATH",
+        "LD_AUDIT",
         "PYTHONPATH",
         "PYTHONSTARTUP",
         "BASH_ENV",
@@ -167,6 +177,11 @@ def _load_dotenv(path: Path | None = None) -> None:
         "GIT_ASKPASS",
         "SSH_ASKPASS",
         "CURL_HOME",
+        "OPENSSL_CONF",
+        "DOCKER_HOST",
+        "KUBECONFIG",
+        "GIT_SSH_COMMAND",
+        "PGPASSFILE",
     }
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():

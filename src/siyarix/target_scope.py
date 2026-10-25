@@ -76,11 +76,38 @@ _DOMAIN_RE = re.compile(
 
 # http(s) URLs — used to fail-closed when the host cannot be extracted.
 _HTTP_URL_RE = re.compile(r"https?://[^\s\"']+", re.IGNORECASE)
-# Local / non-remote schemes that bypass host extraction when scope is set.
+# Schemes that bypass host extraction / are not IP-scoped when scope is set.
 _NON_HTTP_URL_RE = re.compile(
-    r"\b(?:file|ftp|ftps|gopher|data|unix):[^\s\"']*",
+    r"\b(?:file|ftp|ftps|gopher|data|unix|smb|nfs|ldap|ldaps|dict|tftp|"
+    r"rtsp|ssh|sftp|scp|rsync|jar|mailto|telnet):[^\s\"']*",
     re.IGNORECASE,
 )
+# Host-taking tools + first non-flag single-label hostname (fail-closed under scope).
+_HOST_TOOL_NAMES = frozenset(
+    {
+        "ssh",
+        "nmap",
+        "ncat",
+        "nc",
+        "netcat",
+        "ping",
+        "traceroute",
+        "tracepath",
+        "dig",
+        "host",
+        "telnet",
+        "ldapsearch",
+        "smbclient",
+        "rpcclient",
+        "showmount",
+        "masscan",
+        "naabu",
+        "httpx",
+        "curl",
+        "wget",
+    }
+)
+_SINGLE_LABEL_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{0,62}$")
 
 # Scope entry that is purely an IP or CIDR (not a domain / wildcard).
 _IP_OR_CIDR_RE = re.compile(
@@ -391,6 +418,30 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             f"URL scheme not allowed under authorized scope: {url!r} "
             f"(authorized scope: {scope_display})"
         )
+
+    # Fail-closed: bare single-label hosts after host-taking tools (``ssh bastion``).
+    tokens = decoded_early.split()
+    for i, tok in enumerate(tokens):
+        base = tok.split("/", 1)[0].lower()
+        if base not in _HOST_TOOL_NAMES:
+            continue
+        for nxt in tokens[i + 1 :]:
+            if nxt.startswith("-"):
+                continue
+            if "://" in nxt:
+                break  # URLs handled by scheme / http(s) checks
+            candidate = nxt.split("@")[-1].split("/")[0].split(":")[0]
+            if not candidate or candidate.isdigit():
+                continue  # ports / numeric args (``nmap -p 80 host``)
+            if "." in candidate or candidate.lower() == "localhost":
+                break
+            if _SINGLE_LABEL_RE.match(candidate):
+                if not domain_in_scope(candidate.lower(), allowed_items):
+                    raise PermissionDeniedError(
+                        f"Target host {candidate.lower()} is out of authorized scope: "
+                        f"{scope_display}"
+                    )
+            break
 
     for ip_str in found_ips:
         if not ip_in_scope(ip_str, allowed_items):

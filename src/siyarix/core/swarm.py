@@ -1,18 +1,19 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Swarm Orchestration Architecture for Siyarix.
+"""Swarm orchestration scaffold (experimental — not production-ready).
 
-Implements multi-agent coordination to parallelize and specialize
-cybersecurity assessment workflows (reconnaissance, vulnerability verification,
-and assessment reporting).
+This module is a coordination stub. Agents do **not** execute tools or produce
+real findings. Prefer ``chat.subagents`` / ``AgentCore.execute_goal`` for
+real multi-agent work. Enable only with ``SIYARIX_EXPERIMENTAL_SWARM=1``.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from typing import Any
 
-from siyarix.events import get_event_bus, Event, EventType
+from siyarix.events import Event, EventType, get_event_bus
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +27,17 @@ class SwarmTask:
     result: dict[str, Any] | None = None
 
 
+def _swarm_enabled() -> bool:
+    return os.getenv("SIYARIX_EXPERIMENTAL_SWARM", "0").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 class SpecializedAgent:
-    """Base class for a specialized AI agent in the Swarm."""
+    """Base class for a specialized AI agent in the Swarm (stub)."""
 
     def __init__(self, name: str, role: str) -> None:
         self.name = name
@@ -41,30 +51,26 @@ class SpecializedAgent:
                 source=self.name,
                 data={
                     "sub_type": "text_end",
-                    "text": f"[{self.role}] Initiating task on {task.target}...",
+                    "text": (
+                        f"[{self.role}] Stub swarm agent — no tools executed "
+                        f"for {task.target}"
+                    ),
                 },
             )
         )
-
-        task.status = "completed"
+        task.status = "skipped"
         task.result = {
             "agent": self.name,
             "role": self.role,
             "target": task.target,
-            "status": "success",
-            "findings": f"Assessment findings by {self.name} for {task.target}",
+            "status": "not_implemented",
+            "implemented": False,
+            "findings": [],
+            "message": (
+                "Swarm SpecializedAgent is a scaffold; wire AgentCore / "
+                "subagents for real execution"
+            ),
         }
-
-        await self.bus.emit(
-            Event(
-                type=EventType.CUSTOM,
-                source=self.name,
-                data={
-                    "sub_type": "text_end",
-                    "text": f"[{self.role}] Completed task on {task.target}.",
-                },
-            )
-        )
         return task
 
 
@@ -84,7 +90,7 @@ class ReportAgent(SpecializedAgent):
 
 
 class SwarmRouter:
-    """Orchestrates tasks across specialized agents."""
+    """Orchestrates tasks across specialized agents (experimental stub)."""
 
     def __init__(self) -> None:
         self.recon = ReconAgent()
@@ -93,28 +99,46 @@ class SwarmRouter:
         self.bus = get_event_bus()
 
     async def run_campaign(self, target: str) -> dict[str, Any]:
-        """Execute a full campaign using the swarm."""
+        """Execute a swarm campaign stub (requires SIYARIX_EXPERIMENTAL_SWARM=1)."""
+        if not _swarm_enabled():
+            msg = (
+                "SwarmRouter is experimental and disabled by default. "
+                "Set SIYARIX_EXPERIMENTAL_SWARM=1 to run the stub, or use "
+                "AgentCore / chat subagents for real multi-agent work."
+            )
+            logger.warning(msg)
+            return {
+                "status": "not_implemented",
+                "implemented": False,
+                "message": msg,
+                "recon_result": None,
+                "exploit_result": None,
+                "report_result": None,
+            }
+
         await self.bus.emit(
             Event(
                 type=EventType.CUSTOM,
                 source="SwarmRouter",
-                data={"sub_type": "text_end", "text": f"Deploying Swarm Campaign against {target}"},
+                data={
+                    "sub_type": "text_end",
+                    "text": f"Experimental swarm stub against {target} (no tool execution)",
+                },
             )
         )
 
-        # 1. Recon Phase
         t1 = SwarmTask(id="task-1", type="recon", target=target)
         await self.recon.execute(t1)
 
-        # 2. Exploit Phase
         t2 = SwarmTask(id="task-2", type="exploit", target=target)
         await self.exploit.execute(t2)
 
-        # 3. Report Phase
         t3 = SwarmTask(id="task-3", type="report", target=target)
         await self.report.execute(t3)
 
         return {
+            "status": "not_implemented",
+            "implemented": False,
             "recon_result": t1.result,
             "exploit_result": t2.result,
             "report_result": t3.result,

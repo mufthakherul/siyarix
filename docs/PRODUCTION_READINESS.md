@@ -30,7 +30,7 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | SX-028 | Docker target / entrypoint | Makefile `python` target; settings.toml detection |
 | SX-029 | CI security gates | `scripts/ci_security_gate.py` |
 | SX-030 | Hanging subagent test | `tests/test_core.py` |
-| SX-032 | AnyIO advisories | `uv.lock` / `poetry.lock` → 4.15.1 |
+| SX-032 | AnyIO advisories | `uv.lock` → 4.15.1 (`poetry.lock` removed; see `LOCKFILES.md`) |
 | SX-012 | Webhook SSRF destination policy | Literal IP + DNS→private reject; notification path; `tests/test_sx012_webhook_ssrf.py` |
 | SX-020 | Hatchling / Twine metadata | `hatchling>=1.21.1,<1.27`; `twine check` passes |
 | SX-026 | Rust parser adapters | `siyarix_rust_parsers` function exports via Python adapters |
@@ -52,7 +52,13 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | FEAT/DOC | Partial | Compose API ports removed; classifiers Beta (no iOS); stub module warning; ghost TAXII/MISP/dashboard env scrubbed |
 | SX-A02/A10/A11 | Closed | Plugin auto-pip off by default (`SIYARIX_PLUGIN_AUTO_PIP`); git origin re-validated; CWD plugin index removed |
 | SX-A06 | Partial | production-check warns + compliance FAIL on file_key until `SIYARIX_MASTER_PASSWORD` |
-| CI | Partial | coverage fail-under aligned to 70%; Trivy CRITICAL exit-code 1 |
+| CI | Partial | coverage fail-under aligned to 70%; Trivy CRITICAL exit-code 1; CI `production-check` job; stress/chaos markers; ghost integration job removed |
+| SX-A01 | Partial | `SIYARIX_TRUST_PLUGINS=1` required before in-process load (manager + legacy loader); true OS isolation still open |
+| FEAT-03 | Closed | Swarm gated behind `SIYARIX_EXPERIMENTAL_SWARM`; returns `not_implemented` (no fake success findings) |
+| Dashboard | Closed | Security dashboard shows only local DB counts; fabricated MFA/EDR/MTTD KPIs removed |
+| CISA KEV | Closed | Feed status `planned` (was false `integrated`) |
+| Dual lock | Closed | `poetry.lock` removed; `LOCKFILES.md` documents `uv.lock` SoT |
+| Worker pool | Closed | Queue semaphore released on cancel-before-start via done-callback |
 
 ## Premium ops
 

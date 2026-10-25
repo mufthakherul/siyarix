@@ -63,20 +63,35 @@ class AsyncWorkerPool:
 
         # Backpressure: Wait until there's room in the queue
         await self._queue_sema.acquire()
+        released = False
+
+        def _release_queue() -> None:
+            nonlocal released
+            if not released:
+                self._queue_sema.release()
+                released = True
 
         async def _guarded() -> Any:
-            """Acquire the semaphore around the actual work."""
+            """Acquire the work semaphore around the actual coroutine."""
             try:
                 async with self._sema:
                     return await fn(*args, **kwargs)
             finally:
-                self._queue_sema.release()
+                _release_queue()
 
-        task: asyncio.Task[Any] = asyncio.create_task(_guarded())
+        try:
+            task: asyncio.Task[Any] = asyncio.create_task(_guarded())
+        except BaseException:
+            _release_queue()
+            raise
+
         self._tasks.add(task)
 
         def _cleanup(done: asyncio.Task[Any]) -> None:
             self._tasks.discard(done)
+            # Tasks cancelled before start never enter ``_guarded``'s finally —
+            # release queue capacity here as well (idempotent).
+            _release_queue()
             if done.cancelled():
                 return
             exc = done.exception()

@@ -308,7 +308,11 @@ class PluginManager:
         return loaded_count
 
     def load_plugin(self, name: str) -> bool:
-        """Load a single discovered plugin into the runtime."""
+        """Load a single discovered plugin into the runtime.
+
+        Plugins execute in-process (not OS-isolated). Require explicit trust:
+        set ``SIYARIX_TRUST_PLUGINS=1`` before loading third-party code (SX-A01).
+        """
         meta = self._installed_plugins.get(name)
         if not meta:
             self.discover()
@@ -320,6 +324,21 @@ class PluginManager:
 
         if not self.is_enabled(name):
             meta.status = PluginStatus.DISABLED
+            return False
+
+        trust = os.getenv("SIYARIX_TRUST_PLUGINS", "0").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        if not trust:
+            meta.status = PluginStatus.DISABLED
+            meta.error_message = (
+                "Plugin load blocked: set SIYARIX_TRUST_PLUGINS=1 to allow "
+                "in-process plugin execution (plugins are fully trusted code)"
+            )
+            logger.warning("Refusing to load plugin %s without SIYARIX_TRUST_PLUGINS=1", name)
             return False
 
         if meta.plugin_type == PluginType.SINGLE_FILE:

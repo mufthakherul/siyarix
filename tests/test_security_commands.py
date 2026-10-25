@@ -224,8 +224,11 @@ class TestMitreCore:
 class TestDashboard:
     def test_dashboard(self, cli: Typer, runner: CliRunner) -> None:
         output = invoke_security(cli, runner, ["dashboard"])
-        assert "Security Score" in output
+        assert "Score" in output
+        assert "Local security DB summary" in output or "Open incidents" in output
         assert "MTTD" in output
+        assert "N/A" in output
+        assert "Fabricated SOC KPIs" in output or "not measured" in output.lower()
 
 
 class TestPlaybooks:

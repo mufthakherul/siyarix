@@ -49,7 +49,21 @@ class PluginLoader:
 
     def _load_plugin(self, path: Path) -> None:
         """Dynamically load a single python file as a plugin (path-sandboxed)."""
+        import os
+
         from siyarix.plugins.manager import _assert_under_dir
+
+        trust = os.getenv("SIYARIX_TRUST_PLUGINS", "0").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        if not trust:
+            raise PermissionError(
+                "Plugin load blocked: set SIYARIX_TRUST_PLUGINS=1 to allow "
+                "in-process plugin execution (plugins are fully trusted code)"
+            )
 
         safe_path = _assert_under_dir(path, self.plugins_dir, what="legacy plugin path")
         if safe_path.suffix != ".py" or safe_path.name.startswith("_"):

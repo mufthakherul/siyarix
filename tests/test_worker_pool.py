@@ -268,7 +268,7 @@ class TestPlatformUtils:
         mock_dir = MagicMock()
         mock_dir.__truediv__.return_value = env_path
         mock_get_config_dir.return_value = mock_dir
-        with patch("siyarix.chat.platform_utils.logger") as mock_log:
+        with patch("siyarix.dotenv_guard.logger") as mock_log:
             load_env_file()
             assert os.environ.get("VALID_KEY") == "ok"
             assert "OPENAI_API_KEY" not in os.environ
@@ -280,7 +280,7 @@ class TestPlatformUtils:
             assert "DATABASE_URL" not in os.environ
             assert "API_KEY" not in os.environ
             mock_log.debug.assert_any_call(
-                "Skipping %s from .env (use /key command instead)", "OPENAI_API_KEY"
+                "Skipping blocked/sensitive env var %s from .env", "OPENAI_API_KEY"
             )
 
     def test_get_security_commands_windows(self):

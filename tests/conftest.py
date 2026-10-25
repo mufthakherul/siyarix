@@ -116,6 +116,9 @@ def clean_env(tmp_path_factory: pytest.TempPathFactory) -> Generator[None, None,
     temp_config = tmp_path_factory.mktemp("siyarix_test_config")
     os.environ["SIYARIX_CONFIG_DIR"] = str(temp_config)
     os.environ["SIYARIX_HOME"] = str(temp_config)
+    # Unit tests exercise in-process plugin load; production still defaults off.
+    # Override with monkeypatch.setenv(..., "0") in trust-gate tests.
+    os.environ["SIYARIX_TRUST_PLUGINS"] = "1"
 
     yield
 

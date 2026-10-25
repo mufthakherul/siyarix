@@ -9,7 +9,8 @@ on:
       - '**/setup.py'
       - '**/setup.cfg'
       - '**/Pipfile'
-      - '**/poetry.lock'
+      - '**/uv.lock'
+      - '**/LOCKFILES.md'
   workflow_dispatch:
 
 permissions:

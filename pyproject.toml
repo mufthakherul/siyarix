@@ -204,6 +204,9 @@ markers = [
   "terminal: terminal detection tests",
   "tool_installer: tool installer tests",
   "e2e: end-to-end integration tests",
+  "integration: reserved for future integration tests (currently unused)",
+  "chaos: chaos / resilience stress tests",
+  "stress: long-running stress suites",
 ]
 
 [tool.coverage.report]

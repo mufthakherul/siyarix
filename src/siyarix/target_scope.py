@@ -466,7 +466,9 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 continue
             if "://" in nxt:
                 break  # URLs handled by scheme / http(s) checks
-            raw_host = nxt.split("@")[-1].split("/")[0]
+            # UNC / smbclient ``//host/share`` — strip leading slashes before host parse.
+            unc = nxt.lstrip("/")
+            raw_host = unc.split("@")[-1].split("/")[0]
             # IPv6 (``2001:db8::1`` / ``[2001:db8::1]``) — do not truncate on ``:``.
             if raw_host.startswith("[") or raw_host.count(":") >= 2:
                 break

@@ -2636,6 +2636,13 @@ def production_check(
             "dd if=/dev/zero of=/dev/mmcblk0",
             "7z x /tmp/a.7z -o/",
             "bsdtar xf /tmp/x -C /",
+            "gdd if=/dev/zero of=/dev/sda",
+            "mke2fs /dev/sda",
+            "gtar -C / -xf evil.tar",
+            "unar -o / evil.rar",
+            "cp -t /etc/cron.d /tmp/pwn",
+            "rpm --root=/ -ivh evil.rpm",
+            "dd_rescue /dev/zero /dev/sda",
         )
         for _probe in _probe_blocks:
             try:
@@ -2653,10 +2660,15 @@ def production_check(
             raise RuntimeError("expected scope deny for file:// under authorized scope")
         except _PermDenied:
             pass
+        try:
+            _assert_scope("smbclient //evil-host/share", scope_env="10.0.0.0/8,example.com")
+            raise RuntimeError("expected scope deny for smbclient UNC host")
+        except _PermDenied:
+            pass
         _add(
             "destructive_guard",
             "pass",
-            "hard-blocks + inet_aton/file:// scope probes ok",
+            "hard-blocks + inet_aton/file:///smbclient-UNC scope probes ok",
         )
     except Exception as exc:  # pragma: no cover - defensive
         _add("destructive_guard", "fail", f"unavailable: {exc}")

@@ -256,3 +256,12 @@ class TestAssertCommandInScope:
             assert_command_in_scope("wget --input-file=/tmp/urls", scope_env=scope)
         # curl -i is Include headers, not input-file.
         assert_command_in_scope("curl -i http://10.0.0.1/", scope_env=scope)
+
+    def test_smbclient_unc_hosts_fail_closed_under_scope(self) -> None:
+        scope = "10.0.0.0/8,example.com"
+        with pytest.raises(PermissionDeniedError, match="evil-host"):
+            assert_command_in_scope("smbclient //evil-host/share", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evil-host"):
+            assert_command_in_scope("smbclient -L evil-host", scope_env=scope)
+        assert_command_in_scope("smbclient //example.com/share", scope_env=scope)
+        assert_command_in_scope("smbclient //10.1.2.3/share", scope_env=scope)

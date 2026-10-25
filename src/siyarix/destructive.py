@@ -40,13 +40,13 @@ _SYSTEM_RM_ROOTS = frozenset(
 )
 _ROOT_EQUIV = frozenset({"/", "/*", "/.", "/./", "//", "///"})
 _PARTITION_RE = re.compile(
-    r"\b(mkfs(?:\.\w+)?|fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap|"
+    r"\b(mkfs(?:\.\w+)?|mke2fs|mkdosfs|fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap|"
     r"ntfsformat|mkntfs|newfs(?:_\w+)?)\b",
     re.IGNORECASE,
 )
 _DD_OF_RE = re.compile(r"\bof=(\S+)", re.IGNORECASE)
 _DD_WORD_RE = re.compile(
-    r"\b(?:dd|dc3dd|ddrescue|dcfldd|gddrescue)\b",
+    r"\b(?:g?dd|dc3dd|dd_?rescue|dcfldd|gddrescue|ddr)\b",
     re.IGNORECASE,
 )
 
@@ -72,7 +72,7 @@ _OS_SYSTEM_WIPE_RE = re.compile(
     re.IGNORECASE,
 )
 _CP_TEE_TO_BLOCK_RE = re.compile(
-    r"\b(?:cp|tee|cat|dd|dc3dd|ddrescue|dcfldd|gddrescue|install|pv|openssl|"
+    r"\b(?:cp|tee|cat|g?dd|dc3dd|dd_?rescue|dcfldd|gddrescue|ddr|install|pv|openssl|"
     r"tar|badblocks|fio|rsync)\b"
     r"[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern,
     re.IGNORECASE,
@@ -145,7 +145,7 @@ _MISC_WRITE_BLOCK_RE = re.compile(
 # Long options first; ``\b`` after short flags so ``-C`` does not match inside ``--chdir``.
 _EXTRACT_DEST_RE = re.compile(
     r"(?:"
-    r"\b(?:tar|bsdtar|star|pax)\b[\s\S]{0,160}"
+    r"\b(?:tar|gtar|bsdtar|star|pax)\b[\s\S]{0,160}"
     r"(?:--directory|--chdir|--cd|-C)\b(?:=|\s*)(\S+)"
     r"|\bunzip\b[\s\S]{0,100}(?:--directory|-d)\b(?:=|\s*)(\S+)"
     r"|\b(?:7z|7za|7zr|7zz)\b[\s\S]{0,100}-o(\S*)"
@@ -156,10 +156,21 @@ _EXTRACT_DEST_RE = re.compile(
     r"|\bjar\b[\s\S]{0,120}(?:-C|--directory)(?:=|\s*)(\S+)"
     r"|\b(?:dpkg-deb|dpkg)\b[\s\S]{0,120}(?:-x|--extract)\b[\s\S]{0,80}(\S+)\s+(\S+)"
     r"|\bunsquashfs\b[\s\S]{0,100}(?:--dest|-dest|-d)\b(?:=|\s*)(\S+)"
+    r"|\b(?:unar|unrar|rar)\b[\s\S]{0,140}(?:-op|-o|-d)(?:=|\s*)(\S+)"
     r")",
     re.IGNORECASE,
 )
 _UNRAR_CMD_RE = re.compile(r"\b(?:unrar|unar|rar)\b", re.IGNORECASE)
+_PKG_ROOT_RE = re.compile(
+    # Non-greedy span so ``-r`` inside ``--root`` is not preferred over ``--root=``.
+    r"\b(?:rpm|apk|dnf|yum|zypper|pacman|opkg)\b[\s\S]{0,160}?"
+    r"(?:--installroot|--root|(?<![\w-])-r)(?:=|\s*)(\S+)",
+    re.IGNORECASE,
+)
+_DD_RESCUE_POS_RE = re.compile(
+    r"\b(?:dd_rescue|ddr)\b[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern,
+    re.IGNORECASE,
+)
 _RSYNC_DELETE_RE = re.compile(
     r"\brsync\b[\s\S]{0,200}(?:--delete(?:-\w+)?|--remove-source-files)\b",
     re.IGNORECASE,
@@ -254,10 +265,18 @@ _WMIC_FORMAT_RE = re.compile(
 # Auth + persistence paths that must not be overwritten / linked over.
 _AUTH_FILE_RE = re.compile(
     r"(?:"
-    r"/etc/(?:passwd|shadow|sudoers(?:\.d/\S*)?|group|ld\.so\.preload|crontab|rc\.local)\b"
-    r"|/etc/cron\.(?:d|daily|hourly|weekly|monthly)/\S*"
-    r"|/etc/systemd/(?:system|user)/\S*"
+    r"/etc/(?:passwd|shadow|sudoers(?:\.d(?:/\S*)?)?|group|ld\.so\.preload|crontab|rc\.local)\b"
+    r"|/etc/cron\.(?:d|daily|hourly|weekly|monthly)(?:/\S*)?"
+    r"|/etc/systemd/(?:system|user)(?:/\S*)?"
     r"|/(?:root|home/[^/\s]+)/\.ssh/authorized_keys\b"
+    r")",
+    re.IGNORECASE,
+)
+_AUTH_DIR_RE = re.compile(
+    r"(?:"
+    r"/etc/sudoers\.d\b"
+    r"|/etc/cron\.(?:d|daily|hourly|weekly|monthly)\b"
+    r"|/etc/systemd/(?:system|user)\b"
     r")",
     re.IGNORECASE,
 )
@@ -274,7 +293,12 @@ _LN_TO_AUTH_RE = re.compile(
     re.IGNORECASE,
 )
 _CP_TO_AUTH_RE = re.compile(
-    r"\b(?:cp|mv|rsync)\b\s+(?:-[^\s]+\s+)*\S+\s+" + _AUTH_FILE_RE.pattern,
+    r"\b(?:cp|mv|rsync|install)\b\s+(?:-[^\s]+\s+)*\S+\s+" + _AUTH_FILE_RE.pattern,
+    re.IGNORECASE,
+)
+_CP_TARGET_DIR_AUTH_RE = re.compile(
+    r"\b(?:cp|mv|install)\b[\s\S]{0,180}"
+    r"(?:-t|--target-directory)(?:=|\s+)" + _AUTH_DIR_RE.pattern,
     re.IGNORECASE,
 )
 _MV_RSYNC_TO_AUTH_RE = re.compile(
@@ -614,6 +638,7 @@ def assert_command_not_destructive(command: str) -> None:
         _LN_NULL_AUTH_RE.search(cmd_clean)
         or _LN_TO_AUTH_RE.search(cmd_clean)
         or _CP_TO_AUTH_RE.search(cmd_clean)
+        or _CP_TARGET_DIR_AUTH_RE.search(cmd_clean)
         or _MV_RSYNC_TO_AUTH_RE.search(cmd_clean)
         or _REDIRECT_TO_AUTH_RE.search(cmd_clean)
         or _DD_OF_AUTH_RE.search(cmd_clean)
@@ -629,6 +654,17 @@ def assert_command_not_destructive(command: str) -> None:
     ):
         raise PermissionDeniedError(
             "Destructive command detected: Overwriting auth files is blocked."
+        )
+
+    for pkg_root in _PKG_ROOT_RE.finditer(cmd_clean):
+        if _is_dangerous_extract_dest(pkg_root.group(1)):
+            raise PermissionDeniedError(
+                "Destructive command detected: Package install onto / is blocked."
+            )
+
+    if _DD_RESCUE_POS_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: Overwriting block devices is blocked."
         )
 
     if _GIT_ROOT_WRITE_RE.search(cmd_clean):

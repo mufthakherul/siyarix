@@ -12,7 +12,7 @@ import re
 
 from siyarix.exceptions import PermissionDeniedError
 
-_FORK_BOMB_MARKERS = (":(){", "::&")
+_FORK_BOMB_RE = re.compile(r":\s*\(\s*\)\s*\{|::\s*&", re.IGNORECASE)
 _ALLOWED_DD_OF = frozenset({"/dev/null", "/dev/zero"})
 _RM_WORD_RE = re.compile(r"\brm\b", re.IGNORECASE)
 _RM_RECURSIVE_FLAG_RE = re.compile(
@@ -154,6 +154,8 @@ _EXTRACT_DEST_RE = re.compile(
     r"[\s\S]{0,100}(?:-e|--extract|\bextract\b)[\s\S]{0,80}(\S+)"
     r"|\bcabextract\b[\s\S]{0,100}(?:-d|--directory)(?:=|\s*)(\S+)"
     r"|\bjar\b[\s\S]{0,120}(?:-C|--directory)(?:=|\s*)(\S+)"
+    r"|\b(?:dpkg-deb|dpkg)\b[\s\S]{0,120}(?:-x|--extract)\b[\s\S]{0,80}(\S+)\s+(\S+)"
+    r"|\bunsquashfs\b[\s\S]{0,100}(?:--dest|-dest|-d)\b(?:=|\s*)(\S+)"
     r")",
     re.IGNORECASE,
 )
@@ -264,8 +266,11 @@ _LN_NULL_AUTH_RE = re.compile(
     re.IGNORECASE,
 )
 _LN_TO_AUTH_RE = re.compile(
-    r"\bln\b[\s\S]{0,80}(?:-[^\s]*s[^\s]*|--symbolic)[\s\S]{0,160}"
-    + _AUTH_FILE_RE.pattern,
+    r"(?:"
+    r"\bln\b[\s\S]{0,200}" + _AUTH_FILE_RE.pattern
+    + r"|\blink\b[\s\S]{0,160}" + _AUTH_FILE_RE.pattern
+    + r"|os\s*\.\s*(?:link|symlink)\s*\([^)]*" + _AUTH_FILE_RE.pattern
+    + r")",
     re.IGNORECASE,
 )
 _CP_TO_AUTH_RE = re.compile(
@@ -277,8 +282,35 @@ _MV_RSYNC_TO_AUTH_RE = re.compile(
     re.IGNORECASE,
 )
 _REDIRECT_TO_AUTH_RE = re.compile(
-    r"(?:(?:>{1,2}|\btee\b)\s*" + _AUTH_FILE_RE.pattern + r")"
-    r"|(?:\b(?:truncate|shred|install)\b[\s\S]{0,80}" + _AUTH_FILE_RE.pattern + r")",
+    r"(?:"
+    r"(?:>{1,2})\s*" + _AUTH_FILE_RE.pattern
+    + r"|\btee\b(?:\s+-[^\s]+|\s+--[^\s=]+(?:=\S*)?)*\s+"
+    + _AUTH_FILE_RE.pattern
+    + r"|\b(?:truncate|shred|install)\b[\s\S]{0,80}"
+    + _AUTH_FILE_RE.pattern
+    + r")",
+    re.IGNORECASE,
+)
+_PROCFS_HIJACK_RE = re.compile(
+    r"(?:"
+    r"(?:>{1,2}|\btee\b(?:\s+\S+)*)\s*"
+    r"/proc/sys/kernel/(?:core_pattern|modprobe|hotplug)\b"
+    r"|(?:>{1,2}|\btee\b(?:\s+\S+)*)\s*/proc/sys/fs/binfmt_misc/register\b"
+    r"|\bsysctl\b[\s\S]{0,80}"
+    r"(?:kernel\.(?:core_pattern|modprobe|hotplug)|fs\.binfmt_misc\.register)"
+    r")",
+    re.IGNORECASE,
+)
+_MOUNT_BIND_AUTH_RE = re.compile(
+    r"\bmount\b[\s\S]{0,160}(?:--bind\b|-o\s+\S*bind\b)[\s\S]{0,160}"
+    + _AUTH_FILE_RE.pattern,
+    re.IGNORECASE,
+)
+_GIT_ROOT_WRITE_RE = re.compile(
+    r"(?:"
+    r"\bgit\b[\s\S]{0,160}(?:--prefix|--work-tree)(?:=|\s+)/"
+    r"|\bgit\b[\s\S]{0,80}checkout-index\b[\s\S]{0,120}--prefix(?:=|\s*)/"
+    r")",
     re.IGNORECASE,
 )
 _DOWNLOAD_TO_AUTH_RE = re.compile(
@@ -456,13 +488,13 @@ def _is_extract_to_root(cmd_clean: str) -> bool:
     """True when an archiver targets ``/`` (incl. ``/tmp/../``, ``/.``, ``//``)."""
     for match in _EXTRACT_DEST_RE.finditer(cmd_clean):
         groups = match.groups()
-        dest = next((g for g in groups if g is not None), None)
-        if dest is None:
-            continue
         # groups[2] is the 7-Zip ``-o`` destination — block any absolute path.
         seven_zip = groups[2] is not None
-        if _is_dangerous_extract_dest(dest, absolute_any=seven_zip):
-            return True
+        for dest in groups:
+            if dest is None:
+                continue
+            if _is_dangerous_extract_dest(dest, absolute_any=seven_zip):
+                return True
     if _UNRAR_CMD_RE.search(cmd_clean):
         for raw in reversed(cmd_clean.split()[1:]):
             if raw.startswith("-"):
@@ -487,7 +519,7 @@ def assert_command_not_destructive(command: str) -> None:
     # Normalize list-argv commas (``['rm','-rf','/']`` → ``rm -rf /``).
     cmd_clean = re.sub(r"\s*,\s*", " ", quoted_clean.replace("\\", ""))
 
-    if any(marker in cmd_clean for marker in _FORK_BOMB_MARKERS):
+    if _FORK_BOMB_RE.search(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: Fork bomb execution is blocked."
         )
@@ -592,9 +624,16 @@ def assert_command_not_destructive(command: str) -> None:
         or _CMAKE_COPY_AUTH_RE.search(cmd_clean)
         or _INPLACE_AUTH_RE.search(cmd_clean)
         or _CHMOD_AUTH_RE.search(cmd_clean)
+        or _MOUNT_BIND_AUTH_RE.search(cmd_clean)
+        or _PROCFS_HIJACK_RE.search(cmd_clean)
     ):
         raise PermissionDeniedError(
             "Destructive command detected: Overwriting auth files is blocked."
+        )
+
+    if _GIT_ROOT_WRITE_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: Git write onto / is blocked."
         )
 
     if _SETUID_SYSTEM_RE.search(cmd_clean):

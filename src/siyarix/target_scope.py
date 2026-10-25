@@ -434,6 +434,25 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
         base = tok.lstrip("\\").rstrip("/").rsplit("/", 1)[-1].lower()
         if base not in _HOST_TOOL_NAMES:
             continue
+        # Fail-closed: URL-from-file / curl config hides the real target.
+        # (curl ``-i`` is Include headers — only wget uses ``-i`` as input-file.)
+        for nxt in tokens[i + 1 :]:
+            flag = nxt.split("=", 1)[0]
+            curl_cfg = base in {"curl", "http", "httpie"} and (
+                flag in {"-K", "--config"}
+                or flag.startswith("--config")
+                or flag.startswith("-K")
+            )
+            wget_in = base == "wget" and (
+                flag in {"-i", "--input-file"}
+                or flag.startswith("--input-file")
+                or re.match(r"^-i/", flag) is not None
+            )
+            if curl_cfg or wget_in:
+                raise PermissionDeniedError(
+                    f"URL/config-from-file is not allowed under authorized scope "
+                    f"(authorized scope: {scope_display})"
+                )
         skip_next_port = False
         for nxt in tokens[i + 1 :]:
             if skip_next_port:

@@ -77,6 +77,10 @@ All notable changes to this project will be documented in this file.
 - `ruby -i` / `awk -i inplace`; `cabextract`/`jar`/`pax` extract-to-root; `chmod` on auth + setuid on system bins.
 - Scope basenames path-qualified host tools (`/usr/bin/curl`); reject command-substitution argv0.
 - `.env` skips `GIT_SSL_NO_VERIFY`/`NODE_EXTRA_CA_CERTS`/`AWS_CA_BUNDLE`/`DOCKER_CERT_PATH`/…
+- Hard-block `tee -a`/`--append` onto auth; `dpkg`/`unsquashfs` extract-to-root; `mount --bind` onto auth.
+- Block procfs hijacks (`core_pattern`/`modprobe`/`hotplug`/`binfmt_misc`); git `--prefix=/`/`--work-tree=/`.
+- Scope fail-closed on curl `--config`/`-K` and wget `-i`/`--input-file`; hardlink `ln` onto auth.
+- Fork-bomb detector accepts whitespace (`:() {`).
 - CLI alias `siyarix doctor` → `production-check`.
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).

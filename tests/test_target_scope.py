@@ -241,3 +241,18 @@ class TestAssertCommandInScope:
             assert_command_in_scope("/usr/bin/ssh bastion", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="Command-substitution"):
             assert_command_in_scope("$(curl) 0", scope_env=scope)
+
+    def test_curl_config_and_wget_input_fail_closed(self) -> None:
+        scope = "10.0.0.0/8"
+        with pytest.raises(PermissionDeniedError, match="URL/config-from-file"):
+            assert_command_in_scope("curl --config /tmp/cfg", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="URL/config-from-file"):
+            assert_command_in_scope("curl -K /tmp/cfg", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="URL/config-from-file"):
+            assert_command_in_scope("curl --config=-", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="URL/config-from-file"):
+            assert_command_in_scope("wget -i /tmp/urls", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="URL/config-from-file"):
+            assert_command_in_scope("wget --input-file=/tmp/urls", scope_env=scope)
+        # curl -i is Include headers, not input-file.
+        assert_command_in_scope("curl -i http://10.0.0.1/", scope_env=scope)

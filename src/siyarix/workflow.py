@@ -13,6 +13,30 @@ from typing import Any, Callable, Coroutine
 WorkflowStepFn = Callable[[dict[str, Any]], Coroutine[Any, Any, dict[str, Any]]]
 
 
+def condition_passes(condition: str, context: dict[str, Any]) -> bool:
+    """Fail-closed evaluation of simple playbook/edge conditions (no eval)."""
+    expr = (condition or "").strip()
+    if not expr:
+        return True
+    lowered = expr.lower()
+    if lowered in {"true", "always", "1", "yes"}:
+        return True
+    if lowered in {"false", "never", "0", "no"}:
+        return False
+    if "==" in expr:
+        left, _, right = expr.partition("==")
+        key = left.strip()
+        expect = right.strip().strip("'\"")
+        actual = context.get(key)
+        if actual is None and key.startswith("env."):
+            import os
+
+            actual = os.environ.get(key[4:], "")
+        return str(actual) == expect
+    # Unknown expressions are fail-closed.
+    return False
+
+
 class WorkflowStatus(StrEnum):
     IDLE = "idle"
     RUNNING = "running"
@@ -92,6 +116,12 @@ class Workflow:
                 if src is None or src.status != WorkflowStepStatus.COMPLETED:
                     deps_met = False
                     break
+                # Optional edge condition (fail-closed) evaluated against workflow context.
+                if e.condition:
+                    ctx = {**self.context, f"result_{e.source}": (src.result if src else {})}
+                    if not condition_passes(e.condition, ctx):
+                        deps_met = False
+                        break
             if deps_met:
                 ready.append(node)
         return ready
@@ -179,30 +209,6 @@ class WorkflowEngine:
             )
         return workflow
 
-    @staticmethod
-    def _condition_passes(condition: str, context: dict[str, Any]) -> bool:
-        """Fail-closed evaluation of simple playbook conditions (no eval)."""
-        expr = (condition or "").strip()
-        if not expr:
-            return True
-        lowered = expr.lower()
-        if lowered in {"true", "always", "1", "yes"}:
-            return True
-        if lowered in {"false", "never", "0", "no"}:
-            return False
-        if "==" in expr:
-            left, _, right = expr.partition("==")
-            key = left.strip()
-            expect = right.strip().strip("'\"")
-            actual = context.get(key)
-            if actual is None and key.startswith("env."):
-                import os
-
-                actual = os.environ.get(key[4:], "")
-            return str(actual) == expect
-        # Unknown expressions are fail-closed (skip step).
-        return False
-
     async def _run_node(self, workflow: Workflow, node: WorkflowNode) -> None:
         node.status = WorkflowStepStatus.RUNNING
         step_fn = self._step_functions.get(node.step_fn)
@@ -213,7 +219,7 @@ class WorkflowEngine:
 
         merged_args = {**node.args, **workflow.context}
         condition = str(merged_args.get("_condition") or "")
-        if condition and not self._condition_passes(condition, merged_args):
+        if condition and not condition_passes(condition, merged_args):
             node.status = WorkflowStepStatus.SKIPPED
             node.result = {"status": "skipped", "error": f"Condition not met: {condition}"}
             return
@@ -303,4 +309,5 @@ __all__ = [
     "WorkflowNode",
     "Workflow",
     "WorkflowEngine",
+    "condition_passes",
 ]

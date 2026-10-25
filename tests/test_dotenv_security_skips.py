@@ -63,6 +63,15 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "SVN_SSH=ssh -o ProxyCommand=evil",
                 "EXINIT=:!id",
                 "RUSTC_WRAPPER=/tmp/pwn",
+                "PYTHONBREAKPOINT=os.system",
+                "LUA_INIT=@/tmp/evil.lua",
+                "CCACHE_PREFIX=/tmp/pwn",
+                "SOCKS_SERVER=evil:1080",
+                "HELM_KUBEAPISERVER=https://evil",
+                "RUSTC=/tmp/pwn-rustc",
+                "WINELOADER=/tmp/pwn",
+                "MAKEFILES=/tmp/evil.mk",
+                "PODMAN_HOST=tcp://evil:2375",
                 "HTTPS_PROXY=http://evil",
                 "PROMPT_COMMAND=evil",
                 "PRIVATE_KEY=pk",
@@ -175,6 +184,15 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "SVN_SSH",
         "EXINIT",
         "RUSTC_WRAPPER",
+        "PYTHONBREAKPOINT",
+        "LUA_INIT",
+        "CCACHE_PREFIX",
+        "SOCKS_SERVER",
+        "HELM_KUBEAPISERVER",
+        "RUSTC",
+        "WINELOADER",
+        "MAKEFILES",
+        "PODMAN_HOST",
         "HTTPS_PROXY",
         "PROMPT_COMMAND",
         "PRIVATE_KEY",
@@ -288,6 +306,15 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "SVN_SSH" not in os.environ
     assert "EXINIT" not in os.environ
     assert "RUSTC_WRAPPER" not in os.environ
+    assert "PYTHONBREAKPOINT" not in os.environ
+    assert "LUA_INIT" not in os.environ
+    assert "CCACHE_PREFIX" not in os.environ
+    assert "SOCKS_SERVER" not in os.environ
+    assert "HELM_KUBEAPISERVER" not in os.environ
+    assert "RUSTC" not in os.environ
+    assert "WINELOADER" not in os.environ
+    assert "MAKEFILES" not in os.environ
+    assert "PODMAN_HOST" not in os.environ
     assert "HTTPS_PROXY" not in os.environ
     assert "PROMPT_COMMAND" not in os.environ
     assert "PRIVATE_KEY" not in os.environ

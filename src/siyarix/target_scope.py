@@ -158,15 +158,19 @@ _HOST_TOOL_NAMES = frozenset(
         "smbexec.py",
         "impacket-atexec",
         "atexec.py",
+        "sqlcmd",
+        "mssql-cli",
+        "osql",
+        "smbmap",
     }
 )
-# Glued short host flags: ``mysql -h1.1.1.1``, ``evil-winrm -i10.0.0.1``.
+# Glued short host flags: ``mysql -h1.1.1.1``, ``evil-winrm -i10.0.0.1``, ``sqlcmd -S1.1.1.1``.
 _GLUED_HOST_SHORT_RE = re.compile(
-    r"^(?P<flag>-[hHi])(?P<val>[^=\s-].+)$"
+    r"^(?P<flag>-[hHiS])(?P<val>[^=\s-].+)$"
 )
 # Glued long host/connect flags: ``openssl … -connect1.1.1.1:443``.
 _GLUED_HOST_LONG_RE = re.compile(
-    r"^(?P<flag>--host|--ip|--proxy|-host|-connect|-proxy)"
+    r"^(?P<flag>--host|--ip|--server|--proxy|-host|-connect|-proxy)"
     r"(?:=(?P<eq>.+)|(?P<glued>[^=].+))$",
     re.IGNORECASE,
 )
@@ -760,6 +764,26 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                             scope_display,
                         )
                     continue
+            # Glued long proxy: ``--proxy1.1.1.1:8080`` / ``--socks5-hostname1.1.1.1``.
+            # Longest flag first so ``--socks5-hostname`` wins over ``--socks5``.
+            glued_long_proxy = False
+            for pflag in sorted(
+                (p for p in _proxy_flags if p.startswith("--")),
+                key=len,
+                reverse=True,
+            ):
+                if nxt.startswith(pflag) and len(nxt) > len(pflag) and nxt[len(pflag)] != "=":
+                    glued_val = nxt[len(pflag) :].strip().strip("'\"")
+                    if glued_val and glued_val[:1] != "-":
+                        _assert_host_token_in_scope(
+                            _proxy_host_from_val(glued_val),
+                            allowed_items,
+                            scope_display,
+                        )
+                        glued_long_proxy = True
+                        break
+            if glued_long_proxy:
+                continue
             flag = nxt.split("=", 1)[0]
             if flag in _proxy_flags or any(
                 flag.startswith(p) and p.startswith("--") for p in _proxy_flags
@@ -775,7 +799,8 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                             allowed_items,
                             scope_display,
                         )
-                else:
+                elif flag in _proxy_flags:
+                    # Exact flag only — glued forms handled above.
                     skip_proxy_arg = True
                     skip_proxy_is_jump = is_jump
                 continue
@@ -918,6 +943,10 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             "atexec.py",
             "rdesktop",
             "freerdp",
+            "sqlcmd",
+            "mssql-cli",
+            "osql",
+            "smbmap",
         }:
             skip_db = False
             for nxt in tokens[i + 1 :]:
@@ -943,8 +972,8 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     continue
                 glued = _glued_host_flag_value(
                     nxt,
-                    short=frozenset({"-h", "-H", "-i"}),
-                    long=frozenset({"--host", "--ip"}),
+                    short=frozenset({"-h", "-H", "-i", "-S"}),
+                    long=frozenset({"--host", "--ip", "--server"}),
                 )
                 if glued:
                     _assert_host_token_in_scope(
@@ -952,7 +981,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     )
                     continue
                 flag = nxt.split("=", 1)[0]
-                if flag in {"-h", "--host", "-H", "-i", "--ip"}:
+                if flag in {"-h", "--host", "-H", "-i", "--ip", "-S", "--server"}:
                     if "=" in nxt:
                         _assert_host_token_in_scope(
                             _proxy_host_from_val(nxt.split("=", 1)[1]),

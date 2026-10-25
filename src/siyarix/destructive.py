@@ -73,7 +73,7 @@ _BLOCK_DEV_RE = re.compile(
     re.IGNORECASE,
 )
 _BLOCK_WIPE_TOOLS_RE = re.compile(
-    r"\b(wipefs|sgdisk|blkdiscard|shred|truncate|openssl|install|"
+    r"\b(wipefs|sgdisk|blkdiscard|shred|truncate|openssl|g?install|"
     r"hdparm|nvme|cryptsetup|integritysetup|veritysetup|"
     r"sg_format|sg_sanitize|sg_write_same|sg_write_buffer|nwipe|scrub|sg_unmap|"
     r"dwipe|mop|partclone(?:\.\w+)?|ntfsclone|fsarchiver|e2image|partimage|"
@@ -88,7 +88,7 @@ _OS_SYSTEM_WIPE_RE = re.compile(
 )
 _CP_TEE_TO_BLOCK_RE = re.compile(
     r"\b(?:cp|tee|cat|g?dd|dc3dd|dd_?rescue|dcfldd|gddrescue|ddr|sg_dd|sg_write_same|"
-    r"sg_write_buffer|install|pv|openssl|"
+    r"sg_write_buffer|g?install|pv|openssl|"
     r"tar|badblocks|fio|rsync|simg2img|bmaptool|partclone(?:\.\w+)?|ntfsclone|"
     r"fsarchiver|e2image|partimage|flashcp|ubiformat|make_ext4fs)\b"
     r"[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern,
@@ -313,20 +313,22 @@ _OPENSSL_OUT_AUTH_RE = re.compile(
 # Compressed auth paths: ``gunzip /etc/passwd.gz`` clobbers ``/etc/passwd``.
 _AUTH_COMPRESSED_RE = re.compile(
     _AUTH_FILE_RE.pattern
-    + r"(?:\.(?:gz|bz2|xz|lzma|lz|lzo|zst|Z|zz|zip))?\b",
+    + r"(?:\.(?:gz|bz2|xz|lzma|lz|lzo|zst|Z|zz|zip|br|sz))?\b",
     re.IGNORECASE,
 )
 _MISC_WRITE_AUTH_RE = re.compile(
     r"(?:"
-    r"\b(?:base64|brotli|unzstd|lz4|xz|gzip|gunzip|pigz|bzip2|bunzip2|lzop|lzma|"
-    r"unlzma|unxz|lzip|plzip|lrzip|zstd|pzstd)\b"
+    r"\b(?:base64|brotli|unzstd|lz4|xz|gzip|gunzip|pigz|bzip2|bunzip2|pbzip2|lbzip2|"
+    r"lzop|lzma|unlzma|unxz|pixz|lzip|plzip|lrzip|zstd|pzstd|snzip|compress|uncompress|"
+    r"age|rage)\b"
     r"[\s\S]{0,120}(?:-o|--output)(?:=|\s*)" + _AUTH_FILE_RE.pattern
     # Positional decompress dest: ``lz4 -d x.lz4 /etc/passwd``, ``zstd -d x /etc/passwd``.
-    + r"|\b(?:lz4|lzop|zstd|pzstd|unzstd|lzip|plzip|lrzip)\b[\s\S]{0,120}"
+    + r"|\b(?:lz4|lzop|zstd|pzstd|unzstd|lzip|plzip|lrzip|brotli|snzip|pixz)\b[\s\S]{0,120}"
     r"(?:-d|--decompress)\b[\s\S]{0,160}" + _AUTH_FILE_RE.pattern
     # In-place decompress of compressed auth files (``gunzip /etc/passwd.gz``).
-    + r"|\b(?:gzip|gunzip|pigz|bzip2|bunzip2|xz|unxz|lzma|unlzma|lzip|plzip|lrzip|"
-    r"lz4|lzop|zstd|pzstd|unzstd)\b[\s\S]{0,160}" + _AUTH_COMPRESSED_RE.pattern
+    + r"|\b(?:gzip|gunzip|pigz|bzip2|bunzip2|pbzip2|lbzip2|xz|unxz|pixz|lzma|unlzma|"
+    r"lzip|plzip|lrzip|lz4|lzop|zstd|pzstd|unzstd|brotli|snzip|compress|uncompress)\b"
+    r"[\s\S]{0,160}" + _AUTH_COMPRESSED_RE.pattern
     + r"|\b(?:xxd|fallocate|flash_erase|nandwrite|uudecode|objcopy)\b"
     r"[\s\S]{0,200}" + _AUTH_FILE_RE.pattern
     + r"|\b(?:iconv|ffmpeg|convert|magick)\b[\s\S]{0,220}"
@@ -378,11 +380,11 @@ _LN_TO_AUTH_RE = re.compile(
     re.IGNORECASE,
 )
 _CP_TO_AUTH_RE = re.compile(
-    r"\b(?:cp|mv|rsync|install)\b\s+(?:-[^\s]+\s+)*\S+\s+" + _AUTH_FILE_RE.pattern,
+    r"\b(?:cp|mv|rsync|g?install)\b\s+(?:-[^\s]+\s+)*\S+\s+" + _AUTH_FILE_RE.pattern,
     re.IGNORECASE,
 )
 _CP_TARGET_DIR_AUTH_RE = re.compile(
-    r"\b(?:cp|mv|install)\b[\s\S]{0,180}"
+    r"\b(?:cp|mv|g?install)\b[\s\S]{0,180}"
     # ``-t /path``, ``-t=/path``, glued ``-t/path`` / ``--target-directory/path``.
     r"(?:(?:-t|--target-directory)(?:=|\s+)|-t(?=/)|--target-directory(?=/))"
     + _AUTH_DIR_RE.pattern,
@@ -397,7 +399,7 @@ _REDIRECT_TO_AUTH_RE = re.compile(
     r"(?:>{1,2})\s*" + _AUTH_FILE_RE.pattern
     + r"|\btee\b(?:\s+-[^\s]+|\s+--[^\s=]+(?:=\S*)?)*\s+"
     + _AUTH_FILE_RE.pattern
-    + r"|\b(?:truncate|shred|install)\b[\s\S]{0,80}"
+    + r"|\b(?:truncate|shred|g?install)\b[\s\S]{0,80}"
     + _AUTH_FILE_RE.pattern
     + r")",
     re.IGNORECASE,
@@ -479,7 +481,9 @@ _CMAKE_COPY_AUTH_RE = re.compile(
 )
 _INPLACE_AUTH_RE = re.compile(
     r"(?:"
-    r"\b(?:sed|perl|ruby)\b[\s\S]{0,100}-i\S*[\s\S]{0,160}"
+    # Leading ``-i`` / clustered ``-pi`` / ``-ri`` / ``-npi`` inplace edits.
+    r"\b(?:sed|perl|ruby)\b[\s\S]{0,100}"
+    r"(?:-i\S*|-[a-zA-Z]*i[a-zA-Z]*)\b[\s\S]{0,160}"
     + _AUTH_FILE_RE.pattern
     # ``-i``, ``-inplace``, glued ``-iinplace``.
     + r"|\b(?:g?awk)\b[\s\S]{0,80}(?:-iinplace\b|-i(?:nplace)?\b)[\s\S]{0,160}"
@@ -554,6 +558,9 @@ _VOLUME_DESTROY_RE = re.compile(
     r"|\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize|receive)\b"
     r"|\bxfs_repair\s+[^\n]*-L\b"
     r"|\bdebugfs\s+-w\b"
+    # dump/restore family writing onto ``/`` (operator root clobber).
+    r"|\b(?:restore|xfsrestore|star)\b[\s\S]{0,160}(?:-C|--directory)(?:=|\s*)/"
+    r"|\b(?:restore|xfsrestore)\b[\s\S]{0,200}\s/\s*$"
     r")",
     re.IGNORECASE,
 )

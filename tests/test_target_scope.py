@@ -413,6 +413,21 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
             assert_command_in_scope("mysql -h1.1.1.1", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
+            assert_command_in_scope("sqlcmd -S1.1.1.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
+            assert_command_in_scope("mssql-cli -S1.1.1.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
+            assert_command_in_scope("smbmap -H1.1.1.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
+            assert_command_in_scope(
+                "curl --proxy1.1.1.1:8080 http://10.0.0.1/", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
+            assert_command_in_scope(
+                "curl --socks5-hostname1.1.1.1:1080 http://10.0.0.1/",
+                scope_env=scope,
+            )
+        with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
             assert_command_in_scope("psql -h1.1.1.1", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
             assert_command_in_scope("redis-cli -h1.1.1.1", scope_env=scope)

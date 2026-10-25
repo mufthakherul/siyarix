@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 
 ### Security
 
+- Hunt28: block `uncompress`/`pbzip2`/`pixz`/`brotli`/`snzip` auth decompress, clustered `-pi`/`-ri` inplace, `ginstall`/`age`/`rage` auth writes, glued `sqlcmd -S`/`smbmap -H`/`curl --proxy…`, and dotenv pivots (`PYTHONBREAKPOINT`, `LUA_INIT`, `PODMAN_HOST`, …).
 - Hunt27: block in-place `gunzip`/`gzip` auth decompress, `e2image`/`partimage`/`sg_write_same`, `lzip` auth `-o`, glued DB/WinRM/openssl hosts under scope, hydra/medusa/rdesktop host binding, and `ANSIBLE_CONFIG` dotenv pivots.
 - Shared `assert_command_not_destructive` used by executor, ToolRegistry, PermissionGate, and subprocess (closes registry/deep-scan bypass of `dd of=` / `fdisk`).
 - CLI deep-scan injects PermissionGate-aware `RegistryExecutor`; alt-tool fallbacks re-check permissions.

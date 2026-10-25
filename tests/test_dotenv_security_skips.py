@@ -594,3 +594,19 @@ def test_should_skip_rh48_dotenv_keys() -> None:
         "KUBE_API_SERVER",
     ):
         assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh49_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "ZROK_API_ENDPOINT",
+        "TUNNELTO_HOST",
+        "ET_HOST",
+        "GRAFTCP_CONF",
+        "AWG_QUICK_CONFIG",
+        "CROC_RELAY",
+        "N2N_SUPERNODE",
+        "PROXYTUNNEL_HOST",
+    ):
+        assert should_skip_dotenv_key(key), key

@@ -94,6 +94,10 @@ _HOST_TOOL_NAMES = frozenset(
         "autossh",
         "mosh",
         "mosh-client",
+        "argocd",
+        "et",
+        "sshrc",
+        "sshfs",
         "nmap",
         "ncat",
         "nc",
@@ -308,6 +312,22 @@ _HOST_TOOL_NAMES = frozenset(
         "pwncat",
         "pwncat-cs",
         "websocat",
+        # RH-49 — public shares, graftcp, AmneziaWG/WG-SOCKS, Teleport daemon, C2 tunnels.
+        "zrok",
+        "playit",
+        "tunnelto",
+        "localtonet",
+        "graftcp",
+        "awg-quick",
+        "awg",
+        "wireproxy",
+        "teleport",
+        "proxytunnel",
+        "hans",
+        "n2n-edge",
+        "rustdesk",
+        "wscat",
+        "croc",
     }
 )
 # When scope is set, these tools create out-of-engagement pivots / public ingress.
@@ -445,6 +465,22 @@ _SCOPE_BLOCKED_WRAPPERS: frozenset[str] = frozenset(
         "pwncat",
         "pwncat-cs",
         "websocat",
+        # RH-49 — public shares, graftcp, AmneziaWG/WG-SOCKS, Teleport daemon, C2 tunnels.
+        "zrok",
+        "playit",
+        "tunnelto",
+        "localtonet",
+        "graftcp",
+        "awg-quick",
+        "awg",
+        "wireproxy",
+        "teleport",
+        "proxytunnel",
+        "hans",
+        "n2n-edge",
+        "rustdesk",
+        "wscat",
+        "croc",
     }
 )
 # Glued short host flags: ``mysql -h1.1.1.1``, ``evil-winrm -i10.0.0.1``, ``sqlcmd -S1.1.1.1``.
@@ -612,6 +648,12 @@ _SCOPE_TRANSPORT_ENV_NAMES: frozenset[str] = frozenset(
         "KAFKA_HOST",
         "BOUNDARY_ADDR",
         "TORSOCKS_TOR_ADDRESS",
+        "ZROK_API_ENDPOINT",
+        "ET_HOST",
+        "PROXYTUNNEL_HOST",
+        "HANS_SERVER",
+        "N2N_SUPERNODE",
+        "NETMAKER_HOST",
     }
 )
 # Cloud CLIs that rewrite kubeconfig to an opaque API server (RH-46).
@@ -1133,9 +1175,9 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
         payload = next((g for g in _shell_c.groups() if g), "")
         if payload.strip():
             assert_command_in_scope(payload.strip(), scope_env=scope_env)
-    # RH-48: GNU parallel ``cmd ::: hosts`` hides operands from host-tool scan.
+    # RH-48/49: GNU parallel ``cmd ::: hosts`` / ``:::+`` / ``::::`` hide operands.
     if re.search(r"(?:^|\s)parallel(?:\s|$)", decoded_early, re.IGNORECASE):
-        _par_parts = re.split(r"\s:::\s+", decoded_early, maxsplit=1)
+        _par_parts = re.split(r"\s:::[+:]*\s+", decoded_early, maxsplit=1)
         if len(_par_parts) == 2:
             _par_left = re.sub(
                 r"^.*\bparallel\b\s*", "", _par_parts[0], count=1, flags=re.IGNORECASE
@@ -1249,6 +1291,9 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
 
         def _proxy_host_from_val(raw: str) -> str:
             proxy_host = raw.strip().strip("'\"")
+            # ``host=tcp://evil:2375`` from docker context --docker (RH-49).
+            if proxy_host.lower().startswith("host="):
+                proxy_host = proxy_host.split("=", 1)[1].strip()
             if "://" in proxy_host:
                 parsed = urllib.parse.urlparse(proxy_host)
                 return (parsed.hostname or "").strip()
@@ -1368,7 +1413,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 if low.startswith("proxyjump="):
                     _check_proxyjump_val(val.split("=", 1)[-1])
         # scp/sftp/rsync: ``[user@]host:path`` / ``host::module``; sftp also bare host.
-        if base in {"scp", "sftp", "rsync"}:
+        if base in {"scp", "sftp", "rsync", "sshfs"}:
             skip_jump = False
             for nxt in tokens[i + 1 :]:
                 if skip_jump:
@@ -1472,12 +1517,22 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     )
                     skip_daemon = False
                     continue
+                raw = nxt.strip().strip("'\"")
+                low = raw.lower()
+                # RH-49: ``host=tcp://evil:2375`` / bare ``tcp://evil:2375`` in context create.
+                if "host=" in low or "://" in low:
+                    val = raw
+                    if "host=" in low:
+                        val = raw.split("=", 1)[-1]
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(val), allowed_items, scope_display
+                    )
                 if not nxt.startswith("-"):
                     continue
                 glued = _glued_host_flag_value(
                     nxt,
                     short=frozenset({"-H"}),
-                    long=frozenset({"--host", "--url", "--connection"}),
+                    long=frozenset({"--host", "--url", "--connection", "--docker"}),
                 )
                 if glued:
                     _assert_host_token_in_scope(
@@ -1485,7 +1540,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     )
                     continue
                 flag = nxt.split("=", 1)[0]
-                if flag in {"-H", "--host", "--url", "--connection"}:
+                if flag in {"-H", "--host", "--url", "--connection", "--docker"}:
                     if "=" in nxt:
                         _assert_host_token_in_scope(
                             _proxy_host_from_val(nxt.split("=", 1)[1]),

@@ -727,6 +727,26 @@ class TestAssertCommandInScope:
             assert_command_in_scope("telebit http 8080", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("parallel nmap ::: evilhost", scope_env=scope)
+        # RH-49 — zrok/graftcp/sshfs/docker host=/parallel :::+
+        with pytest.raises(PermissionDeniedError, match="zrok|Proxy/tunnel"):
+            assert_command_in_scope("zrok share public 8080", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="graftcp|Proxy/tunnel"):
+            assert_command_in_scope("graftcp curl http://10.0.0.1/", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost|login"):
+            assert_command_in_scope("argocd login evilhost", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("sshfs evilhost:/ /mnt", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope(
+                "docker context create c --docker host=tcp://evilhost:2375",
+                scope_env=scope,
+            )
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("parallel nmap :::+ evilhost", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="awg-quick|Proxy/tunnel"):
+            assert_command_in_scope("awg-quick up wg0", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="wscat|Proxy/tunnel"):
+            assert_command_in_scope("wscat -c ws://evilhost", scope_env=scope)
         # RH-33: service-discovery / DB transport env pivots.
         with pytest.raises(PermissionDeniedError, match="CONSUL_HTTP_ADDR|Transport"):
             assert_command_in_scope(

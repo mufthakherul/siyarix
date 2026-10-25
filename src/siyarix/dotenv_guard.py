@@ -560,6 +560,20 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "TELEPORT_HOME",
         "RCLONE_CONFIG",
         "KUBE_API_SERVER",
+        "ZROK_API_ENDPOINT",
+        "ZROK_FRONTEND",
+        "TUNNELTO_HOST",
+        "ET_HOST",
+        "NETMAKER_HOST",
+        "N2N_SUPERNODE",
+        "GRAFTCP_CONF",
+        "PROXYTUNNEL_HOST",
+        "HANS_SERVER",
+        "AWG_QUICK_CONFIG",
+        "CROC_RELAY",
+        "PLAYIT_TOKEN",
+        "WIREPROXY_CONF",
+        "RUSTDESK_SERVER",
         "TSH_PROXY",
         "TELEPORT_PROXY",
     }
@@ -709,6 +723,20 @@ def should_skip_dotenv_key(key: str) -> bool:
         "TELEPORT_HOME",
         "RCLONE_CONFIG",
         "KUBE_API_SERVER",
+        "ZROK_API_ENDPOINT",
+        "ZROK_FRONTEND",
+        "TUNNELTO_HOST",
+        "ET_HOST",
+        "NETMAKER_HOST",
+        "N2N_SUPERNODE",
+        "GRAFTCP_CONF",
+        "PROXYTUNNEL_HOST",
+        "HANS_SERVER",
+        "AWG_QUICK_CONFIG",
+        "CROC_RELAY",
+        "PLAYIT_TOKEN",
+        "WIREPROXY_CONF",
+        "RUSTDESK_SERVER",
         "TSH_PROXY",
         "TELEPORT_PROXY",
     }:
@@ -749,6 +777,12 @@ def should_skip_dotenv_key(key: str) -> bool:
                      "TMATE_SERVER", "ARGOCD_SERVER", "KUBE_API_SERVER"}:
         return True
     if key_upper.startswith("TELEPORT_") or key_upper.startswith("TSH_"):
+        return True
+    if key_upper.startswith("ZROK_") or key_upper.startswith("AWG_"):
+        return True
+    if key_upper.startswith("N2N_") or key_upper.startswith("NETMAKER_"):
+        return True
+    if key_upper in {"GRAFTCP_CONF", "WIREPROXY_CONF", "CROC_RELAY", "PLAYIT_TOKEN"}:
         return True
     if key_upper in {"RCLONE_CONFIG", "OPENVPN3_CONFIG"}:
         return True

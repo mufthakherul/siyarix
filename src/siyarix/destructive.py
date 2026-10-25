@@ -345,7 +345,8 @@ _WMIC_FORMAT_RE = re.compile(
 # Auth + persistence paths that must not be overwritten / linked over.
 _AUTH_FILE_RE = re.compile(
     r"(?:"
-    r"/etc/(?:passwd|shadow|sudoers(?:\.d(?:/\S*)?)?|group|ld\.so\.preload|crontab|rc\.local)\b"
+    r"/etc/(?:passwd|shadow|sudoers(?:\.d(?:/\S*)?)?|group|ld\.so\.preload|crontab|rc\.local|"
+    r"hosts|resolv\.conf|ssh/sshd_config)\b"
     r"|/etc/cron\.(?:d|daily|hourly|weekly|monthly)(?:/\S*)?"
     r"|/etc/systemd/(?:system|user)(?:/\S*)?"
     # Vendor unit dirs (RH-41) — persistence outside /etc/systemd.

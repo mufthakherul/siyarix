@@ -515,6 +515,10 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "stow -t / pkg",
         "tee /etc/profile <<< x",
         "tee /etc/modprobe.d/x.conf <<< x",
+        # RH-49 — sshd/hosts/resolv clobber
+        "echo x > /etc/ssh/sshd_config",
+        "echo x > /etc/hosts",
+        "echo x > /etc/resolv.conf",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

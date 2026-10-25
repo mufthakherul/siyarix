@@ -124,9 +124,9 @@ _OPENSSL_OUT_AUTH_RE = re.compile(
 )
 _EXTRACT_TO_ROOT_RE = re.compile(
     r"(?:"
-    # Optional space so ``tar -C/`` / ``unzip -d/`` match (GNU accepts glued forms).
-    r"\b(?:tar|bsdtar)\b[\s\S]{0,120}(?:-C|--directory)\s*/(?:\s|$)"
-    r"|\bunzip\b[\s\S]{0,80}(?:-d|--directory)\s*/(?:\s|$)"
+    # Optional space/``=`` so ``tar -C/``, ``tar --directory=/``, ``unzip -d/`` match.
+    r"\b(?:tar|bsdtar)\b[\s\S]{0,120}(?:-C|--directory)(?:=|\s*)/(?:\s|$)"
+    r"|\bunzip\b[\s\S]{0,80}(?:-d|--directory)(?:=|\s*)/(?:\s|$)"
     r"|\b7z(?:a|r)?\b[\s\S]{0,80}-o/(?:\s|$|[a-z])"
     r")",
     re.IGNORECASE,
@@ -160,6 +160,8 @@ _DOWNLOAD_TO_BLOCK_RE = re.compile(
     + _BLOCK_DEV_RE.pattern
     + r"|\brclone\b[\s\S]{0,200}"
     + _BLOCK_DEV_RE.pattern
+    + r"|\b(?:scp|sftp)\b[\s\S]{0,200}"
+    + _BLOCK_DEV_RE.pattern
     + r")",
     re.IGNORECASE,
 )
@@ -188,6 +190,8 @@ _WINDOWS_WIPE_RE = re.compile(
     r"|\bformat-volume\b"
     r"|\binitialize-disk\b"
     r"|\bremove-partition\b"
+    r"|\breset-physicaldisk\b"
+    r"|\bremove-physicaldisk\b"
     r"|\bsdelete(?:64)?\b"
     r"|\bcipher\b[\s\S]{0,60}/w"
     r")",

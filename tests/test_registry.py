@@ -339,14 +339,17 @@ class TestExecute:
     async def test_execute_permission_gate_no_command(
         self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability
     ):
+        # Kwargs-only / no-command invokes still build a synopsis and hit the gate.
         gate = MagicMock()
+        gate.check.return_value = MagicMock(allowed=True, requires_review=False, reason="")
         registry._permission_gate = gate
         handler = AsyncMock(return_value={"status": "success", "output": "ok", "tool": "nmap"})
         registry.register(sample_tool, handler)
         with patch("asyncio.to_thread", new_callable=AsyncMock):
             result = await registry.execute("nmap")
             assert result["status"] == "success"
-            gate.check.assert_not_called()
+            gate.check.assert_called_once()
+            assert gate.check.call_args.args[0] == "nmap"
 
     @patch("siyarix.registry.emit_sync")
     async def test_execute_with_parser(self, mock_emit, registry: ToolRegistry):

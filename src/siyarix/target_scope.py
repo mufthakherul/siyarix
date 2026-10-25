@@ -119,8 +119,22 @@ _HOST_TOOL_NAMES = frozenset(
 )
 # socat address forms: ``TCP:host:port``, ``OPENSSL:host:port``, …
 _SOCAT_ADDR_RE = re.compile(
-    r"(?i)^(?:TCP(?:[46])?|UDP(?:[46])?|OPENSSL|SSL|SOCKS4A?|PROXY):"
+    r"(?i)^(?:TCP(?:[46])?|UDP(?:[46])?|OPENSSL|SSL):"
     r"(?:\[(?P<v6>[^\]]+)\]|(?P<host>[^:]+))(?::\d+)?$"
+)
+# socat SOCKS/PROXY: ``SOCKS4A:proxy:dest:port`` / ``PROXY:proxy:dest:port`` —
+# destination host is the second host field (not the proxy).
+_SOCAT_SOCKS_RE = re.compile(
+    r"(?i)^(?:SOCKS4A?|PROXY):"
+    r"(?:[^:]+):(?:\[(?P<v6>[^\]]+)\]|(?P<host>[^:]+))(?::\d+)?$"
+)
+_SHELL_WRAPPERS = frozenset(
+    {"sh", "bash", "zsh", "dash", "ksh", "ash", "busybox"}
+)
+# ``bash -c 'nmap evil'`` / ``sh -c "ssh bastion"`` / ``bash -c nmap`` payload.
+_SHELL_C_PAYLOAD_RE = re.compile(
+    r"(?i)(?:^|\s)(?:(?:[\w./-]*/)?(?:ba|da|z|k)?sh|ash)\s+"
+    r"(?:-[^\s]*\s+)*-c\s+(?:'([^']*)'|\"([^\"]*)\"|(\S+))"
 )
 # UNC hosts: ``//evil-host/share`` (callers normalize ``\\`` → ``/`` first).
 # Negative lookbehind skips URL schemes (``https://host/...``).
@@ -467,6 +481,13 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
     found_ips, found_domains = extract_targets(command)
 
     decoded_early = _decode_for_extract(command)
+    # Unwrap ``bash -c 'nmap evil'`` / ``sh -c "ssh bastion"`` — re-check payload.
+    _shell_c = _SHELL_C_PAYLOAD_RE.search(decoded_early)
+    if _shell_c:
+        payload = next((g for g in _shell_c.groups() if g), "")
+        if payload.strip():
+            assert_command_in_scope(payload.strip(), scope_env=scope_env)
+
     for url in _NON_HTTP_URL_RE.findall(decoded_early):
         raise PermissionDeniedError(
             f"URL scheme not allowed under authorized scope: {url!r} "
@@ -689,15 +710,21 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 break  # URLs handled by scheme / http(s) checks
             # UNC / smbclient ``//host/share`` or Windows ``\\host\share``.
             unc = nxt.replace("\\", "/").lstrip("/")
-            # socat ``TCP:evil-host:80`` / ``OPENSSL:host:443`` address forms.
-            socat_m = _SOCAT_ADDR_RE.match(nxt.replace("\\", "/"))
-            if socat_m:
+            # socat ``TCP:evil-host:80`` / ``SOCKS4A:proxy:dest:80`` address forms.
+            nxt_norm = nxt.replace("\\", "/")
+            socks_m = _SOCAT_SOCKS_RE.match(nxt_norm)
+            socat_m = None if socks_m else _SOCAT_ADDR_RE.match(nxt_norm)
+            if socks_m:
+                raw_host = (socks_m.group("v6") or socks_m.group("host") or "").strip()
+            elif socat_m:
                 raw_host = (socat_m.group("v6") or socat_m.group("host") or "").strip()
             else:
                 raw_host = unc.split("@")[-1].split("/")[0]
             # IPv6 (``2001:db8::1`` / ``[2001:db8::1]``) — do not truncate on ``:``.
             # (socat already extracted the host; skip the multi-colon IPv6 bail.)
-            if not socat_m and (raw_host.startswith("[") or raw_host.count(":") >= 2):
+            if not (socks_m or socat_m) and (
+                raw_host.startswith("[") or raw_host.count(":") >= 2
+            ):
                 break
             candidate = raw_host.split(":")[0]  # strip ``host:port``
             if not candidate:

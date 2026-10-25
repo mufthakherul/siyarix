@@ -326,6 +326,13 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "pip install --root=/ evil",
         "pip3 install --prefix=/ evil",
         "git init --separate-git-dir=/etc/passwd",
+        "python -m zipfile -e a.zip /home",
+        "python -m tarfile -e a.tar /var",
+        "python -c \"__import__('os').symlink('/tmp/x','/etc/passwd')\"",
+        "node -e \"require('fs').symlinkSync('/tmp/x','/etc/passwd')\"",
+        "rm -rf /{etc,var,usr}",
+        "rm -rf $'/'",
+        "bomb(){ bomb|bomb &};bomb",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

@@ -75,6 +75,8 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "NPM_CONFIG_SCRIPT_SHELL=/tmp/pwn",
                 "LESSOPEN=|/tmp/pwn",
                 "SUDO_ASKPASS=/tmp/pwn",
+                "GCONV_PATH=/tmp",
+                "HOSTALIASES=/tmp/hosts",
                 "SIYARIX_HARMLESS=ok",
             ]
         ),
@@ -138,6 +140,8 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "NPM_CONFIG_SCRIPT_SHELL",
         "LESSOPEN",
         "SUDO_ASKPASS",
+        "GCONV_PATH",
+        "HOSTALIASES",
         "SIYARIX_HARMLESS",
     ):
         monkeypatch.delenv(key, raising=False)
@@ -202,4 +206,6 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "NPM_CONFIG_SCRIPT_SHELL" not in os.environ
     assert "LESSOPEN" not in os.environ
     assert "SUDO_ASKPASS" not in os.environ
+    assert "GCONV_PATH" not in os.environ
+    assert "HOSTALIASES" not in os.environ
     assert os.environ.get("SIYARIX_HARMLESS") == "ok"

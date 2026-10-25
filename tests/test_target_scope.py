@@ -317,3 +317,18 @@ class TestAssertCommandInScope:
         assert_command_in_scope(
             "ssh -o ProxyJump=10.1.2.3 10.1.2.4", scope_env=scope
         )
+
+    def test_shell_c_wrapper_and_socat_socks_under_scope(self) -> None:
+        scope = "10.0.0.0/8,*.lab.example"
+        with pytest.raises(PermissionDeniedError, match="evil-host"):
+            assert_command_in_scope("bash -c 'nmap evil-host'", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="bastion"):
+            assert_command_in_scope("sh -c 'ssh bastion'", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evil-host"):
+            assert_command_in_scope(
+                "socat SOCKS4A:proxy:evil-host:80 -", scope_env=scope
+            )
+        assert_command_in_scope("bash -c 'nmap 10.1.2.3'", scope_env=scope)
+        assert_command_in_scope(
+            "socat SOCKS4A:10.1.2.3:10.1.2.4:80 -", scope_env=scope
+        )

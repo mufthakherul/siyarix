@@ -190,6 +190,8 @@ def _load_dotenv(path: Path | None = None) -> None:
             "UV_INSECURE_HOST",
             "LESSOPEN",
             "SUDO_ASKPASS",
+            "GCONV_PATH",
+            "HOSTALIASES",
         }
     )
     _blocked_vars = {
@@ -257,6 +259,8 @@ def _load_dotenv(path: Path | None = None) -> None:
         "UV_INSECURE_HOST",
         "LESSOPEN",
         "SUDO_ASKPASS",
+        "GCONV_PATH",
+        "HOSTALIASES",
     }
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():

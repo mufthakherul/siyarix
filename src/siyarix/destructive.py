@@ -12,7 +12,15 @@ import re
 
 from siyarix.exceptions import PermissionDeniedError
 
-_FORK_BOMB_RE = re.compile(r":\s*\(\s*\)\s*\{|::\s*&", re.IGNORECASE)
+_FORK_BOMB_RE = re.compile(
+    r"(?:"
+    r":\s*\(\s*\)\s*\{"  # classic :(){
+    r"|::\s*&"
+    # recursive ``bomb(){ bomb|bomb &};bomb``
+    r"|\b(\w+)\s*\(\s*\)\s*\{[^}]{0,120}\b\1\s*\|\s*\1\s*&"
+    r")",
+    re.IGNORECASE,
+)
 _ALLOWED_DD_OF = frozenset({"/dev/null", "/dev/zero"})
 _RM_WORD_RE = re.compile(r"\brm\b", re.IGNORECASE)
 _RM_RECURSIVE_FLAG_RE = re.compile(
@@ -150,8 +158,9 @@ _EXTRACT_DEST_RE = re.compile(
     r"|\bunzip\b[\s\S]{0,100}(?:--directory|-d)\b(?:=|\s*)(\S+)"
     r"|\b(?:7z|7za|7zr|7zz)\b[\s\S]{0,100}-o(\S*)"
     r"|\bcpio\b[\s\S]{0,100}(?:--directory|-D)\b(?:=|\s*)(\S+)"
+    # zipfile/tarfile: ``-e archive dest`` — capture dest (last path), not archive.
     r"|\bpython(?:\d+(?:\.\d+)?)?\s+-m\s+(?:zipfile|tarfile)\b"
-    r"[\s\S]{0,100}(?:-e|--extract|\bextract\b)[\s\S]{0,80}(\S+)"
+    r"[\s\S]{0,100}(?:-e|--extract|\bextract\b)\s+\S+\s+(\S+)"
     r"|\bcabextract\b[\s\S]{0,100}(?:-d|--directory)(?:=|\s*)(\S+)"
     r"|\bjar\b[\s\S]{0,120}(?:-C|--directory)(?:=|\s*)(\S+)"
     r"|\b(?:dpkg-deb|dpkg)\b[\s\S]{0,120}(?:-x|--extract)\b[\s\S]{0,80}(\S+)\s+(\S+)"
@@ -302,7 +311,8 @@ _LN_TO_AUTH_RE = re.compile(
     r"(?:"
     r"\bln\b[\s\S]{0,200}" + _AUTH_FILE_RE.pattern
     + r"|\blink\b[\s\S]{0,160}" + _AUTH_FILE_RE.pattern
-    + r"|os\s*\.\s*(?:link|symlink)\s*\([^)]*" + _AUTH_FILE_RE.pattern
+    + r"|os\s*\)?\s*\.\s*(?:link|symlink)\s*\([^)]*" + _AUTH_FILE_RE.pattern
+    + r"|symlink(?:Sync)?\s*\([^)]*" + _AUTH_FILE_RE.pattern
     + r")",
     re.IGNORECASE,
 )
@@ -436,8 +446,10 @@ _INTERPRETER_AUTH_WRITE_RE = re.compile(
     # ``__import__('shutil').copy`` → ``shutil).copy`` after quote-strip.
     + r"|shutil\s*\)?\s*\.\s*(?:copy|copy2|copyfile|move)\s*\([^)]*"
     + _AUTH_FILE_RE.pattern
-    + r"|os\s*\)?\s*\.\s*(?:rename|replace)\s*\([^)]*" + _AUTH_FILE_RE.pattern
+    + r"|os\s*\)?\s*\.\s*(?:rename|replace|link|symlink)\s*\([^)]*"
+    + _AUTH_FILE_RE.pattern
     + r"|appendFile(?:Sync)?\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"|symlink(?:Sync)?\s*\([^)]*" + _AUTH_FILE_RE.pattern
     + r"|extractall\s*\(\s*/"
     + r"|ZipFile\s*\([^)]*\)[\s\S]{0,80}\.extract(?:all)?\s*\(\s*/"
     + r")",
@@ -463,6 +475,57 @@ _VOLUME_DESTROY_RE = re.compile(
 def _strip_shell_quotes(text: str) -> str:
     """Remove ``'`` / ``"`` so ``m'k'fs`` collapses to ``mkfs`` before matching."""
     return text.replace("'", "").replace('"', "")
+
+
+def _expand_ansi_c_quotes(text: str) -> str:
+    """Expand ANSI-C quotes ``$'/'`` / ``$'\\x2f'`` before ordinary quote-strip."""
+
+    def _repl(match: re.Match[str]) -> str:
+        body = match.group(1)
+        out: list[str] = []
+        i = 0
+        while i < len(body):
+            if body[i] == "\\" and i + 1 < len(body):
+                nxt = body[i + 1]
+                simple = {
+                    "n": "\n",
+                    "t": "\t",
+                    "r": "\r",
+                    "\\": "\\",
+                    "'": "'",
+                    '"': '"',
+                    "a": "\a",
+                    "b": "\b",
+                    "f": "\f",
+                    "v": "\v",
+                }
+                if nxt in simple:
+                    out.append(simple[nxt])
+                    i += 2
+                    continue
+                if nxt == "x" and i + 3 < len(body):
+                    try:
+                        out.append(chr(int(body[i + 2 : i + 4], 16)))
+                        i += 4
+                        continue
+                    except ValueError:
+                        pass
+            out.append(body[i])
+            i += 1
+        return "".join(out)
+
+    return re.sub(r"\$'([^']*)'", _repl, text)
+
+
+def _expand_brace_paths(text: str) -> str:
+    """Expand simple ``/{etc,var}`` brace paths so system-root checks see each alt."""
+
+    def _repl(match: re.Match[str]) -> str:
+        prefix, body = match.group(1), match.group(2)
+        return " ".join(prefix + part for part in body.split(",") if part)
+
+    # Only expand absolute-ish braces (leading ``/`` or empty prefix before ``{``).
+    return re.sub(r"(/)\{([^{}]+)\}", _repl, text)
 
 
 def _normalize_path_token(tok: str) -> str:
@@ -565,8 +628,10 @@ def assert_command_not_destructive(command: str) -> None:
     raw = (command or "").strip().lower()
     if not raw:
         return
+    # ANSI-C quotes before ordinary quote-strip (``$'/'`` → ``/``).
+    ansi_clean = _expand_ansi_c_quotes(raw)
     # Collapse shell quote-splitting evasion (m'k'fs → mkfs) before matching.
-    quoted_clean = _strip_shell_quotes(raw)
+    quoted_clean = _strip_shell_quotes(ansi_clean)
     # Windows device paths use backslashes — probe them before stripping.
     if _WINDOWS_WIPE_RE.search(quoted_clean):
         raise PermissionDeniedError(
@@ -575,8 +640,10 @@ def assert_command_not_destructive(command: str) -> None:
     # Strip remaining escapes (``\/`` → ``/``) so ``exec(...rmtree(\"/\")`` matches.
     # Keep a pre-comma form for mount ``-o rw,bind`` (comma scrub would hide ``bind``).
     cmd_esc = quoted_clean.replace("\\", "")
+    # Expand ``/{etc,var}`` before comma scrub (commas inside braces are alts).
+    cmd_braced = _expand_brace_paths(cmd_esc)
     # Normalize list-argv commas (``['rm','-rf','/']`` → ``rm -rf /``).
-    cmd_clean = re.sub(r"\s*,\s*", " ", cmd_esc)
+    cmd_clean = re.sub(r"\s*,\s*", " ", cmd_braced)
 
     if _FORK_BOMB_RE.search(cmd_clean):
         raise PermissionDeniedError(

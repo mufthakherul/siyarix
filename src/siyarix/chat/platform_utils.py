@@ -322,6 +322,8 @@ def load_env_file() -> None:
             "UV_INSECURE_HOST",
             "LESSOPEN",
             "SUDO_ASKPASS",
+            "GCONV_PATH",
+            "HOSTALIASES",
         }
     )
     _blocked_vars = {
@@ -389,6 +391,8 @@ def load_env_file() -> None:
         "UV_INSECURE_HOST",
         "LESSOPEN",
         "SUDO_ASKPASS",
+        "GCONV_PATH",
+        "HOSTALIASES",
     }
     env_path = get_config_dir() / ".env"
     if not env_path.exists():

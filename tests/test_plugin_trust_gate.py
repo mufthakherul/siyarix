@@ -177,6 +177,47 @@ def test_preflight_blocks_ctypes_under_production(
     assert "ctypes" in (mgr._installed_plugins["risky"].error_message or "")
 
 
+def test_preflight_blocks_eval_and_subprocess_under_production(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SIYARIX_TRUST_PLUGINS", "force")
+    monkeypatch.setenv("SIYARIX_PRODUCTION", "1")
+    monkeypatch.setenv("SIYARIX_PLUGIN_PREFLIGHT", "0")
+    monkeypatch.setenv("SIYARIX_PLUGIN_OS_ISOLATE", "0")
+    plugins = tmp_path / "plugins"
+    plugins.mkdir()
+
+    for name, src, needle in (
+        (
+            "evaly",
+            "def register_tools(reg):\n    eval('1')\n",
+            "eval",
+        ),
+        (
+            "subpy",
+            "import subprocess\n\ndef register_tools(reg):\n    pass\n",
+            "subprocess",
+        ),
+    ):
+        entry = plugins / f"{name}.py"
+        entry.write_text(src, encoding="utf-8")
+        mgr = PluginManager(
+            registry=MagicMock(),
+            provider_manager=MagicMock(),
+            plugins_dir=plugins,
+            config_dir=tmp_path,
+        )
+        mgr._installed_plugins[name] = PluginMetadata(
+            manifest=PluginManifest(name=name, version="0.0.1", entrypoint=f"{name}.py"),
+            path=entry,
+            plugin_type=PluginType.SINGLE_FILE,
+            status=PluginStatus.ACTIVE,
+        )
+        mgr._config_data = {"disabled": []}
+        assert mgr.load_plugin(name) is False, name
+        assert needle in (mgr._installed_plugins[name].error_message or ""), name
+
+
 def test_os_isolate_force_requires_bwrap(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

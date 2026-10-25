@@ -39,6 +39,25 @@ _DANGEROUS_IMPORT_ROOTS = frozenset(
         "code",
         "codeop",
         "importlib.machinery",
+        # SX-A01+: process / network pivots disproportionate for register_tools.
+        "subprocess",
+        "socket",
+        "http.server",
+        "xmlrpc",
+        "xmlrpc.server",
+        "multiprocessing.shared_memory",
+    }
+)
+
+# Builtin / attribute call names that must not appear in production entrypoints.
+_DANGEROUS_CALL_NAMES = frozenset(
+    {
+        "eval",
+        "exec",
+        "compile",
+        "__import__",
+        "breakpoint",
+        "input",  # interactive stdin hijack during load
     }
 )
 
@@ -112,6 +131,33 @@ def _imported_modules_from_tree(tree: ast.AST) -> set[str]:
                 if mod and alias.name:
                     mods.add(f"{mod}.{alias.name}")
     return mods
+
+
+def _call_basename(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    return None
+
+
+def _check_dangerous_calls(tree: ast.AST, path: Path) -> None:
+    hits: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        name = _call_basename(node.func)
+        if name and name in _DANGEROUS_CALL_NAMES:
+            hits.add(name)
+    if not hits:
+        return
+    msg = (
+        f"Plugin entrypoint {path.name} calls high-risk builtins for "
+        f"register_tools: {', '.join(sorted(hits))}"
+    )
+    if _production_posture() or plugin_os_isolate_enabled():
+        raise ValueError(msg)
+    logger.warning("%s (allowed outside production posture)", msg)
 
 
 def _check_dangerous_imports(tree: ast.AST, path: Path) -> None:
@@ -197,6 +243,7 @@ def preflight_plugin_entrypoint(entry_path: Path, *, timeout: float = 15.0) -> N
         raise ValueError(f"Plugin entrypoint syntax error: {exc}") from exc
 
     _check_dangerous_imports(tree, path)
+    _check_dangerous_calls(tree, path)
 
     if not plugin_preflight_enabled():
         return

@@ -53,7 +53,7 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | SX-A02/A10/A11 | Closed | Plugin auto-pip off by default; PEP508-only requirements (reject paths/URLs/VCS); git/pip via `safe_run_sync` scrub; origin re-validated; no CWD index |
 | SX-A06 | Closed | file_key warns by default; `--strict` / `SIYARIX_REQUIRE_MASTER_PASSWORD` / `SIYARIX_PRODUCTION` fail-closed; CredentialStore refuses file_key under those flags |
 | CI | Partial | coverage 70%; Trivy CRITICAL exit 1; `production-check` job; stress/chaos markers; workflows use `uv pip` (not unlocked `pip install -e`) |
-| SX-A01 | Partial+ | Lab: `SIYARIX_TRUST_PLUGINS=1`; production requires `=force`; host AST + scrubbed-subprocess compile preflight; production blocks high-risk entrypoint imports (`ctypes`/`pty`/…); optional `bwrap --unshare-net` preflight via `SIYARIX_PLUGIN_OS_ISOLATE` (default on in prod when bwrap present; `=force` fails closed if missing); `register_tools` still in-process |
+| SX-A01 | Partial+ | Lab: `SIYARIX_TRUST_PLUGINS=1`; production requires `=force`; host AST + scrubbed-subprocess compile preflight; production blocks high-risk imports (`ctypes`/`subprocess`/`socket`/…) and builtins (`eval`/`exec`/`__import__`); optional `bwrap --unshare-net` preflight via `SIYARIX_PLUGIN_OS_ISOLATE` (default on in prod when bwrap present; `=force` fails closed if missing); `register_tools` still in-process |
 | RH-29 | Closed | chisel `R:socks` / `:socks` scanned before hop-host break (in-scope hop cannot pivot) |
 | RH-30 | Closed | sshuttle `0/0` / `0.0.0.0/0` / `::/0` full-tunnel blocked under scope |
 | RH-31 | Closed | Child-env scrub: `AWS_ACCESS_KEY_ID`, bare `*_KEY`, `*_SECRET_KEY`, framework `SECRET_KEY` |
@@ -68,7 +68,7 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | RH-40 | Closed | kubectl/oc/helm/kustomize: stop treating verbs as hosts; block `--context` / `use-context`; validate `--server` |
 | RH-41 | Closed | Wave7 hunter: zpool/mdadm/pvcreate create-on-disk; gem `--install-dir`; patool `--outdir`; bind `/etc`; `/lib/systemd` units; cargo `--root /`; podman `system connection use`; chisel `server --socks5`; dotenv CONSUL/NOMAD/ETCD/registry/SSH_PROXY |
 | RH-42 | Closed | Persistence `/etc/init.d`/`autostart`/`NM dispatcher`; pnpm/composer/bundle install roots; `kpartx -a` on disks; kubectl `proxy`/`port-forward`; skopeo/buildah `docker://`; minikube/kind/istioctl wrappers; dotenv CONTAINERD/PIP/COMPOSE/DOCKER_CONTEXT |
-| ARCH-01 | Partial | Extracted `cli/production_check.py` + `cli/audit_cmds.py` + `cli/tools_cmds.py` + `cli/config_cmds.py` from CLI god-module |
+| ARCH-01 | Partial | Extracted `cli/production_check.py` + `cli/audit_cmds.py` + `cli/tools_cmds.py` + `cli/config_cmds.py` + `cli/compliance_cmds.py` + `cli/playbook_cmds.py` from CLI god-module |
 | FEAT-02 | Honest | `siyarix[api]` reserved but **not** pulled by `[all]` (no in-tree HTTP server) |
 | MOD-P0 | Closed | Dropped dead `google-generativeai` extras; Gemini REST via httpx; OPSEC isolate fail-closed without `memory_only`; stub/compaction honesty defaults |
 | RH-43 | Closed | `mdadm -C`; PAM/`ld.so.conf.d`/spool cron; overlay/`bindfs` on `/etc`; `dpkg --root=/`; brook/mitmproxy SOCKS wrappers; dotenv `PGHOST`/MySQL/Redis transport |

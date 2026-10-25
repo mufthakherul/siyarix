@@ -199,6 +199,11 @@ _PKG_ROOT_RE = re.compile(
     r"(?:=|\s*)(\S+)",
     re.IGNORECASE,
 )
+# Nix/Guix profile root pivots (RH-44): ``nix-env -p /`` / ``guix package -p /``.
+_NIX_GUIX_PROFILE_RE = re.compile(
+    r"\b(?:nix-env|guix)\b[\s\S]{0,160}?(?:--profile|(?<![\w-])-p)(?:=|\s*)(\S+)",
+    re.IGNORECASE,
+)
 # OpenWrt opkg also uses ``-o`` / ``--offline-root`` for the install root.
 _OPKG_ROOT_RE = re.compile(
     r"\bopkg\b[\s\S]{0,160}?(?:--offline-root|--root|(?<![\w-])-o)(?:=|\s*)(\S+)",
@@ -461,12 +466,14 @@ _MOUNT_BIND_AUTH_RE = re.compile(
     r"))",
     re.IGNORECASE,
 )
-# Overlay / FUSE bind onto auth trees (RH-43).
+# Overlay / FUSE bind onto auth trees (RH-43/44).
 _MOUNT_OVERLAY_AUTH_RE = re.compile(
     r"(?:"
     r"\bmount\b[\s\S]{0,200}(?:-t|--types?)(?:=|\s*)overlay\b[\s\S]{0,200}"
     r"(?:lowerdir=/etc\b|/etc\b|(?:\s)/(?:\s*)$)"
     r"|\bbindfs\b[\s\S]{0,160}(?:/etc\b|(?:\s)/(?:\s*)$)"
+    r"|\bfuse-overlayfs\b[\s\S]{0,200}"
+    r"(?:lowerdir=/etc\b|/etc\b|(?:\s)/(?:\s*)$)"
     r")",
     re.IGNORECASE,
 )
@@ -1052,6 +1059,7 @@ def assert_command_not_destructive(command: str) -> None:
         *_PKG_ROOT_RE.finditer(cmd_clean),
         *_APK_ROOT_RE.finditer(cmd_clean),
         *_OPKG_ROOT_RE.finditer(cmd_clean),
+        *_NIX_GUIX_PROFILE_RE.finditer(cmd_clean),
     ):
         if _is_dangerous_extract_dest(pkg_root.group(1)):
             raise PermissionDeniedError(

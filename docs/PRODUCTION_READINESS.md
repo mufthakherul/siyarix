@@ -72,6 +72,7 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | FEAT-02 | Honest | `siyarix[api]` reserved but **not** pulled by `[all]` (no in-tree HTTP server) |
 | MOD-P0 | Closed | Dropped dead `google-generativeai` extras; Gemini REST via httpx; OPSEC isolate fail-closed without `memory_only`; stub/compaction honesty defaults |
 | RH-43 | Closed | `mdadm -C`; PAM/`ld.so.conf.d`/spool cron; overlay/`bindfs` on `/etc`; `dpkg --root=/`; brook/mitmproxy SOCKS wrappers; dotenv `PGHOST`/MySQL/Redis transport |
+| RH-44 | Closed | VPN/mesh/covert tunnels (`wg-quick`/`tailscale`/`clash`/`wstunnel`/`sshx`/…); `rclone mount`; `fuse-overlayfs`; `nix-env`/`guix -p /`; dotenv Tailscale/WireGuard/OpenVPN/Clash |
 | FEAT-03 | Closed | Swarm gated behind `SIYARIX_EXPERIMENTAL_SWARM`; returns `not_implemented` |
 | Dashboard | Closed | Local DB counts only; fabricated MFA/EDR/MTTD KPIs removed |
 | CISA KEV | Closed | Feed status `planned` (was false `integrated`) |

@@ -482,6 +482,10 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "bindfs /tmp /etc",
         "cp evil /var/spool/cron/crontabs/root",
         "dpkg --root=/ -i evil.deb",
+        # RH-44 — fuse-overlayfs + nix/guix profile roots
+        "fuse-overlayfs -o lowerdir=/etc /mnt",
+        "nix-env -i -p / hello",
+        "guix package -p / -i hello",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

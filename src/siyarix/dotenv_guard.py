@@ -506,6 +506,14 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "REDIS_HOST",
         "MONGO_URL",
         "MONGODB_URI",
+        # VPN / mesh client pivots (RH-44).
+        "WG_CONF",
+        "WIREGUARD_INTERFACE",
+        "OPENVPN_CONFIG",
+        "TAILSCALE_AUTHKEY",
+        "TS_AUTHKEY",
+        "CLASH_HOME",
+        "SING_BOX_CONFIG",
     }
 )
 
@@ -602,7 +610,18 @@ def should_skip_dotenv_key(key: str) -> bool:
         "MONGODB_URI",
         "DATABASE_URL",
         "SQLALCHEMY_DATABASE_URI",
+        "WG_CONF",
+        "WIREGUARD_INTERFACE",
+        "OPENVPN_CONFIG",
+        "TAILSCALE_AUTHKEY",
+        "TS_AUTHKEY",
+        "CLASH_HOME",
+        "SING_BOX_CONFIG",
     }:
+        return True
+    if key_upper.startswith("TAILSCALE_") or key_upper.startswith("WIREGUARD_"):
+        return True
+    if key_upper.startswith("OPENVPN_") or key_upper.startswith("CLASH_"):
         return True
     if key_upper.endswith("_EDITOR") and key_upper not in {""}:
         # KUBE_EDITOR / GIT_EDITOR / etc. — editor injection from planted .env.

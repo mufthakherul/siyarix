@@ -209,6 +209,32 @@ _HOST_TOOL_NAMES = frozenset(
         "kind",
         "istioctl",
         "telepresence",
+        # VPN / mesh / covert tunnels (RH-44).
+        "wg-quick",
+        "wireguard",
+        "wg",
+        "openvpn",
+        "openconnect",
+        "tailscale",
+        "frpc",
+        "frps",
+        "clash",
+        "clash-meta",
+        "mihomo",
+        "sing-box",
+        "hysteria",
+        "hysteria2",
+        "trojan",
+        "wstunnel",
+        "dnscat2",
+        "iodine",
+        "pingtunnel",
+        "udp2raw",
+        "kcptun-client",
+        "kcptun-server",
+        "sshx",
+        "softether-vpnclient",
+        "vpncloud",
     }
 )
 # When scope is set, these tools create out-of-engagement pivots / public ingress.
@@ -250,6 +276,32 @@ _SCOPE_BLOCKED_WRAPPERS: frozenset[str] = frozenset(
         "kind",
         "istioctl",
         "telepresence",
+        # VPN / mesh / covert tunnels (RH-44).
+        "wg-quick",
+        "wireguard",
+        "wg",
+        "openvpn",
+        "openconnect",
+        "tailscale",
+        "frpc",
+        "frps",
+        "clash",
+        "clash-meta",
+        "mihomo",
+        "sing-box",
+        "hysteria",
+        "hysteria2",
+        "trojan",
+        "wstunnel",
+        "dnscat2",
+        "iodine",
+        "pingtunnel",
+        "udp2raw",
+        "kcptun-client",
+        "kcptun-server",
+        "sshx",
+        "softether-vpnclient",
+        "vpncloud",
     }
 )
 # Glued short host flags: ``mysql -h1.1.1.1``, ``evil-winrm -i10.0.0.1``, ``sqlcmd -S1.1.1.1``.
@@ -795,6 +847,14 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 f"Proxy/tunnel tool {base!r} is not allowed under authorized scope "
                 f"(authorized scope: {scope_display})"
             )
+    # RH-44: ``rclone mount`` remotes are opaque egress pivots under engagement scope.
+    if re.search(r"\brclone\b", decoded_early, re.IGNORECASE) and re.search(
+        r"(?:^|\s)mount(?:\s|$)", decoded_early, re.IGNORECASE
+    ):
+        raise PermissionDeniedError(
+            f"rclone mount is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
     # Fail-closed: ``psql service=…`` hides the remote host in a service file.
     if re.search(r"\bpsql\b", decoded_early, re.IGNORECASE) and re.search(
         r"(?:\bservice\s*=|--service(?:=|\s))\s*\S+",

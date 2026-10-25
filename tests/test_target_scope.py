@@ -410,6 +410,31 @@ class TestAssertCommandInScope:
         )
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("mysql -h evilhost", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
+            assert_command_in_scope("mysql -h1.1.1.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
+            assert_command_in_scope("psql -h1.1.1.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
+            assert_command_in_scope("redis-cli -h1.1.1.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
+            assert_command_in_scope("evil-winrm -i1.1.1.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
+            assert_command_in_scope(
+                "openssl s_client -connect1.1.1.1:443", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="bastion"):
+            assert_command_in_scope(
+                "hydra -l a -p b bastion ssh", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="bastion"):
+            assert_command_in_scope("medusa -h bastion -u a -p b", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="bastion"):
+            assert_command_in_scope("rdesktop bastion", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="bastion"):
+            assert_command_in_scope("impacket-wmiexec bastion", scope_env=scope)
+        assert_command_in_scope(
+            "hydra -l a -p b 10.1.2.3 ssh", scope_env=scope
+        )
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("psql --host=evilhost", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):

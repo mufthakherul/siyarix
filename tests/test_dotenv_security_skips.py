@@ -55,8 +55,14 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "MAVEN_OPTS=-javaagent:x",
                 "ANSIBLE_SSH_ARGS=-o ProxyJump=evil",
                 "ANSIBLE_INVENTORY=/tmp/inv",
+                "ANSIBLE_CONFIG=/tmp/ansible.cfg",
+                "ANSIBLE_SSH_EXECUTABLE=/tmp/pwn-ssh",
                 "VIMINIT=:!id",
                 "GRADLE_OPTS=-javaagent:x",
+                "SBT_OPTS=-javaagent:x",
+                "SVN_SSH=ssh -o ProxyCommand=evil",
+                "EXINIT=:!id",
+                "RUSTC_WRAPPER=/tmp/pwn",
                 "HTTPS_PROXY=http://evil",
                 "PROMPT_COMMAND=evil",
                 "PRIVATE_KEY=pk",
@@ -161,8 +167,14 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "MAVEN_OPTS",
         "ANSIBLE_SSH_ARGS",
         "ANSIBLE_INVENTORY",
+        "ANSIBLE_CONFIG",
+        "ANSIBLE_SSH_EXECUTABLE",
         "VIMINIT",
         "GRADLE_OPTS",
+        "SBT_OPTS",
+        "SVN_SSH",
+        "EXINIT",
+        "RUSTC_WRAPPER",
         "HTTPS_PROXY",
         "PROMPT_COMMAND",
         "PRIVATE_KEY",
@@ -268,8 +280,14 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "MAVEN_OPTS" not in os.environ
     assert "ANSIBLE_SSH_ARGS" not in os.environ
     assert "ANSIBLE_INVENTORY" not in os.environ
+    assert "ANSIBLE_CONFIG" not in os.environ
+    assert "ANSIBLE_SSH_EXECUTABLE" not in os.environ
     assert "VIMINIT" not in os.environ
     assert "GRADLE_OPTS" not in os.environ
+    assert "SBT_OPTS" not in os.environ
+    assert "SVN_SSH" not in os.environ
+    assert "EXINIT" not in os.environ
+    assert "RUSTC_WRAPPER" not in os.environ
     assert "HTTPS_PROXY" not in os.environ
     assert "PROMPT_COMMAND" not in os.environ
     assert "PRIVATE_KEY" not in os.environ

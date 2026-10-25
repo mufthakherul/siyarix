@@ -237,8 +237,14 @@ def _load_dotenv(path: Path | None = None) -> None:
             "MAVEN_OPTS",
             "ANSIBLE_SSH_ARGS",
             "ANSIBLE_INVENTORY",
+            "ANSIBLE_CONFIG",
+            "ANSIBLE_SSH_EXECUTABLE",
             "VIMINIT",
             "GRADLE_OPTS",
+            "SBT_OPTS",
+            "SVN_SSH",
+            "EXINIT",
+            "RUSTC_WRAPPER",
         }
     )
     _blocked_vars = {
@@ -347,8 +353,14 @@ def _load_dotenv(path: Path | None = None) -> None:
         "MAVEN_OPTS",
         "ANSIBLE_SSH_ARGS",
         "ANSIBLE_INVENTORY",
+        "ANSIBLE_CONFIG",
+        "ANSIBLE_SSH_EXECUTABLE",
         "VIMINIT",
         "GRADLE_OPTS",
+        "SBT_OPTS",
+        "SVN_SSH",
+        "EXINIT",
+        "RUSTC_WRAPPER",
     }
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():

@@ -218,7 +218,7 @@ def get_platform_shell_cmd(command: str) -> list[str]:
 
 
 _DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"\brm\s+(?:-rf\s+)?(?:--no-preserve-root\s+)?/\s*$", re.I),
+    re.compile(r"\brm\s+(?:-rf\s+)?(?:--no-preserve-root\s+)?/(?:\.\s*)?(?:\s|$)", re.I),
     re.compile(r"\bdd\s+if=/dev/zero\s+of=", re.I),
     re.compile(r"\bdd\b.*\bof=/dev/(?!null\b|zero\b)\S+", re.I),
     re.compile(r":\(\)\{\s*:\|:&\s*\};\s*:"),
@@ -227,6 +227,10 @@ _DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\bmkswap\b"),
     re.compile(r"\bchmod\s+-R\s+777\s+/", re.I),
     re.compile(r"\bchown\s+-R\s+[^:]+:[^:]+?\s+/", re.I),
+    re.compile(r"\bfind\b.*(?:-delete\b|-exec\s+rm\b)", re.I),
+    re.compile(r"\b(wipefs|sgdisk|blkdiscard)\b.*(/dev/)", re.I),
+    re.compile(r"\b(?:cp|tee)\b.*/dev/(?:sd|nvme|vd|xvd)", re.I),
+    re.compile(r"shutil\s*\.\s*rmtree\s*\(\s*['\"]/", re.I),
 ]
 
 

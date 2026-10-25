@@ -123,3 +123,24 @@ class TestAssertCommandInScope:
         assert_command_in_scope("nmap 10.1.2.3")
         monkeypatch.delenv("SIYARIX_ALLOWED_SCOPE", raising=False)
         assert "SIYARIX_ALLOWED_SCOPE" not in os.environ
+
+    def test_blocks_percent_encoded_domain(self) -> None:
+        with pytest.raises(PermissionDeniedError, match="evil.com"):
+            assert_command_in_scope("curl http://evil%2ecom/", scope_env="example.com")
+
+    def test_blocks_hex_ipv4(self) -> None:
+        with pytest.raises(PermissionDeniedError, match="127.0.0.1"):
+            assert_command_in_scope("curl http://0x7f000001/", scope_env="example.com")
+
+    def test_blocks_decimal_ipv4(self) -> None:
+        with pytest.raises(PermissionDeniedError, match="127.0.0.1"):
+            assert_command_in_scope("curl http://2130706433/", scope_env="example.com")
+
+    def test_blocks_octal_ipv4(self) -> None:
+        with pytest.raises(PermissionDeniedError, match="127.0.0.1"):
+            assert_command_in_scope("curl http://0177.0.0.1/", scope_env="example.com")
+
+    def test_extract_decodes_percent_domain(self) -> None:
+        ips, domains = extract_targets("curl http://evil%2ecom/")
+        assert "evil.com" in domains
+        assert ips == []

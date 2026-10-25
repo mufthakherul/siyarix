@@ -165,10 +165,11 @@ def review_command(original: str, tool: str, reason: str) -> ReviewResult:
     )
 
     while True:
+        # Default to cancel so Enter never auto-approves a gated command.
         choice = Prompt.ask(
             "[yellow]Review command[/yellow]",
             choices=["edit", "run", "step", "cancel"],
-            default="run",
+            default="cancel",
         )
 
         if choice == "edit":

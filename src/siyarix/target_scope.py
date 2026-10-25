@@ -12,6 +12,7 @@ from __future__ import annotations
 import ipaddress
 import os
 import re
+import urllib.parse
 from typing import Iterable
 
 from .exceptions import PermissionDeniedError
@@ -29,6 +30,15 @@ _IPV4_RE = re.compile(
     r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b"
 )
 
+# Hex / decimal / octal IPv4 obfuscations commonly accepted by curl/wget.
+_IPV4_HEX_RE = re.compile(r"\b0x[0-9a-fA-F]{1,8}\b")
+_IPV4_DECIMAL_RE = re.compile(r"\b(?:[1-9]\d{7,9}|[1-3]\d{9})\b")  # 8–10 digit ints
+# Octal-dotted IPv4 (e.g. 0177.0.0.1). Lookahead requires a 0[0-7]+ octet so
+# ordinary dotted-decimal (127.0.0.1) is not mis-parsed as base-8.
+_IPV4_OCTAL_RE = re.compile(
+    r"\b(?=(?:[0-7]{1,4}\.){0,3}0[0-7]+)(?:[0-7]{1,4}\.){3}[0-7]{1,4}\b"
+)
+
 # Bracketed IPv6 literals: https://[2001:db8::1]/80
 _IPV6_BRACKETED_RE = re.compile(r"\[([0-9a-fA-F:]+)\]")
 
@@ -41,6 +51,9 @@ _IPV6_CANDIDATE_RE = re.compile(
 _DOMAIN_RE = re.compile(
     r"\b(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}|localhost)\b"
 )
+
+# http(s) URLs — used to fail-closed when the host cannot be extracted.
+_HTTP_URL_RE = re.compile(r"https?://[^\s\"']+", re.IGNORECASE)
 
 # Scope entry that is purely an IP or CIDR (not a domain / wildcard).
 _IP_OR_CIDR_RE = re.compile(
@@ -57,12 +70,44 @@ def parse_allowed_scope(scope_env: str | None = None) -> list[str]:
     return [item.strip().lower() for item in raw.split(",") if item.strip()]
 
 
+def _decode_for_extract(command: str) -> str:
+    """URL-decode percent-escapes (and a second pass) so ``evil%2ecom`` is visible."""
+    text = command or ""
+    for _ in range(2):
+        try:
+            decoded = urllib.parse.unquote(text)
+        except Exception:
+            break
+        if decoded == text:
+            break
+        text = decoded
+    return text
+
+
+def _try_int_ip(token: str) -> str | None:
+    """Parse hex/decimal integer forms of IPv4 (e.g. ``0x7f000001``, ``2130706433``)."""
+    try:
+        if token.lower().startswith("0x"):
+            value = int(token, 16)
+        elif token.isdigit():
+            value = int(token, 10)
+        else:
+            return None
+        if not 0 <= value <= 0xFFFFFFFF:
+            return None
+        return str(ipaddress.IPv4Address(value))
+    except (ValueError, OverflowError):
+        return None
+
+
 def extract_targets(command: str) -> tuple[list[str], list[str]]:
     """Extract IP addresses and domain names referenced in *command*.
 
     Returns ``(ips, domains)`` with lowercase domains and string IP forms.
     IPv6 addresses are recognized in both bracketed and bare form.
+    Percent-encoded hosts and hex/decimal/octal IPv4 obfuscations are decoded.
     """
+    text = _decode_for_extract(command)
     ips: list[str] = []
     seen_ips: set[str] = set()
 
@@ -75,14 +120,32 @@ def extract_targets(command: str) -> tuple[list[str], list[str]]:
             seen_ips.add(normalized)
             ips.append(normalized)
 
-    for match in _IPV4_RE.findall(command):
+    for match in _IPV4_RE.findall(text):
         _add_ip(match)
 
-    for match in _IPV6_BRACKETED_RE.findall(command):
+    for match in _IPV4_OCTAL_RE.findall(text):
+        # Convert octal-dotted form (0177.0.0.1) via int(..., 8) per octet.
+        try:
+            parts = [str(int(p, 8)) for p in match.split(".")]
+            _add_ip(".".join(parts))
+        except ValueError:
+            continue
+
+    for match in _IPV4_HEX_RE.findall(text):
+        parsed = _try_int_ip(match)
+        if parsed:
+            _add_ip(parsed)
+
+    for match in _IPV4_DECIMAL_RE.findall(text):
+        parsed = _try_int_ip(match)
+        if parsed:
+            _add_ip(parsed)
+
+    for match in _IPV6_BRACKETED_RE.findall(text):
         _add_ip(match)
 
     # Strip bracketed spans so bare IPv6 scan does not re-parse them oddly.
-    scrubbed = _IPV6_BRACKETED_RE.sub(" ", command)
+    scrubbed = _IPV6_BRACKETED_RE.sub(" ", text)
     # Avoid treating IPv4 as IPv6 candidates.
     scrubbed = _IPV4_RE.sub(" ", scrubbed)
     for match in _IPV6_CANDIDATE_RE.findall(scrubbed):
@@ -90,7 +153,7 @@ def extract_targets(command: str) -> tuple[list[str], list[str]]:
 
     domains: list[str] = []
     seen_domains: set[str] = set()
-    for match in _DOMAIN_RE.findall(command):
+    for match in _DOMAIN_RE.findall(text):
         domain = match.lower()
         # Skip tokens that are valid IPs (e.g. odd parses).
         try:
@@ -152,6 +215,8 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
     """Raise :class:`PermissionDeniedError` if any target is outside authorized scope.
 
     When scope is unset or empty, this is a no-op (caller decides policy).
+    Fail-closed for ``http(s)://`` URLs whose host cannot be extracted/parsed
+    when a scope is configured (blocks obfuscated host bypasses).
     """
     allowed_items = parse_allowed_scope(scope_env)
     if not allowed_items:
@@ -173,3 +238,46 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             raise PermissionDeniedError(
                 f"Target domain {domain} is out of authorized scope: {scope_display}"
             )
+
+    # Fail closed on http(s) URL hosts (including percent-encoded / integer IPv4 forms).
+    decoded = _decode_for_extract(command)
+    for url in _HTTP_URL_RE.findall(decoded):
+        parsed = urllib.parse.urlparse(url)
+        host = urllib.parse.unquote((parsed.hostname or "").strip()).lower()
+        if not host:
+            raise PermissionDeniedError(
+                f"URL host could not be parsed for scope check: {url!r} "
+                f"(authorized scope: {scope_display})"
+            )
+        int_ip = _try_int_ip(host)
+        if int_ip is not None:
+            if not ip_in_scope(int_ip, allowed_items):
+                raise PermissionDeniedError(
+                    f"Target IP {int_ip} is out of authorized scope: {scope_display}"
+                )
+            continue
+        if _IPV4_OCTAL_RE.fullmatch(host):
+            try:
+                dotted = ".".join(str(int(p, 8)) for p in host.split("."))
+            except ValueError as exc:
+                raise PermissionDeniedError(
+                    f"URL host could not be parsed for scope check: {url!r} "
+                    f"(authorized scope: {scope_display})"
+                ) from exc
+            if not ip_in_scope(dotted, allowed_items):
+                raise PermissionDeniedError(
+                    f"Target IP {dotted} is out of authorized scope: {scope_display}"
+                )
+            continue
+        try:
+            ip = str(ipaddress.ip_address(host))
+        except ValueError:
+            if not domain_in_scope(host, allowed_items):
+                raise PermissionDeniedError(
+                    f"Target domain {host} is out of authorized scope: {scope_display}"
+                )
+        else:
+            if not ip_in_scope(ip, allowed_items):
+                raise PermissionDeniedError(
+                    f"Target IP {ip} is out of authorized scope: {scope_display}"
+                )

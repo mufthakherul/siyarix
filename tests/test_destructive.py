@@ -18,6 +18,7 @@ from siyarix.executor import BaseExecutor
         "rm -rf /tmp/scratch",
         "rm -rf /important",  # non-system path; gate patterns may still flag
         "rm -rf /homebrew",  # must not match /home prefix
+        "find /tmp -delete",
         "nmap -sV example.com",
     ],
 )
@@ -38,6 +39,24 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "rm -rf /",
         "rm -fr /etc",
         "rm --recursive --force /var",
+        "rm -rf /.",
+        'rm -rf "/"',
+        "rm -rf //",
+        "rm -rf /./",
+        "rm -rf /boot",
+        "rm -rf /root",
+        "rm -rf /opt",
+        "find / -delete",
+        "find /etc -name '*' -delete",
+        "find / -exec rm -rf {} +",
+        "cp /dev/zero /dev/sda",
+        "tee /dev/sda < /dev/zero",
+        "wipefs -a /dev/sda",
+        "sgdisk --zap-all /dev/sda",
+        "blkdiscard /dev/sda",
+        "shred -n 1 /dev/sdb",
+        "python -c \"import shutil; shutil.rmtree('/')\"",
+        "python -c 'import shutil; shutil.rmtree(\"/etc\")'",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:
@@ -51,3 +70,5 @@ def test_base_executor_delegates_to_shared_helper() -> None:
         ex.check_destructive("dd of=/dev/sda if=/dev/zero")
     with pytest.raises(PermissionDeniedError, match="Formatting"):
         ex.check_destructive("fdisk /dev/sda")
+    with pytest.raises(PermissionDeniedError, match="find -delete"):
+        ex.check_destructive("find / -delete")

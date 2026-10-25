@@ -18,10 +18,73 @@ _RM_DESTRUCTIVE_RE = re.compile(
     r"\brm\b[\s]+(?:-[a-zA-Z]*[rf][a-zA-Z]*\s*)+|\brm\b\s+--(?:recursive|force)",
     re.IGNORECASE,
 )
-_SYSTEM_RM_ROOTS = frozenset({"/etc", "/var", "/bin", "/sbin", "/usr", "/home"})
+_SYSTEM_RM_ROOTS = frozenset(
+    {
+        "/etc",
+        "/var",
+        "/bin",
+        "/sbin",
+        "/usr",
+        "/home",
+        "/boot",
+        "/root",
+        "/opt",
+        "/lib",
+        "/lib64",
+    }
+)
+_ROOT_EQUIV = frozenset({"/", "/*", "/.", "/./", "//", "///"})
 _PARTITION_RE = re.compile(r"\b(mkfs(?:\.\w+)?|fdisk|parted|mkswap)\b", re.IGNORECASE)
 _DD_OF_RE = re.compile(r"\bof=(\S+)", re.IGNORECASE)
 _DD_WORD_RE = re.compile(r"\bdd\b", re.IGNORECASE)
+
+# Block-device node paths (sd / nvme / vd / xvd / hd / loop / dm / mapper).
+_BLOCK_DEV_RE = re.compile(
+    r"/dev/(?:sd[a-z]\d*|nvme\d+n\d+(?:p\d+)?|vd[a-z]\d*|xvd[a-z]\d*|hd[a-z]\d*"
+    r"|loop\d+|dm-\d+|mapper/\S+)",
+    re.IGNORECASE,
+)
+_BLOCK_WIPE_TOOLS_RE = re.compile(
+    r"\b(wipefs|sgdisk|blkdiscard|shred)\b",
+    re.IGNORECASE,
+)
+_CP_TEE_TO_BLOCK_RE = re.compile(
+    r"\b(?:cp|tee|cat|dd)\b[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern,
+    re.IGNORECASE,
+)
+_REDIRECT_TO_BLOCK_RE = re.compile(
+    r">\s*" + _BLOCK_DEV_RE.pattern,
+    re.IGNORECASE,
+)
+_FIND_DELETE_RE = re.compile(
+    r"\bfind\b[\s\S]{0,400}(?:-delete\b|-exec\s+rm\b)",
+    re.IGNORECASE,
+)
+_PY_RMTREE_RE = re.compile(
+    r"(?:shutil\s*\.\s*rmtree|os\s*\.\s*(?:remove|unlink|rmdir)|Path\s*\(\s*['\"]/?['\"]\s*\)\s*\.\s*unlink|"
+    r"pathlib\s*\.\s*Path\s*\(\s*['\"]/?['\"]\s*\)\s*\.\s*(?:unlink|rmdir))",
+    re.IGNORECASE,
+)
+_PY_RMTREE_ROOT_RE = re.compile(
+    r"shutil\s*\.\s*rmtree\s*\(\s*['\"]/(?:etc|var|bin|sbin|usr|home|boot|root|opt|lib|lib64)?['\"]",
+    re.IGNORECASE,
+)
+
+
+def _normalize_path_token(tok: str) -> str:
+    """Strip quotes and collapse trivial root equivalents."""
+    t = tok.strip().strip("'\"")
+    # Collapse repeated slashes and trailing "/." noise for root checks.
+    while "//" in t:
+        t = t.replace("//", "/")
+    if t.endswith("/.") and t != "/.":
+        t = t[:-2] or "/"
+    if t in _ROOT_EQUIV or t in {"/.", "/./", "//", "///"}:
+        return "/"
+    # "/." and "/./" already covered; bare "." after strip of leading slash
+    if t in {".", "./"}:
+        return t
+    return t
 
 
 def _targets_system_path(cmd_clean: str) -> bool:
@@ -29,15 +92,20 @@ def _targets_system_path(cmd_clean: str) -> bool:
 
     Uses token boundaries so ``/tmp`` is not treated as ``/`` (substring trap).
     """
-    for tok in cmd_clean.split():
-        if tok.startswith("-") or tok in {"rm", "sudo", "doas", "--"}:
+    for raw in cmd_clean.split():
+        if raw.startswith("-") or raw in {"rm", "sudo", "doas", "--", "find"}:
             continue
-        if tok in {"/", "/*"}:
+        tok = _normalize_path_token(raw)
+        if tok in {"/", "/*"} or tok in _ROOT_EQUIV:
             return True
         for root in _SYSTEM_RM_ROOTS:
             if tok == root or tok.startswith(root + "/"):
                 return True
     return False
+
+
+def _targets_block_device(cmd_clean: str) -> bool:
+    return bool(_BLOCK_DEV_RE.search(cmd_clean))
 
 
 def assert_command_not_destructive(command: str) -> None:
@@ -54,15 +122,37 @@ def assert_command_not_destructive(command: str) -> None:
     if _DD_WORD_RE.search(cmd_clean):
         of_matches = _DD_OF_RE.findall(cmd_clean)
         if of_matches:
-            of_target = of_matches[-1]  # last ``of=`` wins
+            of_target = _normalize_path_token(of_matches[-1])  # last ``of=`` wins
             if of_target.startswith("/dev/") and of_target not in _ALLOWED_DD_OF:
                 raise PermissionDeniedError(
                     "Destructive command detected: Overwriting block devices is blocked."
                 )
 
+    # Non-dd block-device wipes / copies / redirects onto disks.
+    if _targets_block_device(cmd_clean) and (
+        _BLOCK_WIPE_TOOLS_RE.search(cmd_clean)
+        or _CP_TEE_TO_BLOCK_RE.search(cmd_clean)
+        or _REDIRECT_TO_BLOCK_RE.search(cmd_clean)
+    ):
+        raise PermissionDeniedError(
+            "Destructive command detected: Overwriting block devices is blocked."
+        )
+
+    if _FIND_DELETE_RE.search(cmd_clean) and _targets_system_path(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: find -delete on system paths is blocked."
+        )
+
     if _RM_DESTRUCTIVE_RE.search(cmd_clean) and _targets_system_path(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: Deleting system directory is blocked."
+        )
+
+    if _PY_RMTREE_ROOT_RE.search(cmd_clean) or (
+        _PY_RMTREE_RE.search(cmd_clean) and ("('/')" in cmd_clean or '("/")' in cmd_clean)
+    ):
+        raise PermissionDeniedError(
+            "Destructive command detected: Interpreter wipe of system paths is blocked."
         )
 
     if _PARTITION_RE.search(cmd_clean):

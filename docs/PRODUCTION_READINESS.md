@@ -52,7 +52,7 @@ mypy src/siyarix
 python -m pytest tests/ -q -m "not e2e" --ignore=tests/test_stress_resilience.py
 ```
 
-Latest local checks on this branch: **mypy clean (258 files)**; pytest **6095 passed**, 6 skipped, 62 deselected (`-m "not e2e"`, stress ignored). Additional closures: shared destructive helper across executor/registry/gate/subprocess (precise `/` vs `/tmp`); CLI deep-scan executor injection + alt recheck; threat-intel/decoy IP-pinned HTTPS; `command_review` default true; registry EDIT destructive re-assert; webhook IPv4-mapped unwrap + refuse 3xx on pinned HTTPS; `production-check` command_review + destructive_guard; workflow soft-error→FAILED + skip dependents; playbook `if`/`retries` + edge conditions; kwargs/args/flags/`command` honor `SIYARIX_ALLOWED_SCOPE`; SX-025 PermissionGate + webhook probes.
+Latest local checks on this branch: **mypy clean (258 files)**; full non-e2e pytest green (counts refreshed after gate run). Additional closures: find -delete / block-wipe tools / rm root norms / python rmtree hard-blocks; scope decode of encoded hosts; review default cancel; shared destructive helper; CLI deep-scan executor injection; threat-intel/decoy IP-pinned HTTPS; webhook IPv4-mapped unwrap + refuse 3xx; `command_review` default true; SX-025 PermissionGate + webhook probes.
 
 Additional post-audit hardening (this branch): atomic offline-queue claim + stale reclaim,
 audit flush under RLock, webhook https-only + no-redirect SSRF, playbook step registration, KG vuln

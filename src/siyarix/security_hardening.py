@@ -478,6 +478,26 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "Write to block device",
     ),
     (
+        re.compile(r"\b(?:cp|tee|cat)\b.*/dev/(?:sd[a-z]|nvme\d+|vd[a-z]|xvd[a-z])", re.I),
+        "critical",
+        "Copy/tee onto block device",
+    ),
+    (
+        re.compile(r"\b(wipefs|sgdisk|blkdiscard|shred)\b.*/dev/", re.I),
+        "critical",
+        "Block-device wipe utility",
+    ),
+    (
+        re.compile(r"\bfind\b.*(?:-delete\b|-exec\s+rm\b)", re.I),
+        "critical",
+        "find -delete / -exec rm",
+    ),
+    (
+        re.compile(r"shutil\s*\.\s*rmtree\s*\(\s*['\"]/", re.I),
+        "critical",
+        "Python shutil.rmtree on system path",
+    ),
+    (
         re.compile(r"\bmv\s+/.*\s+/dev/null", re.I),
         "critical",
         "Move files to /dev/null (data destruction)",

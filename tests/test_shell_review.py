@@ -50,6 +50,8 @@ class TestReviewCommand:
         result = review_command("ls -la", "shell", "review needed")
         assert result.decision == ReviewDecision.RUN
         assert result.edited_command == "ls -la"
+        # Enter must not auto-approve — default choice is cancel.
+        assert mock_ask.call_args.kwargs.get("default") == "cancel"
 
     @patch("siyarix.shell_review.sys.stdin")
     @patch("siyarix.shell_review.sys.stdout")

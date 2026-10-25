@@ -229,12 +229,16 @@ _DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
         re.I,
     ),
     re.compile(r"\bmkswap\b"),
-    re.compile(r"\bchmod\s+-[a-zA-Z]*R[a-zA-Z]*\s+\S+\s+/", re.I),
-    re.compile(r"\bchown\s+-[a-zA-Z]*R[a-zA-Z]*\s+[^:]+:[^:]+?\s+/", re.I),
-    re.compile(r"\bchgrp\s+-[a-zA-Z]*R[a-zA-Z]*\s+\S+\s+/", re.I),
-    re.compile(r"\b(?:curl|wget)\b.*(?:-o|--output|-O)\s*/dev/(?:sd|nvme|vd|xvd)", re.I),
+    re.compile(r"\b(?:chmod|chown|chgrp)\b.*(?:-[a-zA-Z]*R[a-zA-Z]*\b|--recursive\b).*/", re.I),
+    re.compile(
+        r"\b(?:curl|wget|fetch|aria2c)\b.*(?:-o|--output(?:-document)?|-O)"
+        r"(?:=|\s+)/dev/(?:sd|nvme|vd|xvd)",
+        re.I,
+    ),
     re.compile(r"\bln\b.*/dev/null.*/etc/(?:passwd|shadow|sudoers)", re.I),
     re.compile(r"\bcp\b\s+(?:-[^\s]+\s+)*\S+\s+/etc/(?:passwd|shadow|sudoers)", re.I),
+    re.compile(r"(?:>{1,2}|\btee\b)\s*/etc/(?:passwd|shadow|sudoers)", re.I),
+    re.compile(r"\b(?:truncate|shred|install)\b.*/etc/(?:passwd|shadow|sudoers)", re.I),
     re.compile(r"\bfind\b.*(?:-delete\b|-exec\s+rm\b)", re.I),
     re.compile(
         r"\b(wipefs|sgdisk|blkdiscard|truncate|shred|hdparm|nvme|cryptsetup|"

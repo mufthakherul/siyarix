@@ -1,4 +1,4 @@
-.PHONY: help install install-dev build build-python build-deb build-all clean clean-dist docs pre-commit test test-quick test-e2e lint lint-fix format format-check typecheck security security-scan coverage benchmark build-docker docker-build docker-up docker-down docker-logs docker-scan docker-build-production build-installers install-sh install-ps1 build-apt-repo publish-pypi publish-testpypi vulture check
+.PHONY: help install install-dev build build-python build-deb build-all clean clean-dist docs pre-commit test test-quick test-e2e lint lint-fix format format-check typecheck security security-scan coverage benchmark build-docker docker-build docker-up docker-down docker-logs docker-scan docker-build-production build-installers install-sh install-ps1 build-apt-repo publish-pypi publish-testpypi vulture check production-check
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
@@ -58,7 +58,11 @@ benchmark: ## Run performance benchmarks
 vulture: ## Run dead code detection
 	vulture src/siyarix/ .vulture_whitelist.py
 
+production-check: ## Run siyarix production readiness checklist
+	siyarix production-check
+
 check: lint format-check typecheck test-quick ## Run all quick quality checks
+	@$(MAKE) production-check
 
 # === Clean ===
 

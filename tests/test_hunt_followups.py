@@ -38,3 +38,24 @@ def test_assert_under_dir_rejects_escape(tmp_path) -> None:
     root.mkdir()
     with pytest.raises(ValueError):
         _assert_under_dir(tmp_path / "outside", root, what="dest")
+
+
+def test_plugin_fetch_url_rejects_ssrf_and_non_https(monkeypatch: pytest.MonkeyPatch) -> None:
+    from siyarix.plugins.manager import _validate_git_clone_url, _validate_plugin_fetch_url
+
+    with pytest.raises(ValueError):
+        _validate_plugin_fetch_url("http://example.com/index.json")
+    with pytest.raises(ValueError):
+        _validate_plugin_fetch_url("https://127.0.0.1/index.json")
+    with pytest.raises(ValueError):
+        _validate_plugin_fetch_url("https://localhost/index.json")
+    with pytest.raises(ValueError):
+        _validate_git_clone_url("git@github.com:org/repo.git")
+
+    import socket
+
+    def _public_dns(host: str, _port: object) -> list[tuple]:
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))]
+
+    monkeypatch.setattr(socket, "getaddrinfo", _public_dns)
+    assert _validate_plugin_fetch_url("https://example.com/index.json").startswith("https://")

@@ -57,6 +57,41 @@ def _assert_under_dir(path: Path, root: Path, *, what: str) -> Path:
     return resolved
 
 
+def _validate_plugin_fetch_url(url: str) -> str:
+    """Require https plugin/registry URLs and reject SSRF destinations."""
+    from siyarix.webhooks import _validate_url
+
+    cleaned = (url or "").strip()
+    if not cleaned.lower().startswith("https://"):
+        raise ValueError(f"Plugin fetch URL must use https: {url!r}")
+    _validate_url(cleaned, allow_ip=False)
+    return cleaned
+
+
+def _safe_urlopen(url: str, *, timeout: float = 8.0, headers: dict[str, str] | None = None):
+    """Open a validated https URL without following redirects (SSRF-safe)."""
+    safe = _validate_plugin_fetch_url(url)
+    req = urllib.request.Request(
+        safe,
+        headers=headers or {"User-Agent": "Siyarix-PluginManager/1.0"},
+    )
+
+    class _NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args: Any, **kwargs: Any) -> None:
+            return None
+
+    opener = urllib.request.build_opener(_NoRedirect)
+    return opener.open(req, timeout=timeout)  # nosec B310
+
+
+def _validate_git_clone_url(url: str) -> str:
+    """Allow only https git remotes (no git@ / file / local SSRF pivots)."""
+    cleaned = (url or "").strip()
+    if cleaned.startswith("git@"):
+        raise ValueError("SSH git remotes are not allowed for plugin install; use https://")
+    return _validate_plugin_fetch_url(cleaned)
+
+
 class PluginManager:
     """Enterprise manager for discovery, loading, lifecycle, and remote registry."""
 
@@ -451,15 +486,14 @@ class PluginManager:
             except Exception:
                 pass
 
-        # 3. Fetch from GitHub remote registry
-        urls = [OFFICIAL_REGISTRY_URL] + self._config_data.get("registry_mirrors", [])
+        # 3. Fetch from GitHub remote registry (https + SSRF checks, no redirects)
+        mirrors = self._config_data.get("registry_mirrors", [])
+        if not isinstance(mirrors, list):
+            mirrors = []
+        urls = [OFFICIAL_REGISTRY_URL] + [str(u) for u in mirrors if isinstance(u, str)]
         for url in urls:
             try:
-                req = urllib.request.Request(
-                    url,
-                    headers={"User-Agent": "Siyarix-PluginManager/1.0"},
-                )
-                with urllib.request.urlopen(req, timeout=6) as resp:
+                with _safe_urlopen(url, timeout=6.0) as resp:
                     raw = resp.read().decode("utf-8")
                     parsed = json.loads(raw)
                     plugins = parsed if isinstance(parsed, list) else parsed.get("plugins", [])
@@ -560,9 +594,9 @@ class PluginManager:
             self.load_plugin(target_name)
             return self._installed_plugins[target_name]
 
-        # Case B: Git Repository URL
+        # Case B: Git Repository URL (https only; SSRF-checked host)
         if name_or_url.startswith(("http://", "https://", "git@")):
-            repo_url = name_or_url
+            repo_url = _validate_git_clone_url(name_or_url)
             target_name = repo_url.rstrip("/").split("/")[-1]
             if target_name.endswith(".git"):
                 target_name = target_name[:-4]
@@ -606,8 +640,8 @@ class PluginManager:
         elif entry:
             # Check if entry provides a direct source git or subdirectory
             source_url = entry.get("source", "")
-            if source_url and source_url.startswith("http"):
-                return self.install(source_url, force=force)
+            if source_url and str(source_url).startswith("http"):
+                return self.install(str(source_url), force=force)
 
             # Download plugin package from official siyarix-plugins repository
             dest.mkdir(parents=True, exist_ok=True)
@@ -618,10 +652,7 @@ class PluginManager:
             for filename in files_to_fetch:
                 file_url = f"{raw_base}/{filename}"
                 try:
-                    req = urllib.request.Request(
-                        file_url, headers={"User-Agent": "Siyarix-PluginManager/1.0"}
-                    )
-                    with urllib.request.urlopen(req, timeout=8) as resp:
+                    with _safe_urlopen(file_url, timeout=8.0) as resp:
                         (dest / filename).write_bytes(resp.read())
                         fetched_any = True
                 except Exception as e:

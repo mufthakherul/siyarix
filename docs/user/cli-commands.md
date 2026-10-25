@@ -61,7 +61,12 @@ siyarix scan <targets...> [OPTIONS]
 
 # 💡 Pro-Tip: You can scan hundreds of IPs at once using a file!
 siyarix scan @targets.txt
+
+# Concurrent multi-target scans (bounded workers; findings are merged)
+siyarix scan @targets.txt --parallel 5
 ```
+
+Key options: `--tool` / `-t`, `--mode` / `-m`, `--output` / `-o`, `--parallel` / `-p` (1–32; default 3), `--timeout`, `--save`, `--notify`, `--dry-run`.
 
 **Scan Presets (The Fast Track):**
 - `siyarix scan-quick <target>`: Rapid port discovery (Top 100 ports, no deep service detection).

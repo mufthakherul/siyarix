@@ -1102,9 +1102,9 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
         tool_count = 0
         try:
-            from ..registry import ToolRegistry
+            from ..registry_factory import make_tool_registry
 
-            reg = ToolRegistry()
+            reg = make_tool_registry()
             reg.scan_path()
             tool_count = len(reg.list_tools())
         except Exception:

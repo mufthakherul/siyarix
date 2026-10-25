@@ -347,9 +347,9 @@ class SmartAutocomplete(Completer):
         self._provider_cache.clear()
         self._session_cache.clear()
         try:
-            from ..registry import ToolRegistry
+            from ..registry_factory import make_tool_registry
 
-            reg = ToolRegistry()
+            reg = make_tool_registry()
             tools = reg.list_tools()
             self._tool_cache = [t.name for t in tools]
         except Exception:
@@ -1159,9 +1159,9 @@ class ConfigPanel:
     @staticmethod
     def _section_tools() -> None:
         try:
-            from ..registry import ToolRegistry
+            from ..registry_factory import make_tool_registry
 
-            reg = ToolRegistry()
+            reg = make_tool_registry()
             count = reg.discover_from_path()
             tools = reg.list_tools()
             if tools:

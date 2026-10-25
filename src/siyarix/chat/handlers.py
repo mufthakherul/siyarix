@@ -812,12 +812,12 @@ class CommandHandlersMixin:
                 return
 
             # Default: list tools
-            from ..registry import ToolRegistry
+            from ..registry_factory import make_tool_registry
             from ..tool_config import ToolConfigManager
             from ..tool_installer import ToolInstaller
             from ..tool_models import ToolCategory, ToolCapability
 
-            reg = ToolRegistry()
+            reg = make_tool_registry()
             cfg_mgr = ToolConfigManager.get_instance()
             installer = ToolInstaller()
 

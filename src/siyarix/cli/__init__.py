@@ -58,7 +58,8 @@ from ..exceptions import ValidationError
 from ..health import get_health
 from ..logging_config import configure_logging
 from ..metrics import get_metrics
-from ..registry import ToolRegistry
+from ..compat import EngineResult
+from ..registry_factory import make_tool_registry
 from ..security_commands import security_app
 from ..validators import validate_target
 from .plugins import plugins_app
@@ -188,7 +189,7 @@ _IS_STDIN_PIPE = not sys.stdin.isatty()
 _CI_MODE = os.getenv("CI", "") or os.getenv("SIYARIX_NO_BANNER", "") or not _IS_TTY
 
 console = Console()
-registry = ToolRegistry()
+registry = make_tool_registry()
 config = SettingsStore()
 configure_logging(config.get("log_level"))
 _load_dotenv()
@@ -1529,7 +1530,14 @@ def scan(
     output: str = typer.Option(
         "table", "--output", "-o", help="Output: table|json|yaml|csv|html|quiet"
     ),
-    _parallel: int = typer.Option(3, "--parallel", "-p", help="Parallel workers"),
+    _parallel: int = typer.Option(
+        3,
+        "--parallel",
+        "-p",
+        help="Max concurrent workers when scanning multiple targets (1 = sequential)",
+        min=1,
+        max=32,
+    ),
     timeout: int = typer.Option(300, "--timeout", help="Timeout per tool (seconds)"),
     save: bool = typer.Option(False, "--save", "-s", help="Save results to database"),
     _notify: bool = typer.Option(False, "--notify", "-n", help="Send notification on completion"),
@@ -1540,6 +1548,7 @@ def scan(
     """Run security scans against one or more targets.
 
     Supports @targets.txt multi-target mode. Prefix a file path with @ to load targets.
+    With 2+ targets, --parallel runs independent per-target scans concurrently.
 
     Examples:
       siyarix scan 192.168.1.1
@@ -1571,6 +1580,117 @@ def scan(
         raise typer.Exit(1)
 
 
+def _build_scan_instruction(target: str, *, tool: str = "", nmap_args: str = "") -> str:
+    """Build a natural-language scan instruction for a single target."""
+    instruction = f"scan {target}"
+    if nmap_args:
+        instruction += f" flags {nmap_args}"
+    if tool:
+        instruction += f" with {tool}"
+    return instruction
+
+
+async def _execute_targets_parallel(
+    targets: list[str],
+    *,
+    mode: str,
+    tool: str = "",
+    nmap_args: str = "",
+    parallel: int = 3,
+    dry_run: bool = False,
+    persist: bool = False,
+) -> EngineResult:
+    """Run one engine.execute per target with bounded concurrency; merge results."""
+    workers = max(1, min(int(parallel), len(targets), 32))
+    sem = asyncio.Semaphore(workers)
+    console.print(
+        f"[dim]Scanning {len(targets)} targets with {workers} parallel workers[/dim]"
+    )
+
+    async def _one(target: str) -> EngineResult:
+        instruction = _build_scan_instruction(target, tool=tool, nmap_args=nmap_args)
+        engine = _get_engine(mode)
+        async with sem:
+            try:
+                return await engine.execute(
+                    instruction,
+                    interactive=False,
+                    dry_run=dry_run,
+                    persist=persist,
+                )
+            except Exception as exc:
+                logger.exception("Parallel scan failed for target %s", target)
+                return EngineResult(
+                    success=False,
+                    summary=f"{target}: failed ({exc})",
+                    error_message=str(exc),
+                )
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold cyan]Parallel scan[/bold cyan]"),
+        TextColumn("{task.description}"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task_id = progress.add_task(f"0/{len(targets)} done", total=len(targets))
+        completed = 0
+        lock = asyncio.Lock()
+
+        async def _tracked(target: str) -> EngineResult:
+            nonlocal completed
+            result = await _one(target)
+            async with lock:
+                completed += 1
+                progress.update(
+                    task_id,
+                    advance=1,
+                    description=f"{completed}/{len(targets)} done",
+                )
+            return result
+
+        raw_results = await asyncio.gather(
+            *[_tracked(t) for t in targets],
+            return_exceptions=True,
+        )
+
+    merged = EngineResult(success=True, summary="")
+    summaries: list[str] = []
+    for target, raw in zip(targets, raw_results, strict=True):
+        if isinstance(raw, BaseException):
+            merged.success = False
+            msg = f"{target}: error ({raw})"
+            summaries.append(msg)
+            merged.error_message = (
+                f"{merged.error_message}; {msg}" if merged.error_message else msg
+            )
+            continue
+        merged.all_findings.extend(raw.all_findings or [])
+        merged.step_results.extend(raw.step_results or [])
+        merged.duration_ms += float(raw.duration_ms or 0.0)
+        merged.retries_performed += int(raw.retries_performed or 0)
+        if raw.raw_output:
+            merged.raw_output = (
+                f"{merged.raw_output}\n{raw.raw_output}" if merged.raw_output else raw.raw_output
+            )
+        if not raw.success:
+            merged.success = False
+        if raw.error_message:
+            merged.error_message = (
+                f"{merged.error_message}; {raw.error_message}"
+                if merged.error_message
+                else raw.error_message
+            )
+        summaries.append(raw.summary or f"{target}: done")
+
+    preview = "; ".join(summaries[:8])
+    if len(summaries) > 8:
+        preview += "…"
+    status = "ok" if merged.success else "partial/fail"
+    merged.summary = f"Parallel scan of {len(targets)} targets ({status}): {preview}"
+    return merged
+
+
 def _execute_scan_core(
     targets: list[str],
     tool: str = "",
@@ -1586,6 +1706,7 @@ def _execute_scan_core(
     nmap_args: str = "",
 ) -> Any:
     """Core scan execution logic (shared between scan and presets)."""
+    _ = timeout, no_banner, profile  # reserved for preset/future CLI wiring
     expanded_targets: list[str] = []
     for t in targets:
         if t.startswith("@"):
@@ -1619,11 +1740,9 @@ def _execute_scan_core(
             f"[red]Invalid output format '{output}'. Valid: {', '.join(valid_outputs)}[/red]"
         )
         raise typer.Exit(1)
-    instruction = f"scan {' '.join(expanded_targets)}"
-    if nmap_args:
-        instruction += f" flags {nmap_args}"
-    if tool:
-        instruction += f" with {tool}"
+    instruction = _build_scan_instruction(
+        " ".join(expanded_targets), tool=tool, nmap_args=nmap_args
+    )
     audit.log(
         event_type=AuditEventType.SCAN_START,
         severity=AuditSeverity.INFO,
@@ -1631,9 +1750,27 @@ def _execute_scan_core(
         action="scan",
         result="started",
         target=",".join(expanded_targets),
-        details={"tool": tool, "mode": mode, "targets": expanded_targets},
+        details={
+            "tool": tool,
+            "mode": mode,
+            "targets": expanded_targets,
+            "parallel": parallel,
+        },
     )
-    if len(expanded_targets) > 1:
+    if len(expanded_targets) > 1 and parallel > 1 and not dry_run:
+        # True multi-target parallelism (previously --parallel was ignored).
+        result = run_async(
+            _execute_targets_parallel(
+                expanded_targets,
+                mode=mode,
+                tool=tool,
+                nmap_args=nmap_args,
+                parallel=parallel,
+                dry_run=dry_run,
+                persist=save,
+            )
+        )
+    elif len(expanded_targets) > 1:
         with Progress(
             SpinnerColumn(),
             TextColumn("[bold cyan]Scanning {task.description}[/bold cyan]"),
@@ -2481,7 +2618,7 @@ def tool_registry_update_metadata(
     output_path: str = typer.Argument(..., help="Path to save the tool metadata JSON"),
 ) -> None:
     """Regenerate the tool metadata file by scanning all binaries on PATH."""
-    reg = ToolRegistry()
+    reg = make_tool_registry()
     count = reg.update_metadata(Path(output_path))
     console.print(f"[green]Successfully updated metadata: {count} tools recorded.[/green]")
 
@@ -3168,10 +3305,26 @@ def compliance_run(
                     res.message,
                 )
             console.print(table)
+            summary = report.summary()
+            uneval = summary.get("NOT_EVALUATED", 0)
+            fails = summary.get("FAIL", 0)
             console.print(
-                f"[green]Assessment complete! Evidence saved to {report.evidence_path}[/green]\n"
-                "[dim](mapping scaffold — NOT_EVALUATED is not a pass)[/dim]"
+                f"[cyan]Evidence written to {report.evidence_path}[/cyan]\n"
+                f"[dim]summary: PASS={summary.get('PASS', 0)} "
+                f"FAIL={fails} NOT_EVALUATED={uneval}[/dim]"
             )
+            if fails:
+                console.print("[red]One or more local probes FAILED.[/red]")
+                raise typer.Exit(2)
+            if uneval:
+                console.print(
+                    "[yellow]Assessment incomplete: NOT_EVALUATED controls remain "
+                    "(scaffold — not an attestation).[/yellow]"
+                )
+                raise typer.Exit(3)
+            console.print("[green]All evaluated local probes passed.[/green]")
+        except typer.Exit:
+            raise
         except Exception as e:
             console.print(f"[red]Assessment failed: {e}[/red]")
             raise typer.Exit(1)

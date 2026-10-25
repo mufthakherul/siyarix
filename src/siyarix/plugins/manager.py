@@ -69,7 +69,11 @@ class PluginManager:
         plugins_dir: Path | None = None,
         config_dir: Path | None = None,
     ) -> None:
-        self.registry = registry or ToolRegistry()
+        if registry is None:
+            from ..registry_factory import make_tool_registry
+
+            registry = make_tool_registry()
+        self.registry = registry
         self.provider_manager = provider_manager or ProviderManager.get_instance()
         self.config_dir = config_dir or get_config_dir()
         self.plugins_dir = plugins_dir or (self.config_dir / "plugins")

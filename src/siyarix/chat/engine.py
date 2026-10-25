@@ -101,8 +101,6 @@ class LLMEngineMixin:
         show_plan: bool = False,
     ) -> None:
         """Execute an instruction — AgentCore for LLM modes, engine for registry modes."""
-        from ..registry import ToolRegistry
-
         # ── Route by mode ──
         if self._mode in ("registry", "offline"):
             pass  # skip agent, go straight to registry engine below
@@ -143,15 +141,9 @@ class LLMEngineMixin:
             "gemini_model": self._settings.get("gemini_model"),
         }
 
-        from ..permission_gate import PermissionGate
+        from ..registry_factory import make_tool_registry
 
-        _gate = PermissionGate() if os.getenv("SIYARIX_SAFE_MODE", "1").strip().lower() not in {
-            "0",
-            "false",
-            "no",
-            "off",
-        } else None
-        reg = ToolRegistry(permission_gate=_gate)
+        reg = make_tool_registry()
         from ..session_log import session_logger
 
         engine = ExecutionEngine(

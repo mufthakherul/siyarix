@@ -39,6 +39,9 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 ## Premium ops
 
 - `siyarix production-check` — security/config readiness table (`--strict` for CI).
+- `siyarix scan @targets.txt --parallel N` — true multi-target concurrent scans (merged findings).
+- `make_tool_registry()` — shared PermissionGate-on-by-default construction for CLI/chat/plugins/core.
+- `siyarix compliance run` — exit `2` on FAIL probes, `3` when NOT_EVALUATED remain (scaffold, not attestation).
 
 ## Verification command
 
@@ -48,7 +51,7 @@ mypy src/siyarix
 python -m pytest tests/ -q -m "not e2e" --ignore=tests/test_stress_resilience.py
 ```
 
-Latest local checks on this branch: **mypy clean (256 files)**; pytest **5997 passed, 6 skipped, 62 deselected** (`-m "not e2e"`, stress ignored).
+Latest local checks on this branch: re-run after parallel-scan + registry_factory landing.
 
 Additional post-audit hardening (this branch): atomic offline-queue claim + stale reclaim,
 audit flush under RLock, webhook no-redirect SSRF, playbook step registration, KG vuln
@@ -56,8 +59,9 @@ reporting, permission-gate empty-command ordering, injection validator fail-clos
 adversarial CRITICAL plan abort, deep-scan scope enforcement, vault key refuse-silent-rotate,
 PermissionGate on by default, no sudo secrets in settings.toml, offline enqueue-on-failure only,
 normalized `rm -fr/--recursive` destructive checks, plugin path/entrypoint sandboxing + pip
-fail-closed, learned-skill review preserved, atomic settings.toml writes, cache_invalidate rowcount.
+fail-closed, learned-skill review preserved, atomic settings.toml writes, cache_invalidate rowcount,
+CLI multi-target `--parallel` concurrency, compliance status exit codes, chat/CLI registry factory.
 
-Goal status: production gates green (`mypy` + **5997** pytest). Absolute “every possible
-bug / most-powerful product forever” is not a finite claim — known SX + hunt P0/P1 items
-are closed with tests; further polish can continue without blocking production use.
+Goal status: production gates must stay green (`mypy` + full non-e2e pytest). Absolute “every
+possible bug / most-powerful product forever” is not a finite claim — known SX + hunt P0/P1
+items are closed with tests; further polish can continue without blocking production use.

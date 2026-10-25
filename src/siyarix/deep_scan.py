@@ -175,7 +175,11 @@ class DeepScanEngine:
         store: OfflineStore | None = None,
         planner: RegistryPlanner | None = None,
     ) -> None:
-        self._registry = registry or ToolRegistry()
+        if registry is None:
+            from .registry_factory import make_tool_registry
+
+            registry = make_tool_registry()
+        self._registry = registry
         self._executor = executor
         self._store = store or OfflineStore()
         self._planner = planner or RegistryPlanner()

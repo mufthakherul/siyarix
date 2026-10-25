@@ -101,7 +101,11 @@ class AgentCore(ExecutionMixin, GraphMixin):
     ) -> None:
         self._mode = mode
         self._status = AgentStatus.IDLE
-        self._registry = registry or ToolRegistry()
+        if registry is None:
+            from ..registry_factory import make_tool_registry
+
+            registry = make_tool_registry()
+        self._registry = registry
         self._planner_registry = RegistryPlanner()
         self._planner_autonomous = AutonomousPlanner()
         self._planner = Planner(

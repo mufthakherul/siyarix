@@ -185,7 +185,7 @@ class TestNotificationDispatcher:
 
     @pytest.mark.asyncio
     async def test_dispatch_generic_webhook(self):
-        url = "https://hooks.example.com/webhook"
+        url = "https://example.com/webhook"
         with patch.dict(os.environ, {"SIYARIX_WEBHOOK_URL": url}):
             nd = NotificationDispatcher()
             with patch("siyarix.notifications.httpx.AsyncClient") as MockClient:

@@ -21,6 +21,8 @@ All notable changes to this project will be documented in this file.
 - Fix SecretRedactor URL-password pattern so the password is redacted (was preserved via bad capture group).
 - Onboarding llama.cpp install: sanitize release tags; follow GitHub redirects only onto allowlisted hosts.
 - Refuse HTTP redirects on Gemini openai_compat clients and onboarding provider API probes.
+- `tty_confirm` fails closed (returns False) when no TTY is attached — never auto-approves.
+- Autonomous/chat paths surface non-TTY review refusal guidance instead of "cancelled by user".
 - Plugin registry/install/git clone: https-only, SSRF destination checks, no redirects.
 - Local-provider `safe_http_*`, ollama auto-start, health/chat/connectivity probes refuse HTTP redirects.
 - Playbook `{{ env.* }}` redacts secret-bearing names (password/token/webhook/…).

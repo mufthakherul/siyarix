@@ -1344,7 +1344,16 @@ class LLMEngineMixin:
             last_executed_plan = plan
 
             if plan.status.name == "CANCELLED":
-                console.print("[yellow]⚠ Command cancelled by user[/yellow]")
+                from siyarix.shell_review import is_interactive, PREAUTHORIZED_ENV_VAR
+
+                if is_interactive():
+                    console.print("[yellow]⚠ Command cancelled by user[/yellow]")
+                else:
+                    console.print(
+                        "[yellow]⚠ Command review refused (non-interactive). "
+                        f"Set {PREAUTHORIZED_ENV_VAR}=1 to pre-authorize, "
+                        "or run from an interactive shell.[/yellow]"
+                    )
                 return True
 
             # Separate Live display output from summary panels

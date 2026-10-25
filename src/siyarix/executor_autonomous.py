@@ -120,16 +120,19 @@ class AutonomousExecutor(BaseExecutor):
 
     async def _review_commands(self, plan: ExecutionPlan) -> bool:
         """Review all shell commands via the confirmation gate."""
-        from .shell_review import review_and_confirm
+        from .shell_review import review_and_confirm, review_refusal_message
 
         for s in plan.steps:
             if not s.command:
                 continue
-            reviewed = review_and_confirm(
-                s.command, "raw", "Raw shell command from LLM-generated plan"
-            )
+            reason = "Raw shell command from LLM-generated plan"
+            reviewed = review_and_confirm(s.command, "raw", reason)
             if reviewed is None:
-                logger.warning("Command cancelled by user: %s", s.command[:60])
+                logger.warning(
+                    "Command review refused (%s): %s",
+                    review_refusal_message(reason),
+                    s.command[:60],
+                )
                 return False
             s.command = reviewed
         return True

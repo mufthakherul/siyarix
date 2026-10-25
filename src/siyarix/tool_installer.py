@@ -32,12 +32,18 @@ logger = logging.getLogger(__name__)
 
 
 def tty_confirm(prompt: str, default: bool = True) -> bool:
-    """Ask a yes/no question via /dev/tty, bypassing prompt_toolkit's raw mode."""
+    """Ask a yes/no question via /dev/tty, bypassing prompt_toolkit's raw mode.
+
+    Fails closed when no TTY is attached: returns ``False`` so destructive or
+    install prompts cannot silently auto-approve under CI/pipes. Callers that
+    need non-interactive opt-in must gate themselves (e.g. ``isatty`` checks or
+    ``SIYARIX_PREAUTHORIZED``). Interactive empty answers still honor *default*.
+    """
     import sys
 
-    # Never block in non-interactive, headless, or automated environments
+    # Never block — and never auto-approve — in non-interactive environments.
     if not hasattr(sys.stdin, "isatty") or not sys.stdin.isatty():
-        return default
+        return False
 
     from rich.console import Console
 

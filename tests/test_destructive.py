@@ -338,6 +338,12 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "gawk -iinplace '{print}' /etc/passwd",
         "install -m 4755 /tmp/sh /bin/bash",
         "install --mode=4755 /tmp/x /usr/bin/id",
+        "rm -rf /et{c,}",
+        "rm -rf /usr{,/local}",
+        "rm -rf /ho{me,}",
+        "opkg --offline-root=/ install x",
+        "opkg -o / install x",
+        "opkg -o/ install x",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

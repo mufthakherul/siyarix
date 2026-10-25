@@ -138,10 +138,10 @@ _GLUED_PROXY_SHORT_RE = re.compile(
 _SHELL_WRAPPERS = frozenset(
     {"sh", "bash", "zsh", "dash", "ksh", "ash", "busybox"}
 )
-# ``bash -c 'nmap evil'`` / ``sh -c "ssh bastion"`` / ``bash -c nmap`` payload.
+# ``bash -c '…'``, ``su user -c '…'``, ``sudo -c '…'``, ``script -c '…'``.
 _SHELL_C_PAYLOAD_RE = re.compile(
-    r"(?i)(?:^|\s)(?:(?:[\w./-]*/)?(?:ba|da|z|k)?sh|ash)\s+"
-    r"(?:-[^\s]*\s+)*-c\s+(?:'([^']*)'|\"([^\"]*)\"|(\S+))"
+    r"(?i)(?:^|\s)(?:(?:[\w./-]*/)?(?:(?:ba|da|z|k)?sh|ash|su|sudo|script))\b"
+    r"[\s\S]{0,80}?(?:--command=|-c)\s+(?:'([^']*)'|\"([^\"]*)\"|(\S+))"
 )
 # UNC hosts: ``//evil-host/share`` (callers normalize ``\\`` → ``/`` first).
 # Negative lookbehind skips URL schemes (``https://host/...``).

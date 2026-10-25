@@ -173,7 +173,12 @@ _UNRAR_CMD_RE = re.compile(r"\b(?:unrar|unar|rar)\b", re.IGNORECASE)
 _PKG_ROOT_RE = re.compile(
     # Non-greedy span so ``-r`` inside ``--root`` is not preferred over ``--root=``.
     r"\b(?:rpm|apk|dnf|yum|zypper|pacman|opkg|pip|pip3|npm|yarn|pnpm)\b[\s\S]{0,160}?"
-    r"(?:--installroot|--root|--prefix|(?<![\w-])-r)(?:=|\s*)(\S+)",
+    r"(?:--installroot|--offline-root|--root|--prefix|(?<![\w-])-r)(?:=|\s*)(\S+)",
+    re.IGNORECASE,
+)
+# OpenWrt opkg also uses ``-o`` / ``--offline-root`` for the install root.
+_OPKG_ROOT_RE = re.compile(
+    r"\bopkg\b[\s\S]{0,160}?(?:--offline-root|--root|(?<![\w-])-o)(?:=|\s*)(\S+)",
     re.IGNORECASE,
 )
 _GIT_SEPARATE_DIR_RE = re.compile(
@@ -526,14 +531,25 @@ def _expand_ansi_c_quotes(text: str) -> str:
 
 
 def _expand_brace_paths(text: str) -> str:
-    """Expand simple ``/{etc,var}`` brace paths so system-root checks see each alt."""
+    """Expand absolute brace paths so system-root checks see each alt.
+
+    Handles ``/{etc,var}``, mid-segment ``/et{c,}`` → ``/etc``, and
+    ``/usr{,/local}`` → ``/usr /usr/local``.
+    """
 
     def _repl(match: re.Match[str]) -> str:
         prefix, body = match.group(1), match.group(2)
-        return " ".join(prefix + part for part in body.split(",") if part)
+        # Keep empty alts (``/et{c,}`` → ``/etc`` + ``/et``).
+        return " ".join(prefix + part for part in body.split(","))
 
-    # Only expand absolute-ish braces (leading ``/`` or empty prefix before ``{``).
-    return re.sub(r"(/)\{([^{}]+)\}", _repl, text)
+    # Absolute path prefix up to ``{alts}``.
+    expanded = text
+    for _ in range(4):  # nested / multi-brace safety bound
+        nxt = re.sub(r"((?:^|\s)/[^\s{]*)\{([^{}]+)\}", _repl, expanded)
+        if nxt == expanded:
+            break
+        expanded = nxt
+    return expanded
 
 
 def _normalize_path_token(tok: str) -> str:
@@ -779,6 +795,7 @@ def assert_command_not_destructive(command: str) -> None:
     for pkg_root in (
         *_PKG_ROOT_RE.finditer(cmd_clean),
         *_APK_ROOT_RE.finditer(cmd_clean),
+        *_OPKG_ROOT_RE.finditer(cmd_clean),
     ):
         if _is_dangerous_extract_dest(pkg_root.group(1)):
             raise PermissionDeniedError(

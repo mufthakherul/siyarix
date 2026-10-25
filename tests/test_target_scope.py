@@ -356,3 +356,17 @@ class TestAssertCommandInScope:
         assert_command_in_scope(
             "ssh -o ProxyJump=10.1.2.3 10.1.2.4", scope_env=scope
         )
+
+    def test_su_sudo_script_c_wrappers_under_scope(self) -> None:
+        scope = "10.0.0.0/8,example.com"
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("su user -c 'ssh evilhost'", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope(
+                "sudo -u root -c 'ssh evilhost'", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="evil-host"):
+            assert_command_in_scope(
+                "script -c 'nmap evil-host' /dev/null", scope_env=scope
+            )
+        assert_command_in_scope("su user -c 'ssh 10.1.2.3'", scope_env=scope)

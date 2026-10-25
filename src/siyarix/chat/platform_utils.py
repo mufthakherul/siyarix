@@ -331,6 +331,9 @@ def load_env_file() -> None:
             "ALL_PROXY",
             "KUBE_CONFIG_PATH",
             "GIT_EXEC_PATH",
+            "RSYNC_RSH",
+            "RSYNC_CONNECT_PROG",
+            "RSYNC_PROXY",
         }
     )
     _blocked_vars = {
@@ -408,6 +411,9 @@ def load_env_file() -> None:
         "socks_proxy",
         "KUBE_CONFIG_PATH",
         "GIT_EXEC_PATH",
+        "RSYNC_RSH",
+        "RSYNC_CONNECT_PROG",
+        "RSYNC_PROXY",
     }
     env_path = get_config_dir() / ".env"
     if not env_path.exists():

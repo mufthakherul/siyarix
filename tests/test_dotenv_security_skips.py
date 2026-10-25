@@ -83,6 +83,9 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "SOCKS_PROXY=socks5://evil",
                 "KUBE_CONFIG_PATH=/tmp/k",
                 "GIT_EXEC_PATH=/tmp/pwn",
+                "RSYNC_RSH=ssh -o ProxyCommand=evil",
+                "RSYNC_CONNECT_PROG=/tmp/pwn",
+                "RSYNC_PROXY=evil:8080",
                 "SIYARIX_HARMLESS=ok",
             ]
         ),
@@ -154,6 +157,9 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "SOCKS_PROXY",
         "KUBE_CONFIG_PATH",
         "GIT_EXEC_PATH",
+        "RSYNC_RSH",
+        "RSYNC_CONNECT_PROG",
+        "RSYNC_PROXY",
         "SIYARIX_HARMLESS",
     ):
         monkeypatch.delenv(key, raising=False)
@@ -226,4 +232,7 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "SOCKS_PROXY" not in os.environ
     assert "KUBE_CONFIG_PATH" not in os.environ
     assert "GIT_EXEC_PATH" not in os.environ
+    assert "RSYNC_RSH" not in os.environ
+    assert "RSYNC_CONNECT_PROG" not in os.environ
+    assert "RSYNC_PROXY" not in os.environ
     assert os.environ.get("SIYARIX_HARMLESS") == "ok"

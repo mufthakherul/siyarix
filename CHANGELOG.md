@@ -93,6 +93,8 @@ All notable changes to this project will be documented in this file.
 - Scope: glued `-oProxyJump=`/`-xIP`/`-Jhost`, quoted `-o'ProxyJump=…'`; socat SOCKS proxy hop.
 - Hard-block clustered `tar -xPf`; `gawk -iinplace`; `install -m 4xxx` setuid onto system bins.
 - `.env` skips `GIT_HTTP(S)_PROXY`/`FTP_PROXY`/`SOCKS_PROXY`/`KUBE_CONFIG_PATH`/`GIT_EXEC_PATH`.
+- Expand mid-path braces (`/et{c,}`, `/usr{,/local}`); block `opkg -o`/`--offline-root` onto `/`.
+- Scope unwraps `su`/`sudo`/`script -c` payloads; `.env` skips `RSYNC_RSH`/`RSYNC_CONNECT_PROG`/`RSYNC_PROXY`.
 - `.env` skips `GCONV_PATH`/`HOSTALIASES`.
 - `.env` skips `NODE_TLS_REJECT_UNAUTHORIZED`/`PIP_TRUSTED_HOST`/`NPM_CONFIG_STRICT_SSL`/`COMPOSER_DISABLE_TLS`/`UV_INSECURE_HOST`.
 - Scope fail-closed on smbclient UNC `//host/share` and `\\host\share`, mount.cifs UNC, socat `TCP:host`, scp remotes, ftp/enum4linux.

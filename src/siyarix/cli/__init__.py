@@ -199,6 +199,9 @@ def _load_dotenv(path: Path | None = None) -> None:
             "ALL_PROXY",
             "KUBE_CONFIG_PATH",
             "GIT_EXEC_PATH",
+            "RSYNC_RSH",
+            "RSYNC_CONNECT_PROG",
+            "RSYNC_PROXY",
         }
     )
     _blocked_vars = {
@@ -276,6 +279,9 @@ def _load_dotenv(path: Path | None = None) -> None:
         "socks_proxy",
         "KUBE_CONFIG_PATH",
         "GIT_EXEC_PATH",
+        "RSYNC_RSH",
+        "RSYNC_CONNECT_PROG",
+        "RSYNC_PROXY",
     }
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():

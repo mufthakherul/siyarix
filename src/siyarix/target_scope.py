@@ -235,6 +235,18 @@ _HOST_TOOL_NAMES = frozenset(
         "sshx",
         "softether-vpnclient",
         "vpncloud",
+        # Mesh / overlay VPN clients (RH-45).
+        "zerotier-cli",
+        "zerotier-one",
+        "netbird",
+        "headscale",
+        "innernet",
+        "firezone",
+        "nebula",
+        "v2raya",
+        "proxifier",
+        "outline-ss-server",
+        "outline-client",
     }
 )
 # When scope is set, these tools create out-of-engagement pivots / public ingress.
@@ -302,6 +314,18 @@ _SCOPE_BLOCKED_WRAPPERS: frozenset[str] = frozenset(
         "sshx",
         "softether-vpnclient",
         "vpncloud",
+        # Mesh / overlay VPN clients (RH-45).
+        "zerotier-cli",
+        "zerotier-one",
+        "netbird",
+        "headscale",
+        "innernet",
+        "firezone",
+        "nebula",
+        "v2raya",
+        "proxifier",
+        "outline-ss-server",
+        "outline-client",
     }
 )
 # Glued short host flags: ``mysql -h1.1.1.1``, ``evil-winrm -i10.0.0.1``, ``sqlcmd -S1.1.1.1``.
@@ -853,6 +877,14 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
     ):
         raise PermissionDeniedError(
             f"rclone mount is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    # RH-45: ``ip tuntap`` / ``ip tunnel`` create out-of-engagement L3 pivots.
+    if re.search(r"\bip\b", decoded_early, re.IGNORECASE) and re.search(
+        r"(?:^|\s)(?:tuntap|tunnel)(?:\s|$)", decoded_early, re.IGNORECASE
+    ):
+        raise PermissionDeniedError(
+            f"ip tuntap/tunnel is not allowed under authorized scope "
             f"(authorized scope: {scope_display})"
         )
     # Fail-closed: ``psql service=…`` hides the remote host in a service file.

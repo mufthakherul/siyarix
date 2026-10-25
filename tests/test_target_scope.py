@@ -650,6 +650,15 @@ class TestAssertCommandInScope:
             )
         with pytest.raises(PermissionDeniedError, match="rclone mount"):
             assert_command_in_scope("rclone mount remote: /mnt", scope_env=scope)
+        # RH-45 — mesh VPN clients + ip tuntap
+        with pytest.raises(PermissionDeniedError, match="zerotier-cli|Proxy/tunnel"):
+            assert_command_in_scope("zerotier-cli join deadbeef", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="netbird|Proxy/tunnel"):
+            assert_command_in_scope("netbird up", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="v2raya|Proxy/tunnel"):
+            assert_command_in_scope("v2raya", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="ip tuntap|tunnel"):
+            assert_command_in_scope("ip tuntap add mode tun siy0", scope_env=scope)
         # RH-33: service-discovery / DB transport env pivots.
         with pytest.raises(PermissionDeniedError, match="CONSUL_HTTP_ADDR|Transport"):
             assert_command_in_scope(

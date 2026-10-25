@@ -65,6 +65,7 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | RH-37 | Closed | `redsocks` / `microsocks` scope-blocked tunnel wrappers |
 | RH-38 | Closed | `pip install --target=/` install-root pivot blocked |
 | RH-39 | Closed | Dotenv skips `MITMPROXY_CONFDIR` / `REDSOCKS_CONF` / `*_CONFDIR` pivots |
+| RH-40 | Closed | kubectl/oc/helm/kustomize: stop treating verbs as hosts; block `--context` / `use-context`; validate `--server` |
 | FEAT-03 | Closed | Swarm gated behind `SIYARIX_EXPERIMENTAL_SWARM`; returns `not_implemented` |
 | Dashboard | Closed | Local DB counts only; fabricated MFA/EDR/MTTD KPIs removed |
 | CISA KEV | Closed | Feed status `planned` (was false `integrated`) |

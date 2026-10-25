@@ -1128,6 +1128,73 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     else:
                         skip_daemon = True
             continue
+        # kubectl/oc/helm/kustomize: API host via kubeconfig already blocked above.
+        # Do not treat verbs (``get``/``list``) as hosts — that false-positives
+        # in-engagement cluster work. Opaque ``--context`` / ``use-context`` hide
+        # the real API server (RH-40).
+        if base in {"kubectl", "oc", "helm", "kustomize"}:
+            rest = tokens[i + 1 :]
+            rest_lower = [t.lower().strip().strip("'\"") for t in rest]
+            for j, low in enumerate(rest_lower):
+                if low in {"use-context", "set-context", "rename-context"}:
+                    raise PermissionDeniedError(
+                        f"{base} {low} is not allowed under authorized scope "
+                        f"(authorized scope: {scope_display}); pass an explicit "
+                        f"--server with an in-scope API host"
+                    )
+                if low == "config" and j + 1 < len(rest_lower):
+                    nxt_cmd = rest_lower[j + 1]
+                    if nxt_cmd in {
+                        "use-context",
+                        "set-context",
+                        "rename-context",
+                        "set-cluster",
+                    }:
+                        raise PermissionDeniedError(
+                            f"{base} config {nxt_cmd} is not allowed under "
+                            f"authorized scope (authorized scope: {scope_display})"
+                        )
+            skip_server = False
+            for nxt in rest:
+                if skip_server:
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(nxt), allowed_items, scope_display
+                    )
+                    skip_server = False
+                    continue
+                if not nxt.startswith("-"):
+                    continue
+                glued = _glued_host_flag_value(
+                    nxt,
+                    short=frozenset(),
+                    long=frozenset({"--server", "--host"}),
+                )
+                if glued:
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(glued), allowed_items, scope_display
+                    )
+                    continue
+                flag = nxt.split("=", 1)[0]
+                if flag in {"--context", "--kube-context", "--cluster"} or (
+                    flag.startswith("--context")
+                    or flag.startswith("--kube-context")
+                    or flag.startswith("--cluster")
+                ):
+                    raise PermissionDeniedError(
+                        f"{base} {flag} is not allowed under authorized scope "
+                        f"(authorized scope: {scope_display}); pass an explicit "
+                        f"--server with an in-scope API host"
+                    )
+                if flag in {"--server", "--host"}:
+                    if "=" in nxt:
+                        _assert_host_token_in_scope(
+                            _proxy_host_from_val(nxt.split("=", 1)[1]),
+                            allowed_items,
+                            scope_display,
+                        )
+                    else:
+                        skip_server = True
+            continue
         # DB / RDP / WinRM host flags (``mysql -h``, ``xfreerdp /v:``).
         if base in {
             "mysql",

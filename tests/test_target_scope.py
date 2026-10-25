@@ -630,6 +630,26 @@ class TestAssertCommandInScope:
             )
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("nikto -h evilhost", scope_env=scope)
+        # RH-40: kubectl verbs are not hosts; opaque context switches are blocked.
+        assert_command_in_scope("kubectl get pods", scope_env=scope)
+        assert_command_in_scope("helm list", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="context|use-context"):
+            assert_command_in_scope(
+                "kubectl --context prod get pods", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="use-context"):
+            assert_command_in_scope(
+                "kubectl config use-context prod", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope(
+                "kubectl --server=https://evilhost:6443 get pods",
+                scope_env=scope,
+            )
+        assert_command_in_scope(
+            "kubectl --server=https://10.0.0.1:6443 get pods",
+            scope_env=scope,
+        )
 
     def test_su_sudo_script_c_wrappers_under_scope(self) -> None:
         scope = "10.0.0.0/8,example.com"
